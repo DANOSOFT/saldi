@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_genfakt.php --- ver 5.1.0 --- 2026-09-16 ---
+// --- debitor/ret_genfakt.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -41,6 +41,9 @@
 // 20241216 PHR PHP8
 // 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261105 CL/LH Two users adding lines to one subscription order no longer give lines the same posnr (testlab concurrent-posting DEVY-1, same code as debitor/ordre.php).
+//                Each order in the form carries the ids of the lines it was drawn with (order_lines_drawn), and its save puts a new line after the lines it did not show and keeps those off the positions it writes (includes/stdFunc/orderLinePositions.php).
+//                Each order's lines are saved in a transaction of their own that locks the order row first, so a second save reads the lines the first one wrote.
 
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -66,6 +69,7 @@ include("../includes/ordrefunc.php");
 include("../includes/var2str.php");
 include("../includes/forfaldsdag.php");
 include("../includes/oioublfunk.php");
+include_once(__DIR__ . '/../includes/stdFunc/orderLinePositions.php');
 
 $incl_moms='';
 $art='DO';
@@ -255,34 +259,57 @@ if ($_GET['ordreliste']) {
 		}
 	}
 	if ($fejltekst) print "<BODY onLoad=\"javascript:alert('$fejltekst')\">\n";
+	// Each order's lines are saved in a transaction of their own, which locks the order row first, as debitor/ordre.php
+	// saves an order: a colleague's save of the order ends before this one reads its lines.
+	$linesDrawn = if_array($_POST, 'order_lines_drawn'); // the ids of each order's lines when the form was drawn
+	$linesByOrder = array();
 	for ($x=1 ; $x<=$linjeantal ; $x++) {
-		if ($posnr[$x]=='-') {
-			if ($linje_id[$x]) db_modify("delete from ordrelinjer where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
-		} else {
+		$linesByOrder[(int)($ordre_id[$x] ?? 0)][] = $x;
+	}
+	foreach ($linesByOrder as $lineOrderId => $orderLines) {
+		$linesAddedSinceForm = array();
+		if ($lineOrderId) {
+			transaktion('begin');
+			order_lines_lock($lineOrderId);
+			// Lines this form did not show (added by a colleague), before this save writes any line of the order.
+			$linesAddedSinceForm = order_lines_added_since($lineOrderId, $linesDrawn[$lineOrderId] ?? null, $linje_id);
+		}
+		foreach ($orderLines as $x) {
+			if ($posnr[$x]=='-') {
+				if ($linje_id[$x]) db_modify("delete from ordrelinjer where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+			} else {
 #			if ($ordreliste[$x])
-			$posnr[$x]=$posnr[$x]*1;
-			if ($dkantal[$x]=='') $dkantal[$x]=1; 
-			$antal=usdecimal($dkantal[$x]);
-			(strlen($dkpris[$x]))?$pris=usdecimal($dkpris[$x]):$pris=NULL; #20130916
-			$rabat=usdecimal($dkrabat[$x]);
-			$procent=usdecimal($dkprocent[$x]);
-			$beskrivelse[$x]=trim(db_escape_string($beskrivelse[$x]));
-			if (!$projekt[$x]) $projekt[$x]='';
+				$posnr[$x]=$posnr[$x]*1;
+				if ($dkantal[$x]=='') $dkantal[$x]=1;
+				$antal=usdecimal($dkantal[$x]);
+				(strlen($dkpris[$x]))?$pris=usdecimal($dkpris[$x]):$pris=NULL; #20130916
+				$rabat=usdecimal($dkrabat[$x]);
+				$procent=usdecimal($dkprocent[$x]);
+				$beskrivelse[$x]=trim(db_escape_string($beskrivelse[$x]));
+				if (!$projekt[$x]) $projekt[$x]='';
+				// A new line put after every line the form showed also goes after the lines added since. Pos is posnr here.
+				if (empty($linje_id[$x]) && $lineOrderId) $posnr[$x] = order_line_new_position($lineOrderId, $linesAddedSinceForm, $posnr[$x], 1);
 # if ($linje_id[$x]) echo "update ordrelinjer set posnr='$posnr[$x]',antal='$antal',beskrivelse='$beskrivelse[$x]',pris='$pris',rabat='$rabat',kdo='$kdo[$x]',projekt='$projekt[$x]' where id='$linje_id[$x]'<br>";
-			if ($linje_id[$x]) {
-				$pris*=1;
-				$qtxt = "update ordrelinjer set posnr='$posnr[$x]',antal='$antal',beskrivelse='$beskrivelse[$x]',pris='$pris',rabat='$rabat',";
-				$qtxt.= "procent='$procent',kdo='$kdo[$x]',projekt='$projekt[$x]' where id='$linje_id[$x]'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			} elseif ($varenr[$x]) {
-				opret_ordrelinje($ordre_id[$x],'',$varenr[$x],$antal,$beskrivelse[$x],$pris,$rabat,$procent,$art,'',$posnr[$x],0,$incl_moms,
-				$kdo[$x],'','','','','',0,__line__);
-			} elseif ($beskrivelse[$x])  {
-				$qtxt = "insert into ordrelinjer (posnr,antal,beskrivelse,pris,rabat,ordre_id,kdo,procent) values ";
-				$qtxt.= "('$posnr[$x]','0','$beskrivelse[$x]','0','0','$ordre_id[$x]','$kdo[$x]','100')";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			} else $ordre_id[$x]=NULL;
-		}   
+				if ($linje_id[$x]) {
+					$pris*=1;
+					$qtxt = "update ordrelinjer set posnr='$posnr[$x]',antal='$antal',beskrivelse='$beskrivelse[$x]',pris='$pris',rabat='$rabat',";
+					$qtxt.= "procent='$procent',kdo='$kdo[$x]',projekt='$projekt[$x]' where id='$linje_id[$x]'";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				} elseif ($varenr[$x]) {
+					opret_ordrelinje($ordre_id[$x],'',$varenr[$x],$antal,$beskrivelse[$x],$pris,$rabat,$procent,$art,'',$posnr[$x],0,$incl_moms,
+					$kdo[$x],'','','','','',0,__line__);
+				} elseif ($beskrivelse[$x])  {
+					$qtxt = "insert into ordrelinjer (posnr,antal,beskrivelse,pris,rabat,ordre_id,kdo,procent) values ";
+					$qtxt.= "('$posnr[$x]','0','$beskrivelse[$x]','0','0','$ordre_id[$x]','$kdo[$x]','100')";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				} else $ordre_id[$x]=NULL;
+			}
+		}
+		if ($lineOrderId) {
+			// The positions this form wrote may be those of lines it never showed.
+			order_lines_keep_added_apart($lineOrderId, $linesAddedSinceForm);
+			transaktion('commit');
+		}
 	}
 	
 	for ($x=0 ; $x<=$ordreantal ; $x++) {
@@ -463,6 +490,8 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 #	if ($stam_email[$x]) $spantekst2.="<br>$stam_email[$x]";
 
 	print "<input type=\"hidden\" name=\"ordreliste[$x]\" value=\"$id[$x]\">";
+	// The ids of the order's lines, read before they are drawn below and printed before the fields each line repeats.
+	print "<input type=\"hidden\" name=\"order_lines_drawn[$id[$x]]\" value=\"" . order_lines_drawn($id[$x]) . "\">";
 	print "<input type=\"hidden\" name=\"projekt[$x]\" value=\"$projekt[$x]\">";
 	print "<tr><td width=\"100%\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"1\" width=\"100%\"><tbody>";
 	print "<tr>";

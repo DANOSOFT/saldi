@@ -106,6 +106,9 @@
 //                The save looks up the exchange rate after the supplier, so the header stores the rate of the currency it stores.
 //                A currency without a rate stores 0, as a rate of 0 does, instead of breaking the header update.
 //                An opened order reads $_GET['kontonr'] only when it is there.
+// 20261105 CL/LH Two users adding lines to one purchase order no longer give lines the same posnr (testlab concurrent-posting DEVY-1, same code as debitor/ordre.php).
+//                The form carries the ids of the lines it was drawn with (order_lines_drawn), and its save puts a new line after the lines it did not show and keeps those off the positions it writes (includes/stdFunc/orderLinePositions.php).
+//                A line moved in from another order keeps its id, and counts as one the form did not show.
 
 @session_start();
 $s_id=session_id();
@@ -149,6 +152,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
+require_once __DIR__ . '/../includes/stdFunc/orderLinePositions.php';
 // 20260923 SZ SST-755 (CodeRabbit): one random per-render token, reused by both sidehoved()'s
 // exit link and the unload beacon further down (see refresh_lock_token() in unlockRecord.php).
 $sessionLockToken = bin2hex(random_bytes(16));
@@ -467,6 +471,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$sum = if_isset($_POST, NULL, 'sum');
 		$linjeantal = if_isset($_POST, NULL, 'linjeantal');
 		$linje_id = if_isset($_POST, NULL, 'linje_id');
+		$linesDrawn = $_POST['order_lines_drawn'] ?? null; // the ids of the order's lines when the form was drawn
 		$kred_linje_id = if_isset($_POST, NULL, 'kred_linje_id');
 		$vare_id = if_isset($_POST, NULL, 'vare_id');
 		$posnr = if_isset($_POST, NULL, 'posnr');
@@ -730,6 +735,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			include_once(__DIR__ . '/orderIncludes/insertAccount.php');
 			$id = insertAccount($id, $konto_id, false);
 		}	elseif(($konto_id)&&($firmanavn)) {
+			// Lines this form did not show (added by a colleague, or moved in). The order is locked, so a save that ran meanwhile has committed its lines.
+			$linesAddedSinceForm = order_lines_added_since($id, $linesDrawn, $linje_id);
 			$sum=0;
 			for($x=1; $x<=$linjeantal; $x++) {
 				if (!($antal[$x])) $antal[$x] = 0;
@@ -957,6 +964,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 #					if ((strpos($posnr_ny[$x], '+'))&&($id)) indsaet_linjer($id, $linje_id[$x], $posnr_ny[$x]);
 				}
 			}
+			// A new line put after every line the form showed also goes after the lines added since.
+			$posnr_ny[0] = order_line_new_position($id, $linesAddedSinceForm, $posnr_ny[0]);
 			if ( $posnr_ny[0] > 0 && $submit != 'lookup' ) {
 				if (!$varenr[0] && $lev_varenr[0] && $konto_id) {
 					$qtxt = "select varer.varenr from varer, vare_lev where vare_lev.lev_varenr = '$lev_varenr[0]' and vare_lev.lev_id = '$konto_id' and vare_lev.vare_id = varer.id";
@@ -1083,6 +1092,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					if ($status==2) $status=1;
 				}
 			}
+			// The positions this form wrote may be those of lines it never showed.
+			order_lines_keep_added_apart($id, $linesAddedSinceForm);
 			if($submit != 'lookup' && $submit != 'split'){
 				$query = db_select("select tidspkt from ordrer where id=$id and (hvem='$brugernavn' or hvem='' or hvem is null)",__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {
@@ -1320,6 +1331,8 @@ function ordreside($id) {
 	if (!$id) $fokus='kontonr';
 
 	print "<form name='ordre' action='ordre.php' method='post'>";
+	// Read before the lines are drawn, and printed before the fields each line repeats (max_input_vars).
+	if ($id) print "<input type='hidden' name='order_lines_drawn' value='" . order_lines_drawn($id) . "'>";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
 	if ($id) {

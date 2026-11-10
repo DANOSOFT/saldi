@@ -176,6 +176,9 @@
 // 20261103 CL/ASR QA round 2: GET links that create an order (konto_id or funktion opret_ordre without an id) or move an order to another customer (konto_id with fokus) need write.
 // 20261105 CL/LH ordreside() keeps the order's VAT rate in the global $momssats, which ordrelinjer() compares each line's rate with.
 //                Only a save set that global, so opening an order without saving counted every line as mixed VAT and stored the lines' VAT (5 x 125,01: 156,27) instead of the VAT of the net that Gem and the invoice give (156,26).
+// 20261105 CL/LH Two users adding lines to one order no longer give lines the same posnr (testlab concurrent-posting DEVY-1).
+//                The form carries the ids of the lines it was drawn with (order_lines_drawn), and its save puts a new line after the lines it did not show and keeps those off the positions it writes (includes/stdFunc/orderLinePositions.php).
+//                The save locks the order row first, so a second save reads the lines the first one wrote, and the sets are numbered under the same lock.
 
 @session_start();
 $s_id = session_id();
@@ -222,6 +225,7 @@ include("../includes/online.php");
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
+include_once(__DIR__ . '/../includes/stdFunc/orderLinePositions.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -1206,6 +1210,7 @@ if ($b_submit) {
 
 	$linjeantal      = if_isset($_POST, NULL, 'linjeantal');
 	$linje_id        = if_isset($_POST, NULL, 'linje_id');
+	$linesDrawn      = $_POST['order_lines_drawn'] ?? null; // the ids of the order's lines when the form was drawn
 	$kred_linje_id   = if_isset($_POST, NULL, 'kred_linje_id');
 	$posnr           = if_isset($_POST, NULL, 'posnr');
 	$sag_id          = if_isset($_POST, NULL, 'sag_id');
@@ -1715,6 +1720,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		$valuta = $ny_valuta;
 	}
 	transaktion("begin");
+	// First in the transaction: a colleague's save of this order ends before this one reads its lines.
+	// Not for Kopi and Kred: they write a new order, and Kred locks the whole ordrer table for its number.
+	if ($id && !strstr($b_submit, "Kopi") && !strstr($b_submit, "Kred")) order_lines_lock($id);
 	if ($levdato) $levdate = usdate($levdato);
 	if ($fakturadato) $fakturadate = usdate($fakturadato);
 	#  if (($konto_id)&&(!$ref)&&($status<3)) {
@@ -1894,6 +1902,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			}
 		}
 	} elseif ($id && ($kontonr) && ($status < 3)) {
+		// Lines this form did not show (added by a colleague, or moved in), before this save writes any line.
+		$linesAddedSinceForm = order_lines_added_since($id, $linesDrawn, $linje_id);
 		$sum = 0;
 		for ($x = 1; $x <= $linjeantal; $x++) {
 			#      $antal[$x]*=1;
@@ -2278,6 +2288,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		}
 		// MB-74: a reload/resend or double-click of the POST that already added this line adds nothing.
 		$orderLineReplay = orderLineIsReplay($_SESSION, (int)$id, $orderLineReplayKey);
+		// A new line put after every line the form showed also goes after the lines added since.
+		$posnr_ny[0] = order_line_new_position($id, $linesAddedSinceForm, $posnr_ny[0]);
 		// User clicked 'Opslag'
 		if (($posnr_ny[0]) && (!strstr($b_submit, 'Opslag')) && !$orderLineReplay) {
 			// Varenr is not set
@@ -2447,6 +2459,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$orderLineSaved = true;
 			}
 		}
+		// The positions this form wrote may be those of lines it never showed. The sets are numbered first, as below.
+		order_lines_keep_added_apart($id, $linesAddedSinceForm, (bool)$vis_saet);
 
 		if ($id) {
 			$timestamp = $who = NULL;
@@ -3378,20 +3392,12 @@ if ($id && $brugsamletpris && $rabatvare_nr && db_fetch_array(db_select("select 
 }
 
 if ($status < 3 && $vis_saet && $id) { #20170318
-	$saets = array();
-	$x = 0;
-	$qtxt = "select id,saet,samlevare,posnr from ordrelinjer where ordre_id=$id and saet>0 order by saet,samlevare,id";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		if (in_array($r['saet'], $saets)) {
-			$posnr[$x]++;
-			db_modify("update ordrelinjer set posnr='$posnr[$x]' where id='$r[id]'", __FILE__ . " linje " . __LINE__);
-		} else {
-			$x++;
-			$saets[$x] = $r['saet'];
-			$posnr[$x] = $r['posnr'];
-		}
-	}
+	// Under the order's lock, so the sets are not numbered from positions a save is changing.
+	$setsOwnTransaction = empty($db_transaktion_depth);
+	if ($setsOwnTransaction) transaktion("begin");
+	order_lines_lock($id);
+	order_sets_number($id);
+	if ($setsOwnTransaction) transaktion("commit");
 }
 if ($status < 3 && isset($_GET['updateOrderCost']) && $_GET['updateOrderCost']) {
 	include('orderIncludes/updateOrderCost.php');
@@ -4766,6 +4772,8 @@ function ordreside($id, $regnskab)
 		print "<div class=\"ordreform\">\n";
 		print "<form name=\"ordre\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
 		print "<input type=\"hidden\" name=\"order_form_token\" value=\"" . orderFormToken() . "\">\n"; // MB-74
+		// Read before the lines are drawn, and printed before the fields each line repeats (max_input_vars).
+		if ($id) print "<input type=\"hidden\" name=\"order_lines_drawn\" value=\"" . order_lines_drawn($id) . "\">\n";
 		if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
 			$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 			if ($swTextsJson === false) $swTextsJson = '{}';
