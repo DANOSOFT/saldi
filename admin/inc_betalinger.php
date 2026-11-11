@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_betalinger.php --- ver 5.1.0 --- 2026.10.29 ---
+// --- admin/inc_betalinger.php --- ver 5.1.0 --- 2026.11.11 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 3 "Betalinger og fakturering" on the customer card.
@@ -11,6 +11,7 @@
 //                 Channel 'stripe' = card on file; new channel 'stripe_sub' = the old Stripe subscriptions (production customers until migration M1), which get no Saldi invoices meanwhile and are shown as such instead of "no invoices".
 //                 The billing customer number (regnskab_billing.billing_kontonr) is the coupling the customer's own invoice overview (billing overview spec F1) needs: it is stored automatically when the API lookup matches the ledger's CVR, or with one click from the lookup result.
 // 20261029 CL/ASR regnskab_billing and its columns are created by the update chain (operatorPanelSchema.php).
+// 20261111 CL/ASR An invoice date from the billing API that PHP cannot read no longer becomes a 1970 due date and a false "overdue": bill_cache_store() keeps the stored summary and puts the reason in $data['error'] for the page (new bill_date_error(), review #785).
 
 if (!function_exists('bill_tables_ensure')) {
 function bill_tables_ensure() {
@@ -37,12 +38,21 @@ function bill_set_payer($rid, $payer) {
 	db_modify("update regnskab_billing set payer_regnskab_id = ".($payer && $payer != $rid ? "'$payer'" : "NULL").", updated_by = '".db_escape_string(ent_actor())."', updated_at = now() where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__);
 	partner_log('billing.payer_set', $rid, null, $payer && $payer != $rid ? "faktureres via regnskab $payer" : 'faktureres selv');
 }
-// Summarise fetched invoices and store the summary for the overview.
-function bill_cache_store($rid, $data, $cfg, $search = '') {
+// 20261111 CL/ASR Invoice dates from the billing API that PHP cannot read: bill_classify() would date such an invoice from
+//                  1970 and call it overdue, and such a date can also break the update. The callers then keep the stored summary
+//                  and show this text ('' = every date can be read) (review #785).
+function bill_date_error($invoices) {
+	$bad = array();
+	foreach ((array)$invoices as $i) if (!empty($i['invoiceDate']) && strtotime((string)$i['invoiceDate']) === false) $bad[] = '#'.(string)($i['invoiceNo'] ?? $i['orderNo'] ?? '?').' ('.(string)$i['invoiceDate'].')';
+	return $bad ? vr_t('Betalingsstatus er ikke opdateret, fordi faktureringsregnskabet sendte en fakturadato, der ikke kan læses:','Payment status not updated, because the billing ledger sent an invoice date that cannot be read:').' '.implode(', ', $bad) : '';
+}
+// Summarise fetched invoices and store the summary for the overview. A date error is added to $data['error'] for the page.
+function bill_cache_store($rid, &$data, $cfg, $search = '') {
 	bill_cache_ensure(); if (isset($data['error'])) return;
 	$c = $data['customer'];
 	// coupling for the customer's own invoice overview (F1): keep the found customer number when the lookup was an exact CVR match
 	if (empty($cfg['billing_kontonr']) && !empty($c['kontonr']) && preg_match('/^\d{8}$/', $sd = preg_replace('/\D/', '', (string)$search)) && preg_replace('/\D/', '', (string)($c['cvrnr'] ?? '')) === $sd) bill_set_kontonr($rid, (string)$c['kontonr'], "CVR-opslag $sd"); $defaultDays = (int)($c['betaling']['betalingsdage'] ?? 0); $open = 0; $openN = 0; $overdueN = 0; $oldest = null; $last = null;
+	if (($dateErr = bill_date_error($data['invoices'])) !== '') { $data['error'] = $dateErr; return; }
 	foreach ($data['invoices'] as $i) { list($st, $due, $tot) = bill_classify($i, $defaultDays); if (!$last && !empty($i['invoiceDate'])) $last = $i['invoiceDate']; if ($st != 'paid') { $open += $tot; $openN++; if ($st == 'overdue') { $overdueN++; if (!$oldest || $due < $oldest) $oldest = $due; } } }
 	$failed = !empty($c['stripe']['status']) && (in_array($c['stripe']['status'], array('past_due','unpaid')) || (!empty($c['stripe']['lastFailedAt']) && (empty($c['stripe']['lastPaidAt']) || $c['stripe']['lastFailedAt'] > $c['stripe']['lastPaidAt'])));
 	$status = $failed ? 'failed' : ($overdueN ? 'overdue' : ($openN ? 'pending' : ($data['invoices'] ? 'paid' : 'none')));

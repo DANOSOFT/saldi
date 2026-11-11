@@ -20,6 +20,8 @@ $s_id=session_id();
 //                  link and unlink ledgers, add and remove employees (master users). A partner owner sees their own
 //                  partner as "Mit firma" and may manage employees' customer scope.
 // 20261109 CL/ASR Moving an account is refused unless it exists, is actively linked to this partner and not already to the target, and closing a partner returns to the partner list on operator_panel.php with the note (review #785).
+//                 Those checks and partner_move_ledger() run in one transaction with the source link locked, so a move that fails halfway is rolled back and the source link stays active (review #785).
+//                 The MRR on the Kunder tab counts an on/off add-on once and multiplies only counted add-ons by their quantity, the same rule as the Abonnement tab and the Overblik MRR (review #785).
 
 $css="../css/standard.css";
 $title="Partnere";
@@ -93,10 +95,15 @@ if (isset($_POST['vr_action'])) {
 			$rid = (int)if_isset($_POST, 0, 'regnskab_id'); $to = (int)if_isset($_POST, 0, 'to_partner_id');
 			$access = in_array(if_isset($_POST, 'full', 'access'), array('full','readonly','owner'), true) ? $_POST['access'] : 'full';
 			// partner_move_ledger() ends the source link before it inserts the new one, so a move it cannot finish is refused here first
+			// 20261111 CL/ASR The checks and the move share one transaction, and the source link is locked, so a second move of it waits
+			//                  and then finds it ended. If an insert still fails (the target linked in the meantime), db_modify() exits,
+			//                  the open transaction is rolled back and the source link stays active (review #785).
+			transaktion('begin');
 			if (!db_fetch_array(db_select("select 1 from regnskab where id = '$rid'", __FILE__ . " linje " . __LINE__))) $err = vr_t('Regnskabet findes ikke','Account not found');
-			elseif (!db_fetch_array(db_select("select 1 from regnskab_partners where regnskab_id = '$rid' and partner_id = '$pid' and until is null", __FILE__ . " linje " . __LINE__))) $err = vr_t('Regnskabet er ikke tilknyttet denne partner og kan ikke flyttes','The account is not linked to this partner and cannot be moved');
+			elseif (!db_fetch_array(db_select("select 1 from regnskab_partners where regnskab_id = '$rid' and partner_id = '$pid' and until is null for update", __FILE__ . " linje " . __LINE__))) $err = vr_t('Regnskabet er ikke tilknyttet denne partner og kan ikke flyttes','The account is not linked to this partner and cannot be moved');
 			elseif ($to == $pid || db_fetch_array(db_select("select 1 from regnskab_partners where regnskab_id = '$rid' and partner_id = '$to' and until is null", __FILE__ . " linje " . __LINE__))) $err = vr_t('Regnskabet er allerede tilknyttet den valgte partner','The account is already linked to the chosen partner');
 			else $err = partner_move_ledger($rid, $pid, $to, $access, trim(if_isset($_POST, '', 'note')));
+			transaktion($err ? 'rollback' : 'commit');
 			$notes[] = $err ? $err : vr_t('Regnskabet er flyttet. Historik, abonnement og log følger regnskabet.','Account moved. History, subscription and log stay with the account.');
 		} elseif ($act == 'payer' && $op) {
 			bill_set_payer((int)if_isset($_POST, 0, 'regnskab_id'), (int)if_isset($_POST, 0, 'payer_regnskab_id')); $notes[] = vr_t('Betalingsansvarlig gemt','Payer saved');
@@ -218,7 +225,7 @@ if ($tab == 'oversigt') {
 	print "<section class=\"vr-sect\"><h2>$KU <small>".count($links)."</small></h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th class=\"vr-r\" style=\"width:50px\">Id</th><th>".findtekst('2682|Regnskab', $sprog_id)."</th><th>".vr_t('Pakke','Plan')."</th><th class=\"vr-r\">".vr_t('Brugere','Users')."</th><th class=\"vr-r\">".vr_t('Post. 12 mdr.','Entries 12 m')."</th><th>".vr_t('Betaling','Payment')."</th><th>".vr_t('Faktureres via','Invoiced via')."</th><th>".vr_t('Adgang','Access')."</th><th></th></tr></thead><tbody>";
 	foreach ($links as $l) { $rid = (int)$l['regnskab_id']; $r = isset($regNames[$rid]) ? $regNames[$rid] : null; if (!$r) continue;
 		$e = ent_resolve($rid); $sn = isset($snaps[$rid]) ? $snaps[$rid] : null; $b = isset($bills[$rid]) ? $bills[$rid] : null; list($payerId, $payerSrc) = bill_payer($rid);
-		if ($e['plan'] && $e['price_ore'] !== null && $r['lukket'] != 'on') { $m = $e['interval'] == 'year' ? (int)round($e['price_ore'] / 12) : (int)$e['price_ore']; foreach ($e['addons'] as $ak => $ar) if (isset($cat['addons'][$ak]) && $cat['addons'][$ak]['price_ore'] !== null) $m += (int)$cat['addons'][$ak]['price_ore'] * max(1, (int)$ar['quantity']); $mrr += $m; }
+		if ($e['plan'] && $e['price_ore'] !== null && $r['lukket'] != 'on') { $m = $e['interval'] == 'year' ? (int)round($e['price_ore'] / 12) : (int)$e['price_ore']; foreach ($e['addons'] as $ak => $ar) if (isset($cat['addons'][$ak]) && $cat['addons'][$ak]['price_ore'] !== null) { $ad = $cat['addons'][$ak]; $m += (int)$ad['price_ore'] * (ent_addon_counted($ad) ? max(1, (int)$ar['quantity']) : 1); } $mrr += $m; } # an on/off add-on counts once, as on the Abonnement tab and in the Overblik MRR
 		if ($b && $b['outstanding_ore']) $out += (int)$b['outstanding_ore'];
 		$uPct = ($sn && $e['plan'] && $e['limits']['max_users']) ? min(100, (int)round($sn['users_active'] / $e['limits']['max_users'] * 100)) : 0; $pPct = ($sn && $e['plan'] && $e['limits']['included_postings']) ? min(100, (int)round($sn['postings_12m'] / $e['limits']['included_postings'] * 100)) : 0;
 		print "<tr".($r['lukket']=='on' ? " class=\"vr-closed\"" : "")."><td class=\"vr-r vr-id\">$rid</td><td class=\"vr-nm\"><a href=\"operator_panel.php?regnskab_id=$rid\">".vr_h($r['regnskab'])."</a><small>".vr_h($r['db']).($r['lukket']=='on' ? ' · '.findtekst('387|Lukket', $sprog_id) : '')."</small></td>";

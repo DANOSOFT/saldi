@@ -34,6 +34,7 @@
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 // 20261012 CL/ASR Access check, same rule as the account list (see below).
 // 20261109 CL/ASR The global_id column check looks only in the current schema (DATABASE() on MySQL/MariaDB, current_schema() on PostgreSQL) (review #785).
+//                 A user whose access list holds '*' (all accounts) may open any numeric account id again, as on master (review #785).
 @session_start();
 $s_id=session_id();
 
@@ -60,7 +61,11 @@ $tmp_db_id=if_isset($_GET,NULL,'db_id');
 //                  nothing else can be opened by typing an id in the address.
 $r = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'", __FILE__ . " linje " . __LINE__));
 list($admin, , , $tmp) = array_pad(explode(",", (string)($r ? $r['rettigheder'] : ''), 4), 4, '');
-if (!$admin && !in_array($tmp_db_id, explode(",", $tmp))) {
+$adgang_til = explode(",", $tmp);
+// 20261111 CL/ASR '*' in the list means every account (help text 334 in the user dialog, partner_ledgers()); such a user may
+//                  open any account by its numeric id, as before this check existed, but nothing that is not a plain id.
+$alle_regnskaber = in_array('*', array_map('trim', $adgang_til), true) && is_string($tmp_db_id) && ctype_digit($tmp_db_id);
+if (!$admin && !$alle_regnskaber && !in_array($tmp_db_id, $adgang_til)) {
 	print "<center><br><br>".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."<br><br>";
 	print "<a href='vis_regnskaber.php'>".findtekst('2692|Tilbage til oversigt', $sprog_id)."</a></center>";
 	exit;

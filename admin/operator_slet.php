@@ -32,6 +32,8 @@ ob_start(); # for the redirect after an action (vr_prg)
 // 20261029 CL/ASR Trailing whitespace removed from the lines this branch adds.
 // 20261109 CL/ASR The database dump and the tar archive must both exit with status 0 before DROP DATABASE runs (review #785).
 //                 The backup is written with 0007 added to the umask and new backup directories request 0770, so other local users cannot read it.
+//                 The database password is passed to pg_dump or mysqldump as PGPASSWORD or MYSQL_PWD in the child's environment, no longer on the shell command line (review #785).
+//                 When rm cannot remove the uncompressed dump folder, the ledger is not deleted and the operator is told which folder to remove (review #785).
 
 @session_start();
 $s_id=session_id();
@@ -87,6 +89,14 @@ $vr_deletable = function($rid) use ($sqdb) {
 	$st = lc_state((int)$rid, $r); if ($st['state'] == 'suspended') return null;
 	return $r;
 };
+// 20261111 CL/ASR The database password reaches the dump through PGPASSWORD / MYSQL_PWD, set with putenv() only around the call,
+//                  so it is in the child's environment and on no command line (ps, /proc/<pid>/cmdline) (review #785).
+$vr_dump = function($cmd, $pwVar) use ($sqpass) {
+	$old = getenv($pwVar, true); putenv("$pwVar=$sqpass");
+	$out = array(); $rc = 1; exec($cmd, $out, $rc);
+	putenv($old === false ? $pwVar : "$pwVar=$old");
+	return $rc;
+};
 if (isset($_POST['regnskabsantal'])) {
 	$pid = (array)if_isset($_POST, array(), 'id'); $pslet = (array)if_isset($_POST, array(), 'slet'); $done = array();
 	foreach ($pslet as $x => $on) {
@@ -102,14 +112,19 @@ if (isset($_POST['regnskabsantal'])) {
 		$dump_filnavn = $tmpmappe."/".$dbn.".sql"; $dat_filnavn = $dbn."_".date("Ymd-Hi").".sdat";
 		if ($fp = fopen($tmpmappe."/backup.info", "w")) { fwrite($fp, date("YmdHis").chr(9).$dbn.chr(9).chr(9).$r['regnskab'].chr(9)."$db_encode".chr(9)."$db_type".chr(9)."$r[regnskab] slettet ".date("d-m-Y H:i")." af $brugernavn"); fclose($fp); }
 		// 20261109 CL/ASR The exit codes count: a dump or tar that fails partway can still leave a non-empty file (review #785).
-		$vr_out = array(); $dumpRc = 1; $tarRc = 1;
-		if ($db_type == 'mysql' || $db_type == 'mysqli') exec("mysqldump -h ".escapeshellarg($sqhost)." -u ".escapeshellarg($squser)." --password=".escapeshellarg($sqpass)." -n ".escapeshellarg($dbn)." > ".escapeshellarg($dump_filnavn), $vr_out, $dumpRc);
-		else exec("PGPASSWORD=".escapeshellarg($sqpass)." pg_dump -h ".escapeshellarg($sqhost)." -U ".escapeshellarg($squser)." -f ".escapeshellarg($dump_filnavn)." ".escapeshellarg($dbn), $vr_out, $dumpRc);
+		$vr_out = array(); $dumpRc = 1; $tarRc = 1; $rmRc = 1;
+		if ($db_type == 'mysql' || $db_type == 'mysqli') $dumpRc = $vr_dump("mysqldump -h ".escapeshellarg($sqhost)." -u ".escapeshellarg($squser)." -n ".escapeshellarg($dbn)." > ".escapeshellarg($dump_filnavn), 'MYSQL_PWD');
+		else $dumpRc = $vr_dump("pg_dump -h ".escapeshellarg($sqhost)." -U ".escapeshellarg($squser)." -f ".escapeshellarg($dump_filnavn)." ".escapeshellarg($dbn), 'PGPASSWORD');
 		$dumpOk = $dumpRc === 0 && file_exists($dump_filnavn) && filesize($dump_filnavn) > 0;
 		if ($dumpOk) exec("cd ".escapeshellarg($mappe)." && tar -pzcf ".escapeshellarg($dat_filnavn)." ".escapeshellarg($dbn), $vr_out, $tarRc);
-		system("rm -r ".escapeshellarg($tmpmappe));
+		// 20261111 CL/ASR The uncompressed dump must not stay behind: if rm fails, or the folder is still there, the ledger is not deleted (review #785).
+		exec("rm -r ".escapeshellarg($tmpmappe), $vr_out, $rmRc);
+		clearstatcache();
+		$rmOk = $rmRc === 0 && !file_exists($tmpmappe);
 		umask($vr_umask);
-		if (!$dumpOk || $tarRc !== 0 || !file_exists($mappe.$dat_filnavn) || !filesize($mappe.$dat_filnavn)) { $vr_err[] = "Backupfejl - $r[regnskab] ikke slettet"; continue; }
+		$leftover = $rmOk ? '' : '. '.vr_t('Den ukomprimerede kopi i','The uncompressed copy in').' '.(realpath($tmpmappe) ?: $tmpmappe).' '.vr_t('kunne ikke fjernes. Fjern mappen på serveren, og prøv igen.','could not be removed. Remove the folder on the server and try again.');
+		if (!$dumpOk || $tarRc !== 0 || !file_exists($mappe.$dat_filnavn) || !filesize($mappe.$dat_filnavn)) { $vr_err[] = "Backupfejl - $r[regnskab] ikke slettet".$leftover; continue; }
+		if (!$rmOk) { $vr_err[] = $r['regnskab'].' '.vr_t('er ikke slettet','was not deleted').$leftover; continue; }
 		if ($k = db_fetch_array(db_select("select id from kundedata where regnskab_id='".(int)$r['id']."'", __FILE__ . " linje " . __LINE__))) db_modify("update kundedata set slettet='on' where id='$k[id]'", __FILE__ . " linje " . __LINE__);
 		else db_modify("update kundedata set slettet='on',regnskab_id='".(int)$r['id']."' where regnskab='".db_escape_string($r['regnskab'])."'", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from regnskab where id = '".(int)$r['id']."'", __FILE__ . " linje " . __LINE__);
