@@ -4,6 +4,7 @@
 // 20261111 CDX/NTR Verify cleanup requires retained test markers and preserves active/unmarked databases.
 // 20261111 CDX/NTR Cover shared SQL fixture identities in individual IDE/JUnit results.
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
+// 20261111 CDX/NTR Restore retention environment even when database cleanup fails.
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -116,16 +117,19 @@ final class TestDatabaseLifecycleTest extends TestCase
                 self::assertSame('1', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM pg_database WHERE datname=$1', [$protected->name()]), 0, 0));
             }
         } finally {
-            // Test-owned names only; also clean up when the command assertion fails.
-            foreach ($databases as $database) {
-                TestDatabase::query($master, 'DROP DATABASE IF EXISTS ' . pg_escape_identifier($master, $database->name()));
-                TestDatabase::query($master, 'DELETE FROM regnskab WHERE db=$1', [$database->name()]);
-                TestDatabase::query($master, 'DELETE FROM online WHERE db=$1 AND session_id=$2', [$database->name(), $database->sessionId()]);
-                $database->release();
+            try {
+                // Test-owned names only; also clean up when the command assertion fails.
+                foreach ($databases as $database) {
+                    TestDatabase::query($master, 'DROP DATABASE IF EXISTS ' . pg_escape_identifier($master, $database->name()));
+                    TestDatabase::query($master, 'DELETE FROM regnskab WHERE db=$1', [$database->name()]);
+                    TestDatabase::query($master, 'DELETE FROM online WHERE db=$1 AND session_id=$2', [$database->name(), $database->sessionId()]);
+                    $database->release();
+                }
+                pg_close($master);
+            } finally {
+                putenv($previous === false ? 'SALDI_TEST_KEEP_DATABASES' : 'SALDI_TEST_KEEP_DATABASES=' . $previous);
+                putenv($legacy === false ? 'SALDI_REST_KEEP_TENANT' : 'SALDI_REST_KEEP_TENANT=' . $legacy);
             }
-            pg_close($master);
-            putenv($previous === false ? 'SALDI_TEST_KEEP_DATABASES' : 'SALDI_TEST_KEEP_DATABASES=' . $previous);
-            putenv($legacy === false ? 'SALDI_REST_KEEP_TENANT' : 'SALDI_REST_KEEP_TENANT=' . $legacy);
         }
     }
 
@@ -189,15 +193,18 @@ final class TestDatabaseLifecycleTest extends TestCase
             self::assertSame('1', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM online WHERE db=$1 AND session_id=$2', [$database->name(), $database->sessionId()]), 0, 0));
             pg_close($master);
         } finally {
-            // This test explicitly owns its cleanup, even when retention is enabled.
-            if ($database !== null) {
-                $master = TestDatabase::connect(TestDatabase::masterDb());
-                TestDatabase::query($master, 'DROP DATABASE ' . pg_escape_identifier($master, $database->name()));
-                TestDatabase::query($master, 'DELETE FROM regnskab WHERE db=$1', [$database->name()]);
-                TestDatabase::query($master, 'DELETE FROM online WHERE db=$1 AND session_id=$2', [$database->name(), $database->sessionId()]);
-                pg_close($master);
+            try {
+                // This test explicitly owns its cleanup, even when retention is enabled.
+                if ($database !== null) {
+                    $master = TestDatabase::connect(TestDatabase::masterDb());
+                    TestDatabase::query($master, 'DROP DATABASE ' . pg_escape_identifier($master, $database->name()));
+                    TestDatabase::query($master, 'DELETE FROM regnskab WHERE db=$1', [$database->name()]);
+                    TestDatabase::query($master, 'DELETE FROM online WHERE db=$1 AND session_id=$2', [$database->name(), $database->sessionId()]);
+                    pg_close($master);
+                }
+            } finally {
+                putenv($previous === false ? 'SALDI_TEST_KEEP_DATABASES' : 'SALDI_TEST_KEEP_DATABASES=' . $previous);
             }
-            putenv($previous === false ? 'SALDI_TEST_KEEP_DATABASES' : 'SALDI_TEST_KEEP_DATABASES=' . $previous);
         }
     }
 }
