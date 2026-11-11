@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-07 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -182,6 +182,7 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
+// 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
 
 @session_start();
 $s_id = session_id();
@@ -1329,7 +1330,7 @@ if ($b_submit) {
 			$r = db_fetch_array(db_select("select * from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
 
 			$qtxt = "insert into ordrer (konto_id,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,kontakt_tlf,email,mail_fakt,phone,udskriv_til,kundeordnr,";
-			$qtxt .= "lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,lev_kontakt,lev_email,lev_land,ean,institution,betalingsbet,betalingsdage,kontonr,cvrnr,art,";
+			$qtxt .= "lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,lev_kontakt,ean,institution,betalingsbet,betalingsdage,kontonr,cvrnr,art,";
 			$qtxt .= "valuta,valutakurs,sprog,projekt,ordredate,";
 			if ($r['levdate']) $qtxt .= "levdate,";
 			if ($r['fakturadate']) $qtxt .= "fakturadate,";
@@ -1350,7 +1351,7 @@ if ($b_submit) {
 			$qtxt .= "'" . db_escape_string($r['kundeordnr']) . "','" . db_escape_string($r['lev_navn']) . "','" . db_escape_string($r['lev_addr1']) . "',";
 			$qtxt .= "'" . db_escape_string($r['lev_addr2']) . "','" . db_escape_string($r['lev_postnr']) . "','" . db_escape_string($r['lev_bynavn']) . "',";
 			$qtxt .= "'" . db_escape_string($r['lev_land']) . "','" . db_escape_string($r['lev_email']) . "',";
-			$qtxt .= "'" . db_escape_string($r['lev_kontakt']) . "','" . db_escape_string($r['lev_email']) . "','" . db_escape_string($r['lev_land']) . "',";
+			$qtxt .= "'" . db_escape_string($r['lev_kontakt']) . "',";
 			$qtxt .= "'" . db_escape_string($r['ean']) . "','" . db_escape_string($r['institution']) . "',";
 			$qtxt .= "'" . db_escape_string($r['betalingsbet']) . "','" . db_escape_string($r['betalingsdage']) . "','" . db_escape_string($r['kontonr']) . "',";
 			$qtxt .= "'" . db_escape_string($r['cvrnr']) . "','OT','" . db_escape_string($r['valuta']) . "',";
