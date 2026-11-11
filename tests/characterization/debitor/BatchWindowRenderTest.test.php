@@ -15,6 +15,7 @@
 // lifted legacy block passes ints where the stubs below take strings and back again.
 // 20261111 CDX/NTR Report known legacy warnings without failing; recognize PHP 8.2 null-offset wording.
 // 20261111 CDX/NTR Bound the legacy warning allowance by source location and occurrence count.
+// 20261111 CDX/NTR Normalize the two PHP null-offset wordings without changing warning locations or counts.
 namespace BatchWindowFixture {
 
     /** One query's worth of rows, handed back by db_fetch_array() one at a time. */
@@ -261,6 +262,10 @@ namespace {
             $firstLine = substr_count(substr($src, 0, $at), "\n") + 1;
             set_error_handler(function ($severity, $message, $file, $line) use (&$warnings, &$warningLocations, $firstLine) {
                 $warnings[] = $message;
+                // PHP builds use either wording; keep the original visible warning.
+                if ($message === 'Trying to access array offset on null') {
+                    $message = 'Trying to access array offset on value of type null';
+                }
                 $warningLocations[] = ($firstLine + $line - 1) . ': ' . $message;
                 return true;
             });
