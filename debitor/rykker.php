@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------debitor/rykker.php---------ver 5.0.0-------2026-11-09--------
+// -----------debitor/rykker.php---------ver 5.0.0-------2026-11-11--------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 //                 Unticking "Send pr. mail" on a draft link reminder, or switching it to another language or currency, makes it a classic reminder.
 //                 "Frafald rykkergebyr" (with a session CSRF token) waives a carried fee that is not charged yet.
 // 20261109 CL/ASR Review fixes: a booked draft link reminder stays a link reminder (stripe_reminder_unregister()); "Frafald rykkergebyr" is stripe_reminder_waive_request(); the reminder id and line ids are cast to integers; texts are escaped in the page's charset; the e-mail helper is included with __DIR__.
+// 20261111 CDX/ASR Exclude carried fees and skipped invoices from the displayed total.
 
 @session_start();
 $s_id=session_id();
@@ -349,6 +350,8 @@ print "<tr><td colspan=4></td></tr><tr>";
 	$x=0;
 	$sum=0;
 	$ialt=0;
+	include_once(__DIR__ . "/../includes/formFuncIncludes/reminderMailDelivery.php");
+	$pdfTreatment = formReminderPdfTreatment((int)$rykker_id);
 	$q = db_select("select * from ordrelinjer where ordre_id = '$rykker_id' order by serienr, posnr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
@@ -380,7 +383,9 @@ print "<tr><td colspan=4></td></tr><tr>";
 			$udlignet=$r2['udlignet'];
 			$inputtype[$x]="readonly";
 		} else $inputtype[$x]="text";
-		$ialt=$ialt+$pris[$x];
+		if (!($pdfTreatment['carried'] && $vare_id[$x]) && !in_array((int)$r['enhed'], $pdfTreatment['skip'], true)) {
+			$ialt += $pris[$x];
+		}
 #		print "<input type = 'hidden' name = 'linje_id[$x]' value = \"$linje_id[$x]\">";
 	}
 	$linjeantal=$x;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura.php --- 2026.11.09
+// --- api/stripe/faktura.php --- 2026.11.11
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,8 @@
 // 20261109 CL/ASR Link reminders: after a reminder the overdue/failed lead says when it was sent, and a note under the pay buttons says where the fee goes.
 //                 Before a reminder the overdue lead mentions the fee when a reminder fee is set up.
 //                 An enrolled customer on an overdue Link invoice pays with the saved card in one click (#paynow), bank as alternative.
+
+// 20261111 CDX/ASR Allow the invoice header to wrap on narrow screens.
 
 include(__DIR__ . '/faktura_common.php');
 include_once(__DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php');
@@ -220,6 +222,7 @@ h1,h2{letter-spacing:-.01em}a{color:var(--blue)}.num{font-variant-numeric:tabula
 .btn.primary{border:0;background:linear-gradient(90deg,var(--blue),var(--purple));color:#fff;font-weight:600;height:52px;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(139,51,212,.18);margin-top:8px}.btn.primary:hover{filter:brightness(1.06)}.btn.primary[disabled]{opacity:.55;cursor:default;filter:none}
 .wrap{display:grid;grid-template-columns:minmax(0,1fr) 440px;min-height:calc(100vh - 72px)}.left{padding:48px 56px 64px;display:flex;justify-content:center}.right{background:var(--surface);border-left:1px solid var(--line);padding:48px 40px;min-width:0}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}.right{border-left:0;border-top:1px solid var(--line);order:-1;padding:28px 20px}.left{padding:24px 16px 48px}.top{padding:0 16px}.top .ttl span{display:none}}
+@media(max-width:600px){.top{height:auto;min-height:72px;flex-wrap:wrap;gap:8px 12px;padding:12px 16px}.top .ttl{min-width:0;flex:1;overflow-wrap:anywhere}.top .sep,.top .grow{display:none}.top>.btn{margin-left:auto;max-width:100%}}
 .pages{width:100%;max-width:820px;display:flex;flex-direction:column;gap:24px}.pages img{display:block;width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow)}
 .inv{width:100%;max-width:820px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:56px 60px}@media(max-width:980px){.inv{padding:28px 22px}}
 .inv .head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:40px}.inv .from b{display:block;font-size:20px;font-weight:600;margin-bottom:6px}.inv .from span{display:block;color:var(--ink-2);font-size:14.5px}.inv .title{text-align:right}.inv .title h1{font-size:44px;font-weight:700;line-height:1;margin-bottom:12px}

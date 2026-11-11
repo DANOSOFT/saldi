@@ -2,6 +2,8 @@
 // 20261109 CL/ASR Link reminders (Linkrykker): which reminders become link reminders, registration, renteloven § 9 b, the reminder fee and interest on the next invoice (and when they are waived), the reminder mail and its send path with classic fallback, the dunning hold for card-on-file invoices and closing paid reminders.
 // 20261109 CL/ASR Review fixes: paid and out-of-year reminders are not escalated, a shared fee/interest item, the earlier classic fee as a bank row (D1), the first mailed_at kept (D2), the PDF treatment (D3), staff texts in the database's encoding (D4), no fee on cash/card sales, the current lines and the order's project, the hold only while the job collects, booked drafts kept, "Frafald" with its token.
 
+// 20261111 CDX/ASR Cover link PDF deadlines and preserve classic and collection-warning text.
+
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 
@@ -1149,6 +1151,25 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         // A fee posted as an open item is part of "I alt" as before.
         StripeTestEnvironment::query("UPDATE stripe_reminders SET status = 'sent', fee_mode = 'classic' WHERE rykker_id = $1", [$rykker]);
         $this->assertFalse(formReminderPdfTreatment($rykker)['carried']);
+    }
+
+    public function testPdfDeadlineUsesTheSameDateAsTheMailAndPreservesClassicForms(): void
+    {
+        $d = StripeReminderFixtures::linkReminder();
+        $rid = $d['reminder'];
+        $text = 'Beløbet bedes indbetalt inden 8 dage til banken.';
+        $this->assertSame($text, formReminderDeadlineText($rid, $text));
+        StripeReminderFixtures::linkRow($rid);
+        StripeTestEnvironment::query("UPDATE ordrer SET fakturadate = '2026-11-11', ordredate = '2026-11-11', betalingsdage = 23 WHERE id = $1", [$rid]);
+        $this->assertSame('Beløbet bedes indbetalt senest 04.12.2026 til banken.', formReminderDeadlineText($rid, $text));
+        $this->assertSame('Betal senest 04.12.2026 til banken.', formReminderDeadlineText($rid, 'Betal straks dage til banken.'));
+        $this->assertSame('Betal senest 04.12.2026.', formReminderDeadlineText($rid, 'Betal straks.'));
+        $this->assertSame('Betal senest 04.12.2026.', formReminderDeadlineText($rid, 'Betal senest $rykker_frist.'));
+        StripeTestEnvironment::query("UPDATE ordrer SET betalingsdage = 13 WHERE id = $1", [$rid]);
+        $this->assertSame('Betal senest 24.11.2026.', formReminderDeadlineText($rid, 'Betal straks.'));
+        $warning = 'Såfremt beløbet ikke betales inden 10 dage, sendes sagen til inkasso';
+        $this->assertSame($warning, formReminderDeadlineText($rid, $warning));
+        $this->assertSame('Kontakt os ved spørgsmål.', formReminderDeadlineText($rid, 'Kontakt os ved spørgsmål.'));
     }
 
     public function testFrafaldNeedsTheFormTokenAndAFeeNotYetCharged(): void

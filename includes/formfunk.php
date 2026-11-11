@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-11-09 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -96,6 +96,7 @@
 //                 Staff messages come as one alert before the redirect.
 // 20261109 CL/ASR Review fixes in rykkerprint(): a carried fee says where it went in any status (next invoice / charged on invoice X / waived) and is never in "I alt"; a link reminder's PDF leaves out what its mail leaves out (D3); every reminder of a batch writes its own HTML page ("Brug html"), so printed reminders no longer land on top of each other; a draft link reminder printed on paper counts as sent.
 // 20261111 CL/ASR The reminder letter's $rykker_gebyr / $rykker_rente say where a carried fee goes ("100,00 – opkræves på din næste faktura"), as the fee lines do.
+// 20261111 CDX/ASR Render link reminder deadlines consistently with the mail.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -599,6 +600,9 @@ if (!function_exists('find_form_tekst')) {
 			$streng = array();
 			$streng[$y] = NULL;
 			$if = array();
+			if (in_array((int)$formular, array(6, 7, 8), true)) {
+				$row['beskrivelse'] = formReminderDeadlineText((int)$id, $row['beskrivelse']);
+			}
 			for ($x = 0; $x < strlen($row['beskrivelse']); $x++) { # strengen loebes igennem
 				if (((substr($row['beskrivelse'], $x, 1) == "$") || ($z == $y)) && (substr($row['beskrivelse'], 0, 4) != "+73<")) { #hvis strengen er en variabel eller en betalingskode
 					if (!isset($if[$y]))

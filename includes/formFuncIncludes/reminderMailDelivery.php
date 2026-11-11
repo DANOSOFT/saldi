@@ -9,6 +9,27 @@
 //                 Staff messages are texts 8135-8139 (tekster.csv) and the alert is built with jsString(), so a legacy (non-UTF8) database shows them right.
 // 20261111 CL/ASR Review round 2: a link reminder whose fee was waived before it was ever sent ("Frafald", or its fee line deleted) still goes as a link mail and
 //                 gets its mailed_at; a link reminder with no invoice left to pay is refused when printed too (not only when mailed), so no fee is carried for it.
+// 20261111 CDX/ASR Match link reminder PDF payment terms to the mail deadline.
+
+/**
+ * Replace standard Danish fixed payment terms in a link reminder's form with its actual deadline.
+ * Custom forms can use $rykker_frist directly. Classic reminders retain their configured wording.
+ *
+ * @param int $rykkerId Reminder order id.
+ * @param string $text Form text before variable expansion, in the tenant's encoding.
+ * @return string Form text with the same deadline as the link mail.
+ */
+function formReminderDeadlineText(int $rykkerId, string $text): string {
+	$pattern = '/\b(indbetalt|betal)\s+(?:inden\s+[0-9]+\s+dage|straks(?:\s+dage)?)\b/i';
+	if (strpos($text, '$rykker_frist') === false && !preg_match($pattern, $text)) return $text;
+	formReminderIncludes();
+	if (!function_exists('stripe_reminder_row') || !stripe_reminder_row($rykkerId)) return $text;
+	$r = db_fetch_array(db_select("select fakturadate, ordredate, betalingsdage from ordrer where id = " . $rykkerId, __FILE__ . " linje " . __LINE__));
+	if (!$r) return $text;
+	$deadline = (new DateTimeImmutable(stripe_reminder_deadline($r)))->format('d.m.Y');
+	$text = str_replace('$rykker_frist', $deadline, $text);
+	return preg_replace($pattern, '${1} senest ' . $deadline, $text);
+}
 
 /** @return void Loads the reminder helpers this installation has: the legal rules and the link reminder register. */
 function formReminderIncludes(): void {
