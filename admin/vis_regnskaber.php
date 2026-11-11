@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// --- admin/vis_regnskaber.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- admin/vis_regnskaber.php --- ver 5.1.0 --- 2026.11.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,10 @@ $s_id=session_id();
 // 20261023 CL/ASR Ret/Lås, Vis lukkede and Genberegn keep the sort direction the page was opened with (they carried the toggled value and flipped the order when sorted on one column); rows lose the pointer cursor in edit mode.
 // 20261029 CL/ASR "Sidst aktiv" rounds the day count (DST), the recalculation dialog says it covers every account in the list (search does not narrow it), the save bar wraps on phone widths, recalculation reconnects to master after creating a missing database, unsaved edits are guarded on every way off the page, and a late master warning response for an earlier click is ignored.
 // 20261109 CL/ASR History lines put in date order, one sentence per continuation line; no code change.
+// 20261111 CL/ASR Review fixes: the empty-cell dashes are HTML entities and the master warning dialog is converted to the page charset, so LATIN9 installs show them correctly.
+//                 An open dialog keeps the keyboard (Tab cycles inside it, the page shortcuts wait) and gives focus back to the button or link that opened it.
+//                 The empty message stays visible while searching a list that has no rows.
+//                 A Ctrl/Cmd/Shift-click on Lås, a sort link or Vis lukkede opens another tab without asking, so the unsaved-changes guard stays on in this one.
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -165,7 +169,7 @@ function vr_t($da, $en) {
 	return ($db_encode == 'UTF8') ? $t : mb_convert_encoding($t, 'ISO-8859-1', 'UTF-8');
 }
 function vr_rel($ts) { # relative "sidst aktiv" text; $ts is unix time
-	if (!$ts) return '–';
+	if (!$ts) return '&ndash;';
 	$days = (int) round((strtotime(date('Y-m-d')) - strtotime(date('Y-m-d', $ts))) / 86400); # round: a span across the DST change is 23 or 25 hours
 	if ($days <= 0) return vr_t('i dag', 'today');
 	if ($days == 1) return vr_t('i går', 'yesterday');
@@ -391,8 +395,8 @@ for ($x=0;$x<$vr_count;$x++) {
 		print "<td class=\"vr-r\"><span class=\"vr-cap\" title=\"".vr_num($posteret[$x])." ".findtekst('5320|af', $sprog_id)." ".vr_num($posteringer[$x])." ($pct %)\"><span>".vr_num($posteret[$x])."</span><span class=\"vr-mut2\">/ ".vr_num($posteringer[$x])."</span><span class=\"vr-b\"><i".($pct >= 90 ? " class=\"vr-hi\"" : "")." style=\"width:$pct%\"></i></span></span></td>";
 	}
 	print "<td class=\"vr-r vr-mut\"".($sidst[$x] ? " title=\"".date("d-m-Y",$sidst[$x])."\"" : "").">".vr_rel($sidst[$x])."</td>";
-	print "<td>".($booking[$x] ? "<span class=\"vr-st\"><span class=\"vr-dot vr-ok\"></span>".findtekst('83|Ja', $sprog_id)."</span>" : "<span class=\"vr-mut2\">–</span>")."</td>";
-	print "<td class=\"vr-mut\">".($email[$x] ? vr_h($email[$x]) : "<span class=\"vr-mut2\">–</span>")."</td>";
+	print "<td>".($booking[$x] ? "<span class=\"vr-st\"><span class=\"vr-dot vr-ok\"></span>".findtekst('83|Ja', $sprog_id)."</span>" : "<span class=\"vr-mut2\">&ndash;</span>")."</td>";
+	print "<td class=\"vr-mut\">".($email[$x] ? vr_h($email[$x]) : "<span class=\"vr-mut2\">&ndash;</span>")."</td>";
 	if ($rediger) {
 		print "<td><label class=\"vr-tog\"><input type=\"checkbox\" class=\"vr-swin\" name=\"lukket[$n]\" value=\"on\"".($isClosed ? " checked" : "")." data-orig=\"".($isClosed ? '1' : '0')."\"><span class=\"vr-sw\"></span><span class=\"vr-swtx\" data-on=\"".findtekst('387|Lukket', $sprog_id)."\" data-off=\"".vr_t('Åbent', 'Open')."\">".($isClosed ? findtekst('387|Lukket', $sprog_id) : vr_t('Åbent', 'Open'))."</span></label></td>";
 	} else {
@@ -419,7 +423,7 @@ if ($admin && !$rediger) {
 	print "<div class=\"vr-dlg\" id=\"vrDlgRecalc\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgRecalcT\"><h3 id=\"vrDlgRecalcT\">".vr_t('Genberegn posteringer for alle regnskaber på listen?', 'Recalculate entries for all accounts in the list?')."</h3><p>".vr_t('Saldi tæller posteringer de seneste 12 måneder og finder seneste aktivitet i hvert regnskabs database. Det kan tage et øjeblik, og regnskaber uden database bliver oprettet undervejs. Søgefeltet afgrænser ikke genberegningen, og lukkede regnskaber kommer kun med, når Vis lukkede er slået til.', 'Saldi counts entries in the last 12 months and finds the latest activity in each account database. It may take a moment, and accounts without a database are created on the way. The search box does not narrow the recalculation, and closed accounts are only included when Show closed is on.')."</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>".findtekst('5|Annullér', $sprog_id)."</button><a class=\"vr-btn vr-primary\" href=\"".vr_h($vr_recalcUrl)."\">".vr_t('Genberegn', 'Recalculate')."</a></div></div>\n";
 }
 if ($vr_warnOpen) {
-	print "<div class=\"vr-dlg\" id=\"vrDlgWarn\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgWarnT\"><h3 id=\"vrDlgWarnT\">Du er ved at åbne et live-regnskab fra master</h3><div class=\"vr-ls\" id=\"vrWarnList\"></div><p id=\"vrWarnText\">Åbner du et live-regnskab fra master, kan du ændre databasestrukturen, så den bliver inkompatibel med live-versionen, eller forhindre at fremtidige opdateringer migrerer korrekt.</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>Annullér</button><a class=\"vr-btn vr-primary\" id=\"vrWarnGo\" href=\"#\">Åbn alligevel</a></div></div>\n";
+	print mb_convert_encoding("<div class=\"vr-dlg\" id=\"vrDlgWarn\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"vrDlgWarnT\"><h3 id=\"vrDlgWarnT\">Du er ved at åbne et live-regnskab fra master</h3><div class=\"vr-ls\" id=\"vrWarnList\"></div><p id=\"vrWarnText\">Åbner du et live-regnskab fra master, kan du ændre databasestrukturen, så den bliver inkompatibel med live-versionen, eller forhindre at fremtidige opdateringer migrerer korrekt.</p><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" data-close>Annullér</button><a class=\"vr-btn vr-primary\" id=\"vrWarnGo\" href=\"#\">Åbn alligevel</a></div></div>\n", vr_cs(), 'UTF-8'); # literal Danish text: the page is ISO-8859-1 on LATIN9 installs
 }
 print "<div class=\"vr-toast\" id=\"vrToast\" role=\"status\"></div>\n";
 print "</div>\n"; # .vr
@@ -450,8 +454,17 @@ print <<<JS
 		toastEl.textContent = t; toastEl.classList.add('vr-on');
 		clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('vr-on'); }, 2800);
 	}
-	function openDlg(el) { scrim.classList.add('vr-on'); el.classList.add('vr-open'); var b = el.querySelector('[data-close]'); if (b) b.focus(); }
-	function closeDlg() { scrim.classList.remove('vr-on'); Array.prototype.forEach.call(document.querySelectorAll('.vr-dlg.vr-open'), function (d) { d.classList.remove('vr-open'); }); }
+	var dlgOpen = null, dlgFrom = null; /* the open dialog and the control that opened it (focus returns there on close) */
+	function openDlg(el, from) {
+		if (dlgOpen && dlgOpen !== el) dlgOpen.classList.remove('vr-open');
+		dlgOpen = el; dlgFrom = from; scrim.classList.add('vr-on'); el.classList.add('vr-open');
+		var b = el.querySelector('[data-close]'); if (b) b.focus();
+	}
+	function closeDlg() {
+		if (!dlgOpen) return;
+		scrim.classList.remove('vr-on'); dlgOpen.classList.remove('vr-open'); dlgOpen = null;
+		if (dlgFrom) dlgFrom.focus(); dlgFrom = null;
+	}
 	scrim.addEventListener('click', closeDlg);
 	Array.prototype.forEach.call(document.querySelectorAll('.vr-dlg [data-close]'), function (b) { b.addEventListener('click', closeDlg); });
 
@@ -459,7 +472,7 @@ print <<<JS
 	function filter() {
 		var s = (q.value || '').trim().toLowerCase(), n = 0;
 		rows.forEach(function (tr) { var hit = !s || tr.getAttribute('data-q').indexOf(s) !== -1; tr.style.display = hit ? '' : 'none'; if (hit) n++; });
-		empty.hidden = n > 0 || rows.length === 0;
+		empty.hidden = n > 0;
 		if (foot) foot.textContent = n + ' ' + (n === 1 ? foot.getAttribute('data-one') : foot.getAttribute('data-many'));
 	}
 	q.addEventListener('input', filter);
@@ -496,12 +509,12 @@ print <<<JS
 		form.addEventListener('change', update);
 		document.getElementById('vrUndo').addEventListener('click', function () { form.reset(); update(); });
 		document.addEventListener('keydown', function (e) {
-			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && saveBar.classList.contains('vr-on')) { e.preventDefault(); form.querySelector('input[name=submit]').click(); }
+			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && saveBar.classList.contains('vr-on') && !dlgOpen) { e.preventDefault(); form.querySelector('input[name=submit]').click(); }
 		});
 		var lock = document.getElementById('vrLock');
 		var leaving = false; /* set once the user has saved or already confirmed leaving */
 		form.addEventListener('submit', function () { leaving = true; });
-		if (lock) Array.prototype.forEach.call(document.querySelectorAll('#vrLock, .vr-head a.vr-tog, #vrTable thead a'), function (a) { a.addEventListener('click', function (e) { if (changedRows() > 0) { if (confirm(lock.getAttribute('data-confirm'))) leaving = true; else e.preventDefault(); } }); }); /* Lås, sort links and Vis lukkede all ask before dropping unsaved changes */
+		if (lock) Array.prototype.forEach.call(document.querySelectorAll('#vrLock, .vr-head a.vr-tog, #vrTable thead a'), function (a) { a.addEventListener('click', function (e) { if (e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return; if (changedRows() > 0) { if (confirm(lock.getAttribute('data-confirm'))) leaving = true; else e.preventDefault(); } }); }); /* Lås, sort links and Vis lukkede all ask before dropping unsaved changes; a modified click opens another tab or window, so this page and its guard stay */
 		window.addEventListener('beforeunload', function (e) { if (!leaving && changedRows() > 0) { e.preventDefault(); e.returnValue = ''; } }); /* every other way off the page: account links, Tilbage, browser back */
 		update();
 		var saved = $vr_js_saved; if (saved) toast(saved);
@@ -509,10 +522,15 @@ print <<<JS
 
 	/* recalculation: ask first */
 	var rc = document.getElementById('vrRecalc');
-	if (rc) rc.addEventListener('click', function () { openDlg(document.getElementById('vrDlgRecalc')); });
+	if (rc) rc.addEventListener('click', function () { openDlg(document.getElementById('vrDlgRecalc'), rc); });
 
 	document.addEventListener('keydown', function (e) {
-		if (e.key === 'Escape') { closeDlg(); return; }
+		if (dlgOpen) { /* an open dialog keeps the keyboard: Esc closes it, Tab cycles inside it, the page shortcuts wait */
+			var f = dlgOpen.querySelectorAll('a[href],button'), at = document.activeElement;
+			if (e.key === 'Escape') closeDlg();
+			else if (e.key === 'Tab' && f.length && (!dlgOpen.contains(at) || at === (e.shiftKey ? f[0] : f[f.length - 1]))) { e.preventDefault(); (e.shiftKey ? f[f.length - 1] : f[0]).focus(); }
+			return;
+		}
 		if (e.target.matches && e.target.matches('input,select,textarea')) return;
 		if (e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) { e.preventDefault(); q.focus(); }
 	});
@@ -534,7 +552,7 @@ print <<<JS
 					if (seq !== warnSeq) return; /* another account was clicked while this one loaded */
 					if (d.error) { alert(d.error); return; }
 					list.appendChild(row('Database', d.db)); list.appendChild(row('Databasens version', d.dbver)); list.appendChild(row('Masters version', d.master));
-					openDlg(dlg);
+					openDlg(dlg, link);
 				})
 				.catch(function () { if (seq === warnSeq && confirm($vr_js_fail)) window.location.href = link.href; });
 			return false;
