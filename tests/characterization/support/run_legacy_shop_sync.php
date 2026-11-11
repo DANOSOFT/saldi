@@ -19,6 +19,9 @@
 //   call    function name, args list of arguments
 //   calls   instead of call/args: a list of [function, args], run in order in one process
 //   db_type optional, e.g. 'mysql' (default: PostgreSQL without a connection)
+//   next_rows optional: the rows chartest_cutover_op() switches to, as a cutover's settings write
+//
+// A rows answer of false makes db_select() return false, as a failed query does.
 //
 // Prints one JSON line: {return, sql}; with calls, return is the list of results. A call that
 // throws returns {exception: class, message}.
@@ -26,6 +29,7 @@
 // History:
 // 20261026 CL/SZ Created (SD-777, sub-task of SD-750).
 // 20261026 CL/SZ Several calls per run, db_type and exceptions as results, for the coexistence tests (SD-750).
+// 20261111 CL/SZ A query answer of false, and chartest_cutover_op() for the shopsync clear tests (SD-818).
 
 $spec = json_decode((string)file_get_contents($argv[1] ?? ''), true);
 if (!is_array($spec)) {
@@ -41,7 +45,7 @@ function db_select($qtxt, $where = '')
 	$GLOBALS['chartestSql'][] = $qtxt;
 	foreach ($GLOBALS['chartestRows'] as [$pattern, $rows]) {
 		if (preg_match($pattern, $qtxt)) {
-			return new ArrayIterator($rows);
+			return $rows === false ? false : new ArrayIterator($rows);
 		}
 	}
 	return new ArrayIterator([]);
@@ -67,6 +71,15 @@ function db_escape_string($text)
 	return str_replace("'", "''", (string)$text);
 }
 
+/** A cutover's operation: switches to next_rows and returns the queue files present while it ran. */
+function chartest_cutover_op()
+{
+	$GLOBALS['chartestRows'] = $GLOBALS['chartestNextRows'];
+	$names = @scandir(dirname(__DIR__, 3) . '/temp/' . $GLOBALS['db'] . '/shopsync');
+	return $names === false ? [] : array_values(array_diff($names, ['.', '..']));
+}
+
+$GLOBALS['chartestNextRows'] = $spec['next_rows'] ?? $spec['rows'];
 $db = $spec['db'];
 $db_type = $spec['db_type'] ?? 'postgresql';
 $connection = null;

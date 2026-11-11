@@ -8,6 +8,7 @@
 //
 // History:
 // 20261026 CL/SZ Created (SD-750).
+// 20261111 CL/SZ A cutover that closes the last outbound slot empties temp/<db>/shopsync/ (SD-818).
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -277,6 +278,129 @@ final class CoexistenceTest extends TestCase
 		$this->assertStringContainsString('lock file not usable', $out['return'][2]['message'], 'a cutover never goes ahead without the lock');
 	}
 
+	// ---- a cutover that closes the last outbound slot clears the shopsync queue (SD-818) ------
+
+	public function testACutoverThatClosesTheLastOutboundSlotEmptiesTheShopsyncQueue(): void
+	{
+		$queue = $this->queueWith(['v7-x0-l1', 'v8-x3-l2', 'v9-x0-l1.4242.claim', 'v1-x0-l1.77.new', 'notes.txt']);
+		$closed = [$this->api(true, true, true), $this->setting(4, ['outbound_enabled' => 'off']), $this->setting(5, ['outbound_enabled' => '0']),
+			$this->setting(6, ['outbound_enabled' => 'nej', 'intake_enabled' => 'on'])];
+
+		$out = $this->legacy('shopify_legacy_cutover', [['db' => $this->db, 'lock_wait' => 0.3], 5, 'time'], $closed);
+
+		$this->assertIsInt($out['return'], 'the operation\'s own result is still returned');
+		$this->assertSame(['notes.txt', 'v1-x0-l1.77.new'], $this->queueFiles($queue), 'markers and claims removed, a write in flight and anything else left alone');
+	}
+
+	public function testMarkersAreStillThereWhileTheLastSlotIsBeingClosedAndGoAfterTheCommit(): void
+	{
+		$queue = $this->queueWith(['v7-x0-l1']);
+		$closed = [$this->api(true, false, false), $this->setting(4, ['outbound_enabled' => 'off'])];
+
+		$out = $this->runSpec(['call' => 'shopify_legacy_cutover', 'args' => [['db' => $this->db, 'lock_wait' => 0.3], 4, 'chartest_cutover_op'],
+			'rows' => [$this->api(true, false, false)], 'next_rows' => $closed]);
+
+		$this->assertSame(['v7-x0-l1'], $out['return'], 'slot 4 was open when the operation ran');
+		$this->assertSame([], $this->queueFiles($queue));
+	}
+
+	public function testAReopeningCutoverRemovesTheLeftoversBeforeItOpensTheSlot(): void
+	{
+		$queue = $this->queueWith(['v7-x0-l1', 'notes.txt']);
+
+		$out = $this->runSpec(['call' => 'shopify_legacy_cutover', 'args' => [['db' => $this->db, 'lock_wait' => 0.3], 4, 'chartest_cutover_op'],
+			'rows' => [$this->api(true, false, false), $this->setting(4, ['outbound_enabled' => 'off'])], 'next_rows' => [$this->api(true, false, false)]]);
+
+		$this->assertSame(['notes.txt'], $out['return'], 'gone before the reopen committed');
+		$this->assertSame(['notes.txt'], $this->queueFiles($queue));
+	}
+
+	public function testAFailedGrupperReadRemovesNothing(): void
+	{
+		$queue = $this->queueWith(['v7-x0-l1']);
+
+		$out = $this->legacy('shopify_legacy_cutover', [['db' => $this->db, 'lock_wait' => 0.3], 5, 'time'],
+			[["/art='API'/", false], $this->setting(5, ['outbound_enabled' => 'off'])]);
+
+		$this->assertIsInt($out['return']);
+		$this->assertSame(['v7-x0-l1'], $this->queueFiles($queue), 'a failed query is not "no slot open"');
+	}
+
+	public function testATenantWithoutAnApiRowHasNoSlotOpen(): void
+	{
+		$queue = $this->queueWith(['v7-x0-l1']);
+
+		$out = $this->legacy('shopify_legacy_cutover', [['db' => $this->db, 'lock_wait' => 0.3], 5, 'time'], []);
+
+		$this->assertIsInt($out['return']);
+		$this->assertSame([], $this->queueFiles($queue));
+	}
+
+	public function testTheClearOnlyTouchesAValidTenantDirectory(): void
+	{
+		$out = $this->legacy([
+			['shopify_legacy_clear_shopsync', [['db' => '../' . $this->db]]],
+			['shopify_legacy_clear_shopsync', [['db' => '']]],
+			['shopify_legacy_clear_shopsync', [['db' => $this->db]]],
+		], []);
+
+		$this->assertSame([0, 0, 0], $out['return'], 'no path from the tenant name, and no shopsync/ folder yet');
+	}
+
+	public function testASlotWithoutAUrlDoesNotCountAsOpen(): void
+	{
+		$queue = $this->queueWith(['v7-x0-l1']);
+
+		$out = $this->legacy('shopify_legacy_cutover', [['db' => $this->db, 'lock_wait' => 0.3], 4, 'time'],
+			[$this->api(true, false, false), $this->setting(4, ['outbound_enabled' => 'off'])]);
+
+		$this->assertIsInt($out['return']);
+		$this->assertSame([], $this->queueFiles($queue), 'box5/box6 are empty, so slot 4 was the last one open');
+	}
+
+	public static function slotsLeftOpen(): array
+	{
+		return [
+			'slot 6 still open'          => [[4 => 'off', 5 => 'off']],
+			'only intake closed'         => [[]],
+			'unknown value counts as on' => [[4 => 'off', 5 => 'off', 6 => 'paused']],
+		];
+	}
+
+	/** @param array<int,string> $outbound */
+	#[DataProvider('slotsLeftOpen')]
+	public function testACutoverThatLeavesAnOutboundSlotOpenRemovesNothing(array $outbound): void
+	{
+		$queue = $this->queueWith(['v7-x0-l1', 'v9-x0-l1.4242.claim']);
+		$rows = [$this->api(true, true, true)];
+		foreach ([4, 5, 6] as $slot) {
+			$rows[] = $this->setting($slot, ['intake_enabled' => 'off'] + (isset($outbound[$slot]) ? ['outbound_enabled' => $outbound[$slot]] : []));
+		}
+
+		$out = $this->legacy('shopify_legacy_cutover', [['db' => $this->db, 'lock_wait' => 0.3], 5, 'time'], $rows);
+
+		$this->assertIsInt($out['return']);
+		$this->assertSame(['v7-x0-l1', 'v9-x0-l1.4242.claim'], $this->queueFiles($queue), 'the open slot still gets them');
+	}
+
+	public function testARefusedCutoverRemovesNothing(): void
+	{
+		$queue = $this->queueWith(['v7-x0-l1']);
+		$closed = [$this->api(true, true, true), $this->setting(4, ['outbound_enabled' => 'off']), $this->setting(5, ['outbound_enabled' => 'off']),
+			$this->setting(6, ['outbound_enabled' => 'off'])];
+		$fh = fopen($this->lockDir() . '/.ht_shopify_legacy_5.lock', 'c');
+		$this->assertTrue(flock($fh, LOCK_SH), 'an admitted request still holds the slot');
+		try {
+			$out = $this->legacy('shopify_legacy_cutover', [['db' => $this->db, 'lock_wait' => 0.3], 5, 'time'], $closed);
+		} finally {
+			flock($fh, LOCK_UN);
+			fclose($fh);
+		}
+
+		$this->assertSame('RuntimeException', $out['return']['exception']);
+		$this->assertSame(['v7-x0-l1'], $this->queueFiles($queue));
+	}
+
 	// ---- slot of an afd, effective afd --------------------------------------------------------
 
 	public function testTheSlotOfAnAfdIsOnlyReadWhenTheShopifySchemaIsInstalled(): void
@@ -306,6 +430,25 @@ final class CoexistenceTest extends TestCase
 	private function lockDir(): string
 	{
 		return dirname(__DIR__, 2) . '/temp/' . $this->db;
+	}
+
+	/** @param list<string> $names files to create in temp/<db>/shopsync/ */
+	private function queueWith(array $names): string
+	{
+		$dir = $this->lockDir() . '/shopsync';
+		mkdir($dir, 0700, true);
+		foreach ($names as $name) {
+			file_put_contents("$dir/$name", "stock 0 " . time() . "\n");
+		}
+		return $dir;
+	}
+
+	/** @return list<string> */
+	private function queueFiles(string $dir): array
+	{
+		$names = array_values(array_diff(scandir($dir), ['.', '..']));
+		sort($names);
+		return $names;
 	}
 
 	private function api(bool $four, bool $five, bool $six): array

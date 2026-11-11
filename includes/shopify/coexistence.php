@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/coexistence.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- includes/shopify/coexistence.php --- ver 5.1.0 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,9 @@
 // counts as on.
 //
 // 20261026 CL/SZ Created (SD-750).
+// 20261111 CL/SZ SD-818 A cutover empties temp/<db>/shopsync/ under its lock when no slot is open for outbound, before and after its operation.
+//                The markers left there would otherwise be sent if outbound is ever opened again.
+//                A failed grupper read never counts as "no slot open".
 
 if (!function_exists('shopify_legacy_enabled')) {
 	/** Whether a legacy flow ('intake' or 'outbound') is open for a slot (4, 5 or 6). */
@@ -120,6 +123,13 @@ if (!function_exists('shopify_legacy_cutover')) {
 	 * admitted on the old setting. Only the settings write belongs in $op; a call back into
 	 * this tenant from inside it would wait for the lock it holds.
 	 *
+	 * The tenant's shopsync markers are removed when no slot is open for outbound, both before
+	 * $op runs and after it has committed (SD-818); with a slot still open they stay for that
+	 * slot. Two narrow cases are not covered: a sender that claimed a marker just before the
+	 * clear puts it back when it releases the claim, and a cutover of another slot that reopens
+	 * outbound at the same moment (the lock is per slot) may lose a marker its own request still
+	 * sends directly. A marker carries no figure, so one left over only pushes current stock.
+	 *
 	 * @throws RuntimeException when the lock can't be taken or $op left a transaction open
 	 */
 	function shopify_legacy_cutover(array $ctx, int $slot, callable $op)
@@ -135,10 +145,16 @@ if (!function_exists('shopify_legacy_cutover')) {
 			throw new RuntimeException("slot $slot: " . ($fh === null ? 'lock file not usable' : 'admitted requests still running'));
 		}
 		try {
+			// SD-818: markers left from a time when no slot was open go before $op can reopen one;
+			// after its commit they could no longer be told from new ones.
+			shopify_legacy_clear_shopsync_if_closed($ctx, $slot, 'before');
 			$value = $op();
 			if (!shopify_legacy_tx_idle()) {
 				throw new RuntimeException('cutover left a transaction open; it was rolled back');
 			}
+			// Once no slot is open for outbound, the markers queued before or during the cutover
+			// are never sent, so they go now, while the lock is still held.
+			shopify_legacy_clear_shopsync_if_closed($ctx, $slot, 'after');
 			return $value;
 		} finally {
 			// Whatever $op left uncommitted is rolled back while the lock is still held, so no
@@ -150,6 +166,78 @@ if (!function_exists('shopify_legacy_cutover')) {
 			flock($fh, LOCK_UN);
 			fclose($fh);
 		}
+	}
+}
+
+if (!function_exists('shopify_legacy_open_slots')) {
+	/**
+	 * The legacy endpoints of every slot that has a URL and is open for the flow, keyed by slot
+	 * (4/5/6), without taking any slot lock. Unlike shopify_legacy_endpoints() it can run while
+	 * a cutover holds a slot, including inside that cutover.
+	 *
+	 * @return array<int, string>|null null when grupper could not be read, so "none open" is
+	 *         never assumed from a failed query
+	 */
+	function shopify_legacy_open_slots(array $ctx, string $flow): ?array
+	{
+		$q = db_select("select box4, box5, box6 from grupper where art='API'", __FILE__ . " linje " . __LINE__);
+		if ($q === false) {
+			return null;
+		}
+		$r = db_fetch_array($q);
+		$open = array();
+		foreach (array(4, 5, 6) as $slot) {
+			$url = trim((string)($r["box$slot"] ?? ''));
+			if ($url !== '' && shopify_legacy_enabled($ctx, $slot, $flow)) {
+				$open[$slot] = $url;
+			}
+		}
+		return $open;
+	}
+}
+
+if (!function_exists('shopify_legacy_clear_shopsync_if_closed')) {
+	/**
+	 * Empties the tenant's shopsync queue when no slot is open for outbound, and logs the count.
+	 *
+	 * @param string $when 'before' or 'after' the cutover's operation, for the log line
+	 * @return int how many files were removed
+	 */
+	function shopify_legacy_clear_shopsync_if_closed(array $ctx, int $slot, string $when): int
+	{
+		if (shopify_legacy_open_slots($ctx, 'outbound') !== array()) {
+			return 0;
+		}
+		$removed = shopify_legacy_clear_shopsync($ctx);
+		if ($removed > 0) {
+			error_log("saldi: legacy cutover of slot $slot ($when): no slot open for outbound; removed $removed shopsync markers for " . $ctx['db']);
+		}
+		return $removed;
+	}
+}
+
+if (!function_exists('shopify_legacy_clear_shopsync')) {
+	/**
+	 * Removes the tenant's undelivered stock-update markers (temp/<db>/shopsync/, see
+	 * includes/stdFunc/shopSyncQueue.php), claims included. Any other file there is left alone.
+	 *
+	 * @return int how many files were removed
+	 */
+	function shopify_legacy_clear_shopsync(array $ctx): int
+	{
+		$db = (string)($ctx['db'] ?? '');
+		$dir = __DIR__ . '/../../temp/' . $db . '/shopsync/';
+		// The tenant name becomes part of a path, so it is checked as shopSyncQueueDir() does.
+		if (!preg_match('/^[a-zA-Z0-9_]+$/D', $db) || !is_dir($dir)) {
+			return 0;
+		}
+		$removed = 0;
+		foreach (@scandir($dir) ?: array() as $name) {
+			if (preg_match('/^v\d+-x\d+-l\d+(?:\.[0-9]+\.claim)?$/D', $name) && @unlink($dir . $name)) {
+				$removed++;
+			}
+		}
+		return $removed;
 	}
 }
 
