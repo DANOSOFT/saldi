@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.1.0 --- 2026-11-04 ---
+// ---- index/main.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,7 @@
 // 20261028 CL/LH SALDI Assist Guide is the default widget; SALDI_ASSIST_GUIDE=off brings back v1.
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261104 LOE SST-922 The Print button loads a page's autoprint view when the page offers one.
+// 20261110 CL/MMR SST-991 The System menu shows only "Sikkerhedskopi" (text 521, as the other menus use), so it is no longer cut off as "Sikkerhedskopi/Genda".
 @session_start();
 $s_id = session_id();
 
@@ -382,10 +383,7 @@ function brightenColor($color, $amount = 0.2) {
             }
           }
           if (check_permissions(array(11))) {
-            $restoreRaw = findtekst('1903|Gendan brugers IP', $sprog_id);
-            $restore1 = explode(" ", $restoreRaw);
-            $restore = $restore1[0];
-            echo '<li><a href="#" onclick=\'update_iframe("/admin/backup.php")\'>' . findtekst('614|Sikkerhedskopi', $sprog_id) . '/'.$restore.'</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/admin/backup.php")\'>' . findtekst('521|Sikkerhedskopi', $sprog_id) . '</a></li>';
           }
           ?>
         </ul>

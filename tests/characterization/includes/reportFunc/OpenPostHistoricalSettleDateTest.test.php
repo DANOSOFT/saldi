@@ -1,5 +1,4 @@
 <?php
-
 // 20261014 MJ SST-863 A historical-date Åbne poster report hid rows that were still open on the
 //                  date asked for. The report judged a settled row by its own udlign_date, and
 //                  includes/autoudlign.php stamps rows with their own transdate rather than the
@@ -17,6 +16,8 @@
 //
 // strict_types is off: the file under test is legacy and passes '1'/'0' strings where the stubs
 // below take and return scalars loosely, and eval'd/required legacy code inherits the setting.
+// 20261111 CDX/NTR Run TEMP-table SQL in the explicitly shared owned fixture database.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 namespace {
 
@@ -245,25 +246,14 @@ namespace {
             if (!extension_loaded('pdo_pgsql')) {
                 self::markTestSkipped('pdo_pgsql is required to run the report SQL.');
             }
-            $dsn = getenv('SALDI_CHAR_DSN');
-            if (!$dsn) {
-                self::markTestSkipped('set SALDI_CHAR_DSN, SALDI_CHAR_PGUSER and SALDI_CHAR_PGPASS to run the report SQL.');
+            require_once __DIR__ . '/../../support/database/TestDatabase.php';
+            $reason = \TestDatabase::unavailableReason();
+            if ($reason !== null) {
+                self::markTestSkipped($reason);
             }
-            if (!extension_loaded('pgsql')) {
-                self::markTestSkipped('the pgsql extension is required: db_escape_string() escapes through it.');
-            }
-            $user = getenv('SALDI_CHAR_PGUSER') ?: null;
-            $pass = getenv('SALDI_CHAR_PGPASS') ?: null;
-            self::$db = new \PDO($dsn, $user, $pass, array(\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION));
-
-            // The real db_escape_string() reads these two globals, so give it the live connection
-            // rather than stubbing the escaping the code under test depends on.
-            $host = preg_match('/host=([^;]+)/', $dsn, $m) ? $m[1] : 'localhost';
-            $name = preg_match('/dbname=([^;]+)/', $dsn, $m) ? $m[1] : '';
-            $conn = pg_connect("host=$host dbname=$name user=$user password=$pass connect_timeout=5");
-            if ($conn === false) {
-                self::markTestSkipped('could not open the pgsql connection db_escape_string() needs.');
-            }
+            $fixture = \TestDatabase::sqlFixture(static::class);
+            self::$db = $fixture->pdo();
+            $conn = \TestDatabase::connect($fixture->name());
             $GLOBALS['connection'] = $conn;
             $GLOBALS['db_type'] = 'postgresql';
             return self::$db;
