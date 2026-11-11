@@ -135,6 +135,7 @@
 //                The hidden kontakt, delivery and felt fields are double-quoted, so saving no longer cuts a stored value off at the apostrophe.
 // 20261111 CL/SZ SD-800 A new debtor's number is checked, chosen and inserted under the shared debtor-number lock (hashtext('saldi:debtor_number')).
 //                Before, the card took no lock, so it could take a number create_debtor() or the Shopify worker had chosen but not committed yet.
+//                A refused save releases the lock before the card is drawn.
 @session_start();
 $s_id = session_id();
 
@@ -618,6 +619,11 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		}
 		if (!$kreditmax) {
 			$kreditmax = 0;
+		}
+		if ($debtorNumberLock && !($id == 0 && $ny_kontonr && $ny_kontonr != '!')) {
+			# The save was refused, so nothing is inserted: let the other creators go on now.
+			db_select("select pg_advisory_unlock(hashtext('saldi:debtor_number'))", __FILE__ . " linje " . __LINE__);
+			$debtorNumberLock = false;
 		}
 		if ($id == 0 && $ny_kontonr && $ny_kontonr != '!') {
 			$oprettet = date("Y-m-d");
