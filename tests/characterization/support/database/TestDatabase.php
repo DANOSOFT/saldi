@@ -6,6 +6,7 @@
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 // 20261111 CDX/NTR Document shared fixture helper contracts at their definitions.
 // 20261111 CDX/NTR Remove the exact routing row if persistent ownership recording fails.
+// 20261111 CL/SZ MB-154 Test databases are named t + 22 hex + _1, like a <master>_<regnskab id> tenant, so api/rest_api.php does not take them for the master.
 
 require_once __DIR__ . '/RetainedTestDatabases.php';
 
@@ -35,8 +36,11 @@ final class TestDatabase
         $hex = bin2hex($bytes);
         $this->uuid = substr($hex, 0, 8) . '-' . substr($hex, 8, 4) . '-' . substr($hex, 12, 4)
             . '-' . substr($hex, 16, 4) . '-' . substr($hex, 20);
-        // regnskab.db is varchar(25). Keep 96 identifier bits within that limit.
-        $this->name = 't' . substr($hex, 0, 24);
+        // regnskab.db is varchar(25). A tenant is named <master>_<regnskab id>, and api/rest_api.php
+        // takes a name without the underscore for the master database (MB-154), so the name keeps
+        // that shape: 88 identifier bits and the suffix _1. A suffix above 1 would make
+        // db_query.php write the modify log (db_skriv_id > 1).
+        $this->name = 't' . substr($hex, 0, 22) . '_1';
         self::$groups[$group] = $this;
         echo "\n" . $this->description();
     }
