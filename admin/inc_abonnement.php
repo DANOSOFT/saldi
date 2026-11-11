@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_abonnement.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- admin/inc_abonnement.php --- ver 5.1.1 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. The subscription tab (area 1 "Pakker og abonnementer") as two functions shared by the operator's customer card (operator_panel.php) and, for now, regnskab.php.

@@ -1,5 +1,5 @@
 <?php
-// --- includes/saldiBillingApi.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- includes/saldiBillingApi.php --- ver 5.1.1 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR Moved unchanged from admin/admin_panel.php so the nightly job and the operator overview can use the same REST client against the billing ledger on ssl3 (settings var_grp='internal_api').

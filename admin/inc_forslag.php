@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_forslag.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- admin/inc_forslag.php --- ver 5.1.1 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261011 CL/ASR New. Purchase proposals (tilkøb): the operator (or later a partner) proposes a plan or an add-on; the customer's billing contact gets a one-time link (admin/godkend.php?t=…) and nothing becomes payable until they approve.

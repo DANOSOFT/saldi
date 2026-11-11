@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/operator_opret.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- admin/operator_opret.php --- ver 5.1.1 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

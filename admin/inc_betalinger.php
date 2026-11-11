@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_betalinger.php --- ver 5.1.0 --- 2026.11.11 ---
+// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.11 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 3 "Betalinger og fakturering" on the customer card.
