@@ -11,7 +11,6 @@
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20261022 CL/NTR runChild() fails the test when the child runner crashes (exit 255 / fatal error).
-
 // 20261111 CDX/NTR Isolate the test class database and session.
 
 use PHPUnit\Framework\TestCase;

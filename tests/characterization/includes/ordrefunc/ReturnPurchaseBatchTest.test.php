@@ -10,7 +10,6 @@
 //
 // History:
 // 20261101 CL/MJ SST-910 Created.
-
 // 20261111 CDX/NTR Isolate the test class database and session.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';

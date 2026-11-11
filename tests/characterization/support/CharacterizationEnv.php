@@ -19,7 +19,6 @@
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 // 20261022 CL/NTR bootstrapTenantOnce() is guarded by $ownsTenant, so a teardown by one suite makes the next one re-clone.
 //                 runChild() collects stderr in a temp file so a chatty child cannot deadlock on a full pipe.
-
 // 20261111 CDX/NTR Replace the shared template clone with UUID-owned fresh installations.
 
 require_once __DIR__ . '/database/TestDatabase.php';

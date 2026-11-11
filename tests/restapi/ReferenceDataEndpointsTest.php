@@ -13,7 +13,6 @@
 // 20261008 CL/LH products/groups list for the current fiscal year, codeNo lookup, non-group ids are 404.
 // 20261008 CL/LH inventory/warehouses lists the real warehouses with their names, numbers and stock.
 // 20261023 CL/LH warehouses: follow SST-829 (#769) - no fiscal_year filter, one row per warehouse number.
-
 // 20261111 CDX/NTR Use a fresh database and cover year-independent and other-year warehouses.
 
 use PHPUnit\Framework\Attributes\DataProvider;

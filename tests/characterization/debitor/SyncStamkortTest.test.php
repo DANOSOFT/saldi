@@ -18,7 +18,6 @@
 //
 // History:
 // 20261027 CL/LH SST-887 Created; the array-valued id cases were raised by CodeRabbit on PR #851.
-
 // 20261111 CDX/NTR Isolate the test class database and session.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';

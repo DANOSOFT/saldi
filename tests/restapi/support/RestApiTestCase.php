@@ -10,7 +10,6 @@
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20261022 CL/NTR tearDownAfterClass() drops the tenant, matching the per-class lifecycle of the other REST suites.
-
 // 20261111 CDX/NTR Give each REST class its own fresh database.
 
 use PHPUnit\Framework\TestCase;

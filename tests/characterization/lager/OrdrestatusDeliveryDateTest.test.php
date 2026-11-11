@@ -1,5 +1,4 @@
 <?php
-
 // 20261013 CL/MJ Pins the Indkoebsordre hover box on ordrer.levdate.
 //                Two halves: the four comma-separated lists the SQL builds, run against a real Postgres because STRING_AGG(... ORDER BY ... NULLS LAST) has no sqlite equivalent, and renderColumn() itself, lifted from the page and run with stubs.
 //
@@ -9,7 +8,6 @@
 // be a TypeError under strict_types.
 // 20261029 CL/MJ Cover translation-id collisions with cached master/live voucher texts.
 // 20261103 CL/MJ Lager > Varer > Indkøb builds the same box as Ordrevisning.
-
 // 20261111 CDX/NTR Run TEMP-table SQL in the explicitly shared owned fixture database.
 
 namespace OrdrestatusFixture {

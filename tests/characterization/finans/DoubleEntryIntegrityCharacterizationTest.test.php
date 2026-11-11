@@ -18,7 +18,6 @@
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20261028 CL/LH The two sub-ore rounding tests pinned a defect that #674 fixed; they now assert
 //                that such a voucher is kept out of the ledger.
-
 // 20261111 CDX/NTR Isolate the test class database and session.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';

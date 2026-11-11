@@ -1,6 +1,5 @@
 <?php
 // 20260908 CDX/LH Cover shared order-header eligibility, moved lines and copy/post lock ordering (SST-765).
-
 // 20261111 CDX/NTR Use an owned SQL-fixture database instead of an externally prepared DSN.
 
 use PHPUnit\Framework\Attributes\DataProvider;

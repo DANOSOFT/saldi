@@ -29,7 +29,6 @@
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 // 20261028 CL/LH Removed the inline bootstrap that the #815 merge brought back next to the
 //                bootstrap_ordrefunc.php require; it included ordrefunc.php a second time.
-
 // 20261111 CDX/NTR Require the caller-owned database instead of a fixed fallback.
 
 if ($argc < 4) {

@@ -1,5 +1,4 @@
 <?php
-
 // 20261111 CDX/NTR Isolate pure signup settings from connections and caches left by integration tests.
 
 declare(strict_types=1);

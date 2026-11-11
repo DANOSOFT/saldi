@@ -2,7 +2,6 @@
 // 20261103 CL/MMR SST-929 Deleting an empty journal removes only empty folders, keeps what isn't the journal's own, and raises no warning.
 // 20261104 CL/MMR SST-929 A warning from unlink(), scandir() or rmdir() under the throwing handler is a failed step, not an exception (CodeRabbit on PR #1004).
 // 20261104 CL/MMR SST-929 The caught warning is logged, and an error of another type still reaches the outer handler (Codex round 2).
-
 // 20261111 CDX/NTR Leave teardown untouched when setup skipped before initializing its state.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;

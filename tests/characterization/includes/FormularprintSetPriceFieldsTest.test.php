@@ -11,7 +11,6 @@
 //
 // History:
 // 20261103 CL/SZ SD-797: created.
-
 // 20261111 CDX/NTR Isolate the test class database and session.
 
 use PHPUnit\Framework\Attributes\DataProvider;

@@ -16,7 +16,6 @@
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 // 20261022 CL/NTR Dropped the no-op `use CharacterizationEnv;` (PHP warning on load) and the unused
 //                 saldiFor(), which called a rows() helper this class does not have.
-
 // 20261111 CDX/NTR Isolate the test class database and session.
 
 use PHPUnit\Framework\TestCase;

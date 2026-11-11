@@ -1,6 +1,5 @@
 <?php
 // 20260908 CDX/LH Guard bounded batch updates and retained outer posting transactions (SST-765).
-
 // 20261111 CDX/NTR Use an owned SQL-fixture database instead of an externally prepared DSN.
 
 use PHPUnit\Framework\Attributes\DataProvider;

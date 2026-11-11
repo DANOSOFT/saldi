@@ -14,7 +14,6 @@
 // History:
 // 20260723 CL/LH SD-602: created.
 // 20260904 CL/NTR Drop the throwaway tenant again in tearDownAfterClass().
-
 // 20261111 CDX/NTR Give each REST class its own fresh database.
 
 use PHPUnit\Framework\TestCase;

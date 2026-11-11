@@ -1,5 +1,4 @@
 <?php
-
 // 20261014 MJ SST-863 A historical-date Åbne poster report hid rows that were still open on the
 //                  date asked for. The report judged a settled row by its own udlign_date, and
 //                  includes/autoudlign.php stamps rows with their own transdate rather than the
@@ -17,7 +16,6 @@
 //
 // strict_types is off: the file under test is legacy and passes '1'/'0' strings where the stubs
 // below take and return scalars loosely, and eval'd/required legacy code inherits the setting.
-
 // 20261111 CDX/NTR Run TEMP-table SQL in the explicitly shared owned fixture database.
 
 namespace {

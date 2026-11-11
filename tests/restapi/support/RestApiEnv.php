@@ -31,7 +31,6 @@
 // 20261022 CL/NTR Removed the bootstrapTenantOnce()/$bootstrapped pair the master merge duplicated (fatal on load);
 //                 bootstrapTenantOnce() now keys on $ownedDb, so a class teardown makes the next class re-provision.
 //                 bootstrapTenant() no longer opens a stray master connection it never closed.
-
 // 20261111 CDX/NTR Fresh UUID-owned tenant per REST class; no existing template dependency.
 
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';

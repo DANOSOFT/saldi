@@ -19,7 +19,6 @@
 // why one test here insists the list is defined in one place only.
 //
 // This suite reads the sources as text, so it needs no database and no tenant.
-
 // 20261111 CDX/NTR Scan tracked sources without descending into runtime files.
 declare(strict_types=1);
 

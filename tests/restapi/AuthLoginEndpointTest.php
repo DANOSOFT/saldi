@@ -12,7 +12,6 @@
 // 20260904 CL/NTR Drop the throwaway tenant again in tearDownAfterClass().
 // 20260928 CL/NTR Account names come from RestApiEnv::accountOpen()/accountClosed()
 //                 (per-process suffix) instead of the removed constants.
-
 // 20261111 CDX/NTR Give each REST class its own fresh database.
 
 use PHPUnit\Framework\TestCase;

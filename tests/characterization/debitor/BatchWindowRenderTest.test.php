@@ -1,5 +1,4 @@
 <?php
-
 // 20261013 MJ SST-833 Renders the batch window instead of reading it. The rest of this
 //                  change was covered by source-string checks, which passed while the page
 //                  itself was a 500 on PHP 8: debitor/batch.php wrote seven array keys as
@@ -14,7 +13,6 @@
 //
 // strict_types is deliberately off: eval'd code inherits the calling file's setting, and the
 // lifted legacy block passes ints where the stubs below take strings and back again.
-
 // 20261111 CDX/NTR Report known legacy warnings without failing; recognize PHP 8.2 null-offset wording.
 namespace BatchWindowFixture {
 
