@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// --- admin/vis_regnskaber.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- admin/vis_regnskaber.php --- ver 5.1.1 --- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

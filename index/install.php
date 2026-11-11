@@ -50,7 +50,7 @@
 // 20261023 CL/NTR Added tekst_key to tekster table, and added an index on (sprog_id, tekst_key) for faster lookups. This is needed for the new translation system to work properly.
 // 20261110 CDX/NTR Release 5.1.1: include the signup schema and trial columns on fresh installs.
 // 20261111 CL/ASR SD-731: a new install also creates the operator panel's master tables (operator_panel_schema()).
-//                 SD-816: and the accountant panel's master tables (partner_panel_schema()).
+// 20261111 CL/ASR SD-816: a new install also creates the accountant panel's master tables (partner_panel_schema()).
 
 session_start();
 ob_start(); //Starter output buffering

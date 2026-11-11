@@ -35,7 +35,7 @@
 //                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
 // 20261111 CL/ASR SD-731: the operator panel's master-database tables (includes/opdat_func/operatorPanelSchema.php), last in the file.
-//                 SD-816: the accountant panel's master-database tables (includes/opdat_func/partnerPanelSchema.php) right after them.
+// 20261111 CL/ASR SD-816: the accountant panel's master-database tables (includes/opdat_func/partnerPanelSchema.php), right after the operator panel's.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:

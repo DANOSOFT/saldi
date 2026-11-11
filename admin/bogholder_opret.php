@@ -2,7 +2,7 @@
 ob_start(); # for the redirect after an action (vr_prg)
 @session_start();
 $s_id=session_id();
-// --- admin/bogholder_opret.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- admin/bogholder_opret.php --- ver 5.1.1 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New.
