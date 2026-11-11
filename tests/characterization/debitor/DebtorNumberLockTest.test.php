@@ -73,7 +73,10 @@ final class DebtorNumberLockTest extends CharacterizationTestCase
 			// A card that doesn't wait is done within a few seconds; one that waits stays blocked.
 			$finishedBeforeCommit = $this->waitFor($card['proc'], 8.0);
 			pg_query($worker, 'COMMIT');
-			$this->waitFor($card['proc'], 30.0);
+			$finishedAfterCommit = $this->waitFor($card['proc'], 30.0);
+			if (!$finishedAfterCommit) {
+				proc_terminate($card['proc']);   // a hung card fails the test instead of hanging the run
+			}
 			proc_close($card['proc']);
 		} finally {
 			pg_close($worker);
@@ -82,10 +85,13 @@ final class DebtorNumberLockTest extends CharacterizationTestCase
 		$rows = self::rows("SELECT kontonr, firmanavn FROM adresser WHERE art = 'D' AND firmanavn LIKE 'SD800 %' ORDER BY id");
 		$page_output = substr(strip_tags((string)@file_get_contents($output)), 0, 400);
 		@unlink($output);
+		$this->assertTrue($finishedAfterCommit, "$page was still running 30 s after the worker committed");
 		$this->assertCount(2, $rows, "$page saved no debtor. Page output: $page_output");
 		$this->assertNotSame($rows[0]['kontonr'], $rows[1]['kontonr'],
 			"$page took number {$rows[1]['kontonr']} while the worker held it uncommitted"
 			. ($finishedBeforeCommit ? ' (the save did not wait for the lock)' : ''));
+		// Different numbers alone could be luck: the save must have waited for the worker's commit.
+		$this->assertFalse($finishedBeforeCommit, "$page finished while the worker still held the debtor-number lock");
 	}
 
 	/** @return array{proc: resource} the card page running in a child process, not waited for */
