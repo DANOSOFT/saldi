@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/labels.php --- ver 5.1.0 --- 2026.11.08 ---
+// ---- systemdata/labels.php --- ver 5.1.0 --- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,8 @@
 // 20261102 CL/ASR css/unified-components.css linked as ?v=20261102b, the version the other settings pages link.
 // 20261108 CL/ASR css/unified-components.css linked as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
 //                 The list of labels (.lb-names) is a white panel on that ground, as the left menu beside it.
+// 20261109 CL/ASR The list of labels has the settings modules' frame and soft shadow (--st-edge, --st-lift; owner, 9 Nov 2026).
+//                 Ny mærkat keeps its 12 px under the list again (.st-page .st-btn's margin 0 had won), so the shadow has room.
 
 @session_start();
 $s_id = session_id();
@@ -165,10 +167,10 @@ $typeSelect = '<select class="st-input st-select" name="labelType"' . $dis . '><
 .lb-raw textarea { width: 100%; min-height: 420px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .lb-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--st-grid); }
 .lb-foot > div { display: flex; gap: 8px; align-items: center; }
-.lb-new { margin: 12px 0 0; }
+.st-page .lb-new { margin: 12px 0 0; }
 .lb-sect { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
 .lb-list h2, .lb-editor h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
-.lb-names { margin: 0; padding: 4px; border: 1px solid var(--st-border); border-radius: var(--st-r); background: var(--st-surface); }
+.lb-names { margin: 0; padding: 4px; border: 1px solid var(--st-edge); border-radius: var(--st-r); background: var(--st-surface); box-shadow: var(--st-lift); }
 .lb-names a { display: flex; justify-content: space-between; gap: 8px; min-height: 36px; padding: 6px 10px; border-radius: 8px; color: var(--st-text); text-decoration: none; }
 .lb-names a:hover { background: var(--st-surface-2); }
 .lb-names a.on { background: var(--st-surface); box-shadow: 0 0 0 1px var(--st-border); font-weight: 500; }

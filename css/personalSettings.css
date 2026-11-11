@@ -5,12 +5,15 @@
                    the 14 px base is on body, so the root keeps the text size the kit's rem sizes are made for.
    20261108 CL/ASR The ground is Saldi's classic page colour (#eeeef0), as the other settings pages (owner, 8 Nov 2026).
                    The lead text and the inactive tabs, which sit on that ground, are the kit's --text-2 (#5b6b85, as .sk-lead), 4.66:1 on it;
-                   the muted text in the white cards is unchanged. */
+                   the muted text in the white cards is unchanged.
+   20261109 CL/ASR The cards' frame and shadow are the theme's module edge (--edge, --lift), as on the other settings pages (owner, 9 Nov 2026);
+                   the notice has the frame and the save bar's top line is the frame colour. */
 
 :root {
     --ps-bg: var(--page, #eeeef0);
     --ps-card: #ffffff;
     --ps-line: #e2e6ee;
+    --ps-edge: var(--edge, #cdd4df);
     --ps-txt: #1c2431;
     --ps-mut: #68738a;
     --ps-accent: #114691;
@@ -19,7 +22,7 @@
     --ps-red: #e0442c;
     --ps-amber: #e8a013;
     --ps-radius: 10px;
-    --ps-shadow: 0 1px 3px rgba(16, 30, 60, 0.06), 0 6px 18px rgba(16, 30, 60, 0.05);
+    --ps-shadow: var(--lift, 0 1px 2px rgba(11, 26, 58, .08), 0 4px 12px rgba(11, 26, 58, .06));
 }
 
 html, body {
@@ -74,7 +77,7 @@ body { font-size: 14px; }
 
 .ps-card {
     background: var(--ps-card);
-    border: 1px solid var(--ps-line);
+    border: 1px solid var(--ps-edge);
     border-radius: var(--ps-radius);
     box-shadow: var(--ps-shadow);
     padding: 18px 20px 20px;
@@ -188,7 +191,7 @@ body { font-size: 14px; }
     bottom: 0;
     background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(6px);
-    border-top: 1px solid var(--ps-line);
+    border-top: 1px solid var(--ps-edge);
     padding: 12px 20px;
     display: flex;
     align-items: center;
@@ -223,7 +226,7 @@ body { font-size: 14px; }
 
 .ps-notice {
     background: var(--ps-card);
-    border: 1px solid var(--ps-line);
+    border: 1px solid var(--ps-edge);
     border-radius: var(--ps-radius);
     padding: 24px;
     color: var(--ps-mut);

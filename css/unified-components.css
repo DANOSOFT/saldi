@@ -17,6 +17,11 @@
  *                 The cards, menu, fields and save bar stay white on it, and the Stamdata embed (.st-embed) stays white.
  *                 The save bar is closed all round and the '?' by the page title (.st-qhelp) keeps a white fill, so neither looks cut off or faded on the ground.
  *                 Linked as ?v=20261108.
+ * 20261109 CL/ASR A clear edge on every settings module (owner, 9 Nov 2026, variant B): the outer frame is --st-edge with a soft shadow
+ *                 (--st-lift) and the line under a title band --st-edge-head, from css/saldi-theme.css (--edge/--lift/--edge-head).
+ *                 Lines inside a card stay --st-border. The notices on the ground (.st-flash/.st-toast, .st-errors, .st-errorlist,
+ *                 .st-confirm) get the frame, not the shadow; inside the drawer and the white Stamdata embed they keep the hairline.
+ *                 Not re-versioned: these pages are not live yet.
  */
 
 /* ============================================
@@ -721,6 +726,10 @@ button.btn-primary:hover {
             the cards, menu, fields and save bar stay white on it (owner, 8 Nov 2026). The Stamdata embed stays white, as
             the person card around it. The save bar is closed at the bottom too (border and corners all round), so at the end of
             the form it does not look cut off on the ground; the '?' by the page title keeps a white fill, as Tilbage.
+   20261109 CL/ASR Every module on the ground (card, section head and note, row-table head, left menu, tab menu, save bar) has the
+            frame --st-edge and the shadow --st-lift, the line under a title band is --st-edge-head (owner, 9 Nov 2026).
+            A stack (section head, note, card) carries the shadow on every piece: the next piece covers the one above.
+            The left menu's title band has the --st-edge-head line; notices get the frame only, and keep the hairline inside a module.
    One set of components for every generated settings section. No page-specific CSS.
    ============================================ */
 
@@ -729,6 +738,9 @@ button.btn-primary:hover {
   --st-surface-2: var(--sk-surface-2, var(--surface-2, #f7f9fc));
   --st-page: var(--sk-bg, var(--page, #eeeef0));
   --st-border: var(--sk-border, var(--border, #e4e8ef));
+  --st-edge: var(--sk-edge, var(--edge, #cdd4df));
+  --st-edge-head: var(--sk-edge-head, var(--edge-head, #dce2ea));
+  --st-lift: var(--sk-lift, var(--lift, 0 1px 2px rgba(11, 26, 58, .08), 0 4px 12px rgba(11, 26, 58, .06)));
   --st-grid: var(--st-border);
   --st-text: var(--sk-text, var(--text, #0b1a3a));
   --st-text-2: var(--sk-text-2, var(--text-2, #5b6b85));
@@ -824,9 +836,9 @@ html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--page, #eee
 .st-dot-ok { background: var(--st-good); }
 .st-dot-acc { background: var(--st-info); }
 
-/* notices above the form: the kit's .sk-note, a hairline box with a coloured left edge */
+/* notices above the form: the kit's .sk-note, a box with the module frame (no shadow) and a coloured left edge */
 .st-notes { display: flex; flex-direction: column; gap: 8px; }
-.st-flash, .st-toast { --st-tone: var(--st-info); display: flex; align-items: center; gap: 8px 10px; padding: 7px var(--st-pad); border: 1px solid var(--st-border); border-left: 3px solid var(--st-tone); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.45; color: var(--st-text); }
+.st-flash, .st-toast { --st-tone: var(--st-info); display: flex; align-items: center; gap: 8px 10px; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-tone); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.45; color: var(--st-text); }
 .st-flash > span { flex: 1 1 auto; min-width: 0; }
 .st-flash > i.bx { flex: none; font-size: 16px; color: var(--st-tone); }
 .st-flash-ok { --st-tone: var(--st-good); }
@@ -842,7 +854,7 @@ html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--page, #eee
 /* section menu · form · history: 13rem | content | 17rem, 16 px apart */
 .st-layout { display: grid; grid-template-columns: var(--st-menu-w) minmax(0, 1fr) 17rem; gap: var(--st-gap); align-items: start; }
 .st-tabs { min-width: 0; }
-.st-tabs > ul { list-style: none; margin: 0; padding: 4px 0; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 0; background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-r); }
+.st-tabs > ul { list-style: none; margin: 0; padding: 4px 0; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r); box-shadow: var(--st-lift); }
 .st-tabs-select { display: none; }
 .st-page .st-tabs a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--st-ctl-h); padding: 4px var(--st-pad); border-radius: 0; font-size: var(--st-fs); line-height: 1.3; color: var(--st-text-2); text-decoration: none; transition: background-color var(--st-t), color var(--st-t); }
 .st-page .st-tabs a:hover { color: var(--st-text); background: var(--st-surface-2); text-decoration: none; }
@@ -856,11 +868,11 @@ html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--page, #eee
 .st-form { display: flex; flex-direction: column; gap: var(--st-gap); min-width: 0; }
 .st-sect { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 /* the heading above a card is the card's grey header band; a help line under it is the panel note */
-.st-sect > h2, .st-hist > h2 { display: flex; align-items: center; gap: 12px; min-height: var(--st-band-h); margin: 0; padding: 0 var(--st-pad); background: var(--st-surface-2); border: 1px solid var(--st-border); border-radius: var(--st-r) var(--st-r) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); letter-spacing: 0; color: var(--st-text); }
-.st-sect > p { margin: 0; max-width: none; padding: 8px var(--st-pad); background: var(--st-surface); border: 1px solid var(--st-border); border-top: 0; font-size: var(--st-fs-s); line-height: 1.45; color: var(--st-text-2); }
+.st-sect > h2, .st-hist > h2 { display: flex; align-items: center; gap: 12px; min-height: var(--st-band-h); margin: 0; padding: 0 var(--st-pad); background: var(--st-surface-2); border: 1px solid var(--st-edge); border-bottom-color: var(--st-edge-head); border-radius: var(--st-r) var(--st-r) 0 0; box-shadow: var(--st-lift); font: 700 var(--st-fs-s)/1.2 var(--st-font); letter-spacing: 0; color: var(--st-text); }
+.st-sect > p { margin: 0; max-width: none; padding: 8px var(--st-pad); background: var(--st-surface); border: 1px solid var(--st-edge); border-bottom-color: var(--st-edge-head); border-top: 0; box-shadow: var(--st-lift); font-size: var(--st-fs-s); line-height: 1.45; color: var(--st-text-2); }
 .st-sect > h2 + .st-card, .st-sect > p + .st-card, .st-hist > h2 + .st-card { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
 .st-sect > :is(h2, .st-rhead):not(:first-child) { margin-top: var(--st-gap); }
-.st-card { min-width: 0; background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-r); box-shadow: none; }
+.st-card { min-width: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r); box-shadow: var(--st-lift); }
 .st-card > :first-child { border-top-left-radius: calc(var(--st-r) - 1px); border-top-right-radius: calc(var(--st-r) - 1px); }
 .st-card > :last-child { border-bottom-left-radius: calc(var(--st-r) - 1px); border-bottom-right-radius: calc(var(--st-r) - 1px); }
 .st-sect > h2 + .st-card > :first-child, .st-sect > p + .st-card > :first-child, .st-hist > h2 + .st-card > :first-child, .st-rhead + .st-card > :first-child { border-top-left-radius: 0; border-top-right-radius: 0; }
@@ -956,13 +968,13 @@ select.st-input { -webkit-appearance: none; appearance: none; padding-right: 24p
 .st-error, .st-locked { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: var(--st-fs-s); }
 .st-error { color: var(--st-bad); font-weight: 500; }
 .st-locked { color: var(--st-text-2); }
-.st-errorlist { margin: 0; list-style: none; padding: 7px var(--st-pad); border: 1px solid var(--st-border); border-left: 3px solid var(--st-bad); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
+.st-errorlist { margin: 0; list-style: none; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-bad); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
 .st-errorlist a { color: var(--st-bad); }
 
 /* actions and the danger zone (only the band title is red, as the kit's .sk-panel-danger) */
 .st-action { align-items: center; }
 .st-sect-danger > h2 { color: var(--st-bad); }
-.st-card-danger { border-color: var(--st-border); }
+.st-card-danger { border-color: var(--st-edge); }
 
 /* buttons: the kit's - 28 px, white with the field border, one filled navy primary. The colours sit in variables and are
    forced on button/input elements, so the rule in includes/online.php that paints every submit button in the user's
@@ -993,10 +1005,14 @@ select.st-input { -webkit-appearance: none; appearance: none; padding-right: 24p
 .st-rc-text .st-rin { min-width: 10rem; }
 .st-rc-select .st-rin { min-width: 7rem; }
 /* a table's heading block is the top of its panel: the grey band, the help line and the parent picker */
-.st-rhead { margin: 0; background: var(--st-surface); border: 1px solid var(--st-border); border-bottom: 0; border-radius: var(--st-r) var(--st-r) 0 0; }
+.st-rhead { margin: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-bottom: 0; border-radius: var(--st-r) var(--st-r) 0 0; box-shadow: var(--st-lift); }
 .st-rhead h2 { display: flex; align-items: center; min-height: var(--st-band-h); margin: 0; padding: 0 var(--st-pad); background: var(--st-surface-2); border-radius: calc(var(--st-r) - 1px) calc(var(--st-r) - 1px) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
-.st-rhelp { margin: 0; max-width: none; padding: 8px var(--st-pad); border-top: 1px solid var(--st-border); font-size: var(--st-fs-s); line-height: 1.45; color: var(--st-text-2); }
-.st-rhead + .st-card { border-top-left-radius: 0; border-top-right-radius: 0; }
+.st-rhelp { margin: 0; max-width: none; padding: 8px var(--st-pad); border-top: 1px solid var(--st-edge-head); font-size: var(--st-fs-s); line-height: 1.45; color: var(--st-text-2); }
+.st-rhead + .st-card { border-top-color: var(--st-edge-head); border-top-left-radius: 0; border-top-right-radius: 0; }
+/* with a parent picker under the help line the line above the table is inside the module, and a picker right under the band
+   draws the line under the title band */
+.st-rhead:has(> .st-rfilter) + .st-card { border-top-color: var(--st-border); }
+.st-rhead > h2 + .st-rfilter { border-top-color: var(--st-edge-head); }
 .st-rows { padding: 0; overflow-x: auto; }
 /* an input table as the kit's: grey bold 24 px header, 28 px rows, zebra, fields without a border until hover */
 .st-rt { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--st-fs); font-variant-numeric: tabular-nums; }
@@ -1047,12 +1063,12 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-rtoggle { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; cursor: pointer; }
 .st-inline { display: inline; }
 .st-scope { display: flex; align-items: center; gap: 8px; font-size: var(--st-fs-s); color: var(--st-text-2); }
-.st-errors { margin: 0; padding: 7px var(--st-pad); border: 1px solid var(--st-border); border-left: 3px solid var(--st-bad); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
+.st-errors { margin: 0; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-bad); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
 .st-errors ul { margin: 4px 0 0; padding-left: 18px; }
 .st-errors a { color: var(--st-bad); }
 
 /* shown only while something is unsaved: the kit's sticky foot bar at the bottom of the form */
-.st-page .st-savebar { position: sticky; bottom: 0; z-index: 20; background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-r); }
+.st-page .st-savebar { position: sticky; bottom: 0; z-index: 20; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r); box-shadow: var(--st-lift); }
 .st-savebar-in { min-height: 2.875rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 0; padding: 8px var(--st-pad); }
 .st-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs); font-weight: 500; color: var(--st-text); }
 .st-savebar-btns { display: inline-flex; align-items: center; gap: 8px; }
@@ -1165,7 +1181,7 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-dbody .st-input { width: 13rem; }
 .st-dbody .st-input-short { width: 6rem; }
 .st-dbody .st-dep { padding-left: 32px; }
-.st-dbody .st-errorlist { margin: 12px 16px 0; }
+.st-dbody .st-errorlist { margin: 12px 16px 0; border-top-color: var(--st-border); border-right-color: var(--st-border); border-bottom-color: var(--st-border); }
 .st-dbody .st-grouphead { padding-left: 16px; padding-right: 16px; }
 .st-dh3 { display: flex; align-items: center; min-height: var(--st-band-h); margin: 8px 0 0; padding: 4px 16px 0; border-top: 1px solid var(--st-border); font: 600 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text-2); }
 .st-dhist { margin: 8px 0 0; border-top: 1px solid var(--st-border); }
@@ -1232,7 +1248,7 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-create-pair { display: flex; gap: 6px; }
 .st-create-pair .st-input { width: 5.5rem; }
 .st-create-fixed { height: var(--st-ctl-h); display: inline-flex; align-items: center; padding: 0 8px; border-radius: var(--st-r); background: var(--st-surface-2); color: var(--st-text); font: 400 var(--st-fs)/1.2 var(--st-font); font-variant-numeric: tabular-nums; }
-.st-confirm { margin: 0; padding: 7px var(--st-pad) 10px; border: 1px solid var(--st-border); border-left: 3px solid var(--st-warn); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
+.st-confirm { margin: 0; padding: 7px var(--st-pad) 10px; border: 1px solid var(--st-edge); border-left: 3px solid var(--st-warn); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
 .st-confirm ul { margin: 6px 0; padding-left: 18px; }
 .st-confirm p { margin: 0 0 10px; color: var(--st-text-2); }
 @media (max-width: 640px) { .st-create-grid label, .st-create-grid .st-input { width: 100%; } }
@@ -1262,8 +1278,8 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 /* the menu spans the rows of the layout, so the history under the form (rows sections, narrower screens) is not pushed down */
 .st-layout > .st-menu { grid-row: span 2; }
 .st-layout:has(> .st-menu) { grid-template-rows: auto 1fr; }
-.st-menu-panel { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-r); }
-.st-menu-h { min-height: var(--st-band-h); margin: 0; padding: 7px var(--st-pad) 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--st-surface-2); border-bottom: 1px solid var(--st-border); border-radius: calc(var(--st-r) - 1px) calc(var(--st-r) - 1px) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
+.st-menu-panel { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r); box-shadow: var(--st-lift); }
+.st-menu-h { min-height: var(--st-band-h); margin: 0; padding: 7px var(--st-pad) 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--st-surface-2); border-bottom: 1px solid var(--st-edge-head); border-radius: calc(var(--st-r) - 1px) calc(var(--st-r) - 1px) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
 .st-menu ul { list-style: none; margin: 0; padding: 0; }
 .st-menu-sub { padding: 2px 0 6px; }
 .st-menu-sub + .st-menu-sub { border-top: 1px solid var(--st-border); }
@@ -1326,5 +1342,6 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 html:has(> body .st-embed), html:has(> body .st-embed) > body { height: 100%; margin: 0; overflow: hidden; background: var(--surface, #ffffff) !important; }
 .st-page.st-embed { display: flex; flex-direction: column; height: 100vh; max-width: none; margin: 0; padding: 0; background: var(--st-surface); }
 .st-page.st-embed > .st-notes { flex: none; width: auto; margin: 8px 16px 0; }
+.st-page.st-embed > .st-notes > * { border-top-color: var(--st-border); border-right-color: var(--st-border); border-bottom-color: var(--st-border); }
 .st-page.st-embed > .st-drawer { position: static; flex: 1 1 auto; width: auto; min-height: 0; border: 0; border-radius: 0; box-shadow: none; animation: none; }
 .st-page.st-embed :is(.st-dhead, .st-skip, #st-scrim) { display: none; }

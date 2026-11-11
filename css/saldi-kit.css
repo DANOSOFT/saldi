@@ -1,4 +1,4 @@
-/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.08 ---
+/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.09 ---
    20261101 CL/ASR The shared UI kit for pages on the new design (prototype D "Som ordrelisten", as index/dashboard.php):
                    the design tokens and the components the settings pages need, everything scoped under .sk.
    20261101 CL/ASR No zebra on .sk-list rows: they are navigation (the settings hub, the left menu, lists of roles), and the owner found
@@ -7,6 +7,9 @@
                    the hub, Brugere & roller and the moved map each carried a copy of the rule.
    20261108 CL/ASR The page ground is Saldi's classic page colour (--page, #eeeef0, as the body of the classic pages), not white:
                    panels, lists, tables, menus and fields stay white on it, so they stand out (owner, 8 Nov 2026).
+   20261109 CL/ASR A module's outer frame is --sk-edge with a soft shadow (--sk-lift) and the line under its title band --sk-edge-head
+                   (theme --edge/--lift/--edge-head): panel, standalone menu and save bar; notices get the frame, not the shadow, and keep the
+                   hairline inside a panel, popover, drawer or dialog (owner, 9 Nov 2026).
 
    HOW TO USE
    1. Load it after includes/online.php (which links css/saldi-fonts.css on the shell, the dashboard and systemdata pages):
@@ -17,9 +20,10 @@
       the user's text size). Nothing here applies outside .sk, so linking this file cannot restyle a classic page.
       Drawers, dialogs and toasts go inside the same root. A whole kit page uses <div class="sk sk-page">, which also
       paints the frame in Saldi's page colour (--sk-bg = --page, #eeeef0, the same ground as every classic page). Put content
-      on it in white panels (.sk-panel), never as bare rows or tables on the ground, and do not paint a page white again.
+      on it in white panels (.sk-panel: frame --sk-edge + shadow --sk-lift), never as bare rows or tables on the ground, and do not paint a page white again.
       Page CSS is only for what the kit lacks, scoped under .sk as well (.sk .ur-matrix { … }).
-   3. Classes (all sk-; one filled button per page; status = dot + text; no shadows except on floating layers):
+   3. Classes (all sk-; one filled button per page; status = dot + text; a module on the ground - .sk-panel, a standalone .sk-nav,
+      .sk-footbar - has the frame --sk-edge and the soft shadow --sk-lift, .sk-note the frame only; the large shadow is for floating layers):
       page     .sk-page · .sk-head > (.sk-head-tx > a.sk-back + h1.sk-title + p.sk-lead) + .sk-head-acts; .sk-back = the settings
                pages' Tilbage (a .sk-btn.sk-btn-sm above the title)
       layout   .sk-cols (columns of panels, min width --sk-col-w, 26rem) · .sk-split > aside + .sk-main + aside (side width
@@ -55,6 +59,8 @@
 .sk {
 	--sk-bg: var(--page, #eeeef0); --sk-surface: var(--surface, #ffffff); --sk-surface-2: var(--surface-2, #f7f9fc);
 	--sk-border: var(--border, #e4e8ef); --sk-grid: var(--grid, #eef1f6);
+	--sk-edge: var(--edge, #cdd4df); --sk-edge-head: var(--edge-head, #dce2ea);
+	--sk-lift: var(--lift, 0 1px 2px rgba(11, 26, 58, .08), 0 4px 12px rgba(11, 26, 58, .06));
 	--sk-text: var(--text, #0b1a3a); --sk-text-2: var(--text-2, #5b6b85); --sk-text-3: var(--text-3, #8a97ad); --sk-link: var(--link, #1b68bd);
 	--sk-good: var(--good, #15803d); --sk-bad: var(--bad, #c2410c); --sk-good-bg: var(--good-bg, #e8f6ee); --sk-bad-bg: var(--bad-bg, #fdecec);
 	--sk-warn: var(--saldi-amber, #D9822B); --sk-warn-ink: #a15c07; --sk-info: var(--saldi-blue, #4FA0EE);
@@ -132,14 +138,14 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--pag
 	.sk .sk-sticky { position: static; }
 }
 
-/* ---- panel: hairline, 4 px corners, no shadow; grey 28 px header band with a bold 12 px Inter title ---- */
-.sk .sk-panel { min-width: 0; background: var(--sk-surface); border: 1px solid var(--sk-border); border-radius: var(--sk-r); }
+/* ---- panel: frame --sk-edge with the soft shadow --sk-lift, 4 px corners; grey 28 px header band (line --sk-edge-head) with a bold 12 px Inter title ---- */
+.sk .sk-panel { min-width: 0; background: var(--sk-surface); border: 1px solid var(--sk-edge); border-radius: var(--sk-r); box-shadow: var(--sk-lift); }
 .sk .sk-panel > :first-child { border-top-left-radius: calc(var(--sk-r) - 1px); border-top-right-radius: calc(var(--sk-r) - 1px); }
 .sk .sk-panel > :last-child { border-bottom-left-radius: calc(var(--sk-r) - 1px); border-bottom-right-radius: calc(var(--sk-r) - 1px); }
-.sk .sk-panel-h { display: flex; align-items: center; gap: 12px; min-height: var(--sk-band-h); padding: 0 var(--sk-pad); background: var(--sk-surface-2); border-bottom: 1px solid var(--sk-border); }
+.sk .sk-panel-h { display: flex; align-items: center; gap: 12px; min-height: var(--sk-band-h); padding: 0 var(--sk-pad); background: var(--sk-surface-2); border-bottom: 1px solid var(--sk-edge-head); }
 .sk .sk-panel-t { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 var(--sk-fs-s)/1.2 var(--sk-font); color: var(--sk-text); }
 .sk .sk-panel-tools { display: flex; align-items: center; gap: 12px; margin-left: auto; font-size: var(--sk-fs-s); white-space: nowrap; }
-.sk .sk-panel-note { padding: 8px var(--sk-pad); border-bottom: 1px solid var(--sk-border); font-size: var(--sk-fs-s); line-height: 1.45; color: var(--sk-text-2); }
+.sk .sk-panel-note { padding: 8px var(--sk-pad); border-bottom: 1px solid var(--sk-edge-head); font-size: var(--sk-fs-s); line-height: 1.45; color: var(--sk-text-2); }
 .sk .sk-panel-b { padding: 10px var(--sk-pad) 12px; }
 .sk .sk-panel-danger .sk-panel-t { color: var(--sk-bad); }
 .sk .sk-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: var(--sk-band-h); padding: 2px var(--sk-pad); border-top: 1px solid var(--sk-border);
@@ -325,7 +331,7 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--pag
 .sk .sk-bar > .sk-search { flex: 1 1 16rem; }
 .sk .sk-bar-sep { flex: none; width: 1px; height: 20px; background: var(--sk-border); }
 .sk .sk-footbar { position: sticky; bottom: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 2.875rem; padding: 8px var(--sk-pad);
-	background: var(--sk-surface); border: 1px solid var(--sk-border); border-bottom: 0; border-radius: var(--sk-r) var(--sk-r) 0 0; }
+	background: var(--sk-surface); border: 1px solid var(--sk-edge); border-bottom: 0; border-radius: var(--sk-r) var(--sk-r) 0 0; box-shadow: var(--sk-lift); }
 
 /* ---- status as dot + text, quiet tags ---- */
 .sk .sk-status { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -337,8 +343,8 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--pag
 	background: var(--sk-surface-2); color: var(--sk-tone-ink, var(--sk-text-2)); font: 500 var(--sk-fs-xs)/1 var(--sk-font); white-space: nowrap; }
 
 /* ---- left section menu ---- */
-.sk .sk-nav { display: flex; flex-direction: column; margin: 0; padding: 4px 0; list-style: none; background: var(--sk-surface); border: 1px solid var(--sk-border); border-radius: var(--sk-r); }
-.sk .sk-panel > .sk-nav { border: 0; border-radius: 0; }
+.sk .sk-nav { display: flex; flex-direction: column; margin: 0; padding: 4px 0; list-style: none; background: var(--sk-surface); border: 1px solid var(--sk-edge); border-radius: var(--sk-r); box-shadow: var(--sk-lift); }
+.sk .sk-panel > .sk-nav { border: 0; border-radius: 0; box-shadow: none; }
 .sk .sk-nav > li { display: block; }
 .sk .sk-nav-item { display: flex; align-items: center; gap: 8px; min-height: var(--sk-ctl-h); padding: 4px var(--sk-pad); color: var(--sk-text-2); line-height: 1.3; text-decoration: none;
 	transition: background-color var(--sk-t), color var(--sk-t); }
@@ -349,12 +355,14 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--pag
 
 /* ---- inline notice: hairline box with a coloured left edge (as the dashboard's role notice) ---- */
 .sk .sk-note { --sk-note-c: var(--sk-tone, var(--sk-info)); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px var(--sk-pad);
-	background: var(--sk-surface); border: 1px solid var(--sk-border); border-left: 3px solid var(--sk-note-c); border-radius: var(--sk-r); line-height: 1.45; }
+	background: var(--sk-surface); border: 1px solid var(--sk-edge); border-left: 3px solid var(--sk-note-c); border-radius: var(--sk-r); line-height: 1.45; }
+/* a notice inside a module (panel, popover, drawer, dialog) keeps the hairline: lines inside a module stay --sk-border */
+.sk :is(.sk-panel, .sk-pop, .sk-drawer, .sk-dialog) .sk-note { border-top-color: var(--sk-border); border-right-color: var(--sk-border); border-bottom-color: var(--sk-border); }
 .sk .sk-note b { font-weight: 600; }
 .sk .sk-note > :not(svg, i, .sk-ic, .sk-btn, button, a.sk-link) { flex: 1 1 0; min-width: 0; }   /* 20261101 long text wraps beside the icon */
 .sk .sk-note > :is(svg, i, .sk-ic) { flex: none; width: 16px; height: 16px; font-size: 16px; color: var(--sk-note-c); fill: currentColor; }
 
-/* ---- floating layers: popover (4 px), drawer and dialog (8 px), toast; the only places with a shadow ---- */
+/* ---- floating layers: popover (4 px), drawer and dialog (8 px), toast; the large floating shadow (--sk-shadow-win) ---- */
 @keyframes sk-in { from { opacity: 0; } to { opacity: 1; } }
 .sk .sk-pop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 100%; max-height: 20rem; margin: 0; padding: 4px 0; overflow: auto; list-style: none;
 	background: var(--sk-surface); border: 1px solid var(--sk-border); border-radius: var(--sk-r); box-shadow: var(--sk-shadow-win); text-align: left; }
