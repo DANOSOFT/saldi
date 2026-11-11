@@ -47,6 +47,10 @@ The commits each check was proven on are named at the top of its file in
 comments and formatting, while changes to string contents count as behavior. It
 requires PHP on `PATH`, as provided by the guardrails CI job. `file-history` also
 rejects history entries inserted after a leading PHPDoc instead of in the header.
+An edited PHP header must have no uncommented blank lines anywhere from the
+opening tag through its last comment. Use comment-only separators such as `//`.
+Empty lines inside a block comment are already commented; blank separation
+between the completed header and code or function PHPDoc remains allowed.
 
 Run the guardrail regression tests with `node --test tools/guardrails/tests/*.test.mjs`;
 the guardrails workflow runs the same tests before checking a pull request.
@@ -74,7 +78,7 @@ between sections of code.
 | Schema changes (DDL, `ensureTableAndColumns()`) go at the end of `includes/betweenUpdates.php`; `admin/opret.php` and `includes/opretfunc.php` may define the initial schema when creating a new regnskab, until structure helper functions replace this setup | guardrails `migrations` | [convention_database_changes](../../doc/ai/convention_database_changes.md) |
 | `includes/opdat_*.php` and `includes/betweenUpdates2.php` are not edited, except in a version cut | guardrails `migrations` | [feedback_protected_update_files](../../doc/ai/feedback_protected_update_files.md) |
 | A new test lives where CI runs it: a `phpunit.xml` suite or `e2e/` | guardrails `test-discovery` | [tests/README.md](../../tests/README.md) |
-| An edited PHP file gets a history line below the older ones; the header date and copyright move along | guardrails `file-history` | [convention_file_history](../../doc/ai/convention_file_history.md) |
+| An edited PHP header has no uncommented blank lines; history is below older entries and the header date and copyright move along | guardrails `file-history` | [convention_file_history](../../doc/ai/convention_file_history.md) |
 | New blank separators may contain indentation; no incidental whitespace-only rewrites, trailing whitespace after content, or file mode changes | guardrails `whitespace` | [feedback_whitespace_and_indentation](../../doc/ai/feedback_whitespace_and_indentation.md) |
 | Keep simple function calls on one line; when a call needs wrapping, put every argument on its own line | review | |
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](../../doc/ai/feedback_pre_pr_test_report.md) |
