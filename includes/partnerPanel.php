@@ -28,6 +28,13 @@
 //                 A customer user invitation is accepted only while its sender is still active in the firm and still sees the customer, and resending one needs the right Work in accounts, as sending it does.
 //                 Names in mail headings are escaped once.
 //                 Saldi gets a mail when a group creates or detaches a company or adds, deactivates, reactivates or removes an employee (addendum K3; each active employee is one ERP user, K2).
+//                 An invitation is accepted only while Saldi still lets the firm manage users.
+//                 A customer user invitation needs a sender with Manage users and Work in accounts, both when it is sent and when it is accepted.
+//                 An access request is refused for the master database and for closed accounts, the same accounts the search leaves out (bp_findable_where()).
+//                 A cancellation or archiving stays open for Saldi when the firm ended its own link (bp_self_end_mark()), and is still closed when Saldi ends the link, moves the account or closes the firm.
+//                 A payer request always ends with the link.
+//                 Saldi's list of requests says when the firm no longer has access to the account and whether the firm is closed.
+//                 Each customer row names another firm that pays for the account through its own link, for the payer label.
 
 if (!function_exists('bp_tables_ensure')) {
 
@@ -136,6 +143,7 @@ function bp_customers($includeClosed = true, $wholeFirm = false) { # $wholeFirm:
 	$links = array(); $q = db_select("select rp.*, b.brugernavn as resp_login, pu.name as resp_name from regnskab_partners rp left join brugere b on b.id = rp.responsible_bruger_id left join partner_users pu on pu.bruger_id = rp.responsible_bruger_id where rp.partner_id = '$pid' and rp.until is null and rp.regnskab_id in ($in)", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $links[(int)$r['regnskab_id']] = $r;
 	$props = array(); if (db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'partner_proposals'", __FILE__ . " linje " . __LINE__))) { $q = db_select("select regnskab_id, status, kind, key, decided_at, created from partner_proposals where partner_id = '$pid' and regnskab_id in ($in) and (status = 'open' or decided_at >= now() - interval '30 days')", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $props[(int)$r['regnskab_id']][] = $r; }
 	$reqs = array(); $q = db_select("select regnskab_id, kind, status, created from partner_requests where partner_id = '$pid' and status = 'open' and regnskab_id in ($in)", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $reqs[(int)$r['regnskab_id']][] = $r;
+	$oth = array(); $q = db_select("select rp.regnskab_id, p.name from regnskab_partners rp join partners p on p.id = rp.partner_id where rp.partner_id <> '$pid' and rp.payer = 'partner' and rp.until is null and rp.regnskab_id in ($in)", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $oth[(int)$r['regnskab_id']] = $r['name']; # 20261109 CL/ASR another firm that pays through its own link, for the payer label (bp_payer_html(), review #960)
 	$favs = bp_favorites(); $home = (int)(bp_partner()['home_regnskab_id'] ?? 0);
 	$q = db_select("select id, regnskab, db, lukket, lukkes, sidst, posteret, posteringer, brugerantal, email, betalt_til from regnskab where id in ($in) order by regnskab", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -143,7 +151,7 @@ function bp_customers($includeClosed = true, $wholeFirm = false) { # $wholeFirm:
 		if (!$includeClosed && $closed) continue;
 		$r['closed'] = $closed; $r['is_home'] = ($id == $home);
 		$r['link'] = isset($links[$id]) ? $links[$id] : null;
-		$r['payer'] = $r['link'] ? $r['link']['payer'] : 'customer';
+		$r['payer'] = $r['link'] ? $r['link']['payer'] : 'customer'; $r['other_payer'] = isset($oth[$id]) ? $oth[$id] : null;
 		$r['responsible_id'] = $r['link'] ? (int)$r['link']['responsible_bruger_id'] : 0;
 		$r['responsible'] = $r['link'] ? ($r['link']['resp_name'] ?: $r['link']['resp_login']) : '';
 		$r['plan_key'] = isset($plans[$id]) ? $plans[$id] : null; $r['plan_name'] = $r['plan_key'] && function_exists('ent_plan_name') ? ent_plan_name($r['plan_key']) : ($r['plan_key'] ?: '');
@@ -251,6 +259,7 @@ function bp_invite_create($kind, $rid, $name, $email, $opt = array()) {
 	if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return array(0, bp_t('Skriv en gyldig e-mail','Enter a valid e-mail'));
 	if (!in_array($kind, array('employee', 'customer_user'), true)) return array(0, 'Ukendt type');
 	if ($kind == 'customer_user' && !partner_can((int)$rid, 'open')) return array(0, bp_t('Regnskabet er ikke tilknyttet','The account is not linked'));
+	if ($kind == 'customer_user' && !(bp_can('users') && bp_can('work'))) return array(0, bp_t('Kundebrugere med alle rettigheder kræver rettighederne Administrere brugere og Arbejde i regnskaber','Customer users with all rights require the rights Manage users and Work in accounts')); # 20261109 CL/ASR for every caller, as on the card (review #960)
 	if ($kind == 'employee') { list($sc, $sids) = bp_invite_scope($opt['scope'] ?? 'all'); $ge = bp_grant_error($opt['partner_role'] ?? 'employee', explode(',', (string)($opt['rights'] ?? '')), $sc, $sids); if ($ge) return array(0, $ge); } # 20261109 CL/ASR no more than the sender may give
 	if (db_fetch_array(db_select("select 1 from partner_invites where partner_id = '".bp_pid()."' and kind = '$kind' and email = '".db_escape_string($email)."' and status = 'sent' and expires_at >= current_date".($rid ? " and regnskab_id = '".(int)$rid."'" : ""), __FILE__ . " linje " . __LINE__))) return array(0, bp_t('Der er allerede en åben invitation til den e-mail','There is already an open invitation for that e-mail'));
 	$tok = bp_token(); $exp = date('Y-m-d', strtotime('+'.BP_INVITE_DAYS.' days'));
@@ -278,15 +287,17 @@ function bp_invite_scope($s) {
 }
 // 20261109 CL/ASR On acceptance (no login): an employee invitation still needs a sender who may give what it gives (review #960).
 //                 The sender must be active in the firm; an owner may give everything, an employee with Manage users only the rights and customers they hold, never the owner role.
-//                 A customer user invitation needs a sender who is still active in the firm and still sees the customer, so a deactivated or removed employee's open invitations die with their access.
+//                 A customer user invitation needs a sender who is still active in the firm, still holds Manage users and Work in accounts (an owner holds all rights) and still sees the customer, so a deactivated, demoted or removed employee's open invitations die with their access.
+//                 Either kind needs a firm that Saldi still lets manage users (partners.can_manage_users), as sending does.
 function bp_invite_sender_error($i) {
 	$no = 'Invitationen kan ikke længere bruges, fordi den, der sendte den, ikke længere må give den adgang. Bed firmaet om en ny invitation.';
 	$s = db_fetch_array(db_select("select partner_role, rights, scope, active from partner_users where bruger_id = '".(int)$i['created_by']."' and partner_id = '".(int)$i['partner_id']."'", __FILE__ . " linje " . __LINE__));
-	if ($i['kind'] == 'customer_user') $no = 'Invitationen kan ikke længere bruges, fordi den, der sendte den, ikke længere har adgang til regnskabet. Bed din bogholder om en ny invitation.';
+	if ($i['kind'] == 'customer_user') $no = 'Invitationen kan ikke længere bruges, fordi den, der sendte den, ikke længere må give adgang til regnskabet. Bed din bogholder om en ny invitation.';
 	if (!$s || !($s['active'] === null || bp_bool($s['active']))) return $no;
-	if ($i['kind'] == 'customer_user') return ($s['scope'] != 'selected' || db_fetch_array(db_select("select 1 from partner_user_access where bruger_id = '".(int)$i['created_by']."' and regnskab_id = '".(int)$i['regnskab_id']."'", __FILE__ . " linje " . __LINE__))) ? '' : $no; # 20261109 CL/ASR a customer login needs a sender who is still active in the firm and still sees the customer
-	if ($s['partner_role'] == 'owner') return '';
+	$pf = db_fetch_array(db_select("select can_manage_users from partners where id = '".(int)$i['partner_id']."'", __FILE__ . " linje " . __LINE__)); if (!$pf || !bp_bool($pf['can_manage_users'])) return $no; # 20261109 CL/ASR Saldi still lets the firm manage users
 	$sr = ($s['rights'] === null || $s['rights'] === '') ? array('work') : explode(',', (string)$s['rights']);
+	if ($i['kind'] == 'customer_user') return (($s['partner_role'] == 'owner' || (in_array('users', $sr, true) && in_array('work', $sr, true))) && ($s['scope'] != 'selected' || db_fetch_array(db_select("select 1 from partner_user_access where bruger_id = '".(int)$i['created_by']."' and regnskab_id = '".(int)$i['regnskab_id']."'", __FILE__ . " linje " . __LINE__)))) ? '' : $no; # 20261109 CL/ASR a customer login needs a sender who is still active, still holds Manage users and Work in accounts and still sees the customer
+	if ($s['partner_role'] == 'owner') return '';
 	if ($i['partner_role'] == 'owner' || !in_array('users', $sr, true) || array_diff(array_intersect(array_keys(partner_rights_all()), explode(',', (string)$i['rights'])), $sr)) return $no;
 	list($sc, $ids) = bp_invite_scope($i['scope']); if ($s['scope'] != 'selected') return '';
 	if ($sc != 'selected') return $no;
@@ -299,10 +310,12 @@ function bp_invites($status = null) { bp_tables_ensure(); db_modify("update part
 // ---------- access requests to existing ledgers ----------
 // 20261109 CL/ASR The firm never sees the e-mail of an account it has no access to, only a masked form such as k***@d***.dk (review #960).
 function bp_mask_email($e) { return preg_match('/^(.)[^@]*@(.).*?(\.[^.@]*)?$/u', (string)$e, $m) ? $m[1].'***@'.$m[2].'***'.($m[3] ?? '') : '***'; }
+// 20261109 CL/ASR The accounts a firm may look up and ask for access to: not the master database, not closed (review #960).
+function bp_findable_where() { global $sqdb; return "db != '".db_escape_string($sqdb)."' and coalesce(lukket,'') != 'on'"; }
 // Find a ledger by number, name or (cached) CVR. Returns [row|null, note]
 function bp_find_ledger($s) {
-	global $sqdb; $s = trim((string)$s); if ($s === '') return array(null, bp_t('Skriv regnskabsnummer, navn eller CVR','Enter account number, name or CVR'));
-	$w = "db != '".db_escape_string($sqdb)."' and coalesce(lukket,'') != 'on'";
+	$s = trim((string)$s); if ($s === '') return array(null, bp_t('Skriv regnskabsnummer, navn eller CVR','Enter account number, name or CVR'));
+	$w = bp_findable_where();
 	if (ctype_digit($s) && strlen($s) == 8) { $c = db_fetch_array(db_select("select regnskab_id from partner_ledger_cache where cvr = '".db_escape_string($s)."' limit 1", __FILE__ . " linje " . __LINE__)); if ($c) { $r = db_fetch_array(db_select("select id, regnskab, email from regnskab where id = '".(int)$c['regnskab_id']."' and $w", __FILE__ . " linje " . __LINE__)); if ($r) return array($r, ''); } return array(null, bp_t('Ingen kunde med det CVR-nummer er kendt. Prøv regnskabsnummer eller navn.','No customer with that CVR is known. Try the account number or name.')); }
 	if (ctype_digit($s)) { $r = db_fetch_array(db_select("select id, regnskab, email from regnskab where id = '".(int)$s."' and $w", __FILE__ . " linje " . __LINE__)); return $r ? array($r, '') : array(null, bp_t('Intet regnskab med det nummer','No account with that number')); }
 	$q = db_select("select id, regnskab, email from regnskab where lower(regnskab) = lower('".db_escape_string($s)."') and $w", __FILE__ . " linje " . __LINE__); $rows = array(); while ($r = db_fetch_array($q)) $rows[] = $r; # 20261109 CL/ASR the exact name, so % and _ cannot probe other accounts' names (review #960)
@@ -311,7 +324,7 @@ function bp_find_ledger($s) {
 }
 function bp_access_request_create($rid, $message) {
 	bp_tables_ensure(); $rid = (int)$rid; $pid = bp_pid();
-	$reg = db_fetch_array(db_select("select id, regnskab, email from regnskab where id = '$rid'", __FILE__ . " linje " . __LINE__)); if (!$reg) return array(0, bp_t('Regnskabet findes ikke','Account not found'));
+	$reg = db_fetch_array(db_select("select id, regnskab, email from regnskab where id = '$rid' and ".bp_findable_where(), __FILE__ . " linje " . __LINE__)); if (!$reg) return array(0, bp_t('Regnskabet findes ikke','Account not found')); # 20261109 CL/ASR the same accounts as the search (review #960)
 	if (partner_link($rid)) return array(0, bp_t('I har allerede adgang til regnskabet','You already have access to the account'));
 	if (db_fetch_array(db_select("select 1 from partner_access_requests where partner_id = '$pid' and regnskab_id = '$rid' and status = 'open'", __FILE__ . " linje " . __LINE__))) return array(0, bp_t('Der er allerede en åben anmodning','There is already an open request'));
 	$to = filter_var((string)$reg['email'], FILTER_VALIDATE_EMAIL) ? $reg['email'] : bp_saldi_mail();
@@ -394,14 +407,17 @@ function bp_request_cancel($id, $rid) { # 20261109 CL/ASR only a request on the 
 function bp_request_payer_back($r, $by) { if ($r['kind'] == 'payer_to_partner' && ($l = partner_link((int)$r['regnskab_id'], (int)$r['partner_id'])) && $l['payer'] == 'partner') { bp_set_payer((int)$r['regnskab_id'], (int)$r['partner_id'], 'customer', $by); return true; } return false; }
 // 20261109 CL/ASR A request lives only while its firm still has the link it was made under (review #960).
 //                 When Saldi unlinks or moves the account, or closes the firm, the firm's open requests on it are closed as cancelled, so Saldi is not asked to act on them and the customer cannot accept them.
+//                 Only when the firm ended that link itself (its note carries bp_self_end_mark()) does a cancellation or archiving it asked for stay open for Saldi, as the panel told the firm; a payer request always ends with the link.
+function bp_self_end_mark() { return ' | afsluttet af bogholder: '; } # appended to regnskab_partners.note by the firm's own unlink (admin/bogholder_panel.php)
 function bp_requests_sweep($rid = 0) {
-	$q = db_select("update partner_requests q set status = 'cancelled', decided_at = now(), decided_by = 'adgang ophørt' where q.status = 'open'".($rid ? " and q.regnskab_id = '".(int)$rid."'" : "")." and not exists (select 1 from regnskab_partners rp where rp.regnskab_id = q.regnskab_id and rp.partner_id = q.partner_id and rp.until is null and rp.since <= q.created) returning q.regnskab_id, q.partner_id, q.kind", __FILE__ . " linje " . __LINE__);
+	$self = "exists (select 1 from regnskab_partners re where re.regnskab_id = q.regnskab_id and re.partner_id = q.partner_id and re.since <= q.created and re.until >= q.created and re.note like '%".db_escape_string(trim(bp_self_end_mark()))."%')"; # the link the request was made under was ended by the firm itself
+	$q = db_select("update partner_requests q set status = 'cancelled', decided_at = now(), decided_by = 'adgang ophørt' where q.status = 'open'".($rid ? " and q.regnskab_id = '".(int)$rid."'" : "")." and not exists (select 1 from regnskab_partners rp where rp.regnskab_id = q.regnskab_id and rp.partner_id = q.partner_id and rp.until is null and rp.since <= q.created) and (q.kind in ('payer_to_partner', 'payer_to_customer') or not $self) returning q.regnskab_id, q.partner_id, q.kind", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) partner_log('partner.request_cancelled', (int)$r['regnskab_id'], (int)$r['partner_id'], bp_request_label($r['kind']).' – '.bp_t('firmaets adgang til regnskabet er ophørt','the firm\'s access to the account has ended'));
 }
 // 20261109 CL/ASR Another firm that pays for the account through its own active link, or null (review #960).
 //                 The panel never makes a second firm the payer: a group that is let in, a group's payer switch and a bookkeeper taking over payment all leave the payment as it is while another firm pays.
 function bp_other_payer($rid, $pid) { $r = db_fetch_array(db_select("select p.id, p.name from regnskab_partners rp join partners p on p.id = rp.partner_id where rp.regnskab_id = '".(int)$rid."' and rp.partner_id <> '".(int)$pid."' and rp.payer = 'partner' and rp.until is null limit 1", __FILE__ . " linje " . __LINE__)); return $r ?: null; }
-function bp_saldi_requests($rid) { bp_requests_sweep($rid); $o = array(); $q = db_select("select q.*, p.name as pname, b.brugernavn as by_login from partner_requests q join partners p on p.id = q.partner_id left join brugere b on b.id = q.created_by where q.regnskab_id = '".(int)$rid."' and q.status = 'open' and q.kind <> 'payer_to_customer' order by q.id", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $o[] = $r; return $o; }
+function bp_saldi_requests($rid) { bp_requests_sweep($rid); $o = array(); $q = db_select("select q.*, p.name as pname, p.status as pstatus, exists (select 1 from regnskab_partners rp where rp.regnskab_id = q.regnskab_id and rp.partner_id = q.partner_id and rp.until is null) as has_link, b.brugernavn as by_login from partner_requests q join partners p on p.id = q.partner_id left join brugere b on b.id = q.created_by where q.regnskab_id = '".(int)$rid."' and q.status = 'open' and q.kind <> 'payer_to_customer' order by q.id", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $o[] = $r; return $o; }
 function bp_request_settle($id, $rid, $done, $note, $by) {
 	bp_requests_sweep($rid); # 20261109 CL/ASR also when the page was drawn before the firm's link ended
 	$r = db_fetch_array(db_select("select * from partner_requests where id = '".(int)$id."' and regnskab_id = '".(int)$rid."' and status = 'open' and kind <> 'payer_to_customer'", __FILE__ . " linje " . __LINE__));

@@ -8,6 +8,7 @@
 // 20261109 CL/ASR The guard asks partner_panel_ready() (PostgreSQL master, both panels' tables created) after it has sent non-partner users to their own pages (review #960).
 //                 Staff go to the operator panel only when it is ready, otherwise to the classic menu.
 //                 While the panel is being prepared, a partner user gets a link to the classic account list, which then shows instead of redirecting back here.
+//                 The payer shows another firm that pays for the account through its own link, by name for a group that owns the company and otherwise as another firm, never as the company or the customer itself.
 
 if (!function_exists('bp_require_partner')) {
 
@@ -65,7 +66,9 @@ function bp_close() { vr_close(); print "</body></html>"; }
 
 // ---------- renderers ----------
 function bp_status_html($r) { return "<span class=\"vr-st\"><span class=\"vr-dot ".$r['status'][2]."\"></span>".bp_h($r['status'][1])."</span>"; }
-function bp_payer_html($r) { if ($r['is_home']) return "<span class=\"vr-mut2\">".(bp_is_group() ? bp_t('hovedselskab','parent company') : bp_t('eget regnskab','own account'))."</span>"; if (bp_is_group()) return $r['payer'] == 'partner' ? bp_t('Hovedselskabet','The parent company') : bp_t('Selskabet selv','The company itself'); return $r['payer'] == 'partner' ? bp_t('Firmaet','The firm')." <span class=\"vr-mut2\">· ".bp_t('ordning','scheme')."</span>" : bp_t('Kunden','The customer'); }
+function bp_payer_html($r) { if ($r['is_home']) return "<span class=\"vr-mut2\">".(bp_is_group() ? bp_t('hovedselskab','parent company') : bp_t('eget regnskab','own account'))."</span>";
+	if ($r['payer'] != 'partner' && !empty($r['other_payer'])) return (bp_is_group() && $r['link'] && $r['link']['access'] == 'owner') ? bp_h($r['other_payer'])." <span class=\"vr-mut2\">· ".bp_t('andet firma','another firm')."</span>" : bp_t('Et andet firma','Another firm'); # 20261109 CL/ASR another firm pays through its own link (bp_customers()): named for the group that owns the company (review #960)
+	if (bp_is_group()) return $r['payer'] == 'partner' ? bp_t('Hovedselskabet','The parent company') : bp_t('Selskabet selv','The company itself'); return $r['payer'] == 'partner' ? bp_t('Firmaet','The firm')." <span class=\"vr-mut2\">· ".bp_t('ordning','scheme')."</span>" : bp_t('Kunden','The customer'); }
 function bp_plan_html($r) { return $r['plan_name'] ? bp_h($r['plan_name']) : "<span class=\"vr-mut2\">".bp_t('ingen pakke','no plan')."</span>"; }
 // Work to do in the ledger, with deep links that open the ledger at that function.
 function bp_work_html($r, $compact = false) {

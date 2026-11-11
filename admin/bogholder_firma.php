@@ -18,6 +18,7 @@ $s_id=session_id();
 //                 Under Priser the count and the price still cover the whole firm, but the lists name only the customers the user sees, with a line for the rest.
 //                 An editor who sees selected customers only is shown a colleague's "all customers" scope as text, as the scope mode cannot be changed by them.
 //                 The list of access requests shows the account's e-mail masked.
+//                 Under Priser for a group, the footer says that companies not invoiced via the parent are not listed, which also covers a company that another firm pays for.
 
 $css="../css/standard.css";
 $title="Bogholderpanel";
@@ -133,7 +134,7 @@ if ($tab == 'oversigt') {
 	foreach ($rows as $x) { list($r, $pn, $m) = $x; if (!isset($mine[(int)$r['id']])) { $hid++; continue; } print "<div class=\"bp-row\"><div><b><a href=\"bogholder_panel.php?regnskab_id=".(int)$r['id']."\">".bp_h($r['regnskab'])."</a></b><small>".($pn ? bp_h($pn) : bp_t('ingen pakke','no plan')).($r['is_home'] ? ' · '.bp_t('hovedselskab','parent company') : '')."</small></div><div class=\"bp-acts\"><span class=\"vr-mut\">".($m === null ? bp_t('efter aftale','by agreement') : bp_kr($m).'/'.bp_t('md.','mo.'))."</span></div></div>"; }
 	if ($hid) print $hidHtml($hid);
 	if (!$rows) print "<div class=\"vr-empty\"><span>".bp_t('Ingen selskaber faktureres via hovedselskabet endnu.','No companies are invoiced via the parent yet.')."</span></div>";
-	print "<div class=\"vr-foot\"><span>".bp_t('Selskaber, der betaler selv, står ikke her. Betaleren ændres under selskabets Handlinger.','Companies that pay themselves are not listed. The payer is changed under the company\'s Actions.')."</span></div></div></section>";
+	print "<div class=\"vr-foot\"><span>".bp_t('Selskaber, der ikke faktureres via hovedselskabet, står ikke her. Betaleren ændres under selskabets Handlinger.','Companies not invoiced via the parent are not listed. The payer is changed under the company\'s Actions.')."</span></div></div></section>";
 
 } elseif ($tab == 'priser') {
 	$scheme = bp_scheme_rows(); list($n, $list, $pct, $total, $avg, $tier) = bp_price_calc(count($scheme)); $calcN = max(0, (int)if_isset($_GET, $n, 'n'));
