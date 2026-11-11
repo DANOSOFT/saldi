@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-10 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -164,6 +164,7 @@
 // 20261110 CL/MJ SST-924 krediter(): a return on an item with batch control goes back on a batch of the same item.
 //                A return typed by hand takes the batch the item was last sold from to the customer, else the item's newest batch, else a new one.
 //                "Opret som indkøb" in the batch window gives a new batch.
+// 20261111 CL/MJ SST-924 krediter(): a typed return skips the batch of a purchase that is not received yet (rest NULL), where its units would be lost.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -1021,7 +1022,8 @@ function krediter_batch($ordre_id, $vare_id, $variant_id, $lager)
 	$lager = (int)$lager;
 	// A batch without a warehouse belongs to the main one, as lager/modtagelse.php counts it.
 	$inLager = $lager <= 1 ? "coalesce(bk.lager, 0) <= 1" : "bk.lager = '$lager'";
-	$same = "bk.vare_id = '$vare_id' and coalesce(bk.variant_id, 0) = '$variant_id' and $inLager";
+	// A purchase not received yet has a batch with rest NULL (batch_salg_lev()); rest+antal would stay NULL.
+	$same = "bk.vare_id = '$vare_id' and coalesce(bk.variant_id, 0) = '$variant_id' and $inLager and bk.rest is not null";
 
 	$qtxt = "select bs.batch_kob_id from batch_salg bs, batch_kob bk, ordrer o, ordrer retur";
 	$qtxt .= " where retur.id = '$ordre_id' and retur.konto_id > 0 and o.konto_id = retur.konto_id and bs.ordre_id = o.id";

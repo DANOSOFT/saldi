@@ -10,6 +10,7 @@
 // History:
 // 20261110 CL/MJ SST-960 Created.
 // 20261110 CL/MJ SST-924 Returns typed by hand and "Opret som indkøb" go back on a batch of the same item.
+// 20261111 CL/MJ SST-924 A typed return passes over the batch of a purchase that is not received yet.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -148,6 +149,22 @@ final class BatchControlStockTest extends CharacterizationTestCase
         $this->assertEqualsWithDelta(8.0, self::rest((int)$batch['id']), 0.001);
         $this->assertCount(1, self::batches($item), 'no new batch');
         $this->assertStockAgrees($item, 8.0);
+    }
+
+    /** A sale before the purchase is received leaves a batch with rest NULL; a return put there would be lost. */
+    public function test_a_manual_return_passes_over_the_batch_of_a_purchase_not_received_yet(): void
+    {
+        $item = $this->batchItem();
+        ['batch' => $batch] = $this->boughtAndSold($item, self::$fx->debtor(), 4);
+        self::rows(
+            'INSERT INTO batch_kob (linje_id, vare_id, ordre_id, pris, lager, variant_id) SELECT 0, vare_id, 0, 100, lager, 0 FROM batch_kob WHERE id = $1',
+            [$batch['id']]
+        );
+
+        $this->manualReturn(self::$fx->debtor(), $item, 2);
+
+        $this->assertEqualsWithDelta(8.0, self::rest((int)$batch['id']), 0.001, 'back on the received batch');
+        $this->assertCount(2, self::batches($item), 'no new batch');
     }
 
     /** A batch saved without a warehouse (older data, stock regulation) counts as the main warehouse's. */
