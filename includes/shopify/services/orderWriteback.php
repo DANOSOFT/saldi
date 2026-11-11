@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderWriteback.php --- ver 5.1.0 --- 2026.11.09
+// --- includes/shopify/services/orderWriteback.php --- ver 5.1.0 --- 2026.11.11
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,7 @@
 //
 // 20261022 CL/MJ SD-759: created (WP10-1).
 // 20261109 CL/MJ SD-759: wired to the merged lanes.
+// 20261111 CL/MJ SD-759 (Sol): a split set's lager name comes from one LG row per lager, the newest, so rows kept from earlier years are not listed twice.
 //                The worker runs the stages from the job WP09 enqueues, the order's data is read from the order and its link, and the calls go through shopify_graphql().
 
 require_once __DIR__ . '/../noteAppend.php';
@@ -380,7 +381,8 @@ function shopify_writeback_context(array $link, string $stage): array {
 function shopify_writeback_split_sets(int $ordreId): array {
 	$rows = shopify_db_rows(
 		"SELECT l.saet, l.varenr, l.antal, l.lager, l.samlevare, g.beskrivelse AS lager_navn
-		FROM ordrelinjer l LEFT JOIN grupper g ON g.art = 'LG' AND g.kodenr::text = l.lager::text
+		FROM ordrelinjer l
+		LEFT JOIN (SELECT DISTINCT ON (kodenr) kodenr, beskrivelse FROM grupper WHERE art = 'LG' ORDER BY kodenr, id DESC) g ON g.kodenr::text = l.lager::text
 		WHERE l.ordre_id = $1 AND l.saet > 0 ORDER BY l.saet, l.posnr, l.id",
 		array($ordreId)
 	);

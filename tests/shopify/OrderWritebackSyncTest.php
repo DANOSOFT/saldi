@@ -9,6 +9,7 @@
 //
 // History:
 // 20261109 CL/MJ SD-759: created.
+// 20261111 CL/MJ SD-759 (Sol): lager 91 also has an older LG row, as a copy from an earlier year leaves it.
 
 use PHPUnit\Framework\TestCase;
 
@@ -61,6 +62,7 @@ final class OrderWritebackSyncTest extends TestCase
         $this->sql("DELETE FROM ordrelinjer WHERE ordre_id IN (SELECT id FROM ordrer WHERE firmanavn = 'SD759')");
         $this->sql("DELETE FROM ordrer WHERE firmanavn = 'SD759'");
         $this->sql("DELETE FROM grupper WHERE art = 'LG' AND kodenr::text IN ('91', '92')");
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art) VALUES ('Mårum (gammel)', 91, 'LG')");
         $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art) VALUES ('Mårum', 91, 'LG'), ('Hillerød', 92, 'LG')");
         $this->sql("DELETE FROM settings WHERE var_grp = 'shopify' AND var_name = 'webhook_base_url'");
         $this->sql("INSERT INTO settings (var_grp, var_name, var_value) VALUES ('shopify', 'webhook_base_url', 'https://saldi.example')");

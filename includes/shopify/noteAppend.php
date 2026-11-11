@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/noteAppend.php --- ver 5.1.0 --- 2026.11.09
+// --- includes/shopify/noteAppend.php --- ver 5.1.0 --- 2026.11.11
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 //
 // 20261022 CL/MJ SD-759: created (WP10-1).
 // 20261109 CL/MJ SD-759: calls go through shopify_graphql() (WP03) with the shop's row, and a lost note update is reconciled by the client's read-first callback.
+// 20261111 CL/MJ SD-759 (Sol): a note changed since the first read is not resent; the next attempt reads it again and appends to it.
 
 require_once __DIR__ . '/schema.php';
 require_once __DIR__ . '/db.php';
@@ -147,13 +148,15 @@ function shopify_note_append_to(array $shop, string $orderGid, string $opKey, st
 		return shopify_note_result('already_present', false, $read['note'], $marker, array());
 	}
 
-	$reconcile = function () use ($shop, $gid, $marker, $rt): array {
+	$before = $read['note'];
+	$reconcile = function () use ($shop, $gid, $marker, $rt, $before): array {
 		$after = shopify_note_read($shop, $gid, $rt);
 		if ($after['note'] === null) {
 			return array('state' => 'unknown');
 		}
 		if (strpos($after['note'], $marker) === false) {
-			return array('state' => 'absent');
+			// a resend carries the note as it was first read, so it would undo an edit made since
+			return array('state' => $after['note'] === $before ? 'absent' : 'unknown');
 		}
 		$data = array('orderUpdate' => array('order' => array('id' => $gid, 'note' => $after['note']), 'userErrors' => array()));
 		return array('state' => 'applied', 'data' => $data);

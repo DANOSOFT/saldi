@@ -9,6 +9,7 @@
 // History:
 // 20261022 CL/MJ SD-759: created.
 // 20261109 CL/MJ SD-759: runs through shopify_graphql() and FakeShopifyStore instead of a test-only client.
+// 20261111 CL/MJ SD-759 (Sol): a note edited while the update's answer was lost is kept.
 
 use PHPUnit\Framework\TestCase;
 
@@ -154,6 +155,26 @@ final class NoteAppendTest extends TestCase
 
         $this->assertSame('appended', $result['status']);
         $this->assertSame(['order', 'order', 'orderUpdate'], $this->roots(), 'read, read after the lost answer, then the one update that reached the store');
+        $this->assertSame(1, substr_count($this->note(), shopify_note_marker('op-1')));
+    }
+
+    public function testANoteEditedWhileTheAnswerWasLostIsKeptAndTheNextAttemptAppendsToIt(): void
+    {
+        $this->onUpdate = function (): array {
+            $this->store->shop($this->domain)['orders'][$this->order]['note'] = "Ring før levering\nKunden henter selv";
+            return FakeShopify::timeout();
+        };
+
+        $first = $this->append('op-1', 'Sæt delt');
+
+        $this->assertSame('failed', $first['status'], 'not resent over the edit');
+        $this->assertSame(['order', 'order'], $this->roots(), 'the read and the reconcile read, no second update');
+        $this->assertSame("Ring før levering\nKunden henter selv", $this->note());
+
+        $again = $this->append('op-1', 'Sæt delt');
+
+        $this->assertSame('appended', $again['status']);
+        $this->assertStringStartsWith("Ring før levering\nKunden henter selv\n", $this->note(), 'appended to the edited note');
         $this->assertSame(1, substr_count($this->note(), shopify_note_marker('op-1')));
     }
 
