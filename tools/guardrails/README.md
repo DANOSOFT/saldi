@@ -56,9 +56,12 @@ Run the guardrail regression tests with `node --test tools/guardrails/tests/*.te
 the guardrails workflow runs the same tests before checking a pull request.
 
 The `whitespace` check allows blank separator lines, including spaces or tabs used
-to indent those lines. It rejects trailing spaces/tabs after code or comments,
-incidental whitespace-only edits to nonblank lines, and file mode changes. Keep
-useful blank lines between sections of code.
+to indent new lines. Existing blank-line indentation may change alongside content
+edits in the same diff hunk. Hunks that only rewrite trailing whitespace on
+existing lines, including blank-line indentation, are rejected so trim-on-save
+cannot create unrelated churn throughout a file. Trailing spaces/tabs after code
+or comments and file mode changes are also rejected. Keep useful blank lines
+between sections of code.
 
 ## Rules and enforcement
 
@@ -76,7 +79,7 @@ useful blank lines between sections of code.
 | `includes/opdat_*.php` and `includes/betweenUpdates2.php` are not edited, except in a version cut | guardrails `migrations` | [feedback_protected_update_files](../../doc/ai/feedback_protected_update_files.md) |
 | A new test lives where CI runs it: a `phpunit.xml` suite or `e2e/` | guardrails `test-discovery` | [tests/README.md](../../tests/README.md) |
 | An edited PHP header has no uncommented blank lines; history is below older entries and the header date and copyright move along | guardrails `file-history` | [convention_file_history](../../doc/ai/convention_file_history.md) |
-| Blank separators may contain indentation; no trailing whitespace after content, line-ending-only content edits, or file mode changes | guardrails `whitespace` | [feedback_whitespace_and_indentation](../../doc/ai/feedback_whitespace_and_indentation.md) |
+| New blank separators may contain indentation; no incidental whitespace-only rewrites, trailing whitespace after content, or file mode changes | guardrails `whitespace` | [feedback_whitespace_and_indentation](../../doc/ai/feedback_whitespace_and_indentation.md) |
 | Keep simple function calls on one line; when a call needs wrapping, put every argument on its own line | review | |
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](../../doc/ai/feedback_pre_pr_test_report.md) |
 | Header-history continuations start a new sentence and align with the description after the date/tag | guardrails `file-history` | [convention_file_history](../../doc/ai/convention_file_history.md) |
