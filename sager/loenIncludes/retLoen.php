@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/retLoen.php --- ver 5.1.0 --- 2026-11-06 ---
+// --- sager/loenIncludes/retLoen.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,8 @@
 //                 Overfør locks the listed Dyrtid slips before the date check, and a slip transferred after its form was opened is not saved over (Codex).
 //                 The transfer locks the case, then the akkordafregning, then its Dyrtid slips, in the same order as Afvis and Godkend.
 //                 Two transfers on one case wait for each other instead of deadlocking.
+// 20261111 CL/LH A wage slip whose type is not in the tenant's type list (stillads_14's list, or Regulering) keeps that type.
+//                Before, the select showed the first type and Gem overwrote loen.art with it.
 
 function ret_loen() {
 	global $brugernavn;
@@ -1073,6 +1075,20 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 		} else {
 			$loenart_1 = array('aconto','akktimer','akk_afr','akkord','timer','kontor','plads','skole','sygdom','barn_syg','ferie');
 			$loenart_2 = array(findtekst('2998|Aconto', $sprog_id),findtekst('2809|Dyrtid', $sprog_id),findtekst('2810|Akkordafregning', $sprog_id),findtekst('2811|Akkord med dyrtid', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2999|Kontorarbejde', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
+		}
+		// A slip whose type is not in the list above keeps it as an option. Otherwise the select shows the first type, and Gem writes that over loen.art.
+		if ($loen_art && !in_array($loen_art, $loenart_1)) {
+			$loenartTekst = array(
+				'aconto'     => findtekst('2998|Aconto', $sprog_id),
+				'akktimer'   => findtekst('2809|Dyrtid', $sprog_id),
+				'akk_afr'    => findtekst('2810|Akkordafregning', $sprog_id),
+				'akkord'     => findtekst('2811|Akkord med dyrtid', $sprog_id),
+				'kontor'     => findtekst('2999|Kontorarbejde', $sprog_id),
+				'torretid'   => findtekst('2803|Timeløn&comma; Tørretid', $sprog_id),
+				'regulering' => findtekst('3000|Regulering', $sprog_id),
+			);
+			$loenart_1[] = $loen_art;
+			$loenart_2[] = $loenartTekst[$loen_art] ?? htmlspecialchars($loen_art, ENT_QUOTES);
 		}
 		print "<div class=\"content\">
 			<h3>".findtekst('2785|Lønindtastning', $sprog_id)."</h3>
