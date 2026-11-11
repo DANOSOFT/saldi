@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.10
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.11
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 // 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
 //                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
+// 20261111 CL/MMR SST-898 Forms say "Mobil: $egen_mobile" instead of "Fax: $egen_fax" (formularFaxToMobile()), and the stored old defaults of texts 378 and 50 (Telefax/Fax/Faks/Mobile) are deleted so the current "Mobil" is used.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -51,5 +52,18 @@ include_once(__DIR__ . '/opdat_func/deleteStaleTekst.php');
 // It returns immediately once the completion flag is set. Do not move it into a future release gate.
 require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
 backfillOrderLineDelivered($db_type);
+
+// SST-898: SD-532 made the fax field the mobile field (adresser.mobile). The forms still printed "Fax: <mobile number>",
+// and accounts that had texts 378 (Stamdata, debitor/kreditor cards) and 50 (form field list) stored kept the old
+// "Telefax"/"Fax"/"Faks" or the interim "Mobile". Both steps only touch what is still old, so they are cheap at every
+// login; a text a customer has edited (e.g. "Mobiltlf.") is kept.
+require_once __DIR__ . '/opdat_func/formularFaxToMobile.php';
+formularFaxToMobile();
+deleteStaleTekst(378, array('Telefax', 'Mobile'), 1);
+deleteStaleTekst(378, 'Fax', 2);
+deleteStaleTekst(378, array('Faks', 'Mobile'), 3);
+deleteStaleTekst(50, array('Fax', 'Mobile'), 1);
+deleteStaleTekst(50, 'Fax', 2);
+deleteStaleTekst(50, array('Faks', 'Mobile'), 3);
 
 ?>

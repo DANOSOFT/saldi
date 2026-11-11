@@ -93,7 +93,7 @@
 3	2	CVR nr: $eget_cvrnr	H	183	29	0	0	11	0	Helvetica	on		A
 3	2	Tlf:. $egen_tlf	V	26	21	0	0	11	0	Helvetica	on		A
 3	2	$egen_bank_navn	H	183	21	0	0	11	0	Helvetica	on		A
-3	2	Fax: $egen_fax	V	26	17	0	0	11	0	Helvetica	on		A
+3	2	Mobil: $egen_mobile	V	26	17	0	0	11	0	Helvetica	on		A
 3	2	$egen_bank_reg $egen_bank_konto	H	183	17	0	0	11	0	Helvetica	on		A
 5	2	$eget_firmanavn     *     $egen_addr1     *     $eget_postnr $eget_bynavn     *     Danmark	V	26	258	0	0	12	0	Helvetica	on	on	A
 5	2	Kreditnota	V	120	244	0	0	15	0	Helvetica	on		A
@@ -133,7 +133,7 @@
 5	2	CVR nr: $eget_cvrnr	H	183	29	0	0	11	0	Helvetica	on		A
 5	2	Tlf:. $egen_tlf	V	26	21	0	0	11	0	Helvetica	on		A
 5	2	$egen_bank_navn	H	183	21	0	0	11	0	Helvetica	on		A
-5	2	Fax: $egen_fax	V	26	17	0	0	11	0	Helvetica	on		A
+5	2	Mobil: $egen_mobile	V	26	17	0	0	11	0	Helvetica	on		A
 5	2	$egen_bank_reg $egen_bank_konto	H	183	17	0	0	11	0	Helvetica	on		A
 2	2	$ordre_levdate;	V	160	210	0	0	11	0	Helvetica			A
 2	2	$eget_firmanavn     *     $egen_addr1     *     $eget_postnr $eget_bynavn     *     Danmark	V	26	258	0	0	12	0	Helvetica	on	on	A
@@ -174,7 +174,7 @@
 2	2	CVR nr: $eget_cvrnr	H	183	29	0	0	11	0	Helvetica	on		A
 2	2	Tlf:. $egen_tlf	V	26	21	0	0	11	0	Helvetica	on		A
 2	2	$egen_bank_navn	H	183	21	0	0	11	0	Helvetica	on		A
-2	2	Fax: $egen_fax	V	26	17	0	0	11	0	Helvetica	on		A
+2	2	Mobil: $egen_mobile	V	26	17	0	0	11	0	Helvetica	on		A
 2	2	$egen_bank_reg $egen_bank_konto	H	183	17	0	0	11	0	Helvetica	on		A
 4	1	LOGO		150	265	0	0	0	0				
 4	1			26	255	184	255	1	0				
@@ -227,7 +227,7 @@
 4	2	CVR nr: $eget_cvrnr	H	183	29	0	0	11	0	Helvetica	on		A
 4	2	Tlf:. $egen_tlf	V	26	21	0	0	11	0	Helvetica	on		A
 4	2	$egen_bank_navn	H	183	21	0	0	11	0	Helvetica	on		A
-4	2	Fax: $egen_fax	V	26	17	0	0	11	0	Helvetica	on		A
+4	2	Mobil: $egen_mobile	V	26	17	0	0	11	0	Helvetica	on		A
 4	2	$egen_bank_reg $egen_bank_konto	H	183	17	0	0	11	0	Helvetica	on		A
 1	2	$eget_firmanavn     *     $egen_addr1     *     $eget_postnr $eget_bynavn     *     Danmark	V	26	258	0	0	12	0	Helvetica	on	on	A
 1	2	Tilbud	V	120	244	0	0	15	0	Helvetica	on		A
@@ -264,7 +264,7 @@
 1	2	CVR nr: $eget_cvrnr	H	183	29	0	0	11	0	Helvetica	on		A
 1	2	Tlf:. $egen_tlf	V	26	21	0	0	11	0	Helvetica	on		A
 1	2	$egen_bank_navn	H	183	21	0	0	11	0	Helvetica	on		A
-1	2	Fax: $egen_fax	V	26	17	0	0	11	0	Helvetica	on		A
+1	2	Mobil: $egen_mobile	V	26	17	0	0	11	0	Helvetica	on		A
 1	2	$egen_bank_reg $egen_bank_konto	H	183	17	0	0	11	0	Helvetica	on		A
 4	3	generelt		28	185	4	0	0	0				
 4	3	varenr	V	26	0	0	0	10	0	Helvetica			
@@ -294,4 +294,4 @@
 6	2	Med venlig hilsen	V	26	105	0	0	11	0	Helvetica			A
 6	2	$eget_firmanavn;	V	26	100	0	0	11	0	Helvetica	on		A
 6	2	$eget_firmanavn; * $egen_addr1; * $eget_postnr; * $eget_bynavn;	C	105	9	0	0	8	0	Helvetica			A
-6	2	Cvr.: $eget_cvrnr; * Tlf: $egen_tlf; * Fax: $egen_fax; * $egen_bank_navn; $egen_bank_reg; $egen_bank_konto; 	C	105	5	0	0	8	0	Helvetica			A
+6	2	Cvr.: $eget_cvrnr; * Tlf: $egen_tlf; * Mobil: $egen_mobile; * $egen_bank_navn; $egen_bank_reg; $egen_bank_konto; 	C	105	5	0	0	8	0	Helvetica			A
