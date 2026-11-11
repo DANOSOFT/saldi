@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- remoteBooking/api.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- remoteBooking/api.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,8 @@
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
 // 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+// 20261111 CL/MMR SST-996 A rejected booking also deletes its order lines, not only the order and the booking.
+//                 The reject branch of updateBooking is the named handler rejectBooking().
 //
 
 
@@ -262,6 +264,25 @@ if(isset($_GET["createCust"])){
     echo json_encode(["id" => $id]);
 }
 
+/**
+ * Removes a booking that was not approved (no payment): its order lines, its order and the booking itself.
+ * SST-996: the order lines were left behind before.
+ *
+ * @param int $bookingId rentalperiod.id of the booking.
+ * @return void
+ */
+function rejectBooking($bookingId) {
+    $bookingId = (int)$bookingId;
+    $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+    $res = db_fetch_array($query);
+    $orderId = $res ? (int)$res["order_id"] : 0;
+    if ($orderId > 0) {
+        db_modify("DELETE FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
+    }
+    db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
+    db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+}
+
 function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	global $db,$db_skriv_id,$regnaar;
 	global $db_modify_fejl; #20260729 SZ (SD-595)
@@ -368,11 +389,7 @@ if(isset($_GET["updateBooking"])){
     $status = ifset($data, "status", "");
     $bookingId = (int)ifset($data, "id", 0);
     if($status != "approved"){
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
-        db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
-        db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+        rejectBooking($bookingId);
         echo json_encode(["status" => "deleted"]);
         exit;
     }else{
