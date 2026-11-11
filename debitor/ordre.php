@@ -187,6 +187,7 @@
 // 20261110 LOE SST-967 A copy is bound to the admitted case, and a posted line id of another order is dropped.
 // 20261110 LOE SST-967 A posted credit-line reference must be a line of the admitted case.
 // 20261110 LOE SST-967 The price-list handler refuses a user without the Ordre right.
+// 20261110 LOE SST-967 The posted line and credit ids are stored as the integers they were checked as.
 
 @session_start();
 $s_id = session_id();
@@ -1319,7 +1320,10 @@ if ($b_submit) {
 			$sst967_line_ids[(int) $r['id']] = true;
 		}
 		foreach ($linje_id as $sst967_k => $sst967_v) {
-			if ((int) $sst967_v && !isset($sst967_line_ids[(int) $sst967_v])) {
+			# Stored as the integer it was checked as: a value like "0+" casts to zero and would otherwise pass
+			# the membership check while the raw string reaches the statements.
+			$linje_id[$sst967_k] = (int) $sst967_v;
+			if ($linje_id[$sst967_k] && !isset($sst967_line_ids[$linje_id[$sst967_k]])) {
 				$linje_id[$sst967_k] = 0;
 			}
 		}
@@ -1342,7 +1346,8 @@ if ($b_submit) {
 				$sst967_kred_ok[(int) $r['id']] = true;
 			}
 			foreach ($kred_linje_id as $sst967_k => $sst967_v) {
-				if ((int) $sst967_v && !isset($sst967_kred_ok[(int) $sst967_v])) {
+				$kred_linje_id[$sst967_k] = (int) $sst967_v;
+				if ($kred_linje_id[$sst967_k] && !isset($sst967_kred_ok[$kred_linje_id[$sst967_k]])) {
 					$kred_linje_id[$sst967_k] = 0;
 				}
 			}

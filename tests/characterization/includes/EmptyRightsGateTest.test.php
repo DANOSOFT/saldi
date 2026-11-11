@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 // History:
 // 20261109 LOE SST-967 created.
 // 20261110 LOE SST-967 The gate is one computation, the Mit Salg session and the sag workflow are pinned.
-// 20261110 LOE SST-967 The order page is pinned to the case, and the way back, the export and the pin are pinned. Every order selector in a request is checked against the case. The history page reads its ids as numbers, and the gate pins its save and delete to the proved customer. A valid id= no longer lets another id= through on the POST. A history row named on the POST is checked, and the copy and the line ids are bound to the admitted case. The credit reference is bound to the case, and every position assertion proves its guard exists first. The history form row and the price-list handler are scoped as well.
+// 20261110 LOE SST-967 The order page is pinned to the case, and the way back, the export and the pin are pinned. Every order selector in a request is checked against the case. The history page reads its ids as numbers, and the gate pins its save and delete to the proved customer. A valid id= no longer lets another id= through on the POST. A history row named on the POST is checked, and the copy and the line ids are bound to the admitted case. The credit reference is bound to the case, and every position assertion proves its guard exists first. The history form row and the price-list handler are scoped as well. The posted line and credit ids are stored as integers, and the copy binding is proven to be conditioned.
 
 final class EmptyRightsGateTest extends TestCase
 {
@@ -290,9 +290,15 @@ final class EmptyRightsGateTest extends TestCase
             $ordre, 'every selector the page reads is handed to the gate');
         self::assertStringContainsString("is_numeric(\$sst967_selector[0][\$sst967_selector[1]] ?? '')", $ordre,
             'and an empty value cannot hide the next selector');
+        self::assertStringContainsString("if (\$sag_workflow_case_id && isset(\$sag_id) && (int)\$sag_id !== (int)\$sag_workflow_case_id) {", $ordre,
+            'the copy binding is conditioned on a real disagreement');
         self::assertStringContainsString("\$sag_id = \$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
         self::assertStringContainsString("select id from ordrelinjer where ordre_id = '\$id'", $ordre,
             'and a posted line id of another order is dropped');
+        self::assertStringContainsString("\$linje_id[\$sst967_k] = (int) \$sst967_v;", $ordre,
+            'the posted line id is stored as the integer it was checked as');
+        self::assertStringContainsString("\$kred_linje_id[\$sst967_k] = (int) \$sst967_v;", $ordre,
+            'and so is the posted credit-line reference');
         self::assertStringContainsString("select ordrelinjer.id from ordrelinjer, ordrer where ordrelinjer.ordre_id = ordrer.id", $ordre,
             'and a posted credit-line reference must be a line of the admitted case');
         // Clearing the tenant's price-list flags is not case work, so the handler needs the Ordre right.
