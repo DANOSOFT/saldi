@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
  * 20261104 CL/MMR Created (SST-841, Codex round 11 on PR #969).
  * 20261110 CL/MMR rental_payment_ready() looks at the active schema only (CodeRabbit on PR #969).
  * 20261111 CL/MMR A failed booking DELETE answers pending without output (Codex final re-test on PR #969).
+ * 20261111 CL/MMR Uses the harness' owned SQL fixture database (TestDatabase::sqlFixture()) instead of SALDI_CHAR_PG_DSN.
  */
 #[RunTestsInSeparateProcesses]
 final class bookingPaymentDbErrors extends TestCase
@@ -26,19 +27,19 @@ final class bookingPaymentDbErrors extends TestCase
 
     protected function setUp(): void
     {
-        $dsn = getenv('SALDI_CHAR_PG_DSN');
-        if (!$dsn || !extension_loaded('pgsql')) {
-            self::markTestSkipped('Set SALDI_CHAR_PG_DSN to a disposable PostgreSQL database connection string.');
+        // The shared SQL fixture database of the test harness; every table lives in a private schema per test.
+        require_once __DIR__ . '/../characterization/support/database/TestDatabase.php';
+        $reason = TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
         }
-        $main = @pg_connect($dsn, PGSQL_CONNECT_FORCE_NEW);
-        $holder = @pg_connect($dsn, PGSQL_CONNECT_FORCE_NEW);
-        if (!$main || !$holder) {
-            self::markTestSkipped('Configured PostgreSQL connection is unavailable.');
-        }
-        $this->holder = $holder;
+        $name = TestDatabase::sqlFixture(static::class)->name();
+        $main = TestDatabase::connect($name);
+        $this->holder = TestDatabase::connect($name);
+        $holder = $this->holder;
         $this->schema = 'booking_db_errors_' . bin2hex(random_bytes(6));
         $GLOBALS['connection'] = $main;
-        $GLOBALS['db'] = (string)pg_fetch_result(pg_query($main, 'SELECT current_database()'), 0, 0);
+        $GLOBALS['db'] = $name;
         $GLOBALS['db_type'] = 'postgres';
         $GLOBALS['brugernavn'] = 'test';
         $_SERVER['REQUEST_URI'] = '/remoteBooking/api.php';
@@ -69,6 +70,9 @@ final class bookingPaymentDbErrors extends TestCase
         if ($this->schema !== '') {
             pg_query($this->holder, 'SELECT pg_advisory_unlock_all()');
             pg_query($GLOBALS['connection'], "RESET search_path; DROP SCHEMA IF EXISTS {$this->schema} CASCADE");
+            pg_close($this->holder);
+            pg_close($GLOBALS['connection']);
+            $GLOBALS['connection'] = null;
             exec('rm -rf ' . escapeshellarg($this->work));
         }
     }
