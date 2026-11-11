@@ -1,6 +1,7 @@
 // 20261006 CL/LH SST-842: stop with a message when vibrantPaymentLink.php returns an error instead of a link.
 // 20261015 CL/LH SST-842: reject the booking (deletes the order and rentalperiod) when no payment link is returned.
 // 20261111 CL/MMR SST-995: the calendar shows without closed days, and closed days are blocked (map returned nothing).
+//                 A start date whose rental would end on a closed day is refused with a message (no onChange loop).
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&db=${db}`,{
         method: "GET",
@@ -245,6 +246,15 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
                     endDate.setDate(startDate.getDate() + parseInt(weeks))
                 }else{
                     endDate.setDate(startDate.getDate() + weeks*7)
+                }
+
+                // SST-995: an end date on a closed day is not allowed. flatpickr drops a disabled date from
+                // setDate, which calls onChange again with one date and loops, so stop here instead.
+                const endDay = endDate.getFullYear() + "-" + ("0" + (endDate.getMonth() + 1)).slice(-2) + "-" + ("0" + endDate.getDate()).slice(-2)
+                if (closedDates.includes(endDay)) {
+                    instance.clear(false)
+                    alert("Slutdatoen " + endDay + " er en lukkedag. Vælg en anden startdato.")
+                    return
                 }
 
                 // Update the calendar selection to the new range
