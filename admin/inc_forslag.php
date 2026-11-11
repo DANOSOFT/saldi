@@ -11,6 +11,7 @@
 //                 fs_create() reports a failed e-mail to the operator as a warning and clears sent_to, instead of saying the proposal was sent.
 //                 An address PHP does not accept as e-mail (e.g. 'kunde@firma', which the browser's type=email lets through) is refused before the proposal is stored, where it was quietly dropped.
 //                 An on/off add-on the account has only for a limited time (e.g. a trial) can still be proposed for purchase.
+//                 fs_create() refuses an add-on proposal that ent_addon_purchase_error() rejects, i.e. an add-on not on sale for the account's plan or a counted add-on allocated for a limited time, and tells the operator why (review #785).
 // 20261109 CL/ASR The approval link in the mail is built from partner_mail_host() (includes/partnerScope.php), not from SERVER_NAME, which can come from the request's Host header (review #960).
 
 if (!function_exists('fs_tables_ensure')) {
@@ -30,6 +31,7 @@ function fs_create($rid, $kind, $key, $reason, $to, $partner_id = null) {
 	if (!in_array($kind, array('plan','addon'), true) || ($kind == 'plan' && !isset($c['plans'][$key])) || ($kind == 'addon' && !isset($c['addons'][$key]))) return vr_t('Ukendt pakke eller tillæg','Unknown plan or add-on');
 	if (db_fetch_array(db_select("select 1 from partner_proposals where regnskab_id = '".(int)$rid."' and kind = '$kind' and key = '".db_escape_string($key)."' and status = 'open'", __FILE__ . " linje " . __LINE__))) return vr_t('Der er allerede et åbent forslag om det','There is already an open proposal for that');
 	if ($kind == 'addon' && !ent_addon_counted($c['addons'][$key]) && db_fetch_array(db_select("select 1 from regnskab_addons where regnskab_id = '".(int)$rid."' and addon_key = '".db_escape_string($key)."' and expires_at is null", __FILE__ . " linje " . __LINE__))) return vr_t('Kunden har allerede tillægget','The customer already has this add-on'); # a time-limited one (trial) may be offered for purchase
+	if ($kind == 'addon' && ($why = ent_addon_purchase_error($rid, $key)) !== '') return $why.' '.vr_t('Forslaget er ikke oprettet.','The proposal was not created.'); # not on sale for the plan, or a counted add-on allocated for a limited time
 	$token = bin2hex(random_bytes(24)); $exp = date('Y-m-d', strtotime('+30 days'));
 	if ((string)$to !== '' && !filter_var($to, FILTER_VALIDATE_EMAIL)) return vr_t('Ugyldig e-mailadresse, forslaget er ikke oprettet','Invalid e-mail address, the proposal was not created').': '.$to; # refused, not blanked: the card would otherwise say "sent"
 	db_modify("insert into partner_proposals (regnskab_id, partner_id, proposed_by, kind, key, reason, token, sent_to, expires_at) values ('".(int)$rid."', ".($partner_id ? "'".(int)$partner_id."'" : 'NULL').", '".db_escape_string(ent_actor())."', '$kind', '".db_escape_string($key)."', '".db_escape_string($reason)."', '$token', '".db_escape_string((string)$to)."', '$exp')", __FILE__ . " linje " . __LINE__);

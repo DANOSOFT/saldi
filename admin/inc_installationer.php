@@ -8,6 +8,7 @@
 //                 Shown as a tab on operator_panel.php (ltab=egne) with a card per installation (?inst_id=N).
 // 20261029 CL/ASR self_hosted is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
 // 20261109 CL/ASR Invoice dates from the billing API reach SQL only as validated YYYY-MM-DD dates, anything else is stored as NULL (review #785).
+//                 When an invoice date cannot be read at all (bill_date_error()), the refresh is refused and the stored status kept, where bill_classify() turned it into a 1970 due date and a false "overdue" (review #785).
 
 if (!function_exists('inst_tables_ensure')) {
 function inst_tables_ensure() {
@@ -55,6 +56,7 @@ function inst_actions(&$notes, &$id) {
 function inst_payments($row) {
 	$search = $row['billing_kontonr'] ?: ($row['cvr'] ?: $row['name']);
 	$data = bill_fetch($search);
+	if (!isset($data['error']) && ($dateErr = bill_date_error($data['invoices'])) !== '') $data['error'] = $dateErr; # an unreadable date would become a 1970 due date and a false "overdue"; the stored summary is kept
 	if (!isset($data['error'])) {
 		$c = $data['customer']; $dd = (int)($c['betaling']['betalingsdage'] ?? 0); $open = 0; $openN = 0; $ovN = 0; $oldest = null; $last = null; $lastPaid = null;
 		foreach ($data['invoices'] as $i) { list($st, $due, $tot) = bill_classify($i, $dd); if (!$last && !empty($i['invoiceDate'])) $last = substr($i['invoiceDate'],0,10); if ($st == 'paid' && !$lastPaid && !empty($i['invoiceDate'])) $lastPaid = substr($i['invoiceDate'],0,10); if ($st != 'paid') { $open += $tot; $openN++; if ($st == 'overdue') { $ovN++; if (!$oldest || $due < $oldest) $oldest = $due; } } }

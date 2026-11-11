@@ -11,6 +11,7 @@
 // 20261109 CL/ASR "Betalt via" names the paying ledger instead of showing its id (review #785).
 //                 Extending a trial also moves the trial's plan override (ent_start_trial) to the new end date and logs it as entitlement.override_extended, so the Abonnement tab keeps the trial plan for the extended period.
 //                 Only the override that still ends together with the trial is moved, so an override the operator ended stays ended.
+//                 The new trial end and the moved override are written in one transaction, so an interrupted request cannot leave the trial extended and the override at the old date (review #785).
 
 if (!function_exists('tr_tables_ensure')) {
 define('TR_DAYS', 30);
@@ -73,12 +74,16 @@ function tr_actions(&$notes) {
 		$notes[] = vr_t('Opfølgningen er gemt for','Follow-up saved for').' '.$name;
 	} elseif ($a == 'extend') {
 		$days = max(1, min(90, (int)if_isset($_POST, 14, 'days'))); $from = max(strtotime($t['ends']), strtotime(date('Y-m-d'))); $ends = date('Y-m-d', strtotime("+$days days", $from));
+		# 20261111 CL/ASR One transaction: the trial end and the trial plan's override move together or not at all. A failed statement
+		#                  ends the request (db_modify exits), and PostgreSQL rolls back the open transaction (review #785).
+		transaktion('begin');
 		db_modify("update regnskab_trial set ends = '$ends', updated_at = now(), updated_by = $who where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__);
 		partner_log('trial.extended', $rid, null, "$days dage, til $ends");
 		if ($o = db_fetch_array(db_select("select id, value from regnskab_overrides where regnskab_id = '$rid' and kind = 'plan' and reason = 'trial' and expires_at = '".db_escape_string(substr($t['ends'], 0, 10))."' order by id desc limit 1", __FILE__ . " linje " . __LINE__))) { # the trial plan follows the trial end
 			db_modify("update regnskab_overrides set expires_at = '$ends' where id = '".(int)$o['id']."'", __FILE__ . " linje " . __LINE__);
 			ent_log('entitlement.override_extended', $rid, "plan plan = $o[value] indtil $ends – prøveperiode forlænget");
 		}
+		transaktion('commit');
 		$notes[] = vr_t('Prøveperioden er forlænget til','Trial extended to').' '.date('d-m-Y', strtotime($ends)).' – '.$name;
 	} elseif (in_array($a, array('paid', 'exempt'), true)) {
 		db_modify("update regnskab_trial set resolved = '$a', resolved_at = now(), updated_at = now(), updated_by = $who where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__);

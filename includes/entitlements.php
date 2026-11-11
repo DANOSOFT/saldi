@@ -10,6 +10,9 @@
 //                 ent_tables_ensure() does nothing on a MySQL/MariaDB master, and the information_schema look-ups are limited to current_schema().
 //                 An accepted proposal for an on/off add-on the account has only for a limited time (e.g. a trial) removes the end date, so the bought add-on stays.
 //                 ent_tables_ensure() seeds the catalogue only when operator_panel_ready() says the schema run finished (flag at the current version).
+//                 ent_set_addon() stores an on/off add-on with quantity 1, whatever quantity the form sends (review #785).
+//                 New ent_addon_purchase_error(), checked when a proposal is created and again when it is accepted: the add-on must be on sale for the account's effective plan, and a counted add-on with a time-limited allocation is refused, because a bought unit would share that row's end date (review #785).
+//                 ent_usage_collect() reads column names and the type of brugere.status from pg_attribute for the relation the unqualified table name resolves to (to_regclass), the same table the counts read (review #785).
 
 if (!function_exists('ent_tables_ensure')) {
 
@@ -217,17 +220,36 @@ function ent_cancel_change($rid, $id) {
 }
 function ent_set_addon($rid, $addon_key, $qty, $expires) {
 	$c = ent_catalog(); if (!isset($c['addons'][$addon_key])) return 'Ukendt tillæg';
-	$rid = (int)$rid; $qty = max(1, (int)$qty); $ex = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$expires) ? "'$expires'" : 'NULL';
+	$rid = (int)$rid; $qty = ent_addon_counted($c['addons'][$addon_key]) ? max(1, (int)$qty) : 1; $ex = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$expires) ? "'$expires'" : 'NULL'; # an on/off add-on is one unit, whatever quantity the form sends
 	db_modify("delete from regnskab_addons where regnskab_id = '$rid' and addon_key = '".db_escape_string($addon_key)."'", __FILE__ . " linje " . __LINE__);
 	db_modify("insert into regnskab_addons (regnskab_id, addon_key, quantity, source, expires_at) values ('$rid', '".db_escape_string($addon_key)."', '$qty', 'manual', $ex)", __FILE__ . " linje " . __LINE__);
 	ent_log('entitlement.addon_set', $rid, $c['addons'][$addon_key]['name'].' × '.$qty.($ex != 'NULL' ? ' indtil '.$expires : ''));
 	return '';
 }
 function ent_addon_counted($a) { return in_array((string)($a['quantity_based'] ?? ''), array('t', 'true', '1'), true); } # pg returns booleans as 't'/'f', and 'f' is truthy in PHP
+// 20261111 CL/ASR Why buying $addon_key cannot be proposed or accepted now ('' = it can). fs_create() checks it, and
+//                  ent_accept_addon() checks it again, because the plan can change while a proposal is open (review #785).
+//                  The add-on must be on sale for the account's effective plan (a plan override such as a trial counts),
+//                  the same rule as the add-on list on the Abonnement tab. A counted add-on must not be allocated for a
+//                  limited time: regnskab_addons holds one row per add-on, so a bought unit would get the allocation's
+//                  end date and disappear with it. The operator first makes the allocation permanent or lets it expire.
+function ent_addon_purchase_error($rid, $addon_key) {
+	$c = ent_catalog(); if (!isset($c['addons'][$addon_key])) return 'Ukendt tillæg';
+	$a = $c['addons'][$addon_key]; $e = ent_resolve($rid);
+	if (!$e['plan']) return vr_t('Tillægget kan ikke købes, før regnskabet har en pakke.','The add-on cannot be bought before the account has a plan.');
+	if (!in_array($e['plan']['plan_key'], explode(',', (string)$a['available_on']), true)) return vr_t('Tillægget kan ikke købes på pakken','The add-on cannot be bought on the plan').' '.$e['plan']['name'].'.';
+	if (ent_addon_counted($a)) {
+		$tmp = db_fetch_array(db_select("select expires_at from regnskab_addons where regnskab_id = '".(int)$rid."' and addon_key = '".db_escape_string($addon_key)."' and expires_at >= current_date", __FILE__ . " linje " . __LINE__));
+		if ($tmp) return vr_t('Tillægget er tildelt midlertidigt til','The add-on is allocated temporarily until').' '.date('d-m-Y', strtotime($tmp['expires_at'])).', '.vr_t('og en købt enhed ville udløbe samme dag. Det kan købes, når tildelingen er gjort fast eller er udløbet.','and a bought unit would expire on the same day. It can be bought once the allocation is made permanent or has expired.');
+	}
+	return '';
+}
 // 20261109 CL/ASR An accepted proposal buys one more unit of a counted add-on (quantity + 1, expiry kept); an on/off add-on
 //                  the account already has stays as it is. Without an active row it is added as quantity 1 (review #785).
+// 20261111 CL/ASR ent_addon_purchase_error() runs first, so a counted add-on reaching quantity + 1 has no end date (review #785).
 function ent_accept_addon($rid, $addon_key) {
 	$c = ent_catalog(); if (!isset($c['addons'][$addon_key])) return 'Ukendt tillæg';
+	if ($err = ent_addon_purchase_error($rid, $addon_key)) return $err;
 	$rid = (int)$rid; $ak = db_escape_string($addon_key); $a = $c['addons'][$addon_key];
 	$cur = db_fetch_array(db_select("select quantity, expires_at from regnskab_addons where regnskab_id = '$rid' and addon_key = '$ak' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__));
 	if (!$cur) return ent_set_addon($rid, $addon_key, 1, ''); # none, or only an expired row: replaced by quantity 1
@@ -280,11 +302,12 @@ function ent_usage_collect($reg) {
 	if (!@db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) return $u;
 	$u['ok'] = true;
 	$one = function($q) { $r = @db_fetch_array(@db_select($q, __FILE__ . " linje " . __LINE__)); return $r ? $r : array(); };
-	$cols = function($t) { $c = array(); $q = db_select("select column_name from information_schema.columns where table_schema = current_schema() and table_name = '$t'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $c[] = $r['column_name']; return $c; };
+	# 20261111 CL/ASR Columns of the relation the unqualified name resolves to through search_path (to_regclass), the same table the counts below read; current_schema() can name a schema that has no such table (review #785).
+	$cols = function($t) { $c = array(); $q = db_select("select attname from pg_attribute where attrelid = to_regclass('$t') and attnum > 0 and not attisdropped", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $c[] = $r['attname']; return $c; };
 	if (tbl_exists('brugere')) {
 		$bc = $cols('brugere'); $w = array(); if (in_array('revisor', $bc)) $w[] = "revisor is not true";
 		$r = $one("select count(*) as n from brugere".($w ? " where ".implode(' and ', $w) : "")); $u['users_total'] = (int)($r['n'] ?? 0);
-		if (in_array('status', $bc)) { $st = $one("select data_type from information_schema.columns where table_schema = current_schema() and table_name = 'brugere' and column_name = 'status'"); $w[] = (($st['data_type'] ?? '') == 'boolean') ? "(status is true or status is null)" : "(status is null or lower(status::text) in ('t','true','1','on',''))"; } # older ledgers store status as text
+		if (in_array('status', $bc)) { $st = $one("select format_type(atttypid, null) as data_type from pg_attribute where attrelid = to_regclass('brugere') and attname = 'status' and not attisdropped"); $w[] = (($st['data_type'] ?? '') == 'boolean') ? "(status is true or status is null)" : "(status is null or lower(status::text) in ('t','true','1','on',''))"; } # older ledgers store status as text
 		$r = $one("select count(*) as n from brugere".($w ? " where ".implode(' and ', $w) : "")); $u['users_active'] = (int)($r['n'] ?? 0);
 	}
 	if (tbl_exists('transaktioner')) {
