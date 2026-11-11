@@ -5,6 +5,7 @@
 // 20261111 CDX/NTR Associate each SQL fixture consumer with its captured database identity.
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 // 20261111 CDX/NTR Document shared fixture helper contracts at their definitions.
+// 20261111 CDX/NTR Remove the exact routing row if persistent ownership recording fails.
 
 require_once __DIR__ . '/RetainedTestDatabases.php';
 
@@ -262,7 +263,15 @@ final class TestDatabase
             );
             $id = (int)pg_fetch_result($result, 0, 0);
             $this->registryIds[] = $id;
-            RetainedTestDatabases::recordAccount($this, $id);
+            try {
+                RetainedTestDatabases::recordAccount($this, $id);
+            } catch (Throwable $error) {
+                try {
+                    self::query($master, 'DELETE FROM regnskab WHERE id=$1 AND db=$2', [$id, $this->name]);
+                } finally {
+                    throw $error;
+                }
+            }
             return $id;
         } finally {
             pg_close($master);

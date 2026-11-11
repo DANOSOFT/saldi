@@ -5,6 +5,7 @@
 // 20261111 CDX/NTR Cover shared SQL fixture identities in individual IDE/JUnit results.
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 // 20261111 CDX/NTR Restore retention environment even when database cleanup fails.
+// 20261111 CDX/NTR Verify a failed ownership record leaves no retained routing account.
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -129,6 +130,62 @@ final class TestDatabaseLifecycleTest extends TestCase
             } finally {
                 putenv($previous === false ? 'SALDI_TEST_KEEP_DATABASES' : 'SALDI_TEST_KEEP_DATABASES=' . $previous);
                 putenv($legacy === false ? 'SALDI_REST_KEEP_TENANT' : 'SALDI_REST_KEEP_TENANT=' . $legacy);
+            }
+        }
+    }
+
+    public function testAccountRecordingFailureRemovesTheInsertedRoutingRowBeforeRetention(): void
+    {
+        $previous = getenv('SALDI_TEST_KEEP_DATABASES');
+        $database = null;
+        try {
+            putenv('SALDI_TEST_KEEP_DATABASES=1');
+            $database = TestDatabase::create('failed-account-recording', false);
+            $tenant = TestDatabase::connect($database->name());
+            try {
+                TestDatabase::query($tenant, 'ALTER TABLE public.saldi_phpunit_identity ADD CHECK (cardinality(registry_ids)=0)');
+            } finally {
+                pg_close($tenant);
+            }
+            // Turn the deliberately rejected ownership write into a catchable failure.
+            set_error_handler(static function ($severity, $message): never {
+                throw new RuntimeException($message);
+            });
+            $failure = null;
+            try {
+                $database->registerAccount('failed_' . $database->name());
+            } catch (RuntimeException $error) {
+                $failure = $error;
+            } finally {
+                restore_error_handler();
+            }
+            self::assertNotNull($failure);
+            self::assertStringContainsString('check constraint', $failure->getMessage());
+            $database->release();
+            $master = TestDatabase::connect(TestDatabase::masterDb());
+            try {
+                $rows = TestDatabase::query($master, 'SELECT count(*) FROM regnskab WHERE db=$1', [$database->name()]);
+                self::assertSame('0', pg_fetch_result($rows, 0, 0), 'A failed registration must not leave an untracked retained routing row');
+            } finally {
+                pg_close($master);
+            }
+            $retained = RetainedTestDatabases::listing($database->name());
+            self::assertCount(1, $retained);
+            self::assertSame('{}', $retained[0]['registry_ids']);
+        } finally {
+            try {
+                if ($database !== null) {
+                    $database->release();
+                    RetainedTestDatabases::delete($database->name());
+                    $master = TestDatabase::connect(TestDatabase::masterDb());
+                    try {
+                        TestDatabase::query($master, 'DELETE FROM regnskab WHERE db=$1 AND regnskab=$2', [$database->name(), 'failed_' . $database->name()]);
+                    } finally {
+                        pg_close($master);
+                    }
+                }
+            } finally {
+                putenv($previous === false ? 'SALDI_TEST_KEEP_DATABASES' : 'SALDI_TEST_KEEP_DATABASES=' . $previous);
             }
         }
     }
