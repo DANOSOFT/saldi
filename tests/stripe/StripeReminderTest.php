@@ -22,6 +22,8 @@ final class StripeReminderTest extends StripeDatabaseTestCase
     private const SETTINGS = ['reminder_format', 'reminder_link_email', 'reminder_fee_next', 'reminder_fee_waive',
         'reminder_close_warning', 'reminder_close_text'];
     private const CLOSE_TEXT = 'Betales beløbet ikke senest {frist}, kan vi lukke for din adgang uden yderligere varsel.';
+    /** After "Betal senest" of a reminder on the fixture date (20.01.2026 + 8 days): a carried fee no longer waits for the offer. */
+    private const AFTER_DEADLINE = '2026-02-01';
 
     /** @var array{fee: int, interest: int} */
     private array $items = [];
@@ -354,6 +356,7 @@ final class StripeReminderTest extends StripeDatabaseTestCase
     public function testCarriedFeeGoesOnTheNextInvoiceAsVatFreeLinesThatDoNotRepeat(): void
     {
         StripeReminderFixtures::orderFunctionDoubles();
+        $GLOBALS['stripe_charge_today'] = self::AFTER_DEADLINE;
         $r = StripeReminderFixtures::linkReminder([], [], ['interest' => 12.5, 'status' => 4]);
         StripeReminderFixtures::linkRow($r['reminder'], ['interest_ore' => 1250]);
         $rykkerNr = StripeFixtures::row('ordrer', $r['reminder'])['fakturanr'];
@@ -406,6 +409,7 @@ final class StripeReminderTest extends StripeDatabaseTestCase
     public function testCarriedFeeIsWaivedWhenTheCustomerTurnsOnAutomaticPaymentAfterTheReminder(): void
     {
         StripeReminderFixtures::orderFunctionDoubles();
+        $GLOBALS['stripe_charge_today'] = self::AFTER_DEADLINE;
         $mailed = '2026-01-20 15:30:00';
         foreach ([
             // The date compare is by day: enrolling later on the day the reminder was mailed counts.
@@ -441,6 +445,7 @@ final class StripeReminderTest extends StripeDatabaseTestCase
     public function testCarriedFeeSkipsCreditNotesForeignInvoicesAndUnsentDeletedOrUnbookedReminders(): void
     {
         StripeReminderFixtures::orderFunctionDoubles();
+        $GLOBALS['stripe_charge_today'] = self::AFTER_DEADLINE;
         $r = StripeReminderFixtures::linkReminder([], [], ['status' => 4]);
         StripeReminderFixtures::linkRow($r['reminder']);
         $negative = StripeFixtures::order($r['debtor'], ['levdate' => '2026-02-01']);
@@ -917,6 +922,17 @@ final class StripeReminderTest extends StripeDatabaseTestCase
             $this->assertFalse(reminder_in_active_year($december['reminder']));
             $this->assertSame('year', reminder_escalation_skip($december['reminder'], true));
             $this->assertSame('', reminder_escalation_skip($december['reminder'], false), 'a new level posts nothing');
+            // Booking a link reminder whose fee goes on the next invoice posts nothing: the fiscal year does not hold it.
+            $carried = StripeReminderFixtures::linkReminder([], [], ['date' => '2025-12-20']);
+            StripeReminderFixtures::linkRow($carried['reminder']);
+            $this->assertFalse(reminder_in_active_year($carried['reminder']));
+            $this->assertSame('', reminder_escalation_skip($carried['reminder'], true));
+            StripeTestEnvironment::query("UPDATE stripe_reminders SET fee_mode = 'classic' WHERE rykker_id = $1", [$carried['reminder']]);
+            $this->assertSame('year', reminder_escalation_skip($carried['reminder'], true), 'its fee is posted as an open item');
+            // Outside the year comes first: a paid reminder that cannot be booked is not booked.
+            StripeTestEnvironment::query("UPDATE ordrer SET betalt = 'on' WHERE id = $1", [$december['invoice']]);
+            $this->assertSame('year', reminder_escalation_skip($december['reminder'], true));
+            $this->assertSame('paid', reminder_escalation_skip($december['reminder'], false));
             $nr = StripeFixtures::row('ordrer', $december['reminder'])['fakturanr'];
             $this->assertSame("Ingen ny rykker for $nr: rykkerdatoen ligger uden for det aktive regnskabsår.", reminder_skip_notice($nr, 'year'));
             $GLOBALS['regnaar'] = '';
@@ -958,7 +974,7 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         $second = StripeReminderFixtures::nextLevel($r, 2, '2026-01-25', ['openposts' => [$fee]]);
         $lines = stripe_reminder_lines($second);
         $this->assertSame(0, $lines['unmapped']);
-        $this->assertSame([['openpost_id' => $fee, 'faktnr' => $firstNr, 'amount' => 100.0, 'level' => 1]], $lines['prior_fees']);
+        $this->assertSame([['openpost_id' => $fee, 'faktnr' => $firstNr, 'amount' => 100.0, 'level' => 1, 'with_interest' => false]], $lines['prior_fees']);
         $this->assertSame('', stripe_reminder_eligible($second), 'still a link reminder');
         $this->assertTrue(stripe_reminder_register($second));
         $this->assertSame('classic', StripeReminderFixtures::linkRowOf($second)['fee_mode']);
@@ -1016,6 +1032,7 @@ final class StripeReminderTest extends StripeDatabaseTestCase
     public function testCarriedFeeIsNotPutOnACashOrCardSale(): void
     {
         StripeReminderFixtures::orderFunctionDoubles();
+        $GLOBALS['stripe_charge_today'] = self::AFTER_DEADLINE;
         $r = StripeReminderFixtures::linkReminder([], [], ['status' => 4]);
         StripeReminderFixtures::linkRow($r['reminder']);
         foreach (['Kontant', 'kreditkort'] as $terms) {
@@ -1036,6 +1053,7 @@ final class StripeReminderTest extends StripeDatabaseTestCase
     public function testCarriedFeeFollowsTheReminderLinesAndGetsTheOrdersProject(): void
     {
         StripeReminderFixtures::orderFunctionDoubles();
+        $GLOBALS['stripe_charge_today'] = self::AFTER_DEADLINE;
         // The fee line deleted in rykker.php after the mail: nothing is charged and the row is waived.
         $gone = StripeReminderFixtures::linkReminder([], [], ['status' => 4]);
         StripeReminderFixtures::linkRow($gone['reminder']);
@@ -1198,6 +1216,116 @@ final class StripeReminderTest extends StripeDatabaseTestCase
             $GLOBALS['db_encode'] = $encode;
         }
         $this->assertSame('Rykkergebyret må højst', reminder_txt(8199, 'Rykkergebyret må højst'));
+    }
+
+    // ---------------------------------------------------------------- review round 2 (20261111)
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testCarriedFeeWaitsUntilTheDeadlineSoTheOfferCanStillBeTaken(): void
+    {
+        StripeReminderFixtures::orderFunctionDoubles();
+        // Reminder of 20.01.2026 with 8 payment days: "Betal senest" 28.01.2026.
+        $r = StripeReminderFixtures::linkReminder([], [], ['status' => 4]);
+        StripeReminderFixtures::linkRow($r['reminder']);
+        $this->assertSame('2026-01-28', stripe_reminder_deadline(StripeFixtures::row('ordrer', $r['reminder'])));
+        foreach (['2026-01-25' => 'before the deadline', '2026-01-28' => 'on the deadline'] as $today => $case) {
+            $GLOBALS['stripe_charge_today'] = $today;
+            $next = StripeFixtures::order($r['debtor'], ['levdate' => $today]);
+            $this->assertSame('', stripe_reminder_fee_bogfor($next, 'DO', 25, false, false), $case);
+            $this->assertCount(0, $this->feeLines($next), $case);
+            $this->assertSame('sent', StripeReminderFixtures::linkRowOf($r['reminder'])['status'], $case);
+        }
+        // The customer takes the offer before the deadline: the fee is waived on the next invoice.
+        StripeTestEnvironment::query("UPDATE adresser SET stripe = 'on', stripe_pm_id = 'pm_new', stripe_date = '2026-01-26' WHERE id = $1", [$r['debtor']]);
+        $GLOBALS['stripe_charge_today'] = '2026-01-29';
+        $next = StripeFixtures::order($r['debtor'], ['levdate' => '2026-01-29']);
+        $this->assertSame('', stripe_reminder_fee_bogfor($next, 'DO', 25, false, false));
+        $this->assertCount(0, $this->feeLines($next));
+        $this->assertSame('waived', StripeReminderFixtures::linkRowOf($r['reminder'])['status']);
+
+        // Not taken: the first invoice after the deadline carries the fee.
+        $n = StripeReminderFixtures::linkReminder([], [], ['status' => 4]);
+        StripeReminderFixtures::linkRow($n['reminder']);
+        $next = StripeFixtures::order($n['debtor'], ['levdate' => '2026-01-29']);
+        $this->assertSame('', stripe_reminder_fee_bogfor($next, 'DO', 25, false, false));
+        $this->assertCount(1, $this->feeLines($next));
+        $this->assertSame('charged', StripeReminderFixtures::linkRowOf($n['reminder'])['status']);
+
+        // Without the waiver there is no offer to wait for: charged at once.
+        StripeTestEnvironment::setting('stripe', 'reminder_fee_waive', 'off');
+        $GLOBALS['stripe_charge_today'] = '2026-01-21';
+        $o = StripeReminderFixtures::linkReminder([], [], ['status' => 4]);
+        StripeReminderFixtures::linkRow($o['reminder']);
+        $next = StripeFixtures::order($o['debtor'], ['levdate' => '2026-01-21']);
+        $this->assertSame('', stripe_reminder_fee_bogfor($next, 'DO', 25, false, false));
+        $this->assertCount(1, $this->feeLines($next));
+    }
+
+    public function testEarlierFeeWithInterestIsNotCalledAFeeAlone(): void
+    {
+        StripeTestEnvironment::setting('stripe', 'reminder_fee_next', 'off');
+        $r = StripeReminderFixtures::linkReminder([], [], ['status' => 4, 'date' => '2026-01-05', 'interest' => 12.5]);
+        StripeReminderFixtures::linkRow($r['reminder'], ['fee_mode' => 'classic', 'mailed_at' => '2026-01-05 10:00:00', 'interest_ore' => 1250]);
+        $fee = $this->priorFeeOpenpost($r['reminder']);
+        StripeTestEnvironment::query("UPDATE openpost SET amount = '112.500' WHERE id = $1", [$fee]);   // R.sum: fee + interest
+        $second = StripeReminderFixtures::nextLevel($r, 2, '2026-01-25', ['openposts' => [$fee]]);
+        $this->assertTrue(stripe_reminder_lines($second)['prior_fees'][0]['with_interest']);
+        $plain = self::plain($this->mailReminder($second, true)['html']);
+        $this->assertMatchesRegularExpression('/Rykkergebyr og renter fra 1\. rykker 112,50 kr\./u', $plain);
+        $this->assertStringNotContainsString('Rykkergebyr fra 1. rykker', $plain);
+    }
+
+    public function testALinkReminderWithNothingLeftToPayIsNeitherMailedNorPrinted(): void
+    {
+        $r = StripeReminderFixtures::linkReminder([], [], ['status' => 4]);
+        StripeReminderFixtures::linkRow($r['reminder'], ['status' => 'draft']);
+        $nr = StripeFixtures::row('ordrer', $r['reminder'])['fakturanr'];
+        $this->assertSame('', formReminderRefusal($r['reminder']));
+        StripeTestEnvironment::query("UPDATE ordrer SET betalt = 'on' WHERE id = $1", [$r['invoice']]);
+        $refusal = "Rykker $nr er ikke sendt: alle fakturaer på rykkeren er betalt eller under betaling.";
+        $this->assertSame($refusal, formReminderRefusal($r['reminder']), 'rykkerprint() leaves it out before it is printed');
+        $result = formSendReminderEntry($r['reminder'], $this->pdf($r['reminder']), 'jens@stripe-tests.invalid', 'Dansk', 6, $this->classicSender());
+        $this->assertFalse($result['sent']);
+        $this->assertSame($refusal, $result['message']);
+        $this->assertSame('draft', StripeReminderFixtures::linkRowOf($r['reminder'])['status'], 'not sent: no fee is carried');
+        // A classic reminder is printed as before.
+        $c = StripeReminderFixtures::linkReminder([], ['udskriv_til' => 'email']);
+        StripeTestEnvironment::query("UPDATE ordrer SET betalt = 'on' WHERE id = $1", [$c['invoice']]);
+        $this->assertSame('', formReminderRefusal($c['reminder']));
+    }
+
+    public function testAFeeWaivedBeforeTheReminderWasSentStillGoesAsALinkMail(): void
+    {
+        // Booked draft, fee waived with "Frafald" before it was sent.
+        $r = StripeReminderFixtures::linkReminder([], [], ['status' => 4]);
+        StripeReminderFixtures::linkRow($r['reminder'], ['status' => 'draft']);
+        $this->assertTrue(stripe_reminder_waive($r['reminder'], 'manual'));
+        $this->assertNotNull(formReminderLinkRow($r['reminder']));
+        $result = formSendReminderEntry($r['reminder'], $this->pdf($r['reminder']), 'jens@stripe-tests.invalid', 'Dansk', 6, $this->classicSender());
+        $this->assertSame('link', $result['channel']);
+        $this->assertSame([], $this->classic);
+        $plain = self::plain(StripeTestTransport::$mails[0]['html'] ?? '');
+        $this->assertStringNotContainsString('Rykkergebyr 100,00', $plain);
+        $row = StripeReminderFixtures::linkRowOf($r['reminder']);
+        $this->assertSame('waived', $row['status']);
+        $this->assertSame('link', $row['channel']);
+        $this->assertNotEmpty($row['mailed_at'], 'the payment page and the 10 days of the next level use it');
+        // Once sent, a waived reminder is sent again as a classic reminder (its PDF says "frafaldet").
+        $this->assertNull(formReminderLinkRow($r['reminder']));
+
+        // Its fee lines deleted before booking: waived as 'removed', still a link mail; printed instead, it gets its mailed_at.
+        $p = StripeReminderFixtures::linkReminder();
+        StripeReminderFixtures::linkRow($p['reminder'], ['status' => 'draft']);
+        StripeTestEnvironment::query('DELETE FROM ordrelinjer WHERE ordre_id = $1 AND vare_id = $2', [$p['reminder'], $this->items['fee']]);
+        $this->assertNull(stripe_reminder_refresh_amounts($p['reminder']));
+        $this->assertSame('removed', trim((string)StripeReminderFixtures::linkRowOf($p['reminder'])['waived_reason']));
+        $this->assertNotNull(formReminderLinkRow($p['reminder']));
+        formReminderPrinted($p['reminder']);
+        $row = StripeReminderFixtures::linkRowOf($p['reminder']);
+        $this->assertSame('waived', $row['status']);
+        $this->assertSame('classic', $row['channel']);
+        $this->assertNotEmpty($row['mailed_at']);
     }
 
     /** @return int openpost id of a classic reminder's fee as bogfor_nu() posts it (refnr = the reminder, faktnr = its number). */

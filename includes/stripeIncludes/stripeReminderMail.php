@@ -7,6 +7,7 @@
 //                 Sent by formSendReminderEntry() (includes/formFuncIncludes/reminderMailDelivery.php) from rykkerprint().
 // 20261109 CL/ASR Review fixes: the fee of an earlier classic level of the chain is a row "Rykkergebyr fra 1. rykker" paid by bank transfer, counted in "At betale nu", with the bank details (D1).
 //                 Interest is named as interest in the offer; "Betal med dit gemte kort" only when the page offers the saved card; a row that cannot be paid by card links "Se faktura ›".
+// 20261111 CL/ASR Review round 2: an earlier level's open item that includes interest is "Rykkergebyr og renter fra 1. rykker"; stripe_reminder_deadline() moved to stripeReminder.php.
 
 include_once(__DIR__ . '/stripeInvoice.php');
 include_once(__DIR__ . '/stripeDunning.php');
@@ -104,19 +105,6 @@ function stripe_reminder_variant(array $inv): string {
 		return (empty($inv['enrolled']) && stripe_invoice_save_allowed($inv)) ? 'auto' : 'pay';
 	}
 	return 'view';
-}
-
-/**
- * "Betal senest": the reminder's date plus its payment days, or 8 days when it has none.
- *
- * @param array $r ordrer row of the reminder (fakturadate, ordredate, betalingsdage).
- * @return string YYYY-MM-DD.
- */
-function stripe_reminder_deadline(array $r): string {
-	$date = substr((string)(($r['fakturadate'] ?? '') ?: ($r['ordredate'] ?? '')), 0, 10);
-	if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = stripe_today();
-	$days = (int)($r['betalingsdage'] ?? 0);
-	return stripe_date_add($date, $days > 0 ? $days : 8);
 }
 
 /**
@@ -231,7 +219,9 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 			$ore = (int)round($prior['amount'] * 100);
 			$totalOre += $ore;
 			$priorNumbers[] = $prior['faktnr'];
-			$rows[] = array('label' => stripe_txt('mail_rem_row_prior_fee', array('level' => (int)$prior['level'])), 'value' => stripe_fmt_kr($ore) . ' kr.',
+			// Its open item is fee plus interest when that reminder had interest: then it is not called a fee alone.
+			$rows[] = array('label' => stripe_txt(empty($prior['with_interest']) ? 'mail_rem_row_prior_fee' : 'mail_rem_row_prior_fee_interest',
+				array('level' => (int)$prior['level'])), 'value' => stripe_fmt_kr($ore) . ' kr.',
 				'note' => stripe_txt('mail_rem_prior_fee_note'));
 		}
 		$creditOre = (int)round($set['credits'] * 100);

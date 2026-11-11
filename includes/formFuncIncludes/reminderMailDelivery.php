@@ -7,6 +7,8 @@
 // 20261109 CL/ASR Review fixes: the reminder PDF treats a fee that goes on the next invoice by the link reminder row in any status ("opkræves på din næste faktura" / "opkrævet på faktura X" / "frafaldet", never in "I alt"), and leaves out the invoices the link mail leaves out (D3; formReminderPdfTreatment()).
 //                 A draft link reminder printed on paper counts as sent (formReminderPrinted()).
 //                 Staff messages are texts 8135-8139 (tekster.csv) and the alert is built with jsString(), so a legacy (non-UTF8) database shows them right.
+// 20261111 CL/ASR Review round 2: a link reminder whose fee was waived before it was ever sent ("Frafald", or its fee line deleted) still goes as a link mail and
+//                 gets its mailed_at; a link reminder with no invoice left to pay is refused when printed too (not only when mailed), so no fee is carried for it.
 
 /** @return void Loads the reminder helpers this installation has: the legal rules and the link reminder register. */
 function formReminderIncludes(): void {
@@ -44,21 +46,38 @@ function formReminderNumber(int $rykkerId): string {
 }
 
 /**
- * The legal check before a reminder is printed or mailed (fee cap, fees on at most 3 reminders, 10 days between reminders).
+ * The checks before a reminder is printed or mailed: the legal check (fee cap, fees on at most 3 reminders, 10 days
+ * between reminders), and for a link reminder that at least one invoice on it is still to be paid (printed or mailed
+ * alike: a printed one counts as sent and its fee would go on the next invoice).
  *
  * @param int $rykkerId ordrer.id of the R1/R2/R3 order.
- * @return string '' when it may be sent, else "Rykker 17-2 er ikke sendt: <reason from reminder_legal_check()>".
+ * @return string '' when it may be sent, else "Rykker 17-2 er ikke sendt: <reason from reminder_legal_check()>" or
+ *                "Rykker 17-2 er ikke sendt: alle fakturaer på rykkeren er betalt eller under betaling."
  */
 function formReminderRefusal(int $rykkerId): string {
 	formReminderIncludes();
-	if (!function_exists('reminder_legal_check')) return '';
-	$reason = trim((string)reminder_legal_check($rykkerId));
-	return $reason === '' ? '' : formReminderText(8135, 'Rykker {rykker} er ikke sendt: {tekst}', array('rykker' => formReminderNumber($rykkerId), 'tekst' => $reason));
+	$reason = function_exists('reminder_legal_check') ? trim((string)reminder_legal_check($rykkerId)) : '';
+	if ($reason !== '') {
+		return formReminderText(8135, 'Rykker {rykker} er ikke sendt: {tekst}', array('rykker' => formReminderNumber($rykkerId), 'tekst' => $reason));
+	}
+	if (formReminderLinkRow($rykkerId) !== null) {
+		try {
+			include_once(__DIR__ . '/../stripeIncludes/stripeReminderMail.php');
+			if (!stripe_reminder_invoices($rykkerId)['invoices']) {
+				return formReminderText(8136, 'Rykker {rykker} er ikke sendt: alle fakturaer på rykkeren er betalt eller under betaling.', array('rykker' => formReminderNumber($rykkerId)));
+			}
+		} catch (Throwable $e) {
+			formReminderLog('reminder invoices ' . $rykkerId . ': ' . $e->getMessage());
+		}
+	}
+	return '';
 }
 
 /**
- * The stripe_reminders row of a reminder that is (still) sent as a link reminder: status draft or sent.
- * A charged or waived reminder, or one without a row, is a classic reminder here.
+ * The stripe_reminders row of a reminder that is (still) sent as a link reminder: status draft or sent, or waived
+ * before it was ever sent (staff pressed "Frafald" on a booked draft or deleted its fee lines): it still goes as a
+ * link mail, without the fee. A charged reminder, one waived after it was sent, or one without a row, is a classic
+ * reminder here.
  *
  * @param int $rykkerId ordrer.id of the R1/R2/R3 order.
  * @return array<string, mixed>|null The row, or null.
@@ -72,7 +91,16 @@ function formReminderLinkRow(int $rykkerId): ?array {
 		formReminderLog('reminder row ' . $rykkerId . ': ' . $e->getMessage());
 		return null;
 	}
-	return (is_array($row) && in_array((string)$row['status'], array('draft', 'sent'), true)) ? $row : null;
+	return (is_array($row) && formReminderSendsAsLink($row)) ? $row : null;
+}
+
+/**
+ * @param array<string, mixed> $row stripe_reminder_row().
+ * @return bool Whether the row is sent as a link reminder: draft or sent, or waived and never sent.
+ */
+function formReminderSendsAsLink(array $row): bool {
+	$status = (string)$row['status'];
+	return in_array($status, array('draft', 'sent'), true) || ($status === 'waived' && trim((string)($row['mailed_at'] ?? '')) === '');
 }
 
 /**
@@ -109,7 +137,7 @@ function formReminderPdfTreatment(int $rykkerId): array {
 				$out['suffix'] = ' – opkræves på din næste faktura';
 			}
 		}
-		if (in_array($row['status'], array('draft', 'sent'), true) && is_file(__DIR__ . '/../stripeIncludes/stripeReminderMail.php')) {
+		if (formReminderSendsAsLink($row) && is_file(__DIR__ . '/../stripeIncludes/stripeReminderMail.php')) {
 			include_once(__DIR__ . '/../stripeIncludes/stripeReminderMail.php');
 			$lines = stripe_reminder_lines($rykkerId);
 			$set = stripe_reminder_invoices($rykkerId);
@@ -132,15 +160,17 @@ function formReminderPdfTreatment(int $rykkerId): array {
 }
 
 /**
- * A reminder printed on paper (no mail): a draft link reminder is sent now, so its fee goes on the next invoice as the
- * PDF says (stripe_reminder_fee_bogfor() takes sent rows). A sent, charged or waived one is left as it is.
+ * A reminder printed on paper (no mail): a link reminder that was never sent is sent now, so its fee goes on the next
+ * invoice as the PDF says (stripe_reminder_fee_bogfor() takes sent rows; a waived one keeps its status and gets its
+ * mailed_at). One that was sent before is left as it is. rykkerprint() refuses it first when no invoice is left to pay
+ * (formReminderRefusal()).
  *
  * @param int $rykkerId ordrer.id of the R1/R2/R3 order.
  * @return void
  */
 function formReminderPrinted(int $rykkerId): void {
 	$row = formReminderLinkRow($rykkerId);
-	if ($row !== null && $row['status'] === 'draft') formReminderMarkSent($rykkerId, 'classic', '');
+	if ($row !== null && trim((string)($row['mailed_at'] ?? '')) === '') formReminderMarkSent($rykkerId, 'classic', '');
 }
 
 /** @return bool Whether the classic sender (send_mails) reports a sent mail. */

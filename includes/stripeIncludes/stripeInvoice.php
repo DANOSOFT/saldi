@@ -71,6 +71,7 @@ if (is_file(__DIR__ . '/stripeReminder.php')) include_once(__DIR__ . '/stripeRem
 //                 stripe_invoice_load() adds $inv['reminder'] and shows a declined attempt that was later canceled at Stripe as failed (B8).
 // 20261109 CL/ASR Review fixes: interest is named as interest, never as part of "rykkergebyret" (stripe_reminder_fee_words()); the page note sums every carried fee still to come and tells an enrolled customer too; after a reminder that was not a link reminder the overdue lead no longer promises to avoid one.
 //                 Texts for the earlier classic level's fee in the reminder mail and for the invoice link of a row that cannot be paid by card.
+// 20261111 CL/ASR Review round 2: text mail_rem_row_prior_fee_interest for an earlier level's open item that includes interest.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -259,6 +260,7 @@ if (!function_exists('stripe_txt')) {
 			'mail_rem_fee_next'         => 'på næste faktura',
 			'mail_rem_fee_classic'      => 'betales sammen med fakturaen',
 			'mail_rem_row_prior_fee'    => 'Rykkergebyr fra %level. rykker',
+			'mail_rem_row_prior_fee_interest' => 'Rykkergebyr og renter fra %level. rykker',
 			'mail_rem_prior_fee_note'   => 'betales via bankoverførsel',
 			'mail_rem_bank_box_fee'     => 'Rykkergebyr: reg. %reg · konto %konto · reference %nr',
 			'mail_rem_row_total'        => 'At betale nu',

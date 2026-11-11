@@ -47,6 +47,7 @@
 // 20261109 CL/ASR Review fixes: "Ryk alle" and "Ny rykker" do not book or escalate a reminder whose invoices are all paid (a notice says to use Afslut), and a new level lists only unpaid open items and charges interest on those only.
 //                 "Ryk alle" does not book a reminder dated outside the active fiscal year (as "Bogfør").
 //                 Reminder ids from the request are cast to integers.
+// 20261111 CL/ASR Review round 2: "Ryk alle" still books a reminder whose invoices were paid after it was sent (its fee is owed), only does not escalate it; a link reminder whose fee goes on the next invoice is not held by the fiscal year.
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -159,9 +160,11 @@ if ($konto_id[0]=="alle") {
 	#finder aabne level_1 rykkere som har overskredet rykkerdato med ffdage2.og bogforer disse
 	$q=db_select("select id,konto_id,fakturanr from ordrer where art = 'R1' and status < '3' and ordredate < '$rykkerfrist2' and $stripeDunningReminder",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
-		// 20261109 CL/ASR not booked and escalated: a reminder whose invoices are all paid (Afslut closes it), one dated outside
-		// the active fiscal year (as "Bogfør"), and renteloven § 9 b (L3) before the next reminder may carry its fee
+		// 20261109 CL/ASR not escalated: a reminder dated outside the active fiscal year (not booked either, as "Bogfør"), one whose
+		// invoices are all paid and renteloven § 9 b (L3) before the next reminder may carry its fee
 		if (($skip = reminder_escalation_skip((int)$r['id'], true)) !== '') {
+			// 20261111 CL/ASR its invoices paid after it was sent: still booked, as its fee is owed (Afslut closes it)
+			if ($skip === 'paid') bogfor_rykker($r['id']);
 			$legalNotes[] = reminder_skip_notice($r['fakturanr'], $skip);
 			continue;
 		}
@@ -176,6 +179,7 @@ if ($konto_id[0]=="alle") {
 	while ($r=db_fetch_array($q)) {
 		// 20261109 CL/ASR as for R1 above
 		if (($skip = reminder_escalation_skip((int)$r['id'], true)) !== '') {
+			if ($skip === 'paid') bogfor_rykker($r['id']);
 			$legalNotes[] = reminder_skip_notice($r['fakturanr'], $skip);
 			continue;
 		}

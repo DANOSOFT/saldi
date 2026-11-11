@@ -435,19 +435,22 @@ function reminder_in_active_year($rykkerId) {
 }
 
 /**
- * Why "Ryk alle" or "Ny rykker" leaves a reminder as it is instead of booking it (only "Ryk alle") and making its next
- * level: every invoice on it is paid (Afslut closes it), its date is outside the active fiscal year (only when it
- * would be booked, as "Bogfør" refuses it) or renteloven § 9 b (L3) holds the next level back.
+ * Why "Ryk alle" or "Ny rykker" does not make a reminder's next level: its date is outside the active fiscal year
+ * (only when "Ryk alle" would book it, as "Bogfør" refuses it; a link reminder whose fee goes on the next invoice posts
+ * nothing and is not held), every invoice on it is paid ("Ryk alle" still books it, as the fee of a sent reminder is
+ * owed; Afslut closes it), or renteloven § 9 b (L3) holds the next level back.
  *
  * @param int $rykkerId ordrer.id of the reminder that would be escalated.
  * @param bool $book Whether it would be booked first ("Ryk alle").
  * @param string $today Y-m-d; '' = today.
- * @return string '' = go on; 'paid', 'year' or the L3 message (worded by reminder_skip_notice()).
+ * @return string '' = go on; 'year' (not booked), 'paid' (booked by "Ryk alle", not escalated) or the L3 message
+ *                (worded by reminder_skip_notice()).
  */
 function reminder_escalation_skip($rykkerId, $book, $today = '') {
+	$carried = function_exists('stripe_reminder_carried') && stripe_reminder_carried((int)$rykkerId);
+	if ($book && !$carried && !reminder_in_active_year((int)$rykkerId)) return 'year';
 	$payment = reminder_invoice_payment((int)$rykkerId);
 	if ($payment['invoices'] > 0 && $payment['unpaid'] === 0) return 'paid';
-	if ($book && !reminder_in_active_year((int)$rykkerId)) return 'year';
 	return reminder_escalation_check((int)$rykkerId, $today);
 }
 

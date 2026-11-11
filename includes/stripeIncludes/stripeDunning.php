@@ -4,6 +4,7 @@
 // 20261109 CL/ASR Card-on-file hold: an invoice the charge job still retries (card on file, fewer than 3 primary declines, or fewer than 3 days since the 3rd) cannot enter reminders.
 //                 Saved-card authentication is protected for 14 days, no longer forever.
 // 20261109 CL/ASR Review fix: the card-on-file hold applies only while the charge job will really try the invoice: a saved card, no authentication request on it, card payment possible, and the full amount open with no credit on the account.
+// 20261111 CL/ASR Review round 2: the hold loads stripeSettings.php itself, so the ledger check (stripe_ledger_armed()) also runs in ny_rykker.php and the reports.
 
 /**
  * Predicate for an openpost row which can enter dunning. This lightweight include does
@@ -63,6 +64,8 @@ function stripe_dunning_card_hold_sql($alias, $columns) {
 		if (trim((string)$r['var_value']) === 'on') $on[$r['var_name']] = true;
 	}
 	if (count($on) < 3) return '';
+	// A ledger restored from a copy keeps the switches but the charge job does not collect there (function definitions only).
+	if (!function_exists('stripe_ledger_armed') && is_file(__DIR__ . '/stripeSettings.php')) include_once(__DIR__ . '/stripeSettings.php');
 	if (function_exists('stripe_ledger_armed') && !stripe_ledger_armed()) return '';
 	$schema = in_array($GLOBALS['db_type'], array('mysql', 'mysqli'), true) ? ' and table_schema = database()' : '';
 	$r = db_fetch_array(db_select("select count(*) as n from information_schema.columns where table_name = 'adresser'

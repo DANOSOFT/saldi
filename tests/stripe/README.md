@@ -205,15 +205,17 @@ orders like `debitor/ny_rykker.php` makes them, `stripe_reminders` rows) covers 
 reminders become link reminders, registration, renteloven § 9 b (L1/L2/L3 with the
 mailed/fakturadate/ordredate fallbacks), the fee and interest on the next invoice
 (VAT-free kdo lines, idempotent, waived on enrolment the same day or a card saved after
-the mail, skipped for credit-like/foreign/undated orders and unsent/unbooked/deleted
-reminders), the reminder mail and its variants, the send path with classic fallback,
+the mail, held until the reminder's "Betal senest" while the waiver is on, skipped for
+credit-like/foreign/undated orders and unsent/unbooked/deleted reminders), the reminder mail and its variants, the send path with classic fallback,
 the card-on-file dunning hold, the 14-day saved-card authentication protection and
 closing paid reminders. `StripePageTest`, `StripeRedesignSettingsTest`,
 `StripeManualFeeTest` and `StripeBookingTest` carry the page, settings, shared fee-line
 and booking cases: `bogfor_rykker()` of `includes/openpost.php` ("Ryk alle") and, in its
 own process, of `includes/rapportfunc.php` (the "Bogfør" button in `debitor/rapport.php`).
-The helpers the pages call are tested directly: `reminder_escalation_skip()` (paid, fiscal
-year, L3), `formReminderPdfTreatment()` (the PDF's fee text and left-out lines),
+The helpers the pages call are tested directly: `reminder_escalation_skip()` (fiscal year
+first, not for a carried link reminder; paid; L3), `formReminderRefusal()` (a link reminder
+with nothing left to pay is neither printed nor mailed), `formReminderLinkRow()` (a fee
+waived before the first send still goes as a link mail), `formReminderPdfTreatment()` (the PDF's fee text and left-out lines),
 `formReminderPrinted()`, `stripe_reminder_unregister()` and
 `stripe_reminder_waive_request()` ("Frafald rykkergebyr" with its CSRF token).
 
@@ -225,7 +227,7 @@ order); a bulk "Udskriv" of mixed printed/mailed/link reminders through the real
 in PostScript and in "Brug html" mode (one page per printed reminder, nothing of a mailed
 one on the printed pages, PDF suffix and "I alt" for draft/sent/charged/waived rows, paid
 invoices left out of a link reminder's PDF, attachment name, one staff alert); "Ryk alle"
-through `debitor/ny_rykker.php` (an R1 is booked; a reminder whose invoices are all paid or
-dated outside the active fiscal year is left with a notice; a new level lists only unpaid
-open items); and in `debitor/rykker.php` "Frafald rykkergebyr", unticking "Send pr. mail"
+through `debitor/ny_rykker.php` (an R1 is booked; a reminder whose invoices are all paid is
+booked but not escalated, one dated outside the active fiscal year is left, each with a
+notice; a new level lists only unpaid open items); and in `debitor/rykker.php` "Frafald rykkergebyr", unticking "Send pr. mail"
 on a booked draft (it stays a link reminder) and a reminder id that is not a number.

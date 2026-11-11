@@ -29,6 +29,8 @@
 // 20261109 CL/ASR Review fixes: the fee of an earlier classic level of the chain is a prior fee, not unmapped (D1); a booked draft is never made classic again; a re-send keeps the first mailed_at (D2); the card-saved waiver compares Copenhagen days.
 //                 The fee and interest charged on the next invoice are at most those of the reminder's current lines (a deleted line is not charged, nothing left = waived); never on a cash or card sale.
 //                 New: stripe_reminder_refresh_amounts(), stripe_reminder_carried_rows() (payment page), stripe_reminder_waivable() and stripe_reminder_waive_request() ("Frafald rykkergebyr" in rykker.php).
+// 20261111 CL/ASR Review round 2: with the waiver on, a carried fee waits until the reminder's "Betal senest" has passed, so the customer can still take the mail's offer
+//                 (stripe_reminder_deadline() moved here from stripeReminderMail.php); a prior fee says whether that reminder's open item includes interest.
 
 include_once(__DIR__ . '/../reminderLegal.php');
 
@@ -141,8 +143,9 @@ function stripe_reminder_vare($vareId) {
  *   invoices: array<int, array{ordre_id: int, openpost_id: int, fakturanr: string, amount: float, forfaldsdate: string}>,
  *                    Oldest due date first; amount = the open item's amount, forfaldsdate Y-m-d (transdate when none).
  *   credits: array<int, array{openpost_id: int, amount: float}>,  Negative open items (amount < 0).
- *   prior_fees: array<int, array{openpost_id: int, faktnr: string, amount: float, level: int}>,
- *                    Fee open items of earlier levels of the chain; faktnr is that reminder's number, level its level.
+ *   prior_fees: array<int, array{openpost_id: int, faktnr: string, amount: float, level: int, with_interest: bool}>,
+ *                    Fee open items of earlier levels of the chain; faktnr is that reminder's number, level its level,
+ *                    with_interest whether that reminder also had interest (its open item is fee plus interest).
  *   unmapped: int,   Positive open items that are no single invoice and no prior fee (also items that no longer exist).
  *   fee: float,      Fee lines in the reminder's currency.
  *   interest: float, Interest lines in the reminder's currency.
@@ -177,7 +180,9 @@ function stripe_reminder_lines(int $rykkerId): array {
 		if (count($do) !== 1) {
 			$level = reminder_prior_fee_level($op, $c);
 			if ($level > 0) {
-				$out['prior_fees'][] = array('openpost_id' => (int)$op['id'], 'faktnr' => $faktnr, 'amount' => (float)$op['amount'], 'level' => $level);
+				$prior = reminder_charge_lines((int)$op['refnr']);
+				$out['prior_fees'][] = array('openpost_id' => (int)$op['id'], 'faktnr' => $faktnr, 'amount' => (float)$op['amount'], 'level' => $level,
+					'with_interest' => $prior !== null && (float)$prior['interest'] > 0);
 			} else {
 				$out['unmapped']++;
 			}
@@ -288,6 +293,20 @@ function stripe_reminder_unregister(int $rykkerId): void {
 function stripe_reminder_carried(int $rykkerId): bool {
 	$row = stripe_reminder_row($rykkerId);
 	return $row !== null && $row['fee_mode'] === 'next';
+}
+
+/**
+ * "Betal senest" of a reminder: its date plus its payment days, or 8 days when it has none. The link mail shows it, and
+ * until it has passed a carried fee waits (stripe_reminder_fee_bogfor()), so the mail's offer can still be taken.
+ *
+ * @param array $r ordrer row of the reminder (fakturadate, ordredate, betalingsdage).
+ * @return string YYYY-MM-DD.
+ */
+function stripe_reminder_deadline(array $r): string {
+	$date = substr((string)(($r['fakturadate'] ?? '') ?: ($r['ordredate'] ?? '')), 0, 10);
+	if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = substr(stripe_reminder_now(), 0, 10);
+	$days = (int)($r['betalingsdage'] ?? 0);
+	return (new DateTimeImmutable($date, new DateTimeZone('Europe/Copenhagen')))->modify('+' . ($days > 0 ? $days : 8) . ' days')->format('Y-m-d');
 }
 
 /** @return string Now as 'Y-m-d H:i:s', Copenhagen time, on the Stripe clock's date when it is loaded (tests pin it). */
@@ -402,7 +421,10 @@ function stripe_reminder_waiver_reason($kontoId, $order, $mailedAt) {
  * Called by bogfor() for a DO order right after the fee for manual payment, in the same transaction: the fee and
  * interest of the customer's sent, booked link reminders with fee_mode 'next' (oldest first) become VAT-free,
  * non-repeating lines on this invoice ("Rykkergebyr, rykker 17-1 (faktura 2026-0412)", "Renter, rykker 17-1 (...)")
- * and the row 'charged' - or the row 'waived' when the waiver applies. A row is taken only while it is still
+ * and the row 'charged' - or the row 'waived' when the waiver applies. With the waiver on (reminder_fee_waive), a fee
+ * whose reminder's "Betal senest" (stripe_reminder_deadline()) has not passed waits for a later invoice, so the
+ * customer can still take the mail's offer ("slå automatisk betaling til – og spar rykkergebyret"); a waiver that
+ * already applies is given at once. A row is taken only while it is still
  * 'sent' (locked in this transaction), so a repeated posting never charges twice. Same order guards as the fee for
  * manual payment: no credit-note-like order, no net <= 0, DKK only, a valid delivery date; and never on a cash or card
  * sale (betalingsbet Kontant/Kreditkort is paid at once, bogfor_nu() posts it straight to the cash or card account).
@@ -427,13 +449,15 @@ function stripe_reminder_fee_bogfor($id, $art, $momssats, $webservice = false, $
 	if (in_array(strtolower(trim((string)$order['betalingsbet'])), array('kontant', 'kreditkort'), true)) return '';
 	$kontoId = (int)$order['konto_id'];
 	$rows = array();
-	$q = db_select("select r.rykker_id, r.level, r.fee_ore, r.interest_ore, r.mailed_at, o.fakturanr from stripe_reminders r, ordrer o
+	$q = db_select("select r.rykker_id, r.level, r.fee_ore, r.interest_ore, r.mailed_at, o.fakturanr, o.fakturadate, o.ordredate, o.betalingsdage
+		from stripe_reminders r, ordrer o
 		where o.id = r.rykker_id and r.konto_id = $kontoId and o.konto_id = $kontoId and o.art like 'R%' and o.status >= 3
 		and r.status = 'sent' and r.fee_mode = 'next' and r.fee_ore + r.interest_ore > 0
 		order by r.mailed_at, r.rykker_id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) $rows[] = $r;
 	if (!$rows) return '';
 	$waive = stripe_reminder_settings()['waive'];
+	$today = substr(stripe_reminder_now(), 0, 10);
 	foreach ($rows as $row) {
 		$rid = (int)$row['rykker_id'];
 		$lock = db_fetch_array(db_select("select status from stripe_reminders where rykker_id = $rid for update", __FILE__ . " linje " . __LINE__));
@@ -446,6 +470,8 @@ function stripe_reminder_fee_bogfor($id, $art, $momssats, $webservice = false, $
 			db_modify("update stripe_reminders set status = 'waived', waived_reason = '$reason' where rykker_id = $rid and status = 'sent'", __FILE__ . " linje " . __LINE__);
 			continue;
 		}
+		// The offer in the mail holds until "Betal senest": the fee waits for an invoice after it.
+		if ($waive && $today <= stripe_reminder_deadline($row)) continue;
 		$lines = stripe_reminder_lines($rid);
 		$items = reminder_fee_items((int)$row['level']);
 		$numbers = array_values(array_unique(array_map(function ($inv) { return $inv['fakturanr']; }, $lines['invoices'])));
