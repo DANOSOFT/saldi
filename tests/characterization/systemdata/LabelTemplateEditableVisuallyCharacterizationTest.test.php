@@ -5,6 +5,10 @@ declare(strict_types=1);
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+// 20261111 CDX/NTR Use the common fresh UUID tenant instead of a pre-existing fixed database.
+
+require_once __DIR__ . '/../support/database/TestDatabase.php';
+
 /**
  * CHARACTERIZATION suite for labelTemplateEditableVisually() (systemdata/sys_div_func.php),
  * pinning the MB-18 fix: the visual label editor's "Gem/opdatér" save always fully regenerates
@@ -25,14 +29,12 @@ use PHPUnit\Framework\TestCase;
  * reproducing the exact "user changes one setting" scenario from the ticket, confirmed
  * red (destroys the label) against the pre-fix code and green (refuses, preserves it) here.
  *
- * Connection details are never literals here (doc/ai/convention_no_hardcoded_secrets.md): the
- * suite uses whatever the gitignored includes/connect.php says, exactly like the app does. The
- * "saldi_chartest" tenant database must already exist on that host, cloned from an installed
- * tenant; when it can't be reached the whole suite is skipped rather than errored.
+ * The common helper installs a fresh UUID tenant for this class using the configured
+ * test master and PostgreSQL connection settings; no existing tenant is required.
  */
 final class LabelTemplateEditableVisuallyCharacterizationTest extends TestCase
 {
-    private const TENANT_DB = 'saldi_chartest';
+    private static ?TestDatabase $database = null;
     private const LABEL_NAME = 'MB18CharacterizationLabel';
 
     private static string $repoRoot;
@@ -41,6 +43,11 @@ final class LabelTemplateEditableVisuallyCharacterizationTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
+        $reason = TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
+        }
+        self::$database = TestDatabase::create(static::class);
         // Must come BEFORE the require below - see the same note in
         // SaveLabelTextCharacterizationTest for why: an included file's top-level code runs in
         // the includer's scope, so connect.php's assignments would otherwise be trapped as
@@ -62,29 +69,27 @@ final class LabelTemplateEditableVisuallyCharacterizationTest extends TestCase
         // verbatim at include time.
         self::assertSame('', trim($includeOutput), 'sys_div_func.php emitted output at include time');
 
-        $db = self::TENANT_DB;
-        // db_connect() exits the process on an empty host (connect.php already
-        // included into another suite's local scope), which would end the whole
-        // PHPUnit run - skip instead.
-        $connection = $sqhost ? @db_connect($sqhost, $squser, $sqpass, $db) : false;
-        if (!$connection) {
-            // tearDownAfterClass() is not guaranteed to run after a setUpBeforeClass() skip, so
-            // restore the cwd here rather than relying on it to undo the chdir() above.
-            chdir(self::$originalCwd);
-            self::markTestSkipped(
-                "tenant db '" . self::TENANT_DB . "' not reachable on host '$sqhost' as user '$squser' " .
-                '- clone it from an installed tenant first'
-            );
-        }
+        $db = self::$database->name();
+        $db_type = 'postgresql';
+        $connection = TestDatabase::connect($db);
         self::$connected = true;
     }
 
     public static function tearDownAfterClass(): void
     {
+        global $connection;
         if (self::$connected) {
-            self::deleteTestLabel();
+            pg_close($connection);
+            $connection = null;
+            self::$connected = false;
         }
-        chdir(self::$originalCwd);
+        if (self::$database !== null) {
+            self::$database->release();
+            self::$database = null;
+        }
+        if (isset(self::$originalCwd)) {
+            chdir(self::$originalCwd);
+        }
     }
 
     protected function setUp(): void
