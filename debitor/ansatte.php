@@ -1,6 +1,6 @@
 <?php
 
-// --- debitor/ansatte.php --- lap 4.1.1 --- 2025.09.18----------
+// --- debitor/ansatte.php --- ver 5.1.0 --- 2026.11.01----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,13 +16,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20221229 PHR Some cleanup
 // 20250913 LEO Added display of existing employees and top menu and "Delete all" button
 // 20260818 LH  MB-14: fixed "Uforudset hændelse" on save (guard missing 'mobile' column like kreditor/ansatte.php, redirect back to account)
 // 20260904 Sawaneh WP-1.1: header Historik/Kontokort icon retursides now target this ansatte page (urlencoded, with konto_id)
+// 20261101 CL/SZ MB-129 A contact with an apostrophe in a field can be saved: the fields use db_escape_string instead of addslashes, which Postgres rejects.
+//                The name is also escaped in the adresser.kontakt updates.
 
 @session_start();
 $s_id=session_id();
@@ -51,17 +53,17 @@ if ($_POST){
 	$delete= if_isset($_POST,NULL,'delete');
 	$deleteAll= if_isset($_POST,NULL,'deleteAll');
  	$konto_id=$_POST['konto_id'];
- 	$navn=addslashes(trim($_POST['navn']));
- 	$addr1=addslashes(trim($_POST['addr1']));
- 	$addr2=addslashes(trim($_POST['addr2']));
- 	$postnr=addslashes(trim($_POST['postnr']));
- 	$bynavn=addslashes(trim($_POST['bynavn']));
- 	$tlf=addslashes(trim($_POST['tlf']));
- 	$mobile=addslashes(trim($_POST['mobile']));
- 	$mobil=addslashes(trim($_POST['mobil']));
- 	$email=addslashes(trim($_POST['email']));
- 	$cprnr=addslashes(trim(if_isset($_POST,'','cprnr')));
- 	$notes=addslashes(trim($_POST['notes']));
+ 	$navn=db_escape_string(trim($_POST['navn']));
+ 	$addr1=db_escape_string(trim($_POST['addr1']));
+ 	$addr2=db_escape_string(trim($_POST['addr2']));
+ 	$postnr=db_escape_string(trim($_POST['postnr']));
+ 	$bynavn=db_escape_string(trim($_POST['bynavn']));
+ 	$tlf=db_escape_string(trim($_POST['tlf']));
+ 	$mobile=db_escape_string(trim($_POST['mobile']));
+ 	$mobil=db_escape_string(trim($_POST['mobil']));
+ 	$email=db_escape_string(trim($_POST['email']));
+ 	$cprnr=db_escape_string(trim(if_isset($_POST,'','cprnr')));
+ 	$notes=db_escape_string(trim($_POST['notes']));
  	$ordre_id = if_isset($_POST,'','ordre_id');
  	$returside=$_POST['returside'];
  	$fokus=$_POST['fokus'];
@@ -101,7 +103,7 @@ if ($_POST){
 				", __FILE__ . " linje " . __LINE__);
 
 				$row = db_fetch_array($query);
-				$navnA = $row['navn'];
+				$navnA = db_escape_string($row['navn'] ?? '');
                  if(!$navnA) $navnA = NULL;
 				//update adresser where id = konto_id and set kontakt to kontakt
 			db_modify("update adresser set kontakt = '$navnA' where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
@@ -197,7 +199,7 @@ if ($_POST){
 				", __FILE__ . " linje " . __LINE__);
 
 				$row = db_fetch_array($query);
-				$navnA = $row['navn'];
+				$navnA = db_escape_string($row['navn'] ?? '');
 
 				//update adresser where id = konto_id and set kontakt to kontakt
 			db_modify("update adresser set kontakt = '$navnA' where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
