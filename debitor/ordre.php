@@ -185,6 +185,7 @@
 // 20261110 LOE SST-967 An offer for a case opens on the craft right, with the customer taken from the case. The order is taken from id or ordre_id, on the GET or on the POST.
 // 20261110 LOE SST-967 The delivery-address and mail handlers refuse an order outside the case.
 // 20261110 LOE SST-967 A copy is bound to the admitted case, and a posted line id of another order is dropped.
+// 20261110 LOE SST-967 A posted credit-line reference must be a line of the admitted case.
 
 @session_start();
 $s_id = session_id();
@@ -1320,6 +1321,30 @@ if ($b_submit) {
 		unset($sst967_line_ids, $q, $r, $sst967_k, $sst967_v);
 	}
 	$kred_linje_id   = if_isset($_POST, NULL, 'kred_linje_id');
+	# SST-967 a credit-note line may only reference a line of the admitted case: its quantity surfaces in an
+	# alert, so a posted id of another case would disclose it. A credit always credits an order in its own case.
+	if ($sag_workflow_case_id && is_array($kred_linje_id)) {
+		$sst967_kred_ids = array();
+		foreach ($kred_linje_id as $sst967_v) {
+			if ((int) $sst967_v) {
+				$sst967_kred_ids[(int) $sst967_v] = true;
+			}
+		}
+		if ($sst967_kred_ids) {
+			$sst967_kred_ok = array();
+			$q = db_select("select ordrelinjer.id from ordrelinjer, ordrer where ordrelinjer.ordre_id = ordrer.id and ordrer.sag_id = '$sag_workflow_case_id' and ordrelinjer.id in (" . implode(',', array_keys($sst967_kred_ids)) . ")", __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$sst967_kred_ok[(int) $r['id']] = true;
+			}
+			foreach ($kred_linje_id as $sst967_k => $sst967_v) {
+				if ((int) $sst967_v && !isset($sst967_kred_ok[(int) $sst967_v])) {
+					$kred_linje_id[$sst967_k] = 0;
+				}
+			}
+			unset($sst967_kred_ok, $q, $r);
+		}
+		unset($sst967_kred_ids, $sst967_v, $sst967_k);
+	}
 	$posnr           = if_isset($_POST, NULL, 'posnr');
 	$sag_id          = if_isset($_POST, NULL, 'sag_id');
 	# SST-967 the posted case cannot override the case the gate proved, so a copy lands in the admitted case.

@@ -30,6 +30,7 @@
 // 20261110 LOE SST-967 The history opens on the craft right for a customer the company has a case for.
 // 20261110 LOE SST-967 The history page reads every id it takes from the request as a number.
 // 20261110 LOE SST-967 The history update and the delete are scoped to the customer the request proved.
+// 20261110 LOE SST-967 The row id updateOprettet() writes with is read as a number.
 
 @session_start();
 $s_id = session_id();
@@ -244,6 +245,7 @@ function processHistorikRecord($inputs, $employeeIds) {
 }
 
 function updateOprettet($id, $oprettet) {
+	$id = (int)$id;
 	if (isset($oprettet)) {
       if (!$oprettet) $oprettet = date('Y-m-d');
       $oprettet = db_escape_string($oprettet);

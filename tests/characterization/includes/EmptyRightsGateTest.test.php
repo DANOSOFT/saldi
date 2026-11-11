@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 // History:
 // 20261109 LOE SST-967 created.
 // 20261110 LOE SST-967 The gate is one computation, the Mit Salg session and the sag workflow are pinned.
-// 20261110 LOE SST-967 The order page is pinned to the case, and the way back, the export and the pin are pinned. Every order selector in a request is checked against the case. The history page reads its ids as numbers, and the gate pins its save and delete to the proved customer. A valid id= no longer lets another id= through on the POST. A history row named on the POST is checked, and the copy and the line ids are bound to the admitted case.
+// 20261110 LOE SST-967 The order page is pinned to the case, and the way back, the export and the pin are pinned. Every order selector in a request is checked against the case. The history page reads its ids as numbers, and the gate pins its save and delete to the proved customer. A valid id= no longer lets another id= through on the POST. A history row named on the POST is checked, and the copy and the line ids are bound to the admitted case. The credit reference is bound to the case, and every position assertion proves its guard exists first.
 
 final class EmptyRightsGateTest extends TestCase
 {
@@ -293,16 +293,22 @@ final class EmptyRightsGateTest extends TestCase
         self::assertStringContainsString("\$sag_id = \$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
         self::assertStringContainsString("select id from ordrelinjer where ordre_id = '\$id'", $ordre,
             'and a posted line id of another order is dropped');
+        self::assertStringContainsString("select ordrelinjer.id from ordrelinjer, ordrer where ordrelinjer.ordre_id = ordrer.id", $ordre,
+            'and a posted credit-line reference must be a line of the admitted case');
+        $histFile = (string)@file_get_contents(__DIR__ . '/../../../debitor/historikkort.php');
+        self::assertStringContainsString("\$id = (int)\$id;", $histFile, 'updateOprettet() casts the id it writes with');
 
         $firstWrite = strpos($ordre, 'if (isset($_GET[\'vis_lev_addr\']) && $id) {');
         $guard = strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {');
         self::assertNotFalse($firstWrite, 'the first order write is still there');
+        self::assertNotFalse($guard, 'the check itself is still there');
         self::assertLessThan($firstWrite, $guard, 'the check runs before the first write that uses the id');
 
         $pinWrite = strpos($ordre, 'update ordrer set konto_id=\'$konto_id\',kontonr=\'$kontonr\'');
         self::assertNotFalse($pinWrite, 'the customer rewrite is still there');
-        self::assertLessThan($pinWrite, strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {', (int)$firstWrite),
-            'the check runs again before the customer rewrite');
+        $guardBeforePin = strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {', (int)$firstWrite);
+        self::assertNotFalse($guardBeforePin, 'the check before the customer rewrite is still there');
+        self::assertLessThan($pinWrite, $guardBeforePin, 'the check runs again before the customer rewrite');
 
         // The delivery-address endpoint writes from the POST id before the page reaches any check of its own.
         self::assertStringContainsString('if (!sag_workflow_order_ok($clear_id)) {', $ordre,
@@ -316,6 +322,7 @@ final class EmptyRightsGateTest extends TestCase
         $saveWrite = strpos($ordre, 'update ordrer set kontonr=\'$kontonr\',kundeordnr=\'$kundeordnr\',firmanavn=\'$firmanavn\'');
         self::assertNotFalse($saveWrite, 'the save write is still there');
         $guardBeforeSave = strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {', (int)$pinWrite);
+        self::assertNotFalse($guardBeforeSave, 'the check before the save write is still there');
         self::assertLessThan($saveWrite, $guardBeforeSave, 'and once more before the save write');
     }
 
