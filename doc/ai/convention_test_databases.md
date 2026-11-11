@@ -13,6 +13,8 @@ is enabled (`keep=yes`). Ordinary runs omit these debugging lines; actual errors
 remain visible. Test routing rows use locked, explicitly allocated negative IDs
 so creation, retention and cleanup never advance or reset the normal registry
 sequence or increase the highest positive ID.
+The generated name keeps a tenant's shape, `<master>_<regnskab id>` (`t` + 22 hex + `_1`):
+`api/rest_api.php` takes a name without the underscore for the master database (MB-154).
 `SALDI_TEST_KEEP_DATABASES=1` retains all groups for inspection; later runs must
 never reuse or automatically delete retained databases. Explicit operator cleanup
 uses `tools/phpunit-databases.php`: listing by default, `--delete` for removal.
