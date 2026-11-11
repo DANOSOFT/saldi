@@ -17,6 +17,7 @@ use PHPUnit\Framework\TestCase;
  * History:
  * 20261103 CL/MMR Created (SST-841, review by sawaneh1 on PR #969).
  * 20261104 CL/MMR CodeRabbit (PR #969): deleting the booking and its order is one transaction; transaktion() is recorded too.
+ * 20261111 CL/MMR Codex round 19 (PR #969): a list or object as status or id gives no PHP warning.
  */
 #[RunTestsInSeparateProcesses]
 final class updateBookingPayment extends TestCase
@@ -169,6 +170,60 @@ final class updateBookingPayment extends TestCase
         $s = self::deleteStatements();
         $this->assertSame('transaktion:rollback', end($s));
         $this->assertNotContains('transaktion:commit', $s);
+    }
+
+    /**
+     * Runs update_booking_payment() with every PHP warning or notice turned into a test failure.
+     * @return array<string, string> the answer
+     */
+    private static function callWithoutWarnings(array $data): array
+    {
+        [$cb] = self::invoice();
+        set_error_handler(static function (int $no, string $msg): never {
+            throw new ErrorException($msg, 0, $no);
+        });
+        try {
+            return update_booking_payment('saldi_1', $data, $cb);
+        } finally {
+            restore_error_handler();
+        }
+    }
+
+    /** boot() declares the doubles once per process; later cases only swap the scripted rows. */
+    private static function rescript($booking, ?string $vibrant): void
+    {
+        $GLOBALS['__sql'] = [];
+        $GLOBALS['__booking'] = $booking;
+        $GLOBALS['__vibrant'] = $vibrant;
+    }
+
+    public function testAStatusThatIsAListOrAnObjectCountsAsMissingWithoutAWarning(): void
+    {
+        // Codex round 19: (string) on an array warned "Array to string conversion" in front of the JSON answer
+        self::boot(self::UNPAID, null);
+        foreach ([['rejected'], ['status' => 'approved'], []] as $status) {
+            self::rescript(self::UNPAID, null);
+            $this->assertSame(['status' => 'deleted'], self::callWithoutWarnings(['id' => 3, 'status' => $status]), 'same as no status: unpaid is deleted');
+        }
+        self::rescript(self::UNPAID, null);
+        $this->assertSame(['status' => 'deleted'], self::callWithoutWarnings(['id' => 3]), 'no status');
+        // a confirmed payment still wins over a malformed status
+        self::rescript(self::PENDING, 'succeeded');
+        $this->assertSame(['status' => 'approved'], self::callWithoutWarnings(['id' => 3, 'status' => ['rejected']]));
+        // a waiting payment is kept
+        self::rescript(self::PENDING, 'waiting');
+        $this->assertSame(['status' => 'pending'], self::callWithoutWarnings(['id' => 3, 'status' => ['x' => 1]]));
+    }
+
+    public function testAnIdThatIsAListOrAnObjectFindsNoBooking(): void
+    {
+        // (int) on a non-empty array is 1, which would have picked booking 1
+        self::boot(false, null);
+        foreach ([[3], ['id' => 3]] as $id) {
+            self::rescript(false, null);
+            $this->assertSame(['status' => 'not_found'], self::callWithoutWarnings(['id' => $id, 'status' => 'rejected']));
+            $this->assertStringContainsString('FROM rentalperiod WHERE id = 0', implode("\n", $GLOBALS['__sql']));
+        }
     }
 
     public function testThePaymentColumnsAreCountedOncePerName(): void

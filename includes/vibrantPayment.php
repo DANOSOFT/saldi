@@ -38,6 +38,7 @@
 //                 Both statements run through booking_query_quiet(), which logs a failure instead of printing db_select()'s alert into the JSON answer.
 // 20261110 CL/MMR SST-841 CodeRabbit (PR #969): rental_payment_ready() only counts the columns of rentalperiod in the active schema (current_schema()).
 // 20261111 CL/MMR SST-841 Codex final re-test (PR #969): the booking DELETE also runs through booking_query_quiet(); a failure rolls back and answers pending.
+// 20261111 CL/MMR SST-841 Codex round 19 (PR #969): a list or object as id or status counts as missing, so no PHP warning breaks the JSON answer.
 //
 
 if (!function_exists('booking_query_quiet')) {
@@ -206,7 +207,11 @@ if (!function_exists('update_booking_payment')) {
  * }
  */
 function update_booking_payment($db, $data, $invoice) {
-	$bookingId = (int)($data['id'] ?? 0);
+	// The body is JSON from a public page, so id and status can be lists or objects. Only a scalar counts; anything
+	// else is treated as missing (id 0, no status), which avoids PHP's "Array to string conversion" warning in the
+	// JSON answer and an array id silently becoming booking 1.
+	$bookingId = is_scalar($data['id'] ?? null) ? (int)$data['id'] : 0;
+	$status = is_scalar($data['status'] ?? null) ? (string)$data['status'] : '';
 	if (!rental_payment_ready($db)) {
 		return array('status' => 'not_ready');
 	}
@@ -219,7 +224,7 @@ function update_booking_payment($db, $data, $invoice) {
 		$r = db_fetch_array(db_select("SELECT apikey FROM rentalpayment WHERE id = 1", __FILE__ . " linje " . __LINE__));
 		$paymentState = vibrant_payment_state($r ? (string)$r['apikey'] : '', (string)$booking['payment_id']);
 	}
-	$decision = booking_payment_decision($booking, (string)($data['status'] ?? ''), $paymentState);
+	$decision = booking_payment_decision($booking, $status, $paymentState);
 	$orderId = $booking ? (int)$booking['order_id'] : 0;
 	if ($decision === 'approve') {
 		// Claim the row: the expiry cleanup (rental/rental.php cleanUpExpiredBookings()) may have deleted the booking
