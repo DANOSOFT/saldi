@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/notat.php --- ver 5.1.0 -- 2026-11-04 --
+// --- sager/notat.php --- ver 5.1.0 -- 2026-11-10 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20261104 LOE SST-939 Initialise the note-list arrays before the query, so an empty list no longer throws.
 // 20261104 CL/MMR SD-799 The project status, the "by" labels, the search suggestion labels and the list counter follow the user's language.
 // 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
+// 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
 
 @session_start();
 $s_id = session_id();
@@ -60,7 +61,10 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 
-$funktion     = if_isset($_GET['funktion']);
+$funktion = $_GET['funktion'] ?? null;
+if (!in_array($funktion, ['noteliste', 'vis_note', 'find_person', 'ret_note', 'findsag'], true)) {
+	$funktion = null;
+}
 $id           = if_isset($_GET['id']);
 $sag_id       = if_isset($_GET['sag_id']);
 $konto_id     = if_isset($_GET['konto_id']);

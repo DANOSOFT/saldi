@@ -1,5 +1,4 @@
 <?php
-
 // 20261013 CL/MJ Pins the Indkoebsordre hover box on ordrer.levdate.
 //                Two halves: the four comma-separated lists the SQL builds, run against a real Postgres because STRING_AGG(... ORDER BY ... NULLS LAST) has no sqlite equivalent, and renderColumn() itself, lifted from the page and run with stubs.
 //
@@ -9,6 +8,8 @@
 // be a TypeError under strict_types.
 // 20261029 CL/MJ Cover translation-id collisions with cached master/live voucher texts.
 // 20261103 CL/MJ Lager > Varer > Indkøb builds the same box as Ordrevisning.
+// 20261111 CDX/NTR Run TEMP-table SQL in the explicitly shared owned fixture database.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 namespace OrdrestatusFixture {
 
@@ -396,12 +397,12 @@ namespace {
             if (!extension_loaded('pdo_pgsql')) {
                 self::markTestSkipped('pdo_pgsql is required for the order-summary SQL.');
             }
-            $dsn = getenv('SALDI_CHAR_DSN');
-            if (!$dsn) {
-                self::markTestSkipped('set SALDI_CHAR_DSN, SALDI_CHAR_PGUSER and SALDI_CHAR_PGPASS to run the order-summary SQL.');
+            require_once __DIR__ . '/../support/database/TestDatabase.php';
+            $reason = \TestDatabase::unavailableReason();
+            if ($reason !== null) {
+                self::markTestSkipped($reason);
             }
-            self::$db = new \PDO($dsn, getenv('SALDI_CHAR_PGUSER') ?: null, getenv('SALDI_CHAR_PGPASS') ?: null,
-                array(\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION));
+            self::$db = \TestDatabase::sqlFixture(static::class)->pdo();
             return self::$db;
         }
 
