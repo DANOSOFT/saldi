@@ -10,6 +10,7 @@
 //                 Columns are added to the layer's own tables only (partner_cols_ensure).
 // 20261029 CL/ASR No tables are created here any more: they come from the update chain (operatorPanelSchema.php). partner_layer_ready() lets pages treat everyone as a non-partner user until the tables exist.
 // 20261109 CL/ASR partner_layer_ready() asks operator_panel_ready() (the schema flag, PostgreSQL only) instead of information_schema, so a MySQL/MariaDB master never reads the layer's tables (review #785).
+// 20261109 CL/ASR partner_mail_host() gives the host for links in the panels' mails: SERVER_NAME only when it is saldi.dk, a saldi.dk subdomain or the host in the setting admin/public_host, otherwise that setting or saldi.dk, never a host taken from the request's Host header (review #960).
 
 if (!function_exists('partner_tables_ensure')) {
 
@@ -74,6 +75,19 @@ function partner_move_ledger($rid, $from_pid, $to_pid, $access, $note) {
 function partner_layer_ready() {
 	include_once(__DIR__ . '/opdat_func/operatorPanelSchema.php');
 	return operator_panel_ready();
+}
+
+// 20261109 CL/ASR Host for absolute links in mails (proposal and accountant panel links, review #960). With Apache's
+//                  UseCanonicalName Off, SERVER_NAME is the request's Host header, so it is used only when it is saldi.dk,
+//                  a saldi.dk subdomain or the host in the master setting admin/public_host. Otherwise that setting is used,
+//                  and without it saldi.dk. A self-hosted installation sets admin/public_host to its own host name.
+function partner_mail_host() {
+	static $h = null; if ($h !== null) return $h;
+	$r = db_fetch_array(db_select("select var_value from settings where var_grp = 'admin' and var_name = 'public_host'", __FILE__ . " linje " . __LINE__, true)); # the master's settings
+	$conf = strtolower(trim((string)($r ? $r['var_value'] : ''))); $ok = '/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/';
+	if (!preg_match($ok, $conf)) $conf = '';
+	$sn = strtolower((string)($_SERVER['SERVER_NAME'] ?? ''));
+	return $h = (preg_match($ok, $sn) && ($sn === $conf || $sn === 'saldi.dk' || substr($sn, -9) === '.saldi.dk')) ? $sn : ($conf !== '' ? $conf : 'saldi.dk');
 }
 
 // The master user row of the current session.

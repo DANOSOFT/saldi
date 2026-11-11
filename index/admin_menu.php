@@ -26,7 +26,9 @@
 // 20180131 
 // 20210916 LOE translated some texts 
 // 20261012 CL/ASR Saldi staff (admin flag 'on') go to the operator panel; everyone else sees this menu unchanged.
+// 20261029 CL/ASR Users who belong to a bookkeeper, auditor or group (partner_users) go to the accountant panel.
 // 20261109 CL/ASR Staff go there only when the panel is ready (operator_panel_ready(): PostgreSQL master, panel tables created); otherwise they keep this menu (review #785).
+//                 Partner users go to the accountant panel only when it is ready (partner_panel_ready(): also its own tables created); otherwise they keep this menu (review #960).
 
 @session_start();  # Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -63,6 +65,10 @@ if (isset($admin) && $admin == 'on' && !isset($_GET['klassisk'])) {
 	include_once(__DIR__ . "/../includes/opdat_func/operatorPanelSchema.php");
 	if (operator_panel_ready()) { print "<meta http-equiv=\"refresh\" content=\"0;URL=../admin/operator_overblik.php\">\n"; exit; }
 }
+// 20261012 CL/ASR Users who belong to a bookkeeper, auditor or group (partner_users) go to the accountant panel.
+include("../includes/partnerScope.php"); partner_tables_ensure();
+include_once(__DIR__ . "/../includes/opdat_func/partnerPanelSchema.php"); # partner_panel_ready(): PostgreSQL only, after the schema step (20261109 CL/ASR)
+if (!isset($_GET['klassisk']) && partner_current_user()['partner'] && partner_panel_ready()) { print "<meta http-equiv=\"refresh\" content=\"0;URL=../admin/bogholder_overblik.php\">\n"; exit; }
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>\n";

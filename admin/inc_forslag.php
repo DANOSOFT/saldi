@@ -12,6 +12,7 @@
 //                 An address PHP does not accept as e-mail (e.g. 'kunde@firma', which the browser's type=email lets through) is refused before the proposal is stored, where it was quietly dropped.
 //                 An on/off add-on the account has only for a limited time (e.g. a trial) can still be proposed for purchase.
 //                 fs_create() refuses an add-on proposal that ent_addon_purchase_error() rejects, i.e. an add-on not on sale for the account's plan or a counted add-on allocated for a limited time, and tells the operator why (review #785).
+// 20261109 CL/ASR The approval link in the mail is built from partner_mail_host() (includes/partnerScope.php), not from SERVER_NAME, which can come from the request's Host header (review #960).
 
 if (!function_exists('fs_tables_ensure')) {
 function fs_tables_ensure() {
@@ -37,7 +38,7 @@ function fs_create($rid, $kind, $key, $reason, $to, $partner_id = null) {
 	partner_log('proposal.created', (int)$rid, $partner_id, "$kind $key – $reason".($to ? " → $to" : ' (ingen e-mail)'));
 	if ($to) {
 		$reg = db_fetch_array(db_select("select regnskab from regnskab where id = '".(int)$rid."'", __FILE__ . " linje " . __LINE__));
-		$url = 'https://'.$_SERVER['SERVER_NAME'].rtrim(dirname($_SERVER['PHP_SELF']), '/').'/godkend.php?t='.$token;
+		$url = 'https://'.partner_mail_host().rtrim(dirname($_SERVER['PHP_SELF']), '/').'/godkend.php?t='.$token; # a trusted host, not the Host header
 		$html = "<p>Hej</p><p>Der er et forslag til <b>".vr_h($reg['regnskab'])."</b> i Saldi:</p><p><b>".vr_h(fs_price_text($kind, $key))."</b></p>".($reason ? "<p>".vr_h($reason)."</p>" : "")."<p>Intet ændres, og intet koster noget, før du godkender. Linket virker til ".date('d-m-Y', strtotime($exp)).".</p><p><a href=\"".vr_h($url)."\">Se og godkend forslaget</a></p><p>Venlig hilsen<br>Saldi</p>";
 		if (!vr_mail($to, 'Forslag til '.$reg['regnskab'].': '.fs_price_text($kind, $key), $html)) { # the proposal stays open; the card then shows it without e-mail
 			db_modify("update partner_proposals set sent_to = '' where token = '$token'", __FILE__ . " linje " . __LINE__);

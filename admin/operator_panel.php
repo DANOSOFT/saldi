@@ -38,6 +38,12 @@ ob_start();
 // 20261109 CL/ASR The Brugere tab's "Nulstil tabeller" and "Slet bruger" buttons pass only the user id; the name for the confirm text and the note is looked up in USERS, so a user name with an apostrophe can neither break the buttons nor run as script.
 //                 Missing GET/POST keys (regnskab_id, sort, dir, action, user_action) no longer raise undefined-key warnings.
 //                 The catalogue seed (ent_tables_ensure()) runs after the staff check, not before it.
+//                 The Oversigt tab lists the open requests to Saldi from the accountant panel (payer change, cancellation, archiving) with "Markér som håndteret" and "Afvis", logged for the firm (review #960).
+//                 A rejected payer request gives the payment back to the customer; until now nothing outside the accountant panel read these requests.
+//                 Requests from a firm whose link has ended are closed as cancelled before the list is drawn, and the hint for a cancellation points to Indstillinger › Status og livscyklus.
+//                 Enter in the note field submits nothing, as the form's first submit button is a disabled, hidden one; a decision always needs a click.
+//                 A cancellation or archiving from a firm whose link has ended stays on the list only when the firm ended that link itself; Saldi's unlink, move and firm closure still close the firm's requests.
+//                 Such a row says that the firm no longer has access to the account and whether the firm is closed in Saldi, and asks Saldi to confirm the request with the customer before carrying it out.
 
 @session_start();
 $s_id = session_id();
@@ -51,6 +57,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("../includes/partnerScope.php");
+include("../includes/partnerPanel.php"); # 20261109 CL/ASR requests from the accountant panel (bp_saldi_requests(), bp_request_settle())
 include("../includes/entitlements.php");
 include("vr_ui.php");
 include("inc_abonnement.php");
@@ -370,6 +377,9 @@ if ($filter_regnskab) {
 			$lid = (int)if_isset($_POST, 0, 'link_id');
 			$l = db_fetch_array(db_select("select rp.*, p.name from regnskab_partners rp join partners p on p.id = rp.partner_id where rp.id = '$lid' and rp.regnskab_id = '$rid' and rp.until is null", __FILE__ . " linje " . __LINE__));
 			if ($l) { db_modify("update regnskab_partners set until = now() where id = '$lid'", __FILE__ . " linje " . __LINE__); partner_log('partner.link_removed', $rid, (int)$l['partner_id'], $l['name']); $notes[] = $l['name'].' '.vr_t('har ikke længere adgang','no longer has access'); }
+		} elseif ($_POST['vr_action'] == 'req_settle' && bp_ready()) { # 20261109 CL/ASR a request from the accountant panel is closed here (review #960)
+			$done = (if_isset($_POST, '', 'decision') == 'done'); $e = bp_request_settle((int)if_isset($_POST, 0, 'request_id'), $rid, $done, trim((string)if_isset($_POST, '', 'note')), 'Saldi ('.$vr_me['brugernavn'].')');
+			$notes[] = $e ?: ($done ? vr_t('Anmodningen er markeret som håndteret. Firmaet kan se det i sin log.','The request is marked as handled. The firm can see it in its log.') : vr_t('Anmodningen er afvist. Firmaet kan se det i sin log.','The request is rejected. The firm can see it in its log.'));
 		}
 	}
 	vr_prg($notes); # POST -> redirect, so the card below is always drawn from fresh data
@@ -425,6 +435,12 @@ if ($filter_regnskab) {
 		if ($links) foreach ($links as $l) print "<div class=\"vr-frow\"><div><b><a href=\"partnere.php?id=".(int)$l['partner_id']."\">".vr_h($l['name'])."</a> <span class=\"vr-pill\">".vr_h(strtolower(vr_kind($l['kind'])))."</span></b><small>".($l['access']=='owner' ? vr_t('Ejer','Owner') : ($l['access']=='readonly' ? vr_t('Kun læsning','Read only') : vr_t('Fuld adgang','Full access')))." &middot; ".vr_t('siden','since')." ".vr_h(substr($l['since'],0,10))."</small></div><span></span><form method=\"post\" style=\"display:inline\"><input type=\"hidden\" name=\"vr_action\" value=\"unlink\"><input type=\"hidden\" name=\"link_id\" value=\"".(int)$l['id']."\"><button type=\"submit\" class=\"vr-link\" onclick=\"return confirm('".vr_t('Fjern adgangen?','Remove access?')."')\">".vr_t('Frigør','Unlink')."</button></form></div>";
 		else print "<div class=\"vr-empty\"><b>".vr_t('Ingen bogholder','No accountant')."</b><span>".($home ? vr_t('Regnskabet er partnerens eget.','This is the partner\'s own account.') : vr_t('Regnskabet er en direkte kunde.','The account is a direct customer.'))."</span></div>";
 		print "<div class=\"vr-foot\"><form method=\"post\" class=\"vr-inline\"><input type=\"hidden\" name=\"vr_action\" value=\"link\"><select name=\"partner_id\" class=\"vr-sel\" required><option value=\"\">".vr_t('Vælg bogholder eller koncern…','Choose accountant or group…')."</option>"; foreach (partner_all() as $pp) print "<option value=\"".(int)$pp['id']."\">".vr_h($pp['name'])." · ".vr_h(vr_kind($pp['kind']))."</option>"; print "</select><select name=\"access\" class=\"vr-sel\"><option value=\"full\">".vr_t('Fuld adgang','Full access')."</option><option value=\"readonly\">".vr_t('Kun læsning','Read only')."</option><option value=\"owner\">".vr_t('Ejer (koncern)','Owner (group)')."</option></select><button type=\"submit\" class=\"vr-btn\">+ ".vr_t('Tilknyt','Link')."</button></form></div></div></section>\n</div>\n";
+		if (bp_ready() && ($vr_reqs = bp_saldi_requests($rid))) { # 20261109 CL/ASR requests to Saldi from the accountant panel: payer change, cancellation, archiving (review #960)
+			$vr_hint = array('payer_to_partner' => vr_t('Firmaet står allerede som betaler i panelet. Flyt faktureringen under Betalinger, og markér derefter anmodningen som håndteret. Afvises den, står kunden igen som betaler.','The firm is already registered as payer in the panel. Move the invoicing under Payments, then mark the request as handled. If it is rejected, the customer is the payer again.'), 'cancel_subscription' => vr_t('Opsig abonnementet under Indstillinger › Status og livscyklus, og markér derefter anmodningen som håndteret.','Cancel the subscription under Settings › Status and lifecycle, then mark the request as handled.'), 'archive' => vr_t('Luk regnskabet under Indstillinger, og markér derefter anmodningen som håndteret.','Close the account under Settings, then mark the request as handled.'));
+			print "<section class=\"vr-sect\" id=\"anmodninger\" style=\"margin-top:22px\"><h2>".vr_t('Anmodninger fra bogholdere','Requests from accountants')." <small>".count($vr_reqs)."</small></h2><div class=\"vr-card\">";
+			foreach ($vr_reqs as $q) print "<div class=\"vr-frow\" style=\"grid-template-columns:minmax(0,1fr) auto\"><div><b>".vr_h(bp_request_label($q['kind']))." · ".vr_h($q['pname'])."</b><small>".vr_t('sendt','sent')." ".vr_h(substr($q['created'], 0, 10))." ".vr_t('af','by')." ".vr_h($q['by_login']).($q['effective_from'] ? " · ".vr_t('ønsket dato','requested date')." ".vr_h($q['effective_from']) : "")."<br>".vr_t('Begrundelse','Reason').": ".vr_h($q['details']).(isset($vr_hint[$q['kind']]) ? "<br>".$vr_hint[$q['kind']] : "").(!bp_bool($q['has_link']) ? "<br><b>".vr_t('Firmaet har ikke længere adgang til regnskabet.','The firm no longer has access to the account.')."</b> ".vr_t('Det afsluttede selv adgangen og lod anmodningen stå åben.','It ended its access itself and left the request open.').($q['pstatus'] != 'active' ? ' '.vr_t('Firmaet er lukket i Saldi.','The firm is closed in Saldi.') : '').' '.vr_t('Bekræft anmodningen med kunden, før den gennemføres.','Confirm the request with the customer before carrying it out.') : "")."</small></div><form method=\"post\" class=\"vr-inline\"><button type=\"submit\" disabled hidden aria-hidden=\"true\"></button><input type=\"hidden\" name=\"vr_action\" value=\"req_settle\"><input type=\"hidden\" name=\"request_id\" value=\"".(int)$q['id']."\"><input class=\"vr-inp\" name=\"note\" maxlength=\"500\" placeholder=\"".vr_t('Note til firmaet (valgfri)','Note to the firm (optional)')."\" style=\"width:200px\"><button type=\"submit\" name=\"decision\" value=\"done\" class=\"vr-btn vr-primary\">".vr_t('Markér som håndteret','Mark as handled')."</button><button type=\"submit\" name=\"decision\" value=\"reject\" class=\"vr-btn\" onclick=\"return confirm('".vr_t('Afvis anmodningen?','Reject the request?')."')\">".vr_t('Afvis','Reject')."</button></form></div>";
+			print "</div></section>\n";
+		}
 	} elseif ($tab == 'abonnement') {
 		ent_tab_render($rid, $ent, $cat);
 		sp_render($rid, 0);
