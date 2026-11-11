@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/tjek4opdat.php --- lap 5.0.0 --- 2026-02-23---
+// --- includes/tjek4opdat.php --- ver 5.1.1 --- 2026-11-10---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2013.09.06 Indsat $b=3;$c=0;  Søg 20130906  
@@ -35,6 +35,7 @@
 // 20260206 PHR opdat_4.1
 // 20260223 PHR Fixed opdat_4_1
 // 20261027 CL/LH After opdat_4_3 go on to 5.0 ($a=5), so a 4.3.0 tenant reaches 5.1.0 in the same login.
+// 20261110 CDX/NTR Route 5.1.0 and older tenants through the 5.1.1 release migrations.
 if (!function_exists('tjek4opdat')) {
 	function tjek4opdat($dbver,$version) {
 		if ($dbver<$version) {
@@ -153,6 +154,10 @@ if (!function_exists('tjek4opdat')) {
 					include("../includes/opdat_5.0.php");
 					opdat_5_0();
 					$b=1;$c=0;
+				}
+				if ($b==1) {
+					include_once(__DIR__ . '/opdat_5.1.php');
+					opdat_5_1();
 				}
 			}
 		}

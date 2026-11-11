@@ -28,6 +28,7 @@
 // 20261029 CL/MMR SST-841: updateBooking approves and invoices only a payment the server confirms with Vibrant.
 //                 It deletes only a pending booking whose payment never started, failed or was cancelled.
 //                 The action is the named handler update_booking_payment() in includes/vibrantPayment.php.
+// 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 //
@@ -961,5 +962,6 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; do not report success (SD-595)
 		return "Database write failed while posting order $saldi_id";
 	}
+	shopSyncDrainQueue();
 	return($saldi_id);
 }
