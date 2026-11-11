@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 
 // 20261111 CDX/NTR Use the common fresh UUID tenant instead of a pre-existing fixed database.
+// 20261111 CDX/NTR Restore the working directory even if fixture release fails.
 
 require_once __DIR__ . '/../support/database/TestDatabase.php';
 
@@ -85,12 +86,15 @@ final class SaveLabelTextCharacterizationTest extends TestCase
             $connection = null;
             self::$connected = false;
         }
-        if (self::$database !== null) {
-            self::$database->release();
-            self::$database = null;
-        }
-        if (isset(self::$originalCwd)) {
-            chdir(self::$originalCwd);
+        try {
+            if (self::$database !== null) {
+                self::$database->release();
+                self::$database = null;
+            }
+        } finally {
+            if (isset(self::$originalCwd)) {
+                chdir(self::$originalCwd);
+            }
         }
     }
 
