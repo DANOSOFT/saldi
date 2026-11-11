@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../../includes/opdat_func/formularFaxToMobile.php';
 // 20261111 CL/MMR SST-898 Pins how the update rewrites form texts that still use the fax variables (SD-532 made the field adresser.mobile).
 //                 The standard label "Fax:" becomes the mobile label of the form's language; a label of the customer's own is kept.
 //                 The texts are the ones found in accounts and in importfiler/formular*.txt. The last tests check the templates and the update step.
+// 20261111 CL/MMR SST-898 (review) Own labels that end in Fax/FAX/Telefax/Faks ("Support Fax:") keep their text: only a whole standard label is replaced.
 final class FormularFaxToMobileTest extends TestCase
 {
     /** @return array<string, array{string, string, string}> text, sprog, expected */
@@ -31,6 +32,13 @@ final class FormularFaxToMobileTest extends TestCase
             'Telefax label'                => ['Telefax: $egen_fax', 'Dansk', 'Mobil: $egen_mobile'],
             'customer fax'                 => ['Fax: $adresser_fax', 'Dansk', 'Mobil: $adresser_mobile'],
             'fax text without variable'    => ['Fax: 12345678', 'Dansk', 'Fax: 12345678'],
+            'own label ending in Fax'      => ['Support Fax: $egen_fax', 'Dansk', 'Support Fax: $egen_mobile'],
+            'own label ending in FAX'      => ['Kontor FAX: $egen_fax', 'Dansk', 'Kontor FAX: $egen_mobile'],
+            'own label ending in Telefax'  => ['Butik Telefax: $egen_fax', 'Dansk', 'Butik Telefax: $egen_mobile'],
+            'own label ending in Faks'     => ['Kontor-Faks: $egen_fax', 'Norsk', 'Kontor-Faks: $egen_mobile'],
+            'own label after punctuation'  => ['Tlf./Fax: $egen_fax', 'Dansk', 'Tlf./Fax: $egen_mobile'],
+            'own label in a footer'        => ['Tlf: $egen_tlf * Support Fax: $egen_fax;', 'Dansk', 'Tlf: $egen_tlf * Support Fax: $egen_mobile;'],
+            'standard label after spaces'  => ['  Fax: $egen_fax', 'Dansk', '  Mobil: $egen_mobile'],
             'longer variable name'         => ['$egen_faxnr', 'Dansk', '$egen_faxnr'],
             'label inside a word'          => ['Telefaxnr: $egen_tlf', 'Dansk', 'Telefaxnr: $egen_tlf'],
             'already mobile'               => ['Mobil: $egen_mobile', 'Dansk', 'Mobil: $egen_mobile'],

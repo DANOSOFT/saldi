@@ -32,8 +32,10 @@ if (!function_exists('formular_fax_to_mobile_text')) {
 	 * $egen_fax / $eget_fax become $egen_mobile and $adresser_fax becomes $adresser_mobile; includes/formfunk.php
 	 * printed all of them from adresser.mobile already, so the printed number does not change. Where the standard
 	 * label "Fax:" (or Telefax/Faks) stands right before the variable, possibly with a dialling code such as
-	 * "(+45)" in between, it becomes the mobile label of the form's language. A label of the customer's own, such
-	 * as "Mobile Pay.: $egen_fax;", is kept and only the variable changes.
+	 * "(+45)" in between, it becomes the mobile label of the form's language. The label counts as the standard one
+	 * only when it is the whole label: at the start of the text or right after a "*", ";" or "|" separator, as in the
+	 * standard forms ("Fax: $egen_fax", "... * Fax: $egen_fax; ..."). A label of the customer's own, such as
+	 * "Mobile Pay.: $egen_fax;" or "Support Fax: $egen_fax", is kept and only the variable changes.
 	 *
 	 * @param string $text  The form text.
 	 * @param string $sprog The form's language (formularer.sprog), e.g. 'Dansk', 'English', 'Norsk'.
@@ -50,10 +52,11 @@ if (!function_exists('formular_fax_to_mobile_text')) {
 			$label = 'Mobil';
 		}
 		$var = '\$(egen|eget|adresser)_fax(?![A-Za-z0-9_])';
-		// the standard label right before the variable: "Fax: ", "Telefax.: ", "Fax: (+45)"
+		// the standard label right before the variable: "Fax: ", "Telefax.: ", "Fax: (+45)", as the whole label:
+		// at the start of the text or after a separator, so "Support Fax:" keeps its text
 		$text = preg_replace(
-			'/(?<![A-Za-z])(?:Telefax|Fax|FAX|Faks)(\.?:\s*(?:\(\+?[0-9]+\)\s*)?)' . $var . '/u',
-			$label . '$1\$$2_fax',
+			'/(^\s*|[*;|]\s*)(?:Telefax|Fax|FAX|Faks)(\.?:\s*(?:\(\+?[0-9]+\)\s*)?)' . $var . '/u',
+			'${1}' . $label . '${2}\$${3}_fax',
 			$text
 		);
 		return preg_replace_callback('/' . $var . '/u', function ($m) {
