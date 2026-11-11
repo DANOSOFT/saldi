@@ -29,6 +29,7 @@
 // 20261101 CL/SZ MB-129 Saving a note no longer fails when a contact has an apostrophe in the name: the posted names are escaped before the lookup.
 // 20261110 LOE SST-967 The history opens on the craft right for a customer the company has a case for.
 // 20261110 LOE SST-967 The history page reads every id it takes from the request as a number.
+// 20261110 LOE SST-967 The history update and the delete are scoped to the customer the request proved.
 
 @session_start();
 $s_id = session_id();
@@ -114,7 +115,7 @@ if (isset($_GET['historik_id'])) $historik_id = (int)$_GET['historik_id'];
 $handling = $_GET['handling'];
 
 if ($handling == 'slet') {
-	db_modify("delete from historik where id = $historik_id", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from historik where id = $historik_id and konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 	$historik_id = '';
 }
 if (isset($_GET['returside'])) {
@@ -209,7 +210,7 @@ function processHistorikRecord($inputs, $employeeIds) {
                 ansat_id = {$employeeIds['ansat_id']}, 
                 notat = '{$inputs['note']}', 
                 kontaktet = '{$inputs['kontaktet']}' 
-            WHERE id = {$inputs['historik_id']}", 
+            WHERE id = {$inputs['historik_id']} AND konto_id = {$inputs['id']}",
             __FILE__ . " linje " . __LINE__
         );
         return $inputs['historik_id'];

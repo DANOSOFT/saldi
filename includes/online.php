@@ -76,6 +76,7 @@
 // 20261110 LOE SST-967 The gate runs before the user settings, and an order decides its own case. A request that names another case's order, as ordre_id or as kundeordnr, drops the exception.
 // 20261110 LOE SST-967 The history save and delete paths are pinned to the customer the request proved.
 // 20261110 LOE SST-967 Every order the request names must be of the case, whichever selector carries it.
+// 20261110 LOE SST-967 A history row named on the GET or on the POST must be a row of the proved customer.
 //              The label page's Mit Salg proof is that the account has no brugere row.
 
 #include("../includes/connect.php"); #20211001
@@ -406,9 +407,18 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				# The save path files the note and the contact dates on the customer in $_POST['id'] - not only
 				# on $_POST['konto_id'] - and the delete path names the history row by its id, so both have to
 				# be the customer this request proved, or the page could write on another customer's history.
-				if (!empty($_GET['historik_id']) && is_numeric($_GET['historik_id'])) {
-					$wf_row = db_fetch_array(db_select("select id from historik where id = '" . (int) $_GET['historik_id'] . "' and konto_id = '$wf_konto' limit 1", __FILE__ . " linje " . __LINE__));
-					$sag_workflow_allowed = (bool) $wf_row;
+				# The row can be named on the GET (the delete link) or on the POST body (the save form), and a
+				# value that is not a row of this customer is refused either way.
+				foreach (array(array($_GET, 'historik_id'), array($_POST, 'historik_id')) as $wf_source) {
+					if (!isset($wf_source[0][$wf_source[1]]) || trim((string) $wf_source[0][$wf_source[1]]) === '') {
+						continue;
+					}
+					$wf_hist_id = (int) $wf_source[0][$wf_source[1]];
+					$wf_row = $wf_hist_id > 0 ? db_fetch_array(db_select("select id from historik where id = '$wf_hist_id' and konto_id = '$wf_konto' limit 1", __FILE__ . " linje " . __LINE__)) : false;
+					if (!$wf_row) {
+						$sag_workflow_allowed = false;
+						break;
+					}
 				}
 				if ($sag_workflow_allowed) {
 					$_POST['konto_id'] = $wf_konto;
@@ -416,7 +426,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				}
 			}
 		}
-		unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer, $wf_selectors, $wf_source, $wf_selector);
+		unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer, $wf_selectors, $wf_source, $wf_selector, $wf_hist_id);
 	}
 	unset($wf_konto);
 	$mysale_label_ok = false;

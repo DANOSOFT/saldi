@@ -184,6 +184,7 @@
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
 // 20261110 LOE SST-967 An offer for a case opens on the craft right, with the customer taken from the case. The order is taken from id or ordre_id, on the GET or on the POST.
 // 20261110 LOE SST-967 The delivery-address and mail handlers refuse an order outside the case.
+// 20261110 LOE SST-967 A copy is bound to the admitted case, and a posted line id of another order is dropped.
 
 @session_start();
 $s_id = session_id();
@@ -245,6 +246,11 @@ include("../includes/online.php");
 # is taken from the request and again immediately before each write that uses it. For every other request -
 # a user holding the Ordre right, or a page admitted some other way - the case is 0 and nothing is refused.
 $sag_workflow_case_id = isset($sag_workflow_case_id) ? (int)$sag_workflow_case_id : 0;
+# SST-967 a copy takes its case from the POSTed sag_id, which can differ from the case the gate proved, so the
+# admitted case is what the page uses from here on.
+if ($sag_workflow_case_id && isset($sag_id) && (int)$sag_id !== (int)$sag_workflow_case_id) {
+	$sag_id = $sag_workflow_case_id;
+}
 # The id of an order this page has just created; it belongs to the case by construction and is never refused.
 $sst967_created_order = 0;
 
@@ -1299,9 +1305,27 @@ if ($b_submit) {
 
 	$linjeantal      = if_isset($_POST, NULL, 'linjeantal');
 	$linje_id        = if_isset($_POST, NULL, 'linje_id');
+	# SST-967 a save may touch only the admitted order's own lines.
+	if ($sag_workflow_case_id && $id && is_array($linje_id)) {
+		$sst967_line_ids = array();
+		$q = db_select("select id from ordrelinjer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$sst967_line_ids[(int) $r['id']] = true;
+		}
+		foreach ($linje_id as $sst967_k => $sst967_v) {
+			if ((int) $sst967_v && !isset($sst967_line_ids[(int) $sst967_v])) {
+				$linje_id[$sst967_k] = 0;
+			}
+		}
+		unset($sst967_line_ids, $q, $r, $sst967_k, $sst967_v);
+	}
 	$kred_linje_id   = if_isset($_POST, NULL, 'kred_linje_id');
 	$posnr           = if_isset($_POST, NULL, 'posnr');
 	$sag_id          = if_isset($_POST, NULL, 'sag_id');
+	# SST-967 the posted case cannot override the case the gate proved, so a copy lands in the admitted case.
+	if (!empty($sag_workflow_case_id)) {
+		$sag_id = (int)$sag_workflow_case_id;
+	}
 	$sagsnr          = if_isset($_POST, NULL, 'sagsnr');
 	$tilbudnr        = if_isset($_POST, NULL, 'tilbudnr');
 	$datotid         = if_isset($_POST, NULL, 'datotid');
