@@ -11,6 +11,9 @@
 //   2. add it below every existing history line (or, after a rebase, in date order among them)
 //   3. move the date on the `--- path --- ver --- date ---` line to that day or later
 //   4. say `Copyright (c) ...-<that year> Danosoft ApS`
+// Every edited PHP header must also use comment-only separators throughout.
+// Proven on 9fc6a78bb against its parent: catches the gap before the new
+// OpenPostReportLayoutTest history entry and 33 other header gaps.
 //
 // History:
 // 20261027 CL/LH Created.
@@ -18,6 +21,7 @@
 // 20261029 CL/MJ Enforce aligned sentence-only continuations for new history entries (PR #874).
 // 20261029 CDX/MJ Reject newly added history after a leading PHPDoc instead of inside the header.
 // 20261030 CL/MJ Only a /** block counts as that PHPDoc, so history after a plain /* note in the header (includes/grid.php) is not flagged.
+// 20261111 CDX/NTR Require comment-only separators throughout edited headers, including license and history sections.
 
 import { splitLines } from "../lib/changeset.mjs";
 
@@ -31,7 +35,20 @@ const COPYRIGHT = /copyright\s*\(c\)/i;
 /** Number of leading lines that are the file's comment header. */
 function headerLength(lines) {
   let n = 0;
-  while (n < lines.length && n < 400 && /^\s*(<\?(php)?|\/\/.*|#.*)?\s*$/.test(lines[n])) n++;
+  let inBlock = false;
+  while (n < lines.length) {
+    const text = lines[n].trim();
+    if (inBlock || (text.startsWith("/*") && !/^\/\*\*(\s|$)/.test(text))) {
+      const end = text.indexOf("*/");
+      if (end !== -1 && text.slice(end + 2).trim()) break;
+      inBlock = end === -1;
+      n++;
+    } else if (/^\s*(<\?(php)?|\/\/.*|#(?!\[).*)?\s*$/.test(lines[n])) {
+      n++;
+    } else {
+      break;
+    }
+  }
   return n;
 }
 
@@ -47,7 +64,7 @@ function validDate(yyyymmdd, today) {
 
 export default {
   id: "file-history",
-  summary: "edited PHP files get a well-formed history line at the bottom of the block, header date and copyright moved along",
+  summary: "edited PHP headers have no uncommented blank lines, a well-formed history entry, and current header date/copyright",
   run(ctx) {
     const findings = [];
     // The diff runs with --no-renames, so a moved file is a new file plus a deleted one. Its lines that
@@ -57,6 +74,23 @@ export default {
       if (file.status === "D" || !file.path.endsWith(".php") || ctx.isVendored(file.path)) continue;
       const lines = splitLines(ctx.readHead(file.path));
       const header = headerLength(lines);
+      // Trailing whitespace separates the finished header from code/PHPDoc; only
+      // gaps inside the header are forbidden. Empty lines inside /* ... */ are
+      // already comments, whereas separators between // lines must themselves be //.
+      let lastHeaderLine = header;
+      while (lastHeaderLine > 0 && !lines[lastHeaderLine - 1].trim()) lastHeaderLine--;
+      let inHeaderBlock = false;
+      for (let i = 0; i < lastHeaderLine; i++) {
+        const text = lines[i].trim();
+        if (inHeaderBlock) {
+          if (text.includes("*/")) inHeaderBlock = false;
+        } else if (text.startsWith("/*")) {
+          inHeaderBlock = !text.includes("*/");
+        } else if (!text) {
+          findings.push({ path: file.path, line: i + 1,
+            message: "uncommented blank line inside the file header; use a comment-only separator (//) to keep the whole header contiguous." });
+        }
+      }
       const historyLines = [];
       for (let line = 1; line <= header; line++) if (HISTORY.test(lines[line - 1])) historyLines.push(line);
       // A leading PHPDoc ends headerLength(), but is not executable code. Catch entries
@@ -81,7 +115,7 @@ export default {
           findings.push({ path: file.path, line: i + 1,
             message: "history entry is outside the header block; put it immediately after the existing // history lines, before PHPDoc." });
         }
-        if (text && !text.startsWith("//") && !text.startsWith("#")) break;
+        if (text && !text.startsWith("//") && (!text.startsWith("#") || text.startsWith("#["))) break;
       }
       const added = historyLines.filter((line) => file.added.has(line));
       const sinceFork = ctx.addedSinceFork(file.path);
