@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 // 20261110 CL/MMR SST-989 Also lifts shop_order_taken(), which insert_shop_order() now calls for its duplicate check.
 // 20261111 CL/MMR SST-986 Also lifts shop_order_lock(), shop_order_unlock() and insert_shop_order_unlocked(): insert_shop_order() now holds a per-shop-order lock around it.
 //                 transaktion() is stubbed, and get_next_order_number() takes the $manageTransaction argument.
+//                 The pg_advisory_lock query is answered with a row: a lock that is not taken refuses the order (review).
 final class ShopOrderHtmlEntityTest extends TestCase
 {
 	private const NS = 'ShopOrderHtmlEntityFixture';
@@ -249,6 +250,7 @@ final class ShopOrderHtmlEntityTest extends TestCase
 			/** @var list<array{0: string, 1: list<array<string, string>>}> */
 			public static $routes = array(
 				array('information_schema', array(array('data_type' => 'character varying', 'column_name' => 'afd'))),
+				array('pg_advisory_lock', array(array('locked' => ''))),
 				array('from shop_ordrer', array(array('id' => '', 'saldi_id' => ''))),
 				array('from shop_adresser', array(array('saldi_id' => ''))),
 				array("from adresser where kontonr='1001'", array(array('id' => '7', 'kontonr' => '1001'))),

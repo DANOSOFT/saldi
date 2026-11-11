@@ -2,111 +2,194 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 // 20261111 CL/MMR SST-986 Created. A shop order sent twice at the same moment (MEDshop 2026-11-08/09) got one ordrenr twice, its lines twice on one order and an empty twin,
 //                 or the race check deleted the order that had the lines. insert_shop_order() now holds a per-shop-order lock around insert_shop_order_unlocked(),
-//                 and the order number, the insert and the id lookup run in one transaction. The lock functions are lifted from api/rest_api.php with stand-ins
-//                 for the database calls (including the file connects to a database); the transaction order is asserted on the source.
+//                 and the order number, the insert and the id lookup run in one transaction. The lock functions are lifted from api/rest_api.php (including the file
+//                 connects to a database) and evaluated in their own namespace with stand-ins for the database calls, so the production db functions a full suite
+//                 has loaded are not involved; the transaction order is asserted on the source.
+// 20261111 CL/MMR SST-986 (review) A lock that is not taken (NULL, 0, a failed query) refuses the call without entering the creation body; MySQL/MariaDB use a 60-second timeout.
 final class ShopOrderConcurrencyTest extends TestCase
 {
     private const API = __DIR__ . '/../../../api/rest_api.php';
+    private const NS = 'ShopOrderConcurrencyFixture';
 
-    /** @var list<string> */
-    public static array $queries = [];
-    /** @var mixed */
-    public static $innerResult = null;
-    public static bool $innerThrows = false;
+    private const STUBS = <<<'PHP'
+        final class Db {
+            /** @var list<string> */
+            public static $queries = array();
+            /** @var mixed what GET_LOCK answers (MySQL/MariaDB) */
+            public static $getLock = 1;
+            /** @var bool whether the PostgreSQL lock query succeeds */
+            public static $pgLockOk = true;
+            /** @var mixed */
+            public static $innerResult = 17304;
+            /** @var bool */
+            public static $innerThrows = false;
+        }
+        function db_escape_string($value) {
+            return str_replace("'", "''", (string)$value);
+        }
+        function db_select($sql, $where = '') {
+            Db::$queries[] = $sql;
+            if (stripos($sql, 'GET_LOCK') !== false) {
+                return new \ArrayIterator(array(array('locked' => Db::$getLock)));
+            }
+            if (stripos($sql, 'pg_advisory_lock') !== false) {
+                return Db::$pgLockOk ? new \ArrayIterator(array(array('locked' => ''))) : false;
+            }
+            return new \ArrayIterator(array());
+        }
+        function db_fetch_array($result) {
+            if (!$result || !$result->valid()) {
+                return false;
+            }
+            $row = $result->current();
+            $result->next();
+            return $row;
+        }
+        function insert_shop_order_unlocked(...$args) {
+            Db::$queries[] = 'inner:' . $args[1] . ':' . ($args[50] ?? 'DO');
+            if (Db::$innerThrows) {
+                throw new \RuntimeException('inner failed');
+            }
+            return Db::$innerResult;
+        }
+PHP;
 
     public static function setUpBeforeClass(): void
     {
-        if (!function_exists('db_select')) {
-            eval('function db_select($q, $where = "") { ShopOrderConcurrencyTest::$queries[] = $q; return true; }');
+        if (function_exists(self::NS . '\insert_shop_order')) {
+            return;
         }
-        if (!function_exists('db_fetch_array')) {
-            eval('function db_fetch_array($q) { return array("locked" => 1); }');
+        if (!defined('SHOP_ORDER_LOCK_SECONDS')) {
+            define('SHOP_ORDER_LOCK_SECONDS', 60);
         }
-        if (!function_exists('db_escape_string')) {
-            eval('function db_escape_string($s) { return addslashes((string)$s); }');
-        }
-        if (!function_exists('insert_shop_order_unlocked')) {
-            eval('function insert_shop_order_unlocked(...$args) { ShopOrderConcurrencyTest::$queries[] = "inner:" . $args[1] . ":" . ($args[50] ?? "DO"); if (ShopOrderConcurrencyTest::$innerThrows) throw new RuntimeException("inner failed"); return ShopOrderConcurrencyTest::$innerResult; }');
-        }
+        $code = '';
         foreach (['shop_order_lock', 'shop_order_unlock', 'insert_shop_order'] as $fn) {
-            if (!function_exists($fn)) {
-                eval(self::functionSource($fn));
-            }
+            $code .= self::functionSource($fn) . "\n";
         }
+        eval('namespace ' . self::NS . ';' . self::STUBS . $code);
     }
 
     protected function setUp(): void
     {
-        self::$queries = [];
-        self::$innerResult = 17304;
-        self::$innerThrows = false;
+        $db = self::NS . '\Db';
+        $db::$queries = [];
+        $db::$getLock = 1;
+        $db::$pgLockOk = true;
+        $db::$innerResult = 17304;
+        $db::$innerThrows = false;
         $GLOBALS['db_type'] = 'postgres';
     }
 
-    /** @return list<mixed> insert_shop_order()'s 50 arguments with the shop order id in place */
-    private static function args($shopOrderId): array
+    /** @return list<string> */
+    private static function queries(): array
+    {
+        $db = self::NS . '\Db';
+        return $db::$queries;
+    }
+
+    /** @return mixed */
+    private static function call($shopOrderId, ?string $art = null)
     {
         $args = array_fill(0, 50, '');
         $args[1] = $shopOrderId;
-        return $args;
+        if ($art !== null) {
+            $args[] = $art;
+        }
+        return call_user_func_array(self::NS . '\insert_shop_order', $args);
     }
 
     public function testTheCallRunsInsideTheLockForItsShopOrder(): void
     {
-        self::assertSame(17304, insert_shop_order(...self::args('2634506')));
+        self::assertSame(17304, self::call('2634506'));
         self::assertSame([
-            "SELECT pg_advisory_lock(hashtext('shop_order'), hashtext('2634506'))",
+            "SELECT pg_advisory_lock(hashtext('shop_order'), hashtext('2634506')) AS locked",
             'inner:2634506:DO',
             "SELECT pg_advisory_unlock(hashtext('shop_order'), hashtext('2634506'))",
-        ], self::$queries);
+        ], self::queries());
     }
 
     public function testTheDuplicateAnswerIsPassedOnAndTheLockReleased(): void
     {
-        self::$innerResult = 'Order id: 2634506 exists in saldi (internal ID: 17304)';
-        self::assertSame(self::$innerResult, insert_shop_order(...self::args(2634506)));
-        self::assertStringContainsString('pg_advisory_unlock', end(self::$queries));
+        $db = self::NS . '\Db';
+        $db::$innerResult = 'Order id: 2634506 exists in saldi (internal ID: 17304)';
+        self::assertSame($db::$innerResult, self::call(2634506));
+        $q = self::queries();
+        self::assertStringContainsString('pg_advisory_unlock', end($q));
     }
 
     public function testTheLockIsReleasedWhenTheCallFails(): void
     {
-        self::$innerThrows = true;
+        $db = self::NS . '\Db';
+        $db::$innerThrows = true;
         try {
-            insert_shop_order(...self::args('2634506'));
+            self::call('2634506');
             self::fail('the exception should reach the caller');
         } catch (RuntimeException $e) {
             self::assertSame('inner failed', $e->getMessage());
         }
-        self::assertStringContainsString('pg_advisory_unlock', end(self::$queries));
+        $q = self::queries();
+        self::assertStringContainsString('pg_advisory_unlock', end($q));
     }
 
     public function testTheCreditNoteArtIsPassedOn(): void
     {
-        $args = self::args('2634506');
-        $args[] = 'DK';
-        insert_shop_order(...$args);
-        self::assertContains('inner:2634506:DK', self::$queries);
+        self::call('2634506', 'DK');
+        self::assertContains('inner:2634506:DK', self::queries());
     }
 
-    public function testNoLockWithoutAShopOrderId(): void
+    /** @return array<string, array{string}> */
+    public static function notLockedIds(): array
     {
-        foreach (['', '0', 'abc'] as $id) {
-            self::$queries = [];
-            insert_shop_order(...self::args($id));
-            self::assertSame(["inner:$id:DO"], self::$queries, "id '$id'");
-        }
+        return ['empty' => [''], 'zero' => ['0'], 'text' => ['abc'], 'negative' => ['-5']];
     }
 
-    public function testMysqlUsesANamedLockPerDatabase(): void
+    #[DataProvider('notLockedIds')]
+    public function testAnIdThatIsNotAPositiveNumberIsNotLocked(string $id): void
+    {
+        self::call($id);
+        self::assertSame(["inner:$id:DO"], self::queries(), 'the creation body refuses it as before');
+    }
+
+    public function testAFailedPostgresLockRefusesTheCall(): void
+    {
+        $db = self::NS . '\Db';
+        $db::$pgLockOk = false;
+        $answer = self::call('2634506');
+        self::assertSame('Error: shop order 2634506 could not be locked for creation, try again', $answer);
+        self::assertNotContains('inner:2634506:DO', self::queries(), 'nothing is created');
+        self::assertCount(1, self::queries(), 'no unlock for a lock that was not taken');
+    }
+
+    public function testMysqlUsesANamedLockWithAFiniteTimeout(): void
     {
         $GLOBALS['db_type'] = 'mysqli';
-        insert_shop_order(...self::args('77'));
-        self::assertStringContainsString("GET_LOCK(CONCAT('saldi:shop_order:', MD5(DATABASE()), ':', '77'), -1)", self::$queries[0]);
-        self::assertStringContainsString("RELEASE_LOCK(CONCAT('saldi:shop_order:', MD5(DATABASE()), ':', '77'))", self::$queries[2]);
+        self::assertSame(17304, self::call('77'));
+        $q = self::queries();
+        self::assertStringContainsString("GET_LOCK(CONCAT('saldi:shop_order:', MD5(DATABASE()), ':', '77'), 60)", $q[0]);
+        self::assertStringNotContainsString(', -1)', $q[0]);
+        self::assertSame('inner:77:DO', $q[1]);
+        self::assertStringContainsString("RELEASE_LOCK(CONCAT('saldi:shop_order:', MD5(DATABASE()), ':', '77'))", $q[2]);
+    }
+
+    /** @return array<string, array{mixed}> GET_LOCK answers that mean "not locked": NULL (MariaDB, bad timeout or error), 0 (timeout) */
+    public static function mysqlNotLocked(): array
+    {
+        return ['NULL' => [null], 'timeout 0' => [0], 'string 0' => ['0'], 'false' => [false]];
+    }
+
+    #[DataProvider('mysqlNotLocked')]
+    public function testAMysqlLockThatIsNotTakenRefusesTheCall($answer): void
+    {
+        $GLOBALS['db_type'] = 'mysqli';
+        $db = self::NS . '\Db';
+        $db::$getLock = $answer;
+        self::assertSame('Error: shop order 77 could not be locked for creation, try again', self::call('77'));
+        self::assertCount(1, self::queries(), 'neither the creation body nor RELEASE_LOCK ran');
     }
 
     public function testNumberInsertAndIdAreOneTransaction(): void

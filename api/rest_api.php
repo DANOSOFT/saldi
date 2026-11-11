@@ -105,6 +105,7 @@
 //                 The check was per art only, so a shop credit note sent once as DK and once as DO (an old integration script) was created and invoiced twice.
 //                 Also corrected the indentation of the new-debtor block in insert_shop_order() (no behaviour change).
 // 20261111 CL/MMR SST-986 insert_shop_order() runs one call at a time per shop order id (shop_order_lock()), so a shop order sent twice at once is created once and the second call gets the duplicate answer.
+//                 (review) A shop order id the lock can't be taken for is refused with an error, nothing is created; MySQL/MariaDB wait at most 60 seconds (MariaDB takes no lock with a negative timeout).
 //                 The order number is taken and the order inserted in one transaction, and the new order's id is read inside it, so two orders no longer share a number or an id.
 //                 Before, both calls passed the duplicate check, got the same ordrenr and the same id, the lines were added twice to one order, and the race check could delete the order that had the lines.
 //
@@ -254,24 +255,29 @@ function shop_order_taken($shopOrderId, $art) {
 	return $r ? (int)$r['saldi_id'] : 0;
 }
 
+if (!defined('SHOP_ORDER_LOCK_SECONDS')) define('SHOP_ORDER_LOCK_SECONDS', 60);
+
 /**
  * Wait until no other request is creating an order for this shop order id, then hold the lock until
  * shop_order_unlock() or the end of the request (a session-level advisory lock: a request that dies
  * releases it with its connection). Same shape as kkJournalLock() in finans/kassekladde_includes/journalSaveLock.php.
+ * PostgreSQL waits until the lock is free. MySQL/MariaDB wait at most SHOP_ORDER_LOCK_SECONDS: MariaDB takes
+ * no lock at all with a negative timeout (it answers NULL), so the MySQL "wait forever" value -1 is not used.
  *
- * @param int|string $shopOrderId The shop's order id.
- * @return bool True when the lock is held; false when there is no id to lock or the lock could not be taken.
+ * @param int|string $shopOrderId The shop's order id; only a positive id is locked.
+ * @return bool True when the lock is held; false when the id is not positive or the lock could not be taken.
  */
 function shop_order_lock($shopOrderId) {
 	global $db_type;
-	$key = db_escape_string((string)(int)$shopOrderId);
 	if ((int)$shopOrderId <= 0) return false;
+	$key = db_escape_string((string)(int)$shopOrderId);
 	if ($db_type == 'mysql' || $db_type == 'mysqli') {
-		$q = db_select("SELECT GET_LOCK(CONCAT('saldi:shop_order:', MD5(DATABASE()), ':', '$key'), -1) AS locked", __FILE__ . " linje " . __LINE__);
+		$q = db_select("SELECT GET_LOCK(CONCAT('saldi:shop_order:', MD5(DATABASE()), ':', '$key'), " . SHOP_ORDER_LOCK_SECONDS . ") AS locked", __FILE__ . " linje " . __LINE__);
 		$r = $q ? db_fetch_array($q) : null;
-		return ($r && (int)$r['locked'] === 1);
+		return ($r && isset($r['locked']) && (string)$r['locked'] === '1');
 	}
-	return (bool)db_select("SELECT pg_advisory_lock(hashtext('shop_order'), hashtext('$key'))", __FILE__ . " linje " . __LINE__);
+	$q = db_select("SELECT pg_advisory_lock(hashtext('shop_order'), hashtext('$key')) AS locked", __FILE__ . " linje " . __LINE__);
+	return ($q && db_fetch_array($q) !== false);
 }
 
 /**
@@ -294,12 +300,18 @@ function shop_order_unlock($shopOrderId) {
 /**
  * Create a Saldi order for a shop order (REST action insert_shop_order). One call at a time per shop order id:
  * a second call for the same id waits for the first and then gets the duplicate answer from
- * insert_shop_order_unlocked() instead of creating the order again (SST-986).
+ * insert_shop_order_unlocked() instead of creating the order again (SST-986). When the lock for a positive id
+ * can't be taken, nothing is created and the shop gets an error it can retry on. An id that is not a positive
+ * number is not locked; insert_shop_order_unlocked() refuses it as before.
  *
  * @return int|string The new order's id, or an error text (see insert_shop_order_unlocked()).
  */
 function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
-	$locked = is_numeric($shopOrderId) && shop_order_lock($shopOrderId);
+	$needsLock = is_numeric($shopOrderId) && (int)$shopOrderId > 0;
+	$locked = $needsLock && shop_order_lock($shopOrderId);
+	if ($needsLock && !$locked) {
+		return "Error: shop order $shopOrderId could not be locked for creation, try again";
+	}
 	try {
 		return insert_shop_order_unlocked(...func_get_args());
 	} finally {
