@@ -14,6 +14,7 @@
 // strict_types is deliberately off: eval'd code inherits the calling file's setting, and the
 // lifted legacy block passes ints where the stubs below take strings and back again.
 // 20261111 CDX/NTR Report known legacy warnings without failing; recognize PHP 8.2 null-offset wording.
+// 20261111 CDX/NTR Bound the legacy warning allowance by source location and occurrence count.
 namespace BatchWindowFixture {
 
     /** One query's worth of rows, handed back by db_fetch_array() one at a time. */
@@ -138,10 +139,11 @@ namespace {
          * $valg would change what a saved form redisplays - not this PR's business.
          */
         private const LEGACY_WARNINGS = array(
-            'Undefined variable $valg',
-            'Trying to access array offset on null',
-            'Trying to access array offset on value of type null',
-            'Array to string conversion',
+            '184: Undefined variable $valg' => 2,
+            '184: Trying to access array offset on value of type null' => 2,
+            '185: Undefined variable $valg' => 2,
+            '185: Trying to access array offset on value of type null' => 2,
+            '297: Array to string conversion' => 1,
         );
 
         private static function source(): string
@@ -239,7 +241,7 @@ namespace {
          * declared in the fixture namespace so it calls the stubs beside it.
          *
          * @param array<int, array{0: string, 1: array|callable}> $plan
-         * @return array{html: string, warnings: array<int, string>, queries: array<int, string>}
+         * @return array{html: string, warnings: array<int, string>, warningLocations: list<string>, queries: array<int, string>}
          */
         private function renderWindow(array $plan, int $linjeId = 4711): array
         {
@@ -255,8 +257,11 @@ namespace {
             \BatchWindowFixture\Db::$writes = array();
 
             $warnings = array();
-            set_error_handler(function ($severity, $message) use (&$warnings) {
+            $warningLocations = array();
+            $firstLine = substr_count(substr($src, 0, $at), "\n") + 1;
+            set_error_handler(function ($severity, $message, $file, $line) use (&$warnings, &$warningLocations, $firstLine) {
                 $warnings[] = $message;
+                $warningLocations[] = ($firstLine + $line - 1) . ': ' . $message;
                 return true;
             });
             $linje_id = $linjeId;
@@ -270,6 +275,7 @@ namespace {
             }
 
             return array('html' => $html, 'warnings' => $warnings,
+                'warningLocations' => $warningLocations,
                 'queries' => \BatchWindowFixture\Db::$queries, 'art' => $art ?? null);
         }
 
@@ -390,22 +396,9 @@ namespace {
         {
             $out = $this->renderWindow($this->fullFixture());
 
-            $unexpected = array();
-            $legacyWarnings = array();
-            foreach ($out['warnings'] as $warning) {
-                $known = false;
-                foreach (self::LEGACY_WARNINGS as $legacy) {
-                    if (strpos($warning, $legacy) !== false) {
-                        $known = true;
-                    }
-                }
-                if ($known) {
-                    $legacyWarnings[] = $warning;
-                } else {
-                    $unexpected[] = $warning;
-                }
-            }
-            self::assertSame(array(), $unexpected, 'rendering the window emits a new warning');
+            $actualWarnings = array_count_values($out['warningLocations']);
+            self::assertSame(self::LEGACY_WARNINGS, $actualWarnings, 'rendering the window changed its warning locations or counts');
+            $legacyWarnings = $out['warnings'];
             if ($legacyWarnings) {
                 trigger_error('Batch window still emits ' . count($legacyWarnings) . ' legacy warnings: '
                     . implode('; ', array_unique($legacyWarnings)), E_USER_WARNING);
