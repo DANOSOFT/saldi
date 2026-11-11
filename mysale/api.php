@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- mysale/api.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,8 @@
 // 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
+// 20261111 CL/MMR SST-999 createBooking moves the end of the booking one day on for every closed day in the period.
+//                 rentalclosed.day is a unix time, and strtotime() on it gave false, so no closed day was ever counted.
 //
 
 
@@ -36,6 +38,7 @@ $bg = "nix";
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalClosedDays.php");
 $db = public_tenant_db(ifset($_GET, "db", ""));
 
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
@@ -162,12 +165,7 @@ if(isset($_GET["createBooking"])){
     $expiryTime = time() + 240;
     $expiryTime = date('Y-m-d H:i:s', $expiryTime);
     // if there is closed dates between the selected dates extend the end date by the number of days closed
-    while($row = db_fetch_array($query)){
-        $closedDate = strtotime($row["day"]);
-        if($closedDate >= $from && $closedDate <= $to){
-            $to = strtotime("+1 day", $to);
-        }
-    }
+    $to = rental_extend_for_closed_days($from, $to, rental_closed_days());
     db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ($data[item_id], $data[cust_id], $from, $to, 0, TO_TIMESTAMP('$expiryTime', 'YYYY-MM-DD HH24:MI:SS'))", __FILE__ . " linje " . __LINE__);
     $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $data[item_id] AND cust_id = $data[cust_id] AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
     $data["booking_id"] = db_fetch_array($query)["id"];

@@ -28,6 +28,8 @@
 // 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261111 CL/MMR SST-993 createCust no longer fails when an account number is not a number.
 //                 The next free number comes from bookingNextFreeKontonr(), which only reads four-digit numeric kontonr.
+// 20261111 CL/MMR SST-999 createBooking moves the end of the booking one day on for every closed day in the period.
+//                 rentalclosed.day is a unix time, and strtotime() on it gave false, so no closed day was ever counted.
 //
 
 
@@ -36,6 +38,7 @@ $bg = "nix";
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalClosedDays.php");
 $db = public_tenant_db(ifset($_GET, "id", ""));
 include(__DIR__ . "/../includes/ordrefunc.php");
 
@@ -163,14 +166,8 @@ if(isset($_GET["createBooking"])){
     $to = strtotime($data["end_date"]);
     $expiryTime = time() + 360;
     $expiryTime = date('Y-m-d H:i:s', $expiryTime);
-    $query = db_select("SELECT * FROM rentalclosed", __FILE__ . " linje " . __LINE__);
     // if there is closed dates between the selected dates extend the end date by the number of days closed
-    while($row = db_fetch_array($query)){
-        $closedDate = strtotime($row["day"]);
-        if($closedDate >= $from && $closedDate <= $to){
-            $to = strtotime("+1 day", $to);
-        }
-    }
+    $to = rental_extend_for_closed_days($from, $to, rental_closed_days());
     db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ($data[item_id], $data[cust_id], $from, $to, 0, TO_TIMESTAMP('$expiryTime', 'YYYY-MM-DD HH24:MI:SS'))", __FILE__ . " linje " . __LINE__);
     $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $data[item_id] AND cust_id = $data[cust_id] AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
     $data["booking_id"] = db_fetch_array($query)["id"];
