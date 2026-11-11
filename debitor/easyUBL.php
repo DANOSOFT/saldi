@@ -5,7 +5,7 @@
 // 20261109 CL/MMR SST-983 Values from the webhook body are escaped or URL-encoded, and only an account on this installation is used.
 //                 Nothing runs for a company the locator does not know, and an order is only updated when the webhook names its invoice number.
 //                 The saved webhook files get a .ht_ name, which the web server does not hand out.
-
+//
     // This file is used to receive webhooks from EasyUBL
 
     include(__DIR__ . "/../includes/connect.php");

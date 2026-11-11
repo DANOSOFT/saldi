@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | | _ | |) |  <
 //                        |___/_/ \_|___|__/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/ensureTableAndColumns.php --- ver 5.1.0 --- 2026.11.06 ---
+// --- includes/stdFunc/ensureTableAndColumns.php --- ver 5.1.1 --- 2026.11.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
