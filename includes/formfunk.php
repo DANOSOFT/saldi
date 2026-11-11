@@ -95,6 +95,7 @@
 //                 Link reminders are mailed with payment links (formSendReminderEntry()); their fee lines say "opkræves på din næste faktura" outside "I alt".
 //                 Staff messages come as one alert before the redirect.
 // 20261109 CL/ASR Review fixes in rykkerprint(): a carried fee says where it went in any status (next invoice / charged on invoice X / waived) and is never in "I alt"; a link reminder's PDF leaves out what its mail leaves out (D3); every reminder of a batch writes its own HTML page ("Brug html"), so printed reminders no longer land on top of each other; a draft link reminder printed on paper counts as sent.
+// 20261111 CL/ASR The reminder letter's $rykker_gebyr / $rykker_rente say where a carried fee goes ("100,00 – opkræves på din næste faktura"), as the fee lines do.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -807,6 +808,15 @@ if (!function_exists('find_form_tekst')) {
 						$sum = dkdecimal($forfalden, 2);
 						$gebyr = dkdecimal($gebyr, 2);
 						$rente = dkdecimal($rente, 2);
+						// 20261111 CL/ASR a link reminder's fee and interest that go on the next invoice say so in the letter text too
+						// ($rykker_gebyr / $rykker_rente), as on the fee lines: "100,00 – opkræves på din næste faktura"
+						if ($tabel == "rykker" && $id) {
+							$pdfTreatment = formReminderPdfTreatment((int)$id);
+							if ($pdfTreatment['carried']) {
+								$gebyr .= $pdfTreatment['suffix'];
+								if ($rente !== '0,00') $rente .= $pdfTreatment['suffix'];
+							}
+						}
 					}
 					if ($q2 && $tabel != "formular" && $tabel != "forfalden" && $tabel != "skyldig" && $tabel != "rykker") {
 						$r2 = db_fetch_array($q2);
