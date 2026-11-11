@@ -11,6 +11,7 @@ use PHPUnit\Framework\TestCase;
 //                 connects to a database) and evaluated in their own namespace with stand-ins for the database calls, so the production db functions a full suite
 //                 has loaded are not involved; the transaction order is asserted on the source.
 // 20261111 CL/MMR SST-986 (review) A lock that is not taken (NULL, 0, a failed query) refuses the call without entering the creation body; MySQL/MariaDB use a 60-second timeout.
+// 20261111 CL/MMR SST-986 (review 2) Negative ids are locked too, since the creation body accepts them; the last test ties the locked ids to the body's own check.
 final class ShopOrderConcurrencyTest extends TestCase
 {
     private const API = __DIR__ . '/../../../api/rest_api.php';
@@ -142,17 +143,42 @@ PHP;
         self::assertContains('inner:2634506:DK', self::queries());
     }
 
-    /** @return array<string, array{string}> */
+    /** @return array<string, array{string}> ids the creation body refuses: 0 after the cast, or not numeric */
     public static function notLockedIds(): array
     {
-        return ['empty' => [''], 'zero' => ['0'], 'text' => ['abc'], 'negative' => ['-5']];
+        return ['empty' => [''], 'zero' => ['0'], 'zero point five' => ['0.5'], 'text' => ['abc']];
     }
 
     #[DataProvider('notLockedIds')]
-    public function testAnIdThatIsNotAPositiveNumberIsNotLocked(string $id): void
+    public function testAnIdTheBodyRefusesIsNotLocked(string $id): void
     {
         self::call($id);
         self::assertSame(["inner:$id:DO"], self::queries(), 'the creation body refuses it as before');
+    }
+
+    public function testANegativeIdIsLockedLikeAPositiveOne(): void
+    {
+        self::assertSame(17304, self::call('-19860700'));
+        self::assertSame([
+            "SELECT pg_advisory_lock(hashtext('shop_order'), hashtext('-19860700')) AS locked",
+            'inner:-19860700:DO',
+            "SELECT pg_advisory_unlock(hashtext('shop_order'), hashtext('-19860700'))",
+        ], self::queries());
+    }
+
+    public function testTheLockedIdsAreTheIdsTheBodyAccepts(): void
+    {
+        // insert_shop_order_unlocked() refuses a non-number, then casts to int and refuses only 0 (!$shopOrderId);
+        // so a negative integer is accepted and must be locked
+        $code = self::code();
+        $a = strpos($code, 'function insert_shop_order_unlocked(');
+        $b = strpos($code, 'function insert_shop_orderline(', (int)$a);
+        $body = substr($code, (int)$a, (int)$b - (int)$a);
+        self::assertStringContainsString('if (!is_numeric($shopOrderId)) {', $body);
+        self::assertStringContainsString('$shopOrderId = (int)$shopOrderId;', $body);
+        self::assertStringContainsString('if (!$shopOrderId || !is_integer($shopOrderId)) {', $body);
+        $wrapper = self::functionSource('insert_shop_order');
+        self::assertStringContainsString('$needsLock = is_numeric($shopOrderId) && (int)$shopOrderId !== 0;', $wrapper);
     }
 
     public function testAFailedPostgresLockRefusesTheCall(): void
