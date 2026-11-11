@@ -7,6 +7,7 @@
 // 20261111 CL/ASR Review round 2: the hold loads stripeSettings.php itself, so the ledger check (stripe_ledger_armed()) also runs in ny_rykker.php and the reports.
 //                 A reminder is no longer held for good by an invoice on it that was paid by card while another is still owed (stripe_dunning_reminder_sql()):
 //                 a customer who pays one invoice from a link reminder still gets the next level for the rest; all paid by card still holds it.
+//                 The reminder's open items are found by primary key (seconds per reminder before on a ledger with thousands of open items).
 
 /**
  * Predicate for an openpost row which can enter dunning. This lightweight include does
@@ -113,8 +114,12 @@ function stripe_dunning_card_hold_sql($alias, $columns) {
 function stripe_dunning_reminder_sql($alias = 'ordrer') {
 	if (!preg_match('/^[a-z_][a-z0-9_]*$/i', $alias)) throw new InvalidArgumentException('Invalid reminder alias');
 	$eligible = stripe_dunning_openpost_sql('s_op');
-	$idText = in_array($GLOBALS['db_type'], array('mysql', 'mysqli'), true) ? 'cast(s_op.id as char(30))' : 'cast(s_op.id as varchar(30))';
-	$items = "select 1 from ordrelinjer s_dl join openpost s_op on s_dl.enhed = $idText where s_dl.ordre_id = $alias.id";
+	// 20261111 CL/ASR the open item by its primary key from the line's text (only digits are cast), not the id cast to text: that
+	// made the database test every open item of the ledger against the card-on-file hold (seconds per reminder on a real ledger)
+	$opId = in_array($GLOBALS['db_type'], array('mysql', 'mysqli'), true)
+		? "(case when s_dl.enhed regexp '^[0-9]{1,9}$' then cast(s_dl.enhed as signed) end)"
+		: "(case when s_dl.enhed ~ '^[0-9]{1,9}$' then cast(s_dl.enhed as integer) end)";
+	$items = "select 1 from ordrelinjer s_dl join openpost s_op on s_op.id = $opId where s_dl.ordre_id = $alias.id";
 	// 20261111 CL/ASR paid by card (captured, or a duplicate capture): no longer in flight
 	$paid = "exists (select 1 from stripe_payments s_rp join ordrer s_ro on s_ro.id = s_rp.ordre_id where s_ro.konto_id = s_op.konto_id
 		and s_ro.fakturanr = s_op.faktnr and s_ro.art = 'DO' and s_rp.status in ('succeeded', 'duplicate_paid'))";
