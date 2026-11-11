@@ -252,16 +252,19 @@ if(isset($_GET["createCust"])){
 
 /**
  * The lowest free account number from 1000 to 9999 for a customer created by the public booking.
- * SST-993: only kontonr that are four digits are read, so an account number with letters
- * (e.g. "SST876") no longer stops the query with a cast error.
+ * SST-993: only kontonr that hold a number from 1000 to 9999 are read (no cast in SQL), so an account number
+ * with letters (e.g. "SST876") or more than 9 digits no longer stops the query with a cast error.
  *
  * @return int|null The number, or null when 1000-9999 are all taken.
  */
 function bookingNextFreeKontonr() {
-    $query = db_select("SELECT kontonr FROM adresser WHERE trim(kontonr) ~ '^[1-9][0-9]{3}$'", __FILE__ . " linje " . __LINE__);
+    // Same values the old kontonr::integer cast read as 1000-9999: surrounding whitespace, an optional "+" and leading zeros.
+    $query = db_select("SELECT kontonr FROM adresser WHERE kontonr ~ '^[[:space:]]*[+]?0*[1-9][0-9]{3}[[:space:]]*$'", __FILE__ . " linje " . __LINE__);
     $taken = [];
     while ($row = db_fetch_array($query)) {
-        $taken[(int)trim($row["kontonr"])] = true;
+        if (preg_match('/^\s*\+?0*([1-9][0-9]{3})\s*$/', $row["kontonr"], $m)) {
+            $taken[(int)$m[1]] = true;
+        }
     }
     for ($i = 1000; $i <= 9999; $i++) {
         if (!isset($taken[$i])) {
