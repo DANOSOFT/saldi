@@ -1,5 +1,6 @@
 <?php
 // 20261111 CDX/NTR Limit source invariants to tracked PHP files instead of runtime directories.
+// 20261111 CDX/NTR Trust only this checkout when Docker uses a different UID; preserve git diagnostics.
 
 final class SourceFiles
 {
@@ -7,15 +8,21 @@ final class SourceFiles
     public static function php(): array
     {
         $root = dirname(__DIR__, 4);
-        $process = proc_open(['git', 'ls-files', '-z', '--', '*.php'],
-            [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, $root);
+        $errors = tmpfile();
+        $process = proc_open(['git', '-c', 'safe.directory=' . $root, 'ls-files', '-z', '--', '*.php'],
+            [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => $errors], $pipes, $root);
         if (!is_resource($process)) {
+            fclose($errors);
             throw new RuntimeException('Could not enumerate tracked PHP source');
         }
         $paths = explode("\0", stream_get_contents($pipes[1]));
         fclose($pipes[1]);
-        if (proc_close($process) !== 0) {
-            throw new RuntimeException('git ls-files failed while enumerating PHP source');
+        $exit = proc_close($process);
+        rewind($errors);
+        $diagnostics = stream_get_contents($errors);
+        fclose($errors);
+        if ($exit !== 0) {
+            throw new RuntimeException('git ls-files failed while enumerating PHP source: ' . trim($diagnostics));
         }
         $files = [];
         foreach ($paths as $path) {

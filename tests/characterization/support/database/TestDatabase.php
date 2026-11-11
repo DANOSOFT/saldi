@@ -1,5 +1,9 @@
 <?php
 // 20261111 CDX/NTR Own UUID-named test databases, fresh installer fixtures and optional retention.
+// 20261111 CDX/NTR Attach class-owned database identities to individual test output for IDE runners.
+// 20261111 CDX/NTR Persist test ownership and retention markers for verified bulk cleanup.
+
+require_once __DIR__ . '/RetainedTestDatabases.php';
 
 /**
  * Owns one test group's database. Names are generated, never supplied by callers.
@@ -9,6 +13,9 @@
 final class TestDatabase
 {
     private static ?self $sqlFixture = null;
+    /** @var array<string, self> Databases still owned by their named test groups. */
+    private static array $groups = [];
+    private string $group;
     private string $uuid;
     private string $name;
     private bool $created = false;
@@ -17,6 +24,7 @@ final class TestDatabase
 
     private function __construct(string $group)
     {
+        $this->group = $group;
         $bytes = random_bytes(16);
         $bytes[6] = chr((ord($bytes[6]) & 15) | 64);
         $bytes[8] = chr((ord($bytes[8]) & 63) | 128);
@@ -25,7 +33,8 @@ final class TestDatabase
             . '-' . substr($hex, 16, 4) . '-' . substr($hex, 20);
         // regnskab.db is varchar(25). Keep 96 identifier bits within that limit.
         $this->name = 't' . substr($hex, 0, 24);
-        echo "\n[test database] $group UUID={$this->uuid} database={$this->name} keep=" . (self::keep() ? 'yes' : 'no') . "\n";
+        self::$groups[$group] = $this;
+        echo "\n" . $this->description();
     }
 
     /** Create an empty database, or install a clean tenant with the production installer. */
@@ -47,6 +56,7 @@ final class TestDatabase
             pg_close($admin);
         }
         try {
+            RetainedTestDatabases::markCreated($database, $group);
             if ($install) {
                 $database->install();
                 $database->registerAccount('test_' . $database->name);
@@ -72,6 +82,29 @@ final class TestDatabase
     public function sessionId(): string
     {
         return str_replace('-', '', $this->uuid);
+    }
+
+    /** Repeat the class's identity inside PHPUnit's per-test output capture. */
+    public static function reportGroup(string $group): void
+    {
+        if (isset(self::$groups[$group])) {
+            echo self::$groups[$group]->description();
+        }
+    }
+
+    /** Non-secret identity shared by the early creation message and IDE results. */
+    private function description(): string
+    {
+        return "[test database] {$this->group} UUID={$this->uuid} database={$this->name} keep="
+            . (self::keep() ? 'yes' : 'no') . "\n";
+    }
+
+    /** Do not discard a newer database's report when the same label was reused. */
+    private function forgetGroup(): void
+    {
+        if ((self::$groups[$this->group] ?? null) === $this) {
+            unset(self::$groups[$this->group]);
+        }
     }
 
     public static function masterDb(): string
@@ -178,6 +211,7 @@ final class TestDatabase
             ]);
             $id = (int)pg_fetch_result($result, 0, 0);
             $this->registryIds[] = $id;
+            RetainedTestDatabases::recordAccount($this, $id);
             return $id;
         } finally {
             pg_close($master);
@@ -188,10 +222,13 @@ final class TestDatabase
     public function release(): void
     {
         if (!$this->created || $this->released) {
+            $this->forgetGroup();
             return;
         }
         if (self::keep()) {
+            RetainedTestDatabases::markRetained($this);
             $this->released = true;
+            $this->forgetGroup();
             return;
         }
         $master = self::connect(self::masterDb());
@@ -203,6 +240,7 @@ final class TestDatabase
                 self::query($master, 'DELETE FROM regnskab WHERE id=$1 AND db=$2', [$id, $this->name]);
             }
             $this->released = true;
+            $this->forgetGroup();
         } finally {
             pg_close($master);
         }

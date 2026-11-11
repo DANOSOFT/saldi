@@ -68,7 +68,7 @@ jobs:
           -e SALDI_CHAR_PGUSER=user
           -e SALDI_CHAR_PGPASS="$SALDI_PGPASS"
           -w /var/www/html/saldi web
-          php vendor/bin/phpunit --testdox --log-junit /tmp/phpunit-junit.xml
+          php vendor/bin/phpunit --testdox --display-skipped --log-junit /tmp/phpunit-junit.xml
 
       - name: No unexpected skipped tests
         run: >-

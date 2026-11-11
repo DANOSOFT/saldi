@@ -1,5 +1,7 @@
 <?php
 // 20261111 CDX/NTR Verify fresh fixtures, independent ownership, retention and registry cleanup.
+// 20261111 CDX/NTR Verify class-created database identities reach individual IDE/JUnit test output.
+// 20261111 CDX/NTR Verify cleanup requires retained test markers and preserves active/unmarked databases.
 
 use PHPUnit\Framework\TestCase;
 
@@ -12,6 +14,99 @@ final class TestDatabaseLifecycleTest extends TestCase
         $reason = TestDatabase::unavailableReason();
         if ($reason !== null) {
             self::markTestSkipped($reason);
+        }
+    }
+
+    public function testClassSetupIdentityAppearsInIndividualTestResultOutput(): void
+    {
+        require_once __DIR__ . '/CharacterizationEnv.php';
+        $root = dirname(__DIR__, 3);
+        $report = tempnam(sys_get_temp_dir(), 'saldi-test-output-');
+        try {
+            $result = CharacterizationEnv::runChild($root . '/vendor/bin/phpunit', [
+                '--configuration', $root . '/phpunit.xml', '--teamcity', '--log-junit', $report,
+                '--filter', 'DunningCharacterizationTest::test_an_invoice_overdue_beyond_the_grace_period_is_dunned',
+            ]);
+            self::assertSame(0, $result['exit'], $result['stdout'] . $result['stderr']);
+            $xml = simplexml_load_file($report);
+            self::assertNotFalse($xml);
+            $cases = $xml->xpath('//testcase');
+            self::assertCount(1, $cases);
+            $output = (string)$cases[0]->{'system-out'};
+            self::assertMatchesRegularExpression('/UUID=[a-f0-9-]{36} database=t[a-f0-9]{24}/', $output,
+                'The IDE needs the database identity attached to the individual test result');
+            $started = strpos($result['stdout'], '##teamcity[testStarted ');
+            $finished = strpos($result['stdout'], '##teamcity[testFinished ');
+            self::assertNotFalse($started);
+            self::assertNotFalse($finished);
+            self::assertStringContainsString(trim($output), substr($result['stdout'], $started, $finished - $started));
+        } finally {
+            unlink($report);
+        }
+    }
+
+    public function testCleanupCommandDeletesOnlyVerifiedRetainedTestDatabases(): void
+    {
+        require_once __DIR__ . '/CharacterizationEnv.php';
+        $root = dirname(__DIR__, 3);
+        $previous = getenv('SALDI_TEST_KEEP_DATABASES');
+        $legacy = getenv('SALDI_REST_KEEP_TENANT');
+        $databases = [];
+        $master = TestDatabase::connect(TestDatabase::masterDb());
+        try {
+            putenv('SALDI_TEST_KEEP_DATABASES=0');
+            putenv('SALDI_REST_KEEP_TENANT=0');
+            $active = $databases[] = TestDatabase::create('active-cleanup-control', false);
+            $unmarked = $databases[] = TestDatabase::create('unmarked-cleanup-control', false);
+            TestDatabase::query($master, 'COMMENT ON DATABASE ' . pg_escape_identifier($master, $unmarked->name()) . ' IS NULL');
+            $retained = $databases[] = TestDatabase::create('retained-cleanup-target');
+            putenv('SALDI_TEST_KEEP_DATABASES=1');
+            $retained->release();
+            putenv('SALDI_TEST_KEEP_DATABASES=0');
+
+            $command = $root . '/tools/phpunit-databases.php';
+            $listed = CharacterizationEnv::runChild($command, ['--database', $retained->name()]);
+            self::assertSame(0, $listed['exit'], $listed['stdout'] . $listed['stderr']);
+            self::assertStringContainsString($retained->uuid(), $listed['stdout']);
+            foreach ([$active, $unmarked] as $protected) {
+                $refused = CharacterizationEnv::runChild($command, ['--delete', '--database', $protected->name()]);
+                self::assertNotSame(0, $refused['exit'], 'Cleanup must refuse active and unmarked databases');
+            }
+            $identity = TestDatabase::connect($retained->name());
+            try {
+                TestDatabase::query($identity, 'UPDATE public.saldi_phpunit_identity SET uuid=$1', [$active->uuid()]);
+                $mismatch = CharacterizationEnv::runChild($command, ['--delete', '--database', $retained->name()]);
+                self::assertNotSame(0, $mismatch['exit'], 'A database comment without matching internal identity is insufficient');
+                TestDatabase::query($identity, 'UPDATE public.saldi_phpunit_identity SET uuid=$1,master_db=$2', [$retained->uuid(), 'other_test_master']);
+                $otherMaster = CharacterizationEnv::runChild($command, ['--delete', '--database', $retained->name()]);
+                self::assertNotSame(0, $otherMaster['exit'], 'Cleanup must preserve databases belonging to another installed master');
+                TestDatabase::query($identity, 'UPDATE public.saldi_phpunit_identity SET master_db=$1', [TestDatabase::masterDb()]);
+            } finally {
+                pg_close($identity);
+            }
+            foreach ($databases as $database) {
+                self::assertSame('1', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM pg_database WHERE datname=$1', [$database->name()]), 0, 0));
+            }
+
+            $deleted = CharacterizationEnv::runChild($command, ['--delete', '--database', $retained->name()]);
+            self::assertSame(0, $deleted['exit'], $deleted['stdout'] . $deleted['stderr']);
+            self::assertSame('0', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM pg_database WHERE datname=$1', [$retained->name()]), 0, 0));
+            self::assertSame('0', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM regnskab WHERE db=$1', [$retained->name()]), 0, 0));
+            self::assertSame('0', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM online WHERE db=$1', [$retained->name()]), 0, 0));
+            foreach ([$active, $unmarked] as $protected) {
+                self::assertSame('1', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM pg_database WHERE datname=$1', [$protected->name()]), 0, 0));
+            }
+        } finally {
+            // Test-owned names only; also clean up when the command assertion fails.
+            foreach ($databases as $database) {
+                TestDatabase::query($master, 'DROP DATABASE IF EXISTS ' . pg_escape_identifier($master, $database->name()));
+                TestDatabase::query($master, 'DELETE FROM regnskab WHERE db=$1', [$database->name()]);
+                TestDatabase::query($master, 'DELETE FROM online WHERE db=$1 AND session_id=$2', [$database->name(), $database->sessionId()]);
+                $database->release();
+            }
+            pg_close($master);
+            putenv($previous === false ? 'SALDI_TEST_KEEP_DATABASES' : 'SALDI_TEST_KEEP_DATABASES=' . $previous);
+            putenv($legacy === false ? 'SALDI_REST_KEEP_TENANT' : 'SALDI_REST_KEEP_TENANT=' . $legacy);
         }
     }
 
