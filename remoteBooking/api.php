@@ -29,7 +29,8 @@
 // 20261111 CL/MMR SST-993 createCust no longer fails when an account number is not a number.
 //                 The next free number comes from bookingNextFreeKontonr(), which only reads four-digit numeric kontonr.
 // 20261111 CL/MMR SST-1000 createBooking stores the booking only when the unit has no other booking or reservation in the period.
-//                 Otherwise it answers 409 and the page tells the customer. A start or end date that can't be read is refused (400).
+//                 Otherwise it answers 409 and the page tells the customer. A start or end date that is not a 'Y-m-d' calendar date is refused (400).
+//                 The action is now the handler handleCreateBooking().
 //
 
 
@@ -150,7 +151,13 @@ if(isset($_GET["getAllDates"])){
     echo json_encode($results);
 }
 
-if(isset($_GET["createBooking"])){
+/**
+ * api.php?createBooking: store a booking from the public booking page and create its order.
+ * Answers {"id": <rentalperiod id>}; 400 for a booking it can't read, 409 when the unit is not free in the period.
+ *
+ * @return void
+ */
+function handleCreateBooking() {
     $data = json_decode(file_get_contents('php://input'), true);
     if (!is_array($data)) $data = array();
     $data["item_id"] = (int)ifset($data, "item_id", 0);
@@ -161,9 +168,9 @@ if(isset($_GET["createBooking"])){
         echo json_encode(["error" => "Invalid booking"]);
         exit;
     }
-    // make timestamp to unix timestamp
-    $from = strtotime($data["start_date"]);
-    $to = strtotime($data["end_date"]);
+    // whole calendar days only ('Y-m-d', as the page sends them): the overlap check works on whole days
+    $from = rental_booking_day(ifset($data, "start_date", ""));
+    $to = rental_booking_day(ifset($data, "end_date", ""));
     if ($from === false || $to === false || $to < $from) {
         http_response_code(400);
         echo json_encode(["error" => "Invalid booking"]);
@@ -195,6 +202,10 @@ if(isset($_GET["createBooking"])){
     $data["toDate"] = date("Y-m-d", $to);
     CreateOrder($data);
     echo json_encode(["id" => $data["booking_id"]]);
+}
+
+if(isset($_GET["createBooking"])){
+    handleCreateBooking();
 }
 
 if(isset($_GET["getRentalReserved"])){

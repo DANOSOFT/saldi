@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../../includes/stdFunc/rentalOverlap.php';
 // 20261111 CL/MMR SST-1000 Pins when an existing booking or reservation blocks a new booking of the same unit.
 //                 The rule is the booking page's (remoteBooking/index.js onDayCreate): overlap with both days included.
 //                 An unpaid booking whose expiry_time has passed does not block.
+//                 Request days must be 'Y-m-d' calendar dates, and an existing period is compared by the days it falls on.
 //                 The last test checks that both createBooking store through rental_store_booking() and answer 409.
 final class RentalOverlapTest extends TestCase
 {
@@ -73,6 +74,44 @@ final class RentalOverlapTest extends TestCase
         self::assertFalse(rental_period_blocks('', '', self::day('2026-11-13'), self::day('2026-11-20'), null, self::NOW));
     }
 
+    public function testExistingPeriodAtAnotherHourCountsOnItsDays(): void
+    {
+        // an existing booking stored from noon on 13/11 to 23:59:59 on 20/11 blocks a new booking from 20/11 and one to 13/11
+        $rowFrom = self::day('2026-11-13') + 12 * 3600;
+        $rowTo = self::day('2026-11-20') + 86399;
+        self::assertTrue(rental_period_blocks($rowFrom, $rowTo, self::day('2026-11-20'), self::day('2026-11-27'), null, self::NOW));
+        self::assertTrue(rental_period_blocks($rowFrom, $rowTo, self::day('2026-11-06'), self::day('2026-11-13'), null, self::NOW));
+        self::assertFalse(rental_period_blocks($rowFrom, $rowTo, self::day('2026-11-21'), self::day('2026-11-28'), null, self::NOW));
+    }
+
+    /** @return array<string, array{mixed, string|false}> request value, expected day or false */
+    public static function requestDays(): array
+    {
+        return [
+            'calendar date'        => ['2026-11-20', '2026-11-20'],
+            'leap day'             => ['2028-02-29', '2028-02-29'],
+            'time of day'          => ['2026-11-20 12:00:00', false],
+            'ISO with zone'        => ['2026-11-20T00:00:00+01:00', false],
+            'relative'             => ['+1 week', false],
+            'not a calendar date'  => ['2026-02-30', false],
+            'trailing newline'     => ["2026-11-20\n", false],
+            'number'               => [1794438000, false],
+            'empty'                => ['', false],
+            'missing'              => [null, false],
+        ];
+    }
+
+    #[DataProvider('requestDays')]
+    public function testRequestDaysAreWholeCalendarDays(mixed $value, string|false $expected): void
+    {
+        $day = rental_booking_day($value);
+        if ($expected === false) {
+            self::assertFalse($day);
+        } else {
+            self::assertSame(self::day($expected), $day);
+        }
+    }
+
     public function testBothBookingApisStoreThroughTheCheck(): void
     {
         foreach (['remoteBooking/api.php', 'mysale/api.php'] as $file) {
@@ -81,6 +120,9 @@ final class RentalOverlapTest extends TestCase
             self::assertStringContainsString('rental_store_booking($data["item_id"], $data["cust_id"], $from, $to, $expiryTime)', $src, $file);
             self::assertStringContainsString('http_response_code(409)', $src, $file);
             self::assertStringNotContainsString('INSERT INTO rentalperiod', $src, $file);
+            self::assertStringContainsString('function handleCreateBooking()', $src, $file);
+            self::assertStringContainsString('$from = rental_booking_day(ifset($data, "start_date", ""));', $src, $file);
+            self::assertStringContainsString('$to = rental_booking_day(ifset($data, "end_date", ""));', $src, $file);
         }
         foreach (['remoteBooking/index.js', 'mysale/remote.js'] as $file) {
             $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);

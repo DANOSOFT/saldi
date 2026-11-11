@@ -25,11 +25,30 @@
 // 20261111 CL/MMR SST-1000 Created. A booking from the public booking page or mysale is only stored when the unit is free.
 //                 createBooking stored every booking it got, so a unit could be booked twice when two customers booked at once, when the page had been open while someone else booked, or when the page picked a busy unit.
 
+if (!function_exists('rental_booking_day')) {
+	/**
+	 * A booking day as the booking page sends it ('Y-m-d', a real calendar date) as a unix time at local midnight.
+	 *
+	 * Only that form is accepted: a time of day, a time zone or a relative date ("+1 week") would give a period
+	 * that does not start and end on whole days, and the check against other bookings works on whole days.
+	 *
+	 * @param mixed $value start_date or end_date from the request.
+	 * @return int|false Unix time of the day at local midnight; false when $value is not a 'Y-m-d' calendar date.
+	 */
+	function rental_booking_day($value) {
+		if (!is_string($value) || !preg_match('/^(\d{4})-(\d{2})-(\d{2})\z/', $value, $m)) return false;
+		if (!checkdate((int)$m[2], (int)$m[3], (int)$m[1])) return false;
+		return strtotime($value);
+	}
+}
+
 if (!function_exists('rental_period_blocks')) {
 	/**
 	 * Whether an existing booking or reservation from $rowFrom to $rowTo blocks a new booking from $from to $to
-	 * of the same unit. All four are unix times. It is the rule the booking page uses (remoteBooking/index.js
-	 * onDayCreate): the periods overlap, both first and last day included.
+	 * of the same unit. All four are unix times, compared as the local calendar days they fall on, so an
+	 * existing period stored at another hour than midnight still counts on its first and last day. It is the
+	 * rule the booking page uses (remoteBooking/index.js onDayCreate): the periods overlap, both first and
+	 * last day included.
 	 * A booking that is still waiting for payment has an expiry_time; once that time has passed, the booking
 	 * is abandoned (rental.php cleanUpExpiredBookings deletes it) and does not block.
 	 *
@@ -48,7 +67,8 @@ if (!function_exists('rental_period_blocks')) {
 			$expires = strtotime((string)$expiresAt);
 			if ($expires !== false && $expires <= ($now === null ? time() : $now)) return false;
 		}
-		return (float)$rowFrom <= $to && (float)$rowTo >= $from;
+		$day = static function ($t) { return date('Y-m-d', (int)$t); };
+		return $day($rowFrom) <= $day($to) && $day($rowTo) >= $day($from);
 	}
 }
 
@@ -65,11 +85,14 @@ if (!function_exists('rental_item_busy')) {
 		$itemId = (int)$itemId;
 		$from = (int)$from;
 		$to = (int)$to;
-		$query = db_select("SELECT rt_from, rt_to, expiry_time FROM rentalperiod WHERE item_id = $itemId AND rt_from <= $to AND rt_to >= $from", __FILE__ . " linje " . __LINE__);
+		// a day either side, so a period stored at another hour on the first or last day is read; rental_period_blocks() decides by day
+		$wideFrom = $from - 86400;
+		$wideTo = $to + 86400;
+		$query = db_select("SELECT rt_from, rt_to, expiry_time FROM rentalperiod WHERE item_id = $itemId AND rt_from <= $wideTo AND rt_to >= $wideFrom", __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			if (rental_period_blocks($row["rt_from"], $row["rt_to"], $from, $to, $row["expiry_time"])) return true;
 		}
-		$query = db_select("SELECT rr_from, rr_to FROM rentalreserved WHERE item_id = $itemId AND rr_from <= $to AND rr_to >= $from", __FILE__ . " linje " . __LINE__);
+		$query = db_select("SELECT rr_from, rr_to FROM rentalreserved WHERE item_id = $itemId AND rr_from <= $wideTo AND rr_to >= $wideFrom", __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			if (rental_period_blocks($row["rr_from"], $row["rr_to"], $from, $to)) return true;
 		}
