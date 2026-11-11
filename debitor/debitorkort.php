@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -133,6 +133,8 @@
 //                A refused change no longer marks the card as edited, so Tilbage doesn't ask to discard changes nobody made.
 // 20261101 CL/SZ MB-129 A contact name with an apostrophe no longer breaks the card: the name is escaped in the three adresser.kontakt updates.
 //                The hidden kontakt, delivery and felt fields are double-quoted, so saving no longer cuts a stored value off at the apostrophe.
+// 20261111 CL/SZ SD-800 A new debtor's number is checked, chosen and inserted under the shared debtor-number lock (hashtext('saldi:debtor_number')).
+//                Before, the card took no lock, so it could take a number create_debtor() or the Shopify worker had chosen but not committed yet.
 @session_start();
 $s_id = session_id();
 
@@ -551,6 +553,16 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			}
 		}
 */
+		# A new debtor's number is checked, chosen and inserted under the lock create_debtor() and
+		# the Shopify worker take (debtor_number_lock()), so the card waits for their open
+		# transactions and never takes a number one of them has chosen but not committed (SD-800).
+		# A session lock, released after the insert, or by the database when the request ends.
+		# PostgreSQL only, like the other allocators.
+		$debtorNumberLock = false;
+		if (!$id && !in_array($db_type, array('mysql', 'mysqli'), true)) {
+			db_select("select pg_advisory_lock(hashtext('saldi:debtor_number'))", __FILE__ . " linje " . __LINE__);
+			$debtorNumberLock = true;
+		}
 		if (!$id && $ny_kontonr) {
 			$qtxt = "select id from adresser where kontonr = '$ny_kontonr' and art = 'D'";
 			if ($ny_kontonr && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -627,6 +639,10 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array($q);
 			$id = $r['id'];
+			if ($debtorNumberLock) {
+				db_select("select pg_advisory_unlock(hashtext('saldi:debtor_number'))", __FILE__ . " linje " . __LINE__);
+				$debtorNumberLock = false;
+			}
 			if ($kontakt) db_modify("insert into ansatte(konto_id, navn) values ('$id', '$kontakt')", __FILE__ . " linje " . __LINE__);
 
 			// Save primary email for new customer
