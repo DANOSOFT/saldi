@@ -124,6 +124,8 @@
 //                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
 // 20261110 CL/SZ Sync of master into hml/shopify: sync_shop_vare() sends to the slots open for outbound (SD-750), not box4-box6.
 //                The sku call skips slot 6. shopSyncApiConfigured() counts any of box4-box6, so an empty box4 no longer stops the queue.
+// 20261110 CL/SZ SD-817 shopSyncApiConfigured() counts only a slot with a URL that is open for outbound in the shopify_legacy settings.
+//                A tenant that has cut over no longer writes shopsync markers that are never sent.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2403,8 +2405,14 @@ if (!function_exists('shopSyncMarkState')) {
 
 if (!function_exists('shopSyncApiConfigured')) {
 	/**
-	 * Whether this tenant has the primary endpoint required by sync_shop_vare().
+	 * Whether this tenant has a webshop slot that sync_shop_vare() may send to: a URL in box4,
+	 * box5 or box6 whose shopify_legacy outbound switch is open (SD-750). A tenant that has cut
+	 * over keeps its URLs, so without the switch every stock change would leave a marker that
+	 * is never sent.
 	 * Cache the configuration check per tenant for this request, before any queue filesystem work.
+	 *
+	 * The slot locks are not taken here: a stock change made while a cutover runs is queued, and
+	 * the send in sync_shop_vare() decides through shopify_legacy_endpoints().
 	 *
 	 * @return bool
 	 */
@@ -2413,9 +2421,15 @@ if (!function_exists('shopSyncApiConfigured')) {
 		static $configured = array();
 		$key = (string)$db;
 		if (!array_key_exists($key, $configured)) {
+			$configured[$key] = false;
 			// Any slot, not only box4: an empty box4 no longer disables box5/box6 (SD-750).
 			$row = db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API'", __FILE__ . ' line ' . __LINE__));
-			$configured[$key] = $row && trim((string)($row['box4'] ?? '') . ($row['box5'] ?? '') . ($row['box6'] ?? '')) !== '';
+			foreach (array(4, 5, 6) as $slot) {
+				if ($row && trim((string)($row["box$slot"] ?? '')) !== '' && shopify_legacy_enabled(array('db' => $db), $slot, 'outbound')) {
+					$configured[$key] = true;
+					break;
+				}
+			}
 		}
 		return $configured[$key];
 	}
