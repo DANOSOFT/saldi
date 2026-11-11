@@ -26,4 +26,4 @@ $_SERVER['REQUEST_METHOD'] = 'GET';
 $_SERVER['PHP_SELF'] = '/saldi/api/rest_api.php';
 
 chdir(dirname(__DIR__, 3) . '/api'); // the page includes ../includes/... and writes ../temp/<db>/
-include 'rest_api.php';
+include dirname(__DIR__, 3) . '/api/rest_api.php';
