@@ -5,6 +5,8 @@
 //                 Saved-card authentication is protected for 14 days, no longer forever.
 // 20261109 CL/ASR Review fix: the card-on-file hold applies only while the charge job will really try the invoice: a saved card, no authentication request on it, card payment possible, and the full amount open with no credit on the account.
 // 20261111 CL/ASR Review round 2: the hold loads stripeSettings.php itself, so the ledger check (stripe_ledger_armed()) also runs in ny_rykker.php and the reports.
+//                 A reminder is no longer held for good by an invoice on it that was paid by card while another is still owed (stripe_dunning_reminder_sql()):
+//                 a customer who pays one invoice from a link reminder still gets the next level for the rest; all paid by card still holds it.
 
 /**
  * Predicate for an openpost row which can enter dunning. This lightweight include does
@@ -100,7 +102,10 @@ function stripe_dunning_card_hold_sql($alias, $columns) {
 }
 
 /**
- * Hold an existing reminder containing a protected invoice, including its escalation fees.
+ * Hold an existing reminder containing a protected invoice, including its escalation fees: an invoice with a payment
+ * in flight or held for the charge job holds it, and so does a reminder whose invoices are all paid by card. An
+ * invoice paid by card next to one that is still owed does not: the next level lists only the unpaid ones
+ * (debitor/ny_rykker.php), so a customer who paid one invoice from a link reminder is still reminded of the rest.
  *
  * @param string $alias Trusted SQL alias for the reminder order.
  * @return string SQL predicate for reminder selection.
@@ -109,6 +114,10 @@ function stripe_dunning_reminder_sql($alias = 'ordrer') {
 	if (!preg_match('/^[a-z_][a-z0-9_]*$/i', $alias)) throw new InvalidArgumentException('Invalid reminder alias');
 	$eligible = stripe_dunning_openpost_sql('s_op');
 	$idText = in_array($GLOBALS['db_type'], array('mysql', 'mysqli'), true) ? 'cast(s_op.id as char(30))' : 'cast(s_op.id as varchar(30))';
-	return "not exists (select 1 from ordrelinjer s_dl join openpost s_op on s_dl.enhed = $idText
-		where s_dl.ordre_id = $alias.id and not ($eligible))";
+	$items = "select 1 from ordrelinjer s_dl join openpost s_op on s_dl.enhed = $idText where s_dl.ordre_id = $alias.id";
+	// 20261111 CL/ASR paid by card (captured, or a duplicate capture): no longer in flight
+	$paid = "exists (select 1 from stripe_payments s_rp join ordrer s_ro on s_ro.id = s_rp.ordre_id where s_ro.konto_id = s_op.konto_id
+		and s_ro.fakturanr = s_op.faktnr and s_ro.art = 'DO' and s_rp.status in ('succeeded', 'duplicate_paid'))";
+	return "not exists ($items and not ($eligible) and not ($paid))
+		and (not exists ($items) or exists ($items and ($eligible)))";
 }

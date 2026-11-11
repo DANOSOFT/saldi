@@ -1328,6 +1328,27 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         $this->assertNotEmpty($row['mailed_at']);
     }
 
+    public function testAnInvoicePaidByCardDoesNotHoldTheRestOfTheReminder(): void
+    {
+        $debtor = StripeFixtures::debtor();
+        $paid = StripeFixtures::invoice($debtor, ['udskriv_til' => 'Link']);
+        $owed = StripeReminderFixtures::invoiceOn($debtor, '2026-01-12', ['udskriv_til' => 'Link']);
+        $rykker = StripeReminderFixtures::reminder($debtor, [$paid, $owed], ['status' => 4]);
+        $released = fn(): bool => (bool)pg_fetch_assoc(StripeTestEnvironment::query('SELECT o.id FROM ordrer o WHERE o.id = $1 AND '
+            . stripe_dunning_reminder_sql('o'), [$rykker]));
+        $this->assertTrue($released());
+        // One invoice paid from the link reminder: the rest can still get the next level.
+        $card = $this->payment($paid, 'succeeded', 'page');
+        $this->assertTrue($released(), 'paid by card next to an invoice still owed');
+        // A payment still in flight holds it, as before.
+        StripeTestEnvironment::query("UPDATE stripe_payments SET status = 'processing' WHERE id = $1", [$card]);
+        $this->assertFalse($released(), 'in flight');
+        // All paid by card: held (Afslut closes it), as before.
+        StripeTestEnvironment::query("UPDATE stripe_payments SET status = 'succeeded' WHERE id = $1", [$card]);
+        $this->payment($owed, 'succeeded', 'page');
+        $this->assertFalse($released(), 'all paid by card');
+    }
+
     /** @return int openpost id of a classic reminder's fee as bogfor_nu() posts it (refnr = the reminder, faktnr = its number). */
     private function priorFeeOpenpost(int $rykkerId): int
     {
