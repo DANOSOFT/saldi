@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_genfakt.php --- ver 5.1.0 --- 2026-11-10 ---
+// --- debitor/ret_genfakt.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -40,6 +40,7 @@
 // 2017.05.30 Betalingsdage sættes til 0 hvis ikke sat. Søg 20170530
 // 20241216 PHR PHP8
 // 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
+// 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261110 CL/SZ SST-879 Quoted the firmanavn key in the stamdata sync update; the bare constant was a fatal error on PHP 8 (white screen).
 //                The sync checkboxes are now read by form row ($x), not by found-order count ($y), so an order dropped from the list no longer shifts them onto the wrong order.
 
@@ -374,6 +375,10 @@ if ($_GET['ordreliste']) {
 					else $udskriv="$ordreliste[$x]"; 
 #xit;
 					transaktion('commit');
+					if (empty($GLOBALS['db_modify_fejl'])) {
+						shopSyncDrainQueue();
+						shopSyncAlertFailedItems();
+					}
 				} elseif ($ordreantal) {
 					if (strpos($svar,'invoicedate prior to')) $tekst="Genfaktureringsdato før fakturadato";
 					else $tekst="Der er konstateret en ubalance i posteringssummen\\nfor ordre $ordreliste[$x]\\nkontakt venligst Danosoft på tlf. +45 46902208";

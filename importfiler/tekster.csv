@@ -5258,6 +5258,12 @@
 5371	Aflæst	Read	Lest
 5372	Foreslået fordi de sidste $antal bilag fra denne kreditor blev bogført på konto $konto	Suggested because the last $antal vouchers from this creditor were posted to account $konto	Foreslått fordi de siste $antal bilagene fra denne kreditoren ble bokført på konto $konto
 5373	Foreslået fordi det seneste bilag fra denne kreditor blev bogført på konto $konto	Suggested because the latest voucher from this creditor was posted to account $konto	Foreslått fordi det siste bilaget fra denne kreditoren ble bokført på konto $konto
+7660	$antal af $total bilag	$antal of $total vouchers	$antal av $total bilag
+7661	1 anden	1 other	1 annen
+7662	$antal andre	$antal others	$antal andre
+7663	Foreslået fordi $antal af de sidste $total bilag fra denne kreditor blev bogført på konto $konto	Suggested because $antal of the last $total vouchers from this creditor were posted to account $konto	Foreslått fordi $antal av de siste $total bilagene fra denne kreditoren ble bokført på konto $konto
+7664	Søg anden konto	Search another account	Søk annen konto
+7665	Sidste $antal bilag fra kreditoren	Last $antal vouchers from the creditor	Siste $antal bilag fra kreditoren
 5374	Fundet via CVR-nr.	Found by CVR number	Funnet via org.nr.
 5375	Fundet via bankkonto	Found by bank account	Funnet via bankkonto
 5376	Fundet via navn	Found by name	Funnet via navn
@@ -5303,6 +5309,9 @@
 7642	Brug fakturaens værdier	Use the invoice values	Bruk fakturaens verdier
 7643	linjen	the line	linjen
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
+5442	Lagertallet blev ikke opdateret i webshoppen for	The stock level was not updated in the webshop for	Lagernivået ble ikke oppdatert i nettbutikken for
+
+5443	Webshopopdateringen afventer og forsøges automatisk igen ved næste lageropdatering for	The webshop update is pending and will be retried automatically on the next stock update for	Nettbutikkoppdateringen venter og forsøkes automatisk igjen ved neste lageroppdatering for
 5451	Rækkerne i fordelingen er ikke gemt. Gem dem først med	The rows of the split are not saved. Save them first with	Radene i fordelingen er ikke lagret. Lagre dem først med
 5452	Bilaget kunne ikke vedhæftes. Filen ligger stadig i puljen.	The document could not be attached. The file is still in the pool.	Vedlegget kunne ikke legges ved. Filen ligger fortsatt i puljen.
 5453	Bilagsnummer er for stort (maks 2147483647) og er erstattet med	The document number is too large (max 2147483647) and has been replaced by	Bilagsnummeret er for stort (maks 2147483647) og er erstattet med

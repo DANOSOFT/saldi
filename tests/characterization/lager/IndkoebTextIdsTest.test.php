@@ -1,4 +1,5 @@
 <?php
+// 20261111 CDX/NTR Scan tracked sources without descending into runtime files.
 
 declare(strict_types=1);
 
@@ -242,17 +243,9 @@ final class IndkoebTextIdsTest extends TestCase
         $page = realpath(self::PAGE);
 
         $others = array();
-        $it = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
-        foreach ($it as $file) {
-            /** @var SplFileInfo $file */
-            if ($file->getExtension() !== 'php' || $file->getRealPath() === $page) {
-                continue;
-            }
-            $path = (string)$file->getRealPath();
-            if (strpos($path, DIRECTORY_SEPARATOR . '.git') !== false
-                || strpos($path, DIRECTORY_SEPARATOR . 'vendor') !== false
-                || strpos($path, DIRECTORY_SEPARATOR . 'tests') !== false) {
+        require_once __DIR__ . '/../support/database/SourceFiles.php';
+        foreach (SourceFiles::php() as $path) {
+            if ($path === $page) {
                 continue;
             }
             $calls = self::callsIn((string)file_get_contents($path));

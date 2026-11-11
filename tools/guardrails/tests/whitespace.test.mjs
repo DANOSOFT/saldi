@@ -1,4 +1,5 @@
 // 20261109 CDX/NTR Cover blank separators from a6bb95b17 and retain trailing-whitespace, line-ending and mode checks.
+// 20261109 CDX/NTR Catch standalone blank-line churn while allowing separators alongside content edits.
 import test from "node:test";
 import assert from "node:assert/strict";
 import whitespace from "../checks/whitespace.mjs";
@@ -22,10 +23,24 @@ test("blank separators may be empty or contain spaces and tabs", () => {
   }
 });
 
-test("existing blank separators may be reindented or cleared", () => {
+test("standalone indentation changes to existing blank separators are rejected", () => {
   for (const [before, after] of [["", "\t"], ["\t", ""], ["\t", "  "], [" \t", "\t\t"]]) {
-    assert.deepEqual(whitespace.run(context([before], [after])), []);
+    const findings = whitespace.run(context([before], [after]));
+    assert.equal(findings.length, 1);
+    assert.match(findings[0].message, /blank line/);
   }
+});
+
+test("trim-on-save cannot silently rewrite indentation on many existing blank lines", () => {
+  const before = Array.from({ length: 38 }, (_, index) => "\t".repeat(index % 3 + 1));
+  const findings = whitespace.run(context(before, before.map(() => "")));
+  assert.equal(findings.length, 38);
+  assert(findings.every(finding => /blank line/.test(finding.message)));
+});
+
+test("blank separators can change alongside content in the same hunk", () => {
+  assert.deepEqual(whitespace.run(context(["$value = 1;", "\t"], ["$value = 2;", ""])), []);
+  assert.deepEqual(whitespace.run(context(["\t"], [])), []);
 });
 
 test("removing old code may leave the indented separators reported on rapportfunc.php lines 646 and 662", () => {
