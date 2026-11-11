@@ -1,6 +1,7 @@
 <?php
 // 20261111 CDX/NTR Limit source invariants to tracked PHP files instead of runtime directories.
 // 20261111 CDX/NTR Trust only this checkout when Docker uses a different UID; preserve git diagnostics.
+// 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 
 final class SourceFiles
 {
@@ -9,8 +10,12 @@ final class SourceFiles
     {
         $root = dirname(__DIR__, 4);
         $errors = tmpfile();
-        $process = proc_open(['git', '-c', 'safe.directory=' . $root, 'ls-files', '-z', '--', '*.php'],
-            [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => $errors], $pipes, $root);
+        $process = proc_open(
+            ['git', '-c', 'safe.directory=' . $root, 'ls-files', '-z', '--', '*.php'],
+            [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => $errors],
+            $pipes,
+            $root
+        );
         if (!is_resource($process)) {
             fclose($errors);
             throw new RuntimeException('Could not enumerate tracked PHP source');

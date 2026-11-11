@@ -1,5 +1,6 @@
 <?php
 // 20261111 CDX/NTR Verify persistent test identities before listing or deleting retained databases.
+// 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 
 /** Persistent ownership proof survives the PHPUnit process that created a database. */
 final class RetainedTestDatabases
@@ -10,18 +11,27 @@ final class RetainedTestDatabases
     {
         $tenant = TestDatabase::connect($database->name());
         try {
-            TestDatabase::query($tenant, 'CREATE TABLE public.saldi_phpunit_identity
+            TestDatabase::query(
+                $tenant,
+                'CREATE TABLE public.saldi_phpunit_identity
                 (uuid text PRIMARY KEY, test_group text NOT NULL, master_db text NOT NULL, state text NOT NULL,
-                 registry_ids integer[] NOT NULL DEFAULT ARRAY[]::integer[], created_at timestamptz NOT NULL DEFAULT now())');
-            TestDatabase::query($tenant, "INSERT INTO public.saldi_phpunit_identity (uuid,test_group,master_db,state) VALUES ($1,$2,$3,'active')",
-                [$database->uuid(), $group, TestDatabase::masterDb()]);
+                 registry_ids integer[] NOT NULL DEFAULT ARRAY[]::integer[], created_at timestamptz NOT NULL DEFAULT now())'
+            );
+            TestDatabase::query(
+                $tenant,
+                "INSERT INTO public.saldi_phpunit_identity (uuid,test_group,master_db,state) VALUES ($1,$2,$3,'active')",
+                [$database->uuid(), $group, TestDatabase::masterDb()]
+            );
         } finally {
             pg_close($tenant);
         }
         $master = TestDatabase::connect(TestDatabase::masterDb());
         try {
-            TestDatabase::query($master, 'COMMENT ON DATABASE ' . pg_escape_identifier($master, $database->name())
-                . ' IS ' . pg_escape_literal($master, self::COMMENT_PREFIX . $database->uuid()));
+            TestDatabase::query(
+                $master,
+                'COMMENT ON DATABASE ' . pg_escape_identifier($master, $database->name())
+                . ' IS ' . pg_escape_literal($master, self::COMMENT_PREFIX . $database->uuid())
+            );
         } finally {
             pg_close($master);
         }
@@ -32,8 +42,11 @@ final class RetainedTestDatabases
     {
         $tenant = TestDatabase::connect($database->name());
         try {
-            TestDatabase::query($tenant, 'UPDATE public.saldi_phpunit_identity SET registry_ids=array_append(registry_ids,$1) WHERE uuid=$2',
-                [$id, $database->uuid()]);
+            TestDatabase::query(
+                $tenant,
+                'UPDATE public.saldi_phpunit_identity SET registry_ids=array_append(registry_ids,$1) WHERE uuid=$2',
+                [$id, $database->uuid()]
+            );
         } finally {
             pg_close($tenant);
         }
@@ -58,9 +71,13 @@ final class RetainedTestDatabases
     {
         $master = TestDatabase::connect(TestDatabase::masterDb());
         try {
-            $result = TestDatabase::query($master, "SELECT datname FROM pg_database
+            $result = TestDatabase::query(
+                $master,
+                "SELECT datname FROM pg_database
                 WHERE pg_get_userbyid(datdba)=current_user AND shobj_description(oid,'pg_database') LIKE $1
-                AND ($2::text IS NULL OR datname=$2) ORDER BY datname", [self::COMMENT_PREFIX . '%', $onlyDatabase]);
+                AND ($2::text IS NULL OR datname=$2) ORDER BY datname",
+                [self::COMMENT_PREFIX . '%', $onlyDatabase]
+            );
             $identities = [];
             while ($row = pg_fetch_assoc($result)) {
                 $identity = self::verify($master, $row['datname']);
@@ -98,8 +115,12 @@ final class RetainedTestDatabases
         if (!preg_match('/^t[a-f0-9]{24}$/', $database) || $database === TestDatabase::masterDb()) {
             return null;
         }
-        $result = TestDatabase::query($master, "SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database
-            WHERE datname=$1 AND pg_get_userbyid(datdba)=current_user", [$database]);
+        $result = TestDatabase::query(
+            $master,
+            "SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database
+            WHERE datname=$1 AND pg_get_userbyid(datdba)=current_user",
+            [$database]
+        );
         $row = pg_fetch_assoc($result);
         $marker = $row['marker'] ?? '';
         $prefix = preg_quote(self::COMMENT_PREFIX, '/');

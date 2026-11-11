@@ -3,6 +3,7 @@
 // 20261111 CDX/NTR Attach class-owned database identities to individual test output for IDE runners.
 // 20261111 CDX/NTR Persist test ownership and retention markers for verified bulk cleanup.
 // 20261111 CDX/NTR Associate each SQL fixture consumer with its captured database identity.
+// 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 
 require_once __DIR__ . '/RetainedTestDatabases.php';
 
@@ -128,9 +129,12 @@ final class TestDatabase
     public function pdo(): PDO
     {
         $host = getenv('SALDI_CHAR_PGHOST') ?: 'postgres';
-        return new PDO('pgsql:host=' . $host . ';dbname=' . $this->name,
-            getenv('SALDI_CHAR_PGUSER') ?: 'user', getenv('SALDI_CHAR_PGPASS') ?: '',
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        return new PDO(
+            'pgsql:host=' . $host . ';dbname=' . $this->name,
+            getenv('SALDI_CHAR_PGUSER') ?: 'user',
+            getenv('SALDI_CHAR_PGPASS') ?: '',
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
     }
 
     /** Keep every group, including its registry/session rows, for manual inspection. */
@@ -207,12 +211,16 @@ final class TestDatabase
         try {
             $version = '';
             require __DIR__ . '/../../../../includes/version.php';
-            $result = self::query($master, "INSERT INTO regnskab
+            $result = self::query(
+                $master,
+                "INSERT INTO regnskab
                 (regnskab, dbhost, dbuser, db, version, sidst, brugerantal, posteringer, lukket, administrator)
-                VALUES ($1,$2,$3,$4,$5,$6,100,1000000,$7,'') RETURNING id", [
-                $account, getenv('SALDI_CHAR_PGHOST') ?: 'postgres', getenv('SALDI_CHAR_PGUSER') ?: 'user',
-                $this->name, $version, date('Y-m-d'), $closed ? 'on' : '',
-            ]);
+                VALUES ($1,$2,$3,$4,$5,$6,100,1000000,$7,'') RETURNING id",
+                [
+                    $account, getenv('SALDI_CHAR_PGHOST') ?: 'postgres', getenv('SALDI_CHAR_PGUSER') ?: 'user',
+                    $this->name, $version, date('Y-m-d'), $closed ? 'on' : '',
+                ]
+            );
             $id = (int)pg_fetch_result($result, 0, 0);
             $this->registryIds[] = $id;
             RetainedTestDatabases::recordAccount($this, $id);
@@ -254,13 +262,24 @@ final class TestDatabase
     {
         $master = self::connect(self::masterDb());
         try {
-            $width = pg_fetch_result(self::query($master, "SELECT character_maximum_length FROM information_schema.columns
-                WHERE table_schema=current_schema() AND table_name='online' AND column_name='rettigheder'"), 0, 0);
-            self::query($master, 'INSERT INTO online (session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor,language_id)
-                VALUES ($1,$2,$3,$4,$5,1,$6,false,0)', [
-                $this->sessionId(), 'chartest', $this->name, getenv('SALDI_CHAR_PGUSER') ?: 'user',
-                str_repeat('9', max(1, (int)($width ?: 30))), (string)time(),
-            ]);
+            $width = pg_fetch_result(
+                self::query(
+                    $master,
+                    "SELECT character_maximum_length FROM information_schema.columns
+                WHERE table_schema=current_schema() AND table_name='online' AND column_name='rettigheder'"
+                ),
+                0,
+                0
+            );
+            self::query(
+                $master,
+                'INSERT INTO online (session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor,language_id)
+                VALUES ($1,$2,$3,$4,$5,1,$6,false,0)',
+                [
+                    $this->sessionId(), 'chartest', $this->name, getenv('SALDI_CHAR_PGUSER') ?: 'user',
+                    str_repeat('9', max(1, (int)($width ?: 30))), (string)time(),
+                ]
+            );
         } finally {
             pg_close($master);
         }
@@ -270,8 +289,11 @@ final class TestDatabase
     {
         $output = tmpfile();
         $errors = tmpfile();
-        $process = proc_open([PHP_BINARY, __DIR__ . '/installTenant.php', $this->name],
-            [0 => ['file', '/dev/null', 'r'], 1 => $output, 2 => $errors], $pipes);
+        $process = proc_open(
+            [PHP_BINARY, __DIR__ . '/installTenant.php', $this->name],
+            [0 => ['file', '/dev/null', 'r'], 1 => $output, 2 => $errors],
+            $pipes
+        );
         if (!is_resource($process)) {
             throw new RuntimeException('Could not start the test tenant installer');
         }

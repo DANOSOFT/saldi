@@ -3,6 +3,7 @@
 // 20261111 CDX/NTR Verify class-created database identities reach individual IDE/JUnit test output.
 // 20261111 CDX/NTR Verify cleanup requires retained test markers and preserves active/unmarked databases.
 // 20261111 CDX/NTR Cover shared SQL fixture identities in individual IDE/JUnit results.
+// 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -35,18 +36,24 @@ final class TestDatabaseLifecycleTest extends TestCase
         $root = dirname(__DIR__, 3);
         $report = tempnam(sys_get_temp_dir(), 'saldi-test-output-');
         try {
-            $result = CharacterizationEnv::runChild($root . '/vendor/bin/phpunit', [
-                '--configuration', $root . '/phpunit.xml', '--teamcity', '--log-junit', $report,
-                '--filter', $filter,
-            ]);
+            $result = CharacterizationEnv::runChild(
+                $root . '/vendor/bin/phpunit',
+                [
+                    '--configuration', $root . '/phpunit.xml', '--teamcity', '--log-junit', $report,
+                    '--filter', $filter,
+                ]
+            );
             self::assertSame(0, $result['exit'], $result['stdout'] . $result['stderr']);
             $xml = simplexml_load_file($report);
             self::assertNotFalse($xml);
             $cases = $xml->xpath('//testcase');
             self::assertCount(1, $cases);
             $output = (string)$cases[0]->{'system-out'};
-            self::assertMatchesRegularExpression('/UUID=[a-f0-9-]{36} database=t[a-f0-9]{24}/', $output,
-                'The IDE needs the database identity attached to the individual test result');
+            self::assertMatchesRegularExpression(
+                '/UUID=[a-f0-9-]{36} database=t[a-f0-9]{24}/',
+                $output,
+                'The IDE needs the database identity attached to the individual test result'
+            );
             $started = strpos($result['stdout'], '##teamcity[testStarted ');
             $finished = strpos($result['stdout'], '##teamcity[testFinished ');
             self::assertNotFalse($started);
