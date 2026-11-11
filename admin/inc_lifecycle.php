@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_lifecycle.php --- ver 5.1.0 --- 2026.10.29 ---
+// --- admin/inc_lifecycle.php --- ver 5.1.1 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 4 "Administration af regnskaber": lifecycle of a ledger as explicit states – active | suspended | closed – with reason and optional future date, plus subscription cancellation at a date.

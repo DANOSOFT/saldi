@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_special.php --- ver 5.1.0 --- 2026.10.29 ---
+// --- admin/inc_special.php --- ver 5.1.1 --- 2026.10.29 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. Specialtilpasninger: separate notes on custom development made for one customer (a ledger or a self-hosted installation), so support can see at a glance what is special about their system.

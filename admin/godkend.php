@@ -1,5 +1,5 @@
 <?php
-// --- admin/godkend.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- admin/godkend.php --- ver 5.1.1 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261011 CL/ASR New. Customer approval of a purchase proposal via a one-time token (no login).

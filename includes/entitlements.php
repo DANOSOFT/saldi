@@ -1,5 +1,5 @@
 <?php
-// --- includes/entitlements.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- includes/entitlements.php --- ver 5.1.1 --- 2026.11.09 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Catalogue + entitlement layer in the master database, tables as in Requirements_packages_entitlements_billing_EN.md §4.1/§5.1 with three additions needed for the operator's subscription card: prices on plans/addons (price_ore, billing_interval, extra_user_price_ore), valid_from on regnskab_entitlements, and regnskab_plan_changes for changes with a future effective date.
