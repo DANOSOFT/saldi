@@ -84,6 +84,27 @@ final class RentalOverlapTest extends TestCase
         self::assertFalse(rental_period_blocks($rowFrom, $rowTo, self::day('2026-11-21'), self::day('2026-11-28'), null, self::NOW));
     }
 
+    /** @return array<string, array{string, string}> first and last day of a new booking around the summer time changes */
+    public static function dstBookings(): array
+    {
+        return [
+            'last day is the 25-hour day (2027)'  => ['2027-10-24', '2027-10-31'],
+            'first day is the 25-hour day (2026)' => ['2026-10-25', '2026-11-01'],
+            'last day is the 23-hour day (2027)'  => ['2027-03-21', '2027-03-28'],
+            'first day is the 23-hour day (2027)' => ['2027-03-28', '2027-04-04'],
+        ];
+    }
+
+    #[DataProvider('dstBookings')]
+    public function testSearchCoversEveryHourOfTheFirstAndLastDay(string $first, string $last): void
+    {
+        [$wideFrom, $wideTo] = rental_search_bounds(self::day($first), self::day($last));
+        // a period that ends at 00:00 on the first day and one that starts at 23:30 on the last day must both be read
+        self::assertLessThanOrEqual(self::day($first), $wideFrom);
+        $lastLate = (new DateTimeImmutable($last . ' 23:30', new DateTimeZone('Europe/Copenhagen')))->getTimestamp();
+        self::assertGreaterThanOrEqual($lastLate, $wideTo);
+    }
+
     /** @return array<string, array{mixed, string|false}> request value, expected day or false */
     public static function requestDays(): array
     {

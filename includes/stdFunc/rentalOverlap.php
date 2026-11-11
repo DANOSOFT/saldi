@@ -72,6 +72,23 @@ if (!function_exists('rental_period_blocks')) {
 	}
 }
 
+if (!function_exists('rental_search_bounds')) {
+	/**
+	 * The unix times the database search for other periods is limited to: from local midnight the day before the
+	 * first day to local midnight two days after the last day. That covers every hour of the first and last day,
+	 * also on the 23- and 25-hour days when summer time starts or ends; rental_period_blocks() then decides by day.
+	 *
+	 * @param int $from First day of the new booking, unix time.
+	 * @param int $to Last day of the new booking, unix time.
+	 * @return array{0: int, 1: int} [search from, search to], unix times.
+	 */
+	function rental_search_bounds($from, $to) {
+		$fromDay = strtotime(date('Y-m-d', (int)$from));
+		$toDay = strtotime(date('Y-m-d', (int)$to));
+		return array((int)strtotime('-1 day', $fromDay), (int)strtotime('+2 days', $toDay));
+	}
+}
+
 if (!function_exists('rental_item_busy')) {
 	/**
 	 * Whether a unit has a booking (rentalperiod) or a reservation (rentalreserved) that blocks a new booking.
@@ -85,9 +102,7 @@ if (!function_exists('rental_item_busy')) {
 		$itemId = (int)$itemId;
 		$from = (int)$from;
 		$to = (int)$to;
-		// a day either side, so a period stored at another hour on the first or last day is read; rental_period_blocks() decides by day
-		$wideFrom = $from - 86400;
-		$wideTo = $to + 86400;
+		list($wideFrom, $wideTo) = rental_search_bounds($from, $to);
 		$query = db_select("SELECT rt_from, rt_to, expiry_time FROM rentalperiod WHERE item_id = $itemId AND rt_from <= $wideTo AND rt_to >= $wideFrom", __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			if (rental_period_blocks($row["rt_from"], $row["rt_to"], $from, $to, $row["expiry_time"])) return true;
