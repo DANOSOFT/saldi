@@ -28,6 +28,8 @@
 // 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261111 CL/MMR SST-993 createCust no longer fails when an account number is not a number.
 //                 The next free number comes from bookingNextFreeKontonr(), which only reads four-digit numeric kontonr.
+// 20261111 CL/MMR SST-1000 createBooking stores the booking only when the unit has no other booking or reservation in the period.
+//                 Otherwise it answers 409 and the page tells the customer. A start or end date that can't be read is refused (400).
 //
 
 
@@ -36,6 +38,7 @@ $bg = "nix";
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalOverlap.php");
 $db = public_tenant_db(ifset($_GET, "id", ""));
 include(__DIR__ . "/../includes/ordrefunc.php");
 
@@ -161,6 +164,11 @@ if(isset($_GET["createBooking"])){
     // make timestamp to unix timestamp
     $from = strtotime($data["start_date"]);
     $to = strtotime($data["end_date"]);
+    if ($from === false || $to === false || $to < $from) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
     $expiryTime = time() + 360;
     $expiryTime = date('Y-m-d H:i:s', $expiryTime);
     $query = db_select("SELECT * FROM rentalclosed", __FILE__ . " linje " . __LINE__);
@@ -171,9 +179,13 @@ if(isset($_GET["createBooking"])){
             $to = strtotime("+1 day", $to);
         }
     }
-    db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ($data[item_id], $data[cust_id], $from, $to, 0, TO_TIMESTAMP('$expiryTime', 'YYYY-MM-DD HH24:MI:SS'))", __FILE__ . " linje " . __LINE__);
-    $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $data[item_id] AND cust_id = $data[cust_id] AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
-    $data["booking_id"] = db_fetch_array($query)["id"];
+    // the booking is only stored when the unit is free: the page checked bookings it loaded earlier
+    $data["booking_id"] = rental_store_booking($data["item_id"], $data["cust_id"], $from, $to, $expiryTime);
+    if (!$data["booking_id"]) {
+        http_response_code(409);
+        echo json_encode(["error" => "unavailable", "msg" => "Enheden er ikke ledig i den valgte periode"]);
+        exit;
+    }
     if($data["unit"] == "Dag"){
         $data["days"] = $data["weeks"];
     }else{
