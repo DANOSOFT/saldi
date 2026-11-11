@@ -85,6 +85,7 @@
 // 20261104 CL/MMR SST-746 Review (PR #998): the SST-746 history line no longer names a customer's item number.
 // 20261110 CL/MJ SST-865 getInvoicesOrder() sends the invoice when EasyUBL refuses the company update, instead of stopping with die().
 //                updateCompany() saves EasyUBL's answer to temp/<db>/Update-company-error-*.json when it answers hasEndpointPeppol false.
+// 20261111 CL/MJ SST-865 That file leaves out the contact and bank details (defaultContact, payment), as temp/ is under the web root (CodeRabbit).
 
     @session_start();
     $s_id=session_id();
@@ -247,8 +248,11 @@
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
             // The update registers the company as a recipient; EasyUBL refuses that when the CVR is a
-            // Peppol endpoint elsewhere. Keep its answer, as the other error branches do.
-            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode(['response' => $response, 'status code' => $httpCode], JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            // Peppol endpoint elsewhere. Keep its answer, as the other error branches do, but not the
+            // contact and bank details: temp/ is under the web root.
+            $private = array_flip(['defaultContact', 'payment']);
+            $logged = json_encode(['response' => is_array($response) ? array_diff_key($response, $private) : $response, 'status code' => $httpCode], JSON_UNESCAPED_UNICODE);
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", $logged . "\n" . json_encode(array_diff_key($data, $private), JSON_UNESCAPED_UNICODE));
             return ['success' => false,
                 'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
                 'easyUBL_message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT),

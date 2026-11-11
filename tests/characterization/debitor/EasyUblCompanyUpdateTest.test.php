@@ -17,6 +17,7 @@ use PHPUnit\Framework\TestCase;
 //
 // History:
 // 20261110 CL/MJ SST-865 Created.
+// 20261111 CL/MJ SST-865 The refusal log leaves out the contact and bank details (CodeRabbit).
 final class EasyUblCompanyUpdateTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -157,8 +158,10 @@ final class EasyUblCompanyUpdateTest extends TestCase
             $db = 'sst865';
             $ch = curl_init();
             $httpCode = 200;
-            $data = array('name' => 'Testfirma ApS', 'cvr' => 'DK12345674', 'registerAsRecipient' => true);
-            $response = array('hasEndpointPeppol' => false, 'id' => 'c-1');
+            $data = array('name' => 'Testfirma ApS', 'cvr' => 'DK12345674', 'registerAsRecipient' => true,
+                'defaultContact' => array('email' => 'bogholder@testfirma.example', 'sms' => '+4512345678'),
+                'payment' => array('bankAccount' => '1234-0012345678'));
+            $response = array('hasEndpointPeppol' => false, 'id' => 'c-1', 'defaultContact' => array('email' => 'bogholder@testfirma.example'));
             $result = (function () use ($branch, $db, $ch, $httpCode, $data, $response) {
                 return eval($branch);
             })();
@@ -172,5 +175,8 @@ final class EasyUblCompanyUpdateTest extends TestCase
         $log = (string)file_get_contents($logs[0]);
         self::assertStringContainsString('"hasEndpointPeppol":false', $log, "EasyUBL's answer is in the file");
         self::assertStringContainsString('"registerAsRecipient":true', $log, 'and what was sent');
+        self::assertStringNotContainsString('bogholder@testfirma.example', $log, 'no contact e-mail: temp/ is under the web root');
+        self::assertStringNotContainsString('+4512345678', $log, 'no phone number');
+        self::assertStringNotContainsString('1234-0012345678', $log, 'no bank account');
     }
 }
