@@ -31,6 +31,7 @@
 // 20261110 LOE SST-967 The history page reads every id it takes from the request as a number.
 // 20261110 LOE SST-967 The history update and the delete are scoped to the customer the request proved.
 // 20261110 LOE SST-967 The row id updateOprettet() writes with is read as a number.
+// 20261110 LOE SST-967 The row the history form is filled from is scoped to the customer as well.
 
 @session_start();
 $s_id = session_id();
@@ -447,7 +448,8 @@ print "</tbody></table></td></tr>"; #tabel3a slut;
 print "<tr><td $hrtd colspan=6><hr class='hrtd'></td></tr>";
 print "<tr><td $width><table border=0 width=100%><tbody>"; #tabel3b start;
 if ($historik_id) {
-	$r = db_fetch_array(db_select("select * from historik where id = '$historik_id'", __FILE__ . " linje " . __LINE__));
+	# SST-967 the row the form is filled from has to be a row of this customer, not just an id.
+	$r = db_fetch_array(db_select("select * from historik where id = '$historik_id' and konto_id = '$id'", __FILE__ . " linje " . __LINE__));
 	$notat = ($r['notat']);
 	$kontaktet = dkdato($r['kontaktet']);
 	if ($r['kontaktes']) $kontaktes = dkdato($r['kontaktes']);

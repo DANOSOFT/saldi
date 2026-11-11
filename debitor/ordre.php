@@ -186,6 +186,7 @@
 // 20261110 LOE SST-967 The delivery-address and mail handlers refuse an order outside the case.
 // 20261110 LOE SST-967 A copy is bound to the admitted case, and a posted line id of another order is dropped.
 // 20261110 LOE SST-967 A posted credit-line reference must be a line of the admitted case.
+// 20261110 LOE SST-967 The price-list handler refuses a user without the Ordre right.
 
 @session_start();
 $s_id = session_id();
@@ -482,6 +483,10 @@ if (isset($_POST['create_debtor'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_active_pricelist_file'])) {
+	# SST-967 this clears the tenant's price-list flags, which is not case work: it needs the Ordre right.
+	if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
+		sag_workflow_refuse();
+	}
 	$selectedId = (int)$_POST['change_active_pricelist_file']; // SD-639: was raw request input in SQL
 	db_modify("UPDATE grupper SET box4 = '' WHERE art = 'PL'", __FILE__ . " linje " . __LINE__);
 	db_modify("UPDATE grupper SET box4 = 'Yes' WHERE id = '" . $selectedId . "'", __FILE__ . " linje " . __LINE__);

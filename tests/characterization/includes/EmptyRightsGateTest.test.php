@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 // History:
 // 20261109 LOE SST-967 created.
 // 20261110 LOE SST-967 The gate is one computation, the Mit Salg session and the sag workflow are pinned.
-// 20261110 LOE SST-967 The order page is pinned to the case, and the way back, the export and the pin are pinned. Every order selector in a request is checked against the case. The history page reads its ids as numbers, and the gate pins its save and delete to the proved customer. A valid id= no longer lets another id= through on the POST. A history row named on the POST is checked, and the copy and the line ids are bound to the admitted case. The credit reference is bound to the case, and every position assertion proves its guard exists first.
+// 20261110 LOE SST-967 The order page is pinned to the case, and the way back, the export and the pin are pinned. Every order selector in a request is checked against the case. The history page reads its ids as numbers, and the gate pins its save and delete to the proved customer. A valid id= no longer lets another id= through on the POST. A history row named on the POST is checked, and the copy and the line ids are bound to the admitted case. The credit reference is bound to the case, and every position assertion proves its guard exists first. The history form row and the price-list handler are scoped as well.
 
 final class EmptyRightsGateTest extends TestCase
 {
@@ -295,8 +295,16 @@ final class EmptyRightsGateTest extends TestCase
             'and a posted line id of another order is dropped');
         self::assertStringContainsString("select ordrelinjer.id from ordrelinjer, ordrer where ordrelinjer.ordre_id = ordrer.id", $ordre,
             'and a posted credit-line reference must be a line of the admitted case');
+        // Clearing the tenant's price-list flags is not case work, so the handler needs the Ordre right.
+        $plGuard = strpos($ordre, "substr((string)\$rettigheder, (int)\$modulnr, 1) < '1'");
+        $plWrite = strpos($ordre, "UPDATE grupper SET box4 = ''");
+        self::assertNotFalse($plGuard, 'the price-list handler has a rights check');
+        self::assertNotFalse($plWrite, 'the price-list write is still there');
+        self::assertLessThan($plWrite, $plGuard, 'and the check runs before it clears the flags');
         $histFile = (string)@file_get_contents(__DIR__ . '/../../../debitor/historikkort.php');
         self::assertStringContainsString("\$id = (int)\$id;", $histFile, 'updateOprettet() casts the id it writes with');
+        self::assertStringContainsString("select * from historik where id = '\$historik_id' and konto_id = '\$id'", $histFile,
+            'the row the form is filled from is scoped to the customer too');
 
         $firstWrite = strpos($ordre, 'if (isset($_GET[\'vis_lev_addr\']) && $id) {');
         $guard = strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {');
