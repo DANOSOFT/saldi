@@ -1,5 +1,6 @@
 // 20261006 CL/LH SST-842: stop with a message when vibrantPaymentLink.php returns an error instead of a link.
 // 20261015 CL/LH SST-842: reject the booking (deletes the order and rentalperiod) when no payment link is returned.
+// 20261111 CL/MMR SST-995: the calendar shows without closed days, and closed days are blocked (map returned nothing).
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${db}`,{
         method: "GET",
@@ -190,10 +191,12 @@ const calendarView = async (main, product, weeks, price, db) => {
         return response.json()
     })
 
-    const closedDates = getClosedDates.map(date => {
+    // SST-995: without closed days the API answers {"success":false,...}, so only a list holds dates;
+    // the formatted date must be returned, or flatpickr gets a list of undefined and blocks nothing.
+    const closedDates = Array.isArray(getClosedDates) ? getClosedDates.map(date => {
         date = new Date(date.date * 1000)
-        date = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
-    })
+        return date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
+    }) : []
 
     const datePick = flatpickr("#calendar", {
         inline: true, // This makes the calendar always visible
