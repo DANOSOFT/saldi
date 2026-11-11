@@ -4,6 +4,7 @@
 // 20261111 CDX/NTR Persist test ownership and retention markers for verified bulk cleanup.
 // 20261111 CDX/NTR Associate each SQL fixture consumer with its captured database identity.
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
+// 20261111 CDX/NTR Document shared fixture helper contracts at their definitions.
 
 require_once __DIR__ . '/RetainedTestDatabases.php';
 
@@ -39,7 +40,12 @@ final class TestDatabase
         echo "\n" . $this->description();
     }
 
-    /** Create an empty database, or install a clean tenant with the production installer. */
+    /**
+     * Create an empty database, or install a clean tenant with the production installer.
+     * @param string $group Test class or explicit shared fixture label.
+     * @param bool $install Whether to seed the production tenant schema and routing rows.
+     * @return self Newly owned database, released explicitly or at shutdown.
+     */
     public static function create(string $group, bool $install = true): self
     {
         $database = new self($group);
@@ -71,22 +77,29 @@ final class TestDatabase
         }
     }
 
+    /** @return string Generated PostgreSQL identifier within regnskab.db's length limit. */
     public function name(): string
     {
         return $this->name;
     }
 
+    /** @return string Full UUID used to verify database ownership. */
     public function uuid(): string
     {
         return $this->uuid;
     }
 
+    /** @return string UUID without separators, used only by this database's routing session. */
     public function sessionId(): string
     {
         return str_replace('-', '', $this->uuid);
     }
 
-    /** Repeat the class's identity inside PHPUnit's per-test output capture. */
+    /**
+     * Repeat the class's identity inside PHPUnit's per-test output capture.
+     * @param string $group Test class registered during fixture creation or sharing.
+     * @return void
+     */
     public static function reportGroup(string $group): void
     {
         if (isset(self::$groups[$group])) {
@@ -111,12 +124,17 @@ final class TestDatabase
         }
     }
 
+    /** @return string Installed test master used by both HTTP routing and the test process. */
     public static function masterDb(): string
     {
         return getenv('SALDI_CHAR_MASTER_DB') ?: 'saldi';
     }
 
-    /** Explicitly shared only by SQL fixtures using temporary tables or their own schemas. */
+    /**
+     * Explicitly share an empty database for temporary tables or private schemas.
+     * @param string $group Consuming test class, used to attach its individual output.
+     * @return self Process-owned SQL fixture shared with the named class.
+     */
     public static function sqlFixture(string $group): self
     {
         if (self::$sqlFixture === null) {
@@ -126,6 +144,7 @@ final class TestDatabase
         return self::$sqlFixture;
     }
 
+    /** @return PDO New exception-reporting connection to this database. */
     public function pdo(): PDO
     {
         $host = getenv('SALDI_CHAR_PGHOST') ?: 'postgres';
@@ -137,7 +156,7 @@ final class TestDatabase
         );
     }
 
-    /** Keep every group, including its registry/session rows, for manual inspection. */
+    /** @return bool Whether to retain every group and its routing rows for inspection. */
     public static function keep(): bool
     {
         foreach (['SALDI_TEST_KEEP_DATABASES', 'SALDI_REST_KEEP_TENANT'] as $key) {
@@ -148,7 +167,10 @@ final class TestDatabase
         return false;
     }
 
-    /** No tenant/template is required; only the installed application's master and CREATEDB access. */
+    /**
+     * Check the PostgreSQL prerequisites without exposing connection credentials.
+     * @return string|null Skip reason, or null when the installed test master is reachable.
+     */
     public static function unavailableReason(): ?string
     {
         if (!extension_loaded('pgsql')) {
@@ -172,6 +194,11 @@ final class TestDatabase
         return null;
     }
 
+    /**
+     * Open a dedicated connection with the configured test role.
+     * @param string $database Installed test master or generated test database name.
+     * @return PgSql\Connection New connection owned by the caller.
+     */
     public static function connect(string $database): PgSql\Connection
     {
         $values = [
@@ -192,6 +219,13 @@ final class TestDatabase
         return $connection;
     }
 
+    /**
+     * Execute SQL and fail explicitly when PostgreSQL rejects it.
+     * @param PgSql\Connection $connection Test-owned connection.
+     * @param string $sql SQL with PostgreSQL $1-style placeholders when parameters are supplied.
+     * @param list<string|int|float|bool|null> $params Positional values bound by pg_query_params().
+     * @return PgSql\Result Successful query result.
+     */
     public static function query(PgSql\Connection $connection, string $sql, array $params = []): PgSql\Result
     {
         $result = $params === [] ? pg_query($connection, $sql) : pg_query_params($connection, $sql, $params);
@@ -201,7 +235,12 @@ final class TestDatabase
         return $result;
     }
 
-    /** Register a generated tenant for HTTP routing; remember the exact row for cleanup. */
+    /**
+     * Register a generated tenant for HTTP routing and remember the exact cleanup row.
+     * @param string $account Account name routed to this owned database.
+     * @param bool $closed Whether the routing account should reject ordinary logins.
+     * @return int Inserted regnskab row ID.
+     */
     public function registerAccount(string $account, bool $closed = false): int
     {
         if (!$this->created || $this->released) {
@@ -230,7 +269,10 @@ final class TestDatabase
         }
     }
 
-    /** Idempotent; only a successful CREATE by this instance grants deletion authority. */
+    /**
+     * Retain or remove this instance's successfully created database; safe to repeat.
+     * @return void
+     */
     public function release(): void
     {
         if (!$this->created || $this->released) {

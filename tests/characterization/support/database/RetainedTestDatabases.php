@@ -1,12 +1,19 @@
 <?php
 // 20261111 CDX/NTR Verify persistent test identities before listing or deleting retained databases.
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
+// 20261111 CDX/NTR Document shared ownership and cleanup helper contracts.
 
 /** Persistent ownership proof survives the PHPUnit process that created a database. */
 final class RetainedTestDatabases
 {
     private const COMMENT_PREFIX = 'saldi-phpunit:v1:';
 
+    /**
+     * Persist ownership inside the database and in its PostgreSQL comment.
+     * @param TestDatabase $database Successfully created database owned by the calling fixture.
+     * @param string $group Creating test class or explicit SQL fixture label.
+     * @return void
+     */
     public static function markCreated(TestDatabase $database, string $group): void
     {
         $tenant = TestDatabase::connect($database->name());
@@ -37,7 +44,12 @@ final class RetainedTestDatabases
         }
     }
 
-    /** Remember exact application registry IDs, rather than deleting rows by an account-name prefix. */
+    /**
+     * Remember exact registry IDs instead of an account-name prefix.
+     * @param TestDatabase $database Database whose identity receives the routing ID.
+     * @param int $id Inserted master regnskab row ID.
+     * @return void
+     */
     public static function recordAccount(TestDatabase $database, int $id): void
     {
         $tenant = TestDatabase::connect($database->name());
@@ -52,7 +64,11 @@ final class RetainedTestDatabases
         }
     }
 
-    /** Active databases are never eligible for the bulk cleanup command. */
+    /**
+     * Mark a released fixture eligible for explicit operator cleanup.
+     * @param TestDatabase $database Database with its original persistent identity.
+     * @return void
+     */
     public static function markRetained(TestDatabase $database): void
     {
         $tenant = TestDatabase::connect($database->name());
@@ -66,7 +82,11 @@ final class RetainedTestDatabases
         }
     }
 
-    /** @return list<array{database:string,uuid:string,test_group:string,registry_ids:string,created_at:string}> */
+    /**
+     * List retained fixtures verified against the configured creating role and master.
+     * @param string|null $onlyDatabase Restrict the listing to one exact database name.
+     * @return list<array{database:string,uuid:string,test_group:string,registry_ids:string,created_at:string}>
+     */
     public static function listing(?string $onlyDatabase = null): array
     {
         $master = TestDatabase::connect(TestDatabase::masterDb());
@@ -91,7 +111,11 @@ final class RetainedTestDatabases
         }
     }
 
-    /** Verify again at deletion time; a prefix match or database name is never sufficient. */
+    /**
+     * Verify again before deleting a retained database and its exact routing rows.
+     * @param string $database Exact database name; a matching prefix alone grants no authority.
+     * @return void
+     */
     public static function delete(string $database): void
     {
         $master = TestDatabase::connect(TestDatabase::masterDb());
