@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- debitor/ordreliste.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,8 @@
 //                to the stored hash, and the endpoints behind the protected pages require it too.
 // 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
+// 20261111 CL/MMR SST-992 The «Ekstern booking» link passes the account as ?db=, which the booking page reads (was ?id=).
+//                 The URL is built in remoteBookingLink().
 
     @session_start();
     $s_id=session_id();
@@ -1339,10 +1341,20 @@
         echo json_encode("Produktet er nu opdateret");
     }
 
-    if(isset($_GET["getRemoteLink"])){
+    /**
+     * The public booking page link shown under «Ekstern booking».
+     * SST-992: remoteBooking/index.php reads the account from ?db=, so the link passes it there.
+     *
+     * @param string $db The account (tenant database) name.
+     * @return string Absolute URL of remoteBooking/index.php for this account.
+     */
+    function remoteBookingLink($db) {
         $serverName = $_SERVER['SERVER_NAME'];
         $firstFolder = explode('/', trim($_SERVER['REQUEST_URI'], '/'))[0];
-        echo json_encode("https://".$serverName."/".$firstFolder."/remoteBooking/index.php?id=".$db);
+        return "https://" . $serverName . "/" . $firstFolder . "/remoteBooking/index.php?db=" . urlencode($db);
+    }
+    if(isset($_GET["getRemoteLink"])){
+        echo json_encode(remoteBookingLink($db));
     }
 
     function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_ny,$procent,$art,$momsfri,$posnr,$linje_id,$incl_moms,$kdo,$rabatart,$kopi,$saet,$fast_db,$lev_varenr,$lager,$linje) { #20140426

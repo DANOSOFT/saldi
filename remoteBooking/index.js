@@ -1,5 +1,6 @@
 // 20261006 CL/LH SST-842: stop with a message when vibrantPaymentLink.php returns an error instead of a link.
 // 20261015 CL/LH SST-842: reject the booking (deletes the order and rentalperiod) when no payment link is returned.
+// 20261111 CL/MMR SST-992: also read the account from ?id=, the form older «Ekstern booking» links use.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${db}`,{
         method: "GET",
@@ -758,7 +759,7 @@ const appState = {
   const main = async () => {
     // get url parameters
     const urlParams = new URLSearchParams(window.location.search)
-    const db = urlParams.get('db')
+    const db = urlParams.get('db') || urlParams.get('id')
     
     // Initialize app with database ID
     appState.init(db)

@@ -2,7 +2,8 @@
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
-$db = public_tenant_db(ifset($_GET, "db", ""));
+// SST-992: links copied before 2026-11 carry the account as ?id=; ?db= is the current form.
+$db = public_tenant_db(ifset($_GET, "db", ifset($_GET, "id", "")));
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 
 $query = db_select("SELECT trade_conditions FROM rentalpayment", __FILE__ . " linje " . __LINE__);
