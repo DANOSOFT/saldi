@@ -1,0 +1,428 @@
+/* ---- css/crm.css --- ver 5.1.1 --- 2026.11.11 ---
+   20261020 ASR CRM redesign (debitor/crm.php) after prototype_crm.html v1.1. Built on the tokens of css/saldi-theme.css
+                and the fonts of css/saldi-fonts.css (Saldi Grotesk orients, Inter is content).
+   20261109 ASR The CRM in the new design (prototype D) on the shared UI kit: css/saldi-kit.css draws the page ground, panels,
+                tables, tabs, buttons, fields, segmented controls, notes, the drawer, dialogs, popover and toast. This file is only
+                what the kit lacks (the head row, the follow-up table's columns, the board, the calendar grid and week, the feed and
+                the timeline, the composer, the drawer's key figures, the gear panel, colleague tokens), scoped under .sk and written
+                with the kit's --sk-* tokens, so dark mode follows the theme. The user's own button colour is no longer used: the one
+                filled button is the kit's navy. Layout, texts and behaviour are as before.
+   20261109 ASR Review round 1: the board bleeds to the frame edge again with 13rem columns, the week view fills the frame, status
+                cells and key-figure labels no longer lose their text, wider row actions and rebalanced Kunder columns, a 24 px hit
+                area on the done tick, the margin reset no longer beats the kit, and the picker, lost reasons, funnel and feed day
+                heads reuse the kit's list, button, segmented control and form sub-head instead of copies.
+   20261110 CDX/ASR Spacing for lead creation and debtor conversion forms using the shared field and note styles.
+   20261111 CDX/ASR Add a local notifications button and list while keeping the design scoped to CRM. */
+
+/* ---- tokens the kit has none of: the status colours. The kit has no categorical palette, so a status group takes the theme's
+   series colours (css/saldi-theme.css --s1 to --s7, with light and dark values, as on the dashboard's charts); the fallbacks are the
+   light values, as in the kit's own token block. A status outside every group is the kit's .sk-off. ---- */
+.sk.crm { --crm-s1: var(--s1, #4FA0EE); --crm-s2: var(--s2, #7A3AD8); --crm-s3: var(--s3, #D9822B); --crm-s4: var(--s4, #12a5b8);
+	--crm-s6: var(--s6, #c22c78); --crm-s7: var(--s7, #22a04e); }
+.sk .crm-t1 { --sk-tone: var(--crm-s1); --sk-tone-ink: var(--crm-s1); }
+.sk .crm-t2 { --sk-tone: var(--crm-s2); --sk-tone-ink: var(--crm-s2); }
+.sk .crm-t3 { --sk-tone: var(--crm-s3); --sk-tone-ink: var(--crm-s3); }
+.sk .crm-t4 { --sk-tone: var(--crm-s4); --sk-tone-ink: var(--crm-s4); }
+.sk .crm-t6 { --sk-tone: var(--crm-s6); --sk-tone-ink: var(--crm-s6); }
+.sk .crm-t7 { --sk-tone: var(--crm-s7); --sk-tone-ink: var(--crm-s7); }
+
+/* ---- the page: an app-like page, the head row stays and the open view scrolls (html and body do not) ---- */
+html:has(.sk.crm), html:has(.sk.crm) > body { height: 100%; overflow: hidden; }
+.sk.sk-page.crm { height: 100vh; padding: 4px var(--sk-page-x) 0; gap: 12px; overflow: hidden; }
+/* zero specificity: removes the browser's margins but never beats a kit rule (.sk-dialog-t keeps its 6 px) */
+:where(.sk.crm) :where(h2, h3, h4, p, ul) { margin: 0; }
+/* the CRM's icons are drawn with strokes; the kit fills icons in buttons, fields and tabs (it expects filled icons) */
+.sk.crm svg[fill="none"][stroke] { fill: none; }
+/* the page runs in quirks mode (online.php's HTML 4.01 doctype), where tables do not inherit the colour and line height */
+.sk .crm-table { table-layout: fixed; color: var(--sk-text); line-height: 1.4; }
+
+/* ---- head row: the tabs left, the tools right, one hairline under both. On a laptop with the Saldi sidebar the tools wrap to a
+   row of their own instead of pushing Ny and the gear off-screen (review R79); each half keeps its own line then. ---- */
+.sk .crm-head { flex: none; display: flex; flex-wrap: wrap; align-items: stretch; }
+.sk .crm-head > .sk-tabs { flex: 1 1 auto; }
+.sk .crm-head > .sk-tabs > .sk-tab { height: 2.5rem; }
+.sk .crm-tab-late { font: 400 var(--sk-fs-s)/1 var(--sk-font); color: var(--sk-bad); }
+.sk .crm-tools { flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 8px; min-height: 2.5rem;
+	padding: 4px 0 4px 16px; border-bottom: 1px solid var(--sk-border); }
+.sk .crm-q { --sk-w: 13rem; transition: width var(--sk-t) var(--sk-ease); }
+.sk .crm-q:focus-within { --sk-w: 16rem; }
+.sk #grpSel { max-width: 12rem; }
+.sk .gear { position: relative; display: flex; }
+.sk .crm-note { flex: none; }
+.sk .crm-note .sk-link { font-weight: 500; }
+@media (max-width: 1180px) {
+	.sk .crm-q { --sk-w: 10rem; }
+	.sk .crm-q:focus-within { --sk-w: 13rem; }
+}
+/* R79 as before: in a narrow frame (1280 px with the Saldi sidebar) "+ Ny …" keeps only its + (the title and the key N still
+   name it), so the head stays one row; the kit's controls are narrower than the old ones, so this starts at 1100 px, not 1180 px */
+@media (max-width: 1100px) {
+	.sk #newLbl { display: none; }
+	.sk #newBtn { width: var(--sk-ctl-h); padding: 0; }
+}
+
+/* ---- the views: each scrolls on its own, edge to edge so the scrollbar sits at the frame's edge ---- */
+.sk .crm-view { flex: 1 1 auto; min-height: 0; margin: 0 calc(-1 * var(--sk-page-x)); padding: 0 var(--sk-page-x) 24px; overflow: auto;
+	scrollbar-width: thin; scrollbar-color: var(--sk-border-field) transparent; }
+
+/* ---- tables (Opfølgning, Kunder): the kit's table in a panel; the head row and the group headings stay in view ---- */
+.sk .crm-table > thead th { position: sticky; top: 0; z-index: 2; }
+.sk .crm-grp > .sk-tr-sub > td { position: sticky; top: var(--sk-row-h); z-index: 1; }
+.sk .crm-table tr:is(.sk-tr-sub, .crm-showrow):hover > td { background: var(--sk-surface); }
+/* a tbody per group: the kit takes the line off a tbody's last row, but between groups it is wanted */
+.sk .crm-table > tbody:not(:last-child) > tr:last-child > td { border-bottom: 1px solid var(--sk-border); }
+.sk .crm-table .body-row { cursor: pointer; }
+.sk .crm-table .body-row:focus-visible { outline: none; }
+.sk .crm-table .body-row:focus-visible > td { background: var(--sk-row-hover); }
+.sk .crm-table .body-row:focus-visible > td:first-child { box-shadow: inset 2px 0 0 var(--sk-focus); }
+.sk .crm-showrow > td { height: var(--sk-band-h); }
+.sk .crm-table th.sk-num { text-align: right; }
+.sk .crm-name { font-weight: 500; color: var(--sk-link); }
+.sk .crm-txt { color: var(--sk-text-2); }
+.sk .crm-table .sk-status { color: var(--sk-text-2); }
+/* inline, so the cell's own ellipsis shortens a long status name (the kit's .sk-status is inline-flex) */
+.sk .crm-table td > .sk-status { display: inline; }
+.sk .crm-table td > .sk-status::before { margin-right: 6px; vertical-align: 1px; }
+.sk .crm-who { color: var(--sk-text-2); }
+.sk .crm-who.crm-me { color: var(--sk-text); }
+.sk .crm-due { color: var(--sk-text-2); font-variant-numeric: tabular-nums; }
+.sk .crm-due.crm-today { color: var(--sk-text); font-weight: 600; }
+.sk .crm-late, .sk .crm-due.crm-late { color: var(--sk-bad); }
+.sk .crm-mt { display: inline-flex; align-items: center; gap: 4px; margin-right: 4px; vertical-align: top; font-weight: 600; color: var(--sk-text); font-variant-numeric: tabular-nums; }
+.sk .crm-mt svg { width: 14px; height: 14px; }
+.sk .crm-follow .crm-w-tick { width: 2.25rem; }
+.sk .crm-follow .crm-w-cust { width: 23%; }
+.sk .crm-follow .crm-w-st { width: 8.5rem; }
+.sk .crm-follow .crm-w-who { width: 11%; }
+.sk .crm-follow .crm-w-due { width: 7.5rem; }
+.sk .crm-follow .crm-w-act { width: 9.5rem; }   /* Udsæt + Åbn, also in English (Postpone + Open) */
+.sk .crm-custs .crm-w-name { width: 23%; }
+.sk .crm-custs .crm-w-ppl { width: 13%; }
+.sk .crm-custs .crm-w-st { width: 13%; }
+.sk .crm-custs .crm-w-who { width: 11%; }
+.sk .crm-custs .crm-w-last { width: 15%; }
+.sk .crm-custs .crm-w-next { width: 12%; }
+.sk .crm-custs .crm-w-rev { width: 13%; }
+
+/* the done tick: the kit's 14 px checkbox look on the button that marks a follow-up done (with undo in the toast) */
+.sk .crm-tc { padding-right: 0; }
+.sk .tick { position: relative; display: grid; place-items: center; width: 14px; height: 14px; margin: 0; padding: 0; vertical-align: middle; border: 1px solid var(--sk-border-field); border-radius: 3px;
+	background: var(--sk-surface); color: transparent; cursor: pointer; transition: background-color var(--sk-t), border-color var(--sk-t), color var(--sk-t); }
+.sk .tick::before { content: ""; position: absolute; inset: -5px; }   /* the 14 px look, a 24 px target: a near miss does not open the drawer */
+.sk .tick svg { width: 10px; height: 10px; }
+.sk .tick:hover { border-color: var(--sk-border-field-hover); color: var(--sk-text-3); }
+.sk .tick.on { background: var(--sk-on); border-color: var(--sk-on); color: var(--sk-primary-text); }
+.sk .tick:focus-visible { border-color: var(--sk-focus); box-shadow: var(--sk-focus-ring); outline: none; }
+/* row actions on hover or focus, as small ghost buttons */
+.sk .crm-acts { display: inline-flex; justify-content: flex-end; gap: 2px; opacity: 0; transition: opacity var(--sk-t); }
+.sk .body-row:is(:hover, :focus-within) .crm-acts, .sk .crm-acts.crm-acts-on { opacity: 1; }
+.sk .leaving { animation: crm-leave .35s var(--sk-ease) forwards; }
+@keyframes crm-leave { to { opacity: 0; transform: translateX(16px); } }
+.sk .done-row :is(.crm-name, .crm-txt) { color: var(--sk-text-3); text-decoration: line-through; text-decoration-color: var(--sk-border-field); }
+
+/* Kunder: the status groups and, under a chosen group, its statuses as a frameless small segmented control (a funnel, › between them) */
+.sk .crm-funnel { min-height: 2.25rem; padding-top: 4px; padding-bottom: 4px; }
+.sk .crm-funnel-seg { gap: 2px 4px; padding: 0; border: 0; background: none; }
+.sk .crm-funnel-seg > button { height: var(--sk-ctl-h-sm); }
+.sk .crm-arrow { align-self: center; color: var(--sk-text-3); font-size: var(--sk-fs-s); }
+
+/* ---- Sager: the toolbar on the ground, then the columns; a column has a header strip and white cards straight on the ground ---- */
+.sk #v-pipe:not([hidden]) { display: flex; flex-direction: column; gap: 12px; overflow: hidden; padding-bottom: 12px; }
+.sk .crm-pipebar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.sk .crm-psum { font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-psum b { font-weight: 600; color: var(--sk-text); font-variant-numeric: tabular-nums; }
+/* the board bleeds to the frame edge (as before), so a column cut by the edge reads as "more to the right"; 4 px all round give the
+   drop outline room. 13rem columns: the five columns of a usual board fit a laptop frame with the Saldi sidebar */
+.sk .crm-board { flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; gap: 12px; margin: -4px calc(-1 * var(--sk-page-x)) 0; padding: 4px var(--sk-page-x);
+	overflow-x: auto; scroll-padding-inline: var(--sk-page-x); scrollbar-width: thin; scrollbar-color: var(--sk-border-field) transparent; }
+.sk .crm-col { flex: 1 1 13rem; display: flex; flex-direction: column; gap: 6px; min-width: 13rem; max-width: 340px; min-height: 0; border-radius: var(--sk-r); }
+.sk .crm-col.drop { outline: 1px dashed var(--sk-border-field-hover); outline-offset: 3px; }
+.sk .crm-colh { flex: none; display: flex; align-items: center; gap: 6px; min-height: var(--sk-band-h); padding: 0 10px; background: var(--sk-surface-2); border: 1px solid var(--sk-border);
+	border-radius: var(--sk-r); font: 700 var(--sk-fs-s)/1.2 var(--sk-font); color: var(--sk-text); }
+.sk .crm-coln { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk .crm-colsum { margin-left: auto; font-weight: 400; color: var(--sk-text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sk .crm-cards { flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px; min-height: 60px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--sk-border-field) transparent; }
+.sk .crm-card { flex: none; display: flex; flex-direction: column; gap: 1px; width: 100%; min-width: 0; margin: 0; padding: 6px 8px; text-align: left; background: var(--sk-surface);
+	border: 1px solid var(--sk-border); border-radius: var(--sk-r); color: var(--sk-text); cursor: grab; transition: border-color var(--sk-t), background-color var(--sk-t); }
+.sk .crm-card:hover { border-color: var(--sk-border-field-hover); }
+.sk .crm-card.dragging { background: var(--sk-row-sel); }
+.sk .crm-card-1 { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.sk .crm-card-1 b { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.sk .crm-val { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sk .crm-card-2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-card-3 { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: var(--sk-fs-s); color: var(--sk-text-3); }
+.sk .crm-age { margin-left: auto; }
+.sk :is(.crm-stale, .crm-nofu) { color: var(--sk-warn-ink); }
+.sk .crm-inv { font-weight: 600; color: var(--sk-good); }
+/* Vundet / Tabt: drop zones shown while a card is dragged, quiet until a card is over them */
+.sk .crm-ends { flex: none; display: flex; gap: 12px; height: 0; opacity: 0; overflow: hidden; transition: height .2s var(--sk-ease), opacity .2s; }
+body.carddrag .sk .crm-ends { height: 3.5rem; opacity: 1; }
+.sk .crm-end { flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--sk-surface); border: 1px dashed var(--sk-border-field); border-radius: var(--sk-r);
+	color: var(--sk-text-2); font-weight: 500; transition: background-color var(--sk-t), border-color var(--sk-t); }
+.sk .crm-end small { font-size: var(--sk-fs-s); font-weight: 400; color: var(--sk-text-3); }
+.sk .crm-end.drop { border-style: solid; border-color: var(--sk-tone); color: var(--sk-tone-ink); }
+.sk .crm-end.sk-ok.drop { background: var(--sk-good-bg); }
+.sk .crm-end.sk-bad.drop { background: var(--sk-bad-bg); }
+
+/* ---- Kalender: the toolbar on the ground (stays in view), the month or week in one panel ---- */
+.sk .crm-calbar { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 0 0 12px; background: var(--sk-bg); }
+.sk .crm-calt { min-width: 9.5rem; margin: 0 4px; font: 600 var(--sk-fs-h)/1.3 var(--sk-font-display); color: var(--sk-text); text-transform: capitalize; }
+.sk .crm-legend { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-left: 12px; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-legend .sk-status { color: var(--sk-text-2); }
+.sk .crm-hint { color: var(--sk-text-3); }
+.sk .crm-cal { overflow: hidden; }
+.sk .crm-month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.sk .crm-dow { display: flex; align-items: center; height: var(--sk-row-h); padding: 0 8px; background: var(--sk-surface-2); border-bottom: 1px solid var(--sk-border);
+	font: 700 var(--sk-fs-s)/1.2 var(--sk-font); color: var(--sk-text); }
+.sk .crm-day { position: relative; min-height: 7.375rem; padding: 4px 4px 6px; border-right: 1px solid var(--sk-grid); border-bottom: 1px solid var(--sk-grid); transition: background-color var(--sk-t); }
+.sk .crm-month > .crm-day:nth-child(7n) { border-right: 0; }
+.sk .crm-month > .crm-day:nth-last-child(-n+7) { border-bottom: 0; }
+.sk .crm-day.crm-wkend { background: color-mix(in srgb, var(--sk-surface-2) 60%, var(--sk-surface)); }
+.sk .crm-day.crm-out { background: var(--sk-surface-2); }
+.sk .crm-day.drop { background: var(--sk-row-sel); outline: 1px solid var(--sk-focus); outline-offset: -1px; }
+.sk .crm-dn { position: relative; display: inline-block; min-width: 1.25rem; margin: 0 0 2px 4px; font: 500 var(--sk-fs)/1.5rem var(--sk-font); color: var(--sk-text-2); font-variant-numeric: tabular-nums; }
+.sk .crm-day.crm-out .crm-dn { color: var(--sk-text-3); }
+/* today: the date in the link colour with a short mark under it (no filled circle) */
+.sk :is(.crm-day, .crm-wcol).crm-today :is(.crm-dn, .crm-wh b) { color: var(--sk-link); font-weight: 600; }
+.sk .crm-day.crm-today .crm-dn::after, .sk .crm-wcol.crm-today .crm-wh b::after { content: ""; position: absolute; right: 0; bottom: 1px; left: 0; height: 2px; border-radius: 1px; background: var(--sk-mark); }
+.sk .crm-day.crm-today .crm-dn { min-width: 0; margin-left: 2px; padding: 0 2px; }   /* the mark hugs the number */
+.sk .crm-wcol.crm-today .crm-wh b::after { bottom: -4px; }   /* clear of the digits */
+.sk .crm-add { position: absolute; top: 4px; right: 4px; opacity: 0; }
+.sk :is(.crm-day, .crm-wcol):hover .crm-add, .sk .crm-add:focus-visible { opacity: 1; }
+.sk .crm-ev { display: flex; align-items: center; gap: 6px; width: 100%; height: 1.375rem; margin: 0; padding: 0 4px; overflow: hidden; border: 0; border-radius: 3px; background: none;
+	color: var(--sk-text); font-size: var(--sk-fs-s); text-align: left; white-space: nowrap; cursor: grab; }
+.sk .crm-ev:hover { background: var(--sk-row-hover); }
+.sk .crm-ev::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--sk-info); }
+.sk .crm-ev.crm-meet::before { border-radius: 1px; }
+.sk .crm-ev.crm-late::before { background: var(--sk-bad); }
+.sk .crm-ev.crm-done { color: var(--sk-text-3); }
+.sk .crm-ev.crm-done::before { background: var(--sk-text-3); }
+.sk .crm-ev.crm-done span { text-decoration: line-through; }
+.sk .crm-ev span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sk .crm-ev .crm-tm { flex: none; font-style: normal; color: var(--sk-text-2); font-variant-numeric: tabular-nums; }
+.sk .crm-ini { flex: none; margin-left: auto; font-size: var(--sk-fs-xs); color: var(--sk-text-3); }
+.sk :is(.crm-ev, .crm-wcard).dragging { opacity: .5; }
+.sk .crm-more { margin-left: 4px; font-size: var(--sk-fs-s); }
+/* the week fills the frame, as before (its columns are drop targets); the month keeps its own height */
+.sk #v-cal:not([hidden]) { display: flex; flex-direction: column; }
+.sk #v-cal > * { flex: none; }
+.sk #v-cal > .crm-calw { flex: 1 0 auto; display: flex; flex-direction: column; }
+.sk .crm-week { flex: 1 0 auto; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.sk .crm-wcol { min-height: 26rem; border-right: 1px solid var(--sk-grid); transition: background-color var(--sk-t); }
+.sk .crm-wcol:last-child { border-right: 0; }
+.sk .crm-wcol.drop { background: var(--sk-row-sel); }
+.sk .crm-wh { position: relative; display: flex; align-items: center; gap: 6px; height: var(--sk-band-h); padding: 0 8px; background: var(--sk-surface-2); border-bottom: 1px solid var(--sk-border);
+	font: 400 var(--sk-fs-s)/1.2 var(--sk-font); color: var(--sk-text-2); }
+.sk .crm-wh b { position: relative; font-weight: 700; color: var(--sk-text); font-variant-numeric: tabular-nums; }
+.sk .crm-wh .crm-add { top: 2px; }
+.sk .crm-wbody { display: flex; flex-direction: column; gap: 6px; padding: 8px 6px 12px; }
+/* a meeting or follow-up in the week: a white box with the tone as a 3 px left edge (as .sk-note), time first */
+.sk .crm-wcard { --crm-edge: var(--sk-info); display: block; width: 100%; margin: 0; padding: 5px 8px; background: var(--sk-surface); border: 1px solid var(--sk-border);
+	border-left: 3px solid var(--crm-edge); border-radius: var(--sk-r); color: var(--sk-text); font-size: var(--sk-fs-s); text-align: left; cursor: grab; transition: border-color var(--sk-t); }
+.sk .crm-wcard:hover { border-color: var(--sk-border-field-hover); border-left-color: var(--crm-edge); }
+.sk .crm-wcard.crm-late { --crm-edge: var(--sk-bad); }
+.sk .crm-wcard.crm-done { --crm-edge: var(--sk-text-3); color: var(--sk-text-3); }
+.sk .crm-wcard.crm-done b { text-decoration: line-through; }
+.sk .crm-wcard .crm-tm { display: block; font-weight: 600; color: var(--sk-text-2); font-variant-numeric: tabular-nums; }
+.sk .crm-wcard b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.sk .crm-wnote { display: -webkit-box; margin-top: 1px; overflow: hidden; color: var(--sk-text-2); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.sk .crm-wcard small { display: block; margin-top: 2px; font-size: var(--sk-fs-xs); color: var(--sk-text-3); }
+
+/* ---- Aktivitet (a feed: rows with hairlines, no zebra) and the drawer's history ---- */
+.sk .crm-feed { max-width: 55rem; }
+.sk .crm-fday { position: sticky; top: 0; z-index: 1; background: var(--sk-surface); border-bottom: 1px solid var(--sk-border); }   /* on .sk-form-sub */
+.sk .crm-item { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 10px; padding: 8px var(--sk-pad); border-bottom: 1px solid var(--sk-border); }
+.sk :is(.crm-feed, .crm-tl) > .crm-item:last-child { border-bottom: 0; }
+.sk .crm-ico { display: flex; padding-top: 1px; color: var(--sk-text-2); }
+.sk .crm-ico svg { width: 16px; height: 16px; }
+.sk .crm-top { font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-top b { font-weight: 600; color: var(--sk-text); }
+.sk .crm-top a { font-weight: 500; }
+.sk .crm-itx { margin-top: 2px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.sk .crm-item time { font-size: var(--sk-fs-s); color: var(--sk-text-3); white-space: nowrap; }
+.sk .crm-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.sk .crm-ia { display: flex; gap: 2px; opacity: 0; transition: opacity var(--sk-t); }
+.sk .crm-item:is(:hover, :focus-within) .crm-ia { opacity: 1; }
+.sk .crm-fu { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-fu svg { width: 14px; height: 14px; }
+.sk .crm-fu.crm-late { color: var(--sk-bad); }
+.sk .crm-fu.crm-done { color: var(--sk-good); }
+.sk button.crm-fu { padding: 0; border: 0; background: none; font: inherit; font-size: var(--sk-fs-s); text-align: left; cursor: pointer; }
+.sk button.crm-fu:hover { text-decoration: underline; text-underline-offset: 2px; }
+.sk .crm-attach { display: inline-flex; align-items: center; gap: 4px; margin: 4px 0 0 12px; font-size: var(--sk-fs-s); }
+.sk .crm-attach svg { width: 14px; height: 14px; }
+.sk .flash { animation: crm-flash 1.4s var(--sk-ease); }
+@keyframes crm-flash { from { background-color: var(--sk-row-sel); } to { background-color: transparent; } }
+
+/* ---- the customer drawer (.sk-drawer): wider than the kit's, head with status, links, key figures and tabs, then the body ---- */
+.sk #drawer:not(.open), .sk #dscrim:not(.open), .sk #scrim:not(.open), .sk #panel:not(.open), .sk #menu:not(.open), .sk #toast:not(.show) { display: none; }
+.sk .crm-drawer { width: min(40rem, calc(100vw - 16px)); }
+.sk .crm-dh { align-items: flex-start; gap: 8px; padding: 10px 8px 10px 16px; }
+.sk .crm-dt { flex: 1 1 auto; min-width: 0; }
+.sk .crm-dt .sk-drawer-t { display: block; }
+.sk #dTitle:focus { outline: none; }
+.sk .crm-dsub { margin-top: 2px; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-own { white-space: nowrap; }
+.sk .crm-own .sk-input { max-width: 12rem; margin-left: 2px; }
+/* the status select with its dot */
+.sk .crm-stwrap { --crm-dot: var(--sk-tone, var(--sk-text-3)); position: relative; flex: none; }
+.sk .crm-stwrap::before { content: ""; position: absolute; top: 50%; left: 9px; z-index: 1; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--crm-dot); pointer-events: none; }
+.sk .crm-stsel { max-width: 13rem; padding-left: 21px; }
+.sk .crm-dtop { flex: none; padding: 10px 16px 0; }
+.sk .crm-links { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.sk .crm-links a { display: inline-flex; align-items: center; gap: 5px; }
+.sk .crm-links svg { width: 16px; height: 16px; }
+.sk .crm-kv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 10px; background: var(--sk-surface); border: 1px solid var(--sk-border); border-radius: var(--sk-r); }
+.sk .crm-kv > div { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; padding: 6px 10px; }   /* values line up when a label wraps */
+.sk .crm-kv > div + div { border-left: 1px solid var(--sk-border); }
+.sk .crm-kv span { display: block; font-size: var(--sk-fs-s); color: var(--sk-text-2); }   /* wraps: "ekskl. moms" stays readable */
+.sk .crm-kv small { font-size: var(--sk-fs-xs); white-space: nowrap; }   /* "ekskl. moms" moves to the next line as one unit */
+.sk .crm-kv b { display: block; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sk .crm-kv b.crm-late { color: var(--sk-bad); }
+.sk .crm-dtabs { margin-top: 6px; }
+.sk .crm-db { padding: 12px 16px 24px; }
+/* the next follow-up */
+.sk .crm-next { align-items: flex-start; margin-bottom: 12px; }
+.sk .sk-note.crm-next > .crm-next-ac { flex: none; display: flex; gap: 6px; }
+.sk .crm-next-l { font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-next.sk-bad .crm-next-l { color: var(--sk-bad); }
+.sk .crm-next p { margin-top: 1px; }
+/* the composer: a white hairline box; type and follow-up date as segmented controls; Gem is the drawer's one primary */
+.sk .crm-comp { display: flex; flex-direction: column; gap: 8px; padding: 8px; background: var(--sk-surface); border: 1px solid var(--sk-border); border-radius: var(--sk-r); }
+.sk .crm-ctop, .sk .crm-cfoot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.sk .crm-with { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-with .sk-input { max-width: 11rem; }
+.sk .crm-comp textarea.sk-input { display: block; width: 100%; }
+.sk .crm-lbl { font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-date { width: 8.5rem; }
+.sk .owner { display: none; align-items: center; gap: 6px; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .owner.show { display: inline-flex; }
+.sk .crm-closeprev { flex: 1 1 100%; align-items: flex-start; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-closeprev > .sk-check { margin-top: 1px; }
+.sk .crm-comp .sk-btn:disabled { pointer-events: auto; }   /* the title says why Gem waits; a disabled button still cannot be clicked */
+.sk .crm-comp .sk-btn-primary:disabled:hover { --sk-btn-bg: var(--sk-primary); --sk-btn-bd: var(--sk-primary); }   /* and does not look clickable */
+.sk .crm-tl { margin-top: 12px; }
+.sk .crm-tl > .crm-item { padding-right: 0; padding-left: 0; }
+/* Sager og ordrer, Kontaktpersoner: quiet rows in white boxes */
+.sk .crm-box { margin-bottom: 8px; }
+.sk .crm-boxh { padding-left: 0; padding-right: 0; }   /* .sk-form-sub above a box, as the gear's section heads */
+.sk .crm-d { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px var(--sk-pad); border-bottom: 1px solid var(--sk-border); }
+.sk .crm-box > .crm-d:last-child, .sk .crm-box > .crm-p:last-child { border-bottom: 0; }
+.sk .crm-d[data-editdeal] { cursor: pointer; transition: background-color var(--sk-t); }
+.sk .crm-d[data-editdeal]:hover { background: var(--sk-row-hover); }
+.sk .crm-d b { font-weight: 600; }
+.sk .crm-d[data-editdeal]:hover b, .sk .crm-doc a:hover b { text-decoration: underline; text-underline-offset: 2px; }
+.sk .crm-doc a { color: inherit; text-decoration: none; }
+.sk .crm-amt { font-variant-numeric: tabular-nums; text-align: right; }
+.sk .crm-d small { grid-column: 1 / -1; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-d .sk-link { font-size: var(--sk-fs-s); }
+.sk .crm-ddsug { grid-column: 1 / -1; justify-self: start; font-weight: 500; }
+.sk .crm-none { padding: 8px var(--sk-pad); color: var(--sk-text-3); }
+.sk .crm-btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.sk .crm-db .crm-hint { margin: -8px 0 12px; font-size: var(--sk-fs-s); }
+.sk .crm-p { padding: 8px var(--sk-pad); border-bottom: 1px solid var(--sk-border); }
+.sk .crm-p1 { display: flex; align-items: center; gap: 8px; }
+.sk .crm-p1 b { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+.sk .crm-pl { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 2px; font-size: var(--sk-fs-s); }
+
+/* ---- dialogs (.sk-modal > .sk-dialog) ---- */
+.sk .crm-dlg { width: min(35rem, calc(100vw - 32px)); }
+.sk .crm-dlg.crm-dlg-w { width: min(37.5rem, calc(100vw - 32px)); }
+.sk .crm-dlg .sk-dialog-b + .sk-dialog-b { margin-top: 8px; }
+.sk .crm-dlg > .sk-dialog-t + .sk-fields-2 { margin-top: 12px; }
+.sk .crm-pickh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0 0 12px; }
+.sk .crm-pickh b { font-weight: 600; }
+.sk .crm-wide { grid-column: 1 / -1; }
+.sk .crm-pair { column-gap: 8px; }
+.sk .crm-lead-form { margin-top: 16px; }
+.sk .crm-form-error { margin-top: 8px; }
+.sk .crm-form-error[hidden] { display: none; }
+/* the customer picker and the "which sag" lists: the kit's navigation list (.sk-list > button.sk-list-row, no zebra) edge to edge in
+   the dialog; keyboard highlight in the selection colour. 19.5rem shows half of the 10th row, so the list reads as scrollable */
+.sk .crm-dq { --sk-w: 100%; display: flex; margin-top: 12px; }
+.sk .crm-res { --sk-pad: 16px; max-height: 19.5rem; margin: 12px -16px -16px; overflow: auto; border-top: 1px solid var(--sk-border); }
+.sk .crm-dlg > .sk-dialog-t + .crm-res { margin-top: 10px; }
+.sk .crm-res > .sk-list-row { min-height: 2rem; }
+.sk .crm-res > .sk-list-row.hl { background: var(--sk-row-sel); }
+.sk .crm-res > .sk-list-row:focus-visible { outline-offset: -2px; }
+.sk .crm-res .sk-list-t { flex: 0 1 auto; max-width: 60%; overflow: hidden; text-overflow: ellipsis; }
+.sk .crm-res .sk-list-meta { color: var(--sk-text-3); }
+.sk .crm-res > .sk-empty { padding: 20px 16px; }
+/* colleagues: quiet tokens, + to add, × to remove (no filled colour) */
+.sk .crm-tokens { display: flex; flex-wrap: wrap; gap: 4px; }
+.sk .crm-token { display: inline-flex; align-items: center; gap: 4px; height: var(--sk-ctl-h-sm); margin: 0; padding: 0 8px 0 6px; border: 1px dashed var(--sk-border-field); border-radius: var(--sk-r);
+	background: var(--sk-surface); color: var(--sk-text-2); font: 500 var(--sk-fs-s)/1 var(--sk-font); white-space: nowrap; cursor: pointer; transition: border-color var(--sk-t), color var(--sk-t); }
+.sk .crm-token svg { width: 12px; height: 12px; color: var(--sk-text-3); }
+.sk .crm-token > svg:last-child { display: none; }
+.sk .crm-token:hover:not(:disabled) { border-color: var(--sk-border-field-hover); color: var(--sk-text); }
+.sk .crm-token.on { padding: 0 6px 0 8px; border-style: solid; border-color: var(--sk-border); background: var(--sk-surface-2); color: var(--sk-text); }
+.sk .crm-token.on > svg:first-child { display: none; }
+.sk .crm-token.on > svg:last-child { display: inline; }
+.sk .crm-token:disabled { cursor: default; opacity: .6; }
+/* why a sag was lost: one optional choice, small kit buttons; the chosen one as a chosen .sk-seg button */
+.sk .crm-reasons { display: flex; flex-wrap: wrap; gap: 4px; margin: 12px 0; }
+.sk .crm-choice[aria-pressed="true"] { --sk-btn-bg: var(--sk-hover); --sk-btn-fg: var(--sk-text); font-weight: 600; }
+/* the busy warning, the invitation boxes, the left (destructive) footer button */
+.sk .crm-busy { display: block; margin: 0 0 12px; }
+.sk .crm-busy b { display: block; margin-bottom: 2px; color: var(--sk-warn-ink); }
+.sk .crm-busy .sk-link { margin-top: 4px; font-weight: 500; }
+.sk .crm-minvs { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.sk .crm-minv { align-items: flex-start; }
+.sk .crm-minv > .sk-check { margin-top: 2px; }
+.sk .crm-mix { margin-left: 20px; font-size: var(--sk-fs-s); }
+.sk .crm-mix:empty { display: none; }
+.sk .crm-cancel { margin-top: 12px; }
+.sk .crm-left { margin-right: auto; }
+/* the offer/order of a sag */
+.sk .crm-docbox { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 4px; padding: 8px 12px; background: var(--sk-surface-2); border: 1px solid var(--sk-border); border-radius: var(--sk-r); }
+.sk .crm-dd1 { display: flex; align-items: center; gap: 12px; width: 100%; }
+.sk .crm-dd1 > span:first-child { flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; min-width: 0; }
+.sk .crm-docbox svg { width: 16px; height: 16px; color: var(--sk-text-2); }
+.sk .crm-ddl { display: flex; gap: 14px; }
+/* Kalender -> Abonnér */
+.sk .crm-icurl { display: flex; gap: 8px; margin: 12px 0; }
+.sk .crm-icurl .sk-input { flex: 1 1 auto; min-width: 0; font-size: var(--sk-fs-s); }
+.sk .crm-ich { margin: 0 0 12px; padding-left: 18px; line-height: 1.7; color: var(--sk-text-2); }
+
+/* ---- the gear panel "Tilpas CRM": an anchored floating panel ---- */
+.sk .crm-gear { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: min(26.25rem, calc(100vw - 32px)); max-height: calc(100vh - 7.5rem); overflow: auto;
+	background: var(--sk-surface); border: 1px solid var(--sk-border); border-radius: var(--sk-r-win); box-shadow: var(--sk-shadow-win); color: var(--sk-text); text-align: left; }
+.sk .crm-gear-t { padding: 12px var(--sk-pad) 2px; font: 600 var(--sk-fs-h)/1.3 var(--sk-font-display); color: var(--sk-text); }
+.sk .crm-gear-n { padding: 0 var(--sk-pad) 8px; font-size: var(--sk-fs-s); line-height: 1.45; color: var(--sk-text-2); }
+.sk .crm-gear .sk-form-sub { min-height: 0; margin-top: 4px; padding: 10px var(--sk-pad) 2px; border-top: 1px solid var(--sk-border); }
+.sk .crm-strow { display: flex; align-items: center; gap: 2px; padding: 2px var(--sk-pad); }
+.sk .crm-strow > .sk-input { flex: 1 1 auto; margin-right: 4px; }
+.sk .crm-use { flex: none; min-width: 4rem; margin-right: 2px; font-size: var(--sk-fs-s); color: var(--sk-text-3); text-align: right; font-variant-numeric: tabular-nums; }
+.sk .crm-gear .sk-btn:disabled { pointer-events: auto; }   /* the trash's title says why it cannot delete; a disabled button still cannot be clicked */
+.sk .crm-gear .sk-btn-ghost:disabled:hover { --sk-btn-bg: transparent; --sk-btn-fg: var(--sk-text-2); }   /* and does not look clickable */
+.sk .crm-trash:hover:not(:disabled) { --sk-btn-fg: var(--sk-bad); --sk-btn-bg: var(--sk-bad-bg); }
+.sk .crm-gear-add { display: block; margin: 6px var(--sk-pad) 10px; font-size: var(--sk-fs-s); }
+.sk .crm-sg { margin: 4px var(--sk-pad) 8px; padding: 8px; border: 1px solid var(--sk-border); border-radius: var(--sk-r); }
+.sk .crm-sgh { display: flex; align-items: center; gap: 2px; }
+.sk .crm-sgh > .sk-input { flex: 1 1 auto; margin-right: 4px; font-weight: 600; }
+.sk .crm-sgopts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: var(--sk-fs-s); }
+.sk .crm-wl { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .crm-wl label { display: inline-flex; align-items: center; gap: 4px; }
+.sk .crm-wl .sk-input { max-width: 8.5rem; }
+.sk .crm-gear-f { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; padding: 8px var(--sk-pad); border-top: 1px solid var(--sk-border); background: var(--sk-surface); }
+
+/* ---- the Udsæt menu (.sk-pop, placed by the script) and the toast ---- */
+.sk .crm-menu { position: fixed; top: auto; left: auto; z-index: 45; width: max-content; min-width: 12.5rem; max-height: none; }
+.sk .crm-menu .sk-opt { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; width: 100%; margin: 0; border: 0; color: var(--sk-text);
+	font: inherit; text-align: left; }
+:where(.sk .crm-menu) .sk-opt { background: transparent; }   /* the options are buttons; zero-weight scope, so the kit's .sk-opt:hover applies */
+.sk .crm-menu .sk-opt small { color: var(--sk-text-3); }
+.sk .crm-sep { margin: 4px 0; border: 0; border-top: 1px solid var(--sk-border); }
+.sk .crm-menu-d { padding: 2px var(--sk-pad) 6px; }
+.sk .crm-menu-d .sk-input { width: 100%; }
+.sk .crm-toast .sk-link { --sk-btn-fg: var(--sk-toast-text); font-weight: 600; white-space: nowrap; }
+
+/* ---- personal CRM notifications; no shell or global notification styles are required ---- */
+.sk .crm-notifications-btn { position: relative; }
+.sk .crm-notifications-badge { position: absolute; top: -6px; right: -6px; min-width: 16px; padding: 1px 4px; border: 1px solid var(--sk-surface); border-radius: 10px;
+	background: var(--sk-primary); color: var(--sk-primary-text); font: 600 var(--sk-fs-xs)/1.2 var(--sk-font); text-align: center; }
+.sk .crm-notifications-list { max-height: min(55vh, 30rem); margin-top: 12px; overflow: auto; }
+.sk .crm-notification { align-items: flex-start; }
+.sk .crm-notification .sk-list-tx, .sk .crm-notification .sk-list-t, .sk .crm-notification .sk-list-d { white-space: normal; overflow-wrap: anywhere; }
+.sk .crm-notification .sk-tag { margin-left: 4px; }
+.sk .crm-notification time { margin-top: 4px; }

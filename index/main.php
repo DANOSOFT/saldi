@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.1.0 --- 2026-11-04 ---
+// ---- index/main.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,7 @@
 // 20261028 CL/LH SALDI Assist Guide is the default widget; SALDI_ASSIST_GUIDE=off brings back v1.
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261104 LOE SST-922 The Print button loads a page's autoprint view when the page offers one.
+// 20261111 CDX/ASR Open the standalone CRM from the existing Debitor menu.
 @session_start();
 $s_id = session_id();
 
@@ -249,7 +250,7 @@ function brightenColor($color, $amount = 0.2) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/crmkalender.php")\'>CRM</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/crm.php")\'>CRM</a></li>';
         }
         ?>
       </ul>

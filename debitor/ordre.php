@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-07 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -182,7 +182,13 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
+// 20261111 CDX/ASR Integrate CRM lead guards, legacy order permissions, creation status and serialized case links without replacing master order behavior.
 
+/**
+ * Injected by ../includes/online.php, included below:
+ * @var int $sprog_id
+ * @var string $charset
+ */
 @session_start();
 $s_id = session_id();
 
@@ -216,8 +222,28 @@ $css = "../css/standard.css";
 include("../includes/std_func.php");
 
 
-include("../includes/connect.php");
-include("../includes/online.php");
+ob_start();
+include(__DIR__ . '/../includes/connect.php');
+include(__DIR__ . '/../includes/online.php');
+$crmLeadBootstrap = ob_get_clean();
+include_once(__DIR__ . '/../includes/crmLeadFunctions.php');
+$crmOrderReturn = $_GET['returside'] ?? $_POST['returside'] ?? '';
+$crmOrderRequest = isset($_GET['crm_deal']) || isset($_GET['ordrestatus'])
+	|| (is_string($crmOrderReturn) && preg_match('~^(?:\.\./debitor/)?crm\.php(?:\?|$)~', $crmOrderReturn));
+if ($crmOrderRequest && !crm_can_order()) {
+	http_response_code(403);
+	echo htmlspecialchars(findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', (int) ($sprog_id ?? 1)), ENT_QUOTES, (string) ($charset ?? 'UTF-8'));
+	exit;
+}
+crm_guard_lead_accounts(
+	array($_GET['konto_id'] ?? null, $_POST['konto_id'] ?? null),
+	(string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'),
+	(int) ($sprog_id ?? 1),
+	array('inframe' => $_GET['inframe'] ?? $_POST['inframe'] ?? null, 'popup' => $_GET['popup'] ?? $_POST['popup'] ?? null),
+	(string) ($charset ?? 'UTF-8')
+);
+echo $crmLeadBootstrap;
+unset($crmLeadBootstrap);
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
@@ -875,6 +901,9 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$ordredate = date("Y-m-d");
 	$vis_lev_addr = '';
 	$afd = (int)$afd;
+	// 20261020 ASR CRM "Opret ordre" (debitor/crm.php) opens ordre.php?konto_id=..&ordrestatus=1: the new order starts as an
+	//              order (status 1) instead of an offer (status 0). Without the flag nothing changes.
+	$newOrderStatus = (isset($_GET['ordrestatus']) && $_GET['ordrestatus'] === '1') ? '1' : '0';
 	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
 	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,performed_by,";
 	$qtxt .= "valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
@@ -882,23 +911,49 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$qtxt .= " values ";
 	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
 	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "',";
-	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
+	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','$newOrderStatus','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
 	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	// Read this connection's order id before a postage line can change its last inserted id.
+	$orderIdSql = in_array($db_type, array('mysql', 'mysqli'), true)
+		? "select last_insert_id() as id" : "select currval(pg_get_serial_sequence('ordrer', 'id')) as id";
+	$orderIdRow = db_fetch_array(db_select($orderIdSql, __FILE__ . " linje " . __LINE__));
+	$id = (int) ($orderIdRow['id'] ?? 0);
 
 	# Porto vare system
 	## Create a new order line on creation from the specified sku
 	$sku = get_settings_value("porto_varnr", "ordre", null);
-	if ($sku != null) {
-		$query = db_select("select id from ordrer where ordrenr='$ordrenr' and art='DO' limit 1", __FILE__ . " linje " . __LINE__);
-		$ordre = db_fetch_array($query);
+	if ($id && $sku != null) {
+		$sku = db_escape_string((string) $sku);
 		$query = db_select("select * from varer where varenr='$sku' or varenr_alias='$sku' or stregkode='$sku' limit 1", __FILE__ . " linje " . __LINE__);
 		$vare = db_fetch_array($query);
-		opret_ordrelinje($ordre["id"], $vare["id"], $vare["varenr"], 1, $vare["beskrivelse"], $vare["salgspris"], 0, 0, "DO", "", "", "", "", "", "", "", "", "", "", "", "");
+		opret_ordrelinje($id, $vare["id"], $vare["varenr"], 1, $vare["beskrivelse"], $vare["salgspris"], 0, 0, "DO", "", "", "", "", "", "", "", "", "", "", "", "");
 	}
 
-	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query)) $id = $row['id'];
+	// 20261020 ASR An order created from the CRM keeps its way back (the customer's drawer): the returside is only in
+	//              the first request, and after a save the page would otherwise fall back to the nav stack.
+	if ($id && $returside && strpos($returside, 'crm.php?') === 0) {
+		db_modify("update ordrer set returside = '" . db_escape_string($returside) . "' where id = '" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
+	}
+	// A competing request may already have linked the case; never overwrite its document/history.
+	if ($id && isset($_GET['crm_deal']) && ctype_digit((string) $_GET['crm_deal'])) {
+		include_once(__DIR__ . "/../includes/crmFunctions.php");
+		$crmLink = array('error' => 'schema');
+		if (crm_schema_ready()) {
+			transaktion('begin');
+			try {
+				$crmLink = crm_link_document((int) $konto_id, (int) $_GET['crm_deal'], (int) $id, (int) $ansat_id);
+				transaktion(isset($crmLink['error']) ? 'rollback' : 'commit');
+			} catch (Throwable $error) {
+				transaktion('rollback');
+				throw $error;
+			}
+		}
+		if (isset($crmLink['error'])) {
+			// CRM translations are already UTF-8; JSON's ASCII escapes also work on legacy-charset pages.
+			print '<script>alert(' . json_encode(crm_t('Tilbuddet/ordren er oprettet, men kunne ikke knyttes til sagen. Genindlæs CRM for at kontrollere sagen.'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ');</script>';
+		}
+	}
 } elseif ($status < 3 && $id && $firmanavn) {
 	// The selected employee is independent of order ownership. Match on id only.
 	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
@@ -3448,6 +3503,11 @@ function ordreside($id, $regnskab)
 	$sag_id = if_isset($r, NULL, 'sag_id') * 1; #20210719
 	if ($sag_id) {
 		$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
+	}
+	// 20261020 ASR A stored CRM returside (set when the order was created from crm.php) wins over the default below;
+	//              the general stored-returside read further down only runs after this default is set, so it never applies.
+	if (!$returside && !$isPopupRequest && strpos((string) ifset($r, 'returside', ''), 'crm.php?') === 0) {
+		$returside = nav_sanitize_returside(html_entity_decode((string) $r['returside'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
 	}
 	if (!$returside) {
 		if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
