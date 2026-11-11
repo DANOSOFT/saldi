@@ -27,6 +27,8 @@
 //                 Used by debitor/ny_rykker.php when reminders are created and by the send path (rykkerprint) when they are sent.
 //                 No Stripe dependency.
 //                 Also the shared reading of a reminder's lines: its fee/interest lines (GEBYR items of formular level+5) and the newest invoice it reminds of.
+// 20261109 CL/ASR Review fixes: a fee item that is also the interest item counts only its last line as fee (the others are interest); the fee of an earlier level of the same chain is recognised (reminder_prior_fee_level()); which reminded invoices are paid (reminder_invoice_payment()); the active fiscal year (reminder_in_active_year()).
+//                 reminder_txt() returns its Danish fallback in the database's encoding, like findtekst().
 
 /**
  * Staff text through findtekst() with the Danish wording as fallback, so a text that is not in tekster.csv
@@ -38,13 +40,15 @@
  * @return string The text.
  */
 function reminder_txt($textId, $danish, $vars = array()) {
-	global $sprog_id;
+	global $sprog_id, $db_encode;
 	$text = '';
 	if (function_exists('findtekst')) {
 		$text = (string)findtekst((int)$textId, $sprog_id ?? 1);
 	}
 	if ($text === '' || $text === (string)$textId || strpos($text, 'Tekst nr') === 0) {
-		$text = $danish;
+		// In the database's encoding like findtekst(): ISO-8859-1 on a legacy (non-UTF8) database, so the page's
+		// escaping ($charset) and jsString() treat both the same way.
+		$text = (isset($db_encode) && $db_encode !== '' && $db_encode != 'UTF8') ? mb_convert_encoding($danish, 'ISO-8859-1', 'UTF-8') : $danish;
 	}
 	foreach ($vars as $name => $value) {
 		$text = str_replace('{' . $name . '}', (string)$value, $text);
@@ -116,7 +120,8 @@ function reminder_level_fee($level) {
 /**
  * A reminder order and the amounts on its item lines. Item lines are the fee and interest lines that
  * ny_rykker.php adds; an item line whose item is the level's interest item (yb) is interest, every other
- * item line counts as fee.
+ * item line counts as fee. When the same item is both the fee and the interest item, ny_rykker.php adds the
+ * interest lines first and the fee line last: the last line of that item is the fee, the earlier ones interest.
  *
  * @param int $rykkerId ordrer.id of an R1/R2/R3 order.
  * @return array{
@@ -144,12 +149,24 @@ function reminder_charge_lines($rykkerId) {
 		'fee' => 0.0, 'interest' => 0.0, 'fee_vare_id' => 0, 'interest_vare_id' => 0,
 	);
 	$items = reminder_fee_items($level);
-	$q = db_select("select vare_id, antal, pris, rabat from ordrelinjer where ordre_id = " . (int)$rykkerId . " and vare_id > 0 order by posnr, id", __FILE__ . " linje " . __LINE__);
+	$lines = array();
+	$lastShared = array();   // item that is both fee and interest item => id of its last line (the fee line)
+	$q = db_select("select id, vare_id, antal, pris, rabat from ordrelinjer where ordre_id = " . (int)$rykkerId . " and vare_id > 0 order by posnr, id", __FILE__ . " linje " . __LINE__);
 	while ($l = db_fetch_array($q)) {
+		$lines[] = $l;
+		$vareId = (int)$l['vare_id'];
+		if (in_array($vareId, $items['interest'], true) && in_array($vareId, $items['fee'], true)) {
+			// highest id, not the last by posnr: the fee line of a 2nd/3rd reminder has no posnr
+			$lastShared[$vareId] = max((int)($lastShared[$vareId] ?? 0), (int)$l['id']);
+		}
+	}
+	foreach ($lines as $l) {
 		$vareId = (int)$l['vare_id'];
 		// the same line total as bogfor_rykker()
 		$amount = (float)$l['antal'] * (float)$l['pris'] - (float)$l['antal'] * (float)$l['pris'] / 100 * (float)$l['rabat'];
-		if (in_array($vareId, $items['interest'], true) && !in_array($vareId, $items['fee'], true)) {
+		$interest = in_array($vareId, $items['interest'], true)
+			&& (!in_array($vareId, $items['fee'], true) || (int)$l['id'] !== $lastShared[$vareId]);
+		if ($interest) {
 			$out['interest'] += $amount;
 			if (!$out['interest_vare_id']) $out['interest_vare_id'] = $vareId;
 		} else {
@@ -176,6 +193,60 @@ function reminder_openpost_ids($rykkerId) {
 		if ($enhed !== '' && ctype_digit($enhed) && (int)$enhed > 0 && !in_array((int)$enhed, $ids, true)) $ids[] = (int)$enhed;
 	}
 	return $ids;
+}
+
+/**
+ * Whether an open item is the fee of an earlier level of the same reminder chain. bogfor_nu() posts a classic
+ * reminder's fee and interest as an open item with refnr = that reminder's id and faktnr = its fakturanr, and
+ * ny_rykker.php lists it on the next level.
+ *
+ * @param array{konto_id: int|string, faktnr: string, refnr: int|string} $op The open item.
+ * @param array{konto_id: int, ordrenr: int, level: int} $c reminder_charge_lines() of the reminder that lists it.
+ * @return int The level (1 or 2) of the earlier reminder whose fee it is; 0 when it is none.
+ */
+function reminder_prior_fee_level($op, $c) {
+	$faktnr = trim((string)($op['faktnr'] ?? ''));
+	if ((int)($op['refnr'] ?? 0) <= 0 || $faktnr === '' || (int)$op['konto_id'] !== (int)$c['konto_id']) return 0;
+	$r = db_fetch_array(db_select("select art from ordrer where id = " . (int)$op['refnr'] . " and konto_id = " . (int)$c['konto_id'] . "
+		and ordrenr = " . (int)$c['ordrenr'] . " and fakturanr = '" . db_escape_string($faktnr) . "' and art like 'R%'", __FILE__ . " linje " . __LINE__));
+	if (!$r || !preg_match('/^R(\d+)$/', trim((string)$r['art']), $m) || (int)$m[1] >= (int)$c['level']) return 0;
+	return (int)$m[1];
+}
+
+/**
+ * Whether an open item on a reminder is paid: it is settled (udlignet = '1'), or the invoice (DO) it belongs to is
+ * marked paid (betalt = 'on').
+ *
+ * @param array{konto_id: int|string, faktnr: string, udlignet: string} $op The open item.
+ * @return bool
+ */
+function reminder_openpost_paid($op) {
+	if (trim((string)($op['udlignet'] ?? '')) === '1') return true;
+	$faktnr = trim((string)($op['faktnr'] ?? ''));
+	if ($faktnr === '') return false;
+	return (bool)db_fetch_array(db_select("select id from ordrer where konto_id = " . (int)$op['konto_id'] . " and fakturanr = '" . db_escape_string($faktnr) . "'
+		and art = 'DO' and betalt = 'on'", __FILE__ . " linje " . __LINE__));
+}
+
+/**
+ * How many of the invoices a reminder lists are still unpaid ("Ryk alle" and "Ny rykker" do not escalate a reminder
+ * whose invoices are all paid). Invoices are its positive open items, except the fee of an earlier level of the chain;
+ * paid as reminder_openpost_paid().
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return array{invoices: int, unpaid: int} Number of invoice open items, and how many of them are unpaid.
+ */
+function reminder_invoice_payment($rykkerId) {
+	$out = array('invoices' => 0, 'unpaid' => 0);
+	$c = reminder_charge_lines($rykkerId);
+	if (!$c) return $out;
+	foreach (reminder_openpost_ids($rykkerId) as $opId) {
+		$op = db_fetch_array(db_select("select konto_id, faktnr, refnr, amount, udlignet from openpost where id = " . (int)$opId, __FILE__ . " linje " . __LINE__));
+		if (!$op || (float)$op['amount'] <= 0 || reminder_prior_fee_level($op, $c)) continue;
+		$out['invoices']++;
+		if (!reminder_openpost_paid($op)) $out['unpaid']++;
+	}
+	return $out;
 }
 
 /**
@@ -338,4 +409,61 @@ function reminder_escalation_check($prevRykkerId, $today = '') {
 	$next = $c['level'] + 1;
 	if ($next > 3 || reminder_level_fee($next) <= 0) return '';
 	return reminder_l3_message($next, reminder_sent_date((int)$prevRykkerId), $today !== '' ? $today : reminder_today());
+}
+
+/**
+ * Whether a reminder's date (fakturadate, fallback ordredate) lies in the active fiscal year ($regnaar, grupper RA
+ * box2/box1 to box4/box3): the check "Bogfør" makes before it posts a reminder (includes/rapportfunc.php
+ * bogfor_rykker(), 20121106), for "Ryk alle", which posts through includes/openpost.php. Not checked without an
+ * active fiscal year.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return bool
+ */
+function reminder_in_active_year($rykkerId) {
+	global $regnaar;
+	if (!isset($regnaar) || trim((string)$regnaar) === '') return true;
+	$ra = db_fetch_array(db_select("select box1, box2, box3, box4 from grupper where art = 'RA' and kodenr = '" . db_escape_string(trim((string)$regnaar)) . "'", __FILE__ . " linje " . __LINE__));
+	if (!$ra) return true;
+	$o = db_fetch_array(db_select("select fakturadate, ordredate from ordrer where id = " . (int)$rykkerId, __FILE__ . " linje " . __LINE__));
+	$date = $o ? (trim((string)$o['fakturadate']) ?: trim((string)$o['ordredate'])) : '';
+	if (!preg_match('/^(\d{4})-(\d{2})/', $date, $m)) return true;
+	$ym = $m[1] . $m[2];
+	$start = str_replace(' ', '', trim((string)$ra['box2']) . $ra['box1']);
+	$end = str_replace(' ', '', trim((string)$ra['box4']) . $ra['box3']);
+	return $ym >= $start && $ym <= $end;
+}
+
+/**
+ * Why "Ryk alle" or "Ny rykker" leaves a reminder as it is instead of booking it (only "Ryk alle") and making its next
+ * level: every invoice on it is paid (Afslut closes it), its date is outside the active fiscal year (only when it
+ * would be booked, as "Bogfør" refuses it) or renteloven § 9 b (L3) holds the next level back.
+ *
+ * @param int $rykkerId ordrer.id of the reminder that would be escalated.
+ * @param bool $book Whether it would be booked first ("Ryk alle").
+ * @param string $today Y-m-d; '' = today.
+ * @return string '' = go on; 'paid', 'year' or the L3 message (worded by reminder_skip_notice()).
+ */
+function reminder_escalation_skip($rykkerId, $book, $today = '') {
+	$payment = reminder_invoice_payment((int)$rykkerId);
+	if ($payment['invoices'] > 0 && $payment['unpaid'] === 0) return 'paid';
+	if ($book && !reminder_in_active_year((int)$rykkerId)) return 'year';
+	return reminder_escalation_check((int)$rykkerId, $today);
+}
+
+/**
+ * The staff notice when "Ryk alle" or "Ny rykker" leaves a reminder: "Ingen ny rykker for 17-1: <reason>".
+ *
+ * @param string $rykkerNr The reminder's number (ordrer.fakturanr).
+ * @param string $reason paid (every invoice on it is paid), year (its date is outside the active fiscal year) or a
+ *                       ready text (the L3 message).
+ * @return string
+ */
+function reminder_skip_notice($rykkerNr, $reason) {
+	if ($reason === 'paid') {
+		$reason = reminder_txt(8109, 'alle fakturaer på rykkeren er betalt. Luk den med Afslut.');
+	} elseif ($reason === 'year') {
+		$reason = reminder_txt(8111, 'rykkerdatoen ligger uden for det aktive regnskabsår.');
+	}
+	return reminder_txt(8107, 'Ingen ny rykker for {rykker}: {tekst}', array('rykker' => $rykkerNr, 'tekst' => $reason));
 }

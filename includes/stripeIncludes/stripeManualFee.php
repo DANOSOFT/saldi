@@ -11,6 +11,7 @@
 // 20261026 CL/NTR Multi-ledger: applies in every ledger with Stripe, invoice payments and enrolment on (not in a copy).
 // 20261109 CL/ASR The fee-line insertion is the shared stripe_bogfor_add_fee_line(), also used for the reminder fee of link reminders (stripeReminder.php); the order check is stripe_manual_fee_order_chargeable().
 //                 Same behaviour.
+// 20261109 CL/ASR The fee line gets the order's project (as ordre.php gives every line the order's project), so bogfor_nu() sees one project and the open item keeps it.
 
 require_once __DIR__ . '/stripeSettings.php';
 
@@ -179,8 +180,9 @@ function stripe_manual_fee_bogfor($id, $art, $momssats, $webservice = false, $ge
 /**
  * Add one fee line to an order that bogfor() is posting, before its lines are posted: the item, a quantity and a
  * unit price, no customer discount, kdo = 'on' (genfakt's recurring copy leaves it out, so a fee is never
- * repeated), delivered with the posting context, and the order totals raised by the stored line. Used for the fee
- * for manual payment and for the reminder fee/interest of link reminders.
+ * repeated), the order's project (ordrer.projekt, else the one project of its item lines), delivered with the
+ * posting context, and the order totals raised by the stored line. Used for the fee for manual payment and for the
+ * reminder fee/interest of link reminders.
  *
  * @param int $id ordrer.id of the order being posted.
  * @param array{id: int|string, varenr: string} $vare The fee item (its item group gives the revenue account).
@@ -202,7 +204,8 @@ function stripe_bogfor_add_fee_line($id, $vare, $antal, $pris, $text, $momsfri, 
 	if (!is_numeric($res)) return (string)$res;
 	$line = db_fetch_array(db_select("select id from ordrelinjer where ordre_id = " . (int)$id . " and vare_id = " . (int)$vare['id'] . " and posnr = $posnr order by id desc", __FILE__ . " linje " . __LINE__));
 	if (!$line) return 'linjen blev ikke oprettet';
-	db_modify("update ordrelinjer set rabat = 0, m_rabat = 0, leveres = '$count' where id = " . (int)$line['id'], __FILE__ . " linje " . __LINE__);
+	db_modify("update ordrelinjer set rabat = 0, m_rabat = 0, leveres = '$count', projekt = '" . db_escape_string(stripe_fee_line_projekt($id, (int)$line['id'])) . "'
+		where id = " . (int)$line['id'], __FILE__ . " linje " . __LINE__);
 	$delivered = levering($id, '', $genfakt, $webservice);
 	if ($delivered !== 'OK') return (string)$delivered;
 	$line = db_fetch_array(db_select("select antal, pris, momsfri, momssats from ordrelinjer where id = " . (int)$line['id'], __FILE__ . " linje " . __LINE__));
@@ -211,6 +214,26 @@ function stripe_bogfor_add_fee_line($id, $vare, $antal, $pris, $text, $momsfri, 
 	$vat = trim((string)$line['momsfri']) === 'on' ? 0 : round($net * $rate / 100, 2);
 	db_modify("update ordrer set sum = sum + $net, moms = moms + $vat where id = " . (int)$id, __FILE__ . " linje " . __LINE__);
 	return '';
+}
+
+/**
+ * The project a fee line gets: the order's project (ordre.php gives every line the order's project), else the one
+ * project its item lines share, else none. bogfor_nu() writes the distinct projects of the item lines onto the open
+ * item, and a payment settles it only on that exact project.
+ *
+ * @param int $id ordrer.id of the order.
+ * @param int $feeLineId The fee line, left out.
+ * @return string
+ */
+function stripe_fee_line_projekt($id, $feeLineId) {
+	$o = db_fetch_array(db_select("select projekt from ordrer where id = " . (int)$id, __FILE__ . " linje " . __LINE__));
+	$projekt = trim((string)($o['projekt'] ?? ''));
+	if ($projekt !== '') return $projekt;
+	$found = array();
+	$q = db_select("select distinct(coalesce(projekt, '')) as projekt from ordrelinjer where ordre_id = " . (int)$id . " and vare_id > 0
+		and id <> " . (int)$feeLineId, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) $found[trim((string)$r['projekt'])] = true;
+	return count($found) === 1 ? (string)array_keys($found)[0] : '';
 }
 
 /** @return bool Whether the fee product's item group is VAT-exempt. */

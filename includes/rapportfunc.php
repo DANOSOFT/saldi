@@ -95,6 +95,8 @@
 // 20261109 CL/ASR Link reminders: the reminder overview marks them ("Linkrykker · gebyr på næste faktura" / "... som åben post" / "... frafaldet") and first closes booked link reminders whose invoices are all paid (stripe_reminder_close_paid()).
 //                 bogfor_rykker() posts nothing for a link reminder whose fee goes on the next invoice; it only sets status 4.
 //                 bogfor_nu() writes projekt '' on the fee open item (NULL never matched a payment in finans/bogfor.php).
+// 20261109 CL/ASR Review fixes: bogfor_rykker() refreshes a carried fee from the reminder's lines before it moves it to "Bogførte rykkere"; the link reminder marker is escaped in the page's charset.
+//                 bogfor_rykker() selects pris and bogfor_nu() initialises $afd and no longer reads an unset $refnr (PHP warnings), as includes/openpost.php.
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -132,6 +134,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	global $sprog_id;
 	global $bruger_id;
 	global $menu;
+	global $charset;   // 20261109 CL/ASR the page's charset (online.php), for the link reminder marker
 
 	if ($dato_fra && $dato_til) {
 		$fromdate = usdate($dato_fra);
@@ -367,7 +370,7 @@ a:link{text-decoration:none;}</style>\n";
 						print "<td><span title='Klik for detaljer' og for at sende rykker pr mail><a href=\"rykker.php?rykker_id=$r1[id]\">$r1[ordrenr]</a></td>";
 						// 20261109 CL/ASR link reminder marker
 						$reminderMarker = function_exists('stripe_reminder_marker') ? stripe_reminder_marker((int)$r1['id']) : '';
-						if ($reminderMarker !== '') $reminderMarker = " <small>" . htmlspecialchars($reminderMarker, ENT_QUOTES, 'UTF-8') . "</small>";
+						if ($reminderMarker !== '') $reminderMarker = " <small>" . htmlspecialchars($reminderMarker, ENT_QUOTES, $charset ?: 'UTF-8') . "</small>";
 						print "<td>$r1[firmanavn]</td><td colspan=2 align=left>$r1[ordredate]</td><td align=left>$rykkernr$reminderMarker</td>";
 						if ($udlignet || $delsum >= $sum[$x]) {
 							$color = "#00aa00";
@@ -440,6 +443,7 @@ function bogfor_rykker($id)
 	if (is_file(__DIR__ . '/stripeIncludes/stripeReminder.php')) {
 		include_once(__DIR__ . '/stripeIncludes/stripeReminder.php');
 		if (stripe_reminder_carried((int)$id)) {
+			stripe_reminder_refresh_amounts((int)$id);   // a fee or interest line deleted before booking is not carried
 			db_modify("update ordrer set status = 4 where id = " . (int)$id, __FILE__ . " linje " . __LINE__);
 			return;
 		}
@@ -474,7 +478,7 @@ function bogfor_rykker($id)
 	if ($sum)
 		db_modify("update ordrer set sum=$sum where id = '$id'", __FILE__ . " linje " . __LINE__);
 	$x = 0;
-	$q = db_select("select id, vare_id from ordrelinjer where ordre_id = '$id' and vare_id > '0'", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select id, vare_id, pris from ordrelinjer where ordre_id = '$id' and vare_id > '0'", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		$ordre_linje_id[$x] = $r['id'];
@@ -543,7 +547,6 @@ function bogfor_nu($id)
 		$valutakurs = $r['valutakurs'];
 		$valuta = $r['valuta'];
 		$projekt = $r['projekt'] * 1;
-		$refnr;
 		if ($r['moms']) {
 			$moms = $r['moms'];
 		} else {
@@ -551,8 +554,10 @@ function bogfor_nu($id)
 		}
 		$sum = $r['sum'] + $moms;
 		$ordreantal = $x;
-		if ($r = db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'", __FILE__ . " linje " . __LINE__)))
+		$afd = 0;
+		if ($r = db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'", __FILE__ . " linje " . __LINE__))) {
 			$afd = $r['afd'];
+		}
 		$afd = $afd * 1; //sikkerhed for at 'afd' har en vaerdi 
 
 		$bilag = 0;

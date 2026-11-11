@@ -3,6 +3,7 @@
 // 20261022 CDX/LH Release abandoned page payments to reminders after three days; retain processing and saved-card authentication protection.
 // 20261109 CL/ASR Card-on-file hold: an invoice the charge job still retries (card on file, fewer than 3 primary declines, or fewer than 3 days since the 3rd) cannot enter reminders.
 //                 Saved-card authentication is protected for 14 days, no longer forever.
+// 20261109 CL/ASR Review fix: the card-on-file hold applies only while the charge job will really try the invoice: a saved card, no authentication request on it, card payment possible, and the full amount open with no credit on the account.
 
 /**
  * Predicate for an openpost row which can enter dunning. This lightweight include does
@@ -45,7 +46,11 @@ function stripe_dunning_openpost_sql($alias = 'openpost') {
  * and stripe_payment_attempt_failed(): source 'auto', no authentication request, failed or canceled with a decline
  * code (not a technical error). Declines are counted on their job date (attempt_date, else created_at); attempts are
  * chronological, so "the 3rd decline is at least 3 days old" equals "3 declines dated at least 3 days ago". Only
- * while Stripe card payment and automatic payment are on in the ledger (otherwise nothing collects the invoice).
+ * while Stripe card payment and automatic payment are on in the ledger (otherwise nothing collects the invoice), and
+ * only for an invoice the charge job (stripe_charge_run()) will really try: the customer has a saved card, no attempt
+ * on the invoice asked for authentication (stripe_auto_charge_allowed() stops then; the open authentication itself is
+ * protected for 14 days above), card payment is possible (stripe_invoice_uncollectable_reason()) and the full amount
+ * is open with no credit on the account (stripe_invoice_payable(): fully_open). Any other invoice can be reminded.
  *
  * @param string $alias Trusted SQL alias for openpost.
  * @param array<int, string> $columns The stripe_payments columns found (attempt_date, action_required_at).
@@ -58,6 +63,7 @@ function stripe_dunning_card_hold_sql($alias, $columns) {
 		if (trim((string)$r['var_value']) === 'on') $on[$r['var_name']] = true;
 	}
 	if (count($on) < 3) return '';
+	if (function_exists('stripe_ledger_armed') && !stripe_ledger_armed()) return '';
 	$schema = in_array($GLOBALS['db_type'], array('mysql', 'mysqli'), true) ? ' and table_schema = database()' : '';
 	$r = db_fetch_array(db_select("select count(*) as n from information_schema.columns where table_name = 'adresser'
 		and column_name in ('stripe', 'stripe_date')$schema", __FILE__ . ' linje ' . __LINE__));
@@ -66,9 +72,24 @@ function stripe_dunning_card_hold_sql($alias, $columns) {
 	$released = (new DateTimeImmutable($today, new DateTimeZone('Europe/Copenhagen')))->modify('-3 days')->format('Y-m-d');
 	$day = in_array('attempt_date', $columns, true) ? 'coalesce(s_hp.attempt_date, cast(s_hp.created_at as date))' : 'cast(s_hp.created_at as date)';
 	$noAction = in_array('action_required_at', $columns, true) ? ' and s_hp.action_required_at is null' : '';
+	$neverAsked = in_array('action_required_at', $columns, true)
+		? ' and not exists (select 1 from stripe_payments s_ap where s_ap.ordre_id = s_ho.id and s_ap.action_required_at is not null)' : '';
+	$subscriber = tbl_exists('stripe_customers')
+		? " and not exists (select 1 from stripe_customers s_hc where s_hc.konto_id = s_ho.konto_id and coalesce(s_hc.stripe_subscription_id, '') <> ''
+			and s_hc.status in ('active', 'trialing', 'past_due'))" : '';
+	// Mirrors stripe_charge_run(), stripe_auto_charge_allowed(), stripe_invoice_uncollectable_reason() and fully_open.
 	return " and not exists (select 1 from ordrer s_ho join adresser s_ha on s_ha.id = s_ho.konto_id
 		where s_ho.konto_id = $alias.konto_id and s_ho.fakturanr = $alias.faktnr and s_ho.art = 'DO'
 		and s_ho.udskriv_til = 'Stripe' and s_ha.stripe = 'on' and s_ha.stripe_date is not null and s_ho.fakturadate >= s_ha.stripe_date
+		and coalesce(s_ha.stripe_pm_id, '') <> ''$neverAsked
+		and upper(coalesce(nullif(trim(s_ho.valuta), ''), 'DKK')) = 'DKK'
+		and lower(trim(coalesce(s_ho.betalingsbet, ''))) not in ('kontant', 'kreditkort')
+		and upper(trim(coalesce(s_ho.pbs, ''))) <> 'BS' and trim(coalesce(s_ha.pbs_nr, '')) in ('', '0')
+		and lower(trim(coalesce(s_ha.stripe_fravalg, ''))) not in ('on', 't', '1', 'true')$subscriber
+		and not exists (select 1 from openpost s_hk where s_hk.konto_id = s_ho.konto_id and coalesce(s_hk.udlignet, '0') <> '1' and s_hk.amount < 0)
+		and not exists (select 1 from ordrer s_hn where s_hn.art = 'DK' and s_hn.kred_ord_id = s_ho.id)
+		and abs((select coalesce(sum(s_hr.amount), 0) from openpost s_hr where s_hr.konto_id = s_ho.konto_id and s_hr.faktnr = s_ho.fakturanr
+			and coalesce(s_hr.udlignet, '0') <> '1') - (coalesce(s_ho.sum, 0) + coalesce(s_ho.moms, 0))) <= 0.01
 		and (select count(*) from stripe_payments s_hp where s_hp.ordre_id = s_ho.id and s_hp.source = 'auto'$noAction
 			and (s_hp.status = 'failed' or (s_hp.status = 'canceled' and coalesce(s_hp.last_error, '') <> ''
 				and s_hp.last_error not in ('authentication_required', 'technical_error', 'api_error', 'network', 'rate_limit')))

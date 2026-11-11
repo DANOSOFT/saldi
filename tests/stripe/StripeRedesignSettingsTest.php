@@ -2,6 +2,7 @@
 // 20261023 CDX/LH Cover tenant settings access and shared invoice preferences in the redesign.
 // 20261023 CDX/LH Assert the real integration read/write permission and regress missing-table checks without warnings.
 // 20261109 CL/ASR Link reminders: the six settings in Salg › Betalingsbetingelser & rykkere (stored 'on'/'off' in var_grp stripe, read by stripe_reminder_settings()) and the renteloven § 9 b warnings on the reminder settings.
+// 20261109 CL/ASR Review fix: the warning text is hidden with its switch when "Altid klassisk" hides the switch (a chain of visible_if rules).
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../systemdata/diverseIncludes/stripeValg.php';
@@ -221,6 +222,21 @@ final class StripeRedesignSettingsTest extends StripeDatabaseTestCase
         // A 3rd reminder without a fee needs no 10 days and has no fee to cap.
         StripeTestEnvironment::query("UPDATE formularer SET xb = 0 WHERE beskrivelse = 'GEBYR' AND formular = 8");
         $this->assertSame(array_replace($none, ['fee_item_1' => true, 'fee_item_2' => true]), settings_reminder_legal_warnings());
+    }
+
+    public function testWarningTextIsHiddenWithItsSwitch(): void
+    {
+        require_once __DIR__ . '/../../includes/settings/components.php';
+        $text = SettingsService::definition('sales.reminders.reminder_close_text');
+        $values = ['sales.reminders.reminder_format' => 'auto', 'sales.reminders.reminder_close_warning' => '1'];
+        $this->assertTrue(st_visible($text, $values));
+        $this->assertFalse(st_visible($text, ['sales.reminders.reminder_close_warning' => '0'] + $values), 'the warning is off');
+        // "Altid klassisk" hides the switch, and the text under it with it.
+        $this->assertFalse(st_visible($text, ['sales.reminders.reminder_format' => 'classic'] + $values));
+        $this->assertFalse(st_visible(SettingsService::definition('sales.reminders.reminder_close_warning'), ['sales.reminders.reminder_format' => 'classic'] + $values));
+        // The browser follows the same chain.
+        $js = file_get_contents(__DIR__ . '/../../javascript/settingsSection.js');
+        $this->assertStringContainsString('return ruleHolds(JSON.parse(parent.dataset.visibleIf), depth + 1);', $js);
     }
 
     /** @param array<string, mixed> $expected stripe_reminder_settings() values. */

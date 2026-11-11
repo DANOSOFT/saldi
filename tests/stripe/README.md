@@ -1,6 +1,7 @@
 <!-- // 20261022 CDX/LH Document security regression coverage and signup default-off behavior. -->
 <!-- // 20261022 CDX/LH Map M1–M6 regression coverage and require a fresh gate after the 150-test baseline. -->
 <!-- // 20261109 CL/ASR Link reminders (Linkrykker): StripeReminderTest and reminderFixtures.php, plus the manual evidence they leave out. -->
+<!-- // 20261109 CL/ASR Review fixes: both "Bogfør" copies are run, and the manual evidence list names the page flows no test drives. -->
 
 # Stripe PostgreSQL suite
 
@@ -209,12 +210,22 @@ reminders), the reminder mail and its variants, the send path with classic fallb
 the card-on-file dunning hold, the 14-day saved-card authentication protection and
 closing paid reminders. `StripePageTest`, `StripeRedesignSettingsTest`,
 `StripeManualFeeTest` and `StripeBookingTest` carry the page, settings, shared fee-line
-and "Bogfør" (`includes/openpost.php` `bogfor_rykker()`) cases.
+and booking cases: `bogfor_rykker()` of `includes/openpost.php` ("Ryk alle") and, in its
+own process, of `includes/rapportfunc.php` (the "Bogfør" button in `debitor/rapport.php`).
+The helpers the pages call are tested directly: `reminder_escalation_skip()` (paid, fiscal
+year, L3), `formReminderPdfTreatment()` (the PDF's fee text and left-out lines),
+`formReminderPrinted()`, `stripe_reminder_unregister()` and
+`stripe_reminder_waive_request()` ("Frafald rykkergebyr" with its CSRF token).
 
 The fee-on-the-next-invoice tests run in separate processes with doubles for
 `opret_ordrelinje()`/`levering()` (the real `levering()` exits on fixture lines without
 an item group). Manual evidence still needed: post a real DO with a carried reminder fee
-through `bogfor()` (item group, revenue account, no VAT, journal), a bulk "Udskriv" of
-mixed printed/mailed/link reminders through the real form engine (PDF suffix and "I alt",
-attachment name, one staff alert), and "Ryk alle" with booking of an R1 through
-`debitor/ny_rykker.php`.
+through `bogfor()` (item group, revenue account, no VAT, journal, project on a project
+order); a bulk "Udskriv" of mixed printed/mailed/link reminders through the real form engine
+in PostScript and in "Brug html" mode (one page per printed reminder, nothing of a mailed
+one on the printed pages, PDF suffix and "I alt" for draft/sent/charged/waived rows, paid
+invoices left out of a link reminder's PDF, attachment name, one staff alert); "Ryk alle"
+through `debitor/ny_rykker.php` (an R1 is booked; a reminder whose invoices are all paid or
+dated outside the active fiscal year is left with a notice; a new level lists only unpaid
+open items); and in `debitor/rykker.php` "Frafald rykkergebyr", unticking "Send pr. mail"
+on a booked draft (it stays a link reminder) and a reminder id that is not a number.

@@ -5,6 +5,8 @@
 //                 The reminder PDF stays attached.
 //                 Invoices that are paid, credited, settled or in flight are left out at send time.
 //                 Sent by formSendReminderEntry() (includes/formFuncIncludes/reminderMailDelivery.php) from rykkerprint().
+// 20261109 CL/ASR Review fixes: the fee of an earlier classic level of the chain is a row "Rykkergebyr fra 1. rykker" paid by bank transfer, counted in "At betale nu", with the bank details (D1).
+//                 Interest is named as interest in the offer; "Betal med dit gemte kort" only when the page offers the saved card; a row that cannot be paid by card links "Se faktura ›".
 
 include_once(__DIR__ . '/stripeInvoice.php');
 include_once(__DIR__ . '/stripeDunning.php');
@@ -22,11 +24,13 @@ if (is_file(__DIR__ . '/stripeReminder.php')) include_once(__DIR__ . '/stripeRem
  *     (id, nr, state, ...) plus the reminder's line: ordre_id: int, openpost_id: int, fakturanr: string,
  *     amount: float (kr., sum of the reminder's open items for that invoice), forfaldsdate: string (Y-m-d).
  *   credits: float,  Sum of the reminder's open credit lines (negative open items), 0.0 when none.
+ *   prior_fees: array<int, array{openpost_id: int, faktnr: string, amount: float, level: int}>,  Fees of earlier
+ *     levels of the chain posted as open items (stripe_reminder_lines()) that are not settled; paid by bank transfer.
  *   skipped: array<int, string>,  ordre_id => paid|paid_bank|settled|in_flight|credited|missing.
  * }
  */
 function stripe_reminder_invoices(int $rykkerId): array {
-	$out = array('invoices' => array(), 'credits' => 0.0, 'skipped' => array());
+	$out = array('invoices' => array(), 'credits' => 0.0, 'prior_fees' => array(), 'skipped' => array());
 	if (!function_exists('stripe_reminder_lines')) return $out;
 	$lines = stripe_reminder_lines($rykkerId);
 	$protected = stripe_dunning_openpost_sql('openpost');
@@ -68,6 +72,11 @@ function stripe_reminder_invoices(int $rykkerId): array {
 			$out['credits'] += (float)$credit['amount'];
 		}
 	}
+	foreach ($lines['prior_fees'] ?? array() as $fee) {
+		if (db_fetch_array(stripe_payment_select("select id from openpost where id = " . (int)$fee['openpost_id'] . " and coalesce(udlignet, '0') <> '1'"))) {
+			$out['prior_fees'][] = $fee;
+		}
+	}
 	$kept = array_values($kept);
 	usort($kept, function ($a, $b) {
 		return array($a['forfaldsdate'], $a['fakturanr']) <=> array($b['forfaldsdate'], $b['fakturanr']);
@@ -80,15 +89,17 @@ function stripe_reminder_invoices(int $rykkerId): array {
  * How the customer can pay one invoice, from the payment page's state for it.
  *
  * @param array $inv Loaded invoice (stripe_invoice_load()).
- * @return string auto (card, offer automatic payment) | pay (card only) | saved (enrolled: saved card) |
- *                failed (saved card declined: new card) | action (bank must approve) | bank (no card possible) | view.
+ * @return string auto (card, offer automatic payment) | pay (card only) | saved (enrolled: saved card, as the page's
+ *                #paynow in the overdue and enrolled states) | failed (saved card declined: new card) | action (bank
+ *                must approve) | bank (no card possible) | view.
  */
 function stripe_reminder_variant(array $inv): string {
 	$state = (string)$inv['state'];
 	if ($state === 'requires_action') return 'action';
 	if ($state === 'failed' && in_array((string)($inv['failed']['source'] ?? ''), array('auto', 'backup', 'manual'), true)) return 'failed';
 	if (in_array($state, array('manual', 'nocard'), true)) return 'bank';
-	if (stripe_invoice_pay_now_allowed($inv)) return 'saved';
+	// Only where the page shows the saved card (#paynow); a declined card form payment ('failed', source page) shows the card form.
+	if (in_array($state, array('overdue', 'enrolled'), true) && stripe_invoice_pay_now_allowed($inv)) return 'saved';
 	if (in_array($state, array('open', 'open_recurring', 'overdue', 'failed'), true)) {
 		return (empty($inv['enrolled']) && stripe_invoice_save_allowed($inv)) ? 'auto' : 'pay';
 	}
@@ -109,9 +120,10 @@ function stripe_reminder_deadline(array $r): string {
 }
 
 /**
- * The reminder's rows as an HTML table, so each invoice row can carry its own "Betal ›" link.
+ * The reminder's rows as an HTML table, so each invoice row can carry its own "Betal ›" link ("Se faktura ›" when it
+ * cannot be paid by card: link_label).
  *
- * @param array<int, array{label: string, value: string, link?: string, note?: string, strong?: bool}> $rows
+ * @param array<int, array{label: string, value: string, link?: string, link_label?: string, note?: string, strong?: bool}> $rows
  * @return string HTML for stripe_mail_layout()'s $listHtml.
  */
 function stripe_reminder_list_html(array $rows): string {
@@ -123,7 +135,7 @@ function stripe_reminder_list_html(array $rows): string {
 			. '<td style="' . $td . 'padding-left:12px;text-align:right;white-space:nowrap;font-weight:' . ($strong ? '700' : '600') . '">' . stripe_h($row['value']) . '</td>'
 			. '<td style="' . $td . 'padding-left:16px;text-align:right;white-space:nowrap;font-size:14px">';
 		if (!empty($row['link'])) {
-			$h .= '<a href="' . stripe_h($row['link']) . '" style="color:#1b68bd;font-weight:700;text-decoration:none">' . stripe_h(stripe_txt('mail_rem_pay_link')) . '</a>';
+			$h .= '<a href="' . stripe_h($row['link']) . '" style="color:#1b68bd;font-weight:700;text-decoration:none">' . stripe_h($row['link_label'] ?? stripe_txt('mail_rem_pay_link')) . '</a>';
 		} elseif (!empty($row['note'])) {
 			$h .= '<span style="color:#6b7280">' . stripe_h($row['note']) . '</span>';
 		}
@@ -198,7 +210,8 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		}
 		$offer = null;
 		if ($variant === 'auto' && $carried && !empty($settings['waive']) && $feeOre + $interestOre > 0) {
-			$offer = array('kind' => 'offer', 'title' => stripe_txt('mail_rem_offer_title', array('fee' => stripe_fmt_kr($feeOre + $interestOre))), 'sub' => stripe_txt('mail_rem_offer_sub'));
+			$words = stripe_reminder_fee_words($feeOre, $interestOre);   // interest is not called "rykkergebyret"
+			$offer = array('kind' => 'offer', 'title' => stripe_txt('mail_rem_offer_title', $words), 'sub' => stripe_txt('mail_rem_offer_sub', $words));
 		}
 
 		// Rows: each invoice with its own link, credit, fee and interest, the amount to pay now and the deadline.
@@ -207,8 +220,19 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		foreach ($set['invoices'] as $i => $item) {
 			$ore = (int)round($item['amount'] * 100);
 			$totalOre += $ore;
+			$cardless = in_array(stripe_reminder_variant($item), array('bank', 'view'), true);   // its page offers no card payment
 			$rows[] = array('label' => stripe_txt('mail_rem_row_invoice', array('nr' => $item['nr'], 'date' => stripe_fmt_date($item['forfaldsdate']))),
-				'value' => stripe_fmt_kr($ore) . ' kr.', 'link' => $urls[$i]);
+				'value' => stripe_fmt_kr($ore) . ' kr.', 'link' => $urls[$i],
+				'link_label' => stripe_txt($cardless ? 'mail_rem_view_link' : 'mail_rem_pay_link'), 'link_text' => stripe_txt($cardless ? 'mail_rem_view_text' : 'mail_rem_pay_text'));
+		}
+		// The fee of an earlier level that was posted as an open item (fee_mode classic): owed now, by bank transfer (D1).
+		$priorNumbers = array();
+		foreach ($set['prior_fees'] as $prior) {
+			$ore = (int)round($prior['amount'] * 100);
+			$totalOre += $ore;
+			$priorNumbers[] = $prior['faktnr'];
+			$rows[] = array('label' => stripe_txt('mail_rem_row_prior_fee', array('level' => (int)$prior['level'])), 'value' => stripe_fmt_kr($ore) . ' kr.',
+				'note' => stripe_txt('mail_rem_prior_fee_note'));
 		}
 		$creditOre = (int)round($set['credits'] * 100);
 		if ($creditOre < 0) {
@@ -226,9 +250,12 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$reg = trim((string)($inv['firma']['bank_reg'] ?? ''));
 		$konto = trim((string)($inv['firma']['bank_konto'] ?? ''));
 		$hasBank = $reg !== '' && $konto !== '';
-		$bankLine = '';
+		$bankLines = array();
 		if ($variant === 'bank' && $hasBank) {
-			$bankLine = stripe_txt($multi ? 'mail_rem_bank_box_multi' : 'mail_rem_bank_box', array('reg' => $reg, 'konto' => $konto, 'nr' => $inv['nr']));
+			$bankLines[] = stripe_txt($multi ? 'mail_rem_bank_box_multi' : 'mail_rem_bank_box', array('reg' => $reg, 'konto' => $konto, 'nr' => $inv['nr']));
+		}
+		if ($priorNumbers && $hasBank) {
+			$bankLines[] = stripe_txt('mail_rem_bank_box_fee', array('reg' => $reg, 'konto' => $konto, 'nr' => implode(', ', $priorNumbers)));
 		}
 
 		$buttons = array('auto' => 'mail_btn_rem_auto', 'pay' => 'mail_btn_new', 'saved' => 'mail_btn_rem_saved', 'failed' => 'mail_btn_rem_failed',
@@ -243,7 +270,7 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 			$manualFeeOre = stripe_manual_fee_ore((float)$inv['o']['momssats'], (string)$inv['o']['fakturadate']);
 			if ($manualFeeOre > 0) $notes[] = stripe_txt('fee_note', array('fee' => stripe_fmt_kr($manualFeeOre) . ' kr.'));
 		}
-		if ($hasBank && $variant !== 'bank') $notes[] = stripe_txt('mail_rem_note_bank', array('reg' => $reg, 'konto' => $konto));
+		if ($hasBank && !$bankLines) $notes[] = stripe_txt('mail_rem_note_bank', array('reg' => $reg, 'konto' => $konto));
 		$notes[] = stripe_txt('mail_rem_note_end');
 		$contactMail = stripe_contact_email($inv['firma']);
 		$notes[] = $contactMail !== '' ? stripe_txt('mail_rem_note_contact', array('email' => $contactMail)) : stripe_txt('mail_rem_note_contact_plain');
@@ -253,9 +280,11 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$box = $close ?: $offer;
 		$listHtml = ($close && $offer) ? stripe_mail_box_html($offer) : '';
 		$listHtml .= stripe_reminder_list_html($rows);
-		if ($bankLine !== '') {
+		if ($bankLines) {
 			$listHtml .= '<div style="margin:0 0 22px;padding:16px 18px;border-radius:12px;background:#f3eee6"><div style="font-weight:600;color:#111318">'
-				. stripe_h(stripe_txt('bank_box_title')) . '</div><div style="font-size:15px;color:#4b5563">' . stripe_h($bankLine) . '</div></div>';
+				. stripe_h(stripe_txt('bank_box_title')) . '</div>';
+			foreach ($bankLines as $bankLine) $listHtml .= '<div style="font-size:15px;color:#4b5563">' . stripe_h($bankLine) . '</div>';
+			$listHtml .= '</div>';
 		}
 		$html = stripe_mail_layout($inv, $label, $h1, $body, $box, array(), $btnText, $btnUrl, '', '', stripe_h($noteText), $listHtml);
 
@@ -267,11 +296,11 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$textRows = array();
 		foreach ($rows as $row) {
 			$value = $row['value'];
-			if (!empty($row['link'])) $value .= ' – ' . stripe_txt('mail_rem_pay_text') . ': ' . $row['link'];
+			if (!empty($row['link'])) $value .= ' – ' . ($row['link_text'] ?? stripe_txt('mail_rem_pay_text')) . ': ' . $row['link'];
 			elseif (!empty($row['note'])) $value .= ' (' . $row['note'] . ')';
 			$textRows[] = array($row['label'], $value);
 		}
-		if ($bankLine !== '') $textRows[] = array(stripe_txt('bank_box_title'), $bankLine);
+		foreach ($bankLines as $bankLine) $textRows[] = array(stripe_txt('bank_box_title'), $bankLine);
 		$text = stripe_mail_text_version($h1, $textBody, $textRows, $btnText, $btnUrl, $noteText);
 
 		$ok = stripe_mail_send($email, $subject, $html, $text, array(array('path' => $pdf, 'name' => 'Rykker ' . trim((string)$r['fakturanr']) . '.pdf')));

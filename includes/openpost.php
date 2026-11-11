@@ -26,6 +26,7 @@
 //                 bogfor_nu() writes projekt '' on the fee open item (NULL never matched a payment in finans/bogfor.php).
 //                 bogfor_nu() no longer ends a query with ';', which injecttjek() took for SQL injection, so "Ryk alle" could not post a reminder.
 //                 bogfor_rykker() selects pris and bogfor_nu() initialises $afd (PHP warnings).
+// 20261109 CL/ASR Review fixes: bogfor_rykker() refreshes a carried fee from the reminder's lines before it moves it to "Bogførte rykkere", and posts nothing for a reminder dated outside the active fiscal year (as includes/rapportfunc.php).
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $art) {
 	?>
 	<script LANGUAGE="JavaScript">
@@ -760,9 +761,16 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 	if (is_file(__DIR__ . '/stripeIncludes/stripeReminder.php')) {
 		include_once(__DIR__ . '/stripeIncludes/stripeReminder.php');
 		if (stripe_reminder_carried((int)$id)) {
+			stripe_reminder_refresh_amounts((int)$id);   // a fee or interest line deleted before booking is not carried
 			db_modify("update ordrer set status = 4 where id = " . (int)$id, __FILE__ . " linje " . __LINE__);
 			return;
 		}
+	}
+	// 20261109 CL/ASR as "Bogfør" (includes/rapportfunc.php, 20121106): nothing is posted outside the active fiscal year
+	// ("Ryk alle" in debitor/ny_rykker.php skips such a reminder first and says so)
+	if (is_file(__DIR__ . '/reminderLegal.php')) {
+		include_once(__DIR__ . '/reminderLegal.php');
+		if (!reminder_in_active_year((int)$id)) return false;
 	}
 	$fejl=0;
 	$sum=0;

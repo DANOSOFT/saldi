@@ -44,6 +44,9 @@
 //                 Link reminders: stripe_reminder_register() after the lines of R1 and R2/R3 are complete; no comment line for a previous fee that went on the next invoice (there is no open item), and no interest on it; "Ryk alle" first closes booked link reminders whose invoices are paid.
 //                 The new level's sum is written to the new reminder, not to the previous one.
 //                 The notices and "Topniveau nået" are shown in one alert.
+// 20261109 CL/ASR Review fixes: "Ryk alle" and "Ny rykker" do not book or escalate a reminder whose invoices are all paid (a notice says to use Afslut), and a new level lists only unpaid open items and charges interest on those only.
+//                 "Ryk alle" does not book a reminder dated outside the active fiscal year (as "Bogfør").
+//                 Reminder ids from the request are cast to integers.
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -74,7 +77,7 @@ if (is_file(__DIR__ . '/../includes/stripeIncludes/stripeReminder.php')) include
 $legalNotes = array(); # staff notices (renteloven § 9 b), shown in one alert at the end
 
 $konto_antal=$_GET['kontoantal'];
-if (isset($_GET['rykker_id'])) $rykker_id=explode(";", $_GET['rykker_id']);
+if (isset($_GET['rykker_id'])) $rykker_id=array_map('intval', explode(";", $_GET['rykker_id'])); # 20261109 CL/ASR integers
 else $rykker_id=NULL;
 $konto_id =explode(";", $_GET['kontoliste']);
 
@@ -156,9 +159,10 @@ if ($konto_id[0]=="alle") {
 	#finder aabne level_1 rykkere som har overskredet rykkerdato med ffdage2.og bogforer disse
 	$q=db_select("select id,konto_id,fakturanr from ordrer where art = 'R1' and status < '3' and ordredate < '$rykkerfrist2' and $stripeDunningReminder",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
-		// 20261109 CL/ASR renteloven § 9 b (L3): not booked and escalated before the next reminder may carry its fee
-		if (($l3 = reminder_escalation_check((int)$r['id'])) !== '') {
-			$legalNotes[] = reminder_txt(8107, 'Ingen ny rykker for {rykker}: {tekst}', array('rykker' => $r['fakturanr'], 'tekst' => $l3));
+		// 20261109 CL/ASR not booked and escalated: a reminder whose invoices are all paid (Afslut closes it), one dated outside
+		// the active fiscal year (as "Bogfør"), and renteloven § 9 b (L3) before the next reminder may carry its fee
+		if (($skip = reminder_escalation_skip((int)$r['id'], true)) !== '') {
+			$legalNotes[] = reminder_skip_notice($r['fakturanr'], $skip);
 			continue;
 		}
 		$x++;
@@ -170,9 +174,9 @@ if ($konto_id[0]=="alle") {
 	#finder aabne level_2 rykkere som har overskredet rykkerdato med ffdage3.og bogforer disse
 	$q=db_select("select id,konto_id,fakturanr from ordrer where art = 'R2' and status < '3' and ordredate < '$rykkerfrist3' and betalt != 'on' and $stripeDunningReminder",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
-		// 20261109 CL/ASR renteloven § 9 b (L3), as for R1 above
-		if (($l3 = reminder_escalation_check((int)$r['id'])) !== '') {
-			$legalNotes[] = reminder_txt(8107, 'Ingen ny rykker for {rykker}: {tekst}', array('rykker' => $r['fakturanr'], 'tekst' => $l3));
+		// 20261109 CL/ASR as for R1 above
+		if (($skip = reminder_escalation_skip((int)$r['id'], true)) !== '') {
+			$legalNotes[] = reminder_skip_notice($r['fakturanr'], $skip);
 			continue;
 		}
 		$x++;
@@ -344,9 +348,10 @@ for ($i=0; $i<=$konto_antal; $i++) {
 				$valutakurs=100;
 			}
 			if ($rykkernr<=3) {
-				// 20261109 CL/ASR renteloven § 9 b (L3): a reminder with a fee at least 10 days after the previous one was sent
-				if (($l3 = reminder_escalation_check((int)$rykker_id[$i])) !== '') {
-					$legalNotes[] = reminder_txt(8107, 'Ingen ny rykker for {rykker}: {tekst}', array('rykker' => $r['fakturanr'], 'tekst' => $l3));
+				// 20261109 CL/ASR no next level when every invoice on the reminder is paid; renteloven § 9 b (L3): a reminder with a fee
+				// at least 10 days after the previous one was sent
+				if (($skip = reminder_escalation_skip((int)$rykker_id[$i], false)) !== '') {
+					$legalNotes[] = reminder_skip_notice($r['fakturanr'], $skip);
 					continue;
 				}
 				$art="R".$rykkernr;
@@ -372,13 +377,14 @@ for ($i=0; $i<=$konto_antal; $i++) {
 				$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				while ($r2=db_fetch_array($q2)) { #og indsætter dem i den nye rykker
 					if (!$r2['vare_id'] && $r2['enhed']) {
+						$qtxt = "select konto_id, faktnr, amount, udlignet from openpost where id = '" . (int)$r2['enhed'] . "'";
+						$r3=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+						if ($r3 && reminder_openpost_paid($r3)) continue; # 20261109 CL/ASR a paid open item is not reminded again, nor charged interest
 						$pos++;
 						$qtxt = "insert into ordrelinjer (posnr,enhed, ordre_id, serienr, beskrivelse) values ";
-						$qtxt.= "('$pos','$r2[enhed]', '$ny_rykker_id[$i]', '$r2[serienr]', '$r2[beskrivelse]')";
+						$qtxt.= "('$pos','" . db_escape_string($r2['enhed']) . "', '$ny_rykker_id[$i]', '" . db_escape_string($r2['serienr']) . "', '" . db_escape_string($r2['beskrivelse']) . "')";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$qtxt = "select amount from openpost where id = '$r2[enhed]'";
-						$r3=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-						$rentesum=$rentesum+$r3['amount'];
+						$rentesum=$rentesum+($r3 ? $r3['amount'] : 0);
 					}
 				}
 				$qtxt = "select * from ordrer where id = '$rykker_id[$i]'";
@@ -456,7 +462,7 @@ for ($i=0; $i<=$konto_antal; $i++) {
 	}
 }	
 #	xit;
-if ($topniveau) $legalNotes[] = "Topniveau nået for rykkere med løbenr $topniveau";
+if ($topniveau) $legalNotes[] = reminder_txt(8110, 'Topniveau nået for rykkere med løbenr {loebenr}', array('loebenr' => $topniveau));
 if ($legalNotes) {
 	/**
 	 * jsString() comes from includes/stdFunc/jsString.php, which std_func.php includes.

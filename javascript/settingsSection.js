@@ -6,6 +6,7 @@
 // 20261002 Sawaneh Hand-over 2 Oct (8.0): the save bar shows only while something is unsaved and counts the changes;
 //                  a changed field is marked; a sub-section whose fields are all hidden is hidden too.
 // 20261004 Sawaneh Skift on a stored secret opens its empty input (it did nothing on form sections).
+// 20261109 CL/ASR ruleHolds(): a field whose parent field is hidden by its own rule is hidden too (a chain of rules), as st_visible() in PHP.
 (function () {
 	'use strict';
 	var cfg = window.SALDI_SETTINGS || {};
@@ -44,13 +45,19 @@
 	}
 
 	// ------------------------------------------------------------ dependencies (P7)
-	function ruleHolds(rule) {
+	function ruleHolds(rule, depth) {
 		var parent = byKey[rule[1]];
 		if (!parent) { return true; }
 		var v = valueOf(parent);
-		if (rule[0] === 'setting') { return (v === '1') === !!rule[2]; }
-		if (rule[0] === 'setting_in') { return rule[2].indexOf(v) !== -1; }
-		return true;
+		var holds = true;
+		if (rule[0] === 'setting') { holds = (v === '1') === !!rule[2]; }
+		else if (rule[0] === 'setting_in') { holds = rule[2].indexOf(v) !== -1; }
+		// A parent hidden by its own rule hides this field too (a chain of rules, as st_visible() in PHP).
+		depth = depth || 0;
+		if (holds && parent.dataset.visibleIf && depth < 5) {
+			try { return ruleHolds(JSON.parse(parent.dataset.visibleIf), depth + 1); } catch (e) { return holds; }
+		}
+		return holds;
 	}
 	function applyRules() {
 		fields.concat(actions).forEach(function (el) {

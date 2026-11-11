@@ -33,6 +33,7 @@
 // 20261109 CL/ASR Link reminders: a marker shows how the reminder fee is handled ("Linkrykker · gebyr på næste faktura" etc.).
 //                 Unticking "Send pr. mail" on a draft link reminder, or switching it to another language or currency, makes it a classic reminder.
 //                 "Frafald rykkergebyr" (with a session CSRF token) waives a carried fee that is not charged yet.
+// 20261109 CL/ASR Review fixes: a booked draft link reminder stays a link reminder (stripe_reminder_unregister()); "Frafald rykkergebyr" is stripe_reminder_waive_request(); the reminder id and line ids are cast to integers; texts are escaped in the page's charset; the e-mail helper is included with __DIR__.
 
 @session_start();
 $s_id=session_id();
@@ -49,20 +50,6 @@ include("../includes/std_func.php");
 // 20261109 CL/ASR link reminders (stripe_reminder_row/_marker/_unregister/_waive, reminder_txt()); without the file every reminder is classic
 if (is_file(__DIR__ . '/../includes/stripeIncludes/stripeReminder.php')) include_once(__DIR__ . '/../includes/stripeIncludes/stripeReminder.php');
 
-/**
- * Whether "Frafald rykkergebyr" applies: a link reminder whose fee and interest go on the next invoice, sent (or booked),
- * and not charged or waived yet.
- *
- * @param array<string, mixed>|null $linkRow stripe_reminders row, or null.
- * @param int|string $ordreStatus ordrer.status of the reminder (3+ = booked).
- * @return bool
- */
-function rykkerFeeWaivable($linkRow, $ordreStatus) {
-	return is_array($linkRow) && $linkRow['fee_mode'] === 'next' && in_array($linkRow['status'], array('draft', 'sent'), true)
-		&& ($linkRow['status'] === 'sent' || (int)$ordreStatus >= 3)
-		&& (int)$linkRow['fee_ore'] + (int)$linkRow['interest_ore'] > 0;
-}
-
 if (empty($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -70,18 +57,11 @@ if (empty($_SESSION['csrf_token'])) {
 $inkasso=if_isset($_POST['inkasso']);
 $mail_fakt=if_isset($_POST['mail_fakt']);
 $submit=if_isset($_POST['submit']);
-$rykker_id=if_isset($_GET['rykker_id']);
+$rykker_id = (int)($_GET['rykker_id'] ?? 0);   // 20261109 CL/ASR an integer, it goes into SQL and the page
 
-// 20261109 CL/ASR "Frafald rykkergebyr" on a link reminder (stripe_reminder_waive); answered with an alert
-if ($rykker_id && isset($_POST['frafald']) && function_exists('stripe_reminder_waive')) {
-	if (!hash_equals((string)$_SESSION['csrf_token'], (string)($_POST['csrf_token'] ?? ''))) {
-		$waiveMsg = reminder_txt(8133, 'Ugyldig eller udløbet formular - genindlæs siden og prøv igen.');
-	} else {
-		$r = db_fetch_array(db_select("select status from ordrer where id = " . (int)$rykker_id, __FILE__ . " linje " . __LINE__));
-		$waived = $r && rykkerFeeWaivable(stripe_reminder_row((int)$rykker_id), $r['status']) && stripe_reminder_waive((int)$rykker_id, 'manual');
-		$waiveMsg = $waived ? reminder_txt(8132, 'Rykkergebyret er frafaldet.')
-			: reminder_txt(8134, 'Rykkergebyret kan ikke frafaldes: det er allerede opkrævet eller frafaldet, eller rykkeren er ikke sendt.');
-	}
+// 20261109 CL/ASR "Frafald rykkergebyr" on a link reminder (stripe_reminder_waive_request()); answered with an alert
+if ($rykker_id && isset($_POST['frafald']) && function_exists('stripe_reminder_waive_request')) {
+	$waiveMsg = stripe_reminder_waive_request($rykker_id, (string)($_POST['csrf_token'] ?? ''), (string)$_SESSION['csrf_token']);
 	/**
 	 * jsString() comes from includes/stdFunc/jsString.php, which std_func.php includes.
 	 *
@@ -95,7 +75,7 @@ if ($rykker_id && $inkasso) {
 }
 if ($submit || $inkasso) {
 	$linjeantal=if_isset($_POST['linjeantal']);
-	if (!$rykker_id) $rykker_id=if_isset($_POST['rykker_id']);
+	if (!$rykker_id) $rykker_id = (int)($_POST['rykker_id'] ?? 0); # 20261109 CL/ASR integer
 	$r=db_fetch_array(db_select("select status from ordrer where id = '$rykker_id'",__FILE__ . " linje " . __LINE__)); #20140903
 	$status=$r['status'];
 	$rykkernr=if_isset($_POST['rykkernr']);
@@ -161,7 +141,7 @@ if ($submit || $inkasso) {
 		$slettet=0;
 		for ($x=1; $x<=$linjeantal; $x++) {
 			if ($rykkerbox[$x]=='on') {
-				db_modify("delete from ordrelinjer where id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
+				db_modify("delete from ordrelinjer where id=" . (int)$linje_id[$x],__FILE__ . " linje " . __LINE__);
 				$slettet++;
 			}
 		}
@@ -200,7 +180,7 @@ if ($submit || $inkasso) {
 				for ($x=1; $x<=$linjeantal; $x++) {
 					$beskrivelse[$x]=db_escape_string($beskrivelse[$x]);
 #			$pris[$x]=usdecimal($dkpris[$x]); 2009.02.05 - Pris fjernet fra update da den elles bogfoerer hele beloebet.
-					$qtxt = "update ordrelinjer set beskrivelse = '$beskrivelse[$x]' where id=$linje_id[$x]";
+					$qtxt = "update ordrelinjer set beskrivelse = '$beskrivelse[$x]' where id=" . (int)$linje_id[$x];
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}	
 			}
@@ -240,7 +220,7 @@ if ($rykker_id) {
 	$kontakt = htmlentities($row['kontakt'],ENT_COMPAT,$charset);
 	$email = htmlentities($row['email'],ENT_COMPAT,$charset);
 	// Combine order email with rykker-specific kontakt_emails
-	include_once("../includes/stdFunc/getKontaktEmail.php");
+	include_once(__DIR__ . '/../includes/stdFunc/getKontaktEmail.php');
 	$ke_rykker = getAllKontaktEmails($konto_id, 'rykker');
 	if ($ke_rykker) {
 		$all = array_filter(array_map('trim', preg_split('/[;,]/', $email . ';' . $ke_rykker)));
@@ -254,7 +234,7 @@ if ($rykker_id) {
 	$ean = htmlentities($row['ean'],ENT_COMPAT,$charset);
 	$institution = htmlentities($row['institution'],ENT_COMPAT,$charset);
 	$betalingsbet = trim($row['betalingsbet']);
-		$betalingsdage = $row['betalingsdage'];
+	$betalingsdage = $row['betalingsdage'];
 	$ref = trim(htmlentities($row['ref'],ENT_COMPAT,$charset));
 	$ordrenr=$row['ordrenr'];
 	$ordredato=dkdato($row['ordredate']);
@@ -279,9 +259,9 @@ if ($rykker_id) {
 		$qtxt="select beskrivelse from formularer where formular = '$formular' and art = '2' and lower(sprog)='dansk'";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
-		if (strstr(strtolower($r['beskrivelse']),$inkassotxt1)) $intxt1=1;
-		if (strstr(strtolower($r['beskrivelse']),$inkassotxt2)) $intxt2=1;
-		if ($intxt1 && $intxt2) $inkasso=1;
+			if (strstr(strtolower($r['beskrivelse']),$inkassotxt1)) $intxt1=1;
+			if (strstr(strtolower($r['beskrivelse']),$inkassotxt2)) $intxt2=1;
+			if ($intxt1 && $intxt2) $inkasso=1;
 		}
 	}
 } else {
@@ -341,7 +321,7 @@ print "<tr><td><b>".findtekst(1097,$sprog_id)."</td><td>$ref</td></tr>\n";
 if ($mail_fakt=='on') $mail_fakt='checked';
 print "<tr><td><b>".findtekst(1145,$sprog_id)."</td><td><input type=checkbox name=mail_fakt $mail_fakt></td></tr>\n";
 if ($linkRow) { # 20261109 CL/ASR Linkrykker · gebyr på næste faktura / som åben post / frafaldet
-	print "<tr><td colspan=2><b>" . htmlspecialchars(stripe_reminder_marker((int)$rykker_id), ENT_QUOTES, 'UTF-8') . "</b></td></tr>\n";
+	print "<tr><td colspan=2><b>" . htmlspecialchars(stripe_reminder_marker((int)$rykker_id), ENT_QUOTES, $charset ?: 'UTF-8') . "</b></td></tr>\n";
 }
 print "<tr><td><b>".findtekst(1069,$sprog_id)."</b></td><td><select class=\"inputbox\" name=ny_valuta>";
 for ($x=0;$x<count($valutakode);$x++) {
@@ -445,9 +425,9 @@ print "<tr><td colspan=4></td></tr><tr>";
 			if ($mail_fakt) print "<td align=center><input type=submit value=\"Send\" name=\"submit\" onclick=\"return confirm('Send rykker som mail til $email?') disabled=\"disabled\"></td>"; 
 			else print "<td align=center><input type=submit value=\"".findtekst(880,$sprog_id)."\" name=\"submit\" disabled=\"disabled\"></td>";
 		}
-		if (rykkerFeeWaivable($linkRow, $status)) { # 20261109 CL/ASR
+		if (function_exists('stripe_reminder_waivable') && stripe_reminder_waivable($linkRow, $status)) { # 20261109 CL/ASR
 			$waiveConfirm = jsString(array(reminder_txt(8131, 'Frafald rykkergebyret på denne rykker?')));
-			print "<td align=center><input type=submit value=\"" . htmlspecialchars(reminder_txt(8130, 'Frafald rykkergebyr'), ENT_QUOTES, 'UTF-8') . "\" name=\"frafald\" onclick=\"return confirm(" . htmlspecialchars($waiveConfirm, ENT_QUOTES, 'UTF-8') . ")\"></td>";
+			print "<td align=center><input type=submit value=\"" . htmlspecialchars(reminder_txt(8130, 'Frafald rykkergebyr'), ENT_QUOTES, $charset ?: 'UTF-8') . "\" name=\"frafald\" onclick=\"return confirm(" . htmlspecialchars($waiveConfirm, ENT_QUOTES, 'UTF-8') . ")\"></td>";
 		}
 		if ($status<3) {
 			db_modify("update ordrer set sum='$sum' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);

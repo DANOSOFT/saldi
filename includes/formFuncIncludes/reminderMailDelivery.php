@@ -4,6 +4,9 @@
 //                 A link reminder (a draft/sent row in stripe_reminders) is mailed with payment links (stripeReminderMail.php), else the classic PDF mail.
 //                 A classic reminder goes to the classic sender exactly as before.
 //                 Installations without the reminder files or tables keep the classic behaviour.
+// 20261109 CL/ASR Review fixes: the reminder PDF treats a fee that goes on the next invoice by the link reminder row in any status ("opkræves på din næste faktura" / "opkrævet på faktura X" / "frafaldet", never in "I alt"), and leaves out the invoices the link mail leaves out (D3; formReminderPdfTreatment()).
+//                 A draft link reminder printed on paper counts as sent (formReminderPrinted()).
+//                 Staff messages are texts 8135-8139 (tekster.csv) and the alert is built with jsString(), so a legacy (non-UTF8) database shows them right.
 
 /** @return void Loads the reminder helpers this installation has: the legal rules and the link reminder register. */
 function formReminderIncludes(): void {
@@ -16,6 +19,21 @@ function formReminderIncludes(): void {
 function formReminderLog(string $line): void {
 	if (function_exists('stripe_log')) stripe_log($line);
 	else error_log('Saldi reminder: ' . $line);
+}
+
+/**
+ * A staff text of the send path (reminder_txt(): tekster.csv, Danish fallback), also without reminderLegal.php.
+ *
+ * @param int $textId Id in importfiler/tekster.csv.
+ * @param string $danish The Danish text.
+ * @param array<string, string> $vars {name} placeholders.
+ * @return string
+ */
+function formReminderText(int $textId, string $danish, array $vars = array()): string {
+	formReminderIncludes();
+	if (function_exists('reminder_txt')) return reminder_txt($textId, $danish, $vars);
+	foreach ($vars as $name => $value) $danish = str_replace('{' . $name . '}', (string)$value, $danish);
+	return $danish;
 }
 
 /** @return string The reminder's number for staff messages (ordrer.fakturanr, e.g. "17-1"), or its id when it has none. */
@@ -35,7 +53,7 @@ function formReminderRefusal(int $rykkerId): string {
 	formReminderIncludes();
 	if (!function_exists('reminder_legal_check')) return '';
 	$reason = trim((string)reminder_legal_check($rykkerId));
-	return $reason === '' ? '' : 'Rykker ' . formReminderNumber($rykkerId) . ' er ikke sendt: ' . $reason;
+	return $reason === '' ? '' : formReminderText(8135, 'Rykker {rykker} er ikke sendt: {tekst}', array('rykker' => formReminderNumber($rykkerId), 'tekst' => $reason));
 }
 
 /**
@@ -57,10 +75,72 @@ function formReminderLinkRow(int $rykkerId): ?array {
 	return (is_array($row) && in_array((string)$row['status'], array('draft', 'sent'), true)) ? $row : null;
 }
 
-/** @return bool Whether the reminder PDF marks fee and interest as charged on the next invoice and leaves them out of "I alt". */
-function formReminderFeeCarried(int $rykkerId): bool {
+/**
+ * How the reminder PDF (rykkerprint()) shows a link reminder. Fee and interest that go on the next invoice
+ * (fee_mode next, any status: bogfor_rykker() never posted them) stay out of "I alt" and say where they are:
+ * draft/sent " – opkræves på din næste faktura", charged " – opkrævet på faktura <number>", waived " – frafaldet".
+ * While it is sent as a link reminder (draft/sent) the open items the link mail leaves out (paid, settled, in flight,
+ * credited invoices; settled credits and earlier fees) are left out of the PDF too, so PDF and mail agree (D3).
+ * A classic reminder (or fee_mode classic) is printed as before.
+ *
+ * @param int $rykkerId ordrer.id of the R1/R2/R3 order.
+ * @return array{
+ *   carried: bool,           Fee and interest lines are not part of "I alt".
+ *   suffix: string,          Added to their text.
+ *   skip: array<int, int>,   openpost ids whose lines are left out.
+ * }
+ */
+function formReminderPdfTreatment(int $rykkerId): array {
+	$out = array('carried' => false, 'suffix' => '', 'skip' => array());
+	formReminderIncludes();
+	if (!function_exists('stripe_reminder_row')) return $out;
+	try {
+		$row = stripe_reminder_row($rykkerId);
+		if (!$row) return $out;
+		if ($row['fee_mode'] === 'next') {
+			$out['carried'] = true;
+			if ($row['status'] === 'waived') {
+				$out['suffix'] = ' – frafaldet';
+			} elseif ($row['status'] === 'charged') {
+				$o = $row['fee_ordre_id'] > 0 ? db_fetch_array(db_select("select fakturanr from ordrer where id = " . (int)$row['fee_ordre_id'], __FILE__ . " linje " . __LINE__)) : null;
+				$nr = trim((string)($o['fakturanr'] ?? ''));
+				$out['suffix'] = $nr !== '' ? ' – opkrævet på faktura ' . $nr : ' – opkrævet på en senere faktura';
+			} else {
+				$out['suffix'] = ' – opkræves på din næste faktura';
+			}
+		}
+		if (in_array($row['status'], array('draft', 'sent'), true) && is_file(__DIR__ . '/../stripeIncludes/stripeReminderMail.php')) {
+			include_once(__DIR__ . '/../stripeIncludes/stripeReminderMail.php');
+			$lines = stripe_reminder_lines($rykkerId);
+			$set = stripe_reminder_invoices($rykkerId);
+			foreach ($lines['invoices'] as $invoice) {
+				if (isset($set['skipped'][(int)$invoice['ordre_id']])) $out['skip'][] = (int)$invoice['openpost_id'];
+			}
+			$kept = array_map(function ($fee) { return (int)$fee['openpost_id']; }, $set['prior_fees']);
+			foreach ($lines['prior_fees'] as $fee) {
+				if (!in_array((int)$fee['openpost_id'], $kept, true)) $out['skip'][] = (int)$fee['openpost_id'];
+			}
+			foreach ($lines['credits'] as $credit) {
+				$op = db_fetch_array(db_select("select udlignet from openpost where id = " . (int)$credit['openpost_id'], __FILE__ . " linje " . __LINE__));
+				if ($op && trim((string)$op['udlignet']) === '1') $out['skip'][] = (int)$credit['openpost_id'];
+			}
+		}
+	} catch (Throwable $e) {
+		formReminderLog('reminder pdf ' . $rykkerId . ': ' . $e->getMessage());
+	}
+	return $out;
+}
+
+/**
+ * A reminder printed on paper (no mail): a draft link reminder is sent now, so its fee goes on the next invoice as the
+ * PDF says (stripe_reminder_fee_bogfor() takes sent rows). A sent, charged or waived one is left as it is.
+ *
+ * @param int $rykkerId ordrer.id of the R1/R2/R3 order.
+ * @return void
+ */
+function formReminderPrinted(int $rykkerId): void {
 	$row = formReminderLinkRow($rykkerId);
-	return $row !== null && (string)$row['fee_mode'] === 'next';
+	if ($row !== null && $row['status'] === 'draft') formReminderMarkSent($rykkerId, 'classic', '');
 }
 
 /** @return bool Whether the classic sender (send_mails) reports a sent mail. */
@@ -110,12 +190,13 @@ function formSendReminderEntry(int $rykkerId, string $pdf, string $email, string
 		include_once(__DIR__ . '/../stripeIncludes/stripeReminderMail.php');
 		$set = stripe_reminder_invoices($rykkerId);
 		if (!$set['invoices']) {
-			return array('result' => false, 'message' => 'Rykker ' . $nr . ' er ikke sendt: alle fakturaer på rykkeren er betalt eller under betaling.',
+			return array('result' => false, 'message' => formReminderText(8136, 'Rykker {rykker} er ikke sendt: alle fakturaer på rykkeren er betalt eller under betaling.', array('rykker' => $nr)),
 				'sent' => false, 'channel' => '');
 		}
 		if (stripe_mail_reminder($rykkerId, $pdf, $email)) {
 			formReminderMarkSent($rykkerId, 'link', $email);
-			return array('result' => 'OK', 'message' => 'Rykker ' . $nr . ' er sendt med betalingslink til ' . $email . '.', 'sent' => true, 'channel' => 'link');
+			return array('result' => 'OK', 'message' => formReminderText(8137, 'Rykker {rykker} er sendt med betalingslink til {email}.', array('rykker' => $nr, 'email' => $email)),
+				'sent' => true, 'channel' => 'link');
 		}
 	} catch (Throwable $e) {
 		formReminderLog('reminder link mail ' . $rykkerId . ': ' . $e->getMessage());
@@ -131,15 +212,16 @@ function formSendReminderEntry(int $rykkerId, string $pdf, string $email, string
 	}
 	if ($sent) {
 		formReminderMarkSent($rykkerId, 'classic', $email);
-		return array('result' => $result, 'message' => 'Rykker ' . $nr . ' er sendt som almindelig PDF-mail, fordi mailen med betalingslink ikke kunne sendes.',
+		return array('result' => $result, 'message' => formReminderText(8138, 'Rykker {rykker} er sendt som almindelig PDF-mail, fordi mailen med betalingslink ikke kunne sendes.', array('rykker' => $nr)),
 			'sent' => true, 'channel' => 'classic');
 	}
-	return array('result' => $result, 'message' => 'Rykker ' . $nr . ' er ikke sendt: hverken mailen med betalingslink eller den almindelige PDF-mail kunne sendes.',
+	return array('result' => $result, 'message' => formReminderText(8139, 'Rykker {rykker} er ikke sendt: hverken mailen med betalingslink eller den almindelige PDF-mail kunne sendes.', array('rykker' => $nr)),
 		'sent' => false, 'channel' => '');
 }
 
 /**
- * One alert with all staff messages of a print/send batch, printed before the page redirects.
+ * One alert with all staff messages of a print/send batch, printed before the page redirects. The messages are in the
+ * database's encoding (findtekst()/reminder_txt()); jsString() turns them into an ASCII literal for either page charset.
  *
  * @param array<int, string> $messages Messages from formReminderRefusal()/formSendReminderEntry().
  * @return string A script tag, or '' without messages.
@@ -147,6 +229,8 @@ function formSendReminderEntry(int $rykkerId, string $pdf, string $email, string
 function formReminderAlertHtml(array $messages): string {
 	$messages = array_values(array_filter(array_map('strval', $messages), 'strlen'));
 	if (!$messages) return '';
-	$js = json_encode(implode("\n", $messages), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+	if (!function_exists('jsString') && is_file(__DIR__ . '/../stdFunc/jsString.php')) include_once(__DIR__ . '/../stdFunc/jsString.php');
+	$js = function_exists('jsString') ? jsString(array(implode("\n", $messages)))
+		: json_encode(implode("\n", $messages), JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 	return "<script type='text/javascript'>alert(" . $js . ");</script>\n";
 }

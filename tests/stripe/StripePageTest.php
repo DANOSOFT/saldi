@@ -4,6 +4,7 @@
 // 20261022 CDX/LH Assert whole-row consent appears between the amount box and Payment Element in every consent panel.
 // 20261025 CL/ASR Recurring invoices without automatic payment: consent text above Stripe and two pay buttons; fee note.
 // 20261109 CL/ASR Link reminders: the overdue lead before and after a reminder, where the carried reminder fee goes, the saved card on an overdue Link invoice, and a declined attempt canceled at Stripe shown as failed (B8).
+// 20261109 CL/ASR Review fixes: the fee note sums every carried fee and names interest as interest, an enrolled customer is told too, and the lead after a reminder that was not a link reminder.
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php';
@@ -290,5 +291,53 @@ final class StripePageTest extends StripeDatabaseTestCase
         $inv = stripe_invoice_load($id);
         $this->assertNull($inv['failed']);
         $this->assertSame('enrolled', $inv['state']);
+    }
+
+    public function testReminderFeeNoteSumsEveryCarriedFeeAndTellsAnEnrolledCustomer(): void
+    {
+        $GLOBALS['stripe_charge_today'] = '2026-01-25';
+        StripeReminderFixtures::forms();
+        $debtor = StripeFixtures::debtor();
+        $id = StripeFixtures::invoice($debtor);
+        $first = StripeReminderFixtures::reminder($debtor, [$id], ['status' => 4, 'date' => '2026-01-05']);
+        StripeReminderFixtures::linkRow($first, ['mailed_at' => '2026-01-05 10:00:00']);
+        $ordrenr = (int)StripeFixtures::row('ordrer', $first)['ordrenr'];
+        $second = StripeReminderFixtures::reminder($debtor, [$id], ['level' => 2, 'ordrenr' => $ordrenr, 'status' => 4, 'interest' => 12.5, 'date' => '2026-01-20']);
+        StripeReminderFixtures::linkRow($second, ['mailed_at' => '2026-01-20 15:30:00', 'interest_ore' => 1250]);
+        $panel = $this->render(stripe_invoice_load($id))['panel'];
+        $this->assertStringContainsString('Slår du automatisk betaling til, frafalder rykkergebyret på 200,00 kr. og renterne på 12,50 kr. Ellers kommer de på din næste faktura.', $panel);
+        $this->assertStringNotContainsString('rykkergebyret på 212,50', $panel);
+        // The latest reminder waived: the first one's fee still goes on the next invoice.
+        StripeTestEnvironment::query("UPDATE stripe_reminders SET status = 'waived' WHERE rykker_id = $1", [$second]);
+        $this->assertStringContainsString('Slår du automatisk betaling til, frafalder rykkergebyret på 100,00 kr. Ellers kommer det på din næste faktura.',
+            $this->render(stripe_invoice_load($id))['panel']);
+
+        // A customer who already pays automatically (enrolled before the reminder) pays the fee on the next invoice.
+        $enrolled = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2026-01-01']);
+        $link = StripeFixtures::invoice($enrolled, ['udskriv_til' => 'Link']);
+        $rykker = StripeReminderFixtures::reminder($enrolled, [$link], ['status' => 4]);
+        StripeReminderFixtures::linkRow($rykker, ['mailed_at' => '2026-01-20 15:30:00']);
+        $panel = $this->render(stripe_invoice_load($link))['panel'];
+        $this->assertStringContainsString('id="paynow"', $panel);
+        $this->assertStringContainsString('Rykkergebyret på 100,00 kr. kommer på din næste faktura.', $panel);
+        // Enrolled on or after the day of the reminder: the fee is waived anyway.
+        StripeTestEnvironment::query("UPDATE adresser SET stripe_date = '2026-01-20' WHERE id = $1", [$enrolled]);
+        $this->assertStringNotContainsString('Rykkergebyret', $this->render(stripe_invoice_load($link))['panel']);
+    }
+
+    public function testOverdueLeadAfterAReminderThatWasNotALinkReminder(): void
+    {
+        $GLOBALS['stripe_charge_today'] = '2026-01-25';
+        StripeReminderFixtures::forms();
+        $id = StripeFixtures::invoice();
+        $rykker = StripeReminderFixtures::reminder((int)StripeFixtures::row('ordrer', $id)['konto_id'], [$id]);
+        // A reminder being prepared: no promise about avoiding one with a fee.
+        $this->assertStringContainsString('<p class="lead">Fakturaen forfaldt den 16.01.2026. Betal nu for at undgå en rykker.</p>',
+            $this->render(stripe_invoice_load($id))['panel']);
+        // Booked (sent as a PDF or on paper): the customer has had it.
+        StripeTestEnvironment::query('UPDATE ordrer SET status = 4 WHERE id = $1', [$rykker]);
+        $panel = $this->render(stripe_invoice_load($id))['panel'];
+        $this->assertStringContainsString('<p class="lead">Vi har sendt dig en rykker. Betal fakturaen nu, så undgår du flere rykkere.</p>', $panel);
+        $this->assertStringNotContainsString('med gebyr', $panel);
     }
 }

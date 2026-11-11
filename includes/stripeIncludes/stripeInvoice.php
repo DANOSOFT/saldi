@@ -69,6 +69,8 @@ if (is_file(__DIR__ . '/stripeReminder.php')) include_once(__DIR__ . '/stripeRem
 // 20261109 CL/ASR Link reminders (Linkrykker): customer texts for the reminder mail and for the payment page after a reminder.
 //                 stripe_mail_layout() takes an optional list block ($listHtml) and an 'offer' box; stripe_mail_send() can name an attachment.
 //                 stripe_invoice_load() adds $inv['reminder'] and shows a declined attempt that was later canceled at Stripe as failed (B8).
+// 20261109 CL/ASR Review fixes: interest is named as interest, never as part of "rykkergebyret" (stripe_reminder_fee_words()); the page note sums every carried fee still to come and tells an enrolled customer too; after a reminder that was not a link reminder the overdue lead no longer promises to avoid one.
+//                 Texts for the earlier classic level's fee in the reminder mail and for the invoice link of a row that cannot be paid by card.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -244,16 +246,21 @@ if (!function_exists('stripe_txt')) {
 			'mail_body_rem_failed'      => 'Vi har forsøgt at trække betalingen af faktura %nr på dit gemte kort, men det lykkedes ikke. Betal den nu med et andet kort – så gemmer vi også det nye kort til dine næste fakturaer.',
 			'mail_body_rem_auto'        => 'Slår du automatisk betaling til, trækkes dine næste fakturaer automatisk på forfaldsdatoen, så du ikke får flere rykkere.',
 			'mail_body_rem_auto_invoice_date' => 'Slår du automatisk betaling til, trækkes dine næste fakturaer automatisk på fakturadatoen, så du ikke får flere rykkere.',
-			'mail_rem_offer_title'      => 'Slå automatisk betaling til – og spar rykkergebyret på %fee kr.',
-			'mail_rem_offer_sub'        => 'Betaler du med knappen nedenfor og gemmer kortet, fjerner vi rykkergebyret.',
+			'mail_rem_offer_title'      => 'Slå automatisk betaling til – og spar %what',
+			'mail_rem_offer_sub'        => 'Betaler du med knappen nedenfor og gemmer kortet, fjerner vi %short.',
 			'mail_rem_row_invoice'      => 'Faktura %nr · forfaldt %date',
 			'mail_rem_pay_link'         => 'Betal ›',
 			'mail_rem_pay_text'         => 'Betal',
+			'mail_rem_view_link'        => 'Se faktura ›',
+			'mail_rem_view_text'        => 'Se faktura',
 			'mail_rem_row_credit'       => 'Tilgodehavende',
 			'mail_rem_row_fee'          => 'Rykkergebyr',
 			'mail_rem_row_interest'     => 'Renter',
 			'mail_rem_fee_next'         => 'på næste faktura',
 			'mail_rem_fee_classic'      => 'betales sammen med fakturaen',
+			'mail_rem_row_prior_fee'    => 'Rykkergebyr fra %level. rykker',
+			'mail_rem_prior_fee_note'   => 'betales via bankoverførsel',
+			'mail_rem_bank_box_fee'     => 'Rykkergebyr: reg. %reg · konto %konto · reference %nr',
 			'mail_rem_row_total'        => 'At betale nu',
 			'mail_rem_row_deadline'     => 'Betal senest',
 			'mail_btn_rem_auto'         => 'Betal og slå automatisk betaling til',
@@ -271,9 +278,20 @@ if (!function_exists('stripe_txt')) {
 			'mail_rem_note_multi'       => 'Når automatisk betaling er slået til, betaler du de øvrige fakturaer med ét klik med dit gemte kort.',
 			// 20261109 CL/ASR payment page after a reminder (api/stripe/faktura.php)
 			'lead_reminded'             => 'Vi sendte dig en rykker den %date. Betal fakturaen nu, så undgår du flere rykkere.',
+			'lead_reminded_classic'     => 'Vi har sendt dig en rykker. Betal fakturaen nu, så undgår du flere rykkere.',
 			'lead_overdue_fee'          => 'Fakturaen forfaldt den %date. Betal nu, så undgår du en rykker med gebyr.',
-			'rem_fee_note_waive'        => 'Slår du automatisk betaling til, frafalder rykkergebyret på %fee kr. Ellers kommer det på din næste faktura.',
-			'rem_fee_note'              => 'Rykkergebyret på %fee kr. kommer på din næste faktura.',
+			// %what = rem_what_* (ends with "kr."), %it = det/de, %short = rem_short_* (stripe_reminder_fee_words())
+			'rem_fee_note_waive'        => 'Slår du automatisk betaling til, frafalder %what Ellers kommer %it på din næste faktura.',
+			'rem_fee_note_card'         => 'Betaler du med et nyt kort og gemmer det, frafalder %what Ellers kommer %it på din næste faktura.',
+			'rem_fee_note'              => '%what kommer på din næste faktura.',
+			'rem_what_fee'              => 'rykkergebyret på %fee kr.',
+			'rem_what_fee_interest'     => 'rykkergebyret på %fee kr. og renterne på %interest kr.',
+			'rem_what_interest'         => 'renterne på %interest kr.',
+			'rem_short_fee'             => 'rykkergebyret',
+			'rem_short_fee_interest'    => 'rykkergebyret og renterne',
+			'rem_short_interest'        => 'renterne',
+			'rem_it_one'                => 'det',
+			'rem_it_more'               => 'de',
 			'pay_saved_btn'             => 'Betal %amount med dit gemte kort',
 		);
 		$s = isset($t[$key]) ? $t[$key] : $key;
@@ -683,7 +701,8 @@ if (!function_exists('stripe_invoice_overdue_lead')) {
 	}
 
 	/**
-	 * Lead of the "overdue" panel: after a reminder it says when we sent it; before, it mentions the fee when one is set up.
+	 * Lead of the "overdue" panel: after a link reminder it says when we sent it; after any other booked reminder that
+	 * we sent one; before, it mentions the fee when one is set up (not while a reminder is being prepared).
 	 *
 	 * @param array $inv Loaded invoice (stripe_invoice_load()).
 	 * @return string Danish lead text.
@@ -691,8 +710,30 @@ if (!function_exists('stripe_invoice_overdue_lead')) {
 	function stripe_invoice_overdue_lead($inv) {
 		$reminded = stripe_invoice_reminded_lead($inv);
 		if ($reminded !== '') return $reminded;
-		$key = stripe_invoice_reminder_fee_configured() ? 'lead_overdue_fee' : 'lead_overdue';
+		$other = stripe_invoice_other_reminder($inv);
+		if ($other === 'booked') return stripe_txt('lead_reminded_classic');
+		$key = ($other === '' && stripe_invoice_reminder_fee_configured()) ? 'lead_overdue_fee' : 'lead_overdue';
 		return stripe_txt($key, array('date' => stripe_fmt_date($inv['due'])));
+	}
+
+	/**
+	 * A reminder Saldi did not mail as a link reminder (classic PDF, printed, or one that fell back to classic) that lists
+	 * this invoice: its comment line holds the invoice's open item id.
+	 *
+	 * @param array $inv Loaded invoice.
+	 * @return string 'booked' when such a reminder is booked (status 3+), 'open' when one is only prepared, '' when none.
+	 */
+	function stripe_invoice_other_reminder($inv) {
+		$kontoId = (int)($inv['o']['konto_id'] ?? 0);
+		$nr = trim((string)($inv['nr'] ?? ''));
+		if ($kontoId <= 0 || $nr === '') return '';
+		$idText = function_exists('db_cast') ? db_cast('op.id', 'text') : 'cast(op.id as varchar(30))';
+		$r = db_fetch_array(stripe_payment_select("select ro.status from ordrer ro where ro.art like 'R%' and ro.konto_id = $kontoId
+			and exists (select 1 from ordrelinjer l, openpost op where l.ordre_id = ro.id and coalesce(l.vare_id, 0) = 0
+				and l.enhed = $idText and op.konto_id = $kontoId and op.faktnr = '" . db_escape_string($nr) . "')
+			order by ro.status desc, ro.id desc", __FILE__ . " linje " . __LINE__));
+		if (!$r) return '';
+		return (int)$r['status'] >= 3 ? 'booked' : 'open';
 	}
 
 	/**
@@ -707,23 +748,51 @@ if (!function_exists('stripe_invoice_overdue_lead')) {
 	}
 
 	/**
-	 * Note under the pay buttons when the reminder fee (and interest) goes on the customer's next invoice.
-	 * Nothing when the fee is posted as an open item (fee_mode classic), already charged or waived.
+	 * How the carried reminder fee and interest are named to the customer. Interest is not a fee (renteloven § 9 b), so
+	 * it is never called "rykkergebyret".
+	 *
+	 * @param int $feeOre Fee in øre.
+	 * @param int $interestOre Interest in øre.
+	 * @return array{what: string, short: string, it: string} what: "rykkergebyret på 100,00 kr." / "rykkergebyret på
+	 *   100,00 kr. og renterne på 12,50 kr." / "renterne på 12,50 kr."; short: the same without amounts; it: det/de.
+	 */
+	function stripe_reminder_fee_words($feeOre, $interestOre) {
+		$kind = $interestOre > 0 ? ($feeOre > 0 ? 'fee_interest' : 'interest') : 'fee';
+		$amounts = array('fee' => stripe_fmt_kr($feeOre), 'interest' => stripe_fmt_kr($interestOre));
+		return array('what' => stripe_txt('rem_what_' . $kind, $amounts), 'short' => stripe_txt('rem_short_' . $kind),
+			'it' => stripe_txt($kind === 'fee' ? 'rem_it_one' : 'rem_it_more'));
+	}
+
+	/**
+	 * Note under the pay buttons after a reminder: the reminder fees and interest that go on the customer's next invoice,
+	 * all of them (every sent link reminder of the customer that carries its fee, stripe_reminder_carried_rows()), and
+	 * whether turning on automatic payment (or saving a new card) waives them. For a customer who already pays
+	 * automatically a fee of a reminder sent on or before the enrolment day is waived anyway and not counted.
+	 * Nothing when no fee is carried (fee posted as an open item, already charged or waived).
 	 *
 	 * @param array $inv Loaded invoice with 'reminder'.
 	 * @return string Danish sentence, or ''.
 	 */
 	function stripe_invoice_reminder_note($inv) {
-		$rem = $inv['reminder'] ?? null;
-		if (!$rem || ($rem['fee_mode'] ?? '') !== 'next' || ($rem['status'] ?? '') !== 'sent') return '';
-		$ore = (int)($rem['fee_ore'] ?? 0) + (int)($rem['interest_ore'] ?? 0);
-		if ($ore <= 0) return '';
+		if (empty($inv['reminder']) || !function_exists('stripe_reminder_carried_rows')) return '';
 		$waive = function_exists('stripe_reminder_settings') ? !empty(stripe_reminder_settings()['waive']) : true;
-		$fee = array('fee' => stripe_fmt_kr($ore));
-		if (!$waive) return stripe_txt('rem_fee_note', $fee);
-		// The waiver needs automatic payment, which only a customer who is not enrolled yet can turn on here.
-		if (!empty($inv['enrolled'])) return '';
-		return stripe_invoice_save_allowed($inv) ? stripe_txt('rem_fee_note_waive', $fee) : stripe_txt('rem_fee_note', $fee);
+		$enrolled = !empty($inv['enrolled']);
+		$since = substr((string)($inv['debtor']['stripe_date'] ?? ''), 0, 10);
+		$fee = 0;
+		$interest = 0;
+		foreach (stripe_reminder_carried_rows((int)$inv['o']['konto_id']) as $row) {
+			if ($waive && $enrolled && $since !== '' && $since >= substr($row['mailed_at'], 0, 10)) continue;
+			$fee += $row['fee_ore'];
+			$interest += $row['interest_ore'];
+		}
+		if ($fee + $interest <= 0) return '';
+		$words = stripe_reminder_fee_words($fee, $interest);
+		if ($waive && stripe_invoice_save_allowed($inv)) {
+			if (!$enrolled) return stripe_txt('rem_fee_note_waive', $words);
+			// Enrolled: only a new card saved with a payment here waives it (the card form of the failed state).
+			if (!empty($inv['failed'])) return stripe_txt('rem_fee_note_card', $words);
+		}
+		return stripe_txt('rem_fee_note', array('what' => ucfirst($words['what'])));
 	}
 }
 

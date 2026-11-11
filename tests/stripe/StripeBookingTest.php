@@ -7,6 +7,10 @@
 // 20261022 CDX/LH Verify three-day reminder protection for page attempts and permanent saved-card authentication protection.
 // 20261022 CDX/LH Regress journal creation/reuse against the real tenant table with its sequence behind MAX(id).
 // 20261109 CL/ASR Link reminders: "Bogfør" (includes/openpost.php bogfor_rykker) posts nothing for a fee carried to the next invoice and keeps the classic posting, now with projekt '' on the fee's open item.
+// 20261109 CL/ASR Review fixes: the same for the "Bogfør" button's copy (includes/rapportfunc.php, in its own process), and the "Ryk alle" copy posts nothing outside the active fiscal year.
+
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeInvoiceWebhook.php';
@@ -836,8 +840,45 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
 
     public function testReminderBookingPostsNothingForACarriedFeeAndKeepsClassicPosting(): void
     {
-        require_once __DIR__ . '/reminderFixtures.php';
         require_once __DIR__ . '/../../includes/openpost.php';   // bogfor_rykker()/bogfor_nu() as "Ryk alle" uses them
+        $this->assertReminderBooking();
+
+        // Outside the active fiscal year nothing is posted, as "Bogfør" refuses it (includes/rapportfunc.php, 20121106).
+        StripeTestEnvironment::query("UPDATE grupper SET box2 = '2025', box4 = '2025' WHERE art = 'RA'");
+        $debtor = StripeFixtures::debtor(['gruppe' => 7]);
+        $rykker = StripeReminderFixtures::reminder($debtor, [StripeFixtures::invoice($debtor, ['udskriv_til' => 'email'])]);
+        ob_start();
+        try {
+            $this->assertFalse(bogfor_rykker($rykker));
+        } finally {
+            $output = ob_get_clean();
+        }
+        $this->assertSame('', $output);
+        $this->assertSame(2, (int)StripeFixtures::row('ordrer', $rykker)['status']);
+        $this->assertSame([], pg_fetch_all(StripeTestEnvironment::query('SELECT id FROM openpost WHERE refnr = $1', [$rykker])) ?: []);
+        $this->assertSame([], pg_fetch_all(StripeTestEnvironment::query('SELECT id FROM transaktioner WHERE ordre_id = $1', [$rykker])) ?: []);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testBogforButtonPostsNothingForACarriedFeeAndKeepsClassicPosting(): void
+    {
+        // The "Bogfør" button's copy (debitor/rapport.php). It declares the same functions as includes/openpost.php, hence its
+        // own process, and includes ../includes/reportFunc/showOpenPosts.php from the page's folder.
+        $cwd = getcwd();
+        chdir(__DIR__ . '/../../debitor');
+        try {
+            require_once __DIR__ . '/../../includes/rapportfunc.php';
+        } finally {
+            chdir($cwd);
+        }
+        $this->assertReminderBooking();
+    }
+
+    /** bogfor_rykker() (whichever copy is loaded) for a link reminder whose fee goes on the next invoice, one whose fee is an open item, and a classic one. */
+    private function assertReminderBooking(): void
+    {
+        require_once __DIR__ . '/reminderFixtures.php';
         if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeReminder.php')) {
             require_once __DIR__ . '/../../includes/stripeIncludes/stripeReminder.php';
         }

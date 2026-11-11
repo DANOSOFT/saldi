@@ -94,6 +94,7 @@
 //                 Reminders are checked against renteloven § 9 b before they are printed or mailed.
 //                 Link reminders are mailed with payment links (formSendReminderEntry()); their fee lines say "opkræves på din næste faktura" outside "I alt".
 //                 Staff messages come as one alert before the redirect.
+// 20261109 CL/ASR Review fixes in rykkerprint(): a carried fee says where it went in any status (next invoice / charged on invoice X / waived) and is never in "I alt"; a link reminder's PDF leaves out what its mail leaves out (D3); every reminder of a batch writes its own HTML page ("Brug html"), so printed reminders no longer land on top of each other; a draft link reminder printed on paper counts as sent.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -2741,6 +2742,8 @@ if (!function_exists('rykkerprint')) {
 		if (!is_array($konto_id)) $konto_id = array();
 		for ($q = count($konto_id); $q < count($rykker_id); $q++) $konto_id[$q] = '';
 		$batchPsfp = $psfp;
+		$batchHtmfp = $htmfp;
+		$mailHtm = array();   // 20261109 CL/ASR a mailed reminder's HTML (its PDF comes from its PS file), removed after the batch
 		for ($q = 0; $q < count($konto_id); $q++) {
 			#		$psfp=$psfp1;
 			#		$htmfp=$htmfp1;
@@ -2798,6 +2801,9 @@ if (!function_exists('rykkerprint')) {
 					$pfnavn = $db . "/" . $pfnavn;
 					$psfp2 = fopen("../temp/$pfnavn", "w");
 					$psfp = $psfp2;
+					// 20261109 CL/ASR its HTML must not go into the batch's printed page
+					$htmfp = fopen("../temp/$pfnavn.htm", "w");
+					$mailHtm[] = "../temp/$pfnavn.htm";
 					#				if ($r['felt_5']) $email[$mailantal]=$r['felt_5'];
 					$email[$mailantal] = $r['email'];
 					$mailsprog[$mailantal] = strtolower($r['sprog']);
@@ -2806,6 +2812,15 @@ if (!function_exists('rykkerprint')) {
 				} else {
 					$nomailantal++;
 					$psfp = $batchPsfp;   // 20261109 CL/ASR after a mailed reminder, back to the batch print file
+					// 20261109 CL/ASR each printed reminder its own HTML page file: <c>.htm, <c>_2.htm, ... (udskriv.php merges them in
+					// order), as the positions on a page are absolute
+					if ($nomailantal > 1) {
+						$htmfp = fopen("../temp/$db/{$printfilnavn}_$nomailantal.htm", "w");
+						fwrite($htmfp, $htminitxt);
+					} else {
+						$htmfp = $batchHtmfp;
+					}
+					if (!$inkasso) formReminderPrinted((int)$rykker_id[$q]);   // 20261109 CL/ASR a draft link reminder on paper is sent
 				}
 				fwrite($psfp, $ps_ini);
 				$formularsprog = strtolower($r['sprog']);
@@ -2847,12 +2862,15 @@ if (!function_exists('rykkerprint')) {
 				$forfalden = 0;
 				$dkkforfalden = 0;
 				$amount = 0;
-				// 20261109 CL/ASR a link reminder whose fee goes on the customer's next invoice (stripe_reminders.fee_mode = next)
-				$carriedFee = formReminderFeeCarried((int)$rykker_id[$q]);
+				// 20261109 CL/ASR a link reminder: where its fee went (stripe_reminders.fee_mode = next) and what its mail leaves out
+				$pdfTreatment = formReminderPdfTreatment((int)$rykker_id[$q]);
 				$qtxt = "select serienr as forfaldsdato, beskrivelse, pris as amount, enhed as openpost_id, vare_id ";
 				$qtxt .= "from ordrelinjer where ordre_id = '$rykker_id[$q]' order by serienr,varenr desc";
 				$q1 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r1 = db_fetch_array($q1)) {
+					if ($r1['openpost_id'] && in_array((int)$r1['openpost_id'], $pdfTreatment['skip'], true)) {
+						continue;   // 20261109 CL/ASR paid, settled or in flight: not on the link reminder (D3)
+					}
 					if ($r1['openpost_id']) {
 						$qtxt = "select faktnr, amount, valuta, valutakurs, transdate from openpost where id = '$r1[openpost_id]'";
 						if ($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -2889,8 +2907,8 @@ if (!function_exists('rykkerprint')) {
 						$amount = $dkkamount;
 					}
 					// 20261109 CL/ASR carried fee and interest (item lines) say where they are charged and stay out of "I alt"
-					if ($carriedFee && !$r1['openpost_id'] && (int)$r1['vare_id'] > 0) {
-						$r1['beskrivelse'] .= ' – opkræves på din næste faktura';
+					if ($pdfTreatment['carried'] && !$r1['openpost_id'] && (int)$r1['vare_id'] > 0) {
+						$r1['beskrivelse'] .= $pdfTreatment['suffix'];
 					} else {
 						$forfalden += afrund($amount, 2); #20140628
 						$dkkforfalden += afrund($dkkamount, 2); #20140628
@@ -2960,6 +2978,9 @@ if (!function_exists('rykkerprint')) {
 					}
 				}
 			}
+		}
+		foreach ($mailHtm as $file) {
+			if (file_exists($file)) unlink($file);
 		}
 		if ($nomailantal > 0) {
 			print formReminderAlertHtml($reminderMessages);
