@@ -3,8 +3,9 @@
 // 20261111 CL/MMR SST-995: the calendar shows without closed days, and closed days are blocked (map returned nothing).
 //                 A start date whose rental would end on a closed day is refused with a message (no onChange loop).
 // 20261111 CL/MMR SST-992: also read the account from ?id=, the form older «Ekstern booking» links use.
+// 20261111 CL/MMR SST-992 (review): the account comes from index.php (validated), not from the link, and is URL-encoded where it is used.
 const productsView = async (main, db) => {
-    const products = await fetch(`api.php?getAllProducts&id=${db}`,{
+    const products = await fetch(`api.php?getAllProducts&id=${encodeURIComponent(db)}`,{
         method: "GET",
         headers: {
             "Content-Type": "application/json"
@@ -19,7 +20,7 @@ const productsView = async (main, db) => {
     products.forEach(product => {
     div.innerHTML += `<div class="product-container flex flex-wrap justify-between products" id="${product.product_id}">
                         <div id="${product.product_id}" class="product-card flex flex-col items-center rounded-lg shadow md:flex-row border-gray-700 bg-gray-800 hover:bg-gray-700 cursor-pointer basis-1/3 flex-grow m-2">
-                            <img id="${product.product_id}" class="object-cover w-full rounded-t-lg h-96 md:h-auto md:w-1/3 md:rounded-none md:rounded-s-lg images" src="../bilag/${db}/varefotos/${product.product_id}" alt="">
+                            <img id="${product.product_id}" class="object-cover w-full rounded-t-lg h-96 md:h-auto md:w-1/3 md:rounded-none md:rounded-s-lg images" src="../bilag/${encodeURIComponent(db)}/varefotos/${encodeURIComponent(product.product_id)}" alt="">
                             <div id="${product.product_id}" class="flex flex-col justify-between w-full p-4 leading-normal">
                                 <h5 id="${product.product_id}" class="mb-2 text-2xl font-bold tracking-tight text-white md:text-md">${product.product_name}</h5>
                                 <p id="${product.product_id}" class="mb-3 font-normal text-gray-400">${product.descript != null ? product.descript : ""}</p>
@@ -111,7 +112,7 @@ const priceView = async (main, product, price) => {
 }
 
 const calendarView = async (main, product, weeks, price, db) => {
-  const bookings = await fetch(`api.php?getAllDates=${product.product_id}&id=${db}`,{
+  const bookings = await fetch(`api.php?getAllDates=${product.product_id}&id=${encodeURIComponent(db)}`,{
     method: "GET",
     headers: {
         "Content-Type": "application/json"
@@ -184,7 +185,7 @@ const calendarView = async (main, product, weeks, price, db) => {
     let availableDatesById = []
 
     // get closed dates
-    const getClosedDates = await fetch(`api.php?getClosedDates&id=${db}`,{
+    const getClosedDates = await fetch(`api.php?getClosedDates&id=${encodeURIComponent(db)}`,{
         method: "GET",
         headers: {
             "Content-Type": "application/json"
@@ -363,7 +364,7 @@ const calendarView = async (main, product, weeks, price, db) => {
                 "city": city
             }
 
-            const res = await fetch(`api.php?createCust&id=${db}`,{
+            const res = await fetch(`api.php?createCust&id=${encodeURIComponent(db)}`,{
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -408,7 +409,7 @@ const calendarView = async (main, product, weeks, price, db) => {
                 "unit": product.unit,
             }
 
-            const response = await fetch(`api.php?createBooking&id=${db}`,{
+            const response = await fetch(`api.php?createBooking&id=${encodeURIComponent(db)}`,{
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -438,7 +439,7 @@ const calendarView = async (main, product, weeks, price, db) => {
                 // No tenant Vibrant key or Vibrant issued no link: stop instead of opening "undefined".
                 loading.style.display = "none"
                 // update booking status
-                const res = await fetch(`api.php?updateBooking&id=${db}`,{
+                const res = await fetch(`api.php?updateBooking&id=${encodeURIComponent(db)}`,{
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -476,7 +477,7 @@ const calendarView = async (main, product, weeks, price, db) => {
                     clearInterval(interval)
                     loading.style.display = "none"
                     // update booking status
-                    const res = await fetch(`api.php?updateBooking&id=${db}`,{
+                    const res = await fetch(`api.php?updateBooking&id=${encodeURIComponent(db)}`,{
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json"
@@ -520,7 +521,7 @@ const calendarView = async (main, product, weeks, price, db) => {
                     loading.style.display = "none"
                     alert("Betaling afvist")
                     // update booking status
-                    const res = await fetch(`api.php?updateBooking&id=${db}`,{
+                    const res = await fetch(`api.php?updateBooking&id=${encodeURIComponent(db)}`,{
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json"
@@ -538,7 +539,7 @@ const calendarView = async (main, product, weeks, price, db) => {
                     loading.style.display = "none"
                     alert("Timeout")
                     // update booking status
-                    const res = await fetch(`api.php?updateBooking&id=${db}`,{
+                    const res = await fetch(`api.php?updateBooking&id=${encodeURIComponent(db)}`,{
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json"
@@ -773,8 +774,8 @@ const appState = {
   // Modified main function to use the routing system
   const main = async () => {
     // get url parameters
-    const urlParams = new URLSearchParams(window.location.search)
-    const db = urlParams.get('db') || urlParams.get('id')
+    // the account index.php validated (public_tenant_db); the link itself can carry ?db= / ?id= more than once
+    const db = window.saldiBookingDb
     
     // Initialize app with database ID
     appState.init(db)
