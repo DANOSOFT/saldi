@@ -15,6 +15,7 @@
 // strict_types is deliberately off: eval'd code inherits the calling file's setting, and the
 // lifted legacy block passes ints where the stubs below take strings and back again.
 
+// 20261111 CDX/NTR Report known legacy warnings without failing; recognize PHP 8.2 null-offset wording.
 namespace BatchWindowFixture {
 
     /** One query's worth of rows, handed back by db_fetch_array() one at a time. */
@@ -141,6 +142,7 @@ namespace {
         private const LEGACY_WARNINGS = array(
             'Undefined variable $valg',
             'Trying to access array offset on null',
+            'Trying to access array offset on value of type null',
             'Array to string conversion',
         );
 
@@ -391,6 +393,7 @@ namespace {
             $out = $this->renderWindow($this->fullFixture());
 
             $unexpected = array();
+            $legacyWarnings = array();
             foreach ($out['warnings'] as $warning) {
                 $known = false;
                 foreach (self::LEGACY_WARNINGS as $legacy) {
@@ -398,11 +401,17 @@ namespace {
                         $known = true;
                     }
                 }
-                if (!$known) {
+                if ($known) {
+                    $legacyWarnings[] = $warning;
+                } else {
                     $unexpected[] = $warning;
                 }
             }
             self::assertSame(array(), $unexpected, 'rendering the window emits a new warning');
+            if ($legacyWarnings) {
+                trigger_error('Batch window still emits ' . count($legacyWarnings) . ' legacy warnings: '
+                    . implode('; ', array_unique($legacyWarnings)), E_USER_WARNING);
+            }
         }
 
         /** What the change exists for: the batch number and expiry date of each batch in stock. */

@@ -17,6 +17,8 @@
 // 20261022 CL/NTR Dropped the no-op `use CharacterizationEnv;` (PHP warning on load) and the unused
 //                 saldiFor(), which called a rows() helper this class does not have.
 
+// 20261111 CDX/NTR Isolate the test class database and session.
+
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../support/CharacterizationEnv.php';
@@ -33,7 +35,7 @@ final class KassekladdePostingCharacterizationTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        CharacterizationEnv::bootstrapTenant();
+        CharacterizationEnv::bootstrapTenant(static::class);
         self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
         $ra = CharacterizationEnv::one(self::$tenant, "SELECT max(kodenr) AS ra FROM grupper WHERE art = 'RA'");
         self::$regnaar = (int)$ra['ra'];
@@ -115,7 +117,7 @@ final class KassekladdePostingCharacterizationTest extends TestCase
     {
         $result = CharacterizationEnv::runChild(
             __DIR__ . '/../support/run_bogfor_page.php',
-            [$mode, $kladdeId, CharacterizationEnv::SESSION_ID]
+            [$mode, $kladdeId, CharacterizationEnv::sessionId()]
         );
         $this->assertSame(0, $result['exit'], $result['stderr'] . $result['stdout']);
         return $result;

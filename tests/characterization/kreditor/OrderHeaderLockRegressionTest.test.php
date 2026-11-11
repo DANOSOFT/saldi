@@ -1,13 +1,17 @@
 <?php
 // 20260908 CDX/LH Cover shared order-header eligibility, moved lines and copy/post lock ordering (SST-765).
 
+// 20261111 CDX/NTR Use an owned SQL-fixture database instead of an externally prepared DSN.
+
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__ . '/../support/database/TestDatabase.php';
+
 /**
- * Set SALDI_CHAR_PG_DSN to an isolated PostgreSQL connection string before running.
+ * The common helper creates the SQL fixture database; no prepared DSN is required.
  * No production bootstrap or credentials: every test owns a randomized schema,
  * three independent connections, and drops only its own schema during teardown.
  */
@@ -21,28 +25,16 @@ final class OrderHeaderLockRegressionTest extends TestCase {
     private bool $waiterPending = false;
 
     protected function setUp(): void {
-        if (!extension_loaded('pgsql') || !getenv('SALDI_CHAR_PG_DSN')) {
-            self::markTestSkipped('Set SALDI_CHAR_PG_DSN for an isolated PostgreSQL fixture.');
+        $reason = TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
         }
+        $database = TestDatabase::sqlFixture();
         require_once __DIR__ . '/support/order_lock_database.php';
         require_once dirname(__DIR__, 3) . '/kreditor/orderIncludes/lockOrderForSave.php';
-        $dsn = getenv('SALDI_CHAR_PG_DSN');
-        // Report an unavailable fixture without echoing a potentially credential-bearing DSN.
-        set_error_handler(static function () {
-            throw new RuntimeException('Configured PostgreSQL connection is unavailable.');
-        });
-        try {
-            $this->owner = pg_connect($dsn, PGSQL_CONNECT_FORCE_NEW);
-            $this->waiter = pg_connect($dsn, PGSQL_CONNECT_FORCE_NEW);
-            $this->observer = pg_connect($dsn, PGSQL_CONNECT_FORCE_NEW);
-        } catch (Throwable $error) {
-            self::markTestSkipped('Configured PostgreSQL connection is unavailable.');
-        } finally {
-            restore_error_handler();
-        }
-        if (!$this->owner || !$this->waiter || !$this->observer) {
-            self::markTestSkipped('The configured isolated PostgreSQL fixture is unavailable.');
-        }
+        $this->owner = TestDatabase::connect($database->name());
+        $this->waiter = TestDatabase::connect($database->name());
+        $this->observer = TestDatabase::connect($database->name());
         $this->schema = 'sst765_lock_' . bin2hex(random_bytes(8));
         pg_query($this->owner, 'CREATE SCHEMA ' . $this->schema);
         foreach ([$this->owner, $this->waiter, $this->observer] as $connection) {

@@ -19,6 +19,8 @@
 // 20261028 CL/LH The two sub-ore rounding tests pinned a defect that #674 fixed; they now assert
 //                that such a voucher is kept out of the ledger.
 
+// 20261111 CDX/NTR Isolate the test class database and session.
+
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
 final class DoubleEntryIntegrityCharacterizationTest extends CharacterizationTestCase
@@ -27,7 +29,7 @@ final class DoubleEntryIntegrityCharacterizationTest extends CharacterizationTes
     private function simulate(array $lines, string $note = 'double entry'): array
     {
         $kladdeId = self::$fx->kladde($lines, $note);
-        self::runChild('run_bogfor_page.php', ['simuler', $kladdeId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_bogfor_page.php', ['simuler', $kladdeId, CharacterizationEnv::sessionId()]);
         $rows = self::rows('SELECT kontonr, debet, kredit FROM simulering WHERE kladde_id = $1', [$kladdeId]);
 
         return [
@@ -64,7 +66,7 @@ final class DoubleEntryIntegrityCharacterizationTest extends CharacterizationTes
             ['bilag' => 3, 'debet' => $b, 'kredit' => $a, 'amount' => 33.33],
         ], 'per-voucher balance');
 
-        self::runChild('run_bogfor_page.php', ['simuler', $kladdeId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_bogfor_page.php', ['simuler', $kladdeId, CharacterizationEnv::sessionId()]);
 
         $rows = self::rows('SELECT bilag, debet, kredit FROM simulering WHERE kladde_id = $1', [$kladdeId]);
         $this->assertNotEmpty($rows);
@@ -158,7 +160,7 @@ final class DoubleEntryIntegrityCharacterizationTest extends CharacterizationTes
             ['bilag' => 2, 'debet' => $a, 'kredit' => $b, 'amount' => 65.44],
         ], 'saldo consistency');
 
-        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::sessionId()]);
 
         $posted = self::rows(
             'SELECT kontonr, debet, kredit FROM transaktioner WHERE kladde_id = $1',

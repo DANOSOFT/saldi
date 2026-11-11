@@ -12,6 +12,8 @@
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20261022 CL/NTR runChild() fails the test when the child runner crashes (exit 255 / fatal error).
 
+// 20261111 CDX/NTR Isolate the test class database and session.
+
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/CharacterizationEnv.php';
@@ -30,7 +32,7 @@ abstract class CharacterizationTestCase extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        CharacterizationEnv::bootstrapTenantOnce();
+        CharacterizationEnv::bootstrapTenant(static::class);
         self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
         $ra = CharacterizationEnv::one(self::$tenant, "SELECT max(kodenr) AS ra FROM grupper WHERE art = 'RA'");
         self::$regnaar = (int)$ra['ra'];
@@ -41,6 +43,8 @@ abstract class CharacterizationTestCase extends TestCase
     {
         if (isset(self::$tenant) && self::$tenant) {
             pg_close(self::$tenant);
+            self::$tenant = null;
+            CharacterizationEnv::teardownTenant();
         }
     }
 

@@ -3,28 +3,10 @@
 //
 // Environment for REST API integration tests (SD-602).
 //
-// The suite talks HTTP to the docker-compose stack's own REST API — never to
-// a live server, never with committed production credentials. It provisions
-// its own throwaway tenant (clone of an installed tenant) with a known test
-// user, and registers two master `regnskab` rows for it: one open
-// (accountOpen()) and one closed (accountClosed()) so the closed-tenant
-// rejection path can be exercised.
-//
-// The tenant database and both account names carry a random per-process
-// suffix (testDb(), accountOpen(), accountClosed()), and the class remembers
-// exactly which database it created and which regnskab ids it inserted.
-// Teardown only ever removes those, so two runs against the same postgres,
-// a run that crashed half-way, or a real account that happens to be called
-// "apitest" are never touched.
-//
-// Each test class bootstraps the tenant in setUpBeforeClass() and drops it
-// again in tearDownAfterClass() (teardownTenant()), so the seeded login only
-// exists while a class is running. Set SALDI_REST_KEEP_TENANT=1 to keep it
-// around for inspecting a failure (the next class in the same process still
-// replaces it, so the last class's tenant is the one that survives).
-//
-// Skips cleanly when the stack is not reachable (no pgsql/curl extension or
-// no postgres/web host), so `composer test` stays green on a bare checkout.
+// Each REST class installs an independent tenant through TestDatabase and
+// registers its own open/closed account names for HTTP routing. The application
+// master remains installed, but no existing tenant is used as a template.
+// SALDI_TEST_KEEP_DATABASES=1 retains every group for inspection.
 //
 // History:
 // 20260723 CL/LH SD-602: created.
@@ -50,27 +32,19 @@
 //                 bootstrapTenantOnce() now keys on $ownedDb, so a class teardown makes the next class re-provision.
 //                 bootstrapTenant() no longer opens a stray master connection it never closed.
 
+// 20261111 CDX/NTR Fresh UUID-owned tenant per REST class; no existing template dependency.
+
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';
+require_once dirname(__DIR__, 2) . '/characterization/support/database/TestDatabase.php';
 
 final class RestApiEnv
 {
     /** Username of the API user the suite seeds into its throwaway tenant (grants nothing by itself). */
     public const USER = 'apitest';
 
-    /** Master `regnskab.db` is varchar(25); a longer clone name would be registered truncated. */
-    private const MAX_DB_NAME_LENGTH = 25;
-
-    /** @var array|null Decoded `data` of the seeded user's login, cached per bootstrap. */
+    private static ?TestDatabase $database = null;
     private static $loginData = null;
-
-    /** @var string|null Random per-process suffix shared by testDb(), accountOpen() and accountClosed(). */
-    private static $suffix = null;
-
-    /** @var string|null Tenant database this process created and still owns; null until bootstrapTenant() and after teardownTenant() drops it. */
-    private static $ownedDb = null;
-
-    /** @var array<string, int> Master `regnskab.id` of each row the current bootstrap inserted, keyed by account name. */
-    private static $ownedRegnskabIds = [];
+    private static array $ownedRegnskabIds = [];
 
     /** Username of the seeded API user. */
     public static function user(): string
@@ -81,22 +55,13 @@ final class RestApiEnv
     /** Name of the open account this process registers (`apitest_<suffix>`). */
     public static function accountOpen(): string
     {
-        return 'apitest_' . self::suffix();
+        return 'apitest_' . self::testDb();
     }
 
     /** Name of the closed account this process registers (`apitestclosed_<suffix>`). */
     public static function accountClosed(): string
     {
-        return 'apitestclosed_' . self::suffix();
-    }
-
-    /** Eight hex chars, drawn once per process, so parallel runs never share a tenant or an account name. */
-    private static function suffix(): string
-    {
-        if (self::$suffix === null) {
-            self::$suffix = bin2hex(random_bytes(4));
-        }
-        return self::$suffix;
+        return 'closed_' . self::testDb();
     }
 
     /** Password of the seeded API user - random per process, see tests/TestCredentials.php. */
@@ -123,7 +88,7 @@ final class RestApiEnv
 
     public static function pgPass(): string
     {
-        return getenv('SALDI_CHAR_PGPASS') ?: 'password';
+        return getenv('SALDI_CHAR_PGPASS') ?: '';
     }
 
     public static function masterDb(): string
@@ -131,65 +96,30 @@ final class RestApiEnv
         return getenv('SALDI_CHAR_MASTER_DB') ?: 'saldi';
     }
 
-    public static function templateDb(): string
-    {
-        return getenv('SALDI_CHAR_TEMPLATE_DB') ?: 'saldi_2';
-    }
-
-    /**
-     * Name of this process's throwaway tenant database: the SALDI_REST_TEST_DB
-     * prefix (default `saldi_apitest`) plus the per-process suffix, fixed for
-     * the lifetime of the process.
-     */
     public static function testDb(): string
     {
-        return (getenv('SALDI_REST_TEST_DB') ?: 'saldi_apitest') . '_' . self::suffix();
+        if (self::$database === null) {
+            throw new RuntimeException('Bootstrap the REST group before asking for its database');
+        }
+        return self::$database->name();
     }
 
-    /** Returns null when usable, otherwise a human skip-reason. */
     public static function unavailableReason(): ?string
     {
-        foreach (['pgsql', 'curl'] as $ext) {
-            if (!extension_loaded($ext)) {
-                return "$ext extension not loaded (run inside the docker web container)";
-            }
+        $reason = TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            return $reason;
         }
-        $conn = @pg_connect(self::connString(self::masterDb()), PGSQL_CONNECT_FORCE_NEW);
-        if ($conn === false) {
-            return 'postgres not reachable at host "' . self::pgHost() . '" (is the docker-compose stack up?)';
+        if (!extension_loaded('curl')) {
+            return 'curl extension not loaded';
         }
-        $r = pg_query_params($conn, 'SELECT 1 FROM pg_database WHERE datname = $1', [self::templateDb()]);
-        $exists = $r !== false && pg_num_rows($r) === 1;
-        pg_close($conn);
-        if (!$exists) {
-            return 'template tenant db "' . self::templateDb() . '" does not exist (install the app + create a tenant first)';
-        }
-        $probe = self::http('GET', '/restapi/endpoints/v1/auth/login.php');
-        if ($probe['status'] === 0) {
-            return 'REST API not reachable at ' . self::baseUrl() . ' (override with SALDI_REST_BASE_URL)';
-        }
-        return null;
+        return self::http('GET', '/restapi/endpoints/v1/auth/login.php')['status'] === 0
+            ? 'REST API not reachable at the configured local URL' : null;
     }
 
-    private static function connString(string $db): string
-    {
-        return sprintf(
-            'host=%s dbname=%s user=%s password=%s connect_timeout=3',
-            self::pgHost(),
-            $db,
-            self::pgUser(),
-            self::pgPass()
-        );
-    }
-
-    /** @return resource|\PgSql\Connection */
     public static function connect(string $db)
     {
-        $conn = pg_connect(self::connString($db), PGSQL_CONNECT_FORCE_NEW);
-        if ($conn === false) {
-            throw new RuntimeException("could not connect to $db");
-        }
-        return $conn;
+        return TestDatabase::connect($db);
     }
 
     public static function rows($conn, string $sql, array $params = []): array
@@ -205,133 +135,30 @@ final class RestApiEnv
         return $out;
     }
 
-    /**
-     * Provision the tenant unless this process already owns one, and reuse
-     * the one it owns.
-     *
-     * Guarded by $ownedDb rather than a separate flag: teardownTenant() clears
-     * it when it drops the tenant, so the next class clones a fresh one instead
-     * of logging in to a database that no longer exists.
-     */
-    public static function bootstrapTenantOnce(): void
+    public static function bootstrapTenant(string $group = 'restapi'): void
     {
-        if (self::$ownedDb !== null) {
-            return;
+        self::teardownTenant();
+        self::$database = TestDatabase::create($group);
+        foreach ([self::accountOpen() => false, self::accountClosed() => true] as $account => $closed) {
+            self::$ownedRegnskabIds[$account] = self::$database->registerAccount($account, $closed);
         }
-        self::bootstrapTenant();
+        $tenant = self::connect(self::testDb());
+        try {
+            self::rows($tenant, "INSERT INTO brugere (brugernavn,kode,email,rettigheder,status)
+                VALUES ($1,$2,$3,'admin',true)", [self::user(), md5(self::password()), 'apitest@example.invalid']);
+        } finally {
+            pg_close($tenant);
+        }
     }
 
-    /**
-     * Clone the template tenant, register open+closed regnskab rows, seed the
-     * API user. Remembers the database and the regnskab ids it created so
-     * teardownTenant() removes exactly those and nothing else. A tenant an
-     * earlier class in this process left behind (SALDI_REST_KEEP_TENANT) is
-     * dropped first; a database of the same name this process did not create
-     * makes CREATE DATABASE fail rather than being taken over.
-     */
-    public static function bootstrapTenant(): void
-    {
-        self::$loginData = null; // the regnskab ids change below, so any cached token is stale
-        if (self::$ownedDb !== null) {
-            self::dropOwned();
-        }
-        $test = self::testDb();
-        $template = self::templateDb();
-        $master = self::masterDb();
-        foreach ([$test, $template, $master] as $name) {
-            if (!preg_match('/^[a-z0-9_]+$/', $name)) {
-                throw new RuntimeException("unsafe database name \"$name\"");
-            }
-        }
-        if (strlen($test) > self::MAX_DB_NAME_LENGTH) {
-            throw new RuntimeException("test db name $test is longer than " . self::MAX_DB_NAME_LENGTH . ' chars (shorten SALDI_REST_TEST_DB)');
-        }
-        if ($test === $template || $test === $master) {
-            throw new RuntimeException('SALDI_REST_TEST_DB must differ from template and master databases');
-        }
-
-        $master = self::connect($master);
-        // Only ever touch our own clone; never disconnect whoever is using the template.
-        if (pg_query($master, "CREATE DATABASE $test TEMPLATE $template") === false) {
-            $error = pg_last_error($master);
-            pg_close($master);
-            throw new RuntimeException("could not clone template tenant: $error");
-        }
-        self::$ownedDb = $test;
-        self::$ownedRegnskabIds = [];
-        foreach ([self::accountOpen() => '', self::accountClosed() => 'on'] as $account => $lukket) {
-            $rows = self::rows(
-                $master,
-                "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version, sidst, brugerantal, posteringer, lukket, administrator)
-                 SELECT $1, dbhost, dbuser, $2, version, sidst, brugerantal, 1000000, $3, administrator
-                 FROM regnskab WHERE db = $4
-                 RETURNING id",
-                [$account, $test, $lukket, $template]
-            );
-            if (count($rows) !== 1) {
-                pg_close($master);
-                throw new RuntimeException("could not register $account: no regnskab row for template db $template to copy");
-            }
-            self::$ownedRegnskabIds[$account] = (int)$rows[0]['id'];
-        }
-        pg_close($master);
-
-        $tenant = self::connect($test);
-        pg_query_params($tenant, 'DELETE FROM brugere WHERE brugernavn = $1', [self::user()]);
-        pg_query_params(
-            $tenant,
-            "INSERT INTO brugere (brugernavn, kode, email, rettigheder, status) VALUES ($1, $2, $3, $4, true)",
-            [self::user(), md5(self::password()), 'apitest@example.invalid', 'admin']
-        );
-        pg_close($tenant);
-    }
-
-    /**
-     * Drop the throwaway tenant and its two master regnskab rows again, so the
-     * seeded API user does not outlive the test class that created it. No-op
-     * when nothing was bootstrapped in this process, or when
-     * SALDI_REST_KEEP_TENANT=1 asks to keep the tenant for inspection.
-     */
     public static function teardownTenant(): void
     {
         self::$loginData = null;
-        if (self::$ownedDb === null || getenv('SALDI_REST_KEEP_TENANT')) {
-            return;
+        if (self::$database !== null) {
+            self::$database->release();
+            self::$database = null;
         }
-        self::dropOwned();
-    }
-
-    /**
-     * Remove exactly what the last bootstrapTenant() created: the database it
-     * cloned (after disconnecting its own sessions) and the regnskab rows whose
-     * ids it recorded. Nothing is matched by name, so a stale tenant from an
-     * older run, a parallel run's tenant or a real account called "apitest"
-     * is never removed.
-     */
-    private static function dropOwned(): void
-    {
-        $test = self::$ownedDb;
-        if ($test === null || !preg_match('/^[a-z0-9_]+$/', $test)) {
-            throw new RuntimeException('unsafe database name');
-        }
-        $ids = array_values(self::$ownedRegnskabIds);
-        $master = self::connect(self::masterDb());
-        pg_query_params(
-            $master,
-            'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()',
-            [$test]
-        );
-        $dropped = pg_query($master, "DROP DATABASE IF EXISTS $test");
-        if ($ids !== []) {
-            pg_query_params($master, 'DELETE FROM regnskab WHERE id = ANY($1::int[])', ['{' . implode(',', $ids) . '}']);
-        }
-        $error = $dropped === false ? pg_last_error($master) : '';
-        pg_close($master);
         self::$ownedRegnskabIds = [];
-        if ($dropped === false) {
-            throw new RuntimeException("could not drop throwaway tenant $test: $error");
-        }
-        self::$ownedDb = null;
     }
 
     /**

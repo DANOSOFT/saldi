@@ -1,8 +1,12 @@
 <?php
 
+// 20261111 CDX/NTR Isolate pure signup settings from connections and caches left by integration tests.
+
 declare(strict_types=1);
 
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../includes/signupIncludes/signupFunc.php';
@@ -22,6 +26,8 @@ if (!function_exists('ifset')) {
  * The pure parts of the signup flow (includes/signupIncludes/signupFunc.php): form validation,
  * account-name normalisation and the password rules that need no network.
  */
+#[RunTestsInSeparateProcesses]
+#[PreserveGlobalState(false)]
 final class signupFunc extends TestCase
 {
     /**

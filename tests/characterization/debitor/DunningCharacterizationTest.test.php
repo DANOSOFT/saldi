@@ -27,6 +27,8 @@
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20261028 CL/LH The first-grace-period test pinned a defect that #444 fixed; it now asserts the fix.
 
+// 20261111 CDX/NTR Isolate the test class database and session.
+
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
 final class DunningCharacterizationTest extends CharacterizationTestCase
@@ -56,7 +58,7 @@ final class DunningCharacterizationTest extends CharacterizationTestCase
 
     private function runDunning(): void
     {
-        self::runChild('run_ny_rykker.php', [CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_ny_rykker.php', [CharacterizationEnv::sessionId()]);
     }
 
     /** @return list<array<string,string>> dunning orders for a debtor, oldest first */

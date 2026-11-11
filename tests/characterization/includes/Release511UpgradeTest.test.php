@@ -2,6 +2,7 @@
 // tests/characterization/includes/Release511UpgradeTest.test.php
 //
 // 20261110 CDX/NTR Cover the 5.1.1 login upgrade, version stamps, retries and resumable MB-73 work.
+// 20261111 CDX/NTR Use common database ownership and inspection retention.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -17,15 +18,17 @@ final class Release511UpgradeTest extends TestCase
     private $tenant;
     private $registry;
     private string $database;
+    private ?TestDatabase $ownedDatabase = null;
 
     protected function setUp(): void
     {
         if (!extension_loaded('pgsql') || CharacterizationEnv::pgPass() === '') {
             self::markTestSkipped('pgsql and SALDI_CHAR_PGPASS are required');
         }
-        $this->database = 'saldi_release511_' . bin2hex(random_bytes(6));
+        $this->ownedDatabase = TestDatabase::create(static::class, false);
+        $this->database = $this->ownedDatabase->name();
         $this->admin = CharacterizationEnv::connect(CharacterizationEnv::masterDb());
-        CharacterizationEnv::rows($this->admin, 'CREATE DATABASE ' . $this->database);
+
         $this->tenant = CharacterizationEnv::connect($this->database);
         $this->registry = CharacterizationEnv::connect($this->database);
         CharacterizationEnv::rows($this->registry, 'CREATE SCHEMA registry');
@@ -72,7 +75,7 @@ final class Release511UpgradeTest extends TestCase
             pg_close($this->registry);
         }
         if ($this->admin && isset($this->database)) {
-            CharacterizationEnv::rows($this->admin, 'DROP DATABASE ' . $this->database);
+            $this->ownedDatabase->release();
             pg_close($this->admin);
         }
     }

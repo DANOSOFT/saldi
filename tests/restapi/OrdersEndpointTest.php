@@ -15,6 +15,8 @@
 // 20260723 CL/LH SD-602: created.
 // 20260904 CL/NTR Drop the throwaway tenant again in tearDownAfterClass().
 
+// 20261111 CDX/NTR Give each REST class its own fresh database.
+
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/RestApiEnv.php';
@@ -30,7 +32,7 @@ final class OrdersEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenantOnce();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     public static function tearDownAfterClass(): void

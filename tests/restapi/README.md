@@ -47,7 +47,7 @@ docker-compose stack.
   and documented shape, read-only ones refuse POST with 405; `products/groups/`
   lists the groups of the fiscal year covering today, finds one by `codeNo`,
   and 404s on a `grupper` row that is not a product group;
-  `inventory/warehouses/` lists the current fiscal year's warehouses with
+  `inventory/warehouses/` lists warehouses across fiscal years, once per number, with
   their names, numbers and per-warehouse stock of a product.
 
 Tests that need a token the API would never issue (expired, wrong type,
@@ -64,13 +64,13 @@ is covered at engine level by `tests/characterization/` (SD-601).
 The HTTP suites log in as `apitest`, a user `RestApiEnv::bootstrapTenant()`
 seeds into the throwaway tenant with a password generated per process by
 `tests/TestCredentials.php` (see [tests/README.md](../README.md)). Nothing to
-set up; to log in by hand while `SALDI_REST_KEEP_TENANT=1` keeps the tenant,
+set up; to log in by hand while `SALDI_TEST_KEEP_DATABASES=1` keeps the tenant,
 pass `SALDI_TEST_PASSWORD_RESTAPI=...` on the same run.
 
 ## Running
 
 ```bash
-docker compose up -d          # installed stack with a tenant (see tests/characterization/README.md)
+docker compose up -d          # installed test master (see tests/README.md)
 docker compose exec -T -w /var/www/html/saldi web php vendor/bin/phpunit --testsuite restapi
 ```
 
@@ -82,41 +82,30 @@ SALDI_CHAR_PGHOST=localhost \
 SALDI_CHAR_PGUSER=... \
 SALDI_CHAR_PGPASS=... \
 SALDI_CHAR_MASTER_DB=... \
-SALDI_CHAR_TEMPLATE_DB=... \
 php vendor/bin/phpunit --testsuite restapi
 ```
-
-The template tenant must have a fiscal year (`grupper` art `RA`) covering today; a small one clones in about a second.
 
 (Remember to replace  ...'s before running.)
 
 On a machine without the stack, the HTTP/DB tests skip with a reason and the
 JWT unit tests still run — `composer test` stays green on a bare checkout.
 
-`support/RestApiEnv.php` provisions a throwaway tenant per test class
-(`CREATE DATABASE saldi_apitest_<suffix> TEMPLATE saldi_2`), registers an
-open (`apitest_<suffix>`) and a closed (`apitestclosed_<suffix>`) master
-`regnskab` row for it, and seeds the API user with a per-process random
-password (`tests/TestCredentials.php`). `<suffix>` is eight random hex chars
-drawn once per PHP process, so two runs against the same postgres never
-share a tenant or an account name. The env remembers the database and the
-`regnskab` ids it created, and `tearDownAfterClass()` drops exactly those
-again, so the seeded login never outlives a class and nothing is ever
-matched by name (a stale tenant from a crashed run, a parallel run's tenant
-or a real account called `apitest` is never touched). Set
-`SALDI_REST_KEEP_TENANT=1` to keep the last class's tenant for inspecting a
-failure; find it with `SELECT regnskab, db FROM regnskab WHERE regnskab
-LIKE 'apitest%'` and drop it by hand when done, since later runs will not.
-Config via env: `SALDI_REST_BASE_URL` (default `http://localhost/saldi`, use
-`http://localhost:5000/saldi` from the host), `SALDI_CHAR_PGHOST/PGUSER/
-PGPASS/MASTER_DB/TEMPLATE_DB`, `SALDI_REST_TEST_DB` (prefix of the tenant
-db name, default `saldi_apitest`; prefix plus suffix must fit
-`regnskab.db`'s 25 chars). The suite inserts and deletes `regnskab` rows in
-whatever master `SALDI_CHAR_MASTER_DB` names and creates databases on that
-server, so point it at a disposable or test master, never a shared
-production registry.
+`support/RestApiEnv.php` installs a fresh UUID-owned tenant per test class using
+[the common helper](../characterization/support/database/TestDatabase.php).
+It registers generated open/closed account names and seeds the API user with a
+per-process random password. Teardown drops only that owned database and the
+exact registry/session rows it inserted. `SALDI_TEST_KEEP_DATABASES=1` retains
+all groups; each printed UUID/database line identifies its data. Later runs
+never reuse retained names. See [database ownership](../README.md#database-ownership).
+
+Config: `SALDI_REST_BASE_URL` (default `http://localhost/saldi`, or
+`http://localhost:5000/saldi` on the host), and
+`SALDI_CHAR_PGHOST/PGUSER/PGPASS/MASTER_DB`. Point these at the installed test
+master used by the HTTP server. There is no tenant/template dependency.
 
 <!-- 20260723 CL/LH SD-602: created. -->
 <!-- 20260904 CL/NTR Added the refresh/bearer/customers/products/accounts/orderlines/reference-data suites, the non-docker run recipe, the per-process random password from tests/TestCredentials.php, and the per-class tenant teardown. -->
 <!-- 20260928 CL/NTR Tenant db and account names carry a per-process suffix; teardown removes only the db and regnskab ids that bootstrap recorded. -->
 <!-- 20261008 CL/LH Products paging/field-name/filtered-paging, product-group list and warehouse list cases. -->
+
+<!-- 20261111 CDX/NTR Document fresh per-class tenants and common retention. -->

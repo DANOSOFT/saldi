@@ -14,6 +14,8 @@
 // 20261008 CL/LH inventory/warehouses lists the real warehouses with their names, numbers and stock.
 // 20261023 CL/LH warehouses: follow SST-829 (#769) - no fiscal_year filter, one row per warehouse number.
 
+// 20261111 CDX/NTR Use a fresh database and cover year-independent and other-year warehouses.
+
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -29,7 +31,7 @@ final class ReferenceDataEndpointsTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     public static function tearDownAfterClass(): void
@@ -256,10 +258,13 @@ final class ReferenceDataEndpointsTest extends TestCase
     {
         $tenant = RestApiEnv::connect(RestApiEnv::testDb());
         $year = $this->currentFiscalYear($tenant);
+        $before = $this->get('inventory/warehouses/');
+        $this->assertSame(200, $before['status'], $before['body']);
         $seeded = [];
-        foreach ([91 => ['Holbæk test', 3], 92 => ['Hillerød test', 7]] as $kodenr => [$name, $qty]) {
-            $id = (int)RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', $1, $2, $3) RETURNING id", [$kodenr, $name, $year])[0]['id'];
-            $seeded[$id] = ['number' => $kodenr, 'description' => $name, 'qty' => $qty];
+        foreach ([91 => ['Holbæk test', 3, $year], 92 => ['Hillerød test', 7, $year],
+            93 => ['Year independent', 2, 0], 94 => ['Other year only', 5, $year + 100]] as $kodenr => [$name, $qty, $fixtureYear]) {
+            $id = (int)RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', $1, $2, $3) RETURNING id", [$kodenr, $name, $fixtureYear])[0]['id'];
+            $seeded[$id] = ['number' => $kodenr, 'description' => $name, 'qty' => $qty, 'year' => $fixtureYear];
         }
         // SST-829 (#769): the list has no fiscal_year filter, but a warehouse that still has a copy
         // per accounting year is listed once, by its current-year row.
@@ -268,14 +273,16 @@ final class ReferenceDataEndpointsTest extends TestCase
         foreach ($seeded as $w) {
             RestApiEnv::rows($tenant, 'INSERT INTO lagerstatus (lager, vare_id, variant_id, beholdning) VALUES ($1, $2, 0, $3)', [$w['number'], $product, $w['qty']]);
         }
-        $expected = array_map('intval', array_column(RestApiEnv::rows($tenant, "SELECT id FROM grupper WHERE art = 'LG' AND fiscal_year = $1 ORDER BY id", [$year]), 'id'));
+        $existingIds = array_filter(array_map('intval', array_column($before['json']['data'], 'id')), static fn($id) => $id > 0);
+        $expected = array_merge($existingIds, array_keys($seeded));
+        sort($expected);
         pg_close($tenant);
 
         $res = $this->get('inventory/warehouses/');
         $this->assertSame(200, $res['status'], $res['body']);
         $ids = array_map(fn($w) => (int)$w['id'], $res['json']['data']);
         sort($ids);
-        $this->assertSame($expected, $ids, 'each real warehouse once by its current-year row, not the id -1 placeholder');
+        $this->assertSame($expected, $ids, 'each warehouse once, including year-independent and other-year-only rows');
 
         $withStock = $this->get("inventory/warehouses/?productId=$product");
         $this->assertSame(200, $withStock['status'], $withStock['body']);
@@ -283,7 +290,7 @@ final class ReferenceDataEndpointsTest extends TestCase
         foreach ($seeded as $id => $w) {
             $this->assertSame($w['description'], $byId[$id]['description']);
             $this->assertSame($w['number'], (int)$byId[$id]['number']);
-            $this->assertSame($year, (int)$byId[$id]['fiscal_year']);
+            $this->assertSame($w['year'], (int)$byId[$id]['fiscal_year']);
             $this->assertSame($w['number'], (int)$byId[$id]['inventory']['inventory'], 'stock of this warehouse, not of warehouse 1');
             $this->assertEquals($w['qty'], $byId[$id]['inventory']['quantity']);
         }
