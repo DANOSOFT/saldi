@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- debitor/debitorkort.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -132,21 +132,46 @@
 //                A refused change no longer marks the card as edited, so Tilbage doesn't ask to discard changes nobody made.
 // 20261101 CL/SZ MB-129 A contact name with an apostrophe no longer breaks the card: the name is escaped in the three adresser.kontakt updates.
 //                The hidden kontakt, delivery and felt fields are double-quoted, so saving no longer cuts a stored value off at the apostrophe.
+// 20261111 CDX/ASR Guard CRM leads before card mutations, coordinate account numbers and preserve CRM return navigation.
+
+/**
+ * Injected by ../includes/online.php, included below:
+ * @var int $sprog_id
+ * @var string $charset
+ */
 @session_start();
 $s_id = session_id();
 
 $fokus = $katString = NULL;
 $konto_id = $lukket = $ordre_id = $productlimit = $status = $status_antal = 0;
 $cat_id = $kategori = array();
-print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>\n";
 
 $modulnr = 6;
 $title = "Debitorkort";
 $css = "../css/standard.css";
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
+ob_start();
+include(__DIR__ . '/../includes/connect.php');
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+$crmLeadBootstrap = ob_get_clean();
+include_once(__DIR__ . '/../includes/crmLeadGuard.php');
+crm_guard_lead_accounts(
+	array($_GET['id'] ?? null, $_GET['konto_id'] ?? null, $_POST['id'] ?? null, $_POST['konto_id'] ?? null),
+	(string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'),
+	(int) ($sprog_id ?? 1),
+	array('inframe' => $_GET['inframe'] ?? $_POST['inframe'] ?? null, 'popup' => $_GET['popup'] ?? $_POST['popup'] ?? null),
+	(string) ($charset ?? 'UTF-8')
+);
+// Keep number selection and insertion together with CRM conversion and the legacy debtor saver.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && empty($_POST['id']) && !crm_lock_customer_number()) {
+	http_response_code(503);
+	echo htmlspecialchars(findtekst('crm.customer.busy|Kunden kunne ikke gemmes. Prøv igen.', (int) ($sprog_id ?? 1)), ENT_QUOTES, (string) ($charset ?? 'UTF-8'));
+	exit;
+}
+echo $crmLeadBootstrap;
+unset($crmLeadBootstrap);
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>\n";
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
@@ -705,6 +730,12 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				print "<meta http-equiv=\"refresh\" content=\"0;URL={$returside}{$sep}fokus=kontonr&konto_id=$id\">\n";
 				exit;
 			}
+			// 20261024 ASR A customer created from the CRM (Kunder -> Ny kunde) lands in its own drawer there, so it is not "gone"
+			//              when it has no status yet (CRM review R54).
+			if (strpos($returside, 'crm.php?') === 0 && strpos($returside, 'drawer=') === false) {
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=" . htmlspecialchars($returside . '&drawer=' . (int) $id, ENT_QUOTES) . "\">\n";
+				exit;
+			}
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?tjek_id=$id&id=$id&returside=" . urlencode($returside) . "\">\n";
 			exit;
 		} elseif ($id > 0) {
@@ -1112,7 +1143,12 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			}
 		}
 	} else {
-		
+		// 20261026 ASR a customer with CRM deals is not deleted: the deals would be left without a customer (CRM review R61)
+		if (tbl_exists('crm_deals') && db_fetch_array(db_select("select id from crm_deals where konto_id = '" . (int) $id . "' and state != 'deleted'", __FILE__ . " linje " . __LINE__))) {
+			print "<BODY onLoad=\"javascript:alert('" . addslashes(findtekst('9317|Kunden har sager i CRM og kan ikke slettes.', $sprog_id)) . "')\"><!--....-->\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=" . (int) $id . "&returside=" . urlencode($returside) . "\">\n";
+			exit;
+		}
 		db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from shop_adresser where saldi_id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from kontakt_emails where konto_id = $id", __FILE__ . " linje " . __LINE__);
@@ -2566,6 +2602,7 @@ $q = db_select("select id from openpost where konto_id = '$id'", __FILE__ . " li
 if (db_fetch_array($q)) $slet = "NO";
 $q = db_select("select id from ordrer where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 if (db_fetch_array($q)) $slet = "NO";
+if (tbl_exists('crm_deals') && db_fetch_array(db_select("select id from crm_deals where konto_id = '" . (int) $id . "' and state != 'deleted'", __FILE__ . " linje " . __LINE__))) $slet = "NO"; # 20261026 ASR CRM deals (R61)
 $q = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 if (db_fetch_array($q)) $slet = "NO";
 if (!isset($slet)) $slet = NULL;

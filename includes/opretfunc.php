@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-10 ---
+// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20261028 CL/LH MB-73: ordrelinjer.leveret defaults to 0, as includes/betweenUpdates.php sets it on
 //                existing accounts (moved here from admin/opret.php with opret_build_tenant()).
 // 20261110 CDX/NTR Release 5.1.1: create tekst_key and its lookup index for new tenants.
+// 20261111 CDX/ASR Initialize independent CRM before committing a tenant and preserve the released text-key schema.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -833,6 +834,18 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 		} else $qtxt = "insert into adresser (art) values ('S')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13,box14) values ('Div_valg (Rykker)','4','DIV','','','','','','','','','1','','','','','')",__FILE__ . " linje " . __LINE__); //since table indexes starts from one, manual insertions gives id =1
+	}
+	include_once(__DIR__ . "/opdat_func/crmSchema.php");
+	try {
+		if (!crm_ensure_schema((string) $db_type)) {
+			throw new RuntimeException('CRM schema initialization did not complete.');
+		}
+	} catch (Throwable $error) {
+		// Let create_regnskab() restore the master connection and remove the failed tenant.
+		$GLOBALS['db_modify_fejl'] = true;
+		transaktion('rollback');
+		error_log('CRM schema initialization failed during tenant creation.');
+		return;
 	}
 	transaktion("commit");
 	}

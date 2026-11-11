@@ -5441,3 +5441,426 @@
 8488	Vil du slette denne vare og lægge den tilbage på lager?	Do you want to delete this item and return it to stock?	Vil du slette denne varen og legge den tilbake på lager?
 8489	%s er tilknyttet: %s.	%s is linked to: %s.	%s er knyttet til: %s.
 8490	Denne seddel er overført af	This slip has been transferred by	Denne seddelen er overført av
+9000	i dag	today	i dag
+9001	i morgen	tomorrow	i morgen
+9002	i går	yesterday	i går
+9003	for %s dage siden	%s days ago	for %s dager siden
+9004	%s kr	DKK %s	%s kr
+9005	Ingen status	No status	Ingen status
+9006	Dig	You	Deg
+9007	dig	you	deg
+9008	Note	Note	Notat
+9009	Opkald	Call	Samtale
+9010	Mail	Email	E-post
+9011	Møde	Meeting	Møte
+9012	Status	Status	Status
+9013	Sag	Case	Sak
+9014	Kunne ikke gemme (%s). Prøv igen.	Could not save (%s). Please try again.	Kunne ikke lagre (%s). Prøv igjen.
+9015	Opfølgning	Follow-up	Oppfølging
+9016	%s forsinket	%s overdue	%s forsinket
+9017	Sager	Cases	Saker
+9018	Kalender	Calendar	Kalender
+9019	Kunder	Customers	Kunder
+9020	Aktivitet	Activity	Aktivitet
+9021	Forsinket	Overdue	Forsinket
+9022	I dag	Today	I dag
+9023	I morgen	Tomorrow	I morgen
+9024	Resten af ugen	Rest of the week	Resten av uken
+9025	Næste uge	Next week	Neste uke
+9026	Senere	Later	Senere
+9027	Markér som ikke gjort	Mark as not done	Merk som ikke gjort
+9028	Markér som gjort	Mark as done	Merk som gjort
+9029	Gjort	Done	Gjort
+9030	Udsæt	Postpone	Utsett
+9031	Åbn	Open	Åpne
+9032	Kunde · kontakt	Customer · contact	Kunde · kontakt
+9033	Ansvarlig	Owner	Ansvarlig
+9034	Dato	Date	Dato
+9035	Ingen åbne opfølgninger	No open follow-ups	Ingen åpne oppfølginger
+9036	Prøv at fjerne filtrene.	Try removing the filters.	Prøv å fjerne filtrene.
+9037	Opret en med »Ny opfølgning« eller fra en kunde.	Create one with “New follow-up” or from a customer.	Opprett en med «Ny oppfølging» eller fra en kunde.
+9038	Skjul %s gjort de sidste 14 dage	Hide %s done in the last 14 days	Skjul %s gjort de siste 14 dagene
+9039	Vis %s gjort de sidste 14 dage	Show %s done in the last 14 days	Vis %s gjort de siste 14 dagene
+9040	Alle statusser	All statuses	Alle statuser
+9041	ny	new	ny
+9042	%s år	%s yr	%s år
+9043	%s d	%s d	%s d
+9044	%s åbne sager	%s open cases	%s åpne saker
+9045	Ingen opfølgning	No follow-up	Ingen oppfølging
+9046	I %s siden %s	In %s since %s	I %s siden %s
+9047	Ingen statusser at vise	No statuses to show	Ingen statuser å vise
+9049	%s kunder	%s customers	%s kunder
+9050	åbne sager %s	open cases %s	åpne saker %s
+9051	%s med forsinket opfølgning	%s with an overdue follow-up	%s med forsinket oppfølging
+9052	%s uden opfølgning	%s without a follow-up	%s uten oppfølging
+9053	Statusgruppe	Status group	Statusgruppe
+9054	Vundet	Won	Vunnet
+9055	Tabt	Lost	Tapt
+9056	Ny opfølgning %s	New follow-up %s	Ny oppfølging %s
+9057	+%s mere	+%s more	+%s til
+9058	Uge %s	Week %s	Uke %s
+9059	Forrige	Previous	Forrige
+9060	Næste	Next	Neste
+9061	Åben	Open	Åpen
+9062	Træk for at flytte	Drag to move	Dra for å flytte
+9063	Måned	Month	Måned
+9064	Uge	Week	Uke
+9065	Alle	All	Alle
+9066	Uden gruppe	No group	Uten gruppe
+9067	Alle i %s	All in %s	Alle i %s
+9068	Kunde	Customer	Kunde
+9069	Kontaktperson	Contact person	Kontaktperson
+9070	Seneste kontakt	Last contact	Siste kontakt
+9071	Næste opfølgning	Next follow-up	Neste oppfølging
+9072	Omsætning i år	Revenue this year	Omsetning i år
+9073	Ingen	None	Ingen
+9074	Ingen kunder	No customers	Ingen kunder
+9075	Ingen kunder matcher filtrene.	No customers match the filters.	Ingen kunder samsvarer med filtrene.
+9077	Opfølgning %s · gjort	Follow-up %s · done	Oppfølging %s · gjort
+9078	Opfølgning %s	Follow-up %s	Oppfølging %s
+9079	Ukendt	Unknown	Ukjent
+9080	Ret	Edit	Rediger
+9081	Slet	Delete	Slett
+9082	I går	Yesterday	I går
+9083	Ingen aktivitet	No activity	Ingen aktivitet
+9084	Ingen henvendelser matcher filtrene.	No entries match the filters.	Ingen henvendelser samsvarer med filtrene.
+9085	Om 1 uge	In 1 week	Om 1 uke
+9086	Om 2 uger	In 2 weeks	Om 2 uker
+9087	Om 1 måned	In 1 month	Om 1 måned
+9088	med	with	med
+9089	(ingen)	(none)	(ingen)
+9090	Hvad blev der talt om?	What was discussed?	Hva ble det snakket om?
+9091	Vælg dato	Choose date	Velg dato
+9092	til	for	til
+9093	mig	me	meg
+9094	Markér opfølgningen fra %s som gjort	Mark the follow-up from %s as done	Merk oppfølgingen fra %s som gjort
+9095	Gem	Save	Lagre
+9096	Kunde %s	Customer %s	Kunde %s
+9097	ansvarlig: %s	owner: %s	ansvarlig: %s
+9098	Luk (Esc)	Close (Esc)	Lukk (Esc)
+9099	Opret sag	Create case	Opprett sak
+9100	Opret tilbud	Create quote	Opprett tilbud
+9101	Opret ordre	Create order	Opprett ordre
+9102	Debitorkort	Customer card	Kundekort
+9103	Jobkort	Job card	Jobbkort
+9104	Kunde siden	Customer since	Kunde siden
+9105	Åbne poster	Open items	Åpne poster
+9106	%s forfalden	%s overdue	%s forfalt
+9107	Historik	History	Historikk
+9108	Sager og ordrer	Cases and orders	Saker og ordrer
+9109	Kontaktpersoner	Contact persons	Kontaktpersoner
+9110	forsinket	overdue	forsinket
+9111	Ingen historik endnu	No history yet	Ingen historikk ennå
+9112	Skriv den første note ovenfor.	Write the first note above.	Skriv det første notatet ovenfor.
+9113	Ny note	New note	Nytt notat
+9114	Ingen kontaktpersoner	No contact persons	Ingen kontaktpersoner
+9115	+ Tilføj kontaktperson på debitorkortet	+ Add a contact person on the customer card	+ Legg til kontaktperson på kundekortet
+9116	forventet lukket %s	expected to close %s	forventet lukket %s
+9117	Vundet %s	Won %s	Vunnet %s
+9118	Tabt %s	Lost %s	Tapt %s
+9119	Ingen sager	No cases	Ingen saker
+9120	+ Ny sag	+ New case	+ Ny sak
+9121	Åbne tilbud og ordrer	Open quotes and orders	Åpne tilbud og ordrer
+9122	delvist leveret	partly delivered	delvis levert
+9123	sag: %s	case: %s	sak: %s
+9124	Ingen åbne tilbud eller ordrer.	No open quotes or orders.	Ingen åpne tilbud eller ordrer.
+9125	+ Opret tilbud	+ Create quote	+ Opprett tilbud
+9126	+ Opret ordre	+ Create order	+ Opprett ordre
+9127	Tilbud kan ikke oprettes, fordi »Anvend hurtigfakturering« er slået til (Indstillinger → Ordrer).	Quotes cannot be created because “Use fast invoicing” is on (Settings → Orders).	Tilbud kan ikke opprettes fordi «Bruk hurtigfakturering» er slått på (Innstillinger → Ordrer).
+9128	Gemt	Saved	Lagret
+9129	opfølgning %s	follow-up %s	oppfølging %s
+9130	forrige opfølgning markeret som gjort	previous follow-up marked as done	forrige oppfølging merket som gjort
+9131	Søg kunde, kundenummer eller kontaktperson	Search customer, customer number or contact person	Søk kunde, kundenummer eller kontaktperson
+9132	Opret kunden under Debitor → Konti.	Create the customer under Customers → Accounts.	Opprett kunden under Kunder → Kontoer.
+9133	Ny opfølgning	New follow-up	Ny oppfølging
+9134	Vælg kunden – du kan også søge på kontaktperson eller kundenummer.	Choose the customer – you can also search by contact person or customer number.	Velg kunden – du kan også søke på kontaktperson eller kundenummer.
+9135	Skift kunde	Change customer	Bytt kunde
+9136	Faktura %s	Invoice %s	Faktura %s
+9137	Tilbud %s	Quote %s	Tilbud %s
+9138	Ordre %s	Order %s	Ordre %s
+9139	faktureret	invoiced	fakturert
+9140	ordre	order	ordre
+9141	tilbud	quote	tilbud
+9142	Brug beløbet fra tilbuddet: %s	Use the amount from the quote: %s	Bruk beløpet fra tilbudet: %s
+9143	Brug beløbet fra ordren: %s	Use the amount from the order: %s	Bruk beløpet fra ordren: %s
+9144	Ordren er faktureret – markér sagen som vundet	The order is invoiced – mark the case as won	Ordren er fakturert – merk saken som vunnet
+9145	Intet tilbud eller ordre til sagen endnu	No quote or order for this case yet	Ingen tilbud eller ordre til saken ennå
+9146	Ret sag	Edit case	Rediger sak
+9147	Ny sag	New case	Ny sak
+9148	Titel	Title	Tittel
+9149	Fx Saldi Plus, 3 brugere	E.g. Saldi Plus, 3 users	F.eks. Saldi Plus, 3 brukere
+9151	Forventet lukket	Expected close	Forventet lukket
+9152	Stadie	Stage	Fase
+9153	Mig	Me	Meg
+9154	Slet sag	Delete case	Slett sak
+9155	Annullér	Cancel	Avbryt
+9157	vundet	won	vunnet
+9158	tabt	lost	tapt
+9159	Sagen er gemt	The case is saved	Saken er lagret
+9160	Sag oprettet i %s	Case created in %s	Sak opprettet i %s
+9161	Hvilken kunde gælder sagen?	Which customer is the case for?	Hvilken kunde gjelder saken?
+9162	Pris	Price	Pris
+9163	Valgte en konkurrent	Chose a competitor	Valgte en konkurrent
+9164	Intet behov	No need	Intet behov
+9165	Forkert tidspunkt	Wrong timing	Feil tidspunkt
+9166	Ingen svar	No reply	Ikke noe svar
+9167	Hvorfor blev »%s« tabt?	Why was “%s” lost?	Hvorfor ble «%s» tapt?
+9168	Valgfrit. Over tid viser det, hvorfor I taber sager.	Optional. Over time it shows why you lose cases.	Valgfritt. Over tid viser det hvorfor dere taper saker.
+9169	Bemærkning	Remark	Merknad
+9170	Spring over	Skip	Hopp over
+9171	Markér som tabt	Mark as lost	Merk som tapt
+9172	Ret %s fra %s	Edit %s from %s	Rediger %s fra %s
+9173	Type	Type	Type
+9174	Med	With	Med
+9175	Noten er rettet	The note is updated	Notatet er endret
+9176	Slet %s fra %s?	Delete %s from %s?	Slette %s fra %s?
+9177	Slettet	Deleted	Slettet
+9178	%s markeret som gjort	%s marked as done	%s merket som gjort
+9179	%s er åben igen	%s is open again	%s er åpen igjen
+9180	Om 2 dage	In 2 days	Om 2 dager
+9181	Næste mandag	Next Monday	Neste mandag
+9182	Udsat til %s	Postponed to %s	Utsatt til %s
+9183	ingen status	no status	ingen status
+9184	Opfølgning om 1 uge	Follow-up in 1 week	Oppfølging om 1 uke
+9185	Følg op – %s	Follow up – %s	Følg opp – %s
+9186	Opfølgning sat til %s	Follow-up set to %s	Oppfølging satt til %s
+9187	Sæt %s som %s	Set %s to %s	Sett %s som %s
+9188	vundet sag	won case	vunnet sak
+9190	Gruppenavn	Group name	Gruppenavn
+9192	Fortrudt	Undone	Angret
+9194	Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.	There are no employees under Settings → Master data, so follow-ups cannot be assigned.	Det finnes ingen ansatte under Innstillinger → Stamdata, så oppfølginger kan ikke fordeles.
+9195	Ny gruppe	New group	Ny gruppe
+9197	%s flyttet til %s	%s moved to %s	%s flyttet til %s
+9198	Sag oprettet: »%s«	Case created: “%s”	Sak opprettet: «%s»
+9199	genåbnet	reopened	gjenåpnet
+9200	Sag »%s«: %s	Case “%s”: %s	Sak «%s»: %s
+9203	Søg	Search	Søk
+9206	Tilpas CRM	Customise CRM	Tilpass CRM
+9207	Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Sager (én tavle pr. gruppe). Gælder hele firmaet.	Status groups control the filter, the status line under Customers and the boards under Cases (one board per group). Applies to the whole company.	Statusgrupper styrer filteret, statuslinjen under Kunder og tavlene under Saker (én tavle per gruppe). Gjelder hele firmaet.
+9208	+ Tilføj statusgruppe	+ Add status group	+ Legg til statusgruppe
+9209	Fortryd	Undo	Angre
+9210	Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny sag«.	Showing the %s most recently active customers. Other customers can be found with the search under “New follow-up” and “New case”.	Viser de %s sist aktive kundene. Andre kunder finnes med søket under «Ny oppfølging» og «Ny sak».
+9211	Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.	The customer may not be among the %s shown. Search via “New follow-up”.	Kunden er kanskje ikke blant de %s viste. Søk via «Ny oppfølging».
+9212	CRM	CRM	CRM
+9213	Opfølgninger i dag	Follow-ups today	Oppfølginger i dag
+9214	%s opfølgninger i dag · %s forsinkede	%s follow-ups today · %s overdue	%s oppfølginger i dag · %s forsinkede
+9215	Ny opfølgning til dig	New follow-up for you	Ny oppfølging til deg
+9216	Sag tildelt dig	Case assigned to you	Sak tildelt deg
+9217	Sag vundet	Case won	Sak vunnet
+9218	Sag tabt	Case lost	Sak tapt
+9219	fra %s	from %s	fra %s
+9220	Hvis opfølgninger og kunder	Whose follow-ups and customers	Hvem sine oppfølginger og kunder
+9221	Alle opfølgninger og kunder i regnskabet	All follow-ups and customers in the accounts	Alle oppfølginger og kunder i regnskapet
+9222	Kun dem, du er ansvarlig for. Valget huskes til næste gang.	Only the ones you are responsible for. The choice is remembered.	Bare de du er ansvarlig for. Valget huskes til neste gang.
+9223	Mine	Mine	Mine
+9231	Statusser	Statuses	Statuser
+9232	Statusgrupper	Status groups	Statusgrupper
+9233	+ Tilføj status	+ Add status	+ Legg til status
+9234	Ny status	New status	Ny status
+9235	Statusnavn	Status name	Statusnavn
+9236	%s i brug	%s in use	%s i bruk
+9237	Bruges af %s kunder og sager – kan ikke slettes	Used by %s customers and cases – cannot be deleted	Brukes av %s kunder og saker – kan ikke slettes
+9238	Slet status	Delete status	Slett status
+9239	Slet gruppe	Delete group	Slett gruppe
+9240	Der er ingen kundestatusser endnu.	There are no customer statuses yet.	Det finnes ingen kundestatuser ennå.
+9241	Giv alle statusser et navn.	Give every status a name.	Gi alle statuser et navn.
+9242	Statusser og statusgrupper er gemt	Statuses and status groups are saved	Statuser og statusgrupper er lagret
+9243	Ny kunde	New customer	Ny kunde
+9244	Du er logget ud – genindlæs siden og prøv igen.	You have been logged out – reload the page and try again.	Du er logget ut – last siden på nytt og prøv igjen.
+9245	Genindlæs	Reload	Last på nytt
+9246	Du har ikke rettighed til at ændre i CRM.	You do not have the right to make changes in the CRM.	Du har ikke rettighet til å endre i CRM.
+9247	Statussen er i brug og kan ikke slettes.	The status is in use and cannot be deleted.	Statusen er i bruk og kan ikke slettes.
+9248	Beløbet kunne ikke læses – skriv fx 12.500,50.	The amount could not be read – write e.g. 12,500.50.	Beløpet kunne ikke leses – skriv f.eks. 12.500,50.
+9249	Ingen forbindelse – ændringen blev ikke gemt.	No connection – the change was not saved.	Ingen forbindelse – endringen ble ikke lagret.
+9250	Kunne ikke gemme. Prøv igen.	Could not save. Try again.	Kunne ikke lagre. Prøv igjen.
+9251	%s opfølgninger fra det gamle CRM er mere end 90 dage forsinkede.	%s follow-ups from the old CRM are more than 90 days overdue.	%s oppfølginger fra det gamle CRM er mer enn 90 dager forsinket.
+9252	Markér dem som gjort	Mark them as done	Merk dem som gjort
+9253	Ikke nu	Not now	Ikke nå
+9254	%s opfølgninger fra det gamle CRM (mere end 90 dage forsinkede) markeret som gjort	%s follow-ups from the old CRM (more than 90 days overdue) marked as done	%s oppfølginger fra det gamle CRM (mer enn 90 dager forsinket) merket som gjort
+9255	slettet	deleted	slettet
+9256	Slet sagen »%s«?	Delete the case “%s”?	Slette saken «%s»?
+9257	Sagen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.	The case, its amount and its link to a quote or order disappear from the CRM. You can undo from the message at the bottom.	Saken, beløpet og koblingen til tilbud eller ordre forsvinner fra CRM. Du kan angre fra meldingen nederst.
+9258	Kunden står ikke på tavlen – sæt status til %s	The customer is not on the board – set the status to %s	Kunden står ikke på tavlen – sett status til %s
+9259	Opsæt statusser først (tandhjulet øverst til højre).	Set up statuses first (the gear at the top right).	Sett opp statuser først (tannhjulet øverst til høyre).
+9260	Markér %s åbne sager som %s	Mark %s open cases as %s	Merk %s åpne saker som %s
+9261	Flyt også sagen til %s	Also move the case to %s	Flytt også saken til %s
+9262	– vælg –	– choose –	– velg –
+9263	Vælg, hvem opfølgningen er til.	Choose who the follow-up is for.	Velg hvem oppfølgingen er til.
+9264	Din bruger er ikke knyttet til en medarbejder: »Mine« virker ikke, dine noter får ingen afsender, og du skal selv vælge, hvem en opfølgning er til. Bed en administrator knytte brugeren under Indstillinger → Brugere.	Your login is not linked to an employee: “Mine” does not work, your notes get no author, and you must choose who each follow-up is for. Ask an administrator to link the login under Settings → Users.	Brukeren din er ikke knyttet til en ansatt: «Mine» virker ikke, notatene dine får ingen avsender, og du må selv velge hvem en oppfølging er til. Be en administrator knytte brukeren under Innstillinger → Brukere.
+9265	Beløb (kr, ekskl. moms)	Amount (DKK, excl. VAT)	Beløp (kr, ekskl. mva.)
+9266	ekskl. moms	excl. VAT	ekskl. mva.
+9267	Søg blandt alle kunder	Search all customers	Søk blant alle kunder
+9268	Fundet uden for listen	Found outside the list	Funnet utenfor listen
+9269	Markér sagen som %s	Mark the case as %s	Merk saken som %s
+9270	Mandag	Monday	Mandag
+9271	Sag »%s« slettet	Case “%s” deleted	Sak «%s» slettet
+9272	Genåbn	Reopen	Gjenåpne
+9273	%s kunder har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.	%s customers have a status that is not in a status group and are therefore not shown in the CRM.	%s kunder har en status som ikke er med i en statusgruppe, og vises derfor ikke i CRM.
+9274	Ansvarlig: %s → %s	Responsible: %s → %s	Ansvarlig: %s → %s
+9275	Der er ingen noter eller opkald endnu.	There are no notes or calls yet.	Det er ingen notater eller samtaler ennå.
+9276	Du kan se CRM, men ændringer kræver skriveadgang til Debitor → Konti.	You can view the CRM, but changes require write access to Customers → Accounts.	Du kan se CRM, men endringer krever skrivetilgang til Debitor → Konti.
+9277	Faktureret – markér vundet?	Invoiced – mark as won?	Fakturert – merk som vunnet?
+9278	Flyt %s åbne opfølgninger til %s	Move %s open follow-ups to %s	Flytt %s åpne oppfølginger til %s
+9279	Flyt ned	Move down	Flytt ned
+9280	Flyt op	Move up	Flytt opp
+9281	Forhandling	Negotiation	Forhandling
+9282	Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.	Suggestion: a sales board with Enquiry › Quote sent › Negotiation, where Won gives the status Customer and Lost gives the status Lost.	Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, der Vunnet gir status Kunde og Tapt gir status Tapt.
+9283	Henvendelse	Enquiry	Henvendelse
+9284	Hver gruppe bliver en tavle under Sager. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.	Each group becomes a board under Cases. Won → and Lost → are the status the customer gets when its card is dragged to Won or Lost.	Hver gruppe blir en tavle under Saker. Vunnet → og Tapt → er statusen kunden får når kortet dras til Vunnet eller Tapt.
+9285	Hvilken sag gælder ordren?	Which case is the order for?	Hvilken sak gjelder ordren?
+9286	Hvilken sag gælder tilbuddet?	Which case is the quote for?	Hvilken sak gjelder tilbudet?
+9287	Ingen sag	No case	Ingen sak
+9288	Ingen kontakt endnu	No contact yet	Ingen kontakt ennå
+9289	Ingen opfølgninger matcher »%s«.	No follow-ups match “%s”.	Ingen oppfølginger samsvarer med «%s».
+9290	Ingen statusgrupper endnu.	No status groups yet.	Ingen statusgrupper ennå.
+9291	Knyt til sag	Link to case	Knytt til sak
+9292	Knyttet til sagen »%s«	Linked to the case “%s”	Knyttet til saken «%s»
+9293	Luk	Close	Lukk
+9294	Opfølgningerne er flyttet	The follow-ups have been moved	Oppfølgingene er flyttet
+9295	Opsæt statusgrupper	Set up status groups	Sett opp statusgrupper
+9296	Opsæt statusser og statusgrupper under tandhjulet.	Set up statuses and status groups under the gear.	Sett opp statuser og statusgrupper under tannhjulet.
+9297	Salg	Sales	Salg
+9298	Salgstavlen er oprettet	The sales board has been created	Salgstavlen er opprettet
+9299	Seneste kontakt %s	Last contact %s	Siste kontakt %s
+9300	Skjul %s kunder uden opfølgning	Hide %s customers without a follow-up	Skjul %s kunder uten oppfølging
+9301	Start med en salgstavle	Start with a sales board	Start med en salgstavle
+9302	Statusserne er de samme som feltet Status på debitorkortet. Rækkefølgen her er rækkefølgen på tavlen.	The statuses are the same as the Status field on the customer card. The order here is the order on the board.	Statusene er de samme som feltet Status på debitorkortet. Rekkefølgen her er rekkefølgen på tavlen.
+9303	Til	To	Til
+9304	Tilbud sendt	Quote sent	Tilbud sendt
+9305	Tøm feltet for at fjerne påmindelsen – noten bliver stående	Clear the field to remove the reminder – the note stays	Tøm feltet for å fjerne påminnelsen – notatet blir stående
+9306	Vis %s kunder uden opfølgning	Show %s customers without a follow-up	Vis %s kunder uten oppfølging
+9307	Vis alle	Show all	Vis alle
+9308	Viser de 10 nyeste.	Showing the 10 newest.	Viser de 10 nyeste.
+9309	ingen	none	ingen
+9310	Åbn tandhjulet	Open the gear	Åpne tannhjulet
+9311	Vis 1 kunde uden opfølgning	Show 1 customer without a follow-up	Vis 1 kunde uten oppfølging
+9312	Skjul 1 kunde uden opfølgning	Hide 1 customer without a follow-up	Skjul 1 kunde uten oppfølging
+9313	Flyt opfølgningen til %s	Move the follow-up to %s	Flytt oppfølgingen til %s
+9314	1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.	1 customer has a status that is not in a status group and is therefore not shown in the CRM.	1 kunde har en status som ikke er med i en statusgruppe, og vises derfor ikke i CRM.
+9315	Din opfølgning er flyttet til %s	Your follow-up has been moved to %s	Oppfølgingen din er flyttet til %s
+9316	Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en sag. Søg efter andre kunder med søgefeltet.	Customers appear in the CRM when they have a status in a status group, a note or a case. Find other customers with the search box.	Kunder kommer med i CRM når de har en status i en statusgruppe, et notat eller en sak. Søk etter andre kunder med søkefeltet.
+9317	Kunden har sager i CRM og kan ikke slettes.	The customer has cases in the CRM and cannot be deleted.	Kunden har saker i CRM og kan ikke slettes.
+9318	lukket	closed	lukket
+9319	(lukket kontakt)	(closed contact)	(lukket kontakt)
+9320	(tidligere medarbejder)	(former employee)	(tidligere ansatt)
+9321	Indstillingerne er ændret af en anden. Genindlæs siden.	The settings were changed by someone else. Reload the page.	Innstillingene er endret av en annen. Last siden på nytt.
+9322	Gem eller annullér ændringerne i tandhjulet først.	Save or cancel the changes in the gear first.	Lagre eller avbryt endringene i tannhjulet først.
+9323	%s (Saldi)	%s (Saldi)	%s (Saldi)
+9324	%s har et møde %s–%s (%s)	%s has a meeting %s–%s (%s)	%s har et møte %s–%s (%s)
+9325	%s har inviteret dig til et møde med %s.	%s has invited you to a meeting with %s.	%s har invitert deg til et møte med %s.
+9326	%s invitationer kunne ikke sendes – tjek mailopsætningen under Indstillinger	%s invitations could not be sent – check the mail setup under Settings	%s invitasjoner kunne ikke sendes – sjekk e-postoppsettet under Innstillinger
+9327	%s invitationer sendt	%s invitations sent	%s invitasjoner sendt
+9328	%s min	%s min	%s min
+9329	%s t	%s h	%s t
+9330	1 invitation sendt	1 invitation sent	1 invitasjon sendt
+9331	Abonnement	Subscription	Abonnement
+9332	Abonnér	Subscribe	Abonner
+9333	Aflyst: møde med %s %s	Cancelled: meeting with %s %s	Avlyst: møte med %s %s
+9334	Andre kalendere → + → Fra webadresse, indsæt linket.	Other calendars → + → From URL, paste the link.	Andre kalendere → + → Fra nettadresse, lim inn lenken.
+9335	Arkiv → Nyt kalenderabonnement, indsæt linket.	File → New Calendar Subscription, paste the link.	Arkiv → Nytt kalenderabonnement, lim inn lenken.
+9336	Book møde	Book meeting	Book møte
+9337	Brug %s, hvor alle er ledige	Use %s, when everyone is free	Bruk %s, når alle er ledige
+9338	Deltagere: %s	Attendees: %s	Deltakere: %s
+9339	Din bruger er ikke knyttet til en medarbejder, så der er ingen møder at vise. Bed en administrator knytte brugeren under Indstillinger → Brugere.	Your user is not linked to an employee, so there are no meetings to show. Ask an administrator to link the user under Settings → Users.	Brukeren din er ikke knyttet til en ansatt, så det er ingen møter å vise. Be en administrator knytte brukeren under Innstillinger → Brukere.
+9340	Dit kalenderlink	Your calendar link	Din kalenderlenke
+9341	Du er inviteret til et møde	You are invited to a meeting	Du er invitert til et møte
+9342	Du er sat på sagen »%s«	You have been added to the case “%s”	Du er satt på saken «%s»
+9343	Du har et møde %s–%s (%s)	You have a meeting %s–%s (%s)	Du har et møte %s–%s (%s)
+9344	Emne	Subject	Emne
+9345	Fra	From	Fra
+9346	Fx gennemgang af tilbuddet	E.g. going through the quote	F.eks. gjennomgang av tilbudet
+9347	Hvilken kunde er mødet med?	Which customer is the meeting with?	Hvilken kunde er møtet med?
+9348	Ingen andre medarbejdere	No other employees	Ingen andre ansatte
+9349	Ingen ledig tid senere samme dag for alle.	No free time later that day for everyone.	Ingen ledig tid senere samme dag for alle.
+9350	Invitation: møde med %s %s	Invitation: meeting with %s %s	Invitasjon: møte med %s %s
+9351	Kalenderabonnement slået fra	Calendar subscription turned off	Kalenderabonnement slått av
+9352	Kalenderabonnement: nyt link	Calendar subscription: new link	Kalenderabonnement: ny lenke
+9353	Kolleger	Colleagues	Kolleger
+9354	Kolleger på sagen	Colleagues on the case	Kolleger på saken
+9355	Kontaktperson: %s	Contact person: %s	Kontaktperson: %s
+9356	Kopiér	Copy	Kopier
+9357	Lav mit link	Make my link	Lag min lenke
+9358	Lav nyt link	Make a new link	Lag ny lenke
+9359	Linket er kopieret	The link is copied	Lenken er kopiert
+9360	Linket er personligt: den, der har det, kan se dine møder. Er det kommet ud, så lav et nyt – det gamle holder op med at virke.	The link is personal: whoever has it can see your meetings. If it has got out, make a new one – the old one stops working.	Lenken er personlig: den som har den, kan se møtene dine. Har den kommet ut, så lag en ny – den gamle slutter å virke.
+9361	Med et personligt link kan Google Kalender, Outlook eller Apple Kalender vise dine møder fra CRM – dem, du er ansvarlig for eller deltager i. Kalenderen henter selv ændringerne; Google kan være op til et døgn om det.	With a personal link, Google Calendar, Outlook or Apple Calendar can show your meetings from the CRM – the ones you are responsible for or attend. The calendar fetches the changes itself; Google can take up to a day.	Med en personlig lenke kan Google Kalender, Outlook eller Apple Kalender vise møtene dine fra CRM – dem du er ansvarlig for eller deltar i. Kalenderen henter selv endringene; Google kan bruke opptil et døgn.
+9362	Møde %s kl. %s	Meeting %s at %s	Møte %s kl. %s
+9363	Møde %s · gjort	Meeting %s · done	Møte %s · utført
+9364	Møde booket %s kl. %s	Meeting booked %s at %s	Møte booket %s kl. %s
+9365	Møde med %s	Meeting with %s	Møte med %s
+9366	Mødet er flyttet til %s	The meeting is moved to %s	Møtet er flyttet til %s
+9367	Mødet er gemt	The meeting is saved	Møtet er lagret
+9368	Mødet er tilbage	The meeting is back	Møtet er tilbake
+9369	Mødet med %s %s er aflyst.	The meeting with %s %s is cancelled.	Møtet med %s %s er avlyst.
+9370	Nyt møde	New meeting	Nytt møte
+9371	Nyt møde %s	New meeting %s	Nytt møte %s
+9372	Næste møde	Next meeting	Neste møte
+9373	Optaget på det tidspunkt	Busy at that time	Opptatt på det tidspunktet
+9374	Ret møde	Edit meeting	Rediger møte
+9375	Saldi CRM – %s	Saldi CRM – %s	Saldi CRM – %s
+9376	Se dine møder i Google Kalender, Outlook eller Apple Kalender	See your meetings in Google Calendar, Outlook or Apple Calendar	Se møtene dine i Google Kalender, Outlook eller Apple Kalender
+9377	Se dine møder i din egen kalender	See your meetings in your own calendar	Se møtene dine i din egen kalender
+9378	Send aflysning til dem, der fik en invitation	Send a cancellation to those who got an invitation	Send avlysning til dem som fikk en invitasjon
+9379	Send kalenderinvitation til deltagerne på mail	Send a calendar invitation to the attendees by email	Send kalenderinvitasjon til deltakerne på e-post
+9380	Send også invitation til %s (%s)	Also send an invitation to %s (%s)	Send også invitasjon til %s (%s)
+9381	Send ændringen til deltagerne	Send the change to the attendees	Send endringen til deltakerne
+9382	Send ændringen til deltagerne på mail	Send the change to the attendees by email	Send endringen til deltakerne på e-post
+9383	Slet møde	Delete meeting	Slett møte
+9384	Slet mødet %s kl. %s?	Delete the meeting %s at %s?	Slette møtet %s kl. %s?
+9385	Slå fra	Turn off	Slå av
+9386	Tilføj kalender → Abonner fra nettet, indsæt linket.	Add calendar → Subscribe from web, paste the link.	Legg til kalender → Abonner fra nettet, lim inn lenken.
+9387	Uden mailadresse: %s	No email address: %s	Uten e-postadresse: %s
+9388	Varighed	Duration	Varighet
+9389	Vælg, hvem der er ansvarlig for mødet.	Choose who is responsible for the meeting.	Velg hvem som er ansvarlig for møtet.
+9390	aflysning sendt	cancellation sent	avlysning sendt
+9391	invitation sendt	invitation sent	invitasjon sendt
+9392	Åbn direkte	Open directly	Åpne direkte
+9393	Ændringen er sendt	The change is sent	Endringen er sendt
+9394	Adresse	Address	Adresse
+9395	Adresse 2	Address 2	Adresse 2
+9396	By	City	By
+9397	CVR-nummer	Company registration number	Organisasjonsnummer
+9398	CVR-nummeret findes allerede på en kunde. Find kunden via søgningen i CRM.	A customer with this registration number already exists. Find the customer using the CRM search.	Organisasjonsnummeret finnes allerede på en kunde. Finn kunden med søket i CRM.
+9399	Debitorgruppe	Debtor group	Debitorgruppe
+9400	Der er ingen debitorgrupper. Opret en under Indstillinger, og prøv igen.	There are no debtor groups. Create one in Settings and try again.	Det finnes ingen debitorgrupper. Opprett en under Innstillinger, og prøv igjen.
+9401	Dette lead er allerede oprettet som debitor. Genindlæs siden for at se debitorkortet.	This lead has already been registered as a debtor. Reload the page to view the debtor card.	Dette leadet er allerede opprettet som debitor. Last inn siden på nytt for å se debitorkortet.
+9402	Du har ikke rettighed til at oprette tilbud og ordrer.	You do not have permission to create quotes and orders.	Du har ikke rettighet til å opprette tilbud og ordrer.
+9403	E-mail	Email	E-post
+9404	Et felt indeholder for mange tegn. Forkort teksten og prøv igen.	A field contains too many characters. Shorten the text and try again.	Et felt inneholder for mange tegn. Forkort teksten og prøv igjen.
+9405	Forlad uden at gemme ændringerne?	Leave without saving your changes?	Forlate uten å lagre endringene?
+9406	Gruppen bestemmer blandt andet kundens moms.	The group determines the customer's VAT settings, among other things.	Gruppen bestemmer blant annet kundens merverdiavgift.
+9407	Kunden eller sagen er ændret. Genindlæs siden og prøv igen.	The customer or case has changed. Reload the page and try again.	Kunden eller saken er endret. Last inn siden på nytt og prøv igjen.
+9408	Kunden gemmes som lead i CRM. Den oprettes først som debitor, når du opretter det første tilbud eller den første ordre.	The customer is saved as a lead in CRM. It is registered as a debtor when you create the first quote or order.	Kunden lagres som lead i CRM. Den opprettes først som debitor når du oppretter det første tilbudet eller den første ordren.
+9409	Land	Country	Land
+9410	Lead	Lead	Lead
+9411	Lead gemt	Lead saved	Lead lagret
+9412	Lead oprettet	Lead created	Lead opprettet
+9413	Lead · ikke oprettet som debitor	Lead · not registered as a debtor	Lead · ikke opprettet som debitor
+9414	Navn	Name	Navn
+9415	Opret debitor og ordre	Create debtor and order	Opprett debitor og ordre
+9416	Opret debitor og tilbud	Create debtor and quote	Opprett debitor og tilbud
+9417	Opret et lead med »Ny kunde« under Kunder.	Create a lead with “New customer” under Customers.	Opprett et lead med «Ny kunde» under Kunder.
+9418	Opret lead	Create lead	Opprett lead
+9419	Oprettet	Created	Opprettet
+9420	Postnummer	Postcode	Postnummer
+9421	Ret lead	Edit lead	Rediger lead
+9422	Sag: %s	Case: %s	Sak: %s
+9423	Sagen har allerede et tilbud eller en ordre. Genindlæs siden for at åbne det.	This case already has a quote or order. Reload the page to open it.	Saken har allerede et tilbud eller en ordre. Last inn siden på nytt for å åpne det.
+9424	Skriv en gyldig e-mailadresse.	Enter a valid email address.	Skriv en gyldig e-postadresse.
+9425	Skriv et navn på kunden.	Enter a customer name.	Skriv et navn på kunden.
+9426	Telefon	Phone	Telefon
+9427	Vælg en debitorgruppe. Hvis listen er tom, skal en debitorgruppe oprettes under Indstillinger.	Select a debtor group. If the list is empty, create a debtor group in Settings.	Velg en debitorgruppe. Hvis listen er tom, må en debitorgruppe opprettes under Innstillinger.
+9428	»%s« er et lead. Når du fortsætter, oprettes kunden automatisk i debitorkartoteket. Historik og sager bevares.	“%s” is a lead. Continuing automatically registers the customer in the debtor register. History and cases are retained.	«%s» er et lead. Når du fortsetter, opprettes kunden automatisk i debitorkartoteket. Historikk og saker beholdes.
+9429	Oprettet som debitor %s	Created as debtor %s	Opprettet som debitor %s
+9430	Opret ny kunde	Create new customer	Opprett ny kunde
+9431	Vælg en eksisterende kunde, eller opret en ny.	Choose an existing customer, or create a new one.	Velg en eksisterende kunde, eller opprett en ny.
+9432	Prøv en anden søgning.	Try another search.	Prøv et annet søk.
+9433	Opret og fortsæt	Create and continue	Opprett og fortsett
+9434	CRM-opdateringen er ikke klar. Log ud og ind igen.	The CRM update is not ready. Log out and sign in again.	CRM-oppdateringen er ikke klar. Logg ut og inn igjen.
+9435	Tilbuddet/ordren er oprettet, men kunne ikke knyttes til sagen. Genindlæs CRM for at kontrollere sagen.	The quote/order was created but could not be linked to the case. Reload CRM to check the case.	Tilbudet/ordren er opprettet, men kunne ikke knyttes til saken. Last inn CRM på nytt for å kontrollere saken.
+9436	CRM-notifikationer	CRM notifications	CRM-varsler
+9437	Ingen notifikationer	No notifications	Ingen varsler
+9438	Markér alle som læst	Mark all as read	Merk alle som lest
+9439	Ulæst	Unread	Ulest
+9440	%s ulæste notifikationer	%s unread notifications	%s uleste varsler
+9441	Du har ikke rettighed til at se CRM.	You do not have permission to view CRM.	Du har ikke tilgang til å se CRM.

@@ -16,6 +16,7 @@
 // History:
 // 20261027 CL/LH MB-73 (review): created.
 // 20261110 CDX/NTR Exercise the released 5.1.1 schema migration and its login-time continuation.
+// 20261111 CDX/ASR Support CRM readiness checks after the released backfill continuation.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_leveret_backfill.php <db> <segment|function> [budget] [window]\n");
@@ -50,6 +51,10 @@ function db_select($qtext, $spor) {
 
 function db_fetch_array($result) {
     return pg_fetch_array($result);
+}
+
+function db_escape_string($value) {
+    return pg_escape_string($GLOBALS['conn'], (string) $value);
 }
 
 function db_modify($qtext, $spor) {

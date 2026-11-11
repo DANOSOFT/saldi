@@ -20,6 +20,7 @@
 //                (lager/lagerstatusmail.php, api/v2/setup_api_key.php, bank_integration/login.php).
 //                The typed record links and companion screens of the full Assist are not on
 //                master; that branch adds them back with its pages.
+// 20261111 CDX/ASR Allow the standalone CRM entry while retaining the legacy calendar destination.
 (function (root) {
   // Every screen the assistant may open: the destinations of SALDI's own navigation, as
   // listed in the assistant's screen manifest (chaty data/screens/screen_manifest.json).
@@ -30,6 +31,7 @@
   var SCREENS = [
     'admin/backup.php',
     'debitor/betalinger_settings.php',
+    'debitor/crm.php',
     'debitor/crmkalender.php',
     'debitor/debitor.php?valg=debitor',
     'debitor/debitor.php?valg=historik',

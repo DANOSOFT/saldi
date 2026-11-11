@@ -24,6 +24,7 @@
 // 20260921 CL/SZ MB-50: exclude dashboard chart data endpoints (weekly_graph_data.php,
 //                customer_graph_data.php) from the nav stack so Luk on POS-Menuer
 //                never lands on raw JSON.
+// 20261111 CDX/ASR Keep the CRM JSON API and personal calendar feed out of return navigation.
 
 if (!defined('NAV_STACK_MAX'))   define('NAV_STACK_MAX',   10);
 if (!defined('NAV_DEFAULT_URL')) define('NAV_DEFAULT_URL', '../index/menu.php');
@@ -56,7 +57,7 @@ function _nav_is_recordable(string $url): bool {
     // land on raw JSON (MB-50).
     foreach (['luk.php', 'logud.php', 'login.php', 'ajax=1', 'index/main.php',
               'udskriv.php', 'formularprint.php', 'koekkenprint.php',
-              'weekly_graph_data.php', 'customer_graph_data.php'] as $p) {
+              'weekly_graph_data.php', 'customer_graph_data.php', 'crmApi.php', '/api/crm/ical.php'] as $p) {
         if (strpos($url, $p) !== false) return false;
     }
     return true;

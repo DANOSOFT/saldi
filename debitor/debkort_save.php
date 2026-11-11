@@ -1,5 +1,5 @@
 <?php
-// ---------------------debitor/debkort_save.php----lap 3.4.1---2014-05-05---
+// ---------------------debitor/debkort_save.php----ver 5.1.1---2026-11-11---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,29 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 2014.05.05 indsat  >>|| $_POST['firmanavn']<< da man ikke kunne oprette nye kunder. (PHR - Danosoft) Søg20140505
+// 20261110 CDX/ASR Reject generic card saves for CRM leads before any account or contact mutation.
+// 20261111 CDX/ASR Preserve master debtor saves while rejecting unconverted CRM leads.
+
+/**
+ * Injected by ../includes/online.php via the entry page that includes this file:
+ * @var int $sprog_id
+ * @var string $charset
+ * Optional customer context supplied by that entry page:
+ * @var int|string|null $id
+ * @var int|string|null $konto_id
+ */
+include_once(__DIR__ . '/../includes/crmLeadGuard.php');
+crm_guard_lead_accounts(
+	array($_GET['id'] ?? null, $_GET['konto_id'] ?? null, $_POST['id'] ?? null, $_POST['konto_id'] ?? null, $id ?? null, $konto_id ?? null),
+	(string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'),
+	(int) ($sprog_id ?? 1),
+	array('inframe' => $_GET['inframe'] ?? $_POST['inframe'] ?? null, 'popup' => $_GET['popup'] ?? $_POST['popup'] ?? null),
+	(string) ($charset ?? 'UTF-8')
+);
 
 if ($delete_category=if_isset($_GET['delete_category'])) {
 	$r=db_fetch_array(db_select("select * from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));

@@ -2,6 +2,7 @@
 // tests/characterization/includes/support/release511_database.php
 //
 // 20261110 CDX/NTR Route updater DB calls to the release test's disposable PostgreSQL schemas.
+// 20261111 CDX/ASR Provide SQL escaping for the independent CRM migration readiness probe.
 
 function db_connect($host, $user, $password, $database, $location)
 {
@@ -41,6 +42,11 @@ function db_select($sql, $location, $global = false)
 function db_fetch_array($result)
 {
     return is_array($result) || $result === false ? $result : pg_fetch_array($result);
+}
+
+function db_escape_string($value)
+{
+    return pg_escape_string($GLOBALS['release511Tenant'], (string) $value);
 }
 
 function db_modify($sql, $location, $global = false)
