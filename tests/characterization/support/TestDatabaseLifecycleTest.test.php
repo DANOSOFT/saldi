@@ -2,8 +2,10 @@
 // 20261111 CDX/NTR Verify fresh fixtures, independent ownership, retention and registry cleanup.
 // 20261111 CDX/NTR Verify class-created database identities reach individual IDE/JUnit test output.
 // 20261111 CDX/NTR Verify cleanup requires retained test markers and preserves active/unmarked databases.
+// 20261111 CDX/NTR Cover shared SQL fixture identities in individual IDE/JUnit results.
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 require_once __DIR__ . '/database/TestDatabase.php';
 
@@ -17,7 +19,17 @@ final class TestDatabaseLifecycleTest extends TestCase
         }
     }
 
-    public function testClassSetupIdentityAppearsInIndividualTestResultOutput(): void
+    /** @return array<string, array{string}> */
+    public static function outputCases(): array
+    {
+        return [
+            'installed tenant' => ['DunningCharacterizationTest::test_an_invoice_overdue_beyond_the_grace_period_is_dunned'],
+            'shared SQL fixture' => ['DimensionSqlFragmentTest::testNoFilterMeansNoFragment'],
+        ];
+    }
+
+    #[DataProvider('outputCases')]
+    public function testClassSetupIdentityAppearsInIndividualTestResultOutput(string $filter): void
     {
         require_once __DIR__ . '/CharacterizationEnv.php';
         $root = dirname(__DIR__, 3);
@@ -25,7 +37,7 @@ final class TestDatabaseLifecycleTest extends TestCase
         try {
             $result = CharacterizationEnv::runChild($root . '/vendor/bin/phpunit', [
                 '--configuration', $root . '/phpunit.xml', '--teamcity', '--log-junit', $report,
-                '--filter', 'DunningCharacterizationTest::test_an_invoice_overdue_beyond_the_grace_period_is_dunned',
+                '--filter', $filter,
             ]);
             self::assertSame(0, $result['exit'], $result['stdout'] . $result['stderr']);
             $xml = simplexml_load_file($report);

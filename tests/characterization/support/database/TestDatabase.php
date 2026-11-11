@@ -2,6 +2,7 @@
 // 20261111 CDX/NTR Own UUID-named test databases, fresh installer fixtures and optional retention.
 // 20261111 CDX/NTR Attach class-owned database identities to individual test output for IDE runners.
 // 20261111 CDX/NTR Persist test ownership and retention markers for verified bulk cleanup.
+// 20261111 CDX/NTR Associate each SQL fixture consumer with its captured database identity.
 
 require_once __DIR__ . '/RetainedTestDatabases.php';
 
@@ -99,11 +100,13 @@ final class TestDatabase
             . (self::keep() ? 'yes' : 'no') . "\n";
     }
 
-    /** Do not discard a newer database's report when the same label was reused. */
+    /** Remove this database's aliases without discarding newer owners of reused labels. */
     private function forgetGroup(): void
     {
-        if ((self::$groups[$this->group] ?? null) === $this) {
-            unset(self::$groups[$this->group]);
+        foreach (self::$groups as $group => $database) {
+            if ($database === $this) {
+                unset(self::$groups[$group]);
+            }
         }
     }
 
@@ -113,11 +116,12 @@ final class TestDatabase
     }
 
     /** Explicitly shared only by SQL fixtures using temporary tables or their own schemas. */
-    public static function sqlFixture(): self
+    public static function sqlFixture(string $group): self
     {
         if (self::$sqlFixture === null) {
             self::$sqlFixture = self::create('SQL fixtures (private schemas and temporary tables)', false);
         }
+        self::$groups[$group] = self::$sqlFixture;
         return self::$sqlFixture;
     }
 

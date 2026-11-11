@@ -1,6 +1,7 @@
 <?php
 // 20260908 CDX/LH Cover shared order-header eligibility, moved lines and copy/post lock ordering (SST-765).
 // 20261111 CDX/NTR Use an owned SQL-fixture database instead of an externally prepared DSN.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -28,7 +29,7 @@ final class OrderHeaderLockRegressionTest extends TestCase {
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        $database = TestDatabase::sqlFixture();
+        $database = TestDatabase::sqlFixture(static::class);
         require_once __DIR__ . '/support/order_lock_database.php';
         require_once dirname(__DIR__, 3) . '/kreditor/orderIncludes/lockOrderForSave.php';
         $this->owner = TestDatabase::connect($database->name());

@@ -1,6 +1,7 @@
 <?php
 // 20260908 CDX/LH Guard bounded batch updates and retained outer posting transactions (SST-765).
 // 20261111 CDX/NTR Use an owned SQL-fixture database instead of an externally prepared DSN.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -23,7 +24,7 @@ final class BatchPostingRegressionTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        $database = TestDatabase::sqlFixture();
+        $database = TestDatabase::sqlFixture(static::class);
         $this->db = TestDatabase::connect($database->name());
         $this->schema = 'sst765_batch_' . bin2hex(random_bytes(8));
         $this->query('CREATE SCHEMA ' . $this->schema);

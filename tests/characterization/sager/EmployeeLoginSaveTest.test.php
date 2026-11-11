@@ -1,6 +1,7 @@
 <?php
 // 20261110 CDX/NTR Exercise employee login saves against temporary tables without changing installed accounts.
 // 20261111 CDX/NTR Use the owned SQL fixture instead of connecting to the master.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -19,7 +20,7 @@ final class EmployeeLoginSaveTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        $this->connection = TestDatabase::connect(TestDatabase::sqlFixture()->name());
+        $this->connection = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
         $GLOBALS['employeeLoginTestConnection'] = $this->connection;
         pg_query($this->connection, 'SET search_path TO pg_temp');
         pg_query($this->connection, 'CREATE TEMP TABLE brugere (id SERIAL PRIMARY KEY, brugernavn TEXT, kode TEXT, ansat_id INTEGER, regnskabsaar INTEGER)');

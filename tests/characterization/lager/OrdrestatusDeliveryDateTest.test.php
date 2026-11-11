@@ -9,6 +9,7 @@
 // 20261029 CL/MJ Cover translation-id collisions with cached master/live voucher texts.
 // 20261103 CL/MJ Lager > Varer > Indkøb builds the same box as Ordrevisning.
 // 20261111 CDX/NTR Run TEMP-table SQL in the explicitly shared owned fixture database.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 namespace OrdrestatusFixture {
 
@@ -401,7 +402,7 @@ namespace {
             if ($reason !== null) {
                 self::markTestSkipped($reason);
             }
-            self::$db = \TestDatabase::sqlFixture()->pdo();
+            self::$db = \TestDatabase::sqlFixture(static::class)->pdo();
             return self::$db;
         }
 

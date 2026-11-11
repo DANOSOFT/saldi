@@ -17,6 +17,7 @@
 // strict_types is off: the file under test is legacy and passes '1'/'0' strings where the stubs
 // below take and return scalars loosely, and eval'd/required legacy code inherits the setting.
 // 20261111 CDX/NTR Run TEMP-table SQL in the explicitly shared owned fixture database.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 namespace {
 
@@ -250,7 +251,7 @@ namespace {
             if ($reason !== null) {
                 self::markTestSkipped($reason);
             }
-            $fixture = \TestDatabase::sqlFixture();
+            $fixture = \TestDatabase::sqlFixture(static::class);
             self::$db = $fixture->pdo();
             $conn = \TestDatabase::connect($fixture->name());
             $GLOBALS['connection'] = $conn;

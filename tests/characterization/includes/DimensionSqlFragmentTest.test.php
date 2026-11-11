@@ -21,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 // History:
 // 20261103 LOE SST-936 created.
 // 20261111 CDX/NTR Exercise escaping on the owned SQL fixture instead of the master.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 if (!function_exists('str2low')) {
 	/** The same transformation as std_func.php's str2low() for the characters this report sees. */
@@ -48,7 +49,7 @@ final class DimensionSqlFragmentTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        $connection = TestDatabase::connect(TestDatabase::sqlFixture()->name());
+        $connection = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
         $GLOBALS['connection'] = $connection;
         $GLOBALS['db_type'] = 'postgres';
     }

@@ -1,5 +1,6 @@
 <?php
 // 20261111 CDX/NTR Create the PostgreSQL fixture without a pre-existing fixture database.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 declare(strict_types=1);
 
@@ -71,7 +72,7 @@ final class ActiveFiscalYearsTest extends TestCase
             if ($reason !== null) {
                 self::markTestSkipped($reason);
             }
-            $pg = TestDatabase::connect(TestDatabase::sqlFixture()->name());
+            $pg = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
             pg_query($pg, 'CREATE TEMPORARY TABLE grupper (id integer, kodenr integer, beskrivelse text, art text, box1 text, box2 text, box5 text, box10 text)');
             foreach ($years as $year) {
                 pg_query_params($pg, "INSERT INTO grupper VALUES ($1, $2, $3, 'RA', $4, $5, $6, $7)", [$year[0], ...$year]);
