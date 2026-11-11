@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.1.0 --- 2026-11-10 ---
+// --- api/rest_api.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -104,8 +104,11 @@
 // 20261110 CL/MMR SST-989 insert_shop_order() refuses a DO when the shop order id is already on any order, and a DK when it is already on a DK or on a DO with a negative sum (shop_order_taken()).
 //                 The check was per art only, so a shop credit note sent once as DK and once as DO (an old integration script) was created and invoiced twice.
 //                 Also corrected the indentation of the new-debtor block in insert_shop_order() (no behaviour change).
-
-
+// 20261111 CL/MMR SST-986 insert_shop_order() runs one call at a time per shop order id (shop_order_lock()), so a shop order sent twice at once is created once and the second call gets the duplicate answer.
+//                 The order number is taken and the order inserted in one transaction, and the new order's id is read inside it, so two orders no longer share a number or an id.
+//                 Before, both calls passed the duplicate check, got the same ordrenr and the same id, the lines were added twice to one order, and the race check could delete the order that had the lines.
+//
+//
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -251,7 +254,60 @@ function shop_order_taken($shopOrderId, $art) {
 	return $r ? (int)$r['saldi_id'] : 0;
 }
 
+/**
+ * Wait until no other request is creating an order for this shop order id, then hold the lock until
+ * shop_order_unlock() or the end of the request (a session-level advisory lock: a request that dies
+ * releases it with its connection). Same shape as kkJournalLock() in finans/kassekladde_includes/journalSaveLock.php.
+ *
+ * @param int|string $shopOrderId The shop's order id.
+ * @return bool True when the lock is held; false when there is no id to lock or the lock could not be taken.
+ */
+function shop_order_lock($shopOrderId) {
+	global $db_type;
+	$key = db_escape_string((string)(int)$shopOrderId);
+	if ((int)$shopOrderId <= 0) return false;
+	if ($db_type == 'mysql' || $db_type == 'mysqli') {
+		$q = db_select("SELECT GET_LOCK(CONCAT('saldi:shop_order:', MD5(DATABASE()), ':', '$key'), -1) AS locked", __FILE__ . " linje " . __LINE__);
+		$r = $q ? db_fetch_array($q) : null;
+		return ($r && (int)$r['locked'] === 1);
+	}
+	return (bool)db_select("SELECT pg_advisory_lock(hashtext('shop_order'), hashtext('$key'))", __FILE__ . " linje " . __LINE__);
+}
+
+/**
+ * Release the lock taken by shop_order_lock().
+ *
+ * @param int|string $shopOrderId The shop's order id.
+ * @return void
+ */
+function shop_order_unlock($shopOrderId) {
+	global $db_type;
+	$key = db_escape_string((string)(int)$shopOrderId);
+	if ((int)$shopOrderId <= 0) return;
+	if ($db_type == 'mysql' || $db_type == 'mysqli') {
+		db_select("SELECT RELEASE_LOCK(CONCAT('saldi:shop_order:', MD5(DATABASE()), ':', '$key'))", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_select("SELECT pg_advisory_unlock(hashtext('shop_order'), hashtext('$key'))", __FILE__ . " linje " . __LINE__);
+	}
+}
+
+/**
+ * Create a Saldi order for a shop order (REST action insert_shop_order). One call at a time per shop order id:
+ * a second call for the same id waits for the first and then gets the duplicate answer from
+ * insert_shop_order_unlocked() instead of creating the order again (SST-986).
+ *
+ * @return int|string The new order's id, or an error text (see insert_shop_order_unlocked()).
+ */
 function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
+	$locked = is_numeric($shopOrderId) && shop_order_lock($shopOrderId);
+	try {
+		return insert_shop_order_unlocked(...func_get_args());
+	} finally {
+		if ($locked) shop_order_unlock($shopOrderId);
+	}
+}
+
+function insert_shop_order_unlocked($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvrnr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes,$sprog,$art='DO') {
 
 	global $db,$db_skriv_id;
 	global $brugernavn;
@@ -478,7 +534,6 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	}
 	list($cvrnr, $ean) = shop_order_cvr_ean_from_card($saldi_addr_id, $cvrnr, $ean); # SST-884
 	fwrite($log,__line__." cvrnr '$cvrnr' ean '$ean'\n");
-	$ordrenr = get_next_order_number("DO");
 	$projektnr=0;
 	if (!$gruppe && $saldi_addr_id) {
 		$qtxt = "select gruppe from adresser where id = '".(int)$saldi_addr_id."'";
@@ -514,6 +569,10 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	}
 	if (strtolower($betalingsbet) == 'kreditkort') $betalingsbet = 'Kreditkort';
 	fwrite($log,__line__." afd $afd\n");
+	// SST-986: the number is taken, the order inserted and its id read in one transaction, so the table lock
+	// get_next_order_number() takes holds until the order exists and no other order can get the same number
+	transaktion('begin');
+	$ordrenr = get_next_order_number("DO", false);
 	$qtxt = "insert into ordrer ";
 	$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,";
 	$qtxt.= "addr2,postnr,bynavn,land,";
@@ -537,10 +596,11 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	$qtxt.= "'".db_escape_string((string)$shopOrderId)."','".db_escape_string($notes)."','".db_escape_string((string)$sprog)."')";
 	fwrite($log,__line__." $qtxt\n");
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt="select id from ordrer where ordrenr='".db_escape_string((string)$ordrenr)."' and kontonr='".db_escape_string((string)$kontonr)."'";
+	$qtxt="select id from ordrer where ordrenr='".db_escape_string((string)$ordrenr)."' and kontonr='".db_escape_string((string)$kontonr)."' order by id desc limit 1";
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
 	$saldi_ordre_id=$r['id'];
+	transaktion('commit');
 	fwrite($log,__line__."saldi_ordre_id: $saldi_ordre_id\n");
 	
 	// Enhanced shop_ordrer insertion with duplicate prevention

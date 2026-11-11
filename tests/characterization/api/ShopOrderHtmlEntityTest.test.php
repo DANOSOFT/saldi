@@ -14,6 +14,8 @@ use PHPUnit\Framework\TestCase;
 //                namespace whose db_* stubs record the SQL; the INSERT is then read back the way
 //                PostgreSQL reads quoted literals.
 // 20261110 CL/MMR SST-989 Also lifts shop_order_taken(), which insert_shop_order() now calls for its duplicate check.
+// 20261111 CL/MMR SST-986 Also lifts shop_order_lock(), shop_order_unlock() and insert_shop_order_unlocked(): insert_shop_order() now holds a per-shop-order lock around it.
+//                 transaktion() is stubbed, and get_next_order_number() takes the $manageTransaction argument.
 final class ShopOrderHtmlEntityTest extends TestCase
 {
 	private const NS = 'ShopOrderHtmlEntityFixture';
@@ -26,7 +28,7 @@ final class ShopOrderHtmlEntityTest extends TestCase
 		if (function_exists(self::NS . '\insert_shop_order')) {
 			return;
 		}
-		$wanted = array('chk4utf8', 'shop_input_text', 'shop_order_cvr_ean_from_card', 'shop_order_taken', 'insert_shop_order');
+		$wanted = array('chk4utf8', 'shop_input_text', 'shop_order_cvr_ean_from_card', 'shop_order_taken', 'shop_order_lock', 'shop_order_unlock', 'insert_shop_order', 'insert_shop_order_unlocked');
 		$code = self::topLevelFunctions(__DIR__ . '/../../../api/rest_api.php', $wanted);
 		eval('namespace ' . self::NS . ';' . self::STUBS . $code);
 	}
@@ -284,8 +286,11 @@ final class ShopOrderHtmlEntityTest extends TestCase
 			Db::$writes[] = $sql;
 			return true;
 		}
-		function get_next_order_number($art) {
+		function get_next_order_number($art, $manageTransaction = true) {
 			return 501;
+		}
+		function transaktion($qtext) {
+			return true;
 		}
 		function get_ip() {
 			return '127.0.0.1';
