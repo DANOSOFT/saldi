@@ -70,8 +70,10 @@ pass `SALDI_TEST_PASSWORD_RESTAPI=...` on the same run.
 ## Running
 
 ```bash
+export COMPOSE_FILE=docker-compose.yml:tools/ci/compose.ci.yml
+export SALDI_CHAR_PGPASS=...  # password for the local test PostgreSQL role
 docker compose up -d          # installed test master (see tests/README.md)
-docker compose exec -T -w /var/www/html/saldi web php vendor/bin/phpunit --testsuite restapi
+docker compose exec -T -e SALDI_CHAR_PGPASS -w /var/www/html/saldi web php vendor/bin/phpunit --testsuite restapi
 ```
 
 Against a plain local Apache + Postgres install instead of docker, point the env at it (credentials come from your gitignored `includes/connect.php`; never put them in a tracked file):
