@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/vibrantPayment.php --- ver 5.1.1 --- 2026-11-10 ---
+// --- includes/vibrantPayment.php --- ver 5.1.1 --- 2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 //                 Deleting a rejected booking and its order is one transaction; a failed order delete rolls the booking back and answers pending.
 //                 Both statements run through booking_query_quiet(), which logs a failure instead of printing db_select()'s alert into the JSON answer.
 // 20261110 CL/MMR SST-841 CodeRabbit (PR #969): rental_payment_ready() only counts the columns of rentalperiod in the active schema (current_schema()).
+// 20261111 CL/MMR SST-841 Codex final re-test (PR #969): the booking DELETE also runs through booking_query_quiet(); a failure rolls back and answers pending.
 //
 
 if (!function_exists('booking_query_quiet')) {
@@ -245,7 +246,13 @@ function update_booking_payment($db, $data, $invoice) {
 		$checked = db_escape_string((string)$booking['payment_id']);
 		transaktion('begin');
 		$qtxt = "DELETE FROM rentalperiod WHERE id = $bookingId AND expiry_time IS NOT NULL AND COALESCE(payment_id, '') = '$checked' RETURNING order_id";
-		$deleted = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		// Quiet as well: a failed booking DELETE must answer pending, not put db_select()'s alert in front of the JSON.
+		$result = booking_query_quiet($qtxt);
+		if (!$result) {
+			transaktion('rollback');
+			return array('status' => 'pending');
+		}
+		$deleted = db_fetch_array($result);
 		if ($deleted && !booking_query_quiet("DELETE FROM ordrer WHERE id = " . (int)$deleted['order_id'])) {
 			transaktion('rollback');
 			return array('status' => 'pending');

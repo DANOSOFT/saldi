@@ -5,7 +5,7 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
 /**
- * SST-841: the booking APIs answer JSON, so a failed lock query or order DELETE must not put db_select()'s JavaScript
+ * SST-841: the booking APIs answer JSON, so a failed lock query, booking DELETE or order DELETE must not put db_select()'s JavaScript
  * alert in front of the answer (Codex round 11 on PR #969). Uses the real includes/db_query.php and
  * includes/vibrantPayment.php on an isolated PostgreSQL schema; the failures are real (a trigger refuses the order
  * DELETE, another session holds the advisory lock while lock_timeout is short). Each case runs twice, as db_select()
@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
  * History:
  * 20261104 CL/MMR Created (SST-841, Codex round 11 on PR #969).
  * 20261110 CL/MMR rental_payment_ready() looks at the active schema only (CodeRabbit on PR #969).
+ * 20261111 CL/MMR A failed booking DELETE answers pending without output (Codex final re-test on PR #969).
  */
 #[RunTestsInSeparateProcesses]
 final class bookingPaymentDbErrors extends TestCase
@@ -128,6 +129,30 @@ final class bookingPaymentDbErrors extends TestCase
         [$out, $answer] = self::call(['id' => 2, 'status' => 'rejected'], self::noInvoice());
         $this->assertSame(['', ['status' => 'deleted']], [$out, $answer], 'a normal reject still deletes');
         $this->assertSame(0, self::rows('SELECT count(*) FROM rentalperiod WHERE id = 2') + self::rows('SELECT count(*) FROM ordrer WHERE id = 8'));
+    }
+
+    public function testAFailedBookingDeleteAnswersPendingWithoutOutputAndKeepsBothRows(): void
+    {
+        $main = $GLOBALS['connection'];
+        pg_query($main, "INSERT INTO ordrer VALUES (9, '')");
+        pg_query($main, "INSERT INTO rentalperiod (id, order_id, expiry_time, payment_id) VALUES (4, 9, now() + interval '1 hour', '')");
+        pg_query($main, "CREATE FUNCTION refuse_booking_delete() RETURNS trigger AS \$\$ BEGIN RAISE EXCEPTION 'booking % may not be deleted', OLD.id; END \$\$ LANGUAGE plpgsql");
+        pg_query($main, "CREATE TRIGGER refuse_booking_delete BEFORE DELETE ON rentalperiod FOR EACH ROW WHEN (OLD.id = 4) EXECUTE FUNCTION refuse_booking_delete()");
+        for ($i = 1; $i <= 2; $i++) {
+            [$out, $answer] = self::call(['id' => 4, 'status' => 'rejected'], self::noInvoice());
+            $this->assertSame('', $out, "nothing in front of the JSON answer (attempt $i)");
+            $this->assertSame(['status' => 'pending'], $answer);
+            $this->assertSame(1, self::rows('SELECT count(*) FROM rentalperiod WHERE id = 4 AND expiry_time IS NOT NULL'), 'the booking is kept pending');
+            $this->assertSame(1, self::rows('SELECT count(*) FROM ordrer WHERE id = 9'), 'the order is kept');
+            $this->assertSame(1, self::rows("SELECT count(*) FROM ordrer WHERE id = 9 AND fakturanr = ''"), 'nothing is invoiced');
+        }
+        $this->assertStringContainsString('booking 4 may not be deleted', (string)file_get_contents($this->work . '/php.log'), 'the failure is logged on the server');
+        $this->assertSame(PGSQL_TRANSACTION_IDLE, pg_transaction_status($main), 'the failed transaction is rolled back, not left open');
+
+        pg_query($main, 'DROP TRIGGER refuse_booking_delete ON rentalperiod');
+        [$out, $answer] = self::call(['id' => 4, 'status' => 'rejected'], self::noInvoice());
+        $this->assertSame(['', ['status' => 'deleted']], [$out, $answer], 'once the failure is gone, the reject deletes');
+        $this->assertSame(0, self::rows('SELECT count(*) FROM rentalperiod WHERE id = 4') + self::rows('SELECT count(*) FROM ordrer WHERE id = 9'));
     }
 
     public function testAFailedLockQueryAnswersInvoiceFailedWithoutOutputAndCanBeRetried(): void
