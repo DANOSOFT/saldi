@@ -19,3 +19,4 @@
 - [findtekst text keys](convention_findtekst_keys.md) — prefer descriptive string keys (tekst_key) over numeric ids for new findtekst() calls; common.* namespace; alphanumeric in CSV
 - [Recording feedback](convention_recording_feedback.md) — Record durable conventions in the linked topic files; repeated review corrections get enforcement, not more rules in AGENTS.md
 - [Change checks and review requirements](../../tools/guardrails/README.md#rules-and-enforcement) — Existing repository rules and the guardrails, tests or review that enforce each one
+- [Test database ownership](convention_test_databases.md) — Fresh UUID-owned tenants per mutating PHPUnit group; explicit SQL-fixture sharing, printed IDs and optional retention

@@ -11,6 +11,7 @@
   real executed tests.
 -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="tests/characterization/support/database/bootstrap.php"
          colors="true"
          failOnWarning="false"
          cacheDirectory="tools/php/.phpunit.cache">
