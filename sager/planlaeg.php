@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/planlaeg.php --- lap 4.0.8 --- 2023-09-27---
+// --- sager/planlaeg.php --- ver 5.1.0 --- 2026-11-10---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,8 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2012-2023 saldi.dk aps
+// Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
 
 @session_start();
 $s_id=session_id();
@@ -48,8 +49,10 @@ include("../includes/std_func.php");
 
 //$sag_id=if_isset($_GET['sag_id']);
 //$konto_id=if_isset($_GET['konto_id']);
-$funktion=if_isset($_GET['funktion']);
-if (!$funktion) $funktion="planlaeg";  
+$funktion = $_GET['funktion'] ?? null;
+if (!in_array($funktion, ['planlaeg'], true)) {
+	$funktion = 'planlaeg';
+}
 
 	
 		global $brugernavn;

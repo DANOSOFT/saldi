@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-11 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
-
+//
+//
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -147,12 +147,17 @@
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+// 20261016 CL/MJ SST-876 linjeopdat(): a webshop that refuses the stock update is written to the php error log. Nothing read sync_shop_vare()'s answer before, so a shop could stop taking stock figures for days without a trace.
 // 20261019 CL/LH MB-73: linjeopdat() adds the delivered quantity to coalesce(leveret,0), as NULL+n stayed NULL and fast invoicing and credit notes never recorded it.
 //                opret_ordrelinje() inserts leveret = 0.
 //                krediter_pos() starts the return line at leveret 0, as the sold line's leveret is now recorded and copying it cancelled the return.
 //                Braces added to the brace-less ifs in the edited blocks.
+// 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells the webshops once when every line is posted. An item on two lines was two sends, and a set the lines share was sent once per line: item 13054 is a component in 33 sets, so one order line was 198 webshop calls and the 30 second budget skipped everything after it.
+// 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
+// 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
 // 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery
 //                records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261029 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 // 20261101 CL/MJ SST-910 linjeopdat(): a return on an item without batch control goes back into the purchase batches.
@@ -506,6 +511,13 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	#fclose ($fp);
 /* echo "<!--function levering slut-->"; */
 	#xit;
+	# SST-876: every line is marked. With an open transaction, the flush defers these
+	# figures until the owner drains after commit; otherwise it sends the document now.
+	# Failed item numbers belong to the screen caller, never a popup in this shared function.
+	$shopSync = shopSyncFlush(0); # Document only; the transaction owner drains after commit.
+	if (shopSyncFailed($shopSync)) {
+		error_log("saldi: shop stock sync failed on order $id for: " . implode(', ', shopSyncFailedItems()));
+	}
 	return ("OK");
 } #endfunc levering
 
@@ -795,7 +807,11 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			}
 		}
 	}
-	sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
+	# SST-876: the line is marked and nothing is sent yet. levering() sends once when every
+	# line has been posted, so an item on two lines is one send with the figure the document
+	# ended with, and a set shared by several lines is sent once rather than once per line.
+	# Item 13054 is a component in 33 sets: its line alone used to be 198 webshop calls.
+	shopSyncMark($vare_id, $variant_id, $lager, 'stock'); # std_func.
 	// 20261019 CL/LH MB-73 leveret has no default and opret_ordrelinje() never set it, so NULL+$antal stayed
 	// NULL and fast invoicing (which never opens debitor/ordre.php's re-sync) left the delivered quantity unrecorded.
 	// 20261027 CL/LH MB-73 (review): a NULL line starts from $deliveredBefore (read above), not from 0.
@@ -1833,6 +1849,9 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		$svar = $fejl;
 	}
 	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595) - unconditional, covers the committed success path too
+	if (!$callerOwnsTransaction && $svar === 'OK' && !$db_modify_fejl) {
+		shopSyncDrainQueue();
+	}
 	/* echo "<!--function bogfor slut-->"; */
 	return ($svar);
 } #endfunc bogfor

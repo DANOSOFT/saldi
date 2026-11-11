@@ -10,6 +10,7 @@
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20261022 CL/NTR tearDownAfterClass() drops the tenant, matching the per-class lifecycle of the other REST suites.
+// 20261111 CDX/NTR Give each REST class its own fresh database.
 
 use PHPUnit\Framework\TestCase;
 
@@ -17,18 +18,23 @@ require_once __DIR__ . '/RestApiEnv.php';
 
 abstract class RestApiTestCase extends TestCase
 {
+    private static $tenantConnection = null;
     public static function setUpBeforeClass(): void
     {
         $reason = RestApiEnv::unavailableReason();
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenantOnce();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     /** Drop the tenant again so the seeded login does not outlive the class (see RestApiEnv::teardownTenant()). */
     public static function tearDownAfterClass(): void
     {
+        if (self::$tenantConnection !== null) {
+            pg_close(self::$tenantConnection);
+            self::$tenantConnection = null;
+        }
         RestApiEnv::teardownTenant();
     }
 
@@ -71,11 +77,10 @@ abstract class RestApiTestCase extends TestCase
     /** A direct connection to the API test tenant, for verifying writes. */
     protected static function tenant()
     {
-        static $conn = null;
-        if ($conn === null) {
-            $conn = RestApiEnv::connect(RestApiEnv::testDb());
+        if (self::$tenantConnection === null) {
+            self::$tenantConnection = RestApiEnv::connect(RestApiEnv::testDb());
         }
-        return $conn;
+        return self::$tenantConnection;
     }
 
     /** @param array<int,mixed> $params */

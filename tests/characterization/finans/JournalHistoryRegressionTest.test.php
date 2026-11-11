@@ -1,5 +1,6 @@
 <?php
 // 20260907 CDX/LH Cover typed historical suggestions and posted duplicate identity/currency.
+// 20261110 CDX/NTR Accept whole account numbers as integers and strings.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -36,6 +37,17 @@ final class JournalHistoryRegressionTest extends TestCase
     public static function accountTypes(): array
     {
         return [['K', 'K'], ['D', 'D'], ['F', 'F'], ['', 'F'], [null, 'F']];
+    }
+
+    public function testWholeAccountNumbersWorkAsIntegersAndStrings(): void
+    {
+        $this->db->exec("INSERT INTO kassekladde VALUES
+            (1,10,80,'2025-09-07','F','5800','K','3000',125,'INV','Supplier payment')");
+        foreach ([5800, '5800'] as $account) {
+            $suggestions = sidste_5_forslag($account, 'F', 'K', 90, 'UTF-8', 1);
+            self::assertCount(1, $suggestions['rows']);
+            self::assertSame('3000', $suggestions['rows'][0]['kontonr']);
+        }
     }
 
     #[DataProvider('accountTypes')]

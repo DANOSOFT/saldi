@@ -11,6 +11,7 @@
 // 20261110 CL/MJ SST-960 Created.
 // 20261110 CL/MJ SST-924 Returns typed by hand and "Opret som indkøb" go back on a batch of the same item.
 // 20261111 CL/MJ SST-924 A typed return passes over the batch of a purchase that is not received yet.
+// 20261111 CL/MJ SST-960 The session id comes from CharacterizationEnv::sessionId(), as master's test database now gives one per run.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -28,7 +29,7 @@ final class BatchControlStockTest extends CharacterizationTestCase
     private function receive(int $orderId, float $qty): void
     {
         self::rows("UPDATE ordrelinjer SET leveres = $1, batch_batch_no = 'BATCH-' || id WHERE ordre_id = $2 AND vare_id > 0", [$qty, $orderId]);
-        self::runChild('run_modtag_page.php', [$orderId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_modtag_page.php', [$orderId, CharacterizationEnv::sessionId()]);
     }
 
     private static function lineId(int $orderId): int
