@@ -33,6 +33,12 @@ if (!function_exists('rental_extend_for_closed_days')) {
 	 * insertClosedDay stores them. Each is compared as its calendar day, so a value stored at another hour
 	 * still counts, and two values on the same day count once. The days are taken in date order and
 	 * compared with the end as moved so far, so a closed day the move reaches is counted too.
+	 *
+	 * @param int|false $from First day of the booking, unix time at local midnight (strtotime of start_date).
+	 * @param int|false $to Last day of the booking, unix time at local midnight (strtotime of end_date).
+	 * @param array<int, int|string|null> $closedDays rentalclosed.day values; values that are not numbers are skipped.
+	 * @return int|false The last day moved one day on per closed day, as a unix time at local midnight.
+	 *                   $to unchanged when $from or $to is not an int (a date that could not be read).
 	 */
 	function rental_extend_for_closed_days($from, $to, array $closedDays) {
 		if (!is_int($from) || !is_int($to)) return $to;
@@ -53,7 +59,12 @@ if (!function_exists('rental_extend_for_closed_days')) {
 }
 
 if (!function_exists('rental_closed_days')) {
-	/** Every rentalclosed.day of the account (connected regnskab). */
+	/**
+	 * Every closed day of the connected account, in date order.
+	 *
+	 * @return list<string> rentalclosed.day values as the database returns them: the unix time of the day
+	 *                      at local midnight, as a string. Empty when no day is closed.
+	 */
 	function rental_closed_days() {
 		$days = array();
 		$query = db_select("SELECT day FROM rentalclosed ORDER BY day", __FILE__ . " linje " . __LINE__);
