@@ -43,9 +43,11 @@ try {
 		saldo numeric, invoiced date, modtime timestamp DEFAULT now())");
 	run("CREATE TABLE kontakt_emails (id serial, konto_id int, email text, email_type text)");
 	run("CREATE TABLE delivery_addresses (id serial, account_id int, is_primary boolean, sort_order int, address_line1 text, city text)");
+	run("CREATE TABLE ansatte (id serial, konto_id int, navn text, posnr int)");
 	run("INSERT INTO adresser (id,kontonr,firmanavn,notes,email,kontakt,lukket,saldo) VALUES (7,'1007','Anna ApS','Old notes','a@x.dk','Anna','',0)");
 	run("INSERT INTO kontakt_emails (konto_id,email,email_type) VALUES (7,'a@x.dk','faktura')");
 	run("INSERT INTO delivery_addresses (account_id,is_primary,sort_order,address_line1,city) VALUES (7,true,0,'Vej 1','Kbh')");
+	run("INSERT INTO ansatte (konto_id,navn,posnr) VALUES (7,'Anna',1),(7,'Bent',2)");
 
 	// User A and user B open the same card.
 	$cardA = array('id' => '7', 'recordHash' => debitorkortRecordHash(7));
@@ -71,6 +73,9 @@ try {
 	$opened = array('id' => '7', 'recordHash' => debitorkortRecordHash(7));
 	run("INSERT INTO delivery_addresses (account_id,is_primary,sort_order,address_line1,city) VALUES (7,false,1,'Vej 2','Odense')");
 	check(debitorkortSaveIsStale(7, $opened), "An added delivery address makes the card stale");
+	$opened = array('id' => '7', 'recordHash' => debitorkortRecordHash(7));
+	run("UPDATE ansatte SET posnr = 3 - posnr WHERE konto_id = 7");
+	check(debitorkortSaveIsStale(7, $opened), "Reordered contacts make the card stale");
 
 	// A legacy install whose connection reads and writes LATIN9.
 	pg_set_client_encoding($connection, 'LATIN9');

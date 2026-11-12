@@ -23,13 +23,14 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261112 CL/SS MB-82 Created. The card's form carries a hash of the stored customer, and a save is refused when the customer changed after the card was opened.
+//                The contacts' ids and positions are in the hash too, as the card's save writes the contact order.
 
 if (!function_exists('debitorkortRecordHash')) {
 	/**
 	 * MB-82: a hash of everything the card's save writes for one customer.
 	 *
 	 * Covers the adresser columns the save's UPDATE writes (plus email, which it writes from the e-mail rows),
-	 * and the customer's kontakt_emails and delivery_addresses rows. adresser.modtime is not used, as invoicing
+	 * the customer's kontakt_emails and delivery_addresses rows, and the id and posnr of its contacts (ansatte), whose order the save writes. adresser.modtime is not used, as invoicing
 	 * and the card's own page load update the row without anyone editing the card.
 	 *
 	 * @param int $id adresser.id of the customer.
@@ -48,7 +49,7 @@ if (!function_exists('debitorkortRecordHash')) {
 			'felt_5', 'vis_lev_addr', 'lukket', 'stripe_fravalg', 'kategori', 'rabatgruppe', 'status', 'productlimit',
 			'enduser_type',
 		);
-		$data = array('adresser' => array(), 'kontakt_emails' => array(), 'delivery_addresses' => array());
+		$data = array('adresser' => array(), 'kontakt_emails' => array(), 'delivery_addresses' => array(), 'ansatte' => array());
 		$r = db_fetch_array(db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__));
 		foreach ($columns as $column) {
 			if ($r && array_key_exists($column, $r)) {
@@ -68,6 +69,10 @@ if (!function_exists('debitorkortRecordHash')) {
 				}
 			}
 			$data['delivery_addresses'][] = $row;
+		}
+		$q = db_select("select id, posnr from ansatte where konto_id = '$id' order by id", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$data['ansatte'][] = array((string)$r['id'], (string)$r['posnr']);
 		}
 		return md5(serialize($data));
 	}

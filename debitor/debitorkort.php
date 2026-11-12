@@ -134,6 +134,7 @@
 //                The hidden kontakt, delivery and felt fields are double-quoted, so saving no longer cuts a stored value off at the apostrophe.
 // 20261112 CL/SS MB-82 A save is refused when the customer was changed after the card was opened (recordHash, debitorkortIncludes/staleSave.php).
 //                Before, one UPDATE wrote every field from the old form, so another user's newer notes were blanked without a warning.
+//                The hash is taken before the customer is read, so a save between the read and the hash can't slip through.
 @session_start();
 $s_id = session_id();
 
@@ -1130,6 +1131,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 }
 
 $einvoiceCvrBanner = ''; # SD-774, set from the saved card below
+$recordHash = ($id > 0) ? debitorkortRecordHash($id) : '';
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
@@ -1343,6 +1345,7 @@ if ($kontotype == "privat") {
 		list($fornavn, $efternavn) = explode(",", split_navn($firmanavn));
 		list($lev_fornavn, $lev_efternavn) = explode(",", split_navn($lev_firmanavn));
 		db_modify("update adresser set fornavn='" . db_escape_string($fornavn) . "',efternavn='" . db_escape_string($efternavn) . "' where id = '$id'", __FILE__ . " linje " . __LINE__); #20140507
+		$recordHash = debitorkortRecordHash($id);
 	}
 }
 ######################## OUTPUT ######################
@@ -1510,7 +1513,7 @@ if (!isset($pbs_date)) $pbs_date = NULL;
 
 print "<input type=hidden name=id value='$id'>\n";
 if ($id > 0) {
-	print "<input type=hidden name=recordHash value='" . debitorkortRecordHash($id) . "'>\n";
+	print "<input type=hidden name=recordHash value='$recordHash'>\n";
 }
 print "<input type=hidden name=kontonr value='$kontonr'>\n";
 print "<input type=hidden name=ordre_id value='$ordre_id'>\n";

@@ -71,9 +71,14 @@ final class DebitorkortStaleSaveWiringTest extends TestCase
     {
         $src = (string)file_get_contents(self::PAGE);
         self::assertStringContainsString("include_once(__DIR__ . '/debitorkortIncludes/staleSave.php');", $src);
+        $taken = strpos($src, "\$recordHash = (\$id > 0) ? debitorkortRecordHash(\$id) : '';");
+        $read = strpos($src, "select * from adresser where id = '\$id'");
         $form = strpos($src, 'print "<form name=debitorkort');
-        $hash = strpos($src, "name=recordHash value='\" . debitorkortRecordHash(\$id) . \"'");
+        $hash = strpos($src, "name=recordHash value='\$recordHash'");
         $end = strpos($src, 'print "</form>\n";');
+        self::assertNotFalse($taken, 'recordHash is not taken');
+        self::assertNotFalse($read, 'the card read of the customer not found');
+        self::assertTrue($taken < $read, 'the hash must be taken before the customer is read, so a save in between is caught');
         self::assertNotFalse($form, 'card form not found');
         self::assertNotFalse($hash, 'recordHash field not found');
         self::assertTrue($form < $hash && $hash < (int)$end, 'recordHash must be printed inside the card form');

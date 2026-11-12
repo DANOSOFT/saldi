@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../support/CharacterizationEnv.php';
+require_once __DIR__ . '/../support/database/TestDatabase.php';
 
 // 20261112 CL/SS MB-82 Customer card stale save.
 //                Two users open the same customer; the one saving from the older form overwrote the other's newer notes without a warning.
@@ -22,6 +23,7 @@ final class DebitorkortStaleSaveTest extends TestCase
         "A changed e-mail row makes the card stale",
         "A changed delivery address makes the card stale",
         "An added delivery address makes the card stale",
+        "Reordered contacts make the card stale",
         "On a LATIN9 connection a customer with æøå is still detected as changed",
         "A post without recordHash, a new customer and a malformed hash are not checked",
     ];
@@ -41,7 +43,7 @@ final class DebitorkortStaleSaveTest extends TestCase
         $dsn = sprintf(
             "host='%s' dbname='%s' user='%s' password='%s' connect_timeout=3",
             addcslashes(CharacterizationEnv::pgHost(), "'\\"),
-            addcslashes(CharacterizationEnv::masterDb(), "'\\"),
+            addcslashes(TestDatabase::sqlFixture(static::class)->name(), "'\\"),
             addcslashes(CharacterizationEnv::pgUser(), "'\\"),
             addcslashes(CharacterizationEnv::pgPass(), "'\\")
         );
