@@ -128,8 +128,8 @@ final class EmptyRightsGateTest extends TestCase
         self::assertStringContainsString('select konto_id from sager where id =', $block, 'the case is resolved');
         self::assertStringContainsString("\$_GET['konto_id'] = \$wf_customer;", $block,
             'and the customer comes from the case, not from the request');
-        self::assertStringContainsString('select sag_id from ordrer where id =', $block,
-            'a link to an order is traced back to its case');
+        self::assertStringContainsString('select sag_id, konto_id from ordrer where id =', $block,
+            'a link to an order is traced back to its case and customer');
         // The order decides the case: a request that names a different case must not borrow it.
         self::assertStringContainsString('$wf_order_sag = $wf_row ? (int) $wf_row[\'sag_id\'] : 0;', $block,
             'the order\'s own case is read');
@@ -155,7 +155,7 @@ final class EmptyRightsGateTest extends TestCase
             'kundeordnr is not an id, so the order it selects is looked up');
         self::assertStringContainsString('foreach (array_keys($wf_selectors) as $wf_selector) {', $block,
             'and each of them is checked against the admitted case');
-        self::assertStringContainsString("if (!\$wf_row || (int) \$wf_row['sag_id'] !== \$wf_sag) {", $block,
+        self::assertStringContainsString("if (!\$wf_row || (int) \$wf_row['sag_id'] !== \$wf_sag || (int) \$wf_row['konto_id'] !== \$wf_customer) {", $block,
             'an order of another case drops the exception');
         // debitor/ordre.php saves with $_POST['konto_id'], so the GET alone is not enough.
         self::assertStringContainsString("\$_POST['konto_id'] = \$wf_customer;", $block,
@@ -288,6 +288,12 @@ final class EmptyRightsGateTest extends TestCase
         $gate = (string)@file_get_contents(__DIR__ . '/../../../includes/online.php');
         self::assertStringContainsString("\$wf_order_konto !== \$wf_customer", $gate,
             'the gate also requires the order to belong to the case customer');
+        self::assertStringContainsString("\$wf_row['konto_id'] !== \$wf_customer", $gate,
+            'and every other selector the request names, not only the one that decided the case');
+        self::assertStringNotContainsString('$ordre_id_for_sku', $ordre,
+            'the porto line uses the inserted id, never a lookup by order number');
+        self::assertStringContainsString('if ($sku != null && $sst967_inserted_id) {', $ordre,
+            'and is skipped when the connection could not report the id');
         self::assertStringContainsString("if (\$no_module_right) {\n\t\t\t\t\t\t\$sag_workflow_case_id = \$wf_sag;", $gate,
             'and exports the case to the page only for a user without the module right');
         $copyBind = strpos($ordre, "if (\$sag_workflow_case_id) {\n\t\$sag_id = (int)\$sag_workflow_case_id;");

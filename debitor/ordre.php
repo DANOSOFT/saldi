@@ -1063,30 +1063,21 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	# Porto vare system
 	## Create a new order line on creation from the specified sku
 	$sku = get_settings_value("porto_varnr", "ordre", null);
-	if ($sku != null) {
-		$ordre_id_for_sku = $sst967_inserted_id;
-		if (!$ordre_id_for_sku) {
-			$query = db_select("select id from ordrer where ordrenr='$ordrenr' and art='DO' limit 1", __FILE__ . " linje " . __LINE__);
-			$ordre = db_fetch_array($query);
-			$ordre_id_for_sku = (int) ifset($ordre, 'id', 0);
-		}
+	if ($sku != null && $sst967_inserted_id) {
+		# SST-967 the line goes on the order the insert returned. Without that id there is no proof which order
+		# this request created - the order number is not unique - so the Porto line is skipped instead.
 		$query = db_select("select * from varer where varenr='$sku' or varenr_alias='$sku' or stregkode='$sku' limit 1", __FILE__ . " linje " . __LINE__);
 		$vare = db_fetch_array($query);
-		opret_ordrelinje($ordre_id_for_sku, $vare["id"], $vare["varenr"], 1, $vare["beskrivelse"], $vare["salgspris"], 0, 0, "DO", "", "", "", "", "", "", "", "", "", "", "", "");
+		opret_ordrelinje($sst967_inserted_id, $vare["id"], $vare["varenr"], 1, $vare["beskrivelse"], $vare["salgspris"], 0, 0, "DO", "", "", "", "", "", "", "", "", "", "", "", "");
 	}
 
 	if ($sst967_inserted_id) {
 		$id = $sst967_inserted_id;
 		# SST-967 this page created it, so the case checks may not refuse it.
 		$sst967_created_order = $sst967_inserted_id;
-	} else {
-		# If the connection cannot report its last id, the order number this request generated is the unique
-		# proof; a customer and a date are not.
-		$query = db_select("select id from ordrer where ordrenr='$ordrenr' and art='DO' limit 1", __FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query)) {
-			$id = (int) $row['id'];
-		}
 	}
+	# When the connection cannot report the inserted id, the page stays on "create" rather than guessing an
+	# order by a number that is not unique.
 } elseif ($status < 3 && $id && $firmanavn) {
 	// The selected employee is independent of order ownership. Match on id only.
 	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id", __FILE__ . " linje " . __LINE__);

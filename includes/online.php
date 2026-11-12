@@ -378,8 +378,10 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 					if ($wf_selector === $wf_order) {
 						continue;
 					}
-					$wf_row = db_fetch_array(db_select("select sag_id from ordrer where id = '$wf_selector'", __FILE__ . " linje " . __LINE__));
-					if (!$wf_row || (int) $wf_row['sag_id'] !== $wf_sag) {
+					# The same both relationships as the order that decided the case: in the case, and on the
+					# case's customer. A second order of the same case but another customer must not borrow it.
+					$wf_row = db_fetch_array(db_select("select sag_id, konto_id from ordrer where id = '$wf_selector'", __FILE__ . " linje " . __LINE__));
+					if (!$wf_row || (int) $wf_row['sag_id'] !== $wf_sag || (int) $wf_row['konto_id'] !== $wf_customer) {
 						$wf_customer = 0;
 						break;
 					}
