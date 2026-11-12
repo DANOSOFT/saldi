@@ -146,13 +146,14 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--pag
 .sk .sk-panel > :first-child { border-top-left-radius: calc(var(--sk-r-mod) - 1px); border-top-right-radius: calc(var(--sk-r-mod) - 1px); }
 .sk .sk-panel > :last-child { border-bottom-left-radius: calc(var(--sk-r-mod) - 1px); border-bottom-right-radius: calc(var(--sk-r-mod) - 1px); }
 /* The first and last piece that shows: a form's hidden fields come first, so :first-child alone missed its bar or title band.
-   A table's own corner does not clip its cells, so a table as the first or last piece rounds its corner cells. */
+   A table's own corner does not clip its cells, so a table as the first or last piece rounds its corner cells
+   (after a colgroup too). */
 .sk .sk-panel > :nth-child(1 of :not(input[type="hidden"], script, style, template)) { border-top-left-radius: calc(var(--sk-r-mod) - 1px); border-top-right-radius: calc(var(--sk-r-mod) - 1px); }
 .sk .sk-panel > :nth-last-child(1 of :not(input[type="hidden"], script, style, template)) { border-bottom-left-radius: calc(var(--sk-r-mod) - 1px); border-bottom-right-radius: calc(var(--sk-r-mod) - 1px); }
-.sk .sk-panel > table:nth-child(1 of :not(input[type="hidden"], script, style, template)) > :is(thead, tbody):first-child > tr:first-child > :first-child { border-top-left-radius: calc(var(--sk-r-mod) - 1px); }
-.sk .sk-panel > table:nth-child(1 of :not(input[type="hidden"], script, style, template)) > :is(thead, tbody):first-child > tr:first-child > :last-child { border-top-right-radius: calc(var(--sk-r-mod) - 1px); }
-.sk .sk-panel > table:nth-last-child(1 of :not(input[type="hidden"], script, style, template)) > :is(tbody, tfoot):last-child > tr:last-child > :first-child { border-bottom-left-radius: calc(var(--sk-r-mod) - 1px); }
-.sk .sk-panel > table:nth-last-child(1 of :not(input[type="hidden"], script, style, template)) > :is(tbody, tfoot):last-child > tr:last-child > :last-child { border-bottom-right-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > table:nth-child(1 of :not(input[type="hidden"], script, style, template)) > :nth-child(1 of thead, tbody) > tr:first-child > :first-child { border-top-left-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > table:nth-child(1 of :not(input[type="hidden"], script, style, template)) > :nth-child(1 of thead, tbody) > tr:first-child > :last-child { border-top-right-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > table:nth-last-child(1 of :not(input[type="hidden"], script, style, template)) > :nth-last-child(1 of tbody, tfoot) > tr:last-child > :first-child { border-bottom-left-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > table:nth-last-child(1 of :not(input[type="hidden"], script, style, template)) > :nth-last-child(1 of tbody, tfoot) > tr:last-child > :last-child { border-bottom-right-radius: calc(var(--sk-r-mod) - 1px); }
 .sk .sk-panel-h { display: flex; align-items: center; gap: 12px; min-height: var(--sk-band-h); padding: 0 var(--sk-pad); background: var(--sk-surface-2); border-bottom: 1px solid var(--sk-edge-head); }
 .sk .sk-panel-t { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 var(--sk-fs-s)/1.2 var(--sk-font); color: var(--sk-text); }
 .sk .sk-panel-tools { display: flex; align-items: center; gap: 12px; margin-left: auto; font-size: var(--sk-fs-s); white-space: nowrap; }
