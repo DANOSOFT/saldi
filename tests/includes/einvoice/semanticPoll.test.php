@@ -356,4 +356,34 @@ final class semanticPoll extends TestCase
         $result = semantic_poll_incoming($client, 'test_42', new \SemanticPollBudget(100, 10, $clock), $missing);
         $this->assertSame(semantic_poll_empty_result(), $result);
     }
+    public function testIncomingPullGetsAWindowAndChargesTheBudget(): void
+    {
+        list($clock) = $this->clock();
+        $client = new \SemanticClient('https://semantic.example.invalid', bin2hex(random_bytes(8)), bin2hex(random_bytes(8)), function (): array {
+            throw new \LogicException('the fake pull makes no Semantic call');
+        });
+        $hook = sys_get_temp_dir() . '/sd815-incoming-hook-' . bin2hex(random_bytes(6)) . '.php';
+        file_put_contents($hook, '<?php function semantic_incoming_poll($since, $limit = 100, $client = null, $db = null, $store = null) {'
+            . ' $GLOBALS["sd815IncomingCall"] = array($since, $limit, $db);'
+            . ' return array("listed" => 3, "handled" => 2, "failed" => 1, "already" => 0, "skipped" => 0, "newest" => null, "messages" => array("Dokument x: fejl")); }');
+        try {
+            $budget = new \SemanticPollBudget(100, 10, $clock);
+            $result = semantic_poll_incoming($client, 'test_42', $budget, $hook, function (): int {
+                return 1700000000;
+            });
+        } finally {
+            unlink($hook);
+        }
+        $this->assertSame(date('Y-m-d H:i:s', 1700000000 - 8 * 86400), $GLOBALS['sd815IncomingCall'][0], 'no stored time: 8 days back');
+        $this->assertSame(9, $GLOBALS['sd815IncomingCall'][1], 'the list call took one row, the rest is the limit');
+        $this->assertSame('test_42', $GLOBALS['sd815IncomingCall'][2]);
+        $this->assertSame(3, $result['checked']);
+        $this->assertSame(2, $result['changed']);
+        $this->assertSame(1, $result['failed']);
+        $this->assertSame(array('Dokument x: fejl'), $result['errors']);
+        $this->assertSame(6, $budget->rowsLeft(), 'one row for the list, one per document handled or failed');
+
+        $empty = new \SemanticPollBudget(100, 0, $clock);
+        $this->assertSame('budget', semantic_poll_incoming($client, 'test_42', $empty, $hook)['skipped'], 'no budget, no call');
+    }
 }

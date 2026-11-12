@@ -37,7 +37,7 @@
 // 20261109 CL/MMR SD-815 (draft) Tenant table einvoice_sendlog: one row per e-document sent through Semantic, with the XML that was sent and Semantic's document id.
 // 20261109 CL/MMR SD-815 (draft) einvoice_sendlog is created under an advisory lock: two logins at the same moment made one fail on PostgreSQL.
 // 20261112 CL/MMR SD-815 Tenant table einvoice_incoming (each incoming e-document handled once) and the receiver_* columns on einvoice_sendlog (the receiver's answer to a sent invoice).
-// 20261112 CL/MMR SD-815 (draft) On MySQL einvoice_sendlog is utf8mb4: in a latin1 database a Semantic text outside latin1 (e.g. 'Ł') made the write fail in strict mode.
+// 20261112 CL/MMR SD-815 On MySQL einvoice_sendlog and einvoice_incoming are utf8mb4: in a latin1 database a Semantic text outside latin1 (e.g. 'Ł') made the write fail in strict mode.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -131,7 +131,7 @@ if (db_fetch_array(db_select($incomingSendlog, __FILE__ . " linje " . __LINE__))
 				$incomingColumns.= "updated TIMESTAMP NULL, PRIMARY KEY (id)";
 				if ($incomingMysql) {
 					$qtxt = "CREATE TABLE IF NOT EXISTS einvoice_incoming (id INT AUTO_INCREMENT NOT NULL, $incomingColumns, ";
-					$qtxt.= "UNIQUE KEY einvoice_incoming_semantic_id_key (semantic_incoming_id))";
+					$qtxt.= "UNIQUE KEY einvoice_incoming_semantic_id_key (semantic_incoming_id)) DEFAULT CHARSET=utf8mb4";
 				} else {
 					$qtxt = "CREATE TABLE IF NOT EXISTS einvoice_incoming (id SERIAL NOT NULL, $incomingColumns, ";
 					$qtxt.= "CONSTRAINT einvoice_incoming_semantic_id_key UNIQUE (semantic_incoming_id))";

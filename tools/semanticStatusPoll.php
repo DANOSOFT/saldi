@@ -25,7 +25,7 @@
 // 20261109 CL/MMR SD-815 Created (draft). Command-line pull fallback for Semantic statuses: asks Semantic about the open send-log rows of one regnskab, or of every regnskab on the server, and applies the answers.
 //                 Usage: php tools/semanticStatusPoll.php --db=<database> [--db=...] | --all [--limit=50]. Exit 0 = done, 1 = usage or configuration, 2 = some rows could not be checked.
 // 20261112 CL/MMR SD-815 Ready for cron across all regnskaber: a lock so two runs never overlap, a time and row budget, rows not older than --max-age-days, a rotation so every regnskab gets its turn, and output only on errors.
-//                 Each tenant connection is closed after use. The incoming-document pull will be called from semantic_poll_incoming() in includes/einvoice/semanticPoll.php.
+//                 Each tenant connection is closed after use. Incoming documents are pulled by semantic_poll_incoming() in includes/einvoice/semanticPoll.php.
 //                 Exit 0 = done, 1 = usage or configuration, 2 = some rows or regnskaber failed, 3 = another run holds the lock.
 
 /**

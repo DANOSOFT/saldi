@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/einvoice/peppolBisWriter.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- includes/einvoice/peppolBisWriter.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,7 @@
 // 20261109 CL/MMR SD-815 Created (draft). Writes the document model as a Peppol BIS Billing 3.0 Invoice or CreditNote (UBL 2.1 XML).
 //                 The writer is pure: no database and no globals, so it is tested against golden files that pass the Peppol validator.
 // 20261109 CL/MMR SD-815 Unit prices are written with up to 8 decimals, so a returned item's net price can keep PEPPOL-EN16931-R120.
-
+//
 /*
  * The model is documented at peppol_model_example() in includes/einvoice/peppolModel.php.
  * The writer only maps it to XML: it does not compute totals, VAT or identifiers. Elements are written in UBL 2.1 schema

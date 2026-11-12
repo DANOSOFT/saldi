@@ -23,7 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261112 CL/MMR SD-815 Created. The cron run behind tools/semanticStatusPoll.php: which regnskaber and send-log rows are asked about, the run's time and row budget, the lock that keeps two runs apart and the rotation that lets every regnskab have its turn.
-//                 semantic_poll_incoming() is the place where the pull of incoming documents will be called.
+//                 semantic_poll_incoming() pulls the incoming documents (semantic_incoming_poll()) after the outgoing statuses.
 
 include_once(__DIR__ . '/semanticClient.php');
 include_once(__DIR__ . '/semanticSendLog.php');
@@ -420,30 +420,61 @@ if (!function_exists('semantic_poll_table_exists')) {
 
 if (!function_exists('semantic_poll_incoming')) {
 	/**
-	 * Hook for the pull of incoming documents (SD-815, incoming part). It is called once per regnskab registered at
-	 * Semantic (copy guard 'same_db'), after its outgoing statuses, while the run's budget lasts.
-	 *
-	 * When includes/einvoice/semanticIncomingPoll.php exists, it is included; when it then defines
-	 *   semantic_incoming_poll(SemanticClient $client, string $db, SemanticPollBudget $budget): array{checked: int, changed: int, failed: int, errors: list<string>}
-	 * that function is called with the current tenant database open. It must take a row from $budget (takeRow())
-	 * before every Semantic call and stop when that returns false. Until then this returns an empty result.
+	 * The pull of incoming documents (SD-815 tasks 19/20) for one regnskab registered at Semantic, after its outgoing
+	 * statuses, while the run's budget lasts: semantic_incoming_poll() in includes/einvoice/semanticIncoming.php lists
+	 * the documents received since the last run and handles the new ones (the document pool, or the receiver's answer
+	 * on einvoice_sendlog). Documents handled before are skipped without being read again, so the window overlaps the
+	 * previous run by an hour. The newest receivedDateTime seen is kept in settings (einvoice/incoming_poll_since); the
+	 * first run looks 8 days back, as long as Semantic keeps a pulled notification.
+	 * The list call takes one row from the budget, each document handled takes one more.
 	 *
 	 * @param SemanticClient     $client
 	 * @param string             $db
 	 * @param SemanticPollBudget $budget
-	 * @param string|null        $hookFile Another file, for tests; null = semanticIncomingPoll.php next to this file.
+	 * @param string|null        $hookFile Another file, for tests; null = semanticIncoming.php next to this file.
+	 * @param (callable(): int)|null $now Unix time, for tests; null = time().
 	 * @return array{checked: int, changed: int, failed: int, skipped: string, errors: list<string>}
 	 */
-	function semantic_poll_incoming(SemanticClient $client, $db, SemanticPollBudget $budget, $hookFile = null) {
-		$file = ($hookFile !== null) ? (string)$hookFile : __DIR__ . '/semanticIncomingPoll.php';
+	function semantic_poll_incoming(SemanticClient $client, $db, SemanticPollBudget $budget, $hookFile = null, $now = null) {
+		$out = semantic_poll_empty_result();
+		$file = ($hookFile !== null) ? (string)$hookFile : __DIR__ . '/semanticIncoming.php';
 		if (!function_exists('semantic_incoming_poll') && is_file($file)) {
 			include_once($file);
 		}
-		if (!function_exists('semantic_incoming_poll') || $budget->exhausted()) {
-			return semantic_poll_empty_result();
+		if (!function_exists('semantic_incoming_poll')) {
+			return $out;
 		}
-		$result = call_user_func('semantic_incoming_poll', $client, (string)$db, $budget);
-		return is_array($result) ? array_merge(semantic_poll_empty_result(), $result) : semantic_poll_empty_result();
+		if (!$budget->takeRow()) {
+			$out['skipped'] = 'budget';
+			return $out;
+		}
+		$time = is_callable($now) ? (int)call_user_func($now) : time();
+		$floor = $time - 8 * 86400;
+		$stored = function_exists('get_settings_value') ? strtotime((string)get_settings_value('incoming_poll_since', 'einvoice', '')) : false;
+		$since = ($stored !== false && $stored - 3600 > $floor) ? $stored - 3600 : $floor;
+		$limit = max(1, min(100, (int)$budget->rowsLeft()));
+		$result = semantic_incoming_poll(date('Y-m-d H:i:s', $since), $limit, $client, (string)$db);
+		$out['checked'] = (int)$result['listed'];
+		$out['changed'] = (int)$result['handled'];
+		$out['failed'] = (int)$result['failed'];
+		for ($i = (int)$result['handled'] + (int)$result['failed']; $i > 0; $i--) {
+			if (!$budget->takeRow()) {
+				$out['skipped'] = 'budget';
+				break;
+			}
+		}
+		if ((int)$result['failed'] > 0) {
+			foreach ($result['messages'] as $message) {
+				$out['errors'][] = (string)$message;
+			}
+		}
+		if ($result['newest'] !== null && function_exists('update_settings_value')) {
+			$newest = strtotime((string)$result['newest']);
+			if ($newest !== false && ($stored === false || $newest > $stored)) {
+				update_settings_value('incoming_poll_since', 'einvoice', date('Y-m-d H:i:s', $newest), 'SD-815: newest incoming e-document seen by tools/semanticStatusPoll.php');
+			}
+		}
+		return $out;
 	}
 }
 

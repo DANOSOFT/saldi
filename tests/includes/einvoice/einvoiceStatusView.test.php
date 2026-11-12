@@ -114,13 +114,13 @@ final class einvoiceStatusView extends TestCase
     public static function receiverAnswers(): array
     {
         return array(
-            'RE with reason' => array(array('receiver_status' => 'RE', 'receiver_reason' => 'Ukendt køber'), 'rejected', 'Afvist af modtager: Ukendt køber'),
+            'RE with reason' => array(array('receiver_status' => 'RE', 'receiver_status_text' => 'Ukendt køber'), 'rejected', 'Afvist af modtager: Ukendt køber'),
             'rejected word' => array(array('receiver_status' => 'rejected'), 'rejected', 'Afvist af modtager'),
             'AP' => array(array('receiver_status' => 'AP'), 'delivered', 'Godkendt af modtager'),
             'PD paid' => array(array('receiver_status' => 'PD'), 'delivered', 'Godkendt af modtager'),
             'IP in process' => array(array('receiver_status' => 'IP'), 'sent', 'Under behandling hos modtager'),
-            'alternative column names' => array(array('response_status' => 'RE', 'response_reason' => 'Dublet'), 'rejected', 'Afvist af modtager: Dublet'),
-            'empty answer' => array(array('receiver_status' => '', 'receiver_reason' => ''), 'sent', 'Sendt'),
+            'other column names are ignored' => array(array('response_status' => 'RE', 'response_reason' => 'Dublet'), 'sent', 'Sendt'),
+            'empty answer' => array(array('receiver_status' => '', 'receiver_status_text' => ''), 'sent', 'Sendt'),
             'unknown code' => array(array('receiver_status' => 'ZZ'), 'sent', 'Sendt'),
         );
     }
@@ -140,8 +140,8 @@ final class einvoiceStatusView extends TestCase
     {
         $base = einvoice_status_base_columns();
         $this->assertSame($base, einvoice_status_columns_from_schema(array_merge($base, array('xml', 'xml_sha256'))), 'never the XML');
-        $this->assertSame(array_merge($base, array('receiver_status', 'receiver_reason')),
-            einvoice_status_columns_from_schema(array_merge(array('RECEIVER_REASON', 'receiver_status'), $base)));
+        $this->assertSame(array_merge($base, array('receiver_status', 'receiver_status_text')),
+            einvoice_status_columns_from_schema(array_merge(array('RECEIVER_STATUS_TEXT', 'receiver_status'), $base)));
         $this->assertSame(array(), einvoice_status_columns_from_schema(array()), 'no table, no query');
         $this->assertSame(array(), einvoice_status_columns_from_schema(array('id', 'ordre_id')), 'an incomplete table is not asked');
     }

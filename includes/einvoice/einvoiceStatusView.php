@@ -30,8 +30,9 @@
  * The texts are findtekst() keys under einvoice.* (importfiler/tekster_keyed.tsv). Users never see the provider's
  * name: einvoice_ui_user_text() replaces it in messages that come from the send code or the provider's answers.
  *
- * The receiver's answer (a Peppol ApplicationResponse) is stored by the incoming side of SD-815 in columns that may
- * not exist yet. They are read only when information_schema lists them (einvoice_status_receiver_columns()).
+ * The receiver's answer (a Peppol ApplicationResponse) is stored by includes/einvoice/semanticIncoming.php in
+ * einvoice_sendlog.receiver_status and receiver_status_text. A regnskab not logged into since then lacks the columns,
+ * so they are read only when information_schema lists them (einvoice_status_receiver_columns()).
  */
 
 if (!function_exists('einvoice_findtekst')) {
@@ -171,8 +172,8 @@ if (!function_exists('einvoice_status_receiver_candidates')) {
 	 */
 	function einvoice_status_receiver_candidates() {
 		return array(
-			'status' => array('receiver_status', 'response_status', 'receiver_response'),
-			'reason' => array('receiver_reason', 'response_reason', 'receiver_note'),
+			'status' => array('receiver_status'),
+			'reason' => array('receiver_status_text'),
 		);
 	}
 }

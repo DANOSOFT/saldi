@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/einvoice/semanticSend.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- includes/einvoice/semanticSend.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,7 +48,7 @@ if (!function_exists('semantic_provider_is_semantic')) {
 if (!function_exists('semantic_provider_enabled')) {
 	/**
 	 * The per-regnskab switch: settings var_grp 'einvoice', var_name 'provider'. Default 'easyubl'.
-	 * There is no screen for it yet; support sets it for a test regnskab.
+	 * An administrator sets it under Indstillinger > Diverse > E-faktura (systemdata/diverseIncludes/einvoiceProvider.php), shown only when the server enables the choice.
 	 *
 	 * @return bool
 	 */

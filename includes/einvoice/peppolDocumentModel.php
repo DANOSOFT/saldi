@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/einvoice/peppolDocumentModel.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- includes/einvoice/peppolDocumentModel.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,7 +26,7 @@
 //                 The builder is pure: no database and no globals, so every accounting rule here is covered by tests with synthetic rows.
 // 20261109 CL/MMR SD-815 Review fixes: a seller without a sales VAT rate is sent as not VAT registered (category O), and a foreign customer's number without prefix belongs to the address country.
 //                 A 0184 endpoint typed with "DK" keeps it, a returned item's net price gets the decimals R120 needs, the rounding limits follow the number of lines, and "paid at posting" comes from the open item.
-
+//
 /*
  * What this file decides, in the order peppol_document_model() runs it (each point needs Morten's or an accountant's approval):
  *

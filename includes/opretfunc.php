@@ -41,7 +41,7 @@
 // 20261110 CDX/NTR Release 5.1.1: create tekst_key and its lookup index for new tenants.
 // 20261109 CL/MMR SD-815 (draft) A new regnskab gets the table einvoice_sendlog (e-documents sent through Semantic), as includes/betweenUpdates.php creates it on existing accounts.
 // 20261112 CL/MMR SD-815 A new regnskab also gets einvoice_incoming and the receiver_* columns of einvoice_sendlog, as includes/betweenUpdates.php adds them.
-// 20261112 CL/MMR SD-815 (draft) On MySQL einvoice_sendlog is utf8mb4, as in includes/betweenUpdates.php.
+// 20261112 CL/MMR SD-815 On MySQL einvoice_sendlog and einvoice_incoming are utf8mb4, as in includes/betweenUpdates.php.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -658,6 +658,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "received TIMESTAMP NULL, xml " . (($db_type == "mysql" || $db_type == "mysqli") ? "LONGTEXT" : "TEXT") . ", db_name VARCHAR(64), ";
 	$qtxt.= "created TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated TIMESTAMP NULL, PRIMARY KEY (id), ";
 	$qtxt.= "CONSTRAINT einvoice_incoming_semantic_id_key UNIQUE (semantic_incoming_id))";
+	$qtxt.= ($db_type == "mysql" || $db_type == "mysqli") ? " DEFAULT CHARSET=utf8mb4" : "";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	if ($db_type=="mysql" || $db_type=="mysqli") {

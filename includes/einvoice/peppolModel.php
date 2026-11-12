@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/einvoice/peppolModel.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- includes/einvoice/peppolModel.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,7 +26,7 @@
 //                 Saldi builds the e-invoice XML itself and sends it through Semantic's API instead of sending JSON to EasyUBL.
 // 20261109 CL/MMR SD-815 Documented the builder's optional keys issues and reconciliation, reg.nr. in payeeAccount.bic for code 42, and dueDate on a credit note.
 // 20261109 CL/MMR SD-815 Unit prices may carry up to 8 decimals; reconciliation has the optional maxLineSlack.
-
+//
 /*
  * SD-815 draft: how the pieces fit together.
  *
