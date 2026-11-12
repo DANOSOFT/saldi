@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- debitor/debitorkort.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
 // 20250911 LOE Create a contact employee if none exists for erhverv accounts 
@@ -132,6 +132,8 @@
 //                A refused change no longer marks the card as edited, so Tilbage doesn't ask to discard changes nobody made.
 // 20261101 CL/SZ MB-129 A contact name with an apostrophe no longer breaks the card: the name is escaped in the three adresser.kontakt updates.
 //                The hidden kontakt, delivery and felt fields are double-quoted, so saving no longer cuts a stored value off at the apostrophe.
+// 20261112 CL/SS MB-82 A save is refused when the customer was changed after the card was opened (recordHash, debitorkortIncludes/staleSave.php).
+//                Before, one UPDATE wrote every field from the old form, so another user's newer notes were blanked without a warning.
 @session_start();
 $s_id = session_id();
 
@@ -151,6 +153,7 @@ include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
 include_once(__DIR__ . '/debitorkortIncludes/einvoiceCvrBanner.php');
+include_once(__DIR__ . '/debitorkortIncludes/staleSave.php');
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
@@ -257,7 +260,9 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 	$submit = if_isset($_POST['submit'], NULL);
 	$DelEt = findtekst('1099|Slet', $sprog_id);
 	$id     = $_POST['id'];
-	if (isset($_POST['anonymize']) && $id) {
+	if ($submit != $DelEt && !isset($_POST['anonymize']) && debitorkortSaveIsStale($id, $_POST)) {
+		alert(findtekst('debtor.card.changed_by_another_user|Kunden er ændret af en anden bruger, efter du åbnede kortet. Dine ændringer er ikke gemt. Kortet viser nu de gemte oplysninger, så indtast dine ændringer igen.', $sprog_id));
+	} elseif (isset($_POST['anonymize']) && $id) {
 		include('anonymize.php');
 	} elseif ($submit != $DelEt) {
 		$notes = $_POST['notes'];
@@ -1504,6 +1509,9 @@ if (!isset($kontakt)) $kontakt = NULL;
 if (!isset($pbs_date)) $pbs_date = NULL;
 
 print "<input type=hidden name=id value='$id'>\n";
+if ($id > 0) {
+	print "<input type=hidden name=recordHash value='" . debitorkortRecordHash($id) . "'>\n";
+}
 print "<input type=hidden name=kontonr value='$kontonr'>\n";
 print "<input type=hidden name=ordre_id value='$ordre_id'>\n";
 print "<input type=hidden name=returside value=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\">\n";
