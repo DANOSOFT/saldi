@@ -342,10 +342,11 @@ if ($varenr) {
 		for ($l = 1; $l < count($ls_id); $l++) {
 			db_modify("delete from lagerstatus where id = '$ls_id[$l]'", __FILE__ . " linje " . __LINE__);
 		}
-		if (isset($ls_id[0]) && $ls_id[0])
+		if (isset($ls_id[0]) && $ls_id[0]) {
 			$qtxt = "update lagerstatus set beholdning='$beholdning' where id='$ls_id[0]'";
-		else
+		} else {
 			$qtxt = "insert into lagerstatus (vare_id,variant_id,beholdning,lager) values ('$r[id]','0','$beholdning','$lager')";
+		}
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 		# <-20140625
@@ -354,10 +355,12 @@ if ($varenr) {
 	print "<tr><td></td></tr>\n";
 
 	$tmp = dkdecimal($beholdning * 1, 2); #20140103
-	while (substr($tmp, -1) == '0')
+	while (substr($tmp, -1) == '0') {
 		$tmp = substr($tmp, 0, strlen($tmp) - 1);
-	if (substr($tmp, -1) == ',')
+	}
+	if (substr($tmp, -1) == ',') {
 		$tmp = substr($tmp, 0, strlen($tmp) - 1);
+	}
 	print "<tr><td>$r[varenr]</td><td><!-- $lager --></td><td>$r[beskrivelse]<input type=\"hidden\" name=\"dato\" value=\"$dato\"></td>
 	<td align=\"left\">$tmp</td><td align=\"right\"><input style=\"width:75px;text-align:right;\" type=\"text\" name=\"optalt\">\n";
 	print "<input type=\"hidden\" name=\"varenr\" value='$r[varenr]'>\n";
