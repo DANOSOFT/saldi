@@ -42,6 +42,7 @@
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261112 CL/MMR SST-1005 «Sæt aktivt» and «Sæt alle» update the opening balances of the chosen year and all later years, as Gem/opdatér does.
 //                 A transfer that cannot be made is shown above the list until a later update gets past it.
+//                 Year 1 and a year after a deleted year are carried forward from themselves; the alert text is JSON-encoded.
 
 @session_start();
 $s_id = session_id();
@@ -90,9 +91,10 @@ if ($aktiver) {
 include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
 if ($aktiver || $set_alle) {
 	// SST-1005: as if Gem/opdatér was pressed on the chosen year and every later year.
-	$openingStop = syncFollowingOpeningBalances(($aktiver ? $aktiver : $set_alle) - 1);
+	$chosenYear = $aktiver ? $aktiver : $set_alle;
+	$openingStop = syncFollowingOpeningBalances($chosenYear - 1, $chosenYear);
 	if ($openingStop) {
-		alert(addslashes(followingOpeningBalanceStopText($openingStop, $sprog_id)));
+		print followingOpeningBalanceAlertScript($openingStop, $sprog_id);
 	}
 }
 if ($deleteYear) {

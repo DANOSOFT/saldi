@@ -33,6 +33,9 @@
 //                  syncFollowingOpeningBalances() runs the same rebuild in a transaction of its own, for «Sæt aktivt».
 //                  updateOpeningBalancesAfterYearSave() does it for Gem/opdatér on the year card and leaves the later years alone when the transfer into the saved year is blocked.
 //                  Invalid fiscal year dates are checked before anything is written and reported like a block; an unexpected error is rolled back and reported.
+//                  A fingerprint of the open years' postings every ten minutes also finds late commits below the id watermark and deleted postings (CodeRabbit).
+//                  «Sæt aktivt» carries year 1 and a year after a deleted year forward, a reversed date range is invalid, and the alert text is JSON-encoded.
+//                  When the transfer into a saved year is blocked, the year card keeps that year's opening balances as they were.
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -192,15 +195,26 @@ function checkFollowingOpeningBalances($activeYear) {
 	$maxId = (int)$r['max_id'];
 	if ($r['state'] === null || $r['state'] === '') {
 		// First check: follow postings from now on. Earlier years are brought up to date by «Sæt aktivt».
-		saveFollowingOpeningBalanceState($maxId, 0);
+		saveFollowingOpeningBalanceState($maxId, 0, 0);
 		return null;
 	}
-	list($lastId, $pendingYear) = followingOpeningBalanceStateParts($r['state']);
+	list($lastId, $pendingYear, $fingerprintAt) = followingOpeningBalanceStateParts($r['state']);
+	$changed = false;
 	if ($maxId > $lastId) {
 		$year = followingOpeningBalancePostedYear($lastId, $maxId);
 		if ($year && (!$pendingYear || $year < $pendingYear)) $pendingYear = $year;
 		$lastId = $maxId;
-		saveFollowingOpeningBalanceState($lastId, $pendingYear);
+		$changed = true;
+	}
+	if (time() - $fingerprintAt >= 600) {
+		// Postings that commit after a check with lower ids than it saw, and deleted postings, show up here.
+		$year = followingOpeningBalanceChangedYear();
+		if ($year && (!$pendingYear || $year < $pendingYear)) $pendingYear = $year;
+		$fingerprintAt = time();
+		$changed = true;
+	}
+	if ($changed) {
+		saveFollowingOpeningBalanceState($lastId, $pendingYear, $fingerprintAt);
 	}
 	if (!$pendingYear || $activeYear <= $pendingYear) {
 		return null;
@@ -212,55 +226,85 @@ function checkFollowingOpeningBalances($activeYear) {
  * Rebuild the opening balances of the years after $fromYear in a transaction of its own, like pressing
  * Gem/opdatér on each of them, and remember a blocked transition so systemdata/regnskabsaar.php can show it.
  * A rebuild that is already waiting for an earlier year (refreshFollowingOpeningBalances()) starts there instead.
+ * With $year («Sæt aktivt» on that year), $year is carried forward from itself when it has no usable year before it.
  *
- * @param int $fromYear Fiscal year whose closing balances are carried into the later years.
+ * @param int $fromYear Fiscal year whose closing balances are carried into the later years (0 = none).
+ * @param int $year The fiscal year being activated, or 0.
  * @return array|null The transition that could not be written (see updateFollowingOpeningBalances()), or null.
  */
-function syncFollowingOpeningBalances($fromYear) {
+function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	$fromYear = (int)$fromYear;
-	if ($fromYear < 1 || followingOpeningBalancesInTransaction()) {
+	$year = (int)$year;
+	if (($fromYear < 1 && $year < 1) || followingOpeningBalancesInTransaction()) {
 		return null;
 	}
 	include_once(__DIR__ . '/std_func.php');
 	include_once(__DIR__ . '/genberegn.php');
 	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalanceSync' order by id limit 1", __FILE__ . ' line ' . __LINE__));
 	if ($r && $r['var_value'] !== '' && $r['var_value'] !== null) {
-		list($lastId, $pendingYear) = followingOpeningBalanceStateParts($r['var_value']);
+		list($lastId, $pendingYear, $fingerprintAt) = followingOpeningBalanceStateParts($r['var_value']);
 		if ($pendingYear) {
-			$fromYear = min($fromYear, $pendingYear);
+			$fromYear = $fromYear > 0 ? min($fromYear, $pendingYear) : $pendingYear;
 			// Cleared before the rebuild, so a failing rebuild is not retried on every page.
-			saveFollowingOpeningBalanceState($lastId, 0);
+			saveFollowingOpeningBalanceState($lastId, 0, $fingerprintAt);
 		}
 	}
+	$checkedFrom = $fromYear;
 	$stop = null;
 	transaktion('begin');
 	try {
-		updateFollowingOpeningBalances($fromYear, $stop);
+		if ($year > 0) {
+			carryFollowingOpeningBalances($year, $fromYear, $stop);
+		} else {
+			updateFollowingOpeningBalances($fromYear, $stop);
+		}
 	} catch (Throwable $e) {
 		// Nothing of the rebuild is kept, and the stored message tells the user to retry with Gem/opdatér.
 		transaktion('rollback');
 		error_log('SST-1005: opening balances after fiscal year ' . $fromYear . ' not updated: ' . $e->getMessage());
 		$stop = followingOpeningBalanceStopShape($fromYear, $fromYear + 1);
 		$stop['failed'] = true;
-		saveFollowingOpeningBalanceStop($stop, $fromYear);
+		saveFollowingOpeningBalanceStop($stop, $checkedFrom);
 		return $stop;
 	}
-	saveFollowingOpeningBalanceStop($stop, $fromYear);
+	saveFollowingOpeningBalanceStop($stop, $checkedFrom);
 	transaktion('commit');
 	return $stop;
+}
+
+/**
+ * Carry $fromYear (normally the year before $year) into the later years. When that does not get past $year
+ * without a block, because there is no usable year before it (year 1, a missing or deleted year), $year's own
+ * opening balances are carried forward from $year. A real block is never bypassed. The caller owns the transaction.
+ *
+ * @param int $year The year being saved or activated.
+ * @param int $fromYear In: where to start. Out: $year when the rebuild had to start there.
+ * @param array|null $stop Receives the block, see updateFollowingOpeningBalances().
+ * @return int[] Fiscal year numbers whose opening balances were updated.
+ */
+function carryFollowingOpeningBalances($year, &$fromYear, &$stop) {
+	$year = (int)$year;
+	$updated = updateFollowingOpeningBalances($fromYear, $stop);
+	if (!$stop && !in_array($year + 1, $updated, true)) {
+		$fromYear = $year;
+		$updated = array_merge($updated, updateFollowingOpeningBalances($year, $stop));
+	}
+	return $updated;
 }
 
 /**
  * Gem/opdatér on the year card (systemdata/regnskabskort.php): carry the year before into $year again, so the
  * «Overfør til» choices just saved are checked, and on into every later year. Year 1 and a year after a deleted
  * year have their own opening balances, so those are carried forward from $year itself. When the transfer into
- * $year is blocked, the later years are left alone as well. The caller (the year card) owns the transaction; the
- * carry-forward runs inside a savepoint, so an unexpected error undoes all of it but keeps the card's own save.
+ * $year is blocked or fails, $year keeps the opening balances it had before the card was saved
+ * ($primoBeforeSave) and the later years are left alone; the card's other fields stay saved. The caller owns the
+ * transaction; the carry-forward runs inside a savepoint, so an unexpected error undoes all of it.
  *
  * @param int $year The fiscal year whose card was saved.
+ * @param array|null $primoBeforeSave kontoplan.id => primo of $year before the save (followingOpeningBalancePrimo()).
  * @return array|null The transition that could not be written (see updateFollowingOpeningBalances()), or null.
  */
-function updateOpeningBalancesAfterYearSave($year) {
+function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	$year = (int)$year;
 	$ownTransaction = !followingOpeningBalancesInTransaction();
 	if ($ownTransaction) {
@@ -269,23 +313,58 @@ function updateOpeningBalancesAfterYearSave($year) {
 	db_modify('savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
 	$stop = null;
 	$fromYear = $year - 1;
+	$checkedFrom = $fromYear;
 	try {
-		if (!updateFollowingOpeningBalances($fromYear, $stop) && !$stop) {
-			$fromYear = $year;
-			updateFollowingOpeningBalances($fromYear, $stop);
-		}
+		carryFollowingOpeningBalances($year, $fromYear, $stop);
 	} catch (Throwable $e) {
 		db_modify('rollback to savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
 		error_log('SST-1005: opening balances after saving fiscal year ' . $year . ' not updated: ' . $e->getMessage());
 		$stop = followingOpeningBalanceStopShape($fromYear, $fromYear + 1);
 		$stop['failed'] = true;
 	}
+	if ($stop && (int)$stop['sourceYear'] === $year - 1 && is_array($primoBeforeSave)) {
+		// The card has just reset and rewritten this year's opening balances; without a complete transfer they go back.
+		foreach ($primoBeforeSave as $id => $primo) {
+			$primo = (float)$primo;
+			db_modify("update kontoplan set primo = '$primo' where id = '" . (int)$id . "' and regnskabsaar = '$year'", __FILE__ . ' line ' . __LINE__);
+		}
+	}
 	db_modify('release savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
-	saveFollowingOpeningBalanceStop($stop, $fromYear);
+	saveFollowingOpeningBalanceStop($stop, $checkedFrom);
 	if ($ownTransaction) {
 		transaktion('commit');
 	}
 	return $stop;
+}
+
+/**
+ * The opening balances of a fiscal year as they are now, for updateOpeningBalancesAfterYearSave().
+ *
+ * @param int $year Fiscal year (kontoplan.regnskabsaar).
+ * @return array kontoplan.id => primo.
+ */
+function followingOpeningBalancePrimo($year) {
+	$year = (int)$year;
+	$primo = array();
+	$q = db_select("select id, primo from kontoplan where regnskabsaar = '$year'", __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$primo[(int)$row['id']] = $row['primo'];
+	}
+	return $primo;
+}
+
+/**
+ * A script tag that shows the message for a blocked rebuild in an alert. The text holds saved fiscal year
+ * descriptions, so it is JSON-encoded with HTML-safe flags and cannot end the script element.
+ *
+ * @param array $stop See updateFollowingOpeningBalances().
+ * @param int $languageId sprog_id for findtekst().
+ * @return string HTML.
+ */
+function followingOpeningBalanceAlertScript($stop, $languageId) {
+	// JSON_HEX_TAG turns < and > into \u003C/\u003E, so the text can never contain </script>; slashes may stay plain.
+	$flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE;
+	return "<script type='text/javascript'>alert(" . json_encode(followingOpeningBalanceStopText($stop, $languageId), $flags) . ");</script>";
 }
 
 /**
@@ -313,7 +392,8 @@ function followingOpeningBalanceStopShape($sourceYear, $targetYear) {
  * First and last date of a fiscal year from its grupper art 'RA' row, read the way genberegn() reads them.
  *
  * @param array $row Row with box1 (start month), box2 (start year), box3 (end month) and box4 (end year).
- * @return array{0: string, 1: string}|null Start and end as 'Y-m-d', or null when a box is not a valid month or year.
+ * @return array{0: string, 1: string}|null Start and end as 'Y-m-d', or null when a box is not a valid month or year
+ *   or the year ends before it starts.
  */
 function followingOpeningBalanceYearRange($row) {
 	foreach (array('box1', 'box2', 'box3', 'box4') as $box) {
@@ -328,7 +408,10 @@ function followingOpeningBalanceYearRange($row) {
 	if (!checkdate($startMonth, 1, $startYear) || !checkdate($endMonth, 1, $endYear)) {
 		return null;
 	}
-	return array(sprintf('%04d-%02d-01', $startYear, $startMonth), date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $endYear, $endMonth))));
+	$start = sprintf('%04d-%02d-01', $startYear, $startMonth);
+	$end = date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $endYear, $endMonth)));
+	// A year that ends before it starts selects no postings at all, so it is as invalid as a bad month.
+	return $end < $start ? null : array($start, $end);
 }
 
 /**
@@ -350,24 +433,26 @@ function followingOpeningBalancesInTransaction() {
 /**
  * Split the settings value 'openingBalanceSync'.
  *
- * @param string $state The stored value, "<last transaktioner.id seen>|<earliest year waiting for a rebuild>".
- * @return int[] array{0: int, 1: int} The last posting id seen, and the waiting fiscal year or 0.
+ * @param string $state "<last transaktioner.id seen>|<earliest year waiting for a rebuild>|<unix time of the last fingerprint>".
+ * @return array{0: int, 1: int, 2: int} The last posting id seen, the waiting fiscal year or 0, and the fingerprint time or 0.
  */
 function followingOpeningBalanceStateParts($state) {
 	$parts = explode('|', (string)$state);
-	return array((int)$parts[0], isset($parts[1]) ? (int)$parts[1] : 0);
+	return array((int)$parts[0], isset($parts[1]) ? (int)$parts[1] : 0, isset($parts[2]) ? (int)$parts[2] : 0);
 }
 
 /**
- * Store the last posting id seen and the earliest fiscal year whose later years wait for a rebuild.
+ * Store the last posting id seen, the earliest fiscal year whose later years wait for a rebuild, and when the
+ * postings' fingerprint was last compared.
  *
  * @param int $lastId Highest transaktioner.id already looked at.
  * @param int $pendingYear Earliest fiscal year with postings not yet carried forward, or 0.
+ * @param int $fingerprintAt Unix time of the last followingOpeningBalanceChangedYear(), or 0.
  * @return void
  */
-function saveFollowingOpeningBalanceState($lastId, $pendingYear) {
-	$value = (int)$lastId . '|' . (int)$pendingYear;
-	$description = 'SST-1005: last posting id seen | earliest fiscal year whose later years wait for new opening balances';
+function saveFollowingOpeningBalanceState($lastId, $pendingYear, $fingerprintAt) {
+	$value = (int)$lastId . '|' . (int)$pendingYear . '|' . (int)$fingerprintAt;
+	$description = 'SST-1005: last posting id seen | earliest fiscal year whose later years wait for new opening balances | time of the last posting fingerprint';
 	saveFollowingOpeningBalanceSetting('openingBalanceSync', $value, $description);
 }
 
@@ -454,6 +539,49 @@ function followingOpeningBalancePostedYear($afterId, $upToId) {
 		$qtxt = "select id from transaktioner where id > $afterId and id <= $upToId ";
 		$qtxt.= "and transdate >= '$start' and transdate <= '$end' limit 1";
 		if (db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__))) {
+			return $year;
+		}
+	}
+	return 0;
+}
+
+/**
+ * Compare a fingerprint (number of postings and their debit and credit sums) of every open fiscal year that has a
+ * later year with the one stored last time, and store the new one. The id check in checkFollowingOpeningBalances()
+ * cannot see postings that commit after it with lower ids than it saw, nor deleted postings; this does.
+ * Postings can only reach open years (box5 'on'), so closed years are left out.
+ *
+ * @return int The earliest fiscal year whose postings changed, or 0 (also the first time, which only stores them).
+ */
+function followingOpeningBalanceChangedYear() {
+	$years = array();
+	$q = db_select("select kodenr, box1, box2, box3, box4, box5, box10 from grupper where art = 'RA' order by kodenr", __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$years[(int)$row['kodenr']] = $row;
+	}
+	$current = array();
+	foreach ($years as $year => $row) {
+		if ($row['box10'] === 'on' || $row['box5'] !== 'on' || !isset($years[$year + 1]) || $years[$year + 1]['box10'] === 'on') {
+			continue;
+		}
+		$range = followingOpeningBalanceYearRange($row);
+		if (!$range) {
+			continue;
+		}
+		$qtxt = "select count(*) as postings, coalesce(sum(debet), 0) as debet, coalesce(sum(kredit), 0) as kredit ";
+		$qtxt.= "from transaktioner where transdate >= '$range[0]' and transdate <= '$range[1]'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
+		$current[$year] = $r['postings'] . ':' . $r['debet'] . ':' . $r['kredit'];
+	}
+	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalanceFingerprint' order by id limit 1", __FILE__ . ' line ' . __LINE__));
+	$stored = ($r && $r['var_value']) ? json_decode($r['var_value'], true) : null;
+	$description = 'SST-1005: number and sums of the postings per open fiscal year with a later year, compared every ten minutes';
+	saveFollowingOpeningBalanceSetting('openingBalanceFingerprint', json_encode($current), $description);
+	if (!is_array($stored)) {
+		return 0;
+	}
+	foreach ($current as $year => $fingerprint) {
+		if (isset($stored[$year]) && $stored[$year] !== $fingerprint) {
 			return $year;
 		}
 	}

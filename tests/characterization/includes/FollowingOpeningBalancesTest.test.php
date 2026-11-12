@@ -4,6 +4,7 @@
 //                 The SQL runs against PostgreSQL temporary tables only.
 //                 Gem/opdatér on the year card leaves the later years alone when the transfer into the saved year is blocked (Codex round 1).
 //                 Invalid dates stop before anything is written, and a failed rebuild is rolled back and stays visible until Gem/opdatér (Codex round 2).
+//                 CodeRabbit on PR #1109: JSON-encoded alert, reversed ranges, «Sæt aktivt» on year 1 / after a deleted year, the ten-minute fingerprint, and the card keeping a blocked year's opening balances.
 
 declare(strict_types=1);
 
@@ -125,6 +126,13 @@ final class FollowingOpeningBalancesTest extends TestCase
         return ['accounts' => $accounts, 'summary' => $summary];
     }
 
+    /** The id watermark and the waiting year from 'openingBalanceSync' ("lastId|pendingYear|fingerprintTime"). */
+    private function syncState(): string
+    {
+        $parts = explode('|', (string) $this->setting('openingBalanceSync'));
+        return $parts[0] . '|' . ($parts[1] ?? '');
+    }
+
     private function setting(string $name): ?string
     {
         $row = pg_fetch_assoc($this->sql("SELECT var_value FROM settings WHERE var_name = '$name'"));
@@ -209,19 +217,19 @@ final class FollowingOpeningBalancesTest extends TestCase
         // The first check only starts following postings; it does not rebuild the past.
         self::assertNull(checkFollowingOpeningBalances(11));
         $maxId = pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
-        self::assertSame("$maxId|0", $this->setting('openingBalanceSync'));
+        self::assertSame("$maxId|0|0", $this->setting('openingBalanceSync'));
         self::assertSame(777.0, $this->primo(10, 2000));
 
         // A posting in year 9 while the session works in year 9: remembered, not rebuilt yet.
         $this->postInYear9(2000, 5);
         self::assertNull(checkFollowingOpeningBalances(9));
         $maxId = pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
-        self::assertSame("$maxId|9", $this->setting('openingBalanceSync'));
+        self::assertSame("$maxId|9", $this->syncState());
         self::assertSame(777.0, $this->primo(10, 2000));
 
         // A session in year 10 opens a page: years 10 and 11 follow year 9, as after Gem/opdatér.
         self::assertNull(checkFollowingOpeningBalances(10));
-        self::assertSame("$maxId|0", $this->setting('openingBalanceSync'));
+        self::assertSame("$maxId|0", $this->syncState());
         self::assertSame(1125.0, $this->primo(10, 2000));
         self::assertSame(-1125.0, $this->primo(10, 3000));
         self::assertSame(1175.0, $this->primo(11, 2000));
@@ -231,7 +239,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         $this->sql("INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2025-08-01', 10, 0), (1000, '2025-08-01', 0, 10)");
         self::assertNull(checkFollowingOpeningBalances(11));
         $maxId = pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
-        self::assertSame("$maxId|0", $this->setting('openingBalanceSync'));
+        self::assertSame("$maxId|0", $this->syncState());
         self::assertSame(1175.0, $this->primo(11, 2000));
     }
 
@@ -281,11 +289,11 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertNull(checkFollowingOpeningBalances(11));
         $this->sql("INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2023-03-01', 3, 0), (1000, '2023-03-01', 0, 3)");
         self::assertNull(checkFollowingOpeningBalances(8));
-        self::assertStringEndsWith('|8', (string) $this->setting('openingBalanceSync'));
+        self::assertStringEndsWith('|8', $this->syncState());
 
         // «Sæt aktivt» on year 11 asks for a rebuild from year 10, but year 8 is waiting, so it starts there.
-        self::assertNull(syncFollowingOpeningBalances(10));
-        self::assertStringEndsWith('|0', (string) $this->setting('openingBalanceSync'));
+        self::assertNull(syncFollowingOpeningBalances(10, 11));
+        self::assertStringEndsWith('|0', $this->syncState());
         // Year 9 now opens with year 8's closing balances: 2000 = 777 + 3 + 777 from 2100, 3000 = 777 + result 774.
         self::assertSame(1557.0, $this->primo(9, 2000));
         self::assertSame(1551.0, $this->primo(9, 3000));
@@ -386,7 +394,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         $this->sql("UPDATE grupper SET box1 = '' WHERE art = 'RA' AND kodenr = 10");
         $expected = $this->stop(['invalidDates' => [10]]);
         self::assertSame($expected, checkFollowingOpeningBalances(10), 'The failed rebuild is reported, not dropped.');
-        self::assertStringEndsWith('|0', (string) $this->setting('openingBalanceSync'), 'No retry on every page.');
+        self::assertStringEndsWith('|0', $this->syncState(), 'No retry on every page.');
         self::assertSame($expected, followingOpeningBalanceStop(), 'The message stays until it is fixed.');
         self::assertSame(777.0, $this->primo(10, 2000));
 
@@ -423,6 +431,117 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertSame(777.0, $this->primo(10, 2000));
         self::assertStringContainsString('SST-1005: opening balances after saving fiscal year 10 not updated: test: genberegn stopped', (string) file_get_contents($log));
         unlink($log);
+    }
+
+    public function testTheAlertScriptCannotBeEndedByAFiscalYearDescription(): void
+    {
+        $this->sql("UPDATE grupper SET beskrivelse = '</script><script>window.__sst1005=1</script> ''q'' \"dq\" «æøå»' WHERE art = 'RA' AND kodenr = 10");
+        $stop = $this->stop(['accounts' => [2500]]);
+        $html = followingOpeningBalanceAlertScript($stop, 1);
+        self::assertSame(1, substr_count(strtolower($html), '<script'));
+        self::assertSame(1, substr_count(strtolower($html), '</script'));
+        self::assertStringStartsWith("<script type='text/javascript'>alert(", $html);
+        self::assertStringEndsWith(');</script>', $html);
+        $literal = substr($html, strlen("<script type='text/javascript'>alert("), -strlen(');</script>'));
+        self::assertSame(followingOpeningBalanceStopText($stop, 1), json_decode($literal));
+        self::assertStringContainsString('«æøå»', $html, 'Danish letters stay readable.');
+    }
+
+    public function testReversedOrBrokenFiscalYearRangesAreInvalid(): void
+    {
+        self::assertSame(['2025-07-01', '2025-07-31'], followingOpeningBalanceYearRange(['box1' => '7', 'box2' => '2025', 'box3' => '7', 'box4' => '2025']), 'A one-month year is valid.');
+        self::assertSame(['2024-01-01', '2025-06-30'], followingOpeningBalanceYearRange(['box1' => '01', 'box2' => '2024', 'box3' => '06', 'box4' => '2025']), 'An 18-month first year is valid.');
+        self::assertNull(followingOpeningBalanceYearRange(['box1' => '7', 'box2' => '2025', 'box3' => '6', 'box4' => '2025']), 'July to June of the same year ends before it starts.');
+        self::assertNull(followingOpeningBalanceYearRange(['box1' => '13', 'box2' => '2025', 'box3' => '6', 'box4' => '2026']));
+        self::assertNull(followingOpeningBalanceYearRange(['box1' => '7', 'box2' => '2025', 'box3' => '6', 'box4' => '']));
+
+        // A reversed source and a reversed target are both reported before anything is written.
+        $year10 = $this->yearState(10);
+        $this->sql("UPDATE grupper SET box4 = '2023' WHERE art = 'RA' AND kodenr = 9");
+        self::assertSame($this->stop(['invalidDates' => [9]]), syncFollowingOpeningBalances(9));
+        self::assertSame($year10, $this->yearState(10));
+        $this->sql("UPDATE grupper SET box4 = '2024' WHERE art = 'RA' AND kodenr = 9");
+        $this->sql("UPDATE grupper SET box4 = '2024' WHERE art = 'RA' AND kodenr = 10");
+        self::assertSame($this->stop(['invalidDates' => [10]]), syncFollowingOpeningBalances(9));
+        self::assertSame($year10, $this->yearState(10));
+    }
+
+    public function testActivatingTheFirstYearCarriesItForward(): void
+    {
+        // Year 8 has no year before it, like year 1: «Sæt aktivt» on it carries year 8 itself forward.
+        self::assertNull(syncFollowingOpeningBalances(7, 8));
+        self::assertSame(1554.0, $this->primo(9, 2000));
+        self::assertSame(1674.0, $this->primo(10, 2000));
+    }
+
+    public function testActivatingAYearAfterADeletedYearCarriesItForward(): void
+    {
+        $this->sql("UPDATE grupper SET box10 = 'on' WHERE art = 'RA' AND kodenr = 9");
+        self::assertNull(syncFollowingOpeningBalances(9, 10));
+        self::assertSame(1604.0, $this->primo(11, 2000));
+        self::assertSame(1504.0, $this->primo(11, 3000));
+    }
+
+    public function testActivationNeverBypassesARealBlock(): void
+    {
+        $this->postInYear9(2500, 7.5);
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 10 AND kontonr = 2500');
+        $year11 = $this->yearState(11);
+        self::assertSame($this->stop(['accounts' => [2500]]), syncFollowingOpeningBalances(9, 10));
+        self::assertSame($year11, $this->yearState(11));
+    }
+
+    public function testTheFingerprintFindsALateCommitAndADeletedPosting(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        self::assertNull(checkFollowingOpeningBalances(11), 'The first fingerprint only stores the baseline.');
+        self::assertNotNull($this->setting('openingBalanceFingerprint'));
+
+        // A year 9 posting whose id the watermark has already passed, as when it commits after a later check.
+        $this->postInYear9(2000, 5);
+        $maxId = pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
+        $this->sql("UPDATE settings SET var_value = '$maxId|0|" . (time() - 60) . "' WHERE var_name = 'openingBalanceSync'");
+        self::assertNull(checkFollowingOpeningBalances(10));
+        self::assertSame(777.0, $this->primo(10, 2000), 'Within ten minutes of the last fingerprint it is not seen yet.');
+        $this->sql("UPDATE settings SET var_value = '$maxId|0|" . (time() - 601) . "' WHERE var_name = 'openingBalanceSync'");
+        self::assertNull(checkFollowingOpeningBalances(10));
+        self::assertSame(1125.0, $this->primo(10, 2000), 'The next fingerprint finds it and year 10 follows.');
+
+        // A deleted posting changes the fingerprint too.
+        $this->sql("DELETE FROM transaktioner WHERE transdate = '2024-03-01'");
+        $this->sql("UPDATE settings SET var_value = '$maxId|0|" . (time() - 601) . "' WHERE var_name = 'openingBalanceSync'");
+        self::assertNull(checkFollowingOpeningBalances(10));
+        self::assertSame(1120.0, $this->primo(10, 2000));
+    }
+
+    public function testTheCardKeepsTheSavedYearsOpeningBalancesWhenTheTransferIntoItIsBlocked(): void
+    {
+        $this->postInYear9(2500, 7.5);
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 10 AND kontonr = 2500');
+        $before = followingOpeningBalancePrimo(10);
+        $year10 = $this->yearState(10);
+        $year11 = $this->yearState(11);
+        $this->sql('BEGIN');
+        // What the card's own save does first: reset the year and add the transferable balances.
+        $this->sql('UPDATE kontoplan SET primo = 0 WHERE regnskabsaar = 10');
+        $this->sql('UPDATE kontoplan SET primo = 1120 WHERE regnskabsaar = 10 AND kontonr = 2000');
+        $this->sql("UPDATE grupper SET beskrivelse = 'saved by the card' WHERE art = 'RA' AND kodenr = 10");
+        self::assertSame($this->stop(['accounts' => [2500]]), updateOpeningBalancesAfterYearSave(10, $before));
+        $this->sql('COMMIT');
+        self::assertSame($year10['accounts'], $this->yearState(10)['accounts'], 'Year 10 keeps the opening balances it had.');
+        self::assertSame($year11, $this->yearState(11));
+        self::assertSame('saved by the card', pg_fetch_assoc($this->sql("SELECT beskrivelse FROM grupper WHERE art = 'RA' AND kodenr = 10"))['beskrivelse']);
+    }
+
+    public function testTheCardKeepsTypedOpeningBalancesOfTheFirstYear(): void
+    {
+        $before = followingOpeningBalancePrimo(8);
+        $this->sql('BEGIN');
+        $this->sql('UPDATE kontoplan SET primo = 1500 WHERE regnskabsaar = 8 AND kontonr = 2000');
+        self::assertNull(updateOpeningBalancesAfterYearSave(8, $before));
+        $this->sql('COMMIT');
+        self::assertSame(1500.0, $this->primo(8, 2000), 'Typed opening balances of a year with no year before it are the save.');
+        self::assertSame(2277.0, $this->primo(9, 2000), 'Year 9 follows: 1500 + 777 from 2100.');
     }
 
     public function testTheMessageNamesTheYearsAndAccounts(): void

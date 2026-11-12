@@ -41,6 +41,7 @@
 //                  - so each copy only added a duplicate to every warehouse list.
 // 20261112 CL/MMR SST-1005 Gem/opdatér also updates the opening balances of the later years, and says so when a balance cannot be transferred.
 //                 The year before is carried forward again, so a fixed «Overfør til» clears the message; a blocked transfer leaves the later years alone.
+//                 A blocked transfer into the saved year keeps that year's opening balances as they were; the alert text is JSON-encoded.
 
 @session_start();
 $s_id=session_id();
@@ -160,6 +161,9 @@ if ($_POST) {
 	if ((($id!=0)||(!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))) &&
 	(($startmd)&&($slutmd)&&($startdato)&&($slutdato)&&($startaar)&&($slutaar)&&($beskrivelse))) {
 		transaktion ("begin");
+		// SST-1005: this year's opening balances before the save, kept if the transfer into the year cannot be made.
+		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+		$primoBeforeSave = followingOpeningBalancePrimo($kodenr);
 		($id == 0)?$nn=2:$nn=1;
 		for($n=0;$n<$nn;$n++) { // 1. time it must be rerun to catch and update last year's result.
 		if ($id == 0){
@@ -287,11 +291,10 @@ if ($_POST) {
 		}
 		}
 		// SST-1005: as if Gem/opdatér was pressed on this year and every later year.
-		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
-		$openingStop = updateOpeningBalancesAfterYearSave($kodenr);
+		$openingStop = updateOpeningBalancesAfterYearSave($kodenr, $primoBeforeSave);
 		transaktion("commit");
 		if ($openingStop) {
-			alert(addslashes(followingOpeningBalanceStopText($openingStop, $sprog_id)));
+			print followingOpeningBalanceAlertScript($openingStop, $sprog_id);
 		}
 	}
 }
