@@ -69,18 +69,12 @@ final class EmptyRightsGateTest extends TestCase
         $line = self::gateLine();
         self::assertNotSame('', $line, 'the rights gate is still there');
 
-        // The old shape began with ($rettigheder) &&, which made the whole condition false for ''.
-        self::assertStringNotContainsString(
-            '($rettigheder) &&',
+        // The statement must be exactly the module test and the character test, with no rights-presence term.
+        self::assertMatchesRegularExpression(
+            '/^\$no_module_right = \(\$modulnr\) && \(substr\(\(string\)\$rettigheder, \(int\)\$modulnr, 1\) < \'1\'\)$/',
             $line,
-            'the gate no longer asks whether the rights string is truthy'
+            'the gate is the module test plus the character test, and an empty rights string is read as no rights'
         );
-        self::assertStringContainsString(
-            "substr((string)\$rettigheder, (int)\$modulnr, 1) < '1'",
-            $line,
-            'it asks for the character at the page module position, which is empty for an empty string'
-        );
-        self::assertStringContainsString('($modulnr)', $line, 'and keeps the module test, so a page without one is untouched');
         // '0' is what the Mit Salg session rows carry. The gate must NOT special-case it: a session row
         // with '0' would then reach every module page, which is a shop account reading the ledger. The one
         // page those sessions need opens itself instead (lager/labelprint.php, pinned below).
@@ -172,10 +166,10 @@ final class EmptyRightsGateTest extends TestCase
         // The GET pin is only for a NEW order: with an order id in the request the order owns its customer,
         // and pinning the GET value makes the page take its "skift kontonr" branch and rewrite that order.
         self::assertStringContainsString('if (!$wf_order) {', $block, 'the GET pin is limited to a new order');
-        self::assertLessThan(
-            (int)strpos($block, "\$_POST['konto_id'] = \$wf_customer;"),
-            (int)strpos($block, 'if (!$wf_order) {'),
-            'and the POST pin stays outside that condition'
+        self::assertMatchesRegularExpression(
+            '/if \(!\$wf_order\) \{\s*\$_GET\[\'konto_id\'\] = \$wf_customer;\s*\}\s*\$_POST\[\'konto_id\'\] = \$wf_customer;/',
+            $block,
+            'the GET pin is alone in the condition and the POST pin follows outside it'
         );
         // The page needs to know which case admitted it, or it cannot check the orders it loads.
         self::assertStringContainsString('$sag_workflow_case_id = $wf_sag;', $block,
@@ -290,9 +284,12 @@ final class EmptyRightsGateTest extends TestCase
             $ordre, 'every selector the page reads is handed to the gate');
         self::assertStringContainsString("is_numeric(\$sst967_selector[0][\$sst967_selector[1]] ?? '')", $ordre,
             'and an empty value cannot hide the next selector');
-        self::assertStringContainsString("if (\$sag_workflow_case_id && isset(\$sag_id) && (int)\$sag_id !== (int)\$sag_workflow_case_id) {", $ordre,
-            'the copy binding is conditioned on a real disagreement');
-        self::assertStringContainsString("\$sag_id = \$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
+        $copyBind = strpos($ordre, "if (\$sag_workflow_case_id) {\n\t\$sag_id = (int)\$sag_workflow_case_id;");
+        $createCall = strpos($ordre, '$id = opret_ordre(');
+        self::assertNotFalse($copyBind, 'the page case is replaced by the admitted one');
+        self::assertNotFalse($createCall, 'the create call is still there');
+        self::assertLessThan($createCall, $copyBind, 'and the replacement happens before the order is created');
+        self::assertStringContainsString("\$sag_id = (int)\$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
         self::assertStringContainsString("select id from ordrelinjer where ordre_id = '\$id'", $ordre,
             'and a posted line id of another order is dropped');
         self::assertStringContainsString("\$linje_id[\$sst967_k] = (int) \$sst967_v;", $ordre,

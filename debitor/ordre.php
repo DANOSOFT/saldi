@@ -188,6 +188,7 @@
 // 20261110 LOE SST-967 A posted credit-line reference must be a line of the admitted case.
 // 20261110 LOE SST-967 The price-list handler refuses a user without the Ordre right.
 // 20261110 LOE SST-967 The posted line and credit ids are stored as the integers they were checked as.
+// 20261110 LOE SST-967 Creating a customer, deleting a library text and the case text need the module right or the admitted case.
 
 @session_start();
 $s_id = session_id();
@@ -251,8 +252,8 @@ include("../includes/online.php");
 $sag_workflow_case_id = isset($sag_workflow_case_id) ? (int)$sag_workflow_case_id : 0;
 # SST-967 a copy takes its case from the POSTed sag_id, which can differ from the case the gate proved, so the
 # admitted case is what the page uses from here on.
-if ($sag_workflow_case_id && isset($sag_id) && (int)$sag_id !== (int)$sag_workflow_case_id) {
-	$sag_id = $sag_workflow_case_id;
+if ($sag_workflow_case_id) {
+	$sag_id = (int)$sag_workflow_case_id;
 }
 # The id of an order this page has just created; it belongs to the case by construction and is never refused.
 $sst967_created_order = 0;
@@ -475,6 +476,11 @@ if (isset($_POST['create_debtor'])) {
 	$betalingsdage = (int)if_isset($_POST['betalingsdage'], 8);
 	$kontakt = if_isset($_POST['kontakt']);
 
+	# SST-967 creating a customer record is module work, not case work.
+	if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
+		sag_workflow_refuse();
+	}
+
 	$konto_id = create_debtor($kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $email, $phone, $cvrnr, $grp, $ean, $betalingsbet, $betalingsdage, $kontakt);
 	if (!$konto_id) $konto_id = 0;
 	if (!$id && isset($_POST['id'])) $id = $_POST['id']; #20260410 - form posts the id
@@ -557,6 +563,7 @@ $lagerantal = $l;
 if (empty($sag_id)) { #20210715
 	$id = if_isset($_GET['id']);
 	if (!$id) $id = if_isset($_GET['ordre_id']);
+	$id = (int) $id;
 }
 if ((!$id) && $funktion == 'opret_ordre') {
 	$id = opret_ordre($sag_id, $konto_id);
@@ -574,7 +581,7 @@ if ($id && isset($_POST['tilfoj']) && $ekstratekst = (if_isset($_POST['ekstratek
 if (isset($_GET['kundeordnr']) && $_GET['kundeordnr']) { #20200407
 	$qtxt = "select max(id) as id from ordrer where kundeordnr ='" . db_escape_string($_GET['kundeordnr']) . "'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$id = $r['id'];
+	$id = (int) $r['id'];
 }
 $returside = nav_sanitize_returside(ifset($_GET, 'returside'));
 if (isset($sag_id)) { // Returside sættes til 'sager' fra sager.php #20210715
@@ -586,10 +593,14 @@ if (isset($sag_id)) { // Returside sættes til 'sager' fra sager.php #20210715
 $isPopupRequest = ifset($_GET, 'popup') === '1' || ifset($_POST, 'popup') === '1';
 if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
 
-if (($ret_tekst = if_isset($_GET, NULL, 'ret_tekst')) && ($id = if_isset($_GET, NULL, 'id'))) tekstopslag($sort, $id);
+if (($ret_tekst = if_isset($_GET, NULL, 'ret_tekst')) && ($id = (int) if_isset($_GET, NULL, 'id'))) tekstopslag($sort, $id);
 
-if (($tekst_id = if_isset($_GET, NULL, 'tekst_id')) && ($id = if_isset($_GET, NULL, 'id'))) {
+if (($tekst_id = if_isset($_GET, NULL, 'tekst_id')) && ($id = (int) if_isset($_GET, NULL, 'id'))) {
 	if ($slet_tekst = if_isset($_GET, NULL, 'slet_tekst')) {
+		# SST-967 the text library belongs to the tenant, so deleting a row from it is not case work.
+		if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
+			sag_workflow_refuse();
+		}
 		db_modify("delete from ordretekster where id = '$slet_tekst'", __FILE__ . " linje " . __LINE__);
 		header("location:ordre.php?id=$id&ret_tekst=$id");
 		exit();
@@ -597,7 +608,11 @@ if (($tekst_id = if_isset($_GET, NULL, 'tekst_id')) && ($id = if_isset($_GET, NU
 		db_modify("insert into ordrelinjer (ordre_id,beskrivelse,posnr) values ('$id','" . db_escape_string($r['tekst']) . "','9999')", __FILE__ . " linje " . __LINE__);
 	}
 }
-if (($tekst_sag_id = if_isset($_GET, NULL, 'tekst_sag_id')) && ($id = if_isset($_GET, NULL, 'id'))) {
+if (($tekst_sag_id = if_isset($_GET, NULL, 'tekst_sag_id')) && ($id = (int) if_isset($_GET, NULL, 'id'))) {
+	# SST-967 the case whose omfang is inserted has to be the case this page was admitted for.
+	if ($sag_workflow_case_id && (int) $tekst_sag_id !== (int) $sag_workflow_case_id) {
+		sag_workflow_refuse();
+	}
 	$r = db_fetch_array(db_select("select omfang from sager where id = '$tekst_sag_id'", __FILE__ . " linje " . __LINE__));
 	db_modify("insert into ordrelinjer (ordre_id,beskrivelse,posnr) values ('$id','" . db_escape_string($r['omfang']) . "','9999')", __FILE__ . " linje " . __LINE__);
 }
@@ -606,13 +621,13 @@ if ($ny_linjetekst = if_isset($_POST, NULL, 'ny_linjetekst')) {
 	if (!$r = db_fetch_array(db_select("select id from ordretekster where tekst = '$ny_linjetekst'", __FILE__ . " linje " . __LINE__))) {
 		db_modify("insert into ordretekster (tekst) values ('$ny_linjetekst')", __FILE__ . " linje " . __LINE__);
 	}
-	if ($id = if_isset($_POST, NULL, 'id')) {
+	if ($id = (int) if_isset($_POST, NULL, 'id')) {
 		db_modify("insert into ordrelinjer (ordre_id,beskrivelse,posnr) values ('$id','$ny_linjetekst','9999')", __FILE__ . " linje " . __LINE__);
 	}
 }
 // Her hentes flere linjetekster til tilbud
 $posnrstart = NULL;
-if ((isset($_POST['linjetekster'])) && ($id = if_isset($_POST, NULL, 'id'))) {
+if ((isset($_POST['linjetekster'])) && ($id = (int) if_isset($_POST, NULL, 'id'))) {
 	$r = db_fetch_array(db_select("select max(posnr) as posnr from ordrelinjer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__));
 	$posnrstart = $r['posnr'] + 100;
 	foreach ($_POST['linjetekster'] as $linjetekster) {
@@ -624,6 +639,7 @@ if ((isset($_POST['linjetekster'])) && ($id = if_isset($_POST, NULL, 'id'))) {
 }
 #$alert = findtekst(15)
 if (!$id) $id = if_isset($_GET['ordre_id']);
+$id = (int) $id;
 $sort = if_isset($_GET, NULL, 'sort');
 $fokus     = if_isset($_GET, NULL, 'fokus');
 $b_submit  = if_isset($_GET, NULL, 'funktion');
@@ -1335,10 +1351,12 @@ if ($b_submit) {
 	if ($sag_workflow_case_id && is_array($kred_linje_id)) {
 		$sst967_kred_ids = array();
 		foreach ($kred_linje_id as $sst967_v) {
-			if ((int) $sst967_v) {
-				$sst967_kred_ids[(int) $sst967_v] = true;
+			$sst967_n = (int) $sst967_v;
+			if ($sst967_n) {
+				$sst967_kred_ids[$sst967_n] = true;
 			}
 		}
+		unset($sst967_n);
 		if ($sst967_kred_ids) {
 			$sst967_kred_ok = array();
 			$q = db_select("select ordrelinjer.id from ordrelinjer, ordrer where ordrelinjer.ordre_id = ordrer.id and ordrer.sag_id = '$sag_workflow_case_id' and ordrelinjer.id in (" . implode(',', array_keys($sst967_kred_ids)) . ")", __FILE__ . " linje " . __LINE__);

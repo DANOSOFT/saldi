@@ -438,7 +438,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	}
 	$no_module_right = ($modulnr) && (substr((string)$rettigheder, (int)$modulnr, 1) < '1');
 	if ($no_module_right && !$sag_workflow_allowed && !$mysale_label_ok) { #20190529
-		include(__DIR__ . '/std_func.php');
+		include_once(__DIR__ . '/std_func.php');
 		$txt = findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id);
 		print tekstboks($txt);
 		# The box is a floating overlay that hides itself when it is closed, and a refused page is only the

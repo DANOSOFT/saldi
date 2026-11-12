@@ -272,7 +272,7 @@ function updateAddressRecord($inputs, $historikId) {
         if ($historikId) {
             db_modify("UPDATE historik 
                 SET kontaktes = '{$inputs['kontaktes']}' 
-                WHERE id = $historikId", 
+                WHERE id = $historikId AND konto_id = {$inputs['id']}",
                 __FILE__ . " linje " . __LINE__
             );
         }
