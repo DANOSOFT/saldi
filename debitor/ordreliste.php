@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-23--------------
+// --- debitor/ordreliste.php -----ver 5.1.1 ----2026-11-12--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240815 PHR- $title 
 // 20250828 PHR error in translation of 'tilbud'
@@ -76,6 +76,9 @@
 //                 It used to delete the user's whole datatables row, so added columns, own headers and rows per page were lost.
 // 20261023 CL/MMR SST-874 Moved the "Ryd" database work into clearOrderListSearch() per the controller/view convention.
 //                 The list name (valg) is escaped in its SQL (review by Codex).
+// 20261112 CL/MMR SD-815 In a regnskab that sends e-invoices through Semantic, the invoice list shows each invoice's e-invoice status from the send log: an icon in the action column and the text in the Digital status column.
+//                 The statuses of the visible invoices are read in one query after the grid has fetched its rows (rowsLoaded in includes/orderFuncIncludes/grid_order.php).
+//                 Other regnskaber, and the order and offer lists, are unchanged.
 
 @session_start();
 $s_id = session_id();
@@ -561,6 +564,7 @@ if ($menu == 'T') include_once 'ordLstIncludes/topMenu.php';
 elseif ($menu == 'S') include_once 'ordLstIncludes/topLine.php';
 else include_once 'ordLstIncludes/oldTopLine.php';
 include(get_relative() . "includes/orderFuncIncludes/grid_order.php"); 
+include_once(__DIR__ . "/../includes/einvoice/einvoiceStatusView.php");
 include(get_relative() . "includes/orderFuncIncludes/dateRangeSearch.php"); 
 
 
@@ -1953,6 +1957,40 @@ $data = array(
     "filters" => $filters,
     'metaColumnHeaders' => $metaColumnHeaders,
 );
+
+// SD-815: the e-invoice status of each visible invoice, for a regnskab that sends through Semantic only.
+// The send log is read in one query once the grid has its rows; the action column gets a status icon and the
+// Digital status column, when the user shows it, the status text. The existing renderers are wrapped, not changed.
+if ($valg == "faktura" && einvoice_ui_semantic_enabled()) {
+    $einvoiceStatusRows = array();
+    $data['rowsLoaded'] = function ($rows) use (&$einvoiceStatusRows) {
+        $einvoiceStatusRows = einvoice_status_for_orders(array_column($rows, 'id'));
+    };
+    $einvoiceStatusFor = function ($row) use (&$einvoiceStatusRows, $sprog_id) {
+        $art = strtoupper(trim((string)($row['art'] ?? '')));
+        return einvoice_status_view($einvoiceStatusRows[(int)($row['id'] ?? 0)][$art] ?? null, $sprog_id, 80);
+    };
+    foreach ($data['columns'] as $i => $column) {
+        $render = $column['render'] ?? null;
+        if ($column['field'] === 'actions' && is_callable($render)) {
+            $data['columns'][$i]['render'] = function ($value, $row, $column) use ($render, $einvoiceStatusFor, $sprog_id) {
+                $html = $render($value, $row, $column);
+                $view = $einvoiceStatusFor($row);
+                $at = ($view !== null) ? strrpos($html, '</div></td>') : false;
+                return ($at === false) ? $html : substr($html, 0, $at) . einvoice_status_badge_html($view, $sprog_id) . substr($html, $at);
+            };
+        } elseif ($column['field'] === 'digital_status' && is_callable($render)) {
+            $data['columns'][$i]['render'] = function ($value, $row, $column) use ($render, $einvoiceStatusFor) {
+                $view = $einvoiceStatusFor($row);
+                if ($view === null) {
+                    return $render($value, $row, $column);
+                }
+                $title = ($view['detail'] !== '') ? " title='" . htmlspecialchars($view['detail'], ENT_QUOTES | ENT_SUBSTITUTE) . "'" : '';
+                return "<td align='{$column['align']}' style='color:" . einvoice_status_colour($view['kind']) . ";'$title>" . htmlspecialchars($view['label'], ENT_QUOTES | ENT_SUBSTITUTE) . "</td>";
+            };
+        }
+    }
+}
 
 
 ##############

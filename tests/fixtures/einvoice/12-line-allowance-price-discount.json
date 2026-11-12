@@ -1,0 +1,169 @@
+{
+	"documentType": "invoice",
+	"id": "1012",
+	"issueDate": "2026-11-09",
+	"dueDate": "2026-11-23",
+	"typeCode": "380",
+	"note": null,
+	"currency": "DKK",
+	"taxCurrency": null,
+	"taxCurrencyTaxAmount": null,
+	"accountingCost": null,
+	"buyerReference": "PO-4711",
+	"orderReference": null,
+	"salesOrderId": null,
+	"billingReferences": [],
+	"seller": {
+		"endpoint": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"identifiers": [],
+		"name": null,
+		"registrationName": "Eksempel Sælger ApS",
+		"legalId": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"vatId": "DK11111111",
+		"address": {
+			"street": "Eksempelvej 1",
+			"additionalStreet": null,
+			"city": "Eksempelby",
+			"postalCode": "1234",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": {
+			"name": null,
+			"phone": null,
+			"email": "faktura@example.invalid"
+		}
+	},
+	"buyer": {
+		"endpoint": {
+			"scheme": "0184",
+			"id": "22222222"
+		},
+		"identifiers": [],
+		"name": null,
+		"registrationName": "Eksempel Køber A/S",
+		"legalId": {
+			"scheme": "0184",
+			"id": "22222222"
+		},
+		"vatId": "DK22222222",
+		"address": {
+			"street": "Kundevej 2",
+			"additionalStreet": null,
+			"city": "Kundeby",
+			"postalCode": "5678",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": null
+	},
+	"delivery": {
+		"date": "2026-11-09",
+		"name": null,
+		"address": null
+	},
+	"paymentMeans": [
+		{
+			"code": "31",
+			"paymentId": "1012",
+			"payeeAccount": {
+				"id": "DK5000400440116243",
+				"name": null,
+				"bic": "DABADKKK"
+			}
+		}
+	],
+	"paymentTerms": "Netto 14 dage",
+	"allowanceCharges": [],
+	"taxSubtotals": [
+		{
+			"taxableAmount": 205.0,
+			"taxAmount": 51.25,
+			"category": "S",
+			"percent": 25.0,
+			"exemptionReasonCode": null,
+			"exemptionReason": null
+		}
+	],
+	"taxTotal": 51.25,
+	"totals": {
+		"lineExtension": 205.0,
+		"taxExclusive": 205.0,
+		"taxInclusive": 256.25,
+		"allowanceTotal": null,
+		"chargeTotal": null,
+		"prepaid": null,
+		"roundingAmount": null,
+		"payable": 256.25
+	},
+	"lines": [
+		{
+			"id": "1",
+			"quantity": 10.0,
+			"unitCode": "KGM",
+			"lineExtension": 90.0,
+			"note": null,
+			"accountingCost": null,
+			"orderLineReference": null,
+			"allowanceCharges": [
+				{
+					"isCharge": false,
+					"amount": 10.0,
+					"baseAmount": 100.0,
+					"percent": 10.0,
+					"reasonCode": "95",
+					"reason": "Mængderabat"
+				}
+			],
+			"netPrice": 20.0,
+			"baseQuantity": 2.0,
+			"grossPrice": 25.0,
+			"priceDiscount": 5.0,
+			"itemName": "Kaffebønner, løsvægt",
+			"itemDescription": null,
+			"sellersItemId": "KAFFE-1",
+			"standardItemId": {
+				"scheme": "0160",
+				"id": "5790000000012"
+			},
+			"vatCategory": "S",
+			"vatPercent": 25.0
+		},
+		{
+			"id": "2",
+			"quantity": 1.0,
+			"unitCode": "H87",
+			"lineExtension": 115.0,
+			"note": null,
+			"accountingCost": null,
+			"orderLineReference": null,
+			"allowanceCharges": [
+				{
+					"isCharge": true,
+					"amount": 15.0,
+					"baseAmount": null,
+					"percent": null,
+					"reasonCode": "ABL",
+					"reason": "Emballage"
+				}
+			],
+			"netPrice": 100.0,
+			"baseQuantity": null,
+			"grossPrice": null,
+			"priceDiscount": null,
+			"itemName": "Kaffekværn",
+			"itemDescription": null,
+			"sellersItemId": "KVAERN-1",
+			"standardItemId": null,
+			"vatCategory": "S",
+			"vatPercent": 25.0
+		}
+	],
+	"attachments": []
+}

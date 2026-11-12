@@ -295,3 +295,86 @@ With Docker Compose these are passed through from `.env` (see
 call `includes/saldi_assist_token.php?embed_session=<32 hex chars>` in the
 same browser session; it must answer `{"token": "v1.<kid>...."}`. Anonymous
 calls answer `{"error": "no_session"}` with HTTP 401.
+
+---
+
+## E-invoice through Semantic (SD-815, draft)
+
+A regnskab whose setting `provider` (var_grp `einvoice`) is `semantic` builds
+its Peppol BIS 3.0 XML itself and sends it through Semantic's API
+(`includes/einvoice/`). Every other regnskab keeps EasyUBL. The connection is
+set per server, in the web server environment, never in a PHP file under the
+web root, a database or git:
+
+```
+# Required: the Semantic tenant this server sends for (all three, or none)
+SALDI_SEMANTIC_BASE_URL=https://<semantic api host>
+SALDI_SEMANTIC_TENANT_ID=<tenant uuid>
+SALDI_SEMANTIC_API_KEY=<api key>
+# Required for the first send of a regnskab (onboarding) and for the status webhook:
+SALDI_SEMANTIC_WEBHOOK_SECRET=<32+ random characters, our own; signs the webhook URL>
+SALDI_SEMANTIC_WEBHOOK_BASE_URL=https://<server>/<installation>
+# Optional, once Semantic signs its webhook calls (two values, comma separated, during a rotation):
+SALDI_SEMANTIC_SIGNING_SECRETS=<signing secret>
+```
+
+Instead of the environment, the same values can be PHP variables in the
+key file one level above the installation (`../../.ht_keys.txt` seen from a
+page): `$semanticBaseUrl`, `$semanticTenantId`, `$semanticApiKey`,
+`$semanticWebhookSecret`, `$semanticWebhookBaseUrl` and
+`$semanticSigningSecrets` (a string or an array). The three connection values
+are read from one source only, never mixed.
+
+- A webhook secret shorter than 32 characters counts as missing.
+- The webhook base URL must be https; the webhook is
+  `<base URL>/debitor/semanticWebhook.php?db=<database>&t=<token>`. The token
+  is an HMAC of the database name with the webhook secret, so changing the
+  secret changes every registered webhook URL: the companies at Semantic must
+  then get the new URL. Keep query strings of that URL out of shared logs.
+- A test or development server must point at Semantic's dev tenant, never at
+  production, so a restored customer backup can never act as the customer.
+- Statuses that the webhook missed are fetched by `tools/semanticStatusPoll.php`
+  from cron (see below).
+- The choice of provider per regnskab (Indstillinger > Diverse > E-faktura)
+  is hidden until the server is launched for it: set
+  `SALDI_SEMANTIC_PROVIDER_CHOICE=1` in the web server environment as well as
+  the connection above. Without it the provider is set by support (settings
+  `provider`/`einvoice`). Only users with the Indstillinger right can change
+  it, and Semantic can not be chosen while the regnskab is registered at
+  EasyUBL.
+
+### Status poll from cron
+
+The poll asks Semantic about documents whose status the webhook did not
+bring, for every regnskab on the installation. Run it as the web user (or an
+account in the Saldi group, step 2 above), every 10 minutes:
+
+```
+*/10 * * * * cd /var/www/html/saldi && /usr/bin/php tools/semanticStatusPoll.php --all
+```
+
+Replace `/var/www/html/saldi` with the installation's directory; one line per
+installation. Cron does not see the web server environment: give the job the
+`SALDI_SEMANTIC_*` values through the key file above (`../../.ht_keys.txt`
+seen from a page, i.e. the directory above the installation), or through an
+environment file only that account can read, e.g.
+`set -a; . /etc/saldi/semantic.env; set +a; /usr/bin/php tools/semanticStatusPoll.php --all`.
+Never write the values into the crontab line itself.
+
+- Only regnskaber registered at Semantic are asked about, and only send-log
+  rows with an open status created within the last 30 days
+  (`--max-age-days=`), at most 50 per regnskab (`--limit=`). A copy of a
+  regnskab (a restored backup) is skipped.
+- A run stops after 240 seconds (`--budget=`) or 500 rows (`--max-rows=`);
+  the next run starts with the regnskab after the last one finished, so every
+  regnskab gets its turn. The lock `temp/.ht_semanticStatusPoll.lock` keeps two
+  runs from overlapping; the rotation is kept in
+  `temp/.ht_semanticStatusPoll.state`.
+- It prints nothing unless something fails, so cron mails only errors
+  (`--verbose` prints a summary). Exit codes: 0 done, 1 usage or
+  configuration (e.g. Semantic not configured, temp not writable), 2 some rows
+  or regnskaber failed, 3 another run still holds the lock.
+- `--db=<database>` (repeatable) instead of `--all` polls named regnskaber.
+
+With Docker Compose these are passed through from `.env` (see
+`docker-compose.yml` and `.env.example`).
