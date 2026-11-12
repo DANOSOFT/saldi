@@ -189,12 +189,10 @@
 // 20261022 CL/NTR The kredit genvej alert built its text from $txt1/$txt2 (only set in the debet branch), so an undefined
 //                 genvej letter in Kredit printed just the account and the bilag number with a space. It now uses this
 //                 branch's own $alert1/$alert2, matching the debet alert.
-// 20261021 ASR Kassekladde redesign (Requirements_kassekladde_redesign_EN.md v2.2) on the redesign branch: css/kassekladde.css
-//                  and javascript/kassekladde.js on the saldi-theme tokens. No blue top line: Luk/Ny/Hjælp/gear and the bank
-//                  icon move into the toolbar (the shell's breadcrumb closes; the hidden Luk link keeps luk.php and Alt+L).
-//                  The whole line is the drag handle (Position column gone), the footer is ordered by the work with
-//                  "Flere", Gem stays the first submit button, a save status and Ctrl+S, leaving saves first
-//                  (kkAfterSave=exit), three densities by width, Forfald/Betalings-ID and Afd./Ansat/Proj. in the gear.
+// 20261021 ASR Kassekladde redesign (Requirements_kassekladde_redesign_EN.md v2.2) on the redesign branch: css/kassekladde.css and javascript/kassekladde.js on the saldi-theme tokens.
+//                  No blue top line: Luk/Ny/Hjælp/gear and the bank icon move into the toolbar (the shell's breadcrumb closes;
+//                  the hidden Luk link keeps luk.php and Alt+L).
+//                  The whole line is the drag handle (Position column gone), the footer is ordered by the work with "Flere", Gem stays the first submit button, a save status and Ctrl+S, leaving saves first (kkAfterSave=exit), three densities by width, Forfald/Betalings-ID and Afd./Ansat/Proj. in the gear.
 
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
