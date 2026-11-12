@@ -4795,7 +4795,11 @@ if (!function_exists('vareopslag')) {
  */
 function ordretekst_print_safe($tekst)
 {
-	$safe = htmlspecialchars((string) $tekst, ENT_QUOTES, 'UTF-8');
+	# The install's own charset, because a Latin-1 tenant stores those bytes: with the wrong charset
+	# htmlspecialchars() returns an empty string for them, and ENT_SUBSTITUTE keeps a stray byte visible
+	# instead of blanking the text.
+	$charset = !empty($GLOBALS['charset']) ? $GLOBALS['charset'] : 'UTF-8';
+	$safe = htmlspecialchars((string) $tekst, ENT_QUOTES | ENT_SUBSTITUTE, $charset);
 
 	return str_ireplace(array('&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;'), array('<b>', '</b>', '<i>', '</i>'), $safe);
 }

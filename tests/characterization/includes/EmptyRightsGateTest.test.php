@@ -300,8 +300,8 @@ final class EmptyRightsGateTest extends TestCase
             'and the copy helper does the same');
         self::assertStringContainsString('function ordretekst_print_safe($tekst)', $ref,
             'the text view has one escaper');
-        self::assertStringContainsString("htmlspecialchars((string) \$tekst, ENT_QUOTES, 'UTF-8')", $ref,
-            'which escapes everything');
+        self::assertStringContainsString("htmlspecialchars((string) \$tekst, ENT_QUOTES | ENT_SUBSTITUTE, \$charset)", $ref,
+            'which escapes everything in the install charset');
         self::assertStringContainsString("nl2br(ordretekst_print_safe(\$r['tekst']))", $ref,
             'and is used for the library rows as well');
         self::assertStringContainsString("\$sag_id = (int)\$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
