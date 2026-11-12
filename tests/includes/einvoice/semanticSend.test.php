@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/includes/einvoice/semanticSend.test.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- tests/includes/einvoice/semanticSend.test.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 //                 Also the send log's SQL and XML archive, the send lock and the peppol.php page functions, without a database or the network.
 // 20261109 CL/MMR SD-815 Test that the seller endpoint in the XML must be the one the onboarding registers.
 // 20261109 CL/MMR SD-815 Review fixes: the seller endpoint against the stored registration, the company lookup decision, and no resend without asking after an error that followed Sent.
+// 20261112 CL/MMR SD-815 The status labels come from einvoice_status_view() (includes/einvoice/einvoiceStatusView.php) now that the page uses it.
 
 declare(strict_types=1);
 
@@ -344,7 +345,8 @@ final class semanticSend extends TestCase
         $unsupported = semanticPeppolHandle(semanticPeppolRequest(array('id' => '12', 'type' => 'order'), array(), 'GET'),
             array('db' => 'x', 'sprog_id' => 1, 'user' => 'u', 'sessionId' => 's'));
         $this->assertNull($unsupported['redirect']);
-        $this->assertFalse($unsupported['view']['ok']);
+        $this->assertSame('error', $unsupported['view']['tone']);
+        $this->assertStringNotContainsString('Semantic', implode(' ', $unsupported['view']['lines']));
     }
 
     public function testStatusPageEscapesEverything(): void
@@ -358,8 +360,8 @@ final class semanticSend extends TestCase
         $this->assertStringContainsString('&lt;b&gt;x&lt;/b&gt;', $html);
         $this->assertStringContainsString('a&#039;b&lt;script&gt;', $html);
         $this->assertStringContainsString("name='thisDb' value='d&quot;b'", $html, 'online.php checks thisDb against the session');
-        $this->assertSame('Afvist af modtageren', semanticPeppolStatusLabel('Rejected'));
-        $this->assertSame('Status 5213', semanticPeppolStatusLabel('Status5213'));
+        $this->assertSame('Afvist af modtager', einvoice_status_view(array('id' => 1, 'status' => 'Rejected'), 1)['label']);
+        $this->assertSame('Status 5213', einvoice_status_view(array('id' => 1, 'status' => 'Status5213'), 1)['label']);
     }
 
     public function testSendLockIsPerDocumentAndNeverWaits(): void
