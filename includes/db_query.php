@@ -61,6 +61,7 @@
 //                serves with a mysqli connection too (still supported, not actively used).
 // 20261029 CDX/NTR Use shared permissions for database logs and tenant temporary directories.
 // 20261029 CDX/NTR Document query and path helpers affected by shared runtime logging.
+// 20261102 CL/SZ SD-794 db_select: set $db_select_fejl on a failed query; what it prints, returns and exits on is unchanged.
 // 20261103 CDX/NTR Attempt every database log line even when an earlier write is incomplete.
 // 20261103 CDX/NTR Report incomplete database log writes through non-throwing server diagnostics.
 
@@ -408,6 +409,8 @@ if (!function_exists('db_select')) {
 		}
 
 		if ($errtxt)	{		
+			global $db_select_fejl; #20261102 CL/SZ SD-794 lets a caller see that a select failed; db_select() alerts and carries on
+			$db_select_fejl = true;
 			$db=trim($db);
 			$linje="";
 			if (file_exists("$temp/lasterror.txt")) {
