@@ -22,6 +22,7 @@
  *                 Lines inside a card stay --st-border. The notices on the ground (.st-flash/.st-toast, .st-errors, .st-errorlist,
  *                 .st-confirm) get the frame, not the shadow; inside the drawer and the white Stamdata embed they keep the hairline.
  *                 Not re-versioned: these pages are not live yet.
+ * 20261112 CL/ASR A module's corner is --st-r-mod, 6 px (theme --r-mod; owner, 12 Nov 2026). Fields, buttons and popovers keep --st-r (4 px).
  */
 
 /* ============================================
@@ -730,6 +731,7 @@ button.btn-primary:hover {
             frame --st-edge and the shadow --st-lift, the line under a title band is --st-edge-head (owner, 9 Nov 2026).
             A stack (section head, note, card) carries the shadow on every piece: the next piece covers the one above.
             The left menu's title band has the --st-edge-head line; notices get the frame only, and keep the hairline inside a module.
+   20261112 CL/ASR A module and a notice on the ground have the corner --st-r-mod, 6 px (owner, 12 Nov 2026). Fields and buttons keep --st-r.
    One set of components for every generated settings section. No page-specific CSS.
    ============================================ */
 
@@ -783,6 +785,7 @@ button.btn-primary:hover {
   --st-ctl-h: 1.75rem;
   --st-ctl-h-sm: 1.5rem;
   --st-r: 4px;
+  --st-r-mod: var(--sk-r-mod, var(--r-mod, 6px));
   --st-r-win: 8px;
   --st-pad: 12px;
   --st-menu-w: 14rem;
@@ -838,7 +841,7 @@ html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--page, #eee
 
 /* notices above the form: the kit's .sk-note, a box with the module frame (no shadow) and a coloured left edge */
 .st-notes { display: flex; flex-direction: column; gap: 8px; }
-.st-flash, .st-toast { --st-tone: var(--st-info); display: flex; align-items: center; gap: 8px 10px; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-tone); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.45; color: var(--st-text); }
+.st-flash, .st-toast { --st-tone: var(--st-info); display: flex; align-items: center; gap: 8px 10px; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-tone); border-radius: var(--st-r-mod); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.45; color: var(--st-text); }
 .st-flash > span { flex: 1 1 auto; min-width: 0; }
 .st-flash > i.bx { flex: none; font-size: 16px; color: var(--st-tone); }
 .st-flash-ok { --st-tone: var(--st-good); }
@@ -854,7 +857,7 @@ html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--page, #eee
 /* section menu · form · history: 13rem | content | 17rem, 16 px apart */
 .st-layout { display: grid; grid-template-columns: var(--st-menu-w) minmax(0, 1fr) 17rem; gap: var(--st-gap); align-items: start; }
 .st-tabs { min-width: 0; }
-.st-tabs > ul { list-style: none; margin: 0; padding: 4px 0; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r); box-shadow: var(--st-lift); }
+.st-tabs > ul { list-style: none; margin: 0; padding: 4px 0; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r-mod); box-shadow: var(--st-lift); }
 .st-tabs-select { display: none; }
 .st-page .st-tabs a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--st-ctl-h); padding: 4px var(--st-pad); border-radius: 0; font-size: var(--st-fs); line-height: 1.3; color: var(--st-text-2); text-decoration: none; transition: background-color var(--st-t), color var(--st-t); }
 .st-page .st-tabs a:hover { color: var(--st-text); background: var(--st-surface-2); text-decoration: none; }
@@ -868,13 +871,13 @@ html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--page, #eee
 .st-form { display: flex; flex-direction: column; gap: var(--st-gap); min-width: 0; }
 .st-sect { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 /* the heading above a card is the card's grey header band; a help line under it is the panel note */
-.st-sect > h2, .st-hist > h2 { display: flex; align-items: center; gap: 12px; min-height: var(--st-band-h); margin: 0; padding: 0 var(--st-pad); background: var(--st-surface-2); border: 1px solid var(--st-edge); border-bottom-color: var(--st-edge-head); border-radius: var(--st-r) var(--st-r) 0 0; box-shadow: var(--st-lift); font: 700 var(--st-fs-s)/1.2 var(--st-font); letter-spacing: 0; color: var(--st-text); }
+.st-sect > h2, .st-hist > h2 { display: flex; align-items: center; gap: 12px; min-height: var(--st-band-h); margin: 0; padding: 0 var(--st-pad); background: var(--st-surface-2); border: 1px solid var(--st-edge); border-bottom-color: var(--st-edge-head); border-radius: var(--st-r-mod) var(--st-r-mod) 0 0; box-shadow: var(--st-lift); font: 700 var(--st-fs-s)/1.2 var(--st-font); letter-spacing: 0; color: var(--st-text); }
 .st-sect > p { margin: 0; max-width: none; padding: 8px var(--st-pad); background: var(--st-surface); border: 1px solid var(--st-edge); border-bottom-color: var(--st-edge-head); border-top: 0; box-shadow: var(--st-lift); font-size: var(--st-fs-s); line-height: 1.45; color: var(--st-text-2); }
 .st-sect > h2 + .st-card, .st-sect > p + .st-card, .st-hist > h2 + .st-card { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
 .st-sect > :is(h2, .st-rhead):not(:first-child) { margin-top: var(--st-gap); }
-.st-card { min-width: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r); box-shadow: var(--st-lift); }
-.st-card > :first-child { border-top-left-radius: calc(var(--st-r) - 1px); border-top-right-radius: calc(var(--st-r) - 1px); }
-.st-card > :last-child { border-bottom-left-radius: calc(var(--st-r) - 1px); border-bottom-right-radius: calc(var(--st-r) - 1px); }
+.st-card { min-width: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r-mod); box-shadow: var(--st-lift); }
+.st-card > :first-child { border-top-left-radius: calc(var(--st-r-mod) - 1px); border-top-right-radius: calc(var(--st-r-mod) - 1px); }
+.st-card > :last-child { border-bottom-left-radius: calc(var(--st-r-mod) - 1px); border-bottom-right-radius: calc(var(--st-r-mod) - 1px); }
 .st-sect > h2 + .st-card > :first-child, .st-sect > p + .st-card > :first-child, .st-hist > h2 + .st-card > :first-child, .st-rhead + .st-card > :first-child { border-top-left-radius: 0; border-top-right-radius: 0; }
 
 /* a setting is a row: label and help left, control right, 8/12 px padding, a hairline between rows */
@@ -968,7 +971,7 @@ select.st-input { -webkit-appearance: none; appearance: none; padding-right: 24p
 .st-error, .st-locked { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: var(--st-fs-s); }
 .st-error { color: var(--st-bad); font-weight: 500; }
 .st-locked { color: var(--st-text-2); }
-.st-errorlist { margin: 0; list-style: none; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-bad); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
+.st-errorlist { margin: 0; list-style: none; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-bad); border-radius: var(--st-r-mod); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
 .st-errorlist a { color: var(--st-bad); }
 
 /* actions and the danger zone (only the band title is red, as the kit's .sk-panel-danger) */
@@ -1005,8 +1008,8 @@ select.st-input { -webkit-appearance: none; appearance: none; padding-right: 24p
 .st-rc-text .st-rin { min-width: 10rem; }
 .st-rc-select .st-rin { min-width: 7rem; }
 /* a table's heading block is the top of its panel: the grey band, the help line and the parent picker */
-.st-rhead { margin: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-bottom: 0; border-radius: var(--st-r) var(--st-r) 0 0; box-shadow: var(--st-lift); }
-.st-rhead h2 { display: flex; align-items: center; min-height: var(--st-band-h); margin: 0; padding: 0 var(--st-pad); background: var(--st-surface-2); border-radius: calc(var(--st-r) - 1px) calc(var(--st-r) - 1px) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
+.st-rhead { margin: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-bottom: 0; border-radius: var(--st-r-mod) var(--st-r-mod) 0 0; box-shadow: var(--st-lift); }
+.st-rhead h2 { display: flex; align-items: center; min-height: var(--st-band-h); margin: 0; padding: 0 var(--st-pad); background: var(--st-surface-2); border-radius: calc(var(--st-r-mod) - 1px) calc(var(--st-r-mod) - 1px) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
 .st-rhelp { margin: 0; max-width: none; padding: 8px var(--st-pad); border-top: 1px solid var(--st-edge-head); font-size: var(--st-fs-s); line-height: 1.45; color: var(--st-text-2); }
 .st-rhead + .st-card { border-top-color: var(--st-edge-head); border-top-left-radius: 0; border-top-right-radius: 0; }
 /* with a parent picker under the help line the line above the table is inside the module, and a picker right under the band
@@ -1063,12 +1066,12 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-rtoggle { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; cursor: pointer; }
 .st-inline { display: inline; }
 .st-scope { display: flex; align-items: center; gap: 8px; font-size: var(--st-fs-s); color: var(--st-text-2); }
-.st-errors { margin: 0; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-bad); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
+.st-errors { margin: 0; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-bad); border-radius: var(--st-r-mod); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
 .st-errors ul { margin: 4px 0 0; padding-left: 18px; }
 .st-errors a { color: var(--st-bad); }
 
 /* shown only while something is unsaved: the kit's sticky foot bar at the bottom of the form */
-.st-page .st-savebar { position: sticky; bottom: 0; z-index: 20; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r); box-shadow: var(--st-lift); }
+.st-page .st-savebar { position: sticky; bottom: 0; z-index: 20; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r-mod); box-shadow: var(--st-lift); }
 .st-savebar-in { min-height: 2.875rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 0; padding: 8px var(--st-pad); }
 .st-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs); font-weight: 500; color: var(--st-text); }
 .st-savebar-btns { display: inline-flex; align-items: center; gap: 8px; }
@@ -1248,7 +1251,7 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 .st-create-pair { display: flex; gap: 6px; }
 .st-create-pair .st-input { width: 5.5rem; }
 .st-create-fixed { height: var(--st-ctl-h); display: inline-flex; align-items: center; padding: 0 8px; border-radius: var(--st-r); background: var(--st-surface-2); color: var(--st-text); font: 400 var(--st-fs)/1.2 var(--st-font); font-variant-numeric: tabular-nums; }
-.st-confirm { margin: 0; padding: 7px var(--st-pad) 10px; border: 1px solid var(--st-edge); border-left: 3px solid var(--st-warn); border-radius: var(--st-r); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
+.st-confirm { margin: 0; padding: 7px var(--st-pad) 10px; border: 1px solid var(--st-edge); border-left: 3px solid var(--st-warn); border-radius: var(--st-r-mod); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
 .st-confirm ul { margin: 6px 0; padding-left: 18px; }
 .st-confirm p { margin: 0 0 10px; color: var(--st-text-2); }
 @media (max-width: 640px) { .st-create-grid label, .st-create-grid .st-input { width: 100%; } }
@@ -1278,8 +1281,8 @@ select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px;
 /* the menu spans the rows of the layout, so the history under the form (rows sections, narrower screens) is not pushed down */
 .st-layout > .st-menu { grid-row: span 2; }
 .st-layout:has(> .st-menu) { grid-template-rows: auto 1fr; }
-.st-menu-panel { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r); box-shadow: var(--st-lift); }
-.st-menu-h { min-height: var(--st-band-h); margin: 0; padding: 7px var(--st-pad) 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--st-surface-2); border-bottom: 1px solid var(--st-edge-head); border-radius: calc(var(--st-r) - 1px) calc(var(--st-r) - 1px) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
+.st-menu-panel { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r-mod); box-shadow: var(--st-lift); }
+.st-menu-h { min-height: var(--st-band-h); margin: 0; padding: 7px var(--st-pad) 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--st-surface-2); border-bottom: 1px solid var(--st-edge-head); border-radius: calc(var(--st-r-mod) - 1px) calc(var(--st-r-mod) - 1px) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
 .st-menu ul { list-style: none; margin: 0; padding: 0; }
 .st-menu-sub { padding: 2px 0 6px; }
 .st-menu-sub + .st-menu-sub { border-top: 1px solid var(--st-border); }

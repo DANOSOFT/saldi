@@ -3,7 +3,7 @@
    Ubetalte salgsfakturaer, key-figure lists, the website gradient on the CTA card.
    20261009 Sawaneh Font sizes in rem with a 12 px floor, Saldi Grotesk for card titles and drawer headings, Inter for content,
    axis text at a fixed 0.78rem (--axis set by dashboard.js). Front-page addendum 3 §3 and §5.1.
-/* ---- css/dashboard.css --- ver 5.1.0 --- 2026.11.09 ---
+/* ---- css/dashboard.css --- ver 5.1.0 --- 2026.11.12 ---
    20261008 Sawaneh Oversigt rebuilt on Adam's prototype_dashboard_tema.html v5: cards, KPI, charts, heatmap, ring, the
                     "Rediger oversigt" drawer and the tooltip. Colours come from css/saldi-theme.css (light/dark).
    20261101 CL/ASR Rewritten on prototype D ("Som ordrelisten", prototype_premium/dashboard.html + saldi-premium.css): flat panels with 4 px corners and a grey 28 px header band, the KPI strip with label bands, bar charts and heatmap at their real size, tables with 24 px rows and a grey bold header (zebra), share bars, the unpaid card with a stacked bar, the kit's buttons, switch, tooltip and panel for "Rediger oversigt".
@@ -12,7 +12,8 @@
    20261108 CL/ASR The page ground is Saldi's classic page colour (--page, #eeeef0), as on every classic page; the panels stay white
                    on it (owner, 8 Nov 2026: white on white had too little contrast).
    20261109 CL/ASR Each panel has the frame --edge and the soft shadow --lift, the line under its title band is --edge-head; the notice
-                   gets the frame only (owner, 9 Nov 2026, variant B). This replaces the 'no shadow' of addendum 3. */
+                   gets the frame only (owner, 9 Nov 2026, variant B). This replaces the 'no shadow' of addendum 3.
+   20261112 CL/ASR A panel and the notice have the corner --db-r-mod (theme --r-mod, 6 px; owner, 12 Nov 2026). Fields and buttons keep --db-r. */
 /* Tokens: css/saldi-theme.css (same names as the prototype kit). The kit's own controls, row and radius tokens are not in the app
    theme, so they are scoped here with a db- prefix. Font sizes in rem (13 px = .8125rem) so the text-size choice still works. */
 :root {
@@ -20,7 +21,7 @@
 	--db-border-field: #c6d2e4; --db-border-field-hover: #a9b8cf;
 	--db-hover: #eef2f8; --db-row-hover: #f5f9fe; --db-switch-off: #c9d3e2;
 	--db-focus: var(--saldi-blue); --db-focus-ring: 0 0 0 2px rgba(79, 160, 238, .45);
-	--db-r: 4px; --db-r-panel: 8px; --db-t: 140ms; --db-row-h: 1.5rem; --db-gap: 16px;
+	--db-r: 4px; --db-r-mod: var(--r-mod, 6px); --db-r-panel: 8px; --db-t: 140ms; --db-row-h: 1.5rem; --db-gap: 16px;
 	--db-fs: .8125rem; --db-fs-s: .75rem; --db-fs-xs: .6875rem; --db-fs-val: 1.375rem;
 }
 [data-theme="dark"] { --db-border-field: #34466e; --db-border-field-hover: #4a5f8c; --db-hover: #22325a; --db-row-hover: #1f2e50; --db-switch-off: #3a4a6c; }
@@ -63,7 +64,7 @@ button.db-link:hover { text-decoration: underline; }
 .db-cell.spot { outline-offset: -2px; }   /* inside the panel, which clips */
 
 /* ---- a block: frame --edge with the soft shadow --lift, 4 px corners; grey 28 px header band, line --edge-head (prototype D, variant B) ---- */
-.db-sec { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--edge, #cdd4df); border-radius: var(--db-r); overflow: hidden;
+.db-sec { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--edge, #cdd4df); border-radius: var(--db-r-mod); overflow: hidden;
 	box-shadow: var(--lift, 0 1px 2px rgba(11,26,58,.08), 0 4px 12px rgba(11,26,58,.06)); }
 .db-h { flex: none; display: flex; align-items: center; gap: 12px; height: 1.75rem; padding: 0 12px; background: var(--surface-2); border-bottom: 1px solid var(--edge-head, #dce2ea); }
 .db-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 var(--db-fs-s)/1.2 var(--font-ui); color: var(--text); }
@@ -205,7 +206,7 @@ select.db-fld:focus-visible { border-color: var(--db-focus); box-shadow: var(--d
 .dash-hidden .db-ph { color: var(--text-2); }
 .dash-hidden .btn { margin-top: 12px; }
 .db-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 16px; background: var(--surface); border: 1px solid var(--edge, #cdd4df);
-	border-left: 3px solid var(--saldi-amber); border-radius: var(--db-r); }
+	border-left: 3px solid var(--saldi-amber); border-radius: var(--db-r-mod); }
 .db-notice-t { flex: 1; min-width: 240px; }
 .db-notice-t b { display: block; margin-bottom: 2px; font-weight: 600; }
 .db-notice-t span { color: var(--text-2); }

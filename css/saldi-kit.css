@@ -1,4 +1,4 @@
-/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.09 ---
+/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.12 ---
    20261101 CL/ASR The shared UI kit for pages on the new design (prototype D "Som ordrelisten", as index/dashboard.php):
                    the design tokens and the components the settings pages need, everything scoped under .sk.
    20261101 CL/ASR No zebra on .sk-list rows: they are navigation (the settings hub, the left menu, lists of roles), and the owner found
@@ -10,6 +10,8 @@
    20261109 CL/ASR A module's outer frame is --sk-edge with a soft shadow (--sk-lift) and the line under its title band --sk-edge-head
                    (theme --edge/--lift/--edge-head): panel, standalone menu and save bar; notices get the frame, not the shadow, and keep the
                    hairline inside a panel, popover, drawer or dialog (owner, 9 Nov 2026).
+   20261112 CL/ASR A module's corner is --sk-r-mod, 6 px (theme --r-mod; owner, 12 Nov 2026): panel, standalone menu, save bar and notice.
+                   Fields, buttons and popovers keep --sk-r (4 px), dialogs and drawers --sk-r-win (8 px).
 
    HOW TO USE
    1. Load it after includes/online.php (which links css/saldi-fonts.css on the shell, the dashboard and systemdata pages):
@@ -73,7 +75,7 @@
 	--sk-font: var(--font-ui, Inter, system-ui, sans-serif); --sk-font-display: var(--font-display, 'Saldi Grotesk', Inter, system-ui, sans-serif);
 	--sk-fs: .8125rem; --sk-fs-s: .75rem; --sk-fs-xs: .6875rem; --sk-fs-h: .875rem; --sk-fs-title: 1.125rem;
 	--sk-row-h: 1.5rem; --sk-band-h: 1.75rem; --sk-ctl-h: 1.75rem; --sk-ctl-h-sm: 1.5rem;
-	--sk-r: 4px; --sk-r-win: 8px; --sk-gap: 16px; --sk-pad: 12px; --sk-page-x: 28px;
+	--sk-r: 4px; --sk-r-mod: var(--r-mod, 6px); --sk-r-win: 8px; --sk-gap: 16px; --sk-pad: 12px; --sk-page-x: 28px;
 	--sk-t: 140ms; --sk-ease: var(--e-io, cubic-bezier(.4, 0, .2, 1));
 }
 [data-theme="dark"] .sk {
@@ -139,9 +141,9 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--pag
 }
 
 /* ---- panel: frame --sk-edge with the soft shadow --sk-lift, 4 px corners; grey 28 px header band (line --sk-edge-head) with a bold 12 px Inter title ---- */
-.sk .sk-panel { min-width: 0; background: var(--sk-surface); border: 1px solid var(--sk-edge); border-radius: var(--sk-r); box-shadow: var(--sk-lift); }
-.sk .sk-panel > :first-child { border-top-left-radius: calc(var(--sk-r) - 1px); border-top-right-radius: calc(var(--sk-r) - 1px); }
-.sk .sk-panel > :last-child { border-bottom-left-radius: calc(var(--sk-r) - 1px); border-bottom-right-radius: calc(var(--sk-r) - 1px); }
+.sk .sk-panel { min-width: 0; background: var(--sk-surface); border: 1px solid var(--sk-edge); border-radius: var(--sk-r-mod); box-shadow: var(--sk-lift); }
+.sk .sk-panel > :first-child { border-top-left-radius: calc(var(--sk-r-mod) - 1px); border-top-right-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > :last-child { border-bottom-left-radius: calc(var(--sk-r-mod) - 1px); border-bottom-right-radius: calc(var(--sk-r-mod) - 1px); }
 .sk .sk-panel-h { display: flex; align-items: center; gap: 12px; min-height: var(--sk-band-h); padding: 0 var(--sk-pad); background: var(--sk-surface-2); border-bottom: 1px solid var(--sk-edge-head); }
 .sk .sk-panel-t { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 var(--sk-fs-s)/1.2 var(--sk-font); color: var(--sk-text); }
 .sk .sk-panel-tools { display: flex; align-items: center; gap: 12px; margin-left: auto; font-size: var(--sk-fs-s); white-space: nowrap; }
@@ -331,7 +333,7 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--pag
 .sk .sk-bar > .sk-search { flex: 1 1 16rem; }
 .sk .sk-bar-sep { flex: none; width: 1px; height: 20px; background: var(--sk-border); }
 .sk .sk-footbar { position: sticky; bottom: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 2.875rem; padding: 8px var(--sk-pad);
-	background: var(--sk-surface); border: 1px solid var(--sk-edge); border-bottom: 0; border-radius: var(--sk-r) var(--sk-r) 0 0; box-shadow: var(--sk-lift); }
+	background: var(--sk-surface); border: 1px solid var(--sk-edge); border-bottom: 0; border-radius: var(--sk-r-mod) var(--sk-r-mod) 0 0; box-shadow: var(--sk-lift); }
 
 /* ---- status as dot + text, quiet tags ---- */
 .sk .sk-status { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -343,7 +345,7 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--pag
 	background: var(--sk-surface-2); color: var(--sk-tone-ink, var(--sk-text-2)); font: 500 var(--sk-fs-xs)/1 var(--sk-font); white-space: nowrap; }
 
 /* ---- left section menu ---- */
-.sk .sk-nav { display: flex; flex-direction: column; margin: 0; padding: 4px 0; list-style: none; background: var(--sk-surface); border: 1px solid var(--sk-edge); border-radius: var(--sk-r); box-shadow: var(--sk-lift); }
+.sk .sk-nav { display: flex; flex-direction: column; margin: 0; padding: 4px 0; list-style: none; background: var(--sk-surface); border: 1px solid var(--sk-edge); border-radius: var(--sk-r-mod); box-shadow: var(--sk-lift); }
 .sk .sk-panel > .sk-nav { border: 0; border-radius: 0; box-shadow: none; }
 .sk .sk-nav > li { display: block; }
 .sk .sk-nav-item { display: flex; align-items: center; gap: 8px; min-height: var(--sk-ctl-h); padding: 4px var(--sk-pad); color: var(--sk-text-2); line-height: 1.3; text-decoration: none;
@@ -355,7 +357,7 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--pag
 
 /* ---- inline notice: hairline box with a coloured left edge (as the dashboard's role notice) ---- */
 .sk .sk-note { --sk-note-c: var(--sk-tone, var(--sk-info)); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px var(--sk-pad);
-	background: var(--sk-surface); border: 1px solid var(--sk-edge); border-left: 3px solid var(--sk-note-c); border-radius: var(--sk-r); line-height: 1.45; }
+	background: var(--sk-surface); border: 1px solid var(--sk-edge); border-left: 3px solid var(--sk-note-c); border-radius: var(--sk-r-mod); line-height: 1.45; }
 /* a notice inside a module (panel, popover, drawer, dialog) keeps the hairline: lines inside a module stay --sk-border */
 .sk :is(.sk-panel, .sk-pop, .sk-drawer, .sk-dialog) .sk-note { border-top-color: var(--sk-border); border-right-color: var(--sk-border); border-bottom-color: var(--sk-border); }
 .sk .sk-note b { font-weight: 600; }

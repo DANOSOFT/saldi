@@ -1,5 +1,5 @@
 <?php
-// -----------systemdata/kontoplan.php-----ver 5.1.0 ----2026-11-09-------
+// -----------systemdata/kontoplan.php-----ver 5.1.0 ----2026-11-12-------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 // 20261109 CL/ASR Opened from Indstillinger the grid has the settings modules' frame and soft shadow (owner, 9 Nov 2026).
 //                 The frame is a ring around the wrapper, so the wrapper keeps its size and place; the table's outer #ddd line is hidden.
 //                 The content column shows overflow, so it does not cut the shadow off.
+// 20261112 CL/ASR Opened from Indstillinger the grid has the settings modules' 6 px corner (--st-r-mod; owner, 12 Nov 2026).
 
 @session_start();
 $s_id=session_id();
@@ -70,7 +71,7 @@ if ($fromSettings) {
 	print "<style>.st-frame-main #datatable-wrapper-kontoplan { height: calc(100vh - 170px); min-height: 360px; }\n"
 		. ".st-page:has(#datatable-wrapper-kontoplan) { padding-bottom: 16px; }\n"
 		. ".st-page .st-frame-main.st-legacy:has(#datatable-wrapper-kontoplan) { overflow: visible; }\n"
-		. ".st-frame-main #datatable-wrapper-kontoplan { border-radius: var(--st-r, 4px); box-shadow: 0 0 0 1px var(--st-edge, #cdd4df), var(--st-lift, 0 1px 2px rgba(11, 26, 58, .08), 0 4px 12px rgba(11, 26, 58, .06)); }\n"
+		. ".st-frame-main #datatable-wrapper-kontoplan { border-radius: var(--st-r-mod, 6px); box-shadow: 0 0 0 1px var(--st-edge, #cdd4df), var(--st-lift, 0 1px 2px rgba(11, 26, 58, .08), 0 4px 12px rgba(11, 26, 58, .06)); }\n"
 		. ".st-frame-main #datatable-kontoplan { border-style: hidden; }\n"
 		. "@media print { .st-page .st-menu, .st-page .st-phead { display: none !important; } .st-page .st-layout-list { display: block; } .st-frame-main #datatable-wrapper-kontoplan { height: auto; } }</style>\n";
 } elseif ($menu=='T') {

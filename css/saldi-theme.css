@@ -1,4 +1,4 @@
-/* ---- css/saldi-theme.css --- lap 5.0.0 --- 2026.11.09 ---
+/* ---- css/saldi-theme.css --- lap 5.0.0 --- 2026.11.12 ---
    20261009 Sawaneh Premium light neutrals and 12 px corners (front-page addendum 3 §1/§8), --due-* for the unpaid card (§5.9.3).
    20261008 Sawaneh The Saldi theme tokens from Adam's prototype_dashboard_tema.html v5 (light, dark, system), and the
                     shell's colours mapped onto them so the top bar, menus and page follow the user's theme. The user's
@@ -8,7 +8,8 @@
                    ground (owner, 8 Nov 2026; white on white had too little contrast). New pages keep it.
    20261109 CL/ASR --edge (the outer frame of a module), --edge-head (the line under its title band) and --lift (a soft shadow under it):
                    the modules on the dashboard and the settings pages get a clear edge on the grey ground (owner, 9 Nov 2026, variant B).
-                   --border stays for the lines inside a module. */
+                   --border stays for the lines inside a module.
+   20261112 CL/ASR --r-mod is the corner of a module on the ground, 6 px (owner, 12 Nov 2026). Fields and buttons keep their 4 px. */
 :root {
 	color-scheme: light;
 	--saldi-blue: #4FA0EE; --saldi-purple-mid: #7A3AD8; --saldi-purple: #8B33D4; --saldi-purple-deep: #6A2AB8; --saldi-amber: #D9822B;
@@ -26,6 +27,7 @@
 	--shadow: 0 1px 2px rgba(11,26,58,.05), 0 4px 14px rgba(11,26,58,.06);
 	--shadow-up: 0 2px 4px rgba(11,26,58,.06), 0 12px 28px rgba(11,26,58,.11);
 	--edge: #cdd4df; --edge-head: #dce2ea; --lift: 0 1px 2px rgba(11,26,58,.08), 0 4px 12px rgba(11,26,58,.06);
+	--r-mod: 6px;
 	--tip-bg: #0b1a3a; --tip-text: #ffffff; --tip-muted: rgba(255,255,255,.7);
 	--r: 12px; --e: cubic-bezier(.2,.8,.2,1); --e-io: cubic-bezier(.4,0,.2,1);
 }
