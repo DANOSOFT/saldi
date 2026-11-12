@@ -30,7 +30,7 @@
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
 // 20260924 LOE SD-657 Losing the Indstillinger right switches the turnover setting on for that user.
 // 20261112 CL/MMR SST-1011 The delete-user button only submits when the confirm dialog is accepted, since Cancel deleted the user.
-//                  The user name in the dialog is JSON-encoded, so quotes and line breaks cannot break it.
+//                 The user name in the dialog is JSON-encoded, so quotes and line breaks cannot break it.
 
 @session_start();
 $s_id=session_id();
