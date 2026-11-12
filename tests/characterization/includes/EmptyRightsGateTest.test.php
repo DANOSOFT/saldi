@@ -289,6 +289,11 @@ final class EmptyRightsGateTest extends TestCase
         self::assertNotFalse($copyBind, 'the page case is replaced by the admitted one');
         self::assertNotFalse($createCall, 'the create call is still there');
         self::assertLessThan($createCall, $copyBind, 'and the replacement happens before the order is created');
+        $ref = (string)@file_get_contents(__DIR__ . '/../../../includes/ordrefunc.php');
+        self::assertStringContainsString("if (!\$sag_id) \$sag_id = if_isset(\$_GET['sag_id']);", $ref,
+            'the create helper lets the caller case win over the request');
+        self::assertStringContainsString("if (!\$sag_id) \$sag_id = (int) ifset(\$_GET, 'sag_id', 0);", $ref,
+            'and the copy helper does the same');
         self::assertStringContainsString("\$sag_id = (int)\$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
         self::assertStringContainsString("select id from ordrelinjer where ordre_id = '\$id'", $ordre,
             'and a posted line id of another order is dropped');

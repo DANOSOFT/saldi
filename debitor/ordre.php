@@ -1350,13 +1350,12 @@ if ($b_submit) {
 	# alert, so a posted id of another case would disclose it. A credit always credits an order in its own case.
 	if ($sag_workflow_case_id && is_array($kred_linje_id)) {
 		$sst967_kred_ids = array();
-		foreach ($kred_linje_id as $sst967_v) {
-			$sst967_n = (int) $sst967_v;
-			if ($sst967_n) {
-				$sst967_kred_ids[$sst967_n] = true;
+		foreach ($kred_linje_id as $sst967_k => $sst967_v) {
+			$kred_linje_id[$sst967_k] = (int) $sst967_v;
+			if ($kred_linje_id[$sst967_k]) {
+				$sst967_kred_ids[$kred_linje_id[$sst967_k]] = true;
 			}
 		}
-		unset($sst967_n);
 		if ($sst967_kred_ids) {
 			$sst967_kred_ok = array();
 			$q = db_select("select ordrelinjer.id from ordrelinjer, ordrer where ordrelinjer.ordre_id = ordrer.id and ordrer.sag_id = '$sag_workflow_case_id' and ordrelinjer.id in (" . implode(',', array_keys($sst967_kred_ids)) . ")", __FILE__ . " linje " . __LINE__);
