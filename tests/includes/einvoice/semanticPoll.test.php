@@ -156,7 +156,14 @@ final class semanticPoll extends TestCase
         $escape = function (string $value): string {
             return str_replace("'", "''", $value);
         };
-        $sql = einvoice_sendlog_find_open_sql(50, semantic_poll_cutoff(30, mktime(12, 0, 0, 11, 12, 2026)), $escape);
+        // 30 days of 86400 s cross the end of summer time in Europe/Copenhagen: pin the zone for a fixed expectation.
+        $zone = date_default_timezone_get();
+        date_default_timezone_set('UTC');
+        try {
+            $sql = einvoice_sendlog_find_open_sql(50, semantic_poll_cutoff(30, mktime(12, 0, 0, 11, 12, 2026)), $escape);
+        } finally {
+            date_default_timezone_set($zone);
+        }
         $this->assertStringContainsString("provider = 'semantic'", $sql);
         $this->assertStringContainsString("semantic_doc_id IS NOT NULL AND semantic_doc_id <> ''", $sql);
         $this->assertStringContainsString("created >= '2026-10-13 12:00:00'", $sql);
