@@ -1,5 +1,5 @@
 <?php
-
+//
 // -- lager/optalling.php ------------------- ver 5.1.1 -- 2026-11-12 --
 // LICENSE
 //
@@ -18,7 +18,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20120913 Der kan nu optaelles til 0
 // 20130109 Hele optællingen kan nu slettes - søg 20130109
 // 20131119 Tilføjet variantvarer i importfunktion. Søg variant_id
