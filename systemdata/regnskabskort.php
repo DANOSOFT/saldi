@@ -40,7 +40,7 @@
 //                  Warehouses are not per-year data - stock is keyed on grupper.kodenr
 //                  - so each copy only added a duplicate to every warehouse list.
 // 20261112 CL/MMR SST-1005 Gem/opdatér also updates the opening balances of the later years, and says so when a balance cannot be transferred.
-//                 The year before is carried forward again, so a fixed «Overfør til» clears the message on the fiscal year list.
+//                 The year before is carried forward again, so a fixed «Overfør til» clears the message; a blocked transfer leaves the later years alone.
 
 @session_start();
 $s_id=session_id();
@@ -286,21 +286,9 @@ if ($_POST) {
 
 		}
 		}
-		// SST-1005: as if Gem/opdatér was pressed on this year and every later year. Carrying the year before
-		// forward again also checks the «Overfør til» choices just saved, so a fixed transfer clears its message.
+		// SST-1005: as if Gem/opdatér was pressed on this year and every later year.
 		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
-		$openingStop = null;
-		$openingFrom = $kodenr - 1;
-		if (!updateFollowingOpeningBalances($openingFrom, $openingStop)) {
-			// Year 1, a year after a deleted year, or a blocked transfer: carry the balances saved here forward.
-			$laterStop = null;
-			updateFollowingOpeningBalances($kodenr, $laterStop);
-			if (!$openingStop) {
-				$openingStop = $laterStop;
-				$openingFrom = $kodenr;
-			}
-		}
-		saveFollowingOpeningBalanceStop($openingStop, $openingFrom);
+		$openingStop = updateOpeningBalancesAfterYearSave($kodenr);
 		transaktion("commit");
 		if ($openingStop) {
 			alert(addslashes(followingOpeningBalanceStopText($openingStop, $sprog_id)));

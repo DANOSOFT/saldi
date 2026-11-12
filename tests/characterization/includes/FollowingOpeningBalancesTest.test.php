@@ -2,6 +2,7 @@
 // 20261112 CL/MMR SST-1005 Pins how later fiscal years follow an earlier year: a zero balance needs no destination and a blocked transfer is reported.
 //                 Postings in an earlier year are carried forward once a session in a later year opens a page, and only then.
 //                 The SQL runs against PostgreSQL temporary tables only.
+//                 Gem/opdatér on the year card leaves the later years alone when the transfer into the saved year is blocked (Codex round 1).
 
 declare(strict_types=1);
 
@@ -17,7 +18,11 @@ final class FollowingOpeningBalancesTest extends TestCase
 
     protected function setUp(): void
     {
-        require_once __DIR__ . '/../support/database/TestDatabase.php';
+        $helper = __DIR__ . '/../support/database/TestDatabase.php';
+        if (!is_file($helper)) {
+            self::markTestSkipped('tests/characterization/support/database/TestDatabase.php is not in this tree');
+        }
+        require_once $helper;
         $reason = TestDatabase::unavailableReason();
         if ($reason !== null) {
             self::markTestSkipped($reason);
@@ -103,6 +108,14 @@ final class FollowingOpeningBalancesTest extends TestCase
     {
         $row = pg_fetch_assoc($this->sql("SELECT primo FROM kontoplan WHERE regnskabsaar = $year AND kontonr = $account"));
         return (float) $row['primo'];
+    }
+
+    /** primo and saldo of every account in a year, plus the year's genberegn summary in grupper box6-8. */
+    private function yearState(int $year): array
+    {
+        $accounts = pg_fetch_all($this->sql("SELECT kontonr, primo, saldo FROM kontoplan WHERE regnskabsaar = $year ORDER BY kontonr")) ?: [];
+        $summary = pg_fetch_assoc($this->sql("SELECT box6, box7, box8 FROM grupper WHERE art = 'RA' AND kodenr = $year"));
+        return ['accounts' => $accounts, 'summary' => $summary];
     }
 
     private function setting(string $name): ?string
@@ -267,6 +280,76 @@ final class FollowingOpeningBalancesTest extends TestCase
         // Year 9 now opens with year 8's closing balances: 2000 = 777 + 3 + 777 from 2100, 3000 = 777 + result 774.
         self::assertSame(1557.0, $this->primo(9, 2000));
         self::assertSame(1551.0, $this->primo(9, 3000));
+    }
+
+    public function testGemOpdaterLeavesTheLaterYearsAloneWhenTheTransferIntoTheSavedYearIsBlocked(): void
+    {
+        $this->postInYear9(2500, 7.5);
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 10 AND kontonr = 2500');
+        $this->sql('UPDATE kontoplan SET primo = 4444 WHERE regnskabsaar = 11 AND kontonr = 2000');
+        $year10 = $this->yearState(10);
+        $year11 = $this->yearState(11);
+        $expected = $this->stop(['accounts' => [2500]]);
+        self::assertSame($expected, updateOpeningBalancesAfterYearSave(10));
+        self::assertSame($year10, $this->yearState(10));
+        self::assertSame($year11, $this->yearState(11), 'Year 11 is not carried forward from a year whose own transfer is blocked.');
+        self::assertSame($expected, followingOpeningBalanceStop());
+    }
+
+    public function testGemOpdaterWithAMissingResultDestinationLeavesTheLaterYearsAlone(): void
+    {
+        $this->sql('UPDATE kontoplan SET overfor_til = 3999 WHERE regnskabsaar = 9 AND kontonr = 1999');
+        $year10 = $this->yearState(10);
+        $year11 = $this->yearState(11);
+        self::assertSame($this->stop(['resultAccount' => 1999, 'resultDestination' => 3999]), updateOpeningBalancesAfterYearSave(10));
+        self::assertSame($year10, $this->yearState(10));
+        self::assertSame($year11, $this->yearState(11));
+    }
+
+    public function testGemOpdaterOnTheFirstYearCarriesItsOwnBalancesForward(): void
+    {
+        // Year 8 has no year before it: its opening balances are typed in, so years 9-11 follow year 8.
+        self::assertNull(updateOpeningBalancesAfterYearSave(8));
+        self::assertSame(1554.0, $this->primo(9, 2000), '777 on 2000 plus 777 from 2100.');
+        self::assertSame(1554.0, $this->primo(9, 3000), '777 on 3000 plus the year 8 result 777.');
+        self::assertSame(1674.0, $this->primo(10, 2000));
+    }
+
+    public function testGemOpdaterAfterADeletedYearCarriesItsOwnBalancesForward(): void
+    {
+        $this->sql("UPDATE grupper SET box10 = 'on' WHERE art = 'RA' AND kodenr = 9");
+        $year10 = $this->yearState(10);
+        self::assertNull(updateOpeningBalancesAfterYearSave(10));
+        self::assertSame($year10['accounts'], $this->yearState(10)['accounts'], 'Year 10 keeps the balances saved on its card.');
+        self::assertSame(1604.0, $this->primo(11, 2000), '777 + 50 on 2000 plus 777 from 2100.');
+        self::assertSame(1504.0, $this->primo(11, 3000), '777 on 3000 plus the year 10 result 727.');
+    }
+
+    public function testGemOpdaterThatGetsPastABlockClearsTheMessage(): void
+    {
+        $this->postInYear9(2500, 7.5);
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 10 AND kontonr = 2500');
+        self::assertNotNull(syncFollowingOpeningBalances(9));
+        self::assertNotNull(followingOpeningBalanceStop());
+        $this->sql("INSERT INTO kontoplan (regnskabsaar, kontonr, kontotype) VALUES (10, 2500, 'S')");
+        self::assertNull(updateOpeningBalancesAfterYearSave(10));
+        self::assertNull(followingOpeningBalanceStop());
+        self::assertSame(7.5, $this->primo(10, 2500));
+        self::assertSame(1170.0, $this->primo(11, 2000));
+    }
+
+    public function testAFiscalYearWithInvalidDatesDoesNotBreakTheRequest(): void
+    {
+        $log = tempnam(sys_get_temp_dir(), 'sst1005');
+        ini_set('error_log', $log);
+        $this->sql("UPDATE grupper SET box1 = '' WHERE art = 'RA' AND kodenr = 9");
+        $year10 = $this->yearState(10);
+        self::assertNull(syncFollowingOpeningBalances(9));
+        self::assertNull(updateOpeningBalancesAfterYearSave(10));
+        self::assertSame($year10, $this->yearState(10));
+        self::assertSame(PGSQL_TRANSACTION_IDLE, pg_transaction_status($this->connection), 'The rebuild\'s own transaction is rolled back.');
+        self::assertStringContainsString('SST-1005: opening balances after fiscal year 9 not updated', (string) file_get_contents($log));
+        unlink($log);
     }
 
     public function testTheMessageNamesTheYearsAndAccounts(): void

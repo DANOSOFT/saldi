@@ -31,6 +31,7 @@
 // 20261112 CL/MMR  SST-1005: A zero balance no longer needs a destination account, and a stop reports which year and accounts block it.
 //                  Postings in an earlier year from any posting path reach the later years once a session in a later year opens a page (refreshFollowingOpeningBalances()).
 //                  syncFollowingOpeningBalances() runs the same rebuild in a transaction of its own, for «Sæt aktivt».
+//                  updateOpeningBalancesAfterYearSave() does it for Gem/opdatér on the year card and leaves the later years alone when the transfer into the saved year is blocked.
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -237,9 +238,43 @@ function syncFollowingOpeningBalances($fromYear) {
 	}
 	$stop = null;
 	transaktion('begin');
-	updateFollowingOpeningBalances($fromYear, $stop);
-	saveFollowingOpeningBalanceStop($stop, $fromYear);
+	try {
+		updateFollowingOpeningBalances($fromYear, $stop);
+		saveFollowingOpeningBalanceStop($stop, $fromYear);
+	} catch (Throwable $e) {
+		// A fiscal year with invalid dates must not break the page that triggered the rebuild.
+		transaktion('rollback');
+		error_log('SST-1005: opening balances after fiscal year ' . $fromYear . ' not updated: ' . $e->getMessage());
+		return null;
+	}
 	transaktion('commit');
+	return $stop;
+}
+
+/**
+ * Gem/opdatér on the year card (systemdata/regnskabskort.php): carry the year before into $year again, so the
+ * «Overfør til» choices just saved are checked, and on into every later year. Year 1 and a year after a deleted
+ * year have their own opening balances, so those are carried forward from $year itself. When the transfer into
+ * $year is blocked, the later years are left alone as well. The caller owns the transaction.
+ *
+ * @param int $year The fiscal year whose card was saved.
+ * @return array|null The transition that could not be written (see updateFollowingOpeningBalances()), or null.
+ */
+function updateOpeningBalancesAfterYearSave($year) {
+	$year = (int)$year;
+	$stop = null;
+	$fromYear = $year - 1;
+	try {
+		if (!updateFollowingOpeningBalances($fromYear, $stop) && !$stop) {
+			$fromYear = $year;
+			updateFollowingOpeningBalances($fromYear, $stop);
+		}
+	} catch (Throwable $e) {
+		// The year card itself is saved; only the carry-forward is skipped for a fiscal year with invalid dates.
+		error_log('SST-1005: opening balances after saving fiscal year ' . $year . ' not updated: ' . $e->getMessage());
+		return null;
+	}
+	saveFollowingOpeningBalanceStop($stop, $fromYear);
 	return $stop;
 }
 
