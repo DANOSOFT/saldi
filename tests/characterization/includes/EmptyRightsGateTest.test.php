@@ -317,6 +317,8 @@ final class EmptyRightsGateTest extends TestCase
             'the copy is bound to the admitted case customer after the kontonr lookup');
         self::assertStringContainsString("if (\$sag_workflow_case_id && \$tekst_sag_id !== (int) \$sag_workflow_case_id) {", $ordre,
             'and the case text uses the integer it checked');
+        self::assertStringContainsString("if (substr((string)\$rettigheder, (int)\$modulnr, 1) >= '1') {", $ordre,
+            'a user without the Ordre right skips the shared library insert');
         self::assertStringContainsString("select id from ordrelinjer where ordre_id = '\$id'", $ordre,
             'and a posted line id of another order is dropped');
         self::assertStringContainsString("\$linje_id[\$sst967_k] = (int) \$sst967_v;", $ordre,

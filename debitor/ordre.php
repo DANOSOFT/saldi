@@ -638,12 +638,12 @@ if (($tekst_sag_id = (int) if_isset($_GET, NULL, 'tekst_sag_id')) && ($id = (int
 }
 if ($ny_linjetekst = if_isset($_POST, NULL, 'ny_linjetekst')) {
 	$ny_linjetekst = db_escape_string($ny_linjetekst);
-	# SST-967 the text library is shared by the whole regnskab, so adding a row to it is not case work.
+	# SST-967 the text library is shared by the whole regnskab, so adding a row to it is not case work: a user
+	# without the Ordre right skips the library and still gets the text on the validated order's line below.
 	if (!$r = db_fetch_array(db_select("select id from ordretekster where tekst = '$ny_linjetekst'", __FILE__ . " linje " . __LINE__))) {
-		if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
-			sag_workflow_refuse();
+		if (substr((string)$rettigheder, (int)$modulnr, 1) >= '1') {
+			db_modify("insert into ordretekster (tekst) values ('$ny_linjetekst')", __FILE__ . " linje " . __LINE__);
 		}
-		db_modify("insert into ordretekster (tekst) values ('$ny_linjetekst')", __FILE__ . " linje " . __LINE__);
 	}
 	if ($id = (int) if_isset($_POST, NULL, 'id')) {
 		db_modify("insert into ordrelinjer (ordre_id,beskrivelse,posnr) values ('$id','$ny_linjetekst','9999')", __FILE__ . " linje " . __LINE__);
