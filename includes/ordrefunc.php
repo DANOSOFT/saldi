@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-11 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -165,6 +165,7 @@
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261110 CL/MJ SST-959 opret_ordrelinje(): a variant added without a price gets its own sales price, when it has one above 0, instead of the item's.
+// 20261112 CL/MJ SST-959 Not on an item with a quantity discount: m_rabat() only discounts lines at the item's price (CodeRabbit).
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -4159,11 +4160,6 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$enhed = db_escape_string($r['enhed']);
 		$folgevare = (int) $r['folgevare'];
 		$productPrice = $r['salgspris'];
-		// SST-959 A variant's own price, as the quick search shows it, takes the item's place. 0 is no price:
-		// the webshop sync creates variants with variant_salgspris 0 when the shop sends none.
-		if ($variant_id && $variantPrice > 0) {
-			$productPrice = $variantPrice;
-		}
 		$productCost = $r['kostpris'];
 		$campaignCost = $r['campaign_cost'];
 		$rabatgruppe = $r['rabatgruppe'];
@@ -4184,6 +4180,12 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$m_antal = trim($m_antal);
 		if (!is_numeric($m_antal))
 			$m_antal = 0;
+		// SST-959 A variant's own price, as the quick search shows it, takes the item's place. 0 is no price:
+		// the webshop sync creates variants with variant_salgspris 0 when the shop sends none. Not on an item
+		// with a quantity discount: m_rabat() only discounts lines at the item's price, so the line would lose it.
+		if ($variant_id && $variantPrice > 0 && !$m_antal) {
+			$productPrice = $variantPrice;
+		}
 		if (!$varegruppe) {
 			return ("Varenr $varenr er ikke tilknyttet en varegruppe!");
 		}

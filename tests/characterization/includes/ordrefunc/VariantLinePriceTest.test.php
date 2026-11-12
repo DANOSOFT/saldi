@@ -10,6 +10,7 @@
 //
 // History:
 // 20261110 CL/MJ SST-959 Created.
+// 20261112 CL/MJ SST-959 An item with a quantity discount keeps the item's price on a variant line (CodeRabbit).
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -78,5 +79,14 @@ final class VariantLinePriceTest extends CharacterizationTestCase
         );
 
         $this->assertEqualsWithDelta(700.00, (float)$this->addLine($item, $item['barcode'], null)['pris'], 0.001);
+    }
+
+    /** m_rabat() only discounts lines at the item's price, so the variant's price would cost the line its quantity discount. */
+    public function test_an_item_with_a_quantity_discount_keeps_the_items_price(): void
+    {
+        $item = $this->itemWithVariant(1234.50);
+        self::rows("UPDATE varer SET m_antal = '2', m_rabat = '50', m_type = 'amount' WHERE id = $1", [$item['id']]);
+
+        $this->assertEqualsWithDelta(885.00, (float)$this->addLine($item, $item['barcode'], null)['pris'], 0.001);
     }
 }
