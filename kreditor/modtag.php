@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/modtag.php --- ver 5.1.0 --- 2026.10.28 ---
+// --- kreditor/modtag.php --- ver 5.1.1 --- 2026.11.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,8 @@
 //                Also removed the dead second branch of the four warehouse lookups below.
 // 20261022 CL/MJ SST-876 The receipt marks its lines and tells the webshops once, after the goods are committed, rather than syncing inside the line loop.
 // 20261028 CDX/MJ SST-876 Preserve receipt price and SKU adapter calls alongside batched stock updates.
+// 20261112 CL/MMR SST-1010 The stock log line is cut to the 10 characters stocklog.username holds (a longer user name stopped the receipt),
+//                  and is only written when the confirmStockChange setting is on, as on the item card.
 
 @session_start();
 $s_id=session_id();
@@ -279,7 +281,7 @@ if ($fejl==0) {
 			}
 			db_modify("update ordrelinjer set leveres=0 where id = $linje_id[$x]",__FILE__ . " linje " . __LINE__);
 			$qtxt="select id,var_value from settings where var_name = 'confirmStockChange' and var_grp = 'items'";
-			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			if (($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) && $r['var_value']) {
 				$qtxt="select ordrenr from ordrer where id = '$id'";
 				($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$ordreNr=$r['ordrenr']:$ordreNr=NULL;
 				$qtxt = "select ansatte.navn,ansatte.initialer from ansatte,brugere where brugere.id = '$bruger_id' ";
@@ -289,7 +291,7 @@ if ($fejl==0) {
 				} else {
 					$initials = '';
 				}
-				$userName = db_escape_string($brugernavn,0,25);
+				$userName = db_escape_string(mb_substr($brugernavn, 0, 10)); // stocklog.username is varchar(10)
 				$qtxt = "insert into stocklog (item_id,username,initials,correction,reason,logtime) values ";
 				$qtxt.= "('$vare_id[$x]','$userName','$initials','$leveres[$x]','indkøbsordre $ordreNr','".date('U')."')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
