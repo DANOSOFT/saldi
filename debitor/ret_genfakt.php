@@ -45,6 +45,7 @@
 // 20261110 CL/SZ SST-927 An empty Genfakt. field no longer saves today's date; it keeps the stored date, and '-' clears it as on the order card.
 //                The message now names every order whose Genfakt. is not after the invoice date, and those fields are marked in red.
 //                The alert text is JSON-encoded, so a name with an apostrophe or a multi-line message no longer breaks it.
+// 20261112 CL/SZ SST-927 The fallback text of the message is written with HTML entities, so it shows correctly whatever the company charset.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -258,7 +259,7 @@ if ($_GET['ordreliste']) {
 			if ($nextfakt && $nextfakt<=$fakturadate) {
 				$r=db_fetch_array(db_select("select ordrenr from ordrer where id = '$ordreId'",__FILE__ . " linje " . __LINE__));
 				$ugyldigGenfakt[$ordreId]=trim(($r ? $r['ordrenr'] : '')." $ordreNavn");
-				$fejltekst=findtekst('debtor.recurring.next_invoice_not_after_invoice_date|Genfaktureringsdato skal være efter fakturadato. Ret Genfakt. på de markerede ordrer:',$sprog_id);
+				$fejltekst=findtekst('debtor.recurring.next_invoice_not_after_invoice_date|Genfaktureringsdato skal v&aelig;re efter fakturadato. Ret Genfakt. p&aring; de markerede ordrer:',$sprog_id);
 				$fejltekst.="\n".implode("\n",$ugyldigGenfakt);
 			}
 			if (!$fejltekst && strstr($udskriv_til[$x],'PBS')) {
