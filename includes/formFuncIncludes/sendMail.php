@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20260603 CL/PHR Bilagsvedhæftning opdateret: tjekker nu documents-tabellen
 //                  (source=debitorOrdrer) før fallback til gammelt bilag-system
