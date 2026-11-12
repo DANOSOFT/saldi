@@ -368,7 +368,17 @@ function shopify_bulk_start_mutation(array $shop, string $mutation, string $stag
 	return shopify_bulk_begin($shop, 'MUTATION', $mutation, 'bulkOperationRunMutation', SHOPIFY_BULK_RUN_MUTATION, ['mutation' => $mutation, 'path' => $stagedPath], $opts);
 }
 
-/** The start of either bulk kind: $type is QUERY or MUTATION, $document what Shopify lists as the operation's query. */
+/**
+ * The start of either bulk kind, as shopify_bulk_start() describes.
+ *
+ * @param string $type QUERY or MUTATION, the type Shopify lists the operation under.
+ * @param string $document What Shopify lists as the operation's query: the inner query, or the mutation.
+ * @param string $root The start mutation's root field (bulkOperationRunQuery or bulkOperationRunMutation).
+ * @param string $start The start mutation's document.
+ * @param array<string, mixed> $vars The start mutation's variables.
+ * @param array $opts As shopify_graphql(); retry_mode and reconcile are set here.
+ * @return array As shopify_bulk_start().
+ */
 function shopify_bulk_begin(array $shop, string $type, string $document, string $root, string $start, array $vars, array $opts): array
 {
 	$clock = $opts['clock'] ?? fn() => microtime(true);

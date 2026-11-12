@@ -65,6 +65,7 @@
 //                The reconcile defers a pair while Shopify has stock committed there.
 //                A set that can't be published no longer keeps the baseline from stamping (Å32, Lui).
 // 20261112 CL/SZ SD-822: stock.activate stocks every linked item at its locations in bulk before go-live, after setting the pairs to 0.
+//                It and the baseline refuse to start while the other is queued or running.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -1219,6 +1220,10 @@ function shopify_stock_reconcile_compare(array $shop, array $levels, array &$cp,
 function shopify_stock_start_baseline(array $rt, int $shopId): int {
 	$shop = shopify_db_rows('SELECT * FROM shopify_shops WHERE id = $1', array($shopId))[0] ?? null;
 	$problem = $shop === null ? "shop $shopId is unknown" : shopify_stock_baseline_problem($shop);
+	if ($problem === null && shopify_stock_job_active($shopId, 'stock.activate', "{$shop['shop_key']}:activate")) {
+		// its zeroing would undo what the baseline acknowledges
+		$problem = "shop {$shop['shop_key']} has a stock activation queued or running; wait for it";
+	}
 	if ($problem !== null) {
 		throw new ShopifyConfigError("no stock baseline: $problem");
 	}
@@ -1472,7 +1477,7 @@ function shopify_stock_remap_finish(array $shop, int $lager, string|false|null $
 	});
 }
 
-/** Why stock.activate can't run for the shop, null when it can. After the baseline the push stocks a pair itself. */
+/** Why stock.activate can't run for the shop, null when it can. After the baseline the push stocks a pair itself; during one the two would undo each other. */
 function shopify_stock_activate_problem(?array $shop): ?string {
 	if ($shop === null) {
 		return 'the shop is unknown';
@@ -1480,7 +1485,26 @@ function shopify_stock_activate_problem(?array $shop): ?string {
 	if ($shop['stock_baseline_at'] !== null) {
 		return "shop {$shop['shop_key']} has a stock baseline from {$shop['stock_baseline_at']}; the push stocks new pairs itself";
 	}
+	if (shopify_stock_job_active((int)$shop['id'], 'stock.baseline', null)) {
+		// the baseline acknowledges the pairs it stocks, and the zeroing would set them back to 0
+		return "shop {$shop['shop_key']} has a stock baseline queued or running";
+	}
 	return null;
+}
+
+/** True when the shop has a job of $type queued or running (with $dedupeKey when given). */
+function shopify_stock_job_active(int $shopId, string $type, ?string $dedupeKey): bool {
+	return shopify_db_rows(
+		"SELECT 1 FROM shopify_jobs WHERE shop_id = $1 AND type = $2 AND state IN ('queued', 'running') AND ($3::text IS NULL OR dedupe_key = $3) LIMIT 1",
+		array($shopId, $type, $dedupeKey)
+	) !== array();
+}
+
+/** Removes a job file if it is there. */
+function shopify_stock_unlink(string $file): void {
+	if (is_file($file)) {
+		unlink($file);
+	}
 }
 
 /**
@@ -1555,12 +1579,17 @@ function shopify_stock_activate_all(array $rt, array $job, float $deadline): arr
 			// out of time: the next run plans again from the same file
 			return array('outcome' => 'yield', 'checkpoint' => $cp);
 		}
-		@unlink($file);
+		shopify_stock_unlink($file);
 		$absent = $plan['absent'] > 0 ? " {$plan['absent']} linked items are not in Shopify's read and were left out." : '';
 		if (!empty($job['payload']['dry_run']) || $plan['pairs'] === 0) {
-			@unlink($vars);
-			$what = $plan['pairs'] === 0 ? 'Every linked item is stocked at all its locations.' : "Dry run: {$plan['pairs']} pairs at {$plan['items']} items are not stocked yet.";
-			shopify_error_open($shopId, 'stock', 'activate', $what . $absent, 'info');
+			shopify_stock_unlink($vars);
+			if (!empty($job['payload']['dry_run'])) {
+				$what = "Dry run: {$plan['pairs']} pairs at {$plan['items']} items are not stocked yet.";
+			} else {
+				$what = $plan['absent'] > 0 ? 'Every linked item in Shopify\'s read is stocked at all its locations.' : 'Every linked item is stocked at all its locations.';
+			}
+			// an item Shopify's read hasn't is not stocked: the baseline would stock it inline or miss it
+			shopify_error_open($shopId, 'stock', 'activate', $what . $absent, $plan['absent'] > 0 ? 'warning' : 'info');
 			return array('outcome' => 'done', 'pairs' => $plan['pairs']);
 		}
 		// the pairs it stocks start at 0, so their acknowledgements from before the read go; one written since saw the pair stocked
@@ -1620,7 +1649,7 @@ function shopify_stock_activate_finish(array $shop, array $cp, string $vars, arr
 	if ($refused['items'] > 0) {
 		$message .= " Shopify refused {$refused['items']} items (see their warnings); the baseline won't stamp until they are fixed.";
 	}
-	shopify_error_open((int)$shop['id'], 'stock', 'activate', $message, $refused['items'] > 0 ? 'warning' : 'info');
+	shopify_error_open((int)$shop['id'], 'stock', 'activate', $message, $refused['items'] > 0 || $cp['absent'] > 0 ? 'warning' : 'info');
 	return array('outcome' => 'done', 'pairs' => $stocked, 'refused' => $refused['items']);
 }
 
@@ -1739,7 +1768,8 @@ function shopify_stock_activate_zero(array $rt, array $shop, string $vars, array
 				$cp['skip'][] = $at;
 				$gid = json_decode($lines[$at], true)['inventoryItemId'];
 				$vareId = shopify_stock_activate_items($shop, array($gid))[$gid] ?? 0;
-				shopify_error_open((int)$shop['id'], 'stock', "item:$vareId", "Shopify refused setting item $vareId to 0 before stocking it, so it isn't stocked: " . (string)$error['message'], 'warning');
+				$ref = $vareId > 0 ? "item $vareId" : $gid;
+				shopify_error_open((int)$shop['id'], 'stock', $vareId > 0 ? "item:$vareId" : "item:$gid", "Shopify refused setting $ref to 0 before stocking it, so it isn't stocked: " . (string)$error['message'], 'warning');
 			}
 		}
 		if ($res['user_errors'] === array()) {
@@ -1788,7 +1818,7 @@ function shopify_stock_activate_start(array $rt, array $shop, string $vars, stri
 
 /**
  * Reads the bulk mutation's result: a line per line of the uploaded file (__lineNumber, from 0). An item with
- * userErrors or errors gets a warning; one that shows a quantity other than 0 where it was just
+ * userErrors or errors, or with no line, gets a warning and counts as refused; one that shows a quantity other than 0 where it was just
  * stocked gets one too, as nothing should be on sale before the baseline.
  *
  * @return array{items: int, pairs: int} what Shopify refused
@@ -1802,13 +1832,16 @@ function shopify_stock_activate_result(array $shop, string $upload, string $resu
 	$sent = array_map(fn(string $l): array => json_decode($l, true), $lines);
 	$items = shopify_stock_activate_items($shop, array_column($sent, 'inventoryItemId'));
 	$refused = array('items' => 0, 'pairs' => 0);
+	$answered = array();
 	foreach ($out as $l) {
 		$row = json_decode($l, true);
 		$line = $sent[(int)($row['__lineNumber'] ?? -1)] ?? null;
 		if ($line === null) {
 			throw new RuntimeException('the stock activation result has a line the file has not');
 		}
+		$answered[(int)$row['__lineNumber']] = true;
 		$gid = $line['inventoryItemId'];
+		$ref = isset($items[$gid]) ? "item {$items[$gid]}" : $gid;
 		$vareId = $items[$gid] ?? 0;
 		$payload = $row['data']['inventoryBulkToggleActivation'] ?? null;
 		$errors = array_merge($row['errors'] ?? array(), $payload['userErrors'] ?? array());
@@ -1816,7 +1849,7 @@ function shopify_stock_activate_result(array $shop, string $upload, string $resu
 			$refused['items']++;
 			$refused['pairs'] += count($line['inventoryItemUpdates']);
 			$why = implode('; ', array_map(fn(array $e): string => trim(($e['code'] ?? '') . ' ' . (string)($e['message'] ?? '')), $errors)) ?: 'no answer';
-			shopify_error_open((int)$shop['id'], 'stock', "item:$vareId", "Shopify refused to stock item $vareId at its locations: $why", 'warning');
+			shopify_error_open((int)$shop['id'], 'stock', $vareId > 0 ? "item:$vareId" : "item:$gid", "Shopify refused to stock $ref at its locations: $why", 'warning');
 			continue;
 		}
 		if (($payload['inventoryItem']['id'] ?? null) !== $gid) {
@@ -1826,8 +1859,18 @@ function shopify_stock_activate_result(array $shop, string $upload, string $resu
 		foreach ($payload['inventoryLevels'] ?? array() as $level) {
 			$available = array_column($level['quantities'] ?? array(), 'quantity', 'name')['available'] ?? 0;
 			if (isset($new[$level['location']['id']]) && (int)$available !== 0) {
-				shopify_error_open((int)$shop['id'], 'stock', "item:$vareId", "Item $vareId shows $available at {$level['location']['id']} just after it was stocked there; the baseline sets Saldi's quantity", 'warning');
+				shopify_error_open((int)$shop['id'], 'stock', $vareId > 0 ? "item:$vareId" : "item:$gid", ucfirst($ref) . " shows $available at {$level['location']['id']} just after it was stocked there; the baseline sets Saldi's quantity", 'warning');
 			}
+		}
+	}
+	foreach ($sent as $n => $line) {
+		if (!isset($answered[$n])) {
+			// no answer for the line: it counts as refused, and the next run looks again
+			$refused['items']++;
+			$refused['pairs'] += count($line['inventoryItemUpdates']);
+			$gid = $line['inventoryItemId'];
+			$vareId = $items[$gid] ?? 0;
+			shopify_error_open((int)$shop['id'], 'stock', $vareId > 0 ? "item:$vareId" : "item:$gid", 'The stock activation has no answer for ' . ($vareId > 0 ? "item $vareId" : $gid) . '; run activate again', 'warning');
 		}
 	}
 	return $refused;
@@ -1848,11 +1891,11 @@ function shopify_stock_activate_items(array $shop, array $gids): array {
 /** Removes the job's files. */
 function shopify_stock_activate_cleanup(array $shop, array $cp): void {
 	if (isset($cp['read'])) {
-		@unlink(shopify_stock_reconcile_file($shop, $cp['read'], 'activate_read'));
-		@unlink(shopify_stock_reconcile_file($shop, $cp['read'], 'activate'));
-		@unlink(shopify_stock_reconcile_file($shop, $cp['read'], 'activate_upload'));
+		shopify_stock_unlink(shopify_stock_reconcile_file($shop, $cp['read'], 'activate_read'));
+		shopify_stock_unlink(shopify_stock_reconcile_file($shop, $cp['read'], 'activate'));
+		shopify_stock_unlink(shopify_stock_reconcile_file($shop, $cp['read'], 'activate_upload'));
 	}
 	if (isset($cp['op'])) {
-		@unlink(shopify_stock_reconcile_file($shop, $cp['op'], 'activate_result'));
+		shopify_stock_unlink(shopify_stock_reconcile_file($shop, $cp['op'], 'activate_result'));
 	}
 }

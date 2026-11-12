@@ -54,13 +54,16 @@
 // 20261105 CL/SZ SD-757: the stock.display, stock.reconcile and stock.baseline handlers; commands baseline, reconcile and remap.
 // 20261106 CL/MJ SD-790 review: set-app's messages end in \n like the other commands' do.
 // 20261108 CL/SS SD-803: the customer.export handler (a Saldi debtor becomes a Shopify customer).
-// 20261112 CL/SZ SD-822: the stock.activate handler and the command activate; a bare --flag reads as --flag=1.
+// 20261112 CL/SZ SD-822: the stock.activate handler and the command activate; --dry-run alone reads as --dry-run=1.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
 	print 'CLI only';
 	exit;
 }
+
+/** Options that may be given alone (--dry-run means --dry-run=1); every other one needs =value. */
+const SHOPIFY_WORKER_SWITCHES = array('--dry-run');
 
 /** @return array<string, callable(array<string, string>): int> */
 function shopify_worker_commands(): array {
@@ -520,8 +523,11 @@ function shopify_worker_parse(array $argv): array {
 	$command = $argv[1] ?? '';
 	$opts = array();
 	foreach (array_slice($argv, 2) as $arg) {
-		if (preg_match('/^--([a-z-]+)(?:=(.*))?$/', $arg, $m)) {
-			$opts[$m[1]] = $m[2] ?? '1';
+		if (preg_match('/^--([a-z-]+)=(.*)$/', $arg, $m)) {
+			$opts[$m[1]] = $m[2];
+		} elseif (in_array($arg, SHOPIFY_WORKER_SWITCHES, true)) {
+			// a switch alone means on; any other option without a value is dropped, so the command asks for it
+			$opts[substr($arg, 2)] = '1';
 		}
 	}
 	return array($command, $opts);

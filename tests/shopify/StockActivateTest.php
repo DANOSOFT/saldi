@@ -381,6 +381,48 @@ final class StockActivateTest extends TestCase
         $this->assertStringContainsString('has a stock baseline', $after['stderr']);
     }
 
+    public function test_another_option_without_a_value_still_asks_for_it(): void
+    {
+        $remap = $this->runTool(['remap', '--db=' . self::$db, '--shop=hml', '--lager']);
+
+        $this->assertSame(2, $remap['exit'], 'a bare --lager is not lager 1');
+        $this->assertStringContainsString('usage:', $remap['stderr']);
+    }
+
+    public function test_activate_and_the_baseline_refuse_each_other_while_one_is_queued(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $this->shop([$a]);
+        $this->steps(['unstock', 'hml', $a, 2]);
+
+        $this->steps(['start_activate', 'hml', false]);
+        $baseline = $this->steps(['start_baseline', 'hml']);
+        $this->assertSame('ShopifyConfigError', $baseline['results'][0]['exception'] ?? null, 'no baseline while an activation is queued');
+        $this->assertStringContainsString('activation queued or running', $baseline['results'][0]['message']);
+        $this->steps(['start_activate', 'hml', true]);
+        $this->sql("DELETE FROM shopify_jobs WHERE type = 'stock.activate' AND dedupe_key = 'hml:activate'");
+        $this->assertSame('integer', gettype($this->steps(['start_baseline', 'hml'])['results'][0]), 'a dry run does not hold the baseline back');
+
+        $activate = $this->steps(['start_activate', 'hml', false]);
+        $this->assertSame('ShopifyConfigError', $activate['results'][0]['exception'] ?? null, 'no activation while a baseline is queued');
+        $read = $this->steps(['activate', 'hml', null]);
+        $this->assertSame('done', $read['results'][0]['outcome'], 'a job already queued stops at its next pass');
+        $this->assertStringContainsString('has a stock baseline queued or running', $this->report()['message']);
+        $this->assertSame([], array_intersect(self::operations($read['calls']), ['bulkOperationRunQuery', 'stockSet']));
+    }
+
+    public function test_an_item_shopify_s_read_lacks_makes_the_report_a_warning(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $b = $this->item('B', [1 => 2]);
+        $this->shop([$a, $b]);
+        $this->sql("UPDATE shopify_product_links SET inventory_item_gid = 'gid://shopify/InventoryItem/999999' WHERE vare_id = $1", [$b]);
+
+        $this->activate();
+
+        $this->assertSame(['severity' => 'warning', 'message' => "Every linked item in Shopify's read is stocked at all its locations. 1 linked items are not in Shopify's read and were left out."], $this->report());
+    }
+
     /** @return array{exit: int, stdout: string, stderr: string} */
     private function runTool(array $args): array
     {
