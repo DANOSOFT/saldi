@@ -1,10 +1,4 @@
 <?php
-
-declare(strict_types=1);
-
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
-
 // tests/characterization/debitor/SetItemLinePositionTest.test.php
 //
 // SST-1002: with Brug samlet pris on, ordrelinjer() in debitor/ordre.php gave no position number to a line whose
@@ -14,6 +8,13 @@ use PHPUnit\Framework\TestCase;
 //
 // History:
 // 20261111 CL/MJ SST-1002 Created.
+// 20261112 CL/MJ SST-1002 The header goes directly below the opening tag (CodeRabbit).
+
+declare(strict_types=1);
+
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
+
 final class SetItemLinePositionTest extends TestCase
 {
     private const ORDRE = __DIR__ . '/../../../debitor/ordre.php';
