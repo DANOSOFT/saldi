@@ -6,6 +6,7 @@
 //                 Invalid dates stop before anything is written, and a failed rebuild is rolled back and stays visible until Gem/opdatér (Codex round 2).
 //                 CodeRabbit on PR #1109: JSON-encoded alert, reversed ranges, «Sæt aktivt» on year 1 / after a deleted year, the ten-minute fingerprint, and the card keeping a blocked year's opening balances.
 //                 A late commit during the very first check is found by the next fingerprint, proven with two real connections (Codex round 5).
+//                 Overlapping first checks keep the first baseline, and a first check that cannot get the lock waits for the next page (Codex round 6).
 
 declare(strict_types=1);
 
@@ -64,6 +65,12 @@ final class FollowingOpeningBalancesTest extends TestCase
                 $result = pg_query($GLOBALS['connection'], $sql);
                 if ($result === false) {
                     throw new RuntimeException(pg_last_error($GLOBALS['connection']) . " in $sql");
+                }
+                // Lets a test run another check right after a check has read the state, before it goes on.
+                if (isset($GLOBALS['sst1005AfterStateSelect']) && strpos($sql, 'as state') !== false) {
+                    $hook = $GLOBALS['sst1005AfterStateSelect'];
+                    unset($GLOBALS['sst1005AfterStateSelect']);
+                    $hook();
                 }
                 return $result;
             }
@@ -521,21 +528,40 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertSame(1120.0, $this->primo(10, 2000));
     }
 
+    /**
+     * Two real connections need real tables: copy the fixture into a private schema of the same throwaway
+     * database, point this connection at it and return a second connection that sees the same tables.
+     */
+    private function privateSchema(string $schema)
+    {
+        $this->sql("CREATE SCHEMA $schema");
+        foreach (['grupper', 'kontoplan', 'transaktioner', 'settings'] as $table) {
+            $this->sql("CREATE TABLE $schema.$table (LIKE pg_temp.$table INCLUDING DEFAULTS)");
+            $this->sql("INSERT INTO $schema.$table SELECT * FROM pg_temp.$table");
+            // The copied id default points at this session's temporary sequence; both connections need their own.
+            $this->sql("CREATE SEQUENCE $schema.{$table}_id_seq");
+            $this->sql("SELECT setval('$schema.{$table}_id_seq', (SELECT coalesce(max(id), 0) + 1 FROM $schema.$table), false)");
+            $this->sql("ALTER TABLE $schema.$table ALTER COLUMN id SET DEFAULT nextval('$schema.{$table}_id_seq')");
+        }
+        $this->sql("SET search_path TO $schema, pg_temp");
+        $other = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
+        pg_query($other, "SET search_path TO $schema");
+        return $other;
+    }
+
+    private function dropPrivateSchema(string $schema): void
+    {
+        $this->sql('SET search_path TO pg_temp');
+        $this->sql("DROP SCHEMA IF EXISTS $schema CASCADE");
+    }
+
     public function testALateCommitDuringTheFirstCheckIsFoundByTheNextFingerprint(): void
     {
-        // Two real connections need real tables: a private schema in the same throwaway database, dropped at the end.
         $schema = 'sst1005_first_check_' . getmypid();
-        $this->sql("CREATE SCHEMA $schema");
+        $other = $this->privateSchema($schema);
         try {
-            foreach (['grupper', 'kontoplan', 'transaktioner', 'settings'] as $table) {
-                $this->sql("CREATE TABLE $schema.$table (LIKE pg_temp.$table INCLUDING DEFAULTS)");
-                $this->sql("INSERT INTO $schema.$table SELECT * FROM pg_temp.$table");
-            }
-            $this->sql("SET search_path TO $schema, pg_temp");
             updateFollowingOpeningBalances(9);
             self::assertSame(1120.0, $this->primo(10, 2000));
-            $other = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
-            pg_query($other, "SET search_path TO $schema");
             $maxId = (int) pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
 
             // Connection B posts in year 9 with the lower ids and holds its transaction open.
@@ -546,7 +572,6 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertNull(checkFollowingOpeningBalances(11));
             self::assertSame(($maxId + 4) . '|0', $this->syncState(), 'The watermark passes the uncommitted ids.');
             pg_query($other, 'COMMIT');
-            pg_close($other);
 
             self::assertNull(checkFollowingOpeningBalances(11));
             self::assertSame(1120.0, $this->primo(10, 2000), 'Nothing new above the watermark, and the fingerprint is not due yet.');
@@ -558,8 +583,56 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertSame(1125.0, $this->primo(10, 2000));
             self::assertSame(($maxId + 4) . '|0', $this->syncState(), 'Found once: nothing is waiting afterwards.');
         } finally {
-            $this->sql('SET search_path TO pg_temp');
-            $this->sql("DROP SCHEMA $schema CASCADE");
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testOverlappingFirstChecksKeepTheFirstBaseline(): void
+    {
+        $schema = 'sst1005_overlap_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            updateFollowingOpeningBalances(9);
+            self::assertSame(1120.0, $this->primo(10, 2000));
+            $mine = $GLOBALS['connection'];
+            // Check B (this connection) has read "no state yet"; before it goes on, check A starts following on the
+            // other connection, and an ordinary year 9 posting commits after A has returned.
+            $GLOBALS['sst1005AfterStateSelect'] = function () use ($mine, $other): void {
+                $GLOBALS['connection'] = $other;
+                self::assertNull(checkFollowingOpeningBalances(11));
+                self::assertSame(1120.0, $this->primo(10, 2000));
+                pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2024-03-01', 5, 0), (1000, '2024-03-01', 0, 5)");
+                $GLOBALS['connection'] = $mine;
+            };
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertArrayNotHasKey('sst1005AfterStateSelect', $GLOBALS, 'The overlap really happened.');
+            self::assertSame(1125.0, $this->primo(10, 2000), 'B continued from A\'s state, found the posting and rebuilt.');
+            for ($scan = 1; $scan <= 2; $scan++) {
+                $this->setSyncState((int) explode('|', $this->syncState())[0], 0, time() - 601);
+                self::assertNull(checkFollowingOpeningBalances(11));
+                self::assertSame(1125.0, $this->primo(10, 2000), "Due scan $scan.");
+            }
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalanceSync'"))['n']);
+        } finally {
+            unset($GLOBALS['sst1005AfterStateSelect']);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testAFirstCheckThatCannotGetTheLockLeavesItToTheNextPage(): void
+    {
+        $other = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
+        try {
+            pg_query($other, "SELECT pg_advisory_lock(hashtext('openingBalanceSync'), 1005)");
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertNull($this->setting('openingBalanceSync'), 'No state while another check is starting.');
+            pg_query($other, "SELECT pg_advisory_unlock(hashtext('openingBalanceSync'), 1005)");
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertNotNull($this->setting('openingBalanceSync'));
+        } finally {
+            pg_close($other);
         }
     }
 

@@ -37,6 +37,7 @@
 //                  «Sæt aktivt» carries year 1 and a year after a deleted year forward, a reversed date range is invalid, and the alert text is JSON-encoded.
 //                  When the transfer into a saved year is blocked, the year card keeps that year's opening balances as they were.
 //                  The first fingerprint is taken before the first watermark and both are stored together in one JSON row, so nothing committed in between is lost (Codex round 5).
+//                  The first state is created under a lock and never replaces a state another check stored meanwhile (Codex round 6).
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -195,20 +196,11 @@ function checkFollowingOpeningBalances($activeYear) {
 	}
 	$state = ($r['state'] === null || $r['state'] === '') ? null : followingOpeningBalanceStateParts($r['state']);
 	if ($state === null || $state['fingerprint'] === null) {
-		// The first fingerprint is taken before the watermark is read: a posting that commits in between is
-		// then missing from the baseline, and the next fingerprint finds it, even though its id is below the watermark.
-		$fingerprint = followingOpeningBalanceFingerprint();
-		$row = db_fetch_array(db_select("select max(id) as max_id from transaktioner", __FILE__ . ' line ' . __LINE__));
-		$maxId = (int)$row['max_id'];
-		if ($state === null) {
-			// First check: follow postings from now on. Earlier years are brought up to date by «Sæt aktivt».
-			saveFollowingOpeningBalanceState(array('lastId' => $maxId, 'pendingYear' => 0, 'fingerprintAt' => time(), 'fingerprint' => $fingerprint));
+		$initial = followingOpeningBalanceInitialize();
+		if ($initial === null) {
 			return null;
 		}
-		// A state from before the fingerprint keeps its watermark and waiting year, and gets its first fingerprint now.
-		$state['fingerprint'] = $fingerprint;
-		$state['fingerprintAt'] = time();
-		$changed = true;
+		list($state, $maxId, $changed) = $initial;
 	} else {
 		$maxId = (int)$r['max_id'];
 		$changed = false;
@@ -235,6 +227,65 @@ function checkFollowingOpeningBalances($activeYear) {
 		return null;
 	}
 	return syncFollowingOpeningBalances($state['pendingYear']);
+}
+
+/**
+ * Start following postings, one check at a time. Under a lock the state is read again: a state that another check
+ * stored meanwhile is used as it is and never replaced, so postings that committed after that check started
+ * following are compared against its baseline. Otherwise the fingerprint is taken first and the watermark (max id)
+ * read after it: a posting that commits in between is missing from the baseline, so the next fingerprint finds it
+ * even though its id is below the watermark. Both are stored together. Postings before that are history, which
+ * «Sæt aktivt» brings up to date.
+ *
+ * @return array|null array{0: array, 1: int, 2: bool}: the state to continue from (see
+ *   followingOpeningBalanceStateParts()), max(id) read now and whether the state still has to be saved; or null when
+ *   this check stored the very first state, or another check is starting right now (the next page continues).
+ */
+function followingOpeningBalanceInitialize() {
+	if (!followingOpeningBalanceInitLock(true)) {
+		return null;
+	}
+	try {
+		$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalanceSync' order by id limit 1", __FILE__ . ' line ' . __LINE__));
+		$state = ($r && $r['var_value'] !== null && $r['var_value'] !== '') ? followingOpeningBalanceStateParts($r['var_value']) : null;
+		if ($state === null || $state['fingerprint'] === null) {
+			$fingerprint = followingOpeningBalanceFingerprint();
+		}
+		$row = db_fetch_array(db_select("select max(id) as max_id from transaktioner", __FILE__ . ' line ' . __LINE__));
+		$maxId = (int)$row['max_id'];
+		if ($state === null) {
+			saveFollowingOpeningBalanceState(array('lastId' => $maxId, 'pendingYear' => 0, 'fingerprintAt' => time(), 'fingerprint' => $fingerprint));
+			return null;
+		}
+		if ($state['fingerprint'] === null) {
+			// A state from before the fingerprint keeps its watermark and waiting year, and gets its first fingerprint now.
+			$state['fingerprint'] = $fingerprint;
+			$state['fingerprintAt'] = time();
+			saveFollowingOpeningBalanceState($state);
+		}
+		return array($state, $maxId, false);
+	} finally {
+		followingOpeningBalanceInitLock(false);
+	}
+}
+
+/**
+ * Take, without waiting, or release the lock under which a tenant's first state is created.
+ *
+ * @param bool $take True to take it, false to release it.
+ * @return bool True when the lock was taken or released.
+ */
+function followingOpeningBalanceInitLock($take) {
+	global $db_type;
+	if ($db_type == 'mysql' || $db_type == 'mysqli') {
+		// GET_LOCK names are server-wide, so the database is part of the name.
+		$name = "CONCAT('saldi:openingBalanceSync:', MD5(DATABASE()))";
+		$qtxt = $take ? "SELECT GET_LOCK($name, 0) AS locked" : "SELECT RELEASE_LOCK($name) AS locked";
+	} else {
+		$qtxt = $take ? "SELECT pg_try_advisory_lock(hashtext('openingBalanceSync'), 1005) AS locked" : "SELECT pg_advisory_unlock(hashtext('openingBalanceSync'), 1005) AS locked";
+	}
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
+	return $r && in_array((string)$r['locked'], array('1', 't', 'true'), true);
 }
 
 /**
