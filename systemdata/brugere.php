@@ -29,7 +29,8 @@
 // 20260219 PHR Added employeeInitials
 // 20260908 CL/NTR Reject usernames over 80 characters (is_input_too_long) on create/update, matching login.php
 // 20260924 LOE SD-657 Losing the Indstillinger right switches the turnover setting on for that user.
-// 20261112 CL/MMR SST-1011 The delete-user button only submits when the confirm dialog is accepted (Cancel deleted the user).
+// 20261112 CL/MMR SST-1011 The delete-user button only submits when the confirm dialog is accepted, since Cancel deleted the user.
+//                  The user name in the dialog is JSON-encoded, so quotes and line breaks cannot break it.
 
 @session_start();
 $s_id=session_id();
@@ -397,8 +398,9 @@ if ($ret_id) {
 	}
 	print "<td colspan='12' align = 'center'>";
 	print "<input style='width:100px;background-color:44ff44;' type=submit value=\"".findtekst('1091|Opdater', $sprog_id)."\" name=\"updateUser\">&nbsp;";
-	$confirmUserName = htmlspecialchars(addslashes($userName), ENT_QUOTES); // an apostrophe in the name must not break the confirm
-	print "<input style='width:100px;background-color:ff4444;' type=submit value=\"".findtekst('1099|Slet', $sprog_id)."\" name=\"deleteUser\" onclick=\"return confirm('Slet $confirmUserName?')\"></td>";
+	// The question is a JSON string (quotes, apostrophes, backslashes and line breaks encoded), HTML-escaped for the attribute.
+	$confirmDelete = htmlspecialchars(json_encode("Slet $userName?", JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), ENT_QUOTES);
+	print "<input style='width:100px;background-color:ff4444;' type=submit value=\"".findtekst('1099|Slet', $sprog_id)."\" name=\"deleteUser\" onclick=\"return confirm($confirmDelete)\"></td>";
 } else {
 	$tmp="navn".rand(100,999);				#For at undgaa at browseren "husker" et forkert brugernavn.
 	print "<input type=hidden name=random value = $tmp>";
