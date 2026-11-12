@@ -72,7 +72,7 @@
 // 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
 //                 Their blocks include std_func.php through __DIR__.
 // 20261112 CL/MMR SST-1005 Call refreshFollowingOpeningBalances(), so postings in an earlier fiscal year reach the later years' opening balances.
-
+//
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
 if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
