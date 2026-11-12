@@ -24,9 +24,9 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261112 CL/MMR SST-1012 Created: the delete check and the delete action of the account card (systemdata/kontokort.php).
-//                  The year check includes the first and last day of the fiscal year.
-//                  A missing or invalid fiscal year refuses the delete, since the absence of postings cannot be proven.
-//                  An account that belongs to another fiscal year than the selected one is refused as well.
+//                 The year check includes the first and last day of the fiscal year.
+//                 A missing or invalid fiscal year refuses the delete, since the absence of postings cannot be proven.
+//                 An account that belongs to another fiscal year than the selected one is refused as well.
 
 if (!function_exists('fiscalYearBounds')) {
 	/**

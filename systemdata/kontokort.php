@@ -36,8 +36,8 @@
 // 20250619 PHR - Somebody broke the code by omitting || in several if statements
 // 20260206	PHR	- discal_year
 // 20261112 CL/MMR SST-1012 An account with postings on the first or last day of the year can no longer be deleted.
-//                  The delete action is checked again on the server and lives in chartOfAccountIncludes/accountDelete.php.
-//                  An account of another fiscal year than the selected one cannot be deleted from an old link or form.
+//                 The delete action is checked again on the server and lives in chartOfAccountIncludes/accountDelete.php.
+//                 An account of another fiscal year than the selected one cannot be deleted from an old link or form.
 
 @session_start();
 $s_id = session_id();
@@ -306,13 +306,15 @@ if ($id > 0) {
 		$saldo = $r['saldo'] * 1;
 		$valutakode = $r['valuta'];
 		$valutakurs = $r['valutakurs'];
-		if (!$valutakurs)
+		if (!$valutakurs) {
 			$valutakurs = 100;
+		}
 		if ($valutakode) {
 			$r = db_fetch_array(db_select("select box1 from grupper where art='VK' and kodenr = '$valutakode'", __FILE__ . " linje " . __LINE__));
 			$valuta = $r['box1'];
-		} else
+		} else {
 			$valuta = 'DKK';
+		}
 		$qtxt = "select id from kontoplan where kontonr < '$kontonr' and regnskabsaar = '$regnaar' order by kontonr desc limit 1";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$previousPage = $r['id'] * 1;
