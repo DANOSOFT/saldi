@@ -49,8 +49,7 @@
 // 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
 // 20261001 CDX/PHR Show each warehouse number once, preferring its current-year name, and reuse the list during item lookup.
 // 20261001 CDX/PHR Initialize empty product and variant lookups so unmatched import rows do not crash on PHP 8.
-// 20261112 CL/MMR SST-1014 An item with variants opened by link (?varenr=, e.g. «Ikke-optalte varer») is refused as in the form;
-//                  recounting it removed the other variants' lagerstatus rows.
+// 20261112 CL/MMR SST-1014 An item with variants is refused however it is opened (form, link, padded number or barcode) through countItemLookup() in optallingIncludes/countItem.php, because recounting it removed the other variants' lagerstatus rows.
 
 @session_start();
 $s_id = session_id();
@@ -66,6 +65,7 @@ $lagernr = array();
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/topline_settings.php");
+require_once __DIR__ . '/optallingIncludes/countItem.php';
 
 $title = findtekst('1956|Lageroptælling', $sprog_id);
 
@@ -145,14 +145,6 @@ if ($slet && $vare_id && $varenr) {
 
 
 
-}
-if ($varenr && !$slet) { # 20261112 the 20230224 variant check also for an item opened by link
-	$qtxt = "select variant_varer.id from varer,variant_varer where lower(varer.varenr) = '" . db_escape_string(strtolower($varenr)) . "' ";
-	$qtxt.= "and variant_varer.vare_id=varer.id limit 1";
-	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		alert("varenr: $varenr indeholder varianter og kan kun reguleres på varekort eller gennem csv fil");
-		$varenr = NULL;
-	}
 }
 if (!$dato)
 	$dato = if_isset($_POST['dato']);
@@ -286,14 +278,21 @@ if (!$lager) {
 }
 */
 
+// 20261112 the 20230224 variant check on the item the recount below uses, however it was entered or linked
+$varenr = trim((string)$varenr);
+$countItem = countItemLookup($varenr);
+if ($countItem && countItemHasVariants($countItem['id'])) {
+	alert("varenr: $countItem[varenr] indeholder varianter og kan kun reguleres på varekort eller gennem csv fil");
+	$varenr = '';
+	$countItem = false;
+}
+
 print "<form name=\"optalling\" action=\"optalling.php?gentael=$gentael&lager=$lager\" method=\"post\">\n";
-if ($varenr = trim($varenr)) {
+if ($varenr) {
 	$fokus = "optalt";
 
 	print "<tr><td>" . findtekst('917|Varenr.', $sprog_id) . "</td><td><!-- " . findtekst('608|Lager', $sprog_id) . " --></td><td>" . findtekst('914|Beskrivelse', $sprog_id) . "</td><td align=\"left\">" . findtekst('980|Beholdning', $sprog_id) . " ($dato)</td><td align=\"right\">" . findtekst('2243|Ny beholdning', $sprog_id) . "</td></tr>\n";
-	if (!$r = db_fetch_array(db_select("select * from varer where varenr='$varenr' or stregkode='$varenr'", __FILE__ . " linje " . __LINE__))) {
-		$r = db_fetch_array(db_select("select * from varer where lower(varenr)='" . strtolower($varenr) . "' or lower(stregkode)='" . strtolower($varenr) . "' or upper(varenr)='" . strtoupper($varenr) . "' or upper(stregkode)='" . strtoupper($varenr) . "'", __FILE__ . " linje " . __LINE__));
-	}
+	$r = $countItem;
 	if ($r['id']) { # 20140717 + 20161031
 		# 20140625 ->
 		db_modify("update batch_kob set lager='0' where lager is NULL", __FILE__ . " linje " . __LINE__);
