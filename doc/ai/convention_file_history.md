@@ -43,5 +43,5 @@ Continuation lines start with `//` followed by spaces padding out to the column 
 
 1. Run `whoami`. If the login name is a plausible 2-4 letter token, use it (uppercased) as the initials.
 2. Otherwise look at the current working directory's folder name. If it is 2-4 letters, use it (uppercased) as the initials.
-3. Only if neither step produced a candidate, ask the user directly what initials they want recorded in history for this project.
+3. Only if neither step produced a candidate, ask the user directly what initials (2-4 letters) they want recorded in history for this project.
 4. Save the resulting initials to local memory (not to a repo file) so future sessions in this working copy don't need to ask again.
