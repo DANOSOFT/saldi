@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.0 ----2026-10-30------------
+// --- systemdata/diverse.php -----ver 5.1.1 ----2026-11-12------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -118,6 +118,8 @@
 // 20261029 CL/MMR SD-786 Save "Vis besked når kostprisen er anslået" (showCostEstimateNotice) under Ordrerelaterede valg.
 //                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast), and its alerts are shown after the save, escaped with jsString().
 // 20261030 CL/MMR SD-786 CodeRabbit (PR #959): the alerts from the ordre_valg save are shown in one alert (orderOptionsAlert()), so none is lost.
+// 20261112 CL/MMR SD-815 New sektion einvoice_valg (E-faktura): the regnskab's e-invoice provider, EasyUBL or Semantic (diverseIncludes/einvoiceProvider.php).
+//                 The menu link and the page are shown only when the server enables the choice; the save runs before page output and redirects back.
 
 @session_start();
 $s_id = session_id();
@@ -143,6 +145,8 @@ include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 include_once(__DIR__ . '/diverseIncludes/webshopInvoiceOrderDate.php');
 save_webshop_invoice_order_date((string)ifset($_SERVER, 'REQUEST_METHOD', ''), (string)ifset($_GET, 'sektion', ''), $_POST); #SST-911
+include_once(__DIR__ . '/diverseIncludes/einvoiceProvider.php');
+einvoiceProviderHandlePost((string)ifset($_SERVER, 'REQUEST_METHOD', ''), (string)ifset($_GET, 'sektion', ''), $_POST, $rettigheder ?? null, (string)($db ?? '')); #SD-815
 
 $defaultProvision = $sqlstreng = NULL;
 if (!isset($_SESSION['UserName']) && isset($brugernavn)) {
@@ -2091,6 +2095,12 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			   Stripe abonnement</button></a></td></tr>\n";
 
+		if (einvoice_provider_choice_visible()) { #SD-815
+			print "<tr><td align=left><a href=diverse.php?sektion=einvoice_valg>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				   .htmlspecialchars(findtekst('einvoice.settings.title|E-faktura', $sprog_id), ENT_QUOTES, 'UTF-8')."</button></a></td></tr>\n";
+		}
+
 		print "<tr><td align=left><a href=diverse.php?sektion=labels>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('791|Mærkater', $sprog_id)."</button></a></td></tr>\n";
@@ -2168,6 +2178,9 @@ if ($menu != 'T') {
 		// print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=stripe_valg>Stripe abonnement</a></td></tr>\n";
+		if (einvoice_provider_choice_visible()) { #SD-815
+			print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=einvoice_valg>".htmlspecialchars(findtekst('einvoice.settings.title|E-faktura', $sprog_id), ENT_QUOTES, 'UTF-8')."</a></td></tr>\n";
+		}
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst('791|Mærkater', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst('792|Prislister', $sprog_id)."</a><!--tekst 427--></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</a></td></tr>\n";
@@ -2210,6 +2223,9 @@ if ($sektion == "api_valg") api_valg();
 if ($sektion == "stripe_valg") {
 	include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
 	stripeValg();
+}
+if ($sektion == "einvoice_valg") { #SD-815
+	einvoiceProviderPage($sprog_id, (string)$csrf_token, (string)($db ?? ''));
 }
 if ($sektion == "labels") labels($valg);
 if ($sektion == "pricelists") {

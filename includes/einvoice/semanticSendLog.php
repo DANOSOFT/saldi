@@ -27,6 +27,7 @@
 //                 Texts are written so PostgreSQL's ' like ' to ' ilike ' rewrite in db_modify() cannot change them.
 // 20261112 CL/MMR SD-815 The receiver's answer to a sent document (Peppol ApplicationResponse) is kept in four receiver_* columns: einvoice_sendlog_receiver() reads them for the order page.
 //                 einvoice_sendlog_find_by_fakturanr() lists the rows an answer may belong to.
+// 20261112 CL/MMR SD-815 MySQL: characters outside the Basic Multilingual Plane (emoji) become U+FFFD, since the connection is utf8 (3 bytes) and strict mode refuses them.
 //
 /*
  * Table einvoice_sendlog (created by includes/betweenUpdates.php, and by includes/opretfunc.php for a new regnskab):
@@ -164,6 +165,7 @@ if (!function_exists('einvoice_sendlog_sql_value')) {
 	 * On PostgreSQL db_modify() and db_select() turn every ' like ' in the statement into ' ilike ', also inside a
 	 * string, so an error text such as "looks like" would be stored changed. There the literal is split at ' like '
 	 * and joined again with ||, which the replacement does not see.
+	 * On MySQL a character outside the Basic Multilingual Plane becomes U+FFFD (the connection is utf8, 3 bytes).
 	 *
 	 * @param mixed                          $value
 	 * @param array{type: string, max: int}  $column From einvoice_sendlog_columns().
@@ -188,6 +190,10 @@ if (!function_exists('einvoice_sendlog_sql_value')) {
 			} else {
 				$value = substr($value, 0, $column['max']);
 			}
+		}
+		if (einvoice_sendlog_is_mysql($dbType) && preg_match('//u', $value)) {
+			// db_connect() sets NAMES 'utf8' (3 bytes per character), so MySQL in strict mode refuses a 4-byte character.
+			$value = (string)preg_replace('/[\x{10000}-\x{10FFFF}]/u', "\u{FFFD}", $value);
 		}
 		$literal = "'" . call_user_func($escape, $value) . "'";
 		if (!einvoice_sendlog_is_mysql($dbType) && strpos($literal, ' like ') !== false) {

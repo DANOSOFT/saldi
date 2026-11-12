@@ -41,6 +41,7 @@
 // 20261110 CDX/NTR Release 5.1.1: create tekst_key and its lookup index for new tenants.
 // 20261109 CL/MMR SD-815 (draft) A new regnskab gets the table einvoice_sendlog (e-documents sent through Semantic), as includes/betweenUpdates.php creates it on existing accounts.
 // 20261112 CL/MMR SD-815 A new regnskab also gets einvoice_incoming and the receiver_* columns of einvoice_sendlog, as includes/betweenUpdates.php adds them.
+// 20261112 CL/MMR SD-815 (draft) On MySQL einvoice_sendlog is utf8mb4, as in includes/betweenUpdates.php.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -645,6 +646,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "status_text TEXT, xml " . (($db_type == "mysql" || $db_type == "mysqli") ? "LONGTEXT" : "TEXT") . ", xml_sha256 CHAR(64), db_name VARCHAR(64), ";
 	$qtxt.= "created TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated TIMESTAMP NULL, created_by VARCHAR(80), ";
 	$qtxt.= "receiver_status VARCHAR(10) NULL, receiver_status_text TEXT NULL, receiver_status_date TIMESTAMP NULL, receiver_response_id VARCHAR(40) NULL, PRIMARY KEY (id))";
+	$qtxt.= ($db_type == "mysql" || $db_type == "mysqli") ? " DEFAULT CHARSET=utf8mb4" : "";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	db_modify("CREATE INDEX einvoice_sendlog_order_idx ON einvoice_sendlog (ordre_id, art)", __FILE__ . " linje " . __LINE__);
 	db_modify("CREATE INDEX einvoice_sendlog_semantic_idx ON einvoice_sendlog (semantic_doc_id)", __FILE__ . " linje " . __LINE__);

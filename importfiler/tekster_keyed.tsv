@@ -48,6 +48,25 @@ einvoice.receiver.pd	Betalt af modtager	Paid by the recipient	Betalt av mottaker
 einvoice.receiver.re	Afvist af modtager	Rejected by the recipient	Avvist av mottaker
 einvoice.receiver.uq	Spørgsmål fra modtager	Query from the recipient	Spørsmål fra mottaker
 einvoice.send.confirm_register	Første gang du sender en e-faktura, bliver virksomheden registreret til e-faktura. Vil du fortsætte?	The first time you send an e-invoice, the company is registered for e-invoicing. Do you want to continue?	Første gang du sender en e-faktura, blir virksomheten registrert for e-faktura. Vil du fortsette?
+einvoice.settings.back_warning	Regnskabet er tilmeldt hos Semantic. Vælges EasyUBL, tilmelder EasyUBL regnskabet ved næste afsendelse. Kontakt saldi.dk support, før der skiftes.	This account is registered with Semantic. If EasyUBL is chosen, EasyUBL registers the account at the next send. Contact saldi.dk support before switching.	Regnskapet er registrert hos Semantic. Velges EasyUBL, registrerer EasyUBL regnskapet ved neste sending. Kontakt saldi.dk support før det byttes.
+einvoice.settings.confirm_semantic	Send e-fakturaer gennem Semantic? Regnskabet må ikke allerede være tilmeldt e-faktura hos EasyUBL.	Send e-invoices through Semantic? The account must not already be registered for e-invoicing with EasyUBL.	Sende e-fakturaer gjennom Semantic? Regnskapet må ikke allerede være registrert for e-faktura hos EasyUBL.
+einvoice.settings.invalid	Ugyldigt valg. Indstillingen er ikke gemt.	Invalid choice. The setting was not saved.	Ugyldig valg. Innstillingen er ikke lagret.
+einvoice.settings.no	Nej	No	Nei
+einvoice.settings.no_rights	Du har ikke rettighed til at ændre indstillingen.	You do not have permission to change this setting.	Du har ikke rettighet til å endre innstillingen.
+einvoice.settings.provider	Send e-fakturaer gennem	Send e-invoices through	Send e-fakturaer gjennom
+einvoice.settings.provider_easyubl	EasyUBL (standard)	EasyUBL (default)	EasyUBL (standard)
+einvoice.settings.provider_semantic	Semantic (Peppol direkte)	Semantic (Peppol direct)	Semantic (Peppol direkte)
+einvoice.settings.refused_copy	Dette regnskab er en kopi af et andet regnskab. Semantic kan ikke vælges i en kopi.	This account is a copy of another account. Semantic cannot be chosen in a copy.	Dette regnskapet er en kopi av et annet regnskap. Semantic kan ikke velges i en kopi.
+einvoice.settings.refused_db_unknown	E-faktura-tilmeldingen mangler oplysning om, hvilket regnskab den hører til. Kontakt saldi.dk support.	The e-invoice registration does not say which account it belongs to. Contact saldi.dk support.	E-faktura-registreringen mangler opplysning om hvilket regnskap den hører til. Kontakt saldi.dk support.
+einvoice.settings.refused_registered_elsewhere	Regnskabet er tilmeldt e-faktura hos EasyUBL. Semantic kan ikke vælges, før saldi.dk support har flyttet tilmeldingen.	This account is registered for e-invoicing with EasyUBL. Semantic cannot be chosen until saldi.dk support has moved the registration.	Regnskapet er registrert for e-faktura hos EasyUBL. Semantic kan ikke velges før saldi.dk support har flyttet registreringen.
+einvoice.settings.saved	Indstillingen er gemt.	The setting was saved.	Innstillingen er lagret.
+einvoice.settings.session_expired	Sessionen er udløbet. Indstillingen er ikke gemt. Prøv igen.	The session has expired. The setting was not saved. Please try again.	Økten er utløpt. Innstillingen er ikke lagret. Prøv igjen.
+einvoice.settings.state_easyubl	Tilmeldt hos EasyUBL	Registered with EasyUBL	Registrert hos EasyUBL
+einvoice.settings.state_semantic	Tilmeldt hos Semantic	Registered with Semantic	Registrert hos Semantic
+einvoice.settings.title	E-faktura	E-invoicing	E-faktura
+einvoice.settings.unchanged	Indstillingen er uændret.	The setting is unchanged.	Innstillingen er uendret.
+einvoice.settings.warning	Vælg kun Semantic, hvis regnskabet ikke allerede er tilmeldt e-faktura hos EasyUBL. Et regnskab, der er tilmeldt hos den ene udbyder, kan ikke sende gennem den anden, før saldi.dk support har flyttet tilmeldingen.	Only choose Semantic if the account is not already registered for e-invoicing with EasyUBL. An account registered with one provider cannot send through the other until saldi.dk support has moved the registration.	Velg bare Semantic hvis regnskapet ikke allerede er registrert for e-faktura hos EasyUBL. Et regnskap som er registrert hos den ene leverandøren, kan ikke sende gjennom den andre før saldi.dk support har flyttet registreringen.
+einvoice.settings.yes	Ja	Yes	Ja
 einvoice.status.approved	Godkendt af modtager	Approved by the receiver	Godkjent av mottaker
 einvoice.status.confirmed	Bekræftet af modtager	Confirmed by the receiver	Bekreftet av mottaker
 einvoice.status.delivered	Leveret	Delivered	Levert

@@ -333,9 +333,48 @@ are read from one source only, never mixed.
   then get the new URL. Keep query strings of that URL out of shared logs.
 - A test or development server must point at Semantic's dev tenant, never at
   production, so a restored customer backup can never act as the customer.
-- Statuses that the webhook missed are fetched with
-  `php tools/semanticStatusPoll.php --all` (for example from cron every 15
-  minutes).
+- Statuses that the webhook missed are fetched by `tools/semanticStatusPoll.php`
+  from cron (see below).
+- The choice of provider per regnskab (Indstillinger > Diverse > E-faktura)
+  is hidden until the server is launched for it: set
+  `SALDI_SEMANTIC_PROVIDER_CHOICE=1` in the web server environment as well as
+  the connection above. Without it the provider is set by support (settings
+  `provider`/`einvoice`). Only users with the Indstillinger right can change
+  it, and Semantic can not be chosen while the regnskab is registered at
+  EasyUBL.
+
+### Status poll from cron
+
+The poll asks Semantic about documents whose status the webhook did not
+bring, for every regnskab on the installation. Run it as the web user (or an
+account in the Saldi group, step 2 above), every 10 minutes:
+
+```
+*/10 * * * * cd /var/www/html/saldi && /usr/bin/php tools/semanticStatusPoll.php --all
+```
+
+Replace `/var/www/html/saldi` with the installation's directory; one line per
+installation. Cron does not see the web server environment: give the job the
+`SALDI_SEMANTIC_*` values through the key file above (`../../.ht_keys.txt`
+seen from a page, i.e. the directory above the installation), or through an
+environment file only that account can read, e.g.
+`set -a; . /etc/saldi/semantic.env; set +a; /usr/bin/php tools/semanticStatusPoll.php --all`.
+Never write the values into the crontab line itself.
+
+- Only regnskaber registered at Semantic are asked about, and only send-log
+  rows with an open status created within the last 30 days
+  (`--max-age-days=`), at most 50 per regnskab (`--limit=`). A copy of a
+  regnskab (a restored backup) is skipped.
+- A run stops after 240 seconds (`--budget=`) or 500 rows (`--max-rows=`);
+  the next run starts with the regnskab after the last one finished, so every
+  regnskab gets its turn. The lock `temp/.ht_semanticStatusPoll.lock` keeps two
+  runs from overlapping; the rotation is kept in
+  `temp/.ht_semanticStatusPoll.state`.
+- It prints nothing unless something fails, so cron mails only errors
+  (`--verbose` prints a summary). Exit codes: 0 done, 1 usage or
+  configuration (e.g. Semantic not configured, temp not writable), 2 some rows
+  or regnskaber failed, 3 another run still holds the lock.
+- `--db=<database>` (repeatable) instead of `--all` polls named regnskaber.
 
 With Docker Compose these are passed through from `.env` (see
 `docker-compose.yml` and `.env.example`).
