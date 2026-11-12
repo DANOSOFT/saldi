@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
  *
  * History:
  * 20261112 CL/MMR Created (SST-1012).
+ * 20261112 CL/MMR A missing or invalid fiscal year refuses the delete (Codex round 2).
  */
 #[RunTestsInSeparateProcesses]
 final class AccountDeleteTest extends TestCase
@@ -22,9 +23,9 @@ final class AccountDeleteTest extends TestCase
 	/**
 	 * @param array<int, int>               $accounts kontoplan id => kontonr
 	 * @param array<int, list<string>>      $postings kontonr => transdates (Y-m-d)
-	 * @param array{0:int,1:int,2:int,3:int} $year     start month, start year, end month, end year
+	 * @param array{0:int,1:int,2:int,3:int}|null $year start month, start year, end month, end year; null = no RA row
 	 */
-	private static function boot(array $accounts, array $postings, array $year = [1, 2026, 12, 2026]): void
+	private static function boot(array $accounts, array $postings, ?array $year = [1, 2026, 12, 2026]): void
 	{
 		$GLOBALS['__accounts'] = $accounts;
 		$GLOBALS['__postings'] = $postings;
@@ -33,6 +34,7 @@ final class AccountDeleteTest extends TestCase
 		eval('
 			function db_select($q, $where = "") {
 				if (strpos($q, "art=\'RA\'") !== false) {
+					if ($GLOBALS["__year"] === null) return (object) ["rows" => []];
 					[$sm, $sy, $em, $ey] = $GLOBALS["__year"];
 					return (object) ["rows" => [["box1" => $sm, "box2" => $sy, "box3" => $em, "box4" => $ey]]];
 				}
@@ -94,7 +96,7 @@ final class AccountDeleteTest extends TestCase
 	{
 		self::boot([10 => 9001, 11 => 9002], [9001 => ['2026-01-01']]);
 		$result = deleteAccountAction(10, 9001, 1);
-		self::assertSame(['deleted' => false, 'refusedKontonr' => 9001, 'nextId' => 10], $result);
+		self::assertSame(['deleted' => false, 'refusedKontonr' => 9001, 'refusedReason' => 'postings', 'nextId' => 10], $result);
 		self::assertSame([], $GLOBALS['__modify'], 'nothing written');
 	}
 
@@ -102,7 +104,7 @@ final class AccountDeleteTest extends TestCase
 	{
 		self::boot([10 => 9001, 11 => 9002], []);
 		$result = deleteAccountAction(10, 9001, 1);
-		self::assertSame(['deleted' => true, 'refusedKontonr' => 0, 'nextId' => 11], $result);
+		self::assertSame(['deleted' => true, 'refusedKontonr' => 0, 'refusedReason' => '', 'nextId' => 11], $result);
 		self::assertSame(['delete from kontoplan where id = 10'], $GLOBALS['__modify']);
 	}
 
@@ -110,7 +112,7 @@ final class AccountDeleteTest extends TestCase
 	{
 		self::boot([12 => 9003], []);
 		$result = deleteAccountAction(12, 9003, 1);
-		self::assertSame(['deleted' => true, 'refusedKontonr' => 0, 'nextId' => 0], $result);
+		self::assertSame(['deleted' => true, 'refusedKontonr' => 0, 'refusedReason' => '', 'nextId' => 0], $result);
 	}
 
 	public function testTheCheckUsesTheStoredAccountNumberNotThePostedOne(): void
@@ -119,5 +121,39 @@ final class AccountDeleteTest extends TestCase
 		$result = deleteAccountAction(10, 9002, 1);
 		self::assertFalse($result['deleted'], 'a hand-made form with another number cannot delete an account with postings');
 		self::assertSame(9001, $result['refusedKontonr']);
+	}
+
+	public function testAMissingFiscalYearRefusesTheDelete(): void
+	{
+		self::boot([10 => 9001, 11 => 9002], [9001 => ['2026-01-01']], null);
+		self::assertNull(accountHasPostingsInYear(9001, 1), 'unknown, not "no postings"');
+		$result = deleteAccountAction(10, 9001, 1);
+		self::assertSame(['deleted' => false, 'refusedKontonr' => 9001, 'refusedReason' => 'year', 'nextId' => 10], $result);
+		self::assertSame([], $GLOBALS['__modify'], 'nothing written');
+	}
+
+	public function testAnInvalidFiscalYearRefusesTheDelete(): void
+	{
+		self::boot([10 => 9001], [], [13, 2026, 0, 2026]);
+		self::assertNull(accountHasPostingsInYear(9001, 1));
+		$result = deleteAccountAction(10, 9001, 1);
+		self::assertFalse($result['deleted']);
+		self::assertSame('year', $result['refusedReason']);
+		self::assertSame([], $GLOBALS['__modify']);
+	}
+
+	public function testAFiscalYearEndingBeforeItStartsRefusesTheDelete(): void
+	{
+		self::boot([10 => 9001], [], [7, 2026, 6, 2026]);
+		self::assertNull(accountHasPostingsInYear(9001, 1));
+		self::assertSame('year', deleteAccountAction(10, 9001, 1)['refusedReason']);
+	}
+
+	public function testAnUnknownAccountIdDeletesNothing(): void
+	{
+		self::boot([11 => 9002], []);
+		$result = deleteAccountAction(99, 9001, 1);
+		self::assertSame(['deleted' => false, 'refusedKontonr' => 0, 'refusedReason' => '', 'nextId' => 11], $result);
+		self::assertSame([], $GLOBALS['__modify']);
 	}
 }

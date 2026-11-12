@@ -325,7 +325,7 @@ if ($id > 0) {
 		print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=kontoplan.php\">";
 		exit;
 	}
-	$slet = accountHasPostingsInYear($kontonr, $regnaar) ? 0 : 1;
+	$slet = (accountHasPostingsInYear($kontonr, $regnaar) === false) ? 1 : 0; // unknown fiscal year: no Slet
 
 }
 /*
@@ -343,8 +343,10 @@ elseif ($kontotype == 'X')
 	$kontotype = 'Sideskift';
 */
 
-if ($deleteResult && $deleteResult['refusedKontonr']) {
+if ($deleteResult && $deleteResult['refusedReason'] == 'postings') {
 	print "<BODY onLoad=\"javascript:alert('Konto $deleteResult[refusedKontonr] har posteringer i regnskabsåret og kan ikke slettes')\">";
+} elseif ($deleteResult && $deleteResult['refusedReason'] == 'year') {
+	print "<BODY onLoad=\"javascript:alert('Regnskabsåret er ikke sat korrekt op, så konto $deleteResult[refusedKontonr] kan ikke slettes')\">";
 }
 
 if ($menu == 'T') {
