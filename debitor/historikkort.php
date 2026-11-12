@@ -1,5 +1,5 @@
 <?php
-// --- debitor/historikkort.php --- ver 5.1.0 --- 2026-11-10 ---
+// --- debitor/historikkort.php --- ver 5.1.0 --- 2026-11-12 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,11 +27,7 @@
 // 20251121 LOE - Modified icons to SVG format and buttons to fit the new design
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20261101 CL/SZ MB-129 Saving a note no longer fails when a contact has an apostrophe in the name: the posted names are escaped before the lookup.
-// 20261110 LOE SST-967 The history opens on the craft right for a customer the company has a case for.
-// 20261110 LOE SST-967 The history page reads every id it takes from the request as a number.
-// 20261110 LOE SST-967 The history update and the delete are scoped to the customer the request proved.
-// 20261110 LOE SST-967 The row id updateOprettet() writes with is read as a number.
-// 20261110 LOE SST-967 The row the history form is filled from is scoped to the customer as well.
+// 20261112 LOE SST-967 The history opens on the craft right for a customer with a case, and every id and row it uses is read as a number and scoped to that customer.
 
 @session_start();
 $s_id = session_id();

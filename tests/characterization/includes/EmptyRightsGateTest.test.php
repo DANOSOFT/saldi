@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 
-// 20261109 LOE SST-967 Pins the rights gate that a user with an empty rights string used to skip.
+// 20261112 LOE SST-967 Pins the gate, the sag workflow, the order and history bindings and the refusal.
 //
 //                  includes/online.php refuses a page when the user's character at the page's $modulnr
 //                  position is below '1'. The first term of that condition used to be ($rettigheder), so
@@ -14,9 +14,6 @@ use PHPUnit\Framework\TestCase;
 //                  read out of the source, the way ReadonlyMenuTest does for MB-62.
 //
 // History:
-// 20261109 LOE SST-967 created.
-// 20261110 LOE SST-967 The gate is one computation, the Mit Salg session and the sag workflow are pinned.
-// 20261110 LOE SST-967 The order page is pinned to the case, and the way back, the export and the pin are pinned. Every order selector in a request is checked against the case. The history page reads its ids as numbers, and the gate pins its save and delete to the proved customer. A valid id= no longer lets another id= through on the POST. A history row named on the POST is checked, and the copy and the line ids are bound to the admitted case. The credit reference is bound to the case, and every position assertion proves its guard exists first. The history form row and the price-list handler are scoped as well. The posted line and credit ids are stored as integers, and the copy binding is proven to be conditioned.
 
 final class EmptyRightsGateTest extends TestCase
 {

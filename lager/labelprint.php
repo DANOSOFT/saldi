@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/labelprint.php----------------ver 5.1.0---2026-11-10 ---
+// ----------/lager/labelprint.php----------------ver 5.1.0---2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,7 +39,7 @@
 //                 'minpris', so a layout using only $minbeskrivelse also counts as mit salg.
 // 20260914 CL/NTR Added single=1: asks newlabel.php for one label cell instead of the template's
 //                 rows x cols grid. Carried through the layout chooser and Brother qty forms.
-// 20261110 LOE SST-967 The Mit Salg session this page prints for keeps its own module gate lifted.
+// 20261112 LOE SST-967 The Mit Salg session this page prints for keeps its own module gate lifted.
 
 @session_start();
 $s_id=session_id();

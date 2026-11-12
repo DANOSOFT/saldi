@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-10---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-12---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,12 +71,7 @@
 //                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
 // 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
 //                 Their blocks include std_func.php through __DIR__.
-// 20261109 LOE SST-967 An empty rights string no longer counts as access, and the refusal keeps a way back.
-// 20261110 LOE SST-967 The Mit Salg session keeps working, and a sag workflow page runs on the craft right.
-// 20261110 LOE SST-967 The gate runs before the user settings, and an order decides its own case. A request that names another case's order, as ordre_id or as kundeordnr, drops the exception.
-// 20261110 LOE SST-967 The history save and delete paths are pinned to the customer the request proved.
-// 20261110 LOE SST-967 Every order the request names must be of the case, whichever selector carries it.
-// 20261110 LOE SST-967 A history row named on the GET or on the POST must be a row of the proved customer.
+// 20261112 LOE SST-967 An empty rights string is no rights; the sag workflow and the Mit Salg label page are the exceptions, and every order or history row a request names is bound to what the gate proved.
 //              The label page's Mit Salg proof is that the account has no brugere row.
 
 #include("../includes/connect.php"); #20211001

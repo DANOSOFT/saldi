@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-10 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -182,13 +182,7 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
-// 20261110 LOE SST-967 An offer for a case opens on the craft right, with the customer taken from the case. The order is taken from id or ordre_id, on the GET or on the POST.
-// 20261110 LOE SST-967 The delivery-address and mail handlers refuse an order outside the case.
-// 20261110 LOE SST-967 A copy is bound to the admitted case, and a posted line id of another order is dropped.
-// 20261110 LOE SST-967 A posted credit-line reference must be a line of the admitted case.
-// 20261110 LOE SST-967 The price-list handler refuses a user without the Ordre right.
-// 20261110 LOE SST-967 The posted line and credit ids are stored as the integers they were checked as.
-// 20261110 LOE SST-967 Creating a customer, deleting a library text and the case text need the module right or the admitted case.
+// 20261112 LOE SST-967 An offer or order for a case runs on the craft right, and the page binds the order, the line ids, the credit reference, the copy and the handlers that are not case work to what the gate proved.
 
 @session_start();
 $s_id = session_id();
