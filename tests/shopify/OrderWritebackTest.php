@@ -9,11 +9,13 @@
 // 20261022 CL/MJ SD-759: created.
 // 20261109 CL/MJ SD-759: the stages run against FakeShopifyStore; order.move counts only once it is recorded.
 // 20261112 CL/MJ SD-759 (review): a recorded note op is not appended again; two split sets of one bundle keep apart.
+// 20261112 CL/MJ SD-759 (CodeRabbit): the invoice link's token stays out of the logged request.
 
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/FakeShopifyStore.php';
 require_once dirname(__DIR__, 2) . '/includes/shopify/services/orderWriteback.php';
+require_once dirname(__DIR__, 2) . '/includes/shopify/logging.php';
 
 final class OrderWritebackTest extends TestCase
 {
@@ -155,6 +157,24 @@ final class OrderWritebackTest extends TestCase
         $this->assertSame(['done', 'done'], [$result['status'], $result['checkpoint']]);
         $this->assertSame(['metafieldsSet'], $this->roots());
         $this->assertSame(['saldi.ordre_nr' => '4711', 'saldi.faktura_nr' => '1042', 'saldi.faktura_link' => 'https://saldi.example/api/dokument.php?t=abc'], $this->metafields());
+    }
+
+    /** The token opens the invoice; the call log keeps request bodies for 90 days. */
+    public function testTheInvoiceLinksTokenIsSentButNotLogged(): void
+    {
+        $token = str_repeat('Ab3_-', 8) . 'xyz';
+        $url = 'https://saldi.example/api/dokument.php?t=' . $token;
+        $logged = [];
+        $opts = $this->store->opts(['log' => function (array $entry) use (&$logged): void { $logged[] = $entry; }]);
+        $context = ['references' => ['ordre_nr' => 4711, 'faktura_nr' => '1042'], 'invoice_url' => $url];
+
+        $result = shopify_writeback_stage($this->store->shopRow($this->domain), $this->order, 'order.references', $context, ['order.tags' => 'done'], ['graphql' => $opts]);
+
+        $this->assertSame('done', $result['status']);
+        $this->assertSame($url, $this->metafields()['saldi.faktura_link'], 'Shopify gets the working link');
+        $request = base64_decode((string)($logged[0]['request_b64'] ?? ''));
+        $this->assertStringContainsString('dokument.php?t=[redacted]', $request);
+        $this->assertStringNotContainsString($token, $request);
     }
 
     public function testAMissingValueIsLeftOutRatherThanWrittenEmpty(): void

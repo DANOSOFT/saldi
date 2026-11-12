@@ -50,6 +50,7 @@
 //                The worker runs the stages from the job WP09 enqueues, the order's data is read from the order and its link, and the calls go through shopify_graphql().
 // 20261112 CL/MJ SD-759 (review): a waiting stage, or one of a shop whose orders flow is off, yields instead of failing; a recorded note op is not appended again.
 //                Two split sets of the same bundle keep apart (saet_id), and antal is a number in saet_fordeling.
+// 20261112 CL/MJ SD-759 (CodeRabbit): the invoice link's token is sent to Shopify but kept out of the call log.
 
 require_once __DIR__ . '/../noteAppend.php';
 require_once __DIR__ . '/../links.php';
@@ -214,7 +215,20 @@ function shopify_set_metafields(array $shop, array $metafields, array $rt = arra
 		return array('status' => 'noop', 'errors' => array());
 	}
 	$vars = array('metafields' => array_values($metafields));
-	$res = shopify_graphql($shop, 'metafieldsSet', SHOPIFY_METAFIELDS_SET_MUTATION, $vars, shopify_writeback_opts($rt, array('retry_mode' => 'idempotent')));
+	$opts = shopify_writeback_opts($rt, array('retry_mode' => 'idempotent'));
+	// The invoice link's t= token opens the invoice; shopify_redact() does not know t=, so it is
+	// named as a secret for the logged request. Shopify still gets the working link.
+	$tokens = array();
+	foreach ($metafields as $field) {
+		if (preg_match('/[?&]t=([^&#]+)/', (string)($field['value'] ?? ''), $m)) {
+			$tokens[] = $m[1];
+		}
+	}
+	$inner = $opts['redact'] ?? (function_exists('shopify_redact') ? 'shopify_redact' : null);
+	if ($tokens && $inner !== null) {
+		$opts['redact'] = fn(mixed $body, array $secrets = array()): mixed => $inner($body, array_merge($secrets, $tokens));
+	}
+	$res = shopify_graphql($shop, 'metafieldsSet', SHOPIFY_METAFIELDS_SET_MUTATION, $vars, $opts);
 	$written = $res['data']['metafieldsSet']['metafields'] ?? null;
 	if ($res['ok'] && is_array($written) && count($written) === count($metafields)) {
 		return array('status' => 'set', 'errors' => array());
