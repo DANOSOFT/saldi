@@ -184,6 +184,8 @@
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
 // 20261112 CL/MMR SST-1013 Credit limit: an open post in a third currency is converted with its own rate and the order's rate.
 //                 It multiplied by the currency code, which stopped the page with a TypeError on PHP 8.
+//                 The rate lookup for a base-currency post gets the debug argument db_select() requires (ArgumentCountError on PHP 8).
+//                 Without a rate the alert now has its text, and the previous post's amount is no longer counted again.
 
 @session_start();
 $s_id = session_id();
@@ -6570,10 +6572,15 @@ function ordreside($id, $regnskab)
 					if (!$r['valutakurs']) $r['valutakurs'] = 100;
 					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
 					elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
-						if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc"))) {
+						if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__))) {
 							$opp_amount = $r['amount'] * 100 / $r3['kurs'];
-							$alert = findtekst('1850|Ingen valutakurs for faktura', $sprog_id);
-						} elseif ($valuta) print "<BODY onLoad=\"javascript:alert('$alert $r[faktnr]')\">\n";
+						} else {
+							$opp_amount = 0; // no rate: the post cannot be converted, and the previous post's amount must not be counted again
+							if ($valuta) {
+								$alert = findtekst('1850|Ingen valutakurs for faktura', $sprog_id);
+								print "<BODY onLoad=\"javascript:alert('$alert $r[faktnr]')\">\n";
+							}
+						}
 					} elseif ($valuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $valuta) {
 						$tmp = $r['amount'] * $r['valutakurs'] / 100; // the post in the base currency
 						$opp_amount = ($valutakurs) ? $tmp * 100 / $valutakurs : $tmp; // and in the order's currency
