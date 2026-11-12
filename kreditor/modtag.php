@@ -53,8 +53,8 @@
 //                Also removed the dead second branch of the four warehouse lookups below.
 // 20261022 CL/MJ SST-876 The receipt marks its lines and tells the webshops once, after the goods are committed, rather than syncing inside the line loop.
 // 20261028 CDX/MJ SST-876 Preserve receipt price and SKU adapter calls alongside batched stock updates.
-// 20261112 CL/MMR SST-1010 The stock log line is cut to the 10 characters stocklog.username holds (a longer user name stopped the receipt),
-//                  and is only written when the confirmStockChange setting is on, as on the item card.
+// 20261112 CL/MMR SST-1010 The stock log user name is cut to the 10 characters stocklog.username holds, since a longer name stopped the receipt.
+//                  The log line is only written when the confirmStockChange setting is on, as on the item card.
 
 @session_start();
 $s_id=session_id();
