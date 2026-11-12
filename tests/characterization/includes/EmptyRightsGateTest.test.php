@@ -310,6 +310,10 @@ final class EmptyRightsGateTest extends TestCase
         self::assertStringContainsString("\$id = (int)\$id;", $histFile, 'updateOprettet() casts the id it writes with');
         self::assertStringContainsString("select * from historik where id = '\$historik_id' and konto_id = '\$id'", $histFile,
             'the row the form is filled from is scoped to the customer too');
+        self::assertStringContainsString('SELECT id FROM historik WHERE id = {$inputs[\'historik_id\']} AND konto_id = {$inputs[\'id\']}', $histFile,
+            'an update only proceeds for a row of the customer');
+        self::assertStringContainsString('if (!empty($sanitizedInputs[\'historik_id\']) && !$historikId) {', $histFile,
+            'and a refused selection is not reported as a saved one');
 
         $firstWrite = strpos($ordre, 'if (isset($_GET[\'vis_lev_addr\']) && $id) {');
         $guard = strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {');

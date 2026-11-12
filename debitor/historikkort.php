@@ -155,6 +155,10 @@ function processContactForm($post) {
         $sanitizedInputs, 
         $employeeIds
     );
+    // A posted row that is not this customer's is refused, not silently reported as saved.
+    if (!empty($sanitizedInputs['historik_id']) && !$historikId) {
+        return false;
+    }
 
     // Update address record
     updateAddressRecord(
@@ -201,8 +205,13 @@ function fetchEmployeeIds($egen_id, $id, $ansat, $kontakt) {
 function processHistorikRecord($inputs, $employeeIds) {
     $notedate = date("Y-m-d");
     
-    // Update existing record
+    // Update existing record, but only a row of this customer: a rejected selection returns 0 so the caller
+    // cannot go on to touch that row through the id.
     if (!empty($inputs['historik_id'])) {
+        $owned = db_fetch_array(db_select("SELECT id FROM historik WHERE id = {$inputs['historik_id']} AND konto_id = {$inputs['id']}", __FILE__ . " linje " . __LINE__));
+        if (!$owned) {
+            return 0;
+        }
         db_modify("UPDATE historik 
             SET kontakt_id = {$employeeIds['kontakt_id']}, 
                 ansat_id = {$employeeIds['ansat_id']}, 
@@ -211,7 +220,7 @@ function processHistorikRecord($inputs, $employeeIds) {
             WHERE id = {$inputs['historik_id']} AND konto_id = {$inputs['id']}",
             __FILE__ . " linje " . __LINE__
         );
-        return $inputs['historik_id'];
+        return (int)$inputs['historik_id'];
     }
     
     // Insert new record
