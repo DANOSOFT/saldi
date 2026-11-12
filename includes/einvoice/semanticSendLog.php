@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/einvoice/semanticSendLog.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- includes/einvoice/semanticSendLog.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,8 @@
 // 20261109 CL/MMR SD-815 Created (draft). The send log over the tenant table einvoice_sendlog: one row per e-document sent through Semantic.
 //                 It keeps the XML that was sent (Saldi's own archive, bogføringsloven 5 years) and the Semantic document id the webhook and the poll match on.
 //                 Texts are written so PostgreSQL's ' like ' to ' ilike ' rewrite in db_modify() cannot change them.
-
+// 20261112 CL/MMR SD-815 MySQL: characters outside the Basic Multilingual Plane (emoji) become U+FFFD, since the connection is utf8 (3 bytes) and strict mode refuses them.
+//
 /*
  * Table einvoice_sendlog (created by includes/betweenUpdates.php, and by includes/opretfunc.php for a new regnskab):
  *   id serial, ordre_id int, art varchar(2) ('DO' invoice, 'DK' credit note), fakturanr varchar(20),
@@ -153,6 +154,7 @@ if (!function_exists('einvoice_sendlog_sql_value')) {
 	 * On PostgreSQL db_modify() and db_select() turn every ' like ' in the statement into ' ilike ', also inside a
 	 * string, so an error text such as "looks like" would be stored changed. There the literal is split at ' like '
 	 * and joined again with ||, which the replacement does not see.
+	 * On MySQL a character outside the Basic Multilingual Plane becomes U+FFFD (the connection is utf8, 3 bytes).
 	 *
 	 * @param mixed                          $value
 	 * @param array{type: string, max: int}  $column From einvoice_sendlog_columns().
@@ -177,6 +179,10 @@ if (!function_exists('einvoice_sendlog_sql_value')) {
 			} else {
 				$value = substr($value, 0, $column['max']);
 			}
+		}
+		if (einvoice_sendlog_is_mysql($dbType) && preg_match('//u', $value)) {
+			// db_connect() sets NAMES 'utf8' (3 bytes per character), so MySQL in strict mode refuses a 4-byte character.
+			$value = (string)preg_replace('/[\x{10000}-\x{10FFFF}]/u', "\u{FFFD}", $value);
 		}
 		$literal = "'" . call_user_func($escape, $value) . "'";
 		if (!einvoice_sendlog_is_mysql($dbType) && strpos($literal, ' like ') !== false) {

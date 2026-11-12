@@ -36,6 +36,7 @@
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
 // 20261109 CL/MMR SD-815 (draft) Tenant table einvoice_sendlog: one row per e-document sent through Semantic, with the XML that was sent and Semantic's document id.
 // 20261109 CL/MMR SD-815 (draft) einvoice_sendlog is created under an advisory lock: two logins at the same moment made one fail on PostgreSQL.
+// 20261112 CL/MMR SD-815 (draft) On MySQL einvoice_sendlog is utf8mb4: in a latin1 database a Semantic text outside latin1 (e.g. 'Ł') made the write fail in strict mode.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -61,7 +62,8 @@ backfillOrderLineDelivered($db_type);
 // the row was written in. Tenant database only. The table check is one query per login. When the table is missing, the
 // CREATE runs under an advisory lock and the check is repeated inside it: on PostgreSQL, CREATE TABLE IF NOT EXISTS is
 // not safe for two logins at the same moment (the second fails on pg_type/pg_class), as the signup block above notes.
-// MySQL has no CREATE INDEX IF NOT EXISTS, so its indexes are part of the CREATE TABLE.
+// MySQL has no CREATE INDEX IF NOT EXISTS, so its indexes are part of the CREATE TABLE. On MySQL the table is utf8mb4 whatever
+// the database's default: Semantic's texts are UTF-8 and a latin1 column refuses other characters in strict mode.
 $sendlogMysql = in_array($db_type, ['mysql', 'mysqli'], true);
 $sendlogExists = "SELECT table_name FROM information_schema.tables WHERE table_name = 'einvoice_sendlog'";
 $sendlogExists .= $sendlogMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
@@ -82,7 +84,7 @@ if (!db_fetch_array(db_select($sendlogExists, __FILE__ . " linje " . __LINE__)))
 				$sendlogColumns.= "created TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated TIMESTAMP NULL, created_by VARCHAR(80), PRIMARY KEY (id)";
 				if ($sendlogMysql) {
 					$qtxt = "CREATE TABLE IF NOT EXISTS einvoice_sendlog (id INT AUTO_INCREMENT NOT NULL, $sendlogColumns, ";
-					$qtxt.= "INDEX einvoice_sendlog_order_idx (ordre_id, art), INDEX einvoice_sendlog_semantic_idx (semantic_doc_id))";
+					$qtxt.= "INDEX einvoice_sendlog_order_idx (ordre_id, art), INDEX einvoice_sendlog_semantic_idx (semantic_doc_id)) DEFAULT CHARSET=utf8mb4";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				} else {
 					db_modify("CREATE TABLE IF NOT EXISTS einvoice_sendlog (id SERIAL NOT NULL, $sendlogColumns)", __FILE__ . " linje " . __LINE__);

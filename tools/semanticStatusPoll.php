@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/semanticStatusPoll.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- tools/semanticStatusPoll.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,9 @@
 // ----------------------------------------------------------------------
 // 20261109 CL/MMR SD-815 Created (draft). Command-line pull fallback for Semantic statuses: asks Semantic about the open send-log rows of one regnskab, or of every regnskab on the server, and applies the answers.
 //                 Usage: php tools/semanticStatusPoll.php --db=<database> [--db=...] | --all [--limit=50]. Exit 0 = done, 1 = usage or configuration, 2 = some rows could not be checked.
+// 20261112 CL/MMR SD-815 Ready for cron across all regnskaber: a lock so two runs never overlap, a time and row budget, rows not older than --max-age-days, a rotation so every regnskab gets its turn, and output only on errors.
+//                 Each tenant connection is closed after use. The incoming-document pull will be called from semantic_poll_incoming() in includes/einvoice/semanticPoll.php.
+//                 Exit 0 = done, 1 = usage or configuration, 2 = some rows or regnskaber failed, 3 = another run holds the lock.
 
 /**
  * Injected by ../includes/connect.php, included below:
@@ -32,6 +35,7 @@
  * @var string $sqpass
  * @var string $sqdb
  * @var string $db_type
+ * @var mixed  $connection
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -45,58 +49,55 @@ if (!isset($_SERVER['REQUEST_URI'])) {
 	$_SERVER['REQUEST_URI'] = '/saldi/tools/cli.php';
 	$_SERVER['REMOTE_ADDR'] = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 }
-$webservice = true; // db_select()/db_modify() return instead of showing an alert and exiting
+$webservice = true; // db_modify() returns instead of showing an alert and exiting
 
-/**
- * Read the command line.
- *
- * @param list<string> $args $argv without the script name.
- * @return array{dbs: list<string>, all: bool, limit: int, help: bool, error: string}
- */
-function semanticPollArguments(array $args) {
-	$out = array('dbs' => array(), 'all' => false, 'limit' => 50, 'help' => false, 'error' => '');
-	foreach ($args as $arg) {
-		if ($arg === '--all') {
-			$out['all'] = true;
-		} elseif ($arg === '--help' || $arg === '-h') {
-			$out['help'] = true;
-		} elseif (strncmp($arg, '--db=', 5) === 0) {
-			$out['dbs'][] = substr($arg, 5);
-		} elseif (strncmp($arg, '--limit=', 8) === 0 && ctype_digit(substr($arg, 8))) {
-			$out['limit'] = max(1, min(500, (int)substr($arg, 8)));
-		} else {
-			$out['error'] = "unknown argument: $arg";
-		}
-	}
-	if ($out['error'] === '' && !$out['help'] && !$out['all'] && !$out['dbs']) {
-		$out['error'] = 'give --db=<database> or --all';
-	}
-	return $out;
+include_once(__DIR__ . '/../includes/einvoice/semanticPoll.php');
+
+$usage = "usage: php tools/semanticStatusPoll.php --all | --db=<database> [--db=...]\n"
+	. "       [--limit=50] [--max-age-days=30] [--budget=240] [--max-rows=500] [--verbose]\n"
+	. "exit 0 = done, 1 = usage or configuration, 2 = some rows or regnskaber failed, 3 = another run holds the lock\n";
+$arguments = semantic_poll_arguments(array_slice($argv ?? array(), 1));
+if ($arguments['help']) {
+	fwrite(STDOUT, $usage);
+	exit(0);
+}
+if ($arguments['error'] !== '') {
+	fwrite(STDERR, 'semanticStatusPoll: ' . $arguments['error'] . "\n" . $usage);
+	exit(1);
 }
 
-$arguments = semanticPollArguments(array_slice($argv ?? array(), 1));
-if ($arguments['help'] || $arguments['error'] !== '') {
-	if ($arguments['error'] !== '') {
-		fwrite(STDERR, 'semanticStatusPoll: ' . $arguments['error'] . "\n");
-	}
-	fwrite(STDERR, "usage: php tools/semanticStatusPoll.php --db=<database> [--db=...] | --all [--limit=50]\n");
-	exit($arguments['help'] ? 0 : 1);
+$tempDir = realpath(__DIR__ . '/../temp');
+if ($tempDir === false || !is_dir($tempDir) || !is_writable($tempDir)) {
+	fwrite(STDERR, "semanticStatusPoll: the installation's temp directory is missing or not writable\n");
+	exit(1);
 }
+$lock = semantic_poll_lock($tempDir . '/.ht_semanticStatusPoll.lock');
+if ($lock['reason'] === 'busy') {
+	// Another run is still working; it is not an error, so cron stays quiet.
+	if ($arguments['verbose']) {
+		fwrite(STDOUT, "semanticStatusPoll: another run holds the lock\n");
+	}
+	exit(3);
+}
+if ($lock['reason'] !== 'locked') {
+	fwrite(STDERR, "semanticStatusPoll: could not open the lock file in temp\n");
+	exit(1);
+}
+$statePath = $tempDir . '/.ht_semanticStatusPoll.state';
 
 include(__DIR__ . '/../includes/connect.php');
 include_once(__DIR__ . '/../includes/std_func.php');
-include_once(__DIR__ . '/../includes/einvoice/semanticClient.php');
-include_once(__DIR__ . '/../includes/einvoice/semanticSendLog.php');
-include_once(__DIR__ . '/../includes/einvoice/semanticStatus.php');
 date_default_timezone_set('Europe/Copenhagen');
 
 $client = semantic_client(null, array('connectTimeout' => 5, 'timeout' => 20));
 if (!$client instanceof SemanticClient) {
 	fwrite(STDERR, "semanticStatusPoll: Semantic is not configured on this server (SALDI_SEMANTIC_* or the key file)\n");
+	semantic_poll_unlock($lock['handle']);
 	exit(1);
 }
 
 // The databases come from the master database's regnskab table, so a name on the command line must be a regnskab here.
+$masterConnection = $connection;
 $known = array();
 $query = db_select("SELECT db FROM regnskab ORDER BY id", __FILE__ . " linje " . __LINE__);
 while ($query && ($r = db_fetch_array($query))) {
@@ -105,36 +106,56 @@ while ($query && ($r = db_fetch_array($query))) {
 		$known[$name] = true;
 	}
 }
-$targets = $arguments['all'] ? array_keys($known) : $arguments['dbs'];
-
 $exitCode = 0;
-foreach ($targets as $target) {
-	if (!isset($known[$target])) {
-		fwrite(STDERR, "semanticStatusPoll: $target is not a regnskab on this server\n");
-		$exitCode = 1;
-		continue;
-	}
-	$connection = db_connect($sqhost, $squser, $sqpass, $target, __FILE__ . " linje " . __LINE__);
-	if (!$connection || !db_select_database($connection, $target)) {
-		fwrite(STDERR, "semanticStatusPoll: could not open $target\n");
-		$exitCode = 2;
-		continue;
-	}
-	$db = $target;
-	$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name = 'einvoice_sendlog'";
-	$qtxt .= einvoice_sendlog_is_mysql($db_type) ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
-	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		continue; // never updated since SD-815, so nothing was sent through Semantic
-	}
-	$result = semantic_status_poll($arguments['limit'], $client, $target);
-	if ($result['checked'] > 0 || $result['messages']) {
-		print date('Y-m-d H:i:s') . " $target: {$result['checked']} checked, {$result['changed']} changed, {$result['failed']} failed\n";
-		foreach ($result['messages'] as $message) {
-			print "  $message\n";
+if ($arguments['all']) {
+	$targets = semantic_poll_rotate(array_keys($known), semantic_poll_state_read($statePath));
+} else {
+	$targets = array();
+	foreach ($arguments['dbs'] as $name) {
+		if (isset($known[$name])) {
+			$targets[] = $name;
+		} else {
+			fwrite(STDERR, "semanticStatusPoll: $name is not a regnskab on this server\n");
+			$exitCode = 1;
 		}
 	}
-	if ($result['failed'] > 0 && $exitCode === 0) {
-		$exitCode = 2;
-	}
 }
-exit($exitCode);
+
+$budget = new SemanticPollBudget($arguments['budgetSeconds'], $arguments['maxRows']);
+$options = array('limit' => $arguments['limit'], 'maxAgeDays' => $arguments['maxAgeDays']);
+$pollTenant = function ($target, SemanticPollBudget $budget) use ($client, $options, $masterConnection, $sqhost, $squser, $sqpass, $sqdb, $db_type) {
+	global $connection, $db;
+	$result = semantic_poll_empty_result();
+	$tenantConnection = db_connect($sqhost, $squser, $sqpass, $target, __FILE__ . " linje " . __LINE__);
+	try {
+		if (!$tenantConnection || !db_select_database($tenantConnection, $target)) {
+			$result['failed'] = 1;
+			$result['errors'][] = 'could not open the database';
+			return $result;
+		}
+		$connection = $tenantConnection;
+		$db = $target;
+		return semantic_poll_tenant($client, $target, $db_type, $options, $budget);
+	} finally {
+		// One connection per regnskab at a time: a server with many regnskaber must not run out of connections.
+		if ($tenantConnection) {
+			db_close($tenantConnection);
+		}
+		$connection = $masterConnection;
+		$db = $sqdb;
+	}
+};
+$run = semantic_poll_run($targets, $budget, $pollTenant);
+if ($arguments['all'] && $run['lastDone'] !== '') {
+	semantic_poll_state_write($statePath, $run['lastDone']);
+}
+semantic_poll_unlock($lock['handle']);
+
+$report = semantic_poll_report($run, $arguments['verbose']);
+foreach ($report['stderr'] as $line) {
+	fwrite(STDERR, $line . "\n");
+}
+foreach ($report['stdout'] as $line) {
+	fwrite(STDOUT, $line . "\n");
+}
+exit(max($exitCode, semantic_poll_exit_code($run)));
