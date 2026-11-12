@@ -26,6 +26,7 @@
 // 20261112 CL/MMR SST-1012 Created: the delete check and the delete action of the account card (systemdata/kontokort.php).
 //                  The year check includes the first and last day of the fiscal year.
 //                  A missing or invalid fiscal year refuses the delete, since the absence of postings cannot be proven.
+//                  An account that belongs to another fiscal year than the selected one is refused as well.
 
 if (!function_exists('fiscalYearBounds')) {
 	/**
@@ -79,13 +80,13 @@ if (!function_exists('accountHasPostingsInYear')) {
 
 if (!function_exists('deleteAccountAction')) {
 	/**
-	 * The «Slet» action of the account card: deletes the account only when the fiscal year is known and the account
-	 * has no postings in it, and picks the account the card shows next.
+	 * The «Slet» action of the account card: deletes the account only when it belongs to the selected fiscal year,
+	 * that year is known and the account has no postings in it, and picks the account the card shows next.
 	 *
 	 * @param int $id            kontoplan.id of the account to delete
 	 * @param int $postedKontonr The account number the form posted (used to pick the next account, as before)
 	 * @param int $regnaar       Fiscal year
-	 * @return array{deleted: bool, refusedKontonr: int, refusedReason: string, nextId: int} refusedReason is 'postings' or 'year'
+	 * @return array{deleted: bool, refusedKontonr: int, refusedReason: string, nextId: int} refusedReason is 'postings', 'year' or 'otheryear'
 	 */
 	function deleteAccountAction($id, $postedKontonr, $regnaar) {
 		$id = (int)$id;
@@ -94,15 +95,21 @@ if (!function_exists('deleteAccountAction')) {
 		$result = array('deleted' => false, 'refusedKontonr' => 0, 'refusedReason' => '', 'nextId' => 0);
 
 		// The button is only shown for an account without postings, but check again: the form may be old or hand-made.
-		$r = db_fetch_array(db_select("select kontonr from kontoplan where id = $id", __FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(db_select("select kontonr, regnskabsaar from kontoplan where id = $id", __FILE__ . " linje " . __LINE__));
 		if ($r) {
-			$hasPostings = accountHasPostingsInYear($r['kontonr'], $regnaar);
-			if ($hasPostings === false) {
-				db_modify("delete from kontoplan where id = $id", __FILE__ . " linje " . __LINE__);
-				$result['deleted'] = true;
+			$result['refusedKontonr'] = (int)$r['kontonr'];
+			if ((int)$r['regnskabsaar'] !== $regnaar) {
+				// an old link or form: the account belongs to another year than the one selected
+				$result['refusedReason'] = 'otheryear';
 			} else {
-				$result['refusedKontonr'] = (int)$r['kontonr'];
-				$result['refusedReason'] = ($hasPostings === null) ? 'year' : 'postings';
+				$hasPostings = accountHasPostingsInYear($r['kontonr'], $regnaar);
+				if ($hasPostings === false) {
+					db_modify("delete from kontoplan where id = $id and regnskabsaar = '$regnaar'", __FILE__ . " linje " . __LINE__);
+					$result['deleted'] = true;
+					$result['refusedKontonr'] = 0;
+				} else {
+					$result['refusedReason'] = ($hasPostings === null) ? 'year' : 'postings';
+				}
 			}
 		}
 		$qtxt = "select id from kontoplan where kontonr >= $postedKontonr and regnskabsaar = '$regnaar' order by kontonr";

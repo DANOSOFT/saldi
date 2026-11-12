@@ -37,6 +37,7 @@
 // 20260206	PHR	- discal_year
 // 20261112 CL/MMR SST-1012 An account with postings on the first or last day of the year can no longer be deleted.
 //                  The delete action is checked again on the server and lives in chartOfAccountIncludes/accountDelete.php.
+//                  An account of another fiscal year than the selected one cannot be deleted from an old link or form.
 
 @session_start();
 $s_id = session_id();
@@ -292,6 +293,7 @@ if ($id > 0) {
 	if ($r = db_fetch_array($q)) {
 		$id = $r['id'];
 		$kontonr = (int)$r['kontonr'];
+		$accountYear = (int)$r['regnskabsaar'];
 		$map_to = (int)$r['map_to'];
 		$beskrivelse = htmlentities(stripslashes($r['beskrivelse']), ENT_COMPAT, $charset);
 		$kontotype = $r['kontotype'];
@@ -325,7 +327,8 @@ if ($id > 0) {
 		print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=kontoplan.php\">";
 		exit;
 	}
-	$slet = (accountHasPostingsInYear($kontonr, $regnaar) === false) ? 1 : 0; // unknown fiscal year: no Slet
+	// Slet only for an account of the selected year with no postings in it (an unknown year or an account of another year: no Slet)
+	$slet = (isset($accountYear) && $accountYear === (int)$regnaar && accountHasPostingsInYear($kontonr, $regnaar) === false) ? 1 : 0;
 
 }
 /*
@@ -345,6 +348,8 @@ elseif ($kontotype == 'X')
 
 if ($deleteResult && $deleteResult['refusedReason'] == 'postings') {
 	print "<BODY onLoad=\"javascript:alert('Konto $deleteResult[refusedKontonr] har posteringer i regnskabsåret og kan ikke slettes')\">";
+} elseif ($deleteResult && $deleteResult['refusedReason'] == 'otheryear') {
+	print "<BODY onLoad=\"javascript:alert('Konto $deleteResult[refusedKontonr] hører til et andet regnskabsår og kan ikke slettes herfra')\">";
 } elseif ($deleteResult && $deleteResult['refusedReason'] == 'year') {
 	print "<BODY onLoad=\"javascript:alert('Regnskabsåret er ikke sat korrekt op, så konto $deleteResult[refusedKontonr] kan ikke slettes')\">";
 }

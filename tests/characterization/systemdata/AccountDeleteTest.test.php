@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
  * History:
  * 20261112 CL/MMR Created (SST-1012).
  * 20261112 CL/MMR A missing or invalid fiscal year refuses the delete (Codex round 2).
+ * 20261112 CL/MMR An account of another fiscal year than the selected one is refused (Codex round 3).
  */
 #[RunTestsInSeparateProcesses]
 final class AccountDeleteTest extends TestCase
@@ -25,9 +26,10 @@ final class AccountDeleteTest extends TestCase
 	 * @param array<int, list<string>>      $postings kontonr => transdates (Y-m-d)
 	 * @param array{0:int,1:int,2:int,3:int}|null $year start month, start year, end month, end year; null = no RA row
 	 */
-	private static function boot(array $accounts, array $postings, ?array $year = [1, 2026, 12, 2026]): void
+	private static function boot(array $accounts, array $postings, ?array $year = [1, 2026, 12, 2026], array $accountYears = []): void
 	{
 		$GLOBALS['__accounts'] = $accounts;
+		$GLOBALS['__accountYears'] = $accountYears;
 		$GLOBALS['__postings'] = $postings;
 		$GLOBALS['__year'] = $year;
 		$GLOBALS['__modify'] = [];
@@ -48,9 +50,10 @@ final class AccountDeleteTest extends TestCase
 					}
 					return (object) ["rows" => []];
 				}
-				if (preg_match("/select kontonr from kontoplan where id = (-?[0-9]+)/", $q, $m)) {
+				if (preg_match("/select kontonr, regnskabsaar from kontoplan where id = (-?[0-9]+)/", $q, $m)) {
 					$id = (int) $m[1];
-					return (object) ["rows" => isset($GLOBALS["__accounts"][$id]) ? [["kontonr" => $GLOBALS["__accounts"][$id]]] : []];
+					$year = $GLOBALS["__accountYears"][$id] ?? 1;
+					return (object) ["rows" => isset($GLOBALS["__accounts"][$id]) ? [["kontonr" => $GLOBALS["__accounts"][$id], "regnskabsaar" => $year]] : []];
 				}
 				if (preg_match("/select id from kontoplan where kontonr >= (-?[0-9]+)/", $q, $m)) {
 					$rows = [];
@@ -64,7 +67,7 @@ final class AccountDeleteTest extends TestCase
 			function db_fetch_array($r) { return array_shift($r->rows) ?? false; }
 			function db_modify($q, $where = "") {
 				$GLOBALS["__modify"][] = $q;
-				if (preg_match("/delete from kontoplan where id = (-?[0-9]+)/", $q, $m)) unset($GLOBALS["__accounts"][(int) $m[1]]);
+				if (preg_match("/delete from kontoplan where id = (-?[0-9]+) and regnskabsaar = \'([0-9]+)\'/", $q, $m) && ($GLOBALS["__accountYears"][(int) $m[1]] ?? 1) === (int) $m[2]) unset($GLOBALS["__accounts"][(int) $m[1]]);
 				return true;
 			}
 		');
@@ -105,7 +108,7 @@ final class AccountDeleteTest extends TestCase
 		self::boot([10 => 9001, 11 => 9002], []);
 		$result = deleteAccountAction(10, 9001, 1);
 		self::assertSame(['deleted' => true, 'refusedKontonr' => 0, 'refusedReason' => '', 'nextId' => 11], $result);
-		self::assertSame(['delete from kontoplan where id = 10'], $GLOBALS['__modify']);
+		self::assertSame(["delete from kontoplan where id = 10 and regnskabsaar = '1'"], $GLOBALS['__modify']);
 	}
 
 	public function testDeletingTheLastAccountOpensNoAccount(): void
@@ -155,5 +158,25 @@ final class AccountDeleteTest extends TestCase
 		$result = deleteAccountAction(99, 9001, 1);
 		self::assertSame(['deleted' => false, 'refusedKontonr' => 0, 'refusedReason' => '', 'nextId' => 11], $result);
 		self::assertSame([], $GLOBALS['__modify']);
+	}
+
+	public function testAnAccountOfAnotherFiscalYearIsRefusedEvenIfTheSelectedYearHasNoPostings(): void
+	{
+		// account id 10 belongs to year 1 and has a posting on its first day; the session has selected year 2
+		self::boot([10 => 9001, 20 => 9001], [9001 => ['2026-01-01']], [1, 2027, 12, 2027], [10 => 1, 20 => 2]);
+		$result = deleteAccountAction(10, 9001, 2);
+		self::assertFalse($result['deleted']);
+		self::assertSame('otheryear', $result['refusedReason']);
+		self::assertSame(9001, $result['refusedKontonr']);
+		self::assertSame([], $GLOBALS['__modify'], 'nothing written');
+		self::assertArrayHasKey(10, $GLOBALS['__accounts'], 'the year-1 account is kept');
+	}
+
+	public function testAnAccountOfTheSelectedYearIsDeletedOnlyInThatYear(): void
+	{
+		self::boot([20 => 9001], [9001 => ['2026-01-01']], [1, 2027, 12, 2027], [20 => 2]);
+		$result = deleteAccountAction(20, 9001, 2);
+		self::assertTrue($result['deleted']);
+		self::assertSame(["delete from kontoplan where id = 20 and regnskabsaar = '2'"], $GLOBALS['__modify']);
 	}
 }
