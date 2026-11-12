@@ -230,6 +230,8 @@ final class EmptyRightsGateTest extends TestCase
         $label = @file_get_contents(__DIR__ . '/../../../lager/labelprint.php');
         self::assertNotFalse($label, 'cannot read lager/labelprint.php');
         self::assertStringContainsString('$mysale_label_page = true;', (string)$label, 'the label page declares itself');
+        self::assertStringNotContainsString('insert into online', (string)$label,
+            'and no longer turns a client cookie into a session row');
         self::assertLessThan(
             strpos((string)$label, 'include("../includes/online.php");'),
             strpos((string)$label, '$mysale_label_page = true;'),
@@ -319,6 +321,14 @@ final class EmptyRightsGateTest extends TestCase
             'and the case text uses the integer it checked');
         self::assertStringContainsString("if (substr((string)\$rettigheder, (int)\$modulnr, 1) >= '1') {", $ordre,
             'a user without the Ordre right skips the shared library insert');
+        self::assertStringContainsString("\$tekst_id = (int) if_isset(\$_GET, NULL, 'tekst_id')", $ordre,
+            'the library text id is read as a number');
+        self::assertStringContainsString("\$linjetekster_id = (int) \$linjetekster;", $ordre,
+            'and so is every posted library id');
+        self::assertStringContainsString("\$qtxt .= \$sag_workflow_case_id ? \",sag_id\" : \"\";", $ordre,
+            'an order created from a case page carries the case');
+        self::assertStringContainsString("\$sst967_created_order = (int) \$id;", $ordre,
+            'and is remembered as created');
         self::assertStringContainsString("select id from ordrelinjer where ordre_id = '\$id'", $ordre,
             'and a posted line id of another order is dropped');
         self::assertStringContainsString("\$linje_id[\$sst967_k] = (int) \$sst967_v;", $ordre,

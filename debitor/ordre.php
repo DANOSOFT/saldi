@@ -614,8 +614,9 @@ if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
 
 if (($ret_tekst = if_isset($_GET, NULL, 'ret_tekst')) && ($id = (int) if_isset($_GET, NULL, 'id'))) tekstopslag($sort, $id);
 
-if (($tekst_id = if_isset($_GET, NULL, 'tekst_id')) && ($id = (int) if_isset($_GET, NULL, 'id'))) {
-	if ($slet_tekst = if_isset($_GET, NULL, 'slet_tekst')) {
+if (($tekst_id = (int) if_isset($_GET, NULL, 'tekst_id')) && ($id = (int) if_isset($_GET, NULL, 'id'))) {
+	# SST-967 the library id reaches a query, so it is the integer that was read.
+	if ($slet_tekst = (int) if_isset($_GET, NULL, 'slet_tekst')) {
 		# SST-967 the text library belongs to the tenant, so deleting a row from it is not case work.
 		if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
 			sag_workflow_refuse();
@@ -656,7 +657,8 @@ if ((isset($_POST['linjetekster'])) && ($id = (int) if_isset($_POST, NULL, 'id')
 	$posnrstart = $r['posnr'] + 100;
 	foreach ($_POST['linjetekster'] as $linjetekster) {
 		$nyposnr = $posnrstart += 1;
-		if ($r = db_fetch_array(db_select("select tekst from ordretekster where id = '$linjetekster'", __FILE__ . " linje " . __LINE__))) {
+		$linjetekster_id = (int) $linjetekster;
+		if ($r = db_fetch_array(db_select("select tekst from ordretekster where id = '$linjetekster_id'", __FILE__ . " linje " . __LINE__))) {
 			db_modify("insert into ordrelinjer (ordre_id,beskrivelse,posnr) values ('$id','" . db_escape_string($r['tekst']) . "','$nyposnr')", __FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -1016,12 +1018,17 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
 	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,performed_by,";
 	$qtxt .= "valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
-	$qtxt .= "lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,procenttillag,omvbet)";
+	$qtxt .= "lev_kontakt,vis_lev_addr,felt_1,felt_2,felt_3,felt_4,felt_5,procenttillag,omvbet";
+	# SST-967 an order created from a case page belongs to that case, or the case gate could never admit it again.
+	$qtxt .= $sag_workflow_case_id ? ",sag_id" : "";
+	$qtxt .= ")";
 	$qtxt .= " values ";
 	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
 	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "',";
 	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
-	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
+	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde'";
+	$qtxt .= $sag_workflow_case_id ? ",'$sag_workflow_case_id'" : "";
+	$qtxt .= ")";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	# Porto vare system
@@ -1036,7 +1043,11 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	}
 
 	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query)) $id = $row['id'];
+	if ($row = db_fetch_array($query)) {
+		$id = (int) $row['id'];
+		# SST-967 this page created it, so the case checks may not refuse it.
+		$sst967_created_order = (int) $id;
+	}
 } elseif ($status < 3 && $id && $firmanavn) {
 	// The selected employee is independent of order ownership. Match on id only.
 	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id", __FILE__ . " linje " . __LINE__);

@@ -40,6 +40,7 @@
 // 20260914 CL/NTR Added single=1: asks newlabel.php for one label cell instead of the template's
 //                 rows x cols grid. Carried through the layout chooser and Brother qty forms.
 // 20261112 LOE SST-967 The Mit Salg session this page prints for keeps its own module gate lifted.
+// 20261112 LOE SST-967 A client cookie can no longer mint the session row the label exception trusts.
 
 @session_start();
 $s_id=session_id();
@@ -59,11 +60,8 @@ if (isset($_COOKIE['mylabel'])) {
 		setcookie("mylabel","$account|$db",time()-60,"/");
 		$account=NULL;
 	} else {
-		$qtxt = "insert into online(session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor)";
-		$qtxt.= " values ";
-		$qtxt.= "('$s_id','". db_escape_string($account) ."','". db_escape_string($db) ."','". db_escape_string($squser) ."',";
-		$qtxt.= "'0',0,'". date('U') ."','0')";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		# SST-967 the label exception rests on the session row Mit Salg itself created. This page used to turn a
+		# client cookie into that row, which let a cookie alone satisfy the gate; a missing row is refused now.
 	}
 }
 # SST-967 the Mit Salg label page makes its own session row with rettigheder = '0' (mysale/mylabel.php and
