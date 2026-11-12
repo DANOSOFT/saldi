@@ -673,7 +673,9 @@ final class semanticIncoming extends TestCase
         $filter = json_decode((string)$this->calls[0]['body'], true);
         $this->assertSame($this->companyId, $filter['companyId']);
         $this->assertSame(1, $filter['pageNumber']);
-        $this->assertSame(50, $filter['pageSize']);
+        $this->assertSame(100, $filter['pageSize']);
+        $this->assertTrue($poll['complete']);
+        $this->assertNull($poll['resumeFrom']);
         $this->assertSame(date('c', (int)strtotime('2026-11-11 00:00:00')), $filter['receivedFrom']);
         $this->assertCount(3, $this->calls, 'one list, two documents; the foreign one is not read');
         $this->assertCount(1, $this->store->poolCalls);
@@ -690,6 +692,74 @@ final class semanticIncoming extends TestCase
         $down = semantic_incoming_poll('2026-11-11 00:00:00', 50, $this->client(), self::DB, $this->store);
         $this->assertSame(1, $down['failed']);
         $this->assertStringContainsString('HTTP 500', $down['messages'][0]);
+    }
+
+    public function testAnOlderFailedDocumentHoldsTheWindowAndIsDoneAfterTheOutage(): void
+    {
+        $this->seedSendlog();
+        $older = $this->semanticDoc(811, self::uuid(), array('receivedDateTime' => '2026-11-12T08:00:00Z'));
+        $newer = $this->semanticDoc(812, self::uuid(), array('receivedDateTime' => '2026-11-12T12:00:00Z'));
+        $this->answer(200, (string)json_encode(array($older, $newer)));
+        $this->answer(503, 'down');
+        $this->answer(200, (string)json_encode(self::ublDocument('Invoice', 'P-2', '2026-11-11', self::VENDOR_CVR, self::OUR_CVR)));
+
+        $first = semantic_incoming_poll('2026-11-12 00:00:00', 50, $this->client(), self::DB, $this->store);
+        $this->assertSame(1, $first['failed']);
+        $this->assertSame(1, $first['handled']);
+        $this->assertTrue($first['complete']);
+        $this->assertSame(semantic_incoming_datetime('2026-11-12T08:00:00Z'), $first['resumeFrom'], 'the next window starts no later than the failed one');
+        $this->assertSame(semantic_incoming_datetime('2026-11-12T12:00:00Z'), $first['newest']);
+
+        // The next run starts an hour before resumeFrom (semantic_poll_incoming()), so the older one is listed again.
+        $since = date('Y-m-d H:i:s', (int)strtotime((string)$first['resumeFrom']) - 3600);
+        $this->answer(200, (string)json_encode(array($older, $newer)));
+        $this->answer(200, (string)json_encode(self::ublDocument('Invoice', 'P-1', '2026-11-11', self::VENDOR_CVR, self::OUR_CVR)));
+        $second = semantic_incoming_poll($since, 50, $this->client(), self::DB, $this->store);
+        $this->assertSame(1, $second['handled'], implode(' | ', $second['messages']));
+        $this->assertSame(1, $second['already']);
+        $this->assertSame(0, $second['failed']);
+        $this->assertNull($second['resumeFrom']);
+        $this->assertSame('pooled', $this->store->rows['811']['status']);
+    }
+
+    public function testThePullStopsWhenTheBudgetSaysNo(): void
+    {
+        $this->seedSendlog();
+        $a = $this->semanticDoc(821, self::uuid(), array('receivedDateTime' => '2026-11-12T08:00:00Z'));
+        $b = $this->semanticDoc(822, self::uuid(), array('receivedDateTime' => '2026-11-12T09:00:00Z'));
+        $this->answer(200, (string)json_encode(array($a, $b)));
+        $this->answer(200, (string)json_encode(self::ublDocument('Invoice', 'P-1', '2026-11-11', self::VENDOR_CVR, self::OUR_CVR)));
+        $rows = 2;
+        $may = function () use (&$rows): bool {
+            return $rows-- > 0;
+        };
+        $poll = semantic_incoming_poll('2026-11-12 00:00:00', 50, $this->client(), self::DB, $this->store, $may);
+        $this->assertTrue($poll['stopped']);
+        $this->assertFalse($poll['complete']);
+        $this->assertSame(1, $poll['handled']);
+        $this->assertCount(2, $this->calls, 'the list and one document, nothing after the budget said no');
+        $this->assertArrayNotHasKey('822', $this->store->rows, 'the second document is not claimed');
+        $this->assertSame(semantic_incoming_datetime('2026-11-12T09:00:00Z'), $poll['resumeFrom']);
+
+        $none = function (): bool {
+            return false;
+        };
+        $nothing = semantic_incoming_poll('2026-11-12 00:00:00', 50, $this->client(), self::DB, $this->store, $none);
+        $this->assertTrue($nothing['stopped']);
+        $this->assertCount(2, $this->calls, 'no list call without budget');
+    }
+
+    public function testADocumentGivenUpDoesNotHoldTheWindow(): void
+    {
+        $this->seedSendlog();
+        $doc = $this->semanticDoc(831, self::uuid(), array('receivedDateTime' => '2026-11-12T08:00:00Z'));
+        $this->store->rows['831'] = array('status' => 'failed', 'attempts' => SEMANTIC_INCOMING_MAX_ATTEMPTS, 'pool_filename' => '', 'sendlog_id' => 0);
+        $this->answer(200, (string)json_encode(array($doc)));
+        $poll = semantic_incoming_poll('2026-11-12 00:00:00', 50, $this->client(), self::DB, $this->store);
+        $this->assertSame(1, $poll['already']);
+        $this->assertTrue($poll['complete']);
+        $this->assertNull($poll['resumeFrom']);
+        $this->assertCount(1, $this->calls, 'not read again');
     }
 
     public function testTheWebhookNoticeOnlyNamesTheDocument(): void

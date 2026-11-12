@@ -257,9 +257,17 @@ final class einvoiceStatusView extends TestCase
      */
     private static function rendered(array $view): string
     {
+        $level = ob_get_level();
         ob_start();
-        semanticPeppolRender($view, 1);
-        return (string)ob_get_clean();
+        try {
+            semanticPeppolRender($view, 1);
+        } finally {
+            $html = '';
+            while (ob_get_level() > $level) {
+                $html = (string)ob_get_clean() . $html;
+            }
+        }
+        return $html;
     }
 
     public function testPageAfterASuccessfulSend(): void

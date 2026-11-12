@@ -351,10 +351,17 @@ final class semanticSend extends TestCase
 
     public function testStatusPageEscapesEverything(): void
     {
+        $level = ob_get_level();
         ob_start();
-        semanticPeppolRender(array('title' => '<b>x</b>', 'ok' => false, 'lines' => array("a'b<script>"),
-            'resend' => array('orderId' => 1, 'type' => 'invoice"', 'logId' => 2, 'token' => str_repeat('a', 64), 'db' => 'd"b')));
-        $html = (string)ob_get_clean();
+        try {
+            semanticPeppolRender(array('title' => '<b>x</b>', 'ok' => false, 'lines' => array("a'b<script>"),
+                'resend' => array('orderId' => 1, 'type' => 'invoice"', 'logId' => 2, 'token' => str_repeat('a', 64), 'db' => 'd"b')));
+        } finally {
+            $html = '';
+            while (ob_get_level() > $level) {
+                $html = (string)ob_get_clean() . $html;
+            }
+        }
         $this->assertStringNotContainsString('<script>', $html);
         $this->assertStringNotContainsString('<b>x', $html);
         $this->assertStringContainsString('&lt;b&gt;x&lt;/b&gt;', $html);

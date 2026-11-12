@@ -346,44 +346,132 @@ final class semanticPoll extends TestCase
         $this->assertStringContainsString("\u{1F600}", einvoice_sendlog_sql_value($text, $column, $escape, 'pgsql'), 'PostgreSQL keeps it');
     }
 
-    public function testIncomingHookIsQuietUntilItExists(): void
+    private function noCallClient(): \SemanticClient
     {
-        list($clock) = $this->clock();
-        $client = new \SemanticClient('https://semantic.example.invalid', bin2hex(random_bytes(8)), bin2hex(random_bytes(8)), function (): array {
-            throw new \LogicException('no Semantic call may be made');
-        });
-        $missing = sys_get_temp_dir() . '/sd815-no-hook-' . bin2hex(random_bytes(6)) . '.php';
-        $result = semantic_poll_incoming($client, 'test_42', new \SemanticPollBudget(100, 10, $clock), $missing);
-        $this->assertSame(semantic_poll_empty_result(), $result);
-    }
-    public function testIncomingPullGetsAWindowAndChargesTheBudget(): void
-    {
-        list($clock) = $this->clock();
-        $client = new \SemanticClient('https://semantic.example.invalid', bin2hex(random_bytes(8)), bin2hex(random_bytes(8)), function (): array {
+        return new \SemanticClient('https://semantic.example.invalid', bin2hex(random_bytes(8)), bin2hex(random_bytes(8)), function (): array {
             throw new \LogicException('the fake pull makes no Semantic call');
         });
-        $hook = sys_get_temp_dir() . '/sd815-incoming-hook-' . bin2hex(random_bytes(6)) . '.php';
-        file_put_contents($hook, '<?php function semantic_incoming_poll($since, $limit = 100, $client = null, $db = null, $store = null) {'
-            . ' $GLOBALS["sd815IncomingCall"] = array($since, $limit, $db);'
-            . ' return array("listed" => 3, "handled" => 2, "failed" => 1, "already" => 0, "skipped" => 0, "newest" => null, "messages" => array("Dokument x: fejl")); }');
-        try {
-            $budget = new \SemanticPollBudget(100, 10, $clock);
-            $result = semantic_poll_incoming($client, 'test_42', $budget, $hook, function (): int {
-                return 1700000000;
-            });
-        } finally {
-            unlink($hook);
-        }
-        $this->assertSame(date('Y-m-d H:i:s', 1700000000 - 8 * 86400), $GLOBALS['sd815IncomingCall'][0], 'no stored time: 8 days back');
-        $this->assertSame(9, $GLOBALS['sd815IncomingCall'][1], 'the list call took one row, the rest is the limit');
-        $this->assertSame('test_42', $GLOBALS['sd815IncomingCall'][2]);
+    }
+
+    /**
+     * @param list<int> $written
+     * @return array{get: callable, set: callable}
+     */
+    private static function checkpoint(?int $stored, array &$written): array
+    {
+        return array(
+            'get' => function () use ($stored): ?int {
+                return $stored;
+            },
+            'set' => function ($time) use (&$written): void {
+                $written[] = (int)$time;
+            },
+        );
+    }
+
+    /**
+     * A fake semantic_incoming_poll(): asks $mayContinue $wants times (one per Semantic call) and returns $result.
+     *
+     * @param array<string, mixed> $result
+     * @param list<mixed> $call
+     */
+    private static function pull(int $wants, array $result, ?array &$call): callable
+    {
+        return function ($since, $limit, $client, $db, $store, $mayContinue) use ($wants, $result, &$call): array {
+            $call = array($since, $limit, $db, 0);
+            for ($i = 0; $i < $wants; $i++) {
+                if (!$mayContinue()) {
+                    $result['stopped'] = true;
+                    $result['complete'] = false;
+                    break;
+                }
+                $call[3]++;
+            }
+            return $result + array('listed' => 0, 'handled' => 0, 'failed' => 0, 'newest' => null, 'resumeFrom' => null,
+                'complete' => true, 'stopped' => false, 'messages' => array());
+        };
+    }
+
+    public function testIncomingPullStartsEightDaysBackTheFirstTimeAndMovesTheCheckpoint(): void
+    {
+        list($clock) = $this->clock();
+        $written = array();
+        $call = null;
+        $budget = new \SemanticPollBudget(100, 10, $clock);
+        $pull = self::pull(3, array('listed' => 3, 'handled' => 2, 'failed' => 1, 'newest' => '2026-11-12 12:00:00',
+            'resumeFrom' => '2026-11-12 08:00:00', 'messages' => array('Dokument x: fejl')), $call);
+        $result = semantic_poll_incoming($this->noCallClient(), 'test_42', $budget, $pull, function (): int {
+            return 1700000000;
+        }, self::checkpoint(null, $written));
+        $this->assertSame(date('Y-m-d H:i:s', 1700000000 - 8 * 86400), $call[0], 'no checkpoint: 8 days back');
+        $this->assertSame('test_42', $call[2]);
+        $this->assertSame(3, $call[3]);
+        $this->assertSame(7, $budget->rowsLeft(), 'one row per Semantic call the pull made');
         $this->assertSame(3, $result['checked']);
         $this->assertSame(2, $result['changed']);
         $this->assertSame(1, $result['failed']);
         $this->assertSame(array('Dokument x: fejl'), $result['errors']);
-        $this->assertSame(6, $budget->rowsLeft(), 'one row for the list, one per document handled or failed');
+        $this->assertSame(array((int)strtotime('2026-11-12 08:00:00')), $written, 'never past the failed document, not the newest');
+    }
 
+    public function testCheckpointWindowAndNoMoveAfterAnIncompletePull(): void
+    {
+        list($clock) = $this->clock();
+        $stored = (int)strtotime('2026-11-12 10:00:00');
+        $written = array();
+        $call = null;
+        semantic_poll_incoming($this->noCallClient(), 'test_42', new \SemanticPollBudget(100, 10, $clock),
+            self::pull(1, array('newest' => '2026-11-12 11:00:00', 'complete' => false), $call), null, self::checkpoint($stored, $written));
+        $this->assertSame('2026-11-12 09:00:00', $call[0], 'an hour before the checkpoint');
+        $this->assertSame(array(), $written, 'an incomplete pull never moves the checkpoint');
+
+        semantic_poll_incoming($this->noCallClient(), 'test_42', new \SemanticPollBudget(100, 10, $clock),
+            self::pull(1, array('newest' => '2026-11-12 09:30:00'), $call), null, self::checkpoint($stored, $written));
+        $this->assertSame(array(), $written, 'never backwards');
+
+        semantic_poll_incoming($this->noCallClient(), 'test_42', new \SemanticPollBudget(100, 10, $clock),
+            self::pull(1, array('newest' => '2026-11-12 11:00:00'), $call), null, self::checkpoint($stored, $written));
+        $this->assertSame(array((int)strtotime('2026-11-12 11:00:00')), $written);
+    }
+
+    public function testIncomingPullStopsWhenTheBudgetIsUsed(): void
+    {
+        list($clock) = $this->clock();
+        $written = array();
+        $call = null;
+        $budget = new \SemanticPollBudget(100, 2, $clock);
+        $result = semantic_poll_incoming($this->noCallClient(), 'test_42', $budget,
+            self::pull(5, array('newest' => '2026-11-12 11:00:00'), $call), null, self::checkpoint(null, $written));
+        $this->assertSame(2, $call[3], 'two calls allowed, the third is refused before it starts');
+        $this->assertSame('budget', $result['skipped']);
+        $this->assertSame(array(), $written);
+
+        $call = null;
         $empty = new \SemanticPollBudget(100, 0, $clock);
-        $this->assertSame('budget', semantic_poll_incoming($client, 'test_42', $empty, $hook)['skipped'], 'no budget, no call');
+        $this->assertSame('budget', semantic_poll_incoming($this->noCallClient(), 'test_42', $empty,
+            self::pull(1, array(), $call), null, self::checkpoint(null, $written))['skipped']);
+        $this->assertNull($call, 'no budget, no pull');
+    }
+
+    public function testIncomingPullStopsWhenTheTimeIsUsed(): void
+    {
+        $now = 1000.0;
+        $clock = function () use (&$now): float {
+            return $now;
+        };
+        $written = array();
+        $budget = new \SemanticPollBudget(1, 100, $clock);
+        $pull = function ($since, $limit, $client, $db, $store, $mayContinue) use (&$now): array {
+            $calls = 0;
+            while ($mayContinue()) {
+                $calls++;
+                $now += 10.0;
+            }
+            return array('listed' => $calls, 'handled' => 0, 'failed' => 0, 'newest' => null, 'resumeFrom' => null,
+                'complete' => false, 'stopped' => true, 'messages' => array());
+        };
+        $result = semantic_poll_incoming($this->noCallClient(), 'test_42', $budget, $pull, null, self::checkpoint(null, $written));
+        $this->assertSame(1, $result['checked'], 'one call started inside the second, none after the time ran out');
+        $this->assertSame('budget', $result['skipped']);
     }
 }

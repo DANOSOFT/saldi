@@ -418,60 +418,90 @@ if (!function_exists('semantic_poll_table_exists')) {
 	}
 }
 
+if (!function_exists('semantic_poll_incoming_checkpoint')) {
+	/**
+	 * Where the incoming pull keeps its window start: settings einvoice/incoming_poll_since in the current tenant
+	 * database. Only used with an open database connection.
+	 *
+	 * @return array{get: callable(): (int|null), set: callable(int): void}
+	 */
+	function semantic_poll_incoming_checkpoint() {
+		$ready = function () {
+			return function_exists('get_settings_value') && function_exists('update_settings_value') && !empty($GLOBALS['connection']);
+		};
+		return array(
+			'get' => function () use ($ready) {
+				if (!$ready()) {
+					return null;
+				}
+				$time = strtotime((string)get_settings_value('incoming_poll_since', 'einvoice', ''));
+				return ($time === false) ? null : $time;
+			},
+			'set' => function ($time) use ($ready) {
+				if ($ready()) {
+					update_settings_value('incoming_poll_since', 'einvoice', date('Y-m-d H:i:s', (int)$time), 'SD-815: start of the next incoming e-document pull (tools/semanticStatusPoll.php)');
+				}
+			},
+		);
+	}
+}
+
 if (!function_exists('semantic_poll_incoming')) {
 	/**
 	 * The pull of incoming documents (SD-815 tasks 19/20) for one regnskab registered at Semantic, after its outgoing
 	 * statuses, while the run's budget lasts: semantic_incoming_poll() in includes/einvoice/semanticIncoming.php lists
-	 * the documents received since the last run and handles the new ones (the document pool, or the receiver's answer
-	 * on einvoice_sendlog). Documents handled before are skipped without being read again, so the window overlaps the
-	 * previous run by an hour. The newest receivedDateTime seen is kept in settings (einvoice/incoming_poll_since); the
-	 * first run looks 8 days back, as long as Semantic keeps a pulled notification.
-	 * The list call takes one row from the budget, each document handled takes one more.
+	 * the documents received since the checkpoint and handles the new ones (the document pool, or the receiver's answer
+	 * on einvoice_sendlog). The window starts an hour before the checkpoint; the first run looks 8 days back, as long as
+	 * Semantic keeps a pulled notification.
+	 * Each Semantic call (a list page, a document) takes one row from the budget first, and the pull stops when the
+	 * budget says no. The checkpoint only moves forward after a complete pull, and never past a document that failed,
+	 * is busy or was not reached (the pull's 'resumeFrom'), so such a document is tried again by the next run.
 	 *
 	 * @param SemanticClient     $client
 	 * @param string             $db
 	 * @param SemanticPollBudget $budget
-	 * @param string|null        $hookFile Another file, for tests; null = semanticIncoming.php next to this file.
-	 * @param (callable(): int)|null $now Unix time, for tests; null = time().
+	 * @param callable|null      $pull       semantic_incoming_poll()'s signature; null = semantic_incoming_poll (tests pass a fake).
+	 * @param (callable(): int)|null $now    Unix time, for tests; null = time().
+	 * @param array{get: callable(): (int|null), set: callable(int): void}|null $checkpoint Null = semantic_poll_incoming_checkpoint().
 	 * @return array{checked: int, changed: int, failed: int, skipped: string, errors: list<string>}
 	 */
-	function semantic_poll_incoming(SemanticClient $client, $db, SemanticPollBudget $budget, $hookFile = null, $now = null) {
+	function semantic_poll_incoming(SemanticClient $client, $db, SemanticPollBudget $budget, $pull = null, $now = null, $checkpoint = null) {
 		$out = semantic_poll_empty_result();
-		$file = ($hookFile !== null) ? (string)$hookFile : __DIR__ . '/semanticIncoming.php';
-		if (!function_exists('semantic_incoming_poll') && is_file($file)) {
-			include_once($file);
+		if ($pull === null) {
+			include_once(__DIR__ . '/semanticIncoming.php');
+			$pull = 'semantic_incoming_poll';
 		}
-		if (!function_exists('semantic_incoming_poll')) {
-			return $out;
-		}
-		if (!$budget->takeRow()) {
+		$checkpoint = is_array($checkpoint) ? $checkpoint : semantic_poll_incoming_checkpoint();
+		if ($budget->exhausted()) {
 			$out['skipped'] = 'budget';
 			return $out;
 		}
 		$time = is_callable($now) ? (int)call_user_func($now) : time();
-		$floor = $time - 8 * 86400;
-		$stored = function_exists('get_settings_value') ? strtotime((string)get_settings_value('incoming_poll_since', 'einvoice', '')) : false;
-		$since = ($stored !== false && $stored - 3600 > $floor) ? $stored - 3600 : $floor;
-		$limit = max(1, min(100, (int)$budget->rowsLeft()));
-		$result = semantic_incoming_poll(date('Y-m-d H:i:s', $since), $limit, $client, (string)$db);
-		$out['checked'] = (int)$result['listed'];
-		$out['changed'] = (int)$result['handled'];
-		$out['failed'] = (int)$result['failed'];
-		for ($i = (int)$result['handled'] + (int)$result['failed']; $i > 0; $i--) {
-			if (!$budget->takeRow()) {
-				$out['skipped'] = 'budget';
-				break;
-			}
+		$stored = call_user_func($checkpoint['get']);
+		$since = ($stored !== null) ? (int)$stored - 3600 : $time - 8 * 86400;
+		$mayContinue = function () use ($budget) {
+			return $budget->takeRow();
+		};
+		$result = call_user_func($pull, date('Y-m-d H:i:s', $since), 500, $client, (string)$db, null, $mayContinue);
+		if (!is_array($result)) {
+			return $out;
 		}
-		if ((int)$result['failed'] > 0) {
-			foreach ($result['messages'] as $message) {
+		$out['checked'] = (int)($result['listed'] ?? 0);
+		$out['changed'] = (int)($result['handled'] ?? 0);
+		$out['failed'] = (int)($result['failed'] ?? 0);
+		if ($out['failed'] > 0) {
+			foreach (($result['messages'] ?? array()) as $message) {
 				$out['errors'][] = (string)$message;
 			}
 		}
-		if ($result['newest'] !== null && function_exists('update_settings_value')) {
-			$newest = strtotime((string)$result['newest']);
-			if ($newest !== false && ($stored === false || $newest > $stored)) {
-				update_settings_value('incoming_poll_since', 'einvoice', date('Y-m-d H:i:s', $newest), 'SD-815: newest incoming e-document seen by tools/semanticStatusPoll.php');
+		if (!empty($result['stopped'])) {
+			$out['skipped'] = 'budget';
+		}
+		if (!empty($result['complete'])) {
+			$mark = $result['resumeFrom'] ?? $result['newest'] ?? null;
+			$markTime = ($mark !== null) ? strtotime((string)$mark) : false;
+			if ($markTime !== false && ($stored === null || $markTime > (int)$stored)) {
+				call_user_func($checkpoint['set'], $markTime);
 			}
 		}
 		return $out;

@@ -99,14 +99,16 @@ if (!function_exists('semantic_incoming_columns')) {
 
 if (!function_exists('semantic_incoming_text')) {
 	/**
-	 * A text through findtekst() when it is there (a page or the webhook), else the fallback after the pipe.
+	 * A text through findtekst() when it is there with a database connection (a page or the webhook), else the
+	 * fallback after the pipe.
 	 *
 	 * @param string     $key     'key|Dansk tekst'.
 	 * @param int|string $sprogId
 	 * @return string
 	 */
 	function semantic_incoming_text($key, $sprogId = 1) {
-		if (function_exists('findtekst')) {
+		// Only with an open database connection: a test (or a CLI) may have findtekst() loaded without one.
+		if (function_exists('findtekst') && !empty($GLOBALS['connection'])) {
 			return (string)findtekst($key, $sprogId);
 		}
 		$parts = explode('|', (string)$key, 2);
@@ -1164,31 +1166,42 @@ if (!function_exists('semantic_incoming_poll')) {
 	/**
 	 * The pull fallback for missed incoming notifications, for a cron job: list the current tenant database's incoming
 	 * documents received since $since and handle each one (semantic_incoming_process()). Already handled documents are
-	 * skipped without reading them again, so overlapping windows are harmless: call it with the 'newest' of the previous
-	 * run minus a margin (e.g. one hour), or a day back the first time. Does nothing in a copy of a regnskab, in one that
-	 * is not on the Semantic provider, or before includes/betweenUpdates.php created einvoice_incoming.
+	 * skipped without reading them again, so overlapping windows are harmless. Does nothing in a copy of a regnskab, in
+	 * one that is not on the Semantic provider, or before includes/betweenUpdates.php created einvoice_incoming.
 	 * The caller connects to the tenant database first (includes/connect.php, db_connect(), $db) and includes
 	 * includes/std_func.php (get_settings_value(), findtekst()), as debitor/semanticWebhook.php does.
+	 *
+	 * The caller's next window must not start after a document that is not finished: 'complete' says whether every
+	 * listed page was read and every document needing work was tried, and 'resumeFrom' is the oldest receivedDateTime
+	 * of a document that failed, is busy in another run, or was not reached. A document given up after
+	 * SEMANTIC_INCOMING_MAX_ATTEMPTS does not hold the window back (it stays 'failed' for support).
+	 * $mayContinue is asked before every Semantic call (each list page and each document to handle); when it says no
+	 * the run stops at once with 'stopped' true.
 	 *
 	 * SD-815 ASSUMPTION: DocumentFilter.pageNumber starts at 1 and receivedFrom filters on receivedDateTime.
 	 *
 	 * @param string                     $since  'Y-m-d H:i:s' (server time) or ISO 8601.
-	 * @param int                        $limit  Documents per run, 1..500.
+	 * @param int                        $limit  Documents to handle per run (already handled ones do not count), 1..500.
 	 * @param SemanticClient|null        $client Null = semantic_client().
 	 * @param string|null                $db     The current tenant database; null = $GLOBALS['db'].
 	 * @param SemanticIncomingStore|null $store
+	 * @param (callable(): bool)|null    $mayContinue Null = no budget (at most 50 list pages).
 	 * @return array{
 	 *   listed: int,       Documents Semantic listed for this regnskab.
 	 *   handled: int,      Newly handled now (pooled, duplicate or a response stored/recorded, or ignored).
-	 *   already: int,      Handled before.
+	 *   already: int,      Handled before (or given up after too many attempts).
 	 *   failed: int,       To be tried again by the next run.
 	 *   skipped: int,      Not this regnskab's (another endpoint), or busy in another run.
-	 *   newest: string|null, The newest receivedDateTime seen ('Y-m-d H:i:s'), for the next run's $since.
+	 *   newest: string|null, The newest receivedDateTime seen ('Y-m-d H:i:s').
+	 *   resumeFrom: string|null, The oldest receivedDateTime of a document that is not finished.
+	 *   complete: bool,    Every page read and every document needing work tried.
+	 *   stopped: bool,     $mayContinue said no.
 	 *   messages: list<string>,
 	 * }
 	 */
-	function semantic_incoming_poll($since, $limit = 100, $client = null, $db = null, $store = null) {
-		$out = array('listed' => 0, 'handled' => 0, 'already' => 0, 'failed' => 0, 'skipped' => 0, 'newest' => null, 'messages' => array());
+	function semantic_incoming_poll($since, $limit = 100, $client = null, $db = null, $store = null, $mayContinue = null) {
+		$out = array('listed' => 0, 'handled' => 0, 'already' => 0, 'failed' => 0, 'skipped' => 0, 'newest' => null,
+			'resumeFrom' => null, 'complete' => false, 'stopped' => false, 'messages' => array());
 		$db = ($db !== null) ? (string)$db : (string)($GLOBALS['db'] ?? '');
 		$store = ($store instanceof SemanticIncomingStore) ? $store : new SemanticIncomingStore();
 		if (!$store->ready()) {
@@ -1216,9 +1229,25 @@ if (!function_exists('semantic_incoming_poll')) {
 			return $out;
 		}
 		$limit = max(1, min(500, (int)$limit));
-		$pageSize = min(100, $limit);
-		$seen = 0;
-		for ($page = 1; $seen < $limit && $page <= (int)ceil($limit / $pageSize) + 1; $page++) {
+		$pageSize = 100;
+		$maxPages = is_callable($mayContinue) ? PHP_INT_MAX : 50;
+		$work = 0;
+		$hold = function ($received) use (&$out) {
+			if ($received !== null && ($out['resumeFrom'] === null || strcmp($received, $out['resumeFrom']) < 0)) {
+				$out['resumeFrom'] = $received;
+			}
+		};
+		$may = function () use ($mayContinue, &$out) {
+			if (is_callable($mayContinue) && !call_user_func($mayContinue)) {
+				$out['stopped'] = true;
+				return false;
+			}
+			return true;
+		};
+		for ($page = 1; $page <= $maxPages; $page++) {
+			if (!$may()) {
+				return $out;
+			}
 			$answer = $client->getIncomingDocuments(array(
 				'companyId' => $settings['companyId'],
 				'receivedFrom' => date('c', $sinceTime),
@@ -1228,14 +1257,10 @@ if (!function_exists('semantic_incoming_poll')) {
 			if (!$answer['ok']) {
 				$out['messages'][] = 'Semantic: ' . $answer['message'];
 				$out['failed']++;
-				break;
+				return $out;
 			}
 			$list = semantic_incoming_list($answer['data']);
 			foreach ($list as $raw) {
-				if ($seen >= $limit) {
-					break;
-				}
-				$seen++;
 				$doc = semantic_incoming_document($raw);
 				if ($doc === null || !semantic_incoming_route($doc, $settings, $db)['allowed']) {
 					$out['skipped']++;
@@ -1245,20 +1270,35 @@ if (!function_exists('semantic_incoming_poll')) {
 				if ($doc['received'] !== null && ($out['newest'] === null || strcmp($doc['received'], $out['newest']) > 0)) {
 					$out['newest'] = $doc['received'];
 				}
+				$known = ($doc['incomingId'] !== null) ? $store->get($doc['incomingId']) : null;
+				if ($known !== null && (in_array($known['status'], semantic_incoming_final_statuses(), true)
+					|| ($known['status'] === 'failed' && $known['attempts'] >= SEMANTIC_INCOMING_MAX_ATTEMPTS))) {
+					$out['already']++;
+					continue;
+				}
+				if ($work >= $limit || !$may()) {
+					// Not reached this run: the next window must still include it.
+					$hold($doc['received']);
+					return $out;
+				}
+				$work++;
 				$result = semantic_incoming_process($client, array('document' => $raw), array('db' => $db, 'store' => $store));
 				if ($result['outcome'] === 'already') {
 					$out['already']++;
 				} elseif ($result['outcome'] === 'busy') {
 					$out['skipped']++;
+					$hold($doc['received']);
 				} elseif ($result['ok']) {
 					$out['handled']++;
 				} else {
 					$out['failed']++;
+					$hold($doc['received']);
 					$out['messages'][] = 'Dokument ' . ($doc['incomingId'] ?? '?') . ': ' . $result['message'];
 				}
 			}
 			if (count($list) < $pageSize) {
-				break;
+				$out['complete'] = true;
+				return $out;
 			}
 		}
 		return $out;

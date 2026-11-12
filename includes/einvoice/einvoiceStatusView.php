@@ -45,7 +45,8 @@ if (!function_exists('einvoice_findtekst')) {
 	 * @return string
 	 */
 	function einvoice_findtekst($textId, $sprogId) {
-		if (function_exists('findtekst') && function_exists('db_select')) {
+		// Only with an open database connection: a test (or a CLI) may have findtekst() loaded without one.
+		if (function_exists('findtekst') && !empty($GLOBALS['connection'])) {
 			return (string)findtekst($textId, (int)$sprogId);
 		}
 		$parts = explode('|', (string)$textId, 2);
@@ -67,7 +68,7 @@ if (!function_exists('einvoice_ui_semantic_enabled')) {
 			$enabled = null;
 		}
 		if ($enabled === null) {
-			$value = function_exists('get_settings_value') ? get_settings_value('provider', 'einvoice', 'easyubl') : 'easyubl';
+			$value = (function_exists('get_settings_value') && !empty($GLOBALS['connection'])) ? get_settings_value('provider', 'einvoice', 'easyubl') : 'easyubl';
 			$enabled = is_string($value) && strtolower(trim($value)) === 'semantic';
 		}
 		return $enabled;
@@ -81,7 +82,7 @@ if (!function_exists('einvoice_ui_semantic_registered')) {
 	 * @return bool
 	 */
 	function einvoice_ui_semantic_registered() {
-		return function_exists('get_settings_value') && trim((string)get_settings_value('companyId', 'semantic', '')) !== '';
+		return function_exists('get_settings_value') && !empty($GLOBALS['connection']) && trim((string)get_settings_value('companyId', 'semantic', '')) !== '';
 	}
 }
 
