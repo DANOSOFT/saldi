@@ -13,6 +13,7 @@
 // 20261026 CL/SZ Names, numbers and "..." are separate tokens; block-string escapes, BOMs, bad escapes
 //                and leading zeros when matching (#862 review).
 // 20261112 CL/SZ SD-822: the bulk mutation start, the staged target and the upload.
+// 20261112 CL/SZ SD-822 CodeRabbit: the staged target's signature and policy stay out of the log.
 
 use PHPUnit\Framework\TestCase;
 
@@ -466,6 +467,22 @@ final class ClientBulkTest extends TestCase
 		$this->assertSame($target, $r['target']);
 		$this->assertSame([['resource' => 'BULK_MUTATION_VARIABLES', 'filename' => 'x.jsonl', 'mimeType' => 'text/jsonl', 'httpMethod' => 'POST']],
 			$fake->calls[0]['body']['variables']['input']);
+	}
+
+	public function test_stage_logs_the_target_without_its_signature_and_policy(): void
+	{
+		$target = ['url' => 'https://shopify-staged-uploads.storage.googleapis.com/', 'parameters' => [
+			['name' => 'key', 'value' => 'tmp/1/bulk/x.jsonl'], ['name' => 'x-goog-signature', 'value' => 'sig-value-1234'],
+			['name' => 'policy', 'value' => 'policy-value-5678']]];
+		$fake = new FakeShopify([FakeShopify::ok(['stagedUploadsCreate' => ['stagedTargets' => [$target], 'userErrors' => []]])]);
+
+		$r = shopify_bulk_stage(FakeShopify::shop(), 'x.jsonl', $fake->opts(['redact' => fn(mixed $body): mixed => $body]));
+
+		$this->assertSame($target, $r['target'], 'the caller still gets the whole target');
+		$logged = base64_decode($fake->logs[0]['response_b64']);
+		$this->assertStringNotContainsString('sig-value-1234', $logged);
+		$this->assertStringNotContainsString('policy-value-5678', $logged);
+		$this->assertStringContainsString('tmp/1/bulk/x.jsonl', $logged, 'the key is only a path and stays');
 	}
 
 	public function test_upload_posts_the_parameters_and_the_file_and_logs_only_the_host(): void

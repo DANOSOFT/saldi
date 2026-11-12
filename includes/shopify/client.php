@@ -40,6 +40,7 @@
 //                "100 Continue" block no longer carries over (SD-747, #862 CodeRabbit).
 // 20261028 Sawaneh SD-738: the attempt entry carries the requested and actual cost and the restore rate for the call log.
 // 20261112 CL/SZ SD-822: bulk mutations: shopify_bulk_start_mutation(), shopify_bulk_stage() and shopify_bulk_upload().
+// 20261112 CL/SZ SD-822 CodeRabbit: the staged target is logged without its signature and policy values.
 
 const SHOPIFY_API_VERSION = '2026-07';
 const SHOPIFY_MAX_RETRIES = 3;
@@ -431,10 +432,33 @@ function shopify_bulk_begin(array $shop, string $type, string $document, string 
 function shopify_bulk_stage(array $shop, string $filename, array $opts = []): array
 {
 	$opts['retry_mode'] = 'idempotent';
+	$redact = $opts['redact'] ?? (function_exists('shopify_redact') ? 'shopify_redact' : null);
+	if ($redact !== null) {
+		$opts['redact'] = fn(mixed $body, array $secrets): mixed => $redact(shopify_bulk_stage_unsigned($body), $secrets);
+	}
 	$result = shopify_graphql($shop, 'stagedUploadsCreate', SHOPIFY_BULK_STAGE_MUTATION,
 		['input' => [['resource' => 'BULK_MUTATION_VARIABLES', 'filename' => $filename, 'mimeType' => 'text/jsonl', 'httpMethod' => 'POST']]], $opts);
 	$result['target'] = $result['ok'] ? ($result['data']['stagedUploadsCreate']['stagedTargets'][0] ?? null) : null;
 	return $result;
+}
+
+/**
+ * A staged target's parameters (signature, policy, credential) authorize the upload, and shopify_redact() can't
+ * see that: they come as name/value pairs. The logged copy keeps each name and only the key's value.
+ */
+function shopify_bulk_stage_unsigned(mixed $body): mixed
+{
+	if (!is_array($body) || !is_array($body['data']['stagedUploadsCreate']['stagedTargets'] ?? null)) {
+		return $body;
+	}
+	foreach ($body['data']['stagedUploadsCreate']['stagedTargets'] as $t => $target) {
+		foreach (is_array($target['parameters'] ?? null) ? $target['parameters'] : [] as $p => $param) {
+			if (is_array($param) && ($param['name'] ?? null) !== 'key') {
+				$body['data']['stagedUploadsCreate']['stagedTargets'][$t]['parameters'][$p]['value'] = '[redacted]';
+			}
+		}
+	}
+	return $body;
 }
 
 /**

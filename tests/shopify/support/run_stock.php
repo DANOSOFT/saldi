@@ -23,6 +23,7 @@
 // 20261105 CL/SZ SD-757: steps for the display metafield, baseline, reconcile and remap.
 // 20261106 CL/SZ SD-757 review: step hold, stock an unpaid order keeps committed.
 // 20261112 CL/SZ SD-822: steps start_activate, activate, hide, refuse_toggle, refuse_set, limit_bulk and fail_bulk.
+// 20261112 CL/SZ SD-822 CodeRabbit: activate can run out of time just before the upload.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_stock.php <test_db> <state file> '<steps json>'\n");
@@ -158,6 +159,10 @@ try {
                 case 'activate':
                     $rt = ['graphql' => $store->opts(), 'download' => ['download' => $store->bulkDownloader(), 'log' => fn(): null => null],
                         'upload' => ['upload' => $store->bulkUploader(), 'log' => fn(): null => null]];
+                    if (!empty($step[5])) {
+                        // the pass's time runs out just before the upload
+                        $rt['upload']['clock'] = fn(): float => PHP_FLOAT_MAX;
+                    }
                     $results[] = shopify_stock_activate_all($rt, ['id' => 0, 'shop_id' => $shopId($step[1]), 'payload' => ['dry_run' => (bool)($step[3] ?? false)],
                         'checkpoint' => $step[2] ?? null], microtime(true) + (float)($step[4] ?? 30));
                     break;

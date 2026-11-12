@@ -66,6 +66,7 @@
 //                A set that can't be published no longer keeps the baseline from stamping (Å32, Lui).
 // 20261112 CL/SZ SD-822: stock.activate stocks every linked item at its locations in bulk before go-live, after setting the pairs to 0.
 //                It and the baseline refuse to start while the other is queued or running.
+// 20261112 CL/SZ SD-822 CodeRabbit: activate yields when the pass runs out of time before the upload; singular counts.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -1580,11 +1581,11 @@ function shopify_stock_activate_all(array $rt, array $job, float $deadline): arr
 			return array('outcome' => 'yield', 'checkpoint' => $cp);
 		}
 		shopify_stock_unlink($file);
-		$absent = $plan['absent'] > 0 ? " {$plan['absent']} linked items are not in Shopify's read and were left out." : '';
+		$absent = shopify_stock_activate_absent($plan['absent']);
 		if (!empty($job['payload']['dry_run']) || $plan['pairs'] === 0) {
 			shopify_stock_unlink($vars);
 			if (!empty($job['payload']['dry_run'])) {
-				$what = "Dry run: {$plan['pairs']} pairs at {$plan['items']} items are not stocked yet.";
+				$what = 'Dry run: ' . shopify_stock_count($plan['pairs'], 'pair') . ' at ' . shopify_stock_count($plan['items'], 'item') . ($plan['pairs'] === 1 ? ' is' : ' are') . ' not stocked yet.';
 			} else {
 				$what = $plan['absent'] > 0 ? 'Every linked item in Shopify\'s read is stocked at all its locations.' : 'Every linked item is stocked at all its locations.';
 			}
@@ -1645,12 +1646,25 @@ function shopify_stock_activate_finish(array $shop, array $cp, string $vars, arr
 	}
 	shopify_stock_activate_cleanup($shop, $cp);
 	$stocked = $cp['pairs'] - $refused['pairs'];
-	$message = "Stocked $stocked of {$cp['pairs']} pairs at {$cp['items']} items." . ($cp['absent'] > 0 ? " {$cp['absent']} linked items are not in Shopify's read and were left out." : '');
+	$message = "Stocked $stocked of " . shopify_stock_count($cp['pairs'], 'pair') . ' at ' . shopify_stock_count($cp['items'], 'item') . '.' . shopify_stock_activate_absent($cp['absent']);
 	if ($refused['items'] > 0) {
-		$message .= " Shopify refused {$refused['items']} items (see their warnings); the baseline won't stamp until they are fixed.";
+		$message .= ' Shopify refused ' . shopify_stock_count($refused['items'], 'item') . " (see their warnings); the baseline won't stamp until they are fixed.";
 	}
 	shopify_error_open((int)$shop['id'], 'stock', 'activate', $message, $refused['items'] > 0 || $cp['absent'] > 0 ? 'warning' : 'info');
 	return array('outcome' => 'done', 'pairs' => $stocked, 'refused' => $refused['items']);
+}
+
+/** "1 item", "3 items": the report's counts. */
+function shopify_stock_count(int $n, string $noun): string {
+	return "$n $noun" . ($n === 1 ? '' : 's');
+}
+
+/** The report's sentence on linked items missing from Shopify's read, or '' when none is. */
+function shopify_stock_activate_absent(int $absent): string {
+	if ($absent === 0) {
+		return '';
+	}
+	return ' ' . shopify_stock_count($absent, 'linked item') . ($absent === 1 ? ' is' : ' are') . " not in Shopify's read and " . ($absent === 1 ? 'was' : 'were') . ' left out.';
 }
 
 /**
@@ -1784,7 +1798,7 @@ function shopify_stock_activate_zero(array $rt, array $shop, string $vars, array
  * Uploads the variables file without the lines left out, as its own file (the original keeps its line
  * numbers for a later pass), and starts the bulk mutation. The result's line numbers refer to that file.
  *
- * @return string|null the operation's id, null while Shopify runs other bulk mutations
+ * @return string|null the operation's id; null while Shopify runs other bulk mutations, or when the pass ran out of time
  * @throws RuntimeException when the upload or the start fails
  */
 function shopify_stock_activate_start(array $rt, array $shop, string $vars, string $upload, array $cp, array $graphql, float $deadline): ?string {
@@ -1799,10 +1813,18 @@ function shopify_stock_activate_start(array $rt, array $shop, string $vars, stri
 		throw new RuntimeException('the stock activation upload file cannot be written');
 	}
 	$stage = shopify_bulk_stage($shop, 'stock_activate.jsonl', $graphql);
+	if (($stage['error'] ?? null) === 'deadline') {
+		// out of time: a target creates nothing, so the next pass asks again and keeps this pass's zeroing
+		return null;
+	}
 	if (!$stage['ok'] || $stage['target'] === null) {
 		throw new RuntimeException('asking Shopify for the upload target failed: ' . (string)($stage['error'] ?? 'no target'));
 	}
 	$up = shopify_bulk_upload($stage['target'], $upload, ($rt['upload'] ?? array()) + array('deadline' => $deadline));
+	if ($up['error'] === 'deadline') {
+		// stopped before sending anything
+		return null;
+	}
 	if (!$up['ok']) {
 		throw new RuntimeException("uploading the stock activation file failed: {$up['error']}");
 	}

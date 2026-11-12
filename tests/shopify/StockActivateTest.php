@@ -6,6 +6,7 @@
 // B40 inventoryBulkToggleActivation) through run_stock.php, and the command through the real CLI.
 //
 // 20261112 CL/SZ SD-822: created.
+// 20261112 CL/SZ SD-822 CodeRabbit: running out of time before the upload; singular counts in the report.
 
 declare(strict_types=1);
 
@@ -259,7 +260,7 @@ final class StockActivateTest extends TestCase
         $this->assertArrayNotHasKey('Kolding', $run['levels']['SD822-A']);
         $this->assertSame(["item:$a: Shopify refused to stock item $a at its locations: FAILED_TO_STOCK_AT_LOCATION The item could not be stocked at the location."], $this->itemErrors());
         $this->assertSame('warning', $this->report()['severity']);
-        $this->assertStringStartsWith('Stocked 1 of 2 pairs at 2 items. Shopify refused 1 items', $this->report()['message']);
+        $this->assertStringStartsWith('Stocked 1 of 2 pairs at 2 items. Shopify refused 1 item', $this->report()['message']);
     }
 
     public function test_an_item_refused_at_the_zeroing_is_left_out_and_the_rest_of_its_call_is_still_zeroed(): void
@@ -277,9 +278,37 @@ final class StockActivateTest extends TestCase
         $this->assertSame(0, $run['levels']['SD822-C']['Kolding']);
         $this->assertArrayNotHasKey('Kolding', $run['levels']['SD822-A'], 'the refused item is not stocked');
         $this->assertCount(2, self::calls($run['calls'], 'bulkOperationRunMutation'), 'LIMIT_REACHED, then the start again');
-        $this->assertSame(['severity' => 'warning', 'message' => "Stocked 2 of 3 pairs at 3 items. Shopify refused 1 items (see their warnings); the baseline won't stamp until they are fixed."], $this->report());
+        $this->assertSame(['severity' => 'warning', 'message' => "Stocked 2 of 3 pairs at 3 items. Shopify refused 1 item (see their warnings); the baseline won't stamp until they are fixed."], $this->report());
         $this->assertCount(1, $this->itemErrors());
         $this->assertStringStartsWith("item:$a: Shopify refused setting item $a to 0", $this->itemErrors()[0]);
+    }
+
+    public function test_running_out_of_time_before_the_upload_keeps_the_zeroing_done(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $this->shop([$a]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $a, 4]);
+
+        $checkpoint = null;
+        $zeroing = [];
+        for ($pass = 1; $pass <= 5; $pass++) {
+            $late = $this->steps(['activate', 'hml', $checkpoint, false, 30, true]);
+            $out = $late['results'][0];
+            $zeroing = array_merge($zeroing, self::calls($late['calls'], 'stockSet'));
+            $this->assertArrayNotHasKey('exception', $out, 'the job yields instead of failing: ' . json_encode($out));
+            $checkpoint = $out['checkpoint'];
+            if (isset($checkpoint['pairs'])) {
+                break;
+            }
+        }
+
+        $this->assertSame('yield', $out['outcome']);
+        $this->assertSame(1, $out['checkpoint']['zeroed'], "this pass's zeroing is kept");
+        $this->assertArrayNotHasKey('op', $out['checkpoint']);
+        $this->assertCount(1, $zeroing);
+        $run = $this->activate(false, $out['checkpoint']);
+        $this->assertSame([], self::calls($run['calls'], 'stockSet'), 'the next pass does not zero again');
+        $this->assertSame(['severity' => 'info', 'message' => 'Stocked 2 of 2 pairs at 1 item.'], $this->report());
     }
 
     public function test_a_failed_bulk_operation_is_reported_and_a_rerun_stocks_only_what_is_left(): void
@@ -420,7 +449,7 @@ final class StockActivateTest extends TestCase
 
         $this->activate();
 
-        $this->assertSame(['severity' => 'warning', 'message' => "Every linked item in Shopify's read is stocked at all its locations. 1 linked items are not in Shopify's read and were left out."], $this->report());
+        $this->assertSame(['severity' => 'warning', 'message' => "Every linked item in Shopify's read is stocked at all its locations. 1 linked item is not in Shopify's read and was left out."], $this->report());
     }
 
     /** @return array{exit: int, stdout: string, stderr: string} */
