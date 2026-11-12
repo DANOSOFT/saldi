@@ -160,6 +160,7 @@
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261112 LOE SST-967 opret_ordre() and opret_ordre_kopi() let the caller's case and customer win; the request is only a fallback.
+// 20261112 LOE SST-967 The text-selection view escapes what it prints and keeps only b and i.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -4783,6 +4784,22 @@ if (!function_exists('vareopslag')) {
 	include(__DIR__ . '/orderFuncIncludes/productLookup.php');
 }
 ######################################################################################################################################
+/**
+ * Escapes a stored order text for the text-selection view, keeping only the two tags the page tells the
+ * user to use (b and i). Everything else is printed as text, so stored markup cannot run in another
+ * user's browser while bold and italic still render.
+ *
+ * @param string $tekst
+ *
+ * @return string
+ */
+function ordretekst_print_safe($tekst)
+{
+	$safe = htmlspecialchars((string) $tekst, ENT_QUOTES, 'UTF-8');
+
+	return str_ireplace(array('&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;'), array('<b>', '</b>', '<i>', '</i>'), $safe);
+}
+
 function tekstopslag($sort, $id)
 {
 	global $bgcolor;
@@ -4812,7 +4829,7 @@ function tekstopslag($sort, $id)
 		$omfang = $r['omfang'];
 		if ($omfang) {
 			print "<tbody class=\"dataTableLink dataTableBottomBorderGray\">\n";
-			print "<tr><td colspan=\"2\"><p style=\"text-align:center;\"><b>Omfang</b></p></td><td align=\"left\" title=\"" . findtekst(491, $sprog_id) . "\" style=\"width:800px;\"><!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_sag_id=$sag_id\">$omfang</a></td>\n";
+			print "<tr><td colspan=\"2\"><p style=\"text-align:center;\"><b>Omfang</b></p></td><td align=\"left\" title=\"" . findtekst(491, $sprog_id) . "\" style=\"width:800px;\"><!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_sag_id=$sag_id\">" . ordretekst_print_safe($omfang) . "</a></td>\n";
 			print "<td colspan=\"2\">&nbsp;</td>\n";
 			print "</tr>\n";
 			print "</tbody>\n";
@@ -4829,7 +4846,7 @@ function tekstopslag($sort, $id)
 		print "	<input type=\"checkbox\" title=\"Afkryds ved insættelse af flere tekster\" name=\"linjetekster[]\" value=\"$r[id]\">";
 		print "</td>";
 		print "<td align=\"left\" title=\"" . findtekst(491, $sprog_id) . "\" style=\"width:800px;\">";
-		print "	<!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_id=$r[id]\">" . nl2br($r['tekst']) . "</a>";
+		print "	<!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_id=$r[id]\">" . nl2br(ordretekst_print_safe($r['tekst'])) . "</a>";
 		print "</td>\n";
 		print "<td title=\"Ret tekst\" align=\"right\">";
 		print "	<span style=\"width:16px; display:block;\"><a href=\"ret_tekst_ordre.php?id=$id&amp;tekst_id=$r[id]\">";

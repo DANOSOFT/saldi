@@ -298,6 +298,12 @@ final class EmptyRightsGateTest extends TestCase
             'the create helper lets the caller case win over the request');
         self::assertStringContainsString("if (!\$sag_id) \$sag_id = (int) ifset(\$_GET, 'sag_id', 0);", $ref,
             'and the copy helper does the same');
+        self::assertStringContainsString('function ordretekst_print_safe($tekst)', $ref,
+            'the text view has one escaper');
+        self::assertStringContainsString("htmlspecialchars((string) \$tekst, ENT_QUOTES, 'UTF-8')", $ref,
+            'which escapes everything');
+        self::assertStringContainsString("nl2br(ordretekst_print_safe(\$r['tekst']))", $ref,
+            'and is used for the library rows as well');
         self::assertStringContainsString("\$sag_id = (int)\$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
         self::assertStringContainsString("\$sag_workflow_order = -1;", $ordre,
             'a malformed order selector makes the gate refuse the request instead of ignoring it');
