@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripePage.php --- 2026.10.22
+// --- includes/stripeIncludes/stripePage.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260820 CL/LH Created: shared customer-facing page shell for the Stripe
 //                subscription endpoints (subscribe.php/tak.php/afbrudt.php).
@@ -31,9 +31,11 @@
 //                Fonts are a local system stack on purpose: these are public
 //                EU-facing pages, so no Google Fonts (GDPR) and no CDNs.
 // 20261022 CL/LH S5 Footer identity can be overridden per request (invoice pages: invoicing company's name and e-mail).
+// 20261026 CL/NTR Comment only: the constant identity is the pinned ledger's default, not the only tenant.
 
-// The integration is pinned to one tenant (stripeConfigDb), so the page
-// identity is a constant: tak.php may not open a DB connection to look it up.
+// Default page identity (the pinned stripeConfigDb ledger) is a constant: tak.php
+// may not open a DB connection to look it up. Pages that know their ledger
+// override it through $GLOBALS['stripe_page_identity'].
 if (!defined('STRIPE_PAGE_SENDER'))  define('STRIPE_PAGE_SENDER', 'Danosoft ApS');
 if (!defined('STRIPE_PAGE_SUPPORT')) define('STRIPE_PAGE_SUPPORT', 'faktura@danosoft.dk');
 

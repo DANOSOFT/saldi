@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeBootstrap.php --- 2026.08.07
+// --- includes/stripeIncludes/stripeBootstrap.php --- 2026.10.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260807 CL/LH Created: session-less tenant bootstrap for the Stripe entry
 //                scripts (api/stripe/*.php, tools/). Include AFTER connect.php
@@ -32,6 +32,8 @@
 //                Same idiom as api/bet_func.php logon(): locator lookup is in
 //                stripeConfigDb(), then db_connect() to the tenant.
 // 20260818 CL/LH Added false-return handling for Stripe database writes.
+// 20261026 CL/NTR Multi-ledger: the ledger comes from stripe_request_db() (r= on links and webhook URLs, else
+//                 the pinned ledger); CLI tools may set $stripe_cli_db (their --db) before including this file.
 
 include_once(__DIR__ . '/stripeSettings.php');
 
@@ -46,7 +48,7 @@ if (!function_exists('stripe_db_modify')) {
 }
 
 $stripe_boot_ok    = false;
-$stripe_target_db  = stripeConfigDb(); // '' = unresolved -> fail closed
+$stripe_target_db  = (PHP_SAPI === 'cli' && isset($stripe_cli_db)) ? stripe_ledger_db($stripe_cli_db) : stripe_request_db(); // '' = unresolved -> fail closed
 
 if ($stripe_target_db) {
 	$connection = db_connect($sqhost, $squser, $sqpass, $stripe_target_db);

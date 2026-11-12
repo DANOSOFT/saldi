@@ -576,7 +576,7 @@ final class StripeChargeTest extends PHPUnit\Framework\TestCase
         $debtor = StripeFixtures::row('adresser', (int)$inv['o']['konto_id']);
         $this->assertSame('cus_pi', $debtor['stripe_customer_id']);
         $this->assertSame('pm_new', $debtor['stripe_pm_id']);
-        $this->assertSame('email', StripeFixtures::row('ordrer', $old)['udskriv_til']);
+        $this->assertSame('Link', StripeFixtures::row('ordrer', $old)['udskriv_til']); // fixture default since 20261025
         $this->assertSame('email', StripeFixtures::row('ordrer', $order)['udskriv_til']);
         $this->assertSame('Stripe', StripeFixtures::row('ordrer', $template)['udskriv_til']);
         $this->assertSame('2026-11-22', StripeFixtures::row('ordrer', $template)['nextfakt']);
@@ -627,16 +627,23 @@ final class StripeChargeTest extends PHPUnit\Framework\TestCase
         $this->assertSame('pm_replacement', StripeTestTransport::$requests[2]['params']['invoice_settings']['default_payment_method']);
     }
 
-    public function testUncheckedReplacementAndOneOffHaveNoFutureUsage(): void
+    public function testUncheckedReplacementHasNoFutureUsageAndAOneOffInvoiceCanSaveTheCard(): void
     {
+        // 20261027 a one-off invoice offers automatic payment too, so saving the card there is honoured.
         foreach ([['stripe' => 'on'], ['stripe' => '', 'stripe_pm_id' => null]] as $debtor) {
             $order = $this->invoice($debtor, ['nextfakt' => null]);
             StripeTestTransport::queueBody($this->intent($order, 'pi_usage_' . $order, 'requires_payment_method', '', 'page'), 'POST', '/v1/payment_intents');
             $save = $debtor['stripe'] === '';
             $res = stripe_payment_create(stripe_invoice_load($order), 'page', $save);
             $this->assertTrue($res['ok']);
-            $this->assertNull($res['setup_future_usage']);
-            $this->assertArrayNotHasKey('setup_future_usage', StripeTestTransport::$requests[count(StripeTestTransport::$requests) - 1]['params']);
+            $params = StripeTestTransport::$requests[count(StripeTestTransport::$requests) - 1]['params'];
+            if ($save) {
+                $this->assertSame('off_session', $res['setup_future_usage']);
+                $this->assertSame('off_session', $params['setup_future_usage']);
+            } else {
+                $this->assertNull($res['setup_future_usage']);
+                $this->assertArrayNotHasKey('setup_future_usage', $params);
+            }
         }
     }
 
@@ -645,7 +652,7 @@ final class StripeChargeTest extends PHPUnit\Framework\TestCase
         $order = $this->invoice([], ['nextfakt' => null]);
         $inv = stripe_invoice_load($order);
         $this->assertTrue(stripe_unenrol_debtor((int)$inv['o']['konto_id']));
-        $this->assertSame('email', StripeFixtures::row('ordrer', $order)['udskriv_til']);
+        $this->assertSame('Link', StripeFixtures::row('ordrer', $order)['udskriv_til']);
         $this->assertSame('', StripeFixtures::row('adresser', (int)$inv['o']['konto_id'])['stripe']);
         $this->assertCount(1, $this->customerMails());
         $this->assertStringContainsString(stripe_invoice_url($order), $this->customerMails()[0]['text']);
@@ -680,7 +687,7 @@ final class StripeChargeTest extends PHPUnit\Framework\TestCase
         $this->assertTrue(stripe_unenrol_debtor((int)$inv['o']['konto_id']));
         $this->assertCount(1, $this->customerMails());
         $this->assertSame([$pdf], $this->customerMails()[0]['attachments']);
-        $this->assertSame('email', StripeFixtures::row('ordrer', $order)['udskriv_til']);
+        $this->assertSame('Link', StripeFixtures::row('ordrer', $order)['udskriv_til']);
     }
 
     public function testManualPayNowAuthenticationCompletesOriginalIntentOnceAndLateEventsCannotUndoIt(): void

@@ -1,6 +1,9 @@
 <?php
 // 20261022 CDX/LH Persist request identity/parameters before Stripe; recover ambiguous responses safely.
 // 20261022 CDX/LH Bind retries to the caller's source/card/consent, reconcile mismatches and reject terminal HTTP errors; enforce cards.
+// 20261027 CL/ASR Automatic payment is offered on every customer invoice, not only on recurring ones: the consent covers
+//                 the customer's next invoices, and a one-off invoice (e.g. the one carrying the manual-payment fee) must
+//                 let the customer turn it on and avoid the fee.
 
 /** @return string Copenhagen calendar date, with an explicit process clock for CLI/tests. */
 function stripe_today() {
@@ -13,9 +16,10 @@ function stripe_date_add($date, $days) {
 		->modify(sprintf('%+d days', (int)$days))->format('Y-m-d');
 }
 
-/** @return bool Whether save consent is offered and accepted for this invoice. */
+/** @return bool Whether save consent is offered and accepted for this invoice: any customer invoice (not a credit note). */
 function stripe_invoice_save_allowed($inv) {
-	return stripe_feature_on('enrolment') && ($inv['recurring'] || $inv['enrolled']);
+	return stripe_feature_on('enrolment') && ($inv['recurring'] || $inv['enrolled']
+		|| ((string)($inv['o']['art'] ?? '') === 'DO' && empty($inv['is_credit'])));
 }
 
 /** @return string Primary failure date; persisted job clock takes precedence over a DB timestamp. */
