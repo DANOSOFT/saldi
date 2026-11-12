@@ -7,6 +7,7 @@
 //                 CodeRabbit on PR #1109: JSON-encoded alert, reversed ranges, «Sæt aktivt» on year 1 / after a deleted year, the ten-minute fingerprint, and the card keeping a blocked year's opening balances.
 //                 A late commit during the very first check is found by the next fingerprint, proven with two real connections (Codex round 5).
 //                 Overlapping first checks keep the first baseline, and a first check that cannot get the lock waits for the next page (Codex round 6).
+//                 An older rebuild that resumes after a newer one calculates again instead of writing stale balances (Codex round 7).
 
 declare(strict_types=1);
 
@@ -66,11 +67,13 @@ final class FollowingOpeningBalancesTest extends TestCase
                 if ($result === false) {
                     throw new RuntimeException(pg_last_error($GLOBALS['connection']) . " in $sql");
                 }
-                // Lets a test run another check right after a check has read the state, before it goes on.
-                if (isset($GLOBALS['sst1005AfterStateSelect']) && strpos($sql, 'as state') !== false) {
-                    $hook = $GLOBALS['sst1005AfterStateSelect'];
-                    unset($GLOBALS['sst1005AfterStateSelect']);
-                    $hook();
+                // Lets a test run something on another connection right after a statement, before the code goes on.
+                if (isset($GLOBALS['sst1005Hook']) && strpos($sql, $GLOBALS['sst1005Hook']['after']) !== false) {
+                    $hook = $GLOBALS['sst1005Hook'];
+                    if (--$GLOBALS['sst1005Hook']['times'] <= 0) {
+                        unset($GLOBALS['sst1005Hook']);
+                    }
+                    ($hook['run'])();
                 }
                 return $result;
             }
@@ -598,15 +601,15 @@ final class FollowingOpeningBalancesTest extends TestCase
             $mine = $GLOBALS['connection'];
             // Check B (this connection) has read "no state yet"; before it goes on, check A starts following on the
             // other connection, and an ordinary year 9 posting commits after A has returned.
-            $GLOBALS['sst1005AfterStateSelect'] = function () use ($mine, $other): void {
+            $GLOBALS['sst1005Hook'] = ['after' => 'as state', 'times' => 1, 'run' => function () use ($mine, $other): void {
                 $GLOBALS['connection'] = $other;
                 self::assertNull(checkFollowingOpeningBalances(11));
                 self::assertSame(1120.0, $this->primo(10, 2000));
                 pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2024-03-01', 5, 0), (1000, '2024-03-01', 0, 5)");
                 $GLOBALS['connection'] = $mine;
-            };
+            }];
             self::assertNull(checkFollowingOpeningBalances(11));
-            self::assertArrayNotHasKey('sst1005AfterStateSelect', $GLOBALS, 'The overlap really happened.');
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The overlap really happened.');
             self::assertSame(1125.0, $this->primo(10, 2000), 'B continued from A\'s state, found the posting and rebuilt.');
             for ($scan = 1; $scan <= 2; $scan++) {
                 $this->setSyncState((int) explode('|', $this->syncState())[0], 0, time() - 601);
@@ -615,7 +618,66 @@ final class FollowingOpeningBalancesTest extends TestCase
             }
             self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalanceSync'"))['n']);
         } finally {
-            unset($GLOBALS['sst1005AfterStateSelect']);
+            unset($GLOBALS['sst1005Hook']);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testAnOlderRebuildThatResumesLateCalculatesAgain(): void
+    {
+        $schema = 'sst1005_rebuild_race_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            updateFollowingOpeningBalances(9);
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame(1120.0, $this->primo(10, 2000));
+            $mine = $GLOBALS['connection'];
+            // «Sæt aktivt» on year 10 (A) has read year 9's postings. Before it writes, a year 9 posting commits and the
+            // automatic check on the other connection (B) carries it into year 10 and commits.
+            $GLOBALS['sst1005Hook'] = ['after' => 'select kontonr, debet, kredit from transaktioner', 'times' => 1, 'run' => function () use ($mine, $other): void {
+                $GLOBALS['connection'] = $other;
+                pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2024-03-01', 5, 0), (1000, '2024-03-01', 0, 5)");
+                self::assertNull(checkFollowingOpeningBalances(11));
+                self::assertSame(1125.0, $this->primo(10, 2000), 'B carried the posting forward.');
+                $GLOBALS['connection'] = $mine;
+            }];
+            self::assertNull(syncFollowingOpeningBalances(9, 10));
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The overlap really happened.');
+            self::assertSame(1125.0, $this->primo(10, 2000), 'A found its source year changed and calculated again.');
+            for ($scan = 1; $scan <= 2; $scan++) {
+                $this->setSyncState((int) explode('|', $this->syncState())[0], 0, time() - 601);
+                self::assertNull(checkFollowingOpeningBalances(11));
+                self::assertSame(1125.0, $this->primo(10, 2000), "Due scan $scan.");
+            }
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testASourceYearThatKeepsChangingIsLeftWaiting(): void
+    {
+        $schema = 'sst1005_churn_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            self::assertNull(checkFollowingOpeningBalances(11));
+            $mine = $GLOBALS['connection'];
+            // A new year 9 posting commits after every read of year 9's postings.
+            $GLOBALS['sst1005Hook'] = ['after' => 'select kontonr, debet, kredit from transaktioner', 'times' => 5, 'run' => function () use ($other): void {
+                pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2024-03-01', 1, 0), (1000, '2024-03-01', 0, 1)");
+            }];
+            $this->sql('BEGIN');
+            $stop = 'unset';
+            self::assertSame([10, 11], updateFollowingOpeningBalances(9, $stop), 'No exception inside a caller\'s transaction.');
+            $this->sql('COMMIT');
+            self::assertNull($stop);
+            self::assertStringEndsWith('|9', $this->syncState(), 'Year 9 waits, so the next check rebuilds it.');
+            self::assertNull(checkFollowingOpeningBalances(10));
+            self::assertSame(1125.0, $this->primo(10, 2000), 'The next check carries all five postings.');
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }

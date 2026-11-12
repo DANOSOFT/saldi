@@ -38,6 +38,7 @@
 //                  When the transfer into a saved year is blocked, the year card keeps that year's opening balances as they were.
 //                  The first fingerprint is taken before the first watermark and both are stored together in one JSON row, so nothing committed in between is lost (Codex round 5).
 //                  The first state is created under a lock and never replaces a state another check stored meanwhile (Codex round 6).
+//                  Each transfer is checked again after its target rows are written and calculated again when its source year changed meanwhile, so an older rebuild cannot overwrite a newer one (Codex round 7).
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -89,72 +90,148 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null) {
 			break;
 		}
 		list($start, $end) = $sourceRange;
-		$opening = array();
-		$q = db_select("select kontonr from kontoplan where regnskabsaar = '$targetYear' and kontotype = 'S'", __FILE__ . ' line ' . __LINE__);
-		while ($row = db_fetch_array($q)) {
-			$opening[(int)$row['kontonr']] = 0;
-		}
-		if (!$opening) {
-			$blocked['noStatusAccounts'] = true;
-			$stop = $blocked;
-			break;
-		}
-		$movement = array();
-		$q = db_select("select kontonr, debet, kredit from transaktioner where transdate >= '$start' and transdate <= '$end'", __FILE__ . ' line ' . __LINE__);
-		while ($row = db_fetch_array($q)) {
-			$account = (int)$row['kontonr'];
-			if (!isset($movement[$account])) $movement[$account] = 0;
-			$movement[$account] += afrund($row['debet'] - $row['kredit'], 2);
-		}
-		$profit = 0;
-		$resultAccount = null;
-		$q = db_select("select kontonr, kontotype, primo, overfor_til from kontoplan where regnskabsaar = '$sourceYear' and kontotype in ('S', 'D', 'X') order by kontonr", __FILE__ . ' line ' . __LINE__);
-		while ($row = db_fetch_array($q)) {
-			$account = (int)$row['kontonr'];
-			$amount = isset($movement[$account]) ? $movement[$account] : 0;
-			if ($row['kontotype'] === 'D') {
-				$profit += afrund($row['primo'], 2) + $amount;
-			} elseif ($row['kontotype'] === 'X' && $resultAccount === null) {
-				$resultAccount = $row;
-			} elseif ($row['kontotype'] === 'S') {
-				$destination = (int)$row['overfor_til'];
-				if (!isset($opening[$destination])) $destination = $account;
-				$balance = (float)$row['primo'] + $amount;
-				if (isset($opening[$destination])) {
-					$opening[$destination] += $balance;
-				} elseif (afrund($balance, 2) != 0) {
-					$blocked['accounts'][] = $account;
-				}
+		for ($attempt = 1; ; $attempt++) {
+			$version = followingOpeningBalanceSourceVersion($sourceYear, $start, $end);
+			$blocked = followingOpeningBalanceStopShape($sourceYear, $targetYear);
+			$opening = followingOpeningBalanceTransfer($sourceYear, $targetYear, $start, $end, $blocked);
+			if ($opening === null) {
+				// A balance has no account to land on in the target year, so leave it and later years untouched.
+				$stop = $blocked;
+				break 2;
 			}
-		}
-		$result = afrund($profit, 2);
-		if ($resultAccount !== null) {
-			$destination = (int)$resultAccount['overfor_til'];
-			$account = (int)$resultAccount['kontonr'];
-			$result += isset($movement[$account]) ? $movement[$account] : 0;
-			if (isset($opening[$destination])) {
-				$opening[$destination] += $result;
-			} elseif (afrund($result, 2) != 0) {
-				$blocked['resultAccount'] = $account;
-				$blocked['resultDestination'] = $destination;
+			foreach ($opening as $account => $amount) {
+				$amount = (float)afrund($amount, 2);
+				db_modify("update kontoplan set primo = '$amount' where regnskabsaar = '$targetYear' and kontonr = '$account' and kontotype = 'S'", __FILE__ . ' line ' . __LINE__);
 			}
-		} elseif (afrund($result, 2) != 0) {
-			$blocked['noResultAccount'] = true;
-		}
-		if ($blocked['accounts'] || $blocked['resultAccount'] || $blocked['noResultAccount']) {
-			// A balance has no account to land on in the target year, so leave it and later years untouched.
-			$stop = $blocked;
-			break;
-		}
-		foreach ($opening as $account => $amount) {
-			$amount = (float)afrund($amount, 2);
-			db_modify("update kontoplan set primo = '$amount' where regnskabsaar = '$targetYear' and kontonr = '$account' and kontotype = 'S'", __FILE__ . ' line ' . __LINE__);
+			// A posting or another rebuild may have changed the source year since it was read. The target rows are
+			// locked by the writes above, so a result that is still current now cannot be overwritten by an older
+			// calculation; one that is not current is calculated again.
+			if (followingOpeningBalanceSourceVersion($sourceYear, $start, $end) === $version) {
+				break;
+			}
+			if ($attempt >= 5) {
+				// Still changing: keep this result and leave the source year waiting, so a later check rebuilds it.
+				// No exception here: the journal posting in finans/bogfor.php runs this inside its own transaction.
+				followingOpeningBalanceMarkPending($sourceYear);
+				break;
+			}
 		}
 		// Avoid switching database connections while the journal transaction is active.
 		genberegn($targetYear, false);
 		$updated[] = $targetYear;
 	}
 	return $updated;
+}
+
+/**
+ * The opening balances of $targetYear carried from $sourceYear, by the transfer rules of fiscalYearInc/yearX.php.
+ *
+ * @param int $sourceYear Fiscal year whose closing balances are carried.
+ * @param int $targetYear The next fiscal year.
+ * @param string $start First date of $sourceYear ('Y-m-d').
+ * @param string $end Last date of $sourceYear ('Y-m-d').
+ * @param array $blocked The stop shape for this transition; the reasons are filled in when a balance cannot land.
+ * @return array|null Status account => opening balance in $targetYear, or null when the transfer is blocked.
+ */
+function followingOpeningBalanceTransfer($sourceYear, $targetYear, $start, $end, &$blocked) {
+	$opening = array();
+	$q = db_select("select kontonr from kontoplan where regnskabsaar = '$targetYear' and kontotype = 'S'", __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$opening[(int)$row['kontonr']] = 0;
+	}
+	if (!$opening) {
+		$blocked['noStatusAccounts'] = true;
+		return null;
+	}
+	$movement = array();
+	$q = db_select("select kontonr, debet, kredit from transaktioner where transdate >= '$start' and transdate <= '$end'", __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$account = (int)$row['kontonr'];
+		if (!isset($movement[$account])) $movement[$account] = 0;
+		$movement[$account] += afrund($row['debet'] - $row['kredit'], 2);
+	}
+	$profit = 0;
+	$resultAccount = null;
+	$q = db_select("select kontonr, kontotype, primo, overfor_til from kontoplan where regnskabsaar = '$sourceYear' and kontotype in ('S', 'D', 'X') order by kontonr", __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$account = (int)$row['kontonr'];
+		$amount = isset($movement[$account]) ? $movement[$account] : 0;
+		if ($row['kontotype'] === 'D') {
+			$profit += afrund($row['primo'], 2) + $amount;
+		} elseif ($row['kontotype'] === 'X' && $resultAccount === null) {
+			$resultAccount = $row;
+		} elseif ($row['kontotype'] === 'S') {
+			$destination = (int)$row['overfor_til'];
+			if (!isset($opening[$destination])) $destination = $account;
+			$balance = (float)$row['primo'] + $amount;
+			if (isset($opening[$destination])) {
+				$opening[$destination] += $balance;
+			} elseif (afrund($balance, 2) != 0) {
+				$blocked['accounts'][] = $account;
+			}
+		}
+	}
+	$result = afrund($profit, 2);
+	if ($resultAccount !== null) {
+		$destination = (int)$resultAccount['overfor_til'];
+		$account = (int)$resultAccount['kontonr'];
+		$result += isset($movement[$account]) ? $movement[$account] : 0;
+		if (isset($opening[$destination])) {
+			$opening[$destination] += $result;
+		} elseif (afrund($result, 2) != 0) {
+			$blocked['resultAccount'] = $account;
+			$blocked['resultDestination'] = $destination;
+		}
+	} elseif (afrund($result, 2) != 0) {
+		$blocked['noResultAccount'] = true;
+	}
+	if ($blocked['accounts'] || $blocked['resultAccount'] || $blocked['noResultAccount']) {
+		return null;
+	}
+	return $opening;
+}
+
+/**
+ * Leave $year waiting in the follow-up state, so the next check in a later year rebuilds the years after it.
+ * Nothing happens before the first check has started following.
+ *
+ * @param int $year Fiscal year (kodenr).
+ * @return void
+ */
+function followingOpeningBalanceMarkPending($year) {
+	$year = (int)$year;
+	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalanceSync' order by id limit 1", __FILE__ . ' line ' . __LINE__));
+	if (!$r || $r['var_value'] === null || $r['var_value'] === '') {
+		return;
+	}
+	$state = followingOpeningBalanceStateParts($r['var_value']);
+	if (!$state['pendingYear'] || $year < $state['pendingYear']) {
+		$state['pendingYear'] = $year;
+		saveFollowingOpeningBalanceState($state);
+	}
+}
+
+/**
+ * What a transfer from $sourceYear is calculated from, in short: the number and sums of its postings and of its
+ * status, result and Sideskift accounts' opening balances and «Overfør til». Read before and after a transfer is
+ * written; if it differs, the source year changed meanwhile and the transfer is calculated again. On PostgreSQL
+ * (read committed) the second read sees what other transactions committed meanwhile; a MySQL transaction in its
+ * default repeatable read keeps seeing its own snapshot, so there the check finds nothing new.
+ *
+ * @param int $sourceYear Fiscal year (kontoplan.regnskabsaar).
+ * @param string $start First date of the year ('Y-m-d').
+ * @param string $end Last date of the year ('Y-m-d').
+ * @return string The version.
+ */
+function followingOpeningBalanceSourceVersion($sourceYear, $start, $end) {
+	$sourceYear = (int)$sourceYear;
+	$qtxt = "select count(*) as postings, coalesce(sum(debet), 0) as debet, coalesce(sum(kredit), 0) as kredit ";
+	$qtxt.= "from transaktioner where transdate >= '$start' and transdate <= '$end'";
+	$postings = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
+	$qtxt = "select count(*) as accounts, coalesce(sum(primo), 0) as primo, coalesce(sum(overfor_til), 0) as overfor_til ";
+	$qtxt.= "from kontoplan where regnskabsaar = '$sourceYear' and kontotype in ('S', 'D', 'X')";
+	$accounts = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
+	return implode(':', array($postings['postings'], $postings['debet'], $postings['kredit'], $accounts['accounts'], $accounts['primo'], $accounts['overfor_til']));
 }
 
 /**
