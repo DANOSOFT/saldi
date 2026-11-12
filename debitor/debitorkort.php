@@ -136,6 +136,8 @@
 //                Before, one UPDATE wrote every field from the old form, so another user's newer notes were blanked without a warning.
 //                The hash is taken before the customer is read, so a save between the read and the hash can't slip through.
 //                A private card's first and last name are filled in from its name before the hash, and only while both are still empty.
+//                They are stored as plain text, so the first view and Gem no longer turn æøå into HTML entities (debitorkortFillPrivateNames()).
+//                A refused save keeps the card's way back (returside, ordre_id, fokus); split_navn() starts from an empty first name.
 @session_start();
 $s_id = session_id();
 
@@ -264,6 +266,9 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 	$id     = $_POST['id'];
 	if ($submit != $DelEt && !isset($_POST['anonymize']) && debitorkortSaveIsStale($id, $_POST)) {
 		alert(findtekst('debtor.card.changed_by_another_user|Kunden er ændret af en anden bruger, efter du åbnede kortet. Dine ændringer er ikke gemt. Kortet viser nu de gemte oplysninger, så indtast dine ændringer igen.', $sprog_id));
+		$returside = nav_sanitize_returside($_POST['returside'] ?? null) ?: $returside;
+		$ordre_id = (int)($_POST['ordre_id'] ?? 0);
+		$fokus = $_POST['fokus'] ?? $fokus;
 	} elseif (isset($_POST['anonymize']) && $id) {
 		include('anonymize.php');
 	} elseif ($submit != $DelEt) {
@@ -1132,17 +1137,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 }
 
 $einvoiceCvrBanner = ''; # SD-774, set from the saved card below
-$namesFromCompany = false;
-if ($id > 0) {
-	$r = db_fetch_array(db_select("select kontotype, firmanavn, fornavn, efternavn from adresser where id = '$id'", __FILE__ . " linje " . __LINE__));
-	if ($r && trim((string)$r['kontotype']) == 'privat' && !trim((string)$r['fornavn']) && !trim((string)$r['efternavn']) && trim((string)$r['firmanavn'])) {
-		list($newFornavn, $newEfternavn) = explode(",", split_navn(htmlentities(trim($r['firmanavn']), ENT_COMPAT, $charset)));
-		$qtxt = "update adresser set fornavn = '" . db_escape_string($newFornavn) . "', efternavn = '" . db_escape_string($newEfternavn) . "' ";
-		$qtxt.= "where id = '$id' and trim(coalesce(fornavn, '')) = '' and trim(coalesce(efternavn, '')) = ''";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__); #20140507
-		$namesFromCompany = true;
-	}
-}
+$namesFromCompany = ($id > 0) ? debitorkortFillPrivateNames($id) : false;
 $recordHash = ($id > 0) ? debitorkortRecordHash($id) : '';
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -2722,6 +2717,7 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 function split_navn($firmanavn)
 {
 	$y = 0;
+	$fornavn = '';
 	$tmp = array();
 	$tmp = explode(" ", $firmanavn);
 	$x = count($tmp) - 1;

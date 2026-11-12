@@ -24,6 +24,10 @@ final class DebitorkortStaleSaveTest extends TestCase
         "A changed delivery address makes the card stale",
         "An added delivery address makes the card stale",
         "Reordered contacts make the card stale",
+        "An edited contact makes the card stale, so «-» can't delete it unseen",
+        "A private card gets its first and last name from its name as plain text, also with æøå",
+        "The names are filled in once, and only on a private card",
+        "Names saved by someone else while the card fills them in are kept",
         "On a LATIN9 connection a customer with æøå is still detected as changed",
         "A post without recordHash, a new customer and a malformed hash are not checked",
     ];

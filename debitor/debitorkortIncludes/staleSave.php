@@ -24,13 +24,15 @@
 // ----------------------------------------------------------------------
 // 20261112 CL/SS MB-82 Created. The card's form carries a hash of the stored customer, and a save is refused when the customer changed after the card was opened.
 //                The contacts' ids and positions are in the hash too, as the card's save writes the contact order.
+//                The contacts' other fields are in the hash too, so a contact marked «-» isn't deleted after someone edited it.
+//                debitorkortFillPrivateNames() fills in a private card's first and last name as plain text before the hash.
 
 if (!function_exists('debitorkortRecordHash')) {
 	/**
 	 * MB-82: a hash of everything the card's save writes for one customer.
 	 *
 	 * Covers the adresser columns the save's UPDATE writes (plus email, which it writes from the e-mail rows),
-	 * the customer's kontakt_emails and delivery_addresses rows, and the id and posnr of its contacts (ansatte), whose order the save writes. adresser.modtime is not used, as invoicing
+	 * the customer's kontakt_emails and delivery_addresses rows, and its contacts (ansatte), whose order the save writes and which «-» deletes. adresser.modtime is not used, as invoicing
 	 * and the card's own page load update the row without anyone editing the card.
 	 *
 	 * @param int $id adresser.id of the customer.
@@ -70,11 +72,41 @@ if (!function_exists('debitorkortRecordHash')) {
 			}
 			$data['delivery_addresses'][] = $row;
 		}
-		$q = db_select("select id, posnr from ansatte where konto_id = '$id' order by id", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select * from ansatte where konto_id = '$id' order by id", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$data['ansatte'][] = array((string)$r['id'], (string)$r['posnr']);
+			$row = array();
+			foreach ($r as $column => $value) {
+				if (is_string($column)) {
+					$row[$column] = (string)$value;
+				}
+			}
+			$data['ansatte'][] = $row;
 		}
 		return md5(serialize($data));
+	}
+}
+
+if (!function_exists('debitorkortFillPrivateNames')) {
+	/**
+	 * MB-82: a private card without first and last name gets them from its name, before the card's hash is taken.
+	 *
+	 * The names are stored as plain text (the card escapes them when it shows them), and only while both are still
+	 * empty, so names saved meanwhile by someone else are kept. split_navn() is the card's own name splitter.
+	 *
+	 * @param int $id adresser.id of the customer.
+	 * @return bool True when the names were filled in.
+	 */
+	function debitorkortFillPrivateNames($id) {
+		$id = (int)$id;
+		$r = db_fetch_array(db_select("select kontotype, firmanavn, fornavn, efternavn from adresser where id = '$id'", __FILE__ . " linje " . __LINE__));
+		if (!$r || trim((string)$r['kontotype']) != 'privat' || trim((string)$r['fornavn']) || trim((string)$r['efternavn']) || !trim((string)$r['firmanavn'])) {
+			return false;
+		}
+		list($fornavn, $efternavn) = explode(",", split_navn(trim($r['firmanavn'])));
+		$qtxt = "update adresser set fornavn = '" . db_escape_string($fornavn) . "', efternavn = '" . db_escape_string($efternavn) . "' ";
+		$qtxt.= "where id = '$id' and trim(coalesce(fornavn, '')) = '' and trim(coalesce(efternavn, '')) = ''";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		return true;
 	}
 }
 

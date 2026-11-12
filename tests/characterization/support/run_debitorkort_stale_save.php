@@ -23,7 +23,22 @@ $schema = 'stale_save_test_' . bin2hex(random_bytes(6));
 function db_select($sql, $location) { return pg_query($GLOBALS['connection'], $sql); }
 /** @return array|false */
 function db_fetch_array($query) { return pg_fetch_array($query); }
+/** @return PgSql\Result */
+function db_modify($sql, $location) {
+	if (!empty($GLOBALS['beforeModify'])) {
+		$hook = $GLOBALS['beforeModify'];
+		$GLOBALS['beforeModify'] = null;
+		$hook();
+	}
+	return pg_query($GLOBALS['connection'], $sql);
+}
+/** @return string */
+function db_escape_string($value) { return pg_escape_string($GLOBALS['connection'], (string)$value); }
 require_once(__DIR__ . '/../../../debitor/debitorkortIncludes/staleSave.php');
+// The card's own name splitter, lifted from the page, which can't be included here.
+$page = file_get_contents(__DIR__ . '/../../../debitor/debitorkort.php');
+$start = strpos($page, 'function split_navn(');
+eval(substr($page, $start, strpos($page, "\n}\n", $start) + 3 - $start));
 
 /** @return void */
 function check($condition, $message) {
@@ -40,7 +55,7 @@ try {
 	run("CREATE SCHEMA $schema");
 	run("SET search_path TO $schema");
 	run("CREATE TABLE adresser (id int PRIMARY KEY, kontonr text, firmanavn text, notes text, email text, kontakt text, lukket text,
-		saldo numeric, invoiced date, modtime timestamp DEFAULT now())");
+		saldo numeric, invoiced date, modtime timestamp DEFAULT now(), kontotype text, fornavn text, efternavn text)");
 	run("CREATE TABLE kontakt_emails (id serial, konto_id int, email text, email_type text)");
 	run("CREATE TABLE delivery_addresses (id serial, account_id int, is_primary boolean, sort_order int, address_line1 text, city text)");
 	run("CREATE TABLE ansatte (id serial, konto_id int, navn text, posnr int)");
@@ -76,6 +91,24 @@ try {
 	$opened = array('id' => '7', 'recordHash' => debitorkortRecordHash(7));
 	run("UPDATE ansatte SET posnr = 3 - posnr WHERE konto_id = 7");
 	check(debitorkortSaveIsStale(7, $opened), "Reordered contacts make the card stale");
+	$opened = array('id' => '7', 'recordHash' => debitorkortRecordHash(7));
+	run("UPDATE ansatte SET navn = 'Bent Hansen' WHERE konto_id = 7 AND navn = 'Bent'");
+	check(debitorkortSaveIsStale(7, $opened), "An edited contact makes the card stale, so «-» can't delete it unseen");
+
+	// A private card without first and last name gets them from its name, as plain text.
+	run("INSERT INTO adresser (id,kontonr,firmanavn,kontotype) VALUES (10,'1010','Søren Ærø','privat'),(11,'1011','Firma ApS','erhverv')");
+	$filled = debitorkortFillPrivateNames(10);
+	$names = pg_fetch_assoc(pg_query($connection, "SELECT fornavn, efternavn, firmanavn FROM adresser WHERE id = 10"));
+	check($filled && $names === array('fornavn' => 'Søren', 'efternavn' => 'Ærø', 'firmanavn' => 'Søren Ærø'),
+		'A private card gets its first and last name from its name as plain text, also with æøå');
+	check(!debitorkortFillPrivateNames(10) && !debitorkortFillPrivateNames(11)
+		&& pg_fetch_result(pg_query($connection, "SELECT coalesce(fornavn,'') FROM adresser WHERE id = 11"), 0) === '',
+		'The names are filled in once, and only on a private card');
+	run("INSERT INTO adresser (id,kontonr,firmanavn,kontotype) VALUES (12,'1012','Bo Ek','privat')");
+	$beforeModify = function() { pg_query($GLOBALS['connection'], "UPDATE adresser SET fornavn = 'Bodil', efternavn = 'Eklund' WHERE id = 12"); };
+	debitorkortFillPrivateNames(12);
+	check(pg_fetch_result(pg_query($connection, "SELECT fornavn || ' ' || efternavn FROM adresser WHERE id = 12"), 0) === 'Bodil Eklund',
+		'Names saved by someone else while the card fills them in are kept');
 
 	// A legacy install whose connection reads and writes LATIN9.
 	pg_set_client_encoding($connection, 'LATIN9');
