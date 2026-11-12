@@ -8,6 +8,7 @@
 //                A balance other than 0,00 warns on the first Enter (focus on the last row's amount) and saves on the second, as SD-715's warning does.
 //                docPoolSaveNext.js saves the rows in the order shown and attaches the document to every row.
 //                Needs window.saldiPoolSplit (docPool.php) and the row template #poolSplitTemplate.
+// 20261004 CL/SZ SD-725 The row's VAT code fields (dvat/kvat) are renamed with the other lookup names.
 // 20261015 CL/SZ SD-720 (CodeRabbit) A captured amount of 0 is the total too; only a document without a captured amount uses the first row's.
 // 20261015 CL/SZ SD-720 (CodeRabbit) A split row that is saved has no × any more: removing it from the page left its journal line behind.
 //                Such a line is deleted in the journal.
@@ -125,8 +126,8 @@
             if (match) highest = Math.max(highest, parseInt(match[1], 10));
         });
         var number = highest + 1;
-        node.querySelectorAll('input[name]').forEach(function (input) {
-            input.name = input.name.replace(/^(d_ty|debe|k_ty|kred)\d+$/, '$1' + number);
+        node.querySelectorAll('input[name], select[name]').forEach(function (input) {
+            input.name = input.name.replace(/^(d_ty|debe|k_ty|kred|dvat|kvat)\d+$/, '$1' + number);
         });
         // "Duplikér" saves a copy at once; a split row is not saved yet
         node.querySelectorAll('a[onclick^="duplicateRow"]').forEach(function (link) {

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/udlobsrapport.php --- ver 5.0.0 --- 2026-09-30 ---
+// --- lager/udlobsrapport.php --- ver 5.0.0 --- 2026-10-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 //                  that opened it and offers the per-item batch overview from the item number.
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261011 CL/ASR Notice with link to batch_udfyld.php when batches in stock lack expiry date/batch number.
 
 @session_start();
 $s_id = session_id();
@@ -85,6 +86,12 @@ if ($menu == 'S') {
 	print "<td width='80%' $top_bund>$title</td>";
 	print "<td width='10%' $top_bund><br></td>";
 	print "</tbody></table>";
+}
+
+// Stock received before batch/expiry handling was turned on has no expiry date and is left out below
+if (!$export_csv && ($mangler = batch_missing_info_count())) {
+	print "<div style='background:#fff7e6;border-left:4px solid #b45309;padding:.6em 1em;margin:.4em 0'>";
+	print "$mangler " . batch_txt('missing') . " &nbsp; <a href='batch_udfyld.php?returside=" . urlencode('udlobsrapport.php') . "'>" . batch_txt('fill_now') . "</a></div>";
 }
 
 // Filter form

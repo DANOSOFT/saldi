@@ -19,6 +19,7 @@
 // Copyright (c) 2004-2006 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
+// 20260729 LOE Redirects to vareliste.php if no id is provided in the URL. Added missing params to db function calls. 
 
 @session_start();
 $s_id=session_id();
@@ -27,8 +28,21 @@ $modulnr=9;
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/dkdecimal.php");
- include("../includes/fuld_stykliste.php");
+if (!function_exists('dkdecimal')) {
+    include("../includes/stdFunc/dkDecimal.php");
+}
+include("../includes/fuld_stykliste.php");
 
-fuld_stykliste($_GET['id'], 'udskriv', '')
+$id = $_GET['id'] ?? null;
+if ($id === null || $id === '') {
+    echo "<script>
+        alert('A product ID is required to proceed.');
+        window.location.href = 'lister/vareliste.php';
+    </script>";
+    exit;
+}
+
+
+fuld_stykliste($id, 'udskriv', '')
+
 ?>

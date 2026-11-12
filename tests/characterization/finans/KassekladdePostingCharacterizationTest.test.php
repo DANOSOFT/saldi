@@ -14,6 +14,8 @@
 // History:
 // 20260723 CL/LH SD-601: created.
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
+// 20261022 CL/NTR Dropped the no-op `use CharacterizationEnv;` (PHP warning on load) and the unused
+//                 saldiFor(), which called a rows() helper this class does not have.
 
 use PHPUnit\Framework\TestCase;
 
@@ -82,12 +84,13 @@ final class KassekladdePostingCharacterizationTest extends TestCase
 
     private function createKladde(array $lines): int
     {
-        $r = CharacterizationEnv::one(
+        $kladdeId = CharacterizationEnv::nextId(self::$tenant, 'kladdeliste');
+        CharacterizationEnv::rows(
             self::$tenant,
-            "INSERT INTO kladdeliste (kladdedate, bogfort, kladdenote, oprettet_af)
-             VALUES (CURRENT_DATE, '', 'chartest', 'chartest') RETURNING id"
+            "INSERT INTO kladdeliste (id, kladdedate, bogfort, kladdenote, oprettet_af)
+             VALUES ($1, CURRENT_DATE, '', 'chartest', 'chartest')",
+            [$kladdeId]
         );
-        $kladdeId = (int)$r['id'];
         foreach ($lines as $line) {
             CharacterizationEnv::rows(
                 self::$tenant,

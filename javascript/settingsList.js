@@ -5,6 +5,7 @@
 //                  small provider forms sent through our own server, deep links ?item= and ?field=, Esc and Ctrl+S.
 // 20261008 Sawaneh Mini forms send the page's CSRF token (X-CSRF-Token), as master's Flatpay ID save (SST-844) requires.
 // 20261018 Sawaneh Account lookups in the drawers: the list of matching accounts while typing, as on the other settings pages.
+// 20261023 ASR Merge of master (SST-843): a mini-form answer that is not JSON (the login page after the session expired) is a failure even with HTTP 200.
 (function () {
 	'use strict';
 	var cfg = window.SALDI_SETTINGS || {};
@@ -248,9 +249,9 @@
 		fetch(box.dataset.url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token ? token.value : '' }, body: JSON.stringify(data) })
 			.then(function (r) {
 				return r.text().then(function (t) {
-					var msg = '';
-					try { var j = JSON.parse(t); msg = j.message || ''; } catch (err) { msg = ''; }
-					return { ok: r.ok, message: msg };
+					var msg = '', parsed = false;
+					try { var j = JSON.parse(t); msg = j.message || ''; parsed = true; } catch (err) { msg = ''; }
+					return { ok: r.ok && parsed, message: msg };
 				});
 			})
 			.then(function (res) {
