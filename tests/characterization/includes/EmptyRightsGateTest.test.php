@@ -138,7 +138,7 @@ final class EmptyRightsGateTest extends TestCase
             $block,
             'and a case that disagrees, or an order with no case, drops the exception'
         );
-        self::assertStringContainsString('unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer, $wf_selectors, $wf_source, $wf_selector, $wf_hist_id);', $block,
+        self::assertStringContainsString('unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_order_konto, $wf_customer, $wf_selectors, $wf_source, $wf_selector, $wf_hist_id);', $block,
             'the temporaries are cleaned up with the others');
         // Every order the request names is checked, not only the one that decided the case: the page takes its
         // id from id or ordre_id on the GET or on the POST, and a valid id= with another id= in the body was a
@@ -283,6 +283,11 @@ final class EmptyRightsGateTest extends TestCase
             'and an empty value cannot hide the next selector');
         self::assertStringContainsString("\$sst967_selector_bad = true;", $ordre,
             'a value that is not a number is recorded as malformed');
+        $gate = (string)@file_get_contents(__DIR__ . '/../../../includes/online.php');
+        self::assertStringContainsString("\$wf_order_konto !== \$wf_customer", $gate,
+            'the gate also requires the order to belong to the case customer');
+        self::assertStringContainsString("if (\$no_module_right) {\n\t\t\t\t\t\t\$sag_workflow_case_id = \$wf_sag;", $gate,
+            'and exports the case to the page only for a user without the module right');
         $copyBind = strpos($ordre, "if (\$sag_workflow_case_id) {\n\t\$sag_id = (int)\$sag_workflow_case_id;");
         $createCall = strpos($ordre, '$id = opret_ordre(');
         self::assertNotFalse($copyBind, 'the page case is replaced by the admitted one');
@@ -296,6 +301,16 @@ final class EmptyRightsGateTest extends TestCase
         self::assertStringContainsString("\$sag_id = (int)\$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
         self::assertStringContainsString("\$sag_workflow_order = -1;", $ordre,
             'a malformed order selector makes the gate refuse the request instead of ignoring it');
+        self::assertStringContainsString("\$sag_workflow_sag = -1;", $ordre,
+            'and so does a malformed case id');
+        self::assertStringContainsString("\$linje_id = array(\$linje_id);", $ordre,
+            'a single posted line id is wrapped so the filter sees it');
+        self::assertStringContainsString("\$kred_linje_id = array(\$kred_linje_id);", $ordre,
+            'and so is a single posted credit reference');
+        self::assertStringContainsString("select konto_id from sager where id = '\$sag_workflow_case_id'", $ordre,
+            'the copy is bound to the admitted case customer after the kontonr lookup');
+        self::assertStringContainsString("if (\$sag_workflow_case_id && \$tekst_sag_id !== (int) \$sag_workflow_case_id) {", $ordre,
+            'and the case text uses the integer it checked');
         self::assertStringContainsString("select id from ordrelinjer where ordre_id = '\$id'", $ordre,
             'and a posted line id of another order is dropped');
         self::assertStringContainsString("\$linje_id[\$sst967_k] = (int) \$sst967_v;", $ordre,

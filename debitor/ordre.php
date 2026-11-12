@@ -223,6 +223,12 @@ include("../includes/std_func.php");
 # applies, as it always did. (After std_func.php, because the lookups use ifset().)
 $sag_workflow_page = 'sag';
 $sag_workflow_sag   = (int) ifset($_GET, 'sag_id', ifset($_POST, 'sag_id', 0));
+$sst967_sag_value = ifset($_GET, 'sag_id', ifset($_POST, 'sag_id', ''));
+if ($sst967_sag_value !== '' && !is_numeric($sst967_sag_value)) {
+	# A case id that is not a number names no case: the gate must refuse rather than cast it.
+	$sag_workflow_sag = -1;
+}
+unset($sst967_sag_value);
 $sag_workflow_konto = (int) ifset($_GET, 'konto_id', ifset($_POST, 'konto_id', 0));
 # The order can arrive as id or as ordre_id, on the GET or on a POST. An empty id= must not hide an ordre_id,
 # so this takes the first one that is actually a number rather than falling through ifset().
@@ -437,6 +443,10 @@ $tidspkt = date("U"); #20210719
 $id        = if_isset($_GET, NULL, 'id');
 $funktion  = if_isset($_GET, NULL, 'funktion');
 $sag_id    = if_isset($_GET, NULL, 'sag_id'); // 20241126
+if ($sag_workflow_case_id) {
+	# The case the gate proved wins over this later raw read as well.
+	$sag_id = (int) $sag_workflow_case_id;
+}
 $konto_id  = if_isset($_GET, NULL, 'konto_id');
 $showLocalPrint = '';
 $qtxt = "select box1 from grupper where art='PV'";
@@ -617,9 +627,10 @@ if (($tekst_id = if_isset($_GET, NULL, 'tekst_id')) && ($id = (int) if_isset($_G
 		db_modify("insert into ordrelinjer (ordre_id,beskrivelse,posnr) values ('$id','" . db_escape_string($r['tekst']) . "','9999')", __FILE__ . " linje " . __LINE__);
 	}
 }
-if (($tekst_sag_id = if_isset($_GET, NULL, 'tekst_sag_id')) && ($id = (int) if_isset($_GET, NULL, 'id'))) {
-	# SST-967 the case whose omfang is inserted has to be the case this page was admitted for.
-	if ($sag_workflow_case_id && (int) $tekst_sag_id !== (int) $sag_workflow_case_id) {
+if (($tekst_sag_id = (int) if_isset($_GET, NULL, 'tekst_sag_id')) && ($id = (int) if_isset($_GET, NULL, 'id'))) {
+	# SST-967 the case whose omfang is inserted has to be the case this page was admitted for, and the value
+	# used in the query is the integer that was checked.
+	if ($sag_workflow_case_id && $tekst_sag_id !== (int) $sag_workflow_case_id) {
 		sag_workflow_refuse();
 	}
 	$r = db_fetch_array(db_select("select omfang from sager where id = '$tekst_sag_id'", __FILE__ . " linje " . __LINE__));
@@ -627,7 +638,11 @@ if (($tekst_sag_id = if_isset($_GET, NULL, 'tekst_sag_id')) && ($id = (int) if_i
 }
 if ($ny_linjetekst = if_isset($_POST, NULL, 'ny_linjetekst')) {
 	$ny_linjetekst = db_escape_string($ny_linjetekst);
+	# SST-967 the text library is shared by the whole regnskab, so adding a row to it is not case work.
 	if (!$r = db_fetch_array(db_select("select id from ordretekster where tekst = '$ny_linjetekst'", __FILE__ . " linje " . __LINE__))) {
+		if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
+			sag_workflow_refuse();
+		}
 		db_modify("insert into ordretekster (tekst) values ('$ny_linjetekst')", __FILE__ . " linje " . __LINE__);
 	}
 	if ($id = (int) if_isset($_POST, NULL, 'id')) {
@@ -1338,6 +1353,10 @@ if ($b_submit) {
 	$linjeantal      = if_isset($_POST, NULL, 'linjeantal');
 	$linje_id        = if_isset($_POST, NULL, 'linje_id');
 	# SST-967 a save may touch only the admitted order's own lines.
+	if ($sag_workflow_case_id && $id && !is_array($linje_id) && $linje_id !== null && $linje_id !== '') {
+		# A single posted value is one line id, not "no lines": keep it so the filter can judge it.
+		$linje_id = array($linje_id);
+	}
 	if ($sag_workflow_case_id && $id && is_array($linje_id)) {
 		$sst967_line_ids = array();
 		$q = db_select("select id from ordrelinjer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -1357,6 +1376,9 @@ if ($b_submit) {
 	$kred_linje_id   = if_isset($_POST, NULL, 'kred_linje_id');
 	# SST-967 a credit-note line may only reference a line of the admitted case: its quantity surfaces in an
 	# alert, so a posted id of another case would disclose it. A credit always credits an order in its own case.
+	if ($sag_workflow_case_id && !is_array($kred_linje_id) && $kred_linje_id !== null && $kred_linje_id !== '') {
+		$kred_linje_id = array($kred_linje_id);
+	}
 	if ($sag_workflow_case_id && is_array($kred_linje_id)) {
 		$sst967_kred_ids = array();
 		foreach ($kred_linje_id as $sst967_k => $sst967_v) {
@@ -2019,6 +2041,13 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
 				exit;
 			}
+		}
+	}
+	// SST-967 the exception admits this page for one case, so the customer is the case's customer: a posted
+	// kontonr cannot move the copy to another customer. It runs after the address lookup above, which sets it.
+	if ($sag_workflow_case_id) {
+		if ($r = db_fetch_array(db_select("select konto_id from sager where id = '$sag_workflow_case_id'", __FILE__ . " linje " . __LINE__))) {
+			$konto_id = (int) $r['konto_id'];
 		}
 	}
 	if (!$id && !$gl_id && $konto_id && $firmanavn) {  # Opretter ny ordre fra konto id

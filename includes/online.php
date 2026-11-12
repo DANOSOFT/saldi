@@ -335,6 +335,9 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	# 0 for every other page and every other user, which is what keeps the finance lane untouched.
 	$sag_workflow_case_id = 0;
 	$sag_workflow_allowed = false;
+	# Whether the module right is what would have to admit this page; the exception may only narrow the page
+	# for a user who does not hold it (a user with the Ordre right keeps the page's own behaviour).
+	$no_module_right = ($modulnr) && (substr((string)$rettigheder, (int)$modulnr, 1) < '1');
 	if (!empty($sag_workflow_page) && substr((string)$sag_rettigheder, 2, 1)) {
 		$wf_konto = (int) ($sag_workflow_konto ?? 0);
 		if ($sag_workflow_page === 'sag') {
@@ -356,14 +359,21 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 					$wf_selectors[(int) $wf_row['id']] = true;
 				}
 			}
+			$wf_order_konto = 0;
 			if ($wf_order) {
-				$wf_row = db_fetch_array(db_select("select sag_id from ordrer where id = '$wf_order'", __FILE__ . " linje " . __LINE__));
+				$wf_row = db_fetch_array(db_select("select sag_id, konto_id from ordrer where id = '$wf_order'", __FILE__ . " linje " . __LINE__));
 				$wf_order_sag = $wf_row ? (int) $wf_row['sag_id'] : 0;
+				$wf_order_konto = $wf_row ? (int) $wf_row['konto_id'] : 0;
 				$wf_sag = (!$wf_order_sag || ($wf_sag && $wf_sag !== $wf_order_sag)) ? 0 : $wf_order_sag;
 			}
 			if ($wf_sag) {
 				$wf_row = db_fetch_array(db_select("select konto_id from sager where id = '$wf_sag'", __FILE__ . " linje " . __LINE__));
 				$wf_customer = $wf_row ? (int) $wf_row['konto_id'] : 0;
+				# Both relationships have to hold: the order is in the case, and it belongs to the case's
+				# customer. An order moved to another customer would otherwise borrow the case.
+				if ($wf_order && (!$wf_order_konto || $wf_order_konto !== $wf_customer)) {
+					$wf_customer = 0;
+				}
 				foreach (array_keys($wf_selectors) as $wf_selector) {
 					if ($wf_selector === $wf_order) {
 						continue;
@@ -376,7 +386,9 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				}
 				if ($wf_customer && (!$wf_konto || $wf_konto === $wf_customer)) {
 					$sag_workflow_allowed = true;
-					$sag_workflow_case_id = $wf_sag;
+					if ($no_module_right) {
+						$sag_workflow_case_id = $wf_sag;
+					}
 					# The order belongs to the case's customer, whatever the address tried to pass in. This is
 					# pinned only when the exception is what admits the page, so a user with the module right
 					# keeps the page's own behaviour. The POST matters as much as the GET - debitor/ordre.php
@@ -421,7 +433,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				}
 			}
 		}
-		unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_customer, $wf_selectors, $wf_source, $wf_selector, $wf_hist_id);
+		unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_order_konto, $wf_customer, $wf_selectors, $wf_source, $wf_selector, $wf_hist_id);
 	}
 	unset($wf_konto);
 	$mysale_label_ok = false;
