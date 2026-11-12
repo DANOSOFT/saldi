@@ -17,6 +17,7 @@
 // 20261005 LOE SD-687: the empty-results row stays out of the CSV/PDF exports, and saving a filter starts at page 1.
 // 20261006 CL/NTR Made the grid action-menu and its Redigér submenu triggers native type="button" buttons that
 //                 open on focus as well as hover (same change as includes/grid.php).
+// 20261112 CL/MMR SD-815 create_datagrid() calls an optional rowsLoaded callback with the fetched rows before rendering, so a page can read data for all visible rows in one query.
 
 /** 
  * Extracts values from a specific column in a multi-dimensional array.
@@ -566,6 +567,11 @@ function create_datagrid($id, $grid_data) {
         $fetch_rows_start = microtime(true);
         $rows = $sqlquery ? fetch_rows_from_query($sqlquery) : [];
         log_grid_performance("Fetching rows from query", $fetch_rows_start);
+
+        // SD-815: a page may read data for the fetched rows in one query before they are rendered (rowsLoaded)
+        if (isset($grid_data['rowsLoaded']) && is_callable($grid_data['rowsLoaded'])) {
+            call_user_func($grid_data['rowsLoaded'], $rows);
+        }
 
         // Fetch total row count
         $count_query_start = microtime(true);

@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-
-// -----------debitor/bogfor.php--------ver 5.1.0----2026.10.28----------
+//
+// -----------debitor/bogfor.php--------ver 5.1.1----2026.11.12----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -26,11 +26,13 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 //  --------------------------------------------------------------------------
-
+//
 // 2013.05.06 Tilføjet transaktionskontrol.
 // 2015.03.05 Betalinger indsættes nu i POS_betalinger hvis betingelser er opfyldt - søg pos_betalinger
 // 20260706 CX/PHR Rollback transaction before alert/redirect when bogfor() returns an error
 // 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+// 20261112 CL/MMR SD-815 A regnskab that sends e-invoices through Semantic opens the e-invoice page directly after posting with Digitalt; the first send asks with provider-neutral wording instead of the NemHandel question.
+//                 Every other regnskab keeps today's question and behaviour.
 
 @session_start();
 $s_id=session_id();
@@ -45,6 +47,7 @@ if ($id && $id>0) {
 	include("../includes/std_func.php");
 	include("../includes/ordrefunc.php");
 	include("pbsfakt.php");
+	include_once(__DIR__ . "/../includes/einvoice/einvoiceStatusView.php");
 
 	$genfakt=if_isset($_GET['genfakt']);
 	$pbs=if_isset($_GET['pbs']);
@@ -92,7 +95,10 @@ if ($id && $id>0) {
 				exit;
 			}
 		} elseif ($digital) {
-			if ($digital == 'faktura') {
+			if (einvoice_ui_semantic_enabled()) {
+				// SD-815: sent through Semantic; the page it opens asks before a resend
+				print einvoice_send_open_script($id, ($digital == 'faktura') ? 'invoice' : 'creditnote', !einvoice_ui_semantic_registered(), $sprog_id);
+			} elseif ($digital == 'faktura') {
 				$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
 					if(db_num_rows($query) <= 0){
 					?>

@@ -10,6 +10,36 @@ einvoice.incoming.mail_subject	Ny faktura modtaget	New invoice received	Ny faktu
 einvoice.incoming.mail_time	Tidspunkt	Time	Tidspunkt
 einvoice.incoming.mail_title	Faktura notification	Invoice notification	Fakturavarsel
 einvoice.incoming.mail_where	Du kan se den i din dokument pulje	You can see it in your document pool	Du kan se den i dokumentpuljen din
+einvoice.page.busy_title	Afsendelsen er allerede i gang	The sending is already in progress	Sendingen er allerede i gang
+einvoice.page.close	Luk	Close	Lukk
+einvoice.page.creditnote	Kreditnota	Credit note	Kreditnota
+einvoice.page.details	Tekniske detaljer til support	Technical details for support	Tekniske detaljer til support
+einvoice.page.duplicate_text	Dokumentet er allerede sendt digitalt.	The document has already been sent digitally.	Dokumentet er allerede sendt digitalt.
+einvoice.page.duplicate_title	Dokumentet er allerede sendt	The document has already been sent	Dokumentet er allerede sendt
+einvoice.page.duplicate_unknown	Den sidste afsendelse fik intet svar, så modtageren kan have fået dokumentet alligevel.	The last sending got no answer, so the receiver may have received the document anyway.	Den siste sendingen fikk ikke noe svar, så mottakeren kan ha fått dokumentet likevel.
+einvoice.page.invoice	Faktura	Invoice	Faktura
+einvoice.page.log_not_found	Afsendelsen findes ikke	The sending does not exist	Sendingen finnes ikke
+einvoice.page.not_sent_title	E-fakturaen er ikke sendt	The e-invoice has not been sent	E-fakturaen er ikke sendt
+einvoice.page.order_unsupported	Ordrebekræftelser kan endnu ikke sendes som e-faktura. Fakturaer og kreditnotaer kan.	Order confirmations cannot be sent as e-invoices yet. Invoices and credit notes can.	Ordrebekreftelser kan ennå ikke sendes som e-faktura. Fakturaer og kreditnotaer kan.
+einvoice.page.pdf_link	Vis e-fakturaen som PDF	Show the e-invoice as PDF	Vis e-fakturaen som PDF
+einvoice.page.precheck_intro	Ret følgende på ordren eller debitorkortet, og send igen:	Correct the following on the order or the customer card, and send again:	Rett følgende på ordren eller kundekortet, og send igjen:
+einvoice.page.resend	Send igen	Send again	Send igjen
+einvoice.page.resend_question	Vil du sende det igen?	Do you want to send it again?	Vil du sende det igjen?
+einvoice.page.sent_at	Afsendt	Sent	Sendt
+einvoice.page.sent_text	Den er afleveret til afsendelse og går nu videre til modtageren. Status kan ses på ordren og i fakturalisten.	It has been handed over for sending and now goes on to the receiver. The status is shown on the order and in the invoice list.	Den er levert til sending og går nå videre til mottakeren. Status vises på ordren og i fakturalisten.
+einvoice.page.sent_title	E-fakturaen er sendt af sted	The e-invoice is on its way	E-fakturaen er sendt av gårde
+einvoice.page.stale	Siden er forældet. Luk den, og send dokumentet igen fra ordren.	The page is out of date. Close it and send the document again from the order.	Siden er utdatert. Lukk den, og send dokumentet igjen fra ordren.
+einvoice.page.status	Status	Status	Status
+einvoice.page.unknown_title	Afsendelsen fik intet svar	The sending got no answer	Sendingen fikk ikke noe svar
+einvoice.page.via_nemhandel	via NemHandel	via NemHandel	via NemHandel
+einvoice.page.via_peppol	via Peppol	via Peppol	via Peppol
+einvoice.pdf.failed	PDF af e-fakturaen kunne ikke hentes lige nu. Prøv igen senere.	The PDF of the e-invoice could not be fetched right now. Try again later.	PDF av e-fakturaen kunne ikke hentes akkurat nå. Prøv igjen senere.
+einvoice.pdf.link	PDF	PDF	PDF
+einvoice.pdf.not_available	PDF af e-fakturaen kan ikke vises i dette regnskab.	The PDF of the e-invoice cannot be shown in this account.	PDF av e-fakturaen kan ikke vises i dette regnskapet.
+einvoice.pdf.not_configured	E-faktura er ikke sat op på denne server. Kontakt saldi.dk support.	E-invoicing is not set up on this server. Contact saldi.dk support.	E-faktura er ikke satt opp på denne serveren. Kontakt saldi.dk support.
+einvoice.pdf.not_found	Dokumentet findes ikke i dette regnskab.	The document does not exist in this account.	Dokumentet finnes ikke i dette regnskapet.
+einvoice.pdf.not_ready	Der er endnu ingen PDF af e-fakturaen. Prøv igen om lidt.	There is no PDF of the e-invoice yet. Try again in a moment.	Det finnes ennå ingen PDF av e-fakturaen. Prøv igjen om litt.
+einvoice.pdf.title	E-faktura som PDF	E-invoice as PDF	E-faktura som PDF
 einvoice.receiver.ab	Modtaget af modtager	Received by the recipient	Mottatt av mottaker
 einvoice.receiver.ap	Godkendt af modtager	Approved by the recipient	Godkjent av mottaker
 einvoice.receiver.ca	Godkendt af modtager med forbehold	Conditionally approved by the recipient	Godkjent av mottaker med forbehold
@@ -17,4 +47,16 @@ einvoice.receiver.ip	Under behandling hos modtager	Being processed by the recipi
 einvoice.receiver.pd	Betalt af modtager	Paid by the recipient	Betalt av mottaker
 einvoice.receiver.re	Afvist af modtager	Rejected by the recipient	Avvist av mottaker
 einvoice.receiver.uq	Spørgsmål fra modtager	Query from the recipient	Spørsmål fra mottaker
+einvoice.send.confirm_register	Første gang du sender en e-faktura, bliver virksomheden registreret til e-faktura. Vil du fortsætte?	The first time you send an e-invoice, the company is registered for e-invoicing. Do you want to continue?	Første gang du sender en e-faktura, blir virksomheten registrert for e-faktura. Vil du fortsette?
+einvoice.status.approved	Godkendt af modtager	Approved by the receiver	Godkjent av mottaker
+einvoice.status.confirmed	Bekræftet af modtager	Confirmed by the receiver	Bekreftet av mottaker
+einvoice.status.delivered	Leveret	Delivered	Levert
+einvoice.status.details	Detaljer	Details	Detaljer
+einvoice.status.error	Fejl	Error	Feil
+einvoice.status.label	E-faktura	E-invoice	E-faktura
+einvoice.status.pending	Afsendes	Being sent	Sendes
+einvoice.status.processing	Under behandling hos modtager	Being processed by the receiver	Under behandling hos mottaker
+einvoice.status.rejected	Afvist af modtager	Rejected by the receiver	Avvist av mottaker
+einvoice.status.sent	Sendt	Sent	Sendt
+einvoice.status.unknown	Ukendt: intet svar ved afsendelsen	Unknown: no answer when sent	Ukjent: ikke noe svar ved sending
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
