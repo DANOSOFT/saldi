@@ -32,6 +32,7 @@
 //                  Postings in an earlier year from any posting path reach the later years once a session in a later year opens a page (refreshFollowingOpeningBalances()).
 //                  syncFollowingOpeningBalances() runs the same rebuild in a transaction of its own, for «Sæt aktivt».
 //                  updateOpeningBalancesAfterYearSave() does it for Gem/opdatér on the year card and leaves the later years alone when the transfer into the saved year is blocked.
+//                  Invalid fiscal year dates are checked before anything is written and reported like a block; an unexpected error is rolled back and reported.
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -51,6 +52,8 @@
  *   resultDestination: int,   The result's «Overfør til» account that targetYear lacks, 0 when none is chosen.
  *   noResultAccount: bool,    sourceYear has a result but no Sideskift account to carry it.
  *   noStatusAccounts: bool,   targetYear has no status accounts.
+ *   invalidDates: int[],      Fiscal years (sourceYear and/or targetYear) whose start or end month is not valid.
+ *   failed: bool,             The rebuild stopped on an unexpected error and was rolled back (set by the callers).
  * }
  * @return int[] Fiscal year numbers whose opening balances were updated.
  */
@@ -70,24 +73,17 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null) {
 		if ($source['box10'] === 'on' || $target['box10'] === 'on') {
 			break;
 		}
-		$startYear = (int)$source['box2'];
-		$startMonth = (int)$source['box1'];
-		$endYear = (int)$source['box4'];
-		$endMonth = (int)$source['box3'];
-		if (!checkdate($startMonth, 1, $startYear) || !checkdate($endMonth, 1, $endYear)) {
-			throw new RuntimeException('Invalid fiscal year dates while updating opening balances.');
+		$blocked = followingOpeningBalanceStopShape($sourceYear, $targetYear);
+		// The source year's dates select its postings and genberegn() reads the target year's dates,
+		// so both are checked before anything is written; a target year is never left half rebuilt.
+		$sourceRange = followingOpeningBalanceYearRange($source);
+		if (!$sourceRange) $blocked['invalidDates'][] = $sourceYear;
+		if (!followingOpeningBalanceYearRange($target)) $blocked['invalidDates'][] = $targetYear;
+		if ($blocked['invalidDates']) {
+			$stop = $blocked;
+			break;
 		}
-		$start = sprintf('%04d-%02d-01', $startYear, $startMonth);
-		$end = date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $endYear, $endMonth)));
-		$blocked = array(
-			'sourceYear' => $sourceYear,
-			'targetYear' => $targetYear,
-			'accounts' => array(),
-			'resultAccount' => 0,
-			'resultDestination' => 0,
-			'noResultAccount' => false,
-			'noStatusAccounts' => false,
-		);
+		list($start, $end) = $sourceRange;
 		$opening = array();
 		$q = db_select("select kontonr from kontoplan where regnskabsaar = '$targetYear' and kontotype = 'S'", __FILE__ . ' line ' . __LINE__);
 		while ($row = db_fetch_array($q)) {
@@ -240,13 +236,16 @@ function syncFollowingOpeningBalances($fromYear) {
 	transaktion('begin');
 	try {
 		updateFollowingOpeningBalances($fromYear, $stop);
-		saveFollowingOpeningBalanceStop($stop, $fromYear);
 	} catch (Throwable $e) {
-		// A fiscal year with invalid dates must not break the page that triggered the rebuild.
+		// Nothing of the rebuild is kept, and the stored message tells the user to retry with Gem/opdatér.
 		transaktion('rollback');
 		error_log('SST-1005: opening balances after fiscal year ' . $fromYear . ' not updated: ' . $e->getMessage());
-		return null;
+		$stop = followingOpeningBalanceStopShape($fromYear, $fromYear + 1);
+		$stop['failed'] = true;
+		saveFollowingOpeningBalanceStop($stop, $fromYear);
+		return $stop;
 	}
+	saveFollowingOpeningBalanceStop($stop, $fromYear);
 	transaktion('commit');
 	return $stop;
 }
@@ -255,13 +254,19 @@ function syncFollowingOpeningBalances($fromYear) {
  * Gem/opdatér on the year card (systemdata/regnskabskort.php): carry the year before into $year again, so the
  * «Overfør til» choices just saved are checked, and on into every later year. Year 1 and a year after a deleted
  * year have their own opening balances, so those are carried forward from $year itself. When the transfer into
- * $year is blocked, the later years are left alone as well. The caller owns the transaction.
+ * $year is blocked, the later years are left alone as well. The caller (the year card) owns the transaction; the
+ * carry-forward runs inside a savepoint, so an unexpected error undoes all of it but keeps the card's own save.
  *
  * @param int $year The fiscal year whose card was saved.
  * @return array|null The transition that could not be written (see updateFollowingOpeningBalances()), or null.
  */
 function updateOpeningBalancesAfterYearSave($year) {
 	$year = (int)$year;
+	$ownTransaction = !followingOpeningBalancesInTransaction();
+	if ($ownTransaction) {
+		transaktion('begin');
+	}
+	db_modify('savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
 	$stop = null;
 	$fromYear = $year - 1;
 	try {
@@ -270,12 +275,60 @@ function updateOpeningBalancesAfterYearSave($year) {
 			updateFollowingOpeningBalances($fromYear, $stop);
 		}
 	} catch (Throwable $e) {
-		// The year card itself is saved; only the carry-forward is skipped for a fiscal year with invalid dates.
+		db_modify('rollback to savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
 		error_log('SST-1005: opening balances after saving fiscal year ' . $year . ' not updated: ' . $e->getMessage());
+		$stop = followingOpeningBalanceStopShape($fromYear, $fromYear + 1);
+		$stop['failed'] = true;
+	}
+	db_modify('release savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
+	saveFollowingOpeningBalanceStop($stop, $fromYear);
+	if ($ownTransaction) {
+		transaktion('commit');
+	}
+	return $stop;
+}
+
+/**
+ * An empty stop for the transition from $sourceYear to $targetYear (see updateFollowingOpeningBalances()).
+ *
+ * @param int $sourceYear Fiscal year whose closing balances are carried forward.
+ * @param int $targetYear Fiscal year whose opening balances are written.
+ * @return array The stop with every reason cleared.
+ */
+function followingOpeningBalanceStopShape($sourceYear, $targetYear) {
+	return array(
+		'sourceYear' => (int)$sourceYear,
+		'targetYear' => (int)$targetYear,
+		'accounts' => array(),
+		'resultAccount' => 0,
+		'resultDestination' => 0,
+		'noResultAccount' => false,
+		'noStatusAccounts' => false,
+		'invalidDates' => array(),
+		'failed' => false,
+	);
+}
+
+/**
+ * First and last date of a fiscal year from its grupper art 'RA' row, read the way genberegn() reads them.
+ *
+ * @param array $row Row with box1 (start month), box2 (start year), box3 (end month) and box4 (end year).
+ * @return array{0: string, 1: string}|null Start and end as 'Y-m-d', or null when a box is not a valid month or year.
+ */
+function followingOpeningBalanceYearRange($row) {
+	foreach (array('box1', 'box2', 'box3', 'box4') as $box) {
+		if (!isset($row[$box]) || !ctype_digit(trim((string)$row[$box]))) {
+			return null;
+		}
+	}
+	$startMonth = (int)$row['box1'];
+	$startYear = (int)$row['box2'];
+	$endMonth = (int)$row['box3'];
+	$endYear = (int)$row['box4'];
+	if (!checkdate($startMonth, 1, $startYear) || !checkdate($endMonth, 1, $endYear)) {
 		return null;
 	}
-	saveFollowingOpeningBalanceStop($stop, $fromYear);
-	return $stop;
+	return array(sprintf('%04d-%02d-01', $startYear, $startMonth), date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $endYear, $endMonth))));
 }
 
 /**
@@ -392,15 +445,12 @@ function followingOpeningBalancePostedYear($afterId, $upToId) {
 		if ($row['box10'] === 'on' || !isset($years[$year + 1]) || $years[$year + 1]['box10'] === 'on') {
 			continue;
 		}
-		$startMonth = (int)$row['box1'];
-		$startYear = (int)$row['box2'];
-		$endMonth = (int)$row['box3'];
-		$endYear = (int)$row['box4'];
-		if (!checkdate($startMonth, 1, $startYear) || !checkdate($endMonth, 1, $endYear)) {
+		$range = followingOpeningBalanceYearRange($row);
+		if (!$range) {
+			// Reported by the rebuild of the year before it; this year's postings cannot be dated.
 			continue;
 		}
-		$start = sprintf('%04d-%02d-01', $startYear, $startMonth);
-		$end = date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $endYear, $endMonth)));
+		list($start, $end) = $range;
 		$qtxt = "select id from transaktioner where id > $afterId and id <= $upToId ";
 		$qtxt.= "and transdate >= '$start' and transdate <= '$end' limit 1";
 		if (db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__))) {
@@ -426,6 +476,19 @@ function followingOpeningBalanceStopText($stop, $languageId) {
 	$source = isset($names[(int)$stop['sourceYear']]) ? $names[(int)$stop['sourceYear']] : $stop['sourceYear'];
 	$target = isset($names[(int)$stop['targetYear']]) ? $names[(int)$stop['targetYear']] : $stop['targetYear'];
 	$txt = sprintf(findtekst('8491|Primo i regnskabsåret %s er ikke opdateret automatisk.', $languageId), $target);
+	if (!empty($stop['invalidDates'])) {
+		$invalidNames = array();
+		foreach ($stop['invalidDates'] as $year) {
+			$invalidNames[] = isset($names[(int)$year]) ? $names[(int)$year] : (int)$year;
+		}
+		$txt.= ' ' . sprintf(findtekst('8498|Regnskabsåret %s har ikke en gyldig start- og slutmåned.', $languageId), implode(', ', $invalidNames));
+		$txt.= ' ' . sprintf(findtekst('8499|Ret datoerne på regnskabsåret %s under Indstillinger → Regnskabsår, og tryk Gem/opdatér.', $languageId), $invalidNames[0]);
+		return $txt;
+	}
+	if (!empty($stop['failed'])) {
+		$txt.= ' ' . sprintf(findtekst('8500|Der opstod en uventet fejl under opdateringen. Tryk Gem/opdatér på regnskabsåret %s for at prøve igen, og kontakt Saldi, hvis fejlen bliver ved.', $languageId), $target);
+		return $txt;
+	}
 	if (!empty($stop['noStatusAccounts'])) {
 		$txt.= ' ' . sprintf(findtekst('8492|Regnskabsåret %s har ingen statuskonti.', $languageId), $target);
 	}

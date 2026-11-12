@@ -3,6 +3,7 @@
 //                 Postings in an earlier year are carried forward once a session in a later year opens a page, and only then.
 //                 The SQL runs against PostgreSQL temporary tables only.
 //                 Gem/opdatér on the year card leaves the later years alone when the transfer into the saved year is blocked (Codex round 1).
+//                 Invalid dates stop before anything is written, and a failed rebuild is rolled back and stays visible until Gem/opdatér (Codex round 2).
 
 declare(strict_types=1);
 
@@ -82,6 +83,12 @@ final class FollowingOpeningBalancesTest extends TestCase
                 return $parts[1] ?? $parts[0];
             }
         }
+        if ($this->name() === 'testAnUnexpectedErrorRollsTheCarryForwardBackAndIsReported' && !function_exists('genberegn')) {
+            /** Fails after the first target year's primo is written, like an error nobody expected. */
+            function genberegn($year, $updateUsage = true) {
+                throw new RuntimeException('test: genberegn stopped');
+            }
+        }
         require_once dirname(__DIR__, 3) . '/includes/std_func.php';
         require_once dirname(__DIR__, 3) . '/includes/genberegn.php';
         require_once dirname(__DIR__, 3) . '/includes/updateFollowingOpeningBalances.php';
@@ -140,6 +147,8 @@ final class FollowingOpeningBalancesTest extends TestCase
             'resultDestination' => 0,
             'noResultAccount' => false,
             'noStatusAccounts' => false,
+            'invalidDates' => [],
+            'failed' => false,
         ], $fields);
     }
 
@@ -338,17 +347,81 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertSame(1170.0, $this->primo(11, 2000));
     }
 
-    public function testAFiscalYearWithInvalidDatesDoesNotBreakTheRequest(): void
+    public function testInvalidSourceDatesAreReportedInsteadOfThrown(): void
+    {
+        $this->sql("UPDATE grupper SET box1 = '' WHERE art = 'RA' AND kodenr = 9");
+        $year10 = $this->yearState(10);
+        $expected = $this->stop(['invalidDates' => [9]]);
+        self::assertSame($expected, syncFollowingOpeningBalances(9));
+        self::assertSame(PGSQL_TRANSACTION_IDLE, pg_transaction_status($this->connection));
+        self::assertSame($expected, followingOpeningBalanceStop());
+        $this->sql('BEGIN');
+        self::assertSame($expected, updateOpeningBalancesAfterYearSave(10));
+        $this->sql('COMMIT');
+        self::assertSame($year10, $this->yearState(10));
+    }
+
+    public function testAnInvalidTargetYearIsNotHalfRebuiltByTheCard(): void
+    {
+        // Year 10 first gets a real saldo from valid dates, then its start month is broken.
+        genberegn(10, false);
+        $this->sql("UPDATE grupper SET box1 = '' WHERE art = 'RA' AND kodenr = 10");
+        $year10 = $this->yearState(10);
+        $year11 = $this->yearState(11);
+        self::assertSame(827.0, (float) $year10['accounts'][2]['saldo'], 'Account 2000: 777 + 50 posted in year 10.');
+        $this->sql('BEGIN');
+        $stop = updateOpeningBalancesAfterYearSave(10);
+        $this->sql('COMMIT');
+        self::assertSame($this->stop(['invalidDates' => [10]]), $stop);
+        self::assertSame($year10, $this->yearState(10), 'No primo is written without its saldo and summary.');
+        self::assertSame($year11, $this->yearState(11));
+        self::assertSame($stop, followingOpeningBalanceStop());
+    }
+
+    public function testFailedAutomaticWorkIsReportedAndRecoveredByGemOpdater(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        $this->postInYear9(2000, 5);
+        self::assertNull(checkFollowingOpeningBalances(9));
+        $this->sql("UPDATE grupper SET box1 = '' WHERE art = 'RA' AND kodenr = 10");
+        $expected = $this->stop(['invalidDates' => [10]]);
+        self::assertSame($expected, checkFollowingOpeningBalances(10), 'The failed rebuild is reported, not dropped.');
+        self::assertStringEndsWith('|0', (string) $this->setting('openingBalanceSync'), 'No retry on every page.');
+        self::assertSame($expected, followingOpeningBalanceStop(), 'The message stays until it is fixed.');
+        self::assertSame(777.0, $this->primo(10, 2000));
+
+        // The dates are repaired; nothing new was posted, so the message still asks for Gem/opdatér.
+        $this->sql("UPDATE grupper SET box1 = '7' WHERE art = 'RA' AND kodenr = 10");
+        self::assertNull(checkFollowingOpeningBalances(10));
+        self::assertSame($expected, followingOpeningBalanceStop());
+
+        // Gem/opdatér on the year 10 card retries from year 9 and clears the message.
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(10));
+        $this->sql('COMMIT');
+        self::assertSame(1125.0, $this->primo(10, 2000));
+        self::assertSame(1175.0, $this->primo(11, 2000));
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    public function testAnUnexpectedErrorRollsTheCarryForwardBackAndIsReported(): void
     {
         $log = tempnam(sys_get_temp_dir(), 'sst1005');
         ini_set('error_log', $log);
-        $this->sql("UPDATE grupper SET box1 = '' WHERE art = 'RA' AND kodenr = 9");
-        $year10 = $this->yearState(10);
-        self::assertNull(syncFollowingOpeningBalances(9));
-        self::assertNull(updateOpeningBalancesAfterYearSave(10));
-        self::assertSame($year10, $this->yearState(10));
-        self::assertSame(PGSQL_TRANSACTION_IDLE, pg_transaction_status($this->connection), 'The rebuild\'s own transaction is rolled back.');
-        self::assertStringContainsString('SST-1005: opening balances after fiscal year 9 not updated', (string) file_get_contents($log));
+        $expected = $this->stop(['failed' => true]);
+        // The card's own save happens in the same transaction and must survive.
+        $this->sql('BEGIN');
+        $this->sql("UPDATE grupper SET beskrivelse = 'saved by the card' WHERE art = 'RA' AND kodenr = 10");
+        self::assertSame($expected, updateOpeningBalancesAfterYearSave(10));
+        $this->sql('COMMIT');
+        self::assertSame(777.0, $this->primo(10, 2000), 'The primo written before the error is rolled back.');
+        self::assertSame('saved by the card', pg_fetch_assoc($this->sql("SELECT beskrivelse FROM grupper WHERE art = 'RA' AND kodenr = 10"))['beskrivelse']);
+        self::assertSame($expected, followingOpeningBalanceStop());
+
+        self::assertSame($expected, syncFollowingOpeningBalances(9));
+        self::assertSame(PGSQL_TRANSACTION_IDLE, pg_transaction_status($this->connection));
+        self::assertSame(777.0, $this->primo(10, 2000));
+        self::assertStringContainsString('SST-1005: opening balances after saving fiscal year 10 not updated: test: genberegn stopped', (string) file_get_contents($log));
         unlink($log);
     }
 
@@ -366,5 +439,16 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertStringContainsString('Årets resultat i 2023/24 skal overføres til konto 3999, som ikke findes i 2024/25.', $text);
         $text = followingOpeningBalanceStopText($this->stop(['resultAccount' => 1999]), 1);
         self::assertStringContainsString('Der er ikke valgt en konto i «Overfør til» ud for Resultat', $text);
+        self::assertSame(
+            'Primo i regnskabsåret 2024/25 er ikke opdateret automatisk. '
+            . 'Regnskabsåret 2024/25 har ikke en gyldig start- og slutmåned. '
+            . 'Ret datoerne på regnskabsåret 2024/25 under Indstillinger → Regnskabsår, og tryk Gem/opdatér.',
+            followingOpeningBalanceStopText($this->stop(['invalidDates' => [10]]), 1)
+        );
+        self::assertSame(
+            'Primo i regnskabsåret 2024/25 er ikke opdateret automatisk. '
+            . 'Der opstod en uventet fejl under opdateringen. Tryk Gem/opdatér på regnskabsåret 2024/25 for at prøve igen, og kontakt Saldi, hvis fejlen bliver ved.',
+            followingOpeningBalanceStopText($this->stop(['failed' => true]), 1)
+        );
     }
 }
