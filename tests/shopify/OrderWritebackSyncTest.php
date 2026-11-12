@@ -10,6 +10,7 @@
 // History:
 // 20261109 CL/MJ SD-759: created.
 // 20261111 CL/MJ SD-759 (Sol): lager 91 also has an older LG row, as a copy from an earlier year leaves it.
+// 20261112 CL/MJ SD-759 (review): a waiting stage yields without using an attempt; so does one of a shop whose orders flow is off. antal is a number.
 
 use PHPUnit\Framework\TestCase;
 
@@ -140,7 +141,7 @@ final class OrderWritebackSyncTest extends TestCase
         $this->assertStringStartsWith('https://saldi.example/api/dokument.php?t=', $order['metafields']['saldi.faktura_link'], 'K45');
         $this->assertStringStartsWith("Ring før levering\n", $order['note']);
         $this->assertStringContainsString("Sæt HAVESAET-1 delt over flere lagre:\n- 1 x STOL-X: Mårum\n- 2 x BORD-Y: Hillerød", $order['note'], 'K55');
-        $this->assertSame([['saet' => 'HAVESAET-1', 'vare' => 'STOL-X', 'antal' => '1.000', 'lager' => 'Mårum'], ['saet' => 'HAVESAET-1', 'vare' => 'BORD-Y', 'antal' => '2.000', 'lager' => 'Hillerød']],
+        $this->assertSame([['saet' => 'HAVESAET-1', 'saet_id' => 1, 'vare' => 'STOL-X', 'antal' => 1, 'lager' => 'Mårum'], ['saet' => 'HAVESAET-1', 'saet_id' => 1, 'vare' => 'BORD-Y', 'antal' => 2, 'lager' => 'Hillerød']],
             json_decode($order['metafields']['saldi.saet_fordeling'], true));
         $flags = $this->link($gid);
         $this->assertEquals(['order.tags' => 'done', 'order.references' => 'done', 'order.note' => 'done', 'order.processed' => 'done'], $flags['writeback_v1'], 'every checkpoint, in whatever key order jsonb keeps');
@@ -175,7 +176,8 @@ final class OrderWritebackSyncTest extends TestCase
         $this->assertArrayNotHasKey('writeback_v1', $this->link($gid));
     }
 
-    public function testAStageWaitingForAnEarlierOneIsRetriedAndWritesNothing(): void
+    /** Waiting is not a failure: the attempt is given back, so a long wait never makes the job dead. */
+    public function testAStageWaitingForAnEarlierOneYieldsAndWritesNothing(): void
     {
         $gid = $this->steps(['order', null])['results'][0];
         $this->invoiced($gid, [], false);
@@ -183,9 +185,24 @@ final class OrderWritebackSyncTest extends TestCase
 
         $run = $this->steps(['pass']);
 
-        $this->assertSame([['order.processed', 'failed']], $run['results'][0]);
+        $this->assertSame([['order.processed', 'yielded']], $run['results'][0]);
         $this->assertSame([], $run['calls']);
-        $this->assertStringContainsString('order.processed waits for order.tags', $this->sql("SELECT last_error FROM shopify_jobs WHERE type = 'order.processed'")[0]['last_error']);
+        $job = $this->sql("SELECT state, attempts, next_run_at > now() + interval '4 minutes' AS later FROM shopify_jobs WHERE type = 'order.processed'")[0];
+        $this->assertSame(['queued', 0, true], [$job['state'], (int)$job['attempts'], in_array($job['later'], [true, 't'], true)]);
+    }
+
+    /** An uninstall switches the orders flow off; the queued write-back waits rather than failing for want of a token. */
+    public function testAShopWhoseOrdersFlowIsOffGetsNoWriteBack(): void
+    {
+        $gid = $this->steps(['order', null])['results'][0];
+        $this->invoiced($gid, ['saldi-mangler-lager'], false);
+        $this->sql('UPDATE shopify_shops SET orders_enabled = false');
+
+        $run = $this->steps(['pass']);
+
+        $this->assertSame([['order.tags', 'yielded']], $run['results'][0]);
+        $this->assertSame([], $run['calls']);
+        $this->assertSame([], $run['orders'][$gid]['tags']);
     }
 
     public function testAReplayedTagsJobPutsBackNoTagHmlRemoved(): void

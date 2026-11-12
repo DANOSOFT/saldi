@@ -8,6 +8,7 @@
 // History:
 // 20261022 CL/MJ SD-759: created.
 // 20261109 CL/MJ SD-759: the stages run against FakeShopifyStore; order.move counts only once it is recorded.
+// 20261112 CL/MJ SD-759 (review): a recorded note op is not appended again; two split sets of one bundle keep apart.
 
 use PHPUnit\Framework\TestCase;
 
@@ -188,6 +189,32 @@ final class OrderWritebackTest extends TestCase
             "Sæt HAVESAET-1 delt over flere lagre:\n- 1 x STOL-X: Mårum\n- 2 x BORD-Y: Hillerød\nSæt LOUNGE-2 delt over flere lagre:\n- 4 x PUDE: Mårum",
             shopify_build_split_set_note($two)
         );
+    }
+
+    public function testTwoSplitSetsOfTheSameBundleGetAHeaderEach(): void
+    {
+        $rows = [
+            ['saet' => 'HAVESAET-1', 'saet_id' => 1, 'vare' => 'STOL-X', 'antal' => 1, 'lager' => 'Mårum'],
+            ['saet' => 'HAVESAET-1', 'saet_id' => 1, 'vare' => 'BORD-Y', 'antal' => 1, 'lager' => 'Hillerød'],
+            ['saet' => 'HAVESAET-1', 'saet_id' => 2, 'vare' => 'STOL-X', 'antal' => 1, 'lager' => 'Hillerød'],
+            ['saet' => 'HAVESAET-1', 'saet_id' => 2, 'vare' => 'BORD-Y', 'antal' => 1, 'lager' => 'Mårum'],
+        ];
+        $this->assertSame(
+            "Sæt HAVESAET-1 delt over flere lagre:\n- 1 x STOL-X: Mårum\n- 1 x BORD-Y: Hillerød\nSæt HAVESAET-1 delt over flere lagre:\n- 1 x STOL-X: Hillerød\n- 1 x BORD-Y: Mårum",
+            shopify_build_split_set_note($rows)
+        );
+    }
+
+    /** The append is in note_ops (the metafield failed after it); the line was deleted on the order since. */
+    public function testARecordedNoteOpIsNotAppendedAgain(): void
+    {
+        $context = ['ordre_id' => 31, 'note_recorded' => true, 'distribution' => self::DISTRIBUTION];
+
+        $result = $this->stage('order.note', ['order.tags' => 'done', 'order.references' => 'done'], $context);
+
+        $this->assertSame(['done', 'done'], [$result['status'], $result['checkpoint']]);
+        $this->assertSame('Ring før levering', $this->orderRow()['note']);
+        $this->assertSame(['metafieldsSet'], $this->roots(), 'only the metafield is sent');
     }
 
     public function testAnOrderWithoutASplitSetFinishesTheNoteStageWithoutACall(): void

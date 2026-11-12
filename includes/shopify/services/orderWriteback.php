@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderWriteback.php --- ver 5.1.0 --- 2026.11.11
+// --- includes/shopify/services/orderWriteback.php --- ver 5.1.0 --- 2026.11.12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,8 @@
 // 20261022 CL/MJ SD-759: created (WP10-1).
 // 20261109 CL/MJ SD-759: wired to the merged lanes.
 // 20261111 CL/MJ SD-759 (Sol): a split set's lager name comes from one LG row per lager, the newest, so rows kept from earlier years are not listed twice.
+// 20261112 CL/MJ SD-759 (review): a waiting stage, or one of a shop whose orders flow is off, yields instead of failing; a recorded note op is not appended again.
+//                Two split sets of the same bundle keep apart (saet_id), and antal is a number in saet_fordeling.
 //                The worker runs the stages from the job WP09 enqueues, the order's data is read from the order and its link, and the calls go through shopify_graphql().
 
 require_once __DIR__ . '/../noteAppend.php';
@@ -70,6 +72,9 @@ const SHOPIFY_TAG_PROCESSED = 'saldi-behandlet';
 
 /** The stages order.tags enqueues once it is done; L10b adds order.move. */
 const SHOPIFY_WRITEBACK_FOLLOWERS = array('order.references', 'order.note', 'order.processed');
+
+/** Seconds before a stage that waits (for an earlier stage, or for the orders flow) is claimed again. */
+const SHOPIFY_WRITEBACK_WAIT = 300;
 
 const SHOPIFY_METAFIELDS_SET_MUTATION = 'mutation saldiOrderMetafields($metafields: [MetafieldsSetInput!]!) {'
 	. ' metafieldsSet(metafields: $metafields) { metafields { namespace key } userErrors { field message } } }';
@@ -163,9 +168,9 @@ function shopify_build_split_set_note(array $distribution): string {
 	$lines = array();
 	$set = null;
 	foreach ($distribution as $row) {
-		if ($row['saet'] !== $set) {
-			$set = $row['saet'];
-			$lines[] = "Sæt $set delt over flere lagre:";
+		if ($row['saet'] . '#' . ($row['saet_id'] ?? '') !== $set) {
+			$set = $row['saet'] . '#' . ($row['saet_id'] ?? '');
+			$lines[] = "Sæt {$row['saet']} delt over flere lagre:";
 		}
 		$antal = (float)$row['antal'];
 		$antal = $antal == (int)$antal ? (string)(int)$antal : (string)$antal;
@@ -276,9 +281,12 @@ function shopify_writeback_stage_note(array $shop, string $orderGid, array $cont
 		return shopify_writeback_outcome('done', null, 'done', array());
 	}
 	$opKey = shopify_writeback_note_op_key((int)($context['ordre_id'] ?? 0));
-	$note = shopify_note_append_to($shop, $orderGid, $opKey, shopify_build_split_set_note($distribution), $rt);
-	if ($note['status'] === 'failed') {
-		return shopify_writeback_outcome('failed', null, null, $note['errors']);
+	// An append already in note_ops is on the order, even if the line has been deleted there since.
+	if (empty($context['note_recorded'])) {
+		$note = shopify_note_append_to($shop, $orderGid, $opKey, shopify_build_split_set_note($distribution), $rt);
+		if ($note['status'] === 'failed') {
+			return shopify_writeback_outcome('failed', null, null, $note['errors']);
+		}
 	}
 	$metafield = shopify_set_metafields($shop, array(shopify_build_split_set_metafield($orderGid, $distribution)), $rt);
 	if ($metafield['status'] === 'failed') {
@@ -310,8 +318,10 @@ function shopify_writeback_outcome(string $status, ?string $blockedBy, ?string $
 /**
  * The worker handler of every write-back stage (the job's type is the stage). Reads the
  * order's link, checkpoints and data, runs the stage and records its result. A stage waiting
- * for an earlier one, or one Shopify did not accept, throws: the queue retries it with backoff
- * and, from the third attempt, it is on the error list. order.tags enqueues the rest in the
+ * for an earlier one, or of a shop whose orders flow is off (an uninstall turns it off), yields:
+ * waiting is not a failed attempt, and the stage it waits for alarms on its own. One Shopify did
+ * not accept throws: the queue retries it with backoff and, from the third attempt, it is on the
+ * error list. order.tags enqueues the rest in the
  * transaction that records it done, so a replay of a finished order.tags queues nothing.
  *
  * @param array{id: int, type: string, payload: array<string, mixed>} $job
@@ -327,9 +337,13 @@ function shopify_writeback_job(array $job, float $deadline, callable $heartbeat,
 	}
 	$checkpoints = shopify_writeback_flags($link, SHOPIFY_WRITEBACK_NAMESPACE);
 	$shop = shopify_writeback_shop((int)$link['shop_id']);
-	$context = ($checkpoints[$stage] ?? '') === '' ? shopify_writeback_context($link, $stage) : array();
+	$open = ($checkpoints[$stage] ?? '') === '';
+	if ($open && (!in_array($shop['orders_enabled'], array(true, 't', '1', 1), true) || shopify_writeback_blocked_by($checkpoints, $stage) !== null)) {
+		return array('outcome' => 'yield', 'run_after' => SHOPIFY_WRITEBACK_WAIT);
+	}
+	$context = $open ? shopify_writeback_context($link, $stage) : array();
 	$outcome = shopify_writeback_stage($shop, (string)$link['order_gid'], $stage, $context, $checkpoints, $rt + array('deadline' => $deadline));
-	shopify_db_transaction(function () use ($link, $stage, $outcome): void {
+	shopify_db_transaction(function () use ($link, $shop, $stage, $outcome): void {
 		if ($outcome['note_op'] !== null) {
 			shopify_writeback_flag_set((int)$link['id'], SHOPIFY_NOTE_OPS_NAMESPACE, $outcome['note_op'], gmdate('c'));
 		}
@@ -337,7 +351,7 @@ function shopify_writeback_job(array $job, float $deadline, callable $heartbeat,
 			shopify_writeback_mark((int)$link['id'], $stage, $outcome['checkpoint']);
 		}
 		if ($stage === 'order.tags' && $outcome['checkpoint'] !== null) {
-			shopify_writeback_enqueue_followers($link);
+			shopify_writeback_enqueue_followers($link, $shop);
 		}
 	});
 	if ($outcome['status'] === 'blocked') {
@@ -367,7 +381,9 @@ function shopify_writeback_context(array $link, string $stage): array {
 			$references = array('ordre_nr' => $order['ordrenr'] ?? null, 'faktura_nr' => $order['fakturanr'] ?? null);
 			return array('references' => $references, 'invoice_url' => dokument_link($ordreId, 'invoice'));
 		case 'order.note':
-			return array('ordre_id' => $ordreId, 'distribution' => shopify_writeback_split_sets($ordreId));
+			$recorded = shopify_writeback_flags($link, SHOPIFY_NOTE_OPS_NAMESPACE);
+			$noteRecorded = isset($recorded[shopify_writeback_note_op_key($ordreId)]);
+			return array('ordre_id' => $ordreId, 'note_recorded' => $noteRecorded, 'distribution' => shopify_writeback_split_sets($ordreId));
 	}
 	return array();
 }
@@ -376,7 +392,7 @@ function shopify_writeback_context(array $link, string $stage): array {
  * The components of the order's split sets: every set (ordrelinjer.saet) whose component rows
  * are drawn from more than one lager, a row per draw, with the lager's name.
  *
- * @return array<int, array{saet: string, vare: string, antal: string, lager: string}>
+ * @return array<int, array{saet: string, saet_id: int, vare: string, antal: int|float, lager: string}>
  */
 function shopify_writeback_split_sets(int $ordreId): array {
 	$rows = shopify_db_rows(
@@ -395,15 +411,16 @@ function shopify_writeback_split_sets(int $ordreId): array {
 		}
 		$lager = trim((string)$row['lager_navn']) !== '' ? trim((string)$row['lager_navn']) : 'Lager ' . (int)$row['lager'];
 		$sets[$set]['lagre'][(int)$row['lager']] = true;
-		$sets[$set]['rows'][] = array('vare' => (string)$row['varenr'], 'antal' => (string)$row['antal'], 'lager' => $lager);
+		$antal = (float)$row['antal'];
+		$sets[$set]['rows'][] = array('vare' => (string)$row['varenr'], 'antal' => $antal == (int)$antal ? (int)$antal : $antal, 'lager' => $lager);
 	}
 	$distribution = array();
-	foreach ($sets as $set) {
+	foreach ($sets as $id => $set) {
 		if (count($set['lagre'] ?? array()) < 2) {
 			continue;
 		}
 		foreach ($set['rows'] as $row) {
-			$distribution[] = array('saet' => (string)($set['name'] ?? '')) + $row;
+			$distribution[] = array('saet' => (string)($set['name'] ?? $id), 'saet_id' => $id) + $row;
 		}
 	}
 	return $distribution;
@@ -414,9 +431,9 @@ function shopify_writeback_split_sets(int $ordreId): array {
  * still queued is not added twice.
  *
  * @param array<string, string|null> $link
+ * @param array<string, string|null> $shop the link's shop row
  */
-function shopify_writeback_enqueue_followers(array $link): void {
-	$shop = shopify_writeback_shop((int)$link['shop_id']);
+function shopify_writeback_enqueue_followers(array $link, array $shop): void {
 	$dedupe = "{$shop['shop_key']}:{$link['order_gid']}";
 	$payload = array('link_id' => (int)$link['id'], 'ordre_id' => (int)$link['ordre_id'], 'order_gid' => (string)$link['order_gid']);
 	$correlation = array('ordre_id' => (int)$link['ordre_id'], 'order_gid' => (string)$link['order_gid']);

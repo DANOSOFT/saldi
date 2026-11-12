@@ -10,6 +10,7 @@
 // 20261022 CL/MJ SD-759: created.
 // 20261109 CL/MJ SD-759: runs through shopify_graphql() and FakeShopifyStore instead of a test-only client.
 // 20261111 CL/MJ SD-759 (Sol): a note edited while the update's answer was lost is kept.
+// 20261112 CL/MJ SD-759 (review): a lost update is not resent within the call; a note ending in a line break gets no empty line.
 
 use PHPUnit\Framework\TestCase;
 
@@ -95,6 +96,11 @@ final class NoteAppendTest extends TestCase
         $this->assertSame($existing . "\n2026-11-09 Sæt delt " . shopify_note_marker('a'), $composed);
     }
 
+    public function testComposeOnANoteEndingInALineBreakAddsNoEmptyLine(): void
+    {
+        $this->assertSame("Ring før levering\n2026-11-09 Sæt delt " . shopify_note_marker('a'), shopify_note_compose("Ring før levering\n", 'Sæt delt', 'a', '2026-11-09'));
+    }
+
     public function testComposeOnAnEmptyNoteAddsNoLeadingNewline(): void
     {
         $this->assertSame('2026-11-09 Sæt delt ' . shopify_note_marker('a'), shopify_note_compose('', 'Sæt delt', 'a', '2026-11-09'));
@@ -147,14 +153,17 @@ final class NoteAppendTest extends TestCase
         $this->assertSame(1, substr_count($this->note(), shopify_note_marker('op-1')));
     }
 
-    public function testAnUpdateThatNeverAppliedIsSentAgainOnlyAfterTheReadFindsNoMarker(): void
+    /** Resent within the call, the update would carry the note as first read and undo an edit made during the retry delay. */
+    public function testAnUpdateThatNeverAppliedIsLeftToTheNextAttempt(): void
     {
         $this->onUpdate = fn(): array => FakeShopify::timeout();
 
-        $result = $this->append('op-1', 'Sæt delt');
+        $first = $this->append('op-1', 'Sæt delt');
+        $this->onUpdate = null;
+        $again = $this->append('op-1', 'Sæt delt');
 
-        $this->assertSame('appended', $result['status']);
-        $this->assertSame(['order', 'order', 'orderUpdate'], $this->roots(), 'read, read after the lost answer, then the one update that reached the store');
+        $this->assertSame(['failed', 'appended'], [$first['status'], $again['status']]);
+        $this->assertSame(['order', 'order', 'order', 'orderUpdate'], $this->roots(), 'read and reconcile read; then the next attempt reads and sends once');
         $this->assertSame(1, substr_count($this->note(), shopify_note_marker('op-1')));
     }
 
