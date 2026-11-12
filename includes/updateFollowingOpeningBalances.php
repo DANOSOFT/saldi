@@ -39,6 +39,8 @@
 //                  The first fingerprint is taken before the first watermark and both are stored together in one JSON row, so nothing committed in between is lost (Codex round 5).
 //                  The first state is created under a lock and never replaces a state another check stored meanwhile (Codex round 6).
 //                  Each transfer is checked again after its target rows are written and calculated again when its source year changed meanwhile, so an older rebuild cannot overwrite a newer one (Codex round 7).
+//                  The check compares every account's inputs, not totals, and each transfer runs inside its own savepoint, so a retry that is blocked leaves the target as it was (Codex round 8).
+//                  The year card locks its year's rows when it reads the opening balances it may put back.
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -90,12 +92,21 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null) {
 			break;
 		}
 		list($start, $end) = $sourceRange;
+		// Every attempt of this transfer is undone together when a later attempt turns out to be blocked.
+		$savepoint = followingOpeningBalancesInTransaction();
+		if ($savepoint) {
+			db_modify('savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
+		}
 		for ($attempt = 1; ; $attempt++) {
-			$version = followingOpeningBalanceSourceVersion($sourceYear, $start, $end);
+			$version = followingOpeningBalanceSourceVersion($sourceYear, $targetYear, $start, $end);
 			$blocked = followingOpeningBalanceStopShape($sourceYear, $targetYear);
 			$opening = followingOpeningBalanceTransfer($sourceYear, $targetYear, $start, $end, $blocked);
 			if ($opening === null) {
 				// A balance has no account to land on in the target year, so leave it and later years untouched.
+				if ($savepoint) {
+					db_modify('rollback to savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
+					db_modify('release savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
+				}
 				$stop = $blocked;
 				break 2;
 			}
@@ -106,7 +117,7 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null) {
 			// A posting or another rebuild may have changed the source year since it was read. The target rows are
 			// locked by the writes above, so a result that is still current now cannot be overwritten by an older
 			// calculation; one that is not current is calculated again.
-			if (followingOpeningBalanceSourceVersion($sourceYear, $start, $end) === $version) {
+			if (followingOpeningBalanceSourceVersion($sourceYear, $targetYear, $start, $end) === $version) {
 				break;
 			}
 			if ($attempt >= 5) {
@@ -115,6 +126,9 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null) {
 				followingOpeningBalanceMarkPending($sourceYear);
 				break;
 			}
+		}
+		if ($savepoint) {
+			db_modify('release savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
 		}
 		// Avoid switching database connections while the journal transaction is active.
 		genberegn($targetYear, false);
@@ -212,26 +226,42 @@ function followingOpeningBalanceMarkPending($year) {
 }
 
 /**
- * What a transfer from $sourceYear is calculated from, in short: the number and sums of its postings and of its
- * status, result and Sideskift accounts' opening balances and «Overfør til». Read before and after a transfer is
- * written; if it differs, the source year changed meanwhile and the transfer is calculated again. On PostgreSQL
- * (read committed) the second read sees what other transactions committed meanwhile; a MySQL transaction in its
- * default repeatable read keeps seeing its own snapshot, so there the check finds nothing new.
+ * Everything a transfer from $sourceYear to $targetYear is calculated from, account by account: the number and
+ * debit and credit sums of the source year's postings per account, every status, result and Sideskift account of
+ * the source year with its type, opening balance and «Overfør til», and the status accounts of the target year.
+ * Read before a transfer is calculated and again after it is written; if it differs, the source changed meanwhile
+ * (a posting, or a rebuild of the year before) and the transfer is calculated again. Account by account, because
+ * a rebuild of the year before can move an amount from one account to another without changing any total.
+ * On PostgreSQL (read committed) the second read sees what other transactions committed meanwhile; a MySQL
+ * transaction in its default repeatable read keeps seeing its own snapshot, so there the check finds nothing new.
  *
- * @param int $sourceYear Fiscal year (kontoplan.regnskabsaar).
- * @param string $start First date of the year ('Y-m-d').
- * @param string $end Last date of the year ('Y-m-d').
- * @return string The version.
+ * @param int $sourceYear Fiscal year (kontoplan.regnskabsaar) carried from.
+ * @param int $targetYear Fiscal year carried into.
+ * @param string $start First date of the source year ('Y-m-d').
+ * @param string $end Last date of the source year ('Y-m-d').
+ * @return string The version (an md5 of the inputs).
  */
-function followingOpeningBalanceSourceVersion($sourceYear, $start, $end) {
+function followingOpeningBalanceSourceVersion($sourceYear, $targetYear, $start, $end) {
 	$sourceYear = (int)$sourceYear;
-	$qtxt = "select count(*) as postings, coalesce(sum(debet), 0) as debet, coalesce(sum(kredit), 0) as kredit ";
-	$qtxt.= "from transaktioner where transdate >= '$start' and transdate <= '$end'";
-	$postings = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
-	$qtxt = "select count(*) as accounts, coalesce(sum(primo), 0) as primo, coalesce(sum(overfor_til), 0) as overfor_til ";
-	$qtxt.= "from kontoplan where regnskabsaar = '$sourceYear' and kontotype in ('S', 'D', 'X')";
-	$accounts = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
-	return implode(':', array($postings['postings'], $postings['debet'], $postings['kredit'], $accounts['accounts'], $accounts['primo'], $accounts['overfor_til']));
+	$targetYear = (int)$targetYear;
+	$inputs = array();
+	$qtxt = "select kontonr, count(*) as postings, coalesce(sum(debet), 0) as debet, coalesce(sum(kredit), 0) as kredit ";
+	$qtxt.= "from transaktioner where transdate >= '$start' and transdate <= '$end' group by kontonr order by kontonr";
+	$q = db_select($qtxt, __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$inputs[] = 'T' . $row['kontonr'] . ':' . $row['postings'] . ':' . $row['debet'] . ':' . $row['kredit'];
+	}
+	$qtxt = "select kontonr, kontotype, primo, overfor_til from kontoplan ";
+	$qtxt.= "where regnskabsaar = '$sourceYear' and kontotype in ('S', 'D', 'X') order by kontonr, id";
+	$q = db_select($qtxt, __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$inputs[] = 'S' . $row['kontonr'] . ':' . $row['kontotype'] . ':' . $row['primo'] . ':' . $row['overfor_til'];
+	}
+	$q = db_select("select kontonr from kontoplan where regnskabsaar = '$targetYear' and kontotype = 'S' order by kontonr", __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$inputs[] = 'D' . $row['kontonr'];
+	}
+	return md5(implode('|', $inputs));
 }
 
 /**
@@ -482,15 +512,19 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 }
 
 /**
- * The opening balances of a fiscal year as they are now, for updateOpeningBalancesAfterYearSave().
+ * The opening balances of a fiscal year as they are now, for updateOpeningBalancesAfterYearSave(). The year card
+ * reads them with $lock right after its transaction begins: the rows stay locked until it commits, so no rebuild
+ * can write the year between this read and a restore. The card goes on to write this year and then the later years,
+ * the same ascending order every rebuild locks rows in.
  *
  * @param int $year Fiscal year (kontoplan.regnskabsaar).
+ * @param bool $lock Lock the rows (select ... for update); only inside a transaction.
  * @return array kontoplan.id => primo.
  */
-function followingOpeningBalancePrimo($year) {
+function followingOpeningBalancePrimo($year, $lock = false) {
 	$year = (int)$year;
 	$primo = array();
-	$q = db_select("select id, primo from kontoplan where regnskabsaar = '$year'", __FILE__ . ' line ' . __LINE__);
+	$q = db_select("select id, primo from kontoplan where regnskabsaar = '$year'" . ($lock ? ' for update' : ''), __FILE__ . ' line ' . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$primo[(int)$row['id']] = $row['primo'];
 	}

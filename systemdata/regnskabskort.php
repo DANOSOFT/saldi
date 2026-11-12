@@ -163,7 +163,7 @@ if ($_POST) {
 		transaktion ("begin");
 		// SST-1005: this year's opening balances before the save, kept if the transfer into the year cannot be made.
 		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
-		$primoBeforeSave = followingOpeningBalancePrimo($kodenr);
+		$primoBeforeSave = followingOpeningBalancePrimo($kodenr, true);
 		($id == 0)?$nn=2:$nn=1;
 		for($n=0;$n<$nn;$n++) { // 1. time it must be rerun to catch and update last year's result.
 		if ($id == 0){

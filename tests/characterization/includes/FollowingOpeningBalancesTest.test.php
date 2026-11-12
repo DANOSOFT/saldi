@@ -8,6 +8,8 @@
 //                 A late commit during the very first check is found by the next fingerprint, proven with two real connections (Codex round 5).
 //                 Overlapping first checks keep the first baseline, and a first check that cannot get the lock waits for the next page (Codex round 6).
 //                 An older rebuild that resumes after a newer one calculates again instead of writing stale balances (Codex round 7).
+//                 A balanced change upstream is noticed, and a retry that becomes blocked leaves the target as it was (Codex round 8).
+//                 The year card's snapshot locks its year until the card commits.
 
 declare(strict_types=1);
 
@@ -68,7 +70,8 @@ final class FollowingOpeningBalancesTest extends TestCase
                     throw new RuntimeException(pg_last_error($GLOBALS['connection']) . " in $sql");
                 }
                 // Lets a test run something on another connection right after a statement, before the code goes on.
-                if (isset($GLOBALS['sst1005Hook']) && strpos($sql, $GLOBALS['sst1005Hook']['after']) !== false) {
+                $after = $GLOBALS['sst1005Hook']['after'] ?? null;
+                if ($after !== null && ($after[0] === '/' ? preg_match($after, $sql) === 1 : strpos($sql, $after) !== false)) {
                     $hook = $GLOBALS['sst1005Hook'];
                     if (--$GLOBALS['sst1005Hook']['times'] <= 0) {
                         unset($GLOBALS['sst1005Hook']);
@@ -652,6 +655,106 @@ final class FollowingOpeningBalancesTest extends TestCase
             }
         } finally {
             unset($GLOBALS['sst1005Hook']);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testABalancedChangeUpstreamMakesAnOlderRebuildCalculateAgain(): void
+    {
+        // Year 8 carries 1000 and -1000 into year 9; year 10 then has 1120 on account 2000.
+        $this->sql('UPDATE kontoplan SET primo = 0 WHERE regnskabsaar = 8');
+        $this->sql('UPDATE kontoplan SET primo = 1000 WHERE regnskabsaar = 8 AND kontonr = 2000');
+        $this->sql('UPDATE kontoplan SET primo = -1000 WHERE regnskabsaar = 8 AND kontonr = 3000');
+        $schema = 'sst1005_upstream_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            updateFollowingOpeningBalances(8);
+            self::assertSame([1000.0, -1000.0, 1120.0], [$this->primo(9, 2000), $this->primo(9, 3000), $this->primo(10, 2000)]);
+            self::assertNull(checkFollowingOpeningBalances(11));
+            $mine = $GLOBALS['connection'];
+            // «Sæt aktivt» on year 10 (A) has read year 9's accounts. Then a year 8 posting commits and the automatic
+            // check (B) carries it into year 9 (1005/-1005: the totals stay the same) and on into year 10.
+            $GLOBALS['sst1005Hook'] = ['after' => "/regnskabsaar = '9' and kontotype in \\('S', 'D', 'X'\\) order by kontonr$/", 'times' => 1, 'run' => function () use ($mine, $other): void {
+                $GLOBALS['connection'] = $other;
+                pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2023-03-01', 5, 0), (1000, '2023-03-01', 0, 5)");
+                self::assertNull(checkFollowingOpeningBalances(11));
+                self::assertSame([1005.0, -1005.0, 1125.0], [$this->primo(9, 2000), $this->primo(9, 3000), $this->primo(10, 2000)], 'B carried it forward.');
+                $GLOBALS['connection'] = $mine;
+            }];
+            self::assertNull(syncFollowingOpeningBalances(9, 10));
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The overlap really happened.');
+            self::assertSame(1125.0, $this->primo(10, 2000), 'A saw year 9 change account by account and calculated again.');
+            for ($scan = 1; $scan <= 2; $scan++) {
+                $this->setSyncState((int) explode('|', $this->syncState())[0], 0, time() - 601);
+                self::assertNull(checkFollowingOpeningBalances(11));
+                self::assertSame(1125.0, $this->primo(10, 2000), "Due scan $scan.");
+            }
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testABlockThatAppearsOnARetryLeavesTheTargetAsItWas(): void
+    {
+        // Account 2500 has no balance in year 9 and is missing in year 10, so the first calculation may go ahead.
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 10 AND kontonr = 2500');
+        $schema = 'sst1005_late_block_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $year10 = $this->yearState(10);
+            $year11 = $this->yearState(11);
+            self::assertSame(888.0, (float) $year10['accounts'][1]['saldo']);
+            // After the first target row is written, a posting gives 2500 a balance in year 9.
+            $GLOBALS['sst1005Hook'] = ['after' => "update kontoplan set primo = '", 'times' => 1, 'run' => function () use ($other): void {
+                pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2500, '2024-03-01', 5, 0), (1000, '2024-03-01', 0, 5)");
+            }];
+            self::assertSame($this->stop(['accounts' => [2500]]), syncFollowingOpeningBalances(9, 10));
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The posting came between the attempts.');
+            self::assertSame($year10, $this->yearState(10), 'The first attempt\'s writes are undone: primo, saldo and summary as before.');
+            self::assertSame($year11, $this->yearState(11));
+
+            // The same through the year card, inside the card's own transaction.
+            $this->sql("DELETE FROM transaktioner WHERE kontonr = 2500 OR transdate = '2024-03-01'");
+            $before = followingOpeningBalancePrimo(10);
+            $GLOBALS['sst1005Hook'] = ['after' => "update kontoplan set primo = '", 'times' => 1, 'run' => function () use ($other): void {
+                pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2500, '2024-03-01', 5, 0), (1000, '2024-03-01', 0, 5)");
+            }];
+            $this->sql('BEGIN');
+            $this->sql("UPDATE grupper SET beskrivelse = 'saved by the card' WHERE art = 'RA' AND kodenr = 10");
+            self::assertSame($this->stop(['accounts' => [2500]]), updateOpeningBalancesAfterYearSave(10, $before));
+            $this->sql('COMMIT');
+            self::assertSame($year10['accounts'], $this->yearState(10)['accounts']);
+            self::assertSame($year11, $this->yearState(11));
+            self::assertSame('saved by the card', pg_fetch_assoc($this->sql("SELECT beskrivelse FROM grupper WHERE art = 'RA' AND kodenr = 10"))['beskrivelse']);
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testTheCardsSnapshotLocksTheYearUntilTheCardCommits(): void
+    {
+        $schema = 'sst1005_card_lock_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $this->sql('BEGIN');
+            $before = followingOpeningBalancePrimo(10, true);
+            self::assertCount(8, $before);
+            // A rebuild on another connection that wants to write year 10 has to wait for the card.
+            pg_send_query($other, 'UPDATE kontoplan SET primo = 1 WHERE regnskabsaar = 10 AND kontonr = 2000');
+            usleep(300000);
+            self::assertTrue(pg_connection_busy($other), 'The other write waits for the card.');
+            $this->sql('COMMIT');
+            pg_get_result($other);
+            self::assertFalse(pg_connection_busy($other));
+            self::assertSame(1.0, $this->primo(10, 2000), 'It goes on once the card has committed.');
+        } finally {
+            while (pg_get_result($other)) {
+            }
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
