@@ -285,9 +285,15 @@ $sst967_created_order = 0;
 function ordre_last_insert_id()
 {
 	if (isset($GLOBALS['db_type']) && ($GLOBALS['db_type'] == 'mysql' || $GLOBALS['db_type'] == 'mysqli')) {
-		return (int) mysqli_insert_id(db_query_connection(false));
+		return function_exists('db_query_connection') ? (int) mysqli_insert_id(db_query_connection(false)) : 0;
 	}
-	$r = db_fetch_array(db_select("select currval(pg_get_serial_sequence('ordrer','id')) as id", __FILE__ . " linje " . __LINE__));
+	# A book whose order id has no sequence of its own (a restored or converted book) must not turn the page
+	# into a database error: ask for the sequence first and report nothing when there is none.
+	$r = db_fetch_array(db_select("select pg_get_serial_sequence('ordrer','id') as seq", __FILE__ . " linje " . __LINE__));
+	if (!$r || empty($r['seq'])) {
+		return 0;
+	}
+	$r = db_fetch_array(db_select("select currval('" . db_escape_string($r['seq']) . "') as id", __FILE__ . " linje " . __LINE__));
 
 	return isset($r['id']) ? (int) $r['id'] : 0;
 }

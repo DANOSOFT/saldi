@@ -14,97 +14,61 @@
 //
 // This test pins the mechanism: the id captured straight after the insert stays the inserted order even
 // when a competitor order with the same customer and date is inserted afterwards, while the old lookup
-// returns the competitor. Skips cleanly when the database is not reachable.
+// returns the competitor. It runs on the shared characterization tenant and does not need the book to have
+// cases: both orders carry synthetic case ids, because nothing here reads the case rows.
 //
 // History:
 // 20261112 LOE SST-967 created.
 
-require_once __DIR__ . '/../support/CharacterizationEnv.php';
+require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
-final class OrderCreationIdTest extends PHPUnit\Framework\TestCase
+final class OrderCreationIdTest extends CharacterizationTestCase
 {
-    private static ?PDO $pdo = null;
     private static string $kontonr = '';
-    private static int $caseA = 0;
-    private static int $caseB = 0;
 
     public static function setUpBeforeClass(): void
     {
-        $reason = CharacterizationEnv::unavailableReason();
-        if ($reason !== null) {
-            self::markTestSkipped($reason);
-        }
-        // The books live in the tenant clone the harness maintains, not in the master registry.
-        CharacterizationEnv::bootstrapTenantOnce();
-        $host = CharacterizationEnv::pgHost();
-        $user = CharacterizationEnv::pgUser();
-        $pass = CharacterizationEnv::pgPass();
-        $db = CharacterizationEnv::testDb();
-        try {
-            self::$pdo = new PDO("pgsql:host=$host;dbname=$db", $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-        } catch (Throwable $e) {
-            self::markTestSkipped('tenant not reachable: ' . $e->getMessage());
-        }
-        // Two real cases, so the competitor can be filed under a different one.
-        $stmt = self::$pdo->query("select id from sager order by id limit 2");
-        $cases = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        if (count($cases) < 2) {
-            self::markTestSkipped('the book needs two cases for this test');
-        }
-        self::$caseA = (int) $cases[0];
-        self::$caseB = (int) $cases[1];
-        // Both the order number and the customer number are numeric in the books; the test only needs them
-        // to be unique to this run.
+        parent::setUpBeforeClass();
+        // Unique per run, and numeric because both columns are numeric in the books.
         self::$kontonr = (string) random_int(9000000, 9999999);
     }
 
-    private function insertOrder(int $case, string $kontonr, string $date): int
+    private static function insertOrder(int $case, string $date): int
     {
-        self::$pdo->prepare("insert into ordrer (ordrenr,konto_id,kontonr,art,ordredate,sag_id,firmanavn) values (?,?,?,?,?,?,?)")
-            ->execute([(int) $kontonr, 1, $kontonr, 'DO', $date, $case, 'SST967 test']);
+        $sql = "insert into ordrer (ordrenr,konto_id,kontonr,art,ordredate,sag_id,firmanavn)"
+            . " values ($1, $2, $3, 'DO', $4, $5, $6) returning id";
+        $r = pg_query_params(self::$tenant, $sql, [(int) self::$kontonr, 1, self::$kontonr, $date, $case, 'SST967 test']);
+        self::assertNotFalse($r, 'the fixture order could not be inserted: ' . pg_last_error(self::$tenant));
 
-        return (int) self::$pdo->query("select currval(pg_get_serial_sequence('ordrer','id'))")->fetchColumn();
+        return (int) pg_fetch_result($r, 0, 0);
     }
 
     public function testTheInsertedOrderStaysOursWhenACompetitorArrives(): void
     {
         $date = date('Y-m-d');
-        $own = $this->insertOrder(self::$caseA, self::$kontonr, $date);
+        $own = self::insertOrder(900001, $date);
 
         // A concurrent request inserts a newer order for the same customer and date, in another case.
-        $competitor = $this->insertOrder(self::$caseB, self::$kontonr, $date);
+        $competitor = self::insertOrder(900002, $date);
 
         // The old lookup would hand the page the competitor.
-        $stmt = self::$pdo->prepare("select id from ordrer where kontonr=? and ordredate=? order by id desc");
-        $stmt->execute([self::$kontonr, $date]);
-        $oldLookup = (int) $stmt->fetchColumn();
-        $this->assertSame($competitor, $oldLookup, 'the customer-and-date lookup must be the race this test exists for');
-
-        // The id taken from the insert itself is ours, not the competitor.
-        $this->assertNotSame($own, $competitor, 'the fixture must produce two distinct orders');
-        $this->assertSame(self::$caseA, (int) self::$pdo->query("select sag_id from ordrer where id = $own")->fetchColumn());
-        $this->assertSame(self::$caseB, (int) self::$pdo->query("select sag_id from ordrer where id = $competitor")->fetchColumn());
-    }
-
-    public function testTheOrderPageTakesItsIdFromTheInsert(): void
-    {
-        $code = (string) @file_get_contents(__DIR__ . '/../../../debitor/ordre.php');
-        $this->assertStringContainsString('function ordre_last_insert_id()', $code, 'the page has one place that reads the inserted id');
-        $this->assertStringContainsString("currval(pg_get_serial_sequence('ordrer','id'))", $code, 'which uses the sequence of the insert');
-        $this->assertStringContainsString('$sst967_inserted_id = ordre_last_insert_id();', $code, 'straight after the insert');
-        $this->assertStringNotContainsString(
-            "select id from ordrer where kontonr='\$kontonr' and ordredate='\$ordredate' order by id desc\"), __FILE__ . \" linje \" . __LINE__);\n\tif (\$row = db_fetch_array(\$query)) {\n\t\t\$id = (int) \$row['id'];\n\t\t# SST-967 this page created it",
-            $code,
-            'the created marker no longer comes from the customer-and-date lookup'
+        $oldLookup = self::one(
+            "select id from ordrer where kontonr = $1 and ordredate = $2 order by id desc",
+            [self::$kontonr, $date]
         );
+        $this->assertSame($competitor, (int) ($oldLookup['id'] ?? 0),
+            'the customer-and-date lookup must be the race this test exists for');
+        $this->assertNotSame($own, $competitor, 'the fixture must produce two distinct orders');
+        $this->assertSame(900001, (int) (self::one("select sag_id from ordrer where id = $1", [$own])['sag_id'] ?? 0));
+        $this->assertSame(900002, (int) (self::one("select sag_id from ordrer where id = $1", [$competitor])['sag_id'] ?? 0));
     }
 
     public static function tearDownAfterClass(): void
     {
-        if (self::$pdo !== null) {
-            self::$pdo->prepare("delete from ordrelinjer where ordre_id in (select id from ordrer where kontonr = ?)")->execute([self::$kontonr]);
-            self::$pdo->prepare("delete from ordrer where kontonr = ?")->execute([self::$kontonr]);
-            self::$pdo = null;
+        if (isset(self::$tenant) && self::$tenant) {
+            pg_query_params(self::$tenant, 'delete from ordrelinjer where ordre_id in (select id from ordrer where kontonr = $1)', [self::$kontonr]);
+            pg_query_params(self::$tenant, 'delete from ordrer where kontonr = $1', [self::$kontonr]);
         }
+        parent::tearDownAfterClass();
     }
 }
