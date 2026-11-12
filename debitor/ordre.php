@@ -186,6 +186,7 @@
 //                 It multiplied by the currency code, which stopped the page with a TypeError on PHP 8.
 //                 The rate lookup for a base-currency post gets the debug argument db_select() requires (ArgumentCountError on PHP 8).
 //                 Without a rate the alert now has its text, and the previous post's amount is no longer counted again.
+//                 The alert text and invoice number are encoded with jsString() for the onload attribute.
 
 @session_start();
 $s_id = session_id();
@@ -6577,8 +6578,8 @@ function ordreside($id, $regnskab)
 						} else {
 							$opp_amount = 0; // no rate: the post cannot be converted, and the previous post's amount must not be counted again
 							if ($valuta) {
-								$alert = findtekst('1850|Ingen valutakurs for faktura', $sprog_id);
-								print "<BODY onLoad=\"javascript:alert('$alert $r[faktnr]')\">\n";
+								$alertJs = htmlspecialchars(jsString(array(findtekst('1850|Ingen valutakurs for faktura', $sprog_id), ' ', (string)$r['faktnr'])), ENT_QUOTES, 'UTF-8');
+								print "<BODY onLoad=\"javascript:alert($alertJs)\">\n";
 							}
 						}
 					} elseif ($valuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $valuta) {
