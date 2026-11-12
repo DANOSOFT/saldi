@@ -6,7 +6,7 @@
 // 20261109 CL/MMR SST-984 The e-invoice counter is updated here instead of by an HTTP call to debitor/increaseInvoiceNumber.php, which is removed.
 //                 That file needed no login and put ?db= unescaped into SQL against the master database.
 //                 A failed counter update is logged and reported by mail but does not stop the webhook, so an incoming invoice is still stored and mailed.
-
+//
     // This file is used to receive webhooks from EasyUBL
 
     include(__DIR__ . "/../includes/connect.php");
