@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/client.php --- ver 5.0.0 --- 2026-10-28 ---
+// --- includes/shopify/client.php --- ver 5.1.0 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 // 20261026 CL/SZ Retry-After and X-Request-Id come from the final response only; an interim
 //                "100 Continue" block no longer carries over (SD-747, #862 CodeRabbit).
 // 20261028 Sawaneh SD-738: the attempt entry carries the requested and actual cost and the restore rate for the call log.
+// 20261112 CL/SZ SD-822: bulk mutations: shopify_bulk_start_mutation(), shopify_bulk_stage() and shopify_bulk_upload().
 
 const SHOPIFY_API_VERSION = '2026-07';
 const SHOPIFY_MAX_RETRIES = 3;
@@ -62,6 +63,18 @@ const SHOPIFY_BULK_START_MUTATION = 'mutation bulkOperationRunQuery($query: Stri
 	bulkOperationRunQuery(query: $query) {
 		bulkOperation { id status }
 		userErrors { field message code }
+	}
+}';
+const SHOPIFY_BULK_RUN_MUTATION = 'mutation bulkOperationRunMutation($mutation: String!, $path: String!) {
+	bulkOperationRunMutation(mutation: $mutation, stagedUploadPath: $path) {
+		bulkOperation { id status }
+		userErrors { field message code }
+	}
+}';
+const SHOPIFY_BULK_STAGE_MUTATION = 'mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
+	stagedUploadsCreate(input: $input) {
+		stagedTargets { url parameters { name value } }
+		userErrors { field message }
 	}
 }';
 // bulkOperations lists newest first by default; reverse: true would return the oldest.
@@ -338,6 +351,26 @@ function shopify_throttle_delay(array $bucket, float $cost, float $now): float
  */
 function shopify_bulk_start(array $shop, string $bulkQuery, array $opts = []): array
 {
+	return shopify_bulk_begin($shop, 'QUERY', $bulkQuery, 'bulkOperationRunQuery', SHOPIFY_BULK_START_MUTATION, ['query' => $bulkQuery], $opts);
+}
+
+/**
+ * Starts a bulk mutation (bulkOperationRunMutation) on a file uploaded with shopify_bulk_upload(),
+ * reconciled as shopify_bulk_start() is, on the MUTATION operations and the mutation's text.
+ * Shopify answers OPERATION_IN_PROGRESS or LIMIT_REACHED as user_errors while others run.
+ *
+ * @param string $mutation The mutation Shopify runs once per line of the file.
+ * @param string $stagedPath The key parameter of the staged upload target.
+ * @return array As shopify_bulk_start().
+ */
+function shopify_bulk_start_mutation(array $shop, string $mutation, string $stagedPath, array $opts = []): array
+{
+	return shopify_bulk_begin($shop, 'MUTATION', $mutation, 'bulkOperationRunMutation', SHOPIFY_BULK_RUN_MUTATION, ['mutation' => $mutation, 'path' => $stagedPath], $opts);
+}
+
+/** The start of either bulk kind: $type is QUERY or MUTATION, $document what Shopify lists as the operation's query. */
+function shopify_bulk_begin(array $shop, string $type, string $document, string $root, string $start, array $vars, array $opts): array
+{
 	$clock = $opts['clock'] ?? fn() => microtime(true);
 	$opts['deadline'] = (float) ($opts['deadline'] ?? $clock() + SHOPIFY_DEFAULT_BUDGET);
 	$recent = fn(): array => shopify_graphql($shop, 'bulkOperationsRecent', SHOPIFY_BULK_RECENT_QUERY, [], ['retry_mode' => 'read'] + $opts);
@@ -347,16 +380,16 @@ function shopify_bulk_start(array $shop, string $bulkQuery, array $opts = []): a
 	}
 	$known = array_column($before['data']['bulkOperations']['nodes'] ?? [], 'id');
 	$opts['retry_mode'] = 'reconcile';
-	$opts['reconcile'] = function () use ($recent, $known, $bulkQuery): array {
+	$opts['reconcile'] = function () use ($recent, $known, $document, $type, $root): array {
 		$read = $recent();
 		if (!$read['ok']) {
 			return ['state' => 'unknown'];
 		}
-		$wanted = shopify_graphql_normalise($bulkQuery);
+		$wanted = shopify_graphql_normalise($document);
 		$new = 0;
 		$mine = [];
 		foreach ($read['data']['bulkOperations']['nodes'] ?? [] as $node) {
-			if (($node['type'] ?? '') !== 'QUERY' || in_array($node['id'] ?? null, $known, true)) {
+			if (($node['type'] ?? '') !== $type || in_array($node['id'] ?? null, $known, true)) {
 				continue;
 			}
 			$new++;
@@ -370,12 +403,78 @@ function shopify_bulk_start(array $shop, string $bulkQuery, array $opts = []): a
 		// Exactly one new operation, and it is ours: anything else (a new one that differs, or
 		// several) may be this start under another shape, so it is never resent.
 		return $new === 1 && count($mine) === 1
-			? ['state' => 'applied', 'data' => ['bulkOperationRunQuery' => ['bulkOperation' => $mine[0], 'userErrors' => []]]]
+			? ['state' => 'applied', 'data' => [$root => ['bulkOperation' => $mine[0], 'userErrors' => []]]]
 			: ['state' => 'unknown'];
 	};
-	$result = shopify_graphql($shop, 'bulkOperationRunQuery', SHOPIFY_BULK_START_MUTATION, ['query' => $bulkQuery], $opts);
-	$result['bulk'] = $result['ok'] ? ($result['data']['bulkOperationRunQuery']['bulkOperation'] ?? null) : null;
+	$result = shopify_graphql($shop, $root, $start, $vars, $opts);
+	$result['bulk'] = $result['ok'] ? ($result['data'][$root]['bulkOperation'] ?? null) : null;
 	return $result;
+}
+
+/**
+ * Asks Shopify where to upload a bulk mutation's variables file (stagedUploadsCreate). Asking
+ * again only gives another target, so it is safe to resend.
+ *
+ * @param array $opts As shopify_graphql(); retry_mode is set here.
+ * @return array shopify_graphql()'s result plus target: array{url: string, parameters: list<array{name: string, value: string}>}|null.
+ */
+function shopify_bulk_stage(array $shop, string $filename, array $opts = []): array
+{
+	$opts['retry_mode'] = 'idempotent';
+	$result = shopify_graphql($shop, 'stagedUploadsCreate', SHOPIFY_BULK_STAGE_MUTATION,
+		['input' => [['resource' => 'BULK_MUTATION_VARIABLES', 'filename' => $filename, 'mimeType' => 'text/jsonl', 'httpMethod' => 'POST']]], $opts);
+	$result['target'] = $result['ok'] ? ($result['data']['stagedUploadsCreate']['stagedTargets'][0] ?? null) : null;
+	return $result;
+}
+
+/**
+ * Uploads a bulk mutation's variables file to a staged target: a multipart POST of the
+ * target's parameters with the file last, as Shopify requires. The signed URL is a
+ * credential, so only its host is logged.
+ *
+ * @param array{url: string, parameters: list<array{name: string, value: string}>} $target From shopify_bulk_stage().
+ * @param array{
+ *   deadline?: float,      As in shopify_graphql().
+ *   correlation?: array,   Logged with the upload.
+ *   upload?: callable,     Test seam, same contract as shopify_http_upload().
+ *   clock?: callable,      Test seam.
+ *   log?: callable,        Test seam.
+ * } $opts
+ * @return array{ok: bool, path: string|null, status: int, error: string|null} path: the stagedUploadPath (the key parameter)
+ */
+function shopify_bulk_upload(array $target, string $file, array $opts = []): array
+{
+	if (parse_url((string) ($target['url'] ?? ''), PHP_URL_SCHEME) !== 'https') {
+		throw new InvalidArgumentException('Staged upload URL must be https');
+	}
+	if (isset($opts['log']) && !is_callable($opts['log'])) {
+		throw new InvalidArgumentException('opts.log must be callable');
+	}
+	$clock = $opts['clock'] ?? fn() => microtime(true);
+	$log = $opts['log'] ?? 'shopify_client_log';
+	$remaining = (float) ($opts['deadline'] ?? $clock() + SHOPIFY_DEFAULT_BUDGET) - $clock();
+	$fields = array_column($target['parameters'] ?? [], 'value', 'name');
+	$out = ['ok' => false, 'path' => $fields['key'] ?? null, 'status' => 0, 'error' => null];
+	if ($remaining <= 0) {
+		return array_merge($out, ['error' => 'deadline']);
+	}
+	if (!is_file($file) || !is_readable($file) || $out['path'] === null) {
+		return array_merge($out, ['error' => $out['path'] === null ? 'no_key' : 'file']);
+	}
+	$started = $clock();
+	$resp = ($opts['upload'] ?? 'shopify_http_upload')($target['url'], $fields, $file, min(SHOPIFY_CONNECT_TIMEOUT, $remaining), $remaining);
+	$out['status'] = $resp['status'];
+	if ($resp['errno'] !== 0 || $resp['status'] < 200 || $resp['status'] >= 300) {
+		$out['error'] = $resp['errno'] !== 0 ? 'transport' : 'http_' . $resp['status'];
+	} else {
+		$out['ok'] = true;
+	}
+	shopify_client_emit($log, [
+		'op' => 'bulkUpload', 'host' => parse_url($target['url'], PHP_URL_HOST), 'status' => $resp['status'], 'error' => $out['error'],
+		'curl_errno' => $resp['errno'], 'bytes' => (int) filesize($file), 'ms' => (int) round(($clock() - $started) * 1000),
+		'correlation' => $opts['correlation'] ?? [],
+	]);
+	return $out;
 }
 
 /**
@@ -527,6 +626,27 @@ function shopify_http_download(string $url, $fh, float $connectTimeout, float $t
 	$ch = curl_init($url);
 	curl_setopt_array($ch, [
 		CURLOPT_FILE => $fh,
+		CURLOPT_FOLLOWLOCATION => false,
+		CURLOPT_CONNECTTIMEOUT_MS => max(1, (int) ($connectTimeout * 1000)),
+		CURLOPT_TIMEOUT_MS => max(1, (int) ($timeout * 1000)),
+	]);
+	curl_exec($ch);
+	return ['status' => (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE), 'errno' => curl_errno($ch), 'error' => curl_error($ch)];
+}
+
+/**
+ * POSTs a file as multipart/form-data: $fields first, the file last as "file".
+ *
+ * @param array<string, string> $fields
+ * @return array{status: int, errno: int, error: string}
+ */
+function shopify_http_upload(string $url, array $fields, string $file, float $connectTimeout, float $timeout): array
+{
+	$ch = curl_init($url);
+	curl_setopt_array($ch, [
+		CURLOPT_POST => true,
+		CURLOPT_POSTFIELDS => $fields + ['file' => new CURLFile($file, 'text/jsonl', basename($file))],
+		CURLOPT_RETURNTRANSFER => true,
 		CURLOPT_FOLLOWLOCATION => false,
 		CURLOPT_CONNECTTIMEOUT_MS => max(1, (int) ($connectTimeout * 1000)),
 		CURLOPT_TIMEOUT_MS => max(1, (int) ($timeout * 1000)),

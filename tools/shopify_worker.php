@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.08
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 //        php tools/shopify_worker.php seed --db=<tenant> --shop=<shop_key> [--batch=250]
 //        php tools/shopify_worker.php baseline --db=<tenant> --shop=<shop_key>
 //        php tools/shopify_worker.php reconcile --db=<tenant> --shop=<shop_key>
+//        php tools/shopify_worker.php activate --db=<tenant> --shop=<shop_key> [--dry-run]
 //        php tools/shopify_worker.php remap --db=<tenant> --shop=<shop_key> --lager=<kodenr> [--location=gid://shopify/Location/...]
 //        php tools/shopify_worker.php set-app --db=<tenant> --shop=<shop_key> --client-id=<id> < client-secret
 //
@@ -53,6 +54,7 @@
 // 20261105 CL/SZ SD-757: the stock.display, stock.reconcile and stock.baseline handlers; commands baseline, reconcile and remap.
 // 20261106 CL/MJ SD-790 review: set-app's messages end in \n like the other commands' do.
 // 20261108 CL/SS SD-803: the customer.export handler (a Saldi debtor becomes a Shopify customer).
+// 20261112 CL/SZ SD-822: the stock.activate handler and the command activate; a bare --flag reads as --flag=1.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -69,6 +71,7 @@ function shopify_worker_commands(): array {
 		'seed' => 'shopify_worker_cmd_seed',
 		'baseline' => 'shopify_worker_cmd_baseline',
 		'reconcile' => 'shopify_worker_cmd_reconcile',
+		'activate' => 'shopify_worker_cmd_activate',
 		'remap' => 'shopify_worker_cmd_remap',
 		'set-app' => 'shopify_worker_cmd_set_app',
 	);
@@ -131,6 +134,9 @@ function shopify_worker_wiring(): array {
 		=> shopify_stock_reconcile(array('heartbeat' => $heartbeat), $job, $deadline));
 	shopify_worker_register($registry, 'stock.baseline', fn(array $job, float $deadline, callable $heartbeat): array
 		=> shopify_stock_baseline(array('heartbeat' => $heartbeat), $job, $deadline));
+	// SD-822: every linked item stocked at its locations before go-live.
+	shopify_worker_register($registry, 'stock.activate', fn(array $job, float $deadline, callable $heartbeat): array
+		=> shopify_stock_activate_all(array('heartbeat' => $heartbeat), $job, $deadline));
 	// SD-790: the app was uninstalled; the token goes and every flow is switched off.
 	shopify_worker_register($registry, 'shop.uninstalled', 'shopify_shop_uninstalled_job');
 	return array('registry' => $registry, 'producers' => $producers);
@@ -441,6 +447,34 @@ function shopify_worker_cmd_reconcile(array $opts): int {
 }
 
 /**
+ * Queues the stock activation of --shop (one stock.activate job; see shopify_stock_activate_all()), or with
+ * --dry-run one that only counts the pairs left. The outcome is the shop's stock/activate row on the error
+ * list. Prints the job.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_cmd_activate(array $opts): int {
+	$usage = 'activate --db=<tenant> --shop=<shop_key> [--dry-run]';
+	if (!in_array($opts['dry-run'] ?? '0', array('0', '1'), true)) {
+		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage\n");
+		return 2;
+	}
+	$shop = shopify_worker_stock_shop($opts, $usage);
+	if ($shop === null) {
+		return 2;
+	}
+	$dryRun = ($opts['dry-run'] ?? '0') === '1';
+	try {
+		$job = shopify_stock_start_activate(array(), (int)$shop['id'], $dryRun);
+	} catch (ShopifyConfigError $e) {
+		fwrite(STDERR, 'activate: ' . $e->getMessage() . "\n");
+		return 2;
+	}
+	echo json_encode(array('shop' => $shop['shop_key'], 'dry_run' => $dryRun) + $job) . "\n";
+	return 0;
+}
+
+/**
  * Zeroes --lager's location in --shop and moves the lager to --location, or leaves it unmapped without
  * one (shopify_stock_remap()). Waits for the worker lock and holds it, so no push runs meanwhile. Prints
  * how many pairs were zeroed; exits 1 when Shopify refused or didn't answer, and then the mapping stays.
@@ -486,8 +520,8 @@ function shopify_worker_parse(array $argv): array {
 	$command = $argv[1] ?? '';
 	$opts = array();
 	foreach (array_slice($argv, 2) as $arg) {
-		if (preg_match('/^--([a-z-]+)=(.*)$/', $arg, $m)) {
-			$opts[$m[1]] = $m[2];
+		if (preg_match('/^--([a-z-]+)(?:=(.*))?$/', $arg, $m)) {
+			$opts[$m[1]] = $m[2] ?? '1';
 		}
 	}
 	return array($command, $opts);

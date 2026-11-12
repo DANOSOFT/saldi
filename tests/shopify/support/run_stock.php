@@ -22,6 +22,7 @@
 // 20261105 CL/SZ SD-756: shopify_stock_next() takes the runtime.
 // 20261105 CL/SZ SD-757: steps for the display metafield, baseline, reconcile and remap.
 // 20261106 CL/SZ SD-757 review: step hold, stock an unpaid order keeps committed.
+// 20261112 CL/SZ SD-822: steps start_activate, activate, hide, refuse_toggle, refuse_set, limit_bulk and fail_bulk.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_stock.php <test_db> <state file> '<steps json>'\n");
@@ -150,6 +151,35 @@ try {
                         $rt['lines_per_run'] = (int)$step[3];
                     }
                     $results[] = shopify_stock_reconcile($rt, ['id' => 0, 'shop_id' => $shopId($step[1]), 'checkpoint' => $step[2] ?? null], microtime(true) + (float)($step[4] ?? 30));
+                    break;
+                case 'start_activate':
+                    $results[] = shopify_stock_start_activate([], $shopId($step[1]), (bool)($step[2] ?? false));
+                    break;
+                case 'activate':
+                    $rt = ['graphql' => $store->opts(), 'download' => ['download' => $store->bulkDownloader(), 'log' => fn(): null => null],
+                        'upload' => ['upload' => $store->bulkUploader(), 'log' => fn(): null => null]];
+                    $results[] = shopify_stock_activate_all($rt, ['id' => 0, 'shop_id' => $shopId($step[1]), 'payload' => ['dry_run' => (bool)($step[3] ?? false)],
+                        'checkpoint' => $step[2] ?? null], microtime(true) + (float)($step[4] ?? 30));
+                    break;
+                case 'hide':
+                    $store->hideQuantity($domain($step[1]), shopify_product_link($shopId($step[1]), (int)$step[2])['inventory_item_gid'], $location($step[1], (int)$step[3]), (int)$step[4]);
+                    $results[] = 'hidden';
+                    break;
+                case 'refuse_toggle':
+                    $store->refuseActivation($domain($step[1]), shopify_product_link($shopId($step[1]), (int)$step[2])['inventory_item_gid']);
+                    $results[] = 'armed';
+                    break;
+                case 'refuse_set':
+                    $store->refuseQuantity($domain($step[1]), shopify_product_link($shopId($step[1]), (int)$step[2])['inventory_item_gid']);
+                    $results[] = 'armed';
+                    break;
+                case 'limit_bulk':
+                    $store->limitBulkOnce($domain($step[1]));
+                    $results[] = 'armed';
+                    break;
+                case 'fail_bulk':
+                    $store->failBulkAfter($domain($step[1]), (int)$step[2]);
+                    $results[] = 'armed';
                     break;
                 case 'kill_file':
                     @unlink(shopify_stock_reconcile_file(shopify_shop($step[1]), $step[2]));

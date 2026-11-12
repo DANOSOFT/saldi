@@ -12,6 +12,7 @@
 // 20261023 CL/SZ Exact bulk-start matching: formatting ignored, strings exact, a differing new operation is unknown.
 // 20261026 CL/SZ Names, numbers and "..." are separate tokens; block-string escapes, BOMs, bad escapes
 //                and leading zeros when matching (#862 review).
+// 20261112 CL/SZ SD-822: the bulk mutation start, the staged target and the upload.
 
 use PHPUnit\Framework\TestCase;
 
@@ -438,5 +439,70 @@ final class ClientBulkTest extends TestCase
 	{
 		$this->expectException(InvalidArgumentException::class);
 		shopify_bulk_download('http://storage.googleapis.com/x.jsonl', $this->dir . '/x', ['log' => fn() => null]);
+	}
+
+	public function test_a_bulk_mutation_starts_on_the_staged_path_and_is_reconciled_on_its_type(): void
+	{
+		$mutation = 'mutation m($id: ID!) { inventoryBulkToggleActivation(inventoryItemId: $id, inventoryItemUpdates: []) { userErrors { message } } }';
+		$query = ['id' => 'gid://shopify/BulkOperation/9', 'status' => 'CREATED', 'type' => 'QUERY', 'query' => $mutation];
+		$mine = ['id' => self::OP, 'status' => 'CREATED', 'type' => 'MUTATION', 'query' => $mutation];
+		$fake = new FakeShopify([self::recent([]), FakeShopify::timeout(), self::recent([$query, $mine])]);
+
+		$r = shopify_bulk_start_mutation(FakeShopify::shop(), $mutation, 'tmp/1/bulk/x.jsonl', $fake->opts());
+
+		$this->assertSame(['mutation' => $mutation, 'path' => 'tmp/1/bulk/x.jsonl'], $fake->calls[1]['body']['variables']);
+		$this->assertStringContainsString('bulkOperationRunMutation', $fake->calls[1]['body']['query']);
+		$this->assertSame('reconciled', $r['outcome'], 'a QUERY operation with the same text is not ours');
+		$this->assertSame(['id' => self::OP, 'status' => 'CREATED'], $r['bulk']);
+	}
+
+	public function test_stage_asks_for_a_post_target_for_the_variables_file(): void
+	{
+		$target = ['url' => 'https://shopify-staged-uploads.storage.googleapis.com/', 'parameters' => [['name' => 'key', 'value' => 'tmp/1/bulk/x.jsonl']]];
+		$fake = new FakeShopify([FakeShopify::ok(['stagedUploadsCreate' => ['stagedTargets' => [$target], 'userErrors' => []]])]);
+
+		$r = shopify_bulk_stage(FakeShopify::shop(), 'x.jsonl', $fake->opts());
+
+		$this->assertSame($target, $r['target']);
+		$this->assertSame([['resource' => 'BULK_MUTATION_VARIABLES', 'filename' => 'x.jsonl', 'mimeType' => 'text/jsonl', 'httpMethod' => 'POST']],
+			$fake->calls[0]['body']['variables']['input']);
+	}
+
+	public function test_upload_posts_the_parameters_and_the_file_and_logs_only_the_host(): void
+	{
+		$file = "{$this->dir}/vars.jsonl";
+		file_put_contents($file, "{\"a\":1}\n");
+		$seen = $logged = [];
+		$target = ['url' => 'https://shopify-staged-uploads.storage.googleapis.com/?X-Goog-Signature=secret',
+			'parameters' => [['name' => 'Content-Type', 'value' => 'text/jsonl'], ['name' => 'key', 'value' => 'tmp/1/bulk/x.jsonl']]];
+
+		$r = shopify_bulk_upload($target, $file, [
+			'upload' => function (string $url, array $fields, string $path) use (&$seen): array {
+				$seen = [$url, $fields, $path];
+				return ['status' => 201, 'errno' => 0, 'error' => ''];
+			},
+			'log' => function (array $entry) use (&$logged): void {
+				$logged[] = $entry;
+			},
+		]);
+
+		$this->assertSame(['ok' => true, 'path' => 'tmp/1/bulk/x.jsonl', 'status' => 201, 'error' => null], $r);
+		$this->assertSame(['Content-Type' => 'text/jsonl', 'key' => 'tmp/1/bulk/x.jsonl'], $seen[1]);
+		$this->assertSame($file, $seen[2]);
+		$this->assertSame('shopify-staged-uploads.storage.googleapis.com', $logged[0]['host']);
+		$this->assertStringNotContainsString('secret', json_encode($logged));
+	}
+
+	public function test_upload_refuses_http_and_reports_a_refused_upload(): void
+	{
+		$file = "{$this->dir}/vars.jsonl";
+		file_put_contents($file, "{}\n");
+		$target = ['url' => 'https://shopify-staged-uploads.storage.googleapis.com/', 'parameters' => [['name' => 'key', 'value' => 'k']]];
+		$quiet = ['log' => fn(): null => null];
+
+		$this->assertSame('http_403', shopify_bulk_upload($target, $file, $quiet + ['upload' => fn(): array => ['status' => 403, 'errno' => 0, 'error' => '']])['error']);
+		$this->assertSame('no_key', shopify_bulk_upload(['url' => $target['url'], 'parameters' => []], $file, $quiet)['error']);
+		$this->expectException(InvalidArgumentException::class);
+		shopify_bulk_upload(['url' => 'http://example.com/', 'parameters' => []], $file, $quiet);
 	}
 }

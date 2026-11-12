@@ -32,6 +32,21 @@ Production: the systemd templates in `doc/shopify/systemd/`, one timer per tenan
 
     systemctl enable --now shopify-worker@<tenant>.timer
 
+## Before go-live: stock every item at its locations
+
+Once a shop's products exist and are linked, and before its stock baseline, stock every item
+at the shop's mapped locations in one bulk run (SD-822), so the baseline only sets quantities:
+
+    php tools/shopify_worker.php activate --db=<tenant> --shop=<shop_key> --dry-run
+    php tools/shopify_worker.php activate --db=<tenant> --shop=<shop_key>
+
+Both queue a `stock.activate` job that the worker runs over a few passes. The result is the
+shop's `stock` / `activate` row on the error list: the dry run's count, or how many pairs were
+stocked and how many items Shopify refused. Fix the refused items (their `item:<vare_id>`
+warnings) and run it again; it only does what is left. The rows to look at:
+
+    SELECT severity, message, last_at FROM shopify_errors WHERE kind = 'stock' AND (ref = 'activate' OR ref LIKE 'item:%') AND resolved_at IS NULL ORDER BY last_at DESC;
+
 ## Open facts for ssl3 (December)
 
 PHP CLI path, the web user that owns `temp/`, and permission to install the timer. The

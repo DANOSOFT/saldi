@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.06
+// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,7 @@
 // 20261106 CL/SZ SD-757 review: the baseline stamps only on Saldi's quantities, the remap's zero call waits for its items' barriers.
 //                The reconcile defers a pair while Shopify has stock committed there.
 //                A set that can't be published no longer keeps the baseline from stamping (Å32, Lui).
+// 20261112 CL/SZ SD-822: stock.activate stocks every linked item at its locations in bulk before go-live, after setting the pairs to 0.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -256,6 +257,14 @@ const SHOPIFY_STOCK_RECONCILE_CHUNK = 500;
 const SHOPIFY_STOCK_RECONCILE_POLL = 60;
 /** Drifted pairs named in the report; the count covers them all. */
 const SHOPIFY_STOCK_RECONCILE_NAMED = 20;
+/** Pairs per inventorySetQuantities call when stock.activate zeroes the pairs it is about to stock. */
+const SHOPIFY_STOCK_ACTIVATE_ZERO = 250;
+/** stock.activate's bulk mutation, one line per item: the locations it isn't stocked at yet. */
+const SHOPIFY_STOCK_BULK_ACTIVATE = 'mutation stockActivateAll($inventoryItemId: ID!, $inventoryItemUpdates: [InventoryBulkToggleActivationInput!]!) {
+	inventoryBulkToggleActivation(inventoryItemId: $inventoryItemId, inventoryItemUpdates: $inventoryItemUpdates) {
+		inventoryItem { id } inventoryLevels { location { id } quantities(names: ["available"]) { name quantity } } userErrors { field message code }
+	}
+}';
 
 /**
  * Run-loop step 4: moves up to $limit rows of shopify_stock_dirty into the dirty set of every shop
@@ -968,14 +977,14 @@ function shopify_stock_display_write(array $rt, array $shop, array $metafields, 
 	return $refused;
 }
 
-/** The bulk file of one read, below the tenant's temp folder (.ht: never served); a nightly and a manual reconcile can overlap. */
-function shopify_stock_reconcile_file(array $shop, string $op): string {
+/** The bulk file of one read, below the tenant's temp folder (.ht: never served); a nightly and a manual reconcile can overlap. $kind names the job's files apart. */
+function shopify_stock_reconcile_file(array $shop, string $op, string $kind = 'reconcile'): string {
 	require_once __DIR__ . '/../../sharedFile.php';
 	$dir = dirname(__DIR__, 3) . '/temp/' . ($GLOBALS['db'] ?? '');
 	if (!sharedDirectory($dir)) {
 		throw new RuntimeException('the tenant temp folder for the stock bulk file cannot be made');
 	}
-	return "$dir/.ht_shopify_reconcile_{$shop['shop_key']}_" . md5($op) . '.jsonl';
+	return "$dir/.ht_shopify_{$kind}_{$shop['shop_key']}_" . md5($op) . '.jsonl';
 }
 
 /**
@@ -1461,4 +1470,389 @@ function shopify_stock_remap_finish(array $shop, int $lager, string|false|null $
 			shopify_stock_mark($shop, array_map('intval', array_column($rows, 'vare_id')), (int)shopify_db_rows('SELECT txid_current() AS x')[0]['x']);
 		}
 	});
+}
+
+/** Why stock.activate can't run for the shop, null when it can. After the baseline the push stocks a pair itself. */
+function shopify_stock_activate_problem(?array $shop): ?string {
+	if ($shop === null) {
+		return 'the shop is unknown';
+	}
+	if ($shop['stock_baseline_at'] !== null) {
+		return "shop {$shop['shop_key']} has a stock baseline from {$shop['stock_baseline_at']}; the push stocks new pairs itself";
+	}
+	return null;
+}
+
+/**
+ * Queues stock.activate for the shop. A dry run and a real run are separate jobs, so asking for one
+ * never gets the other one back.
+ *
+ * @param array<string, mixed> $rt unused; the caller's runtime
+ * @return array{id: int, created: bool, state: string}
+ * @throws ShopifyConfigError when the shop can't be activated
+ */
+function shopify_stock_start_activate(array $rt, int $shopId, bool $dryRun): array {
+	$shop = shopify_db_rows('SELECT * FROM shopify_shops WHERE id = $1', array($shopId))[0] ?? null;
+	$problem = shopify_stock_activate_problem($shop);
+	if ($problem !== null) {
+		throw new ShopifyConfigError("no stock activation: $problem");
+	}
+	return shopify_queue_enqueue('stock.activate', $shopId, "{$shop['shop_key']}:" . ($dryRun ? 'activate-dry' : 'activate'),
+		array('dry_run' => $dryRun), SHOPIFY_QUEUE_PRIORITY['stock.activate']);
+}
+
+/**
+ * The stock.activate job of one shop, run before go-live (SD-822): stocks every linked item at every
+ * location the push will send it to (shopify_stock_plan(): the mapped sellable and display lagre), so
+ * the baseline only sets quantities. It reads the shop's levels in bulk, then sets each pair it will
+ * stock to 0 (a quantity set while the pair wasn't stocked is shown once it is, dev store 2026-11-12),
+ * then stocks them with one bulk mutation (inventoryBulkToggleActivation, a line per item) and reads its
+ * result. A pair already stocked is left alone, so a rerun only does what is left; a dry run stops after
+ * the read and counts. An item Shopify refuses goes on the error list as a warning, and the outcome is one
+ * row (stock/activate). The acknowledgements of the pairs it stocks, from before its read, are forgotten,
+ * as the inline activation does.
+ *
+ * @param array{heartbeat?: callable(): bool, graphql?: array<string, mixed>, download?: array<string, mixed>, upload?: array<string, mixed>} $rt
+ * @param array{id: int, shop_id: int, payload?: array<string, mixed>, checkpoint?: array<string, mixed>|null} $job
+ * @return array{outcome: string, checkpoint?: array<string, mixed>, run_after?: int, pairs?: int, refused?: int}
+ * @throws RuntimeException when Shopify or a file doesn't answer; the job retries
+ */
+function shopify_stock_activate_all(array $rt, array $job, float $deadline): array {
+	$shopId = (int)$job['shop_id'];
+	$shop = shopify_db_rows('SELECT * FROM shopify_shops WHERE id = $1', array($shopId))[0] ?? null;
+	$cp = $job['checkpoint'] ?? array();
+	$problem = shopify_stock_activate_problem($shop);
+	if ($problem !== null) {
+		if ($shop !== null) {
+			shopify_stock_activate_cleanup($shop, $cp);
+			shopify_error_open($shopId, 'stock', 'activate', "The stock activation stopped: $problem", 'warning');
+		}
+		return array('outcome' => 'done');
+	}
+	$graphql = ($rt['graphql'] ?? array()) + array('deadline' => $deadline);
+	if (!isset($cp['read'])) {
+		$startedAt = shopify_db_rows('SELECT now()::timestamp AS at')[0]['at'];
+		$res = shopify_bulk_start($shop, SHOPIFY_STOCK_BULK_LEVELS, $graphql);
+		if (!$res['ok'] || ($res['bulk']['id'] ?? null) === null) {
+			throw new RuntimeException('starting the stock bulk read failed: ' . (string)$res['error']);
+		}
+		return array('outcome' => 'yield', 'checkpoint' => array('read' => $res['bulk']['id'], 'started_at' => $startedAt), 'run_after' => SHOPIFY_STOCK_RECONCILE_POLL);
+	}
+	$vars = shopify_stock_reconcile_file($shop, $cp['read'], 'activate');
+	$upload = shopify_stock_reconcile_file($shop, $cp['read'], 'activate_upload');
+	if (!isset($cp['pairs'])) {
+		$file = shopify_stock_reconcile_file($shop, $cp['read'], 'activate_read');
+		$read = shopify_stock_reconcile_download($rt, $shop, $cp['read'], $file, $graphql, $deadline);
+		if ($read === 'running') {
+			return array('outcome' => 'yield', 'checkpoint' => $cp, 'run_after' => SHOPIFY_STOCK_RECONCILE_POLL);
+		}
+		if ($read !== 'ready') {
+			shopify_error_open($shopId, 'stock', 'activate', "The stock activation's read ended without a file: $read. Run activate again.", 'warning');
+			return array('outcome' => 'done');
+		}
+		$plan = shopify_stock_activate_plan($rt, $shop, $file, $vars, $deadline);
+		if ($plan === null) {
+			// out of time: the next run plans again from the same file
+			return array('outcome' => 'yield', 'checkpoint' => $cp);
+		}
+		@unlink($file);
+		$absent = $plan['absent'] > 0 ? " {$plan['absent']} linked items are not in Shopify's read and were left out." : '';
+		if (!empty($job['payload']['dry_run']) || $plan['pairs'] === 0) {
+			@unlink($vars);
+			$what = $plan['pairs'] === 0 ? 'Every linked item is stocked at all its locations.' : "Dry run: {$plan['pairs']} pairs at {$plan['items']} items are not stocked yet.";
+			shopify_error_open($shopId, 'stock', 'activate', $what . $absent, 'info');
+			return array('outcome' => 'done', 'pairs' => $plan['pairs']);
+		}
+		// the pairs it stocks start at 0, so their acknowledgements from before the read go; one written since saw the pair stocked
+		shopify_db_rows(
+			'DELETE FROM shopify_stock_state s USING unnest($2::int[], $3::int[]) AS f(vare_id, lager)
+			 WHERE s.shop_id = $1 AND s.variant_id = 0 AND s.vare_id = f.vare_id AND s.lager = f.lager AND s.acknowledged_at < $4::timestamp',
+			array($shopId, shopify_barrier_int_array(array_column($plan['forget'], 0)), shopify_barrier_int_array(array_column($plan['forget'], 1)), $cp['started_at'])
+		);
+		$cp += array('pairs' => $plan['pairs'], 'items' => $plan['items'], 'absent' => $plan['absent'], 'zeroed' => 0, 'skip' => array());
+	}
+	if (!is_file($vars)) {
+		// the variables file is gone (a cleaned temp folder): start over from a new read
+		return array('outcome' => 'yield', 'checkpoint' => array(), 'run_after' => 1);
+	}
+	if (!isset($cp['op'])) {
+		if (!shopify_stock_activate_zero($rt, $shop, $vars, $cp, $deadline)) {
+			return array('outcome' => 'yield', 'checkpoint' => $cp);
+		}
+		if (count($cp['skip']) === $cp['items']) {
+			// Shopify refused every item at the zeroing: nothing to stock
+			return shopify_stock_activate_finish($shop, $cp, $vars, array('items' => 0, 'pairs' => 0));
+		}
+		$started = shopify_stock_activate_start($rt, $shop, $vars, $upload, $cp, $graphql, $deadline);
+		if ($started === null) {
+			return array('outcome' => 'yield', 'checkpoint' => $cp, 'run_after' => SHOPIFY_STOCK_RECONCILE_POLL);
+		}
+		$cp['op'] = $started;
+		return array('outcome' => 'yield', 'checkpoint' => $cp, 'run_after' => SHOPIFY_STOCK_RECONCILE_POLL);
+	}
+	$result = shopify_stock_reconcile_file($shop, $cp['op'], 'activate_result');
+	$read = shopify_stock_reconcile_download($rt, $shop, $cp['op'], $result, $graphql, $deadline);
+	if ($read === 'running') {
+		return array('outcome' => 'yield', 'checkpoint' => $cp, 'run_after' => SHOPIFY_STOCK_RECONCILE_POLL);
+	}
+	if ($read !== 'ready') {
+		shopify_stock_activate_cleanup($shop, $cp);
+		shopify_error_open($shopId, 'stock', 'activate', "The stock activation ended $read. Run activate again; the pairs stocked so far are left alone.", 'warning');
+		return array('outcome' => 'done');
+	}
+	return shopify_stock_activate_finish($shop, $cp, $vars, shopify_stock_activate_result($shop, $upload, $result));
+}
+
+/**
+ * Reports the run as one row and removes its files. The items left out at the zeroing count as refused.
+ *
+ * @param array{items: int, pairs: int} $refused what the bulk mutation's result refused
+ */
+function shopify_stock_activate_finish(array $shop, array $cp, string $vars, array $refused): array {
+	$lines = file($vars, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: array();
+	foreach ($cp['skip'] as $at) {
+		$refused['items']++;
+		$refused['pairs'] += count(json_decode($lines[$at], true)['inventoryItemUpdates'] ?? array());
+	}
+	shopify_stock_activate_cleanup($shop, $cp);
+	$stocked = $cp['pairs'] - $refused['pairs'];
+	$message = "Stocked $stocked of {$cp['pairs']} pairs at {$cp['items']} items." . ($cp['absent'] > 0 ? " {$cp['absent']} linked items are not in Shopify's read and were left out." : '');
+	if ($refused['items'] > 0) {
+		$message .= " Shopify refused {$refused['items']} items (see their warnings); the baseline won't stamp until they are fixed.";
+	}
+	shopify_error_open((int)$shop['id'], 'stock', 'activate', $message, $refused['items'] > 0 ? 'warning' : 'info');
+	return array('outcome' => 'done', 'pairs' => $stocked, 'refused' => $refused['items']);
+}
+
+/**
+ * Reads the bulk file into the pairs Shopify stocks, and writes the variables file of the bulk mutation:
+ * a line per linked item with the planned locations it isn't stocked at.
+ *
+ * @return array{pairs: int, items: int, absent: int, forget: list<array{int, int}>}|null forget: the pairs as vare_id, lager; null when the time ran out
+ */
+function shopify_stock_activate_plan(array $rt, array $shop, string $file, string $vars, float $deadline): ?array {
+	$stocked = array();
+	$fh = fopen($file, 'rb');
+	if ($fh === false) {
+		throw new RuntimeException('the stock bulk file cannot be read');
+	}
+	while (($line = fgets($fh)) !== false) {
+		$row = json_decode($line, true);
+		if (!is_array($row)) {
+			fclose($fh);
+			throw new RuntimeException('the stock bulk file has a line that is not JSON');
+		}
+		if (!isset($row['__parentId'])) {
+			$stocked[(string)$row['id']] ??= array();
+		} elseif (isset($row['location']['id'])) {
+			$stocked[$row['__parentId']][$row['location']['id']] = true;
+		}
+	}
+	fclose($fh);
+	$shopId = (int)$shop['id'];
+	$config = shopify_stock_checked_config();
+	$ids = array_map('intval', array_column(shopify_db_rows(
+		'SELECT vare_id FROM shopify_product_links WHERE shop_id = $1 AND variant_id = 0 AND listed AND inventory_item_gid IS NOT NULL ORDER BY vare_id', array($shopId)), 'vare_id'));
+	$lines = $forget = array();
+	$pairs = $absent = 0;
+	foreach (array_chunk($ids, SHOPIFY_STOCK_SLICE) as $slice) {
+		if ($deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS || (isset($rt['heartbeat']) && !($rt['heartbeat'])())) {
+			return null;
+		}
+		foreach (shopify_stock_plan($shopId, $slice, $config)['items'] as $vareId => $item) {
+			$gid = $item['inventory_item_gid'];
+			if (!isset($stocked[$gid])) {
+				$absent++;
+				continue;
+			}
+			$updates = array();
+			foreach ($item['pairs'] as $lager => $pair) {
+				if (!isset($stocked[$gid][$pair['location_gid']])) {
+					$updates[] = array('locationId' => $pair['location_gid'], 'activate' => true);
+					$forget[] = array($vareId, $lager);
+				}
+			}
+			if ($updates !== array()) {
+				$lines[] = json_encode(array('inventoryItemId' => $gid, 'inventoryItemUpdates' => $updates), JSON_UNESCAPED_SLASHES);
+				$pairs += count($updates);
+			}
+		}
+	}
+	if ($lines !== array() && file_put_contents($vars, implode("\n", $lines) . "\n") === false) {
+		throw new RuntimeException('the stock activation file cannot be written');
+	}
+	return array('pairs' => $pairs, 'items' => count($lines), 'absent' => $absent, 'forget' => $forget);
+}
+
+/**
+ * Sets every pair of the variables file to 0 from the checkpoint's line on, whole items per call, so
+ * stocking a pair can't show a quantity set while it wasn't stocked. A refused call sets nothing, so
+ * the item Shopify refuses is left out of the activation with a warning and the rest of its call is
+ * sent again.
+ *
+ * @param array<string, mixed> $cp zeroed (the next line) and skip (lines left out) are updated in place
+ * @return bool true when every line is done, false when the time ran out
+ */
+function shopify_stock_activate_zero(array $rt, array $shop, string $vars, array &$cp, float $deadline): bool {
+	$lines = file($vars, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+	if ($lines === false) {
+		throw new RuntimeException('the stock activation file cannot be read');
+	}
+	while ($cp['zeroed'] < count($lines)) {
+		if ($deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS || (isset($rt['heartbeat']) && !($rt['heartbeat'])())) {
+			return false;
+		}
+		$quantities = $owner = array();
+		$next = $cp['zeroed'];
+		while ($next < count($lines)) {
+			if (in_array($next, $cp['skip'], true)) {
+				$next++;
+				continue;
+			}
+			$line = json_decode($lines[$next], true);
+			if ($quantities !== array() && count($quantities) + count($line['inventoryItemUpdates']) > SHOPIFY_STOCK_ACTIVATE_ZERO) {
+				break;
+			}
+			foreach ($line['inventoryItemUpdates'] as $update) {
+				$owner[] = $next;
+				$quantities[] = array('inventoryItemId' => $line['inventoryItemId'], 'locationId' => $update['locationId'], 'quantity' => 0, 'changeFromQuantity' => null);
+			}
+			$next++;
+		}
+		if ($quantities === array()) {
+			$cp['zeroed'] = $next;
+			continue;
+		}
+		$res = shopify_graphql($shop, 'stockSet', SHOPIFY_STOCK_SET,
+			array('key' => shopify_stock_key(), 'input' => array('name' => 'available', 'reason' => 'correction', 'quantities' => $quantities)),
+			($rt['graphql'] ?? array()) + array('deadline' => $deadline, 'retry_mode' => 'idempotent'));
+		if ($res['user_errors'] === array() && !$res['ok']) {
+			throw new RuntimeException("zeroing the pairs to stock failed: {$res['error']}");
+		}
+		foreach ($res['user_errors'] as $error) {
+			$index = isset($error['field'][2]) && $error['field'][1] === 'quantities' ? (int)$error['field'][2] : null;
+			if ($index === null || !isset($owner[$index])) {
+				throw new RuntimeException('Shopify refused zeroing the pairs to stock: ' . (string)$error['message']);
+			}
+			$at = $owner[$index];
+			if (!in_array($at, $cp['skip'], true)) {
+				$cp['skip'][] = $at;
+				$gid = json_decode($lines[$at], true)['inventoryItemId'];
+				$vareId = shopify_stock_activate_items($shop, array($gid))[$gid] ?? 0;
+				shopify_error_open((int)$shop['id'], 'stock', "item:$vareId", "Shopify refused setting item $vareId to 0 before stocking it, so it isn't stocked: " . (string)$error['message'], 'warning');
+			}
+		}
+		if ($res['user_errors'] === array()) {
+			$cp['zeroed'] = $next;
+		}
+		// else the call set nothing: the same lines go again without the refused items
+	}
+	return true;
+}
+
+/**
+ * Uploads the variables file without the lines left out, as its own file (the original keeps its line
+ * numbers for a later pass), and starts the bulk mutation. The result's line numbers refer to that file.
+ *
+ * @return string|null the operation's id, null while Shopify runs other bulk mutations
+ * @throws RuntimeException when the upload or the start fails
+ */
+function shopify_stock_activate_start(array $rt, array $shop, string $vars, string $upload, array $cp, array $graphql, float $deadline): ?string {
+	$lines = file($vars, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+	if ($lines === false) {
+		throw new RuntimeException('the stock activation file cannot be read');
+	}
+	foreach ($cp['skip'] as $at) {
+		unset($lines[$at]);
+	}
+	if (file_put_contents($upload, $lines === array() ? '' : implode("\n", $lines) . "\n") === false) {
+		throw new RuntimeException('the stock activation upload file cannot be written');
+	}
+	$stage = shopify_bulk_stage($shop, 'stock_activate.jsonl', $graphql);
+	if (!$stage['ok'] || $stage['target'] === null) {
+		throw new RuntimeException('asking Shopify for the upload target failed: ' . (string)($stage['error'] ?? 'no target'));
+	}
+	$up = shopify_bulk_upload($stage['target'], $upload, ($rt['upload'] ?? array()) + array('deadline' => $deadline));
+	if (!$up['ok']) {
+		throw new RuntimeException("uploading the stock activation file failed: {$up['error']}");
+	}
+	$res = shopify_bulk_start_mutation($shop, SHOPIFY_STOCK_BULK_ACTIVATE, (string)$up['path'], $graphql);
+	if (array_intersect(array_column($res['user_errors'] ?? array(), 'code'), array('OPERATION_IN_PROGRESS', 'LIMIT_REACHED')) !== array()) {
+		return null;
+	}
+	if (!$res['ok'] || ($res['bulk']['id'] ?? null) === null) {
+		throw new RuntimeException('starting the stock activation failed: ' . (string)$res['error']);
+	}
+	return $res['bulk']['id'];
+}
+
+/**
+ * Reads the bulk mutation's result: a line per line of the uploaded file (__lineNumber, from 0). An item with
+ * userErrors or errors gets a warning; one that shows a quantity other than 0 where it was just
+ * stocked gets one too, as nothing should be on sale before the baseline.
+ *
+ * @return array{items: int, pairs: int} what Shopify refused
+ */
+function shopify_stock_activate_result(array $shop, string $upload, string $result): array {
+	$lines = file($upload, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+	$out = file($result, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+	if ($lines === false || $out === false) {
+		throw new RuntimeException('the stock activation files cannot be read');
+	}
+	$sent = array_map(fn(string $l): array => json_decode($l, true), $lines);
+	$items = shopify_stock_activate_items($shop, array_column($sent, 'inventoryItemId'));
+	$refused = array('items' => 0, 'pairs' => 0);
+	foreach ($out as $l) {
+		$row = json_decode($l, true);
+		$line = $sent[(int)($row['__lineNumber'] ?? -1)] ?? null;
+		if ($line === null) {
+			throw new RuntimeException('the stock activation result has a line the file has not');
+		}
+		$gid = $line['inventoryItemId'];
+		$vareId = $items[$gid] ?? 0;
+		$payload = $row['data']['inventoryBulkToggleActivation'] ?? null;
+		$errors = array_merge($row['errors'] ?? array(), $payload['userErrors'] ?? array());
+		if ($errors !== array() || $payload === null) {
+			$refused['items']++;
+			$refused['pairs'] += count($line['inventoryItemUpdates']);
+			$why = implode('; ', array_map(fn(array $e): string => trim(($e['code'] ?? '') . ' ' . (string)($e['message'] ?? '')), $errors)) ?: 'no answer';
+			shopify_error_open((int)$shop['id'], 'stock', "item:$vareId", "Shopify refused to stock item $vareId at its locations: $why", 'warning');
+			continue;
+		}
+		if (($payload['inventoryItem']['id'] ?? null) !== $gid) {
+			throw new RuntimeException("the stock activation result for $gid names another item");
+		}
+		$new = array_flip(array_column($line['inventoryItemUpdates'], 'locationId'));
+		foreach ($payload['inventoryLevels'] ?? array() as $level) {
+			$available = array_column($level['quantities'] ?? array(), 'quantity', 'name')['available'] ?? 0;
+			if (isset($new[$level['location']['id']]) && (int)$available !== 0) {
+				shopify_error_open((int)$shop['id'], 'stock', "item:$vareId", "Item $vareId shows $available at {$level['location']['id']} just after it was stocked there; the baseline sets Saldi's quantity", 'warning');
+			}
+		}
+	}
+	return $refused;
+}
+
+/** @param list<string> $gids @return array<string, int> inventory item gid => vare_id of the shop's links */
+function shopify_stock_activate_items(array $shop, array $gids): array {
+	if ($gids === array()) {
+		return array();
+	}
+	return array_map('intval', array_column(shopify_db_rows(
+		'SELECT inventory_item_gid, vare_id FROM shopify_product_links
+		 WHERE shop_id = $1 AND variant_id = 0 AND inventory_item_gid IN (SELECT jsonb_array_elements_text($2::jsonb))',
+		array((int)$shop['id'], json_encode(array_values(array_unique($gids)), JSON_UNESCAPED_SLASHES))
+	), 'vare_id', 'inventory_item_gid'));
+}
+
+/** Removes the job's files. */
+function shopify_stock_activate_cleanup(array $shop, array $cp): void {
+	if (isset($cp['read'])) {
+		@unlink(shopify_stock_reconcile_file($shop, $cp['read'], 'activate_read'));
+		@unlink(shopify_stock_reconcile_file($shop, $cp['read'], 'activate'));
+		@unlink(shopify_stock_reconcile_file($shop, $cp['read'], 'activate_upload'));
+	}
+	if (isset($cp['op'])) {
+		@unlink(shopify_stock_reconcile_file($shop, $cp['op'], 'activate_result'));
+	}
 }
