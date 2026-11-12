@@ -28,6 +28,7 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261111 CDX/NTR Isolate the test class database and session.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -77,7 +78,7 @@ final class VatRoundingCharacterizationTest extends CharacterizationTestCase
         }
         $kladdeId = self::$fx->kladde($lines, 'vat rounding sweep');
 
-        self::runChild('run_bogfor_page.php', ['simuler', $kladdeId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_bogfor_page.php', ['simuler', $kladdeId, CharacterizationEnv::sessionId()]);
 
         $rows = self::rows(
             'SELECT bilag, kontonr, debet, kredit, moms FROM simulering WHERE kladde_id = $1 ORDER BY bilag, id',
@@ -194,7 +195,7 @@ final class VatRoundingCharacterizationTest extends CharacterizationTestCase
             ['bilag' => 1, 'debet' => $salesAcct, 'kredit' => $salesAcct, 'amount' => 250.00, 'tekst' => 'vat both legs'],
         ]);
 
-        self::runChild('run_bogfor_page.php', ['simuler', $kladdeId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_bogfor_page.php', ['simuler', $kladdeId, CharacterizationEnv::sessionId()]);
 
         $rows = self::rows('SELECT kontonr, debet, kredit FROM simulering WHERE kladde_id = $1', [$kladdeId]);
         $this->assertNotEmpty($rows, 'same-account voucher still posts');
@@ -219,7 +220,7 @@ final class VatRoundingCharacterizationTest extends CharacterizationTestCase
             ['bilag' => 1, 'debet' => $plain, 'kredit' => $salesAcct, 'amount' => 1250.00, 'momsfri' => 'on', 'tekst' => 'momsfri'],
         ]);
 
-        self::runChild('run_bogfor_page.php', ['simuler', $kladdeId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_bogfor_page.php', ['simuler', $kladdeId, CharacterizationEnv::sessionId()]);
 
         $rows = self::rows('SELECT kontonr, debet, kredit FROM simulering WHERE kladde_id = $1', [$kladdeId]);
         $this->assertNotEmpty($rows, 'momsfri line still posts');

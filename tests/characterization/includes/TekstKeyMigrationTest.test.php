@@ -5,6 +5,7 @@
 // 20261028 CDX/NTR Expect the index lock when an existing column still needs its index.
 // 20261028 CDX/NTR Cover the same migration running against the master database.
 // 20261029 CL/LH Stop the eval at the end of this migration, so blocks appended after it in betweenUpdates.php are not run.
+// 20261110 CDX/NTR Read the tekst_key migration from the released 5.1.1 updater.
 
 namespace Saldi\Tests\TekstKeyMigration;
 
@@ -233,10 +234,11 @@ final class TekstKeyMigrationTest extends TestCase
     private function migrate(string $db_type): void
     {
         // Exercise only this migration, without running unrelated pending updates.
-        $source = file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
+        $source = file_get_contents(__DIR__ . '/../../../includes/opdat_5.1.php');
+        $source = preg_replace('/^\t{3}/m', '', $source);
         $start = strpos($source, '$tekstKeyMysql =');
-        // End at the close of the migration's foreach: later blocks in betweenUpdates.php are other migrations.
-		$foreachAt = strpos($source, 'foreach ($tekstKeyTargets', (int) $start);
+        // End at the close of the migration's foreach; later blocks belong to other migrations.
+        $foreachAt = strpos($source, 'foreach ($tekstKeyTargets', (int) $start);
         self::assertNotFalse($foreachAt, 'migration foreach not found');
         $close = strpos($source, "\n}\n", $foreachAt);
         self::assertNotFalse($close, 'end of migration foreach not found');

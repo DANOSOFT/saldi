@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretfunc.php --- ver 5.0.0 --- 2026-10-28 ---
+// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 //                lookup precedence and '*' check, and skip that grant on the sign-up API.
 // 20261028 CL/LH MB-73: ordrelinjer.leveret defaults to 0, as includes/betweenUpdates.php sets it on
 //                existing accounts (moved here from admin/opret.php with opret_build_tenant()).
+// 20261110 CDX/NTR Release 5.1.1: create tekst_key and its lookup index for new tenants.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -396,7 +397,8 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify("CREATE TABLE betalinger ($id_column,bet_type text,fra_kto text,egen_ref text,til_kto text,modt_navn text,belob text,betalingsdato text,valuta text,kort_ref text,kvittering text,ordre_id integer,bilag_id integer,liste_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE tidsreg ($id_column,person integer,ordre integer,pnummer integer,operation integer,materiale integer,tykkelse $decimal_type(15,3),laengde $decimal_type(15,3),bredde $decimal_type(15,3),antal_plader $decimal_type(15,3), gaa_hjem integer,tid integer,forbrugt_tid integer,opsummeret_tid integer,beregnet integer,pause integer,antal $decimal_type(15,3), faerdig integer,circ_time integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE tabeller ($id_column,person integer,ordre integer,pnummer integer,	operation integer,materiale integer,tykkelse $decimal_type(15,3),laengde $decimal_type(15,3),bredde $decimal_type(15,3),antal_plader $decimal_type(15,3), gaa_hjem integer,tid integer,forbrugt_tid integer,opsummeret_tid integer,beregnet integer,pause integer,antal $decimal_type(15,3), faerdig integer,circ_time integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
-	db_modify("CREATE TABLE tekster ($id_column,sprog_id integer,tekst_id integer,tekst text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE tekster ($id_column,sprog_id integer,tekst_id integer,tekst_key varchar(190),tekst text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE varetekster ($id_column,sprog_id integer,vare_id integer,tekst text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE jobkort ($id_column,konto_id integer,ordre_id integer,kontonr $decimal_type(30),firmanavn text,addr1 text,addr2 text,postnr text,bynavn text,kontakt text,tlf text,initdate date,oprettet_af text,startdate date,slutdate date,hvem text,tidspkt text,felt_1 text,felt_2 text,felt_3 text,felt_4 text,felt_5 text,felt_6 text,felt_7 text,felt_8 text,felt_9 text,felt_10 text,felt_11 text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE jobkort_felter ($id_column,job_id integer,art text,feltnr integer,subnr integer,feltnavn text,indhold text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
