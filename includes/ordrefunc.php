@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-11 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -170,6 +170,7 @@
 //                A return typed by hand takes the batch the item was last sold from to the customer, else the item's newest batch, else a new one.
 //                "Opret som indkøb" in the batch window gives a new batch.
 // 20261111 CL/MJ SST-924 krediter(): a typed return skips the batch of a purchase that is not received yet (rest NULL), where its units would be lost.
+// 20261112 CL/MJ SST-924 krediter(): a credited sale whose batch is not received yet (rest NULL) goes back on another batch of the item instead (CodeRabbit).
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -977,7 +978,8 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 
 	$batch_kob_id = 0;
 	if ($kred_linje_id > 0) {
-		$qtxt = "select batch_kob_id from batch_salg where linje_id = '$kred_linje_id' and vare_id = '$vare_id' order by id desc";
+		$qtxt = "select bs.batch_kob_id, bk.rest from batch_salg bs left join batch_kob bk on bk.id = bs.batch_kob_id";
+		$qtxt .= " where bs.linje_id = '$kred_linje_id' and bs.vare_id = '$vare_id' order by bs.id desc";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (!$r['batch_kob_id']) {
@@ -991,7 +993,9 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 				exit;
 			}
-			if (!$batch_kob_id) {
+			// A sale before the purchase was received sold from a batch with rest NULL until the receipt;
+			// rest+antal would stay NULL and the units would be lost, so the return takes another batch below.
+			if (!$batch_kob_id && $r['rest'] !== null) {
 				$batch_kob_id = (int)$r['batch_kob_id'];
 			}
 		}

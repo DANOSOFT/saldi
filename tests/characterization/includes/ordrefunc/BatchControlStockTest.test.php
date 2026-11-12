@@ -12,6 +12,7 @@
 // 20261110 CL/MJ SST-924 Returns typed by hand and "Opret som indkøb" go back on a batch of the same item.
 // 20261111 CL/MJ SST-924 A typed return passes over the batch of a purchase that is not received yet.
 // 20261111 CL/MJ SST-960 The session id comes from CharacterizationEnv::sessionId(), as master's test database now gives one per run.
+// 20261112 CL/MJ SST-924 A credit note against a sale from a batch not received yet; "Opret som indkøb" names the new batch (CodeRabbit).
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -208,7 +209,10 @@ final class BatchControlStockTest extends CharacterizationTestCase
         $this->deliver($return['id'], -2);
 
         $this->assertEqualsWithDelta(6.0, self::rest((int)$batch['id']), 0.001, 'the sold batch is left alone');
-        $this->assertCount(2, self::batches($item));
+        $batches = self::batches($item);
+        $this->assertCount(2, $batches);
+        $row = self::one('SELECT batch_kob_id FROM batch_salg WHERE linje_id = $1', [self::lineId($return['id'])]);
+        $this->assertSame((int)$batches[1]['id'], (int)$row['batch_kob_id'], 'the return row names the new batch');
         $this->assertStockAgrees($item, 8.0);
     }
 
@@ -225,5 +229,28 @@ final class BatchControlStockTest extends CharacterizationTestCase
 
         $this->assertEqualsWithDelta(8.0, self::rest((int)$batch['id']), 0.001);
         $this->assertStockAgrees($item, 8.0);
+    }
+
+    /** The sale took units from a purchase not received yet (rest NULL); the credit note goes on a received batch. */
+    public function test_a_credit_note_against_a_sale_from_a_batch_not_received_yet_takes_a_received_batch(): void
+    {
+        $debtor = self::$fx->debtor();
+        $item = $this->batchItem();
+        ['sale' => $sale, 'batch' => $batch] = $this->boughtAndSold($item, $debtor, 4);
+        self::rows(
+            'INSERT INTO batch_kob (linje_id, vare_id, ordre_id, pris, lager, variant_id) SELECT 0, vare_id, 0, 100, lager, 0 FROM batch_kob WHERE id = $1',
+            [$batch['id']]
+        );
+        $pending = (int)self::one('SELECT max(id) AS id FROM batch_kob WHERE vare_id = $1', [$item['id']])['id'];
+        self::rows('UPDATE batch_salg SET batch_kob_id = $1 WHERE linje_id = $2', [$pending, self::lineId($sale['id'])]);
+        $note = self::$fx->order($debtor, [['item' => $item, 'antal' => -2]], ['art' => 'DK']);
+        self::rows('UPDATE ordrelinjer SET kred_linje_id = $1 WHERE ordre_id = $2', [self::lineId($sale['id']), $note['id']]);
+
+        $this->deliver($note['id'], -2);
+
+        $this->assertEqualsWithDelta(8.0, self::rest((int)$batch['id']), 0.001, 'six left plus the two returned');
+        $this->assertNull(self::one('SELECT rest FROM batch_kob WHERE id = $1', [$pending])['rest'], 'the batch not received yet is left alone');
+        $row = self::one('SELECT batch_kob_id FROM batch_salg WHERE linje_id = $1', [self::lineId($note['id'])]);
+        $this->assertSame((int)$batch['id'], (int)$row['batch_kob_id'], 'the return row names the received batch');
     }
 }
