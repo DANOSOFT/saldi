@@ -36,6 +36,7 @@
 //                  A fingerprint of the open years' postings every ten minutes also finds late commits below the id watermark and deleted postings (CodeRabbit).
 //                  «Sæt aktivt» carries year 1 and a year after a deleted year forward, a reversed date range is invalid, and the alert text is JSON-encoded.
 //                  When the transfer into a saved year is blocked, the year card keeps that year's opening balances as they were.
+//                  The first fingerprint is taken before the first watermark and both are stored together in one JSON row, so nothing committed in between is lost (Codex round 5).
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -192,34 +193,48 @@ function checkFollowingOpeningBalances($activeYear) {
 	if (!$r) {
 		return null;
 	}
-	$maxId = (int)$r['max_id'];
-	if ($r['state'] === null || $r['state'] === '') {
-		// First check: follow postings from now on. Earlier years are brought up to date by «Sæt aktivt».
-		saveFollowingOpeningBalanceState($maxId, 0, 0);
-		return null;
-	}
-	list($lastId, $pendingYear, $fingerprintAt) = followingOpeningBalanceStateParts($r['state']);
-	$changed = false;
-	if ($maxId > $lastId) {
-		$year = followingOpeningBalancePostedYear($lastId, $maxId);
-		if ($year && (!$pendingYear || $year < $pendingYear)) $pendingYear = $year;
-		$lastId = $maxId;
+	$state = ($r['state'] === null || $r['state'] === '') ? null : followingOpeningBalanceStateParts($r['state']);
+	if ($state === null || $state['fingerprint'] === null) {
+		// The first fingerprint is taken before the watermark is read: a posting that commits in between is
+		// then missing from the baseline, and the next fingerprint finds it, even though its id is below the watermark.
+		$fingerprint = followingOpeningBalanceFingerprint();
+		$row = db_fetch_array(db_select("select max(id) as max_id from transaktioner", __FILE__ . ' line ' . __LINE__));
+		$maxId = (int)$row['max_id'];
+		if ($state === null) {
+			// First check: follow postings from now on. Earlier years are brought up to date by «Sæt aktivt».
+			saveFollowingOpeningBalanceState(array('lastId' => $maxId, 'pendingYear' => 0, 'fingerprintAt' => time(), 'fingerprint' => $fingerprint));
+			return null;
+		}
+		// A state from before the fingerprint keeps its watermark and waiting year, and gets its first fingerprint now.
+		$state['fingerprint'] = $fingerprint;
+		$state['fingerprintAt'] = time();
 		$changed = true;
+	} else {
+		$maxId = (int)$r['max_id'];
+		$changed = false;
+		if (time() - $state['fingerprintAt'] >= 600) {
+			// Postings that commit after a check with lower ids than it saw, and deleted postings, show up here.
+			$fingerprint = followingOpeningBalanceFingerprint();
+			$year = followingOpeningBalanceFingerprintChange($state['fingerprint'], $fingerprint);
+			if ($year && (!$state['pendingYear'] || $year < $state['pendingYear'])) $state['pendingYear'] = $year;
+			$state['fingerprint'] = $fingerprint;
+			$state['fingerprintAt'] = time();
+			$changed = true;
+		}
 	}
-	if (time() - $fingerprintAt >= 600) {
-		// Postings that commit after a check with lower ids than it saw, and deleted postings, show up here.
-		$year = followingOpeningBalanceChangedYear();
-		if ($year && (!$pendingYear || $year < $pendingYear)) $pendingYear = $year;
-		$fingerprintAt = time();
+	if ($maxId > $state['lastId']) {
+		$year = followingOpeningBalancePostedYear($state['lastId'], $maxId);
+		if ($year && (!$state['pendingYear'] || $year < $state['pendingYear'])) $state['pendingYear'] = $year;
+		$state['lastId'] = $maxId;
 		$changed = true;
 	}
 	if ($changed) {
-		saveFollowingOpeningBalanceState($lastId, $pendingYear, $fingerprintAt);
+		saveFollowingOpeningBalanceState($state);
 	}
-	if (!$pendingYear || $activeYear <= $pendingYear) {
+	if (!$state['pendingYear'] || $activeYear <= $state['pendingYear']) {
 		return null;
 	}
-	return syncFollowingOpeningBalances($pendingYear);
+	return syncFollowingOpeningBalances($state['pendingYear']);
 }
 
 /**
@@ -242,11 +257,12 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	include_once(__DIR__ . '/genberegn.php');
 	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalanceSync' order by id limit 1", __FILE__ . ' line ' . __LINE__));
 	if ($r && $r['var_value'] !== '' && $r['var_value'] !== null) {
-		list($lastId, $pendingYear, $fingerprintAt) = followingOpeningBalanceStateParts($r['var_value']);
-		if ($pendingYear) {
-			$fromYear = $fromYear > 0 ? min($fromYear, $pendingYear) : $pendingYear;
+		$state = followingOpeningBalanceStateParts($r['var_value']);
+		if ($state['pendingYear']) {
+			$fromYear = $fromYear > 0 ? min($fromYear, $state['pendingYear']) : $state['pendingYear'];
 			// Cleared before the rebuild, so a failing rebuild is not retried on every page.
-			saveFollowingOpeningBalanceState($lastId, 0, $fingerprintAt);
+			$state['pendingYear'] = 0;
+			saveFollowingOpeningBalanceState($state);
 		}
 	}
 	$checkedFrom = $fromYear;
@@ -431,28 +447,52 @@ function followingOpeningBalancesInTransaction() {
 }
 
 /**
- * Split the settings value 'openingBalanceSync'.
+ * Read the settings value 'openingBalanceSync'. It is one JSON row, so the watermark and the fingerprint it
+ * belongs to are always written together. The plain "lastId|pendingYear|time" of earlier test builds is read too,
+ * without a fingerprint.
  *
- * @param string $state "<last transaktioner.id seen>|<earliest year waiting for a rebuild>|<unix time of the last fingerprint>".
- * @return array{0: int, 1: int, 2: int} The last posting id seen, the waiting fiscal year or 0, and the fingerprint time or 0.
+ * @param string $value The stored value.
+ * @return array{
+ *   lastId: int,             Highest transaktioner.id already looked at.
+ *   pendingYear: int,        Earliest fiscal year with postings not yet carried forward, or 0.
+ *   fingerprintAt: int,      Unix time of the last fingerprint, or 0.
+ *   fingerprint: array|null, followingOpeningBalanceFingerprint() at that time, or null when there is none yet.
+ * }
  */
-function followingOpeningBalanceStateParts($state) {
-	$parts = explode('|', (string)$state);
-	return array((int)$parts[0], isset($parts[1]) ? (int)$parts[1] : 0, isset($parts[2]) ? (int)$parts[2] : 0);
+function followingOpeningBalanceStateParts($value) {
+	$state = json_decode((string)$value, true);
+	if (is_array($state)) {
+		// Plain isset(): this runs from includes/online.php, possibly before std_func.php is loaded.
+		return array(
+			'lastId' => isset($state['lastId']) ? (int)$state['lastId'] : 0,
+			'pendingYear' => isset($state['pendingYear']) ? (int)$state['pendingYear'] : 0,
+			'fingerprintAt' => isset($state['fingerprintAt']) ? (int)$state['fingerprintAt'] : 0,
+			'fingerprint' => (isset($state['fingerprint']) && is_array($state['fingerprint'])) ? $state['fingerprint'] : null,
+		);
+	}
+	$parts = explode('|', (string)$value);
+	return array(
+		'lastId' => (int)$parts[0],
+		'pendingYear' => isset($parts[1]) ? (int)$parts[1] : 0,
+		'fingerprintAt' => 0,
+		'fingerprint' => null,
+	);
 }
 
 /**
- * Store the last posting id seen, the earliest fiscal year whose later years wait for a rebuild, and when the
- * postings' fingerprint was last compared.
+ * Store the follow-up state (see followingOpeningBalanceStateParts()) as one JSON row.
  *
- * @param int $lastId Highest transaktioner.id already looked at.
- * @param int $pendingYear Earliest fiscal year with postings not yet carried forward, or 0.
- * @param int $fingerprintAt Unix time of the last followingOpeningBalanceChangedYear(), or 0.
+ * @param array $state lastId, pendingYear, fingerprintAt and fingerprint.
  * @return void
  */
-function saveFollowingOpeningBalanceState($lastId, $pendingYear, $fingerprintAt) {
-	$value = (int)$lastId . '|' . (int)$pendingYear . '|' . (int)$fingerprintAt;
-	$description = 'SST-1005: last posting id seen | earliest fiscal year whose later years wait for new opening balances | time of the last posting fingerprint';
+function saveFollowingOpeningBalanceState($state) {
+	$value = json_encode(array(
+		'lastId' => (int)$state['lastId'],
+		'pendingYear' => (int)$state['pendingYear'],
+		'fingerprintAt' => (int)$state['fingerprintAt'],
+		'fingerprint' => $state['fingerprint'],
+	));
+	$description = 'SST-1005: posting id watermark, earliest fiscal year waiting for new opening balances, and the postings fingerprint of the open years';
 	saveFollowingOpeningBalanceSetting('openingBalanceSync', $value, $description);
 }
 
@@ -546,20 +586,20 @@ function followingOpeningBalancePostedYear($afterId, $upToId) {
 }
 
 /**
- * Compare a fingerprint (number of postings and their debit and credit sums) of every open fiscal year that has a
- * later year with the one stored last time, and store the new one. The id check in checkFollowingOpeningBalances()
- * cannot see postings that commit after it with lower ids than it saw, nor deleted postings; this does.
- * Postings can only reach open years (box5 'on'), so closed years are left out.
+ * A fingerprint of the postings in every open fiscal year that has a later year: the number of postings and their
+ * debit and credit sums. Compared every ten minutes, it finds what the id watermark cannot see: postings that
+ * commit after a check with lower ids than it saw, and deleted postings. Postings can only reach open years
+ * (box5 'on'), so closed years are left out.
  *
- * @return int The earliest fiscal year whose postings changed, or 0 (also the first time, which only stores them).
+ * @return array Fiscal year (kodenr) => "count:debet:kredit".
  */
-function followingOpeningBalanceChangedYear() {
+function followingOpeningBalanceFingerprint() {
 	$years = array();
 	$q = db_select("select kodenr, box1, box2, box3, box4, box5, box10 from grupper where art = 'RA' order by kodenr", __FILE__ . ' line ' . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$years[(int)$row['kodenr']] = $row;
 	}
-	$current = array();
+	$fingerprint = array();
 	foreach ($years as $year => $row) {
 		if ($row['box10'] === 'on' || $row['box5'] !== 'on' || !isset($years[$year + 1]) || $years[$year + 1]['box10'] === 'on') {
 			continue;
@@ -571,21 +611,27 @@ function followingOpeningBalanceChangedYear() {
 		$qtxt = "select count(*) as postings, coalesce(sum(debet), 0) as debet, coalesce(sum(kredit), 0) as kredit ";
 		$qtxt.= "from transaktioner where transdate >= '$range[0]' and transdate <= '$range[1]'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
-		$current[$year] = $r['postings'] . ':' . $r['debet'] . ':' . $r['kredit'];
+		$fingerprint[$year] = $r['postings'] . ':' . $r['debet'] . ':' . $r['kredit'];
 	}
-	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalanceFingerprint' order by id limit 1", __FILE__ . ' line ' . __LINE__));
-	$stored = ($r && $r['var_value']) ? json_decode($r['var_value'], true) : null;
-	$description = 'SST-1005: number and sums of the postings per open fiscal year with a later year, compared every ten minutes';
-	saveFollowingOpeningBalanceSetting('openingBalanceFingerprint', json_encode($current), $description);
-	if (!is_array($stored)) {
-		return 0;
-	}
-	foreach ($current as $year => $fingerprint) {
-		if (isset($stored[$year]) && $stored[$year] !== $fingerprint) {
-			return $year;
+	return $fingerprint;
+}
+
+/**
+ * The earliest fiscal year whose fingerprint changed. A year that was not in the old fingerprint (newly opened, or
+ * newly given a later year) has nothing to compare with yet.
+ *
+ * @param array $old The stored fingerprint.
+ * @param array $new The fingerprint now.
+ * @return int Fiscal year (kodenr), or 0.
+ */
+function followingOpeningBalanceFingerprintChange($old, $new) {
+	$changed = 0;
+	foreach ($new as $year => $fingerprint) {
+		if (isset($old[$year]) && (string)$old[$year] !== (string)$fingerprint && (!$changed || (int)$year < $changed)) {
+			$changed = (int)$year;
 		}
 	}
-	return 0;
+	return $changed;
 }
 
 /**

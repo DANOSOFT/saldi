@@ -5,6 +5,7 @@
 //                 Gem/opdatér on the year card leaves the later years alone when the transfer into the saved year is blocked (Codex round 1).
 //                 Invalid dates stop before anything is written, and a failed rebuild is rolled back and stays visible until Gem/opdatér (Codex round 2).
 //                 CodeRabbit on PR #1109: JSON-encoded alert, reversed ranges, «Sæt aktivt» on year 1 / after a deleted year, the ten-minute fingerprint, and the card keeping a blocked year's opening balances.
+//                 A late commit during the very first check is found by the next fingerprint, proven with two real connections (Codex round 5).
 
 declare(strict_types=1);
 
@@ -126,11 +127,18 @@ final class FollowingOpeningBalancesTest extends TestCase
         return ['accounts' => $accounts, 'summary' => $summary];
     }
 
-    /** The id watermark and the waiting year from 'openingBalanceSync' ("lastId|pendingYear|fingerprintTime"). */
+    /** The id watermark and the waiting year from the JSON in 'openingBalanceSync', as "lastId|pendingYear". */
     private function syncState(): string
     {
-        $parts = explode('|', (string) $this->setting('openingBalanceSync'));
-        return $parts[0] . '|' . ($parts[1] ?? '');
+        $state = followingOpeningBalanceStateParts((string) $this->setting('openingBalanceSync'));
+        return $state['lastId'] . '|' . $state['pendingYear'];
+    }
+
+    /** Overwrite the watermark and the fingerprint time, keeping the stored fingerprint. */
+    private function setSyncState(int $lastId, int $pendingYear, int $fingerprintAt): void
+    {
+        $state = followingOpeningBalanceStateParts((string) $this->setting('openingBalanceSync'));
+        saveFollowingOpeningBalanceState(['lastId' => $lastId, 'pendingYear' => $pendingYear, 'fingerprintAt' => $fingerprintAt, 'fingerprint' => $state['fingerprint']]);
     }
 
     private function setting(string $name): ?string
@@ -217,7 +225,8 @@ final class FollowingOpeningBalancesTest extends TestCase
         // The first check only starts following postings; it does not rebuild the past.
         self::assertNull(checkFollowingOpeningBalances(11));
         $maxId = pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
-        self::assertSame("$maxId|0|0", $this->setting('openingBalanceSync'));
+        self::assertSame("$maxId|0", $this->syncState());
+        self::assertNotNull(followingOpeningBalanceStateParts((string) $this->setting('openingBalanceSync'))['fingerprint'], 'The first check stores the fingerprint with the watermark.');
         self::assertSame(777.0, $this->primo(10, 2000));
 
         // A posting in year 9 while the session works in year 9: remembered, not rebuilt yet.
@@ -494,24 +503,76 @@ final class FollowingOpeningBalancesTest extends TestCase
     public function testTheFingerprintFindsALateCommitAndADeletedPosting(): void
     {
         self::assertNull(checkFollowingOpeningBalances(11));
-        self::assertNull(checkFollowingOpeningBalances(11), 'The first fingerprint only stores the baseline.');
-        self::assertNotNull($this->setting('openingBalanceFingerprint'));
 
         // A year 9 posting whose id the watermark has already passed, as when it commits after a later check.
         $this->postInYear9(2000, 5);
-        $maxId = pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
-        $this->sql("UPDATE settings SET var_value = '$maxId|0|" . (time() - 60) . "' WHERE var_name = 'openingBalanceSync'");
+        $maxId = (int) pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
+        $this->setSyncState($maxId, 0, time() - 60);
         self::assertNull(checkFollowingOpeningBalances(10));
         self::assertSame(777.0, $this->primo(10, 2000), 'Within ten minutes of the last fingerprint it is not seen yet.');
-        $this->sql("UPDATE settings SET var_value = '$maxId|0|" . (time() - 601) . "' WHERE var_name = 'openingBalanceSync'");
+        $this->setSyncState($maxId, 0, time() - 601);
         self::assertNull(checkFollowingOpeningBalances(10));
         self::assertSame(1125.0, $this->primo(10, 2000), 'The next fingerprint finds it and year 10 follows.');
 
         // A deleted posting changes the fingerprint too.
         $this->sql("DELETE FROM transaktioner WHERE transdate = '2024-03-01'");
-        $this->sql("UPDATE settings SET var_value = '$maxId|0|" . (time() - 601) . "' WHERE var_name = 'openingBalanceSync'");
+        $this->setSyncState($maxId, 0, time() - 601);
         self::assertNull(checkFollowingOpeningBalances(10));
         self::assertSame(1120.0, $this->primo(10, 2000));
+    }
+
+    public function testALateCommitDuringTheFirstCheckIsFoundByTheNextFingerprint(): void
+    {
+        // Two real connections need real tables: a private schema in the same throwaway database, dropped at the end.
+        $schema = 'sst1005_first_check_' . getmypid();
+        $this->sql("CREATE SCHEMA $schema");
+        try {
+            foreach (['grupper', 'kontoplan', 'transaktioner', 'settings'] as $table) {
+                $this->sql("CREATE TABLE $schema.$table (LIKE pg_temp.$table INCLUDING DEFAULTS)");
+                $this->sql("INSERT INTO $schema.$table SELECT * FROM pg_temp.$table");
+            }
+            $this->sql("SET search_path TO $schema, pg_temp");
+            updateFollowingOpeningBalances(9);
+            self::assertSame(1120.0, $this->primo(10, 2000));
+            $other = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
+            pg_query($other, "SET search_path TO $schema");
+            $maxId = (int) pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
+
+            // Connection B posts in year 9 with the lower ids and holds its transaction open.
+            pg_query($other, 'BEGIN');
+            pg_query($other, 'INSERT INTO transaktioner (id, kontonr, transdate, debet, kredit) VALUES (' . ($maxId + 1) . ", 2000, '2024-03-01', 5, 0), (" . ($maxId + 2) . ", 1000, '2024-03-01', 0, 5)");
+            // This connection commits higher ids in the newest year, then the very first check runs.
+            $this->sql('INSERT INTO transaktioner (id, kontonr, transdate, debet, kredit) VALUES (' . ($maxId + 3) . ", 2000, '2025-08-01', 10, 0), (" . ($maxId + 4) . ", 1000, '2025-08-01', 0, 10)");
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame(($maxId + 4) . '|0', $this->syncState(), 'The watermark passes the uncommitted ids.');
+            pg_query($other, 'COMMIT');
+            pg_close($other);
+
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame(1120.0, $this->primo(10, 2000), 'Nothing new above the watermark, and the fingerprint is not due yet.');
+            $this->setSyncState($maxId + 4, 0, time() - 601);
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame(1125.0, $this->primo(10, 2000), 'The first fingerprint was taken before the commit, so the next one finds it.');
+            $this->setSyncState($maxId + 4, 0, time() - 601);
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame(1125.0, $this->primo(10, 2000));
+            self::assertSame(($maxId + 4) . '|0', $this->syncState(), 'Found once: nothing is waiting afterwards.');
+        } finally {
+            $this->sql('SET search_path TO pg_temp');
+            $this->sql("DROP SCHEMA $schema CASCADE");
+        }
+    }
+
+    public function testAStateFromBeforeTheFingerprintKeepsItsWaitingYear(): void
+    {
+        $this->postInYear9(2000, 5);
+        $maxId = (int) pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
+        $this->sql("INSERT INTO settings (var_name, var_grp, var_value, user_id) VALUES ('openingBalanceSync', 'system', '$maxId|9', 0)");
+        self::assertNull(checkFollowingOpeningBalances(9));
+        self::assertSame("$maxId|9", $this->syncState());
+        self::assertNotNull(followingOpeningBalanceStateParts((string) $this->setting('openingBalanceSync'))['fingerprint']);
+        self::assertNull(checkFollowingOpeningBalances(10));
+        self::assertSame(1125.0, $this->primo(10, 2000));
     }
 
     public function testTheCardKeepsTheSavedYearsOpeningBalancesWhenTheTransferIntoItIsBlocked(): void
