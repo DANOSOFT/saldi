@@ -174,7 +174,7 @@ if (!function_exists('semanticPeppolSendView')) {
 				$view['lines'] = array_slice($lines, 0, 1);
 				$view['items'] = array_slice($lines, 1);
 			}
-		} elseif (in_array($status, array('validation', 'auth', 'unknown', 'failed', 'config'), true)) {
+		} elseif (in_array($status, array('validation', 'auth', 'unknown', 'failed', 'config', 'onboarding'), true)) {
 			// The first line says what happened; the rest is the provider's answer, for support
 			$view['title'] = ($status === 'unknown') ? einvoice_findtekst('einvoice.page.unknown_title|Afsendelsen fik intet svar', $sprogId) : $notSent;
 			$view['tone'] = ($status === 'unknown') ? 'warning' : 'error';

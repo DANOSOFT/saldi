@@ -325,6 +325,11 @@ final class einvoiceStatusView extends TestCase
         $this->assertSame('Afsendelsen fik intet svar', $unknown['title']);
         $this->assertSame('warning', $unknown['tone']);
         $this->assertStringNotContainsString('Semantic', self::rendered($unknown));
+
+        $onboarding = semanticPeppolSendView(array('ok' => false, 'status' => 'onboarding', 'message' => "Semantic kunne ikke svare.\nHTTP 500: x", 'sendLogId' => null),
+            null, self::request(), self::env());
+        $this->assertSame(array('E-faktura-tjenesten kunne ikke svare.'), $onboarding['lines']);
+        $this->assertSame(array('HTTP 500: x'), $onboarding['details']);
     }
 
     public function testShowPageForOneSend(): void
