@@ -279,8 +279,10 @@ final class EmptyRightsGateTest extends TestCase
         // hide an ordre_id, so the declaration reads the first one that is a number.
         self::assertStringContainsString("array(\$_GET, 'id'), array(\$_POST, 'id'), array(\$_GET, 'ordre_id'), array(\$_POST, 'ordre_id')",
             $ordre, 'every selector the page reads is handed to the gate');
-        self::assertStringContainsString("is_numeric(\$sst967_selector[0][\$sst967_selector[1]] ?? '')", $ordre,
+        self::assertStringContainsString("is_numeric(\$sst967_value)", $ordre,
             'and an empty value cannot hide the next selector');
+        self::assertStringContainsString("\$sst967_selector_bad = true;", $ordre,
+            'a value that is not a number is recorded as malformed');
         $copyBind = strpos($ordre, "if (\$sag_workflow_case_id) {\n\t\$sag_id = (int)\$sag_workflow_case_id;");
         $createCall = strpos($ordre, '$id = opret_ordre(');
         self::assertNotFalse($copyBind, 'the page case is replaced by the admitted one');
@@ -292,6 +294,8 @@ final class EmptyRightsGateTest extends TestCase
         self::assertStringContainsString("if (!\$sag_id) \$sag_id = (int) ifset(\$_GET, 'sag_id', 0);", $ref,
             'and the copy helper does the same');
         self::assertStringContainsString("\$sag_id = (int)\$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
+        self::assertStringContainsString("\$sag_workflow_order = -1;", $ordre,
+            'a malformed order selector makes the gate refuse the request instead of ignoring it');
         self::assertStringContainsString("select id from ordrelinjer where ordre_id = '\$id'", $ordre,
             'and a posted line id of another order is dropped');
         self::assertStringContainsString("\$linje_id[\$sst967_k] = (int) \$sst967_v;", $ordre,
@@ -314,6 +318,8 @@ final class EmptyRightsGateTest extends TestCase
             'an update only proceeds for a row of the customer');
         self::assertStringContainsString('if (!empty($sanitizedInputs[\'historik_id\']) && !$historikId) {', $histFile,
             'and a refused selection is not reported as a saved one');
+        self::assertStringContainsString('$owned = db_fetch_array(db_select("SELECT id FROM historik WHERE id = {$sanitizedInputs[\'historik_id\']} AND konto_id = {$sanitizedInputs[\'id\']}"', $histFile,
+            'and the row is checked before the creation date is written');
 
         $firstWrite = strpos($ordre, 'if (isset($_GET[\'vis_lev_addr\']) && $id) {');
         $guard = strpos($ordre, 'if ($id && !sag_workflow_order_ok($id)) {');

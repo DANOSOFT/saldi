@@ -227,11 +227,26 @@ $sag_workflow_konto = (int) ifset($_GET, 'konto_id', ifset($_POST, 'konto_id', 0
 # The order can arrive as id or as ordre_id, on the GET or on a POST. An empty id= must not hide an ordre_id,
 # so this takes the first one that is actually a number rather than falling through ifset().
 $sag_workflow_order = 0;
+$sst967_selector_bad = false;
 foreach (array(array($_GET, 'id'), array($_POST, 'id'), array($_GET, 'ordre_id'), array($_POST, 'ordre_id')) as $sst967_selector) {
-	if (!$sag_workflow_order && is_numeric($sst967_selector[0][$sst967_selector[1]] ?? '')) {
-		$sag_workflow_order = (int) $sst967_selector[0][$sst967_selector[1]];
+	$sst967_value = $sst967_selector[0][$sst967_selector[1]] ?? '';
+	if ($sst967_value === '' || $sst967_value === null) {
+		continue;
+	}
+	if (is_numeric($sst967_value)) {
+		if (!$sag_workflow_order) {
+			$sag_workflow_order = (int) $sst967_value;
+		}
+	} else {
+		# A selector that is not a number names no order: the gate must refuse the request rather than ignore it,
+		# or the page would go on to cast it and write to the order it names.
+		$sst967_selector_bad = true;
 	}
 }
+if ($sst967_selector_bad) {
+	$sag_workflow_order = -1;
+}
+unset($sst967_value, $sst967_selector_bad);
 unset($sst967_selector);
 
 

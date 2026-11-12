@@ -135,6 +135,15 @@ function processContactForm($post) {
     // Sanitize and validate inputs
     $sanitizedInputs = sanitizeFormInputs($post);
 
+    // A posted history row that is not this customer's is refused before anything is written, so a rejected
+    // submission cannot leave a persisted change behind (the creation date used to be updated first).
+    if (!empty($sanitizedInputs['historik_id'])) {
+        $owned = db_fetch_array(db_select("SELECT id FROM historik WHERE id = {$sanitizedInputs['historik_id']} AND konto_id = {$sanitizedInputs['id']}", __FILE__ . " linje " . __LINE__));
+        if (!$owned) {
+            return false;
+        }
+    }
+
 	updateOprettet($post["id"], $post["oprettet"]);
 
     // Only proceed if there's a note or future contact
