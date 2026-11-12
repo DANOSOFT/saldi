@@ -47,9 +47,9 @@
 // 20261022 CL/MJ SD-759: created (WP10-1).
 // 20261109 CL/MJ SD-759: wired to the merged lanes.
 // 20261111 CL/MJ SD-759 (Sol): a split set's lager name comes from one LG row per lager, the newest, so rows kept from earlier years are not listed twice.
+//                The worker runs the stages from the job WP09 enqueues, the order's data is read from the order and its link, and the calls go through shopify_graphql().
 // 20261112 CL/MJ SD-759 (review): a waiting stage, or one of a shop whose orders flow is off, yields instead of failing; a recorded note op is not appended again.
 //                Two split sets of the same bundle keep apart (saet_id), and antal is a number in saet_fordeling.
-//                The worker runs the stages from the job WP09 enqueues, the order's data is read from the order and its link, and the calls go through shopify_graphql().
 
 require_once __DIR__ . '/../noteAppend.php';
 require_once __DIR__ . '/../links.php';
