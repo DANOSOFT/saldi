@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/einvoice/semanticClient.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- includes/einvoice/semanticClient.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,8 @@
 // 20261109 CL/MMR SD-815 Created (draft). SemanticClient talks to Semantic's REST API ("Semantic API 3.0.3", the Integrator definition) for sending e-documents.
 //                 semantic_credentials() and the other semantic_*() config readers take the server's Semantic settings from the environment or the gitignored key file, never from a database.
 // 20261109 CL/MMR SD-815 The configuration comment says which values are required (the webhook base URL is, for the onboarding); INSTALLATION.md documents them.
-
+// 20261112 CL/MMR SD-815 getIncomingDocuments() and getUblDocumentXml(): incoming e-invoices and the receiver's answers are read from Semantic's API.
+//
 /*
  * Configuration (per server, never in a database and never in git; INSTALLATION.md, "E-invoice through Semantic"):
  *
@@ -435,6 +436,77 @@ if (!class_exists('SemanticClient', false)) {
 			}
 			$result['data'] = $pdf;
 			return $result;
+		}
+
+		/**
+		 * GET /api/IncomingDocument with a DocumentFilter as JSON body ("Get a list of ... documents for a tenant that match
+		 * the search criteria"). data is a list of IncomingDocument (incomingDocumentId, receiverEndpointId, ublDocumentId,
+		 * documentNumber, documentType, senderEndpointIdentifier, receivedDateTime, previousOutgoingDocumentId ...).
+		 *
+		 * SD-815 ASSUMPTION: the swagger documents a GET with a body here, like GetOutgoingDocuments; DocumentFilter.id filters
+		 *                    on incomingDocumentId, documentId on ublDocumentId, companyId on the receiving company, and
+		 *                    receivedFrom on receivedDateTime. The caller checks every document it gets back, so a filter
+		 *                    Semantic ignores costs a longer list, never a wrong document.
+		 *
+		 * @param array<string, mixed> $filter DocumentFilter fields, e.g. id, documentId, companyId, receivedFrom, pageNumber, pageSize.
+		 * @return array{ok: bool, kind: string, httpStatus: int, data: mixed, message: string}
+		 */
+		public function getIncomingDocuments(array $filter) {
+			return $this->request('GET', '/api/IncomingDocument', array(), (object)$filter, true);
+		}
+
+		/**
+		 * GET /api/UblDocument/{ublDocumentId}: "Get the xml for a UBL document". On success data is the XML text.
+		 *
+		 * SD-815 ASSUMPTION: the swagger types the answer as a string. It is accepted as the XML itself, as a JSON string
+		 *                    holding the XML, or as base64 of the XML (as GetUblDocumentAsBase64EncodedXml answers); anything
+		 *                    that does not start with '<' after that is refused.
+		 *
+		 * @param string $ublDocumentId uuid (IncomingDocument.ublDocumentId).
+		 * @return array{ok: bool, kind: string, httpStatus: int, data: mixed, message: string}
+		 */
+		public function getUblDocumentXml($ublDocumentId) {
+			if (!self::isUuid($ublDocumentId)) {
+				return self::localError('Ugyldigt UBL-dokument-id');
+			}
+			$result = $this->request('GET', '/api/UblDocument/' . $ublDocumentId);
+			if (!$result['ok']) {
+				return $result;
+			}
+			$xml = self::xmlFrom($result['data']);
+			if ($xml === null) {
+				$result['ok'] = false;
+				$result['kind'] = 'unknown';
+				$result['data'] = null;
+				$result['message'] = 'Semantic sendte ikke et læsbart XML-dokument';
+				return $result;
+			}
+			$result['data'] = $xml;
+			return $result;
+		}
+
+		/**
+		 * The XML in an answer: the text itself, or base64 of it. A UTF-8 byte order mark is dropped.
+		 *
+		 * @param mixed $data The decoded answer (decodeBody() has already unwrapped a JSON string).
+		 * @return string|null Null when it is not XML.
+		 */
+		public static function xmlFrom($data) {
+			if (!is_string($data)) {
+				return null;
+			}
+			$text = trim($data);
+			if (strncmp($text, "\xEF\xBB\xBF", 3) === 0) {
+				$text = ltrim(substr($text, 3));
+			}
+			if ($text !== '' && $text[0] !== '<') {
+				$decoded = base64_decode(preg_replace('/\s+/', '', $text), true);
+				$text = ($decoded === false) ? '' : trim($decoded);
+				if (strncmp($text, "\xEF\xBB\xBF", 3) === 0) {
+					$text = ltrim(substr($text, 3));
+				}
+			}
+			return ($text !== '' && $text[0] === '<') ? $text : null;
 		}
 
 		/**

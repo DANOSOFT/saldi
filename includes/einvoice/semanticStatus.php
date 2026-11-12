@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/einvoice/semanticStatus.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- includes/einvoice/semanticStatus.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 //                 Also the pull fallback semantic_status_poll() and the pure checks behind debitor/semanticWebhook.php (URL token, payload, signature).
 // 20261109 CL/MMR SD-815 Review fixes: an error after 'Sent' only stores its text, so the duplicate guard still asks before a resend.
 //                 A notification's own status is never applied: when Semantic's status call fails the row waits for the poll.
+// 20261112 CL/MMR SD-815 semantic_webhook_parse_payload() also returns incomingDocumentId, and a notice that only names an incoming document is accepted (semanticIncoming.php).
 
 include_once(__DIR__ . '/semanticClient.php');
 include_once(__DIR__ . '/semanticSendLog.php');
@@ -478,11 +479,12 @@ if (!function_exists('semantic_webhook_parse_payload')) {
 	 *   statusCode: int|null,
 	 *   text: string|null,             errorText, message or lastErrorMessage, at most 1000 characters.
 	 *   documentNumber: string|null,
+	 *   incomingDocumentId: string|null, Semantic's int64 incoming document id, as digits (incoming notices only).
 	 * }
 	 */
 	function semantic_webhook_parse_payload($rawBody) {
 		$out = array('ok' => false, 'reason' => 'not_json', 'kind' => 'outgoing', 'documentId' => null, 'ublDocumentId' => null,
-			'statusCode' => null, 'text' => null, 'documentNumber' => null);
+			'statusCode' => null, 'text' => null, 'documentNumber' => null, 'incomingDocumentId' => null);
 		$data = json_decode(trim((string)$rawBody), true, 64, JSON_BIGINT_AS_STRING);
 		if (json_last_error() !== JSON_ERROR_NONE) {
 			return $out;
@@ -534,7 +536,10 @@ if (!function_exists('semantic_webhook_parse_payload')) {
 		$out['documentNumber'] = $pick(array('documentNumber'), function ($value) {
 			return (is_scalar($value) && trim((string)$value) !== '') ? trim((string)$value) : null;
 		});
-		if ($out['documentId'] === null && $out['ublDocumentId'] === null) {
+		$out['incomingDocumentId'] = $pick(array('incomingDocumentId'), function ($value) {
+			return (is_int($value) || is_string($value)) ? SemanticClient::documentIdFrom(is_int($value) ? $value : trim($value)) : null;
+		});
+		if ($out['documentId'] === null && $out['ublDocumentId'] === null && $out['incomingDocumentId'] === null) {
 			$out['reason'] = 'no_document_id';
 			return $out;
 		}

@@ -4,4 +4,17 @@ commission.settle.group_account_missing	Debitorgruppe %s for konto %s mangler en
 commission.settle.journal_overlap	Kommission er afregnet i kassekladden til og med %s. Vælg en fra-dato efter denne dato. Kommissionen er ikke afregnet.	Commission has been settled in the cash journal up to and including %s. Choose a start date after that date. The commission was not settled.	Kommisjon er gjort opp i kassekladden til og med %s. Velg en fra-dato etter denne datoen. Kommisjonen er ikke gjort opp.
 commission.settle.orders_deferred	%s ordrer med kommission er ikke afregnet, fordi de også har kommissionsvarer, der begynder med %s, uden opsatte kommissionskonti. Opsæt kontiene og afregn igen.	%s orders with commission were not settled because they also have commission items starting with %s without configured commission accounts. Set up the accounts and settle again.	%s ordrer med kommisjon er ikke gjort opp fordi de også har kommisjonsvarer som begynner med %s, uten oppsatte kommisjonskontoer. Sett opp kontoene og gjør opp på nytt.
 common.accept	Acceptér	Accept	Godta
+einvoice.incoming.mail_heading	Du har modtaget en ny elektronisk faktura	You have received a new electronic invoice	Du har mottatt en ny elektronisk faktura
+einvoice.incoming.mail_how	Du finder dokument puljen under kassekladder -> gå ind på en kladde -> papirklips ikonet	You find the document pool under cash journals -> open a journal -> the paperclip icon	Du finner dokumentpuljen under kassekladder -> gå inn på en kladd -> binders-ikonet
+einvoice.incoming.mail_subject	Ny faktura modtaget	New invoice received	Ny faktura mottatt
+einvoice.incoming.mail_time	Tidspunkt	Time	Tidspunkt
+einvoice.incoming.mail_title	Faktura notification	Invoice notification	Fakturavarsel
+einvoice.incoming.mail_where	Du kan se den i din dokument pulje	You can see it in your document pool	Du kan se den i dokumentpuljen din
+einvoice.receiver.ab	Modtaget af modtager	Received by the recipient	Mottatt av mottaker
+einvoice.receiver.ap	Godkendt af modtager	Approved by the recipient	Godkjent av mottaker
+einvoice.receiver.ca	Godkendt af modtager med forbehold	Conditionally approved by the recipient	Godkjent av mottaker med forbehold
+einvoice.receiver.ip	Under behandling hos modtager	Being processed by the recipient	Under behandling hos mottaker
+einvoice.receiver.pd	Betalt af modtager	Paid by the recipient	Betalt av mottaker
+einvoice.receiver.re	Afvist af modtager	Rejected by the recipient	Avvist av mottaker
+einvoice.receiver.uq	Spørgsmål fra modtager	Query from the recipient	Spørsmål fra mottaker
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.

@@ -1,5 +1,4 @@
 <?php
-
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -41,6 +40,7 @@
 //                existing accounts (moved here from admin/opret.php with opret_build_tenant()).
 // 20261110 CDX/NTR Release 5.1.1: create tekst_key and its lookup index for new tenants.
 // 20261109 CL/MMR SD-815 (draft) A new regnskab gets the table einvoice_sendlog (e-documents sent through Semantic), as includes/betweenUpdates.php creates it on existing accounts.
+// 20261112 CL/MMR SD-815 A new regnskab also gets einvoice_incoming and the receiver_* columns of einvoice_sendlog, as includes/betweenUpdates.php adds them.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -643,10 +643,20 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt = "CREATE TABLE einvoice_sendlog ($id_column, ordre_id INTEGER, art VARCHAR(2), fakturanr VARCHAR(20), provider VARCHAR(20), ";
 	$qtxt.= "network SMALLINT, sender_endpoint_id VARCHAR(64), semantic_doc_id VARCHAR(40), ubl_doc_id VARCHAR(64), status VARCHAR(30), ";
 	$qtxt.= "status_text TEXT, xml " . (($db_type == "mysql" || $db_type == "mysqli") ? "LONGTEXT" : "TEXT") . ", xml_sha256 CHAR(64), db_name VARCHAR(64), ";
-	$qtxt.= "created TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated TIMESTAMP NULL, created_by VARCHAR(80), PRIMARY KEY (id))";
+	$qtxt.= "created TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated TIMESTAMP NULL, created_by VARCHAR(80), ";
+	$qtxt.= "receiver_status VARCHAR(10) NULL, receiver_status_text TEXT NULL, receiver_status_date TIMESTAMP NULL, receiver_response_id VARCHAR(40) NULL, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	db_modify("CREATE INDEX einvoice_sendlog_order_idx ON einvoice_sendlog (ordre_id, art)", __FILE__ . " linje " . __LINE__);
 	db_modify("CREATE INDEX einvoice_sendlog_semantic_idx ON einvoice_sendlog (semantic_doc_id)", __FILE__ . " linje " . __LINE__);
+	// SD-815: each incoming e-document handled once (includes/einvoice/semanticIncoming.php); the same structure as the
+	// einvoice_incoming block in includes/betweenUpdates.php.
+	$qtxt = "CREATE TABLE einvoice_incoming ($id_column, semantic_incoming_id VARCHAR(40) NOT NULL, ubl_doc_id VARCHAR(64), document_type VARCHAR(30), ";
+	$qtxt.= "document_number VARCHAR(100), sender_endpoint VARCHAR(100), sender_name VARCHAR(255), status VARCHAR(30), status_text TEXT, ";
+	$qtxt.= "pool_filename VARCHAR(255), sendlog_id INTEGER, claim_token VARCHAR(64), claimed_at TIMESTAMP NULL, attempts INTEGER NOT NULL DEFAULT 0, ";
+	$qtxt.= "received TIMESTAMP NULL, xml " . (($db_type == "mysql" || $db_type == "mysqli") ? "LONGTEXT" : "TEXT") . ", db_name VARCHAR(64), ";
+	$qtxt.= "created TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated TIMESTAMP NULL, PRIMARY KEY (id), ";
+	$qtxt.= "CONSTRAINT einvoice_incoming_semantic_id_key UNIQUE (semantic_incoming_id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	if ($db_type=="mysql" || $db_type=="mysqli") {
 		db_modify("ALTER TABLE adresser ADD modtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", __FILE__ . " linje " . __LINE__);

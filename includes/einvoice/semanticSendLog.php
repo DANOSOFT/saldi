@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/einvoice/semanticSendLog.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- includes/einvoice/semanticSendLog.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,9 @@
 // 20261109 CL/MMR SD-815 Created (draft). The send log over the tenant table einvoice_sendlog: one row per e-document sent through Semantic.
 //                 It keeps the XML that was sent (Saldi's own archive, bogføringsloven 5 years) and the Semantic document id the webhook and the poll match on.
 //                 Texts are written so PostgreSQL's ' like ' to ' ilike ' rewrite in db_modify() cannot change them.
-
+// 20261112 CL/MMR SD-815 The receiver's answer to a sent document (Peppol ApplicationResponse) is kept in four receiver_* columns: einvoice_sendlog_receiver() reads them for the order page.
+//                 einvoice_sendlog_find_by_fakturanr() lists the rows an answer may belong to.
+//
 /*
  * Table einvoice_sendlog (created by includes/betweenUpdates.php, and by includes/opretfunc.php for a new regnskab):
  *   id serial, ordre_id int, art varchar(2) ('DO' invoice, 'DK' credit note), fakturanr varchar(20),
@@ -33,6 +35,11 @@
  *   semantic_doc_id varchar(40) (the int64 outgoing document id), ubl_doc_id varchar(64), status varchar(30),
  *   status_text text, xml text, xml_sha256 char(64), db_name varchar(64), created timestamp, updated timestamp,
  *   created_by varchar(80).
+ *   The receiver's answer (SD-815 task 20, added by includes/betweenUpdates.php after the table itself):
+ *   receiver_status varchar(10) (UNCL4343: AB, IP, UQ, CA, RE, AP, PD), receiver_status_text text (the reason),
+ *   receiver_status_date timestamp (when the receiver answered), receiver_response_id varchar(40) (Semantic's incoming
+ *   document id of the answer). They are not in einvoice_sendlog_select_columns(), so a database that has the table but
+ *   not yet these columns can still be read; einvoice_sendlog_receiver() reads them.
  *
  * xml holds the document packed by einvoice_sendlog_pack_xml() ("gz:" + base64 of gzip, or "b64:" + base64),
  * not the raw XML: db_modify() rewrites ' like ' to ' ilike ' in every PostgreSQL statement, which would change an
@@ -65,6 +72,10 @@ if (!function_exists('einvoice_sendlog_columns')) {
 			'xml_sha256' => array('type' => 'string', 'max' => 64),
 			'db_name' => array('type' => 'string', 'max' => 64),
 			'created_by' => array('type' => 'string', 'max' => 80),
+			'receiver_status' => array('type' => 'string', 'max' => 10),
+			'receiver_status_text' => array('type' => 'string', 'max' => 2000),
+			'receiver_status_date' => array('type' => 'string', 'max' => 19),
+			'receiver_response_id' => array('type' => 'string', 'max' => 40),
 		);
 	}
 }
@@ -449,5 +460,85 @@ if (!function_exists('einvoice_sendlog_xml')) {
 		}
 		$r = db_fetch_array(db_select('SELECT xml FROM einvoice_sendlog WHERE id = ' . (int)$id, __FILE__ . " linje " . __LINE__));
 		return is_array($r) ? einvoice_sendlog_unpack_xml($r['xml'] ?? '') : null;
+	}
+}
+
+if (!function_exists('einvoice_sendlog_find_by_fakturanr')) {
+	/**
+	 * The Semantic rows sent with this invoice or credit note number that may have reached the receiver (not refused
+	 * before sending), newest first, without the XML. Invoice and credit note series can share numbers, so the caller
+	 * must tell them apart (semantic_incoming_match_response()).
+	 *
+	 * @param string $fakturanr Exactly as stored; a number longer than the column finds nothing rather than a cut one.
+	 * @param int    $limit     1..50
+	 * @return list<array<string, mixed>> See einvoice_sendlog_row().
+	 */
+	function einvoice_sendlog_find_by_fakturanr($fakturanr, $limit = 20) {
+		$fakturanr = trim((string)$fakturanr);
+		$columns = einvoice_sendlog_columns();
+		$length = function_exists('mb_strlen') ? mb_strlen($fakturanr, 'UTF-8') : strlen($fakturanr);
+		if ($fakturanr === '' || $length > $columns['fakturanr']['max']) {
+			return array();
+		}
+		$failed = array();
+		foreach (array('ValidationFailed', 'SendFailed') as $status) {
+			$failed[] = "'" . db_escape_string($status) . "'";
+		}
+		$qtxt = 'SELECT ' . einvoice_sendlog_select_columns() . ' FROM einvoice_sendlog';
+		$qtxt .= " WHERE provider = 'semantic' AND fakturanr = '" . db_escape_string($fakturanr) . "'";
+		$qtxt .= ' AND (status IS NULL OR status NOT IN (' . implode(', ', $failed) . '))';
+		$qtxt .= ' ORDER BY id DESC LIMIT ' . max(1, min(50, (int)$limit));
+		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$rows = array();
+		while ($query && ($r = db_fetch_array($query))) {
+			$row = einvoice_sendlog_row($r);
+			if ($row !== null) {
+				$rows[] = $row;
+			}
+		}
+		return $rows;
+	}
+}
+
+if (!function_exists('einvoice_sendlog_receiver')) {
+	/**
+	 * The receiver's answer stored on one row (Peppol ApplicationResponse, semanticIncoming.php). For the order page:
+	 * semantic_incoming_receiver_display() turns it into e.g. "Afvist af modtager: <grund>".
+	 *
+	 * @param int $id
+	 * @return array{
+	 *   status: string,      UNCL4343 code (AB, IP, UQ, CA, RE, AP, PD), '' when the receiver has not answered.
+	 *   text: string,        The receiver's reason, '' when none was given.
+	 *   date: string,        When the receiver answered, 'Y-m-d H:i:s', '' when unknown.
+	 *   responseId: string,  Semantic's incoming document id of the answer.
+	 * }|null Null when the row does not exist or the receiver columns are not there yet.
+	 */
+	function einvoice_sendlog_receiver($id) {
+		global $db_type;
+		static $columnsExist = array();
+		if ((int)$id <= 0) {
+			return null;
+		}
+		$key = (string)($GLOBALS['db'] ?? '');
+		if (!isset($columnsExist[$key])) {
+			$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'einvoice_sendlog' AND column_name = 'receiver_status'";
+			$qtxt .= einvoice_sendlog_is_mysql($db_type) ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+			$columnsExist[$key] = (bool)db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		}
+		if (!$columnsExist[$key]) {
+			return null;
+		}
+		$qtxt = 'SELECT receiver_status, receiver_status_text, receiver_status_date, receiver_response_id FROM einvoice_sendlog WHERE id = ' . (int)$id;
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if (!is_array($r)) {
+			return null;
+		}
+		$date = trim((string)($r['receiver_status_date'] ?? ''));
+		return array(
+			'status' => trim((string)($r['receiver_status'] ?? '')),
+			'text' => trim((string)($r['receiver_status_text'] ?? '')),
+			'date' => ($date === '') ? '' : substr($date, 0, 19),
+			'responseId' => trim((string)($r['receiver_response_id'] ?? '')),
+		);
 	}
 }

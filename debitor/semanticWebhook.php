@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/semanticWebhook.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- debitor/semanticWebhook.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,8 @@
 //                 The notification is matched to the send log by Semantic's document id, never by invoice number; the status is then read from Semantic's API and applied.
 //                 A copy of a regnskab (semantic_copy_guard()) ignores every notification.
 // 20261109 CL/MMR SD-815 The notification's own status is never applied: without an answer from Semantic's status call the row waits for the poll.
+// 20261112 CL/MMR SD-815 An incoming notification is handled (semantic_incoming_handle_notification()): an invoice or credit note goes to the Bilagspulje, a receiver's answer onto the send log.
+//                 The document is read from Semantic by its id; the notice's own content is never used.
 
 /**
  * Injected by ../includes/connect.php, included below:
@@ -123,9 +125,21 @@ if (!$copyGuard['allowed']) {
 	error_log('semanticWebhook: ' . $copyGuard['reason'] . " in $webhookDb");
 	semanticWebhookRespond(200, array('status' => 'ignored'));
 }
-if ($payload['kind'] === 'incoming') {
-	// SD-815 OPEN: incoming documents and ApplicationResponses (tasks 19/20) are not handled yet.
-	semanticWebhookRespond(202, array('status' => 'ignored_incoming'));
+if ($payload['kind'] === 'incoming' || $payload['incomingDocumentId'] !== null) {
+	include_once(__DIR__ . '/../includes/std_func.php');
+	include_once(__DIR__ . '/../includes/einvoice/semanticIncoming.php');
+	$incomingStore = new SemanticIncomingStore();
+	if (!$incomingStore->ready()) {
+		// einvoice_incoming comes with the regnskab's next update (includes/betweenUpdates.php); Semantic tries again later.
+		semanticWebhookRespond(503, array('status' => 'not_ready'));
+	}
+	semanticWebhookRespond(202, array('status' => 'accepted'), true);
+	// The answer is sent. A failure here is recorded in einvoice_incoming and semantic_incoming_poll() tries again.
+	$client = semantic_client(null, array('connectTimeout' => 5, 'timeout' => 30));
+	if ($client instanceof SemanticClient) {
+		semantic_incoming_handle_notification($client, $payload, $webhookDb);
+	}
+	exit;
 }
 $logRow = ($payload['documentId'] !== null)
 	? einvoice_sendlog_find_by_semantic_id($payload['documentId'])
