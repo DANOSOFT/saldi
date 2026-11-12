@@ -135,6 +135,7 @@
 // 20261112 CL/SS MB-82 A save is refused when the customer was changed after the card was opened (recordHash, debitorkortIncludes/staleSave.php).
 //                Before, one UPDATE wrote every field from the old form, so another user's newer notes were blanked without a warning.
 //                The hash is taken before the customer is read, so a save between the read and the hash can't slip through.
+//                A private card's first and last name are filled in from its name before the hash, and only while both are still empty.
 @session_start();
 $s_id = session_id();
 
@@ -1131,6 +1132,17 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 }
 
 $einvoiceCvrBanner = ''; # SD-774, set from the saved card below
+$namesFromCompany = false;
+if ($id > 0) {
+	$r = db_fetch_array(db_select("select kontotype, firmanavn, fornavn, efternavn from adresser where id = '$id'", __FILE__ . " linje " . __LINE__));
+	if ($r && trim((string)$r['kontotype']) == 'privat' && !trim((string)$r['fornavn']) && !trim((string)$r['efternavn']) && trim((string)$r['firmanavn'])) {
+		list($newFornavn, $newEfternavn) = explode(",", split_navn(htmlentities(trim($r['firmanavn']), ENT_COMPAT, $charset)));
+		$qtxt = "update adresser set fornavn = '" . db_escape_string($newFornavn) . "', efternavn = '" . db_escape_string($newEfternavn) . "' ";
+		$qtxt.= "where id = '$id' and trim(coalesce(fornavn, '')) = '' and trim(coalesce(efternavn, '')) = ''";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__); #20140507
+		$namesFromCompany = true;
+	}
+}
 $recordHash = ($id > 0) ? debitorkortRecordHash($id) : '';
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -1340,13 +1352,8 @@ if (!isset($lev_tlf)) $lev_tlf = null;
 if (!isset($lev_email)) $lev_email = null;
 if (!isset($lev_kontakt)) $lev_kontakt = null;
 
-if ($kontotype == "privat") {
-	if (!$fornavn && !$efternavn && $firmanavn) {
-		list($fornavn, $efternavn) = explode(",", split_navn($firmanavn));
-		list($lev_fornavn, $lev_efternavn) = explode(",", split_navn($lev_firmanavn));
-		db_modify("update adresser set fornavn='" . db_escape_string($fornavn) . "',efternavn='" . db_escape_string($efternavn) . "' where id = '$id'", __FILE__ . " linje " . __LINE__); #20140507
-		$recordHash = debitorkortRecordHash($id);
-	}
+if ($kontotype == "privat" && $namesFromCompany) {
+	list($lev_fornavn, $lev_efternavn) = explode(",", split_navn($lev_firmanavn));
 }
 ######################## OUTPUT ######################
 

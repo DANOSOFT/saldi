@@ -79,6 +79,12 @@ final class DebitorkortStaleSaveWiringTest extends TestCase
         self::assertNotFalse($taken, 'recordHash is not taken');
         self::assertNotFalse($read, 'the card read of the customer not found');
         self::assertTrue($taken < $read, 'the hash must be taken before the customer is read, so a save in between is caught');
+        self::assertSame(1, substr_count($src, 'debitorkortRecordHash('), 'the hash must be taken once, not again after the read');
+        $names = strpos($src, "update adresser set fornavn = '");
+        self::assertNotFalse($names, 'the private-card name fill-in not found');
+        self::assertTrue($names < $taken, 'the page writes the names before the hash, so the hash covers them');
+        self::assertStringContainsString("where id = '\$id' and trim(coalesce(fornavn, '')) = '' and trim(coalesce(efternavn, '')) = ''", $src,
+            'the name fill-in must not overwrite names saved meanwhile');
         self::assertNotFalse($form, 'card form not found');
         self::assertNotFalse($hash, 'recordHash field not found');
         self::assertTrue($form < $hash && $hash < (int)$end, 'recordHash must be printed inside the card form');
