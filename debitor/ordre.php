@@ -183,6 +183,7 @@
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
 // 20261112 LOE SST-967 An offer or order for a case runs on the craft right, and the page binds the order, the line ids, the credit reference, the copy and the handlers that are not case work to what the gate proved.
+// 20261112 LOE SST-967 The order this page creates is the id the insert returned, not a lookup a concurrent request can win.
 
 @session_start();
 $s_id = session_id();
@@ -272,6 +273,24 @@ if ($sag_workflow_case_id) {
 }
 # The id of an order this page has just created; it belongs to the case by construction and is never refused.
 $sst967_created_order = 0;
+
+/**
+ * The id of the order this request itself inserted, taken from the connection that inserted it.
+ *
+ * A lookup by customer and date is not proof: a concurrent request can insert a newer order for the same
+ * customer and date, and the page would then hold - and mark as its own - an order from another case.
+ *
+ * @return int
+ */
+function ordre_last_insert_id()
+{
+	if (isset($GLOBALS['db_type']) && ($GLOBALS['db_type'] == 'mysql' || $GLOBALS['db_type'] == 'mysqli')) {
+		return (int) mysqli_insert_id(db_query_connection(false));
+	}
+	$r = db_fetch_array(db_select("select currval(pg_get_serial_sequence('ordrer','id')) as id", __FILE__ . " linje " . __LINE__));
+
+	return isset($r['id']) ? (int) $r['id'] : 0;
+}
 
 /**
  * Tells whether an order may be loaded or saved on this request.
@@ -1031,22 +1050,36 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$qtxt .= ")";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
+	# SST-967 the order this request created is the id the insert returned, not the newest order for the
+	# customer and date, which a concurrent insert can win.
+	$sst967_inserted_id = ordre_last_insert_id();
+
 	# Porto vare system
 	## Create a new order line on creation from the specified sku
 	$sku = get_settings_value("porto_varnr", "ordre", null);
 	if ($sku != null) {
-		$query = db_select("select id from ordrer where ordrenr='$ordrenr' and art='DO' limit 1", __FILE__ . " linje " . __LINE__);
-		$ordre = db_fetch_array($query);
+		$ordre_id_for_sku = $sst967_inserted_id;
+		if (!$ordre_id_for_sku) {
+			$query = db_select("select id from ordrer where ordrenr='$ordrenr' and art='DO' limit 1", __FILE__ . " linje " . __LINE__);
+			$ordre = db_fetch_array($query);
+			$ordre_id_for_sku = (int) ifset($ordre, 'id', 0);
+		}
 		$query = db_select("select * from varer where varenr='$sku' or varenr_alias='$sku' or stregkode='$sku' limit 1", __FILE__ . " linje " . __LINE__);
 		$vare = db_fetch_array($query);
-		opret_ordrelinje($ordre["id"], $vare["id"], $vare["varenr"], 1, $vare["beskrivelse"], $vare["salgspris"], 0, 0, "DO", "", "", "", "", "", "", "", "", "", "", "", "");
+		opret_ordrelinje($ordre_id_for_sku, $vare["id"], $vare["varenr"], 1, $vare["beskrivelse"], $vare["salgspris"], 0, 0, "DO", "", "", "", "", "", "", "", "", "", "", "", "");
 	}
 
-	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query)) {
-		$id = (int) $row['id'];
+	if ($sst967_inserted_id) {
+		$id = $sst967_inserted_id;
 		# SST-967 this page created it, so the case checks may not refuse it.
-		$sst967_created_order = (int) $id;
+		$sst967_created_order = $sst967_inserted_id;
+	} else {
+		# If the connection cannot report its last id, the order number this request generated is the unique
+		# proof; a customer and a date are not.
+		$query = db_select("select id from ordrer where ordrenr='$ordrenr' and art='DO' limit 1", __FILE__ . " linje " . __LINE__);
+		if ($row = db_fetch_array($query)) {
+			$id = (int) $row['id'];
+		}
 	}
 } elseif ($status < 3 && $id && $firmanavn) {
 	// The selected employee is independent of order ownership. Match on id only.
