@@ -1,6 +1,6 @@
 <?php
 
-// -- lager/optalling.php ------------------- patch 5.0.0 -- 2026-10-01 --
+// -- lager/optalling.php ------------------- ver 5.1.1 -- 2026-11-12 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,8 @@
 // 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
 // 20261001 CDX/PHR Show each warehouse number once, preferring its current-year name, and reuse the list during item lookup.
 // 20261001 CDX/PHR Initialize empty product and variant lookups so unmatched import rows do not crash on PHP 8.
+// 20261112 CL/MMR SST-1014 An item with variants opened by link (?varenr=, e.g. «Ikke-optalte varer») is refused as in the form;
+//                  recounting it removed the other variants' lagerstatus rows.
 
 @session_start();
 $s_id = session_id();
@@ -143,6 +145,14 @@ if ($slet && $vare_id && $varenr) {
 
 
 
+}
+if ($varenr && !$slet) { # 20261112 the 20230224 variant check also for an item opened by link
+	$qtxt = "select variant_varer.id from varer,variant_varer where lower(varer.varenr) = '" . db_escape_string(strtolower($varenr)) . "' ";
+	$qtxt.= "and variant_varer.vare_id=varer.id limit 1";
+	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		alert("varenr: $varenr indeholder varianter og kan kun reguleres på varekort eller gennem csv fil");
+		$varenr = NULL;
+	}
 }
 if (!$dato)
 	$dato = if_isset($_POST['dato']);
