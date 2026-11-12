@@ -1,5 +1,5 @@
 <?php
-// ---------------------debitor/debkort_save.php----lap 3.4.1---2014-05-05---
+// ---------------------debitor/debkort_save.php----ver 5.1.0---2026-11-11---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 2014.05.05 indsat  >>|| $_POST['firmanavn']<< da man ikke kunne oprette nye kunder. (PHR - Danosoft) Søg20140505
+// 20261111 CL/SZ SD-800 A new debtor's number is chosen under the shared debtor-number lock (hashtext('saldi:debtor_number')), not 5130513.
+//                It now waits for create_debtor() and the Shopify worker, which choose and insert their numbers under the same lock.
 
 if ($delete_category=if_isset($_GET['delete_category'])) {
 	$r=db_fetch_array(db_select("select * from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
@@ -318,13 +320,15 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 			# Two users creating a customer at the same time could pick the same number: the
 			# free number is found by one query and used by the next. The allocation is
 			# serialised with a Postgres advisory lock so only one save at a time runs from
-			# "find the free number" to "insert". The lock is held on the connection and is
-			# released by the database when the request ends, also if the script stops early.
+			# "find the free number" to "insert". It is the key create_debtor() and the Shopify
+			# worker take (debtor_number_lock()), so this save also waits for their open
+			# transactions (SD-800). The lock is held on the connection and is released by the
+			# database when the request ends, also if the script stops early.
 			# Skipped on MySQL, where the function does not exist - behaviour is then as before.
 			$kto_laas = 0;
 			$akt_db_type = if_isset($GLOBALS,'postgres','db_type');
 			if ($akt_db_type != 'mysql' && $akt_db_type != 'mysqli') {
-				db_select("select pg_advisory_lock(5130513)",__FILE__ . " linje " . __LINE__);
+				db_select("select pg_advisory_lock(hashtext('saldi:debtor_number'))",__FILE__ . " linje " . __LINE__);
 				$kto_laas = 1;
 			}
 			# Only numbers the system chose are moved on - a number typed by the user is left
@@ -355,7 +359,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 				$qtxt = "insert into ansatte(konto_id, navn) values ('$id', '$kontakt')";
 				if ($kontakt && $id) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
-			if ($kto_laas) db_select("select pg_advisory_unlock(5130513)",__FILE__ . " linje " . __LINE__);
+			if ($kto_laas) db_select("select pg_advisory_unlock(hashtext('saldi:debtor_number'))",__FILE__ . " linje " . __LINE__);
  	 	} elseif ($id > 0) {
  	 	 	if ($ny_kontonr!=$kontonr) {
  	 	 	 	$x=0;

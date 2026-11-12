@@ -8,6 +8,7 @@
 //
 // History:
 // 20261101 CL/SS SD-792: created.
+// 20261109 CL/SS SD-814: the fields carry the customer type and the first and last name.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -27,11 +28,11 @@ final class CustomersTest extends TestCase
 	public function testAPersonIsTheNameAndACompanyHasThePersonAsContact(): void
 	{
 		$person = shopify_customer_fields(self::CUSTOMER);
-		$this->assertSame(['firmanavn' => 'Test Kunde', 'kontakt' => '', 'addr1' => 'Havevej 1', 'addr2' => '2. th', 'postnr' => '2750',
-			'bynavn' => 'Ballerup', 'land' => 'Denmark', 'email' => 'kunde@example.dk', 'mobile' => '+4512345678'], $person);
+		$this->assertSame(['firmanavn' => 'Test Kunde', 'kontakt' => '', 'kontotype' => 'privat', 'fornavn' => 'Test', 'efternavn' => 'Kunde', 'addr1' => 'Havevej 1',
+			'addr2' => '2. th', 'postnr' => '2750', 'bynavn' => 'Ballerup', 'land' => 'Denmark', 'email' => 'kunde@example.dk', 'mobile' => '+4512345678'], $person);
 
 		$company = shopify_customer_fields(['default_address' => ['company' => 'Havemøbler ApS'] + self::CUSTOMER['default_address']] + self::CUSTOMER);
-		$this->assertSame(['Havemøbler ApS', 'Test Kunde'], [$company['firmanavn'], $company['kontakt']]);
+		$this->assertSame(['Havemøbler ApS', 'Test Kunde', 'erhverv', '', ''], [$company['firmanavn'], $company['kontakt'], $company['kontotype'], $company['fornavn'], $company['efternavn']]);
 	}
 
 	public function testANamelessCustomerFallsBackToTheAddressNameElseNoName(): void
@@ -41,6 +42,17 @@ final class CustomersTest extends TestCase
 		$this->assertSame('', shopify_customer_fields(['default_address' => []] + $noName)['firmanavn'], 'a stand-in name is only for a new debtor');
 		$this->assertSame('Havevej 1', shopify_customer_fields(['default_address' => null, 'addresses' => [self::CUSTOMER['default_address']]] + self::CUSTOMER)['addr1'],
 			'the first address when there is no default');
+	}
+
+	public function testAPrivateNameIsJoinedFromTheCutNamesAndFitsTheNameColumn(): void
+	{
+		$long = shopify_customer_fields(['first_name' => str_repeat('A', 61), 'last_name' => str_repeat('B', 100)] + self::CUSTOMER);
+		$this->assertSame([str_repeat('A', 60), str_repeat('B', 29)], [$long['fornavn'], $long['efternavn']], 'the last name is cut so the joined name fits 90');
+		$this->assertSame(trim($long['fornavn'] . ' ' . $long['efternavn']), $long['firmanavn'], 'what the card joins when it saves');
+		$this->assertSame(90, mb_strlen($long['firmanavn']));
+
+		$spaced = shopify_customer_fields(['first_name' => str_repeat('A', 59) . ' C', 'last_name' => 'Hansen'] + self::CUSTOMER);
+		$this->assertSame(trim($spaced['fornavn'] . ' ' . $spaced['efternavn']), $spaced['firmanavn']);
 	}
 
 	public function testNamesAndAddressesAreCutToTheColumnWidthsButNotTheEmail(): void

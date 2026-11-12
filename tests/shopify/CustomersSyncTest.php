@@ -10,6 +10,7 @@
 // 20261101 CL/SS SD-792: created.
 // 20261102 CL/SS SD-792: the test creates its own debtor group; CI's template has no group 2.
 // 20261102 CL/SS SD-792: a number committed by a LOCK TABLE creator while the worker waits is not taken over.
+// 20261109 CL/SS SD-814: the customer type, privat with first and last name or erhverv with a company.
 
 use PHPUnit\Framework\TestCase;
 
@@ -131,6 +132,75 @@ final class CustomersSyncTest extends TestCase
         $this->assertSame(['+4512345678', '+4512345678'], [$d[0]['tlf'], $d[0]['mobile']], 'K30: the phone is searchable (tlf) and kept in mobile');
         $this->assertSame(['92', 'Kontant', '0'], [$d[0]['gruppe'], $d[0]['betalingsbet'], $d[0]['betalingsdage']], 'group and terms from the settings');
         $this->assertSame([['shop_key' => 'hml', 'customer_gid' => 'gid://shopify/Customer/7', 'adresser_id' => $d[0]['id'], 'source_updated_at' => '2026-11-01 09:00:00']], $this->links());
+    }
+
+    /** kontotype, fornavn, efternavn, firmanavn, kontakt of the first Shopify debtor */
+    private function type(): array
+    {
+        return array_values($this->sql("SELECT kontotype, fornavn, efternavn, firmanavn, kontakt FROM adresser WHERE kontonr = '29000000'")[0]);
+    }
+
+    /** What the debtor card saves as the name of a private card (debitor/debitorkort.php: firmanavn = fornavn + efternavn). */
+    private function cardName(): string
+    {
+        $r = $this->sql("SELECT fornavn, efternavn FROM adresser WHERE kontonr = '29000000'")[0];
+        return trim($r['fornavn'] . ' ' . $r['efternavn']);
+    }
+
+    public function testAPersonIsAPrivateDebtorWhoseCardKeepsTheName(): void
+    {
+        $this->steps(['job', 'hml', 'CUSTOMERS_CREATE', self::customer(7)]);
+
+        $this->assertSame(['privat', 'Test', 'Kunde 7', 'Test Kunde 7', ''], $this->type());
+        $this->assertSame('Test Kunde 7', $this->cardName(), 'saving the private card in Saldi keeps the name');
+    }
+
+    public function testACompanyOnTheAddressIsABusinessDebtor(): void
+    {
+        $this->steps(['job', 'hml', 'CUSTOMERS_CREATE', self::customer(7, ['first_name' => 'Anna', 'last_name' => 'Hansen',
+            'default_address' => ['address1' => 'Havevej 1', 'zip' => '2750', 'city' => 'Ballerup', 'country_code' => 'DK', 'company' => 'Acme ApS']])]);
+
+        $this->assertSame(['erhverv', '', '', 'Acme ApS', 'Anna Hansen'], $this->type());
+    }
+
+    public function testACompanyAddedOrRemovedInShopifyChangesTheType(): void
+    {
+        $acme = ['address1' => 'Havevej 1', 'zip' => '2750', 'city' => 'Ballerup', 'country_code' => 'DK', 'company' => 'Acme ApS'];
+        $this->steps(['job', 'hml', 'CUSTOMERS_CREATE', self::customer(7)],
+            ['job', 'hml', 'CUSTOMERS_UPDATE', self::customer(7, ['updated_at' => '2026-11-01T11:00:00+01:00', 'default_address' => $acme])]);
+        $this->assertSame(['erhverv', 'Acme ApS', 'Test Kunde 7'], [$this->type()[0], $this->type()[3], $this->type()[4]], 'a company appeared: business, the person as contact');
+
+        $this->steps(['job', 'hml', 'CUSTOMERS_UPDATE', ['id' => 7, 'admin_graphql_api_id' => 'gid://shopify/Customer/7', 'updated_at' => '2026-11-01T12:00:00+01:00', 'tags' => 'vip']]);
+        $this->assertSame('erhverv', $this->type()[0], 'a body without a name or company leaves the type');
+
+        $this->steps(['job', 'hml', 'CUSTOMERS_UPDATE', self::customer(7, ['updated_at' => '2026-11-01T13:00:00+01:00'])]);
+        $this->assertSame(['privat', 'Test', 'Kunde 7', 'Test Kunde 7', ''], $this->type(), 'the company went: private again, with the names');
+        $this->assertSame('Test Kunde 7', $this->cardName());
+    }
+
+    public function testALastNameRemovedInShopifyIsClearedSoTheCardKeepsTheName(): void
+    {
+        $this->steps(['job', 'hml', 'CUSTOMERS_CREATE', self::customer(7)],
+            ['job', 'hml', 'CUSTOMERS_UPDATE', self::customer(7, ['updated_at' => '2026-11-01T11:00:00+01:00', 'last_name' => ''])]);
+
+        $this->assertSame(['privat', 'Test', '', 'Test', ''], $this->type());
+        $this->assertSame('Test', $this->cardName());
+    }
+
+    public function testANameOnlyOnTheAddressIsSplitAtTheLastSpace(): void
+    {
+        $this->steps(['job', 'hml', 'CUSTOMERS_CREATE', self::customer(7, ['first_name' => '', 'last_name' => '',
+            'default_address' => ['name' => 'Anna Marie  Hansen', 'address1' => 'Havevej 1', 'zip' => '2750', 'city' => 'Ballerup', 'country_code' => 'DK', 'company' => '']])]);
+
+        $this->assertSame(['privat', 'Anna Marie', 'Hansen', 'Anna Marie Hansen', ''], $this->type());
+        $this->assertSame('Anna Marie Hansen', $this->cardName());
+    }
+
+    public function testANamelessCustomerGetsNoType(): void
+    {
+        $this->steps(['job', 'hml', 'CUSTOMERS_CREATE', ['id' => 7, 'admin_graphql_api_id' => 'gid://shopify/Customer/7', 'email' => 'anon@example.dk']]);
+
+        $this->assertSame(['', '', '', 'anon@example.dk', ''], $this->type(), 'not privat: the card would rebuild the name from empty names');
     }
 
     public function testTwoCustomersWithTheSamePhoneAndAnExistingDebtorStaySeparate(): void
