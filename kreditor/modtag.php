@@ -55,7 +55,7 @@
 // 20261028 CDX/MJ SST-876 Preserve receipt price and SKU adapter calls alongside batched stock updates.
 // 20261112 CL/MMR SST-1010 The stock log user name is cut to the 10 characters stocklog.username holds, since a longer name stopped the receipt.
 //                  The log line is only written when the confirmStockChange setting is on, as on the item card.
-//                  The name is taken unescaped from brugere and escaped once after cutting, so an apostrophe is stored as typed.
+//                  The name is taken unescaped from the session's online row and escaped once after cutting, so an apostrophe is stored as typed.
 
 @session_start();
 $s_id=session_id();
@@ -292,8 +292,10 @@ if ($fejl==0) {
 				} else {
 					$initials = '';
 				}
-				// $brugernavn is already escaped by online.php, so cut the raw name from brugere and escape it once (stocklog.username is varchar(10))
-				$r = db_fetch_array(db_select("select brugernavn from brugere where id = '" . (int)$bruger_id . "'", __FILE__ . " linje " . __LINE__));
+				// $brugernavn is already escaped by online.php, so cut the raw name from this session's online row in the master
+				// database (as online.php reads it; this also covers revisor sessions) and escape it once (stocklog.username is varchar(10))
+				$qtxt = "select brugernavn from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
+				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true));
 				$userName = db_escape_string(mb_substr($r ? (string)$r['brugernavn'] : '', 0, 10));
 				$qtxt = "insert into stocklog (item_id,username,initials,correction,reason,logtime) values ";
 				$qtxt.= "('$vare_id[$x]','$userName','$initials','$leveres[$x]','indkøbsordre $ordreNr','".date('U')."')";
