@@ -51,6 +51,8 @@
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261113 CL/ASR The VAT report range seeded as 6780..7740 (grupper MR, a digit swap of 7680) becomes 7680..7830 once, per fiscal year, on the standard chart of accounts (includes/opdat_func/fixVatReportRange.php).
+//                 Hand-made ranges, other charts and years with a VAT code booking to 6780..7679 are left alone.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -441,6 +443,18 @@ if (!$sawanehMysql) {
 // findBoxSale() and posbogfor() read the new rows first and the list only while no row is stored.
 require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
 migrateTillAccounts($db_type);
+
+// 20261113 CL/ASR The VAT report range (grupper art 'MR' box1..box2), which Finans > Rapporter > Momsangivelse and the
+// dashboard's "Momsangivelse for perioden" add up, was seeded from importfiler/grupper.txt as 6780..7740: a digit swap
+// of 7680, fixed in 852223af (2024-09-27) and lost again in b6ef0418 (2024-12-05). On the standard chart that range also
+// takes in the reserves, the debt accounts, 7440 Leverandører and their sum accounts. The owner's range (13 Nov 2026) is
+// 7680..7830: the VAT accounts 7680-7740 and the duty accounts 7760-7830, the fields of the VAT return; 7840 Skyldig moms
+// (the settlement) stays out. The MR row of every fiscal year is judged against that year's chart, and only where 7680
+// is a balance account there: 6780..7740 starts at 7680 unless a VAT code of the year books to 6780..7679, and the end
+// 7740 becomes 7830 only when 7741..7830 holds nothing but the duty accounts. Other ranges were set by hand and are left
+// alone. Once, under a lock and in one transaction with the flag system/vat_report_range_7680.
+require_once __DIR__ . '/opdat_func/fixVatReportRange.php';
+fixVatReportRange($db_type);
 
 
 ?>
