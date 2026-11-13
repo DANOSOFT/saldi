@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -225,6 +225,7 @@
 // 20261030 CDX/NTR Stop bulk extraction when the unscanned list cannot be loaded, so captured documents are never retried from cached rows.
 // 20261110 CL/SZ SST-949 A row or card edit refused by the save shows the server's reason (<pool-save-problem>) instead of only "Status: 422".
 //                A refused account says which account (pool.account_not_usable); an unchanged stored one no longer refuses the save (poolMetadataSave()).
+// 20261113 CL/LH SST-949 The refused save's message is read with findtekst_utf8(), so æøå survive json_encode() on a LATIN9 regnskab.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -1048,14 +1049,15 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		} catch (RuntimeException | InvalidArgumentException $error) {
 			$status = $error->getCode() === 409 ? 409 : 422;
 			http_response_code($status);
+			// The texts are converted from the database encoding; the account is UTF-8 already, as fetch() posts FormData as UTF-8
 			if ($status === 409) {
-				$message = findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id);
+				$message = findtekst_utf8('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id);
 			} elseif ($error->getMessage() === 'Invalid account') {
 				$account = is_scalar($input['account'] ?? null) ? trim((string)$input['account']) : '';
-				$message = trim(findtekst('592|Konto', $sprog_id)) . " $account "
-					. findtekst('pool.account_not_usable|kan ikke bruges i årets kontoplan. Ingen ændringer er gemt.', $sprog_id);
+				$message = trim(findtekst_utf8('592|Konto', $sprog_id)) . " $account "
+					. findtekst_utf8('pool.account_not_usable|kan ikke bruges i årets kontoplan. Ingen ændringer er gemt.', $sprog_id);
 			} else {
-				$message = findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
+				$message = findtekst_utf8('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
 			}
 			// documents.php has printed its page head by now, so the editor finds the message by this mark
 			print '<pool-save-problem>' . json_encode($message, JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE) . '</pool-save-problem>';
