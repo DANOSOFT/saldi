@@ -25,11 +25,19 @@
 // -----------------------------------------------------------
 //
 // 20261113 CDX/NTR SD-599 Extract the existing terminal-file card payment registration.
+// 20261113 CDX/NTR Document the extracted terminal registration parameters.
 
 if (!function_exists('registrer_betaling')) {
 	/**
 	 * Read the existing terminal approval file or render the payment fallback screen.
 	 *
+	 * @param int|string $betalings_id Payment identifier in the terminal approval filename.
+	 * @param int|string $ordre_id POS order identifier in the filename and fallback links.
+	 * @param string $betalingstype The ! sentinel reads the terminal file; other types render fallback links.
+	 * @param float|int|string $amount Expected terminal amount and fallback payment amount.
+	 * @param string $valuta Retained currency argument; unused by the legacy implementation.
+	 * @param float|int|string $valutakurs Retained exchange-rate argument; unused by the legacy implementation.
+	 * @param string $terminal_ip Retained terminal address; unused by the active implementation.
 	 * @return void An approved terminal file redirects and exits the request.
 	 */
 	function registrer_betaling($betalings_id, $ordre_id, $betalingstype, $amount, $valuta, $valutakurs, $terminal_ip)
