@@ -18,7 +18,9 @@ if ($entry === 'module') {
 } else {
     require __DIR__ . '/bootstrap_ordrefunc.php';
 }
-if ($action === 'log') {
+if ($action === 'ensure') {
+    $result = ['ready' => _sw_ensure_log_table()];
+} elseif ($action === 'log') {
     $result = [
         'accepted' => log_stock_warning(599, $itemId, "  Kunden siger 'ja' til æøå  "),
         'blank' => log_stock_warning(599, $itemId, '   '),

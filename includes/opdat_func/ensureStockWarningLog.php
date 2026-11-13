@@ -1,5 +1,6 @@
 <?php
 // 20261113 CDX/NTR SD-599 Isolate the existing stock-warning schema compatibility helper.
+// 20261113 CDX/NTR Scope the legacy table lookup to the connected tenant schema.
 //
 // Self-healing schema check: creates order_stock_warning_log if it doesn't
 // exist yet. Cached so it only runs the existence query once per request.
@@ -9,7 +10,8 @@ function _sw_ensure_log_table()
 	static $checked = false;
 	if ($checked) return true;
 	$checked = true;
-	$r = @db_fetch_array(@db_select("SELECT table_name FROM information_schema.tables WHERE table_name='order_stock_warning_log' LIMIT 1", __FILE__ . " linje " . __LINE__));
+	$schema = in_array($GLOBALS['db_type'] ?? '', ['mysql', 'mysqli'], true) ? 'DATABASE()' : 'current_schema()';
+	$r = @db_fetch_array(@db_select("SELECT table_name FROM information_schema.tables WHERE table_schema=$schema AND table_name='order_stock_warning_log' LIMIT 1", __FILE__ . " linje " . __LINE__));
 	if ($r) return true;
 	@db_modify("CREATE TABLE IF NOT EXISTS order_stock_warning_log (
 		id serial NOT NULL,
