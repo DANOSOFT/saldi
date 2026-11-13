@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- includes/formfunk.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -95,7 +95,7 @@
 // 20261103 CL/SZ SD-797 With set prices shown, a felt_4 that is no number (text or empty) stopped the print with a TypeError.
 //                It now counts as 0, so felt_3 and felt_4 print blank as for 0.
 // 20261109 CL/SZ SST-926 formularprint() counts the mails send_mails() actually sent in $mailSentCount.
-
+//
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
 
