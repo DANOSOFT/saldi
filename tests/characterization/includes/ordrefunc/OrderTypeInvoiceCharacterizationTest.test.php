@@ -1,10 +1,34 @@
 <?php
 // 20261113 CDX/NTR Characterize sales, credit-note and POS posting before SD-599 extractions.
+// 20261113 CDX/NTR Pin linked-credit settlement before moving it behind the credit-note adapter.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
 final class OrderTypeInvoiceCharacterizationTest extends CharacterizationTestCase
 {
+    public function test_linked_credit_settles_the_matching_invoice_and_keeps_its_credit_description(): void
+    {
+        $debtor = self::$fx->debtor();
+        $item = self::$fx->item(['stocked' => false, 'salgspris' => 100, 'kostpris' => 0]);
+        $invoice = self::$fx->order($debtor, [['item' => $item, 'antal' => 1]]);
+        $posted = $this->runChildJson('run_order_invoice.php', ['invoice', $invoice['id'], CharacterizationEnv::testDb()]);
+        self::assertSame('OK', $posted['bogfor']);
+        $credit = self::$fx->order($debtor, [['item' => $item, 'antal' => -1]], ['art' => 'DK']);
+        self::rows('UPDATE ordrer SET kred_ord_id=$2 WHERE id=$1', [$credit['id'], $invoice['id']]);
+        $postedCredit = $this->runChildJson('run_order_invoice.php', ['invoice', $credit['id'], CharacterizationEnv::testDb()]);
+        self::assertSame('OK', $postedCredit['bogfor']);
+        $invoiceOpen = self::one('SELECT amount,udlignet,udlign_id,udlign_date FROM openpost WHERE refnr=$1', [$invoice['id']]);
+        $creditOpen = self::one('SELECT amount,udlignet,udlign_id,udlign_date,beskrivelse FROM openpost WHERE refnr=$1', [$credit['id']]);
+        self::assertEqualsWithDelta(125.0, (float)$invoiceOpen['amount'], 0.0001);
+        self::assertEqualsWithDelta(-125.0, (float)$creditOpen['amount'], 0.0001);
+        self::assertSame('1', $invoiceOpen['udlignet']);
+        self::assertSame('1', $creditOpen['udlignet']);
+        self::assertGreaterThan(0, (int)$invoiceOpen['udlign_id']);
+        self::assertSame($invoiceOpen['udlign_id'], $creditOpen['udlign_id']);
+        self::assertSame($invoiceOpen['udlign_date'], $creditOpen['udlign_date']);
+        self::assertSame('Kreditnota - ' . $postedCredit['fakturanr'], $creditOpen['beskrivelse']);
+    }
+
     /** @return iterable<string, array{string, float, string, float}> */
     public static function invoiceTypes(): iterable
     {
