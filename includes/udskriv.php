@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.1.0 --- 2026-11-05---
+// --- includes/udskriv.php --- ver 5.1.1 --- 2026-11-12---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,7 @@
 //                which only records the list tab the last order was opened from.
 // 20261105 CL/MMR SD-807 The PDF error texts and the print choice screen (Luk, Udskriftsvalg) are shown in the user's language.
 //                 The print-batch error is escaped in the page charset.
+// 20261112 CL/MMR SST-1015 Removed the DIAG error_log line written on every print.
 
 @session_start();
 $s_id=session_id();
@@ -105,7 +106,6 @@ $returside = (function($s) {
 })($returside);
 $locat      = if_isset($_GET, NULL, 'locat');
 $bulk       = if_isset($_GET, NULL, 'bulk'); # formularprint() was called with id=-1
-error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
 if ($art == 'R' && $id) {
 	$returside = "../debitor/rykker.php?rykker_id=" . (int)$id;
 }
