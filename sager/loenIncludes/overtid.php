@@ -95,6 +95,31 @@ function overtidData($sagId, $fra, $til) {
 }
 
 /**
+ * Turns a dd-mm-yyyy date from the period form into Y-m-d.
+ * Anything that is not a real calendar date (an array, text, 31-02-2026, 99-99-9999) gives $standard,
+ * so a typing mistake shows the default period instead of a silent one-day period.
+ *
+ * @param mixed  $vaerdi   The request value.
+ * @param string $standard Default date, Y-m-d.
+ * @return string Date as Y-m-d.
+ */
+function overtidDato($vaerdi, $standard) {
+	if (!is_string($vaerdi) || !preg_match('/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{2}|\d{4})$/', trim($vaerdi), $m)) {
+		return $standard;
+	}
+	$dag     = (int)$m[1];
+	$maaned  = (int)$m[2];
+	$aar     = (int)$m[3];
+	if (strlen($m[3]) == 2) {
+		$aar += 2000;
+	}
+	if (!checkdate($maaned, $dag, $aar)) {
+		return $standard;
+	}
+	return sprintf('%04d-%02d-%02d', $aar, $maaned, $dag);
+}
+
+/**
  * Prints one table row of hours and amounts.
  *
  * @param string     $label First cell, already HTML-safe.
@@ -146,11 +171,8 @@ function overtid() {
 	}
 
 	$sagId  = (int)ifset($_GET, 'sag_id', 0);
-	$fraTxt = trim((string)ifset($_GET, 'fra', ''));
-	$tilTxt = trim((string)ifset($_GET, 'til', ''));
-	$datoForm = '/^\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4}$/';
-	$fra = preg_match($datoForm, $fraTxt) ? usdate($fraTxt) : date('Y') . '-01-01';
-	$til = preg_match($datoForm, $tilTxt) ? usdate($tilTxt) : date('Y') . '-12-31';
+	$fra = overtidDato(ifset($_GET, 'fra', ''), date('Y') . '-01-01');
+	$til = overtidDato(ifset($_GET, 'til', ''), date('Y') . '-12-31');
 	if ($fra > $til) {
 		list($fra, $til) = array($til, $fra);
 	}
