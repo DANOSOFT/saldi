@@ -23,6 +23,8 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261113 CL/MMR SD-824 New overview of overtime hours and wage expenses per case, per month and per employee.
+// 20261113 CL/LH SD-824 Case numbers, customers, addresses and employee names are escaped in the database charset, so LATIN9 names are not blanked.
+//                The texts use descriptive keys.
 
 /**
  * Reads the approved wage slips in a period and adds up overtime hours and wage expenses.
@@ -120,6 +122,22 @@ function overtidDato($vaerdi, $standard) {
 }
 
 /**
+ * Escapes a tenant value (case number, customer, address, employee name) for HTML.
+ * loen.php skips the charset of online.php ($header 'nix'), so the charset follows the database encoding,
+ * as in rates.php; a LATIN9 name escaped as UTF-8 would come back empty.
+ *
+ * @param mixed $tekst The value from the database.
+ * @return string The value, HTML-safe.
+ */
+function overtidHtml($tekst) {
+	global $charset;
+	global $db_encode;
+
+	$tekstCharset = $charset ? $charset : (($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1');
+	return htmlspecialchars((string)$tekst, ENT_QUOTES, $tekstCharset);
+}
+
+/**
  * Prints one table row of hours and amounts.
  *
  * @param string     $label First cell, already HTML-safe.
@@ -166,7 +184,7 @@ function overtid() {
 	global $sprog_id;
 
 	if (!substr((string)$sag_rettigheder, 6, 1)) {
-		print "<div class='content'><p>" . findtekst('8506|Du har ikke adgang til denne side.', $sprog_id) . "</p></div>";
+		print "<div class='content'><p>" . findtekst('wage.overtime.no_access|Du har ikke adgang til denne side.', $sprog_id) . "</p></div>";
 		return;
 	}
 
@@ -198,17 +216,17 @@ function overtid() {
 		}
 	}
 
-	$h50    = findtekst('8502|Overtid 50%', $sprog_id);
-	$h100   = findtekst('8503|Overtid 100%', $sprog_id);
-	$hIalt  = findtekst('8504|Overtid i alt', $sprog_id);
+	$h50    = findtekst('wage.overtime.hours_50|Overtid 50%', $sprog_id);
+	$h100   = findtekst('wage.overtime.hours_100|Overtid 100%', $sprog_id);
+	$hIalt  = findtekst('wage.overtime.total|Overtid i alt', $sprog_id);
 	$hLoen  = findtekst('2864|Lønudgifter', $sprog_id);
 	$hTotal = findtekst('2373|I alt', $sprog_id);
 
 	print "<div class='content'>\n";
-	print "<h3>" . findtekst('8501|Overtid og løn pr. sag', $sprog_id);
+	print "<h3>" . findtekst('wage.overtime.title|Overtid og løn pr. sag', $sprog_id);
 	if ($sagId && isset($sager[$sagId])) {
 		$sag = $sager[$sagId];
-		print ": " . findtekst('2792|Sag', $sprog_id) . " " . htmlspecialchars($sag['nr'] . ' - ' . $sag['kunde'] . ' - ' . $sag['adresse'], ENT_QUOTES);
+		print ": " . findtekst('2792|Sag', $sprog_id) . " " . overtidHtml($sag['nr'] . ' - ' . $sag['kunde'] . ' - ' . $sag['adresse']);
 	}
 	print "</h3>\n";
 
@@ -222,10 +240,10 @@ function overtid() {
 	print "<input type='text' name='til' value='$tilDk' style='width:80px'> ";
 	print "<input type='submit' class='button gray small' value='" . findtekst('1133|Vis', $sprog_id) . "'>\n";
 	print "</form>\n";
-	print "<p><i>" . findtekst('8505|Kun godkendte sedler tæller med. Overtid er timer med overtidstillæg.', $sprog_id) . "</i></p>\n";
+	print "<p><i>" . findtekst('wage.overtime.note|Kun godkendte sedler tæller med. Overtid er timer med overtidstillæg.', $sprog_id) . "</i></p>\n";
 
 	if (!$data['sager']) {
-		print "<p>" . findtekst('8507|Ingen godkendte sedler i perioden.', $sprog_id) . "</p>\n";
+		print "<p>" . findtekst('wage.overtime.no_slips|Ingen godkendte sedler i perioden.', $sprog_id) . "</p>\n";
 		if ($sagId) {
 			overtidLinks($sagId, $fraDk, $tilDk);
 		}
@@ -251,9 +269,9 @@ function overtid() {
 		$total = array('t50' => 0, 't100' => 0, 'loen' => 0);
 		$n = 0;
 		foreach ($rows as $id => $row) {
-			$nr      = isset($sager[$id]) ? htmlspecialchars((string)$sager[$id]['nr'], ENT_QUOTES) : $id;
-			$kunde   = isset($sager[$id]) ? htmlspecialchars($sager[$id]['kunde'], ENT_QUOTES) : '';
-			$adresse = isset($sager[$id]) ? htmlspecialchars($sager[$id]['adresse'], ENT_QUOTES) : '';
+			$nr      = isset($sager[$id]) ? overtidHtml($sager[$id]['nr']) : $id;
+			$kunde   = isset($sager[$id]) ? overtidHtml($sager[$id]['kunde']) : '';
+			$adresse = isset($sager[$id]) ? overtidHtml($sager[$id]['adresse']) : '';
 			$bg = ($n++ % 2) ? 'background-color:#f2f2f2;' : '';
 			print "<tr style='$bg'><td><a href='$link&amp;sag_id=$id'>$nr</a></td><td>$kunde</td><td>$adresse</td>";
 			print "<td align='right'>" . dkdecimal($row['t50'], 2) . "</td><td align='right'>" . dkdecimal($row['t100'], 2) . "</td>";
@@ -292,7 +310,7 @@ function overtid() {
 		print "<br><table class='dataTable' cellspacing='0' cellpadding='3' border='0' style='min-width:600px'>\n";
 		print "<tr><th align='left'>" . findtekst('2966|Medarbejder', $sprog_id) . "</th><th align='right'>$h50</th><th align='right'>$h100</th><th align='right'>$hIalt</th></tr>\n";
 		foreach ($data['ansatte'] as $ansatId => $row) {
-			overtidRow(htmlspecialchars((string)ifset($navne, $ansatId, $ansatId), ENT_QUOTES), $row, false);
+			overtidRow(overtidHtml(ifset($navne, $ansatId, $ansatId)), $row, false);
 		}
 		print "</table>\n";
 	}

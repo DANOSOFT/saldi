@@ -118,6 +118,7 @@
 // 20261105 CL/MMR SST-943 The print icon is not shown on a wage slip whose save was stopped for a missing date.
 // 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
 // 20261113 CL/MMR SD-824 New route 'overtid': overtime hours and wage expenses per case and month.
+// 20261113 CL/LH SD-824 The overtime page title uses a descriptive text key.
 
 @session_start();
 $s_id = session_id();
@@ -269,7 +270,7 @@ if ($funktion == 'ret_loen') {
 } elseif ($funktion == 'overtid') {
 	include(__DIR__ . '/loenIncludes/overtid.php');
 	print "<li><a href='loen.php' title='".findtekst('2787|Lønliste', $sprog_id)."'>".findtekst('2784|Løn', $sprog_id)."</a></li>
-					<li>".findtekst('8501|Overtid og løn pr. sag', $sprog_id)."</li>";
+					<li>".findtekst('wage.overtime.title|Overtid og løn pr. sag', $sprog_id)."</li>";
 } else {
 	include('loenIncludes/visListe.php');
 	print "

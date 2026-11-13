@@ -5447,10 +5447,3 @@
 8488	Vil du slette denne vare og lægge den tilbage på lager?	Do you want to delete this item and return it to stock?	Vil du slette denne varen og legge den tilbake på lager?
 8489	%s er tilknyttet: %s.	%s is linked to: %s.	%s er knyttet til: %s.
 8490	Denne seddel er overført af	This slip has been transferred by	Denne seddelen er overført av
-8501	Overtid og løn pr. sag	Overtime and wages per project	Overtid og lønn per sak
-8502	Overtid 50%	Overtime 50%	Overtid 50%
-8503	Overtid 100%	Overtime 100%	Overtid 100%
-8504	Overtid i alt	Total overtime	Overtid totalt
-8505	Kun godkendte sedler tæller med. Overtid er timer med overtidstillæg.	Only approved slips are counted. Overtime is hours with overtime supplement.	Kun godkjente sedler telles med. Overtid er timer med overtidstillegg.
-8506	Du har ikke adgang til denne side.	You do not have access to this page.	Du har ikke tilgang til denne siden.
-8507	Ingen godkendte sedler i perioden.	No approved slips in the period.	Ingen godkjente sedler i perioden.
