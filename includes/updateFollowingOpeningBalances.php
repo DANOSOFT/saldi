@@ -51,6 +51,7 @@
 //                  A year still waiting in a state of an earlier test build is always lowered into that row before the state is saved without it (Codex round 13).
 //                  A request that does not see the row goes straight to the locked create-or-lower, so a row created by someone else in between cannot skip its year (Codex round 14).
 //                  A request that finds the row created meanwhile always writes it, also with the same year, so it holds the row until it commits (Codex round 15).
+//                  The fingerprint is taken per account, so a late posting and a deleted one that cancel out in the year's totals are still found (Codex round 16).
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -993,12 +994,16 @@ function followingOpeningBalancePostedYear($afterId, $upToId) {
 }
 
 /**
- * A fingerprint of the postings in every open fiscal year that has a later year: the number of postings and their
- * debit and credit sums. Compared every ten minutes, it finds what the id watermark cannot see: postings that
- * commit after a check with lower ids than it saw, and deleted postings. Postings can only reach open years
- * (box5 'on'), so closed years are left out.
+ * A fingerprint of the postings in every open fiscal year that has a later year, per account: the number of postings,
+ * their debit and credit sums and the sum of each posting's movement rounded to øre, the very amount a transfer adds
+ * up (followingOpeningBalanceInputs()). Compared every ten minutes, it finds what the id watermark cannot see: postings
+ * that commit after a check with lower ids than it saw, and deleted postings. Because it is per account, a late posting
+ * and a deleted one that cancel out in the year's totals but move an amount to another account are found too (Codex
+ * round 16); a change that leaves every account's movement as it was does not change any opening balance. Postings can
+ * only reach open years (box5 'on'), so closed years are left out. A fingerprint of an earlier test build (the year's
+ * totals) differs from this one, so the first comparison after the update rebuilds once.
  *
- * @return array Fiscal year (kodenr) => "count:debet:kredit".
+ * @return array Fiscal year (kodenr) => md5 of "kontonr:count:debet:kredit:movement" per account in account order.
  */
 function followingOpeningBalanceFingerprint() {
 	$years = array();
@@ -1015,10 +1020,15 @@ function followingOpeningBalanceFingerprint() {
 		if (!$range) {
 			continue;
 		}
-		$qtxt = "select count(*) as postings, coalesce(sum(debet), 0) as debet, coalesce(sum(kredit), 0) as kredit ";
-		$qtxt.= "from transaktioner where transdate >= '$range[0]' and transdate <= '$range[1]'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
-		$fingerprint[$year] = $r['postings'] . ':' . $r['debet'] . ':' . $r['kredit'];
+		$qtxt = "select kontonr, count(*) as postings, coalesce(sum(debet), 0) as debet, coalesce(sum(kredit), 0) as kredit, ";
+		$qtxt.= "coalesce(sum(round(coalesce(debet, 0) - coalesce(kredit, 0), 2)), 0) as movement ";
+		$qtxt.= "from transaktioner where transdate >= '$range[0]' and transdate <= '$range[1]' group by kontonr order by kontonr";
+		$q = db_select($qtxt, __FILE__ . ' line ' . __LINE__);
+		$accounts = array();
+		while ($r = db_fetch_array($q)) {
+			$accounts[] = $r['kontonr'] . ':' . $r['postings'] . ':' . $r['debet'] . ':' . $r['kredit'] . ':' . $r['movement'];
+		}
+		$fingerprint[$year] = md5(implode('|', $accounts));
 	}
 	return $fingerprint;
 }

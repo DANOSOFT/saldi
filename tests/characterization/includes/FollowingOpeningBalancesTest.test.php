@@ -17,6 +17,7 @@
 //                 A year waiting in an old state is kept when a newer request created the row with a later year first (Codex round 13).
 //                 A row another request creates right after this one found it missing does not skip this request's year (Codex round 14).
 //                 A request that finds the row created with the same year holds it until it commits (Codex round 15).
+//                 A late commit and a deletion that cancel out in the year's totals are found by the fingerprint per account (Codex round 16).
 
 declare(strict_types=1);
 
@@ -1410,6 +1411,46 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertStringEndsWith('|0', $this->syncState());
         } finally {
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /**
+     * Codex round 16: a late commit below the watermark and a deleted journal cancel out in the year's count and totals,
+     * but 20 has moved from 2100 (carried into 2000) to 2500. The fingerprint per account finds it.
+     */
+    public function testALateCommitAndADeletionThatCancelOutInTheYearsTotalsAreFound(): void
+    {
+        $schema = 'sst1005_fingerprint_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            self::assertNull(checkFollowingOpeningBalances(11));
+            // A posting on 2500 that commits late: its ids are below the watermark the next checks see.
+            pg_query($other, 'BEGIN');
+            pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2500, '2024-03-01', 20, 0), (1000, '2024-03-01', 0, 20)");
+            $this->postInYear9(2000, 1);
+            self::assertNull(checkFollowingOpeningBalances(11));
+            $this->setSyncState((int) explode('|', $this->syncState())[0], 0, time() - 601);
+            self::assertNull(checkFollowingOpeningBalances(11));
+            $vector = function (): array {
+                return [$this->primo(10, 2000), $this->primo(10, 2500), $this->primo(10, 3000)];
+            };
+            self::assertSame([1121.0, 0.0, -1121.0], $vector());
+            $totals = function (): array {
+                return pg_fetch_assoc($this->sql("SELECT count(*) AS n, sum(debet) AS d, sum(kredit) AS k, max(id) AS m FROM transaktioner WHERE transdate BETWEEN '2023-07-01' AND '2024-06-30'"));
+            };
+            $before = $totals();
+            // The journal with 20 on 2100 is taken back (its postings deleted), then the late posting commits.
+            $this->sql("DELETE FROM transaktioner WHERE transdate = '2024-06-30' AND ((kontonr = 2100 AND debet = 20) OR (kontonr = 1000 AND kredit = 20))");
+            pg_query($other, 'COMMIT');
+            self::assertSame($before, $totals(), 'Same count, totals and highest id: the totals cannot tell.');
+            $this->setSyncState((int) explode('|', $this->syncState())[0], 0, time() - 601);
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame([1101.0, 20.0, -1121.0], $vector(), 'The due check found the move from 2100 to 2500.');
+            self::assertNull(syncFollowingOpeningBalances(9));
+            self::assertSame([1101.0, 20.0, -1121.0], $vector(), 'The same as a manual rebuild.');
+        } finally {
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
