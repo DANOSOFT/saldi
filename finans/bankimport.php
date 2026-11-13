@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 5.0.0 --- 2026.03.20 ---
+// --- finans/bankimport.php --- ver 5.1.0 --- 2026.11.06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 // 20200820 PHR Added recognition of outgoing payments from Cultura Sparebank, Norway 20200820
@@ -47,6 +47,8 @@
 // 20260320 PHR	Removed 'This didn't work'
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
+// 20261106 CL/MMR SST-962 The column choices are remembered for every column and per number of columns, not only for the first 8 columns.
+//                 A freshly uploaded file shows all its columns at once (bank_import_columns_for_upload()), and the choices are saved before the page prints (bank_import_save_columns()).
 
 ini_set("auto_detect_line_endings", true);
 
@@ -61,6 +63,7 @@ include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
 include_once(__DIR__ . '/../includes/stdFunc/bankImportEncoding.php');
+include_once(__DIR__ . '/../includes/stdFunc/bankImportColumns.php');
 
 global $menu;
 
@@ -87,6 +90,8 @@ if(($_GET)||($_POST)) {
 		$vend        = if_isset($_POST['vend'],NULL);
 		if ($vend) $vend='checked';
 	}
+	// SST-962: remember the column choices of "Vis" and "Hent" for this number of columns, before anything is printed
+	if ((!empty($show) || !empty($import)) && $feltnavn) bank_import_save_columns($bruger_id, $feltnavn, $feltantal);
 
 	if ($menu=='T') {
 		include_once '../includes/top_header.php';
@@ -152,6 +157,7 @@ if(($_GET)||($_POST)) {
 				db_modify ("insert into grupper (beskrivelse,art,kode,kodenr) values ('Bankimport','KASKL','3','$bruger_id')",__FILE__ . " linje " . __LINE__);
 			}
 			if (!$feltantal) $feltantal=1;	
+			$feltnavn = bank_import_columns_for_upload($bruger_id, $filnavn, $charset, $feltnavn); // SST-962
 			vis_data($kladde_id,$filnavn,'',$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$currencyCode,$afd);
 		} else {
 #cho findtekst(1370, $sprog_id)." >$uploadErr<<br>";
