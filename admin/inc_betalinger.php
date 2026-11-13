@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.11 ---
+// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 3 "Betalinger og fakturering" on the customer card.
@@ -12,6 +12,7 @@
 //                 The billing customer number (regnskab_billing.billing_kontonr) is the coupling the customer's own invoice overview (billing overview spec F1) needs: it is stored automatically when the API lookup matches the ledger's CVR, or with one click from the lookup result.
 // 20261029 CL/ASR regnskab_billing and its columns are created by the update chain (operatorPanelSchema.php).
 // 20261111 CL/ASR An invoice date from the billing API that PHP cannot read no longer becomes a 1970 due date and a false "overdue": bill_cache_store() keeps the stored summary and puts the reason in $data['error'] for the page (new bill_date_error(), review #785).
+// 20261113 CL/ASR The invoice tables no longer show an unreadable invoice date as 01-01-1970 and "Forfalden": bill_classify() gives such an invoice no due date, and bill_dmy() shows it as a dash (review #785).
 
 if (!function_exists('bill_tables_ensure')) {
 function bill_tables_ensure() {
@@ -97,13 +98,15 @@ function bill_fetch($search) {
 	usort($inv, fn($a, $b) => strcmp($b['invoiceDate'] ?? '', $a['invoiceDate'] ?? ''));
 	return array('customer' => $c, 'invoices' => $inv);
 }
+// 20261113 CL/ASR A date from the billing API as d-m-Y, or a dash when it is empty or cannot be read (review #785).
+function bill_dmy($s) { $t = empty($s) ? false : strtotime((string)$s); return $t === false ? '–' : date('d-m-Y', $t); }
 // Classify one invoice: paid | pending | overdue  (+ due date)
 function bill_classify($inv, $defaultDays) {
 	$paid = ($inv['paid'] == '1' || $inv['paid'] === true || $inv['paid'] === 't');
 	$days = isset($inv['paymentInfo']['paymentDays']) && $inv['paymentInfo']['paymentDays'] !== null ? (int)$inv['paymentInfo']['paymentDays'] : (int)$defaultDays;
 	$terms = $inv['paymentInfo']['paymentTerms'] ?? '';
 	$due = null;
-	if (!empty($inv['invoiceDate'])) { $base = strtotime($inv['invoiceDate']); if ($terms == 'Lb. md.' || $terms == 'Lb.md') $base = strtotime(date('Y-m-t', $base)); $due = date('Y-m-d', strtotime("+$days days", $base)); }
+	if (!empty($inv['invoiceDate']) && ($base = strtotime((string)$inv['invoiceDate'])) !== false) { if ($terms == 'Lb. md.' || $terms == 'Lb.md') $base = strtotime(date('Y-m-t', $base)); $due = date('Y-m-d', strtotime("+$days days", $base)); } # 20261113 an unreadable date gives no due date, so it is not 'overdue'
 	$st = $paid ? 'paid' : (($due && $due < date('Y-m-d')) ? 'overdue' : 'pending');
 	return array($st, $due, (float)($inv['economic']['sum'] ?? 0) + (float)($inv['economic']['vat'] ?? 0));
 }
@@ -158,7 +161,7 @@ function bill_render($rid, $reg, $ent, $live, $data, $cfg) {
 	print "<label>".vr_t('Note','Note')."<input class=\"vr-inp\" name=\"note\" value=\"".vr_h($cfg['note'])."\"></label><div><button type=\"submit\" class=\"vr-btn vr-primary\">".findtekst('3|Gem', $sprog_id)."</button></div></form></div></section></div>";
 	// history
 	print "<section class=\"vr-sect\" style=\"margin-top:22px\"><h2>".vr_t('Faktura- og betalingshistorik','Invoice and payment history')." <small>".count($rows)." ".vr_t('fakturaer fra faktureringsregnskabet','invoices from the billing ledger')."</small></h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th>".vr_t('Faktura','Invoice')."</th><th>".vr_t('Dato','Date')."</th><th>".vr_t('Forfald','Due')."</th><th class=\"vr-r\">".vr_t('Beløb inkl. moms','Amount incl. VAT')."</th><th>".vr_t('Betingelser','Terms')."</th><th>".vr_t('Status','Status')."</th></tr></thead><tbody>";
-	foreach ($rows as $n => $r) { list($i, $st, $due, $tot) = $r; print "<tr".($n >= 10 ? " class=\"vr-more\" hidden" : "")." onclick=\"openInvoice(".(int)$i['id'].")\" style=\"cursor:pointer\"><td class=\"vr-nm\"><a>#".vr_h($i['invoiceNo'] ?? $i['orderNo'] ?? '-')."</a></td><td class=\"vr-mut\">".(!empty($i['invoiceDate']) ? date('d-m-Y', strtotime($i['invoiceDate'])) : '–')."</td><td class=\"vr-mut\">".($due ? date('d-m-Y', strtotime($due)) : '–')."</td><td class=\"vr-r vr-num\">".number_format($tot, 2, ',', '.')."</td><td class=\"vr-mut\">".vr_h($i['paymentInfo']['paymentTerms'] ?? '')."</td><td><span class=\"vr-st\"><span class=\"vr-dot ".$stDot[$st]."\"></span>".$stTxt[$st]."</span></td></tr>"; }
+	foreach ($rows as $n => $r) { list($i, $st, $due, $tot) = $r; print "<tr".($n >= 10 ? " class=\"vr-more\" hidden" : "")." onclick=\"openInvoice(".(int)$i['id'].")\" style=\"cursor:pointer\"><td class=\"vr-nm\"><a>#".vr_h($i['invoiceNo'] ?? $i['orderNo'] ?? '-')."</a></td><td class=\"vr-mut\">".bill_dmy($i['invoiceDate'] ?? '')."</td><td class=\"vr-mut\">".bill_dmy($due)."</td><td class=\"vr-r vr-num\">".number_format($tot, 2, ',', '.')."</td><td class=\"vr-mut\">".vr_h($i['paymentInfo']['paymentTerms'] ?? '')."</td><td><span class=\"vr-st\"><span class=\"vr-dot ".$stDot[$st]."\"></span>".$stTxt[$st]."</span></td></tr>"; }
 	if (!$rows) print "<tr><td colspan=\"6\" class=\"vr-mut\" style=\"padding:20px\">".(isset($data['error']) ? vr_h($data['error']) : ($chDet == 'stripe_sub' ? vr_t('Ingen Saldi-fakturaer – kunden betaler via Stripe-abonnement (gammel model) og flyttes til kort på fil ved M1.','No Saldi invoices – the customer pays through a Stripe subscription (old model) and moves to card on file at M1.') : vr_t('Ingen fakturaer','No invoices')))."</td></tr>";
 	print "</tbody></table>".(count($rows) > 10 ? "<div class=\"vr-foot\"><span class=\"vr-grow\"></span><button type=\"button\" class=\"vr-btn vr-quiet\" onclick=\"document.querySelectorAll('tr.vr-more').forEach(function(t){t.hidden=false});this.remove()\">".vr_t('Vis alle','Show all')." (".count($rows).")</button></div>" : "")."</div></section>";
 	print "<div class=\"vr-scrim\" id=\"invScrim\" onclick=\"closeInvoice()\"></div><div class=\"vr-dlg\" id=\"invDlg\" style=\"width:720px;max-width:95vw\"><h3 id=\"invTitle\">…</h3><p id=\"invMeta\"></p><div id=\"invBody\"></div><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" onclick=\"closeInvoice()\">".vr_t('Luk','Close')."</button></div></div>\n";

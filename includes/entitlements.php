@@ -1,5 +1,5 @@
 <?php
-// --- includes/entitlements.php --- ver 5.1.1 --- 2026.11.09 ---
+// --- includes/entitlements.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Catalogue + entitlement layer in the master database, tables as in Requirements_packages_entitlements_billing_EN.md §4.1/§5.1 with three additions needed for the operator's subscription card: prices on plans/addons (price_ore, billing_interval, extra_user_price_ore), valid_from on regnskab_entitlements, and regnskab_plan_changes for changes with a future effective date.
@@ -13,6 +13,7 @@
 //                 ent_set_addon() stores an on/off add-on with quantity 1, whatever quantity the form sends (review #785).
 //                 New ent_addon_purchase_error(), checked when a proposal is created and again when it is accepted: the add-on must be on sale for the account's effective plan, and a counted add-on with a time-limited allocation is refused, because a bought unit would share that row's end date (review #785).
 //                 ent_usage_collect() reads column names and the type of brugere.status from pg_attribute for the relation the unqualified table name resolves to (to_regclass), the same table the counts read (review #785).
+// 20261113 CL/ASR Accepting an add-on proposal and setting or removing the add-on on the Abonnement tab now wait for each other (ent_addon_locked()), so a bought unit cannot pick up an end date that another operator sets in between (review #785).
 
 if (!function_exists('ent_tables_ensure')) {
 
@@ -218,13 +219,29 @@ function ent_cancel_change($rid, $id) {
 	db_modify("update regnskab_plan_changes set cancelled_at = now() where id = '".(int)$id."'", __FILE__ . " linje " . __LINE__);
 	ent_log('entitlement.plan_change_cancelled', (int)$rid, ent_plan_name($r['plan_key']).' fra '.$r['effective_from']);
 }
+// 20261113 CL/ASR Runs $fn under a transaction-scoped advisory lock on (account, add-on), so the add-on writers below wait
+//                  for each other, also while the account has no row for the add-on yet (review #785). Inside an open
+//                  transaction (fs_decide()) the lock is held until that transaction ends. Otherwise the call gets its own
+//                  transaction, which also makes the delete and insert in ent_set_addon() one step. $fn returns '' or an
+//                  error, and an error rolls its own transaction back. The panel runs on PostgreSQL only.
+function ent_addon_locked($rid, $addon_key, $fn) {
+	global $db_type, $db_transaktion_depth;
+	$own = !$db_transaktion_depth;
+	if ($own) transaktion('begin');
+	if (strpos((string)$db_type, 'mysql') !== 0) db_select("select pg_advisory_xact_lock(hashtext('regnskab_addons'), hashtext('".(int)$rid.":".db_escape_string($addon_key)."'))", __FILE__ . " linje " . __LINE__);
+	$err = $fn();
+	if ($own) transaktion($err ? 'rollback' : 'commit');
+	return $err;
+}
 function ent_set_addon($rid, $addon_key, $qty, $expires) {
 	$c = ent_catalog(); if (!isset($c['addons'][$addon_key])) return 'Ukendt tillæg';
-	$rid = (int)$rid; $qty = ent_addon_counted($c['addons'][$addon_key]) ? max(1, (int)$qty) : 1; $ex = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$expires) ? "'$expires'" : 'NULL'; # an on/off add-on is one unit, whatever quantity the form sends
-	db_modify("delete from regnskab_addons where regnskab_id = '$rid' and addon_key = '".db_escape_string($addon_key)."'", __FILE__ . " linje " . __LINE__);
-	db_modify("insert into regnskab_addons (regnskab_id, addon_key, quantity, source, expires_at) values ('$rid', '".db_escape_string($addon_key)."', '$qty', 'manual', $ex)", __FILE__ . " linje " . __LINE__);
-	ent_log('entitlement.addon_set', $rid, $c['addons'][$addon_key]['name'].' × '.$qty.($ex != 'NULL' ? ' indtil '.$expires : ''));
-	return '';
+	return ent_addon_locked($rid, $addon_key, function () use ($c, $rid, $addon_key, $qty, $expires) {
+		$rid = (int)$rid; $qty = ent_addon_counted($c['addons'][$addon_key]) ? max(1, (int)$qty) : 1; $ex = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$expires) ? "'$expires'" : 'NULL'; # an on/off add-on is one unit, whatever quantity the form sends
+		db_modify("delete from regnskab_addons where regnskab_id = '$rid' and addon_key = '".db_escape_string($addon_key)."'", __FILE__ . " linje " . __LINE__);
+		db_modify("insert into regnskab_addons (regnskab_id, addon_key, quantity, source, expires_at) values ('$rid', '".db_escape_string($addon_key)."', '$qty', 'manual', $ex)", __FILE__ . " linje " . __LINE__);
+		ent_log('entitlement.addon_set', $rid, $c['addons'][$addon_key]['name'].' × '.$qty.($ex != 'NULL' ? ' indtil '.$expires : ''));
+		return '';
+	});
 }
 function ent_addon_counted($a) { return in_array((string)($a['quantity_based'] ?? ''), array('t', 'true', '1'), true); } # pg returns booleans as 't'/'f', and 'f' is truthy in PHP
 // 20261111 CL/ASR Why buying $addon_key cannot be proposed or accepted now ('' = it can). fs_create() checks it, and
@@ -247,23 +264,29 @@ function ent_addon_purchase_error($rid, $addon_key) {
 // 20261109 CL/ASR An accepted proposal buys one more unit of a counted add-on (quantity + 1, expiry kept); an on/off add-on
 //                  the account already has stays as it is. Without an active row it is added as quantity 1 (review #785).
 // 20261111 CL/ASR ent_addon_purchase_error() runs first, so a counted add-on reaching quantity + 1 has no end date (review #785).
+// 20261113 CL/ASR The check and the update run under ent_addon_locked(), so no allocation can be set between them (review #785).
 function ent_accept_addon($rid, $addon_key) {
 	$c = ent_catalog(); if (!isset($c['addons'][$addon_key])) return 'Ukendt tillæg';
-	if ($err = ent_addon_purchase_error($rid, $addon_key)) return $err;
-	$rid = (int)$rid; $ak = db_escape_string($addon_key); $a = $c['addons'][$addon_key];
-	$cur = db_fetch_array(db_select("select quantity, expires_at from regnskab_addons where regnskab_id = '$rid' and addon_key = '$ak' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__));
-	if (!$cur) return ent_set_addon($rid, $addon_key, 1, ''); # none, or only an expired row: replaced by quantity 1
-	if (!ent_addon_counted($a)) { # on/off: already there; a time-limited one (e.g. a trial) is bought and loses its end date
-		if ($cur['expires_at']) { db_modify("update regnskab_addons set expires_at = NULL where regnskab_id = '$rid' and addon_key = '$ak'", __FILE__ . " linje " . __LINE__); ent_log('entitlement.addon_set', $rid, $a['name'].' uden slutdato'); }
+	return ent_addon_locked($rid, $addon_key, function () use ($c, $rid, $addon_key) {
+		if ($err = ent_addon_purchase_error($rid, $addon_key)) return $err;
+		$rid = (int)$rid; $ak = db_escape_string($addon_key); $a = $c['addons'][$addon_key];
+		$cur = db_fetch_array(db_select("select quantity, expires_at from regnskab_addons where regnskab_id = '$rid' and addon_key = '$ak' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__));
+		if (!$cur) return ent_set_addon($rid, $addon_key, 1, ''); # none, or only an expired row: replaced by quantity 1
+		if (!ent_addon_counted($a)) { # on/off: already there; a time-limited one (e.g. a trial) is bought and loses its end date
+			if ($cur['expires_at']) { db_modify("update regnskab_addons set expires_at = NULL where regnskab_id = '$rid' and addon_key = '$ak'", __FILE__ . " linje " . __LINE__); ent_log('entitlement.addon_set', $rid, $a['name'].' uden slutdato'); }
+			return '';
+		}
+		db_modify("update regnskab_addons set quantity = quantity + 1 where regnskab_id = '$rid' and addon_key = '$ak'", __FILE__ . " linje " . __LINE__);
+		ent_log('entitlement.addon_set', $rid, $a['name'].' × '.((int)$cur['quantity'] + 1).($cur['expires_at'] ? ' indtil '.$cur['expires_at'] : ''));
 		return '';
-	}
-	db_modify("update regnskab_addons set quantity = quantity + 1 where regnskab_id = '$rid' and addon_key = '$ak'", __FILE__ . " linje " . __LINE__);
-	ent_log('entitlement.addon_set', $rid, $a['name'].' × '.((int)$cur['quantity'] + 1).($cur['expires_at'] ? ' indtil '.$cur['expires_at'] : ''));
-	return '';
+	});
 }
 function ent_remove_addon($rid, $addon_key) {
-	$c = ent_catalog(); db_modify("delete from regnskab_addons where regnskab_id = '".(int)$rid."' and addon_key = '".db_escape_string($addon_key)."'", __FILE__ . " linje " . __LINE__);
-	ent_log('entitlement.addon_removed', (int)$rid, isset($c['addons'][$addon_key]) ? $c['addons'][$addon_key]['name'] : $addon_key);
+	ent_addon_locked($rid, $addon_key, function () use ($rid, $addon_key) {
+		$c = ent_catalog(); db_modify("delete from regnskab_addons where regnskab_id = '".(int)$rid."' and addon_key = '".db_escape_string($addon_key)."'", __FILE__ . " linje " . __LINE__);
+		ent_log('entitlement.addon_removed', (int)$rid, isset($c['addons'][$addon_key]) ? $c['addons'][$addon_key]['name'] : $addon_key);
+		return '';
+	});
 }
 // 20261012 CL/ASR Validation split out so callers that replace an active override can check BEFORE expiring the old one
 //                  (an invalid replacement used to remove the active override). The grandfather/overgangsordning

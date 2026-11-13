@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_installationer.php --- ver 5.1.1 --- 2026.11.09 ---
+// --- admin/inc_installationer.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. "Egne installationer": customers who run Saldi themselves (open source) and have a support agreement with us.
@@ -9,6 +9,7 @@
 // 20261029 CL/ASR self_hosted is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
 // 20261109 CL/ASR Invoice dates from the billing API reach SQL only as validated YYYY-MM-DD dates, anything else is stored as NULL (review #785).
 //                 When an invoice date cannot be read at all (bill_date_error()), the refresh is refused and the stored status kept, where bill_classify() turned it into a 1970 due date and a false "overdue" (review #785).
+// 20261113 CL/ASR The invoice table shows an unreadable invoice date as a dash with no due date (bill_dmy(), bill_classify()), not as 01-01-1970 and overdue (review #785).
 
 if (!function_exists('inst_tables_ensure')) {
 function inst_tables_ensure() {
@@ -126,7 +127,7 @@ function inst_card_render($r, $tab, $notes) {
 		print "<section class=\"vr-sect\"><h2>".vr_t('Aftale','Agreement')."</h2><div class=\"vr-card vr-kv\"><div><span>".vr_t('Pris','Price')."</span><b>".($r['price_ore'] !== null && $r['price_ore'] !== '' ? number_format($r['price_ore']/100, 2, ',', '.')." DKK / ".($r['billing_interval'] == 'month' ? vr_t('måned','month') : vr_t('år','year')) : '–')."</b></div><div><span>".vr_t('Periode','Period')."</span><b>".($r['support_from'] ? date('d-m-Y', strtotime($r['support_from'])) : '–')." – ".($r['support_to'] ? date('d-m-Y', strtotime($r['support_to'])) : vr_t('løbende','ongoing'))."</b></div></div></section></div>";
 		$inv = isset($data['invoices']) ? $data['invoices'] : array(); $dd = isset($data['customer']) ? (int)($data['customer']['betaling']['betalingsdage'] ?? 0) : 0;
 		print "<section class=\"vr-sect\" style=\"margin-top:22px\"><h2>".vr_t('Faktura- og betalingshistorik','Invoice and payment history')." <small>".count($inv)."</small></h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th>".vr_t('Faktura','Invoice')."</th><th>".vr_t('Dato','Date')."</th><th>".vr_t('Forfald','Due')."</th><th class=\"vr-r\">".vr_t('Beløb inkl. moms','Amount incl. VAT')."</th><th>".vr_t('Status','Status')."</th></tr></thead><tbody>";
-		foreach ($inv as $i) { list($st, $due, $tot) = bill_classify($i, $dd); print "<tr onclick=\"openInvoice(".(int)$i['id'].")\" style=\"cursor:pointer\"><td class=\"vr-nm\"><a>#".vr_h($i['invoiceNo'] ?? $i['orderNo'] ?? '-')."</a></td><td class=\"vr-mut\">".(!empty($i['invoiceDate']) ? date('d-m-Y', strtotime($i['invoiceDate'])) : '–')."</td><td class=\"vr-mut\">".($due ? date('d-m-Y', strtotime($due)) : '–')."</td><td class=\"vr-r vr-num\">".number_format($tot, 2, ',', '.')."</td><td>".inst_pay_badge($st)."</td></tr>"; }
+		foreach ($inv as $i) { list($st, $due, $tot) = bill_classify($i, $dd); print "<tr onclick=\"openInvoice(".(int)$i['id'].")\" style=\"cursor:pointer\"><td class=\"vr-nm\"><a>#".vr_h($i['invoiceNo'] ?? $i['orderNo'] ?? '-')."</a></td><td class=\"vr-mut\">".bill_dmy($i['invoiceDate'] ?? '')."</td><td class=\"vr-mut\">".bill_dmy($due)."</td><td class=\"vr-r vr-num\">".number_format($tot, 2, ',', '.')."</td><td>".inst_pay_badge($st)."</td></tr>"; }
 		if (!$inv) print "<tr><td colspan=\"5\" class=\"vr-mut\" style=\"padding:20px\">".(isset($data['error']) ? vr_h($data['error']) : vr_t('Ingen fakturaer','No invoices'))."</td></tr>";
 		print "</tbody></table></div></section>";
 		print "<div class=\"vr-scrim\" id=\"invScrim\" onclick=\"closeInvoice()\"></div><div class=\"vr-dlg\" id=\"invDlg\" style=\"width:720px;max-width:95vw\"><h3 id=\"invTitle\">…</h3><p id=\"invMeta\"></p><div id=\"invBody\"></div><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" onclick=\"closeInvoice()\">".vr_t('Luk','Close')."</button></div></div>";
