@@ -1,7 +1,7 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ sager/leftmenu.php-------lap 3.3.0 ------2013-02-11------12:11---------
+// ------ sager/leftmenu.php-------ver 5.1.1 ------2026-11-13------09:30---------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -20,7 +20,7 @@ $s_id=session_id();
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2013 Danosoft ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // små rettelser i menu sager
 // 20140104 Rettet i menu sager. Under funktion ret_opgave er der tilføjet link til akkordsedler
