@@ -98,4 +98,4 @@ register_shutdown_function(function () {
 	echo json_encode(['returned' => $GLOBALS['returned'], 'events' => $GLOBALS['events'], 'html' => ob_get_clean()], JSON_THROW_ON_ERROR), "\n";
 });
 require __DIR__ . '/../../../../debitor/pos_ordre_includes/exitFunc/exit.php';
-$returned = afslut(42, $case['payment'], '', $case['received'], 0, 0, '', '');
+$returned = afslut(42, $case['payment'], $case['payment2'] ?? '', $case['received'], $case['received2'] ?? 0, 0, '', '');

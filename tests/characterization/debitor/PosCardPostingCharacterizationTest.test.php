@@ -14,6 +14,7 @@ final class PosCardPostingCharacterizationTest extends TestCase
 {
     private const CASH_ACCOUNT = 58200;
     private const CARD_ACCOUNT = 58050;
+    private const SECOND_CARD_ACCOUNT = 58060;
 
     /** @var resource|\PgSql\Connection */
     private static $tenant;
@@ -31,7 +32,7 @@ final class PosCardPostingCharacterizationTest extends TestCase
         $t = self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
         self::$regnaar = (int)CharacterizationEnv::one($t, "SELECT max(kodenr) AS ra FROM grupper WHERE art = 'RA'")['ra'];
         $year = self::$regnaar;
-        foreach ([self::CASH_ACCOUNT => 'Kasse', self::CARD_ACCOUNT => 'Dankort'] as $account => $name) {
+        foreach ([self::CASH_ACCOUNT => 'Kasse', self::CARD_ACCOUNT => 'Dankort', self::SECOND_CARD_ACCOUNT => 'Mastercard'] as $account => $name) {
             if (!CharacterizationEnv::one($t, 'SELECT id FROM kontoplan WHERE kontonr = $1 AND regnskabsaar = $2', [$account, $year])) {
                 pg_query_params($t, "INSERT INTO kontoplan (kontonr, beskrivelse, kontotype, regnskabsaar, moms, saldo) VALUES ($1, $2, 'S', $3, '', 0)",
                     [$account, $name, $year]);
@@ -39,7 +40,8 @@ final class PosCardPostingCharacterizationTest extends TestCase
         }
         pg_query_params($t, "DELETE FROM grupper WHERE art = 'POS' AND kodenr IN ('1', '2') AND fiscal_year = $1", [$year]);
         pg_query_params($t, "INSERT INTO grupper (beskrivelse, art, kodenr, fiscal_year, box1, box2, box4, box5, box6, box7, box9)
-            VALUES ('POS', 'POS', '1', $1, '1', $2, '1', 'Dankort', $3, '1', 'on')", [$year, (string)self::CASH_ACCOUNT, (string)self::CARD_ACCOUNT]);
+            VALUES ('POS', 'POS', '1', $1, '1', $2, '1', $3, $4, '1', 'on')",
+            [$year, (string)self::CASH_ACCOUNT, "Dankort\tMastercard", self::CARD_ACCOUNT . "\t" . self::SECOND_CARD_ACCOUNT]);
         pg_query_params($t, "INSERT INTO grupper (beskrivelse, art, kodenr, fiscal_year, box6) VALUES ('POS', 'POS', '2', $1, '')", [$year]);
         $vg = CharacterizationEnv::one($t, "SELECT kodenr, box4 FROM grupper WHERE art = 'VG' AND fiscal_year = $1 AND box4 != '' ORDER BY kodenr LIMIT 1", [$year]);
         self::$salesAccount = (int)$vg['box4'];
@@ -58,9 +60,11 @@ final class PosCardPostingCharacterizationTest extends TestCase
     }
 
     /**
-     * A settled POS sale with one line and one payment, as settlePOS.php leaves it before posting.
+     * A settled POS sale with one line and its payments, as settlePOS.php leaves it before posting.
+     *
+     * @param list<array{0: string, 1: float}> $more further payments
      */
-    private static function sale(float $price, string $payment, float $amount): int
+    private static function sale(float $price, string $payment, float $amount, array $more = []): int
     {
         $t = self::$tenant;
         $id = CharacterizationEnv::nextId($t, 'ordrer');
@@ -74,6 +78,10 @@ final class PosCardPostingCharacterizationTest extends TestCase
             VALUES ($1, $2, 'k', 'Kontanthævning', 1, $3, 0, 1, '', 25, 0, 1)", [$id, self::$itemId, $price]);
         pg_query_params($t, "INSERT INTO pos_betalinger (ordre_id, betalingstype, amount, valuta, valutakurs) VALUES ($1, $2, $3, 'DKK', 100)",
             [$id, $payment, $amount]);
+        foreach ($more as [$type, $paid]) {
+            pg_query_params($t, "INSERT INTO pos_betalinger (ordre_id, betalingstype, amount, valuta, valutakurs) VALUES ($1, $2, $3, 'DKK', 100)",
+                [$id, $type, $paid]);
+        }
         return $id;
     }
 
@@ -112,6 +120,18 @@ final class PosCardPostingCharacterizationTest extends TestCase
         self::assertStringContainsString('Betalingen med Visa kan ikke bogføres', $result['bogfor']);
         self::assertNotSame(4, $result['status'], 'a sale with nothing posted must not get status 4');
         self::assertSame([], $result['rows']);
+    }
+
+    /**
+     * Card payments that cancel each other out (Dankort 400 in, Mastercard 400 back) still write rows, so the sale is posted, not refused.
+     */
+    public function testCardPaymentsThatCancelOutArePostedNotRefused(): void
+    {
+        $result = self::post(self::sale(0, 'Dankort', 400, [['Mastercard', -400]]));
+        self::assertSame('OK', $result['bogfor']);
+        self::assertSame(4, $result['status']);
+        self::assertContains([self::CARD_ACCOUNT, 400.0, 0.0], $result['rows']);
+        self::assertNotSame([], array_filter($result['rows'], static fn(array $row): bool => $row[0] === self::SECOND_CARD_ACCOUNT));
     }
 
     /**

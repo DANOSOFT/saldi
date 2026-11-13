@@ -114,7 +114,7 @@ print "\n<!-- Function afslut (start)-->\n";
 	$modtaget  = (float)$modtaget;
 	$modtaget2 = (float)$modtaget2;
 
-	if ($id && $betaling && !$indbetaling && !afrund($modtaget + $modtaget2, 2) && !in_array(strtolower($betaling), array('kontant', 'konto', 'cash', 'cash on amount'))) {
+	if ($id && $betaling && !$indbetaling && !afrund($modtaget, 2) && !afrund($modtaget2, 2) &&!in_array(strtolower($betaling), array('kontant', 'konto', 'cash', 'cash on amount'))) {
 		$r = db_fetch_array(db_select("select sum, moms from ordrer where id = '" . (int)$id . "'", __FILE__ . " linje " . __LINE__));
 		$paid = db_fetch_array(db_select("select sum(amount) as paid from pos_betalinger where ordre_id = '" . (int)$id . "' and betalingstype != '!'", __FILE__ . " linje " . __LINE__));
 		if ($r && !afrund((float)$r['sum'] + (float)$r['moms'], 2) && !afrund((float)$paid['paid'], 2)) {

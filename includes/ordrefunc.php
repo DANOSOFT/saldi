@@ -3343,7 +3343,8 @@ function bogfor_nu($id, $kilde) {
 				$unpostedCard = $betaling[$b];
 			}
 		}
-		if (afrund($cardTotal, 2) && !afrund($d_kontrol, 2) && !afrund($k_kontrol, 2)) {
+		$written = db_fetch_array(db_select("select count(*) as n from transaktioner where ordre_id = '" . (int)$ordre_id . "'", __FILE__ . " linje " . __LINE__));
+		if (afrund($cardTotal, 2) && !(int)$written['n']) {
 			if ($unpostedCard) {
 				$txt = findtekst('pos.posting.card_account_missing|Betalingen med %s kan ikke bogføres, da %s ikke har en konto under kortbetalinger. Salget er ikke afsluttet.', $sprog_id);
 				return sprintf($txt, $unpostedCard, $unpostedCard);
