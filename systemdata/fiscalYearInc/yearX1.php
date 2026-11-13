@@ -51,6 +51,7 @@ function yearX1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $sluta
 		print "<td align='center'><input type='checkbox' name='aaben' onchange=\"javascript:docChange = true;\"></td>\n";
 	}
 
+	$styleborder = '';  // SST-1005: defined for every menu, as the first year after a deleted year now uses this form
 	if ($menu=='T') {
 		$styleborder="bordercolor='$bgcolor5'";
 	} else {

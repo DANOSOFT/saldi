@@ -44,6 +44,7 @@
 //                 A blocked transfer into the saved year keeps that year's opening balances as they were; the alert text is JSON-encoded.
 // 20261113 CL/MMR SST-1005 The «Overfør til» choices that change on the year before are written before this year is locked, and unchanged ones are not written there at all (Codex round 9).
 //                 A deleted year before this one is recognised by the timestamp deleteFiscalYear.php writes too, the card shows the year before's marker, not its own, and the Debet/Kredit opening balances of the first year after a deleted year are saved (Codex round 17).
+//                 The posted year number is cast to an integer, and the «Overfør til» loop only reads saldo when the form posted it (Codex round 18).
 
 @session_start();
 $s_id=session_id();
@@ -103,7 +104,8 @@ $id=if_isset($_GET['id']);
 if ($_POST) {
 	$id = (int)if_isset($_POST['id'],0);
 	$beskrivelse = if_isset($_POST['beskrivelse']);
-	$kodenr = if_isset($_POST['kodenr']);
+	// SST-1005: a fiscal year number, cast before it reaches any SQL (doc/ai/convention_sql_escaping.md).
+	$kodenr = (int)if_isset($_POST['kodenr'], 0);
 	$kode=if_isset($_POST['kode']);
 	$startmd = if_isset($_POST['startmd']);
 	$startaar = if_isset($_POST['startaar']);
@@ -252,8 +254,9 @@ if ($_POST) {
 						db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
 					}
 				}
-				for ($x=1; $x<=$kontoantal; $x++) {
-					if ($saldo[$x] && $overfor_til[$x]) {
+				// SST-1005: only a form with «Overfør til» posts saldo; the Debet/Kredit form above has none.
+				for ($x=1; is_array($saldo) && is_array($overfor_til) && $x<=$kontoantal; $x++) {
+					if (!empty($saldo[$x]) && !empty($overfor_til[$x])) {
 						$qtxt = "update kontoplan set primo=primo+$saldo[$x],overfor_til=$overfor_til[$x] where ";
 						$qtxt = "kontonr='$kontonr[$x]' and regnskabsaar=$kodenr";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
