@@ -49,6 +49,7 @@
 //                 OrderLineDeliveredBackfillTest runs the file from MB-73 to the end with stubbed database functions.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
+// 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -59,6 +60,8 @@
 // ===== segment into the opdat_<major>.<minor>.php file - do not move it. The moved statements =====
 // ===== call these helpers, and this file keeps needing them for the next release. =====
 include_once(__DIR__ . '/opdat_func/deleteStaleTekst.php');
+// guardrails-allow migrations until 2026-12-31 by NTR: helper must load before the existing roles/settings migrations; dialect extraction preserves their order
+require_once __DIR__ . '/opdat_func/databaseDialect.php';
 // ===== END PROTECTED =====
 
 // guardrails-allow migrations until 2026-12-31 by NTR: 5.1.1 version cut retains the resumable backfill below
@@ -76,14 +79,14 @@ foreach (array('Aktivér et regnskabsår under System » Indstillinger » Regnsk
 // 20261016 Sawaneh Review (PR #803): every information_schema check of ours filters on the schema, as master's newer
 //                  blocks do: on MySQL the view spans every database the user can see, so the first tenant's tables
 //                  would hide the others' missing ones.
-$sawanehSchema = in_array($db_type, array('mysql', 'mysqli'), true) ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$sawanehSchema = opdat_schema_filter($db_type);
 
 // 20260916 Sawaneh Roles & permissions (user/settings system spec, part 2): roles,
 // role_permissions, brugere.role_id and the audit log. Built-in roles are seeded and users
 // holding every legacy right get the Administrator role; see includes/permissions.php.
-$sawanehMysql = in_array($db_type, array('mysql', 'mysqli'), true);
-$sawanehId = $sawanehMysql ? 'id INT NOT NULL AUTO_INCREMENT PRIMARY KEY' : 'id SERIAL PRIMARY KEY NOT NULL';
-$sawanehNow = $sawanehMysql ? 'DATETIME DEFAULT CURRENT_TIMESTAMP' : 'timestamp DEFAULT now()';
+$sawanehMysql = opdat_is_mysql($db_type);
+$sawanehId = opdat_id_column($db_type);
+$sawanehNow = opdat_timestamp_column($db_type);
 // One login at a time creates the role tables, seeds the built-in roles and migrates the users (released after the settings migrations below).
 // A session lock: it also ends with the connection if a statement stops the login.
 if (!$sawanehMysql) {
@@ -120,14 +123,16 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 //                 the 5.1.0 cut, and that file never runs for a company created at 5.1.0 or later (includes/opretfunc.php
 //                 stamps the current version and creates no audit_log), so the ALTER TABLE audit_log below would stop its
 //                 login. The same create, with opdat_5.0.php's schema, is repeated here; it is skipped where the table exists.
-$auditLogMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$auditLogMysql = opdat_is_mysql($db_type);
+$auditLogId = opdat_id_column($db_type);
+$auditLogTimestamp = opdat_timestamp_column($db_type, true);
 $qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name = 'audit_log'";
-$qtxt .= $auditLogMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+$qtxt .= opdat_schema_filter($db_type);
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	if ($auditLogMysql) {
 		db_modify("CREATE TABLE IF NOT EXISTS audit_log (
-			id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-			tidspunkt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			$auditLogId,
+			tidspunkt $auditLogTimestamp,
 			bruger_id INTEGER,
 			brugernavn VARCHAR(80),
 			handling VARCHAR(60) NOT NULL,
@@ -142,8 +147,8 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		)", __FILE__ . " linje " . __LINE__);
 	} else {
 		db_modify("CREATE TABLE IF NOT EXISTS audit_log (
-			id SERIAL PRIMARY KEY,
-			tidspunkt TIMESTAMP NOT NULL DEFAULT now(),
+			$auditLogId,
+			tidspunkt $auditLogTimestamp,
 			bruger_id INTEGER,
 			brugernavn VARCHAR(80),
 			handling VARCHAR(60) NOT NULL,
@@ -175,12 +180,10 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			$legacyName .= '_' . date('YmdHis');
 		}
 		db_modify("ALTER TABLE notifications RENAME TO $legacyName", __FILE__ . " linje " . __LINE__);
-		if ($db_type != 'mysql' && $db_type != 'mysqli') {
+		if (!opdat_is_mysql($db_type)) {
 			// The old key and sequence keep the names the new table wants.
-			if (!$sawanehMysql) {
-				db_modify("ALTER INDEX IF EXISTS notifications_pkey RENAME TO {$legacyName}_pkey", __FILE__ . " linje " . __LINE__);
-				db_modify("ALTER SEQUENCE IF EXISTS notifications_id_seq RENAME TO {$legacyName}_id_seq", __FILE__ . " linje " . __LINE__);
-			}
+			db_modify("ALTER INDEX IF EXISTS notifications_pkey RENAME TO {$legacyName}_pkey", __FILE__ . " linje " . __LINE__);
+			db_modify("ALTER SEQUENCE IF EXISTS notifications_id_seq RENAME TO {$legacyName}_id_seq", __FILE__ . " linje " . __LINE__);
 		}
 	}
 	$qtxt = "CREATE TABLE notifications (
@@ -194,7 +197,7 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		expires date,
 		source_key varchar(80))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	if ($db_type != 'mysql' && $db_type != 'mysqli') {
+	if (!opdat_is_mysql($db_type)) {
 		db_modify("DROP INDEX IF EXISTS notifications_user_idx", __FILE__ . " linje " . __LINE__);
 	}
 	db_modify("CREATE INDEX notifications_user_idx ON notifications (user_id, created)", __FILE__ . " linje " . __LINE__);
@@ -239,9 +242,7 @@ foreach (array('objekt_type' => 'varchar(30)', 'objekt_id' => 'varchar(60)', 'ki
 }
 // The indexes once all three columns exist (the objekt_id index cannot be made before its column).
 foreach (array('audit_log_bruger_idx' => 'bruger_id', 'audit_log_objekt_idx' => 'objekt_type, objekt_id') as $auditIdx => $auditIdxCols) {
-	$qtxt = $sawanehMysql
-		? "SELECT index_name FROM information_schema.statistics WHERE table_name = 'audit_log' AND index_name = '$auditIdx' AND table_schema = DATABASE()"
-		: "SELECT indexname FROM pg_indexes WHERE tablename = 'audit_log' AND indexname = '$auditIdx' AND schemaname = current_schema()";
+	$qtxt = opdat_index_query($db_type, 'audit_log', $auditIdx);
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		db_modify("CREATE INDEX $auditIdx ON audit_log ($auditIdxCols)", __FILE__ . " linje " . __LINE__);
 	}
@@ -316,15 +317,11 @@ if (!db_fetch_array(db_select("select id from settings where var_grp = 'payment_
 
 // 20261020 CL/NTR brugere.ansat_id must be integer (it references ansatte.id); older tenants have text/varchar.
 // Blank values become NULL so the conversion cannot fail on them. Idempotent: only runs while the column is still a text type.
-$ansatIdMysql = in_array($db_type, ['mysql', 'mysqli'], true);
-$ansatIdSchema = $ansatIdMysql ? " and table_schema = DATABASE()" : "";
+$ansatIdSchema = opdat_schema_filter($db_type);
 $ansatIdType = db_fetch_array(db_select("select data_type as data_type from information_schema.columns where table_name = 'brugere' and column_name = 'ansat_id'$ansatIdSchema", __FILE__ . " linje " . __LINE__));
 if ($ansatIdType && in_array(strtolower($ansatIdType['data_type']), ['text', 'character varying', 'varchar', 'char', 'tinytext', 'mediumtext', 'longtext'], true)) {
-	if ($ansatIdMysql) {
-		db_modify("UPDATE brugere SET ansat_id = NULL WHERE TRIM(ansat_id) = ''", __FILE__ . " linje " . __LINE__);
-		db_modify("ALTER TABLE brugere MODIFY ansat_id integer NULL DEFAULT NULL", __FILE__ . " linje " . __LINE__);
-	} else {
-		db_modify("ALTER TABLE \"brugere\" ALTER \"ansat_id\" TYPE integer USING NULLIF(trim(ansat_id), '')::integer, ALTER \"ansat_id\" DROP DEFAULT, ALTER \"ansat_id\" DROP NOT NULL", __FILE__ . " linje " . __LINE__);
+	foreach (opdat_nullable_integer_queries($db_type, 'brugere', 'ansat_id') as $qtxt) {
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }
 
