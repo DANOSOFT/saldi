@@ -2,7 +2,8 @@
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
-$db = public_tenant_db(ifset($_GET, "db", ""));
+// SST-992: links copied before 2026-11 carry the account as ?id=; ?db= is the current form.
+$db = public_tenant_db(ifset($_GET, "db", ifset($_GET, "id", "")));
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 
 $query = db_select("SELECT trade_conditions FROM rentalpayment", __FILE__ . " linje " . __LINE__);
@@ -103,6 +104,8 @@ $terms = $row["trade_conditions"];
     <div class="main w-7/8 mx-auto mt-2">
     </div>
     <script src="flowbite.min.js"></script>
+    <?php // SST-992 (review): index.js uses the account validated above, not its own reading of the link (a link can repeat ?db= / ?id=). ?>
+    <script>window.saldiBookingDb = <?php echo json_encode($db, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
     <script src="index.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>
