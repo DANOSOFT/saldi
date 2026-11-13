@@ -39,6 +39,8 @@ Regards:) 20260220 LOE
 //                 open on focus as well as hover.
 // 20261110 CL/MMR SST-990 grid_html() decodes HTML entities before escaping, so a legacy tekster row such as "Bem&aelig;rkning" shows as "Bemærkning" instead of the code.
 //                 A stored legacy header is matched against the code's texts in decoded form.
+// 20261113 CL/LH SST-990 review: the kolonner editor's own header and description inputs use grid_html_exact(), so a saved text round-trips unchanged.
+//                Only displayed texts are decoded, including the placeholders of a column added since the setup.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.
@@ -677,11 +679,29 @@ function grid_known_header_texts($column) {
  *
  * ENT_QUOTES because every attribute grid.php writes is single-quoted.
  *
+ * For displayed text only: it decodes entities first (SST-990). A value an input posts back goes
+ * through grid_html_exact() instead.
+ *
  * @param mixed $value The stored value.
  * @return string Safe for HTML text and for a single- or double-quoted attribute.
  */
 function grid_html($value) {
     return htmlspecialchars(grid_plain_text($value), ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * SST-990 review: escapes a value an input posts back, without decoding its entities first.
+ *
+ * The kolonner editor's header and description inputs are posted back and stored by
+ * save_column_setup(). grid_html() would decode them, so every unchanged save would strip one level
+ * of entities from the user's own text ("A &amp;amp; B" becomes "A &amp; B", then "A & B"). Escaping
+ * the stored text as-is makes the browser post back exactly what was saved.
+ *
+ * @param mixed $value The stored value.
+ * @return string Safe for HTML text and for a single- or double-quoted attribute.
+ */
+function grid_html_exact($value) {
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
 /**
@@ -1784,9 +1804,10 @@ function render_columns($id, $columns, $all_columns, $hidden_columns = array()) 
             }
         }
         // The stored per-user texts are echoed straight back into value='...' here, so the
-        // kolonner editor is a second sink for the same stored XSS as the header row.
-        $customHeaderSafe      = grid_html($column['customHeaderName']);
-        $customDescriptionSafe = grid_html($column['customDescription']);
+        // kolonner editor is a second sink for the same stored XSS as the header row. They are
+        // posted back on save, so they are escaped without decoding; the placeholders are display only.
+        $customHeaderSafe      = grid_html_exact($column['customHeaderName']);
+        $customDescriptionSafe = grid_html_exact($column['customDescription']);
         $codeHeaderSafe        = grid_html($codeHeader);
         $codeDescriptionSafe   = grid_html($codeDescription);
         $alignSafe             = grid_align($column['align']);
@@ -1861,8 +1882,8 @@ HTML;
                 break;
             }
         }
-        $codeHeaderHtml = htmlspecialchars($codeHeader, ENT_QUOTES, 'UTF-8');
-        $codeDescriptionHtml = htmlspecialchars($codeDescription, ENT_QUOTES, 'UTF-8');
+        $codeHeaderHtml = grid_html($codeHeader);
+        $codeDescriptionHtml = grid_html($codeDescription);
         echo <<<HTML
             <tr>
                 <td>

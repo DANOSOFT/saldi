@@ -11,6 +11,8 @@ use PHPUnit\Framework\TestCase;
 //                  unescaped value is both reflected and stored.
 // 20261110 CL/MMR SST-990 grid_plain_text() is lifted too.
 //                  Legacy entity headers show their letters, and entity-encoded payloads stay neutralised.
+// 20261113 CL/LH SST-990 review: the kolonner editor's header and description inputs post back the
+//                  stored text unchanged, while its placeholders show the decoded code texts.
 //
 //                  render_table_headers() is extracted from the source rather than reached by
 //                  including grid.php, which would run the whole grid at include time.
@@ -24,25 +26,37 @@ final class GridSearchTermEscapingTest extends TestCase
      */
     private static function defineHelpers(string $src): void
     {
-        foreach (['grid_plain_text', 'grid_html', 'grid_align'] as $name) {
+        foreach (['grid_plain_text', 'grid_html', 'grid_html_exact', 'grid_align'] as $name) {
             if (function_exists($name)) {
                 continue;
             }
-            $start = strpos($src, "function $name(");
-            self::assertNotFalse($start, "$name() not found in grid.php");
-            $open = strpos($src, '{', $start);
-            $depth = 0;
-            for ($i = $open; $i < strlen($src); $i++) {
-                if ($src[$i] === '{') $depth++;
-                if ($src[$i] === '}') {
-                    $depth--;
-                    if ($depth === 0) break;
-                }
-            }
-            self::assertSame(0, $depth, "$name() has unbalanced braces");
-            eval(substr($src, $start, $i - $start + 1));
+            eval(self::functionSource($src, $name));
             self::assertTrue(function_exists($name), "$name() did not define");
         }
+    }
+
+    /**
+     * Cuts one complete function definition out of the grid.php source.
+     *
+     * @param string $src The full source of includes/grid.php.
+     * @param string $name The function's name.
+     * @return string The definition, from "function" to its closing brace.
+     */
+    private static function functionSource(string $src, string $name): string
+    {
+        $start = strpos($src, "function $name(");
+        self::assertNotFalse($start, "$name() not found in grid.php");
+        $open = strpos($src, '{', $start);
+        $depth = 0;
+        for ($i = $open; $i < strlen($src); $i++) {
+            if ($src[$i] === '{') $depth++;
+            if ($src[$i] === '}') {
+                $depth--;
+                if ($depth === 0) break;
+            }
+        }
+        self::assertSame(0, $depth, "$name() has unbalanced braces");
+        return substr($src, $start, $i - $start + 1);
     }
 
     /** @return callable render_table_headers() lifted out of includes/grid.php */
@@ -288,6 +302,107 @@ final class GridSearchTermEscapingTest extends TestCase
         self::assertStringNotContainsString('&amp;oslash;', $html);
     }
 
+    /** @return callable render_columns() lifted out of includes/grid.php */
+    private static function editorRenderer(): callable
+    {
+        static $fn = null;
+        if ($fn !== null) {
+            return $fn;
+        }
+        $src = file_get_contents(__DIR__ . '/../../../includes/grid.php');
+        self::defineHelpers($src);
+        $body = self::functionSource($src, 'render_columns');
+        $fn = eval('return ' . preg_replace('/^function render_columns\s*\(/', 'function (', $body, 1) . ';');
+        self::assertIsCallable($fn);
+        return $fn;
+    }
+
+    /**
+     * Renders the kolonner editor rows for one column the user has in their setup and one the
+     * normalisation hid, both against the same code column.
+     *
+     * @param array<string, string> $stored The user's stored customHeaderName/customDescription.
+     * @param array<string, string> $code The code column's headerName/description.
+     * @return string The emitted HTML.
+     */
+    private function editorHtml(array $stored, array $code): string
+    {
+        $codeColumn = $code + ['field' => 'kladdenote', 'width' => '1', 'align' => 'left'];
+        $column = $stored + $codeColumn;
+        ob_start();
+        try {
+            (self::editorRenderer())('kladde', [$column], [$codeColumn], [$codeColumn]);
+        } finally {
+            $html = ob_get_clean();
+        }
+        return (string)$html;
+    }
+
+    /**
+     * The attribute values the browser would hold for every input of one name, in page order.
+     *
+     * @param string $html The editor HTML.
+     * @param string $attr value or placeholder.
+     * @param string $name customHeaderName or customDescription.
+     * @return list<string> The decoded attribute values.
+     */
+    private static function attributeValues(string $html, string $attr, string $name): array
+    {
+        preg_match_all("/<input[^>]*name='rows\[kladde\]\[\d+\]\[$name\]'[^>]*>/", $html, $inputs);
+        $values = [];
+        foreach ($inputs[0] as $input) {
+            if (preg_match("/ $attr='([^']*)'/", $input, $m)) {
+                $values[] = html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
+        }
+        return $values;
+    }
+
+    /**
+     * SST-990 review: the editor posts its inputs back to save_column_setup(), so a decoding escape
+     * would strip one entity level from the user's own text on every unchanged save.
+     */
+    public function testEditorInputsPostBackTheStoredTextUnchanged(): void
+    {
+        $html = $this->editorHtml(
+            ['customHeaderName' => 'A &amp;amp; B', 'customDescription' => 'Bem&aelig;rkning <b>'],
+            ['headerName' => 'Bemærkning', 'description' => '']
+        );
+
+        self::assertSame(['A &amp;amp; B'], self::attributeValues($html, 'value', 'customHeaderName'));
+        self::assertSame(['Bem&aelig;rkning <b>'], self::attributeValues($html, 'value', 'customDescription'));
+        self::assertStringNotContainsString('<b>', $html);
+    }
+
+    /**
+     * A hostile stored value still cannot break out of the editor's value attribute. The editor
+     * draws its own <svg> icons, so the check is that the raw payload never appears and the
+     * attribute holds exactly the stored text.
+     */
+    #[DataProvider('storedHeaderPayloads')]
+    public function testEditorInputIsNeutralised(string $payload): void
+    {
+        $html = $this->editorHtml(['customHeaderName' => $payload, 'customDescription' => ''], ['headerName' => 'X', 'description' => '']);
+
+        self::assertStringNotContainsString($payload, $html);
+        self::assertSame([$payload], self::attributeValues($html, 'value', 'customHeaderName'));
+    }
+
+    /**
+     * SST-990: the placeholders are the code's texts and are never posted, so a legacy tekster
+     * row shows its letters there too, on the user's own rows and on a column added since the setup.
+     */
+    public function testEditorPlaceholdersShowTheLegacyCodeTextDecoded(): void
+    {
+        $html = $this->editorHtml(
+            ['customHeaderName' => '', 'customDescription' => ''],
+            ['headerName' => 'Bem&aelig;rkning', 'description' => 'Bogf&oslash;rt']
+        );
+
+        self::assertSame(['Bemærkning', 'Bemærkning'], self::attributeValues($html, 'placeholder', 'customHeaderName'));
+        self::assertSame(['Bogført', 'Bogført'], self::attributeValues($html, 'placeholder', 'customDescription'));
+    }
+
     /**
      * @return callable DEFAULT_CELL_RENDERE() lifted out of includes/grid.php
      *
@@ -305,19 +420,7 @@ final class GridSearchTermEscapingTest extends TestCase
         }
         $src = file_get_contents(__DIR__ . '/../../../includes/grid.php');
         self::defineHelpers($src);
-        $start = strpos($src, 'function DEFAULT_CELL_RENDERE(');
-        self::assertNotFalse($start, 'DEFAULT_CELL_RENDERE() not found in grid.php');
-        $open = strpos($src, '{', $start);
-        $depth = 0;
-        for ($i = $open; $i < strlen($src); $i++) {
-            if ($src[$i] === '{') $depth++;
-            if ($src[$i] === '}') {
-                $depth--;
-                if ($depth === 0) break;
-            }
-        }
-        self::assertSame(0, $depth, 'DEFAULT_CELL_RENDERE() has unbalanced braces');
-        $body = substr($src, $start, $i - $start + 1);
+        $body = self::functionSource($src, 'DEFAULT_CELL_RENDERE');
         $fn = eval('return ' . preg_replace('/^function DEFAULT_CELL_RENDERE\s*\(/', 'function (', $body, 1) . ';');
         self::assertIsCallable($fn);
         return $fn;
