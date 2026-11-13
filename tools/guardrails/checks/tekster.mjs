@@ -1,4 +1,4 @@
-// tools/guardrails/checks/tekster.mjs - numeric and descriptive translation seed files stay loadable.
+// tools/guardrails/checks/tekster.mjs - translation seed files stay loadable, and new texts take keys.
 //
 // The file is read as raw tab-separated text: `id<TAB>Dansk<TAB>English<TAB>Norsk`,
 // no quoting. findtekst() caches each row in the tenant's `tekster` table and
@@ -15,12 +15,17 @@
 //     deleteStaleTekst())
 //   - two branches taking the same id (66f9b780, 88c23099, e76b88b4, #549)
 //   - findtekst('NNNN|fallback') pointing at the wrong id (25e8a19e, 01451348)
+//   - a new numeric id at all: tekster.csv takes no new ids, so open branches
+//     cannot collide on the next free number (#942 600411b0 ids 7650-7651,
+//     #831 56f0e16f ids 5440-5441); a new text takes a descriptive key
 //
 // History:
 // 20261027 CL/LH Created.
 // 20261029 CDX/NTR Validate standard/custom descriptive-key TSVs and keyed fallbacks.
 // 20261029 CDX/NTR Require new custom overrides to purge standard translations already cached by tenants.
 // 20261029 CDX/NTR Check keyed TSV ordering when either adjacent row was added.
+// 20261103 CL/LH Keys only: refuse a new numeric id in tekster.csv.
+// 20261109 CL/LH The rewording and keyed-TSV messages point at descriptive keys or deleteStaleTekst(), not at new ids.
 
 import { splitLines } from "../lib/changeset.mjs";
 
@@ -96,7 +101,20 @@ function checkCsv(ctx, file, findings) {
     findings.push({
       path: CSV,
       line: dup.line,
-      message: `id ${dup.fields[0]} is already used on line ${dup.first}. Another branch took it first; give this text a new id above the current maximum.`,
+      message: `id ${dup.fields[0]} is already used on line ${dup.first}. Another branch took it first; give this text a descriptive key in ${KEYED_TSV} instead.`,
+    });
+  }
+
+  // Keys only: an id the base does not have, on a line this change added.
+  for (const [id, row] of head.byId) {
+    if (base.byId.has(id) || !file.added.has(row.line) || !/^\d+$/.test(id)) continue;
+    findings.push({
+      path: CSV,
+      line: row.line,
+      message:
+        `new numeric id ${id}: ${CSV} takes no new ids, because two open branches take the same next number. ` +
+        `Add the text to ${KEYED_TSV} under a descriptive key and call findtekst('area.what|Fallback', $sprog_id) ` +
+        `(doc/ai/convention_findtekst_keys.md).`,
     });
   }
 
@@ -130,8 +148,8 @@ function checkCsv(ctx, file, findings) {
         line: after.line,
         message:
           `id ${id}'s text changed, but tenants keep the old text: findtekst() prefers the row cached in their tekster table. ` +
-          `Either give the new text a new id, or add deleteStaleTekst(${id}, '<old text>') at the end of ${UPDATES} ` +
-          `(includes/opdat_func/deleteStaleTekst.php).`,
+          `Either put the row back and give the new text a descriptive key in ${KEYED_TSV} (${CSV} takes no new ids), ` +
+          `or add deleteStaleTekst(${id}, '<old text>') at the end of ${UPDATES} (includes/opdat_func/deleteStaleTekst.php).`,
       });
     }
   }
@@ -164,7 +182,7 @@ function checkKeyedTsv(ctx, file, path, findings) {
     const fields = text.replace(/\r$/, "").split("\t");
     const key = fields[0] ?? "";
     const problems = [];
-    if (/^\d+$/.test(key)) problems.push(`the key "${key}" is numeric; numeric ids belong in ${CSV}`);
+    if (/^\d+$/.test(key)) problems.push(`the key "${key}" is numeric; use a descriptive key such as area.what (${CSV} takes no new ids)`);
     else if (!/^[a-z0-9][a-z0-9_.-]{0,189}$/.test(key)) problems.push(`the key "${key}" must be 1-190 lowercase letters, digits, dots, underscores or hyphens`);
     if (fields.length !== 4) problems.push(`it has ${fields.length} tab-separated fields; it needs exactly 4: tekst_key, Dansk, English, Norsk`);
     else if (fields.slice(1).some((field) => field.trim() === "")) problems.push("a language column is empty");
@@ -184,7 +202,7 @@ function checkKeyedTsv(ctx, file, path, findings) {
         line: after.line,
         message:
           `key ${key}'s text changed, but tenants keep the old text: findtekst() prefers the row cached in their tekster table. ` +
-          `Add deleteStaleTekst('${key}', <old text or texts>) at the end of ${UPDATES}.`,
+          `Either give the new text a new descriptive key, or add deleteStaleTekst('${key}', <old text or texts>) at the end of ${UPDATES}.`,
       });
     }
   }
@@ -218,7 +236,11 @@ function checkFallbacks(ctx, findings) {
         if (/[$}]/.test(fallback) || fallback.trim() === "") continue;
         const row = csv.get(id);
         if (!row) {
-          findings.push({ path: file.path, line, message: `findtekst('${id}|...'): id ${id} is not in ${CSV}; add the row in the same change.` });
+          findings.push({
+            path: file.path,
+            line,
+            message: `findtekst('${id}|...'): id ${id} is not in ${CSV}, and the file takes no new ids; use a descriptive key from ${KEYED_TSV}.`,
+          });
           continue;
         }
         const wanted = normalise(fallback);
@@ -255,7 +277,7 @@ function checkFallbacks(ctx, findings) {
 
 export default {
   id: "tekster",
-  summary: "numeric and descriptive translation seeds are well-formed, unique, cache-safe, and match findtekst fallbacks",
+  summary: "translation seeds are well-formed, unique, cache-safe, keys-only for new texts, and match findtekst fallbacks",
   run(ctx) {
     const findings = [];
     const csvFile = ctx.files.find((file) => file.path === CSV && file.status !== "D");

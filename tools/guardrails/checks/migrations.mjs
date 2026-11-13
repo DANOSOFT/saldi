@@ -18,6 +18,7 @@
 // 20261027 CL/LH Created.
 // 20261102 CDX/NTR Allow initial-schema DDL in includes/opretfunc.php for new regnskaber.
 // 20261102 CDX/NTR Document admin/opret.php alongside includes/opretfunc.php in the creation exception.
+// 20261103 CL/LH Export COMMENT, so the door markers skip comment lines the same way.
 
 import { splitLines } from "../lib/changeset.mjs";
 
@@ -26,7 +27,8 @@ const PROTECTED = /^includes\/(opdat_[^/]+|betweenUpdates2)\.php$/;
 const SCHEMA_FILES = /^(includes\/(betweenUpdates|opdater|opretfunc|opdat_[^/]+)\.php|includes\/opdat_func\/|index\/install\.php|admin\/opret\.php|tests\/|tools\/)/;
 const DDL = /\b(ALTER\s+TABLE|CREATE\s+(UNIQUE\s+)?INDEX|CREATE\s+TABLE|DROP\s+(TABLE|INDEX|COLUMN)|ADD\s+COLUMN|RENAME\s+COLUMN)\b|\bensureTableAndColumns\s*\(/i;
 const TEMPORARY = /CREATE\s+(TEMP|TEMPORARY)\s+TABLE/i;
-const COMMENT = /^\s*(\/\/|#|\*|\/\*)/;
+/** A comment line in PHP, JavaScript or YAML. lib/station.mjs skips these for the door markers. */
+export const COMMENT = /^\s*(\/\/|#|\*|\/\*)/;
 
 /** Index (1-based) of the first line after the header comment block, and of the first footer line. */
 function bodyBounds(lines) {

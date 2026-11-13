@@ -6,13 +6,36 @@
 //
 //   // guardrails-allow migrations until 2026-12-31 by NTR: runs before the shop sync block
 //
-// After the expiry date the finding comes back. The approver's initials are
-// checked by the reviewer, not by this code.
+// After the expiry date the finding comes back. In code the approver's initials
+// are checked by the reviewer, not by this code. The PR description uses the
+// same line in its Merge Danger section, with the commit the reviewer approved
+// after the initials ("by NTR at 1a2b3c4d5e6f: ..."), where checks/pr-body.mjs
+// also checks the description's edit history (the line counts only when a
+// reviewer added it) and that the file is unchanged since that commit.
 //
 // History:
 // 20261027 CL/LH Created.
+// 20261103 CL/LH parseException() reads one line, so the PR description shares the parser.
+// 20261109 CL/LH An optional "at <sha>" after the initials: the commit a PR description's exception was approved at.
 
-const EXCEPTION = /guardrails-allow\s+([a-z0-9-]+)\s+until\s+(\d{4}-\d{2}-\d{2})\s+by\s+([A-Z]{2,4})\s*:\s*(\S.*)/;
+const EXCEPTION = /guardrails-allow\s+([a-z0-9-]+)\s+until\s+(\d{4}-\d{2}-\d{2})\s+by\s+([A-Z]{2,4})(?:\s+at\s+([0-9a-f]{7,40}))?\s*:\s*(\S.*)/;
+
+/**
+ * Read one line as an exception for `check`.
+ *
+ * @returns {null | {kind: "malformed"} | {kind: "other"} | {kind: "expired", until: string}
+ *   | {kind: "allowed", until: string, by: string, at: string|null, reason: string}}  null when the line has no
+ *   exception; at: the commit named after the initials, or null
+ */
+export function parseException(text, check, today) {
+  if (!text || !text.includes("guardrails-allow")) return null;
+  const match = EXCEPTION.exec(text);
+  if (!match) return { kind: "malformed" };
+  const [, id, until, by, at, reason] = match;
+  if (id !== check) return { kind: "other" };
+  if (until < today) return { kind: "expired", until };
+  return { kind: "allowed", until, by, at: at ?? null, reason };
+}
 
 /**
  * Look for an exception for `check` on `line` or the line above it.
@@ -22,19 +45,16 @@ const EXCEPTION = /guardrails-allow\s+([a-z0-9-]+)\s+until\s+(\d{4}-\d{2}-\d{2})
  */
 export function findException(lines, line, check, today) {
   for (const candidate of [line, line - 1]) {
-    const text = lines[candidate - 1];
-    if (!text || !text.includes("guardrails-allow")) continue;
-    const match = EXCEPTION.exec(text);
-    if (!match) {
+    const exception = parseException(lines[candidate - 1], check, today);
+    if (!exception || exception.kind === "other") continue;
+    if (exception.kind === "malformed") {
       return {
         allowed: false,
         problem: `line ${candidate} has a malformed exception; write "guardrails-allow <check> until YYYY-MM-DD by <INITIALS>: <reason>"`,
       };
     }
-    const [, id, until, , reason] = match;
-    if (id !== check) continue;
-    if (until < today) return { allowed: false, problem: `the exception on line ${candidate} expired on ${until}` };
-    return { allowed: true, reason };
+    if (exception.kind === "expired") return { allowed: false, problem: `the exception on line ${candidate} expired on ${exception.until}` };
+    return { allowed: true, reason: exception.reason };
   }
   return null;
 }
