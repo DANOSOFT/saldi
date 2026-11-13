@@ -50,6 +50,8 @@
 //                 A Ctrl/Cmd/Shift-click on Lås, a sort link or Vis lukkede opens another tab without asking, so the unsaved-changes guard stays on in this one.
 // 20261113 CDX/NTR Format last activity safely in normal and edit views when registry rows contain date strings.
 // 20261113 CL/ASR Same fix for the new layout: vr_ts() turns regnskab.sidst into Unix seconds (legacy rows hold a calendar date) before vr_rel() and the date tooltip use it.
+// 20261113 CL/ASR Ids, the posting limit, hints and closed rows use --text-2 instead of --text-3, so they are readable in the light theme.
+//                 The off switch and the closed-status dot use --text-3 instead of --text-4. The design-system token values are unchanged.
 
 @session_start();
 $s_id=session_id();
