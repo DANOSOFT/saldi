@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-04---
+// --- includes/online.php --- ver 5.1.1 --- 2026-11-13---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,11 @@
 //                 API, JSON, webservice and CLI requests, redirects and non-HTML answers (PDF, CSV) are left as before.
 //                 A page load also shows the box of an earlier page that moved on before it could be seen (a meta refresh right after a failed query).
 // 20261109 NTR - Moved the cookie include below the comment header.
+// 20261105 CL/MMR SD-807 'Session expired' uses the language chosen on the login page (languageId cookie), as there is no online row, and 'Account closed' is translated.
+//                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
+// 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
+//                 Their blocks include std_func.php through __DIR__.
+// 20261113 CDX/NTR Merge translated session messages with role enforcement and error reporting.
 
 include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
@@ -183,8 +188,13 @@ if ($r = db_fetch_array($q)) {
 	else {
 		if (!$nextver) { # 20150125
 			// check if std_func exists in the includes folder
-			include($relativePath . "includes/std_func.php");
-			$txt = '&nbsp;Din session er udl&oslash;bet - du skal logge ind igen';
+			include(__DIR__ . '/std_func.php');
+			// No online row, so the texts (also the close button of tekstboks()) use the language chosen on the login page.
+			$sprog_id = (int) ifset($_COOKIE, 'languageId', 1);
+			if ($sprog_id < 1 || $sprog_id > 3) {
+				$sprog_id = 1;
+			}
+			$txt = '&nbsp;' . findtekst('8433|Din session er udløbet - du skal logge ind igen', $sprog_id);
 			print tekstboks($txt);
 			print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/logud.php\">";
 			exit;
@@ -192,7 +202,9 @@ if ($r = db_fetch_array($q)) {
 	}
 }
 if (isset($_POST['thisDb']) && $db && strpos($db,'_') && $db != $_POST['thisDb']) {
-	alert ("Du har skiftet regnskab fra $_POST[thisDb] til $db, handling afbrudt");
+	include_once(__DIR__ . '/std_func.php');
+	$txt = sprintf(findtekst('8463|Du har skiftet regnskab fra %s til %s, handling afbrudt', $sprog_id), $_POST['thisDb'], $db);
+	print "<script type='text/javascript'>alert(" . jsString(array($txt)) . ");</script>";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
 	$_POST = $_GET = NULL;
 }
@@ -202,8 +214,8 @@ if ($sqdb == 'udvikling') $labelprint = 1;
 $kundedisplay = 0;
 
 if ($modulnr && $modulnr < 100 && $db == $sqdb) { #Lukker vinduet hvis revisorbruger er logget af
-	include($relativePath . "includes/std_func.php");
-	$txt = 'Du har logget ud - vinduet lukkes';
+	include(__DIR__ . '/std_func.php');
+	$txt = findtekst('8464|Du har logget ud - vinduet lukkes', $sprog_id);
 	print tekstboks($txt);
 	print "<meta http-equiv=\"refresh\" content=\"4;URL=../includes/luk.php\">";
 	exit;
@@ -294,7 +306,14 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	} else $baseCurrency = 'DKK';
 	if (!$revisor) {
 		if ($lukket) {
-			echo "regnskabet er lukket";
+			// Some pages include online.php before std_func.php, so findtekst() may not be loaded yet.
+			include_once(__DIR__ . '/std_func.php');
+			// During login there is no online row yet (the closing date has just passed), so use the language chosen on the login page.
+			$closedLanguageId = (ifset($title) == 'login') ? (int) ifset($_COOKIE, 'languageId', 1) : (int) $sprog_id;
+			if ($closedLanguageId < 1 || $closedLanguageId > 3) {
+				$closedLanguageId = 1;
+			}
+			echo findtekst('8434|Regnskabet er lukket', $closedLanguageId);
 			print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/index.php\">";
 			exit;
 		}

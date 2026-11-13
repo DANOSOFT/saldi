@@ -34,6 +34,8 @@
 // 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
 // 20261103 CL/ASR QA round 2: the key and level follow the action; changes need write, the booking settings need settings.sales, and the SMTP login and the Vibrant key need write on settings.email and settings.integrations.
 //                 The stored password and API key are no longer sent back to the browser; an empty field keeps them.
+// 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
+//                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 
     @session_start();
     $s_id=session_id();
@@ -1772,8 +1774,10 @@
             ($webservice) ?$leveres=$antal:$leveres=0; 
             if ($id && is_numeric($posnr)) {
                 $momslog=fopen("../temp/$db/momslog.log","a");
-                fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
-                fclose ($momslog);
+                if ($momslog) { #20261030
+                    fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
+                    fclose ($momslog);
+                }
                 if ($varemomssats && !$vatAccount) {
                     $alerttxt= __line__." Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
                     alert ($alerttxt);

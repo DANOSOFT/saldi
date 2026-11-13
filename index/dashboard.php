@@ -62,6 +62,8 @@
 // 20261103 CL/ASR QA: the months to date are counted over the fiscal year's own months (dashData.php), not always 12.
 // 20261103 CL/ASR QA round 2: the VAT figure needs Finansrapport, each POS shortcut needs the right for its page, and a role without any block (Indkøb) gets a short note with links to its modules instead of an empty page.
 // 20261108 CL/ASR css/dashboard.css ?v=8 and css/saldi-theme.css ?v=8: the page ground is Saldi's classic page colour #eeeef0, the panels stay white (owner, 8 Nov 2026).
+// 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
+// 20261104 LOE MB-62 A read-only user may open the overview but not change the settings it shares.
 @session_start();
 $s_id = session_id();
 ob_start();

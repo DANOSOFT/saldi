@@ -165,7 +165,8 @@ function getSupplierGroupData($lev_id) {
         return null;
     }
     
-    $query = "SELECT box1, box3 FROM grupper 
+    // SST-951: box4 is the group's language (Sprog), which decides the forms the order prints with
+    $query = "SELECT box1, box3, box4 FROM grupper
               WHERE kode = 'K' 
               AND art = 'KG' 
               AND kodenr = '" . db_escape_string($supplier['gruppe']) . "' 
@@ -245,8 +246,9 @@ function createNewOrder($lev_id, $ref, &$pris, $baseCurrency, $ordredate) {
     // Get VAT rate
     $momssats = getVatRate($kode, $kodenr);
     
-    // Insert the order
-    $ordre_id = insertOrder($ordrenr, $supplier, $ref, $ordredate, $momssats, $valuta, $valutaKurs);
+    // Insert the order, in the language of the supplier's group (SST-951)
+    $sprog = trim((string)ifset($supplier_data['group_info'], 'box4', ''));
+    $ordre_id = insertOrder($ordrenr, $supplier, $ref, $ordredate, $momssats, $valuta, $valutaKurs, $sprog ? $sprog : 'Dansk');
     
     return $ordre_id;
 }
@@ -281,10 +283,10 @@ function getVatRate($kode, $kodenr) {
 /**
  * Insert order into database
  */
-function insertOrder($ordrenr, $supplier, $ref, $ordredate, $momssats, $valuta, $valutaKurs) {
+function insertOrder($ordrenr, $supplier, $ref, $ordredate, $momssats, $valuta, $valutaKurs, $sprog = 'Dansk') {
     $query = "INSERT INTO ordrer (
         ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land,
-        betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, valuta, valutakurs
+        betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, valuta, valutakurs, sprog
     ) VALUES (
         '" . db_escape_string($ordrenr) . "',
         '" . db_escape_string($supplier['id']) . "',
@@ -305,7 +307,8 @@ function insertOrder($ordrenr, $supplier, $ref, $ordredate, $momssats, $valuta, 
         '0',
         '" . db_escape_string($ref) . "',
         '" . db_escape_string($valuta) . "',
-        '" . db_escape_string($valutaKurs) . "'
+        '" . db_escape_string($valutaKurs) . "',
+        '" . db_escape_string($sprog) . "'
     )";
     
     db_modify($query, __FILE__ . " line " . __LINE__);

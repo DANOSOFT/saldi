@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-10-27 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -147,16 +147,28 @@
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+// 20261016 CL/MJ SST-876 linjeopdat(): a webshop that refuses the stock update is written to the php error log. Nothing read sync_shop_vare()'s answer before, so a shop could stop taking stock figures for days without a trace.
 // 20261019 CL/LH MB-73: linjeopdat() adds the delivered quantity to coalesce(leveret,0), as NULL+n stayed NULL and fast invoicing and credit notes never recorded it.
 //                opret_ordrelinje() inserts leveret = 0.
 //                krediter_pos() starts the return line at leveret 0, as the sold line's leveret is now recorded and copying it cancelled the return.
 //                Braces added to the brace-less ifs in the edited blocks.
+// 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells the webshops once when every line is posted. An item on two lines was two sends, and a set the lines share was sent once per line: item 13054 is a component in 33 sets, so one order line was 198 webshop calls and the 30 second budget skipped everything after it.
+// 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
+// 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
 // 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery
 //                records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
 // 20261008 SS The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
 // 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261029 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
+//                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
+// 20261101 CL/MJ SST-910 linjeopdat(): a return on an item without batch control goes back into the purchase batches.
+//                With a reference it raises rest on the batches the original line sold from.
+//                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
+// 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
+require_once __DIR__ . '/sharedFile.php';
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -495,6 +507,13 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	#fclose ($fp);
 /* echo "<!--function levering slut-->"; */
 	#xit;
+	# SST-876: every line is marked. With an open transaction, the flush defers these
+	# figures until the owner drains after commit; otherwise it sends the document now.
+	# Failed item numbers belong to the screen caller, never a popup in this shared function.
+	$shopSync = shopSyncFlush(0); # Document only; the transaction owner drains after commit.
+	if (shopSyncFailed($shopSync)) {
+		error_log("saldi: shop stock sync failed on order $id for: " . implode(', ', shopSyncFailedItems()));
+	}
 	return ("OK");
 } #endfunc levering
 
@@ -636,28 +655,54 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			if ($art == 'DK' || $antal < 0) {
 				$tmp = $antal * -1;
 				$bk_id = 0;
-				if ($kred_linje_id)
-					$qtxt = "select * from batch_salg where linje_id = '$kred_linje_id' order by id desc"; #20170507
-				else
+				if ($kred_linje_id) { # One row per batch: what the original line took from it in all its deliveries
+					$qtxt = "select batch_kob_id, sum(antal) as antal, max(id) as id from batch_salg";
+					$qtxt .= " where linje_id = '$kred_linje_id' and vare_id = '$vare_id' group by batch_kob_id order by max(id) desc"; #20170507
+				} else {
 					$qtxt = "select * from batch_salg where linje_id = '$linje_id' and batch_kob_id != 0  order by id desc";
+				}
+				
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					$bs_antal = $r['antal'];
 					$bs_id = $r['id'];
 					$bk_id = $r['batch_kob_id']; # 20170507
-					$qtxt = "select antal,rest from batch_kob where id = '$bk_id'"; #20170507
+					$qtxt = "select antal,rest,lager from batch_kob where id = '$bk_id'"; #20170507
 					$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					if (!$r2) {
+						continue; # No batch behind the row (batch_kob_id 0): nothing to give back to
+					}
 					$tmp2 = $r2['antal'] - $r2['rest']; #$tmp2 er det antal det kan lægges tilbage på linjen.
-					
+					if ($kred_linje_id) {
+						// 20261101 CL/MJ SST-910 Only a batch in the warehouse the return goes to takes
+						//             it back, because a sale only draws from its own warehouse. And only
+						//             what the original line took from it, less what earlier credits of
+						//             that line already returned to it (their rows are negative).
+						if ((int)$r2['lager'] != (int)$lager) {
+							continue;
+						}
+						$qtxt = "select coalesce(sum(bs.antal), 0) as antal from batch_salg bs, ordrelinjer ol where ol.id = bs.linje_id";
+						$qtxt .= " and ol.kred_linje_id = '$kred_linje_id' and bs.batch_kob_id = '$bk_id' and bs.vare_id = '$vare_id'";
+						$r3 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						$bs_antal += (float)$r3['antal'];
+					}
+
 					$max_retur = min($tmp, $tmp2, $bs_antal);
 					
 					if ($max_retur > 0) {
 						$ny_rest = $r2['rest'] + $max_retur;
-						
-						if (!$kred_linje_id) {
-							$qtxt = "update batch_kob set rest='$ny_rest' where id = '$bk_id'";
+						// 20261101 CL/MJ SST-910 A credit note with a reference puts the quantity back
+						//             on the batches the original line sold from as well, so a later sale
+						//             takes its cost from them. It keeps a negative batch_salg row per
+						//             batch instead of shrinking the original line's rows.
+						$qtxt = "update batch_kob set rest='$ny_rest' where id = '$bk_id'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						if ($kred_linje_id) {
+							$qtxt = "insert into batch_salg(batch_kob_id,vare_id,linje_id,salgsdate,ordre_id,antal,pris,lev_nr,lager,variant_id)";
+							$qtxt .= " values ";
+							$qtxt .= "('$bk_id', '$vare_id', '$linje_id', '$levdate', '$id', '" . ($max_retur * -1) . "', '$pris', '$lev_nr','$lager','$variant_id')";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-							
+						} else {
 							$qtxt = "update batch_salg set antal=antal-$max_retur where id = '$bs_id'";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 							db_modify("delete from batch_salg where id='$bs_id' and antal <= 0", __FILE__ . " linje " . __LINE__);
@@ -665,31 +710,42 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 						$tmp -= $max_retur;
 					}
 				}
-				if ($kred_linje_id) {
-					$bk_id *= 1;
-					$tmp2 = $tmp * -1;
-					$qtxt = "insert into batch_salg(batch_kob_id,vare_id,linje_id,salgsdate,ordre_id,antal,pris,lev_nr,lager,variant_id)";
-					$qtxt .= " values ";
-					$qtxt .= "('$bk_id', '$vare_id', '$linje_id', '$levdate', '$id', '$antal', '$pris', '$lev_nr','$lager','$variant_id')"; #20170529.
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					$tmp = 0;
-				}
 
+				$tmp = round($tmp, 3); # No batch for a float remainder of the subtraction above
 				if ($tmp) { # F.eks negativt salg uden købsreference
-					// 20260923 MJ SST-796 Same stale-cost-price exposure as the normal-sale branch
-					//             below: this quantity has no batch_kob behind it, so its cost was
-					//             taken from the static varer.kostpris. $kred_linje_id zeroes $tmp
-					//             above, so a return booked against a specific original sale line
-					//             never reaches here - there is no historical cost to inherit, and an
-					//             open purchase line is the better estimate. Shared resolver so the
-					//             two branches cannot drift apart again.
-					include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
-					$kostpris = deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, 'negativt salg/kreditnota', $webservice);
+					// 20261101 CL/MJ SST-910 The returned quantity no batch takes back gets a batch of
+					//             its own, so stock and batches stay equal and a later sale takes its
+					//             cost from it. antal stays 0, like a deficit batch, because the
+					//             negative batch_salg row already counts the return in
+					//             sum(batch_kob.antal) - sum(batch_salg.antal). With a reference
+					//             (the original sale came from a deficit or untracked batch) its price
+					//             is the original line's cost; without one, or when that is 0, it is
+					//             deficit_cost_price().
+					$kostpris = 0;
+					if ($kred_linje_id && $tmp > 0) {
+						$r = db_fetch_array(db_select("select kostpris from ordrelinjer where id = '" . (int)$kred_linje_id . "'", __FILE__ . " linje " . __LINE__));
+						$kostpris = (float)($r['kostpris'] ?? 0);
+					}
+					if (!$kred_linje_id || ($tmp > 0 && $kostpris <= 0)) {
+						// 20260923 MJ SST-796 Same stale-cost-price exposure as the normal-sale branch
+						//             below: this quantity has no batch_kob behind it, so its cost was
+						//             taken from the static varer.kostpris. An open purchase line is the
+						//             better estimate. Shared resolver so the two branches cannot drift
+						//             apart again.
+						include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
+						$kostpris = deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, 'negativt salg/kreditnota', $webservice);
+						db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
+					}
 					$tmp2 = $tmp * -1;
-					db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
-					#db_modify("insert into batch_kob(vare_id, linje_id, ordre_id, antal,rest,pris,lager,variant_id) values ('$vare_id', '0', '0','0','$tmp','$kostpris','$lager','$variant_id')",__FILE__ . " linje " . __LINE__);
-					$r = db_fetch_array(db_select("select max(id) as id from batch_kob where vare_id='$vare_id' and linje_id='0'", __FILE__ . " linje " . __LINE__));
-					db_modify("insert into batch_salg(batch_kob_id, vare_id, linje_id, salgsdate, ordre_id, antal, pris, lev_nr,lager,variant_id) values ('0', '$vare_id', '$linje_id', '$levdate', '$id', '$tmp2', '$pris', '$lev_nr','$lager','$variant_id')", __FILE__ . " linje " . __LINE__);
+					$bk_id = 0;
+					if ($tmp > 0) { # A positive line on a credit note is a sale and keeps an unlinked row
+						$qtxt = "insert into batch_kob(vare_id, linje_id, ordre_id, kobsdate, fakturadate, antal, rest, pris, lager, variant_id) ";
+						$qtxt .= "values ('$vare_id', '0', '0', '$levdate', '$levdate', '0', '$tmp', '$kostpris', '$lager', '$variant_id')";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$r = db_fetch_array(db_select("select max(id) as id from batch_kob where vare_id='$vare_id' and linje_id='0'", __FILE__ . " linje " . __LINE__));
+						$bk_id = (int)$r['id'];
+					}
+					db_modify("insert into batch_salg(batch_kob_id, vare_id, linje_id, salgsdate, ordre_id, antal, pris, lev_nr,lager,variant_id) values ('$bk_id', '$vare_id', '$linje_id', '$levdate', '$id', '$tmp2', '$pris', '$lev_nr','$lager','$variant_id')", __FILE__ . " linje " . __LINE__);
 				}
 			} else {
 				$tmp = $antal;
@@ -747,7 +803,11 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			}
 		}
 	}
-	sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
+	# SST-876: the line is marked and nothing is sent yet. levering() sends once when every
+	# line has been posted, so an item on two lines is one send with the figure the document
+	# ended with, and a set shared by several lines is sent once rather than once per line.
+	# Item 13054 is a component in 33 sets: its line alone used to be 198 webshop calls.
+	shopSyncMark($vare_id, $variant_id, $lager, 'stock'); # std_func.
 	// 20261019 CL/LH MB-73 leveret has no default and opret_ordrelinje() never set it, so NULL+$antal stayed
 	// NULL and fast invoicing (which never opens debitor/ordre.php's re-sync) left the delivered quantity unrecorded.
 	// 20261027 CL/LH MB-73 (review): a NULL line starts from $deliveredBefore (read above), not from 0.
@@ -1763,6 +1823,9 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		$svar = $fejl;
 	}
 	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595) - unconditional, covers the committed success path too
+	if (!$callerOwnsTransaction && $svar === 'OK' && !$db_modify_fejl) {
+		shopSyncDrainQueue();
+	}
 	/* echo "<!--function bogfor slut-->"; */
 	return ($svar);
 } #endfunc bogfor
@@ -4352,9 +4415,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		# exit;
 		($webservice) ? $leveres = $antal : $leveres = 0;
 		if ($id && is_numeric($posnr)) {
-			$momslog = fopen("../temp/$db/momslog.log", "a");
-			fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
-			fclose($momslog);
+			sharedFilePutContents("../temp/$db/momslog.log", "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n", true);
 			if ($varemomssats && !$vatAccount) {
 				$alerttxt = __LINE__ . " Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
 				alert($alerttxt);

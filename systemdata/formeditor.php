@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- systemdata/formeditor.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 //                 Tilbage goes where page_bar's did.
 //                 The editor keeps its own font; its canvas and side panel are 76 px shorter, so they end inside the window.
 // 20261103 CL/ASR QA round 2: the page needs Dokumenter & e-mail (settings.documents) instead of the general settings fallback, and Gem & aktivér shows a refusal as its message instead of Netværksfejl.
+// 20261112 CL/MMR SD-821: The own bank fields are named "Egen bank reg.nr." and "Egen bank kontonr." so they sit together in the field list.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -496,8 +497,8 @@ function fe_var_map() {
 			'egen_tlf'        => array('Eget tlf.', 'Own phone'),
 			'egen_mobile'     => array('Egen mobil', 'Own mobile'),
 			'egen_bank_navn'  => array('Eget banknavn', 'Own bank name'),
-			'egen_bank_reg'   => array('Eget reg.nr.', 'Own reg. no.'),
-			'egen_bank_konto' => array('Egen bankkonto', 'Own bank account'),
+			'egen_bank_reg'   => array('Egen bank reg.nr.', 'Own bank reg. no.'),
+			'egen_bank_konto' => array('Egen bank kontonr.', 'Own bank account no.'),
 			'egen_email'      => array('Egen e-mail', 'Own e-mail'),
 			'egen_web'        => array('Egen hjemmeside', 'Own website'),
 			// --- employee / seller (ansat) ---

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/index.php -----ver 5.1.0 ----2026-11-04--------------
+// --- index/index.php --- ver 5.1.0 --- 2026-11-06 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,7 @@
 // 20260302 LOE Added eye icon to toggle password visibility and added the necessary JavaScript for that functionality.
 // 20260305 PHR Language Id counted one too many
 // 20261104 CL/ASR After a restore (admin/restore.php, ?restored=) the form says the ledger was restored from the backup and from when (texts 7821-7822).
+// 20261106 CL/MMR SD-812 The account label uses text 2682 (English 'Account' instead of 'Financial Accounting').
 @session_start();
 
 if (!isset($_SESSION['nonce'])) {
@@ -262,7 +263,7 @@ $eyeOpenSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width
 $eyeClosedSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" y1="2" x2="22" y2="22"/></svg>';
 ###########
 print " <input type=\"hidden\" value=\"$languageId\" name=\"languageId\" >";
-print "						<label for=\"Regnskab\">". findtekst('115|Regnskab', $languageId) ."</label>\n";
+print "						<label for=\"Regnskab\">". findtekst('2682|Regnskab', $languageId) ."</label>\n";
 print "						<input class=\"textinput\" type=\"text\" id=\"regnskab\" name=\"regnskab\" value=\"$regnskab\" tabindex=\"1\">\n";
 print "						<label for=\"login\">". findtekst('225|Brugernavn', $languageId) ."</label>\n";
 print "						<input class=\"textinput\" type=\"text\" id=\"login\" name=\"brugernavn\" value=\"$brugernavn\" tabindex=\"2\">\n";

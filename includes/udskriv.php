@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.1.0 --- 2026-11-04---
+// --- includes/udskriv.php --- ver 5.1.1 --- 2026-11-13---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,9 @@
 //                which only records the list tab the last order was opened from.
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 // 20261104 CL/ASR A PDF print that cannot be made shows the error box (includes/errorReport.php) with a report to Saldi instead of "Kontakt support"; Tilbage stays below it.
+// 20261105 CL/MMR SD-807 The PDF error texts and the print choice screen (Luk, Udskriftsvalg) are shown in the user's language.
+//                 The print-batch error is escaped in the page charset.
+// 20261113 CDX/NTR Keep error reporting and translate the PDF fallback in the page charset.
 
 @session_start();
 $s_id=session_id();
@@ -211,7 +214,7 @@ if ($valg) {
 			);
 		} catch (RuntimeException $error) {
 			fwrite($log, 'Print batch failed: ' . $error->getMessage() . "\n");
-			if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . ' linje ' . __LINE__, 'Print batch failed: ' . $error->getMessage(), '', false, 'app') === 'nosession') print '<p>' . htmlspecialchars(findtekst('PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, 'UTF-8') . '</p>';
+			if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . ' linje ' . __LINE__, 'Print batch failed: ' . $error->getMessage(), '', false, 'app') === 'nosession') print '<p>' . htmlspecialchars(findtekst('8446|PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, $charset) . '</p>';
 			print '<a href="' . htmlspecialchars($returside ?: '../debitor/ordreliste.php', ENT_QUOTES, 'UTF-8') . '">' . findtekst('30|Tilbage', $sprog_id) . '</a>';
 			exit;
 		}
@@ -429,7 +432,8 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 		} else {
 			$fejl_retur = $returside ? htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '../debitor/ordreliste.php';
-			print "<BODY onLoad=\"javascript:alert('PDF-filen kunne ikke oprettes eller er ikke længere tilgængelig. Dan udskriften igen.')\">";
+			$pdfFejl = jsString(array(findtekst('8447|PDF-filen kunne ikke oprettes eller er ikke længere tilgængelig. Dan udskriften igen.', $sprog_id)));
+			print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars($pdfFejl, ENT_QUOTES, 'UTF-8') . ")\">";
 			print "<p><a href=\"$fejl_retur\">" . findtekst('2172|Luk', $sprog_id) . "</a></p>";
 		}
 	}
@@ -462,9 +466,9 @@ if ($menu == 'S') {
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
 
 	print "<td width=\"10%\"><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">
-		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
+		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('2172|Luk', $sprog_id) . "</button></a></td>";
 
-	print "<td width=\"80%\" align=\"center\" style='$topStyle'>Udskriftsvalg</td>";
+	print "<td width=\"80%\" align=\"center\" style='$topStyle'>" . findtekst('8448|Udskriftsvalg', $sprog_id) . "</td>";
 
 	print "<td width=\"10%\" align = \"right\" style='$topStyle'><br></td>";
 
@@ -486,8 +490,8 @@ if ($menu == 'S') {
 	print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">Luk</a></td>";
-	print "<td width=\"80%\" $top_bund align=\"center\">Udskriftsvalg</td>";
+	print "<td width=\"10%\" $top_bund><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">" . findtekst('2172|Luk', $sprog_id) . "</a></td>";
+	print "<td width=\"80%\" $top_bund align=\"center\">" . findtekst('8448|Udskriftsvalg', $sprog_id) . "</td>";
 	print "<td width=\"10%\" $top_bund align = \"right\"><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";

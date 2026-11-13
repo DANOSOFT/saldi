@@ -42,6 +42,11 @@
 //                  first wrote the side, and drops the VAT lookups the restored account starts. The cursor moves to Fakturanr.
 //                  before the line is put back, so leaving an account field can't look its default code up over the restored one.
 //                  The notice's actions advance searchSeq like a pick (AccountSearchShortTermGateTest's abandon-point rule).
+// 20261027 CL/LH (CodeRabbit) Each VAT lookup gets its own key, so a failed earlier lookup of the same account can't clear the code a newer one set.
+// 20261103 CL/LH SD-796 An invoice pick in another currency than the line (a SEK invoice on a DKK bank line) writes the
+//                  invoice's Beløb and Valuta again, without "Brug fakturaens værdier"; "Fortryd" puts the line's own back.
+//                  In the line's currency a filled Beløb is still kept and offered. An empty Valuta counts as window.saldiBaseCurrency.
+// 20261110 CDX/NTR Document VAT lookup inputs, resolved values and stale-request handling.
 (function () {
     'use strict'; 
 
@@ -78,6 +83,9 @@
     // that comes back carrying an older number is for a value the field no longer holds,
     // so it is dropped rather than painted over the current state.
     let searchSeq = 0;
+    // Numbers every VAT lookup, so each request's key is its own even for the same account:
+    // an answer for an earlier lookup, success or failure, no longer matches and is dropped.
+    let vatLookupSeq = 0;
     let dropdownContainer = null;
     let selectionMade = false;
     let currentPage = 1;
@@ -488,6 +496,18 @@
         vatField.value = normalizedValue;
     }
 
+    /**
+     * Set a journal side's VAT code explicitly or look up its finance account's default.
+     *
+     * Empty/customer/supplier accounts clear VAT and invalidate pending requests.
+     * Each lookup has its own key, including repeat lookups of the same account;
+     * only the current request may write or clear the field when it settles.
+     *
+     * @param {string|number} rowNum Journal row suffix used in field names.
+     * @param {'debet'|'kredit'} side Side whose account and VAT fields are read.
+     * @param {{vatCode?: string}} [options] An own vatCode property bypasses the lookup and invalidates pending requests.
+     * @returns {Promise<string>} Explicit/looked-up code, or empty on missing fields, invalid account or failure; a stale lookup still resolves its code without writing it.
+     */
     function updateVatFieldForRow(rowNum, side, options) {
         const accountPrefix = side === 'debet' ? 'debe' : 'kred';
         const typePrefix = side === 'debet' ? 'd_ty' : 'k_ty';
@@ -516,7 +536,8 @@
             return Promise.resolve(options.vatCode || '');
         }
 
-        const lookupKey = side + ':' + accountNo;
+        vatLookupSeq++;
+        const lookupKey = side + ':' + accountNo + ':' + vatLookupSeq;
         vatField.dataset.lookupKey = lookupKey;
 
         return fetch(getVatBasePath() + '?type=finance&exact=1&search=' + encodeURIComponent(accountNo))
@@ -1634,9 +1655,10 @@
      * The pick only writes a field that is empty, or one an earlier pick wrote that still holds that value.
      * A value the user typed, or one the line was saved with (a bank import line), is never overwritten:
      * where it disagrees with the invoice the field is marked, and the notice above the line offers the
-     * invoice's value ("Brug fakturaens værdier"). Every field a pick writes keeps the value it had before
-     * (data-autofill-original) and the value the pick wrote (data-autofill-value), so "Fortryd" and the
-     * next pick on the same line can put the line back to the user's own values.
+     * invoice's value ("Brug fakturaens værdier"). The one exception is an invoice in another currency than
+     * the line, whose Beløb and Valuta the pick writes (selectInvoiceOrAmount). Every field a pick writes
+     * keeps the value it had before (data-autofill-original) and the value the pick wrote (data-autofill-value),
+     * so "Fortryd" and the next pick on the same line can put the line back to the user's own values.
      */
     // Put back in this order: a side's account before its type, so a type put back while the pick's
     // debitor is still in the account field never starts a finance VAT lookup for that number
@@ -2077,6 +2099,14 @@
         const lineAmount = parseDanishAmount(beloField ? beloField.value : '');
         const lineNegative = lineAmount !== null && lineAmount < 0;
 
+        // An invoice in another currency than the line (a SEK invoice on a DKK bank line): the two amounts can't be
+        // compared, so the pick writes the invoice's amount and currency, as it did before it kept a filled line's values.
+        // "Fortryd" puts the line's own back. An empty Valuta is the base currency (window.saldiBaseCurrency).
+        const baseCurrency = String(window.saldiBaseCurrency || '').toUpperCase();
+        const lineCurrency = (valuField ? valuField.value.trim().toUpperCase() : '') || baseCurrency;
+        const invoiceCurrency = currency || baseCurrency;
+        const otherCurrency = invoiceCurrency !== '' && lineCurrency !== '' && invoiceCurrency !== lineCurrency;
+
         // The field the user picked from takes the pick
         if (input.fieldType === 'faktura') {
             autofillField(input, faktnr);
@@ -2090,26 +2120,36 @@
             });
         }
 
-        // Amount (always positive in the field): a different amount on the line is a partial payment,
-        // a fee or the wrong invoice - the user decides, the pick never changes it
+        // Amount (always positive in the field): in the line's currency a different amount on the line is a partial
+        // payment, a fee or the wrong invoice - the user decides, the pick never changes it
         if (amount && input.fieldType !== 'amount') {
-            offerValue(beloField, (lineNegative ? '-' : '') + formatNumberForInput(Math.abs(amountValue)), {
-                same: function (line) {
-                    const amountOnLine = parseDanishAmount(line);
-                    return amountOnLine !== null && Math.abs(Math.abs(amountOnLine) - Math.abs(amountValue)) < 0.005;
-                },
-                note: function (line) { return autofillText('amount', 'Beløb') + ' ' + formatNumber(Math.abs(amountValue)) + ' (' + lineText + ': ' + line + ')'; }
-            });
+            const invoiceAmount = (lineNegative ? '-' : '') + formatNumberForInput(Math.abs(amountValue));
+            if (otherCurrency) {
+                autofillField(beloField, invoiceAmount);
+            } else {
+                offerValue(beloField, invoiceAmount, {
+                    same: function (line) {
+                        const amountOnLine = parseDanishAmount(line);
+                        return amountOnLine !== null && Math.abs(Math.abs(amountOnLine) - Math.abs(amountValue)) < 0.005;
+                    },
+                    note: function (line) { return autofillText('amount', 'Beløb') + ' ' + formatNumber(Math.abs(amountValue)) + ' (' + lineText + ': ' + line + ')'; }
+                });
+            }
         }
 
         // Description - "Company name - Invoice number" - only on a line without its own text (a bank import line has the bank's text)
         offerValue(beskField, description, { silent: true });
 
-        // Currency: a saved line shows the base currency, so a different currency is a question for the user, not a fill
-        offerValue(valuField, currency, {
-            same: function (line, value) { return line.trim().toUpperCase() === value; },
-            note: function (line) { return autofillText('currency', 'Valuta') + ' ' + currency + ' (' + lineText + ': ' + line + ')'; }
-        });
+        // Currency: another currency comes with the invoice's amount (otherCurrency). A page that doesn't set the base
+        // currency can't tell an empty Valuta's currency, so there a different one is a question for the user, not a fill
+        if (otherCurrency) {
+            autofillField(valuField, invoiceCurrency);
+        } else {
+            offerValue(valuField, currency, {
+                same: function (line, value) { return line.trim().toUpperCase() === value; },
+                note: function (line) { return autofillText('currency', 'Valuta') + ' ' + currency + ' (' + lineText + ': ' + line + ')'; }
+            });
+        }
 
         if (accountNr && accountType) {
             // A negative open post (a credit note, a kreditor invoice) takes the debitor/kreditor on the debit

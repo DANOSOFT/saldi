@@ -1,5 +1,4 @@
 <?php
-
 // 20261013 MJ SST-833 Renders the batch window instead of reading it. The rest of this
 //                  change was covered by source-string checks, which passed while the page
 //                  itself was a 500 on PHP 8: debitor/batch.php wrote seven array keys as
@@ -14,7 +13,10 @@
 //
 // strict_types is deliberately off: eval'd code inherits the calling file's setting, and the
 // lifted legacy block passes ints where the stubs below take strings and back again.
-
+// 20261111 CDX/NTR Report known legacy warnings without failing; recognize PHP 8.2 null-offset wording.
+// 20261111 CDX/NTR Bound the legacy warning allowance by source location and occurrence count.
+// 20261111 CDX/NTR Normalize the two PHP null-offset wordings without changing warning locations or counts.
+// 20261113 CDX/NTR Align warning locations with the branch's added permission declaration and history line.
 namespace BatchWindowFixture {
 
     /** One query's worth of rows, handed back by db_fetch_array() one at a time. */
@@ -139,9 +141,11 @@ namespace {
          * $valg would change what a saved form redisplays - not this PR's business.
          */
         private const LEGACY_WARNINGS = array(
-            'Undefined variable $valg',
-            'Trying to access array offset on null',
-            'Array to string conversion',
+            '186: Undefined variable $valg' => 2,
+            '186: Trying to access array offset on value of type null' => 2,
+            '187: Undefined variable $valg' => 2,
+            '187: Trying to access array offset on value of type null' => 2,
+            '299: Array to string conversion' => 1,
         );
 
         private static function source(): string
@@ -239,7 +243,7 @@ namespace {
          * declared in the fixture namespace so it calls the stubs beside it.
          *
          * @param array<int, array{0: string, 1: array|callable}> $plan
-         * @return array{html: string, warnings: array<int, string>, queries: array<int, string>}
+         * @return array{html: string, warnings: array<int, string>, warningLocations: list<string>, queries: array<int, string>}
          */
         private function renderWindow(array $plan, int $linjeId = 4711): array
         {
@@ -255,8 +259,15 @@ namespace {
             \BatchWindowFixture\Db::$writes = array();
 
             $warnings = array();
-            set_error_handler(function ($severity, $message) use (&$warnings) {
+            $warningLocations = array();
+            $firstLine = substr_count(substr($src, 0, $at), "\n") + 1;
+            set_error_handler(function ($severity, $message, $file, $line) use (&$warnings, &$warningLocations, $firstLine) {
                 $warnings[] = $message;
+                // PHP builds use either wording; keep the original visible warning.
+                if ($message === 'Trying to access array offset on null') {
+                    $message = 'Trying to access array offset on value of type null';
+                }
+                $warningLocations[] = ($firstLine + $line - 1) . ': ' . $message;
                 return true;
             });
             $linje_id = $linjeId;
@@ -270,6 +281,7 @@ namespace {
             }
 
             return array('html' => $html, 'warnings' => $warnings,
+                'warningLocations' => $warningLocations,
                 'queries' => \BatchWindowFixture\Db::$queries, 'art' => $art ?? null);
         }
 
@@ -390,19 +402,13 @@ namespace {
         {
             $out = $this->renderWindow($this->fullFixture());
 
-            $unexpected = array();
-            foreach ($out['warnings'] as $warning) {
-                $known = false;
-                foreach (self::LEGACY_WARNINGS as $legacy) {
-                    if (strpos($warning, $legacy) !== false) {
-                        $known = true;
-                    }
-                }
-                if (!$known) {
-                    $unexpected[] = $warning;
-                }
+            $actualWarnings = array_count_values($out['warningLocations']);
+            self::assertSame(self::LEGACY_WARNINGS, $actualWarnings, 'rendering the window changed its warning locations or counts');
+            $legacyWarnings = $out['warnings'];
+            if ($legacyWarnings) {
+                trigger_error('Batch window still emits ' . count($legacyWarnings) . ' legacy warnings: '
+                    . implode('; ', array_unique($legacyWarnings)), E_USER_WARNING);
             }
-            self::assertSame(array(), $unexpected, 'rendering the window emits a new warning');
         }
 
         /** What the change exists for: the batch number and expiry date of each batch in stock. */

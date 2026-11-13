@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------index/menu.php------ ver 5.1.0 --- 2026-10-31 ---
+// -----------index/menu.php------ ver 5.1.0 --- 2026-11-04 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20260907 CDX/LH Mark the POS launcher as a popup when opening it in a new window.
 // 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
 // 20260930 SS Every user passes this page right after login: open to all, or Deny mode would refuse users without Kontoplan.
+// 20261030 LOE MB-62 The Items button accepts read-only (2); the employee stock-list button stays for it.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -262,10 +263,15 @@ function oldmenu() {
 		}
 		if ($vis_lager) {
 			$tekst=findtekst(109,$sprog_id);
-			if (substr($rettigheder,9,1)=='1') {
+			# MB-62 $lager is only assigned when the employee-department lookup below finds a warehouse,
+			# so a user without one read an undefined variable on PHP 8 - initialise it here.
+			$lager = NULL;
+			if (in_array(substr($rettigheder,9,1), array('1', '2'), true)) {
 				if ($popup) print "<td $stor_knap_bg onClick=\"javascript:lager=window.open('../lager/varer.php?returside=../includes/luk.php&popup=1','lager','".$jsvars."');lager.focus();\"	onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(609,$sprog_id)."</td>\n";
 				else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../lager/varer.php?returside=../index/menu.php\">".findtekst(609,$sprog_id)."</a></td>\n";
-			} else {
+			}
+			# MB-62 a read-only user keeps the stock list the employee branch offers, on top of the item list
+			if (substr($rettigheder,9,1) != '1') {
 				$row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__));
 				#if ($row[ansat_id]) {
 					if ($row['ansat_id']) {#20210817
@@ -283,7 +289,8 @@ function oldmenu() {
 				}
 			}
 			#if (!$lager) {
-			if (!$lager) {
+			# MB-62 a right 2 user already has the live Varer tile above, so the greyed one is not repeated
+			if (!$lager && !in_array(substr($rettigheder, 9, 1), array('1', '2'), true)) {
 					print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(609,$sprog_id)."</td>\n";
 			}
 		}

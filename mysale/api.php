@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- mysale/api.php --- ver 5.1.0 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,9 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
+// 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+// 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
+//                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 //
 // 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
 
@@ -632,8 +635,10 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
         ($webservice) ?$leveres=$antal:$leveres=0; 
         if ($id && is_numeric($posnr)) {
             $momslog=fopen("../temp/$db/momslog.log","a");
-            fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
-            fclose ($momslog);
+            if ($momslog) { #20261030
+                fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
+                fclose ($momslog);
+            }
             if ($varemomssats && !$vatAccount) {
                 $alerttxt= __line__." Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
                 alert ($alerttxt);
@@ -970,5 +975,6 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; do not report success (SD-595)
 		return "Database write failed while posting order $saldi_id";
 	}
+	shopSyncDrainQueue();
 	return($saldi_id);
 }

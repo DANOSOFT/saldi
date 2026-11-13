@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------systemdata/brugere.php-----ver 5.1.0 ----2026-10-08-----
+// --------------systemdata/brugere.php-----ver 5.1.1 ----2026-11-12-----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,7 +33,8 @@
 // 20261001 SS The department setting is stored for the user ($id); the employee id went in as description.
 // 20261008 SS SD-657 moved to usersRoles.php ur_save_user() with the merge of master.
 // 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-
+// 20261112 CL/MMR SST-1011 The delete-user button only submits when the confirm dialog is accepted, since Cancel deleted the user.
+//                 The user name in the dialog is JSON-encoded, so quotes and line breaks cannot break it.
 header('Location: usersRoles.php');
 exit;
 
@@ -378,7 +379,9 @@ if ($ret_id) {
 	$class = "class='inputbox'";
 	print "<td colspan='12' align = 'center'>";
 	print "<input style='width:100px;background-color:44ff44;' type=submit value=\"".findtekst('1091|Opdater', $sprog_id)."\" name=\"updateUser\">&nbsp;";
-	print "<input style='width:100px;background-color:ff4444;' type=submit value=\"".findtekst('1099|Slet', $sprog_id)."\" name=\"deleteUser\" onclick=\"confirm('Slet $userName?')\"></td>";
+	// The question is a JSON string (quotes, apostrophes, backslashes and line breaks encoded), HTML-escaped for the attribute.
+	$confirmDelete = htmlspecialchars(json_encode("Slet $userName?", JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), ENT_QUOTES);
+	print "<input style='width:100px;background-color:ff4444;' type=submit value=\"".findtekst('1099|Slet', $sprog_id)."\" name=\"deleteUser\" onclick=\"return confirm($confirmDelete)\"></td>";
 } else {
 	$tmp="navn".rand(100,999);				#For at undgaa at browseren "husker" et forkert brugernavn.
 	print "<input type=hidden name=random value = $tmp>";
