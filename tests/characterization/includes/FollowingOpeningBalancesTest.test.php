@@ -16,6 +16,7 @@
 //                 A card that leaves a year waiting while the first check starts, before any check, or with an old state creates the row itself (Codex round 12).
 //                 A year waiting in an old state is kept when a newer request created the row with a later year first (Codex round 13).
 //                 A row another request creates right after this one found it missing does not skip this request's year (Codex round 14).
+//                 A request that finds the row created with the same year holds it until it commits (Codex round 15).
 
 declare(strict_types=1);
 
@@ -1296,6 +1297,44 @@ final class FollowingOpeningBalancesTest extends TestCase
         } finally {
             unset($GLOBALS['sst1005Hook']);
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /** Codex round 15: the row appeared with the very same year while this request was creating it. */
+    public function testARequestThatFindsTheRowWithTheSameYearHoldsItUntilItCommits(): void
+    {
+        $schema = 'sst1005_create_same_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $mine = $GLOBALS['connection'];
+            // A card on the other connection did not see the row; meanwhile the first check created it with 8.
+            pg_query($other, 'BEGIN');
+            $GLOBALS['sst1005Hook'] = ['after' => '/openingBalancePending/', 'times' => 1, 'run' => function () use ($mine, $other): void {
+                $GLOBALS['connection'] = $mine;
+                followingOpeningBalanceCreatePending(8);
+                $GLOBALS['connection'] = $other;
+            }];
+            $GLOBALS['connection'] = $other;
+            followingOpeningBalanceMarkPending(8);
+            $GLOBALS['connection'] = $mine;
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The row appeared in between.');
+            self::assertSame('8', $this->setting('openingBalancePending'));
+            // A rebuild that takes year 8 now has to wait for the card's commit.
+            pg_send_query($mine, "UPDATE settings SET var_value = '0' WHERE var_name = 'openingBalancePending' AND var_value = '8'");
+            usleep(300000);
+            self::assertTrue(pg_connection_busy($mine), 'Taking the year waits for the card.');
+            pg_query($other, 'COMMIT');
+            pg_get_result($mine);
+            while (pg_get_result($mine)) {
+            }
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalancePending'"))['n']);
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            while (pg_get_result($mine)) {
+            }
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }

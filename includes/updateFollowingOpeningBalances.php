@@ -50,6 +50,7 @@
 //                  A request that leaves a year waiting before the first check has created that row creates it itself, under a lock the first check takes too (Codex round 12).
 //                  A year still waiting in a state of an earlier test build is always lowered into that row before the state is saved without it (Codex round 13).
 //                  A request that does not see the row goes straight to the locked create-or-lower, so a row created by someone else in between cannot skip its year (Codex round 14).
+//                  A request that finds the row created meanwhile always writes it, also with the same year, so it holds the row until it commits (Codex round 15).
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -294,7 +295,10 @@ function followingOpeningBalanceCreatePending($year) {
 		if ($current === null) {
 			$description = 'SST-1005: earliest fiscal year waiting for its later years to get new opening balances (0 = none)';
 			saveFollowingOpeningBalanceSetting('openingBalancePending', (string)max(0, $year), $description);
-		} elseif ($year > 0 && ($current === 0 || $current > $year)) {
+		} elseif ($year > 0) {
+			// Written even when the row already holds this year or an earlier one: like every MarkPending, the write keeps
+			// the row locked until this transaction commits, so syncFollowingOpeningBalances() cannot take the year and
+			// rebuild before the changes it stands for are visible (Codex round 15).
 			followingOpeningBalanceMarkPending($year);
 		}
 	} finally {
