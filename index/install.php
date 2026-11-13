@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----ver 5.1.1---2026-11-10---
+//------------index/install.php----ver 5.1.1---2026-11-11---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -49,6 +49,7 @@
 // 20261023 CL/LH regnskab gets global_id: only opdat_4.0 added it, so a fresh install failed the first tenant login.
 // 20261023 CL/NTR Added tekst_key to tekster table, and added an index on (sprog_id, tekst_key) for faster lookups. This is needed for the new translation system to work properly.
 // 20261110 CDX/NTR Release 5.1.1: include the signup schema and trial columns on fresh installs.
+// 20261111 CL/ASR SD-731: a new install also creates the operator panel's master tables (operator_panel_schema()).
 
 session_start();
 ob_start(); //Starter output buffering
@@ -336,6 +337,8 @@ if (isset($_POST['opret'])){
 	$qtxt = "INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('signup_schema', 'system', '1', 'Self-service signup tables created at installation')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	// End of 5.1.1 signup schema.
+	include_once(__DIR__ . "/../includes/opdat_func/operatorPanelSchema.php"); # the operator panel's master tables (SD-731)
+	operator_panel_schema();
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
 	$qtxt.= "('timezone','globals','Europe/Copenhagen','Global Timezone','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);

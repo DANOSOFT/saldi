@@ -30,7 +30,9 @@ $s_id=session_id();
 // 20260916 Sawaneh Logout written to audit_log while the company connection is still active.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261104 CL/ASR The session's unconfirmed restore uploads (admin/restore.php) are removed at logout, and expired ones of any session (includes/restorePending.php).
+// 20261109 CL/ASR Staff leaving an account return to the operator panel only when it is ready (operator_panel_ready(): PostgreSQL master, panel tables created); otherwise to the account list (review #785).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+
 $title="logud";
 $css = "";
 
@@ -51,7 +53,12 @@ $r=db_fetch_array(db_select("select * from online where session_id = '$s_id'",__
 if (isset($r['revisor'])) {
 	if ($db && $db!=$sqdb) {
 		db_modify("update online set db='$sqdb' where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
-		print "<meta http-equiv=\"refresh\" content=\"0;URL='../admin/vis_regnskaber.php'\">";
+		// 20261025 CL/ASR Saldi staff (admin flag 'on') return to the operator panel; everyone else to the account list as before.
+		// 20261109 CL/ASR Only when the panel is ready (not on a MySQL/MariaDB master, not before the schema step has run).
+		$vr_r = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__));
+		include_once(__DIR__ . "/../includes/opdat_func/operatorPanelSchema.php");
+		$vr_back = ($vr_r && explode(',', (string)$vr_r['rettigheder'])[0] == 'on' && file_exists('../admin/operator_panel.php') && operator_panel_ready()) ? '../admin/operator_panel.php' : '../admin/vis_regnskaber.php';
+		print "<meta http-equiv=\"refresh\" content=\"0;URL='$vr_back'\">";
 		exit;
 	}	
 }
