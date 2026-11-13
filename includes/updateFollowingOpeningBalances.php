@@ -48,6 +48,7 @@
 //                  The year card tries the same before it waits for its own year.
 //                  The waiting year has a settings row of its own that is only ever lowered or cleared in one statement, so a check that saves the watermark it read earlier cannot erase a year another request left waiting (Codex round 11).
 //                  A request that leaves a year waiting before the first check has created that row creates it itself, under a lock the first check takes too (Codex round 12).
+//                  A year still waiting in a state of an earlier test build is always lowered into that row before the state is saved without it (Codex round 13).
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -529,6 +530,12 @@ function checkFollowingOpeningBalances($activeYear) {
 			$state['fingerprintAt'] = time();
 			$changed = true;
 		}
+	}
+	if ($state['pendingYear'] > 0) {
+		// A state of an earlier test build still holds a waiting year. It is lowered into the row of its own like any
+		// other finding, also when another request created that row first, and only then is the state saved without it.
+		if (!$found || $state['pendingYear'] < $found) $found = $state['pendingYear'];
+		$changed = true;
 	}
 	if ($maxId > $state['lastId']) {
 		$year = followingOpeningBalancePostedYear($state['lastId'], $maxId);

@@ -14,6 +14,7 @@
 //                 A rebuild into a year a journal is posting in never waits for it: it gets the year once the journal commits, or leaves it for the next check (Codex round 10).
 //                 A check that read the state earlier cannot erase a year a card left waiting, and taking the waiting year keeps one registered meanwhile (Codex round 11).
 //                 A card that leaves a year waiting while the first check starts, before any check, or with an old state creates the row itself (Codex round 12).
+//                 A year waiting in an old state is kept when a newer request created the row with a later year first (Codex round 13).
 
 declare(strict_types=1);
 
@@ -1176,6 +1177,94 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertStringEndsWith('|0', $this->syncState(), "The next check rebuilt from year 9 ($case).");
             self::assertSame(1120.0, $this->primo(10, 2000));
             self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalancePending'"))['n']);
+        }
+    }
+
+    /** Years 8-10 consistent (year 9 2000 = 1000, year 10 2000 = 1120), then 5 posted in year 8 that is not carried yet. */
+    private function yearEightWaitsWithFivePosted(): void
+    {
+        $this->sql('UPDATE kontoplan SET primo = 0 WHERE regnskabsaar = 8');
+        $this->sql('UPDATE kontoplan SET primo = 1000 WHERE regnskabsaar = 8 AND kontonr = 2000');
+        $this->sql('UPDATE kontoplan SET primo = -1000 WHERE regnskabsaar = 8 AND kontonr = 3000');
+        updateFollowingOpeningBalances(8);
+        self::assertSame([1000.0, 1120.0], [$this->primo(9, 2000), $this->primo(10, 2000)]);
+        $this->sql("INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2023-03-01', 5, 0), (3000, '2023-03-01', 0, 5)");
+    }
+
+    /** The later years once year 8 (+5 on 2000 and -5 on 3000) and the journal's +1 in year 9 are both carried. */
+    private function assertYearEightAndTheJournalCarried(string $message): void
+    {
+        self::assertSame(
+            [1005.0, -1005.0, 1126.0, -1126.0],
+            [$this->primo(9, 2000), $this->primo(9, 3000), $this->primo(10, 2000), $this->primo(10, 3000)],
+            $message
+        );
+    }
+
+    /** Codex round 13: an old JSON state with a waiting year and a fingerprint, and a newer request that created the row first. */
+    public function testAYearWaitingInAnOldJsonStateIsKeptWhenTheRowAlreadyHasALaterYear(): void
+    {
+        $this->yearEightWaitsWithFivePosted();
+        self::assertNull(checkFollowingOpeningBalances(11));
+        $old = json_decode((string) $this->setting('openingBalanceSync'), true);
+        $old['pendingYear'] = 8;
+        $this->sql("UPDATE settings SET var_value = '" . pg_escape_string($this->connection, json_encode($old)) . "' WHERE var_name = 'openingBalanceSync'");
+        // A journal in year 9 posts and leaves year 9 waiting.
+        $this->sql('BEGIN');
+        $this->sql("INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2024-03-03', 1, 0), (1000, '2024-03-03', 0, 1)");
+        followingOpeningBalanceMarkPending(9);
+        $this->sql('COMMIT');
+        self::assertSame('9', $this->setting('openingBalancePending'));
+        self::assertNull(checkFollowingOpeningBalances(11));
+        $this->assertYearEightAndTheJournalCarried('The old waiting year 8 was not replaced by 9.');
+        self::assertArrayNotHasKey('pendingYear', json_decode((string) $this->setting('openingBalanceSync'), true), 'The state is saved without it.');
+        self::assertStringEndsWith('|0', $this->syncState());
+    }
+
+    /** Codex round 13: the old "lastId|8" state while a journal defers year 9 and creates the row during the first check. */
+    public function testAYearWaitingInAnOldStateIsKeptWhenAJournalCreatesTheRowDuringTheFirstCheck(): void
+    {
+        $this->yearEightWaitsWithFivePosted();
+        $maxId = (int) pg_fetch_assoc($this->sql('SELECT max(id) AS m FROM transaktioner'))['m'];
+        $this->sql("INSERT INTO settings (var_name, var_grp, var_value, user_id) VALUES ('openingBalanceSync', 'system', '$maxId|8', 0)");
+        $schema = 'sst1005_old_state_' . getmypid();
+        $other = $this->privateSchema($schema);
+        $holder = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
+        pg_query($holder, "SET search_path TO $schema");
+        try {
+            $mine = $GLOBALS['connection'];
+            pg_query($holder, 'BEGIN');
+            pg_query($holder, 'UPDATE kontoplan SET saldo = saldo WHERE regnskabsaar = 10 AND kontonr = 2000');
+            // B (this connection) migrates the old state; it has read the watermark when journal A in year 9 posts.
+            $GLOBALS['sst1005Hook'] = ['after' => 'select max(id) as max_id from transaktioner', 'times' => 1, 'run' => function () use ($mine, $other): void {
+                $GLOBALS['connection'] = $other;
+                self::assertNull(checkFollowingOpeningBalances(9), 'The journal\'s page check finds the start busy.');
+                pg_query($other, 'BEGIN');
+                pg_query($other, 'UPDATE kontoplan SET saldo = saldo + 1 WHERE regnskabsaar = 9 AND kontonr = 2000');
+                pg_query($other, 'UPDATE kontoplan SET saldo = saldo - 1 WHERE regnskabsaar = 9 AND kontonr = 1000');
+                pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2024-03-03', 1, 0), (1000, '2024-03-03', 0, 1)");
+                $stop = 'unset';
+                self::assertSame([], updateFollowingOpeningBalances(9, $stop, $deferred));
+                self::assertSame(9, $deferred);
+                pg_query($other, 'COMMIT');
+                $GLOBALS['connection'] = $mine;
+                self::assertSame('9', $this->setting('openingBalancePending'), 'The journal created the row with 9.');
+            }];
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS);
+            self::assertSame(1005.0, $this->primo(9, 2000), 'B took year 8 from the old state and carried it into year 9.');
+            pg_query($holder, 'COMMIT');
+            self::assertNull(checkFollowingOpeningBalances(11));
+            $this->assertYearEightAndTheJournalCarried('Year 8 and the journal\'s year 9 both reached year 10.');
+            $this->setSyncState((int) explode('|', $this->syncState())[0], 0, time() - 601);
+            self::assertNull(checkFollowingOpeningBalances(11));
+            $this->assertYearEightAndTheJournalCarried('A due scan keeps it.');
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            pg_close($holder);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
         }
     }
 
