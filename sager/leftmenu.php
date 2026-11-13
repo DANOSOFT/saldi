@@ -38,6 +38,7 @@ $s_id=session_id();
 // 20160930 PK - Har tilføjet nyt menupunkt 'Ændre kunde' i MENU SAGER (funktion ret_sag)
 // 20170804 PK - Har tilføjet 'opgave_id, loendate, loendateFra og loendateTil' i link til akkordsedler i MENU SAGER (funktion akkordliste)
 // 20170804 PK - Har tilføjet nyt menupunkt 'Til akkordlister' i MENU LOEN, som sender 'sag_id, opg_id, akkorfraSoeg og akkordtilSoeg' til akkordlister under sager
+// 20261113 CL/MMR SD-824 Menu item 'Overtid og løn pr. sag' in the wage menu and on the case, for users who may approve slips.
 
 if (!isset($loendate))      $loendate      = NULL;
 if (!isset($loendateFra))   $loendateFra   = NULL;
@@ -76,6 +77,9 @@ print "<div class=\"leftmenu\">";
 			print "<li><a href=\"sager.php\">".findtekst('2955|Sagsliste', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
 			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2958|Akkordsedler', $sprog_id))."</a></li>"; #Til akkordsedler
+			if (substr($sag_rettigheder,6,1)) {
+				print "<li><a href=\"loen.php?funktion=overtid&amp;sag_id=".(int)$sag_id."\">".findtekst('8501|Overtid og løn pr. sag', $sprog_id)."</a></li>";
+			}
 		} elseif ($funktion=='kontrolskema') {
 			print "<li><a href=\"sager.php?funktion=vis_sag&amp;sag_id=$sag_id\">".findtekst('2956|Retur', $sprog_id)." ".findtekst('904|til', $sprog_id)." ".lcfirst(findtekst('2792|Sag', $sprog_id))."</a></li>"; #Retur til sag
 			if (isset($_GET['opgave_id'])) {
@@ -318,6 +322,7 @@ print "<div class=\"leftmenu\">";
 				print "<li><a href=\"loen.php?funktion=loenafregning&amp;refresh=on\">".findtekst('2786|Lønafregning', $sprog_id)."</a></li>";
 #				print "<li><a href=\"loen.php?funktion=d_loenafregning\">Løn (datoindelt)</a></li>";
 				print "<li><a href=\"loen.php?funktion=satser\">".findtekst('1206|Ret', $sprog_id)." ".lcfirst(findtekst('2782|Satser', $sprog_id))." ".lcfirst(findtekst('2981|Mm.', $sprog_id))."</a></li>"; #Ret satser mm.
+				print "<li><a href=\"loen.php?funktion=overtid\">".findtekst('8501|Overtid og løn pr. sag', $sprog_id)."</a></li>";
 			} else {
 				print "<li><a href=\"loen.php?funktion=loenafregning&amp;refresh=on\">".findtekst('2786|Lønafregning', $sprog_id)."</a></li>";
 			}
