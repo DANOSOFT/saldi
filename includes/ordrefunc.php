@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
-
+//
+//
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -164,6 +164,8 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261112 CL/SS MB-49 bogfor_nu(): a POS sale with a card payment that posts nothing is refused instead of set to status 4.
+//                A card name without a card account on a 0-kr sale (cash withdrawal) wrote no rows, so the cash count couldn't see the sale.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2529,8 +2531,9 @@ function bogfor_nu($id, $kilde) {
 	global $valutakurs;
 	global $difkto;
 	global $title;
+	global $sprog_id;
 
-	$korttyper = $kortkonti = $vatAccount = array();
+	$korttyper = $kortkonti = $vatAccount = $cardPosted = array();
 	// 20260312 next 2 lines
 	if (!$valuta)    $valuta      = $baseCurrency;
 	if (!$valutakurs) $valutakurs = 100;
@@ -2946,6 +2949,7 @@ function bogfor_nu($id, $kilde) {
 			for ($b = 0; $b < count($betaling); $b++) {
 				$cardVat = $cardVatPercent = $cardVatAccount = 0;
 				if (strtolower($betaling[$b]) == strtolower($korttyper[$x])) { #20170816
+					$cardPosted[$b] = true;
 					$kontonr = $kortkonti[$x]; #20150507
 					$qtxt = "select moms from kontoplan where kontonr='$kontonr' and regnskabsaar = '$regnaar'";
 					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -3327,6 +3331,27 @@ function bogfor_nu($id, $kilde) {
 				 
 						}
 				*/
+	if ($art == 'PO') {
+		$cardTotal = 0;
+		$unpostedCard = '';
+		for ($b = 0; $b < count($betaling); $b++) {
+			if (in_array(strtolower($betaling[$b]), array('kontant', 'konto'))) {
+				continue;
+			}
+			$cardTotal += abs((float)$modtaget[$b]);
+			if (afrund($modtaget[$b], 2) && empty($cardPosted[$b]) && !$unpostedCard) {
+				$unpostedCard = $betaling[$b];
+			}
+		}
+		$written = db_fetch_array(db_select("select count(*) as n from transaktioner where ordre_id = '" . (int)$ordre_id . "'", __FILE__ . " linje " . __LINE__));
+		if (afrund($cardTotal, 2) && !(int)$written['n']) {
+			if ($unpostedCard) {
+				$txt = findtekst('pos.posting.card_account_missing|Betalingen med %s kan ikke bogføres, da %s ikke har en konto under kortbetalinger. Salget er ikke afsluttet.', $sprog_id);
+				return sprintf($txt, $unpostedCard, $unpostedCard);
+			}
+			return findtekst('pos.posting.nothing_posted|Salget kunne ikke bogføres, da der ikke blev dannet nogen posteringer. Salget er ikke afsluttet.', $sprog_id);
+		}
+	}
 	if (is_numeric($id)) {
 		$tmp = "id = '" . $id . "'";
 	} else {
