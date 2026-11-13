@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/kontokort.php -----ver 5.1.1 ----2026-11-12------
+// --- systemdata/kontokort.php -----ver 5.1.1 ----2026-11-13------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20261112 CL/MMR SST-1012 An account with postings on the first or last day of the year can no longer be deleted.
 //                 The delete action is checked again on the server and lives in chartOfAccountIncludes/accountDelete.php.
 //                 An account of another fiscal year than the selected one cannot be deleted from an old link or form.
+// 20261113 CL/LH SST-1012 The refusal alerts for a delete are translated and shown correctly on a LATIN9 regnskab.
 
 @session_start();
 $s_id = session_id();
@@ -348,12 +349,17 @@ elseif ($kontotype == 'X')
 	$kontotype = 'Sideskift';
 */
 
+$refusedTxt = '';
 if ($deleteResult && $deleteResult['refusedReason'] == 'postings') {
-	print "<BODY onLoad=\"javascript:alert('Konto $deleteResult[refusedKontonr] har posteringer i regnskabsåret og kan ikke slettes')\">";
+	$refusedTxt = findtekst('account.delete.refused_postings|Konto %s har posteringer i regnskabsåret og kan ikke slettes', $sprog_id);
 } elseif ($deleteResult && $deleteResult['refusedReason'] == 'otheryear') {
-	print "<BODY onLoad=\"javascript:alert('Konto $deleteResult[refusedKontonr] hører til et andet regnskabsår og kan ikke slettes herfra')\">";
+	$refusedTxt = findtekst('account.delete.refused_other_year|Konto %s hører til et andet regnskabsår og kan ikke slettes herfra', $sprog_id);
 } elseif ($deleteResult && $deleteResult['refusedReason'] == 'year') {
-	print "<BODY onLoad=\"javascript:alert('Regnskabsåret er ikke sat korrekt op, så konto $deleteResult[refusedKontonr] kan ikke slettes')\">";
+	$refusedTxt = findtekst('account.delete.refused_year_setup|Regnskabsåret er ikke sat korrekt op, så konto %s kan ikke slettes', $sprog_id);
+}
+if ($refusedTxt) {
+	$refusedJs = jsString(array(sprintf($refusedTxt, $deleteResult['refusedKontonr'])));
+	print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars($refusedJs, ENT_QUOTES, 'UTF-8') . ")\">";
 }
 
 if ($menu == 'T') {
