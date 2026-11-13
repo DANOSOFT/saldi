@@ -1,5 +1,5 @@
 <?php
-// finans/kassekladde_includes/invoiceSearch.php --- 2026-10-27
+// finans/kassekladde_includes/invoiceSearch.php --- 2026-11-03
 // Copyright (c) 2026 Danosoft ApS
 // 20260908 CDX/LH Require an exact customer/supplier filter for automatic settlement.
 // 20260911 Sawaneh Return the order payment ID (ordrer.betalings_id) with each open post and
@@ -11,6 +11,7 @@
 // 20261026 CL/LH Ported the payment-ID aggregation above from live and kept the SQL candidate
 //                signal paging: every query joins payment_ids instead of a per-row subquery.
 // 20261027 CL/NTR Display the payment ID that matched the search, falling back to MAX(betalings_id).
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 
 ob_start();
 
@@ -18,6 +19,8 @@ ob_start();
 $s_id = session_id();
 $title = "invoiceSearch";  
 $modulnr = 0;
+$permission_key = 'finans.kassekladde'; // 20261018 Sawaneh Review 2 (PR #803): modulnr 0 is no key
+$permission_post_read = true; // a lookup: its POST only reads
 $bg = "nix";  
 $header = "nix";
 $webservice = true; 

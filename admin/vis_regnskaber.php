@@ -1,8 +1,5 @@
 <?php
-@session_start();
-$s_id=session_id();
-
-// --- admin/vis_regnskaber.php --- ver 5.0.0 --- 2026.09.28 ---
+// --- admin/vis_regnskaber.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +33,10 @@ $s_id=session_id();
 //                  sorting by it was a fatal error. It now comes from license_features (feature_key
 //                  'booking', see license_manager.php) via a left join, and the sort/sort2 params are
 //                  whitelisted before they reach ORDER BY.
+// 20261113 CDX/NTR Format last activity safely in normal and edit views when registry rows contain date strings.
+
+@session_start();
+$s_id=session_id();
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -43,6 +44,7 @@ $title="vis regnskaber";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/stdFunc/lastActivityDate.php';
 include("../includes/topline_settings.php");
 
 $saldiregnskab = NULL;
@@ -381,7 +383,7 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 			print "<td><input type=text size=\"5\" style=\"text-align:right\" name=\"brugerantal[$x]\" value=\"$brugerantal[$x]\"></td>";
 			print "<td><input type=text size=\"5\" style=\"text-align:right\" name=\"posteringer[$x]\" value=\"$posteringer[$x]\"</td>";
 			print "<td align='right'>$posteret[$x]</td>";
-			print "<td align='right'>".date("d-m-Y",$sidst[$x])."</td>";
+			print "<td align='right'>".lastActivityDate($sidst[$x])."</td>";
 			if ($booking[$x]) $booking[$x]="checked";
 			print "<td><input type='checkbox' name='booking[$x]' $booking[$x] disabled title='license_manager.php'></td>";
 			print "<td align='left'>$email[$x]<br></td>";
@@ -405,7 +407,7 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 					print "<td>$brugerantal[$x]<br></td>";
 					print "<td>$posteringer[$x]<br></td>";
 					print "<td align='right'>$posteret[$x]<br></td>";
-					print "<td align='right'>".date("d-m-Y",$sidst[$x])."<br></td>";
+					print "<td align='right'>".lastActivityDate($sidst[$x])."<br></td>";
 					print "<td align='center'>$booking[$x]<br></td>";
 					print "<td align='left'>$email[$x]<br></td>";
 					print "<td align='center'>$lukket[$x]<br></td>";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/salg_report.php--- lap 5.0.0 --- 2026-05-26 ----
+// -----------------lager/salg_report.php--- ver 5.1.1 --- 2026-11-13 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,20 +20,22 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20260526 LOE Created new report based on datagrid, with flexible search and sorting, to handle sales report based on postnr and departments.
 // 20260707 CL/SZ Added Grid Framework sticky header and footer to Sales by Postal Code report
 // 20260711 SZ Added Grid Framework sticky page header (flex layout, same icon/button style as other
 //             Lager reports) replacing the calc(100vh) height hack; the datagrid itself already
 //             provides its own sticky header row + sticky footer with pagination via includes/grid.php
-
+// 20261104 CL/ASR Moved to Varerapport (owner, 4 Nov 2026): the page needs right 15 and the key lager.rapporter (read) instead of right 12 (Debitorrapport), as lager/rapport.php that opens it; it only reads data.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 @session_start();
 
 $s_id    = session_id();
-$modulnr = 12;
+$modulnr = 15; // Varerapport (was 12, Debitorrapport; owner, 4 Nov 2026)
+$permission_key = 'lager.rapporter';
 $title   = "Salg pr. postnummer";
 $css     = "../css/standard.css";
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------debitor/udskriftsvalg.php----------------lap 3.6.9----2017-05-05-------------
+// ----------debitor/udskriftsvalg.php----------------ver 5.1.1----2026-11-13-------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2017 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 
 // 2013.01.17 Oprydning i forb. med fejlsøgning i ret_genfakt.php
@@ -32,7 +32,7 @@
 // 20260909 Sawaneh JOB-124: forward returside to formularprint.php so print close returns to the order.
 // 20260917 CL/Sawaneh JOB-124: close via luk.php on the popup=1 request flag instead of the popup
 //                      preference, and keep that flag on the print/self links.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 @session_start();
 $s_id=session_id();
@@ -42,6 +42,7 @@ $css="../css/standard.css";
 
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 
