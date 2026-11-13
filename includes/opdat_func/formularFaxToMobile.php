@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func/formularFaxToMobile.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- includes/opdat_func/formularFaxToMobile.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,8 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261111 CL/MMR SST-898 Created. SD-532 turned the fax field into the mobile field (adresser.mobile), but the forms kept "Fax: $egen_fax".
-//                 The forms now name the field "Mobil" and use $egen_mobile / $adresser_mobile (Morten 2026-11-11: «der er ingen der bruger Fax længere»).
+//                 The forms now name the field "Mobilnr." and use $egen_mobile / $adresser_mobile (Morten 2026-11-11: «der er ingen der bruger Fax længere»).
+//                 Morten chose the label on 2026-11-13: «Bare "Mobilnr."».
 
 if (!function_exists('formular_fax_to_mobile_text')) {
 	/**
@@ -32,7 +33,9 @@ if (!function_exists('formular_fax_to_mobile_text')) {
 	 * $egen_fax / $eget_fax become $egen_mobile and $adresser_fax becomes $adresser_mobile; includes/formfunk.php
 	 * printed all of them from adresser.mobile already, so the printed number does not change. Where the standard
 	 * label "Fax:" (or Telefax/Faks) stands right before the variable, possibly with a dialling code such as
-	 * "(+45)" in between, it becomes the mobile label of the form's language. The label counts as the standard one
+	 * "(+45)" in between, it becomes the mobile label of the form's language: "Mobilnr." (Danish, Norwegian and any
+	 * other language), "Mobile" (English) or "Móvil" (Spanish). "Fax.:" becomes "Mobilnr.:", not "Mobilnr..:".
+	 * The label counts as the standard one
 	 * only when it is the whole label: at the start of the text or right after a "*", ";" or "|" separator, as in the
 	 * standard forms ("Fax: $egen_fax", "... * Fax: $egen_fax; ..."). A label of the customer's own, such as
 	 * "Mobile Pay.: $egen_fax;" or "Support Fax: $egen_fax", is kept and only the variable changes.
@@ -49,14 +52,18 @@ if (!function_exists('formular_fax_to_mobile_text')) {
 		} elseif ($lang === 'spansk') {
 			$label = 'Móvil';
 		} else {
-			$label = 'Mobil';
+			$label = 'Mobilnr.';
 		}
 		$var = '\$(egen|eget|adresser)_fax(?![A-Za-z0-9_])';
 		// the standard label right before the variable: "Fax: ", "Telefax.: ", "Fax: (+45)", as the whole label:
 		// at the start of the text or after a separator, so "Support Fax:" keeps its text
-		$text = preg_replace(
-			'/(^\s*|[*;|]\s*)(?:Telefax|Fax|FAX|Faks)(\.?:\s*(?:\(\+?[0-9]+\)\s*)?)' . $var . '/u',
-			'${1}' . $label . '${2}\$${3}_fax',
+		// a dot after the old label ("Fax.:") is dropped when the new label ends with one ("Mobilnr.:")
+		$text = preg_replace_callback(
+			'/(^\s*|[*;|]\s*)(?:Telefax|Fax|FAX|Faks)(\.?)(:\s*(?:\(\+?[0-9]+\)\s*)?)' . $var . '/u',
+			function ($m) use ($label) {
+				$dot = substr($label, -1) === '.' ? '' : $m[2];
+				return $m[1] . $label . $dot . $m[3] . '$' . $m[4] . '_fax';
+			},
 			$text
 		);
 		return preg_replace_callback('/' . $var . '/u', function ($m) {
