@@ -13,8 +13,15 @@
 $s_id = session_id();
 
 include("../includes/connect.php");
+// 20260928 Sawaneh Security 4.0 (A9/R13): from a browser this needs write access to the integrations; cron (CLI) is unchanged.
+$isCli = (php_sapi_name() === 'cli');
+$permission_key = $isCli ? 'any' : 'settings.integrations';
+$permission_level = 'write';
 include("../includes/online.php");
 include("../includes/std_func.php");
+if (!$isCli) {
+    require_permission('settings.integrations', 'write');
+}
 
 // Set execution time limit for large datasets
 set_time_limit(0);

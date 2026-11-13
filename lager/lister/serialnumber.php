@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/serialnumber.php --- ver 5.1.0 --- 2026-11-04 ---
+// ---- lager/lister/serialnumber.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,9 +36,10 @@
 // 20260929 CL/NTR Cancelling the rename prompt no longer opens the rename confirmation.
 // 20260929 CL/NTR Replaced addslashes() with json_encode() (+ htmlspecialchars() in onclick attributes) for JS string literals, so translated text cannot break out of the script or attribute context.
 // 20260930 CL/NTR JS string literals are built with jsString() from std_func: legacy (non-UTF8) text is converted to UTF-8 part by part and the output stays ASCII.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261104 LOE MB-62 A read-only Items user may not rename or delete a serial number.
 //              The write icons are not drawn and a posted form is refused before either db_modify.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -50,6 +51,7 @@ $title = "Serienr.";
 
 include ("../../includes/std_func.php");
 include ("../../includes/connect.php");
+$permission_key = 'lager.varer';
 include ("../../includes/online.php");
 include ("../../includes/stdFunc/dkDecimal.php");
 

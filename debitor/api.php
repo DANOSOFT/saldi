@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- debitor/api.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,19 +41,13 @@
 // 20260825 CL/NTR - Added 0184 (Danish CVR) to the Peppol scheme map so an "0184:xxxxxxxx" EAN gets the DK prefix and correct country code instead of falling through unprefixed.
 // &&       Also added "0088" as a swedish prefix.
 // 20260914 Sawaneh    JOB-141: getInvoicesOrder() classifies EasyUBL's reply with
-// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 //                     easyubl_interpret_response() (includes/stdFunc/easyUblResponse.php) - the
 //                     error branch looked for errorMessage/error, which EasyUBL never sends
 //                     (it returns errNo/message), so real API errors showed as "Uventet svar".
 //                     Every failure now logs one fakture-error file, sets ordrer.digital_status
 //                     to SendFailed so the order shows it and a resend asks first, and reports
 //                     through findtekst(); an HTTP 500 with a document is no longer a success.
-// 20261019 CL/MJ SST-870 sendInvoice() reads the country code off the invoice's own land field
-//                  (countryCodeIso2()), and only falls back to the prefix in the CVR field and
-//                  then DK. A foreign customer without a prefixed CVR was sent as DK whatever
-//                  the address said - 33 of MEDSHOP's invoices in a year, all Swedish or
-//                  Norwegian. lev_land gives the delivery address its own code when it is
-//                  filled. Greenland and the Faroe Islands are still sent as DK.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3).
 // 20261007 MJ SST-860 sendInvoice() no longer sends an empty accountingCustomerParty
 //                  companyId. A customer registered with an EAN/GLN and no CVR took the
 //                  GLN branch, which leaves $cvrnr_with_prefix empty, and the payload
@@ -62,6 +56,11 @@
 //                  PartyLegalEntity/CompanyID under schemeID 0088 instead of a CVR under
 //                  0184. The key is omitted when no CVR is known; routing on the GLN and
 //                  the GLN exemptions in both missing-CVR guards are unchanged.
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261019 CL/MJ SST-870 sendInvoice() reads the country code off the invoice's own land field (countryCodeIso2()), and only falls back to the prefix in the CVR field and then DK.
+//                A foreign customer without a prefixed CVR was sent as DK whatever the address said - 33 of MEDSHOP's invoices in a year, all Swedish or Norwegian.
+//                lev_land gives the delivery address its own code when it is filled.
+//                Greenland and the Faroe Islands are still sent as DK.
 // 20261023 CL/MMR SST-884 sendInvoice() falls back to the customer card's CVR when the order has none, like EAN.
 // 20261023 CL/MMR SD-774 sendInvoice() stops before sending when a Danish receiver is reached on a GLN and neither the order nor the debitor card has a CVR, and the popup window says why (easyUblCvrMissing()).
 //                 Receivers reject such invoices (DK-R-017 / E-APS24003); EasyUBL requires the CVR since 2026-10-22.
@@ -83,8 +82,8 @@
 //                 A credit note's lines get their quantity negated instead of abs() on quantity and price, so its discount line is no longer credited as a charge.
 //                 In sendInvoice() "global $db;" is indented like the other statements, and the order id is cast in both queries.
 // 20261104 CL/MMR SST-746 Review (PR #998): the SST-746 history line no longer names a customer's item number.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261030 CL/MJ SST-882 easyUblSendFailed() stores the failure and EasyUBL's message in einvoice_events, so the invoice can show it.
-
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
@@ -96,6 +95,7 @@
     $apiKey = $res["var_value"];
     //echo $apiKey . "<br>";
 
+    $permission_key = 'debitor.ordre';
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
     include_once(__DIR__ . "/../includes/stdFunc/easyUblResponse.php");

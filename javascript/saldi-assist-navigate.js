@@ -20,6 +20,8 @@
 //                (lager/lagerstatusmail.php, api/v2/setup_api_key.php, bank_integration/login.php).
 //                The typed record links and companion screens of the full Assist are not on
 //                master; that branch adds them back with its pages.
+// 20261031 CL/ASR The new settings pages are destinations of the shell's own navigation: Indstillinger (systemdata/settings.php), every section (settingsSection.php?s=<section>), Brugere & roller (usersRoles.php) and Personlige indstillinger (personalSettings.php).
+//                 The old settings addresses stay listed.
 (function (root) {
   // Every screen the assistant may open: the destinations of SALDI's own navigation, as
   // listed in the assistant's screen manifest (chaty data/screens/screen_manifest.json).
@@ -94,10 +96,55 @@
     'systemdata/feedbackmail.php',
     'systemdata/formularkort.php?valg=formularer',
     'systemdata/kontoplan.php',
+    'systemdata/personalSettings.php',
     'systemdata/posmenuer.php',
     'systemdata/rabatgrupper.php',
     'systemdata/regnskabsaar.php',
     'systemdata/regnskabskort.php',
+    'systemdata/settings.php',
+    'systemdata/settingsSection.php?s=company.account',
+    'systemdata/settingsSection.php?s=company.data',
+    'systemdata/settingsSection.php?s=company.fiscal_years',
+    'systemdata/settingsSection.php?s=company.gdpr',
+    'systemdata/settingsSection.php?s=company.localisation',
+    'systemdata/settingsSection.php?s=documents.backgrounds',
+    'systemdata/settingsSection.php?s=documents.email',
+    'systemdata/settingsSection.php?s=documents.print',
+    'systemdata/settingsSection.php?s=finance.cash_journal',
+    'systemdata/settingsSection.php?s=finance.currencies',
+    'systemdata/settingsSection.php?s=finance.document_storage',
+    'systemdata/settingsSection.php?s=finance.vat',
+    'systemdata/settingsSection.php?s=import_export.backup',
+    'systemdata/settingsSection.php?s=import_export.data',
+    'systemdata/settingsSection.php?s=integrations.connections',
+    'systemdata/settingsSection.php?s=integrations.pickup',
+    'systemdata/settingsSection.php?s=items.consignment',
+    'systemdata/settingsSection.php?s=items.item_groups',
+    'systemdata/settingsSection.php?s=items.packaging',
+    'systemdata/settingsSection.php?s=items.stock',
+    'systemdata/settingsSection.php?s=items.units',
+    'systemdata/settingsSection.php?s=items.variants',
+    'systemdata/settingsSection.php?s=items.warehouses',
+    'systemdata/settingsSection.php?s=organisation.commission',
+    'systemdata/settingsSection.php?s=organisation.departments',
+    'systemdata/settingsSection.php?s=organisation.employees',
+    'systemdata/settingsSection.php?s=organisation.projects',
+    'systemdata/settingsSection.php?s=pos.cards',
+    'systemdata/settingsSection.php?s=pos.cash',
+    'systemdata/settingsSection.php?s=pos.kitchen',
+    'systemdata/settingsSection.php?s=pos.receipt',
+    'systemdata/settingsSection.php?s=pos.screen',
+    'systemdata/settingsSection.php?s=pos.tables',
+    'systemdata/settingsSection.php?s=pos.tills',
+    'systemdata/settingsSection.php?s=purchase.creditor_groups',
+    'systemdata/settingsSection.php?s=purchase.orders',
+    'systemdata/settingsSection.php?s=purchase.pricelists',
+    'systemdata/settingsSection.php?s=sales.debtor_card',
+    'systemdata/settingsSection.php?s=sales.debtor_groups',
+    'systemdata/settingsSection.php?s=sales.discounts',
+    'systemdata/settingsSection.php?s=sales.mysale',
+    'systemdata/settingsSection.php?s=sales.orders',
+    'systemdata/settingsSection.php?s=sales.reminders',
     'systemdata/stamkort.php',
     'systemdata/syssetup.php',
     'systemdata/syssetup.php?valg=afdelinger',
@@ -106,6 +153,7 @@
     'systemdata/syssetup.php?valg=moms',
     'systemdata/syssetup.php?valg=projekter',
     'systemdata/syssetup.php?valg=varer',
+    'systemdata/usersRoles.php',
     'systemdata/valuta.php'
   ]
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- debitor/pos_ordre_includes/includedFiles.php ---------- lap 3.7.7----2019.05.13-------
+// ------------- debitor/pos_ordre_includes/includedFiles.php ---------- ver 5.1.1----2026.11.13-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,13 +23,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2019 saldi.dk aps
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190510 Move included files here
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");

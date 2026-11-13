@@ -3,8 +3,7 @@
 //
 // 20261110 CDX/NTR Cover the 5.1.1 login upgrade, version stamps, retries and resumable MB-73 work.
 // 20261111 CDX/NTR Use common database ownership and inspection retention.
-// 20261113 CL/MJ SST-882 betweenUpdates.php gets $db as on a live login, and $db and the regnskab row name the tenant's real database.
-//                A migration that looks its table up by $db (ensureTableAndColumns()) then finds it on the second run.
+// 20261113 CDX/NTR Isolate the released backfill continuation from newly merged pending migrations.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -40,7 +39,7 @@ final class Release511UpgradeTest extends TestCase
             CharacterizationEnv::rows($connection, 'CREATE TABLE tekster (tekst_id integer, sprog_id integer, tekst text)');
         }
         CharacterizationEnv::rows($this->registry, 'CREATE TABLE regnskab (db text, version text)');
-        CharacterizationEnv::rows($this->registry, "INSERT INTO regnskab VALUES ('{$this->database}', '5.1.0')");
+        CharacterizationEnv::rows($this->registry, "INSERT INTO regnskab VALUES ('release_tenant', '5.1.0')");
         CharacterizationEnv::rows($this->tenant, 'CREATE TABLE grupper (art text, box1 text)');
         CharacterizationEnv::rows($this->tenant, "INSERT INTO grupper VALUES ('VE', '5.1.0')");
         CharacterizationEnv::rows($this->tenant, 'CREATE TABLE openpost (konto_id integer, udlign_id integer, udlignet text, udlign_date date, transdate date)');
@@ -56,7 +55,7 @@ final class Release511UpgradeTest extends TestCase
         $GLOBALS['release511Registry'] = $this->registry;
         $GLOBALS['release511Writes'] = [];
         $GLOBALS['release511Failure'] = null;
-        $GLOBALS['db'] = $this->database;
+        $GLOBALS['db'] = 'release_tenant';
         $GLOBALS['sqdb'] = 'release_master';
         $GLOBALS['sqhost'] = '';
         $GLOBALS['squser'] = '';
@@ -184,13 +183,17 @@ final class Release511UpgradeTest extends TestCase
     private function continueBackfill(): void
     {
         $db_type = $GLOBALS['db_type'];
-        $db = $GLOBALS['db'];
-        include __DIR__ . '/../../../includes/betweenUpdates.php';
+        // Only the released continuation belongs to this fixture; later pending migrations
+        // exercise roles/settings tables outside the minimal release schema.
+        $includeDir = dirname(__DIR__, 3) . '/includes';
+        $source = file_get_contents($includeDir . '/betweenUpdates.php');
+        self::assertSame(1, preg_match('~require_once __DIR__ [^;]+/opdat_func/backfillOrderLineDelivered[.]php[^;]*;\s*backfillOrderLineDelivered\([^;]+\);~', $source, $match));
+        eval(str_replace('__DIR__', var_export($includeDir, true), $match[0]));
     }
 
     private function assertVersions(string $expected): void
     {
         self::assertSame($expected, CharacterizationEnv::one($this->tenant, "SELECT box1 FROM grupper WHERE art = 'VE'")['box1']);
-        self::assertSame($expected, CharacterizationEnv::one($this->registry, "SELECT version FROM regnskab WHERE db = '{$this->database}'")['version']);
+        self::assertSame($expected, CharacterizationEnv::one($this->registry, "SELECT version FROM regnskab WHERE db = 'release_tenant'")['version']);
     }
 }

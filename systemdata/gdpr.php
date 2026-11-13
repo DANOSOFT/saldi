@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/gdprInc/gdprLogic.php --- ver 4.0.4 --- 2023-01-09 --
+// --- systemdata/gdprInc/gdprLogic.php --- ver 5.1.1 --- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,17 +21,20 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 Saldi.dk ApS
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------------
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 
 include("../includes/connect.php");
+$modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
+$permission_key = 'system.indstillinger';
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$deleteAccounts = if_isset($_POST['deleteAccounts'],NULL);
-include("gdprInc/gdprLogic.php");
-if (!$deleteAccounts) include("gdprInc/gdprOutput.php");
+// 20261005 Sawaneh The clean-up lives in Indstillinger » Virksomhed » Persondata (settings redesign G1.5); this page only redirects.
+header("Location: settingsSection.php?s=company.gdpr&moved=gdpr");
+exit;
 
 ?>

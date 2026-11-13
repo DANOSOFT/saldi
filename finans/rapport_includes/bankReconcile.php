@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// --- finans/bankReconcile.php --- patch 4.1.0 --- 2024.02.13 ---
+// --- finans/bankReconcile.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20121110 Indsat mulighed for valutavalg ved import - søg: valuta
 // 20130911 Fejl i 1. kald til "vis_data" "$vend" mangler.
 // 20131119	Genkendelse af posteringer fra Quickpay. Søg 20131109
@@ -61,7 +61,8 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ini_set("auto_detect_line_endings", true);
 
 @session_start();
@@ -71,6 +72,7 @@ $bankName = NULL;
 
 $title="SALDI - Bankimport";
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");

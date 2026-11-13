@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2026-10-08 ---
+// --- admin/aaben_regnskab.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,12 +32,16 @@
 // 2025.05.14 LOE Added check for empty database and added error message if database is empty
 // 2025.05.14 LOE Added check for global_id in table regnskab and added error message if not exist as the former failed for mysql insert
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20260930 SS Roles stage 2 (§7.1): opening a company from the admin panel is written to its audit log (session.revisor_open).
+// 20260930 SS Declared permission key 'any' (the page checks the master database itself); unguarded pages are refused in Deny mode.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 
 $css="../css/standard.css";
 $title="Aaben regnskab";
 $nextver= $globalId = NULL;
+$permission_key = 'any'; // gated below: master database only
 		
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -146,6 +150,10 @@ if ($dbver<$version) {
 }
 if (file_exists("../includes/betweenUpdates.php")) {
 	include("../includes/betweenUpdates.php");
+}
+include_once("../includes/permissions.php");
+if (function_exists('audit_log')) {
+	audit_log('session.revisor_open', 'db_id ' . (int) $tmp_db_id . ', ' . $brugernavn, 'session', (string) (int) $tmp_db_id, 'admin');
 }
 print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/menu.php\">";
 

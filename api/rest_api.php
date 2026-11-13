@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.1.0 --- 2026-11-10 ---
+// --- api/rest_api.php --- ver 5.1.0 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -104,10 +104,10 @@
 // 20261110 CL/MMR SST-989 insert_shop_order() refuses a DO when the shop order id is already on any order, and a DK when it is already on a DK or on a DO with a negative sum (shop_order_taken()).
 //                 The check was per art only, so a shop credit note sent once as DK and once as DO (an old integration script) was created and invoiced twice.
 //                 Also corrected the indentation of the new-debtor block in insert_shop_order() (no behaviour change).
-
-
+//
+//
 // ----------------------------------------------------------------------
-
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 date_default_timezone_set('Europe/Copenhagen');
 
 include("../includes/connect.php");
