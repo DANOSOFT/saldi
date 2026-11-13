@@ -47,6 +47,7 @@
 //                  A rebuild never waits for a target year another transaction is writing: it tries to lock the whole year without waiting for a few seconds and otherwise leaves the source year waiting for the next check, so it cannot deadlock with a journal (Codex round 10).
 //                  The year card tries the same before it waits for its own year.
 //                  The waiting year has a settings row of its own that is only ever lowered or cleared in one statement, so a check that saves the watermark it read earlier cannot erase a year another request left waiting (Codex round 11).
+//                  A request that leaves a year waiting before the first check has created that row creates it itself, under a lock the first check takes too (Codex round 12).
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -232,7 +233,9 @@ function followingOpeningBalanceTransfer($inputs, &$blocked) {
  * another request left waiting meanwhile (Codex round 11). This one statement lowers it to $year or keeps a lower
  * year, so concurrent requests can only add work. It always writes the row: inside a transaction the row then stays
  * locked until that transaction commits, so syncFollowingOpeningBalances() cannot take the year away before the
- * changes it stands for are visible. Nothing happens before the first check has created the row.
+ * changes it stands for are visible. When the row does not exist yet (no check has started following, or the first
+ * one is still starting), it is created here with $year, see followingOpeningBalanceCreatePending(), so a year left
+ * waiting is never dropped (Codex round 12).
  * Called after the rebuild's last kontoplan write; the settings rows always come last.
  *
  * @param int $year Fiscal year (kodenr).
@@ -249,6 +252,51 @@ function followingOpeningBalanceMarkPending($year) {
 	$qtxt = "update settings set var_value = case when $current = 0 or $current > $year then '$year' else var_value end ";
 	$qtxt.= "where var_name = 'openingBalancePending'";
 	db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
+	if (followingOpeningBalancePending() === null) {
+		followingOpeningBalanceCreatePending($year);
+	}
+}
+
+/**
+ * Create 'openingBalancePending' with $year when it does not exist, or lower it to $year when another request created
+ * it meanwhile. Creating the row is serialised by an advisory lock, so there is only ever one row:
+ * - inside a transaction (a rebuild that left a year waiting) the lock is pg_advisory_xact_lock and is held until that
+ *   transaction commits, so a first check that starts creating the row waits until it can see this request's row;
+ * - outside one (the first check, followingOpeningBalanceInitialize()) it is a session lock released right after.
+ * Whoever waits for the lock holds nothing else of this feature: a rebuild only gets here after its last kontoplan
+ * write, and the first check runs in autocommit. MySQL has no transaction-level advisory lock; there GET_LOCK is taken
+ * and released around the insert (best effort, documented).
+ *
+ * @param int $year Fiscal year to leave waiting, or 0 to only create the row.
+ * @return void
+ */
+function followingOpeningBalanceCreatePending($year) {
+	global $db_type;
+	$year = (int)$year;
+	$mysql = ($db_type === 'mysql' || $db_type === 'mysqli');
+	$transaction = followingOpeningBalancesInTransaction();
+	if ($mysql) {
+		db_select("SELECT GET_LOCK(CONCAT('saldi:openingBalancePending:', MD5(DATABASE())), 10) AS locked", __FILE__ . ' line ' . __LINE__);
+	} elseif ($transaction) {
+		db_select("SELECT pg_advisory_xact_lock(hashtext('openingBalancePending'), 1005)", __FILE__ . ' line ' . __LINE__);
+	} else {
+		db_select("SELECT pg_advisory_lock(hashtext('openingBalancePending'), 1005)", __FILE__ . ' line ' . __LINE__);
+	}
+	try {
+		$current = followingOpeningBalancePending();
+		if ($current === null) {
+			$description = 'SST-1005: earliest fiscal year waiting for its later years to get new opening balances (0 = none)';
+			saveFollowingOpeningBalanceSetting('openingBalancePending', (string)max(0, $year), $description);
+		} elseif ($year > 0 && ($current === 0 || $current > $year)) {
+			followingOpeningBalanceMarkPending($year);
+		}
+	} finally {
+		if ($mysql) {
+			db_select("SELECT RELEASE_LOCK(CONCAT('saldi:openingBalancePending:', MD5(DATABASE()))) AS locked", __FILE__ . ' line ' . __LINE__);
+		} elseif (!$transaction) {
+			db_select("SELECT pg_advisory_unlock(hashtext('openingBalancePending'), 1005)", __FILE__ . ' line ' . __LINE__);
+		}
+	}
 }
 
 /**
@@ -512,8 +560,9 @@ function checkFollowingOpeningBalances($activeYear) {
  * «Sæt aktivt» brings up to date.
  *
  * @return array|null array{0: array, 1: int, 2: bool}: the state to continue from (see
- *   followingOpeningBalanceStateParts()), max(id) read now and whether the state still has to be saved; or null when
- *   this check stored the very first state, or another check is starting right now (the next page continues).
+ *   followingOpeningBalanceStateParts()), max(id) read now and whether the state still has to be saved (also after
+ *   storing the very first state, so a year already left waiting is rebuilt); or null when another check is starting
+ *   right now (the next page continues). The 'openingBalancePending' row is created here when it is missing.
  */
 function followingOpeningBalanceInitialize() {
 	if (!followingOpeningBalanceInitLock(true)) {
@@ -528,14 +577,15 @@ function followingOpeningBalanceInitialize() {
 		$row = db_fetch_array(db_select("select max(id) as max_id from transaktioner", __FILE__ . ' line ' . __LINE__));
 		$maxId = (int)$row['max_id'];
 		if (followingOpeningBalancePending() === null) {
-			// A state from an earlier test build kept the waiting year in its JSON; it moves to the row of its own.
-			$year = $state === null ? 0 : (int)$state['pendingYear'];
-			$description = 'SST-1005: earliest fiscal year waiting for its later years to get new opening balances (0 = none)';
-			saveFollowingOpeningBalanceSetting('openingBalancePending', (string)$year, $description);
+			// A state from an earlier test build kept the waiting year in its JSON; it moves to the row of its own. A
+			// request that left a year waiting meanwhile may create the row first; its year is kept (lowered at most).
+			followingOpeningBalanceCreatePending($state === null ? 0 : (int)$state['pendingYear']);
 		}
 		if ($state === null) {
-			saveFollowingOpeningBalanceState(array('lastId' => $maxId, 'fingerprintAt' => time(), 'fingerprint' => $fingerprint));
-			return null;
+			$state = array('lastId' => $maxId, 'pendingYear' => 0, 'fingerprintAt' => time(), 'fingerprint' => $fingerprint);
+			saveFollowingOpeningBalanceState($state);
+			// A year a card or journal left waiting before this first check is rebuilt by it (Codex round 12).
+			return array($state, $maxId, false);
 		}
 		if ($state['fingerprint'] === null) {
 			// A state from before the fingerprint keeps its watermark and waiting year, and gets its first fingerprint now.

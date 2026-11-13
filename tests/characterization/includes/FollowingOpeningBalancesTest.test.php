@@ -13,6 +13,7 @@
 // 20261113 CL/MMR SST-1005 A change that is undone while a transfer is calculated is noticed, and a year card and a journal posting in the year before both finish (Codex round 9).
 //                 A rebuild into a year a journal is posting in never waits for it: it gets the year once the journal commits, or leaves it for the next check (Codex round 10).
 //                 A check that read the state earlier cannot erase a year a card left waiting, and taking the waiting year keeps one registered meanwhile (Codex round 11).
+//                 A card that leaves a year waiting while the first check starts, before any check, or with an old state creates the row itself (Codex round 12).
 
 declare(strict_types=1);
 
@@ -1103,6 +1104,107 @@ final class FollowingOpeningBalancesTest extends TestCase
             unset($GLOBALS['sst1005Hook']);
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
             pg_close($holder);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /**
+     * Codex round 12: the first check is still starting (it holds the start lock and has read its watermark) when a card
+     * leaves a year waiting. There is no 'openingBalancePending' row yet, so the card creates it; the first check keeps it.
+     */
+    public function testACardThatLeavesAYearWaitingWhileTheFirstCheckStartsKeepsIt(): void
+    {
+        $this->sql('UPDATE kontoplan SET primo = 0 WHERE regnskabsaar = 8');
+        $this->sql('UPDATE kontoplan SET primo = 1000 WHERE regnskabsaar = 8 AND kontonr = 2000');
+        $this->sql('UPDATE kontoplan SET primo = -1000 WHERE regnskabsaar = 8 AND kontonr = 3000');
+        $schema = 'sst1005_init_pending_' . getmypid();
+        $other = $this->privateSchema($schema);
+        $holder = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
+        pg_query($holder, "SET search_path TO $schema");
+        try {
+            updateFollowingOpeningBalances(8);
+            self::assertSame([1000.0, 1120.0], [$this->primo(9, 2000), $this->primo(10, 2000)]);
+            self::assertNull($this->setting('openingBalanceSync'));
+            self::assertNull($this->setting('openingBalancePending'));
+            $mine = $GLOBALS['connection'];
+            pg_query($holder, 'BEGIN');
+            pg_query($holder, 'UPDATE kontoplan SET saldo = saldo WHERE regnskabsaar = 9 AND kontonr = 2000');
+            // B (this connection) starts following: it has the start lock and has read the watermark when card A saves.
+            $GLOBALS['sst1005Hook'] = ['after' => 'select max(id) as max_id from transaktioner', 'times' => 1, 'run' => function () use ($mine, $other): void {
+                $GLOBALS['connection'] = $other;
+                self::assertNull(checkFollowingOpeningBalances(8), 'The card\'s own page check finds the start busy.');
+                pg_query($other, 'BEGIN');
+                $before = followingOpeningBalancePrimo(8, true);
+                pg_query($other, 'UPDATE kontoplan SET primo = primo + 5 WHERE regnskabsaar = 8 AND kontonr = 2000');
+                pg_query($other, 'UPDATE kontoplan SET primo = primo - 5 WHERE regnskabsaar = 8 AND kontonr = 3000');
+                self::assertNull(updateOpeningBalancesAfterYearSave(8, $before));
+                pg_query($other, 'COMMIT');
+                $GLOBALS['connection'] = $mine;
+                self::assertSame('8', $this->setting('openingBalancePending'), 'The card created the row with its year.');
+            }];
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS);
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalancePending'"))['n'], 'One row.');
+            self::assertStringEndsWith('|8', $this->syncState(), 'The first check kept the card\'s year.');
+            pg_query($holder, 'COMMIT');
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame([1005.0, 1125.0], [$this->primo(9, 2000), $this->primo(10, 2000)], 'The next page carries the card\'s edit on.');
+            self::assertSame([1005.0, -1005.0], [$this->primo(8, 2000), $this->primo(8, 3000)], 'The card\'s saved primos are kept.');
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            pg_close($holder);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testACardThatLeavesAYearWaitingBeforeAnyCheckOrWithAnOldStateCreatesTheRow(): void
+    {
+        $maxId = (int) pg_fetch_assoc($this->sql('SELECT max(id) AS m FROM transaktioner'))['m'];
+        foreach (['none' => null, 'old' => "$maxId|0"] as $case => $state) {
+            $this->sql("DELETE FROM settings");
+            if ($state !== null) {
+                $this->sql("INSERT INTO settings (var_name, var_grp, var_value, user_id) VALUES ('openingBalanceSync', 'system', '$state', 0)");
+            }
+            $this->sql('BEGIN');
+            followingOpeningBalanceMarkPending(9);
+            $this->sql('COMMIT');
+            self::assertSame('9', $this->setting('openingBalancePending'), "Created ($case).");
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertStringEndsWith('|0', $this->syncState(), "The next check rebuilt from year 9 ($case).");
+            self::assertSame(1120.0, $this->primo(10, 2000));
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalancePending'"))['n']);
+        }
+    }
+
+    public function testCreatingTheWaitingYearRowWaitsForATransactionThatCreatesIt(): void
+    {
+        $schema = 'sst1005_create_lock_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $mine = $GLOBALS['connection'];
+            pg_query($other, 'BEGIN');
+            $GLOBALS['connection'] = $other;
+            followingOpeningBalanceMarkPending(9);
+            $GLOBALS['connection'] = $mine;
+            // The first check would create the row under the same lock: it waits until it can see the transaction's row.
+            pg_send_query($mine, "SELECT pg_advisory_lock(hashtext('openingBalancePending'), 1005)");
+            usleep(300000);
+            self::assertTrue(pg_connection_busy($mine));
+            pg_query($other, 'COMMIT');
+            pg_get_result($mine);
+            while (pg_get_result($mine)) {
+            }
+            $this->sql("SELECT pg_advisory_unlock(hashtext('openingBalancePending'), 1005)");
+            followingOpeningBalanceCreatePending(0);
+            self::assertSame('9', $this->setting('openingBalancePending'));
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalancePending'"))['n']);
+        } finally {
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            while (pg_get_result($mine)) {
+            }
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
