@@ -152,9 +152,12 @@
 //                opret_ordrelinje() inserts leveret = 0.
 //                krediter_pos() starts the return line at leveret 0, as the sold line's leveret is now recorded and copying it cancelled the return.
 //                Braces added to the brace-less ifs in the edited blocks.
+// 20261021 CL/MJ SST-883 linjeopdat() and lagerstatus() resolve the warehouse before they write a lagerstatus row. An order line keeps the warehouse it was written with, so a credit note could post stock to a warehouse that had since been taken out of use - where it counts in "i alt" and in the figure sent to the webshops but shows in no warehouse column and lagerflyt cannot move it.
 // 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells the webshops once when every line is posted. An item on two lines was two sends, and a set the lines share was sent once per line: item 13054 is a component in 33 sets, so one order line was 198 webshop calls and the 30 second budget skipped everything after it.
+// 20261026 CDX/MJ SST-883 Keep warehouse validation alongside the latest SST-876 document batching and sales warnings.
 // 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
 // 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
+// 20261027 CDX/MJ SST-883 Apply line deltas when a removed warehouse falls back to warehouse zero.
 // 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery
 //                records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
 // 20261008 SS The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
@@ -165,9 +168,11 @@
 // 20261101 CL/MJ SST-910 linjeopdat(): a return on an item without batch control goes back into the purchase batches.
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
+// 20261104 CL/MJ SST-883 levering() hands linjeopdat() the order's department warehouse, so a line on a removed warehouse goes there on Fakturér.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
+include_once(__DIR__ . '/stdFunc/warehouse.php'); # warehouseIsDefined() - used when posting stock
 require_once __DIR__ . '/sharedFile.php';
 
 /**
@@ -495,7 +500,7 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 					exit;
 				}
 				if ($vare_id[$x] && $leveres[$x]) {
-					linjeopdat($id, $gruppe[$x], $linje_id[$x], $beholdning[$x], $vare_id[$x], $leveres[$x], $pris[$x], $nettopris[$x], $rabat[$x], $row['samlevare'], $x, $posnr[$x], $serienr[$x], $kred_linje_id[$x], $bogf_konto[$x], $variant_id[$x], $lager[$x], $webservice);
+					linjeopdat($id, $gruppe[$x], $linje_id[$x], $beholdning[$x], $vare_id[$x], $leveres[$x], $pris[$x], $nettopris[$x], $rabat[$x], $row['samlevare'], $x, $posnr[$x], $serienr[$x], $kred_linje_id[$x], $bogf_konto[$x], $variant_id[$x], $lager[$x], $webservice, $afd ? (int) $afd_lager : 0);
 					#				if (trim($row['samlevare'])=='on') {
 #					$q2 = db_select("select * from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
 #					while($r2 =db_fetch_array($q2)) 
@@ -518,7 +523,7 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 } #endfunc levering
 
 #############################################################################################
-function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pris, $nettopris, $rabat, $samlevare, $linje_nr, $posnr, $serienr, $kred_linje_id, $bogf_konto, $variant_id, $lager, $webservice = false)
+function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pris, $nettopris, $rabat, $samlevare, $linje_nr, $posnr, $serienr, $kred_linje_id, $bogf_konto, $variant_id, $lager, $webservice = false, $orderWarehouse = 0)
 {
 
 	#xit;
@@ -536,6 +541,16 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 	global $sprog_id;            # SST-796 for findtekst() on the estimated-cost warning
 
 	$antal *= 1;
+
+	# 20261021 CL/MJ SST-883 An order line keeps the warehouse it was written with, so a document
+	# posted later can name one that has since been taken out of use - a credit note copies it
+	# from the order it credits, which is how Havemoebelland got stock onto warehouse 10 five
+	# days after it stopped being listed. Stock posted there counts in "i alt" and in the
+	# totalStock sent to the webshops, but appears in no warehouse column, so nobody can find it
+	# or move it. Resolve it to a warehouse that exists before anything is written.
+	$requestedWarehouse = (int) $lager;
+	$lager = resolvePostingWarehouse($lager, $vare_id, $linje_id, $orderWarehouse);
+	$warehouseRedirected = $lager !== $requestedWarehouse;
 
 	if (!$levdate) {
 		$levdate = date("Y-m-d");
@@ -628,16 +643,19 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 		$tmp = $antal * -1;
 		$qtxt = "select id,beholdning from lagerstatus where vare_id='$vare_id' and variant_id = '$variant_id' and lager='$lager'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)); #20161011 + næste 2
-		if ($lager > 0)
-			$ny_beh = $r['beholdning'] + $tmp;
-		else
+		// A redirected warehouse receives this line's delta, never the item's total across warehouses.
+		if ($lager > 0 || $warehouseRedirected) {
+			$ny_beh = (float) ifset($r, 'beholdning', 0) + $tmp;
+		} else {
 			$ny_beh = $beholdning;
-		if ($r['id']) {
+		}
+		if (ifset($r, 'id')) {
 			$qtxt = "delete from lagerstatus where vare_id='$vare_id' and variant_id = '$variant_id' and lager='$lager' and id !='$r[id]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$qtxt = "update lagerstatus set beholdning='$ny_beh' where id='$r[id]'";
-		} else
+		} else {
 			$qtxt = "insert into lagerstatus (vare_id,variant_id,beholdning,lager) values ('$vare_id','$variant_id','$tmp','$lager')";
+		}
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		if ($variant_id) {
 			db_modify("update variant_varer set variant_beholdning=variant_beholdning+$tmp where id='$variant_id'", __FILE__ . " linje " . __LINE__);
@@ -944,20 +962,19 @@ function batch_salg_lev($id, $levdate, $fakturadate, $beholdning, $vare_id, $ant
 ###############################################################
 function lagerstatus($vare_id, $variant_id, $lager, $antal)
 {
-	global $ref;
+	# 20261021 CL/MJ SST-883 "global $ref" stood here for the department lookup that has moved
+	# into resolvePostingWarehouse(), which declares it itself. Nothing else in this function
+	# reads it.
 
 	# Denne funktion bruges til regulering af lagerbeholdning i tilfælde hvor der er flere lagre 
 	# Kaldes fra funktionen batch_salg_lev... 
 
 	(int) $variant_id;
-	if (!$lager) {
-		if ($row = db_fetch_array(db_select("select afd from ansatte where navn = '$ref'", __FILE__ . " linje " . __LINE__))) {
-			if ($row = db_fetch_array(db_select("select kodenr from grupper where box1='$row[afd]' and art='LG'", __FILE__ . " linje " . __LINE__))) {
-				$lager = $row['kodenr'];
-			}
-		}
-	}
-	$lager = $lager * 1;
+	# 20261021 CL/MJ SST-883 Was "if (!$lager)" with the department lookup inline. It now also
+	# catches a warehouse that is set but no longer exists in grupper art='LG', because the
+	# insert below would otherwise create a stock row on a warehouse no column can show - the
+	# same fallback, one line, shared with linjeopdat() so both agree.
+	$lager = resolvePostingWarehouse($lager, $vare_id, 0);
 
 	$query = db_select("select * from lagerstatus where vare_id='$vare_id' and variant_id='$variant_id' and lager='$lager'", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
