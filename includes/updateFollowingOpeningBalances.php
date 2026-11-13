@@ -46,6 +46,7 @@
 //                  The year card writes the «Overfør til» choices that change on the year before first, so it never holds its own year while it waits for the year before (Codex round 9).
 //                  A rebuild never waits for a target year another transaction is writing: it tries to lock the whole year without waiting for a few seconds and otherwise leaves the source year waiting for the next check, so it cannot deadlock with a journal (Codex round 10).
 //                  The year card tries the same before it waits for its own year.
+//                  The waiting year has a settings row of its own that is only ever lowered or cleared in one statement, so a check that saves the watermark it read earlier cannot erase a year another request left waiting (Codex round 11).
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -225,23 +226,59 @@ function followingOpeningBalanceTransfer($inputs, &$blocked) {
 }
 
 /**
- * Leave $year waiting in the follow-up state, so the next check in a later year rebuilds the years after it.
- * Nothing happens before the first check has started following. Called after the rebuild's last kontoplan write.
+ * Leave $year waiting, so the next check in a later year rebuilds the years after it. The waiting year is the settings
+ * row 'openingBalancePending' (a year number, '0' when nothing waits), apart from the watermark and fingerprint in
+ * 'openingBalanceSync', because a check saves those from what it read at its start and must never erase a year
+ * another request left waiting meanwhile (Codex round 11). This one statement lowers it to $year or keeps a lower
+ * year, so concurrent requests can only add work. It always writes the row: inside a transaction the row then stays
+ * locked until that transaction commits, so syncFollowingOpeningBalances() cannot take the year away before the
+ * changes it stands for are visible. Nothing happens before the first check has created the row.
+ * Called after the rebuild's last kontoplan write; the settings rows always come last.
  *
  * @param int $year Fiscal year (kodenr).
  * @return void
  */
 function followingOpeningBalanceMarkPending($year) {
+	global $db_type;
 	$year = (int)$year;
-	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalanceSync' order by id limit 1", __FILE__ . ' line ' . __LINE__));
-	if (!$r || $r['var_value'] === null || $r['var_value'] === '') {
+	if ($year < 1) {
 		return;
 	}
-	$state = followingOpeningBalanceStateParts($r['var_value']);
-	if (!$state['pendingYear'] || $year < $state['pendingYear']) {
-		$state['pendingYear'] = $year;
-		saveFollowingOpeningBalanceState($state);
+	$type = ($db_type === 'mysql' || $db_type === 'mysqli') ? 'signed' : 'integer';
+	$current = "cast(coalesce(nullif(var_value, ''), '0') as $type)";
+	$qtxt = "update settings set var_value = case when $current = 0 or $current > $year then '$year' else var_value end ";
+	$qtxt.= "where var_name = 'openingBalancePending'";
+	db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
+}
+
+/**
+ * The year left waiting in 'openingBalancePending', see followingOpeningBalanceMarkPending().
+ *
+ * @return int|null The fiscal year, 0 when nothing waits, or null when the row does not exist yet.
+ */
+function followingOpeningBalancePending() {
+	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalancePending' order by id limit 1", __FILE__ . ' line ' . __LINE__));
+	return $r ? (int)$r['var_value'] : null;
+}
+
+/**
+ * Take the waiting year for a rebuild that starts now: it is cleared only while it still holds the value read, so a
+ * lower year registered meanwhile stays (and is taken on the next pass). A request that registered a year inside its
+ * transaction holds the row until it commits, so the clear waits for it and the rebuild then reads what it committed.
+ *
+ * @return int The earliest waiting fiscal year that this rebuild takes on, or 0.
+ */
+function followingOpeningBalanceTakePending() {
+	$taken = 0;
+	for ($pass = 0; $pass < 3; $pass++) {
+		$year = (int)followingOpeningBalancePending();
+		if ($year < 1 || ($taken && $year >= $taken)) {
+			break;
+		}
+		db_modify("update settings set var_value = '0' where var_name = 'openingBalancePending' and var_value = '$year'", __FILE__ . ' line ' . __LINE__);
+		$taken = $year;
 	}
+	return $taken;
 }
 
 /**
@@ -416,18 +453,22 @@ function checkFollowingOpeningBalances($activeYear) {
 		return null;
 	}
 	$qtxt = "select (select max(id) from transaktioner) as max_id, ";
-	$qtxt.= "(select var_value from settings where var_name = 'openingBalanceSync' order by id limit 1) as state";
+	$qtxt.= "(select var_value from settings where var_name = 'openingBalanceSync' order by id limit 1) as state, ";
+	$qtxt.= "(select var_value from settings where var_name = 'openingBalancePending' order by id limit 1) as pending";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
 	if (!$r) {
 		return null;
 	}
 	$state = ($r['state'] === null || $r['state'] === '') ? null : followingOpeningBalanceStateParts($r['state']);
-	if ($state === null || $state['fingerprint'] === null) {
+	$pending = $r['pending'] === null ? null : (int)$r['pending'];
+	$found = 0;
+	if ($state === null || $state['fingerprint'] === null || $pending === null) {
 		$initial = followingOpeningBalanceInitialize();
 		if ($initial === null) {
 			return null;
 		}
 		list($state, $maxId, $changed) = $initial;
+		$pending = (int)followingOpeningBalancePending();
 	} else {
 		$maxId = (int)$r['max_id'];
 		$changed = false;
@@ -435,7 +476,7 @@ function checkFollowingOpeningBalances($activeYear) {
 			// Postings that commit after a check with lower ids than it saw, and deleted postings, show up here.
 			$fingerprint = followingOpeningBalanceFingerprint();
 			$year = followingOpeningBalanceFingerprintChange($state['fingerprint'], $fingerprint);
-			if ($year && (!$state['pendingYear'] || $year < $state['pendingYear'])) $state['pendingYear'] = $year;
+			if ($year) $found = $year;
 			$state['fingerprint'] = $fingerprint;
 			$state['fingerprintAt'] = time();
 			$changed = true;
@@ -443,17 +484,23 @@ function checkFollowingOpeningBalances($activeYear) {
 	}
 	if ($maxId > $state['lastId']) {
 		$year = followingOpeningBalancePostedYear($state['lastId'], $maxId);
-		if ($year && (!$state['pendingYear'] || $year < $state['pendingYear'])) $state['pendingYear'] = $year;
+		if ($year && (!$found || $year < $found)) $found = $year;
 		$state['lastId'] = $maxId;
 		$changed = true;
 	}
+	if ($found) {
+		// Registered before the watermark and fingerprint that cover it are saved, and only ever lowering the row.
+		followingOpeningBalanceMarkPending($found);
+		$pending = (int)followingOpeningBalancePending();
+	}
 	if ($changed) {
+		// Another check may save its own watermark and fingerprint over these; the waiting year is not in this row.
 		saveFollowingOpeningBalanceState($state);
 	}
-	if (!$state['pendingYear'] || $activeYear <= $state['pendingYear']) {
+	if (!$pending || $activeYear <= $pending) {
 		return null;
 	}
-	return syncFollowingOpeningBalances($state['pendingYear']);
+	return syncFollowingOpeningBalances($pending);
 }
 
 /**
@@ -480,8 +527,14 @@ function followingOpeningBalanceInitialize() {
 		}
 		$row = db_fetch_array(db_select("select max(id) as max_id from transaktioner", __FILE__ . ' line ' . __LINE__));
 		$maxId = (int)$row['max_id'];
+		if (followingOpeningBalancePending() === null) {
+			// A state from an earlier test build kept the waiting year in its JSON; it moves to the row of its own.
+			$year = $state === null ? 0 : (int)$state['pendingYear'];
+			$description = 'SST-1005: earliest fiscal year waiting for its later years to get new opening balances (0 = none)';
+			saveFollowingOpeningBalanceSetting('openingBalancePending', (string)$year, $description);
+		}
 		if ($state === null) {
-			saveFollowingOpeningBalanceState(array('lastId' => $maxId, 'pendingYear' => 0, 'fingerprintAt' => time(), 'fingerprint' => $fingerprint));
+			saveFollowingOpeningBalanceState(array('lastId' => $maxId, 'fingerprintAt' => time(), 'fingerprint' => $fingerprint));
 			return null;
 		}
 		if ($state['fingerprint'] === null) {
@@ -533,15 +586,11 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	}
 	include_once(__DIR__ . '/std_func.php');
 	include_once(__DIR__ . '/genberegn.php');
-	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalanceSync' order by id limit 1", __FILE__ . ' line ' . __LINE__));
-	if ($r && $r['var_value'] !== '' && $r['var_value'] !== null) {
-		$state = followingOpeningBalanceStateParts($r['var_value']);
-		if ($state['pendingYear']) {
-			$fromYear = $fromYear > 0 ? min($fromYear, $state['pendingYear']) : $state['pendingYear'];
-			// Cleared before the rebuild, so a failing rebuild is not retried on every page.
-			$state['pendingYear'] = 0;
-			saveFollowingOpeningBalanceState($state);
-		}
+	// Taken before the rebuild, so a failing rebuild is not retried on every page. A year registered after this is
+	// left for the next check.
+	$pending = followingOpeningBalanceTakePending();
+	if ($pending) {
+		$fromYear = $fromYear > 0 ? min($fromYear, $pending) : $pending;
 	}
 	$checkedFrom = $fromYear;
 	$stop = null;
@@ -745,7 +794,8 @@ function followingOpeningBalancesInTransaction() {
  * @param string $value The stored value.
  * @return array{
  *   lastId: int,             Highest transaktioner.id already looked at.
- *   pendingYear: int,        Earliest fiscal year with postings not yet carried forward, or 0.
+ *   pendingYear: int,        Only from a state of an earlier test build: the waiting year it kept, or 0. The waiting
+ *                            year now lives in 'openingBalancePending' (followingOpeningBalanceMarkPending()).
  *   fingerprintAt: int,      Unix time of the last fingerprint, or 0.
  *   fingerprint: array|null, followingOpeningBalanceFingerprint() at that time, or null when there is none yet.
  * }
@@ -773,17 +823,16 @@ function followingOpeningBalanceStateParts($value) {
 /**
  * Store the follow-up state (see followingOpeningBalanceStateParts()) as one JSON row.
  *
- * @param array $state lastId, pendingYear, fingerprintAt and fingerprint.
+ * @param array $state lastId, fingerprintAt and fingerprint; the waiting year has a row of its own.
  * @return void
  */
 function saveFollowingOpeningBalanceState($state) {
 	$value = json_encode(array(
 		'lastId' => (int)$state['lastId'],
-		'pendingYear' => (int)$state['pendingYear'],
 		'fingerprintAt' => (int)$state['fingerprintAt'],
 		'fingerprint' => $state['fingerprint'],
 	));
-	$description = 'SST-1005: posting id watermark, earliest fiscal year waiting for new opening balances, and the postings fingerprint of the open years';
+	$description = 'SST-1005: posting id watermark and the postings fingerprint of the open years';
 	saveFollowingOpeningBalanceSetting('openingBalanceSync', $value, $description);
 }
 

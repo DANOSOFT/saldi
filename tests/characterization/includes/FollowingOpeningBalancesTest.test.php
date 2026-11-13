@@ -12,6 +12,7 @@
 //                 The year card's snapshot locks its year until the card commits.
 // 20261113 CL/MMR SST-1005 A change that is undone while a transfer is calculated is noticed, and a year card and a journal posting in the year before both finish (Codex round 9).
 //                 A rebuild into a year a journal is posting in never waits for it: it gets the year once the journal commits, or leaves it for the next check (Codex round 10).
+//                 A check that read the state earlier cannot erase a year a card left waiting, and taking the waiting year keeps one registered meanwhile (Codex round 11).
 
 declare(strict_types=1);
 
@@ -149,18 +150,19 @@ final class FollowingOpeningBalancesTest extends TestCase
         return ['accounts' => $accounts, 'summary' => $summary];
     }
 
-    /** The id watermark and the waiting year from the JSON in 'openingBalanceSync', as "lastId|pendingYear". */
+    /** The id watermark from the JSON in 'openingBalanceSync' and the waiting year in 'openingBalancePending', as "lastId|pendingYear". */
     private function syncState(): string
     {
         $state = followingOpeningBalanceStateParts((string) $this->setting('openingBalanceSync'));
-        return $state['lastId'] . '|' . $state['pendingYear'];
+        return $state['lastId'] . '|' . (int) $this->setting('openingBalancePending');
     }
 
     /** Overwrite the watermark and the fingerprint time, keeping the stored fingerprint. */
     private function setSyncState(int $lastId, int $pendingYear, int $fingerprintAt): void
     {
         $state = followingOpeningBalanceStateParts((string) $this->setting('openingBalanceSync'));
-        saveFollowingOpeningBalanceState(['lastId' => $lastId, 'pendingYear' => $pendingYear, 'fingerprintAt' => $fingerprintAt, 'fingerprint' => $state['fingerprint']]);
+        saveFollowingOpeningBalanceState(['lastId' => $lastId, 'fingerprintAt' => $fingerprintAt, 'fingerprint' => $state['fingerprint']]);
+        $this->sql("UPDATE settings SET var_value = '$pendingYear' WHERE var_name = 'openingBalancePending'");
     }
 
     private function setting(string $name): ?string
@@ -1044,6 +1046,107 @@ final class FollowingOpeningBalancesTest extends TestCase
             unset($GLOBALS['sst1005Hook']);
             while (pg_get_result($other)) {
             }
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /**
+     * Codex round 11: a check that read the state before a card left a year waiting must not erase that year when it
+     * saves its watermark and fingerprint. The card's change is a primo edit, which no fingerprint of postings finds again.
+     */
+    public function testACheckThatReadTheStateEarlierDoesNotEraseAYearACardLeftWaiting(): void
+    {
+        $this->sql('UPDATE kontoplan SET primo = 0 WHERE regnskabsaar = 8');
+        $this->sql('UPDATE kontoplan SET primo = 1000 WHERE regnskabsaar = 8 AND kontonr = 2000');
+        $this->sql('UPDATE kontoplan SET primo = -1000 WHERE regnskabsaar = 8 AND kontonr = 3000');
+        $schema = 'sst1005_lost_pending_' . getmypid();
+        $other = $this->privateSchema($schema);
+        $holder = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
+        pg_query($holder, "SET search_path TO $schema");
+        try {
+            updateFollowingOpeningBalances(8);
+            self::assertSame([1000.0, 1120.0], [$this->primo(9, 2000), $this->primo(10, 2000)]);
+            self::assertNull(checkFollowingOpeningBalances(11));
+            $this->setSyncState((int) explode('|', $this->syncState())[0], 0, time() - 601);
+            $mine = $GLOBALS['connection'];
+            // H holds an account of year 9 without changing anything.
+            pg_query($holder, 'BEGIN');
+            pg_query($holder, 'UPDATE kontoplan SET saldo = saldo WHERE regnskabsaar = 9 AND kontonr = 2000');
+            // Check B (this connection) has read the state, nothing waiting. Then card A (other connection) saves year 8
+            // with a balanced primo edit; year 9 is busy, so A leaves year 8 waiting and commits.
+            $GLOBALS['sst1005Hook'] = ['after' => 'as pending', 'times' => 1, 'run' => function () use ($mine, $other): void {
+                $GLOBALS['connection'] = $other;
+                pg_query($other, 'BEGIN');
+                $before = followingOpeningBalancePrimo(8, true);
+                pg_query($other, 'UPDATE kontoplan SET primo = primo + 5 WHERE regnskabsaar = 8 AND kontonr = 2000');
+                pg_query($other, 'UPDATE kontoplan SET primo = primo - 5 WHERE regnskabsaar = 8 AND kontonr = 3000');
+                self::assertNull(updateOpeningBalancesAfterYearSave(8, $before));
+                pg_query($other, 'COMMIT');
+                $GLOBALS['connection'] = $mine;
+                self::assertStringEndsWith('|8', $this->syncState(), 'A left year 8 waiting.');
+            }];
+            // B goes on: its fingerprint is due, finds no posting change and saves the watermark and fingerprint.
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'A saved while B was checking.');
+            self::assertSame(1000.0, $this->primo(9, 2000));
+            self::assertStringEndsWith('|8', $this->syncState(), 'B did not erase the year A left waiting.');
+            pg_query($holder, 'COMMIT');
+            // The next page carries the card's edit on, with no posting and no manual sync.
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame([1005.0, 1125.0], [$this->primo(9, 2000), $this->primo(10, 2000)]);
+            self::assertStringEndsWith('|0', $this->syncState());
+            $this->setSyncState((int) explode('|', $this->syncState())[0], 0, time() - 601);
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame([1005.0, 1125.0], [$this->primo(9, 2000), $this->primo(10, 2000)], 'A due scan keeps it.');
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            pg_close($holder);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testTakingTheWaitingYearKeepsALowerYearRegisteredMeanwhile(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(10);
+        followingOpeningBalanceMarkPending(11);
+        self::assertStringEndsWith('|10', $this->syncState(), 'A later year does not replace an earlier one.');
+        followingOpeningBalanceMarkPending(9);
+        self::assertStringEndsWith('|9', $this->syncState(), 'An earlier year does.');
+        // A clear that only matches the value it read leaves a year registered after that read.
+        $this->sql("UPDATE settings SET var_value = '0' WHERE var_name = 'openingBalancePending' AND var_value = '10'");
+        self::assertStringEndsWith('|9', $this->syncState());
+        self::assertSame(9, followingOpeningBalanceTakePending());
+        self::assertStringEndsWith('|0', $this->syncState());
+        self::assertSame(0, followingOpeningBalanceTakePending());
+    }
+
+    public function testTakingTheWaitingYearWaitsForTheTransactionThatRegisteredIt(): void
+    {
+        $schema = 'sst1005_take_waits_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            self::assertNull(checkFollowingOpeningBalances(11));
+            followingOpeningBalanceMarkPending(9);
+            $mine = $GLOBALS['connection'];
+            // Another transaction registers year 10 (a later year: the value stays 9, but the row is now its).
+            pg_query($other, 'BEGIN');
+            $GLOBALS['connection'] = $other;
+            followingOpeningBalanceMarkPending(10);
+            $GLOBALS['connection'] = $mine;
+            pg_send_query($mine, "UPDATE settings SET var_value = '0' WHERE var_name = 'openingBalancePending' AND var_value = '9'");
+            usleep(300000);
+            self::assertTrue(pg_connection_busy($mine), 'Taking the year waits until the registering transaction commits.');
+            pg_query($other, 'COMMIT');
+            pg_get_result($mine);
+            while (pg_get_result($mine)) {
+            }
+            self::assertStringEndsWith('|0', $this->syncState());
+        } finally {
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
