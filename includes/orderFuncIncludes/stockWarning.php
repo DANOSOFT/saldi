@@ -6,6 +6,7 @@ require_once __DIR__ . '/../opdat_func/ensureStockWarningLog.php';
 // --- Out-of-stock warning helpers ----------------------------------------
 // Returns localized strings for the warning popup, settings UI and log
 // banner. sprog_id == 2 -> English, otherwise Danish (the default).
+/** @return array<string, string> Localized stock-warning labels. */
 function stock_warning_texts($sprog_id = null)
 {
 	if ($sprog_id === null && isset($GLOBALS['sprog_id'])) $sprog_id = $GLOBALS['sprog_id'];
@@ -60,6 +61,7 @@ function stock_warning_texts($sprog_id = null)
 	);
 }
 
+/** @return bool Whether stock-warning approvals are enabled for this tenant. */
 function is_stock_warning_enabled()
 {
 	// Make sure the log table exists before any caller starts querying it.
@@ -73,6 +75,18 @@ function is_stock_warning_enabled()
 	return ($r && $r['var_value'] === 'on');
 }
 
+/**
+ * Read current and projected stock using the existing warning threshold rules.
+ *
+ * @return array{
+ *   out_of_stock: bool,
+ *   beholdning: float|int,
+ *   min_lager: float|int,
+ *   beskrivelse: string,
+ *   varenr: string,
+ *   projected_beholdning: float|int
+ * }
+ */
 function check_stock_warning($vare_id, $sale_qty = 0)
 {
 	$result = array('out_of_stock' => false, 'beholdning' => 0, 'min_lager' => 0, 'beskrivelse' => '', 'varenr' => '', 'projected_beholdning' => 0);
@@ -110,6 +124,7 @@ function check_stock_warning($vare_id, $sale_qty = 0)
 
 // 'Standard minimumsbeholdning' from Varerelaterede valg (systemdata/diverse).
 // Used as threshold fallback for products without their own min_lager.
+/** @return float|int The tenant's default minimum stock, cached for this request. */
 function _sw_standard_min_stock()
 {
 	static $cached = null;
@@ -121,6 +136,7 @@ function _sw_standard_min_stock()
 }
 
 // Persist an approval log entry for an out-of-stock sale.
+/** @return bool False for a missing order or an empty approval note. */
 function log_stock_warning($ordre_id, $vare_id, $note, $linje_id = null)
 {
 	global $brugernavn;

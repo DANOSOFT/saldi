@@ -3,6 +3,7 @@
 //
 // Self-healing schema check: creates order_stock_warning_log if it doesn't
 // exist yet. Cached so it only runs the existence query once per request.
+/** @return bool Retains the legacy schema fallback and once-per-request cache. */
 function _sw_ensure_log_table()
 {
 	static $checked = false;
