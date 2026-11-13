@@ -137,7 +137,7 @@ final class OrderMoveTest extends TestCase
     public function testRunMovesYieldsWhenThePassHasNoTimeLeft(): void
     {
         $result = shopify_run_moves(['shop_key' => 'hml'], 'gid://shopify/Order/1', ['lines' => []], [], ['deadline' => microtime(true) + 1]);
-        $this->assertSame(['status' => 'yield', 'moved' => 0, 'errors' => []], $result);
+        $this->assertSame(['status' => 'yield', 'moved' => 0, 'uncertain' => false, 'errors' => []], $result);
     }
 
     /** A hold that ends before a move sent now could be answered: nothing is sent, and the job abandons at once. */

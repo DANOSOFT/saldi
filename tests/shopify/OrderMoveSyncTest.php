@@ -253,6 +253,24 @@ final class OrderMoveSyncTest extends TestCase
         $this->assertStringContainsString("doesn't stock", $alarm[0]['message']);
     }
 
+    /** The last attempt lost a move's answer: abandoned with an alarm, but the hold stays until it runs out, as Shopify may still apply it. */
+    public function testAnAbandonedMoveWhoseAnswerWasLostKeepsItsHoldForTheSweep(): void
+    {
+        $order = $this->steps(['web_order', [['STOL-X', 1, [0 => 5, 1 => 5, 2 => 5]], ['BORD-Y', 1, [0 => 5, 1 => 5, 2 => 5]]]])['results'][0];
+        [$stol, $bord] = [$order['lines']['STOL-X'], $order['lines']['BORD-Y']];
+        $ordreId = $this->invoiced($order['order'], [['gid' => $stol, 'rows' => [['STOL-X', 92, 1]]], ['gid' => $bord, 'rows' => [['BORD-Y', 93, 1]]]]);
+        $this->steps(['unstock', 'BORD-Y', 2], ['fail', 'fulfillmentOrderMove', 'user_error'], ['pass']);
+        $this->sql("UPDATE shopify_jobs SET attempts = 2 WHERE type = 'order.move'");
+        $this->retryNow();
+
+        $run = $this->steps(['fail', 'fulfillmentOrderMove', 'timeout_after_apply'], ['pass']);
+
+        $this->assertSame(['fulfillmentOrderMove', 'fulfillmentOrderMove', 'tagsAdd'], self::mutations($run), 'STOL-X applied unanswered, BORD-Y refused');
+        $this->assertSame('abandoned', $this->writeback($order['order'])['order.move']);
+        $this->assertSame(['open'], $this->barriers($ordreId), 'left for barrier.sweep');
+        $this->assertSame([(string)$ordreId], array_column($this->sql("SELECT ref FROM shopify_errors WHERE kind = 'order.move' AND resolved_at IS NULL"), 'ref'));
+    }
+
     /** Once the barrier has expired its stock is published again: the move is abandoned before anything is sent. */
     public function testAMoveWhoseBarrierHasExpiredIsAbandonedWithoutMoving(): void
     {

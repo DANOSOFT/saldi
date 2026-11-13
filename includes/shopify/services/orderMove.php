@@ -178,27 +178,29 @@ function shopify_move_wanted(array $line, array $locations): ?array {
  * @param array<int, string> $locations
  * @param array{deadline?: float, graphql?: array<string, mixed>, held?: callable(): bool} $rt held: false when the
  *   order's hold would end before a move sent now is answered
- * @return array{status: string, moved: int, errors: list<string>} status done, failed, expired (held said no before a
- *   move), or yield when the pass's time or SHOPIFY_MOVE_ROUNDS ran out before the moves were done (not a failed attempt)
+ * @return array{status: string, moved: int, uncertain: bool, errors: list<string>} status done, failed, expired (held said
+ *   no before a move), or yield when the pass's time or SHOPIFY_MOVE_ROUNDS ran out before the moves were done (not a failed
+ *   attempt); uncertain when a move's answer was lost, so Shopify may still apply it
  */
 function shopify_run_moves(array $shop, string $orderGid, array $alloc, array $locations, array $rt = array()): array {
 	$orderGid = shopify_gid($orderGid, 'Order');
 	$moved = 0;
+	$uncertain = false;
 	for ($round = 0; $round < SHOPIFY_MOVE_ROUNDS; $round++) {
 		if ((float)($rt['deadline'] ?? INF) - microtime(true) < SHOPIFY_MOVE_MIN_SECONDS) {
-			return array('status' => 'yield', 'moved' => $moved, 'errors' => array());
+			return array('status' => 'yield', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => array());
 		}
 		$read = shopify_move_read($shop, $orderGid, $rt);
 		if ($read['errors']) {
-			return array('status' => 'failed', 'moved' => $moved, 'errors' => $read['errors']);
+			return array('status' => 'failed', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => $read['errors']);
 		}
 		$plan = shopify_plan_moves($alloc, $read['fulfillment_orders'], $locations);
 		if (!$plan['moves']) {
 			$errors = $plan['unresolved'] ? array('no movable fulfillment order holds ' . implode(', ', $plan['unresolved'])) : array();
-			return array('status' => $errors ? 'failed' : 'done', 'moved' => $moved, 'errors' => $errors);
+			return array('status' => $errors ? 'failed' : 'done', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => $errors);
 		}
 		if (isset($rt['held']) && !$rt['held']()) {
-			return array('status' => 'expired', 'moved' => $moved, 'errors' => array('the hold expires before the move would be done'));
+			return array('status' => 'expired', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => array('the hold expires before the move would be done'));
 		}
 		$move = $plan['moves'][0];
 		$opts = shopify_writeback_opts($rt, array(
@@ -210,11 +212,12 @@ function shopify_run_moves(array $shop, string $orderGid, array $alloc, array $l
 		$res = shopify_graphql($shop, 'fulfillmentOrderMove', SHOPIFY_MOVE_MUTATION,
 			array('id' => $move['fulfillment_order'], 'to' => $move['to'], 'lines' => $move['lines']), $opts);
 		if (!$res['ok'] && $res['outcome'] !== 'uncertain') {
-			return array('status' => 'failed', 'moved' => $moved, 'errors' => shopify_graphql_messages($res) ?: array("fulfillmentOrderMove failed ({$res['error']})"));
+			return array('status' => 'failed', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => shopify_graphql_messages($res) ?: array("fulfillmentOrderMove failed ({$res['error']})"));
 		}
+		$uncertain = $uncertain || !$res['ok'];
 		$moved++;
 	}
-	return array('status' => 'yield', 'moved' => $moved, 'errors' => array());
+	return array('status' => 'yield', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => array());
 }
 
 /**
@@ -313,8 +316,11 @@ function shopify_move_job(array $job, array $link, array $shop, array $rt): arra
 	if ($result['status'] !== 'expired' && (int)($job['attempts'] ?? 1) < SHOPIFY_BARRIER_MOVE_ATTEMPTS && !shopify_move_expired($shopId, $ordreId)) {
 		throw new ShopifyWritebackError("order.move on order {$link['order_gid']} failed: $why");
 	}
-	shopify_db_transaction(function () use ($link, $shopId, $ordreId, $why): void {
-		shopify_barrier_expire($shopId, $ordreId);
+	shopify_db_transaction(function () use ($link, $shopId, $ordreId, $why, $result): void {
+		// Shopify may still apply a move whose answer was lost: its hold then runs out, and barrier.sweep expires it
+		if (empty($result['uncertain'])) {
+			shopify_barrier_expire($shopId, $ordreId);
+		}
 		shopify_move_alarm($shopId, $ordreId, "the move of web order {$link['order_name']} was abandoned ($why); the move list shows its lines");
 		shopify_writeback_mark((int)$link['id'], 'order.move', 'abandoned');
 	});
