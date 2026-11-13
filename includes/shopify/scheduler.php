@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/scheduler.php --- ver 5.0.0 --- 2026.10.26
+// --- includes/shopify/scheduler.php --- ver 5.1.0 --- 2026.11.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // daily slots by their Copenhagen date, so a DST change neither skips nor repeats them.
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
+// 20261113 CL/MJ SD-760: barrier.sweep every 5 minutes for a shop with orders or stock publishing on.
 
 require_once __DIR__ . '/queue.php';
 
@@ -39,6 +40,7 @@ const SHOPIFY_SCHEDULE_ZONE = 'Europe/Copenhagen';
  */
 const SHOPIFY_SCHEDULE_SLOTS = array(
 	'price.window' => array('every' => 15, 'flows' => array('prices')),
+	'barrier.sweep' => array('every' => 5, 'flows' => array('orders', 'stock_publish')),
 	'monitor.counterpart' => array('every' => 15, 'flows' => array('orders')),
 	'webhook.health' => array('every' => 60, 'flows' => array('orders', 'customers')),
 	'stock.reconcile' => array('daily' => '02:00', 'flows' => array('stock_publish')),

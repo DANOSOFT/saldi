@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/queue.php --- ver 5.1.0 --- 2026.11.03
+// --- includes/shopify/queue.php --- ver 5.1.0 --- 2026.11.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 // 20261029 CL/SS SD-741: shopify_queue_enqueue_coalesced() for producers of changed data: a follow-up behind a
 //                running job, and shopify_queue_hasten() brings a waiting one forward.
 // 20261103 CL/MJ SD-790: shop.uninstalled runs first after the alarm mail.
+// 20261113 CL/MJ SD-760: barrier.sweep, next to order.move.
 
 require_once __DIR__ . '/db.php';
 
@@ -46,7 +47,7 @@ const SHOPIFY_QUEUE_PRIORITY = array(
 	'mail.alert' => 5,
 	'shop.uninstalled' => 8,
 	'order.import' => 10, 'order.tags' => 10,
-	'order.move' => 15,
+	'order.move' => 15, 'barrier.sweep' => 15,
 	'store.export' => 20, 'customer.export' => 20, 'order.references' => 20, 'order.document' => 20,
 	'customer.upsert' => 25, 'fulfillment.upsert' => 25, 'order.status' => 25, 'order.cancelled' => 25,
 	'refund.upsert' => 25, 'credit.publish' => 25, 'order.note' => 25, 'order.processed' => 25,

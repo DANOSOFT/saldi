@@ -11,6 +11,7 @@
 // 20261109 CL/MJ SD-759: created.
 // 20261111 CL/MJ SD-759 (Sol): lager 91 also has an older LG row, as a copy from an earlier year leaves it.
 // 20261112 CL/MJ SD-759 (review): a waiting stage yields without using an attempt; so does one of a shop whose orders flow is off. antal is a number.
+// 20261113 CL/MJ SD-760: order.move runs between order.tags and order.references, and is recorded done.
 
 use PHPUnit\Framework\TestCase;
 
@@ -133,7 +134,7 @@ final class OrderWritebackSyncTest extends TestCase
 
         $run = $this->steps(['pass']);
 
-        $this->assertSame([['order.tags', 'done'], ['order.references', 'done'], ['order.note', 'done'], ['order.processed', 'done']], $run['results'][0]);
+        $this->assertSame([['order.tags', 'done'], ['order.move', 'done'], ['order.references', 'done'], ['order.note', 'done'], ['order.processed', 'done']], $run['results'][0]);
         $this->assertSame(['tagsAdd', 'metafieldsSet', 'orderUpdate', 'metafieldsSet', 'tagsAdd'], self::mutations($run), 'hold tags first, saldi-behandlet last');
         $order = $run['orders'][$gid];
         $this->assertSame(['saldi-saet-delt', 'saldi-behandlet'], $order['tags']);
@@ -144,7 +145,7 @@ final class OrderWritebackSyncTest extends TestCase
         $this->assertSame([['saet' => 'HAVESAET-1', 'saet_id' => 1, 'vare' => 'STOL-X', 'antal' => 1, 'lager' => 'Mårum'], ['saet' => 'HAVESAET-1', 'saet_id' => 1, 'vare' => 'BORD-Y', 'antal' => 2, 'lager' => 'Hillerød']],
             json_decode($order['metafields']['saldi.saet_fordeling'], true));
         $flags = $this->link($gid);
-        $this->assertEquals(['order.tags' => 'done', 'order.references' => 'done', 'order.note' => 'done', 'order.processed' => 'done'], $flags['writeback_v1'], 'every checkpoint, in whatever key order jsonb keeps');
+        $this->assertEquals(['order.tags' => 'done', 'order.move' => 'done', 'order.references' => 'done', 'order.note' => 'done', 'order.processed' => 'done'], $flags['writeback_v1'], 'every checkpoint, in whatever key order jsonb keeps');
         $this->assertSame(["wp10.split_set:$ordreId"], array_keys($flags['note_ops']));
         $this->assertSame(['saldi-saet-delt'], $flags['intake']['tags'], "the intake's flags are kept");
     }
