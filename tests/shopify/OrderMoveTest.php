@@ -151,6 +151,24 @@ final class OrderMoveTest extends TestCase
         $this->assertCount(1, $fake->calls, 'the read only, no fulfillmentOrderMove');
     }
 
+    /** A move that timed out, then an exception in the next round: still a failed attempt that may yet be applied. */
+    public function testRunMovesKeepsAnUncertainMoveThroughALaterException(): void
+    {
+        $read = FakeShopify::ok(['order' => ['fulfillmentOrders' => ['pageInfo' => ['hasNextPage' => false],
+            'nodes' => [self::fo('F1', self::L1, ['L11' => 1])]]]]);
+        $fake = new FakeShopify([$read, FakeShopify::timeout(), $read]);
+        $checks = 0;
+        $held = function () use (&$checks): bool {
+            if (++$checks > 1) {
+                throw new RuntimeException('database gone');
+            }
+            return true;
+        };
+        $result = shopify_run_moves(FakeShopify::shop(), 'gid://shopify/Order/1', ['lines' => [self::line('L11', [2 => 1000])]], self::LOCATIONS,
+            ['graphql' => $fake->opts(), 'deadline' => microtime(true) + 300, 'held' => $held]);
+        $this->assertSame(['failed', 1, true], [$result['status'], $result['moved'], $result['uncertain']]);
+    }
+
     public function testALineNotInTheAllocationIsNotTouched(): void
     {
         $plan = shopify_plan_moves(['lines' => [self::line('L11', [1 => 1000])]], [self::fo('F1', self::L3, ['L11' => 1, 'L99' => 4])], self::LOCATIONS + [3 => self::L3]);

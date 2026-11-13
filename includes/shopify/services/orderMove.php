@@ -186,36 +186,41 @@ function shopify_run_moves(array $shop, string $orderGid, array $alloc, array $l
 	$orderGid = shopify_gid($orderGid, 'Order');
 	$moved = 0;
 	$uncertain = false;
-	for ($round = 0; $round < SHOPIFY_MOVE_ROUNDS; $round++) {
-		if ((float)($rt['deadline'] ?? INF) - microtime(true) < SHOPIFY_MOVE_MIN_SECONDS) {
-			return array('status' => 'yield', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => array());
+	try {
+		for ($round = 0; $round < SHOPIFY_MOVE_ROUNDS; $round++) {
+			if ((float)($rt['deadline'] ?? INF) - microtime(true) < SHOPIFY_MOVE_MIN_SECONDS) {
+				return array('status' => 'yield', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => array());
+			}
+			$read = shopify_move_read($shop, $orderGid, $rt);
+			if ($read['errors']) {
+				return array('status' => 'failed', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => $read['errors']);
+			}
+			$plan = shopify_plan_moves($alloc, $read['fulfillment_orders'], $locations);
+			if (!$plan['moves']) {
+				$errors = $plan['unresolved'] ? array('no movable fulfillment order holds ' . implode(', ', $plan['unresolved'])) : array();
+				return array('status' => $errors ? 'failed' : 'done', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => $errors);
+			}
+			if (isset($rt['held']) && !$rt['held']()) {
+				return array('status' => 'expired', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => array('the hold expires before the move would be done'));
+			}
+			$move = $plan['moves'][0];
+			$opts = shopify_writeback_opts($rt, array(
+				'retry_mode' => 'reconcile',
+				// the next round reads the fulfillment orders before anything else is sent
+				'reconcile' => static fn(array $attempt): array => array('state' => 'unknown'),
+				'correlation' => array('order_gid' => $orderGid),
+			));
+			$res = shopify_graphql($shop, 'fulfillmentOrderMove', SHOPIFY_MOVE_MUTATION,
+				array('id' => $move['fulfillment_order'], 'to' => $move['to'], 'lines' => $move['lines']), $opts);
+			if (!$res['ok'] && $res['outcome'] !== 'uncertain') {
+				return array('status' => 'failed', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => shopify_graphql_messages($res) ?: array("fulfillmentOrderMove failed ({$res['error']})"));
+			}
+			$uncertain = $uncertain || !$res['ok'];
+			$moved++;
 		}
-		$read = shopify_move_read($shop, $orderGid, $rt);
-		if ($read['errors']) {
-			return array('status' => 'failed', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => $read['errors']);
-		}
-		$plan = shopify_plan_moves($alloc, $read['fulfillment_orders'], $locations);
-		if (!$plan['moves']) {
-			$errors = $plan['unresolved'] ? array('no movable fulfillment order holds ' . implode(', ', $plan['unresolved'])) : array();
-			return array('status' => $errors ? 'failed' : 'done', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => $errors);
-		}
-		if (isset($rt['held']) && !$rt['held']()) {
-			return array('status' => 'expired', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => array('the hold expires before the move would be done'));
-		}
-		$move = $plan['moves'][0];
-		$opts = shopify_writeback_opts($rt, array(
-			'retry_mode' => 'reconcile',
-			// the next round reads the fulfillment orders before anything else is sent
-			'reconcile' => static fn(array $attempt): array => array('state' => 'unknown'),
-			'correlation' => array('order_gid' => $orderGid),
-		));
-		$res = shopify_graphql($shop, 'fulfillmentOrderMove', SHOPIFY_MOVE_MUTATION,
-			array('id' => $move['fulfillment_order'], 'to' => $move['to'], 'lines' => $move['lines']), $opts);
-		if (!$res['ok'] && $res['outcome'] !== 'uncertain') {
-			return array('status' => 'failed', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => shopify_graphql_messages($res) ?: array("fulfillmentOrderMove failed ({$res['error']})"));
-		}
-		$uncertain = $uncertain || !$res['ok'];
-		$moved++;
+	} catch (RuntimeException $e) {
+		// a failed attempt that still says whether a move it sent may yet be applied
+		return array('status' => 'failed', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => array(get_class($e) . ': ' . $e->getMessage()));
 	}
 	return array('status' => 'yield', 'moved' => $moved, 'uncertain' => $uncertain, 'errors' => array());
 }
