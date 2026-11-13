@@ -1,13 +1,16 @@
 <?php
 // 20261113 CDX/NTR Exercise the real GLS function against an isolated carrier transport.
+// 20261113 CDX/NTR Replace disabled cURL functions even when the extension is compiled into PHP.
 
-if (extension_loaded('curl')) {
-    throw new RuntimeException('Run this transport fixture with php -n');
+if (function_exists('curl_init')) {
+    throw new RuntimeException('Run this transport fixture with its cURL functions disabled');
 }
 
-define('CURLOPT_RETURNTRANSFER', 1);
-define('CURLOPT_HTTPHEADER', 2);
-define('CURLOPT_POSTFIELDS', 3);
+if (!defined('CURLOPT_RETURNTRANSFER')) {
+    define('CURLOPT_RETURNTRANSFER', 1);
+    define('CURLOPT_HTTPHEADER', 2);
+    define('CURLOPT_POSTFIELDS', 3);
+}
 
 if (!function_exists('curl_init')) {
     function curl_init($url)

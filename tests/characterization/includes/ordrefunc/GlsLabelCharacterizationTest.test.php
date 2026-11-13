@@ -1,5 +1,6 @@
 <?php
 // 20261113 CDX/NTR Characterize the GLS request and downloaded label before extracting it.
+// 20261113 CDX/NTR Isolate cURL calls on PHP builds that compile the extension into the binary.
 
 use PHPUnit\Framework\TestCase;
 
@@ -28,10 +29,17 @@ final class GlsLabelCharacterizationTest extends TestCase
     /** @return array{stdout:string, stderr:string, request:array, transport:array} */
     private function label(string $scenario): array
     {
-        // -n disables the cURL extension in this child only. Its transport doubles
-        // capture the real production request without contacting a carrier.
+        // PHP 8 permits userland replacements for disabled built-in functions.
+        // This also works when cURL is compiled into the binary and -n cannot disable it.
         $process = proc_open(
-            [PHP_BINARY, '-n', __DIR__ . '/../../support/run_gls_label.php', $this->directory, $scenario],
+            [
+                PHP_BINARY,
+                '-d',
+                'disable_functions=curl_init,curl_setopt_array,curl_exec,curl_errno,curl_error,curl_close',
+                __DIR__ . '/../../support/run_gls_label.php',
+                $this->directory,
+                $scenario,
+            ],
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes
         );
@@ -41,7 +49,7 @@ final class GlsLabelCharacterizationTest extends TestCase
         $stderr = stream_get_contents($pipes[2]);
         fclose($pipes[1]);
         fclose($pipes[2]);
-        self::assertSame(0, proc_close($process), $stderr);
+        self::assertSame(0, proc_close($process), $stdout . $stderr);
         return [
             'stdout' => $stdout,
             'stderr' => $stderr,
