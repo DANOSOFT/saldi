@@ -5,7 +5,7 @@
 //                 The saved webhook files get a .ht_ name, which the web server does not hand out.
 // 20261109 CL/SZ SST-987 A call must carry the account's webhook key (?key=), which is now part of the webhook URL registered at EasyUBL.
 //                Without it the call is logged, and refused with 403 once webhookKeyRequired is set for the account.
-
+//
     // This file is used to receive webhooks from EasyUBL
 
     include(__DIR__ . "/../includes/connect.php");
