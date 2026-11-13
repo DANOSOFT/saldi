@@ -777,7 +777,7 @@ if ($godkendt == 'OK') { # 20131205
 		fclose($gf);
 		$svar = afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, __LINE__); #20140129 Tilføjet $kortnavn
 		if ($svar) {
-			print "<BODY onLoad=\"javascript:alert('" . addslashes($svar) . "')\">\n";
+			print "<script>alert(" . json_encode($svar, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
 		}
 	}
 

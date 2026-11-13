@@ -65,14 +65,16 @@ final class PosCheckoutPostingErrorTest extends TestCase
     }
 
     /**
-     * A free 0-kr sale paid with cash 0, and a 0-kr sale paid by card with an amount (cash withdrawal), still settle.
+     * A free 0-kr sale paid with cash 0, and a 0-kr sale paid by card with an amount (cash withdrawal, also with the cash handed back as a second payment), still settle.
      */
     public function testAFreeSaleAndACashWithdrawalStillSettle(): void
     {
-        foreach ([['payment' => 'Kontant', 'received' => 0, 'sum' => 0], ['payment' => 'Dankort', 'received' => 400, 'sum' => 0]] as $case) {
+        foreach ([['payment' => 'Kontant', 'received' => 0, 'sum' => 0], ['payment' => 'Dankort', 'received' => 400, 'sum' => 0],
+            ['payment' => 'Dankort', 'received' => 400, 'payment2' => 'Kontant', 'received2' => -400, 'sum' => 0]] as $case) {
+            $label = $case['payment'] . (isset($case['payment2']) ? ' + ' . $case['payment2'] : '');
             $result = self::checkout($case);
-            self::assertNull($result['returned'], $case['payment'] . ' must not be refused');
-            self::assertSame(['voucher', 'settled', 'commit'], array_slice($result['events'], 0, 3), $case['payment'] . ' must settle and commit');
+            self::assertNull($result['returned'], "$label must not be refused");
+            self::assertSame(['voucher', 'settled', 'commit'], array_slice($result['events'], 0, 3), "$label must settle and commit");
         }
     }
 
@@ -97,6 +99,7 @@ final class PosCheckoutPostingErrorTest extends TestCase
         $at = strpos($src, $call);
         self::assertNotFalse($at, "the terminal return's afslut() call must keep its result");
         $next = substr($src, $at + strlen($call), 200);
-        self::assertMatchesRegularExpression('/if \(\$svar\) \{\s*print "<BODY onLoad=\\\\"javascript:alert\(/', $next, 'the result must be shown as an alert');
+        self::assertMatchesRegularExpression('/if \(\$svar\) \{\s*print "<script>alert\(" \. json_encode\(\$svar, JSON_HEX_TAG \| JSON_HEX_AMP \| JSON_HEX_APOS \| JSON_HEX_QUOT\)/',
+            $next, 'the result must be shown as an alert, JSON-encoded so quotes, newlines and markup in the message are safe');
     }
 }
