@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.0 ----2026-11-09--------------
+// --- includes/db_query.php ---ver 5.1.0 ----2026-11-13--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,8 @@
 //                Use 'latin1' like db_create() does, and 'utf8mb4' for UTF8 instead of the 3-byte 'utf8'.
 //                db_create() sets character_set_client to 'utf8mb4' too, so it no longer undoes that.
 //                db_create() creates a UTF8 database with CHARACTER SET utf8mb4, so its columns can hold emoji.
+// 20261113 CL/SZ db_escape_string(): on Postgres, choose the conversion from pg_client_encoding() (MB-135).
+//                With $db_encode unset on a UTF8 connection it took the LATIN9 branch and pg_escape_string() threw.
 
 require_once __DIR__ . '/sharedFile.php';
 
@@ -581,7 +583,12 @@ if (!function_exists('db_escape_string')) {
 		global $connection; #20190704
 		global $db_encode;
 		$qtext = str_replace("\0", "", $qtext);
-		if ($db_encode == 'UTF8') {
+		if ($db_type == "mysql" || $db_type == "mysqli") {
+			$utf8Connection = ($db_encode == 'UTF8'); # db_connect() sets the MySQL charset from $db_encode
+		} else {
+			$utf8Connection = (pg_client_encoding($connection) == 'UTF8'); #20261113 the connection's real encoding, also when $db_encode is unset (MB-135)
+		}
+		if ($utf8Connection) {
 			if (!mb_check_encoding($qtext, 'UTF-8')) {
 				$qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
 			}
