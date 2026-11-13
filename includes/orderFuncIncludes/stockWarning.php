@@ -1,12 +1,18 @@
 <?php
 // 20261113 CDX/NTR SD-599 Extract stock-warning checks and approval logging without changing their public API.
+// 20261113 CDX/NTR Document the extracted stock-warning parameter contracts.
 
 require_once __DIR__ . '/../opdat_func/ensureStockWarningLog.php';
 
 // --- Out-of-stock warning helpers ----------------------------------------
 // Returns localized strings for the warning popup, settings UI and log
 // banner. sprog_id == 2 -> English, otherwise Danish (the default).
-/** @return array<string, string> Localized stock-warning labels. */
+/**
+ * Return localized stock-warning labels.
+ *
+ * @param int|string|null $sprog_id Language ID; null uses the initialized global language.
+ * @return array<string, string> Localized stock-warning labels.
+ */
 function stock_warning_texts($sprog_id = null)
 {
 	if ($sprog_id === null && isset($GLOBALS['sprog_id'])) $sprog_id = $GLOBALS['sprog_id'];
@@ -78,6 +84,8 @@ function is_stock_warning_enabled()
 /**
  * Read current and projected stock using the existing warning threshold rules.
  *
+ * @param int|string $vare_id Item identifier; invalid values return the empty warning result.
+ * @param float|int|string $sale_qty Proposed sale quantity, subtracted from current stock.
  * @return array{
  *   out_of_stock: bool,
  *   beholdning: float|int,
@@ -136,7 +144,15 @@ function _sw_standard_min_stock()
 }
 
 // Persist an approval log entry for an out-of-stock sale.
-/** @return bool False for a missing order or an empty approval note. */
+/**
+ * Persist a nonempty stock-warning approval note.
+ *
+ * @param int|string $ordre_id Order identifier; a missing value refuses the approval.
+ * @param int|string|null $vare_id Item identifier, or null for an approval without an item.
+ * @param string|null $note Approval reason, trimmed before storage; blank values are refused.
+ * @param int|string|null $linje_id Optional order-line identifier.
+ * @return bool False for a missing order or an empty approval note.
+ */
 function log_stock_warning($ordre_id, $vare_id, $note, $linje_id = null)
 {
 	global $brugernavn;
