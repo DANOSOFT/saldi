@@ -1,5 +1,5 @@
 <?php
-// --- debitor/historikkort.php --- ver 5.1.0 --- 2026-11-12 ---
+// --- debitor/historikkort.php --- ver 5.1.1 --- 2026-11-13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or

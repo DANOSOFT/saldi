@@ -89,8 +89,7 @@
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
 // 20261112 LOE SST-967 An empty rights string is no rights; the sag workflow and the Mit Salg label page are the exceptions, and every order or history row a request names is bound to what the gate proved.
 //              The label page's Mit Salg proof is that the account has no brugere row.
-// 20261113 LOE SST-967 The gate keeps #1033's shape: the module refusal is perm_refuse(), and an admitted case
-//              or Mit Salg page is not sent through the role gate, which has no craft-right exception.
+// 20261113 LOE SST-967 The module refusal is #1033's perm_refuse(), and an admitted case or Mit Salg page reaches the role gate as 'any'.
 include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001
