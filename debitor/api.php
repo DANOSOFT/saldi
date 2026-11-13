@@ -83,6 +83,7 @@
 //                 In sendInvoice() "global $db;" is indented like the other statements, and the order id is cast in both queries.
 // 20261104 CL/MMR SST-746 Review (PR #998): the SST-746 history line no longer names a customer's item number.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261030 CL/MJ SST-882 easyUblSendFailed() stores the failure and EasyUBL's message in einvoice_events, so the invoice can show it.
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
@@ -100,6 +101,7 @@
     include_once(__DIR__ . "/../includes/stdFunc/easyUblResponse.php");
     include_once(__DIR__ . "/../includes/stdFunc/countryCode.php");
     include_once(__DIR__ . "/../includes/stdFunc/einvoiceCvr.php");
+    include_once(__DIR__ . "/../includes/stdFunc/einvoiceEvents.php");
     include_once(__DIR__ . "/../includes/stdFunc/einvoiceLineSign.php");
 
     /**
@@ -453,6 +455,11 @@
 
         if ((int) $orderId > 0) {
             db_modify("UPDATE ordrer SET digital_status = 'SendFailed' WHERE id = " . (int) $orderId, __FILE__ . " linje " . __LINE__);
+            // SST-882: keep EasyUBL's reason in the invoice's e-invoice history
+            $failed = db_fetch_array(db_select("SELECT fakturanr, cvrnr FROM ordrer WHERE id = " . (int) $orderId, __FILE__ . " linje " . __LINE__));
+            $failText = trim($outcome['message'] . ' ' . $outcome['detail']);
+            einvoice_log_event((int) $orderId, (string) ($failed['fakturanr'] ?? ''), 'send', 'SendFailed',
+                $failText !== '' ? $failText : "HTTP $outcome[http_code] $outcome[kind]", (string) ($failed['cvrnr'] ?? ''));
         }
 
         $txt = findtekst('5155|Digital afsendelse fejlede', $sprog_id) . "\n\n";

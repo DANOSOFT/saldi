@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | | _ | |) |  <
 //                        |___/_/ \_|___|__/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/ensureTableAndColumns.php --- rel 4.1.1 --- 2025.04.24 ---
+// --- includes/stdFunc/ensureTableAndColumns.php --- ver 5.1.1 --- 2026.11.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,8 +20,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2005-2025 Saldi.dk ApS
+// Copyright (c) 2005-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261106 CL/MJ SST-882 The existing columns are read as column_name AS column_name, because MySQL 8 returns the label as COLUMN_NAME.
+//                Every column then looked missing, and a second call on the same table failed with a duplicate column.
 
 if (!function_exists("ensureTableAndColumns")) {
 	function ensureTableAndColumns($db, $tableName, $expectedColumns, $renameColumns = []) {
@@ -38,7 +40,7 @@ if (!function_exists("ensureTableAndColumns")) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
 			// Fetch all columns of the table
-			$qtxt = "SELECT column_name FROM information_schema.columns WHERE (table_schema = '$db' or table_catalog='$db') and table_name='$tableName'";
+			$qtxt = "SELECT column_name AS column_name FROM information_schema.columns WHERE (table_schema = '$db' or table_catalog='$db') and table_name='$tableName'";
 			$result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			$columns = [];
 			while ($row = db_fetch_array($result)) {
