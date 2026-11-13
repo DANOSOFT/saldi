@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.08
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.09
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,7 @@
 // 20261105 CL/SZ SD-757: the stock.display, stock.reconcile and stock.baseline handlers; commands baseline, reconcile and remap.
 // 20261106 CL/MJ SD-790 review: set-app's messages end in \n like the other commands' do.
 // 20261108 CL/SS SD-803: the customer.export handler (a Saldi debtor becomes a Shopify customer).
+// 20261109 CL/MJ SD-759: the write-back handlers order.tags, order.references, order.note and order.processed.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -88,6 +89,7 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/services/statusIn.php';
 	require_once __DIR__ . '/../includes/shopify/services/orderImport.php';
 	require_once __DIR__ . '/../includes/shopify/services/stock.php';
+	require_once __DIR__ . '/../includes/shopify/services/orderWriteback.php';
 	require_once __DIR__ . '/../includes/shopify/oauth.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
@@ -131,6 +133,10 @@ function shopify_worker_wiring(): array {
 		=> shopify_stock_reconcile(array('heartbeat' => $heartbeat), $job, $deadline));
 	shopify_worker_register($registry, 'stock.baseline', fn(array $job, float $deadline, callable $heartbeat): array
 		=> shopify_stock_baseline(array('heartbeat' => $heartbeat), $job, $deadline));
+	// SD-759: the invoiced order's hold tags, numbers and invoice link, split-set note and saldi-behandlet, in that order.
+	foreach (array('order.tags', 'order.references', 'order.note', 'order.processed') as $stage) {
+		shopify_worker_register($registry, $stage, 'shopify_writeback_job');
+	}
 	// SD-790: the app was uninstalled; the token goes and every flow is switched off.
 	shopify_worker_register($registry, 'shop.uninstalled', 'shopify_shop_uninstalled_job');
 	return array('registry' => $registry, 'producers' => $producers);
