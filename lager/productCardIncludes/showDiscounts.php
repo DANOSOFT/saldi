@@ -1,5 +1,11 @@
 <?php
-    print "<tr><td colspan=\"2\" height=\"20%\"><b>".findtekst(812,$sprog_id)."</b></td><td colspan=\"2\"><a href=\"happyhour.php?vare_id=$id\">".findtekst(2023,$sprog_id)."</a></td></tr>";
+    // MB-62 a read-only Items user gets no link to the happy-hour screen, which refuses their writes.
+    if ($noEdit) {
+        $happyHourCell = findtekst(2023,$sprog_id);
+    } else {
+        $happyHourCell = "<a href=\"happyhour.php?vare_id=$id\">".findtekst(2023,$sprog_id)."</a>";
+    }
+    print "<tr><td colspan=\"2\" height=\"20%\"><b>".findtekst(812,$sprog_id)."</b></td><td colspan=\"2\">".$happyHourCell."</td></tr>";
     print "<tr>";
     $tmp=dkdecimal($special_price,2);
     if ($incl_moms) {

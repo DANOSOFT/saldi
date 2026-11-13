@@ -9,6 +9,7 @@
     $res = db_fetch_array($query);
     $apiKey = $res["var_value"];
 
+    $permission_key = 'debitor.konti';
     include("../includes/online.php");
 
 // Setting up the user as a company at easyUBL

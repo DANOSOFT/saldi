@@ -1,8 +1,5 @@
 <?php
-@session_start();
-$s_id=session_id();
-
-// --- admin/vis_regnskaber.php --- ver 5.1.0 --- 2026.11.11 ---
+// --- admin/vis_regnskaber.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +48,11 @@ $s_id=session_id();
 //                 An open dialog keeps the keyboard (Tab cycles inside it, the page shortcuts wait) and gives focus back to the button or link that opened it.
 //                 The empty message stays visible while searching a list that has no rows.
 //                 A Ctrl/Cmd/Shift-click on Lås, a sort link or Vis lukkede opens another tab without asking, so the unsaved-changes guard stays on in this one.
+// 20261113 CDX/NTR Format last activity safely in normal and edit views when registry rows contain date strings.
+// 20261113 CL/ASR Same fix for the new layout: vr_ts() turns regnskab.sidst into Unix seconds (legacy rows hold a calendar date) before vr_rel() and the date tooltip use it.
+
+@session_start();
+$s_id=session_id();
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -58,6 +60,7 @@ $title="vis regnskaber";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/stdFunc/lastActivityDate.php';
 include("../includes/topline_settings.php");
 
 $saldiregnskab = NULL; # Lukkes / Betalt til / Logintekst are kept out of this page (see Admin Panel)
@@ -168,6 +171,12 @@ function vr_t($da, $en) {
 	$t = ($sprog_id == 2) ? $en : $da;
 	return ($db_encode == 'UTF8') ? $t : mb_convert_encoding($t, 'ISO-8859-1', 'UTF-8');
 }
+function vr_ts($value) { # regnskab.sidst as Unix seconds, 0 when unknown; legacy rows hold a calendar date (see lastActivityDate.php)
+	if (lastActivityDate($value) === '-') return 0;
+	$value = trim((string) $value);
+	return is_numeric($value) ? (int) $value : (int) strtotime($value);
+}
+
 function vr_rel($ts) { # relative "sidst aktiv" text; $ts is unix time
 	if (!$ts) return '&ndash;';
 	$days = (int) round((strtotime(date('Y-m-d')) - strtotime(date('Y-m-d', $ts))) / 86400); # round: a span across the DST change is 23 or 25 hours
@@ -371,7 +380,7 @@ print "</tr></thead>\n<tbody>\n";
 
 $vr_openAttr = $vr_warnOpen ? " onclick=\"return vrWarnOpen(this);\"" : "";
 for ($x=0;$x<$vr_count;$x++) {
-	if (!$sidst[$x]) $sidst[$x]=0;
+	$sidst[$x] = vr_ts($sidst[$x]);
 	$n = $x+1; # form index, as before (db_antal counts from 1)
 	$pct = $posteringer[$x] ? min(100, (int) round($posteret[$x] / $posteringer[$x] * 100)) : 0;
 	$isClosed = ($lukket[$x] == 'on');

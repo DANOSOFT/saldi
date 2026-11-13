@@ -24,6 +24,7 @@
 //
 // History:
 // 20260815 CL/SZ SD-646: created.
+// 20261111 CDX/NTR Release the UUID-owned test tenant and its session.
 
 use PHPUnit\Framework\TestCase;
 
@@ -54,6 +55,8 @@ final class MomsPeriodeLukMigrationHealthCheckTest extends TestCase
             self::pointAtTenant();
             moms_periode_luk_ensure_schema();
             pg_close(self::$tenant);
+            self::$tenant = null;
+            MomsPeriodeLukEnv::teardownTenant();
         }
     }
 
@@ -237,7 +240,7 @@ final class MomsPeriodeLukMigrationHealthCheckTest extends TestCase
         $cmd = [
             PHP_BINARY,
             __DIR__ . '/support/run_moms_periode_page.php',
-            MomsPeriodeLukEnv::SESSION_ID,
+            MomsPeriodeLukEnv::sessionId(),
         ];
         $proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         if (!is_resource($proc)) {
