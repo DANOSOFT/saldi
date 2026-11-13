@@ -1,0 +1,409 @@
+/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.12 ---
+   20261101 CL/ASR The shared UI kit for pages on the new design (prototype D "Som ordrelisten", as index/dashboard.php):
+                   the design tokens and the components the settings pages need, everything scoped under .sk.
+   20261101 CL/ASR No zebra on .sk-list rows: they are navigation (the settings hub, the left menu, lists of roles), and the owner found
+                   alternating colours there confusing. Zebra stays on real data tables (.sk-table).
+   20261102 CL/ASR The Tilbage button of every settings page (.sk-back, settings_back_button()) is placed here, above the title, once:
+                   the hub, Brugere & roller and the moved map each carried a copy of the rule.
+   20261108 CL/ASR The page ground is Saldi's classic page colour (--page, #eeeef0, as the body of the classic pages), not white:
+                   panels, lists, tables, menus and fields stay white on it, so they stand out (owner, 8 Nov 2026).
+   20261109 CL/ASR A module's outer frame is --sk-edge with a soft shadow (--sk-lift) and the line under its title band --sk-edge-head
+                   (theme --edge/--lift/--edge-head): panel, standalone menu and save bar; notices get the frame, not the shadow, and keep the
+                   hairline inside a panel, popover, drawer or dialog (owner, 9 Nov 2026).
+   20261112 CL/ASR A module's corner is --sk-r-mod, 6 px (theme --r-mod; owner, 12 Nov 2026): panel, standalone menu, save bar and notice.
+                   Fields, buttons and popovers keep --sk-r (4 px), dialogs and drawers --sk-r-win (8 px).
+                   The first piece after a form's hidden fields and the corner cells of a table at a panel's edge follow the corner.
+
+   HOW TO USE
+   1. Load it after includes/online.php (which links css/saldi-fonts.css on the shell, the dashboard and systemdata pages):
+        print "<link rel='stylesheet' href='../css/saldi-theme.css?v=8'>\n<link rel='stylesheet' href='../css/saldi-kit.css?v=20261108'>\n";
+      saldi-theme.css gives the colours for light and dark; without it the kit falls back to the light values.
+      A module that moves to the kit must also be in $uiChromePage in includes/online.php (fonts, data-theme, text size).
+   2. Scope: the page's root element carries the class sk (a <div> or <body>, never <html>: sizes are in rem and follow
+      the user's text size). Nothing here applies outside .sk, so linking this file cannot restyle a classic page.
+      Drawers, dialogs and toasts go inside the same root. A whole kit page uses <div class="sk sk-page">, which also
+      paints the frame in Saldi's page colour (--sk-bg = --page, #eeeef0, the same ground as every classic page). Put content
+      on it in white panels (.sk-panel: frame --sk-edge + shadow --sk-lift), never as bare rows or tables on the ground, and do not paint a page white again.
+      Page CSS is only for what the kit lacks, scoped under .sk as well (.sk .ur-matrix { … }).
+   3. Classes (all sk-; one filled button per page; status = dot + text; a module on the ground - .sk-panel, a standalone .sk-nav,
+      .sk-footbar - has the frame --sk-edge and the soft shadow --sk-lift, .sk-note the frame only; the large shadow is for floating layers):
+      page     .sk-page · .sk-head > (.sk-head-tx > a.sk-back + h1.sk-title + p.sk-lead) + .sk-head-acts; .sk-back = the settings
+               pages' Tilbage (a .sk-btn.sk-btn-sm above the title)
+      layout   .sk-cols (columns of panels, min width --sk-col-w, 26rem) · .sk-split > aside + .sk-main + aside (side width
+               --sk-side-w, 13rem) · .sk-stack (column, 16 px gap) · .sk-sticky
+      panel    .sk-panel > .sk-panel-h (h2.sk-panel-t + span.sk-sub, .sk-panel-tools) · .sk-panel-note · .sk-panel-b
+               (padded body) · rows/tables/lists directly in the panel · .sk-foot (bottom row) · .sk-panel-danger
+      rows     .sk-list > a.sk-list-row (.sk-list-ic, .sk-list-tx > .sk-list-t + .sk-list-d, .sk-list-meta, .sk-list-chev), no zebra;
+               .sk-list-stack = title over description; .sk-off = unavailable row · ul.sk-kv > li > span + b (key/value)
+      form     .sk-form-row > (.sk-form-tx > .sk-form-lbl + .sk-form-help (.sk-form-def) + .sk-form-err) + .sk-form-ctl;
+               .sk-form-sub = heading inside a panel · .sk-field > .sk-field-lbl + control (+ .sk-field-help), .sk-fields-2
+      controls .sk-input on input/select/textarea (.sk-input-sm, .sk-num, [aria-invalid="true"]) · .sk-lookup > .sk-input +
+               icon (+ .sk-pop) · .sk-search > icon + .sk-input (+ kbd, + .sk-pop) · .sk-unit · widths .sk-w-xs/s/m/l/xl
+               (or --sk-w) · .sk-switch on button[role=switch][aria-checked] or input[type=checkbox] · input.sk-check,
+               input.sk-radio, label.sk-check-lbl
+      buttons  .sk-btn (white with a border) · .sk-btn-primary (navy, one per page) · .sk-btn-ghost · .sk-btn-danger ·
+               .sk-btn-sm (24 px) · .sk-btn-icon (square) · .sk-link (a link-looking <a> or <button>)
+      tabs     .sk-tabs > .sk-tab (.on, aria-selected or aria-current) (+ .sk-n count)
+      table    table.sk-table (24 px rows, grey bold header band, zebra) in .sk-table-wrap; .sk-table-flush in a panel;
+               .sk-table-edit = 28 px rows for input tables; th.sk-sort[aria-sort]; td/th .sk-num, .sk-c (centred), .sk-act (row
+               actions), .sk-wrap; tr.sel; tr.sk-tr-sub (group heading row); td.sk-empty
+      bars     .sk-bar (filter bar/toolbar; .sk-bar-sel = selection bar) with .sk-search, selects, .sk-bar-sep, .sk-grow ·
+               .sk-footbar (sticky save bar)
+      status   .sk-status (dot + text) · .sk-dot · .sk-tag (quiet badge) · tones .sk-ok .sk-warn .sk-bad .sk-info .sk-off ·
+               .sk-n (plain count) · .sk-sub (grey inline text)
+      layers   .sk-scrim · .sk-drawer > .sk-drawer-h (h2.sk-drawer-t + close) + .sk-drawer-b + .sk-drawer-f · .sk-dialog >
+               .sk-dialog-t + .sk-dialog-b + .sk-dialog-f (or inside .sk-modal) · .sk-toast · .sk-pop > .sk-pop-h, .sk-opt,
+               .sk-pop-note · .sk-note (inline notice, with a tone) · .sk-empty · .sk-nav > .sk-nav-item (left section menu)
+      utils    .sk-muted .sk-faint .sk-grow .sk-nowrap .sk-sr (screen reader only); kbd and mark are styled
+   Open and close layers with the hidden attribute (or by rendering them). Icons: inline <svg> or <i class="bx …">, 16 px. */
+
+/* ---- tokens: the dashboard's values (css/dashboard.css, prototype saldi-premium.css), mapped onto css/saldi-theme.css and
+   css/saldi-fonts.css. Font sizes and heights in rem (13 px = .8125rem), so the text-size choice still works. ---- */
+.sk {
+	--sk-bg: var(--page, #eeeef0); --sk-surface: var(--surface, #ffffff); --sk-surface-2: var(--surface-2, #f7f9fc);
+	--sk-border: var(--border, #e4e8ef); --sk-grid: var(--grid, #eef1f6);
+	--sk-edge: var(--edge, #cdd4df); --sk-edge-head: var(--edge-head, #dce2ea);
+	--sk-lift: var(--lift, 0 1px 2px rgba(11, 26, 58, .08), 0 4px 12px rgba(11, 26, 58, .06));
+	--sk-text: var(--text, #0b1a3a); --sk-text-2: var(--text-2, #5b6b85); --sk-text-3: var(--text-3, #8a97ad); --sk-link: var(--link, #1b68bd);
+	--sk-good: var(--good, #15803d); --sk-bad: var(--bad, #c2410c); --sk-good-bg: var(--good-bg, #e8f6ee); --sk-bad-bg: var(--bad-bg, #fdecec);
+	--sk-warn: var(--saldi-amber, #D9822B); --sk-warn-ink: #a15c07; --sk-info: var(--saldi-blue, #4FA0EE);
+	--sk-mark: var(--saldi-blue, #4FA0EE); --sk-focus: var(--saldi-blue, #4FA0EE); --sk-focus-ring: 0 0 0 2px rgba(79, 160, 238, .45);
+	--sk-primary: #114691; --sk-primary-hover: color-mix(in srgb, #114691 94%, #000); --sk-primary-text: #ffffff;
+	--sk-border-field: #c6d2e4; --sk-border-field-hover: #a9b8cf;
+	--sk-hover: #eef2f8; --sk-row-hover: #f5f9fe; --sk-row-sel: #eaf3fd; --sk-switch-off: #c9d3e2; --sk-on: var(--sk-text);
+	--sk-scrim: rgba(11, 26, 58, .24); --sk-toast-bg: var(--tip-bg, #0b1a3a); --sk-toast-text: var(--tip-text, #ffffff);
+	--sk-shadow-win: var(--shadow-up, 0 2px 4px rgba(11, 26, 58, .06), 0 12px 28px rgba(11, 26, 58, .11));
+	--sk-font: var(--font-ui, Inter, system-ui, sans-serif); --sk-font-display: var(--font-display, 'Saldi Grotesk', Inter, system-ui, sans-serif);
+	--sk-fs: .8125rem; --sk-fs-s: .75rem; --sk-fs-xs: .6875rem; --sk-fs-h: .875rem; --sk-fs-title: 1.125rem;
+	--sk-row-h: 1.5rem; --sk-band-h: 1.75rem; --sk-ctl-h: 1.75rem; --sk-ctl-h-sm: 1.5rem;
+	--sk-r: 4px; --sk-r-mod: var(--r-mod, 6px); --sk-r-win: 8px; --sk-gap: 16px; --sk-pad: 12px; --sk-page-x: 28px;
+	--sk-t: 140ms; --sk-ease: var(--e-io, cubic-bezier(.4, 0, .2, 1));
+}
+[data-theme="dark"] .sk {
+	--sk-border-field: #34466e; --sk-border-field-hover: #4a5f8c; --sk-hover: #22325a; --sk-row-hover: #1f2e50;
+	--sk-row-sel: rgba(79, 160, 238, .16); --sk-switch-off: #3a4a6c; --sk-on: #4596ea; --sk-warn-ink: #e0a35a; --sk-scrim: rgba(0, 0, 0, .45);
+}
+@media (prefers-color-scheme: dark) {
+	[data-theme="system"] .sk {
+		--sk-border-field: #34466e; --sk-border-field-hover: #4a5f8c; --sk-hover: #22325a; --sk-row-hover: #1f2e50;
+		--sk-row-sel: rgba(79, 160, 238, .16); --sk-switch-off: #3a4a6c; --sk-on: #4596ea; --sk-warn-ink: #e0a35a; --sk-scrim: rgba(0, 0, 0, .45);
+	}
+}
+/* tones for .sk-status, .sk-dot, .sk-tag, .sk-note and .sk-tr-sub; registered as not inherited, so a tone never leaks into
+   a nested component (an inert name on pages without the kit) */
+@property --sk-tone { syntax: '*'; inherits: false; }
+@property --sk-tone-ink { syntax: '*'; inherits: false; }
+.sk .sk-ok { --sk-tone: var(--sk-good); --sk-tone-ink: var(--sk-good); }
+.sk .sk-warn { --sk-tone: var(--sk-warn); --sk-tone-ink: var(--sk-warn-ink); }
+.sk .sk-bad { --sk-tone: var(--sk-bad); --sk-tone-ink: var(--sk-bad); }
+.sk .sk-info { --sk-tone: var(--sk-info); --sk-tone-ink: var(--sk-link); }
+.sk .sk-off { --sk-tone: var(--sk-text-3); --sk-tone-ink: var(--sk-text-3); }
+
+/* ---- base inside the scope ---- */
+.sk { font: 400 var(--sk-fs)/1.4 var(--sk-font); color: var(--sk-text); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+.sk *, .sk *::before, .sk *::after { box-sizing: border-box; }
+.sk [hidden] { display: none !important; }
+.sk a { color: var(--sk-link); text-decoration: none; }
+.sk a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.sk button, .sk input, .sk select, .sk textarea { font: inherit; color: inherit; }
+.sk :focus-visible { outline: 2px solid var(--sk-focus); outline-offset: 1px; }
+.sk kbd { display: inline-block; min-width: 1.125rem; padding: 0 4px; border: 1px solid var(--sk-border); border-bottom-width: 2px; border-radius: 3px;
+	background: var(--sk-surface-2); color: var(--sk-text-2); font: 500 var(--sk-fs-xs)/1rem var(--sk-font); text-align: center; white-space: nowrap; }
+.sk mark { padding: 0 1px; border-radius: 2px; background: rgba(79, 160, 238, .22); color: inherit; }
+.sk .sk-muted { color: var(--sk-text-2); }
+.sk .sk-faint { color: var(--sk-text-3); }
+.sk .sk-num { text-align: right; font-variant-numeric: tabular-nums; }
+.sk .sk-grow { flex: 1 1 auto; min-width: 0; }
+.sk .sk-nowrap { white-space: nowrap; }
+.sk .sk-sub { margin-left: 6px; font-weight: 400; color: var(--sk-text-3); }
+.sk .sk-n { font-weight: 400; color: var(--sk-text-3); font-variant-numeric: tabular-nums; }
+.sk .sk-sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* ---- page: Saldi's page colour as the frame, 16/28 px padding as the dashboard; title and lead left, actions right ---- */
+html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--page, #eeeef0) !important; }   /* beats old page CSS that forces a body colour; the ground comes from here, so .sk-page needs no min-height (100vh plus its padding scrolled short pages) */
+/* border-box: the root is not covered by .sk *, and min-height 100vh plus the 16 + 96 px padding scrolled every short page by 112 px */
+.sk.sk-page, .sk .sk-page { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--sk-gap); min-width: 0; padding: 16px var(--sk-page-x) 96px; background: var(--sk-bg); }
+.sk .sk-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 24px; }
+.sk .sk-head-tx { flex: 1 1 20rem; min-width: 0; }
+.sk .sk-head-tx > .sk-back { display: flex; width: max-content; margin: 0 0 8px; }   /* Tilbage above the title, 8 px to it (settings_back_button()) */
+.sk .sk-title { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 var(--sk-fs-title)/1.3 var(--sk-font-display); letter-spacing: -.005em; color: var(--sk-text); }
+.sk .sk-lead { max-width: 46rem; margin: 2px 0 0; color: var(--sk-text-2); line-height: 1.45; }
+.sk .sk-head-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.sk .sk-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(var(--sk-col-w, 26rem), 100%), 1fr)); align-items: start; gap: var(--sk-gap); }
+.sk .sk-stack { display: flex; flex-direction: column; gap: var(--sk-gap); min-width: 0; }
+.sk .sk-split { display: flex; align-items: flex-start; gap: var(--sk-gap); }
+.sk .sk-split > * { flex: 0 0 var(--sk-side-w, 13rem); min-width: 0; }
+.sk .sk-split > .sk-main { flex: 1 1 0; }
+.sk .sk-sticky { position: sticky; top: 16px; }
+@media (max-width: 900px) {
+	.sk .sk-split { flex-wrap: wrap; }
+	.sk .sk-split > * { flex-basis: 100%; }
+	.sk .sk-sticky { position: static; }
+}
+
+/* ---- panel: frame --sk-edge with the soft shadow --sk-lift, 4 px corners; grey 28 px header band (line --sk-edge-head) with a bold 12 px Inter title ---- */
+.sk .sk-panel { min-width: 0; background: var(--sk-surface); border: 1px solid var(--sk-edge); border-radius: var(--sk-r-mod); box-shadow: var(--sk-lift); }
+.sk .sk-panel > :first-child { border-top-left-radius: calc(var(--sk-r-mod) - 1px); border-top-right-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > :last-child { border-bottom-left-radius: calc(var(--sk-r-mod) - 1px); border-bottom-right-radius: calc(var(--sk-r-mod) - 1px); }
+/* The first and last piece that shows: a form's hidden fields come first, so :first-child alone missed its bar or title band.
+   A table's own corner does not clip its cells, so a table as the first or last piece rounds its corner cells
+   (after a colgroup too). */
+.sk .sk-panel > :nth-child(1 of :not(input[type="hidden"], script, style, template)) { border-top-left-radius: calc(var(--sk-r-mod) - 1px); border-top-right-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > :nth-last-child(1 of :not(input[type="hidden"], script, style, template)) { border-bottom-left-radius: calc(var(--sk-r-mod) - 1px); border-bottom-right-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > table:nth-child(1 of :not(input[type="hidden"], script, style, template)) > :nth-child(1 of thead, tbody) > tr:first-child > :first-child { border-top-left-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > table:nth-child(1 of :not(input[type="hidden"], script, style, template)) > :nth-child(1 of thead, tbody) > tr:first-child > :last-child { border-top-right-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > table:nth-last-child(1 of :not(input[type="hidden"], script, style, template)) > :nth-last-child(1 of tbody, tfoot) > tr:last-child > :first-child { border-bottom-left-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel > table:nth-last-child(1 of :not(input[type="hidden"], script, style, template)) > :nth-last-child(1 of tbody, tfoot) > tr:last-child > :last-child { border-bottom-right-radius: calc(var(--sk-r-mod) - 1px); }
+.sk .sk-panel-h { display: flex; align-items: center; gap: 12px; min-height: var(--sk-band-h); padding: 0 var(--sk-pad); background: var(--sk-surface-2); border-bottom: 1px solid var(--sk-edge-head); }
+.sk .sk-panel-t { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 var(--sk-fs-s)/1.2 var(--sk-font); color: var(--sk-text); }
+.sk .sk-panel-tools { display: flex; align-items: center; gap: 12px; margin-left: auto; font-size: var(--sk-fs-s); white-space: nowrap; }
+.sk .sk-panel-note { padding: 8px var(--sk-pad); border-bottom: 1px solid var(--sk-edge-head); font-size: var(--sk-fs-s); line-height: 1.45; color: var(--sk-text-2); }
+.sk .sk-panel-b { padding: 10px var(--sk-pad) 12px; }
+.sk .sk-panel-danger .sk-panel-t { color: var(--sk-bad); }
+.sk .sk-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: var(--sk-band-h); padding: 2px var(--sk-pad); border-top: 1px solid var(--sk-border);
+	font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+
+/* ---- list rows (navigation: hub groups, menus, lists of roles): 24 px white rows, hairline between, icon · title · description · meta ·
+   chevron. 20261101 no zebra here (owner): alternating colours belong to data tables (.sk-table), not to lists you pick from ---- */
+.sk .sk-list { margin: 0; padding: 0; list-style: none; }
+.sk .sk-list-row { display: flex; align-items: center; gap: 10px; min-height: var(--sk-row-h); padding: 2px var(--sk-pad); color: var(--sk-text); text-decoration: none;
+	transition: background-color var(--sk-t); }
+.sk .sk-list > :not([hidden]) ~ .sk-list-row { border-top: 1px solid var(--sk-border); }
+.sk a.sk-list-row:hover, .sk button.sk-list-row:hover { background: var(--sk-row-hover); text-decoration: none; }
+.sk button.sk-list-row { width: 100%; margin: 0; border: 0; background: none; text-align: left; cursor: pointer; }
+.sk .sk-list-ic { flex: none; width: 16px; height: 16px; font-size: 16px; line-height: 16px; color: var(--sk-text-2); fill: currentColor; }
+.sk .sk-list-tx { display: flex; flex: 1 1 auto; align-items: baseline; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.sk .sk-list-t { flex: none; font-weight: 500; color: var(--sk-text); }
+.sk .sk-list-d { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .sk-list-meta { display: inline-flex; flex: none; align-items: center; gap: 6px; font-size: var(--sk-fs-s); color: var(--sk-text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sk .sk-list-chev { flex: none; width: 16px; height: 16px; font-size: 16px; line-height: 16px; color: var(--sk-text-3); fill: currentColor; }
+.sk .sk-list-row.sk-off { cursor: default; }
+.sk .sk-list-row.sk-off :is(.sk-list-t, .sk-list-ic) { color: var(--sk-text-3); }
+.sk .sk-list-stack .sk-list-row { align-items: flex-start; padding-top: 6px; padding-bottom: 6px; }
+.sk .sk-list-stack .sk-list-tx { flex-direction: column; align-items: stretch; gap: 1px; white-space: normal; }
+.sk .sk-list-stack .sk-list-d { overflow: visible; }
+.sk .sk-kv { margin: 0; padding: 0; list-style: none; }
+.sk .sk-kv > li { display: flex; align-items: center; gap: 12px; min-height: var(--sk-row-h); padding: 0 8px; border-bottom: 1px solid var(--sk-border); }
+.sk .sk-kv > li:nth-child(even of :not([hidden])) { background: var(--sk-surface-2); }
+.sk .sk-kv > li > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sk-text-2); }
+.sk .sk-kv > li > :last-child:not(:first-child) { flex: 0 1 auto; max-width: 65%; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	font-weight: 500; color: var(--sk-text); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---- form rows: label and help left, control right (28 px controls); stacked fields for drawers ---- */
+.sk .sk-form-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 24px; padding: 8px var(--sk-pad); --sk-w: 15rem; }
+.sk .sk-form-row:not([hidden]) ~ :is(.sk-form-row, .sk-form-sub) { border-top: 1px solid var(--sk-border); }
+.sk .sk-form-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sk .sk-form-lbl { display: block; padding-top: calc((var(--sk-ctl-h) - 1.25rem) / 2); font-weight: 500; line-height: 1.25rem; color: var(--sk-text); }
+.sk .sk-form-help { display: block; font-size: var(--sk-fs-s); line-height: 1.4; color: var(--sk-text-2); }
+.sk .sk-form-def { color: var(--sk-text-3); }
+.sk .sk-form-err { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: var(--sk-fs-s); font-weight: 500; color: var(--sk-bad); }
+.sk .sk-form-ctl { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; min-height: var(--sk-ctl-h); max-width: 100%; }
+.sk .sk-form-sub { display: flex; align-items: center; gap: 8px; min-height: var(--sk-band-h); padding: 4px var(--sk-pad) 0; font: 600 var(--sk-fs-s)/1.2 var(--sk-font); color: var(--sk-text-2); }
+.sk .sk-field { display: flex; flex-direction: column; gap: 4px; margin: 0 0 12px; --sk-w: 100%; }
+.sk .sk-field-lbl { font: 600 var(--sk-fs-s)/1.3 var(--sk-font); color: var(--sk-text-2); }
+.sk .sk-field-help { font-size: var(--sk-fs-s); line-height: 1.4; color: var(--sk-text-3); }
+.sk .sk-fields-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; }
+@media (max-width: 640px) {
+	.sk .sk-form-row { grid-template-columns: minmax(0, 1fr); row-gap: 6px; --sk-w: 100%; }
+	.sk .sk-form-ctl { justify-content: flex-start; }
+	.sk .sk-fields-2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- text input, select, textarea, lookup, search ---- */
+.sk .sk-input { display: inline-block; width: var(--sk-w, auto); max-width: 100%; min-width: 0; height: var(--sk-ctl-h); margin: 0; padding: 0 8px; vertical-align: middle;
+	border: 1px solid var(--sk-border-field); border-radius: var(--sk-r); background-color: var(--sk-surface); color: var(--sk-text); box-shadow: none; outline: none;
+	font: 400 var(--sk-fs)/1.2 var(--sk-font); transition: border-color var(--sk-t), box-shadow var(--sk-t); }
+.sk .sk-input:hover { border-color: var(--sk-border-field-hover); }
+.sk .sk-input:focus { border-color: var(--sk-focus); box-shadow: var(--sk-focus-ring); outline: none; }
+.sk .sk-input::placeholder { color: var(--sk-text-3); opacity: 1; }
+.sk .sk-input[readonly], .sk .sk-input:disabled { background-color: var(--sk-surface-2); border-color: transparent; }
+.sk .sk-input:disabled { color: var(--sk-text-3); cursor: not-allowed; }
+.sk .sk-input[readonly]:focus { border-color: var(--sk-border-field); box-shadow: none; }
+.sk .sk-input[aria-invalid="true"] { border-color: var(--sk-bad); }
+.sk .sk-input.sk-num { text-align: right; }
+.sk .sk-input-sm { height: var(--sk-ctl-h-sm); padding: 0 6px; font-size: var(--sk-fs-s); }
+.sk select.sk-input { -webkit-appearance: none; appearance: none; padding-right: 24px; cursor: pointer;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%235b6b85' d='M16.293 9.293 12 13.586 7.707 9.293l-1.414 1.414L12 16.414l5.707-5.707z'/%3E%3C/svg%3E");
+	background-repeat: no-repeat; background-position: right 4px center; background-size: 16px 16px; }
+.sk textarea.sk-input { height: auto; min-height: 4.5rem; padding: 6px 8px; line-height: 1.4; resize: vertical; }
+.sk .sk-unit { color: var(--sk-text-2); white-space: nowrap; }
+.sk .sk-w-xs { --sk-w: 4rem; } .sk .sk-w-s { --sk-w: 6rem; } .sk .sk-w-m { --sk-w: 10rem; } .sk .sk-w-l { --sk-w: 15rem; } .sk .sk-w-xl { --sk-w: 22rem; }
+.sk :is(.sk-lookup, .sk-search) { position: relative; display: inline-flex; align-items: center; width: var(--sk-w, auto); max-width: 100%; min-width: 0; vertical-align: middle; }
+.sk :is(.sk-lookup, .sk-search) > .sk-input { width: 100%; }
+.sk :is(.sk-lookup, .sk-search) > :is(svg, i, .sk-ic) { position: absolute; top: 50%; width: 16px; height: 16px; font-size: 16px; line-height: 16px; transform: translateY(-50%);
+	color: var(--sk-text-3); fill: currentColor; pointer-events: none; }
+.sk .sk-lookup > .sk-input { padding-right: 28px; }
+.sk .sk-lookup > :is(svg, i, .sk-ic) { right: 8px; }
+.sk .sk-search > .sk-input { padding-left: 28px; }
+.sk .sk-search > :is(svg, i, .sk-ic) { left: 8px; }
+.sk .sk-search > kbd { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); pointer-events: none; }
+.sk .sk-search:has(> kbd) > .sk-input { padding-right: 32px; }
+
+/* ---- switch (the dashboard drawer's), checkbox, radio ---- */
+.sk .sk-switch { -webkit-appearance: none; appearance: none; position: relative; display: inline-block; flex: none; width: 28px; height: 16px; margin: 0; padding: 0;
+	border: 0; border-radius: 8px; background: var(--sk-switch-off); vertical-align: middle; cursor: pointer; transition: background-color var(--sk-t); }
+.sk .sk-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #ffffff; transition: left var(--sk-t) var(--sk-ease); }
+.sk .sk-switch:is([aria-checked="true"], :checked) { background: var(--sk-on); }
+.sk .sk-switch:is([aria-checked="true"], :checked)::after { left: 14px; }
+.sk .sk-switch:focus-visible { outline: 2px solid var(--sk-focus); outline-offset: 2px; }
+.sk .sk-switch:disabled, .sk .sk-switch[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.sk input:is(.sk-check, .sk-radio) { -webkit-appearance: none; appearance: none; flex: none; width: 14px; height: 14px; margin: 0; vertical-align: middle;
+	border: 1px solid var(--sk-border-field); background: var(--sk-surface) center / 12px 12px no-repeat; cursor: pointer; transition: background-color var(--sk-t), border-color var(--sk-t); }
+.sk input.sk-check { border-radius: 3px; }
+.sk input.sk-radio { border-radius: 50%; }
+.sk input:is(.sk-check, .sk-radio):hover { border-color: var(--sk-border-field-hover); }
+.sk input.sk-check:is(:checked, :indeterminate) { background-color: var(--sk-on); border-color: var(--sk-on); }
+.sk input.sk-check:checked { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='m10 15.586-3.293-3.293-1.414 1.414L10 18.414l9.707-9.707-1.414-1.414z'/%3E%3C/svg%3E"); }
+.sk input.sk-check:indeterminate { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M6 11h12v2H6z'/%3E%3C/svg%3E"); }
+.sk input.sk-radio:checked { border-color: var(--sk-on); background: radial-gradient(circle, var(--sk-on) 0 3px, var(--sk-surface) 3.5px); }
+.sk input:is(.sk-check, .sk-radio):focus-visible { border-color: var(--sk-focus); box-shadow: var(--sk-focus-ring); outline: none; }
+.sk input:is(.sk-check, .sk-radio):disabled { opacity: .4; cursor: not-allowed; }
+.sk .sk-check-lbl { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+
+/* ---- buttons: 28 px (24 px small); white with a field border; one filled navy primary; colours in variables so that the
+   rule in includes/online.php (every submit button in the user's colour, !important) cannot repaint a kit button ---- */
+.sk .sk-btn { --sk-btn-bg: var(--sk-surface); --sk-btn-bd: var(--sk-border-field); --sk-btn-fg: var(--sk-text);
+	display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--sk-ctl-h); margin: 0; padding: 0 10px; vertical-align: middle;
+	border: 1px solid var(--sk-btn-bd); border-radius: var(--sk-r); background: var(--sk-btn-bg); color: var(--sk-btn-fg); box-shadow: none;
+	font: 500 var(--sk-fs)/1 var(--sk-font); white-space: nowrap; text-decoration: none; cursor: pointer; user-select: none;
+	transition: background-color var(--sk-t), border-color var(--sk-t), color var(--sk-t); }
+.sk .sk-btn:hover { --sk-btn-bg: var(--sk-surface-2); --sk-btn-bd: var(--sk-border-field-hover); text-decoration: none; }
+.sk .sk-btn-primary { --sk-btn-bg: var(--sk-primary); --sk-btn-bd: var(--sk-primary); --sk-btn-fg: var(--sk-primary-text); font-weight: 600; }
+.sk .sk-btn-primary:hover { --sk-btn-bg: var(--sk-primary-hover); --sk-btn-bd: var(--sk-primary-hover); }
+.sk .sk-btn-ghost { --sk-btn-bg: transparent; --sk-btn-bd: transparent; --sk-btn-fg: var(--sk-text-2); }
+.sk .sk-btn-ghost:hover { --sk-btn-bg: var(--sk-hover); --sk-btn-bd: transparent; --sk-btn-fg: var(--sk-text); }
+.sk .sk-btn-danger { --sk-btn-fg: var(--sk-bad); }
+.sk .sk-btn-danger:hover { --sk-btn-bg: var(--sk-bad-bg); --sk-btn-bd: color-mix(in srgb, var(--sk-bad) 40%, var(--sk-surface)); }
+.sk .sk-btn-sm { height: var(--sk-ctl-h-sm); padding: 0 8px; font-size: var(--sk-fs-s); }
+.sk .sk-btn-icon { width: var(--sk-ctl-h); padding: 0; }
+.sk .sk-btn-icon.sk-btn-sm { width: var(--sk-ctl-h-sm); }
+.sk .sk-btn > :is(svg, i, .sk-ic) { flex: none; width: 16px; height: 16px; font-size: 16px; line-height: 16px; fill: currentColor; }
+.sk .sk-btn-sm > :is(svg, i, .sk-ic) { width: 14px; height: 14px; font-size: 14px; line-height: 14px; }
+.sk .sk-btn:disabled, .sk .sk-btn[aria-disabled="true"] { opacity: .45; cursor: default; pointer-events: none; }
+.sk .sk-link { --sk-btn-bg: transparent; --sk-btn-bd: transparent; --sk-btn-fg: var(--sk-link);
+	display: inline; height: auto; margin: 0; padding: 0; border: 0; background: none; color: var(--sk-btn-fg); font: inherit; text-align: inherit; text-decoration: none; cursor: pointer; }
+.sk .sk-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+.sk .sk-link:disabled { --sk-btn-fg: var(--sk-text-3); cursor: default; text-decoration: none; }
+.sk :is(button, input)[type]:is(.sk-btn, .sk-link) { background: var(--sk-btn-bg) !important; border-color: var(--sk-btn-bd) !important; color: var(--sk-btn-fg) !important; }
+.sk :is(button, input)[type].sk-link { border-width: 0 !important; }
+
+/* ---- tabs: Saldi Grotesk, the active tab bold with a 2 px blue line ---- */
+.sk .sk-tabs { display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px; margin: 0; padding: 0; list-style: none; border-bottom: 1px solid var(--sk-border); }
+.sk .sk-tabs > li { display: flex; }
+.sk .sk-tab { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 2rem; margin: 0; padding: 0 10px; border: 0; background: none;
+	color: var(--sk-text-2); font: 500 .84375rem/1 var(--sk-font-display); white-space: nowrap; text-decoration: none; cursor: pointer; transition: color var(--sk-t); }
+.sk .sk-tab:hover { color: var(--sk-text); text-decoration: none; }
+.sk .sk-tab:is(.on, [aria-selected="true"], [aria-current="page"]) { color: var(--sk-text); font-weight: 600; }
+.sk .sk-tab:is(.on, [aria-selected="true"], [aria-current="page"])::after { content: ""; position: absolute; right: 10px; bottom: -1px; left: 10px; height: 2px; border-radius: 2px 2px 0 0; background: var(--sk-mark); }
+.sk .sk-tab > :is(svg, i, .sk-ic) { width: 16px; height: 16px; font-size: 16px; line-height: 16px; color: var(--sk-text-3); fill: currentColor; }
+.sk .sk-tab .sk-n { font: 400 var(--sk-fs-s)/1 var(--sk-font); }
+.sk .sk-tab:focus-visible { outline-offset: -2px; }
+
+/* ---- table: 24 px rows, grey bold header band, zebra (as the dashboard's tables) ---- */
+.sk .sk-table-wrap { min-width: 0; overflow-x: auto; }
+.sk .sk-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--sk-fs); font-variant-numeric: tabular-nums; }
+.sk .sk-table th { height: var(--sk-row-h); padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; vertical-align: middle;
+	background: var(--sk-surface-2); border-top: 1px solid var(--sk-border); border-bottom: 1px solid var(--sk-border); font: 700 var(--sk-fs-s)/1.2 var(--sk-font); color: var(--sk-text); }
+.sk .sk-table td { height: var(--sk-row-h); padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+	background: var(--sk-surface); border-bottom: 1px solid var(--sk-border); transition: background-color 120ms; }
+.sk .sk-table tbody tr:where(:nth-child(even of :not([hidden]))) > td { background: var(--sk-surface-2); }
+.sk .sk-table tbody tr:hover > td { background: var(--sk-row-hover); }
+.sk .sk-table tbody tr:is(.sel, [aria-selected="true"]) > td { background: var(--sk-row-sel); }
+.sk .sk-table tfoot td { font-weight: 600; border-top: 1px solid var(--sk-border); border-bottom: 0; }
+.sk .sk-table :is(th, td).sk-c { text-align: center; }
+.sk .sk-table :is(th, td).sk-wrap { white-space: normal; }
+.sk .sk-table td.sk-act { width: 1%; padding: 0 4px; text-align: right; overflow: visible; }
+.sk .sk-table :is(th, td) > :is(.sk-check, .sk-radio) { display: block; margin: 0 auto; }
+/* controls in a row stay inside its height: fields 2 px less, buttons 4 px less; .sk-table-edit = 28 px rows for input tables */
+.sk .sk-table-edit { --sk-row-h: 1.75rem; }
+.sk .sk-table td .sk-input { height: calc(var(--sk-row-h) - 2px); }
+.sk .sk-table td .sk-btn { height: calc(var(--sk-row-h) - 4px); }
+.sk .sk-table td .sk-btn-icon { width: calc(var(--sk-row-h) - 4px); }
+.sk .sk-table tr.sk-tr-sub { color: var(--sk-tone-ink, var(--sk-text-2)); }
+.sk .sk-table tr.sk-tr-sub > :is(th, td) { height: var(--sk-band-h); padding-top: 4px; background: var(--sk-surface); border-top: 0; font: 600 var(--sk-fs-s)/1.2 var(--sk-font); color: inherit; }
+.sk .sk-table td.sk-empty, .sk .sk-empty { padding: 24px 16px; text-align: center; white-space: normal; color: var(--sk-text-2); }
+.sk .sk-table tbody tr:hover > td.sk-empty { background: var(--sk-surface); }
+.sk .sk-empty b { display: block; margin-bottom: 2px; font-weight: 600; color: var(--sk-text); }
+.sk .sk-empty .sk-btn { margin-top: 10px; }
+.sk .sk-table th.sk-sort { cursor: pointer; user-select: none; }
+.sk .sk-table th.sk-sort::after { content: ""; display: inline-block; width: 12px; height: 12px; margin-left: 3px; vertical-align: -2px; background: currentColor; opacity: 0; transition: opacity var(--sk-t);
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m12 8.586-6.707 6.707 1.414 1.414L12 11.414l5.293 5.293 1.414-1.414z'/%3E%3C/svg%3E") center / 12px 12px no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m12 8.586-6.707 6.707 1.414 1.414L12 11.414l5.293 5.293 1.414-1.414z'/%3E%3C/svg%3E") center / 12px 12px no-repeat; }
+.sk .sk-table th.sk-sort:hover::after { opacity: .45; }
+.sk .sk-table th.sk-sort:is([aria-sort="ascending"], [aria-sort="descending"])::after { opacity: 1; }
+.sk .sk-table th.sk-sort[aria-sort="descending"]::after { transform: rotate(180deg); }
+.sk .sk-table-flush th { border-top: 0; }
+.sk .sk-table-flush :is(th, td):first-child { padding-left: var(--sk-pad); }
+.sk .sk-table-flush :is(th, td):last-child { padding-right: var(--sk-pad); }
+.sk .sk-table-flush > tbody > tr:nth-last-child(1 of :not([hidden])) > td { border-bottom: 0; }
+
+/* ---- filter bar / toolbar, sticky save bar ---- */
+.sk .sk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 2.75rem; padding: 8px var(--sk-pad); background: var(--sk-surface); border-bottom: 1px solid var(--sk-border); }
+.sk .sk-bar.sk-bar-sel { background: var(--sk-row-sel); }
+.sk .sk-bar > .sk-search { flex: 1 1 16rem; }
+.sk .sk-bar-sep { flex: none; width: 1px; height: 20px; background: var(--sk-border); }
+.sk .sk-footbar { position: sticky; bottom: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 2.875rem; padding: 8px var(--sk-pad);
+	background: var(--sk-surface); border: 1px solid var(--sk-edge); border-bottom: 0; border-radius: var(--sk-r-mod) var(--sk-r-mod) 0 0; box-shadow: var(--sk-lift); }
+
+/* ---- status as dot + text, quiet tags ---- */
+.sk .sk-status { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.sk .sk-status, .sk .sk-dot { --sk-dot-c: var(--sk-tone, var(--sk-text-3)); }
+.sk .sk-status::before, .sk .sk-dot { content: ""; display: inline-block; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--sk-dot-c); }
+.sk .sk-dot { vertical-align: 1px; }
+.sk .sk-status.sk-off { color: var(--sk-text-2); }
+.sk .sk-tag { display: inline-flex; align-items: center; gap: 4px; height: 1.125rem; padding: 0 6px; vertical-align: middle; border: 1px solid var(--sk-border); border-radius: 3px;
+	background: var(--sk-surface-2); color: var(--sk-tone-ink, var(--sk-text-2)); font: 500 var(--sk-fs-xs)/1 var(--sk-font); white-space: nowrap; }
+
+/* ---- left section menu ---- */
+.sk .sk-nav { display: flex; flex-direction: column; margin: 0; padding: 4px 0; list-style: none; background: var(--sk-surface); border: 1px solid var(--sk-edge); border-radius: var(--sk-r-mod); box-shadow: var(--sk-lift); }
+.sk .sk-panel > .sk-nav { border: 0; border-radius: 0; box-shadow: none; }
+.sk .sk-nav > li { display: block; }
+.sk .sk-nav-item { display: flex; align-items: center; gap: 8px; min-height: var(--sk-ctl-h); padding: 4px var(--sk-pad); color: var(--sk-text-2); line-height: 1.3; text-decoration: none;
+	transition: background-color var(--sk-t), color var(--sk-t); }
+.sk .sk-nav-item:hover { background: var(--sk-surface-2); color: var(--sk-text); text-decoration: none; }
+.sk .sk-nav-item:is(.on, [aria-current="page"]) { background: var(--sk-row-sel); color: var(--sk-text); font-weight: 600; box-shadow: inset 2px 0 0 var(--sk-mark); }
+.sk .sk-nav-item .sk-n, .sk .sk-nav-item .sk-dot { margin-left: auto; }
+.sk .sk-nav-item:focus-visible { outline-offset: -2px; }
+
+/* ---- inline notice: hairline box with a coloured left edge (as the dashboard's role notice) ---- */
+.sk .sk-note { --sk-note-c: var(--sk-tone, var(--sk-info)); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px var(--sk-pad);
+	background: var(--sk-surface); border: 1px solid var(--sk-edge); border-left: 3px solid var(--sk-note-c); border-radius: var(--sk-r-mod); line-height: 1.45; }
+/* a notice inside a module (panel, popover, drawer, dialog) keeps the hairline: lines inside a module stay --sk-border */
+.sk :is(.sk-panel, .sk-pop, .sk-drawer, .sk-dialog) .sk-note { border-top-color: var(--sk-border); border-right-color: var(--sk-border); border-bottom-color: var(--sk-border); }
+.sk .sk-note b { font-weight: 600; }
+.sk .sk-note > :not(svg, i, .sk-ic, .sk-btn, button, a.sk-link) { flex: 1 1 0; min-width: 0; }   /* 20261101 long text wraps beside the icon */
+.sk .sk-note > :is(svg, i, .sk-ic) { flex: none; width: 16px; height: 16px; font-size: 16px; color: var(--sk-note-c); fill: currentColor; }
+
+/* ---- floating layers: popover (4 px), drawer and dialog (8 px), toast; the large floating shadow (--sk-shadow-win) ---- */
+@keyframes sk-in { from { opacity: 0; } to { opacity: 1; } }
+.sk .sk-pop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 100%; max-height: 20rem; margin: 0; padding: 4px 0; overflow: auto; list-style: none;
+	background: var(--sk-surface); border: 1px solid var(--sk-border); border-radius: var(--sk-r); box-shadow: var(--sk-shadow-win); text-align: left; }
+.sk .sk-pop-h { padding: 8px var(--sk-pad) 2px; font: 600 var(--sk-fs-xs)/1.2 var(--sk-font); color: var(--sk-text-3); }
+.sk .sk-pop-note { padding: 6px var(--sk-pad); font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .sk-opt { display: flex; flex-direction: column; justify-content: center; min-height: var(--sk-ctl-h); padding: 4px var(--sk-pad); color: var(--sk-text); text-decoration: none; cursor: pointer; }
+.sk .sk-opt:hover { background: var(--sk-surface-2); text-decoration: none; }
+.sk .sk-opt:is(.on, [aria-selected="true"]) { background: var(--sk-row-sel); }
+.sk .sk-opt :is(small, span) { font-size: var(--sk-fs-s); color: var(--sk-text-2); }
+.sk .sk-scrim { position: fixed; inset: 0; z-index: 40; background: var(--sk-scrim); animation: sk-in var(--sk-t) var(--sk-ease); }
+.sk .sk-scrim:has(+ .sk-dialog) { z-index: 50; }
+.sk .sk-drawer { position: fixed; top: 8px; right: 8px; bottom: 8px; z-index: 41; display: flex; flex-direction: column; width: min(28rem, calc(100vw - 16px));
+	background: var(--sk-surface); border: 1px solid var(--sk-border); border-radius: var(--sk-r-win); box-shadow: var(--sk-shadow-win); color: var(--sk-text); animation: sk-in var(--sk-t) var(--sk-ease); }
+.sk .sk-drawer-h { flex: none; display: flex; align-items: center; gap: 8px; min-height: 2.5rem; padding: 0 8px 0 16px; border-bottom: 1px solid var(--sk-border); }
+.sk .sk-drawer-t { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 var(--sk-fs-h)/1.25 var(--sk-font-display); color: var(--sk-text); }
+.sk .sk-drawer-b { flex: 1 1 auto; min-height: 0; margin: 0; padding: 12px 16px; overflow: auto; }
+.sk .sk-drawer-f { flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 16px; border-top: 1px solid var(--sk-border); }
+.sk .sk-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: 18vh 16px 16px; background: var(--sk-scrim); animation: sk-in var(--sk-t) var(--sk-ease); }
+.sk .sk-dialog { position: fixed; top: 18vh; left: 50%; z-index: 51; width: min(27.5rem, calc(100vw - 32px)); max-height: 76vh; padding: 16px; overflow: auto; transform: translateX(-50%);
+	background: var(--sk-surface); border: 1px solid var(--sk-border); border-radius: var(--sk-r-win); box-shadow: var(--sk-shadow-win); color: var(--sk-text); animation: sk-in var(--sk-t) var(--sk-ease); }
+.sk .sk-modal > .sk-dialog { position: relative; top: auto; left: auto; transform: none; animation: none; }
+.sk .sk-dialog-t { margin: 0 0 6px; font: 600 .9375rem/1.3 var(--sk-font-display); color: var(--sk-text); }
+.sk .sk-dialog-b { margin: 0; color: var(--sk-text-2); line-height: 1.5; }
+.sk .sk-dialog-f { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.sk .sk-toast { position: fixed; bottom: 24px; left: 50%; z-index: 60; display: inline-flex; align-items: center; gap: 10px; max-width: min(36rem, calc(100vw - 32px)); min-height: 2rem;
+	padding: 6px 12px; transform: translateX(-50%); border-radius: var(--sk-r); background: var(--sk-toast-bg); color: var(--sk-toast-text); box-shadow: var(--sk-shadow-win);
+	animation: sk-in var(--sk-t) var(--sk-ease); }
+.sk .sk-toast :is(a, .sk-link) { color: inherit; text-decoration: underline; }
+
+@media (prefers-reduced-motion: reduce) {
+	.sk *, .sk *::before, .sk *::after { transition: none !important; animation: none !important; }
+}

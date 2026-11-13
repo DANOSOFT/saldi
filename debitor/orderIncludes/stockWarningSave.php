@@ -12,6 +12,7 @@ ob_start();
 $s_id = session_id();
 $title = "stockWarningSave";
 $modulnr = 0;
+$permission_key = 'debitor.ordre'; // 20261018 Sawaneh Review 2 (PR #803): modulnr 0 is no key
 $bg = "nix";
 $header = "nix";
 $webservice = true;

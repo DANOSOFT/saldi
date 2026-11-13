@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 4.1.0 --- 2024.02.09 ---
+// ---- index/main.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,16 +20,18 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
+// 20260930 SS Declared permission key 'any': the guides are for every logged-in user.
 // 17-10-2024 PBLM - Added link to booking
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
 include "std_func.php";
 include "connect.php";
+$permission_key = 'any';
 include "online.php";
 include "stdFunc/dkDecimal.php";
 

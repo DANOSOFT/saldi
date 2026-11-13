@@ -4,6 +4,10 @@
     $header = "nix";
     $bg = "nix";
     include "../includes/connect.php";
+    // Booking pages need the debtor key. The booking settings page (on the settings hub under Salg) needs the Salg settings key,
+    // and Ekstern booking (SMTP login and Vibrant key) E-mail or Integrationer (QA round 2, 2026-11-03).
+    $rentalPage = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    $permission_key = ($rentalPage === 'settings.php') ? 'settings.sales' : (($rentalPage === 'remote.php') ? 'settings.email|settings.integrations' : 'debitor.konti');
     include "../includes/online.php";
     $query = db_select("SELECT box3 FROM grupper where  art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);

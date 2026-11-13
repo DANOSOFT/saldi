@@ -80,7 +80,7 @@ final class EmptyRightsGateTest extends TestCase
     }
 
     /**
-     * The refusal must end the request and keep a way back.
+     * The refusal is #1033's shared one, and an admitted page is not sent through the role gate.
      *
      * @return void
      */
@@ -90,26 +90,25 @@ final class EmptyRightsGateTest extends TestCase
         $start = strpos($code, "substr((string)\$rettigheder, (int)\$modulnr, 1) < '1'");
         self::assertNotFalse($start, 'the gate is present');
 
-        $end = strpos($code, '}', (int)strpos($code, 'exit;', $start));
+        $end = strpos($code, '}', (int)strpos($code, 'perm_refuse(', $start));
         $body = (string)substr($code, (int)$start, (int)$end - (int)$start);
 
-        self::assertStringContainsString('tekstboks(', $body, 'the refusal shows the standard box');
-        self::assertStringContainsString('8465|', $body, 'with the no-rights text');
-        self::assertStringContainsString('exit;', $body, 'and ends the request before the page runs');
-        // The box hides itself when it is closed, and a refused page is only the box.
-        self::assertStringContainsString('index/main.php', $body, 'the refusal offers a way back to the menu shell');
-        self::assertStringContainsString('z-index:101', $body, 'and that link sits above the box');
-        // The shell frames the page, so the link has to leave the frame instead of loading a menu inside it.
-        self::assertStringContainsString('target=\\"_top\\"', $body, 'the way back leaves the shell iframe');
-        // Where it goes: the landing rule index/login.php applies, because the shell alone is a dead end
-        // for a user who only has craft rights (measured: no Sager entries in its menu).
-        self::assertStringContainsString("\$refusal_target = 'index/main.php';", $body, 'the shell is the fallback');
-        self::assertStringContainsString("\$refusal_target = 'sager/sager.php';", $body,
-            'a user who may work cases goes to the case list');
-        self::assertStringContainsString("\$refusal_target = 'sager/loen.php';", $body,
-            'a user with only the payroll craft right goes to the payroll list');
-        self::assertStringContainsString('get_relative() . $refusal_target', $body,
-            'and the link is built from that target');
+        // One refusal for both gates (20261103): the module gate answers as the role gate does - HTTP 403, the
+        // audit entry, a JSON body to scripts and the way back to Oversigt.
+        self::assertStringContainsString("include_once(__DIR__ . '/permissions.php');", $body,
+            'the shared refusal is available');
+        self::assertStringContainsString("perm_refuse('modulnr ' . (int) \$modulnr,", $body,
+            'the module gate refuses through it, naming the module');
+        self::assertStringContainsString("\$_SERVER['REQUEST_URI']", $body, 'and the request that was stopped');
+        self::assertStringNotContainsString('tekstboks(', $body, 'no refusal box of its own');
+        self::assertStringNotContainsString('8465|', $body, 'and no no-rights text of its own');
+        // The Phase 3 gate runs after it, and an admitted case or Mit Salg page is not put through it: the role
+        // model has no craft-right exception to express.
+        // The role gate still runs for every request; a page the exception admitted reaches it as 'any', the key
+        // for every logged-in user, so the new gate keeps deciding and the exception is expressed in its vocabulary.
+        self::assertStringContainsString('perm_enforce_request(', $code, 'the role gate runs for every request');
+        self::assertStringContainsString("(\$sag_workflow_allowed || \$mysale_label_ok) ? 'any' :", $code,
+            'and an admitted page is decided as any, not skipped');
     }
 
     /**
@@ -446,7 +445,8 @@ final class EmptyRightsGateTest extends TestCase
         self::assertNotFalse($refusal, 'the refusal is there');
         self::assertNotFalse($push, 'the page is still pushed onto the nav stack');
         self::assertLessThan($push, $refusal, 'the refusal runs before the push, so a refused page is never recorded');
-        self::assertStringContainsString('exit;', substr($code, (int)$refusal, 2000), 'and it ends the request');
+        // perm_refuse() answers and exits inside includes/permissions.php, so the gate cannot return into the push.
+        self::assertStringContainsString('perm_refuse(', substr($code, (int)$refusal, 400), 'and it answers through the shared refusal');
     }
 
     /**

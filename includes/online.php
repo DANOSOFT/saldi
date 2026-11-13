@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-12---
+// --- includes/online.php --- ver 5.1.1 --- 2026-11-13---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,20 +63,41 @@
 // 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
 // 20260904 Sawaneh WP-1.3: nav_push popup arg now uses the popup=1 request flag, not the user preference
 // 20260909 CDX/LH SST-782: Use the light default for missing or empty background settings.
+// 20260916 SS Denied module access is now written to audit_log (the message always said so).
+//             Phase 3 gate: perm_enforce_request() after the legacy check ($permission_key / $permission_level / $permission_post_read declared by the page, $modulnr as fallback); auditor sessions get the Revisor role once enforcement is 'deny'.
 // 20260924 Sawaneh SST-757: Empty online.regnskabsaar falls back to the newest open fiscal year and is written back to online and brugere.
 //                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
+// 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
+// 20261002 SS Same for the USET row in grupper (unique index on the settings arts of grupper).
 // 20261002 CL/SZ SST-812: Inline javascript/posScanBuffer.js first in the head of the POS Ordre page, so scanner keystrokes typed while the page loads are not lost.
+// 20261004 SS $brugernavn_raw holds the user name unescaped; $brugernavn stays escaped as before.
+// 20261031 CL/ASR <html data-theme/data-size> and css/saldi-fonts.css only on the shell, the dashboard and the settings pages (systemdata except kontoplan.php and kontokort.php).
+//                 Every other page prints master's plain <html>.
+// 20261031 CL/ASR $skipLogtime (set by the topbar's polling endpoints, index/notifications.php and index/globalSearch.php) leaves online.logtime alone, so a tab that only polls still ages out.
+// 20261101 CL/ASR The per-user colours (settings colors/buttonColor and buttonTxtColor) are no longer read: $buttonColor and $buttonTxtColor are always the standard #114691 / #ffffff, as for a user who never chose a colour.
 // 20261102 CL/ASR $regnskab_pakke: the account's package from the self-service signup, used by finans/bogfor.php.
+// 20261103 CL/ASR QA round 2: the old module gate refuses through perm_refuse(), so both gates give the same translated text (5548), HTTP 403 and the way back to Oversigt.
+// 20261104 CL/ASR A fatal PHP error (E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR) on an HTML page with a session shows the error box of includes/errorReport.php, so the user can send a report.
+//                 API, JSON, webservice and CLI requests, redirects and non-HTML answers (PDF, CSV) are left as before.
+//                 A page load also shows the box of an earlier page that moved on before it could be seen (a meta refresh right after a failed query).
+// 20261109 NTR - Moved the cookie include below the comment header.
 // 20261105 CL/MMR SD-807 'Session expired' uses the language chosen on the login page (languageId cookie), as there is no online row, and 'Account closed' is translated.
 //                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
 // 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
 //                 Their blocks include std_func.php through __DIR__.
+// 20261113 CDX/NTR Merge translated session messages with role enforcement and error reporting.
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 // 20261112 LOE SST-967 An empty rights string is no rights; the sag workflow and the Mit Salg label page are the exceptions, and every order or history row a request names is bound to what the gate proved.
 //              The label page's Mit Salg proof is that the account has no brugere row.
+// 20261113 LOE SST-967 The gate keeps #1033's shape: the module refusal is perm_refuse(), and an admitted case
+//              or Mit Salg page is not sent through the role gate, which has no craft-right exception.
+include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
 if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
+if (!isset($uiTheme))        $uiTheme = 'light';
+if (!isset($uiSize))         $uiSize = 'normal'; // text size: normal | large (front-page addendum 3 §3.3), printed as data-size
 if (!isset($nextver))        $nextver = 0;
 if (!isset($useSettings))    $useSettings = '';
 
@@ -90,14 +111,19 @@ if ($questionMarkPos !== false) {
 $slashCount = substr_count($path, '/');
 $relativePath = str_repeat('../', max(0, $slashCount - 2));
 
-if (isset($_COOKIE['timezone'])) { #20190110
-	$timezone = $_COOKIE['timezone'];
-	date_default_timezone_set($timezone);
-} else date_default_timezone_set('Europe/Copenhagen');
+// 20261005 Sawaneh The timezone cookie is gone (settings redesign G1.3): the setting below decides.
+// 20261006 Sawaneh Every page prints its breadcrumb for the shell (page_auto_breadcrumb(), stdFunc/pageChrome.php).
+// 20261009 Sawaneh $uiSize (settings ui/text_size per user) printed as <html data-size>, css/saldi-fonts.css linked (shell/settings/dashboard only).
+// 20261013 Sawaneh data-size is also set by a one-line script: pages print a <title> before this html tag, and not every
+//                  parser merges the attributes of a second html tag onto the element it already created.
+date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
 $r = db_fetch_array(db_select("select id, var_value from settings where var_name='timezone'", __FILE__ . " linje " . __LINE__));
 if ($r['var_value']) {
 	$timezone = $r['var_value'];
+	if (in_array($timezone, timezone_identifiers_list(), true)) {
+		date_default_timezone_set($timezone);
+	}
 } else {
 	$timezone = 'Europe/Copenhagen';
 	if ($r['id']) $qtxt = "update settings set var_value='$timezone' where id='$r[id]'";
@@ -105,6 +131,7 @@ if ($r['var_value']) {
 		$qtxt = "insert into settings (var_name,var_value,var_description)";
 		$qtxt .= " values ";
 		$qtxt .= "('timezone','$timezone','Generel tidszone. Anvendes hvis der ikke er sat tidszone i det enkelte regnskab')";
+		$qtxt .= (in_array($GLOBALS['db_type'], array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING');
 	}
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
@@ -148,6 +175,7 @@ if ($r = db_fetch_array($q)) {
 	$db = trim(if_isset($r['db'], ''));
 	$regnaar = trim(if_isset($r['regnskabsaar'], ''));
 	$brugernavn = db_escape_string($r['brugernavn']);
+	$brugernavn_raw = (string) $r['brugernavn']; // unescaped, for values that are escaped again later (audit_log)
 	$rettigheder = $r['rettigheder'];
 	$online_rights = $r['rettigheder'];
 	$superUserPermission = $rettigheder;
@@ -155,7 +183,7 @@ if ($r = db_fetch_array($q)) {
 	$logtime = $r['logtime'];
 	($r['language_id']) ? $languageID = $r['language_id'] : $languageID = 0;
 	$sprog_id = $languageID;
-	if ($logtime) {
+	if ($logtime && empty($skipLogtime)) {
 		$qtxt = "update online set logtime = '$unixtime' where session_id = '$s_id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
 	}
@@ -310,8 +338,15 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			$ansat_navn = $brugernavn;
 			$sag_rettigheder = NULL;
 		}
-	} else
+	} else {
 		$bruger_id = -1;
+		// Phase 3 (spec decision 2): once enforcement is 'deny', an auditor/master-admin
+		// session holds the read-only Revisor role instead of every right.
+		include_once(__DIR__ . "/permissions.php");
+		if (perm_tables_ready() && perm_enforcement_mode() === 'deny') {
+			$rettigheder = perm_legacy_string(perm_levels_from_role(perm_role_id_by_key('revisor')));
+		}
+	}
 	if (!$sprog_id)
 		$sprog_id = 1;
 
@@ -447,25 +482,11 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	}
 	$no_module_right = ($modulnr) && (substr((string)$rettigheder, (int)$modulnr, 1) < '1');
 	if ($no_module_right && !$sag_workflow_allowed && !$mysale_label_ok) { #20190529
+		# #1033's shared refusal: HTTP 403, the audit entry, JSON to scripts and one text for both gates. The
+		# exceptions above are what keeps an admitted case or Mit Salg page out of it.
 		include_once(__DIR__ . '/std_func.php');
-		$txt = findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id);
-		print tekstboks($txt);
-		# The box is a floating overlay that hides itself when it is closed, and a refused page is only the
-		# box, so the link keeps something on the page and leads back to a page this user may use. It follows
-		# the landing rule index/login.php already applies, because the shell alone is a dead end for a user
-		# who only has craft rights: its menu carries no Sager entries and every module entry leads back here.
-		$refusal_target = 'index/main.php';
-		if (substr((string)$sag_rettigheder, 2, 1)) {
-			$refusal_target = 'sager/sager.php';
-		} elseif (substr((string)$sag_rettigheder, 0, 1)) {
-			$refusal_target = 'sager/loen.php';
-		}
-		print "<div style=\"position:fixed; top:10px; left:10px; z-index:101; font:14px Arial,Helvetica,sans-serif;\">";
-		# target=_top: the shell loads pages inside an iframe, and navigating that frame to the menu would
-		# put a second menu inside the first one. In a tab of its own the target makes no difference.
-		print "<a href=\"" . get_relative() . $refusal_target . "\" target=\"_top\" style=\"display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;\">"
-			. "&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
-		exit;
+		include_once(__DIR__ . '/permissions.php');
+		perm_refuse('modulnr ' . (int) $modulnr, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
 	}
 	if (!strpos($css, 'mysale') && $bruger_id) {
 		$jsvars = "statusbar=0,menubar=0,titlebar=0,toolbar=0,scrollbars=1,resizable=1,dependent=1";
@@ -473,7 +494,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			#			$r = db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " linje " . __LINE__)); 20140117 
 #			$g_id=$r['id']+1;
-			db_modify("insert into grupper(beskrivelse,art,kodenr,box1,box2,box3,box4,box5) values ('Usersettings','USET','$bruger_id','$jsvars','','S','#eeeef0','')", __FILE__ . " linje " . __LINE__);
+			db_modify("insert into grupper(beskrivelse,art,kodenr,box1,box2,box3,box4,box5) values ('Usersettings','USET','$bruger_id','$jsvars','','S','#eeeef0','')" . (in_array($db_type, array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING'), __FILE__ . " linje " . __LINE__);
 		} else {
 			$jsvars = $r['box1'];
 			$popup = $r['box2'];
@@ -493,17 +514,13 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		# refused it, so the stack only has to skip this request when it is a popup window.
 		nav_push(null, !empty($_GET['popup']) || !empty($_POST['popup']));
 		if ($db_ver > '3.7.4') {
-			$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+			// The personal colour choice is gone: everyone gets the standard colours (stored rows are left alone).
+			$buttonColor = '#114691'; // Default button color
+			$buttonTxtColor = '#ffffff'; // Default button text color
+			// The user's text size (Normal / Større, front-page addendum 3 §3.3): <html data-size> on the shell, settings and dashboard.
+			$qtxt = "select var_value from settings where var_name = 'text_size' and var_grp = 'ui' and user_id = '$bruger_id'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$buttonColor = "#$r[var_value]";
-			} else {
-				$buttonColor = '#114691'; // Default button color
-			}
-			$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-			if ($useSettings && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$buttonTxtColor = "#$r[var_value]";
-			} else {
-				$buttonTxtColor = '#ffffff'; // Default button text color
+				if (trim((string) $r['var_value']) === 'large') $uiSize = 'large';
 			}
 		}
 		$textcolor = "#000077";
@@ -532,6 +549,23 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$bg = 'nix';
 		$css = NULL;
 	}
+	// 20260916 Phase 3 gate (spec R4). Pages declare $permission_key ('any' = every logged-in
+	// user), optionally $permission_level = 'write' and $permission_post_read = true (POST is a
+	// filter, not a write). Undeclared pages fall back to $modulnr. Until the company switches
+	// enforcement to 'deny', this only records what would have been refused in audit_log.
+	// The helpers (perm_require_post_csrf, audit_log) are available on every page; the gate itself runs as before.
+	// SST-967 the module gate above already decided this request, exceptions included. A page admitted through
+	// the craft-right or Mit Salg exception reaches the role model as 'any' - the key for every logged-in user -
+	// because the exception replaces the role, not the login. Every other request keeps the key its page declared.
+	include_once(__DIR__ . "/permissions.php");
+	if (!$webservice && !$nextver) {
+		perm_enforce_request(
+			($sag_workflow_allowed || $mysale_label_ok) ? 'any' : (isset($permission_key) ? (string) $permission_key : null),
+			isset($permission_level) ? (string) $permission_level : 'read',
+			!empty($permission_post_read),
+			($modulnr !== NULL && $modulnr !== '') ? (int) $modulnr : null
+		);
+	}
 }
 
 $javaPath = "../javascript";
@@ -548,10 +582,13 @@ if (!file_exists($cssPath)) {
 if ($header != 'nix') {
 	if ($db_encode == "UTF8") $charset = "UTF-8";
 	else $charset = "ISO-8859-1";
+	// The new layout's fonts, text size and light tokens: only the shell, the dashboard and the settings pages
+	// (systemdata, except the chart of accounts, which keeps master's look). Every other page gets a plain <html>.
+	$uiChromePage = isset($_SERVER['SCRIPT_NAME']) && preg_match('#/(index/(main|dashboard)|systemdata/(?!(kontoplan|kontokort)\.php$)[A-Za-z0-9_]+)\.php$#', (string) $_SERVER['SCRIPT_NAME']);
 	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 	
-	<html>\n
-	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
+	" . ($uiChromePage ? "<html data-theme=\"$uiTheme\"" . ($uiSize === 'large' ? " data-size=\"large\"" : '') . ">" : "<html>") . "\n
+	<head><title>$title</title>" . (($uiChromePage && $uiSize === 'large') ? "<script>document.documentElement.setAttribute('data-size','large')</script>" : '') . "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
 	// print '<!DOCTYPE html>';
@@ -565,6 +602,7 @@ if ($header != 'nix') {
 		print "$meta_returside"; #20140502
 	// Before the stylesheets and other scripts, so scanner keystrokes that arrive while the page loads are kept (SST-812).
 	if ($title == 'POS Ordre') print "<script type=\"text/javascript\">" . file_get_contents(__DIR__ . '/../javascript/posScanBuffer.js') . "</script>\n";
+	if ($uiChromePage) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldi-fonts.css?v=2\">\n"; // 20261009 Sawaneh fonts + text size (shell/settings/dashboard only)
 	if ($css) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
 	else      print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldimenu.css\"/>\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saft.css\"/>\n";
@@ -622,6 +660,10 @@ if ($header != 'nix') {
 	</script>
 	<?php
 	# <-- 20140502
+	// 20261006 Sawaneh Breadcrumb on every page (topbar addendum 2026-10-05 §3-4, Adam 2026-10-06): from the central page map.
+	include_once(__DIR__ . "/stdFunc/findTxt.php");
+	include_once(__DIR__ . "/stdFunc/pageChrome.php");
+	print page_auto_breadcrumb(isset($title) ? (string) $title : '', isset($sprog_id) ? (int) $sprog_id : 1, $charset) . "\n";
 	print "</head>\n";
 }
 /*
@@ -708,6 +750,11 @@ $isApiCall = (
     isset($_GET['api']) ||
     isset($_POST['api'])
 );
+// 20261104 CL/ASR A fatal PHP error on an HTML page shows the error box (includes/errorReport.php), and so does a box an earlier page moved past; API, JSON and webservice requests are left alone.
+if (!$isApiCall && !$webservice && PHP_SAPI !== 'cli') {
+	include_once(__DIR__ . '/errorReport.php');
+	saldi_error_page_start();
+}
 
 $pathParts = explode('/', trim($path, '/'));
 $firstFolder = '';

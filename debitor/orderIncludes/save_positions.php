@@ -10,6 +10,7 @@ ini_set('log_errors', 1);
 $bg = "nix";
 $header = 'nix';
 $modulnr = 0;
+$permission_key = 'debitor.ordre'; // 20261018 Sawaneh Review 2 (PR #803): modulnr 0 is no key
 
 header('Content-Type: application/json');
 

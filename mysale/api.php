@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- mysale/api.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,10 +25,12 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
+// 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 //
-
+// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 $header = "nix";
 $bg = "nix";
@@ -602,7 +604,7 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
             if (!is_numeric($debitorrabatgruppe)) $debitorrabatgruppe=0;
             if ( !is_numeric($varerabatgruppe)  ) $varerabatgruppe=0;
             if (!isset($rabat)) $rabat = 0;
-            $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
+            $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe' order by case when debitorart='NR' and vareart='NR' then 0 else 1 end, id desc limit 1";
             if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
                 $rabat=$r2['rabat'];
                 $rabatart=$r2['rabatart'];
@@ -973,5 +975,6 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; do not report success (SD-595)
 		return "Database write failed while posting order $saldi_id";
 	}
+	shopSyncDrainQueue();
 	return($saldi_id);
 }

@@ -4,7 +4,7 @@
 //                     \__ \/ _ \| |_| |) | | _ | |) |  <
 //                     |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importer_variantvarer.php --- lap 4.0.8 --- 2023-06-06 ---
+// --- systemdata/importer_variantvarer.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,24 +20,44 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20210714 LOE - Translated some text.
 // 20220218 PHR - Variants is cow created if thet did not exist
 // 20230606 PHR - php8
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261008 SS The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261031 CL/ASR Tilbage and the return after an import go to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
+// 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
+//                 It goes to the settings page the user came from, or the hub; Alt+L kept.
+// 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops between settings pages; settings_back_button() adds Alt+L itself.
+//                 The kit is linked as ?v=20261102.
+//                 The title is the name the Import & eksport page links it by, not "Importer_variantvarer".
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
+//                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
+//                 The div that centres the page's content opens inside the content column, so the title and the menu are not centred.
+//                 Fixed: the first upload stopped with a PHP fatal error before the mapping step (no saved column mapping yet, or no variants in the ledger).
+// 20261102 CL/ASR Review: the page's output is buffered (ob_start()) before the layout, so the column mapping cookie (saldi_variantimp, set in vis_data()) is sent again.
+//                 The layout prints about 4 KB more than the old head, so PHP's 4 KB output buffer was flushed before setcookie() and the mapping was no longer remembered.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
 
-$title="Importer_variantvarer";
+$title="Importer variantvarer";
 
 include("../includes/connect.php");
+$permission_key = 'settings.import_export';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
-$returside="diverse.php?sektion=div_io";
+$returside="settingsSection.php?s=import_export.data";
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+ob_start(); // vis_data() sets the column mapping cookie after the layout's html (20261102 CL/ASR)
+settings_layout_open();
 print "<div align=\"center\">\n";
 
 
@@ -46,13 +66,6 @@ print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
 
-print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
-       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
-
-       <td align='center' style='$topStyle'>".findtekst(1371, $sprog_id)."<br></td>
-
-       <td width=\"170px\" style='$topStyle'><br></td></tr>
-       </tbody></table></td></tr>"; # <- tabel 1.1.1
 
 print "</tr></tbody></table></td></tr>";
 
@@ -83,6 +96,7 @@ if($submit) {
 	upload($bilag);
 }
 print "</tbody></table>";
+settings_layout_close();
 print "</body></html>";
 #####################################################################################################
 function upload($bilag){
@@ -132,6 +146,7 @@ if ($feltnavn) {
 	$tmp = $_COOKIE['saldi_variantimp'];
 	$feltnavn=explode(";",$tmp);
 }
+if (!is_array($feltnavn)) $feltnavn = array(); // 20261102 CL/ASR the first upload passes '' and there is no saved mapping yet
 print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody>";
 print "<form enctype=\"multipart/form-data\" action=\"importer_variantvarer.php\" method=\"POST\">";
 #print "<tr><td colspan=6 width=100% align=center> $filnavn</td></tr>";
@@ -151,6 +166,7 @@ print "<input type=\"hidden\" name=\"feltantal\" value=$feltantal>";
 print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"".findtekst(1133, $sprog_id)."\" />";
 
 $x=0;
+$varer_id=$varer_nr=$varianter_id=$varianter_beskrivelse=$varianter_shop_id=$felt_aktiv=array(); // 20261102 CL/ASR count() below needs arrays also when there are no variants
 $q=db_select("select varenr,id from varer",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$varer_id[$x]=$r['id'];
@@ -580,7 +596,7 @@ print "</tbody></table>";
 print "</td></tr>";
 print "<BODY onLoad=\"javascript:alert('$imp_antal variant_varer importeret, $upd_antal variant_varer opdateret')\">";
 #print "<BODY onLoad=\"javascript:alert('$imp_antal varianter importeret')\">";
-print "<meta http-equiv=\"refresh\" content=\"0;URL=diverse.php?sektion=div_io\">";
+print "<meta http-equiv=\"refresh\" content=\"0;URL=settingsSection.php?s=import_export.data\">";
 exit;
 } # endfunc overfoer_data
 

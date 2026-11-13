@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// --------------includes/login.php----------ver 5.1.0------2026-10-29------
+// --------------includes/login.php----------ver 5.1.1------2026-11-13------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,8 +27,9 @@ ob_start(); //Starter output buffering
 // 2015.01.04 Initerer variablen $nextver så den bypasser versionskontrol i online.php
 // 2015.01.14 PK - Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
 // 2015.01.27 PHR	- Tilføjet rettigheder da man ellers bliver smidt af ved forsøg på login med tmp kode.  
+// 20261001 Sawaneh The temporary password is read with tmp_code_check() (type|expire|code, as in index/login.php).
 // 20261029 CDX/NTR Share login logs and temporary directories with the web server.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 require_once __DIR__ . '/sharedFile.php';
 
 @session_start();
@@ -154,6 +155,7 @@ if (($regnskab)&&($regnskab!=$sqdb)) {
 		sharedDirectory("../temp/$db");
 	}
 #	if (!$dbver) {
+	$permission_key = 'any';
 	include("../includes/online.php");
 	if(!strpos($_SERVER['PHP_SELF'],"stillads")&& !strpos($_SERVER['PHP_SELF'],"udvikling")&& !strpos($_SERVER['PHP_SELF'],"beta")) db_modify("update grupper set box3 = 'on' where art='USET'",__FILE__ . " linje " . __LINE__); #fjernes når topmenu fungerer.
 	$query = db_select("select box1 from grupper where art = 'VE'",__FILE__ . " linje " . __LINE__);
@@ -192,14 +194,13 @@ if (isset ($brug_timestamp)) {
 	if (!$bruger_id) {
 		$row=db_fetch_array(db_select("select * from brugere where brugernavn='".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__));
 		if ($row['tmp_kode']) {
-			list($tidspkt,$tmp_kode)=explode("|",$row['tmp_kode']);
-			if (date("U")<=$tidspkt) {
-				if ($tmp_kode==$password) {
-					$bruger_id=$row['id'];
-					$rettigheder=trim($row['rettigheder']); #20150127
-					$regnskabsaar=$row['regnskabsaar'];
-				} 
-			} elseif ($tmp_kode==$password) print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
+			include_once(__DIR__ . "/tmpCode.php");
+			$tmpState = tmp_code_check($row['tmp_kode'], 'reset', (string) $password);
+			if ($tmpState === 'ok') {
+				$bruger_id=$row['id'];
+				$rettigheder=trim($row['rettigheder']); #20150127
+				$regnskabsaar=$row['regnskabsaar'];
+			} elseif ($tmpState === 'expired') print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
 		}
 	}
 }

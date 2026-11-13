@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_modtagere.php --- ver 5.0.0 --- 2026.10.05 ---
+// --- debitor/mail_modtagere.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,7 +36,8 @@
 // 20261005 MJ SST-853 Set $mail->CharSet so settlement mails declare UTF-8. The body is built
 //                  as UTF-8 and its meta tag says so, but PHPMailer defaults CharSet to
 //                  iso-8859-1, so recipients saw "KÃ¦re" where the text said "Kære".
-
+// 20261001 SS The mail text row is found whether its user_id is 0 or NULL (one row per setting).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 
@@ -58,13 +59,13 @@ $begin = if_isset($_GET['start']);
 $end = if_isset($_GET['slut']);
 
 if ($mailtekst) {
-	$qtxt = "select id from settings where var_name = 'mailtext' and var_grp = 'paylist' and user_id='0'";
+	$qtxt = "select id from settings where var_name = 'mailText' and var_grp = 'paylist' and coalesce(user_id, 0) = 0";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($r['id']) $qtxt = "update settings set var_value = '". db_escape_string($mailtekst) ."' where id =  '$r[id]'";
 	else {
 		$qtxt = "insert into settings (var_name, var_grp, var_value, user_id, var_description) ";
 		$qtxt.= " values ";
-		$qtxt.= "('mailtext','paylist','". db_escape_string($mailtekst) ."','0',";
+		$qtxt.= "('mailText','paylist','". db_escape_string($mailtekst) ."','0',";
 		$qtxt.= "'text for mails to commission customers when transferring from paylist')";
 	}	
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
