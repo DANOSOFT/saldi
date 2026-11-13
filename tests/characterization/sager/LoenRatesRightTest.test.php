@@ -74,18 +74,14 @@ final class LoenRatesRightTest extends TestCase
         $loen = self::source('/sager/loen.php');
 
         // $funktion() runs the name the request sent, so the name has to be one of the file's own functions.
+        // SST-968 landed the same whitelist in master; this branch keeps it there and adds the right check on top.
         self::assertStringContainsString(
-            "\$loen_funktioner = array('loenliste', 'ret_loen', 'loenafregning', 'satser');",
+            "if (!in_array(\$funktion, ['loenliste', 'ret_loen', 'loenafregning', 'satser'], true)) {",
             $loen,
-            'the page functions are named in one list'
-        );
-        self::assertStringContainsString(
-            'if (!in_array($funktion, $loen_funktioner, true)) {',
-            $loen,
-            'and a name outside that list is replaced'
+            'a name outside the page functions is replaced'
         );
 
-        $whitelist = strpos($loen, '$loen_funktioner = array(');
+        $whitelist = strpos($loen, "if (!in_array(\$funktion, ['loenliste', 'ret_loen', 'loenafregning', 'satser'], true)) {");
         $call = strpos($loen, '$funktion();');
         self::assertNotFalse($call, 'the page still calls the function the request names');
         self::assertLessThan($call, $whitelist, 'the list is applied before the call, not after it');

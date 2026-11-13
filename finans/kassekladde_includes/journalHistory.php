@@ -5,24 +5,44 @@
 //                A posted bilag that is also a journal line is shown once. Every row says where it came from (kilde: bogfort or kladde).
 // 20261014 CL/SZ SD-722 With SST-818's counter-account filter and limit 5 in the query: the journal lines of the posted bilag already shown
 //                are left out in the query as well, so a kreditor with posted bilag still gets 5 suggestions.
+// 20261026 CL/LH sidste_5_forslag() takes the number of rows ($maxRows, still 5 for the panel) and every row says its kladde_id, so the contra account suggestion can count the last 5 bilag even when a bilag is spread over several lines.
+// 20261110 CDX/NTR Document history parameters, source order and the returned row fields; reject account numbers containing anything other than digits.
 
 /**
  * Find recent counter-accounts without losing their customer/supplier/finance identity.
- * For a kreditor, posted entries come first and journal lines after them.
+ * For a kreditor, posted entries come first and journal lines after them, each newest first.
+ * Journal copies of posted bilag are excluded. The limit counts rows, not distinct bilag;
+ * ranking callers request a larger window to include split bilag.
  *
+ * @param string|int $kontonr Account whose counter-accounts are requested; only decimal digits are accepted.
+ * @param string $art Account type D (customer), K (supplier) or F (finance); blank defaults to F.
+ * @param string $dk Counter-account side: D returns Debet for an account in Kredit; otherwise returns Kredit.
+ * @param int $kladde_id Current journal ID, excluded from unposted history.
+ * @param string $charset Source encoding of descriptions and translated headings; converted to UTF-8 when supported.
+ * @param int $sprog_id Language ID for the finance-account heading.
+ * @param int $maxRows Maximum rows to return, clamped to at least one; defaults to five for the lookup panel.
  * @return array{
- *   heading: string,
- *   rows: array<array{bilag: mixed, dato: string, tekst: string, kontonr: mixed, art: string, kilde: string}>
+ *   heading: string, Heading for the account, or empty for invalid account input/type; its label still says five.
+ *   rows: array<array{
+ *     bilag: int|string|null, Voucher number returned by the database.
+ *     kladde_id: int|string|null, Originating journal ID; may be zero for supplier invoices.
+ *     dato: string, Voucher date formatted by dkdato().
+ *     tekst: string, Description with slashes removed and encoding conversion applied when supported.
+ *     kontonr: int|string, Counter-account number.
+ *     art: string, Counter-account type D, K or F; posted rows are F.
+ *     kilde: string, Source: bogfort for posted entries or kladde for unposted journal rows.
+ *   }>, At most $maxRows rows; empty when no eligible history exists.
  * }
  */
-function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
+function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id, $maxRows = 5)
 {
+	$maxRows = max(1, (int)$maxRows);
 	$forslag = array(
 		'heading' => '',
 		'rows' => array()
 	);
 
-	if (!is_numeric($kontonr)) {
+	if (!ctype_digit((string)$kontonr)) {
 		return $forslag;
 	}
 	$art = strtoupper(trim((string)$art)) ?: 'F';
@@ -72,9 +92,10 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 	if ($art == 'K') {
 		foreach (sidste_5_bogfoerte_kreditor($kontonr, $dk) as $r) {
 			$postedBilag[(int)$r['kladde_id'] . '|' . (int)$r['bilag']] = true;
-			if (count($forslag['rows']) < 5) {
+			if (count($forslag['rows']) < $maxRows) {
 				$forslag['rows'][] = array(
 					'bilag' => $r['bilag'],
+					'kladde_id' => $r['kladde_id'],
 					'dato' => dkdato($r['transdate']),
 					'tekst' => $toUtf8($r['beskrivelse']),
 					'kontonr' => $r['kontonr'],
@@ -85,19 +106,20 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
 		}
 	}
 
-	// The journal lines of a posted bilag already shown are left out in the query too, so limit 5 returns 5 rows the loop keeps
+	// The journal lines of a posted bilag already shown are left out in the query too, so the limit returns rows the loop keeps
 	foreach (array_keys($postedBilag) as $postedKey) {
 		list($postedKladde, $postedNr) = array_map('intval', explode('|', $postedKey));
 		$txt .= " and not (kladde_id = $postedKladde and coalesce(bilag, 0) = $postedNr)";
 	}
-	$txt .= " order by transdate desc,id desc limit 5";
-	$q = count($forslag['rows']) < 5 ? db_select($txt, __FILE__ . " linje " . __LINE__) : false;
-	while ($q && count($forslag['rows']) < 5 && ($r = db_fetch_array($q))) {
+	$txt .= " order by transdate desc,id desc limit " . $maxRows;
+	$q = count($forslag['rows']) < $maxRows ? db_select($txt, __FILE__ . " linje " . __LINE__) : false;
+	while ($q && count($forslag['rows']) < $maxRows && ($r = db_fetch_array($q))) {
 		$counterType = strtoupper(trim((string)$r['kontoart'])) ?: 'F';
 		if (isset($postedBilag[(int)$r['kladde_id'] . '|' . (int)$r['bilag']])) continue;
 		if ($r['kontonr'] && in_array($counterType, array('D', 'K', 'F'), true)) {
 			$forslag['rows'][] = array(
 				'bilag' => $r['bilag'],
+				'kladde_id' => $r['kladde_id'],
 				'dato' => dkdato($r['transdate']),
 				'tekst' => $toUtf8($r['beskrivelse']),
 				'kontonr' => $r['kontonr'],
@@ -116,7 +138,7 @@ function sidste_5_forslag($kontonr, $art, $dk, $kladde_id, $charset, $sprog_id)
  * kladde_id and bilag, a kreditor invoice by its order (kladde_id 0, refnr = ordre_id).
  * The VAT accounts and the debitor/kreditor collective accounts are left out: they are not what the bilag was spent on.
  *
- * @param string|int $kontonr Kreditor account number.
+ * @param string|int $kontonr Kreditor account number; only decimal digits are accepted, otherwise returns no rows.
  * @param string     $dk      'D' for the Debet side (kreditor in Kredit), 'K' for the Kredit side.
  * @param int        $limit   Open posts to look at.
  * @return array<array{kontonr: mixed, transdate: string, beskrivelse: string, bilag: mixed, kladde_id: mixed}>
@@ -127,7 +149,7 @@ function sidste_5_bogfoerte_kreditor($kontonr, $dk, $limit = 30)
 	static $cache = array();
 	static $skip = null;
 	$rows = array();
-	if (!is_numeric($kontonr)) return $rows;
+	if (!ctype_digit((string)$kontonr)) return $rows;
 	$key = $kontonr . '|' . $dk . '|' . (int)$limit;
 	if (isset($cache[$key])) return $cache[$key];
 	if ($skip === null) {

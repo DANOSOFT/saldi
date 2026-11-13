@@ -13,6 +13,31 @@
         $side = "settings";
         include "header.php";
         include(__DIR__ . "/../includes/tutorial.php");
+        // 20261102 CL/ASR Opened from Indstillinger (settings=1 on the hub's Booking row and in the settings menu; owner, 2 Nov 2026: every page
+        //                 reached from the settings keeps the settings menu) the page shows the standard settings layout
+        //                 (includes/settings/layout.php): breadcrumb Indstillinger / Salg / Booking, Tilbage to the hub, the Salg group's menu with
+        //                 Booking marked, and the booking settings below unchanged.
+        //                 Opened from Booking (no marker) the page is exactly as on master: Booking has its own menu, so the always-shown
+        //                 Tilbage of 1 Nov is gone.
+        // 20261108 CL/ASR Opened from Indstillinger the booking form is a white panel (as .st-card) on the settings pages' ground #eeeef0 (owner, 8 Nov 2026).
+        //                 Bootstrap's disabled field (#e9ecef) and grey captions (#6c757d) were made for white and faded on the grey ground.
+        // 20261109 CL/ASR The panel has the settings modules' frame and soft shadow (--st-edge, --st-lift; owner, 9 Nov 2026).
+        //                 The content column shows overflow here, so its legacy horizontal scroller does not cut the shadow off.
+        // 20261112 CL/ASR The panel has the settings modules' 6 px corner (--st-r-mod; owner, 12 Nov 2026).
+        include_once(__DIR__ . "/../includes/settings/hub.php"); // settings_opened_from_settings()
+        $fromSettings = settings_opened_from_settings();
+        if ($fromSettings) {
+            include_once(__DIR__ . "/../includes/settings/layout.php");
+            // The layout sits where it sits on every settings page: Booking's content column (rental/header.php) loses its Bootstrap padding.
+            // The booking form fills the content column from its top (not 80 % wide, centred, 5 rem down); the layout's title replaces its
+            // heading.
+            print "<style>.row > .col.content:has(> .st-page) { padding: 0 !important; }"
+                . " .st-frame-main > form.form { width: auto; max-width: 46rem; margin: 0; padding: 0 1rem 1rem; background: var(--st-surface, #fff); border: 1px solid var(--st-edge, #cdd4df); border-radius: var(--st-r-mod, 6px);"
+                . " box-shadow: var(--st-lift, 0 1px 2px rgba(11, 26, 58, .08), 0 4px 12px rgba(11, 26, 58, .06)); }"
+                . " .st-page .st-frame-main.st-legacy { overflow: visible; }"
+                . " .st-frame-main > form.form > h3:first-child { display: none; }</style>\n";
+            settings_layout_open();
+        }
     ?>
     <form class="form width-80">
         <h3>Indstillinger</h3>
@@ -144,6 +169,7 @@
             Hjælp  
         </button>
     </form>
+<?php if ($fromSettings) { settings_layout_close(); } ?>
 </div>
 </div>
     <script src="bootstrap.min.js"></script>

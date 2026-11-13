@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------debitor/sync_stamkort.php--------ver 5.0.0-------2026.10.23--------------
+// --------------debitor/sync_stamkort.php--------ver 5.1.1-------2026.11.13--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,11 +29,13 @@
 // 20261023 CL/MMR SST-887 Moved the sync into syncStamkort() per the controller/view convention (review by Codex).
 // 20261027 CL/LH SST-887 ordre_id and konto_id must be plain digit strings; anything else (an array such as
 //                ordre_id[]=7, which (int) turned into 1) counts as a missing id. Raised by CodeRabbit on PR #851.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

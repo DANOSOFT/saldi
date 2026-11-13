@@ -1,0 +1,29 @@
+/* ---- css/page.css --- lap 5.0.0 --- 2026.10.08 ---
+   20261009 Sawaneh Font sizes in rem (text-size setting), Saldi Grotesk for title and tabs, Inter for the rest (addendum 3 §3).
+   20261008 Sawaneh The page head of a migrated page (topbar addendum 2026-10-05 §5, prototype_dashboard_tema v5
+                    "page-other"): title in the content, a tab row, page actions on the right in the user's colour.
+                    Replaces the blue page bar. Colours from css/saldi-theme.css. */
+.pg { font: 0.875rem/1.45 var(--font-ui, Inter, system-ui, sans-serif); color: var(--text); padding: 14px 16px 0; }
+.pg-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
+.pg-head h1 { font-family: var(--font-display); font-size: 1.375rem; font-weight: 700; letter-spacing: -.015em; line-height: 1.2; margin: 0; }
+.pg-back { font-size: 0.8125rem; color: var(--text-2); text-decoration: none; }
+.pg-back:hover { color: var(--text); }
+.pg-subbar { display: flex; align-items: center; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.pg-tab { position: relative; border: 0; background: none; color: var(--text-2); font: inherit; font-family: var(--font-display); font-size: 0.8438rem; padding: 9px 12px; cursor: pointer; text-decoration: none; transition: color .15s; white-space: nowrap; }
+.pg-tab:hover { color: var(--text); }
+.pg-tab.on { color: var(--text); font-weight: 600; }
+.pg-tab.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--saldi-blue); }
+.pg-subbar.no-tabs { border-bottom: 0; margin-bottom: 6px; }
+.pg-grow { flex: 1; }
+.pg-acts { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.pg-act { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); font: inherit; font-size: 0.8125rem; font-weight: 600; padding: 6px 12px; cursor: pointer; text-decoration: none; transition: border-color .15s, background .15s; }
+.pg-act:hover { border-color: var(--saldi-blue); }
+.pg-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--user-primary, #114691); border-radius: 9px; background: var(--user-primary, #114691); color: var(--user-primary-text, #fff); font: inherit; font-size: 0.8125rem; font-weight: 600; padding: 7px 13px; cursor: pointer; text-decoration: none; transition: transform .15s, filter .15s; }
+.pg-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.pg-acts select { border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); font: inherit; font-size: 0.8125rem; padding: 6px 10px; }
+.pg-btn.outline { background: transparent; color: var(--user-primary, #114691); }
+.pg-act.pg-gear { padding: 6px 8px; color: var(--text-2); }
+.pg-act.pg-gear i { font-size: 17px; }
+.pg-hidden { display: none !important; }
+@media (max-width: 700px) { .pg-head h1 { font-size: 1.1875rem; } .pg-tab { padding: 8px 9px; font-size: 0.8125rem; } }
+@media print { .pg { display: none; } }

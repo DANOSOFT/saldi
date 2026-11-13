@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/serialnumber.php --- patch 5.0.0 --- 2026-07-10 ---
+// ---- lager/lister/serialnumber.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2026 Danosoft.ApS
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17-10-2024 PBLM - Added link to booking
@@ -36,7 +36,10 @@
 // 20260929 CL/NTR Cancelling the rename prompt no longer opens the rename confirmation.
 // 20260929 CL/NTR Replaced addslashes() with json_encode() (+ htmlspecialchars() in onclick attributes) for JS string literals, so translated text cannot break out of the script or attribute context.
 // 20260930 CL/NTR JS string literals are built with jsString() from std_func: legacy (non-UTF8) text is converted to UTF-8 part by part and the output stays ASCII.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261104 LOE MB-62 A read-only Items user may not rename or delete a serial number.
+//              The write icons are not drawn and a posted form is refused before either db_modify.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -48,6 +51,7 @@ $title = "Serienr.";
 
 include ("../../includes/std_func.php");
 include ("../../includes/connect.php");
+$permission_key = 'lager.varer';
 include ("../../includes/online.php");
 include ("../../includes/stdFunc/dkDecimal.php");
 
@@ -68,17 +72,24 @@ print "<script>document.title = ".jsString(array(findtekst('5232|Serienr.', $spr
 $valg = "Serienumre";
 include ("topLineVarer.php");
 
+// MB-62 a read-only Items user may read serial numbers but not rename or delete one: the writes below
+// are refused here as well as unoffered by the grid, so a posted form cannot write either.
+$mb62_readonly = ($rettigheder !== '' && (substr($rettigheder, 9, 1) === '2' || substr($rettigheder, 9, 1) < '1'));
 if ($_SERVER['REQUEST_METHOD'] == "POST" && isset($_POST["serienr_id"]) && isset($_POST["vare_id"])) {
-    if (isset($_POST['rename']) && $_POST['rename']) {
-        $name = db_escape_string($_POST['rename']);
-        $serienr_id = db_escape_string($_POST['serienr_id']);
-        $vare_id = db_escape_string($_POST['vare_id']);
-        db_modify("UPDATE serienr SET serienr = '$name' WHERE id=$serienr_id AND vare_id=$vare_id", __FILE__ . " line " . __LINE__);
-    }
-    if (isset($_POST['delete']) && $_POST['delete']) {
-        $serienr_id = db_escape_string($_POST['serienr_id']);
-        $vare_id = db_escape_string($_POST['vare_id']);
-        db_modify("DELETE FROM serienr WHERE id=$serienr_id AND vare_id=$vare_id", __FILE__ . " line " . __LINE__);
+    if ($mb62_readonly) {
+        error_log('MB-62: serial number write refused for user ' . $brugernavn . ' (Items right ' . substr($rettigheder, 9, 1) . ')');
+    } else {
+        if (isset($_POST['rename']) && $_POST['rename']) {
+            $name = db_escape_string($_POST['rename']);
+            $serienr_id = db_escape_string($_POST['serienr_id']);
+            $vare_id = db_escape_string($_POST['vare_id']);
+            db_modify("UPDATE serienr SET serienr = '$name' WHERE id=$serienr_id AND vare_id=$vare_id", __FILE__ . " line " . __LINE__);
+        }
+        if (isset($_POST['delete']) && $_POST['delete']) {
+            $serienr_id = db_escape_string($_POST['serienr_id']);
+            $vare_id = db_escape_string($_POST['vare_id']);
+            db_modify("DELETE FROM serienr WHERE id=$serienr_id AND vare_id=$vare_id", __FILE__ . " line " . __LINE__);
+        }
     }
 }
 
@@ -333,7 +344,7 @@ ORDER BY
         }
     },
     // Only show metaColumn if settings rettighedder
-    'metaColumn' => substr($rettigheder,1,1) ? function ($row) {
+    'metaColumn' => (substr($rettigheder,1,1) && !$mb62_readonly) ? function ($row) {
         global $sprog_id;
         if ($row['salgs_ordre'] == "") {
             // The three values below are JavaScript expressions placed inside double-quoted onclick

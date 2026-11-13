@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------------finans/hentordrer.php-------patch 3.6.7----2017-03-03-----------
+// -------------------finans/hentordrer.php-------ver 5.1.1----2026-11-13-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,12 +23,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2017 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20170303 PHR fjernet et par semikolons fra db_select som gav injektionsadvarsel.
 // 20170321 PHR Blokeret POS ordrer. Det giver bare bøvl. 20170321
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 @session_start();
 $s_id=session_id();
@@ -36,6 +37,7 @@ $title="Hent ordrer";
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");
