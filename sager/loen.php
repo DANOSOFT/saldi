@@ -119,6 +119,7 @@
 // 20261109 LOE SST-969 The rates page asks for the approver right the menu already asks for.
 // 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
 // 20261113 LOE SST-969 Merge master: SST-968's whitelist supersedes this branch's list, and the approver check stays.
+// 20261113 LOE SST-969 The approver check runs after the route is chosen and before output, so the dispatch test can lift the selection.
 
 @session_start();
 $s_id = session_id();
@@ -187,9 +188,13 @@ $funktion = $_GET['funktion'] ?? null;
 if (!in_array($funktion, ['loenliste', 'ret_loen', 'loenafregning', 'satser'], true)) {
 	$funktion = 'loenliste';
 }
+$sort = if_isset($_GET['sort']);
+$nysort = if_isset($_GET['nysort']);
+$vis = if_isset($_GET['vis']);
 # SST-969 the rates page saves for every user who reaches it. The menu offers "Ret Satser" only with the
 # approver right (sager/leftmenu.php), so the page asks for the same right and logs the attempt. The function
-# name is whitelisted above (SST-968), so a refused page never reaches $funktion() below.
+# name is whitelisted above (SST-968), so a refused page never reaches $funktion() below. It runs here, after
+# the route is chosen and before anything is printed, because a route test lifts the selection block alone.
 if ($funktion == 'satser' && !substr((string)$sag_rettigheder, 6, 1)) {
 	error_log('SST-969: rates page refused for user ' . $brugernavn . ' (sag right 6 is not set)');
 	print tekstboks(findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id));
@@ -201,9 +206,6 @@ if ($funktion == 'satser' && !substr((string)$sag_rettigheder, 6, 1)) {
 		. "&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
 	exit;
 }
-$sort = if_isset($_GET['sort']);
-$nysort = if_isset($_GET['nysort']);
-$vis = if_isset($_GET['vis']);
 
 print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
 	<html>
