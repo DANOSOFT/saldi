@@ -3,7 +3,10 @@
 // 20261109 CL/MMR SST-983 Values from the webhook body are escaped or URL-encoded, and only an account on this installation is used.
 //                 Nothing runs for a company the locator does not know, and an order is only updated when the webhook names its invoice number.
 //                 The saved webhook files get a .ht_ name, which the web server does not hand out.
-
+// 20261109 CL/MMR SST-984 The e-invoice counter is updated here instead of by an HTTP call to debitor/increaseInvoiceNumber.php, which is removed.
+//                 That file needed no login and put ?db= unescaped into SQL against the master database.
+//                 A failed counter update is logged and reported by mail but does not stop the webhook, so an incoming invoice is still stored and mailed.
+//
     // This file is used to receive webhooks from EasyUBL
 
     include(__DIR__ . "/../includes/connect.php");
@@ -33,6 +36,19 @@
         return mail($to, $subject, $message, $headerString);
     }
 
+    /**
+     * Counts one e-invoice for the account in the master database (regnskab.invoices).
+     * SST-984: this used to be an HTTP call to debitor/increaseInvoiceNumber.php, which anyone could call.
+     * The webhook calls it in webservice mode, so a failed update is logged and reported by mail but does not stop the webhook.
+     *
+     * @param string $db The account database name the locator answered with.
+     * @return void
+     */
+    function increaseEinvoiceCount($db) {
+        $qtxt = "UPDATE regnskab SET invoices = COALESCE(invoices, 0) + 1 WHERE db = '" . db_escape_string($db) . "'";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+    }
+
     // Retrieving webhook data
     $webhookData = file_get_contents('php://input');
     /* echo $randomString; */
@@ -47,12 +63,6 @@
     }
     // get base64 encoded msg
     $base64 = json_decode($webhookData, true);
-
-    // get server name based on domain
-    $domain = "https://".$_SERVER['SERVER_NAME'];
-    $path = trim($_SERVER['REQUEST_URI'], '/');
-    $firstFolder = explode('/', $path)[0];
-    $serverName = "$domain/$firstFolder";
 
     // get db name
     // SST-983: companyId comes from the request body, so it must be a plain value, and it is URL-encoded for the locator
@@ -128,12 +138,12 @@
             // decode base64
             $decoded = base64_decode($base64["base64EncodedMessage"]);
             file_put_contents("../temp/$db/.ht_msg-$timestamp.json", ["message" => $decoded]);
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, "$serverName/debitor/increaseInvoiceNumber.php?db=$db");
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            $res = curl_exec($ch);
-            curl_close($ch);
-            file_put_contents("../temp/$db/.ht_increase-$timestamp.json", $res);
+            // SST-984: the incoming invoice is stored and mailed after the count, so a failed count must not stop the webhook.
+            // In webservice mode db_modify() logs the error and reports it by mail, then returns instead of exiting.
+            $previousWebservice = isset($webservice) ? $webservice : null;
+            $webservice = true;
+            increaseEinvoiceCount($db);
+            $webservice = $previousWebservice;
         }
         file_put_contents("../temp/$db/.ht_res-$timestamp.json", $webhookData);
     } else {
