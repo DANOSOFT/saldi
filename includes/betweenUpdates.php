@@ -50,6 +50,7 @@
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
+// 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -62,6 +63,8 @@
 include_once(__DIR__ . '/opdat_func/deleteStaleTekst.php');
 // guardrails-allow migrations until 2026-12-31 by NTR: helper must load before the existing roles/settings migrations; dialect extraction preserves their order
 require_once __DIR__ . '/opdat_func/databaseDialect.php';
+// guardrails-allow migrations until 2026-12-31 by NTR: rename the existing role flag before perm_ensure_default_roles reads is_built_in
+require_once __DIR__ . '/opdat_func/migrateRoleBuiltInFlag.php';
 // ===== END PROTECTED =====
 
 // guardrails-allow migrations until 2026-12-31 by NTR: 5.1.1 version cut retains the resumable backfill below
@@ -99,10 +102,12 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		role_key varchar(30),
 		navn varchar(80) NOT NULL,
 		beskrivelse text,
-		system boolean DEFAULT false,
+		is_built_in boolean DEFAULT false,
 		oprettet $sawanehNow)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+// Existing tenants must be upgraded before perm_ensure_default_roles() reads is_built_in below.
+migrateRoleBuiltInFlag($db_type);
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='role_permissions'" . $sawanehSchema;
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "CREATE TABLE role_permissions (

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRolesIncludes/view.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- systemdata/usersRolesIncludes/view.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,7 @@
 // 20261103 CL/ASR QA round 2: a user whose role is above the editor's rights sends that role with the form, so saving gives the right message (msg=above) instead of Vælg en rolle først.
 // 20261104 CL/ASR Final QA: Tildel <forslag> on the user card asks first and names what the suggested role gives beyond the user's old rights (texts 7850, 7853).
 //                 The review banner counts the administrators and the roles to review from the users as they are now (perm_migration_summary_live()), not from the stored summary that missed the users seeded as Administrator.
+// 20261113 CDX/NTR Read is_built_in for role badges and built-in role controls.
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -247,7 +248,7 @@ function ur_view_users(array $vm, callable $h, callable $t, callable $link, call
             $searchBlob = mb_strtolower($u['navn'] . ' ' . (!empty($vm['canOrg']) ? $u['initialer'] : '') . ' ' . $u['brugernavn'] . ' ' . $u['email'] . ' ' . ($u['role'] ? perm_role_name($u['role'], $vm['sprogId']) : ''));
           	$status = $u['closed'] ? 'closed' : ($u['invited'] ? 'invited' : 'active');
             $cardLink = $link(ur_people_row_link($vm, $u));
-          	$badge = !$u['role'] ? 'sk-bad' : ($u['role_id'] === $vm['adminRoleId'] ? 'sk-info' : ($u['role']['system'] ? '' : 'sk-warn'));
+            $badge = !$u['role'] ? 'sk-bad' : ($u['role_id'] === $vm['adminRoleId'] ? 'sk-info' : ($u['role']['is_built_in'] ? '' : 'sk-warn'));
           	$tone = $u['closed'] ? 'sk-off' : ($u['invited'] ? 'sk-warn' : 'sk-ok');
           ?>
           <tr data-search="<?= $h($searchBlob) ?>" data-status="<?= $status ?>"<?= $u['id'] === $vm['selfId'] ? ' data-self="1"' : '' ?> data-role="<?= (int) $u['role_id'] ?>" data-tfa="<?= $u['twofactor'] ? 1 : 0 ?>"<?= $u['review'] ? ' data-review="1"' : '' ?> data-href="<?= $cardLink ?>"<?= ($vm['editUser'] && $vm['editUser']['id'] === $u['id']) ? ' class="on"' : '' ?>>
@@ -517,7 +518,7 @@ function ur_view_roles(array $vm, callable $h, callable $t, callable $link, call
       	$isOn = ($role && $role['id'] === $r['id']);
       ?>
         <a class="sk-list-row<?= $isOn ? ' on' : '' ?>" href="<?= $link('tab=roles&rolle=' . $r['id']) ?>"<?= $isOn ? ' aria-current="true"' : '' ?>>
-          <span class="sk-list-tx"><span class="sk-list-t"><?= $roleName($r) ?><?php if (!$r['system']) { ?> <span class="sk-tag sk-warn"><?= $t('5942|Egen') ?></span><?php } ?></span><span class="sk-list-d"><?= $h(perm_role_description($r, $vm['sprogId'])) ?></span></span>
+          <span class="sk-list-tx"><span class="sk-list-t"><?= $roleName($r) ?><?php if (!$r['is_built_in']) { ?> <span class="sk-tag sk-warn"><?= $t('5942|Egen') ?></span><?php } ?></span><span class="sk-list-d"><?= $h(perm_role_description($r, $vm['sprogId'])) ?></span></span>
           <span class="sk-list-meta"><?= (int) $count ?> <i class='bx bx-user'></i></span>
         </a>
       <?php } ?>
@@ -536,7 +537,7 @@ function ur_view_roles(array $vm, callable $h, callable $t, callable $link, call
         <input type="hidden" name="action" value="save_role">
         <input type="hidden" name="id" value="<?= (int) $role['id'] ?>">
         <div class="sk-panel-h">
-          <?php if ($role['system']) { ?>
+          <?php if ($role['is_built_in']) { ?>
           <h2 class="sk-panel-t"><?= $h($name) ?></h2><input type="hidden" name="navn" value="<?= $h($role['navn']) ?>">
           <span class="sk-sub ur-lock"><i class='bx bx-lock-alt'></i><?= $t('5943|Standardrolle · navn låst') ?></span>
           <?php } else { ?>
@@ -544,7 +545,7 @@ function ur_view_roles(array $vm, callable $h, callable $t, callable $link, call
           <?php } ?>
           <span class="sk-panel-tools">
           <?php if ($write && !$isNew) { ?>
-            <?php if ($role['system']) { ?>
+            <?php if ($role['is_built_in']) { ?>
             <button class="sk-btn sk-btn-sm" type="submit" form="ur-reset-role-form"<?= ($vm['roleChanged'] && perm_within_own(perm_levels_from_role((int) $role['id']))) ? '' : ' disabled' ?> data-confirm-form="<?= $t('5767|Nulstil rollen til standard?') ?>"><i class='bx bx-reset'></i><?= $t('5717|Nulstil til standard') ?></button>
             <?php } else { ?>
             <button class="sk-btn sk-btn-sm sk-btn-danger" type="button" id="ur-del-role"><i class='bx bx-trash'></i><?= $t('1099|Slet') ?></button>
@@ -554,7 +555,7 @@ function ur_view_roles(array $vm, callable $h, callable $t, callable $link, call
           </span>
         </div>
         <div class="sk-panel-note ur-m-desc">
-          <?php if ($role['system']) { ?>
+          <?php if ($role['is_built_in']) { ?>
           <?= $h(perm_role_description($role, $vm['sprogId'])) ?><input type="hidden" name="beskrivelse" value="<?= $h($role['beskrivelse']) ?>">
           <?php } else { ?>
           <input class="sk-input sk-input-sm" type="text" name="beskrivelse" maxlength="500" value="<?= $h($role['beskrivelse']) ?>" placeholder="<?= $t('5568|Beskrivelse') ?>" aria-label="<?= $t('5568|Beskrivelse') ?>"<?= $write ? '' : ' disabled' ?>>
@@ -594,7 +595,7 @@ function ur_view_roles(array $vm, callable $h, callable $t, callable $link, call
       <?php if ($write && !$isNew) { ?>
       <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-copy-form" hidden><input type="hidden" name="action" value="copy_role"><input type="hidden" name="id" value="<?= (int) $role['id'] ?>"></form>
       <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-reset-role-form" hidden><input type="hidden" name="action" value="reset_role"><input type="hidden" name="id" value="<?= (int) $role['id'] ?>"></form>
-      <?php if (!$role['system']) { ?>
+      <?php if (!$role['is_built_in']) { ?>
       <template id="ur-del-role-dlg">
         <?php if ($count > 0) { ?>
         <h3><?= $h(sprintf(findtekst('5948|%s bruges af %s brugere', $vm['sprogId']), $name, $count)) ?></h3>

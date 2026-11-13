@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissions.php --- ver 5.1.0 --- 2026.11.05 ---
+// ---- includes/permissions.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,7 @@
 //                 perm_review_done() no longer deletes the custom role a user leaves, so the change can be undone by giving the role back.
 // 20261105 CL/ASR A rights string position is read like the old module gate reads it (perm_legacy_positions()): any character from '1' up is access.
 //                 The migration turned '3'..'9' into no access and wrote that back, so a user with such a string lost every module at the first login.
+// 20261113 CDX/NTR Read and write the built-in role flag as is_built_in throughout the permission helpers.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 
@@ -565,7 +566,7 @@ function require_permission(string $key, string $level = 'read'): void
 // ------------------------------------------------------------------ roles
 
 /**
- * @return array<int, array{id: int, key: string, navn: string, beskrivelse: string, system: bool}>
+ * @return array<int, array{id: int, key: string, navn: string, beskrivelse: string, is_built_in: bool}>
  */
 function perm_roles(): array
 {
@@ -573,14 +574,14 @@ function perm_roles(): array
 	if (!perm_tables_ready()) {
 		return $roles;
 	}
-	$q = db_select("select id, role_key, navn, beskrivelse, system from roles order by system desc, navn", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select id, role_key, navn, beskrivelse, is_built_in from roles order by is_built_in desc, navn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$roles[] = array(
 			'id'          => (int) $r['id'],
 			'key'         => (string) $r['role_key'],
 			'navn'        => (string) $r['navn'],
 			'beskrivelse' => (string) $r['beskrivelse'],
-			'system'      => ($r['system'] === 't' || $r['system'] === true || $r['system'] === '1' || $r['system'] === 1),
+			'is_built_in' => ($r['is_built_in'] === 't' || $r['is_built_in'] === true || $r['is_built_in'] === '1' || $r['is_built_in'] === 1),
 		);
 	}
 	return $roles;
@@ -708,7 +709,7 @@ function perm_suggest_role(string $rettigheder): ?array
 	$target = perm_levels_from_legacy($rettigheder);
 	$best = null;
 	foreach (perm_roles() as $role) {
-		if (!$role['system']) {
+		if (!$role['is_built_in']) {
 			continue;
 		}
 		$levels = perm_levels_from_role($role['id']);
@@ -817,7 +818,7 @@ function perm_ensure_default_roles(): void
 		// The role and its rights in one transaction: a login that stops in between leaves no role without its rights,
 		// which the next login would skip (its role_key exists) and hand to every user with all rights.
 		transaktion('begin');
-		db_modify("insert into roles (role_key, navn, beskrivelse, system) values ('$key', '$navn', '$beskrivelse', true)", __FILE__ . " linje " . __LINE__);
+		db_modify("insert into roles (role_key, navn, beskrivelse, is_built_in) values ('$key', '$navn', '$beskrivelse', true)", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select id from roles where role_key = '$key'", __FILE__ . " linje " . __LINE__));
 		if ($r) {
 			$roleId = (int) $r['id'];
@@ -951,7 +952,7 @@ function perm_covering_role(string $rettigheder): ?array
 	$rank = perm_level_rank();
 	$best = null;
 	foreach (perm_roles() as $role) {
-		if (!$role['system']) {
+		if (!$role['is_built_in']) {
 			continue;
 		}
 		$levels = perm_levels_from_role($role['id']);
@@ -1002,7 +1003,7 @@ function perm_migrate_users(): void
 	}
 	$standard = array();
 	foreach (perm_roles() as $role) {
-		if ($role['system']) {
+		if ($role['is_built_in']) {
 			$standard[perm_legacy_string(perm_levels_from_role($role['id']))] = $role['id'];
 		}
 	}
@@ -1089,7 +1090,7 @@ function perm_custom_role_for(string $string, int $sprog): int
 	$beskrivelse = sprintf(findtekst('5878|Oprettet ved overgangen til roller ud fra de gamle rettigheder: %s', $sprog), implode(', ', $grants));
 	// The role and its rights in one transaction, as the built-in roles (perm_ensure_default_roles()).
 	transaktion('begin');
-	db_modify("insert into roles (role_key, navn, beskrivelse, system) values ('" . db_escape_string($key) . "', '" . db_escape_string($navn) . "', '" . db_escape_string(mb_substr($beskrivelse, 0, 1000)) . "', false)", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into roles (role_key, navn, beskrivelse, is_built_in) values ('" . db_escape_string($key) . "', '" . db_escape_string($navn) . "', '" . db_escape_string(mb_substr($beskrivelse, 0, 1000)) . "', false)", __FILE__ . " linje " . __LINE__);
 	$roleId = perm_role_id_by_key($key);
 	if ($roleId > 0) {
 		perm_save_role_levels($roleId, $levels);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRoles.php --- ver 5.1.0 --- 2026.11.08 ---
+// ---- systemdata/usersRoles.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,7 @@
 //                 A migrated custom role that an administrator saves loses its migrated_ key, so it is not deleted with its last holder.
 //                 Audit-log times (list and CSV) on PHP's clock (st_local_time()).
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
+// 20261113 CDX/NTR Use is_built_in when saving, deleting, copying and resetting built-in roles.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -521,7 +522,7 @@ function ur_save_role(array $post): string
 	}
 	$navnSql = db_escape_string($navn);
 	$beskSql = db_escape_string(mb_substr($beskrivelse, 0, 500));
-	$existing = ($id > 0) ? db_fetch_array(db_select("select role_key, navn, beskrivelse, system from roles where id = $id", __FILE__ . " linje " . __LINE__)) : null;
+	$existing = ($id > 0) ? db_fetch_array(db_select("select role_key, navn, beskrivelse, is_built_in from roles where id = $id", __FILE__ . " linje " . __LINE__)) : null;
 	// The Administrator role always keeps users and roles, so nobody can lock the company out (Adam 2026-10-01).
 	if ($existing && $existing['role_key'] === 'administrator') {
 		foreach (UR_ADMIN_LOCKED as $lockedKey) {
@@ -530,14 +531,14 @@ function ur_save_role(array $post): string
 			}
 		}
 	}
-	if ($existing && in_array($existing['system'], array('t', true, '1', 1), true)) {
+	if ($existing && in_array($existing['is_built_in'], array('t', true, '1', 1), true)) {
 		// Built-in roles keep their name and description; only the matrix can be edited (spec §3.2).
 		$navn = (string) $existing['navn'];
 		$navnSql = db_escape_string($navn);
 		$beskSql = db_escape_string((string) $existing['beskrivelse']);
 	}
 	if ($id === 0) {
-		db_modify("insert into roles (role_key, navn, beskrivelse, system) values (null, '$navnSql', '$beskSql', false)", __FILE__ . " linje " . __LINE__);
+		db_modify("insert into roles (role_key, navn, beskrivelse, is_built_in) values (null, '$navnSql', '$beskSql', false)", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select id from roles where navn = '$navnSql' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
 		$id = (int) $r['id'];
 		audit_log('role.created', $navn, 'rolle', (string) $id);
@@ -556,8 +557,8 @@ function ur_delete_role(int $id, int $moveTo = 0, int $selfId = 0): string
 	if ($id <= 0) {
 		return 'tab=roles';
 	}
-	$r = db_fetch_array(db_select("select navn, system from roles where id = $id", __FILE__ . " linje " . __LINE__));
-	if (!$r || $r['system'] === 't' || $r['system'] === true || $r['system'] === '1' || $r['system'] === 1 || !perm_within_own(perm_levels_from_role($id))) {
+	$r = db_fetch_array(db_select("select navn, is_built_in from roles where id = $id", __FILE__ . " linje " . __LINE__));
+	if (!$r || $r['is_built_in'] === 't' || $r['is_built_in'] === true || $r['is_built_in'] === '1' || $r['is_built_in'] === 1 || !perm_within_own(perm_levels_from_role($id))) {
 		return 'tab=roles';
 	}
 	if ($moveTo > 0 && $moveTo !== $id) {
@@ -588,7 +589,7 @@ function ur_reset_role(int $id): string
 {
 	$defaults = permission_default_roles();
 	foreach (perm_roles() as $role) {
-		if ($role['id'] !== $id || !$role['system'] || !isset($defaults[$role['key']])) {
+		if ($role['id'] !== $id || !$role['is_built_in'] || !isset($defaults[$role['key']])) {
 			continue;
 		}
 		$levels = array();
@@ -621,7 +622,7 @@ function ur_copy_role(int $id): string
 	$navn = findtekst('5587|Kopi af', (int) $sprog_id) . ' ' . perm_role_name($source, (int) $sprog_id);
 	$navnSql = db_escape_string(mb_substr($navn, 0, 80));
 	$beskSql = db_escape_string($source['beskrivelse']);
-	db_modify("insert into roles (role_key, navn, beskrivelse, system) values (null, '$navnSql', '$beskSql', false)", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into roles (role_key, navn, beskrivelse, is_built_in) values (null, '$navnSql', '$beskSql', false)", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array(db_select("select id from roles where navn = '$navnSql' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
 	$newId = (int) $r['id'];
 	perm_save_role_levels($newId, perm_levels_from_role($id));
@@ -783,7 +784,7 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 	if (isset($get['rolle'])) {
 		$wanted = (int) $get['rolle'];
 		if ($wanted === 0) {
-			$editRole = array('id' => 0, 'key' => '', 'navn' => '', 'beskrivelse' => '', 'system' => false, 'levels' => perm_levels_from_role(0));
+			$editRole = array('id' => 0, 'key' => '', 'navn' => '', 'beskrivelse' => '', 'is_built_in' => false, 'levels' => perm_levels_from_role(0));
 		} elseif (isset($rolesById[$wanted])) {
 			$editRole = $rolesById[$wanted];
 			$editRole['levels'] = perm_levels_from_role($wanted);
@@ -795,7 +796,7 @@ function ur_view_model(array $get, int $selfId, int $sprogId, string $dbEncode, 
 		$editRole['levels'] = perm_levels_from_role($roles[0]['id']);
 	}
 	$roleChanged = false;
-	if ($editRole !== null && $editRole['system']) {
+	if ($editRole !== null && $editRole['is_built_in']) {
 		$defaults = permission_default_roles();
 		if (isset($defaults[$editRole['key']])) {
 			foreach ($editRole['levels'] as $key => $level) {
