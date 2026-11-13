@@ -515,14 +515,16 @@ if (!$dbMail && $db != $sqdb) {
 } else $mainMail = $dbMail;
 # Mit salg, Mine labels, labelprint and booking put the customer in online with rettigheder '0' and the account number,
 # e-mail or 'booking' as brugernavn. They are not users, so the max users check below leaves them out. A user of this
-# regnskab is always counted, whatever is in rettigheder.
+# regnskab is always counted, whatever is in rettigheder, except the anonymous booking session: booking/index.php needs a
+# user named 'booking' and logs the visitor in as 'booking' with rettigheder '0' (a real login as that user gets its
+# own rettigheder from brugere and is counted).
 $staffNames = array();
 if ($db && $db != $sqdb) {
 	$qStaff = db_select("select brugernavn from brugere", __FILE__ . " linje " . __LINE__);
 	while ($rStaff = db_fetch_array($qStaff)) $staffNames[] = "'" . db_escape_string($rStaff['brugernavn']) . "'";
 }
 $notCustomerSession = "(COALESCE(rettigheder, '') <> '0'";
-if ($staffNames) $notCustomerSession .= " OR brugernavn IN (" . implode(',', $staffNames) . ")";
+if ($staffNames) $notCustomerSession .= " OR (brugernavn IN (" . implode(',', $staffNames) . ") AND brugernavn <> 'booking')";
 $notCustomerSession .= ")";
 # Check whether the user exsists
 
