@@ -15,6 +15,7 @@
 //                 A check that read the state earlier cannot erase a year a card left waiting, and taking the waiting year keeps one registered meanwhile (Codex round 11).
 //                 A card that leaves a year waiting while the first check starts, before any check, or with an old state creates the row itself (Codex round 12).
 //                 A year waiting in an old state is kept when a newer request created the row with a later year first (Codex round 13).
+//                 A row another request creates right after this one found it missing does not skip this request's year (Codex round 14).
 
 declare(strict_types=1);
 
@@ -1263,6 +1264,38 @@ final class FollowingOpeningBalancesTest extends TestCase
             unset($GLOBALS['sst1005Hook']);
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
             pg_close($holder);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /** Codex round 14: the row is created by another request right after this one found it missing. */
+    public function testARowCreatedByAnotherRequestRightAfterThisOneLookedDoesNotSkipItsYear(): void
+    {
+        $schema = 'sst1005_create_between_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $mine = $GLOBALS['connection'];
+            self::assertNull($this->setting('openingBalancePending'));
+            // A card (this connection) leaves year 8 waiting. Right after its first statement on the row found none (round 13
+            // wrote first and looked after; now it looks first), a journal on the other connection leaves year 9 waiting,
+            // creates the row and commits.
+            $GLOBALS['sst1005Hook'] = ['after' => '/openingBalancePending/', 'times' => 1, 'run' => function () use ($mine, $other): void {
+                $GLOBALS['connection'] = $other;
+                pg_query($other, 'BEGIN');
+                followingOpeningBalanceMarkPending(9);
+                pg_query($other, 'COMMIT');
+                $GLOBALS['connection'] = $mine;
+            }];
+            $this->sql('BEGIN');
+            followingOpeningBalanceMarkPending(8);
+            $this->sql('COMMIT');
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The journal came in between.');
+            self::assertSame('8', $this->setting('openingBalancePending'), 'The card\'s earlier year is registered.');
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalancePending'"))['n']);
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }

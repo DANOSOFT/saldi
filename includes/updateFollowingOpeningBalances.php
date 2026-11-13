@@ -49,6 +49,7 @@
 //                  The waiting year has a settings row of its own that is only ever lowered or cleared in one statement, so a check that saves the watermark it read earlier cannot erase a year another request left waiting (Codex round 11).
 //                  A request that leaves a year waiting before the first check has created that row creates it itself, under a lock the first check takes too (Codex round 12).
 //                  A year still waiting in a state of an earlier test build is always lowered into that row before the state is saved without it (Codex round 13).
+//                  A request that does not see the row goes straight to the locked create-or-lower, so a row created by someone else in between cannot skip its year (Codex round 14).
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -248,14 +249,19 @@ function followingOpeningBalanceMarkPending($year) {
 	if ($year < 1) {
 		return;
 	}
+	if (followingOpeningBalancePending() === null) {
+		// No row visible: it does not exist, or another request created it and has not committed. Under the lock in
+		// followingOpeningBalanceCreatePending() the row is read again and this year inserted or lowered into it, so a
+		// row that appears between a read and a write here can never skip this year (Codex round 14).
+		followingOpeningBalanceCreatePending($year);
+		return;
+	}
+	// The row is committed and visible, so this statement finds it (no row is ever deleted).
 	$type = ($db_type === 'mysql' || $db_type === 'mysqli') ? 'signed' : 'integer';
 	$current = "cast(coalesce(nullif(var_value, ''), '0') as $type)";
 	$qtxt = "update settings set var_value = case when $current = 0 or $current > $year then '$year' else var_value end ";
 	$qtxt.= "where var_name = 'openingBalancePending'";
 	db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
-	if (followingOpeningBalancePending() === null) {
-		followingOpeningBalanceCreatePending($year);
-	}
 }
 
 /**
