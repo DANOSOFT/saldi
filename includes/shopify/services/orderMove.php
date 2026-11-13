@@ -62,11 +62,12 @@ const SHOPIFY_MOVE_MUTATION = 'mutation orderMove($id: ID!, $to: ID!, $lines: [F
  * The moves that put each Shopify line where Saldi drew it from (pure). A line is planned only
  * when every lager it was drawn from is one of $locations, its quantities are whole items, and
  * Shopify still has exactly that quantity open: anything else is left where it is, and the move
- * list carries it. A split set stays one line in Shopify, on the set's own lager.
+ * list carries it. A line drawn from a sellable lager without a location is unresolved. A split
+ * set stays one line in Shopify, on the set's own lager.
  *
  * @param array{lines?: list<array<string, mixed>>} $alloc the link's allocation_v1
  * @param list<array<string, mixed>> $fulfillmentOrders as SHOPIFY_MOVE_READ returns the nodes
- * @param array<int, string> $locations lager => location gid, the shop's mapped sellable lagre only
+ * @param array<int, string> $locations lager => location gid, the sellable lagre only ('' when the shop has no location for one)
  * @return array{moves: list<array{fulfillment_order: string, to: string, lines: list<array{id: string, quantity: int}>}>,
  *   unresolved: list<string>} unresolved: the lines that need a move no movable fulfillment order can make
  */
@@ -92,6 +93,10 @@ function shopify_plan_moves(array $alloc, array $fulfillmentOrders, array $locat
 		$gid = (string)($line['line_gid'] ?? '');
 		$want = shopify_move_wanted((array)$line, $locations);
 		if ($want === null || !isset($open[$gid])) {
+			continue;
+		}
+		if ($want === array()) {
+			$unresolved[$gid] = $gid;
 			continue;
 		}
 		$have = array_map(static fn(array $parts): int => array_sum(array_column($parts, 'qty')), $open[$gid]);
@@ -127,7 +132,8 @@ function shopify_plan_moves(array $alloc, array $fulfillmentOrders, array $locat
 
 /**
  * Whole items per location gid for one allocation_v1 line, null when it can't be planned: a
- * lager without a sellable location, or part of an item on a lager.
+ * lager that is not sellable (display, ingen), or part of an item on a lager. An empty array when
+ * it was drawn from a sellable lager the shop has no location for.
  *
  * @param array<string, mixed> $line
  * @param array<int, string> $locations
@@ -149,6 +155,9 @@ function shopify_move_wanted(array $line, array $locations): ?array {
 	}
 	$want = array();
 	foreach ($milli as $lager => $quantity) {
+		if (($locations[$lager] ?? null) === '') {
+			return array();
+		}
 		if (!isset($locations[$lager]) || $quantity <= 0 || $quantity % 1000 !== 0) {
 			return null;
 		}
@@ -233,14 +242,14 @@ function shopify_move_read(array $shop, string $orderGid, array $rt): array {
 }
 
 /**
- * The shop's sellable lagre that have a location, the only places a move goes to.
+ * The sellable lagre and the shop's location for each, the only places a move goes to.
  *
- * @return array<int, string> lager => location gid
+ * @return array<int, string> lager => location gid, '' when the shop has none for it
  */
 function shopify_move_locations(int $shopId): array {
 	$rows = shopify_db_rows(
-		"SELECT m.lager, m.location_gid FROM shopify_location_map m JOIN shopify_lager l ON l.lager = m.lager
-		WHERE m.shop_id = $1 AND l.rolle = 'saelgbar'",
+		"SELECT l.lager, coalesce(m.location_gid, '') AS location_gid FROM shopify_lager l
+		LEFT JOIN shopify_location_map m ON m.lager = l.lager AND m.shop_id = $1 WHERE l.rolle = 'saelgbar'",
 		array($shopId)
 	);
 	$locations = array();
@@ -266,9 +275,14 @@ function shopify_move_job(array $job, array $link, array $shop, array $rt): arra
 	$ordreId = (int)$link['ordre_id'];
 	$alloc = json_decode((string)$link['flags'], true)['allocation_v1'] ?? null;
 	try {
-		$result = is_array($alloc)
-			? shopify_run_moves($shop, (string)$link['order_gid'], $alloc, shopify_move_locations($shopId), $rt)
-			: array('status' => 'done', 'moved' => 0, 'errors' => array());
+		// once the barrier has expired its stock is published again, so nothing is moved after that
+		if (shopify_move_expired($shopId, $ordreId)) {
+			$result = array('status' => 'failed', 'moved' => 0, 'errors' => array('the hold expired before the move was done'));
+		} elseif (is_array($alloc)) {
+			$result = shopify_run_moves($shop, (string)$link['order_gid'], $alloc, shopify_move_locations($shopId), $rt);
+		} else {
+			$result = array('status' => 'done', 'moved' => 0, 'errors' => array());
+		}
 	} catch (RuntimeException $e) {
 		// a missing token or a database error is a failed attempt too, so the move is still abandoned in the end
 		$result = array('status' => 'failed', 'moved' => 0, 'errors' => array(get_class($e) . ': ' . $e->getMessage()));

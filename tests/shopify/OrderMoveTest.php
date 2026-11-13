@@ -81,6 +81,13 @@ final class OrderMoveTest extends TestCase
         }
     }
 
+    /** A sellable lager the shop has no location for can't be moved to: unresolved, so it is retried and alarmed, not done. */
+    public function testASellableLagerWithoutALocationIsUnresolved(): void
+    {
+        $plan = shopify_plan_moves(['lines' => [self::line('L11', [1 => 1000, 5 => 1000])]], [self::fo('F1', self::L1, ['L11' => 2])], self::LOCATIONS + [5 => '']);
+        $this->assertSame(['moves' => [], 'unresolved' => ['L11']], $plan);
+    }
+
     /** A refund or an edit since the import: Shopify's open quantity is not what Saldi wrote, so nothing is guessed. */
     public function testALineWhoseOpenQuantityDiffersIsLeftAlone(): void
     {

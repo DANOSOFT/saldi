@@ -253,16 +253,19 @@ final class OrderMoveSyncTest extends TestCase
         $this->assertStringContainsString("doesn't stock", $alarm[0]['message']);
     }
 
-    public function testARefusedMoveIsAbandonedAtOnceWhenItsBarrierHasExpired(): void
+    /** Once the barrier has expired its stock is published again: the move is abandoned before anything is sent. */
+    public function testAMoveWhoseBarrierHasExpiredIsAbandonedWithoutMoving(): void
     {
         $order = $this->steps(['web_order', [['STOL-X', 1, [0 => 5, 1 => 5]]]])['results'][0];
-        $ordreId = $this->invoiced($order['order'], [['gid' => $order['lines']['STOL-X'], 'rows' => [['STOL-X', 92, 1]]]]);
-        $this->steps(['unstock', 'STOL-X', 1]);
+        $line = $order['lines']['STOL-X'];
+        $ordreId = $this->invoiced($order['order'], [['gid' => $line, 'rows' => [['STOL-X', 92, 1]]]]);
         $this->sql("UPDATE shopify_move_barriers SET expires_at = now() - interval '1 day'");
 
         $run = $this->steps(['pass']);
 
         $this->assertContains(['order.move', 'done'], $run['results'][0]);
+        $this->assertSame(['metafieldsSet', 'tagsAdd'], self::mutations($run), 'no fulfillmentOrderMove');
+        $this->assertSame([[0, $line, 1]], $run['orders'][$order['order']]['open']);
         $this->assertSame(['abandoned'], $this->barriers($ordreId));
         $this->assertSame('abandoned', $this->writeback($order['order'])['order.move']);
     }
