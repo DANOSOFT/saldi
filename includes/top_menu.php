@@ -9,6 +9,8 @@
 // 20260730 NTR - Added translation to momsperioder.
 // 20260914 CDX/LH Removed the Guides menu entry and its popup.
 // 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
+// 20261104 CL/ASR The expiry report entry needs the Varerapport right (15) instead of Debitorrapport (12), as the page itself.
+// 20261104 CL/ASR The entry uses batch_reports_allowed(), the same check as the page and Oversigt (right 15, and lager.rapporter when enforced).
 
 $site = "";
 $subsite = "";
@@ -130,8 +132,8 @@ print "          <a href='../lager/varer.php'>".findtekst(110,$sprog_id)."</a>";
 print "          <a href='../lager/modtageliste.php'>".findtekst(610,$sprog_id)."</a>";
 print "          <a href='../lager/rapport.php'>".findtekst(603,$sprog_id)."</a>";
 # Offer the expiry report under Lager, for accounts that use batch/expiry management and hold the
-# module the page itself requires (12) - the same check includes/online.php:353 applies to the page.
-if (batch_expiry_in_use() && (!$rettigheder || substr($rettigheder, 12, 1) >= '1')) {
+# module the page itself requires (15, Varerapport) - the same check includes/online.php applies to the page.
+if (batch_expiry_in_use() && batch_reports_allowed()) {
 print "          <a href='../lager/udlobsrapport.php'>".findtekst(5014,$sprog_id)."</a>";
 }
 print "          </div>";

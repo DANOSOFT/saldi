@@ -26,6 +26,7 @@ ob_start();
 
 // Include necessary files
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

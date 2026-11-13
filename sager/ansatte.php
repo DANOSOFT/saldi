@@ -1,7 +1,7 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------ver 5.1.0 ------2026-11-06-------------
+// ------ SAGER/ANSATTE.php-------ver 5.1.1 ------2026-11-13-------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@ $s_id=session_id();
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
- 
+//
 // Nyt flueben - ny i branchen. reduceret løn 80% i x mdr.½
 // Har lagt al javascript i en separat fil ved navn 'jquery.ansatte.js' + diverse html rettelser
 // Flere html rettelser + html rettelser i "/systemdata/ansatte_load.php" 
@@ -35,6 +35,10 @@ $s_id=session_id();
 //                  Login SQL values are now cast or escaped.
 // 20261103 CL/MMR SD-799 The search dropdown labels and the paging line of the employee list follow the user's language.
 // 20261106 CL/MMR SD-813 The page's lang attribute follows the user's language (da, en, no).
+// 20261110 CDX/NTR Use CSS wrapping for information card labels instead of JavaScript hyphenation.
+// 20261110 CDX/NTR Preserve existing login passwords on blank saves and validate before creating a login.
+// 20261113 CDX/NTR Keep employee-login permission checks with blank-password preservation.
+
 	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
@@ -52,7 +56,17 @@ $s_id=session_id();
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	require_once(__DIR__ . '/sagerIncludes/saveEmployeeLogin.php');
+	include_once(__DIR__ . '/../includes/userFunctions.php');
 	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
+	// 20261018 Sawaneh Review 2 (PR #803): every POST on this page carries the session's token.
+	if (empty($_SESSION['csrf_token'])) {
+		$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+	}
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		perm_require_post_csrf(false);
+	}
+	$csrfField = "<input type=\"hidden\" name=\"csrf_token\" value=\"" . htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES) . "\">";
 
 	if(isset($_GET['id'])) $id = $_GET['id'];
 	if(isset($_POST['id'])) $id = $_POST['id'];
@@ -73,7 +87,6 @@ $s_id=session_id();
 		<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/form.css\">
 		<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/pajinate.css\">
 		<script type=\"text/javascript\" src=\"../javascript/jquery-1.8.0.min.js\"></script>
-		<script type=\"text/javascript\" src=\"../javascript/hyphenator.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery.autocomplete.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery.pajinate.js\"></script>
 		
@@ -245,7 +258,7 @@ function ansatliste() {
 
 	print "
 		<div class=\"contentsoeg\">
-		<form name=\"kundesoeg\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">
+		<form name=\"kundesoeg\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">{$GLOBALS['csrfField']}
 			<table border=\"0\" cellspacing=\"0\" width=\"828\">
 				<thead>
 					<tr>
@@ -323,8 +336,7 @@ function ret_ansat($id) {
 	//if (!$id) { header("location:ansatte.php?funktion=ansatliste"); exit(); }
 	//echo "id: $id konto_id: $konto_id";
 	
-	print "<div class=\"content\">\n";
-	include "../systemdata/ansatte_save.php";
+	include __DIR__ . '/../systemdata/ansatte_save.php';
 	
 	if (!$id) { #20140923
 		$r=db_fetch_array(db_select("select max(nummer) as nummer from ansatte",__FILE__ . " linje " . __LINE__));
@@ -336,68 +348,16 @@ function ret_ansat($id) {
 			db_modify("update ansatte set gruppe = '$brugergruppe' where id = '$id'",__FILE__ . " linje " . __LINE__);
 		}
 	}
-	if (isset($_POST['brugere_navn']) && $id) {	
-		$ansatId = (int)$id;
-		$brugere_navn = $_POST['brugere_navn'];
-		$brugere_id = (int)ifset($_POST, 'brugere_id');
-		$kode1 = ifset($_POST, 'kode1');
-		$kode2 = ifset($_POST, 'kode2');
-		if (is_input_too_long($brugere_navn)) {
-			$alerttext=findtekst('5149|Brugernavnet må højst være 80 tegn', $sprog_id);
-			print "<BODY onLoad=\"javascript:alert('$alerttext');location.hash='#anch';\">";
-			$brugere_navn = NULL;
-		}
-		
-		
-		if ($brugere_navn && !$brugere_id) { #20170911
-			$query = db_select("select id from brugere where brugernavn = '".db_escape_string($brugere_navn)."'",__FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($query)) {
-				$alerttext=findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id).": $brugere_navn";
-				print "<BODY onLoad=\"javascript:alert('$alerttext');location.hash='#anch';\">";
-			} 
-		}
-		
-		$ret_kode=1;
-		if (!$kode1 || !$kode2) {
-			$ret_kode=0;
-			print "<BODY onLoad=\"javascript:alert('".findtekst('3077|Kodeord skal angives', $sprog_id)."!');location.hash='#anch';\">";
-		} elseif ($kode1 == '') $ret_kode=0;
-		elseif ($kode1 != $kode2) {
-			$ret_kode=0;
-			print "<BODY onLoad=\"javascript:alert('".findtekst('3078|Kodeord ikke ens', $sprog_id)."!');location.hash='#anch';\">";
-		} else $kode1=md5($kode1);
-		
-		if ($id) {
-			if ($ret_kode && $brugere_id) {
-				db_modify("update brugere set kode = '".db_escape_string($kode1)."' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
-			}
-			if ($brugere_navn && !$brugere_id) {
-				$r=db_fetch_array(db_select("select id,ansat_id from brugere where lower (brugernavn)='".db_escape_string(strtolower($brugere_navn))."'",__FILE__ . " linje " . __LINE__));
-				if (ifset($r, 'id') && !ifset($r, 'ansat_id')) {
-					$brugere_id = (int)$r['id'];
-					db_modify("update brugere set ansat_id = '$ansatId' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
-				} else {
-					$fiscalYear = (int)$regnaar;
-					if (!$fiscalYear) $fiscalYear = newest_active_fiscal_year();
-					$qtxt = "insert into brugere (brugernavn,kode,ansat_id,regnskabsaar) values ";
-					$qtxt.= "('".db_escape_string($brugere_navn)."','".db_escape_string($kode1)."','$ansatId',".($fiscalYear ? "'$fiscalYear'" : "NULL").")";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				}
-			} elseif ($brugere_navn && $brugere_id) { #20170911
-				$r2=db_fetch_array(db_select("select id,brugernavn from brugere where id = '$brugere_id'",__FILE__ . " linje " . __LINE__));
-				if (ifset($r2, 'brugernavn') != $brugere_navn) {
-					$r3=db_fetch_array(db_select("select id from brugere where brugernavn = '".db_escape_string($brugere_navn)."'",__FILE__ . " linje " . __LINE__));
-					if (ifset($r3, 'id') > 0 && $r3['id'] != $brugere_id) {
-						$alerttext=findtekst('1928|Der findes allerede en bruger med dette brugernavn', $sprog_id).": $brugere_navn";
-						print "<BODY onLoad=\"javascript:alert('$alerttext');location.hash='#anch';\">";
-					} else {
-						db_modify("update brugere set brugernavn = '".db_escape_string($brugere_navn)."' where id = '$brugere_id'",__FILE__ . " linje " . __LINE__);
-					}
-				}
-			}
-		}
+	$loginError = null;
+	if (isset($_POST['brugere_navn']) && $id) {
+		$loginError = saveEmployeeLogin((int) $id, (int) $regnaar, $_POST, (int) $sprog_id);
 	}
-	print "<form name=\"ret_ansat\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">\n"; // #anchor $anchor
+	print "<div class=\"content\">\n";
+	if ($loginError !== null) {
+		// jsString() is loaded by includes/std_func.php.
+		print "<script>alert(" . jsString([$loginError]) . ");location.hash='#anch';</script>";
+	}
+	print "<form name=\"ret_ansat\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">{$GLOBALS['csrfField']}\n"; // #anchor $anchor
 	$x=0;
 	$q=db_select("select * from grupper where art='brgrp' order by beskrivelse",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -556,7 +516,7 @@ function brugergrupper($id) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/ansatte.php?funktion=brugergrupper\">\n";
 	}
 	print "<div class=\"content\">\n";
-	print "<form name=\"brugergrupper\" action=\"ansatte.php?funktion=brugergrupper\" method=post>\n";
+	print "<form name=\"brugergrupper\" action=\"ansatte.php?funktion=brugergrupper\" method=post>{$GLOBALS['csrfField']}\n";
 	
 	print "<div style=\"float:left; width:828px;\">\n";
 	print "<h3>".findtekst('2968|Brugergrupper', $sprog_id)."</h3>\n";
@@ -731,7 +691,7 @@ function stamkort($id) {
 	
 	}
 	
-	print "<form name=\"stamkort\" action=\"ansatte.php?funktion=stamkort\" method=post>\n";
+	print "<form name=\"stamkort\" action=\"ansatte.php?funktion=stamkort\" method=post>{$GLOBALS['csrfField']}\n";
 	print "<div class=\"content\">";
 	print "<div class=\"contentBorder stamkort\">";
 	print "<table border=\"0\" cellspacing=\"0\" width=\"826\" style=\"font-size: 12px\"><thead>";

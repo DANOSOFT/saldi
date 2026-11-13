@@ -1,5 +1,5 @@
 <?php
-// -------------systemdata/rabatgrupper.php--------- ver 3.5.5 -- 2015.03.13 --
+// -------------systemdata/rabatgrupper.php--------- ver 5.1.1 -- 2026.11.13 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,14 +18,18 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 20150313 CA  Topmenudesign tilføjet og udvidet feltet %/kr/stk  søg 20150313
 // 2019.02.21 MSC - Rettet topmenu design og isset fejl
 // 2019.02.25 MSC - Rettet topmenu design
-
+// 20261006 SS Settings 4c G3.5: the discount groups and the matrix are in Salg » Rabatter & prisgrupper (by group number, audit R1-R9); this page only redirects there.
+// 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
+header('Location: settingsSection.php?s=sales.discounts&moved=rabatgrupper#sub-matrix');
+exit;
 
 $modulnr=2;
 $title="rabatgrupper";
@@ -41,20 +45,8 @@ if (!isset ($_POST['rabat'])) $_POST['rabat'] = null;
 if (!isset ($_POST['drg_antal'])) $_POST['drg_antal'] = null;
 if (!isset ($_POST['ny_rabat'])) $_POST['ny_rabat'] = null;
 
-if ($menu=='T') {  # 20150313 start
-        include_once '../includes/top_header.php';
-        include_once '../includes/top_menu.php';
-        print "<div id=\"header\">\n";
-        print "<div class=\"headerbtnLft\"></div>\n";
-        print "</div><!-- end of header -->";
-        print "<div id=\"leftmenuholder\">";
-        include_once 'left_menu.php';
-        print "</div><!-- end of leftmenuholder -->\n";
-		print "<div class=\"maincontentLargeHolder\">\n";
-} else {
-        include("top.php");
-        print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
-}  # 20150313 stop
+include("top.php");
+        print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";  # 20150313 stop
 
 
 $dgselfdef=if_isset($_GET['dgselfdef']);
@@ -253,9 +245,7 @@ print "<tr><td colspan=\"$colspan\"><hr></td></tr>";
 		print "<td>&nbsp;</td></tr>\n";
 	}
 #}
-if ($menu=='T'){
-	$style = "class='button green medium'";
-} elseif ($menu=='S') {
+if ($menu=='S') {
 	$style = "STYLE = '$buttonStyle; width: 20%'";
 } else {
 	$style = "STYLE=\"width: 100%;height: 1.5em;margin-bottom:1px;padding: 1px 1px;border: 1px solid #DDDDDD;background:url('../img/knap_bg.gif');\"";

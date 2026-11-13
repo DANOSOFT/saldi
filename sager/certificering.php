@@ -1,4 +1,5 @@
 <?php
+// 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
 @session_start();
 $s_id = session_id();
 
@@ -22,8 +23,10 @@ include("../includes/std_func.php");
 
 //$sag_id=if_isset($_GET['sag_id']);
 //$konto_id=if_isset($_GET['konto_id']);
-$funktion = if_isset($_GET['funktion']);
-if (!$funktion) $funktion = "certificeringliste";  
+$funktion = $_GET['funktion'] ?? null;
+if (!in_array($funktion, ['certificeringliste'], true)) {
+	$funktion = 'certificeringliste';
+}
 
 	
 		global $brugernavn;

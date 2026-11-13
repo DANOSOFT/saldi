@@ -74,9 +74,8 @@ function pricelists(){
     // Handling submitted data for editing existing entries
         if($selectedUrl || $deleteUrl){
             if ($deleteUrl) {
-                echo "<script>alert('Select to delete URL: $deleteUrl');</script>";
-                
-                $qtxt = "delete from grupper where box2='$deleteUrl'";
+                // 20260928 Sawaneh Security 4.0 (A7): only price-list rows, escaped value.
+                $qtxt = "delete from grupper where art = 'PL' and box2 = '" . db_escape_string($deleteUrl) . "'";
                 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
                 print "<script>alert('Deleted.');</script>";
                 print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
