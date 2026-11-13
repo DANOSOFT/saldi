@@ -2,6 +2,7 @@
 // 20261015 CL/LH SST-842: reject the booking (deletes the order and rentalperiod) when no payment link is returned.
 // 20261111 CL/MMR SST-995: the calendar shows without closed days, and closed days are blocked (map returned nothing).
 //                 A start date whose rental would end on a closed day is refused with a message (no onChange loop).
+// 20261111 CL/MMR SST-1000: stop with a message and reload when createBooking returns no booking id (the unit is no longer free).
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${db}`,{
         method: "GET",
@@ -416,7 +417,12 @@ const calendarView = async (main, product, weeks, price, db) => {
             }).then(response => {
                 return response.json()
             })
-            
+            if (!response || !response.id) {
+                // the server refused the booking: another booking or a reservation took the unit after the page loaded
+                alert("Enheden er desværre ikke længere ledig i den valgte periode. Siden opdateres, så du kan vælge igen.")
+                location.reload()
+                return
+            }
             const bookingId = response.id
             const loading = document.querySelector("#loading")
             loading.style.display = "flex"
