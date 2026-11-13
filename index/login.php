@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- index/login.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -68,6 +68,8 @@
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 // 20261105 CL/MMR SD-807 The login messages and the max users and already logged in screens use the language chosen on the login page (languageId cookie, 1-3).
 //                 A message that names the account is kept within 80 characters (loginFejltxt()), so a long account name no longer makes it disappear.
+// 20261113 CL/MMR SST-1016 The max users screen no longer counts or lists the customer sessions from Mit salg, Mine labels, labelprint and booking (e.g. «3024» at Shoppe Loppe).
+//                 They are recognised by online.rettigheder '0' together with online.regnskabsaar 0, which a user login never writes.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -169,6 +171,18 @@ print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/login.css\" />";
 print "</head>";
 
 $dbMail=NULL;
+/**
+ * SQL condition for the online rows that count as users on the max users screen.
+ * Mit salg, Mine labels, labelprint and booking insert the customer with rettigheder '0' and regnskabsaar 0
+ * (brugernavn = account number, e-mail or 'booking'). A user login never writes regnskabsaar 0: it sets the user's
+ * year or leaves it NULL until includes/online.php fills in an open year. So a user is counted whatever its rettigheder.
+ *
+ * @return string condition on the online table, without a leading AND
+ */
+function maxUsersUserSessionCondition() {
+	return "NOT (COALESCE(rettigheder, '') = '0' AND COALESCE(regnskabsaar, -1) = 0)";
+}
+
 /**
  * Whitelist-filter a login form value (account name, username, error text) before it is
  * looked up in the database or echoed back into the login form.
@@ -564,13 +578,13 @@ if ($userId) {
 		if($db_type == 'mysql' || $db_type == 'mysqli') {
 			$query = db_select("SELECT COUNT(DISTINCT brugernavn) as user_count
 			FROM online
-			WHERE revisor != 1
+			WHERE revisor != 1 AND " . maxUsersUserSessionCondition() . "
 			AND db = '$db' AND brugernavn != '$userName'", __FILE__ . " linje " . __LINE__);
 		}else{
 			$query = db_select(
 			"SELECT COUNT(DISTINCT brugernavn) as user_count 
 			FROM online 
-			WHERE db = '$db' AND revisor IS NOT true AND brugernavn != '$userName'",
+			WHERE db = '$db' AND revisor IS NOT true AND " . maxUsersUserSessionCondition() . " AND brugernavn != '$userName'",
 			__FILE__ . " linje " . __LINE__
 			);
 		}
@@ -589,7 +603,7 @@ if ($userId) {
 			"SELECT brugernavn, logtime 
 			FROM online 
 			WHERE db = '$db' 
-			AND revisor != 1 AND brugernavn != '$userName'",
+			AND revisor != 1 AND " . maxUsersUserSessionCondition() . " AND brugernavn != '$userName'",
 			__FILE__ . " linje " . __LINE__
 			);
 		}else{
@@ -597,7 +611,7 @@ if ($userId) {
 			"SELECT brugernavn, logtime 
 			FROM online 
 			WHERE db = '$db' 
-			AND revisor IS NOT true AND brugernavn != '$userName'",
+			AND revisor IS NOT true AND " . maxUsersUserSessionCondition() . " AND brugernavn != '$userName'",
 			__FILE__ . " linje " . __LINE__
 			);
 		}
@@ -685,7 +699,7 @@ if ($userId) {
 						"SELECT brugernavn, logtime 
 						FROM online 
 						WHERE db = '$db' 
-						AND revisor != 1 AND brugernavn != '$userName'",
+						AND revisor != 1 AND " . maxUsersUserSessionCondition() . " AND brugernavn != '$userName'",
 						__FILE__ . " linje " . __LINE__
 						);
 					}else{
@@ -693,7 +707,7 @@ if ($userId) {
 							"SELECT brugernavn, logtime 
 							FROM online 
 							WHERE db = '$db' 
-							AND revisor IS NOT true AND brugernavn != '$userName'",
+							AND revisor IS NOT true AND " . maxUsersUserSessionCondition() . " AND brugernavn != '$userName'",
 							__FILE__ . " linje " . __LINE__
 						);
 					}

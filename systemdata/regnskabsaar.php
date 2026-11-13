@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 5.1.0 --- 2026-10-30 --
+// --- systemdata/regnskabsaar.php --- ver 5.1.1 --- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20260814 Sawaneh SST-705 Current fiscal year shows Lukket when bookkeeping is
 //                  not allowed (box5) and GET params are int-cast before SQL
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
+// 20261113 CL/MMR SST-1016 «Sæt alle» no longer gives the customer sessions from Mit salg, Mine labels, labelprint and booking a fiscal year, so they still do not count as users at login.
 
 @session_start();
 $s_id = session_id();
@@ -68,11 +69,36 @@ $deleteYear = (int)filter_input(INPUT_GET, 'deleteYear', FILTER_VALIDATE_INT);
 $deleteEmptyYear = (int)filter_input(INPUT_GET, 'deleteEmptyYear', FILTER_VALIDATE_INT);
 $set_alle = (int)filter_input(INPUT_GET, 'set_alle', FILTER_VALIDATE_INT);
 
+/**
+ * «Sæt alle», tenant part: every user of the regnskab gets $year as fiscal year.
+ *
+ * @param int $year fiscal year (regnskabsaar kodenr), already int-cast
+ */
+function setAllUsersFiscalYear($year) {
+	$year = (int)$year;
+	db_modify("update brugere set regnskabsaar = '$year'", __FILE__ . " linje " . __LINE__);
+}
+
+/**
+ * «Sæt alle», master part: every online session of the regnskab gets $year, except the customer sessions from
+ * Mit salg, Mine labels, labelprint and booking (rettigheder '0', regnskabsaar 0). Year 0 is what tells them apart
+ * from users in the max users count in index/login.php and in the mysale cleanup. Needs the master connection.
+ *
+ * @param int    $year fiscal year, already int-cast
+ * @param string $db   the regnskab's database name (online.db)
+ */
+function setAllSessionsFiscalYear($year, $db) {
+	$year = (int)$year;
+	$qtxt = "update online set regnskabsaar = '$year' where db = '" . db_escape_string($db) . "'";
+	$qtxt .= " and not (COALESCE(rettigheder, '') = '0' and COALESCE(regnskabsaar, -1) = 0)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 if ($set_alle) {
-	db_modify("update brugere set regnskabsaar = '$set_alle'", __FILE__ . " linje " . __LINE__);
-	include("../includes/connect.php");
-	db_modify("update online set regnskabsaar = '$set_alle' where db = '$db'", __FILE__ . " linje " . __LINE__);
-	include("../includes/online.php");
+	setAllUsersFiscalYear($set_alle);
+	include(__DIR__ . "/../includes/connect.php");
+	setAllSessionsFiscalYear($set_alle, $db);
+	include(__DIR__ . "/../includes/online.php");
 }
 if ($aktiver) {
 	include("../includes/connect.php");
