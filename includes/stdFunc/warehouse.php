@@ -1,5 +1,5 @@
 <?php
-//--- includes/stdFunc/warehouse.php ---ver 5.1.0 ----2026-11-04 ---
+//--- includes/stdFunc/warehouse.php ---ver 5.1.1 ----2026-11-13 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261021 CL/MJ SST-883 warehouseIsDefined() - is a warehouse number still one this account has? Order lines carry a warehouse from the moment they are written, so a document posted later can name one that has since been taken out of use.
@@ -7,6 +7,7 @@
 // 20261030 CL/MJ SST-883 Header marker set to the release this behaviour ships in (5.1.0).
 // 20261030 CL/MJ SST-883 An account without any warehouses keeps every warehouse number, so levering()'s default warehouse 1 is not moved to 0 (CodeRabbit).
 // 20261104 CL/MJ SST-883 A removed warehouse goes to the order's department warehouse, else the lowest defined one; 0 only without warehouses (Saul).
+// 20261113 CL/MJ SST-883 Header marker set to 5.1.1, the release master is on now.
 
 if (!function_exists('warehouseIsDefined')) {
 	/**
