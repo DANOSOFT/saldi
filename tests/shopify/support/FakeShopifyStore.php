@@ -16,8 +16,8 @@
 // WebhookReplayer. The Shopify behaviours encoded here are listed in FakeShopifyBehaviours, each
 // with its source; uses('<id>') marks where one applies. $fail injects a failure into the next
 // call of a root field: user_error, timeout_after_apply, http_500, http_401, throttled or refused,
-// once, or "<mode>x<n>" n times. tests/shopify/support/FAKE-STORE.md shows how a lane adds a root
-// field.
+// once, or "<mode>x<n>" n times, or one after the other as "<mode>,<mode>". tests/shopify/support/FAKE-STORE.md
+// shows how a lane adds a root field.
 //
 // History:
 // 20261102 CL/LH SD-766: created.
@@ -34,6 +34,7 @@
 // 20261106 CL/SZ SD-757 review: the stock bulk read can ask for committed too; holdForOrder().
 // 20261112 CL/SZ SD-822: stagedUploadsCreate, the upload seam, bulkOperationRunMutation of inventoryBulkToggleActivation (B39, B40).
 //                Test knobs refuseActivation(), failBulkAfter(), hideQuantity(), refuseQuantity() and limitBulkOnce().
+// 20261113 CL/SZ SD-822 Review: a failure can be a sequence of modes, one per call.
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -70,7 +71,7 @@ final class FakeShopifyStore
 	public int $epoch;
 	/** @var list<array{shop: string, operation: ?string, kind: string, roots: list<string>, variables: array, status: int}> */
 	public array $calls = [];
-	/** @var array<string, string> root field => user_error | timeout_after_apply | http_500 | http_401 | throttled | refused, once; "<mode>x<n>" n times */
+	/** @var array<string, string> root field => user_error | timeout_after_apply | http_500 | http_401 | throttled | refused, once; "<mode>x<n>" n times; "<mode>,<mode>" in turn */
 	public array $fail = [];
 	/** @var list<array{shop: string, topic: string, event_id: string, webhook_id: string, triggered_at: string, api_version: string, uri: string, body: string}> */
 	public array $outbox = [];
@@ -535,11 +536,16 @@ final class FakeShopifyStore
 				continue;
 			}
 			unset($this->fail[$root]);
+			// "<mode>,<mode>..." is a sequence: the first now, the rest on the next calls
+			[$fail, $rest] = array_pad(explode(',', $fail, 2), 2, null);
 			if (preg_match('/^(\w+?)x(\d+)$/', $fail, $times)) {
 				$fail = $times[1];
 				if ((int)$times[2] > 1) {
-					$this->fail[$root] = $fail . 'x' . ((int)$times[2] - 1);
+					$rest = $fail . 'x' . ((int)$times[2] - 1) . ($rest !== null ? ",$rest" : '');
 				}
+			}
+			if ($rest !== null) {
+				$this->fail[$root] = $rest;
 			}
 			if (!in_array($fail, ['user_error', 'timeout_after_apply', 'http_500', 'http_401', 'throttled', 'refused'], true)) {
 				throw new LogicException("FakeShopifyStore: unknown failure mode $fail");

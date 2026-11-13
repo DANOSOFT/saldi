@@ -8,6 +8,8 @@
 // 20261112 CL/SZ SD-822: created.
 // 20261112 CL/SZ SD-822 CodeRabbit: running out of time before the upload; singular counts in the report.
 // 20261113 CL/SZ SD-822 Review: running out of time before the start; an unanswered zero call goes again under its key.
+// 20261113 CL/SZ SD-822 Review: the unanswered zero call outlives a failed pass and a dead job, and holds the baseline back.
+//                Another batch's stored call goes first; a dry run leaves it alone.
 
 declare(strict_types=1);
 
@@ -167,6 +169,13 @@ final class StockActivateTest extends TestCase
     private function itemErrors(): array
     {
         return array_map(fn(array $r): string => "{$r['ref']}: {$r['message']}", $this->sql("SELECT ref, message FROM shopify_errors WHERE ref LIKE 'item:%' AND resolved_at IS NULL ORDER BY ref"));
+    }
+
+    /** The shop's unanswered zero call, [] when there is none. */
+    private function zeroSlot(): array
+    {
+        $row = $this->sql("SELECT var_value FROM settings WHERE var_grp = 'shopify_state' AND var_name = 'stock.activate_zero:hml'")[0] ?? null;
+        return $row === null ? [] : (json_decode($row['var_value'], true) ?: []);
     }
 
     private function levels(): array
@@ -363,14 +372,91 @@ final class StockActivateTest extends TestCase
 
         $this->assertSame('yield', $out['outcome']);
         $this->assertSame(0, $out['checkpoint']['zeroed'], 'an unanswered zero does not count as done');
-        $this->assertArrayHasKey('zero_key', $out['checkpoint']);
+        $stored = $this->zeroSlot();
+        $this->assertSame($first[0]['variables']['key'], $stored['key'] ?? null, 'the unanswered call is kept in the shop state');
         $run = $this->activate(false, $out['checkpoint']);
         $again = self::calls($run['calls'], 'stockSet');
         $this->assertCount(1, $again);
         $keys = array_unique(array_map(fn(array $c): string => $c['variables']['key'], array_merge($first, $again)));
-        $this->assertSame([$out['checkpoint']['zero_key']], array_values($keys), 'every attempt, in either pass, carries the one key');
+        $this->assertSame([$stored['key']], array_values($keys), 'every attempt, in either pass, carries the one key');
         $this->assertSame($first[0]['variables']['input'], $again[0]['variables']['input'], 'and the same input');
         $this->assertSame(['severity' => 'info', 'message' => 'Stocked 2 of 2 pairs at 1 item.'], $this->report());
+        $this->assertSame([], $this->zeroSlot(), 'answered, so it is cleared');
+    }
+
+    public function test_a_zero_call_that_times_out_and_then_fails_keeps_its_key_for_the_retry(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $this->shop([$a]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $a, 4]);
+
+        // the first attempt is applied without an answer, the client's retry gets a 401: the pass fails
+        $checkpoint = null;
+        $first = [];
+        $out = [];
+        for ($pass = 1; $pass <= 5; $pass++) {
+            $lost = $this->steps(['fail', 'inventorySetQuantities', 'timeout_after_apply,http_401'], ['activate', 'hml', $checkpoint]);
+            $out = $lost['results'][1];
+            $first = self::calls($lost['calls'], 'stockSet');
+            if ($first !== []) {
+                break;
+            }
+            $checkpoint = $out['checkpoint'];
+        }
+        $this->assertArrayHasKey('exception', $out, 'the pass fails: ' . json_encode($out));
+        $this->assertSame($first[0]['variables']['key'], $this->zeroSlot()['key'] ?? null, 'the call outlives the failed pass');
+
+        // the worker's retry goes on from the last stored checkpoint
+        $run = $this->activate(false, $checkpoint);
+        $again = self::calls($run['calls'], 'stockSet');
+        $this->assertSame([$first[0]['variables']['key']], array_values(array_unique(array_map(fn(array $c): string => $c['variables']['key'], array_merge($first, $again)))),
+            'the retry sends it under the same key');
+        $this->assertSame(['severity' => 'info', 'message' => 'Stocked 2 of 2 pairs at 1 item.'], $this->report());
+        $this->assertSame([], $this->zeroSlot());
+    }
+
+    public function test_an_unanswered_zero_call_of_another_batch_goes_first_under_its_key(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $b = $this->item('B', [1 => 2]);
+        $this->shop([$a, $b]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $b, 2]);
+
+        // the call for both items goes unanswered
+        $checkpoint = null;
+        $stored = [];
+        for ($pass = 1; $pass <= 5 && $stored === []; $pass++) {
+            $out = $this->steps(['fail', 'inventorySetQuantities', 'timeout_after_applyx9'], ['activate', 'hml', $checkpoint])['results'][1];
+            $this->assertArrayNotHasKey('exception', $out, json_encode($out));
+            $checkpoint = $out['checkpoint'];
+            $stored = $this->zeroSlot();
+        }
+        $this->assertCount(2, $stored['quantities']);
+
+        // a checkpoint whose batch differs (one line left out): the stored call still goes first, then its own batch
+        $checkpoint['skip'] = [0];
+        $run = $this->activate(false, $checkpoint);
+        $sets = self::calls($run['calls'], 'stockSet');
+        $this->assertCount(2, $sets);
+        $this->assertSame($stored['key'], $sets[0]['variables']['key']);
+        $this->assertSame($stored['quantities'], $sets[0]['variables']['input']['quantities']);
+        $this->assertNotSame($stored['key'], $sets[1]['variables']['key'], 'its own batch gets a new key');
+        $this->assertCount(1, $sets[1]['variables']['input']['quantities']);
+        $this->assertSame([], $this->zeroSlot());
+    }
+
+    public function test_a_dry_run_leaves_an_unanswered_zero_call_alone(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $this->shop([$a]);
+        $this->steps(['unstock', 'hml', $a, 2]);
+        $this->sql("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('stock.activate_zero:hml', 'shopify_state', $1, 'test')",
+            [json_encode(['key' => 'k-stored', 'quantities' => []])]);
+
+        $run = $this->activate(true);
+
+        $this->assertSame([], self::calls($run['calls'], 'stockSet'));
+        $this->assertSame('k-stored', $this->zeroSlot()['key']);
     }
 
     public function test_a_zero_call_that_never_gets_an_answer_fails_the_job_in_the_end(): void
@@ -397,6 +483,18 @@ final class StockActivateTest extends TestCase
         $this->assertCount(1, array_unique($keys), 'all under the one key');
         // the failed job keeps its file for its retries; this test ends it here
         array_map('unlink', glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_shopify_activate*') ?: []);
+
+        // the job is dead with the call unanswered: no baseline until the next activation sends it
+        $this->assertSame($keys[0], $this->zeroSlot()['key'] ?? null);
+        $baseline = $this->steps(['start_baseline', 'hml']);
+        $this->assertSame('ShopifyConfigError', $baseline['results'][0]['exception'] ?? null, 'no baseline while the call is unanswered');
+        $this->assertStringContainsString('zero call from stock.activate without an answer', $baseline['results'][0]['message']);
+        $run = $this->activate();
+        $sets = self::calls($run['calls'], 'stockSet');
+        $this->assertSame($keys[0], $sets[0]['variables']['key'] ?? null, 'the next activation sends it first, under its key');
+        $this->assertSame([], $this->zeroSlot());
+        $this->assertSame(['severity' => 'info', 'message' => 'Stocked 1 of 1 pair at 1 item.'], $this->report());
+        $this->assertSame('integer', gettype($this->steps(['start_baseline', 'hml'])['results'][0]), 'then the baseline can start');
     }
 
     public function test_a_failed_bulk_operation_is_reported_and_a_rerun_stocks_only_what_is_left(): void

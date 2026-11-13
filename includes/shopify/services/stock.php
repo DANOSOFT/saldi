@@ -69,6 +69,8 @@
 // 20261112 CL/SZ SD-822 CodeRabbit: activate yields when the pass runs out of time before the upload; singular counts.
 // 20261113 CL/SZ SD-822 Review: activate yields when time runs out at the start, and a zero call without an answer is resent under its key.
 //                After 5 unanswered passes the job fails, so the worker retries it and then raises its alarm.
+// 20261113 CL/SZ SD-822 Review: the unanswered zero call is kept in the shop's state, so a failed pass or a dead job keeps its key.
+//                It goes first again, and the baseline refuses while it is there.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -265,6 +267,8 @@ const SHOPIFY_STOCK_RECONCILE_NAMED = 20;
 const SHOPIFY_STOCK_ACTIVATE_ZERO = 250;
 /** Passes a zero call may go unanswered, resent under its key, before the job fails and raises its alarm. */
 const SHOPIFY_STOCK_ACTIVATE_ZERO_TRIES = 5;
+/** The shop's state that holds stock.activate's zero call while it has no answer: its key and quantities. */
+const SHOPIFY_STOCK_ACTIVATE_ZERO_SLOT = 'stock.activate_zero:';
 /** stock.activate's bulk mutation, one line per item: the locations it isn't stocked at yet. */
 const SHOPIFY_STOCK_BULK_ACTIVATE = 'mutation stockActivateAll($inventoryItemId: ID!, $inventoryItemUpdates: [InventoryBulkToggleActivationInput!]!) {
 	inventoryBulkToggleActivation(inventoryItemId: $inventoryItemId, inventoryItemUpdates: $inventoryItemUpdates) {
@@ -1246,6 +1250,10 @@ function shopify_stock_baseline_problem(array $shop): ?string {
 	if ($shop['stock_publish_enabled'] === 't') {
 		return "shop {$shop['shop_key']} already publishes stock; it starts after the baseline";
 	}
+	if (shopify_queue_state_get(SHOPIFY_STOCK_ACTIVATE_ZERO_SLOT . $shop['shop_key']) !== array()) {
+		// a late copy of it would set pairs the baseline acknowledges back to 0
+		return "shop {$shop['shop_key']} has a zero call from stock.activate without an answer; run activate again, it sends that call first";
+	}
 	return null;
 }
 
@@ -1560,6 +1568,13 @@ function shopify_stock_activate_all(array $rt, array $job, float $deadline): arr
 	}
 	$graphql = ($rt['graphql'] ?? array()) + array('deadline' => $deadline);
 	if (!isset($cp['read'])) {
+		$stored = shopify_queue_state_get(SHOPIFY_STOCK_ACTIVATE_ZERO_SLOT . $shop['shop_key']);
+		if ($stored !== array() && empty($job['payload']['dry_run'])) {
+			// an earlier run's zero call is still unanswered: it goes first, under its key
+			if ($deadline - microtime(true) < SHOPIFY_STOCK_MIN_SECONDS || shopify_stock_activate_zero_send($rt, $shop, $stored, $cp, $deadline) === null) {
+				return array('outcome' => 'yield', 'checkpoint' => $cp);
+			}
+		}
 		$startedAt = shopify_db_rows('SELECT now()::timestamp AS at')[0]['at'];
 		$res = shopify_bulk_start($shop, SHOPIFY_STOCK_BULK_LEVELS, $graphql);
 		if (!$res['ok'] || ($res['bulk']['id'] ?? null) === null) {
@@ -1735,10 +1750,10 @@ function shopify_stock_activate_plan(array $rt, array $shop, string $file, strin
  * Sets every pair of the variables file to 0 from the checkpoint's line on, whole items per call, so
  * stocking a pair can't show a quantity set while it wasn't stocked. A refused call sets nothing, so
  * the item Shopify refuses is left out of the activation with a warning and the rest of its call is
- * sent again. A call without an answer keeps its key in the checkpoint and goes again, byte-identical,
- * next pass, so a late copy of it can't land after the baseline.
+ * sent again. A call without an answer stays in the shop's state (shopify_stock_activate_zero_send()) and
+ * goes first, byte-identical under its key, until Shopify answers it, so a late copy of it can't land after the baseline.
  *
- * @param array<string, mixed> $cp zeroed (the next line), skip (lines left out) and zero_key (the unanswered call's key) are updated in place
+ * @param array<string, mixed> $cp zeroed (the next line), skip (lines left out) and zero_tries are updated in place
  * @return bool true when every line is done, false when the time ran out or the call is still unanswered
  */
 function shopify_stock_activate_zero(array $rt, array $shop, string $vars, array &$cp, float $deadline): bool {
@@ -1769,25 +1784,22 @@ function shopify_stock_activate_zero(array $rt, array $shop, string $vars, array
 		}
 		if ($quantities === array()) {
 			$cp['zeroed'] = $next;
-			unset($cp['zero_key'], $cp['zero_tries']);
 			continue;
 		}
-		// the batch follows from zeroed and skip, so the same key always goes with the same input
-		$cp['zero_key'] ??= shopify_stock_key();
-		$res = shopify_graphql($shop, 'stockSet', SHOPIFY_STOCK_SET,
-			array('key' => $cp['zero_key'], 'input' => array('name' => 'available', 'reason' => 'correction', 'quantities' => $quantities)),
-			($rt['graphql'] ?? array()) + array('deadline' => $deadline, 'retry_mode' => 'idempotent'));
-		if ($res['user_errors'] === array() && !$res['ok']) {
-			$cp['zero_tries'] = ($cp['zero_tries'] ?? 0) + 1;
-			if (!empty($res['retryable']) && $cp['zero_tries'] < SHOPIFY_STOCK_ACTIVATE_ZERO_TRIES) {
-				// no answer: the next pass sends the same call under the same key
+		$stored = shopify_queue_state_get(SHOPIFY_STOCK_ACTIVATE_ZERO_SLOT . $shop['shop_key']);
+		if ($stored !== array() && $stored['quantities'] !== $quantities) {
+			// an earlier batch is still unanswered (a retry from an older checkpoint): it goes first, under its key;
+			// its refusals don't matter, a refused call set nothing and this batch is sent after it
+			if (shopify_stock_activate_zero_send($rt, $shop, $stored, $cp, $deadline) === null) {
 				return false;
 			}
-			// the job's retries go on from the last stored checkpoint, so they still send this key
-			throw new RuntimeException("zeroing the pairs to stock failed: {$res['error']}");
+			continue;
 		}
-		// answered: the key is spent, a refused call set nothing and the next batch differs
-		unset($cp['zero_key'], $cp['zero_tries']);
+		// the batch follows from zeroed and skip, so the stored key always goes with the same input
+		$res = shopify_stock_activate_zero_send($rt, $shop, $stored ?: array('key' => shopify_stock_key(), 'quantities' => $quantities), $cp, $deadline);
+		if ($res === null) {
+			return false;
+		}
 		foreach ($res['user_errors'] as $error) {
 			$index = isset($error['field'][2]) && $error['field'][1] === 'quantities' ? (int)$error['field'][2] : null;
 			if ($index === null || !isset($owner[$index])) {
@@ -1808,6 +1820,37 @@ function shopify_stock_activate_zero(array $rt, array $shop, string $vars, array
 		// else the call set nothing: the same lines go again without the refused items
 	}
 	return true;
+}
+
+/**
+ * Sends one zero call, stored in the shop's state before it goes and cleared once Shopify answers it. A
+ * failed pass or a dead job leaves it there, so the next attempt or the next stock.activate sends it again
+ * under the same key, and the baseline refuses until then.
+ *
+ * @param array{key: string, quantities: list<array<string, mixed>>} $call
+ * @param array<string, mixed> $cp zero_tries counts the passes it went unanswered
+ * @return array<string, mixed>|null Shopify's answer, null when it is unanswered and goes again next pass
+ * @throws RuntimeException when it is still unanswered after SHOPIFY_STOCK_ACTIVATE_ZERO_TRIES passes, or the call fails for good
+ */
+function shopify_stock_activate_zero_send(array $rt, array $shop, array $call, array &$cp, float $deadline): ?array {
+	$slot = SHOPIFY_STOCK_ACTIVATE_ZERO_SLOT . $shop['shop_key'];
+	if (shopify_queue_state_get($slot) !== $call) {
+		shopify_queue_state_set($slot, $call);
+	}
+	$res = shopify_graphql($shop, 'stockSet', SHOPIFY_STOCK_SET,
+		array('key' => $call['key'], 'input' => array('name' => 'available', 'reason' => 'correction', 'quantities' => $call['quantities'])),
+		($rt['graphql'] ?? array()) + array('deadline' => $deadline, 'retry_mode' => 'idempotent'));
+	if ($res['user_errors'] === array() && !$res['ok']) {
+		$cp['zero_tries'] = ($cp['zero_tries'] ?? 0) + 1;
+		if (!empty($res['retryable']) && $cp['zero_tries'] < SHOPIFY_STOCK_ACTIVATE_ZERO_TRIES) {
+			return null;
+		}
+		throw new RuntimeException("zeroing the pairs to stock failed: {$res['error']}");
+	}
+	// answered: the key is spent, a refused call set nothing
+	shopify_queue_state_set($slot, array());
+	unset($cp['zero_tries']);
+	return $res;
 }
 
 /**
