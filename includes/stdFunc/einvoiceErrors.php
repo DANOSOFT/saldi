@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/einvoiceErrors.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- includes/stdFunc/einvoiceErrors.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261030 CL/MJ SST-882 Created from Morten Ramsing's draft: recognises the rejection texts EasyUBL and Semantic return for e-invoices.
 //                Pure functions, no database and no network, so the patterns can be tested with the texts customers received.
+// 20261113 CL/MJ SST-882 The E-APS codes match as whole codes, so a longer code such as E-APS240030 is not read as E-APS24003.
 
 if (!function_exists('einvoice_unescape_message')) {
 	/**
@@ -62,8 +63,8 @@ if (!function_exists('einvoice_error_patterns')) {
 			array('class' => 'no_postbox', 'pattern' => '/is not a KMD customer|has no postbox purchase/i', 'fixable' => false, 'retry' => false),
 			array('class' => 'cvr_missing', 'pattern' => '/\[DK-R-017\]|mandatory to specify schemeID as "0184"/i', 'fixable' => true, 'retry' => false),
 			array('class' => 'negative_price_line', 'pattern' => '/UNCL 5189|Coded allowance reasons MUST belong/i', 'fixable' => false, 'retry' => false),
-			array('class' => 'sender_registration', 'pattern' => '/E-APS24007/i', 'fixable' => false, 'retry' => false),
-			array('class' => 'receiver_rejected', 'pattern' => '/E-APS24003|Error while transmitting request/i', 'fixable' => true, 'retry' => false),
+			array('class' => 'sender_registration', 'pattern' => '/\bE-APS24007\b/i', 'fixable' => false, 'retry' => false),
+			array('class' => 'receiver_rejected', 'pattern' => '/\bE-APS24003\b|Error while transmitting request/i', 'fixable' => true, 'retry' => false),
 		);
 	}
 }

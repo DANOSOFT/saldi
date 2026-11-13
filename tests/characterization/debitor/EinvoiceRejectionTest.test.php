@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 //                The database part runs in child processes with stub db functions (support/einvoice_events_*.php), so no database is needed.
 // 20261104 CL/MJ SST-882 On an ISO-8859-1 page the message keeps characters outside Latin-1, such as €, as entities.
 // 20261106 CL/MJ SST-882 The production files are loaded with require_once instead of cut out by marker (CodeRabbit on PR #985).
+// 20261113 CL/MJ SST-882 A longer E-APS code is not read as E-APS24003 or E-APS24007 (CodeRabbit on PR #985).
 final class EinvoiceRejectionTest extends TestCase
 {
     public static function setUpBeforeClass(): void
@@ -55,6 +56,15 @@ final class EinvoiceRejectionTest extends TestCase
         $r = einvoice_classify_message('[DK-R-017] ... GLN:5798009280145 is not a KMD customer. It has no postbox purchase.');
         self::assertSame('no_postbox', $r['class']);
         self::assertFalse($r['fixable']);
+    }
+
+    public function testALongerEApsCodeIsNotAKnownOne(): void
+    {
+        foreach (['E-APS240030', 'E-APS240070'] as $code) {
+            $r = einvoice_classify_message("<errorCode>$code</errorCode>");
+            self::assertSame('unknown', $r['class'], $code);
+            self::assertSame([$code], $r['codes']);
+        }
     }
 
     public function testExtractsCodesFromEscapedOxalisXml(): void
