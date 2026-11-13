@@ -98,7 +98,6 @@
 // 20261109 CL/SZ SST-926 formularprint() counts the mails send_mails() actually sent in $mailSentCount.
 // 20261112 CL/MMR SST-1015 Removed the PBS debug logging that wrote the order's e-mail to temp/<db>/pbs_email_debug.log.
 //
-
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
