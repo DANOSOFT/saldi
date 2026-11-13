@@ -69,14 +69,36 @@ $deleteYear = (int)filter_input(INPUT_GET, 'deleteYear', FILTER_VALIDATE_INT);
 $deleteEmptyYear = (int)filter_input(INPUT_GET, 'deleteEmptyYear', FILTER_VALIDATE_INT);
 $set_alle = (int)filter_input(INPUT_GET, 'set_alle', FILTER_VALIDATE_INT);
 
-if ($set_alle) {
-	db_modify("update brugere set regnskabsaar = '$set_alle'", __FILE__ . " linje " . __LINE__);
-	include("../includes/connect.php");
-	# Not the customer sessions from Mit salg, Mine labels, labelprint and booking (rettigheder '0', regnskabsaar 0):
-	# regnskabsaar 0 is what tells them apart from users (index/login.php max users count, mysale cleanup).
-	$qtxt = "update online set regnskabsaar = '$set_alle' where db = '$db' and not (COALESCE(rettigheder, '') = '0' and COALESCE(regnskabsaar, -1) = 0)";
+/**
+ * «Sæt alle», tenant part: every user of the regnskab gets $year as fiscal year.
+ *
+ * @param int $year fiscal year (regnskabsaar kodenr), already int-cast
+ */
+function setAllUsersFiscalYear($year) {
+	$year = (int)$year;
+	db_modify("update brugere set regnskabsaar = '$year'", __FILE__ . " linje " . __LINE__);
+}
+
+/**
+ * «Sæt alle», master part: every online session of the regnskab gets $year, except the customer sessions from
+ * Mit salg, Mine labels, labelprint and booking (rettigheder '0', regnskabsaar 0). Year 0 is what tells them apart
+ * from users in the max users count in index/login.php and in the mysale cleanup. Needs the master connection.
+ *
+ * @param int    $year fiscal year, already int-cast
+ * @param string $db   the regnskab's database name (online.db)
+ */
+function setAllSessionsFiscalYear($year, $db) {
+	$year = (int)$year;
+	$qtxt = "update online set regnskabsaar = '$year' where db = '" . db_escape_string($db) . "'";
+	$qtxt .= " and not (COALESCE(rettigheder, '') = '0' and COALESCE(regnskabsaar, -1) = 0)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	include("../includes/online.php");
+}
+
+if ($set_alle) {
+	setAllUsersFiscalYear($set_alle);
+	include(__DIR__ . "/../includes/connect.php");
+	setAllSessionsFiscalYear($set_alle, $db);
+	include(__DIR__ . "/../includes/online.php");
 }
 if ($aktiver) {
 	include("../includes/connect.php");
