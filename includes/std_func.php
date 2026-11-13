@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -118,6 +118,8 @@
 // 20261104 LOE SST-940 Include datotidTilTekst() for the datotid columns the Dagbog and the check sheets format.
 // 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
 //                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
+// 20261109 CL/SZ SST-966 Added boks_charset() for tekstboks(), bokshjoerne() and infoboks().
+//                If $charset is not set it follows $db_encode, so a text with æøå on a LATIN9 install no longer comes back empty from htmlspecialchars().
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -1143,6 +1145,28 @@ if (!function_exists('str2up')) {
 	}
 }
 
+if (!function_exists('boks_charset')) {
+	/**
+	 * Returns the charset tekstboks(), bokshjoerne() and infoboks() escape their texts in.
+	 *
+	 * Without a charset htmlspecialchars() assumes UTF-8 and returns an empty string for an
+	 * ISO-8859-1 text with æøå. includes/settings.php normally sets $charset; when it has not run,
+	 * the same choice is made from $db_encode, which is also how findtekst() picks its encoding.
+	 *
+	 * @return string The value of $charset, or else 'UTF-8' or 'ISO-8859-1' from $db_encode.
+	 */
+	function boks_charset()
+	{
+		global $charset;
+		global $db_encode;
+
+		if ($charset) {
+			return $charset;
+		}
+		return ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1';
+	}
+}
+
 # Tekstvinduer i CSS i stedet for JavaScript Alert - 20141031 - 20141121 - 20141212
 # boksflytbar=span giver kun div, boksflytbar=td giver en tabel i en div boksflybar=0 giver ingen mulighed for at flytte. 
 if (!function_exists('tekstboks')) {
@@ -1162,7 +1186,6 @@ if (!function_exists('tekstboks')) {
 	function tekstboks($bokstekst, $bokstype = 'advarsel', $boksid = 'boks1', $boksflytbar = 'span', $boksplacering = 'mm')
 	{
 		global $sprog_id;
-		global $charset;
 
 		$boksindhold = "\n<!-- Tekstboks " . $boksid . " - start -->\n";
 
@@ -1232,7 +1255,7 @@ if (!function_exists('tekstboks')) {
 		$boksindhold .= "<p style='font-size: 12pt; text-align:center'>\n";
 		$boksindhold .= "<button type='button' style='width:100px; height:30px'";
 		$boksindhold .= " onClick=\"document.getElementById('" . $boksid . "').style.display = 'none';\">";
-		$boksindhold .= htmlspecialchars(findtekst('2172|Luk', $sprog_id), ENT_QUOTES, $charset) . "</button>\n";
+		$boksindhold .= htmlspecialchars(findtekst('2172|Luk', $sprog_id), ENT_QUOTES, boks_charset()) . "</button>\n";
 		if ($boksflytbar === 'span') {
 			$boksindhold .= "<br />";
 			$boksindhold .= bokshjoerne($boksid, 'tv', 'span');
@@ -1290,7 +1313,6 @@ if (!function_exists('bokshjoerne')) {
 		 * @note The `onClick` event changes the position of the box with the specified ID to the selected corner when clicked.
 		 */
 		global $sprog_id;
-		global $charset;
 
 		if (!$visning) {
 			return "";
@@ -1318,7 +1340,7 @@ if (!function_exists('bokshjoerne')) {
 			$popopbesked = findtekst('8444|Ned til højre', $sprog_id);
 		}
 
-		$bokshjoerne = "<" . $visning . " title='" . htmlspecialchars($popopbesked, ENT_QUOTES, $charset) . "'";
+		$bokshjoerne = "<" . $visning . " title='" . htmlspecialchars($popopbesked, ENT_QUOTES, boks_charset()) . "'";
 		$bokshjoerne .= " onClick=\"document.getElementById('" . $boksid . "').style.top = '" . $vertikal_kant . "';";
 		$bokshjoerne .= " document.getElementById('" . $boksid . "').style.left = '" . $horisontal_kant . "'; \">";
 		$bokshjoerne .= $tv_tegn . "</" . $visning . ">\n";
@@ -1417,7 +1439,6 @@ if (!function_exists('infoboks')) {
 		 *                  The symbol's tooltip is in the user's language ($sprog_id, set by includes/online.php).
 		 */
 		global $sprog_id;
-		global $charset;
 
 		$infoboks = "";
 		$infoboks .= tekstboks($infotekst, $infotype, $boksid);
@@ -1426,7 +1447,7 @@ if (!function_exists('infoboks')) {
 		}
 
 		$hjaelpTitel = findtekst('8445|Hjælpetekst til siden', $sprog_id);
-		$infoboks .= "<" . $visning . " title='" . htmlspecialchars($hjaelpTitel, ENT_QUOTES, $charset) . "'";
+		$infoboks .= "<" . $visning . " title='" . htmlspecialchars($hjaelpTitel, ENT_QUOTES, boks_charset()) . "'";
 		$infoboks .= " onClick=\"document.getElementById('" . $boksid . "').style.display = 'block'; \">";
 		$infoboks .= $infosymbol . "</" . $visning . ">\n";
 		return $infoboks;
