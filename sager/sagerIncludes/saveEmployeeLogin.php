@@ -1,5 +1,6 @@
 <?php
 // 20261110 CDX/NTR Keep existing employee passwords on blank saves and validate new logins before writing.
+// 20261113 CDX/NTR Preserve the roles permission check when changing or linking an employee login.
 
 /**
  * Save an employee's login, leaving its stored password alone when both password fields are blank.
@@ -20,14 +21,14 @@ function saveEmployeeLogin(int $employeeId, int $fiscalYear, array $input, int $
     }
 
     // Read the saved employee's login rather than trusting the hidden user ID in the form.
-    $login = db_fetch_array(db_select("select id, brugernavn, kode from brugere where ansat_id='$employeeId'", __FILE__ . ' linje ' . __LINE__));
+    $login = db_fetch_array(db_select("select * from brugere where ansat_id='$employeeId'", __FILE__ . ' linje ' . __LINE__));
     $userId = (int) ($login['id'] ?? 0);
     if ($username === '' && !$userId) {
         return null;
     }
     if ($username !== '') {
         $nameSql = db_escape_string(strtolower($username));
-        $namedLogin = db_fetch_array(db_select("select id, brugernavn, ansat_id, kode from brugere where lower(brugernavn)='$nameSql'", __FILE__ . ' linje ' . __LINE__));
+        $namedLogin = db_fetch_array(db_select("select * from brugere where lower(brugernavn)='$nameSql'", __FILE__ . ' linje ' . __LINE__));
         if ($namedLogin && (int) $namedLogin['id'] !== $userId) {
             if ($userId || !empty($namedLogin['ansat_id'])) {
                 return findtekst('1928|Der findes allerede en bruger med dette brugernavn', $languageId) . ': ' . $username;
@@ -46,6 +47,15 @@ function saveEmployeeLogin(int $employeeId, int $fiscalYear, array $input, int $
     }
 
     if ($userId) {
+        $changesLogin = $changePassword || (int) $login['ansat_id'] !== $employeeId
+            || ($username !== '' && $username !== $login['brugernavn']);
+        if (!$changesLogin) {
+            return null;
+        }
+        // The employee page loads userFunctions.php before calling this helper.
+        if (function_exists('user_may_manage') && !user_may_manage($login)) {
+            return findtekst('5548|Du har ikke adgang til denne funktion. Kontakt din administrator.', $languageId);
+        }
         $updates = ["ansat_id='$employeeId'"];
         if ($username !== '') {
             $updates[] = "brugernavn='" . db_escape_string($username) . "'";

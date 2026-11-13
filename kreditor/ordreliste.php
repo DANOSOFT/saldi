@@ -1,5 +1,5 @@
 <?php
-// --- kreditor/ordreliste.php -----patch 5.0.0 ----2026-09-24---------
+// --- kreditor/ordreliste.php -----ver 5.1.1 ----2026-11-13---------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,14 +38,15 @@
 //                  isn't scoped to the current user (see comment at its call site).
 // 20260917 CL/LH Remember the last used tab per user and reopen it on menu entry (Havemoebelland).
 // 20260924 CL/LH MB-60: Only store the last used tab for a real user id (review, PR #638).
-
+// 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 ob_start();
 @session_start();
 $s_id = session_id();
 
 $css = "../css/std.css";
-$modulnr = 5;
+$modulnr = 7;
 $title = "Leverandører • Ordreliste";
 
 include("../includes/connect.php");
@@ -76,6 +77,7 @@ if ($konto_id) {
         $qtxt = "UPDATE settings SET var_value = '$konto_id' WHERE var_name = 'kreditorId' AND var_grp = 'kreditor' AND user_id = '$bruger_id'";
     } else {
         $qtxt = "INSERT INTO settings (var_name, var_value, var_grp, user_id) VALUES ('kreditorId', '$konto_id', 'kreditor', '$bruger_id')";
+        $qtxt .= (in_array($GLOBALS['db_type'], array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING');
     }
     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } else {
@@ -189,6 +191,7 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 // matches against NULL-or-empty at the point of the actual UPDATE, so a concurrently-stamped
 // real token still blocks the release.
 // 20260924 SZ SST-755 (CodeRabbit): guard against a tenant that hasn't run the lock_token
+// 20261031 CL/ASR $modulnr 7 (Kreditorordre) instead of 5: the supplier order list follows the creditor right (users & roles).
 // migration yet (betweenUpdates.php adds the column at login/account-open, not on every
 // request) - selecting it unconditionally would fail this whole query with a SQL error on
 // an unmigrated tenant, since unlock_record()'s own missing-column degrade can't help a

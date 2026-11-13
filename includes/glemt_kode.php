@@ -1,5 +1,5 @@
 <?php
-// -----------index/glemt_kode.php-----------lap 3.5.0------2015-01-27---
+// -----------index/glemt_kode.php-----------ver 5.1.1------2026-11-13---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,12 +18,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2015.01.27 tilføjet $bruger_id da man eller får en tom mail hvis brugernavnet ikke er en 
 //		mailadresse og der ikke er tilknyttet en mailadresse 20150137 
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-
+// 20261103 CL/ASR The password-reset token in brugere.tmp_kode starts with 'reset|', the shared format the user system reads (invitations use 'invite|').
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $css="../css/standard.css";
 
 include("../includes/connect.php");
@@ -138,7 +139,7 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 			$tp=date("H:i",$tidspunkt);
 			$mailtext.="Indtil den $dd kl. $tp kan anvendes adgangskoden: $tmp_kode<br><br>";
 			$mailtext.="Efter login kan adgangskoden ændres under \"Indstillinger -> Brugere\"<br><br>";
-			$tmp_kode=$tidspunkt."|".$tmp_kode;
+			$tmp_kode="reset|".$tidspunkt."|".$tmp_kode; # 20260929 Sawaneh common tmp_kode format
 			$i = 0;
 			$feltnavne=array();
 			$q = db_select("select * from brugere",__FILE__ . " linje " . __LINE__);

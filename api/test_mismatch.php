@@ -1,8 +1,12 @@
 <?php
 @session_start();
 $s_id=session_id();
-include "../includes/connect.php";
-include "../includes/online.php";
+// 20261018 Sawaneh Review 2 (PR #803): an operator's data-correction script - administrators only.
+$permission_key = 'system.indstillinger';
+$permission_level = 'write';
+
+include __DIR__ . "/../includes/connect.php";
+include __DIR__ . "/../includes/online.php";
 
 $dry_run = true; // Set to false to actually modify the database
 

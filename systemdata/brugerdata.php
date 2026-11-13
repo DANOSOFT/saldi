@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// -----------------systemdata/brugerdata.php ------ver 3.6.6-----2016.11.04----------
+// -----------------systemdata/brugerdata.php ------ver 5.1.1-----2026.11.13----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,8 +23,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2016 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20260916 SS Superseded by systemdata/personalSettings.php (personal settings + fiscal-year switch in the topbar).
+//             Old links land there; the legacy page below is unreachable.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+header('Location: personalSettings.php');
+exit;
 
 @session_start();
 $s_id=session_id();
@@ -34,6 +40,7 @@ $title="Brugerdate";
 
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");

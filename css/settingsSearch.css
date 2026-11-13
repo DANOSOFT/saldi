@@ -1,6 +1,11 @@
 /* css/settingsSearch.css
    20260709 SZ Created: styling for Settings search box and result dropdown
    20260710 SZ Added .settings-search-hint style for "Found via" match hint
+   20261101 CL/ASR The look of the new design (the kit's .sk-search and .sk-pop in css/saldi-kit.css, prototype D): a 28 px field
+                   with the field border, 4 px corners and the blue focus ring; a flat dropdown with a hairline, 4 px corners
+                   and the kit's rows (grey hover, blue selected row, no rules between rows). Plain light values on purpose:
+                   the pages that use it (systemdata/top.php, formularkort.php) load neither the kit nor the theme.
+                   Same classes, sizes of the wrappers and behaviour (javascript/settingsSearch.js).
 */
 
 .settings-search-wrapper {
@@ -20,17 +25,32 @@
 
 .settings-search-input {
     width: 100%;
-    padding: 5px 8px;
-    border: 1px solid #ccc;
+    height: 1.75rem;
+    margin: 0;
+    padding: 0 8px;
+    border: 1px solid #c6d2e4;
     border-radius: 4px;
-    font-size: 12px;
+    background-color: #ffffff;
+    color: #0b1a3a;
+    font: 400 .8125rem/1.2 Inter, system-ui, sans-serif;
+    box-shadow: none;
     box-sizing: border-box;
+    transition: border-color 140ms, box-shadow 140ms;
+}
+
+.settings-search-input::placeholder {
+    color: #8a97ad;
+    opacity: 1;
+}
+
+.settings-search-input:hover {
+    border-color: #a9b8cf;
 }
 
 .settings-search-input:focus {
     outline: none;
-    border-color: #114691;
-    box-shadow: 0 0 0 2px rgba(17, 70, 145, 0.2);
+    border-color: #4fa0ee;
+    box-shadow: 0 0 0 2px rgba(79, 160, 238, 0.45);
 }
 
 #settings-search-container {
@@ -51,11 +71,13 @@
     max-width: 420px;
     max-height: 380px;
     overflow-y: auto;
+    padding: 4px 0;
     background-color: #ffffff;
-    border: 2px solid #114691;
-    border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-    font-size: 12px;
+    border: 1px solid #e4e8ef;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(11, 26, 58, 0.06), 0 12px 28px rgba(11, 26, 58, 0.11);
+    color: #0b1a3a;
+    font: 400 .8125rem/1.4 Inter, system-ui, sans-serif;
 }
 
 .settings-search-list {
@@ -69,18 +91,17 @@
     justify-content: space-between;
     align-items: center;
     gap: 8px;
-    padding: 7px 12px;
+    min-height: 1.75rem;
+    padding: 4px 12px;
     cursor: pointer;
-    border-bottom: 1px solid #eee;
 }
 
-.settings-search-item:last-child {
-    border-bottom: none;
+.settings-search-item:hover {
+    background-color: #f7f9fc;
 }
 
-.settings-search-item:hover,
 .settings-search-item.selected {
-    background-color: #cce0f5;
+    background-color: #eaf3fd;
 }
 
 .settings-search-main {
@@ -92,16 +113,15 @@
 
 .settings-search-label {
     font-weight: 500;
-    color: #114691;
+    color: #0b1a3a;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .settings-search-hint {
-    font-size: 11px;
-    color: #888;
-    font-style: italic;
+    font-size: .6875rem;
+    color: #8a97ad;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -109,14 +129,13 @@
 
 .settings-search-category {
     flex-shrink: 0;
-    font-size: 11px;
-    color: #666;
+    font-size: .75rem;
+    color: #5b6b85;
     text-transform: capitalize;
 }
 
 .settings-search-no-results {
-    padding: 16px;
-    text-align: center;
-    color: #666;
-    font-style: italic;
+    padding: 12px;
+    color: #5b6b85;
+    font-size: .75rem;
 }
