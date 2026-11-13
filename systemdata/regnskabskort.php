@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-12 --
+// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20261112 CL/MMR SST-1005 Gem/opdatér also updates the opening balances of the later years, and says so when a balance cannot be transferred.
 //                 The year before is carried forward again, so a fixed «Overfør til» clears the message; a blocked transfer leaves the later years alone.
 //                 A blocked transfer into the saved year keeps that year's opening balances as they were; the alert text is JSON-encoded.
+// 20261113 CL/MMR SST-1005 The «Overfør til» choices that change on the year before are written before this year is locked, and unchanged ones are not written there at all (Codex round 9).
 
 @session_start();
 $s_id=session_id();
@@ -161,8 +162,11 @@ if ($_POST) {
 	if ((($id!=0)||(!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))) &&
 	(($startmd)&&($slutmd)&&($startdato)&&($slutdato)&&($startaar)&&($slutaar)&&($beskrivelse))) {
 		transaktion ("begin");
-		// SST-1005: this year's opening balances before the save, kept if the transfer into the year cannot be made.
+		// SST-1005: the «Overfør til» choices that change on the year before are written first, so this card never
+		// holds its own year while it waits for a journal posting in the year before. Then this year's opening
+		// balances before the save, kept if the transfer into the year cannot be made.
 		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+		followingOpeningBalanceSaveLastYearChoices($kodenr, $kontonr, $overfor_til, $kontoantal);
 		$primoBeforeSave = followingOpeningBalancePrimo($kodenr, true);
 		($id == 0)?$nn=2:$nn=1;
 		for($n=0;$n<$nn;$n++) { // 1. time it must be rerun to catch and update last year's result.
@@ -252,8 +256,9 @@ if ($_POST) {
 						$kontonr[$x]=$kontonr[$x]*1;
 						if ($overfor_til[$x]) {
 							$saldo[$x]=(float)$saldo[$x]; #phr 20110605
-							$qtxt = "update kontoplan set overfor_til='$overfor_til[$x]' ";
-							$qtxt.= "where kontonr='$kontonr[$x]' and (regnskabsaar=$kodenr-1 or regnskabsaar='$kodenr')";
+							// SST-1005: on the year before only when it changes; an existing year already did that above.
+							$qtxt = "update kontoplan set overfor_til='$overfor_til[$x]' where kontonr='$kontonr[$x]' and ";
+							$qtxt.= "(regnskabsaar='$kodenr' or (regnskabsaar=$kodenr-1 and coalesce(overfor_til,0)<>'$overfor_til[$x]'))";
 							db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
 							$qtxt = "update kontoplan set primo=primo+'$saldo[$x]' where kontonr='$overfor_til[$x]' and regnskabsaar=$kodenr";
 							db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
