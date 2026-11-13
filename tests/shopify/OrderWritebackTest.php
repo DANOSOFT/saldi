@@ -10,12 +10,13 @@
 // 20261109 CL/MJ SD-759: the stages run against FakeShopifyStore; order.move counts only once it is recorded.
 // 20261112 CL/MJ SD-759 (review): a recorded note op is not appended again; two split sets of one bundle keep apart.
 // 20261112 CL/MJ SD-759 (CodeRabbit): the invoice link's token stays out of the logged request.
+// 20261113 CL/MJ SD-759 (review): the token test loads logging.php in its own process, so the rest of the run keeps a client without a redactor.
 
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/FakeShopifyStore.php';
 require_once dirname(__DIR__, 2) . '/includes/shopify/services/orderWriteback.php';
-require_once dirname(__DIR__, 2) . '/includes/shopify/logging.php';
 
 final class OrderWritebackTest extends TestCase
 {
@@ -160,8 +161,11 @@ final class OrderWritebackTest extends TestCase
     }
 
     /** The token opens the invoice; the call log keeps request bodies for 90 days. */
+    /** logging.php defines shopify_redact(), which the client then uses for every call; in a process of its own it reaches no other test. */
+    #[RunInSeparateProcess]
     public function testTheInvoiceLinksTokenIsSentButNotLogged(): void
     {
+        require_once dirname(__DIR__, 2) . '/includes/shopify/logging.php';
         $token = str_repeat('Ab3_-', 8) . 'xyz';
         $url = 'https://saldi.example/api/dokument.php?t=' . $token;
         $logged = [];
