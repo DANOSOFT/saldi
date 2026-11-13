@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/logon.php -----ver 3.2.3---- 2011.10.11 ----------
+// #----------------- soapserver/logon.php -----ver 5.1.1---- 2026.11.13 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ini_set("soap.wsdl_cache_enabled", "1");
 
 function logon($string) {
@@ -36,6 +37,7 @@ function logon($string) {
 			$connection = db_connect ($sqhost,$squser,$sqpass,$sqdb);
 			if ($connection) {
 				db_modify("insert into online (session_id, brugernavn, db, dbuser) values ('$s_id', '$brugernavn', '$db', '$squser')",__FILE__ . " linje " . __LINE__);
+				$permission_key = 'any';
 				include ("../includes/online.php");
 				if ($r = db_fetch_array(db_select("select * from brugere where brugernavn = '$brugernavn' and kode='$password'",__FILE__ . " linje " . __LINE__))) {
 					$rettigheder=trim($r['rettigheder']);

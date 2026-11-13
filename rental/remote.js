@@ -1,4 +1,5 @@
 // 20261006 CL/LH SST-850: Settings password is checked server-side; the password is no longer compared or logged in the browser.
+// 20261103 CL/ASR QA round 2: the stored SMTP password and Vibrant API key are no longer filled into the form; an empty field keeps them.
 // Make sure you're in an async context
 (async () => {
     const url = new URL(window.location.href)
@@ -61,7 +62,7 @@ const init = async () => {
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">password</label>
-                <input type="password" class="form-control" id="password" value="${(mailInfo.password != null) ? mailInfo.password : ""}">
+                <input type="password" class="form-control" id="password" value="" autocomplete="new-password" placeholder="${(mailInfo && mailInfo.has_password) ? "Gemt - lad feltet stå tomt for at beholde den" : ""}">
             </div>
             <button type="submit" class="btn btn-primary saveMail">Gem</button>
         </form>
@@ -73,7 +74,7 @@ const init = async () => {
             </div>
             <div class="mb-3">
                 <label for="apiKey" class="form-label">API Key</label>
-                <input type="text" class="form-control" id="apiKey" value="${(payment.apikey != null) ? payment.apikey : ""}">
+                <input type="text" class="form-control" id="apiKey" value="" autocomplete="off" placeholder="${(payment && payment.has_apikey) ? "Gemt - lad feltet stå tomt for at beholde den" : ""}">
             </div>
             <div class="mb-3">
                 <label for="tradeConditions" class="form-label">Link til fil med jeres/dine handelsbetingelser</label>

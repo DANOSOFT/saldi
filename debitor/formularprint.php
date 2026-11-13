@@ -33,6 +33,7 @@
 // 20260309 PHR Fixed another error in $returside after printing
 // 20260909 Sawaneh SST-759: POST email_fix_from applies the recipient suggestion from send_mails() after explicit acceptance
 // 20260909 Sawaneh JOB-124: accept returside from GET as well as POST.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20260917 CL/Sawaneh JOB-124: honour the popup=1 request flag when closing after a print.
 // 20260928 CL/NTR Use ifset() instead of if_isset($_GET[...]) for lev_nr/udskriv_til/locat/formular
 //                  to stop undefined array key warnings when those params are absent.
@@ -42,6 +43,7 @@ session_start();
 $s_id=session_id();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/formfunk.php");

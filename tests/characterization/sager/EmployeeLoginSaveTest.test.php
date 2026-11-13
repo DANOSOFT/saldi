@@ -2,6 +2,7 @@
 // 20261110 CDX/NTR Exercise employee login saves against temporary tables without changing installed accounts.
 // 20261111 CDX/NTR Use the owned SQL fixture instead of connecting to the master.
 // 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
+// 20261113 CDX/NTR Cover permission refusals for password changes, renames and employee links after merging roles.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -22,6 +23,7 @@ final class EmployeeLoginSaveTest extends TestCase
         }
         $this->connection = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
         $GLOBALS['employeeLoginTestConnection'] = $this->connection;
+        $GLOBALS['employeeLoginMayManage'] = true;
         pg_query($this->connection, 'SET search_path TO pg_temp');
         pg_query($this->connection, 'CREATE TEMP TABLE brugere (id SERIAL PRIMARY KEY, brugernavn TEXT, kode TEXT, ansat_id INTEGER, regnskabsaar INTEGER)');
         pg_query($this->connection, 'CREATE TEMP TABLE grupper (kodenr INTEGER, beskrivelse TEXT, art TEXT, box1 TEXT, box2 TEXT, box5 TEXT, box10 TEXT)');
@@ -40,6 +42,9 @@ final class EmployeeLoginSaveTest extends TestCase
             function db_escape_string($value) {
                 return pg_escape_string($GLOBALS['employeeLoginTestConnection'], (string) $value);
             }
+            function user_may_manage(array $row): bool {
+                return $GLOBALS['employeeLoginMayManage'];
+            }
         }
         require_once dirname(__DIR__, 3) . '/includes/std_func.php';
         require_once dirname(__DIR__, 3) . '/sager/sagerIncludes/saveEmployeeLogin.php';
@@ -49,6 +54,7 @@ final class EmployeeLoginSaveTest extends TestCase
             'text_3078_2' => 'Passwords do not match',
             'text_1928_2' => 'Username already exists',
             'text_5149_2' => 'Username is too long',
+            'text_5548_2' => 'Permission denied',
         ];
     }
 
@@ -57,7 +63,7 @@ final class EmployeeLoginSaveTest extends TestCase
         if ($this->connection) {
             pg_close($this->connection);
         }
-        unset($GLOBALS['employeeLoginTestConnection']);
+        unset($GLOBALS['employeeLoginTestConnection'], $GLOBALS['employeeLoginMayManage']);
     }
 
     private function seedLogin(?int $employeeId = 581, string $username = 'employee', bool $hasPassword = true): array
@@ -160,6 +166,27 @@ final class EmployeeLoginSaveTest extends TestCase
         $original = $this->seedLogin(null);
         self::assertNull(saveEmployeeLogin(581, 3, ['brugere_navn' => 'employee'], 2));
         $original['ansat_id'] = '581';
+        self::assertSame([$original], $this->logins());
+    }
+
+    public function testARestrictedEditorCannotChangeAnExistingPasswordOrUsername(): void
+    {
+        $original = $this->seedLogin();
+        $GLOBALS['employeeLoginMayManage'] = false;
+        $password = TestCredentials::password('employee_login_new');
+        foreach ([['brugere_navn' => 'renamed'], ['kode1' => $password, 'kode2' => $password]] as $input) {
+            self::assertSame('Permission denied', saveEmployeeLogin(581, 3, $input, 2));
+            self::assertSame([$original], $this->logins());
+        }
+        self::assertNull(saveEmployeeLogin(581, 3, ['brugere_navn' => 'employee'], 2));
+        self::assertSame([$original], $this->logins());
+    }
+
+    public function testARestrictedEditorCannotLinkAnUnmanageableLogin(): void
+    {
+        $original = $this->seedLogin(null);
+        $GLOBALS['employeeLoginMayManage'] = false;
+        self::assertSame('Permission denied', saveEmployeeLogin(581, 3, ['brugere_navn' => 'employee'], 2));
         self::assertSame([$original], $this->logins());
     }
 }

@@ -44,6 +44,7 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 			$qtxt = "insert into settings (var_name,var_grp,var_value,var_description,user_id)";
 			$qtxt .= " values ";
 			$qtxt .= " ('itemLookup','deb_order','$sort','Sorting when doing lookup from debitor order','$bruger_id')";
+			$qtxt .= (in_array($GLOBALS['db_type'], array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING');
 		}
 	}
 	if ($qtxt)

@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/emailDoc.php -----patch 4.0.8 ----2023-08-01------
+// --- includes/docsIncludes/emailDoc.php -----ver 5.1.1 ----2026-11-13------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,11 +16,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20230727 LOE file created from bilag.php //refer to uploadDoc.php
 //20230911 LOE Delete code modified
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261018 SS Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../../css/standard.css";
@@ -29,6 +31,9 @@ $title="emailDoc";
 
 
 include("../includes/connect.php");
+// The key follows the source the page acts on: the posted one only together with a posted sourceId (as below).
+$docSource = (!empty($_POST['sourceId']) && isset($_POST['source'])) ? (string) $_POST['source'] : (isset($_GET['source']) ? (string) $_GET['source'] : '');
+$permission_key = ($docSource === 'kassekladde') ? 'finans.kassekladde' : (($docSource === 'debitorOrdrer') ? 'debitor.ordre' : (($docSource === 'creditorOrder') ? 'kreditor.ordre' : 'debitor.konti|kreditor.konti'));
 include("../includes/online.php");
 include("../includes/std_func.php");
 
