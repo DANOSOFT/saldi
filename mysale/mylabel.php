@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/mylabel.php --- lap 4.1.1 --- 2025-03-06 ---
+// --- mysale/mylabel.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2020 - 2025 saldi.dk aps
+// Copyright (c) 2020-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20200617 PHR Support for more pages.
 // 20200702 PHR Support for single label.
@@ -44,7 +44,8 @@
 // 20260914 CL/NTR The per-cell print link and the printLabels batch pass single=1 to labelprint.php
 //                 so they render one cell each; the printSheet button still fills the page grid.
 // 20260921 CDX/LH Retain ssl3 early label-condition default during master deployment.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -105,6 +106,7 @@ $qtxt .= " values ";
 $qtxt .= "('$s_id','" . db_escape_string($account) . "','" . db_escape_string($db) . "','" . db_escape_string($squser) . "',";
 $qtxt .= "'0',0,'" . date('U') . "',FALSE)";
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+$permission_key = 'any';
 include('../includes/online.php');
 include('../includes/std_func.php');
 

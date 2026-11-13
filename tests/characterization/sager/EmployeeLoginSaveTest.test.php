@@ -1,5 +1,8 @@
 <?php
 // 20261110 CDX/NTR Exercise employee login saves against temporary tables without changing installed accounts.
+// 20261111 CDX/NTR Use the owned SQL fixture instead of connecting to the master.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
+// 20261113 CDX/NTR Cover permission refusals for password changes, renames and employee links after merging roles.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -13,28 +16,14 @@ final class EmployeeLoginSaveTest extends TestCase
 
     protected function setUp(): void
     {
-        if (!extension_loaded('pgsql')) {
-            self::markTestSkipped('pgsql is required for the temporary employee login tables.');
+        require_once __DIR__ . '/../support/database/TestDatabase.php';
+        $reason = TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
         }
-        $settings = [];
-        $config = dirname(__DIR__, 3) . '/includes/connect.php';
-        $source = is_file($config) ? file_get_contents($config) : '';
-        foreach (['sqhost' => 'SALDI_CHAR_PGHOST', 'squser' => 'SALDI_CHAR_PGUSER', 'sqpass' => 'SALDI_CHAR_PGPASS', 'sqdb' => 'SALDI_CHAR_MASTER_DB'] as $key => $environment) {
-            preg_match('/\$' . $key . '\s*=\s*([\'"])(.*?)\1\s*;/', $source, $match);
-            $settings[$key] = getenv($environment) ?: ($match[2] ?? '');
-        }
-        if ($settings['sqhost'] === '' || $settings['squser'] === '' || $settings['sqdb'] === '') {
-            self::markTestSkipped('Set SALDI_CHAR_PGHOST/PGUSER/MASTER_DB or provide local includes/connect.php.');
-        }
-        $dsn = 'connect_timeout=3 ';
-        foreach (['host' => 'sqhost', 'user' => 'squser', 'password' => 'sqpass', 'dbname' => 'sqdb'] as $parameter => $setting) {
-            $dsn .= $parameter . "='" . str_replace(['\\', "'"], ['\\\\', "\\'"], $settings[$setting]) . "' ";
-        }
-        $this->connection = pg_connect($dsn, PGSQL_CONNECT_FORCE_NEW);
-        if (!$this->connection) {
-            self::markTestSkipped('The configured PostgreSQL server is unavailable.');
-        }
+        $this->connection = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
         $GLOBALS['employeeLoginTestConnection'] = $this->connection;
+        $GLOBALS['employeeLoginMayManage'] = true;
         pg_query($this->connection, 'SET search_path TO pg_temp');
         pg_query($this->connection, 'CREATE TEMP TABLE brugere (id SERIAL PRIMARY KEY, brugernavn TEXT, kode TEXT, ansat_id INTEGER, regnskabsaar INTEGER)');
         pg_query($this->connection, 'CREATE TEMP TABLE grupper (kodenr INTEGER, beskrivelse TEXT, art TEXT, box1 TEXT, box2 TEXT, box5 TEXT, box10 TEXT)');
@@ -53,6 +42,9 @@ final class EmployeeLoginSaveTest extends TestCase
             function db_escape_string($value) {
                 return pg_escape_string($GLOBALS['employeeLoginTestConnection'], (string) $value);
             }
+            function user_may_manage(array $row): bool {
+                return $GLOBALS['employeeLoginMayManage'];
+            }
         }
         require_once dirname(__DIR__, 3) . '/includes/std_func.php';
         require_once dirname(__DIR__, 3) . '/sager/sagerIncludes/saveEmployeeLogin.php';
@@ -62,6 +54,7 @@ final class EmployeeLoginSaveTest extends TestCase
             'text_3078_2' => 'Passwords do not match',
             'text_1928_2' => 'Username already exists',
             'text_5149_2' => 'Username is too long',
+            'text_5548_2' => 'Permission denied',
         ];
     }
 
@@ -70,7 +63,7 @@ final class EmployeeLoginSaveTest extends TestCase
         if ($this->connection) {
             pg_close($this->connection);
         }
-        unset($GLOBALS['employeeLoginTestConnection']);
+        unset($GLOBALS['employeeLoginTestConnection'], $GLOBALS['employeeLoginMayManage']);
     }
 
     private function seedLogin(?int $employeeId = 581, string $username = 'employee', bool $hasPassword = true): array
@@ -173,6 +166,27 @@ final class EmployeeLoginSaveTest extends TestCase
         $original = $this->seedLogin(null);
         self::assertNull(saveEmployeeLogin(581, 3, ['brugere_navn' => 'employee'], 2));
         $original['ansat_id'] = '581';
+        self::assertSame([$original], $this->logins());
+    }
+
+    public function testARestrictedEditorCannotChangeAnExistingPasswordOrUsername(): void
+    {
+        $original = $this->seedLogin();
+        $GLOBALS['employeeLoginMayManage'] = false;
+        $password = TestCredentials::password('employee_login_new');
+        foreach ([['brugere_navn' => 'renamed'], ['kode1' => $password, 'kode2' => $password]] as $input) {
+            self::assertSame('Permission denied', saveEmployeeLogin(581, 3, $input, 2));
+            self::assertSame([$original], $this->logins());
+        }
+        self::assertNull(saveEmployeeLogin(581, 3, ['brugere_navn' => 'employee'], 2));
+        self::assertSame([$original], $this->logins());
+    }
+
+    public function testARestrictedEditorCannotLinkAnUnmanageableLogin(): void
+    {
+        $original = $this->seedLogin(null);
+        $GLOBALS['employeeLoginMayManage'] = false;
+        self::assertSame('Permission denied', saveEmployeeLogin(581, 3, ['brugere_navn' => 'employee'], 2));
         self::assertSame([$original], $this->logins());
     }
 }

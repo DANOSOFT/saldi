@@ -25,6 +25,7 @@
 //
 // 20180131 
 // 20210916 LOE translated some texts 
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261012 CL/ASR Saldi staff (admin flag 'on') go to the operator panel; everyone else sees this menu unchanged.
 // 20261109 CL/ASR Staff go there only when the panel is ready (operator_panel_ready(): PostgreSQL master, panel tables created); otherwise they keep this menu (review #785).
 
@@ -33,6 +34,7 @@ $s_id=session_id();
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

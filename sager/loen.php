@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loen.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- sager/loen.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -116,6 +116,7 @@
 // 20261103 CL/MMR SD-799 The texts of the former employee warning are passed to jquery.loen.js in the user's language.
 // 20261103 CL/MMR SD-799 The date picker, the piecework list toggle, the list paging line and the date clear button follow the user's language.
 // 20261105 CL/MMR SST-943 The print icon is not shown on a wage slip whose save was stopped for a missing date.
+// 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
 
 @session_start();
 $s_id = session_id();
@@ -180,9 +181,10 @@ if ($overtid == NULL) {
 	db_modify("update grupper set box8='" . $overtid_50pct . chr(9) . $overtid_100pct . "' where art = 'loen'", __FILE__ . " linje " . __LINE__);
 }
 
-$funktion = if_isset($_GET['funktion']);
-if (!$funktion)
-	$funktion = "loenliste";
+$funktion = $_GET['funktion'] ?? null;
+if (!in_array($funktion, ['loenliste', 'ret_loen', 'loenafregning', 'satser'], true)) {
+	$funktion = 'loenliste';
+}
 $sort = if_isset($_GET['sort']);
 $nysort = if_isset($_GET['nysort']);
 $vis = if_isset($_GET['vis']);

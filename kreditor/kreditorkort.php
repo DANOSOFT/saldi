@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---ver 5.0.0 --- 2026-10-27 ------
+// ----------kreditor/kreditorkort.php---ver 5.1.1 --- 2026-11-13 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -50,7 +50,10 @@
 // 20261027 CL/MMR SD-779 The contact persons can be dragged to a new order (javascript/kontaktSortable.js on their own tbody).
 //                 The drop only renumbers the Pos. fields; Gem/opdatér saves them through the existing posnr rules.
 //                 The card's form got an id and the row inputs form='…', because a row moved by JS loses the parser's form association.
-
+// 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
+// 20261031 CL/ASR The inactive-group filter in the creditor group dropdown is only added when grupper has the inaktiv column, as in includes/orderFuncIncludes/accountLookup.php.
+//                 A ledger whose database update has not added the column yet still lists its groups instead of failing the query.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 @session_start();
 $s_id = session_id();
@@ -418,7 +421,8 @@ $q = db_select("select beskrivelse from grupper where art='KG' and kodenr='$grup
 $r = db_fetch_array($q);
 print "<td><SELECT NAME=gruppe value=\"$gruppe\"  onchange=\"javascript:docChange = true;\">\n";
 print "<option>$gruppe:$r[beskrivelse]</option>\n";
-$q = db_select("select * from grupper where art='KG' and kodenr!='$gruppe'  and fiscal_year = '$regnaar' order by kodenr", __FILE__ . " linje " . __LINE__);
+$hasInactive = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
+$q = db_select("select * from grupper where art='KG' and kodenr!='$gruppe'  and fiscal_year = '$regnaar'" . ($hasInactive ? " and coalesce(inaktiv, false) = false" : '') . " order by kodenr", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	print "<option>$r[kodenr]:$r[beskrivelse]</option>\n";
 }

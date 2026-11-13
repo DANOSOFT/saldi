@@ -1,6 +1,6 @@
 <?php
-// --- debitor/cashCountHistory.php --- 2026-09-24 ---
-// Copyright (c) 2026 Danosoft ApS
+// --- debitor/cashCountHistory.php --- 2026-11-03 ---
+// Copyright (c) 2026-2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20260917 CDX/PHR Authenticated cash count history by register and date, with browser printing.
 // 20260917 CDX/PHR Send historical count copies through the normal POS receipt print path.
@@ -8,6 +8,7 @@
 // 20260917 CDX/PHR Select only configured registers, defaulting to the current POS register.
 // 20260917 CL/LH Show the report's manual-control warning above the amounts.
 // 20260924 LOE SD-657 The stored turnover line is left out of the list for users the setting keeps out.
+// 20261103 CL/ASR QA round 2: the page needs the cash register key (pos.kasse) besides the old Debitorordre position.
 /**
  * Session/account context supplied by includes/online.php.
  * @var string $db
@@ -18,6 +19,7 @@ ob_start();
 session_start();
 $s_id = session_id();
 $modulnr = 5;
+$permission_key = 'pos.kasse'; // the cash register's count history; pos.kasse has no legacy position, 5 opens it in the old gate
 $title = 'Tidligere kasseoptællinger';
 $css = '../css/standard.css';
 require __DIR__ . '/../includes/connect.php';

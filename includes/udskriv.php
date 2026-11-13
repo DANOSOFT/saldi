@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.1.0 --- 2026-11-05---
+// --- includes/udskriv.php --- ver 5.1.1 --- 2026-11-13---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -53,8 +53,11 @@
 // 20261023 CL/LH MB-58: Tilbage after printing from an order returns to that order again, not the order list.
 //                The route now follows where the print started (bulk/list/order) instead of the area file,
 //                which only records the list tab the last order was opened from.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
+// 20261104 CL/ASR A PDF print that cannot be made shows the error box (includes/errorReport.php) with a report to Saldi instead of "Kontakt support"; Tilbage stays below it.
 // 20261105 CL/MMR SD-807 The PDF error texts and the print choice screen (Luk, Udskriftsvalg) are shown in the user's language.
 //                 The print-batch error is escaped in the page charset.
+// 20261113 CDX/NTR Keep error reporting and translate the PDF fallback in the page charset.
 
 @session_start();
 $s_id=session_id();
@@ -66,6 +69,7 @@ header('Pragma: no-cache');
 $css="../css/standard.css";		
 		
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 
@@ -90,6 +94,7 @@ $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
 // 20260812 MJ Begraens til same-origin stier — afviser protokoller (javascript:, http://) og cross-origin URL'er
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 CDX/PHR Explain unavailable print files without incorrectly blaming PS2PDF.
 $returside = (function($s) {
     $s = trim((string)$s);
@@ -209,7 +214,7 @@ if ($valg) {
 			);
 		} catch (RuntimeException $error) {
 			fwrite($log, 'Print batch failed: ' . $error->getMessage() . "\n");
-			print '<p>' . htmlspecialchars(findtekst('8446|PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, $charset) . '</p>';
+			if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . ' linje ' . __LINE__, 'Print batch failed: ' . $error->getMessage(), '', false, 'app') === 'nosession') print '<p>' . htmlspecialchars(findtekst('8446|PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, $charset) . '</p>';
 			print '<a href="' . htmlspecialchars($returside ?: '../debitor/ordreliste.php', ENT_QUOTES, 'UTF-8') . '">' . findtekst('30|Tilbage', $sprog_id) . '</a>';
 			exit;
 		}

@@ -1,5 +1,5 @@
 <?php
-// ------------- api/hent_ordrer.php ---------- lap 3.5.3----2015.04.21-------
+// ------------- api/hent_ordrer.php ---------- ver 5.1.1----2026.11.13-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,11 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
+$permission_key = 'any';
 
 print "<html>";
 print "<head><title>Hent ocs_ordrer</title><meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8;\">";

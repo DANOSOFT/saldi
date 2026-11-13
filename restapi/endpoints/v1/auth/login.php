@@ -130,6 +130,13 @@ class AuthLoginEndpoint extends BaseEndpoint
             return;
         }
         
+        // A closed user (brugere.status = false) cannot log in, as on the web login.
+        if (array_key_exists('status', $user) && in_array($user['status'], array('f', false, '0', 0), true)) {
+            write_log("Login failed: User is closed: $username in database: $tenant_db", $tenant_db, 'WARNING');
+            $this->sendResponse(false, null, 'Invalid username or password', 401);
+            return;
+        }
+
         // Verify password
         $pw1 = md5($password);
         $pw2 = saldikrypt($user['id'], $password);
@@ -137,8 +144,8 @@ class AuthLoginEndpoint extends BaseEndpoint
         if ($user['kode'] != $pw1 && $user['kode'] != $pw2) {
             // Check for temporary password
             if (isset($user['tmp_kode'])) {
-                list($tidspkt, $tmp_kode) = explode("|", $user['tmp_kode']);
-                if (date("U") <= $tidspkt && $tmp_kode == $password) {
+                include_once(__DIR__ . '/../../../../includes/tmpCode.php');
+                if (tmp_code_check($user['tmp_kode'], 'reset', (string) $password) === 'ok') {
                     // Temporary password is valid
                 } else {
                     write_log("Login failed: Invalid password for user: $username in database: $tenant_db", $tenant_db, 'WARNING');
