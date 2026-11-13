@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/optallingIncludes/countItem.php --- ver 5.1.1 --- 2026-11-12 ---
+// --- lager/optallingIncludes/countItem.php --- ver 5.1.1 --- 2026-11-13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261112 CL/MMR SST-1014 Created the item lookup and variant check that the stock count's guard and recount (lager/optalling.php) share.
+// 20261113 CL/MMR SST-1014 The refusal message is a JavaScript string from jsString(), so an apostrophe in the item number cannot break it.
 
 if (!function_exists('countItemLookup')) {
 	/**
@@ -60,5 +61,19 @@ if (!function_exists('countItemHasVariants')) {
 	function countItemHasVariants($vareId) {
 		$vareId = (int)$vareId;
 		return (bool)db_fetch_array(db_select("select id from variant_varer where vare_id='$vareId' limit 1", __FILE__ . " linje " . __LINE__));
+	}
+}
+
+if (!function_exists('countItemVariantRefusal')) {
+	/**
+	 * The script that tells the user an item with variants cannot be counted here. The item number is user data,
+	 * so the message is a JavaScript string literal from jsString() (an apostrophe or backslash cannot break it).
+	 *
+	 * @param string $varenr Item number of the refused item
+	 * @return string A <script> block with the alert
+	 */
+	function countItemVariantRefusal($varenr) {
+		$js = jsString(array('varenr: ', (string)$varenr, ' indeholder varianter og kan kun reguleres på varekort eller gennem csv fil'));
+		return "<script type='text/javascript'>alert($js);</script>";
 	}
 }

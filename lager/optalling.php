@@ -1,6 +1,6 @@
 <?php
 //
-// -- lager/optalling.php ------------------- ver 5.1.1 -- 2026-11-12 --
+// -- lager/optalling.php ------------------- ver 5.1.1 -- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -50,6 +50,7 @@
 // 20261001 CDX/PHR Show each warehouse number once, preferring its current-year name, and reuse the list during item lookup.
 // 20261001 CDX/PHR Initialize empty product and variant lookups so unmatched import rows do not crash on PHP 8.
 // 20261112 CL/MMR SST-1014 An item with variants is refused however it is opened (form, link, padded number or barcode) through countItemLookup() in optallingIncludes/countItem.php, because recounting it removed the other variants' lagerstatus rows.
+// 20261113 CL/MMR SST-1014 The refusal message is encoded with jsString(), so an item number with an apostrophe no longer breaks the dialog.
 
 @session_start();
 $s_id = session_id();
@@ -282,7 +283,7 @@ if (!$lager) {
 $varenr = trim((string)$varenr);
 $countItem = countItemLookup($varenr);
 if ($countItem && countItemHasVariants($countItem['id'])) {
-	alert("varenr: $countItem[varenr] indeholder varianter og kan kun reguleres på varekort eller gennem csv fil");
+	print countItemVariantRefusal($countItem['varenr']);
 	$varenr = '';
 	$countItem = false;
 }
