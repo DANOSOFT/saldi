@@ -49,6 +49,9 @@ const SHOPIFY_MOVE_ROUNDS = 10;
 /** Seconds a round needs (two reads and a move); with less left in the pass the job yields. */
 const SHOPIFY_MOVE_MIN_SECONDS = 10;
 
+/** Seconds a move may still be applied by Shopify after the client stopped waiting for it (a timed-out request). */
+const SHOPIFY_MOVE_LATE_SECONDS = 60;
+
 const SHOPIFY_MOVE_READ = 'query orderMoveRead($id: ID!, $after: String) { order(id: $id) {
 	fulfillmentOrders(first: 1, after: $after) { pageInfo { hasNextPage endCursor } nodes { id status
 		assignedLocation { location { id } } supportedActions { action }
@@ -283,8 +286,10 @@ function shopify_move_job(array $job, array $link, array $shop, array $rt): arra
 		if (shopify_move_expired($shopId, $ordreId)) {
 			$result = array('status' => 'expired', 'moved' => 0, 'errors' => array('the hold expired before the move was done'));
 		} elseif (is_array($alloc)) {
-			// a move is sent only while the hold outlasts the pass: no request is answered after the pass's deadline
-			$rt['held'] = static fn(): bool => !shopify_move_expired($shopId, $ordreId, max(0.0, (float)($rt['deadline'] ?? 0) - microtime(true)));
+			// a move is sent only while the hold outlasts the pass, whose deadline ends every request, by
+			// SHOPIFY_MOVE_LATE_SECONDS more: Shopify may still apply a move the client stopped waiting for
+			$rt['held'] = static fn(): bool => !shopify_move_expired($shopId, $ordreId,
+				max(0.0, (float)($rt['deadline'] ?? 0) - microtime(true)) + SHOPIFY_MOVE_LATE_SECONDS);
 			$result = shopify_run_moves($shop, (string)$link['order_gid'], $alloc, shopify_move_locations($shopId), $rt);
 		} else {
 			$result = array('status' => 'done', 'moved' => 0, 'errors' => array());
