@@ -1,5 +1,6 @@
 <?php
 // 20261113 CDX/NTR Dispatch invoice posting and receivable preparation by effective order type (SD-599).
+// 20261113 CDX/NTR Document posting parameters and required supplier/debtor receivable context shapes.
 
 /**
  * Invoice ledger posting, after delivery and invoice-number assignment.
@@ -11,7 +12,13 @@
  */
 interface SaldiInvoicePosting
 {
-    /** @return string|null Existing engine result; supplier success has no return value. */
+    /**
+     * Post an eligible invoice using the initialized caller-owned transaction.
+     *
+     * @param int|string $id Order identifier, or the legacy comma-separated POS order list.
+     * @param string $source Calling flow, including webservice or Dagsafslutning.
+     * @return string|null Existing engine result; supplier success has no return value.
+     */
     public function post($id, $source);
 
     /**
@@ -20,16 +27,23 @@ interface SaldiInvoicePosting
      * Supplier contexts contain invoiceNumber and receiptNumber; debtor contexts
      * provide the order, payment and reference fields assembled by their engine.
      *
-     * @param array{invoiceNumber:mixed, openItem?:mixed, orderId?:mixed, source?:mixed,
-     *   webservice?:mixed, paymentId?:mixed, customerOrderNumber?:mixed, paymentTerms?:mixed,
-     *   register?:mixed, referenceOrderId?:mixed, customerId?:mixed, total?:mixed,
-     *   transactionDate?:mixed, receiptNumber?:mixed} $context
+     * @param array{invoiceNumber:mixed, receiptNumber:mixed}|array{
+     *   invoiceNumber:mixed, openItem:mixed, orderId:mixed, source:mixed,
+     *   webservice:mixed, paymentId:mixed, customerOrderNumber:mixed, paymentTerms:mixed,
+     *   register:mixed, referenceOrderId:mixed, customerId:mixed, total:mixed,
+     *   transactionDate:mixed
+     * } $context Required supplier fields or the complete debtor/POS engine context.
      * @return array{description:string, settled:int, settlementDate:?string, settlementId:?int}
      */
     public function prepareReceivable(array $context): array;
 }
 
-/** Resolve stored or effective art once, where an order enters a posting engine. */
+/**
+ * Resolve stored or effective art once, where an order enters a posting engine.
+ *
+ * @param string $art Effective order type: DO, DK, PO, KO or KK; legacy debtor types use sales.
+ * @return SaldiInvoicePosting The adapter for the selected order type.
+ */
 function invoice_posting_for_type($art): SaldiInvoicePosting
 {
     switch ($art) {
