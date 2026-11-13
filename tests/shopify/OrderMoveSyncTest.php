@@ -194,17 +194,30 @@ final class OrderMoveSyncTest extends TestCase
         $this->assertSame('done', $this->writeback($order['order'])['order.move']);
     }
 
-    /** fulfillmentOrderMove is never resent blind: the fresh read finds the move done. */
-    public function testALostMoveAnswerIsReadNotSentAgain(): void
+    /**
+     * A lost move answer: nothing is read, sent, released or expired until Shopify can no longer apply
+     * the move, then the fresh read finds it done. Not sent a second time, and the hold outlasts it.
+     */
+    public function testALostMoveAnswerHoldsTheOrderUntilItsLateWindowIsOverThenIsReadNotSentAgain(): void
     {
         $order = $this->steps(['web_order', [['STOL-X', 1, [0 => 5, 1 => 5]]]])['results'][0];
         $line = $order['lines']['STOL-X'];
         $ordreId = $this->invoiced($order['order'], [['gid' => $line, 'rows' => [['STOL-X', 92, 1]]]]);
 
-        $run = $this->steps(['fail', 'fulfillmentOrderMove', 'timeout_after_apply'], ['pass']);
+        $lost = $this->steps(['fail', 'fulfillmentOrderMove', 'timeout_after_apply'], ['pass']);
+        $this->retryNow();
+        $waiting = $this->steps(['pass']);
+        $held = $this->barriers($ordreId);
+        $this->sql("UPDATE shopify_order_links SET flags = jsonb_set(flags, '{move_v1,pending_until}', '\"1\"') WHERE order_gid = $1", [$order['order']]);
+        $this->retryNow();
+        $after = $this->steps(['pass']);
 
-        $this->assertSame(['fulfillmentOrderMove', 'metafieldsSet', 'tagsAdd'], self::mutations($run), 'one move only');
-        $this->assertSame([[1, $line, 1]], $run['orders'][$order['order']]['open']);
+        $this->assertSame(['fulfillmentOrderMove', 'metafieldsSet'], self::mutations($lost), 'the move run ends at the lost answer');
+        $this->assertContains(['order.move', 'yielded'], $lost['results'][1]);
+        $this->assertSame([], $waiting['calls'], 'nothing read or sent inside the late window');
+        $this->assertSame(['open'], $held, 'held while the move may still land');
+        $this->assertSame(['tagsAdd'], self::mutations($after), 'read and found done, not moved again; then saldi-behandlet');
+        $this->assertSame([[1, $line, 1]], $after['orders'][$order['order']]['open']);
         $this->assertSame(['released'], $this->barriers($ordreId));
     }
 
@@ -251,24 +264,6 @@ final class OrderMoveSyncTest extends TestCase
         $alarm = $this->sql("SELECT ref, message FROM shopify_errors WHERE kind = 'order.move' AND resolved_at IS NULL");
         $this->assertSame((string)$ordreId, $alarm[0]['ref']);
         $this->assertStringContainsString("doesn't stock", $alarm[0]['message']);
-    }
-
-    /** The last attempt lost a move's answer: abandoned with an alarm, but the hold stays until it runs out, as Shopify may still apply it. */
-    public function testAnAbandonedMoveWhoseAnswerWasLostKeepsItsHoldForTheSweep(): void
-    {
-        $order = $this->steps(['web_order', [['STOL-X', 1, [0 => 5, 1 => 5, 2 => 5]], ['BORD-Y', 1, [0 => 5, 1 => 5, 2 => 5]]]])['results'][0];
-        [$stol, $bord] = [$order['lines']['STOL-X'], $order['lines']['BORD-Y']];
-        $ordreId = $this->invoiced($order['order'], [['gid' => $stol, 'rows' => [['STOL-X', 92, 1]]], ['gid' => $bord, 'rows' => [['BORD-Y', 93, 1]]]]);
-        $this->steps(['unstock', 'BORD-Y', 2], ['fail', 'fulfillmentOrderMove', 'user_error'], ['pass']);
-        $this->sql("UPDATE shopify_jobs SET attempts = 2 WHERE type = 'order.move'");
-        $this->retryNow();
-
-        $run = $this->steps(['fail', 'fulfillmentOrderMove', 'timeout_after_apply'], ['pass']);
-
-        $this->assertSame(['fulfillmentOrderMove', 'fulfillmentOrderMove', 'tagsAdd'], self::mutations($run), 'STOL-X applied unanswered, BORD-Y refused');
-        $this->assertSame('abandoned', $this->writeback($order['order'])['order.move']);
-        $this->assertSame(['open'], $this->barriers($ordreId), 'left for barrier.sweep');
-        $this->assertSame([(string)$ordreId], array_column($this->sql("SELECT ref FROM shopify_errors WHERE kind = 'order.move' AND resolved_at IS NULL"), 'ref'));
     }
 
     /** Once the barrier has expired its stock is published again: the move is abandoned before anything is sent. */

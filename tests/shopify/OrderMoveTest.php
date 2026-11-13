@@ -137,7 +137,7 @@ final class OrderMoveTest extends TestCase
     public function testRunMovesYieldsWhenThePassHasNoTimeLeft(): void
     {
         $result = shopify_run_moves(['shop_key' => 'hml'], 'gid://shopify/Order/1', ['lines' => []], [], ['deadline' => microtime(true) + 1]);
-        $this->assertSame(['status' => 'yield', 'moved' => 0, 'uncertain' => false, 'errors' => []], $result);
+        $this->assertSame(['status' => 'yield', 'moved' => 0, 'errors' => []], $result);
     }
 
     /** A hold that ends before a move sent now could be answered: nothing is sent, and the job abandons at once. */
@@ -151,22 +151,23 @@ final class OrderMoveTest extends TestCase
         $this->assertCount(1, $fake->calls, 'the read only, no fulfillmentOrderMove');
     }
 
-    /** A move that timed out, then an exception in the next round: still a failed attempt that may yet be applied. */
-    public function testRunMovesKeepsAnUncertainMoveThroughALaterException(): void
+    /** Before a move is sent its late window is recorded; an answered move clears it, a lost answer ends the run and keeps it. */
+    public function testRunMovesRecordsTheLateWindowFirstAndStopsAtALostAnswer(): void
     {
         $read = FakeShopify::ok(['order' => ['fulfillmentOrders' => ['pageInfo' => ['hasNextPage' => false],
-            'nodes' => [self::fo('F1', self::L1, ['L11' => 1])]]]]);
-        $fake = new FakeShopify([$read, FakeShopify::timeout(), $read]);
-        $checks = 0;
-        $held = function () use (&$checks): bool {
-            if (++$checks > 1) {
-                throw new RuntimeException('database gone');
-            }
-            return true;
+            'nodes' => [self::fo('F1', self::L1, ['L11' => 2])]]]]);
+        $fake = new FakeShopify([$read, FakeShopify::ok(['fulfillmentOrderMove' => ['userErrors' => []]]), $read, FakeShopify::timeout()]);
+        $deadline = microtime(true) + 300;
+        $recorded = [];
+        $pending = function (float $until) use (&$recorded, $fake): void {
+            $recorded[] = [count($fake->calls), $until];
         };
-        $result = shopify_run_moves(FakeShopify::shop(), 'gid://shopify/Order/1', ['lines' => [self::line('L11', [2 => 1000])]], self::LOCATIONS,
-            ['graphql' => $fake->opts(), 'deadline' => microtime(true) + 300, 'held' => $held]);
-        $this->assertSame(['failed', 1, true], [$result['status'], $result['moved'], $result['uncertain']]);
+        $result = shopify_run_moves(FakeShopify::shop(), 'gid://shopify/Order/1', ['lines' => [self::line('L11', [2 => 2000])]], self::LOCATIONS,
+            ['graphql' => $fake->opts(), 'deadline' => $deadline, 'held' => fn(): bool => true, 'pending' => $pending]);
+        $this->assertSame(['uncertain', 2], [$result['status'], $result['moved']]);
+        $this->assertCount(4, $fake->calls, 'no read or move after the lost answer');
+        $this->assertSame([[1, $deadline + SHOPIFY_MOVE_LATE_SECONDS], [2, 0.0], [3, $deadline + SHOPIFY_MOVE_LATE_SECONDS]], $recorded,
+            'recorded before each move is sent, cleared only once it was answered');
     }
 
     public function testALineNotInTheAllocationIsNotTouched(): void
