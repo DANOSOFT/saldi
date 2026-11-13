@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.12
+// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,6 +67,8 @@
 // 20261112 CL/SZ SD-822: stock.activate stocks every linked item at its locations in bulk before go-live, after setting the pairs to 0.
 //                It and the baseline refuse to start while the other is queued or running.
 // 20261112 CL/SZ SD-822 CodeRabbit: activate yields when the pass runs out of time before the upload; singular counts.
+// 20261113 CL/SZ SD-822 Review: activate yields when time runs out at the start, and a zero call without an answer is resent under its key.
+//                After 5 unanswered passes the job fails, so the worker retries it and then raises its alarm.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -261,6 +263,8 @@ const SHOPIFY_STOCK_RECONCILE_POLL = 60;
 const SHOPIFY_STOCK_RECONCILE_NAMED = 20;
 /** Pairs per inventorySetQuantities call when stock.activate zeroes the pairs it is about to stock. */
 const SHOPIFY_STOCK_ACTIVATE_ZERO = 250;
+/** Passes a zero call may go unanswered, resent under its key, before the job fails and raises its alarm. */
+const SHOPIFY_STOCK_ACTIVATE_ZERO_TRIES = 5;
 /** stock.activate's bulk mutation, one line per item: the locations it isn't stocked at yet. */
 const SHOPIFY_STOCK_BULK_ACTIVATE = 'mutation stockActivateAll($inventoryItemId: ID!, $inventoryItemUpdates: [InventoryBulkToggleActivationInput!]!) {
 	inventoryBulkToggleActivation(inventoryItemId: $inventoryItemId, inventoryItemUpdates: $inventoryItemUpdates) {
@@ -1731,10 +1735,11 @@ function shopify_stock_activate_plan(array $rt, array $shop, string $file, strin
  * Sets every pair of the variables file to 0 from the checkpoint's line on, whole items per call, so
  * stocking a pair can't show a quantity set while it wasn't stocked. A refused call sets nothing, so
  * the item Shopify refuses is left out of the activation with a warning and the rest of its call is
- * sent again.
+ * sent again. A call without an answer keeps its key in the checkpoint and goes again, byte-identical,
+ * next pass, so a late copy of it can't land after the baseline.
  *
- * @param array<string, mixed> $cp zeroed (the next line) and skip (lines left out) are updated in place
- * @return bool true when every line is done, false when the time ran out
+ * @param array<string, mixed> $cp zeroed (the next line), skip (lines left out) and zero_key (the unanswered call's key) are updated in place
+ * @return bool true when every line is done, false when the time ran out or the call is still unanswered
  */
 function shopify_stock_activate_zero(array $rt, array $shop, string $vars, array &$cp, float $deadline): bool {
 	$lines = file($vars, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -1764,14 +1769,25 @@ function shopify_stock_activate_zero(array $rt, array $shop, string $vars, array
 		}
 		if ($quantities === array()) {
 			$cp['zeroed'] = $next;
+			unset($cp['zero_key'], $cp['zero_tries']);
 			continue;
 		}
+		// the batch follows from zeroed and skip, so the same key always goes with the same input
+		$cp['zero_key'] ??= shopify_stock_key();
 		$res = shopify_graphql($shop, 'stockSet', SHOPIFY_STOCK_SET,
-			array('key' => shopify_stock_key(), 'input' => array('name' => 'available', 'reason' => 'correction', 'quantities' => $quantities)),
+			array('key' => $cp['zero_key'], 'input' => array('name' => 'available', 'reason' => 'correction', 'quantities' => $quantities)),
 			($rt['graphql'] ?? array()) + array('deadline' => $deadline, 'retry_mode' => 'idempotent'));
 		if ($res['user_errors'] === array() && !$res['ok']) {
+			$cp['zero_tries'] = ($cp['zero_tries'] ?? 0) + 1;
+			if (!empty($res['retryable']) && $cp['zero_tries'] < SHOPIFY_STOCK_ACTIVATE_ZERO_TRIES) {
+				// no answer: the next pass sends the same call under the same key
+				return false;
+			}
+			// the job's retries go on from the last stored checkpoint, so they still send this key
 			throw new RuntimeException("zeroing the pairs to stock failed: {$res['error']}");
 		}
+		// answered: the key is spent, a refused call set nothing and the next batch differs
+		unset($cp['zero_key'], $cp['zero_tries']);
 		foreach ($res['user_errors'] as $error) {
 			$index = isset($error['field'][2]) && $error['field'][1] === 'quantities' ? (int)$error['field'][2] : null;
 			if ($index === null || !isset($owner[$index])) {
@@ -1829,6 +1845,10 @@ function shopify_stock_activate_start(array $rt, array $shop, string $vars, stri
 		throw new RuntimeException("uploading the stock activation file failed: {$up['error']}");
 	}
 	$res = shopify_bulk_start_mutation($shop, SHOPIFY_STOCK_BULK_ACTIVATE, (string)$up['path'], $graphql);
+	if (($res['error'] ?? null) === 'deadline') {
+		// out of time with nothing started (a start that may have run comes back uncertain): the next pass uploads again
+		return null;
+	}
 	if (array_intersect(array_column($res['user_errors'] ?? array(), 'code'), array('OPERATION_IN_PROGRESS', 'LIMIT_REACHED')) !== array()) {
 		return null;
 	}

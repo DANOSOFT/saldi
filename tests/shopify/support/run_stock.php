@@ -24,6 +24,7 @@
 // 20261106 CL/SZ SD-757 review: step hold, stock an unpaid order keeps committed.
 // 20261112 CL/SZ SD-822: steps start_activate, activate, hide, refuse_toggle, refuse_set, limit_bulk and fail_bulk.
 // 20261112 CL/SZ SD-822 CodeRabbit: activate can run out of time just before the upload.
+// 20261113 CL/SZ SD-822 Review: or right after it, before the bulk mutation starts.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_stock.php <test_db> <state file> '<steps json>'\n");
@@ -159,7 +160,15 @@ try {
                 case 'activate':
                     $rt = ['graphql' => $store->opts(), 'download' => ['download' => $store->bulkDownloader(), 'log' => fn(): null => null],
                         'upload' => ['upload' => $store->bulkUploader(), 'log' => fn(): null => null]];
-                    if (!empty($step[5])) {
+                    if (($step[5] ?? null) === 'start') {
+                        // the pass's time runs out right after the upload, before the bulk mutation starts
+                        $upload = $store->bulkUploader();
+                        $rt['upload']['upload'] = function (string $url, array $fields, string $file, float $connect, float $timeout) use ($upload, $store): array {
+                            $sent = $upload($url, $fields, $file, $connect, $timeout);
+                            $store->clock->now += 3600;
+                            return $sent;
+                        };
+                    } elseif (!empty($step[5])) {
                         // the pass's time runs out just before the upload
                         $rt['upload']['clock'] = fn(): float => PHP_FLOAT_MAX;
                     }

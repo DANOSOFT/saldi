@@ -7,6 +7,7 @@
 //
 // 20261112 CL/SZ SD-822: created.
 // 20261112 CL/SZ SD-822 CodeRabbit: running out of time before the upload; singular counts in the report.
+// 20261113 CL/SZ SD-822 Review: running out of time before the start; an unanswered zero call goes again under its key.
 
 declare(strict_types=1);
 
@@ -309,6 +310,93 @@ final class StockActivateTest extends TestCase
         $run = $this->activate(false, $out['checkpoint']);
         $this->assertSame([], self::calls($run['calls'], 'stockSet'), 'the next pass does not zero again');
         $this->assertSame(['severity' => 'info', 'message' => 'Stocked 2 of 2 pairs at 1 item.'], $this->report());
+    }
+
+    public function test_running_out_of_time_before_the_start_keeps_the_zeroing_and_yields(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $this->shop([$a]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $a, 4]);
+
+        $checkpoint = null;
+        $out = [];
+        for ($pass = 1; $pass <= 5; $pass++) {
+            $late = $this->steps(['activate', 'hml', $checkpoint, false, 30, 'start']);
+            $out = $late['results'][0];
+            $this->assertArrayNotHasKey('exception', $out, 'the job yields instead of failing: ' . json_encode($out));
+            $this->assertSame([], self::calls($late['calls'], 'bulkOperationRunMutation'), 'no start goes out once the time is spent');
+            $checkpoint = $out['checkpoint'];
+            if (isset($checkpoint['pairs'])) {
+                break;
+            }
+        }
+
+        $this->assertSame('yield', $out['outcome']);
+        $this->assertSame(1, $out['checkpoint']['zeroed'], "this pass's zeroing is kept");
+        $this->assertArrayNotHasKey('op', $out['checkpoint']);
+        $run = $this->activate(false, $out['checkpoint']);
+        $this->assertSame([], self::calls($run['calls'], 'stockSet'), 'the next pass does not zero again');
+        $this->assertCount(1, self::calls($run['calls'], 'bulkOperationRunMutation'));
+        $this->assertSame(['severity' => 'info', 'message' => 'Stocked 2 of 2 pairs at 1 item.'], $this->report());
+    }
+
+    public function test_a_zero_call_without_an_answer_goes_again_under_the_same_key(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $this->shop([$a]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $a, 4]);
+
+        // the zero is applied in Shopify, but no answer comes back in this pass
+        $checkpoint = null;
+        $first = [];
+        $out = [];
+        for ($pass = 1; $pass <= 5; $pass++) {
+            $lost = $this->steps(['fail', 'inventorySetQuantities', 'timeout_after_applyx9'], ['activate', 'hml', $checkpoint]);
+            $out = $lost['results'][1];
+            $first = array_merge($first, self::calls($lost['calls'], 'stockSet'));
+            $this->assertArrayNotHasKey('exception', $out, 'the job yields instead of failing: ' . json_encode($out));
+            $checkpoint = $out['checkpoint'];
+            if ($first !== []) {
+                break;
+            }
+        }
+
+        $this->assertSame('yield', $out['outcome']);
+        $this->assertSame(0, $out['checkpoint']['zeroed'], 'an unanswered zero does not count as done');
+        $this->assertArrayHasKey('zero_key', $out['checkpoint']);
+        $run = $this->activate(false, $out['checkpoint']);
+        $again = self::calls($run['calls'], 'stockSet');
+        $this->assertCount(1, $again);
+        $keys = array_unique(array_map(fn(array $c): string => $c['variables']['key'], array_merge($first, $again)));
+        $this->assertSame([$out['checkpoint']['zero_key']], array_values($keys), 'every attempt, in either pass, carries the one key');
+        $this->assertSame($first[0]['variables']['input'], $again[0]['variables']['input'], 'and the same input');
+        $this->assertSame(['severity' => 'info', 'message' => 'Stocked 2 of 2 pairs at 1 item.'], $this->report());
+    }
+
+    public function test_a_zero_call_that_never_gets_an_answer_fails_the_job_in_the_end(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $this->shop([$a]);
+        $this->steps(['unstock', 'hml', $a, 2]);
+
+        $checkpoint = null;
+        $keys = [];
+        $out = [];
+        for ($pass = 1; $pass <= 12; $pass++) {
+            $lost = $this->steps(['fail', 'inventorySetQuantities', 'http_500x9'], ['activate', 'hml', $checkpoint]);
+            $out = $lost['results'][1];
+            $keys = array_merge($keys, array_map(fn(array $c): string => $c['variables']['key'], self::calls($lost['calls'], 'stockSet')));
+            if (isset($out['exception'])) {
+                break;
+            }
+            $checkpoint = $out['checkpoint'];
+        }
+
+        $this->assertSame('zeroing the pairs to stock failed: retries_exhausted', $out['message'] ?? null, 'the job fails, so the worker retries and then raises its alarm');
+        $this->assertSame(4, $checkpoint['zero_tries'], 'the fifth unanswered pass (SHOPIFY_STOCK_ACTIVATE_ZERO_TRIES) fails');
+        $this->assertCount(1, array_unique($keys), 'all under the one key');
+        // the failed job keeps its file for its retries; this test ends it here
+        array_map('unlink', glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_shopify_activate*') ?: []);
     }
 
     public function test_a_failed_bulk_operation_is_reported_and_a_rerun_stocks_only_what_is_left(): void
