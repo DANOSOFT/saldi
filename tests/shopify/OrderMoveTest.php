@@ -10,6 +10,7 @@
 use PHPUnit\Framework\TestCase;
 
 require_once dirname(__DIR__, 2) . '/includes/shopify/services/orderMove.php';
+require_once __DIR__ . '/support/FakeShopify.php';
 
 final class OrderMoveTest extends TestCase
 {
@@ -137,6 +138,17 @@ final class OrderMoveTest extends TestCase
     {
         $result = shopify_run_moves(['shop_key' => 'hml'], 'gid://shopify/Order/1', ['lines' => []], [], ['deadline' => microtime(true) + 1]);
         $this->assertSame(['status' => 'yield', 'moved' => 0, 'errors' => []], $result);
+    }
+
+    /** A hold that ends before a move sent now could be answered: nothing is sent, and the job abandons at once. */
+    public function testRunMovesSendsNoMoveOnceTheHoldWouldEndFirst(): void
+    {
+        $fake = new FakeShopify([FakeShopify::ok(['order' => ['fulfillmentOrders' => ['pageInfo' => ['hasNextPage' => false],
+            'nodes' => [self::fo('F1', self::L1, ['L11' => 1])]]]])]);
+        $result = shopify_run_moves(FakeShopify::shop(), 'gid://shopify/Order/1', ['lines' => [self::line('L11', [2 => 1000])]], self::LOCATIONS,
+            ['graphql' => $fake->opts(), 'deadline' => microtime(true) + 300, 'held' => fn(): bool => false]);
+        $this->assertSame('expired', $result['status']);
+        $this->assertCount(1, $fake->calls, 'the read only, no fulfillmentOrderMove');
     }
 
     public function testALineNotInTheAllocationIsNotTouched(): void

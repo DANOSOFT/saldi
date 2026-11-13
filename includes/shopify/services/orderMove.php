@@ -173,9 +173,10 @@ function shopify_move_wanted(array $line, array $locations): ?array {
  * @param array<string, string|null> $shop
  * @param array{lines?: list<array<string, mixed>>} $alloc
  * @param array<int, string> $locations
- * @param array{deadline?: float, graphql?: array<string, mixed>} $rt
- * @return array{status: string, moved: int, errors: list<string>} status done, failed, or yield when the pass's time or
- *   SHOPIFY_MOVE_ROUNDS ran out before the moves were done (not a failed attempt)
+ * @param array{deadline?: float, graphql?: array<string, mixed>, held?: callable(): bool} $rt held: false when the
+ *   order's hold would end before a move sent now is answered
+ * @return array{status: string, moved: int, errors: list<string>} status done, failed, expired (held said no before a
+ *   move), or yield when the pass's time or SHOPIFY_MOVE_ROUNDS ran out before the moves were done (not a failed attempt)
  */
 function shopify_run_moves(array $shop, string $orderGid, array $alloc, array $locations, array $rt = array()): array {
 	$orderGid = shopify_gid($orderGid, 'Order');
@@ -192,6 +193,9 @@ function shopify_run_moves(array $shop, string $orderGid, array $alloc, array $l
 		if (!$plan['moves']) {
 			$errors = $plan['unresolved'] ? array('no movable fulfillment order holds ' . implode(', ', $plan['unresolved'])) : array();
 			return array('status' => $errors ? 'failed' : 'done', 'moved' => $moved, 'errors' => $errors);
+		}
+		if (isset($rt['held']) && !$rt['held']()) {
+			return array('status' => 'expired', 'moved' => $moved, 'errors' => array('the hold expires before the move would be done'));
 		}
 		$move = $plan['moves'][0];
 		$opts = shopify_writeback_opts($rt, array(
@@ -277,8 +281,10 @@ function shopify_move_job(array $job, array $link, array $shop, array $rt): arra
 	try {
 		// once the barrier has expired its stock is published again, so nothing is moved after that
 		if (shopify_move_expired($shopId, $ordreId)) {
-			$result = array('status' => 'failed', 'moved' => 0, 'errors' => array('the hold expired before the move was done'));
+			$result = array('status' => 'expired', 'moved' => 0, 'errors' => array('the hold expired before the move was done'));
 		} elseif (is_array($alloc)) {
+			// a move is sent only while the hold outlasts the pass: no request is answered after the pass's deadline
+			$rt['held'] = static fn(): bool => !shopify_move_expired($shopId, $ordreId, max(0.0, (float)($rt['deadline'] ?? 0) - microtime(true)));
 			$result = shopify_run_moves($shop, (string)$link['order_gid'], $alloc, shopify_move_locations($shopId), $rt);
 		} else {
 			$result = array('status' => 'done', 'moved' => 0, 'errors' => array());
@@ -299,7 +305,7 @@ function shopify_move_job(array $job, array $link, array $shop, array $rt): arra
 		return array('outcome' => 'done');
 	}
 	$why = $result['errors'] ? implode('; ', $result['errors']) : 'it did not finish in time';
-	if ((int)($job['attempts'] ?? 1) < SHOPIFY_BARRIER_MOVE_ATTEMPTS && !shopify_move_expired($shopId, $ordreId)) {
+	if ($result['status'] !== 'expired' && (int)($job['attempts'] ?? 1) < SHOPIFY_BARRIER_MOVE_ATTEMPTS && !shopify_move_expired($shopId, $ordreId)) {
 		throw new ShopifyWritebackError("order.move on order {$link['order_gid']} failed: $why");
 	}
 	shopify_db_transaction(function () use ($link, $shopId, $ordreId, $why): void {
@@ -310,12 +316,12 @@ function shopify_move_job(array $job, array $link, array $shop, array $rt): arra
 	return array('outcome' => 'done');
 }
 
-/** True when the order's barriers are past SHOPIFY_BARRIER_MINUTES or the sweep has abandoned them. */
-function shopify_move_expired(int $shopId, int $ordreId): bool {
+/** True when the order's barriers are past SHOPIFY_BARRIER_MINUTES (or will be within $seconds) or the sweep has abandoned them. */
+function shopify_move_expired(int $shopId, int $ordreId, float $seconds = 0.0): bool {
 	$row = shopify_db_rows(
-		"SELECT count(*) AS n, count(*) FILTER (WHERE state = 'open' AND expires_at > now()) AS live
+		"SELECT count(*) AS n, count(*) FILTER (WHERE state = 'open' AND expires_at > now() + make_interval(secs => $3)) AS live
 		FROM shopify_move_barriers WHERE shop_id = $1 AND ordre_id = $2",
-		array($shopId, $ordreId)
+		array($shopId, $ordreId, $seconds)
 	)[0];
 	return (int)$row['n'] > 0 && (int)$row['live'] === 0;
 }
