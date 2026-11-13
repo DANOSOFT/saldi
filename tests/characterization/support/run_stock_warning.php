@@ -9,6 +9,7 @@ $entry = $argv[5];
 
 if ($entry === 'module') {
     ob_start();
+    chdir(dirname(__DIR__, 3) . '/remoteBooking');
     require dirname(__DIR__, 3) . '/includes/connect.php';
     require dirname(__DIR__, 3) . '/includes/std_func.php';
     $db = $tenantDb;
