@@ -4,7 +4,9 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/orderIncludes/stockWarningSave.php --- 2026-05-20 ---
+// --- debitor/orderIncludes/stockWarningSave.php --- 2026-11-13 ---
+//
+// 20261113 CDX/NTR SD-599 Load only the stock-warning module for this endpoint.
 
 ob_start();
 
@@ -26,7 +28,7 @@ header('Content-Type: application/json; charset=utf-8');
 @ini_set('display_errors', '0');
 
 if (!function_exists('is_stock_warning_enabled')) {
-	include_once("../../includes/ordrefunc.php");
+	require_once __DIR__ . '/../../includes/orderFuncIncludes/stockWarning.php';
 }
 
 function _sw_fail($msg) {
