@@ -553,13 +553,15 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	// filter, not a write). Undeclared pages fall back to $modulnr. Until the company switches
 	// enforcement to 'deny', this only records what would have been refused in audit_log.
 	// The helpers (perm_require_post_csrf, audit_log) are available on every page; the gate itself runs as before.
-	// SST-967 the module gate above already decided this request, exceptions included. A page admitted through
-	// the craft-right or Mit Salg exception reaches the role model as 'any' - the key for every logged-in user -
-	// because the exception replaces the role, not the login. Every other request keeps the key its page declared.
+	// SST-967 only a request the exception actually admitted reaches the role model as 'any' - the key for every
+	// logged-in user - because the exception replaces the module right, not the login or the role. A user who
+	// holds the module right keeps the key its page declared, so #1033's gate decides that request as on master,
+	// even when the page proved a case. $no_module_right is what makes the exception the reason the page opened.
+	$sst967_admitted = ($no_module_right && $sag_workflow_allowed) || $mysale_label_ok;
 	include_once(__DIR__ . "/permissions.php");
 	if (!$webservice && !$nextver) {
 		perm_enforce_request(
-			($sag_workflow_allowed || $mysale_label_ok) ? 'any' : (isset($permission_key) ? (string) $permission_key : null),
+			$sst967_admitted ? 'any' : (isset($permission_key) ? (string) $permission_key : null),
 			isset($permission_level) ? (string) $permission_level : 'read',
 			!empty($permission_post_read),
 			($modulnr !== NULL && $modulnr !== '') ? (int) $modulnr : null

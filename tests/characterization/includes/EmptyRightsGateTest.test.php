@@ -107,8 +107,9 @@ final class EmptyRightsGateTest extends TestCase
         // The role gate still runs for every request; a page the exception admitted reaches it as 'any', the key
         // for every logged-in user, so the new gate keeps deciding and the exception is expressed in its vocabulary.
         self::assertStringContainsString('perm_enforce_request(', $code, 'the role gate runs for every request');
-        self::assertStringContainsString("(\$sag_workflow_allowed || \$mysale_label_ok) ? 'any' :", $code,
-            'and an admitted page is decided as any, not skipped');
+        self::assertStringContainsString("\$sst967_admitted = (\$no_module_right && \$sag_workflow_allowed) || \$mysale_label_ok;", $code,
+            'and only a request the exception admitted is decided as any');
+        self::assertStringContainsString("\$sst967_admitted ? 'any' :", $code, 'a module-right user keeps the declared key');
     }
 
     /**
