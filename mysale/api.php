@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- mysale/api.php --- ver 5.1.1 --- 2026-10-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,9 @@
 // ----------------------------------------------------------------------
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
+// 20261029 CL/MMR SST-841: updateBooking approves and invoices only a payment the server confirms with Vibrant.
+//                 It deletes only a pending booking whose payment never started, failed or was cancelled.
+//                 The action is the named handler update_booking_payment() in includes/vibrantPayment.php.
 // 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
@@ -36,6 +39,7 @@ $bg = "nix";
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/vibrantPayment.php");
 $db = public_tenant_db(ifset($_GET, "db", ""));
 
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
@@ -184,26 +188,10 @@ if(isset($_GET["createBooking"])){
 
 if(isset($_GET["updateBooking"])){
     $data = json_decode(file_get_contents("php://input"), true);
-    if (!is_array($data)) $data = array();
-    $status = ifset($data, "status", "");
-    $bookingId = (int)ifset($data, "id", 0);
-    if($status != "approved"){
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
-        db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
-        db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        echo json_encode(["status" => "deleted"]);
-        exit;
-    }else{
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
-        db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        fakturer_ordre($orderId, "email", 0);
-        echo json_encode(["status" => "approved"]);
-    }
-
+    echo json_encode(update_booking_payment($db, is_array($data) ? $data : array(), function ($orderId) {
+        return fakturer_ordre($orderId, "email", 0);
+    }));
+    exit;
 }
 
 if(isset($_GET["getOrder"])){

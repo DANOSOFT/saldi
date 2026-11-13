@@ -1,6 +1,7 @@
 <?php
 // 20261006 CL/LH SST-842: Poll the production API (same key/host as the payment link) and URL-encode the intent id.
 // 20261029 CL/MMR SST-840: The account name from the request is validated before connecting; the include uses __DIR__.
+// 20261029 CL/MMR SST-841: SALDI_VIBRANT_API_BASE may point the status call at a local mock in tests.
 require_once __DIR__ . "/../includes/connect.php";
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 
@@ -14,7 +15,7 @@ $apiKey = $res["apikey"];
 
 $ch = curl_init();
 
-curl_setopt($ch, CURLOPT_URL, "https://pos.api.vibrant.app/pos/v1/payment_intents/" . rawurlencode((string)($_GET["id"] ?? "")));
+curl_setopt($ch, CURLOPT_URL, rtrim(getenv("SALDI_VIBRANT_API_BASE") ?: "https://pos.api.vibrant.app", "/") . "/pos/v1/payment_intents/" . rawurlencode((string)($_GET["id"] ?? "")));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
 $headers = array();
