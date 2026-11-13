@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/kontokort.php -----patch 5.0.0 ----2026-02-06------
+// --- systemdata/kontokort.php -----ver 5.1.1 ----2026-11-13------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2013.02.10 Break ændret til break 1
@@ -35,6 +35,10 @@
 // 20220605 PHR - php8
 // 20250619 PHR - Somebody broke the code by omitting || in several if statements
 // 20260206	PHR	- discal_year
+// 20261112 CL/MMR SST-1012 An account with postings on the first or last day of the year can no longer be deleted.
+//                 The delete action is checked again on the server and lives in chartOfAccountIncludes/accountDelete.php.
+//                 An account of another fiscal year than the selected one cannot be deleted from an old link or form.
+// 20261113 CL/LH SST-1012 The refusal alerts for a delete are translated and shown correctly on a LATIN9 regnskab.
 
 @session_start();
 $s_id = session_id();
@@ -60,6 +64,8 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/genberegn.php");
 include("../includes/topline_settings.php");
+
+require_once __DIR__ . '/chartOfAccountIncludes/accountDelete.php';
 
 $genvej = $kontotype = NULL; # ellers hentes typen fra connect.php  
 /*
@@ -108,16 +114,11 @@ if (isset($_GET['rapportart']))
 	$rapportart = $_GET['rapportart'];
 
 $id = if_isset($_GET['id']);
+$deleteResult = NULL;
 if (isset($_POST['slet'])) {
-	$id = $_POST['id'] * 1;
-	$kontonr = $_POST['kontonr'] * 1;
-
-	db_modify("delete from kontoplan where id = $id", __FILE__ . " linje " . __LINE__);
-	$q = db_select("select id from kontoplan where kontonr >= $kontonr and regnskabsaar = '$regnaar' order by kontonr", __FILE__ . " linje " . __LINE__);
-	if ($r = db_fetch_array($q))
-		$id = $r['id'];
-	else
-		$id = 0;
+	$kontonr = (int)$_POST['kontonr'];
+	$deleteResult = deleteAccountAction((int)$_POST['id'], $kontonr, $regnaar);
+	$id = $deleteResult['nextId'];
 } elseif (isset($_POST['gem'])) {
 	$id = $_POST['id'];
 	$kontonr = (int) $_POST['kontonr'];
@@ -293,6 +294,7 @@ if ($id > 0) {
 	if ($r = db_fetch_array($q)) {
 		$id = $r['id'];
 		$kontonr = (int)$r['kontonr'];
+		$accountYear = (int)$r['regnskabsaar'];
 		$map_to = (int)$r['map_to'];
 		$beskrivelse = htmlentities(stripslashes($r['beskrivelse']), ENT_COMPAT, $charset);
 		$kontotype = $r['kontotype'];
@@ -305,13 +307,15 @@ if ($id > 0) {
 		$saldo = $r['saldo'] * 1;
 		$valutakode = $r['valuta'];
 		$valutakurs = $r['valutakurs'];
-		if (!$valutakurs)
+		if (!$valutakurs) {
 			$valutakurs = 100;
+		}
 		if ($valutakode) {
 			$r = db_fetch_array(db_select("select box1 from grupper where art='VK' and kodenr = '$valutakode'", __FILE__ . " linje " . __LINE__));
 			$valuta = $r['box1'];
-		} else
+		} else {
 			$valuta = 'DKK';
+		}
 		$qtxt = "select id from kontoplan where kontonr < '$kontonr' and regnskabsaar = '$regnaar' order by kontonr desc limit 1";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$previousPage = $r['id'] * 1;
@@ -326,28 +330,8 @@ if ($id > 0) {
 		print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=kontoplan.php\">";
 		exit;
 	}
-	$qtxt = "select * from grupper where kodenr='$regnaar' and art='RA'";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array($q);
-	$startmaaned = $r['box1'] * 1;
-	$startaar = $r['box2'] * 1;
-	$slutmaaned = $r['box3'] * 1;
-	$slutaar = $r['box4'] * 1;
-	$slutdato = 31;
-
-
-	while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
-		$slutdato = $slutdato - 1;
-		if ($slutdato < 28)
-			break 1;
-	}
-	$regnstart = $startaar . "-" . $startmaaned . "-" . '01';
-	$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
-
-	$qtxt = "select id from transaktioner where transdate>'$regnstart' and transdate<'$regnslut' ";
-	$qtxt .= "and kontonr='$kontonr'";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	($r = db_fetch_array($q)) ? $slet = 0 : $slet = 1;
+	// Slet only for an account of the selected year with no postings in it (an unknown year or an account of another year: no Slet)
+	$slet = (isset($accountYear) && $accountYear === (int)$regnaar && accountHasPostingsInYear($kontonr, $regnaar) === false) ? 1 : 0;
 
 }
 /*
@@ -364,6 +348,19 @@ elseif ($kontotype == 'R')
 elseif ($kontotype == 'X')
 	$kontotype = 'Sideskift';
 */
+
+$refusedTxt = '';
+if ($deleteResult && $deleteResult['refusedReason'] == 'postings') {
+	$refusedTxt = findtekst('account.delete.refused_postings|Konto %s har posteringer i regnskabsåret og kan ikke slettes', $sprog_id);
+} elseif ($deleteResult && $deleteResult['refusedReason'] == 'otheryear') {
+	$refusedTxt = findtekst('account.delete.refused_other_year|Konto %s hører til et andet regnskabsår og kan ikke slettes herfra', $sprog_id);
+} elseif ($deleteResult && $deleteResult['refusedReason'] == 'year') {
+	$refusedTxt = findtekst('account.delete.refused_year_setup|Regnskabsåret er ikke sat korrekt op, så konto %s kan ikke slettes', $sprog_id);
+}
+if ($refusedTxt) {
+	$refusedJs = jsString(array(sprintf($refusedTxt, $deleteResult['refusedKontonr'])));
+	print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars($refusedJs, ENT_QUOTES, 'UTF-8') . ")\">";
+}
 
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
