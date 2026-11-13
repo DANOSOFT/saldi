@@ -24,11 +24,31 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
+// 20261113 CDX/NTR Document the extracted GLS entry point parameters.
 
 if (!function_exists('gls_label')) {
 	/**
 	 * Request a GLS shipment label and download its PDF.
 	 *
+	 * @param string $gls_username Carrier API username.
+	 * @param string $gls_password Carrier API password supplied by the caller.
+	 * @param int|string $gls_customerid Carrier customer identifier.
+	 * @param int|string $gls_ctId Carrier contact identifier.
+	 * @param int|string $ordrenr Order reference and downloaded PDF filename.
+	 * @param string $kundeordnr Customer reference on the parcel.
+	 * @param string $firmanavn Billing company, used without a delivery name.
+	 * @param string $addr1 Billing street.
+	 * @param string $postnr Billing postal code.
+	 * @param string $bynavn Billing city.
+	 * @param string $land Billing country used for the existing country mapping.
+	 * @param string $email Delivery contact email.
+	 * @param string $lev_navn Delivery name; a nonempty value selects the delivery address.
+	 * @param string $lev_addr1 Delivery street.
+	 * @param string $lev_postnr Delivery postal code.
+	 * @param string $lev_bynavn Delivery city.
+	 * @param string $lev_land Retained delivery-country argument; the legacy mapping uses $land.
+	 * @param string $kontakt Delivery contact name.
+	 * @param float|int|string $weight Parcel weight, rounded up to at least one.
 	 * @return never Sends the label or terminates with the carrier error.
 	 */
 	function gls_label($gls_username, $gls_password, $gls_customerid, $gls_ctId, $ordrenr, $kundeordnr, $firmanavn, $addr1, $postnr, $bynavn, $land, $email, $lev_navn, $lev_addr1, $lev_postnr, $lev_bynavn, $lev_land, $kontakt, $weight)
