@@ -27,6 +27,11 @@
 // 20261113 CDX/NTR SD-599 Extract the existing terminal-file card payment registration.
 
 if (!function_exists('registrer_betaling')) {
+	/**
+	 * Read the existing terminal approval file or render the payment fallback screen.
+	 *
+	 * @return void An approved terminal file redirects and exits the request.
+	 */
 	function registrer_betaling($betalings_id, $ordre_id, $betalingstype, $amount, $valuta, $valutakurs, $terminal_ip)
 	{
 		global $db, $db_skriv_id, $regnaar, $sprog_id;
