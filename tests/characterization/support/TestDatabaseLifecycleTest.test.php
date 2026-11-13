@@ -6,6 +6,7 @@
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 // 20261111 CDX/NTR Restore retention environment even when database cleanup fails.
 // 20261111 CDX/NTR Verify a failed ownership record leaves no retained routing account.
+// 20261111 CL/SZ MB-154 Test databases are named t + 22 hex + _1, like a <master>_<regnskab id> tenant, so api/rest_api.php does not take them for the master.
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -52,7 +53,7 @@ final class TestDatabaseLifecycleTest extends TestCase
             self::assertCount(1, $cases);
             $output = (string)$cases[0]->{'system-out'};
             self::assertMatchesRegularExpression(
-                '/UUID=[a-f0-9-]{36} database=t[a-f0-9]{24}/',
+                '/UUID=[a-f0-9-]{36} database=t[a-f0-9]{22}_1/',
                 $output,
                 'The IDE needs the database identity attached to the individual test result'
             );

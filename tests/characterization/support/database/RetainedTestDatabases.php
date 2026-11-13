@@ -2,6 +2,7 @@
 // 20261111 CDX/NTR Verify persistent test identities before listing or deleting retained databases.
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 // 20261111 CDX/NTR Document shared ownership and cleanup helper contracts.
+// 20261111 CL/SZ MB-154 Test databases are named t + 22 hex + _1, like a <master>_<regnskab id> tenant, so api/rest_api.php does not take them for the master.
 
 /** Persistent ownership proof survives the PHPUnit process that created a database. */
 final class RetainedTestDatabases
@@ -136,7 +137,7 @@ final class RetainedTestDatabases
     /** @return array{database:string,uuid:string,test_group:string,registry_ids:string,created_at:string}|null */
     private static function verify(PgSql\Connection $master, string $database): ?array
     {
-        if (!preg_match('/^t[a-f0-9]{24}$/', $database) || $database === TestDatabase::masterDb()) {
+        if (!preg_match('/^t[a-f0-9]{22}_1$/', $database) || $database === TestDatabase::masterDb()) {
             return null;
         }
         $result = TestDatabase::query(
@@ -152,7 +153,7 @@ final class RetainedTestDatabases
             return null;
         }
         $uuid = $match[1];
-        if ($database !== 't' . substr(str_replace('-', '', $uuid), 0, 24)) {
+        if ($database !== 't' . substr(str_replace('-', '', $uuid), 0, 22) . '_1') {
             return null;
         }
         $tenant = TestDatabase::connect($database);
