@@ -322,6 +322,12 @@ final class EmptyRightsGateTest extends TestCase
             "\$sst967_inherit_header = \$sag_workflow_case_id && (strstr(\$b_submit, 'Kopi') || strstr(\$b_submit, 'Kred'));");
         self::assertNotFalse($inherit, 'a copy or a credit note is what inherits the card');
         self::assertStringContainsString("if (\$sst967_inherit_header) {", $ordre, 'and only that arm reads it');
+        // A plain save that posts no name is filled from the case's customer too: the kontonr in the request
+        // must not decide whose card lands on the case's order.
+        self::assertStringContainsString("} elseif (!\$firmanavn) {", $ordre,
+            'the empty-name fallback belongs to the case customer as well');
+        self::assertSame(2, substr_count($ordre, '$order_customer = $wf_case_card;'),
+            'both the copy and the empty-name fallback take the card the case resolved');
         $case_query = strpos($ordre, "select konto_id from sager where id = '\$sag_workflow_case_id'");
         self::assertNotFalse($case_query, 'the case customer is looked up at all');
         self::assertLessThan((int)$case_query, (int)$inherit,
@@ -344,8 +350,8 @@ final class EmptyRightsGateTest extends TestCase
             'and so does the delivery address');
         self::assertStringContainsString("\$kontonr = db_escape_string(\$row['kontonr']);", $ordre,
             'the number the copy stores is the record\'s, not the posted one');
-        self::assertStringContainsString("if (!\$order_customer) {\n\t\t\tsag_workflow_refuse();", $ordre,
-            'a case without a customer card is refused rather than filled from the request');
+        self::assertStringContainsString("if (!\$wf_case_card) {\n\t\t\t\tsag_workflow_refuse();", $ordre,
+            'a case without a customer card is refused on a copy rather than filled from the request');
         self::assertStringContainsString("select * from adresser where id = '\$konto_id' and art='D'", $ordre,
             'and the case customer is read from its address row');
         self::assertStringContainsString("\$sag_workflow_order = -1;", $ordre,

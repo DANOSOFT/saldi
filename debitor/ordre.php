@@ -2005,21 +2005,29 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	// SST-967 the exception admits this page for one case, so a copy or a credit note taken through it reads the
 	// case's customer: a posted kontonr cannot move it to another customer, and it cannot lend it that customer's
 	// name, address, phone or delivery details. Both sources fill the same fields below, so they cannot drift.
-	// An ordinary save is left alone - its header is what the user typed, and the order stays in the case because
-	// neither konto_id nor sag_id is written here.
+	// An ordinary save keeps the header the user typed; when it posts no name at all, the card that belongs on the
+	// order is the case's customer, never the kontonr the request named.
 	$sst967_inherit_header = $sag_workflow_case_id && (strstr($b_submit, 'Kopi') || strstr($b_submit, 'Kred'));
 	$order_customer = false;
-	if ($sst967_inherit_header) {
+	if ($sag_workflow_case_id) {
 		$wf_case = db_fetch_array(db_select("select konto_id from sager where id = '$sag_workflow_case_id'", __FILE__ . " linje " . __LINE__));
 		if ($wf_case) {
 			$konto_id = (int) $wf_case['konto_id'];
-			$order_customer = db_fetch_array(db_select("select * from adresser where id = '$konto_id' and art='D'", __FILE__ . " linje " . __LINE__));
+			$wf_case_card = db_fetch_array(db_select("select * from adresser where id = '$konto_id' and art='D'", __FILE__ . " linje " . __LINE__));
+		} else {
+			$wf_case_card = false;
 		}
 		unset($wf_case);
-		# Without the card the copy would keep whatever the request posted, so such a request is refused.
-		if (!$order_customer) {
-			sag_workflow_refuse();
+		if ($sst967_inherit_header) {
+			# Without the card the copy would keep whatever the request posted, so such a request is refused.
+			if (!$wf_case_card) {
+				sag_workflow_refuse();
+			}
+			$order_customer = $wf_case_card;
+		} elseif (!$firmanavn) {
+			$order_customer = $wf_case_card;
 		}
+		unset($wf_case_card);
 	} elseif ($kontonr && !$firmanavn) {
 		$order_customer = db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art='D'", __FILE__ . " linje " . __LINE__));
 	}
