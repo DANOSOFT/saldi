@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- lap 4.1.1 --- 2025.08.13 ---
+// ---- index/dashboard.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2025 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20241004 MMK
 //20241018 LOE checks that some variables are set before using.
 //20250513 Sawaneh display number of users online.
 //20250805 LOE added close button to settings popup. and also added weekly graph snippet
+// 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
+// 20261104 LOE MB-62 A read-only user may open the overview but not change the settings it shares.
 @session_start();
 $s_id = session_id();
 
@@ -97,7 +99,25 @@ include ("dashboardIncludes/pos_row.php");
 function check_permissions($permarr) {
 	global $rettigheder;
 	$filtered = array_filter($permarr, function ($item) use ($rettigheder) {
-		return (substr($rettigheder, $item, 1) == "1");
+		return in_array(substr($rettigheder, $item, 1), array('1', '2'), true);
+	});
+	return !empty($filtered);
+}
+
+/**
+ * Tells whether the user may change the settings behind the overview.
+ *
+ * check_permissions() also lets a read-only (2) user in, which is right for reading the overview and
+ * wrong for the settings the overview shares with everybody else.
+ *
+ * @param array<int, int> $permarr Positions in the rights string to test.
+ *
+ * @return bool True when at least one of them is full access (1).
+ */
+function check_permissions_full($permarr) {
+	global $rettigheder;
+	$filtered = array_filter($permarr, function ($item) use ($rettigheder) {
+		return substr($rettigheder, $item, 1) === '1';
 	});
 	return !empty($filtered);
 }
@@ -176,7 +196,7 @@ function generateArray() {
     return $result;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['cookieLanguageId'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['cookieLanguageId']) && check_permissions_full(array(3,4))) {
    // Only process dashboard settings if this is NOT a language change request
    $data = file_get_contents("php://input");
    update_settings_value("kontomin",         "dashboard_values", if_isset($_POST['kontomin'],          "0"),    "Show the revenue this month per last month");
@@ -320,7 +340,8 @@ print "<div style='display: flex; gap: 2em;'>";
 include "dashboardIncludes/regnaar.php";
 include "dashboardIncludes/language.php";
 print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? findtekst('1132|Skjul', $sprog_id) : findtekst('1133|Vis', $sprog_id)) ." ".strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
-if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
+# MB-62 the settings behind the overview are shared by every user, so a read-only user is not offered the button
+if ($hide_dash !== "1" && check_permissions_full(array(3,4))) print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
 
 # Kassesystem eller ej
 $qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";

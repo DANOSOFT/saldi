@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 5.0.0---2026-10-23---
+//------------index/install.php----ver 5.1.1---2026-11-10---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,7 @@
 // 20260908 CL/NTR Reject an administrator username over 80 characters (is_input_too_long), matching login.php
 // 20261023 CL/LH regnskab gets global_id: only opdat_4.0 added it, so a fresh install failed the first tenant login.
 // 20261023 CL/NTR Added tekst_key to tekster table, and added an index on (sprog_id, tekst_key) for faster lookups. This is needed for the new translation system to work properly.
+// 20261110 CDX/NTR Release 5.1.1: include the signup schema and trial columns on fresh installs.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -295,7 +296,7 @@ if (isset($_POST['opret'])){
 	$qtxt = "CREATE TABLE regnskab (id serial NOT NULL,	regnskab varchar(60), dbhost varchar(25), dbuser varchar(25), ";
 	$qtxt.= "db varchar(25), version varchar(10), sidst varchar(16), brugerantal numeric(5,0), posteringer numeric(10,0), ";
 	$qtxt.= "posteret numeric(10,0), mysale numeric(1,0), lukket varchar(2),administrator varchar(2),lukkes date, ";
-	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0),sms INT,global_id int default 0, PRIMARY KEY (id))";
+	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0),sms INT,global_id int default 0, trial_start date, trial_end date, pakke varchar(20), lukkes_kommentar text, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version,bilag) values ";
 	$qtxt.= "('$db_navn' ,'$db_host', '$db_bruger', '$db_navn', '$version','0')";
@@ -320,6 +321,21 @@ if (isset($_POST['opret'])){
 	$qtxt = "CREATE TABLE settings ";
 	$qtxt.= "(id serial NOT NULL, var_name text, var_grp text, var_value text, var_description text, user_id integer, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	// 5.1.1 signup schema: new installations already start at the released version.
+	$signupId = $db_type == 'mysqli' ? 'id INT AUTO_INCREMENT NOT NULL' : 'id SERIAL NOT NULL';
+	$signupNow = 'CURRENT_TIMESTAMP';
+	$qtxt = "CREATE TABLE signup_pending ($signupId, created TIMESTAMP NOT NULL DEFAULT $signupNow, status VARCHAR(20) NOT NULL DEFAULT 'pending', ";
+	$qtxt.= "pakke VARCHAR(20) NOT NULL, source VARCHAR(40), navn VARCHAR(80) NOT NULL, email VARCHAR(120) NOT NULL, tlf VARCHAR(40), ";
+	$qtxt.= "cvrnr VARCHAR(20), firmanavn VARCHAR(90) NOT NULL, addr1 VARCHAR(60), addr2 VARCHAR(60), postnr VARCHAR(10), bynavn VARCHAR(60), ";
+	$qtxt.= "regnskab VARCHAR(60) NOT NULL, token_hash VARCHAR(64), token_expires TIMESTAMP NULL, old_token_hash VARCHAR(64), resend_hash VARCHAR(64), ";
+	$qtxt.= "mails_sent INTEGER NOT NULL DEFAULT 0, last_mail TIMESTAMP NULL, ip VARCHAR(45), activated TIMESTAMP NULL, regnskab_id INTEGER, fejl TEXT, ";
+	$qtxt.= "navn_fra_cvr SMALLINT, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX signup_pending_token_hash_idx ON signup_pending (token_hash)", __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX signup_pending_email_idx ON signup_pending (email)", __FILE__ . " linje " . __LINE__);
+	$qtxt = "INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('signup_schema', 'system', '1', 'Self-service signup tables created at installation')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	// End of 5.1.1 signup schema.
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
 	$qtxt.= "('timezone','globals','Europe/Copenhagen','Global Timezone','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);

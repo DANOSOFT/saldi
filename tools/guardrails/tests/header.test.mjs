@@ -1,6 +1,7 @@
 // 20261029 CDX/MJ Pin the repeated PR #882 header-version and misplaced-history findings.
 // 20261030 CL/MJ Pin that history after a plain /* note inside the header (includes/grid.php) is not flagged.
 // 20261101 CL/MJ Pin that a /*****\ licence banner (includes/barcode.php) is not read as PHPDoc.
+// 20261111 CDX/NTR Require comment-only separators throughout edited file headers.
 import test from "node:test";
 import assert from "node:assert/strict";
 import history from "../checks/file-history.mjs";
@@ -28,6 +29,62 @@ test("history belongs before PHPDoc even when another new header entry is presen
 test("contiguous history retains the function PHPDoc", () => {
   const after = head + '// 20261029 CDX/MJ New entry.\n/** Function documentation. */\nfunction example() {}';
   assert.deepEqual(history.run(context(head,after,[5])), []);
+});
+for (const separator of ["", " \t"]) {
+  test(`a ${separator === "" ? "blank" : "whitespace-only"} line cannot separate a new history entry`, () => {
+    const after = head + separator + '\n// 20261029 CDX/MJ New entry.\nfunction example() {}';
+    const findings = history.run(context(head, after, [5, 6]));
+    assert(findings.some(f => f.line === 5 && f.message.includes("blank line")), JSON.stringify(findings));
+  });
+}
+test("appending history beyond an existing blank separator must join the block", () => {
+  const before = head + '\nfunction example() {}';
+  const after = head + '\n// 20261029 CDX/MJ New entry.\nfunction example() {}';
+  const findings = history.run(context(before, after, [6]));
+  assert(findings.some(f => f.line === 5 && f.message.includes("blank line")), JSON.stringify(findings));
+});
+test("a new blank line between unchanged history entries is rejected", () => {
+  const second = '// 20261028 CDX/MJ Another existing entry.\n';
+  const before = head + second + 'function example() {}';
+  const after = head + '\n' + second + 'function example() {}';
+  const findings = history.run(context(before, after, [5]));
+  assert(findings.some(f => f.line === 5 && f.message.includes("blank line")), JSON.stringify(findings));
+});
+test("an edited header cannot retain an empty line elsewhere in its history", () => {
+  const before = head + '\n// 20261028 CDX/MJ Another existing entry.\n';
+  const after = before + '// 20261029 CDX/MJ New entry.\n\n/** Function documentation. */\nfunction example() {}';
+  const findings = history.run(context(before, after, [7]));
+  assert(findings.some(f => f.line === 5 && f.message.includes("blank line")), JSON.stringify(findings));
+});
+test("aligned history continuations remain inside a contiguous history block", () => {
+  const after = head + '// 20261029 CDX/MJ New entry.\n//                 Another sentence.\n\nfunction example() {}';
+  assert.deepEqual(history.run(context(head, after, [5, 6])), []);
+});
+test("a header cannot contain an empty line between its banner and history", () => {
+  const before = head.replace('// Copyright', '\n// Copyright');
+  const after = before + '// 20261029 CDX/MJ New entry.\nfunction example() {}';
+  const findings = history.run(context(before, after, [6]));
+  assert(findings.some(f => f.line === 3 && f.message.includes("blank line")), JSON.stringify(findings));
+});
+test("an empty line after the opening PHP tag cannot split the header", () => {
+  const before = head.replace('<?php\n', '<?php\n\n');
+  const after = before + '// 20261029 CDX/MJ New entry.\nfunction example() {}';
+  const findings = history.run(context(before, after, [6]));
+  assert(findings.some(f => f.line === 2 && f.message.includes("blank line")), JSON.stringify(findings));
+});
+test("comment-only separators keep the whole header valid", () => {
+  const before = head.replace('// Copyright', '//\n// Copyright');
+  const after = before + '//\n// 20261029 CDX/MJ New entry.\n\nfunction example() {}';
+  assert.deepEqual(history.run(context(before, after, [6, 7])), []);
+});
+test("blank separation before a PHP attribute is outside the completed header", () => {
+  const after = head + '// 20261029 CDX/MJ New entry.\n\n#[ExampleAttribute]\nclass Example {}';
+  assert.deepEqual(history.run(context(head, after, [5, 7, 8])), []);
+});
+test("empty lines inside a block comment are already commented", () => {
+  const before = '<?php\n/* License\n\nEnd license. */\n// 20261028 CDX/MJ Existing entry.\n';
+  const after = before + '// 20261029 CDX/MJ New entry.\nfunction example() {}';
+  assert.deepEqual(history.run(context(before, after, [6])), []);
 });
 test("runtime history comments are outside the leading-header rule", () => {
   const after = head + '// 20261029 CDX/MJ New entry.\nfunction example() {\n// 20261029 CDX/MJ Runtime explanation.\n}';
