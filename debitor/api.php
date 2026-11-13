@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- debitor/api.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
 // &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
 // 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
@@ -83,6 +83,8 @@
 //                 A credit note's lines get their quantity negated instead of abs() on quantity and price, so its discount line is no longer credited as a charge.
 //                 In sendInvoice() "global $db;" is indented like the other statements, and the order id is cast in both queries.
 // 20261104 CL/MMR SST-746 Review (PR #998): the SST-746 history line no longer names a customer's item number.
+// 20261109 CL/SZ SST-987 createCompany() registers the webhook URL with the account's webhook key (easyubl_webhook_url()), which debitor/easyUBL.php checks.
+//                The debug files for a failed or done company registration or update get the key replaced (easyubl_webhook_redact()), as temp/ is under the web root.
 
     @session_start();
     $s_id=session_id();
@@ -101,6 +103,7 @@
     include_once(__DIR__ . "/../includes/stdFunc/countryCode.php");
     include_once(__DIR__ . "/../includes/stdFunc/einvoiceCvr.php");
     include_once(__DIR__ . "/../includes/stdFunc/einvoiceLineSign.php");
+    include_once(__DIR__ . "/../includes/stdFunc/easyUblWebhookKey.php");
 
     /**
      * @param string $address The full street address to split
@@ -147,7 +150,7 @@
         $domain = "https://".$_SERVER['SERVER_NAME'];
         $path = trim($_SERVER['REQUEST_URI'], '/');
         $firstFolder = explode('/', $path)[0];
-        $webhookUrl = "$domain/$firstFolder/debitor/easyUBL.php";
+        $webhookUrl = easyubl_webhook_url($domain, $firstFolder);
         $companyAddress = splitStreetAddress($res["addr1"], $res["addr2"]);
         $data = [
             "name" => $res["firmanavn"],
@@ -238,7 +241,7 @@
             $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response, 'status code' => $httpCode];
 
             // Save error response in temp folder
-            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", easyubl_webhook_redact(json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE)));
 
             return ['success' => false, 'message' => 'Error updating company: ' . (is_string($errorMessage) ? $errorMessage : json_encode($errorMessage))];
         } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
@@ -253,7 +256,7 @@
         }
 
         // Save successful response in temp folder for debugging
-        file_put_contents("../temp/$db/Update-company-success-$timestamp.json", json_encode($response, JSON_UNESCAPED_UNICODE));
+        file_put_contents("../temp/$db/Update-company-success-$timestamp.json", easyubl_webhook_redact(json_encode($response, JSON_UNESCAPED_UNICODE)));
 
         return ['success' => true, 'companyId' => $companyId, 'response' => $response];
     }
@@ -293,7 +296,7 @@
 				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'statusCode' => $httpCode];
 
 				// save response in file in temp folder
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", easyubl_webhook_redact(json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE)));
 				?>
 				<script>
 					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support.");
@@ -301,7 +304,7 @@
 				<?php
 				exit;
 			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000" || $httpCode >= 400) {
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($response)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", easyubl_webhook_redact(json_encode($response)."\n".json_encode($data, JSON_UNESCAPED_UNICODE)));
 				?>
 				<script>
 					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support");
