@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -127,6 +127,7 @@
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after the gift-card settlement transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
+// 20261112 CL/SS SD-804: braces on the voucher branch that includes settlePOS.php (which queues the store order).
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1755,8 +1756,9 @@ if ($id && $betaling) {
 		$qtxt = "select sum (amount*valutakurs/100) as paid from pos_betalinger where ordre_id='$id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$leftToPay = $sum - $r['paid'];
-		if (afrund($leftToPay, 2) == 0)
+		if (afrund($leftToPay, 2) == 0) {
 			include("../debitor/pos_ordre_includes/exitFunc/settlePOS.php"); #20190510
+		}
 		if ($svar == 'OK') { #20150213
 			transaktion("commit");
 			shopSyncDrainQueue();
