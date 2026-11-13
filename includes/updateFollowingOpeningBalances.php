@@ -44,6 +44,8 @@
 // 20261113 CL/MMR  SST-1005: The check after writing compares the very inputs the transfer was calculated from, so a change that is undone while the transfer is calculated is noticed too (Codex round 9).
 //                  A rebuild locks a target year's rows in one statement before writing any of them, and marks a source year that keeps changing as waiting only after its last write.
 //                  The year card writes the «Overfør til» choices that change on the year before first, so it never holds its own year while it waits for the year before (Codex round 9).
+//                  A rebuild never waits for a target year another transaction is writing: it tries to lock the whole year without waiting for a few seconds and otherwise leaves the source year waiting for the next check, so it cannot deadlock with a journal (Codex round 10).
+//                  The year card tries the same before it waits for its own year.
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -66,11 +68,14 @@
  *   invalidDates: int[],      Fiscal years (sourceYear and/or targetYear) whose start or end month is not valid.
  *   failed: bool,             The rebuild stopped on an unexpected error and was rolled back (set by the callers).
  * }
+ * @param int $deferredYear Receives 0, or the source year whose transfer was left for a later check because another
+ *   transaction kept writing the target year (see followingOpeningBalanceTryLockYear()); nothing from there on is written.
  * @return int[] Fiscal year numbers whose opening balances were updated.
  */
-function updateFollowingOpeningBalances($postedYear, &$stop = null) {
+function updateFollowingOpeningBalances($postedYear, &$stop = null, &$deferredYear = null) {
 	$postedYear = (int)$postedYear;
 	$stop = null;
+	$deferredYear = 0;
 	$years = array();
 	$q = db_select("select kodenr, box1, box2, box3, box4, box10 from grupper where art = 'RA'", __FILE__ . ' line ' . __LINE__);
 	while ($row = db_fetch_array($q)) {
@@ -101,8 +106,20 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null) {
 		if ($savepoint) {
 			db_modify('savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
 		}
+		// The whole target year is locked before anything is read or written, without ever waiting for it: a journal
+		// posting in the target year holds its accounts one by one and may then need one this rebuild holds.
+		if (!followingOpeningBalanceTryLockYear($targetYear)) {
+			if ($savepoint) {
+				db_modify('rollback to savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
+				db_modify('release savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
+			}
+			// The transaction writing the target year carries it on itself or leaves it to the next check, which also
+			// picks up this source year; the later years depend on this one, so they wait too.
+			$deferredYear = $sourceYear;
+			if (!$pendingYear) $pendingYear = $sourceYear;
+			break;
+		}
 		$inputs = followingOpeningBalanceInputs($sourceYear, $targetYear, $start, $end);
-		$locked = false;
 		for ($attempt = 1; ; $attempt++) {
 			$blocked = followingOpeningBalanceStopShape($sourceYear, $targetYear);
 			$opening = followingOpeningBalanceTransfer($inputs, $blocked);
@@ -114,10 +131,6 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null) {
 				}
 				$stop = $blocked;
 				break 2;
-			}
-			if (!$locked) {
-				followingOpeningBalanceLockYear($targetYear);
-				$locked = true;
 			}
 			foreach ($opening as $account => $amount) {
 				$amount = (float)afrund($amount, 2);
@@ -287,17 +300,52 @@ function followingOpeningBalanceInputs($sourceYear, $targetYear, $start, $end) {
 }
 
 /**
- * Lock every kontoplan row of $year, in one statement, before a rebuild writes any of them. The year card
- * (followingOpeningBalancePrimo()) and genberegn() also take a whole year in one statement with the same
- * condition, so writers of one year never each hold part of it while waiting for the rest, and every writer here
- * goes through the years in ascending order. Only within a transaction; outside one the lock ends with the statement.
+ * Lock every kontoplan row of $year before a rebuild reads or writes it, without ever waiting for a row another
+ * transaction holds. A journal posting (finans/bogfor.php) or an order (saldo per account) locks the accounts of its
+ * year one at a time, in the order of its lines, so a rebuild that waited for one of them while holding another could
+ * deadlock with it (Codex round 10: the journal holds 2000, the rebuild holds 1000 and waits for 2000, the journal
+ * then needs 1000). Here the rows that are free are locked with SKIP LOCKED; when any row was busy, the partial lock
+ * is undone at once and tried again shortly. While the rebuild holds the whole year, genberegn() and the writes need
+ * no further row of it, so the rebuild itself never waits for a kontoplan row.
+ * Outside a transaction a lock would end with the statement, so nothing is locked and true is returned, as before.
+ * MySQL keeps the plain lock, because SKIP LOCKED needs MySQL 8 / MariaDB 10.6.
  *
  * @param int $year Fiscal year (kontoplan.regnskabsaar).
- * @return void
+ * @param int $attempts How many times to try; between tries the rebuild sleeps 0.1 second.
+ * @return bool True when every row of the year is locked by this transaction; false when another transaction kept
+ *   at least one of them for all the attempts (then nothing of the year is locked).
  */
-function followingOpeningBalanceLockYear($year) {
+function followingOpeningBalanceTryLockYear($year, $attempts = 30) {
+	global $db_type;
 	$year = (int)$year;
-	db_select("select id from kontoplan where regnskabsaar = '$year' for update", __FILE__ . ' line ' . __LINE__);
+	if (!followingOpeningBalancesInTransaction()) {
+		return true;
+	}
+	if ($db_type === 'mysql' || $db_type === 'mysqli') {
+		db_select("select id from kontoplan where regnskabsaar = '$year' for update", __FILE__ . ' line ' . __LINE__);
+		return true;
+	}
+	for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+		db_modify('savepoint following_opening_balance_lock', __FILE__ . ' line ' . __LINE__);
+		$locked = 0;
+		$q = db_select("select id from kontoplan where regnskabsaar = '$year' for update skip locked", __FILE__ . ' line ' . __LINE__);
+		while (db_fetch_array($q)) {
+			$locked++;
+		}
+		// Counted after the lock: a row this transaction could not lock is still counted here.
+		$r = db_fetch_array(db_select("select count(*) as antal from kontoplan where regnskabsaar = '$year'", __FILE__ . ' line ' . __LINE__));
+		if ($locked >= (int)$r['antal']) {
+			db_modify('release savepoint following_opening_balance_lock', __FILE__ . ' line ' . __LINE__);
+			return true;
+		}
+		// Rolling back to the savepoint releases the rows locked in this attempt, so nothing is held while waiting.
+		db_modify('rollback to savepoint following_opening_balance_lock', __FILE__ . ' line ' . __LINE__);
+		db_modify('release savepoint following_opening_balance_lock', __FILE__ . ' line ' . __LINE__);
+		if ($attempt < $attempts) {
+			usleep(100000);
+		}
+	}
+	return false;
 }
 
 /**
@@ -530,8 +578,9 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
  */
 function carryFollowingOpeningBalances($year, &$fromYear, &$stop) {
 	$year = (int)$year;
-	$updated = updateFollowingOpeningBalances($fromYear, $stop);
-	if (!$stop && !in_array($year + 1, $updated, true)) {
+	$updated = updateFollowingOpeningBalances($fromYear, $stop, $deferredYear);
+	// A transfer left for the next check is not a missing year before $year, so $year is not carried from itself then.
+	if (!$stop && !$deferredYear && !in_array($year + 1, $updated, true)) {
 		$fromYear = $year;
 		$updated = array_merge($updated, updateFollowingOpeningBalances($year, $stop));
 	}
@@ -589,7 +638,7 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
  * (followingOpeningBalanceSaveLastYearChoices()): the rows stay locked until it commits, so no rebuild can write the
  * year between this read and a restore. The card goes on to write this year and then the later years, the same
  * ascending order every rebuild locks years in, and it takes the whole year in one statement like a rebuild does
- * (followingOpeningBalanceLockYear()).
+ * (followingOpeningBalanceTryLockYear()).
  *
  * @param int $year Fiscal year (kontoplan.regnskabsaar).
  * @param bool $lock Lock the rows (select ... for update); only inside a transaction.
@@ -598,6 +647,12 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 function followingOpeningBalancePrimo($year, $lock = false) {
 	$year = (int)$year;
 	$primo = array();
+	// A journal posting in the year holds its accounts one at a time, so the card first tries to get the whole year
+	// without waiting (Codex round 10). When the year stays busy, it waits like the card's own «primo = 0» statement
+	// always has.
+	if ($lock && followingOpeningBalanceTryLockYear($year)) {
+		$lock = false;
+	}
 	$q = db_select("select id, primo from kontoplan where regnskabsaar = '$year'" . ($lock ? ' for update' : ''), __FILE__ . ' line ' . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$primo[(int)$row['id']] = $row['primo'];

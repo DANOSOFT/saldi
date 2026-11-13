@@ -11,6 +11,7 @@
 //                 A balanced change upstream is noticed, and a retry that becomes blocked leaves the target as it was (Codex round 8).
 //                 The year card's snapshot locks its year until the card commits.
 // 20261113 CL/MMR SST-1005 A change that is undone while a transfer is calculated is noticed, and a year card and a journal posting in the year before both finish (Codex round 9).
+//                 A rebuild into a year a journal is posting in never waits for it: it gets the year once the journal commits, or leaves it for the next check (Codex round 10).
 
 declare(strict_types=1);
 
@@ -644,13 +645,14 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertNull(checkFollowingOpeningBalances(11));
             self::assertSame(1120.0, $this->primo(10, 2000));
             $mine = $GLOBALS['connection'];
-            // «Sæt aktivt» on year 10 (A) has read year 9's postings. Before it writes, a year 9 posting commits and the
-            // automatic check on the other connection (B) carries it into year 10 and commits.
+            // «Sæt aktivt» on year 10 (A) holds year 10 and has read year 9's postings. Before it writes, a year 9 posting
+            // commits and the automatic check on the other connection (B) tries to carry it into year 10. A holds year 10,
+            // so B does not wait for it: B leaves year 9 for the next check (Codex round 10).
             $GLOBALS['sst1005Hook'] = ['after' => 'select kontonr, debet, kredit from transaktioner', 'times' => 1, 'run' => function () use ($mine, $other): void {
                 $GLOBALS['connection'] = $other;
                 pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2024-03-01', 5, 0), (1000, '2024-03-01', 0, 5)");
                 self::assertNull(checkFollowingOpeningBalances(11));
-                self::assertSame(1125.0, $this->primo(10, 2000), 'B carried the posting forward.');
+                self::assertStringEndsWith('|9', $this->syncState(), 'B left year 9 waiting.');
                 $GLOBALS['connection'] = $mine;
             }];
             self::assertNull(syncFollowingOpeningBalances(9, 10));
@@ -681,13 +683,15 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertSame([1000.0, -1000.0, 1120.0], [$this->primo(9, 2000), $this->primo(9, 3000), $this->primo(10, 2000)]);
             self::assertNull(checkFollowingOpeningBalances(11));
             $mine = $GLOBALS['connection'];
-            // «Sæt aktivt» on year 10 (A) has read year 9's accounts. Then a year 8 posting commits and the automatic
-            // check (B) carries it into year 9 (1005/-1005: the totals stay the same) and on into year 10.
+            // «Sæt aktivt» on year 10 (A) holds year 10 and has read year 9's accounts. Then a year 8 posting commits and the
+            // automatic check (B) carries it into year 9 (1005/-1005: the totals stay the same); year 10 is A's, so B leaves
+            // year 9 waiting there (Codex round 10).
             $GLOBALS['sst1005Hook'] = ['after' => "/regnskabsaar = '9' and kontotype in \\('S', 'D', 'X'\\) order by kontonr, id$/", 'times' => 1, 'run' => function () use ($mine, $other): void {
                 $GLOBALS['connection'] = $other;
                 pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2023-03-01', 5, 0), (1000, '2023-03-01', 0, 5)");
                 self::assertNull(checkFollowingOpeningBalances(11));
-                self::assertSame([1005.0, -1005.0, 1125.0], [$this->primo(9, 2000), $this->primo(9, 3000), $this->primo(10, 2000)], 'B carried it forward.');
+                self::assertSame([1005.0, -1005.0, 1120.0], [$this->primo(9, 2000), $this->primo(9, 3000), $this->primo(10, 2000)], 'B carried it into year 9.');
+                self::assertStringEndsWith('|9', $this->syncState(), 'B left year 9 waiting.');
                 $GLOBALS['connection'] = $mine;
             }];
             self::assertNull(syncFollowingOpeningBalances(9, 10));
@@ -757,7 +761,8 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertSame([1000.0, -1000.0, 1120.0], [$this->primo(9, 2000), $this->primo(9, 3000), $this->primo(10, 2000)]);
             self::assertNull(checkFollowingOpeningBalances(11));
             $mine = $GLOBALS['connection'];
-            // B on the other connection: a year 8 posting that the automatic check carries forward and commits.
+            // B on the other connection: a year 8 posting that the automatic check carries into year 9 and commits. A holds
+            // year 10, so B leaves year 9 waiting there instead of waiting for A (Codex round 10).
             $post = function (string $rows, array $expected) use ($mine, $other): void {
                 $GLOBALS['connection'] = $other;
                 pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES $rows");
@@ -768,7 +773,7 @@ final class FollowingOpeningBalancesTest extends TestCase
             // «Sæt aktivt» on year 10 (A) has read year 9's postings. B adds 5 in year 8 before A reads year 9's
             // accounts, and reverses it right after, before A calculates from what it read (Codex round 9).
             $GLOBALS['sst1005Hook'] = ['after' => 'select kontonr, debet, kredit from transaktioner', 'times' => 1, 'run' => function () use ($post): void {
-                $post("(2000, '2023-03-01', 5, 0), (1000, '2023-03-01', 0, 5)", [1005.0, 1125.0]);
+                $post("(2000, '2023-03-01', 5, 0), (1000, '2023-03-01', 0, 5)", [1005.0, 1120.0]);
                 $GLOBALS['sst1005Hook'] = ['after' => "/regnskabsaar = '9' and kontotype in \\('S', 'D', 'X'\\) order by kontonr, id$/", 'times' => 1, 'run' => function () use ($post): void {
                     $post("(2000, '2023-03-02', 0, 5), (1000, '2023-03-02', 5, 0)", [1000.0, 1120.0]);
                 }];
@@ -796,6 +801,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         $other = $this->privateSchema($schema);
         try {
             $mine = $GLOBALS['connection'];
+            self::assertNull(checkFollowingOpeningBalances(11));
             // The journal (other connection) holds 2100 of year 9, like finans/bogfor.php before it carries year 9 forward.
             pg_query($other, 'BEGIN');
             pg_query($other, 'UPDATE kontoplan SET saldo = saldo + 1 WHERE regnskabsaar = 9 AND kontonr = 2100');
@@ -808,26 +814,104 @@ final class FollowingOpeningBalancesTest extends TestCase
             $this->sql("UPDATE kontoplan SET primo = '0' WHERE regnskabsaar = '10'");
             // The card's own «Overfør til» statement (systemdata/regnskabskort.php).
             $this->sql("UPDATE kontoplan SET overfor_til = '2000' WHERE kontonr = '2100' AND (regnskabsaar = '10' OR (regnskabsaar = 10-1 AND coalesce(overfor_til, 0) <> '2000'))");
-            // Now the journal carries year 9 forward and reaches year 10, which the card holds: it waits.
-            $GLOBALS['connection'] = $other;
-            $GLOBALS['sst1005Async'] = '/for update$/';
-            followingOpeningBalanceLockYear(10);
-            $GLOBALS['connection'] = $mine;
-            usleep(300000);
-            self::assertTrue(pg_connection_busy($other), 'The journal waits for the card.');
-            self::assertNull(updateOpeningBalancesAfterYearSave(10, $before));
-            $this->sql('COMMIT');
-            self::assertSame(PGSQL_TUPLES_OK, pg_result_status(pg_get_result($other)), 'The journal goes on once the card has committed.');
-            while (pg_get_result($other)) {
-            }
+            // Now the journal carries year 9 forward and reaches year 10, which the card holds. It does not wait: it
+            // leaves year 9 for the next check and holds nothing of year 10.
             $GLOBALS['connection'] = $other;
             $stop = 'unset';
-            self::assertSame([10, 11], updateFollowingOpeningBalances(9, $stop));
-            pg_query($other, 'COMMIT');
+            self::assertSame([], updateFollowingOpeningBalances(9, $stop, $deferred));
             $GLOBALS['connection'] = $mine;
             self::assertNull($stop);
-            self::assertSame([1121.0, -1121.0], [$this->primo(10, 2000), $this->primo(10, 3000)], 'Both finished: the journal\'s posting reached year 10.');
+            self::assertSame(9, $deferred);
+            self::assertNull(updateOpeningBalancesAfterYearSave(10, $before));
+            $this->sql('COMMIT');
+            pg_query($other, 'COMMIT');
+            self::assertSame([1120.0, -1120.0], [$this->primo(10, 2000), $this->primo(10, 3000)], 'The card carried year 9 as it was committed.');
+            self::assertStringEndsWith('|9', $this->syncState(), 'The journal left year 9 waiting.');
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame([1121.0, -1121.0], [$this->primo(10, 2000), $this->primo(10, 3000)], 'Both finished: the next check carried the journal\'s posting to year 10.');
         } finally {
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            while (pg_get_result($other)) {
+            }
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /**
+     * Codex round 10: a journal posting in year 10 holds 2000 of year 10 (its first line) while a rebuild from year 9
+     * wants to write year 10; the journal then needs 1000 of year 10 (its second line) and carries year 10 forward.
+     * A rebuild that held 1000 while it waited for 2000 deadlocked here. Every account of year 10 exists.
+     */
+    public function testARebuildIntoAYearAJournalIsPostingInLeavesItForTheNextCheck(): void
+    {
+        $schema = 'sst1005_journal_target_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $mine = $GLOBALS['connection'];
+            self::assertNull(checkFollowingOpeningBalances(11));
+            pg_query($other, "SET lock_timeout = '2s'");
+            pg_query($other, 'BEGIN');
+            pg_query($other, 'UPDATE kontoplan SET saldo = saldo + 1 WHERE regnskabsaar = 10 AND kontonr = 2000');
+            pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2024-08-01', 1, 0), (1000, '2024-08-01', 0, 1)");
+            // The rebuild from year 9 (this connection) cannot get all of year 10 while the journal holds 2000.
+            $this->sql("SET lock_timeout = '5s'");
+            $this->sql('BEGIN');
+            $stop = 'unset';
+            self::assertSame([], updateFollowingOpeningBalances(9, $stop, $deferred));
+            self::assertNull($stop);
+            self::assertSame(9, $deferred);
+            // It holds nothing of year 10, so the journal's next account is free (a wait would end in the 2 s lock_timeout).
+            self::assertNotFalse(pg_query($other, 'UPDATE kontoplan SET saldo = saldo - 1 WHERE regnskabsaar = 10 AND kontonr = 1000'), 'The journal gets 1000 of year 10.');
+            $GLOBALS['connection'] = $other;
+            $journalStop = 'unset';
+            self::assertSame([11], updateFollowingOpeningBalances(10, $journalStop), 'The journal carries year 10 forward.');
+            $GLOBALS['connection'] = $mine;
+            self::assertNull($journalStop);
+            self::assertSame(PGSQL_COMMAND_OK, pg_result_status(pg_query($other, 'COMMIT')));
+            $this->sql('COMMIT');
+            self::assertSame(2, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM transaktioner WHERE transdate = '2024-08-01'"))['n'], 'Both posting rows are kept.');
+            self::assertStringEndsWith('|9', $this->syncState(), 'Year 9 waits for the next check.');
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertSame([1120.0, -1120.0], [$this->primo(10, 2000), $this->primo(10, 3000)], 'The next check carried year 9.');
+            // Year 10 already had 50 on 2000 (2024-07-01); the journal added 1.
+            self::assertSame([1171.0, -1171.0], [$this->primo(11, 2000), $this->primo(11, 3000)], 'And year 10 with the journal\'s posting.');
+        } finally {
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            while (pg_get_result($other)) {
+            }
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testARebuildIntoAYearAJournalIsPostingInGoesOnOnceTheJournalCommits(): void
+    {
+        $schema = 'sst1005_journal_commits_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $mine = $GLOBALS['connection'];
+            self::assertNull(checkFollowingOpeningBalances(11));
+            pg_query($other, "SET lock_timeout = '2s'");
+            pg_query($other, 'BEGIN');
+            pg_query($other, 'UPDATE kontoplan SET saldo = saldo + 1 WHERE regnskabsaar = 10 AND kontonr = 2000');
+            pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2024-08-01', 1, 0), (1000, '2024-08-01', 0, 1)");
+            // After the rebuild's first try has let go of year 10 the journal takes its next account and commits.
+            $GLOBALS['sst1005Hook'] = ['after' => 'rollback to savepoint following_opening_balance_lock', 'times' => 1, 'run' => function () use ($other): void {
+                self::assertNotFalse(pg_query($other, 'UPDATE kontoplan SET saldo = saldo - 1 WHERE regnskabsaar = 10 AND kontonr = 1000'));
+                pg_query($other, 'COMMIT');
+            }];
+            $this->sql("SET lock_timeout = '5s'");
+            $this->sql('BEGIN');
+            $stop = 'unset';
+            self::assertSame([10, 11], updateFollowingOpeningBalances(9, $stop, $deferred), 'The next try gets the year.');
+            $this->sql('COMMIT');
+            self::assertNull($stop);
+            self::assertSame(0, $deferred);
+            self::assertSame([1120.0, 1171.0], [$this->primo(10, 2000), $this->primo(11, 2000)], 'Year 11 includes the journal\'s posting in year 10.');
+            self::assertStringEndsWith('|0', $this->syncState());
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
             while (pg_get_result($other)) {
             }
@@ -925,6 +1009,39 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertFalse(pg_connection_busy($other));
             self::assertSame(1.0, $this->primo(10, 2000), 'It goes on once the card has committed.');
         } finally {
+            while (pg_get_result($other)) {
+            }
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testTheCardsSnapshotLetsAJournalInItsYearFinishFirst(): void
+    {
+        $schema = 'sst1005_card_try_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            // A journal posting in year 10 holds 2000 and will need 1000 next.
+            pg_query($other, "SET lock_timeout = '2s'");
+            pg_query($other, 'BEGIN');
+            pg_query($other, 'UPDATE kontoplan SET saldo = saldo + 1 WHERE regnskabsaar = 10 AND kontonr = 2000');
+            $GLOBALS['sst1005Hook'] = ['after' => 'rollback to savepoint following_opening_balance_lock', 'times' => 1, 'run' => function () use ($other): void {
+                self::assertNotFalse(pg_query($other, 'UPDATE kontoplan SET saldo = saldo - 1 WHERE regnskabsaar = 10 AND kontonr = 1000'), 'The card holds nothing of year 10 between its tries.');
+                pg_query($other, 'COMMIT');
+            }];
+            $this->sql('BEGIN');
+            $before = followingOpeningBalancePrimo(10, true);
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The card tried while the journal held 2000.');
+            self::assertCount(8, $before);
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql('SELECT count(*) AS n FROM kontoplan WHERE regnskabsaar = 10 AND saldo = 889'))['n'], 'The card read the journal\'s committed rows.');
+            // Now the card holds year 10.
+            pg_send_query($other, 'UPDATE kontoplan SET saldo = saldo + 1 WHERE regnskabsaar = 10 AND kontonr = 2000');
+            usleep(300000);
+            self::assertTrue(pg_connection_busy($other), 'The card holds year 10 until it commits.');
+            $this->sql('COMMIT');
+            pg_get_result($other);
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
             while (pg_get_result($other)) {
             }
             pg_close($other);
