@@ -167,6 +167,8 @@
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261112 LOE SST-967 opret_ordre() and opret_ordre_kopi() let the caller's case and customer win; the request is only a fallback.
+// 20261112 LOE SST-967 The text-selection view escapes what it prints and keeps only b and i.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 
@@ -4803,6 +4805,26 @@ if (!function_exists('vareopslag')) {
 	include(__DIR__ . '/orderFuncIncludes/productLookup.php');
 }
 ######################################################################################################################################
+/**
+ * Escapes a stored order text for the text-selection view, keeping only the two tags the page tells the
+ * user to use (b and i). Everything else is printed as text, so stored markup cannot run in another
+ * user's browser while bold and italic still render.
+ *
+ * @param string $tekst
+ *
+ * @return string
+ */
+function ordretekst_print_safe($tekst)
+{
+	# The install's own charset, because a Latin-1 tenant stores those bytes: with the wrong charset
+	# htmlspecialchars() returns an empty string for them, and ENT_SUBSTITUTE keeps a stray byte visible
+	# instead of blanking the text.
+	$charset = !empty($GLOBALS['charset']) ? $GLOBALS['charset'] : 'UTF-8';
+	$safe = htmlspecialchars((string) $tekst, ENT_QUOTES | ENT_SUBSTITUTE, $charset);
+
+	return str_ireplace(array('&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;'), array('<b>', '</b>', '<i>', '</i>'), $safe);
+}
+
 function tekstopslag($sort, $id)
 {
 	global $bgcolor;
@@ -4832,7 +4854,7 @@ function tekstopslag($sort, $id)
 		$omfang = $r['omfang'];
 		if ($omfang) {
 			print "<tbody class=\"dataTableLink dataTableBottomBorderGray\">\n";
-			print "<tr><td colspan=\"2\"><p style=\"text-align:center;\"><b>Omfang</b></p></td><td align=\"left\" title=\"" . findtekst(491, $sprog_id) . "\" style=\"width:800px;\"><!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_sag_id=$sag_id\">$omfang</a></td>\n";
+			print "<tr><td colspan=\"2\"><p style=\"text-align:center;\"><b>Omfang</b></p></td><td align=\"left\" title=\"" . findtekst(491, $sprog_id) . "\" style=\"width:800px;\"><!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_sag_id=$sag_id\">" . ordretekst_print_safe($omfang) . "</a></td>\n";
 			print "<td colspan=\"2\">&nbsp;</td>\n";
 			print "</tr>\n";
 			print "</tbody>\n";
@@ -4849,7 +4871,7 @@ function tekstopslag($sort, $id)
 		print "	<input type=\"checkbox\" title=\"Afkryds ved insættelse af flere tekster\" name=\"linjetekster[]\" value=\"$r[id]\">";
 		print "</td>";
 		print "<td align=\"left\" title=\"" . findtekst(491, $sprog_id) . "\" style=\"width:800px;\">";
-		print "	<!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_id=$r[id]\">" . nl2br($r['tekst']) . "</a>";
+		print "	<!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_id=$r[id]\">" . nl2br(ordretekst_print_safe($r['tekst'])) . "</a>";
 		print "</td>\n";
 		print "<td title=\"Ret tekst\" align=\"right\">";
 		print "	<span style=\"width:16px; display:block;\"><a href=\"ret_tekst_ordre.php?id=$id&amp;tekst_id=$r[id]\">";
@@ -5112,8 +5134,10 @@ function opret_ordre($sag_id, $konto_id)
 	global $sprog_id;
 	global $regnaar;
 
-	$sag_id = if_isset($_GET['sag_id']);
-	$konto_id = if_isset($_GET['konto_id']);
+	# SST-967 the caller's case and customer win; the address is only a fallback, so a validated case cannot be
+	# replaced by the raw request value.
+	if (!$sag_id) $sag_id = if_isset($_GET['sag_id']);
+	if (!$konto_id) $konto_id = if_isset($_GET['konto_id']);
 	$tilbud_id = if_isset($_GET['tilbud_id']);
 	$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
 	//if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 20080511
@@ -5308,9 +5332,10 @@ function opret_ordre_kopi($sag_id, $konto_id)
 	global $sprog_id;
 	global $regnaar;
 
-	$konto_id = $_GET['konto_id'];
-	$sag_id = $_GET['sag_id'];
-	$ordre_id = $_GET['ordre_id'];
+	# SST-967 the caller's case and customer win here too: the address is only a fallback.
+	if (!$konto_id) $konto_id = (int) ifset($_GET, 'konto_id', 0);
+	if (!$sag_id) $sag_id = (int) ifset($_GET, 'sag_id', 0);
+	$ordre_id = (int) ifset($_GET, 'ordre_id', 0);
 	$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
 
 	$query = db_select("select * from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__);

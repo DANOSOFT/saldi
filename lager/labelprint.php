@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/labelprint.php----------------lap 3.9.9---2021-02-04 ---
+// ----------/lager/labelprint.php----------------ver 5.1.1---2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2016-2021 saldi.dk aps
+// Copyright (c) 2016-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 
 // 2014.06.17 Tilføjet pris pr. enhed på etiketter, hvis de er der. PHR - Danosoft. 20140617
@@ -39,6 +39,9 @@
 //                 'minpris', so a layout using only $minbeskrivelse also counts as mit salg.
 // 20260914 CL/NTR Added single=1: asks newlabel.php for one label cell instead of the template's
 //                 rows x cols grid. Carried through the layout chooser and Brother qty forms.
+// 20261112 LOE SST-967 The Mit Salg session this page prints for keeps its own module gate lifted.
+// 20261112 LOE SST-967 Review 19 stopped this page minting the row; withdrawn, see 20261113.
+// 20261113 LOE SST-967 The row is minted here again as on master, because Mit Salg deletes its own (MB-157).
 
 @session_start();
 $s_id=session_id();
@@ -58,6 +61,9 @@ if (isset($_COOKIE['mylabel'])) {
 		setcookie("mylabel","$account|$db",time()-60,"/");
 		$account=NULL;
 	} else {
+		# Mit Salg deletes its own session row at the end of every page it renders, before the print window it
+		# opens reaches this page, so the row has to be created here as on master. That a client cookie can mint
+		# a row the label exception trusts is a known weakness (MB-157), not something this page can decide.
 		$qtxt = "insert into online(session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor)";
 		$qtxt.= " values ";
 		$qtxt.= "('$s_id','". db_escape_string($account) ."','". db_escape_string($db) ."','". db_escape_string($squser) ."',";
@@ -65,6 +71,13 @@ if (isset($_COOKIE['mylabel'])) {
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 }
+# SST-967 the Mit Salg label page makes its own session row with rettigheder = '0' (mysale/mylabel.php and
+# mysale/mysale.php) and prints through this page. Such a row is refused by every module page under the gate,
+# so this page declares itself and includes/online.php decides: it lifts the gate for a session inside a
+# tenant whose placeholder rights are '0', whose account is not the internal booking user, and whose account
+# has no brugere row - which is what makes it a shop account rather than a user.
+$mysale_label_page = true;
+
 include("../includes/online.php");
 include("../includes/std_func.php");
 
