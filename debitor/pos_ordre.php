@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -124,13 +124,18 @@
 //                The stream fallback without cURL now gives the read only the time left after opening.
 // 20261023 CL/LH MB-95: "på beløb" set item: opret_saet() was called with 6 of its 7 arguments (ArgumentCountError on PHP 8),
 //                the lager landing in $incl_moms. Pass usdecimal($pris_ny, 2), 'on', $lager_ny like the other POS opret_saet() call.
+// 20260928 SS Declared $permission_key = 'pos.kasse' (point-of-sale access per role).
+// 20261104 CL/ASR function posbogfor: the till account per currency is read as findBoxSale() reads it, from settings VK/till_account_<currency> for the till and from the box4 list only while no such row is stored.
+//                 A box4 that is the "used in the till" flag '1' is no longer taken as account 1 for till 1.
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after the gift-card settlement transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 ob_start();
 $modulnr = 5;
+$permission_key = 'pos.kasse';
 $title = "POS Ordre";
 $css = "../css/pos.css";
 $addRemove = $afd = $afslut = $antal_ny = $afd_lager = $afd_navn = NULL;
@@ -2746,8 +2751,12 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 	$k = $kasse - 1;
 	for ($x = 0; $x < count($valuta); $x++) {
 		$r = db_fetch_array(db_select("select * from grupper where art = 'VK' and box1 = '$valuta[$x]'", __FILE__ . " linje " . __LINE__));
-		$tmp = explode(chr(9), $r['box4']);
-		$ValutaKonti[$x] = $tmp[$k];
+		// Decision 22: as findBoxSale(), the settings row VK/till_account_<currency> of the till first, the box4 list
+		// only while none is stored ('1' in box4 is the "used in the till" flag, not an account).
+		$tmp = (trim((string) $r['box4']) === '1') ? array() : explode(chr(9), (string) $r['box4']);
+		$ValutaKonti[$x] = $tmp[$k] ?? '';
+		$tillAccount = trim((string) get_settings_value('till_account_' . db_escape_string(trim((string) $r['box1'])), 'VK', '', NULL, (int) $kasse));
+		if ($tillAccount !== '') $ValutaKonti[$x] = $tillAccount;
 		$tmp = explode(chr(9), $r['box5']);
 		$ValutaMlKonti[$x] = $tmp[$k];
 		$tmp = explode(chr(9), $r['box6']);

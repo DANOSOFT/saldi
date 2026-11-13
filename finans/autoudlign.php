@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------ver 5.1.0--------2026.11.03----------
+// -----------------finans/autoudlign.php------------ver 5.1.1--------2026.11.13----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,10 +59,12 @@
 // 20261029 CL/MMR SD-785 The two texts moved to 7650 and 7651, as 7636 is also used by another change.
 //                  The restart link URL-encodes kontotype like kladde_id next to it.
 // 20261103 CL/MMR SST-932 The header bar's table no longer takes the full window height in Safari, which pushed the settlement card out of view and left the page blank.
-
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 @session_start();
 $s_id = session_id();
+$permission_key = 'finans.kassekladde';
 
 #$css = "../css/standard.css";
 include(__DIR__ . "/../includes/connect.php");

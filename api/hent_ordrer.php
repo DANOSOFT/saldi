@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- api/hent_ordrer.php ---------- lap 3.7.0----2017.11.16-------
+// ------------- api/hent_ordrer.php ---------- ver 5.1.1----2026.11.13-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,13 +23,15 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2017 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260911 Sawaneh Blank the literal "dummyvalue" sent for empty address fields (JOB-115)
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
+$permission_key = 'any';
 
 include("../includes/connect.php");
 include("../includes/online.php");

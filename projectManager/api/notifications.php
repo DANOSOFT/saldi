@@ -6,6 +6,7 @@
 
 header('Content-Type: application/json');
 require_once '../../includes/connect.php';
+$permission_key = 'any';
 require_once '../../includes/online.php';
 require_once '../../includes/ProjectManager.php';
 
