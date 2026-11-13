@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/queue.php --- ver 5.1.0 --- 2026.11.03
+// --- includes/shopify/queue.php --- ver 5.1.0 --- 2026.11.12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 // 20261029 CL/SS SD-741: shopify_queue_enqueue_coalesced() for producers of changed data: a follow-up behind a
 //                running job, and shopify_queue_hasten() brings a waiting one forward.
 // 20261103 CL/MJ SD-790: shop.uninstalled runs first after the alarm mail.
+// 20261112 CL/SZ SD-822: the stock.activate job type.
 
 require_once __DIR__ . '/db.php';
 
@@ -55,7 +56,7 @@ const SHOPIFY_QUEUE_PRIORITY = array(
 	'monitor.counterpart' => 40, 'webhook.health' => 40,
 	'price.window' => 50,
 	'catalogue.upsert' => 60, 'catalogue.link' => 60, 'catalogue.seed' => 60,
-	'stock.reconcile' => 70, 'stock.baseline' => 70,
+	'stock.reconcile' => 70, 'stock.baseline' => 70, 'stock.activate' => 70,
 	'monitor.overview' => 80,
 	'runtime.purge' => 90,
 );

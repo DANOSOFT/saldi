@@ -16,8 +16,8 @@
 // WebhookReplayer. The Shopify behaviours encoded here are listed in FakeShopifyBehaviours, each
 // with its source; uses('<id>') marks where one applies. $fail injects a failure into the next
 // call of a root field: user_error, timeout_after_apply, http_500, http_401, throttled or refused,
-// once, or "<mode>x<n>" n times. tests/shopify/support/FAKE-STORE.md shows how a lane adds a root
-// field.
+// once, or "<mode>x<n>" n times, or one after the other as "<mode>,<mode>". tests/shopify/support/FAKE-STORE.md
+// shows how a lane adds a root field.
 //
 // History:
 // 20261102 CL/LH SD-766: created.
@@ -32,6 +32,9 @@
 // 20261105 CL/SZ SD-757: bulkOperationRunQuery, bulkOperation(s) and the bulk download seam for the stock read (B38); setAvailable().
 // 20261105 CL/SZ SD-757 review: rootObjectCount counts the items; the bulk query must select the item id and location id, not an alias named id.
 // 20261106 CL/SZ SD-757 review: the stock bulk read can ask for committed too; holdForOrder().
+// 20261112 CL/SZ SD-822: stagedUploadsCreate, the upload seam, bulkOperationRunMutation of inventoryBulkToggleActivation (B39, B40).
+//                Test knobs refuseActivation(), failBulkAfter(), hideQuantity(), refuseQuantity() and limitBulkOnce().
+// 20261113 CL/SZ SD-822 Review: a failure can be a sequence of modes, one per call.
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -50,6 +53,8 @@ final class FakeShopifyStore
 	public const METAFIELDS_SET_MAX_BYTES = 10000000;
 	/** B21: the root fields that take @idempotent(key:) in 2026-07; it is required on each. A lane adds one with its 2026-07 doc. */
 	public const IDEMPOTENT = ['inventoryActivate', 'inventorySetQuantities', 'refundCreate'];
+	/** B39: where stagedUploadsCreate sends a bulk mutation's file. */
+	public const STAGED_URL = 'https://shopify-staged-uploads.storage.googleapis.com/';
 	/** B21: Shopify keeps an idempotency key for 24 hours. */
 	public const IDEMPOTENCY_SECONDS = 86400;
 	/** B05: request statuses that keep a fulfillment order with its fulfillment service. */
@@ -66,7 +71,7 @@ final class FakeShopifyStore
 	public int $epoch;
 	/** @var list<array{shop: string, operation: ?string, kind: string, roots: list<string>, variables: array, status: int}> */
 	public array $calls = [];
-	/** @var array<string, string> root field => user_error | timeout_after_apply | http_500 | http_401 | throttled | refused, once; "<mode>x<n>" n times */
+	/** @var array<string, string> root field => user_error | timeout_after_apply | http_500 | http_401 | throttled | refused, once; "<mode>x<n>" n times; "<mode>,<mode>" in turn */
 	public array $fail = [];
 	/** @var list<array{shop: string, topic: string, event_id: string, webhook_id: string, triggered_at: string, api_version: string, uri: string, body: string}> */
 	public array $outbox = [];
@@ -94,7 +99,8 @@ final class FakeShopifyStore
 		}
 		foreach (['productSet', 'productVariantsBulkUpdate', 'inventorySetQuantities', 'inventoryActivate', 'orderCreate', 'orderUpdate', 'fulfillmentOrderMove', 'fulfillmentCreate',
 			'tagsAdd', 'tagsRemove', 'metafieldsSet', 'customerCreate', 'customerUpdate', 'refundCreate',
-			'webhookSubscriptionCreate', 'webhookSubscriptionUpdate', 'webhookSubscriptionDelete', 'bulkOperationRunQuery'] as $root) {
+			'webhookSubscriptionCreate', 'webhookSubscriptionUpdate', 'webhookSubscriptionDelete', 'bulkOperationRunQuery',
+			'stagedUploadsCreate', 'bulkOperationRunMutation', 'inventoryBulkToggleActivation'] as $root) {
 			$method = 'm' . ucfirst($root);
 			$this->handlers['mutation'][$root] = fn(self $store, string $domain, array $args, array $field): mixed => $this->$method($domain, $args, $field);
 		}
@@ -212,6 +218,59 @@ final class FakeShopifyStore
 			}
 			return ['status' => 404, 'errno' => 0];
 		};
+	}
+
+	/**
+	 * The upload seam of shopify_bulk_upload() for this store's staged targets (B39): the file is kept
+	 * under the target's key, which bulkOperationRunMutation then reads.
+	 *
+	 * @return callable(string, array, string, float, float): array{status: int, errno: int, error: string}
+	 */
+	public function bulkUploader(): callable
+	{
+		return function (string $url, array $fields, string $file, float $connect, float $timeout): array {
+			foreach ($this->shops as $domain => $s) {
+				if (array_key_exists($fields['key'] ?? '', $s['staged'] ?? []) && $url === self::STAGED_URL) {
+					$this->shops[$domain]['staged'][$fields['key']] = (string)file_get_contents($file);
+					return ['status' => 201, 'errno' => 0, 'error' => ''];
+				}
+			}
+			return ['status' => 403, 'errno' => 0, 'error' => ''];
+		};
+	}
+
+	/** Shopify refuses to stock the item anywhere through inventoryBulkToggleActivation (B40). */
+	public function refuseActivation(string $domain, string $item, string $message = 'The item could not be stocked at the location.'): void
+	{
+		$this->shop($domain)['refuse_toggle'][$item] = $message;
+	}
+
+	/** The next bulk mutation applies its first $lines lines and then ends FAILED (B39). */
+	public function failBulkAfter(string $domain, int $lines): void
+	{
+		$this->shop($domain)['bulk_fail_after'] = $lines;
+	}
+
+	/** inventorySetQuantities refuses every call with this item, as for an unknown one, and sets nothing (B20). */
+	public function refuseQuantity(string $domain, string $item): void
+	{
+		$this->shop($domain)['refuse_set'][$item] = true;
+	}
+
+	/** The next bulkOperationRunMutation answers LIMIT_REACHED and starts nothing (B39). */
+	public function limitBulkOnce(string $domain): void
+	{
+		$this->shop($domain)['bulk_limit_once'] = true;
+	}
+
+	/** A quantity set at a pair the item isn't stocked at, as an earlier integration may have left it (B20). */
+	public function hideQuantity(string $domain, string $item, string $location, int $quantity): void
+	{
+		$s = &$this->shop($domain);
+		if (isset($s['levels'][$item][$location])) {
+			throw new LogicException("FakeShopifyStore: $item is stocked at $location");
+		}
+		$s['hidden'][$item][$location] = $quantity;
 	}
 
 	/** A webhook subscription without a request, as register-webhooks would leave it. */
@@ -477,11 +536,16 @@ final class FakeShopifyStore
 				continue;
 			}
 			unset($this->fail[$root]);
+			// "<mode>,<mode>..." is a sequence: the first now, the rest on the next calls
+			[$fail, $rest] = array_pad(explode(',', $fail, 2), 2, null);
 			if (preg_match('/^(\w+?)x(\d+)$/', $fail, $times)) {
 				$fail = $times[1];
 				if ((int)$times[2] > 1) {
-					$this->fail[$root] = $fail . 'x' . ((int)$times[2] - 1);
+					$rest = $fail . 'x' . ((int)$times[2] - 1) . ($rest !== null ? ",$rest" : '');
 				}
+			}
+			if ($rest !== null) {
+				$this->fail[$root] = $rest;
 			}
 			if (!in_array($fail, ['user_error', 'timeout_after_apply', 'http_500', 'http_401', 'throttled', 'refused'], true)) {
 				throw new LogicException("FakeShopifyStore: unknown failure mode $fail");
@@ -1400,7 +1464,7 @@ final class FakeShopifyStore
 		}
 		$this->uses('B38');
 		$view = $this->vBulk($domain, $a['id']);
-		$s['bulk'][$a['id']]['status'] = 'COMPLETED';
+		$s['bulk'][$a['id']]['status'] = $s['bulk'][$a['id']]['final'] ?? 'COMPLETED';
 		return $view;
 	}
 
@@ -1408,7 +1472,8 @@ final class FakeShopifyStore
 	{
 		$op = $this->shop($domain)['bulk'][$gid];
 		$done = $op['status'] === 'COMPLETED';
-		return ['__typename' => 'BulkOperation', 'id' => $gid, 'status' => $op['status'], 'type' => 'QUERY', 'query' => $op['query'], 'errorCode' => null,
+		return ['__typename' => 'BulkOperation', 'id' => $gid, 'status' => $op['status'], 'type' => $op['type'] ?? 'QUERY', 'query' => $op['query'],
+			'errorCode' => $op['status'] === 'FAILED' ? 'INTERNAL_SERVER_ERROR' : null,
 			'objectCount' => (string)$op['lines'], 'rootObjectCount' => (string)$op['items'], 'fileSize' => $done ? (string)strlen($op['file']) : null,
 			'url' => $done && $op['file'] !== '' ? $op['url'] : null, 'partialDataUrl' => null, 'completedAt' => null, 'createdAt' => $this->iso()];
 	}
@@ -1439,6 +1504,106 @@ final class FakeShopifyStore
 		$s['bulk'][$gid] = ['status' => 'RUNNING', 'query' => $a['query'], 'url' => 'https://storage.googleapis.com/fake-bulk/' . $this->legacy($gid) . '.jsonl',
 			'file' => $lines === [] ? '' : implode("\n", $lines) . "\n", 'lines' => count($lines), 'items' => count($s['items'])];
 		return self::payload(['bulkOperation' => $this->vBulk($domain, $gid)]);
+	}
+
+	/** B39: a target for a bulk mutation's variables file; only BULK_MUTATION_VARIABLES is modelled. */
+	private function mStagedUploadsCreate(string $domain, array $a): array
+	{
+		$targets = [];
+		foreach ($a['input'] as $in) {
+			if ($in['resource'] !== 'BULK_MUTATION_VARIABLES' || $in['mimeType'] !== 'text/jsonl' || ($in['httpMethod'] ?? 'PUT') !== 'POST') {
+				throw new LogicException('FakeShopifyStore: only a POST target for BULK_MUTATION_VARIABLES text/jsonl is modelled (B39)');
+			}
+			$this->uses('B39');
+			$key = 'tmp/fake/bulk/' . bin2hex(random_bytes(8)) . '/' . $in['filename'];
+			$this->shop($domain)['staged'][$key] = null;
+			$targets[] = ['__typename' => 'StagedMediaUploadTarget', 'url' => self::STAGED_URL, 'resourceUrl' => null,
+				'parameters' => array_map(fn(array $p): array => ['__typename' => 'StagedUploadParameter'] + $p,
+					[['name' => 'Content-Type', 'value' => 'text/jsonl'], ['name' => 'success_action_status', 'value' => '201'], ['name' => 'key', 'value' => $key], ['name' => 'policy', 'value' => 'fake']])];
+		}
+		return self::payload(['stagedTargets' => $targets]);
+	}
+
+	/**
+	 * B39: runs a bulk mutation over the uploaded file, one result line per input line with its
+	 * __lineNumber from 0, written when it starts like B38's file. Only inventoryBulkToggleActivation
+	 * is modelled. failBulkAfter() makes it apply that many lines and end FAILED.
+	 */
+	private function mBulkOperationRunMutation(string $domain, array $a): array
+	{
+		$s = &$this->shop($domain);
+		$doc = GraphqlDocument::parse($a['mutation']);
+		$problems = $this->schema->validateDocument($a['mutation']);
+		if ($problems) {
+			throw new LogicException('FakeShopifyStore: the bulk mutation is not valid: ' . implode('; ', $problems));
+		}
+		$roots = array_column($doc->rootFields([]), 'name');
+		if ($roots !== ['inventoryBulkToggleActivation']) {
+			throw new LogicException('FakeShopifyStore: this bulk mutation is not modelled (B39): ' . implode(', ', $roots));
+		}
+		if (!empty($s['bulk_limit_once'])) {
+			unset($s['bulk_limit_once']);
+			return self::payload(['bulkOperation' => null], [self::userError(['mutation'], 'A limit of bulk mutations is running.', 'LIMIT_REACHED')]);
+		}
+		if (($s['staged'][$a['stagedUploadPath']] ?? null) === null) {
+			return self::payload(['bulkOperation' => null], [self::userError(['stagedUploadPath'], 'The file was not uploaded.', 'NO_SUCH_FILE')]);
+		}
+		$this->uses('B39');
+		$lines = [];
+		$failAfter = $s['bulk_fail_after'] ?? null;
+		unset($s['bulk_fail_after']);
+		foreach (explode("\n", trim((string)$s['staged'][$a['stagedUploadPath']])) as $n => $text) {
+			if ($failAfter !== null && $n >= $failAfter) {
+				break;
+			}
+			$vars = $doc->variables(json_decode($text, true), $this->schema);
+			$field = $doc->rootFields($vars)[0];
+			$value = $this->mInventoryBulkToggleActivation($domain, GraphqlDocument::args($field, $vars));
+			$out = $doc->project($value, $field['selections'], 'InventoryBulkToggleActivationPayload', $vars, $this->schema, $field['alias']);
+			$lines[] = json_encode(['data' => [$field['alias'] => $out], '__lineNumber' => $n], JSON_UNESCAPED_SLASHES);
+		}
+		$gid = $this->gid('BulkOperation');
+		$s['bulk'][$gid] = ['status' => 'RUNNING', 'type' => 'MUTATION', 'query' => $a['mutation'], 'final' => $failAfter === null ? 'COMPLETED' : 'FAILED',
+			'url' => 'https://storage.googleapis.com/fake-bulk/' . $this->legacy($gid) . '.jsonl',
+			'file' => $failAfter === null && $lines !== [] ? implode("\n", $lines) . "\n" : '', 'lines' => count($lines), 'items' => count($lines)];
+		return self::payload(['bulkOperation' => $this->vBulk($domain, $gid)]);
+	}
+
+	/**
+	 * B40: stocks one item at the locations given. A newly stocked pair shows a quantity set while it
+	 * wasn't stocked (B20), else 0; a pair already stocked keeps its quantity (dev store 2026-11-12).
+	 * refuseActivation() makes it refuse the item and change nothing. Deactivation is not modelled.
+	 */
+	private function mInventoryBulkToggleActivation(string $domain, array $a): array
+	{
+		$s = &$this->shop($domain);
+		$item = $a['inventoryItemId'];
+		if (!isset($s['items'][$item])) {
+			return self::payload(['inventoryItem' => null, 'inventoryLevels' => null], [self::userError(['inventoryItemId'], 'The inventory item could not be found.', 'INVENTORY_ITEM_NOT_FOUND')]);
+		}
+		$this->uses('B40');
+		if (isset($s['refuse_toggle'][$item])) {
+			return self::payload(['inventoryItem' => $this->vItem($domain, $item), 'inventoryLevels' => null], [self::userError(['inventoryItemUpdates'], $s['refuse_toggle'][$item], 'FAILED_TO_STOCK_AT_LOCATION')]);
+		}
+		$levels = [];
+		foreach ($a['inventoryItemUpdates'] as $u) {
+			if (!$u['activate']) {
+				throw new LogicException('FakeShopifyStore: inventoryBulkToggleActivation with activate false is not modelled (B40)');
+			}
+			if (!isset($s['locations'][$u['locationId']])) {
+				return self::payload(['inventoryItem' => $this->vItem($domain, $item), 'inventoryLevels' => null], [self::userError(['inventoryItemUpdates'], 'The location could not be found.', 'LOCATION_NOT_FOUND')]);
+			}
+		}
+		foreach ($a['inventoryItemUpdates'] as $u) {
+			$location = $u['locationId'];
+			if (!isset($s['levels'][$item][$location])) {
+				$available = $s['hidden'][$item][$location] ?? 0;
+				unset($s['hidden'][$item][$location]);
+				$s['levels'][$item][$location] = ['available' => (int)$available, 'on_hand' => (int)$available] + $this->emptyLevel();
+			}
+			$levels[] = $this->vLevel($domain, $item, $location);
+		}
+		return self::payload(['inventoryItem' => $this->vItem($domain, $item), 'inventoryLevels' => $levels]);
 	}
 
 	private function mProductSet(string $domain, array $a): array
@@ -1619,7 +1784,7 @@ final class FakeShopifyStore
 		}
 		foreach ($in['quantities'] as $i => $q) {
 			$path = ['input', 'quantities', (string)$i];
-			if (!isset($s['items'][$q['inventoryItemId']])) {
+			if (!isset($s['items'][$q['inventoryItemId']]) || isset($s['refuse_set'][$q['inventoryItemId']])) {
 				$errors[] = self::userError(array_merge($path, ['inventoryItemId']), 'The specified inventory item could not be found.', 'INVALID_INVENTORY_ITEM');
 			} elseif (!isset($s['locations'][$q['locationId']])) {
 				$errors[] = self::userError(array_merge($path, ['locationId']), 'The specified location could not be found.', 'INVALID_LOCATION');
