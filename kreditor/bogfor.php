@@ -43,10 +43,11 @@
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
 // 20260908 CDX/LH Lock creditor orders before posting and update split purchase batches once (SST-765).
 // 20261113 CDX/NTR Delegate supplier ledger posting to its dedicated module (SD-599).
+// 20261113 CDX/NTR Select the supplier posting adapter at the ledger hand-off.
 
 @session_start();
 $s_id=session_id();
-require_once __DIR__ . '/../includes/purchaseInvoicePosting.php';
+require_once __DIR__ . '/../includes/invoicePosting.php';
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -311,9 +312,11 @@ if (!$row['levdate']){
 }
 print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 
-/** @see post_purchase_invoice() */
+/** @see SaldiInvoicePosting */
 function bogfor($id) {
-	post_purchase_invoice($id);
+	$invoiceId = (int)$id;
+	$row = db_fetch_array(db_select("select art from ordrer where id='$invoiceId'", __FILE__ . ' linje ' . __LINE__));
+	invoice_posting_for_type($row['art'] ?? 'KO')->post($id, 'supplier');
 }
 
 ?>
