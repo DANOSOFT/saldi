@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
-
+//
+//
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -164,9 +164,11 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261113 CDX/NTR SD-599: Extract the disabled commission entry point into its dedicated module.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/orderFuncIncludes/commissionSettlement.php';
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -6320,39 +6322,6 @@ if (!function_exists('registrer_betaling')) {
 									print "<tr><td align='center'>D<a href='http://$terminal_ip/pointd/point.php?url=$url&id=$ordre_id'><button style=\"width:250px;\">".findtekst(1103,$sprog_id)."</button></td></tr>";
 						*/
 			print "</tbody></table>";
-		}
-	}
-}
-if (!function_exists('settleCommision')) {
-	function settleCommision($idOrder)
-	{
-		return;
-		exit;
-		global $db;
-		$customer = array();
-		$x = 0;
-		$qtxt = "select * from ordrelinjer where ordre_id='$idOrder' and fast_db > 0 and (varenr like 'kb%' or varenr like 'kn%')";
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			(is_numeric(substr($r['varenr'], 5))) ? $tmp = substr($r['varenr'], 5) : $tmp = NULL;
-			if ($tmp) {
-				if (in_array($tmp, $kundenr)) {
-					for ($k = 0; $k < count($kundenr); $k++) {
-						if ($kundenr[$k] == $tmp) {
-							$amnt = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat']);
-							$amount[$k] += $amnt;
-							$commission[$k] += $amnt - ($amnt * $r['fast_db']);
-						}
-					}
-				} else {
-					$kundenr[$x] = $tmp;
-					$amount[$x] = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
-					$commission[$x] = $amount[$x] * $r['fast_db'];
-					$x++;
-				}
-			}
-		}
-		for ($k = 0; $k < count($kundenr); $k++) {
 		}
 	}
 }
