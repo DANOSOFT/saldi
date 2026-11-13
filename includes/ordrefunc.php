@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
-
+//
+//
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -164,9 +164,11 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/orderFuncIncludes/glsLabel.php';
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -6043,123 +6045,6 @@ if (!function_exists('find_nextfakt')) {
 		return ($nextfakt);
 	}
 }# endfunc find_nextfakt							
-
-if (!function_exists('gls_label')) {
-	function gls_label($gls_username, $gls_password, $gls_customerid, $gls_ctId, $ordrenr, $kundeordnr, $firmanavn, $addr1, $postnr, $bynavn, $land, $email, $lev_navn, $lev_addr1, $lev_postnr, $lev_bynavn, $lev_land, $kontakt, $weight)
-	{
-		global $db;
-		$weight = ceil($weight);
-		if ($weight < 1)
-			$weight = 1;
-		if ($land == 'Sweden') {
-			$code = '752';
-		} else if ($land == 'Sverige') {
-			$code = '752';
-		} else if ($land == 'sverige') {
-			$code = '752';
-		} else if ($land == 'Denmark') {
-			$code = '208';
-		} else if ($land == 'Danmark') {
-			$code = '208';
-		} else {
-			$code = '208';
-		}
-		if (!empty($lev_navn)) {
-			$name = $lev_navn;
-			$strrrt1 = $lev_addr1;
-			$city = $lev_bynavn;
-			$zipcode = $lev_postnr;
-		} else {
-			$name = $firmanavn;
-			$strrrt1 = $addr1;
-			$city = $bynavn;
-			$zipcode = $postnr;
-		}
-		$name = html_entity_decode($name, ENT_QUOTES, 'UTF-8');
-		$strrrt1 = html_entity_decode($strrrt1, ENT_QUOTES, 'UTF-8');
-		$zipcode = html_entity_decode($zipcode, ENT_QUOTES, 'UTF-8');
-		$kontakt = html_entity_decode($kontakt, ENT_QUOTES, 'UTF-8');
-		$city = html_entity_decode($city, ENT_QUOTES, 'UTF-8');
-		$ary = [
-			"UserName" => $gls_username,
-			"Password" => $gls_password,
-			"Customerid" => $gls_customerid,
-			"Contactid" => $gls_ctId,
-			"ShipmentDate" => date('Ymd'),
-			"Reference" => $ordrenr,
-			"Addresses" => [
-				"Delivery" => [
-					"Name1" => substr($name, 0, 39),
-					"Street1" => $strrrt1,
-					"CountryNum" => $code,
-					"ZipCode" => $zipcode,
-					"City" => $city,
-					"Contact" => substr($kontakt, 0, 39),
-					"Email" => $email,
-				]
-			],
-			"Parcels" => [
-				[
-					"Weight" => $weight,
-					"Reference" => $kundeordnr,
-				]
-			]
-		];
-		$json = json_encode($ary);
-		file_put_contents("../temp/$db/pdf.json", $json);
-		$service_url = 'http://api.gls.dk/ws/DK/V1/CreateShipment/';
-		// jSON String for request
-		$json_string = $json;
-		// Initializing curl
-		$ch = curl_init($service_url);
-		// Configuring curl options
-		$options = array(
-			CURLOPT_RETURNTRANSFER => true,
-			//CURLOPT_USERPWD => $username . ":" . $password,  // authentication
-			//CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1') ,
-			CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1'),
-			CURLOPT_POSTFIELDS => $json_string
-		);
-
-		// Setting curl options
-		curl_setopt_array($ch, $options);
-
-		// Getting results
-		$result = curl_exec($ch); // Getting jSON result string
-		if (curl_errno($ch)) {
-			// Handle curl error
-			die('Curl error: ' . curl_error($ch));
-		}
-		curl_close($ch);
-
-		file_put_contents("../temp/$db/pdf-res.json", $result);
-		$res = json_decode($result);
-
-		if (!$res || !isset($res->PDF)) {
-			// Handle API error
-			die('Invalid response from GLS API');
-		}
-
-		// Clean all output buffers
-		while (ob_get_level()) {
-			ob_end_clean();
-		}
-
-		// Set headers for PDF download
-		header('Content-Type: application/pdf');
-		header('Content-Disposition: attachment; filename="' . $ordrenr . '.pdf"');
-		header('Content-Length: ' . strlen(base64_decode($res->PDF)));
-		header('Content-Transfer-Encoding: binary');
-		header('Cache-Control: private, no-cache, no-store, must-revalidate');
-		header('Pragma: no-cache');
-		header('Expires: 0');
-
-		// Output PDF content
-		echo base64_decode($res->PDF);
-		exit();
-		/* GLS funktion slut */
-	}
-}
 
 if (!function_exists('registrer_betaling')) {
 	function registrer_betaling($betalings_id, $ordre_id, $betalingstype, $amount, $valuta, $valutakurs, $terminal_ip)
