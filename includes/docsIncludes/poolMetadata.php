@@ -3,6 +3,8 @@
 // 20261027 CL/LH Account 0 is "not set", as the journal stores an empty account. A stored account the journal can't use
 //                (0, another year's, closed, or an app's suggestion that isn't in kontoplan) no longer refuses "Indsæt" and
 //                Bilagsmatch with 422; the line keeps its empty Debet. A typed Debet/Kredit is still checked (#732).
+// 20261110 CL/SZ SST-949 A manual save checks the account only when the user changed it.
+//                An unchanged stored account the year's kontoplan can't use stays as it is, so a date or amount correction is saved.
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
 
@@ -67,6 +69,7 @@ function poolMetadataSave(string $filename, array $input, bool $manual, ?string 
 			return ['success' => true, 'skipped' => true, 'version' => $currentVersion];
 		}
 		$fields = ['subject', 'account', 'amount', 'file_date', 'invoice_number', 'description', 'currency'];
+		$storedAccount = trim((string)($row['account'] ?? ''));
 		foreach ($fields as $field) {
 			$value = array_key_exists($field, $input) ? $input[$field] : ($row[$field] ?? '');
 			if (!is_scalar($value) && $value !== null) {
@@ -74,7 +77,15 @@ function poolMetadataSave(string $filename, array $input, bool $manual, ?string 
 			}
 			$row[$field] = trim((string)$value);
 		}
-		$row['account'] = poolMetadataAccount($row['account'], $year);
+		try {
+			$row['account'] = poolMetadataAccount($row['account'], $year);
+		} catch (InvalidArgumentException $error) {
+			// An account the user didn't change stays the stored suggestion (an app's or an AI scan's), even one the year's
+			// kontoplan can't use, so it doesn't stop a correction of the other fields. "Indsæt" leaves it out (#928).
+			if ($row['account'] !== $storedAccount) {
+				throw $error;
+			}
+		}
 		$amount = normalizePoolAmount($row['amount']);
 		if ($row['amount'] !== '' && $amount === null) {
 			throw new InvalidArgumentException('Invalid amount', 422);
