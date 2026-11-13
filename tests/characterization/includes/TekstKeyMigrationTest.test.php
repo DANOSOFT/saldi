@@ -5,6 +5,8 @@
 // 20261028 CDX/NTR Expect the index lock when an existing column still needs its index.
 // 20261028 CDX/NTR Cover the same migration running against the master database.
 // 20261029 CL/LH Stop the eval at the end of this migration, so blocks appended after it in betweenUpdates.php are not run.
+// 20261103 CL/ASR Merged with master: the eval stops at the migration's foreach close (the 20261029 rule).
+//                 The sentinel comment added on 31 Oct in betweenUpdates.php stays only as a marker, and the other migrations are still appended after the block.
 // 20261110 CDX/NTR Read the tekst_key migration from the released 5.1.1 updater.
 
 namespace Saldi\Tests\TekstKeyMigration;

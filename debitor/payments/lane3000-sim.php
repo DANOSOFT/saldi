@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/lane3000-sim.php --- ver 5.0.0 --- 2026.10.07 ---
+// --- payments/lane3000-sim.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,7 +26,9 @@
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20261007 CL/SZ SST-843 Removed the unused get_api_key() and start_payment(); they printed the register's Nets
 //                Connect@Cloud username and password into the page although the simulation never calls them.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261103 CL/ASR QA: $permission_key is 'pos.kasse|debitor.ordre', so a till user (pos.kasse) can pay by terminal once enforcement is 'deny'.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -37,6 +39,7 @@ $s_id = session_id();
 $css = "../../css/flatpay.css";
 
 include ("../../includes/connect.php");
+$permission_key = 'pos.kasse|debitor.ordre'; // the till (pos.kasse) and the order page both pay by terminal
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 include ("../../includes/stdFunc/dkDecimal.php");

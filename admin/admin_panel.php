@@ -1,11 +1,10 @@
 <?php
-ob_start();
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/admin_panel.php --- 2026-11-02 ---
+// --- admin/admin_panel.php --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,6 +18,9 @@ ob_start();
 // feature licenses, usage stats, and account settings.
 //
 // 20261102 CL/ASR Reopening an account whose closing date (lukkes) has passed also clears that date, so the auto-close does not close it again at once.
+// 20261113 CDX/NTR Use the shared last-activity formatter for legacy registry date strings in both account views.
+
+ob_start();
 
 @session_start();
 $s_id = session_id();
@@ -30,6 +32,7 @@ $title = "Admin Panel";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/stdFunc/lastActivityDate.php';
 
 // ---- Ensure lukkes_kommentar column exists on regnskab ----
 $_col_check = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='lukkes_kommentar' AND table_schema='public'", __FILE__ . " linje " . __LINE__));
@@ -1213,7 +1216,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
         $max_brugere = $reg['brugerantal'] * 1;
         $max_posteringer = $reg['posteringer'] * 1;
         $posteret = $reg['posteret'] * 1;
-        $sidst = $reg['sidst'] ? date("d-m-Y", $reg['sidst']) : '-';
+        $sidst = lastActivityDate($reg['sidst']);
         $is_closed = ($reg['lukket'] == 'on');
         $betalt_til_raw = if_isset($reg, '', 'betalt_til');
         $betalt_til_display = $betalt_til_raw ? date("d-m-Y", strtotime($betalt_til_raw)) : '-'; 
@@ -1658,7 +1661,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                 $reg_id = $reg['id'];
                 $row_count++;
                 $is_closed = ($reg['lukket'] == 'on');
-                $sidst_val = $reg['sidst'] ? date("d-m-Y", $reg['sidst']) : '-';
+                $sidst_val = lastActivityDate($reg['sidst']);
                 
                 // License status
                 $reg_licenses = isset($all_licenses[$reg_id]) ? $all_licenses[$reg_id] : array();

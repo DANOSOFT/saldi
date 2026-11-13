@@ -1,7 +1,7 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------ver 5.1.0 ------2026-11-10-------------
+// ------ SAGER/ANSATTE.php-------ver 5.1.1 ------2026-11-13-------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@ $s_id=session_id();
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
- 
+//
 // Nyt flueben - ny i branchen. reduceret løn 80% i x mdr.½
 // Har lagt al javascript i en separat fil ved navn 'jquery.ansatte.js' + diverse html rettelser
 // Flere html rettelser + html rettelser i "/systemdata/ansatte_load.php" 
@@ -37,6 +37,8 @@ $s_id=session_id();
 // 20261106 CL/MMR SD-813 The page's lang attribute follows the user's language (da, en, no).
 // 20261110 CDX/NTR Use CSS wrapping for information card labels instead of JavaScript hyphenation.
 // 20261110 CDX/NTR Preserve existing login passwords on blank saves and validate before creating a login.
+// 20261113 CDX/NTR Keep employee-login permission checks with blank-password preservation.
+
 	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
@@ -55,7 +57,16 @@ $s_id=session_id();
 	include("../includes/online.php");
 	include("../includes/std_func.php");
 	require_once(__DIR__ . '/sagerIncludes/saveEmployeeLogin.php');
+	include_once(__DIR__ . '/../includes/userFunctions.php');
 	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
+	// 20261018 Sawaneh Review 2 (PR #803): every POST on this page carries the session's token.
+	if (empty($_SESSION['csrf_token'])) {
+		$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+	}
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		perm_require_post_csrf(false);
+	}
+	$csrfField = "<input type=\"hidden\" name=\"csrf_token\" value=\"" . htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES) . "\">";
 
 	if(isset($_GET['id'])) $id = $_GET['id'];
 	if(isset($_POST['id'])) $id = $_POST['id'];
@@ -247,7 +258,7 @@ function ansatliste() {
 
 	print "
 		<div class=\"contentsoeg\">
-		<form name=\"kundesoeg\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">
+		<form name=\"kundesoeg\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">{$GLOBALS['csrfField']}
 			<table border=\"0\" cellspacing=\"0\" width=\"828\">
 				<thead>
 					<tr>
@@ -346,7 +357,7 @@ function ret_ansat($id) {
 		// jsString() is loaded by includes/std_func.php.
 		print "<script>alert(" . jsString([$loginError]) . ");location.hash='#anch';</script>";
 	}
-	print "<form name=\"ret_ansat\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">\n"; // #anchor $anchor
+	print "<form name=\"ret_ansat\" action=\"ansatte.php?funktion=ret_ansat\" method=\"post\">{$GLOBALS['csrfField']}\n"; // #anchor $anchor
 	$x=0;
 	$q=db_select("select * from grupper where art='brgrp' order by beskrivelse",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -505,7 +516,7 @@ function brugergrupper($id) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/ansatte.php?funktion=brugergrupper\">\n";
 	}
 	print "<div class=\"content\">\n";
-	print "<form name=\"brugergrupper\" action=\"ansatte.php?funktion=brugergrupper\" method=post>\n";
+	print "<form name=\"brugergrupper\" action=\"ansatte.php?funktion=brugergrupper\" method=post>{$GLOBALS['csrfField']}\n";
 	
 	print "<div style=\"float:left; width:828px;\">\n";
 	print "<h3>".findtekst('2968|Brugergrupper', $sprog_id)."</h3>\n";
@@ -680,7 +691,7 @@ function stamkort($id) {
 	
 	}
 	
-	print "<form name=\"stamkort\" action=\"ansatte.php?funktion=stamkort\" method=post>\n";
+	print "<form name=\"stamkort\" action=\"ansatte.php?funktion=stamkort\" method=post>{$GLOBALS['csrfField']}\n";
 	print "<div class=\"content\">";
 	print "<div class=\"contentBorder stamkort\">";
 	print "<table border=\"0\" cellspacing=\"0\" width=\"826\" style=\"font-size: 12px\"><thead>";
