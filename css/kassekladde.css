@@ -1,0 +1,295 @@
+/* finans/kassekladde.php – cash journal redesign (20261021 ASR, Requirements_kassekladde_redesign_EN.md v2.2).
+   Laid over the existing markup: the journal stays a <table class="formnavi"> with every input's name (fieldNavigation.js,
+   invoiceReuse.js, the drag script and accountAutocomplete.js depend on that). Scoped to html.kk-redesign, set by the page;
+   .inputbox is shared by ~200 pages and is never styled bare. Colours from css/saldi-theme.css, fonts from saldi-fonts.css,
+   sizes in rem (Normal/Større text size). --btn/--btn-text = the user's button colour (printed by the page). */
+
+html.kk-redesign {
+  --border-field: #c6d2e4;
+  --focus: var(--saldi-blue, #4FA0EE);
+  --focus-ring: rgba(79, 160, 238, .18);
+  --row-hover: color-mix(in srgb, var(--saldi-blue, #4FA0EE) 5%, var(--surface, #fff));
+  --save: #1f8a4c;
+  --save-hover: #18733f;
+  --warn: #b45309;
+  --warn-bg: #fff4e0;
+  --gutter: 16px;
+  /* column widths: wide density (compact overrides below) */
+  --w-clip: 46px; --w-bilag: 58px; --w-dato: 94px; --w-tekst: 200px; --w-dk: 34px; --w-konto: 78px; --w-vat: 44px;
+  --w-fakt: 80px; --w-belob: 98px; --w-small: 52px; --w-valuta: 52px; --w-bid: 110px; --w-um: 34px; --w-act: 82px; /* 2×26 + 8 gap + 2 + 16 gutter */
+  --row-h: 40px; --field-h: 28px; --rb: 26px;
+}
+html.kk-redesign[data-kk-density="compact"],
+html.kk-redesign[data-kk-density="narrow"] {
+  --w-clip: 42px; --w-bilag: 52px; --w-dato: 88px; --w-tekst: 150px; --w-dk: 30px; --w-konto: 70px; --w-vat: 40px;
+  --w-fakt: 70px; --w-belob: 90px; --w-small: 46px; --w-valuta: 46px; --w-bid: 100px; --w-um: 30px; --w-act: 74px; /* 2×24 + 6 gap + 2 + 16 */
+  --rb: 24px;
+}
+[data-theme="dark"] html.kk-redesign, html.kk-redesign[data-theme="dark"] {
+  --border-field: #34476f; --warn: #fbbf24; --warn-bg: rgba(251, 191, 36, .12); --focus-ring: rgba(79, 160, 238, .28);
+}
+@media (prefers-color-scheme: dark) {
+  html.kk-redesign[data-theme="system"] { --border-field: #34476f; --warn: #fbbf24; --warn-bg: rgba(251, 191, 36, .12); --focus-ring: rgba(79, 160, 238, .28); }
+}
+
+/* ---------- page frame: full bleed, no blue top line ---------- */
+html.kk-redesign body {
+  padding: 0 !important;
+  background: var(--surface, #fff) !important;
+  color: var(--text, #0b1a3a);
+  font: 0.875rem/1.45 var(--font-ui, Inter, "Segoe UI", system-ui, sans-serif);
+}
+html.kk-redesign .kk-toolbar *, html.kk-redesign .kassekladde-scroll-container *, html.kk-redesign .kk-footer *,
+html.kk-redesign #kkVisPanel * { box-sizing: border-box; }
+html.kk-redesign form#kassekladde { background: var(--surface, #fff); }
+html.kk-redesign :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- toolbar ---------- */
+html.kk-redesign .kk-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  padding: 10px var(--gutter); background: var(--surface-2, #f6f9fe); border-bottom: 1px solid var(--border, #dde5f1);
+}
+html.kk-redesign .kk-tb-field { display: flex; align-items: center; gap: 10px; white-space: nowrap; color: var(--text-2, #5b6b85); font-size: 0.875rem; }
+html.kk-redesign .kk-tb-note { flex: 1 1 180px; min-width: 180px; }
+html.kk-redesign .kk-toolbar input.inputbox[type="text"] {
+  height: 32px; padding: 0 10px; border: 1px solid var(--border-field); border-radius: 7px; background: var(--surface, #fff);
+  color: var(--text); font: inherit; font-size: 0.875rem; outline: none; transition: border-color .2s, box-shadow .2s;
+}
+html.kk-redesign .kk-tb-note input.inputbox { flex: 1; min-width: 0; width: auto; }
+html.kk-redesign .kk-tb-ktrl input.inputbox { width: 92px; text-align: right; }
+html.kk-redesign .kk-toolbar input.inputbox::placeholder { color: var(--text-3, #8a97ad); }
+html.kk-redesign .kk-tb-cells { border-collapse: collapse; }
+html.kk-redesign .kk-tb-cells td { padding: 0 !important; white-space: nowrap; color: var(--text-2); font-size: 0.875rem; }
+html.kk-redesign .kk-tb-cells td b { font-weight: 500; }
+html.kk-redesign .kk-tb-cells img { width: 18px !important; height: 18px !important; vertical-align: middle; }
+html.kk-redesign .kk-tb-cells select, html.kk-redesign #kkRegnaar {
+  height: 32px; padding: 0 6px; border: 1px solid var(--border-field) !important; border-radius: 7px; background: var(--surface) !important; color: var(--text); font: inherit;
+}
+html.kk-redesign .kk-tb-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+html.kk-redesign .kk-ghost {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 9px; border: 0; border-radius: 8px;
+  background: none; color: var(--text-2); font: inherit; font-weight: 500; font-size: 0.8438rem; cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+html.kk-redesign .kk-ghost:hover { background: var(--surface, #fff); color: var(--text); }
+html.kk-redesign .kk-icon { width: 32px; padding: 0; justify-content: center; }
+html.kk-redesign.kk-in-shell .kk-close, html.kk-redesign.kk-in-shell #tutorial-help { display: none; }
+html.kk-redesign .kk-bank .auth-status-icon { display: inline-flex; align-items: center; gap: 4px; padding: 6px; color: var(--text-2) !important; font-size: 0.78rem; text-decoration: none; margin: 0 !important; }
+html.kk-redesign .kk-bank .auth-status-icon img { width: 16px; height: 16px; }
+html.kk-redesign .kk-newbtn {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px 0 11px; border-radius: 8px; border: 1px solid var(--btn);
+  background: var(--surface, #fff); color: var(--btn); font-weight: 600; font-size: 0.9062rem; text-decoration: none; white-space: nowrap; transition: background .15s, color .15s;
+}
+html.kk-redesign .kk-newbtn:hover { background: var(--btn); color: var(--btn-text); }
+[data-theme="dark"] html.kk-redesign .kk-newbtn, html.kk-redesign[data-theme="dark"] .kk-newbtn { color: var(--text); border-color: var(--border-field); }
+html.kk-redesign[data-kk-density="compact"] .kk-long, html.kk-redesign[data-kk-density="narrow"] .kk-long { display: none; }
+html.kk-redesign .kk-gear {
+  width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: var(--btn); color: var(--btn-text);
+  display: inline-grid; place-items: center; cursor: pointer; transition: filter .15s;
+}
+html.kk-redesign .kk-gear:hover { filter: brightness(1.15); }
+html.kk-redesign .kk-gear svg { transition: transform .25s ease; }
+html.kk-redesign .kk-gear:hover svg { transform: rotate(60deg); }
+html.kk-redesign[data-kk-density="narrow"] .kk-tb-field .kk-lbl { display: none; }
+
+/* balance pill (#kk-balance-status) and save status */
+html.kk-redesign .kk-bal {
+  display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 9px; border: 1px solid;
+  white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 0.875rem;
+}
+html.kk-redesign .kk-bal .kk-bal-l { font-size: 0.72rem; letter-spacing: .08em; text-transform: uppercase; }
+html.kk-redesign .kk-bal b { font-weight: 600; }
+html.kk-redesign .kk-bal.off { background: var(--bad-bg, #fdecec); color: var(--bad, #c2410c); border-color: color-mix(in srgb, var(--bad, #c2410c) 35%, transparent); }
+html.kk-redesign .kk-bal.ok { background: var(--good-bg, #e8f6ee); color: var(--good, #15803d); border-color: color-mix(in srgb, var(--good, #15803d) 35%, transparent); }
+html.kk-redesign .kk-save { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid transparent; font-size: 0.8125rem; color: var(--text-3, #8a97ad); white-space: nowrap; }
+html.kk-redesign .kk-save::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--good, #15803d); }
+html.kk-redesign .kk-save.dirty { color: var(--warn); background: var(--warn-bg); border-color: color-mix(in srgb, var(--saldi-amber, #D9822B) 45%, transparent); }
+html.kk-redesign .kk-save.dirty::before { background: var(--saldi-amber, #D9822B); }
+html.kk-redesign .kk-save:empty { display: none; }
+
+/* ---------- the grid ---------- */
+html.kk-redesign .kassekladde-scroll-container { border: 0 !important; margin: 0 !important; overflow: auto !important; background: var(--surface); }
+html.kk-redesign .kassekladde-scroll-container > center { display: block; text-align: left; }
+html.kk-redesign .formnavi.dataTableForm { width: 100%; border-collapse: separate !important; border-spacing: 0; margin: 0; }
+html.kk-redesign[data-kk-density="narrow"] .formnavi.dataTableForm { width: max-content; min-width: 100%; }
+html.kk-redesign .formnavi.dataTableForm tr.table-krow { display: none; }
+html.kk-redesign .formnavi.dataTableForm thead.kassekladde-thead { background: var(--surface-2) !important; }
+html.kk-redesign .formnavi.dataTableForm thead td {
+  height: 40px; padding: 0 2px; background: var(--surface-2, #f6f9fe); border-bottom: 1px solid var(--border, #dde5f1);
+  color: var(--text-2); font-size: 0.8125rem; font-weight: 600; text-align: left; white-space: nowrap; vertical-align: middle;
+}
+html.kk-redesign .formnavi.dataTableForm thead td b { font-weight: 600; }
+html.kk-redesign .formnavi.dataTableForm thead a { color: inherit; text-decoration: none; }
+html.kk-redesign .formnavi.dataTableForm thead a:hover { color: var(--text); text-decoration: underline; }
+html.kk-redesign .kk-sortmark { margin-left: 3px; color: var(--link, #1b68bd); font-size: 0.7rem; }
+html.kk-redesign .kk-own { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; color: var(--text-3) !important; }
+html.kk-redesign .kk-own.on { color: var(--link, #1b68bd) !important; }
+html.kk-redesign .kk-own:hover { background: var(--surface); text-decoration: none !important; }
+html.kk-redesign .kk-own svg { width: 15px; height: 15px; }
+
+html.kk-redesign #kassekladde-tbody td {
+  height: var(--row-h); padding: 0 2px; border-bottom: 1px solid var(--grid, #e9eef7); background: var(--surface, #fff); vertical-align: middle;
+}
+html.kk-redesign #kassekladde-tbody tr.kk-line:hover td { background: var(--row-hover); }
+html.kk-redesign #kassekladde-tbody tr.kk-line td:not(:has(input,select,button,img)) { cursor: grab; }
+html.kk-redesign #kassekladde-tbody tr.kk-line { user-select: none; }
+html.kk-redesign #kassekladde-tbody tr.kk-line input[type="text"] { user-select: text; }
+/* first and last column carry the 16px gutter */
+html.kk-redesign .formnavi.dataTableForm tr > td:first-child, html.kk-redesign #kassekladde-tbody tr > td:first-child { padding-left: var(--gutter); }
+html.kk-redesign .formnavi.dataTableForm tr > td.kk-c-act, html.kk-redesign #kassekladde-tbody tr > td.kk-c-act { padding-right: var(--gutter); }
+
+/* widths are set on the header cells (auto layout); Bilagstekst takes the rest */
+html.kk-redesign .kk-c-clip   { width: var(--w-clip); text-align: center !important; }
+html.kk-redesign .kk-c-bilag  { width: var(--w-bilag); }
+html.kk-redesign .kk-c-dato   { width: var(--w-dato); }
+html.kk-redesign .kk-c-dk     { width: var(--w-dk); text-align: center !important; }
+html.kk-redesign .kk-c-konto  { width: var(--w-konto); }
+html.kk-redesign .kk-col-vat_d, html.kk-redesign .kk-col-vat_k { width: var(--w-vat); }
+html.kk-redesign .kk-c-fakt   { width: var(--w-fakt); }
+html.kk-redesign .kk-c-belob  { width: var(--w-belob); }
+html.kk-redesign .kk-c-small  { width: var(--w-small); }
+html.kk-redesign .kk-c-valuta { width: var(--w-valuta); }
+html.kk-redesign .kk-c-bid    { width: var(--w-bid); }
+html.kk-redesign .kk-c-um     { width: var(--w-um); text-align: center !important; }
+html.kk-redesign .kk-c-act    { width: var(--w-act); }
+html.kk-redesign thead .kk-c-bilag, html.kk-redesign thead .kk-c-konto, html.kk-redesign thead .kk-c-fakt,
+html.kk-redesign thead .kk-c-belob, html.kk-redesign thead .kk-c-small { text-align: right !important; padding-right: 10px !important; }
+
+/* fields */
+html.kk-redesign #kassekladde-tbody input.inputbox[type="text"], html.kk-redesign #kassekladde-tbody input.inputbox:not([type]) {
+  width: 100% !important; min-width: 0; height: var(--field-h); padding: 0 7px; margin: 0;
+  border: 1px solid var(--border-field) !important; border-radius: 6px; background: var(--surface, #fff) !important;
+  color: var(--text) !important; font: inherit; font-size: 0.875rem; outline: none; transition: border-color .2s, box-shadow .2s;
+}
+html.kk-redesign #kassekladde-tbody input.inputbox:focus, html.kk-redesign #kassekladde-tbody select:focus, html.kk-redesign .kk-toolbar input.inputbox:focus {
+  border-color: var(--focus) !important; box-shadow: 0 0 0 3px var(--focus-ring);
+}
+html.kk-redesign .kk-c-tekst input.inputbox { min-width: var(--w-tekst) !important; font-size: 0.9375rem !important; }
+html.kk-redesign .kk-c-bilag input, html.kk-redesign .kk-c-konto input, html.kk-redesign .kk-c-fakt input,
+html.kk-redesign .kk-c-belob input, html.kk-redesign .kk-c-small input { text-align: right !important; font-variant-numeric: tabular-nums; }
+html.kk-redesign .kk-c-dk input { text-align: center !important; text-transform: uppercase; font-weight: 600; padding: 0 !important; }
+html.kk-redesign .kk-c-valuta input { text-align: center !important; text-transform: uppercase; padding: 0 4px !important; }
+html.kk-redesign #kassekladde-tbody input[readonly] { background: var(--surface-2) !important; border-color: var(--border) !important; border-style: dashed !important; }
+html.kk-redesign #kassekladde-tbody input.kk-dup { color: var(--bad, #c2410c) !important; font-weight: 700; border-color: color-mix(in srgb, var(--bad, #c2410c) 45%, var(--border-field)) !important; cursor: help; }
+html.kk-redesign #kassekladde-tbody select {
+  width: 100% !important; height: var(--field-h); padding: 0 2px; border: 1px solid var(--border-field) !important; border-radius: 6px;
+  background-color: var(--surface-2) !important; color: var(--text-2); font: inherit; font-size: 0.75rem;
+}
+html.kk-redesign #kassekladde-tbody input[type="checkbox"] { width: 15px; height: 15px; margin: 0; accent-color: var(--focus); }
+html.kk-redesign .kk-c-um { text-align: center; }
+
+/* paper-clip */
+html.kk-redesign #kassekladde-tbody td.clip-cell { text-align: center; }
+html.kk-redesign #kassekladde-tbody td.clip-cell img { width: 18px !important; height: 18px !important; opacity: .55; transition: opacity .15s; vertical-align: middle; }
+html.kk-redesign #kassekladde-tbody td.clip-cell.clip-has-doc img { opacity: 1; }
+html.kk-redesign #kassekladde-tbody td.clip-cell:hover img { opacity: 1; }
+[data-theme="dark"] html.kk-redesign td.clip-cell img, html.kk-redesign[data-theme="dark"] td.clip-cell img { filter: invert(1); }
+
+/* + and × always visible, light green / light red like the balance pill (spec §5.5) */
+html.kk-redesign .kk-acts { display: flex; justify-content: flex-end; gap: 8px; }
+html.kk-redesign[data-kk-density="compact"] .kk-acts, html.kk-redesign[data-kk-density="narrow"] .kk-acts { gap: 6px; }
+html.kk-redesign .duplicate-line-btn, html.kk-redesign .delete-line-btn {
+  width: var(--rb) !important; height: var(--rb) !important; margin: 0 !important; padding: 0; border-radius: 50%; border: 1px solid;
+  display: inline-grid; place-items: center; font: 800 16px/1 Arial, sans-serif !important; cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+html.kk-redesign .duplicate-line-btn { background: color-mix(in srgb, var(--save) 12%, var(--surface, #fff)) !important; border-color: color-mix(in srgb, var(--save) 55%, transparent); color: var(--save) !important; }
+html.kk-redesign .duplicate-line-btn:hover { background: var(--save-hover) !important; border-color: var(--save-hover); color: #fff !important; }
+html.kk-redesign .delete-line-btn { background: var(--bad-bg, #fdecec) !important; border-color: color-mix(in srgb, var(--bad, #c2410c) 55%, transparent); color: var(--bad, #c2410c) !important; }
+html.kk-redesign .delete-line-btn:hover:not(:disabled) { background: var(--bad, #c2410c) !important; border-color: var(--bad, #c2410c); color: #fff !important; }
+html.kk-redesign .delete-line-btn:disabled { background: var(--surface-2) !important; border-color: var(--border-field); color: var(--text-3) !important; cursor: not-allowed; }
+[data-theme="dark"] html.kk-redesign .duplicate-line-btn, html.kk-redesign[data-theme="dark"] .duplicate-line-btn {
+  color: var(--good) !important; border-color: color-mix(in srgb, var(--good) 50%, transparent); background: color-mix(in srgb, var(--good) 12%, var(--surface)) !important;
+}
+
+/* moving a line: the whole line is the handle */
+html.kk-redesign #kassekladde-tbody tr.dragging td, html.kk-redesign #kassekladde-tbody tr.sortable-ghost td { opacity: .4; }
+html.kk-redesign #kassekladde-tbody tr.drop-target td { box-shadow: inset 0 2px 0 0 var(--focus); }
+
+/* narrow: horizontal scroll, paper-clip and Bilag stay (spec §6.1) */
+html.kk-redesign[data-kk-density="narrow"] .formnavi.dataTableForm tr > td.kk-c-clip,
+html.kk-redesign[data-kk-density="narrow"] .formnavi.dataTableForm tr > td.clip-cell { position: sticky; left: 0; z-index: 2; }
+html.kk-redesign[data-kk-density="narrow"] .formnavi.dataTableForm tr > td.kk-c-bilag { position: sticky; left: var(--w-clip); z-index: 2; box-shadow: 6px 0 6px -6px rgba(11, 26, 58, .25); }
+html.kk-redesign[data-kk-density="narrow"] .formnavi.dataTableForm thead td.kk-c-clip,
+html.kk-redesign[data-kk-density="narrow"] .formnavi.dataTableForm thead td.kk-c-bilag { z-index: 12; }
+
+/* invoice-number warning (SD-715): positioned fixed by kassekladde.js so the scrolling grid cannot clip it */
+html.kk-redesign .invoice-reuse-field { background: var(--warn-bg) !important; border-color: var(--saldi-amber, #D9822B) !important; }
+html.kk-redesign .invoice-reuse-flag { color: var(--warn) !important; }
+html.kk-redesign .invoice-reuse-pop {
+  position: fixed !important; right: auto !important; width: 320px; padding: 10px 12px !important; border: 1px solid var(--border) !important;
+  border-radius: 10px !important; background: var(--surface) !important; color: var(--text) !important; box-shadow: var(--shadow-up, 0 12px 28px rgba(11,26,58,.11)) !important;
+  font: 0.8125rem/1.45 var(--font-ui, Inter, sans-serif) !important; z-index: 10050 !important;
+}
+
+/* ---------- footer: in the order of the work (spec §6.3) ---------- */
+html.kk-redesign .kassekladde-footer.kk-footer {
+  position: sticky; bottom: 0; z-index: 10; margin: 0 !important; padding: 0 var(--gutter) !important; min-height: 64px;
+  display: flex; align-items: center; background: var(--surface-2) !important; border-top: 1px solid var(--border) !important;
+}
+html.kk-redesign .kk-footer #buttonTable { width: 100% !important; max-width: none; margin: 0 !important; }
+html.kk-redesign .kk-footer #buttonTable > tbody > tr { display: flex !important; flex-wrap: nowrap; align-items: center; justify-content: flex-start !important; gap: 10px; }
+html.kk-redesign .kk-footer #buttonTable td { padding: 0 !important; flex: none; }
+html.kk-redesign .kk-f-import { order: 1; } html.kk-redesign .kk-f-match { order: 2; } html.kk-redesign .kk-f-offset { order: 3; }
+html.kk-redesign .kk-f-save { order: 4; } html.kk-redesign .kk-f-note { order: 5; flex: 1 1 auto !important; min-width: 0; }
+html.kk-redesign .kk-f-more { order: 6; position: relative; } html.kk-redesign .kk-f-post { order: 8; }
+html.kk-redesign .kk-f-menu, html.kk-redesign .kk-footer td.kk-moved { display: none !important; }
+html.kk-redesign .kk-f-note { text-align: center; color: var(--text-3); font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.kk-redesign .kk-footer input[type="submit"], html.kk-redesign .kk-footer input[type="button"], html.kk-redesign .kk-footer button.kk-more-btn {
+  min-width: 118px; height: 36px; padding: 0 14px; width: auto !important; float: none !important; margin: 0;
+  border: 1px solid var(--border-field) !important; border-radius: 8px !important; background: var(--surface, #fff) !important; color: var(--text) !important;
+  font: inherit; font-size: 0.9375rem; cursor: pointer; transition: border-color .15s, color .15s, background .15s, filter .15s; box-shadow: none !important;
+}
+html.kk-redesign .kk-footer input[type="submit"]:hover, html.kk-redesign .kk-footer input[type="button"]:hover, html.kk-redesign .kk-footer button.kk-more-btn:hover { border-color: var(--btn) !important; color: var(--btn) !important; }
+html.kk-redesign .kk-footer .kk-f-save input { background: var(--save) !important; border-color: var(--save) !important; color: #fff !important; font-weight: 600; }
+html.kk-redesign .kk-footer .kk-f-save input:hover { background: var(--save-hover) !important; border-color: var(--save-hover) !important; color: #fff !important; }
+html.kk-redesign .kk-footer .kk-f-post input { background: var(--btn) !important; border-color: var(--btn) !important; color: var(--btn-text) !important; font-weight: 600; }
+html.kk-redesign .kk-footer .kk-f-post input:hover { filter: brightness(1.15); color: var(--btn-text) !important; }
+html.kk-redesign .kk-footer button.kk-more-btn { min-width: 0; }
+html.kk-redesign[data-kk-density="compact"] .kk-footer input, html.kk-redesign[data-kk-density="narrow"] .kk-footer input { min-width: 96px; }
+html.kk-redesign .kk-more-menu {
+  position: absolute; right: 0; bottom: calc(100% + 8px); min-width: 220px; padding: 6px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: var(--shadow-up, 0 12px 28px rgba(11,26,58,.11)); z-index: 40; display: none;
+}
+html.kk-redesign .kk-more-menu.open { display: block; }
+html.kk-redesign .kk-more-menu button {
+  display: flex; justify-content: space-between; gap: 16px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none;
+  color: var(--text); font: inherit; font-size: 0.875rem; text-align: left; cursor: pointer;
+}
+html.kk-redesign .kk-more-menu button:hover { background: var(--surface-2); }
+html.kk-redesign .kk-more-menu small { color: var(--text-3); font-size: 0.75rem; }
+
+/* ---------- gear panel "Tilpas kassekladden" ---------- */
+html.kk-redesign #kkVisPanel {
+  position: fixed; z-index: 10000; width: 320px; max-height: calc(100vh - 120px); overflow: auto; padding: 6px 6px 0;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-up, 0 12px 28px rgba(11,26,58,.11));
+  font: 0.8125rem/1.4 var(--font-ui, Inter, sans-serif); display: none;
+}
+html.kk-redesign #kkVisPanel.kkVisOpen { display: block; }
+html.kk-redesign .kk-ph { padding: 10px 10px 2px; font-weight: 700; font-size: 0.875rem; }
+html.kk-redesign .kk-pi { padding: 0 10px 8px; color: var(--text-2); font-size: 0.75rem; }
+html.kk-redesign .kk-sec { border-top: 1px solid var(--border); padding: 4px 0 6px; }
+html.kk-redesign .kk-sec h4 { margin: 0; padding: 10px 10px 4px; font-size: 0.66rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); }
+html.kk-redesign .kk-sw { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 10px; border-radius: 8px; cursor: pointer; user-select: none; }
+html.kk-redesign .kk-sw:hover { background: var(--surface-2); }
+html.kk-redesign .kk-sw-l small { display: block; color: var(--text-3); font-size: 0.72rem; line-height: 1.35; margin-top: 1px; }
+html.kk-redesign .kk-sw input { position: absolute; opacity: 0; width: 0; height: 0; }
+html.kk-redesign .kk-sw i { flex: none; position: relative; width: 32px; height: 18px; border-radius: 99px; background: var(--border-field); transition: background .2s; }
+html.kk-redesign .kk-sw i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .2s; }
+html.kk-redesign .kk-sw input:checked + i { background: var(--focus); }
+html.kk-redesign .kk-sw input:checked + i::after { transform: translateX(14px); }
+html.kk-redesign .kk-sw input:disabled + i { opacity: .55; }
+html.kk-redesign .kk-sw input:focus-visible + i { outline: 2px solid var(--focus); outline-offset: 2px; }
+html.kk-redesign .kk-pf { position: sticky; bottom: 0; display: flex; justify-content: flex-end; padding: 8px 10px; border-top: 1px solid var(--border); background: var(--surface); }
+html.kk-redesign .kk-pf button { border: 0; background: none; color: var(--link, #1b68bd); font: inherit; cursor: pointer; padding: 0; }
+html.kk-redesign #kkVisHint {
+  position: fixed; z-index: 9997; width: 230px; padding: 10px 12px; border-radius: 10px; display: none;
+  background: var(--tip-bg, #0b1a3a); color: var(--tip-text, #fff); font: 0.75rem/1.45 var(--font-ui, Inter, sans-serif); box-shadow: var(--shadow-up);
+}
+html.kk-redesign #kkVisHint.kkVisHintShow { display: block; }
+html.kk-redesign #kkVisHintOk { margin-top: 8px; padding: 4px 12px; border: 0; border-radius: 6px; background: #fff; color: #0b1a3a; font-weight: 600; cursor: pointer; }
+
+/* ---------- print: the journal prints as its lines (spec §5.9 item 15) ---------- */
+@media print {
+  html.kk-redesign .kk-toolbar, html.kk-redesign .kk-footer, html.kk-redesign #kkVisPanel, html.kk-redesign #kkVisHint,
+  html.kk-redesign .kk-acts, html.kk-redesign .kk-own, html.kk-redesign #kassekladde-tbody button, html.kk-redesign .invoice-reuse-pop { display: none !important; }
+  html.kk-redesign #kassekladde-tbody input.inputbox { border: 0 !important; background: none !important; }
+}

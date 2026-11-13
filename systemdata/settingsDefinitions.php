@@ -89,6 +89,7 @@
 // 20261009 Sawaneh personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
 // 20261010 Sawaneh G5.8: Diverse → Mærkater moved to labels.php.
 // 20261019 Sawaneh Review 2 (PR #803): settings_floor_plans() limits its information_schema check to this database (saldi_schema_filter, with a fallback like db_cast).
+// 20261023 ASR Merge of master (#815 removed lager/vareliste.php): the warehouses gear link names lager/lister/vareliste.php, the list that is left.
 // 20261109 CL/ASR G3.4 Rykker med betalingslink (link reminders): sub-section 'link' with six settings in var_grp 'stripe' (reminder_format, reminder_link_email, reminder_fee_next, reminder_fee_waive, reminder_close_warning, reminder_close_text), read by stripe_reminder_settings(); a missing row is the default.
 //                 Renteloven § 9 b warnings: a 2nd/3rd reminder with a fee less than 10 days after the previous one, or a fee item above 100 kr., shows a warning as the field's help text (settings_reminder_legal_warnings()).
 //                 Saving is not refused.
@@ -304,7 +305,7 @@ if (!function_exists('getSettingsSections')) {
 						)),
 				),
 				'legacy' => array(array(608)), 'old' => array('lagre' => array(608)),
-				'context' => array('lager/vareliste.php', 'lager/varekort.php'),
+				'context' => array('lager/lister/vareliste.php', 'lager/varekort.php'),
 				'keywords' => array('lagre', 'lager', 'warehouses', 'warehouse', 'lagersted'),
 			),
 			'items.units' => array(

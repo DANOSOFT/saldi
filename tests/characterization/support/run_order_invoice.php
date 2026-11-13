@@ -25,6 +25,7 @@
 //
 // History:
 // 20260723 CL/LH SD-601: created.
+// 20260725 CL/LH Bootstrap extracted to bootstrap_ordrefunc.php, shared with run_order_lifecycle.php.
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 
 if ($argc < 3) {
@@ -35,6 +36,7 @@ $scenario = $argv[1];
 $ordreId = (int)$argv[2];
 $tenantDb = $argv[3] ?? 'saldi_chartest';
 
+require __DIR__ . '/bootstrap_ordrefunc.php';
 error_reporting(E_ALL);
 
 $_SERVER['REQUEST_URI'] = '/saldi/remoteBooking/api.php';
