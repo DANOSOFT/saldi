@@ -52,6 +52,19 @@
 //                  A request that does not see the row goes straight to the locked create-or-lower, so a row created by someone else in between cannot skip its year (Codex round 14).
 //                  A request that finds the row created meanwhile always writes it, also with the same year, so it holds the row until it commits (Codex round 15).
 //                  The fingerprint is taken per account, so a late posting and a deleted one that cancel out in the year's totals are still found (Codex round 16).
+//                  A deleted year is recognised by any marker in box10, the timestamp deleteFiscalYear.php writes as well as the older 'on' (Codex round 17).
+
+/**
+ * Whether a fiscal year's grupper art 'RA' box10 marks it as deleted. systemdata/fiscalYearInc/deleteFiscalYear.php
+ * writes a Unix timestamp; years deleted before 2025-07-01 and the five-year mark in systemdata/regnskabsaar.php use
+ * 'on'. Only an empty box10 is a live year, as in active_fiscal_years() (includes/std_func.php, MB-94).
+ *
+ * @param string|null $marker box10 of the year.
+ * @return bool True for a deleted year.
+ */
+function followingOpeningBalanceYearDeleted($marker) {
+	return trim((string)$marker) !== '';
+}
 
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
@@ -93,7 +106,7 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null, &$deferredYe
 		$targetYear = $sourceYear + 1;
 		$source = $years[$sourceYear];
 		$target = $years[$targetYear];
-		if ($source['box10'] === 'on' || $target['box10'] === 'on') {
+		if (followingOpeningBalanceYearDeleted($source['box10']) || followingOpeningBalanceYearDeleted($target['box10'])) {
 			break;
 		}
 		$blocked = followingOpeningBalanceStopShape($sourceYear, $targetYear);
@@ -467,7 +480,7 @@ function followingOpeningBalanceSaveLastYearChoices($year, $accounts, $destinati
 	}
 	// The card writes the choices only for an existing year after a year that is not deleted.
 	$r = db_fetch_array(db_select("select box10 from grupper where art = 'RA' and kodenr = '$lastYear'", __FILE__ . ' line ' . __LINE__));
-	if (($r && $r['box10'] === 'on') || !db_fetch_array(db_select("select id from kontoplan where regnskabsaar = '$year' limit 1", __FILE__ . ' line ' . __LINE__))) {
+	if (($r && followingOpeningBalanceYearDeleted($r['box10'])) || !db_fetch_array(db_select("select id from kontoplan where regnskabsaar = '$year' limit 1", __FILE__ . ' line ' . __LINE__))) {
 		return;
 	}
 	for ($x = 0; $x <= (int)$rows; $x++) {
@@ -975,7 +988,7 @@ function followingOpeningBalancePostedYear($afterId, $upToId) {
 		$years[(int)$row['kodenr']] = $row;
 	}
 	foreach ($years as $year => $row) {
-		if ($row['box10'] === 'on' || !isset($years[$year + 1]) || $years[$year + 1]['box10'] === 'on') {
+		if (followingOpeningBalanceYearDeleted($row['box10']) || !isset($years[$year + 1]) || followingOpeningBalanceYearDeleted($years[$year + 1]['box10'])) {
 			continue;
 		}
 		$range = followingOpeningBalanceYearRange($row);
@@ -1013,7 +1026,7 @@ function followingOpeningBalanceFingerprint() {
 	}
 	$fingerprint = array();
 	foreach ($years as $year => $row) {
-		if ($row['box10'] === 'on' || $row['box5'] !== 'on' || !isset($years[$year + 1]) || $years[$year + 1]['box10'] === 'on') {
+		if (followingOpeningBalanceYearDeleted($row['box10']) || $row['box5'] !== 'on' || !isset($years[$year + 1]) || followingOpeningBalanceYearDeleted($years[$year + 1]['box10'])) {
 			continue;
 		}
 		$range = followingOpeningBalanceYearRange($row);

@@ -43,6 +43,7 @@
 //                 The year before is carried forward again, so a fixed «Overfør til» clears the message; a blocked transfer leaves the later years alone.
 //                 A blocked transfer into the saved year keeps that year's opening balances as they were; the alert text is JSON-encoded.
 // 20261113 CL/MMR SST-1005 The «Overfør til» choices that change on the year before are written before this year is locked, and unchanged ones are not written there at all (Codex round 9).
+//                 A deleted year before this one is recognised by the timestamp deleteFiscalYear.php writes too, the card shows the year before's marker, not its own, and the Debet/Kredit opening balances of the first year after a deleted year are saved (Codex round 17).
 
 @session_start();
 $s_id=session_id();
@@ -232,12 +233,25 @@ if ($_POST) {
 			if ($preNo) {
 				$qtxt = "select box10 from grupper where art = 'RA' and kodenr = '$preNo'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				($r['box10'] == 'on')?$preDeleted = 1:$preDeleted = 0;
+				// SST-1005: deleteFiscalYear.php marks a deleted year with a timestamp, older deletions with 'on'.
+				$preDeleted = ($r && followingOpeningBalanceYearDeleted($r['box10'])) ? 1 : 0;
 			}
 			$qtxt = "update grupper set beskrivelse = '".db_escape_string($beskrivelse)."', kodenr = '$kodenr', kode = '$kode', ";
 			$qtxt.= "box1 = '$startmd', box2 = '$startaar', box3 = '$slutmd', box4 = '$slutaar', box5 = '$aaben' where id = '$id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($kodenr==1 || $preDeleted){
+				if ($kodenr != 1 && is_array($debet)) {
+					// SST-1005: the first year after a deleted year shows its opening balances as Debet/Kredit like year 1
+					// (fiscalYearInc/yearX1.php); they are saved the same way, and the later years are carried from them.
+					for ($x=1; $x<=$kontoantal; $x++) {
+						$sum=0;
+						if ($debet[$x]) $sum+=usdecimal($debet[$x]);
+						if ($kredit[$x]) $sum-=usdecimal($kredit[$x]);
+						$account = (int)$kontonr[$x];
+						$qtxt = "update kontoplan set primo='$sum' where kontonr='$account' and regnskabsaar='$kodenr'";
+						db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
+					}
+				}
 				for ($x=1; $x<=$kontoantal; $x++) {
 					if ($saldo[$x] && $overfor_til[$x]) {
 						$qtxt = "update kontoplan set primo=primo+$saldo[$x],overfor_til=$overfor_til[$x] where ";
@@ -317,11 +331,14 @@ if ($setFiscialYear) {
 if ($id > 0) {
 	$qtxt = "select kodenr from grupper where id = '$id' and art = 'RA'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$preNo = (int)$r['kodenr'];
-	if ($preNo) {
+	// SST-1005: the year before this one (it read this year's own marker), deleted with a timestamp or 'on'.
+	$preNo = (int)$r['kodenr'] - 1;
+	$preDeleted = 0;
+	if ($preNo > 0) {
 		$qtxt = "select box10 from grupper where art = 'RA' and kodenr = '$preNo'";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		($r['box10'] == 'on')?$preDeleted = 1:$preDeleted = 0;
+		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+		$preDeleted = ($r && followingOpeningBalanceYearDeleted($r['box10'])) ? 1 : 0;
 	}
 
 	$query = db_select("select * from grupper where id = '$id' and art = 'RA'",__FILE__ . " linje " . __LINE__);

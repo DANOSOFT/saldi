@@ -18,6 +18,7 @@
 //                 A row another request creates right after this one found it missing does not skip this request's year (Codex round 14).
 //                 A request that finds the row created with the same year holds it until it commits (Codex round 15).
 //                 A late commit and a deletion that cancel out in the year's totals are found by the fingerprint per account (Codex round 16).
+//                 The first year after a year deleted with a timestamp or 'on' keeps its opening balances and carries them on (Codex round 17).
 
 declare(strict_types=1);
 
@@ -1454,6 +1455,40 @@ final class FollowingOpeningBalancesTest extends TestCase
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
+    }
+
+    /**
+     * Codex round 17: deleteFiscalYear.php removes the year's accounts and writes a timestamp in box10; older deletions
+     * wrote 'on'. Activating or saving the first year after it keeps that year's own opening balances and carries them on.
+     */
+    public function testTheFirstYearAfterADeletedYearKeepsItsOpeningBalancesWhateverTheMarker(): void
+    {
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 8');
+        foreach (['timestamp' => '1780000000', 'legacy' => 'on'] as $case => $marker) {
+            $this->sql("UPDATE grupper SET box10 = '$marker' WHERE art = 'RA' AND kodenr = 8");
+            foreach (['activate', 'card'] as $how) {
+                $this->sql('UPDATE kontoplan SET primo = 777 WHERE regnskabsaar = 10');
+                if ($how === 'activate') {
+                    self::assertNull(syncFollowingOpeningBalances(8, 9), "$case/$how");
+                } else {
+                    $this->sql('BEGIN');
+                    $before = followingOpeningBalancePrimo(9, true);
+                    self::assertNull(updateOpeningBalancesAfterYearSave(9, $before), "$case/$how");
+                    $this->sql('COMMIT');
+                }
+                self::assertSame([1000.0, -1000.0], [$this->primo(9, 2000), $this->primo(9, 3000)], "Year 9 keeps its own opening balances ($case/$how).");
+                self::assertSame([1120.0, -1120.0], [$this->primo(10, 2000), $this->primo(10, 3000)], "Year 10 is carried from year 9 ($case/$how).");
+                self::assertSame(0, (int) pg_fetch_assoc($this->sql('SELECT count(*) AS n FROM kontoplan WHERE regnskabsaar = 8'))['n'], 'Nothing is written into the deleted year.');
+            }
+        }
+        // A deleted target year is a boundary too.
+        $this->sql("UPDATE grupper SET box10 = '1780000000' WHERE art = 'RA' AND kodenr = 11");
+        self::assertSame([10], updateFollowingOpeningBalances(9, $stop));
+        self::assertNull($stop);
+        self::assertTrue(followingOpeningBalanceYearDeleted('1780000000'));
+        self::assertTrue(followingOpeningBalanceYearDeleted('on'));
+        self::assertFalse(followingOpeningBalanceYearDeleted(''));
+        self::assertFalse(followingOpeningBalanceYearDeleted(null));
     }
 
     public function testASourceYearThatKeepsChangingIsLeftWaiting(): void
