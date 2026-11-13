@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 5.1.0 --- 2026-10-30 --
+// --- systemdata/regnskabsaar.php --- ver 5.1.1 --- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20260814 Sawaneh SST-705 Current fiscal year shows Lukket when bookkeeping is
 //                  not allowed (box5) and GET params are int-cast before SQL
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
+// 20261113 CL/MMR SST-1016 «Sæt alle» no longer gives the customer sessions from Mit salg, Mine labels, labelprint and booking a fiscal year, so they still do not count as users at login.
 
 @session_start();
 $s_id = session_id();
@@ -71,7 +72,10 @@ $set_alle = (int)filter_input(INPUT_GET, 'set_alle', FILTER_VALIDATE_INT);
 if ($set_alle) {
 	db_modify("update brugere set regnskabsaar = '$set_alle'", __FILE__ . " linje " . __LINE__);
 	include("../includes/connect.php");
-	db_modify("update online set regnskabsaar = '$set_alle' where db = '$db'", __FILE__ . " linje " . __LINE__);
+	# Not the customer sessions from Mit salg, Mine labels, labelprint and booking (rettigheder '0', regnskabsaar 0):
+	# regnskabsaar 0 is what tells them apart from users (index/login.php max users count, mysale cleanup).
+	$qtxt = "update online set regnskabsaar = '$set_alle' where db = '$db' and not (COALESCE(rettigheder, '') = '0' and COALESCE(regnskabsaar, -1) = 0)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	include("../includes/online.php");
 }
 if ($aktiver) {
