@@ -13,9 +13,9 @@
 // 20261030 LOE MB-62: moved here from tests/test_readonly_menu.php, where phpunit.xml never ran it.
 //              The file name carries the class name, or PHPUnit 11 looks for a class called "readonlyMenu".
 //              Without the matching name it reports "Class readonlyMenu cannot be found".
-
+//
 // 20261113 CDX/NTR Exercise the centralized permission helper for full, read-only and refused access.
-
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/readonlyMenuChecks.php';

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowsView.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/rowsView.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,7 +33,7 @@
 // 20261103 CL/ASR QA: "Gælder regnskabsåret" shows each year by its name (grupper RA beskrivelse, e.g.
 //                 2026), not its number (1, 2).
 //                 After a refused save a cell's data-orig is the stored value, not the posted one, so Fortryd and the unsaved-changes warning still see the change.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/rows.php');
 
 /**

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/restore.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- admin/restore.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,7 +66,7 @@
 //                 A successful restore writes its own audit row (restore_done) to the restored ledger, whose earlier rows the backup replaced, and the login page says the ledger was restored and from when (texts 7821-7822).
 //                 Work folders are also cleaned up from Sikkerhedskopi and at logout (includes/restorePending.php), a refused confirmation removes its pending upload, and the admin panel's audit rows no longer carry the master database's user id.
 //                 The warning about another company compares the backup's ledger name and says so (text 7815), the English sentence loses its double full stop, and the card uses the page's font with the checkbox on the line of its label.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);

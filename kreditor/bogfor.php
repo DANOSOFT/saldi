@@ -6,7 +6,7 @@ $s_id=session_id();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/bogfor.php --- ver 5.1.0 --- 2026-03-22 ---
+// --- kreditor/bogfor.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@ $s_id=session_id();
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -------------------------------------------------------------------------
 //
 // 2013.11.08 Fejl v. fifo og varetilgang på varekøb.Søg #20131108
@@ -45,7 +45,7 @@ $s_id=session_id();
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
 // 20260908 CDX/LH Lock creditor orders before posting and update split purchase batches once (SST-765).
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include("../includes/connect.php");
 $permission_key = 'kreditor.ordre';
 include("../includes/online.php");

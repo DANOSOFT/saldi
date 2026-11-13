@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/kontokort.php -----ver 5.1.0 ----2026-11-02------
+// --- systemdata/kontokort.php -----ver 5.1.1 ----2026-11-13------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,7 +41,7 @@
 // 20261102 CL/ASR Opened from Kontoplan under Indstillinger (settings=1; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) the page shows the standard settings layout (includes/settings/layout.php): breadcrumb Indstillinger / Finans / Kontoplan / Kontokort, Tilbage to Kontoplan, previous, next and Ny above, the Finans group's menu with Kontoplan marked.
 //                 The form, the redirect after Gem and the way back to Kontoplan carry the marker on.
 //                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $title = "Kontokort";

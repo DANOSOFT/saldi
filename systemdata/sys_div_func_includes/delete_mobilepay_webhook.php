@@ -1,11 +1,10 @@
-
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/mobilepay/mobilepay.php --- ver 5.1.0 --- 2026.09.16 ---
+// --- payments/mobilepay/mobilepay.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,11 +25,11 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+//
 #print '<head>';
 #print '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap" rel="stylesheet">';
 #print '</head>';
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

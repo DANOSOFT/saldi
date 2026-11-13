@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/modtag.php --- ver 5.1.0 --- 2026.10.28 ---
+// --- kreditor/modtag.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,7 +54,7 @@
 //                Also removed the dead second branch of the four warehouse lookups below.
 // 20261022 CL/MJ SST-876 The receipt marks its lines and tells the webshops once, after the goods are committed, rather than syncing inside the line loop.
 // 20261028 CDX/MJ SST-876 Preserve receipt price and SKU adapter calls alongside batched stock updates.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatus.php--- ver 5.1.0 --- 2026-11-04 ----
+// -----------------lager/lagerstatus.php--- ver 5.1.1 --- 2026-11-13 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -73,9 +73,10 @@
 //              The filters that URL sends are read without warnings too.
 // 20261104 CL/ASR The item number links to the item trace (varespor.php) only for users who may open it; the trace moved to Varerapport (right 15, lager.rapporter).
 // 20261104 CL/ASR Final QA: the page is opened from Varerapport (lager/rapport.php, right 15), so reading it needs lager.rapporter instead of lager.varer; Ret skæve lagertal (ret_behold=2) still needs write on lager.varer.
-
+//
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 function lsSearchInput($name, $value) {
 	return "<input class='inputbox' type='text' name='lss_$name' value='" . htmlspecialchars((string)$value, ENT_QUOTES) . "' style='width:95%;box-sizing:border-box;'>";
 }

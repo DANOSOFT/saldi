@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/topbarAction.php --- ver 5.1.0 --- 2026.10.31 ---
+// ---- index/topbarAction.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 // 20260927 SS Placement action (cluster_placement setting, spec 2.3).
 // 20261005 SS Placement action removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
 // 20261031 CL/ASR MB-94: a fiscal year can only be switched to when active_fiscal_years() offers it (a year with box10 set is deleted).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var string $brugernavn

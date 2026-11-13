@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-07 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -184,7 +184,7 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

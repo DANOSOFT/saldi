@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id = session_id();
-// ---- sager/tjeklister.php --- ver 5.1.0 --- 2026.10.31 ---
+// ---- sager/tjeklister.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,7 +26,7 @@ $s_id = session_id();
 // 20261031 CL/ASR Reached from Indstillinger > Organisation (the Sager left menu stays as on master): opened and edited with
 //                 settings.organisation, as Diverse > Tjeklister was with the Indstillinger right; the breadcrumb leads back to Indstillinger.
 // 20261031 CL/ASR Opening the page needs read on settings.organisation in every enforcement mode (require_permission(), as settingsSection.php does).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $bg = "nix";
 $header = 'nix';
 $menu_sager = 'id="menuActive"';

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -130,6 +130,7 @@
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after the gift-card settlement transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 ob_start();

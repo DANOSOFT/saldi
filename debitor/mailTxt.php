@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------debitor/mailTxt.php---ver 5.1.0------2026-11-03----
+// ---------------debitor/mailTxt.php---ver 5.1.1------2026-11-13----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,9 +24,10 @@
 // ----------------------------------------------------------------------
 // 20201111 PHR rehamed to mailTxt.php and added ordinary mail til customers not using MySale
 // 20261001 SS Subject and text saved by key (update_settings_value) instead of the posted row id; read with NULL = 0.
-
+//
 // 20261003 SS G6.3: the mail texts live under Indstillinger » Dokumenter & e-mail » E-mail; this file only redirects there.
 // 20261103 CL/ASR QA: output is buffered, so the redirect header still goes out after online.php has printed the page head (it only worked where PHP's output_buffering is on).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 @session_start();
 $s_id=session_id();

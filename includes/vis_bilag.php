@@ -1,5 +1,5 @@
 <?php
-// ----------finans/importer.php---- ver 5.1.0 --- 2026-10-18 ---
+// ----------finans/importer.php---- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 // 20260212 LOE Refactored to handle multiple files, added upload functionality, and improved delete operations.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261018 SS Review 2 (PR #803): key by the attachment's module instead of 'any'; the ledger comes from the session, not ?db=. kilde limited to kassekladde/ordrer/historik (a table name in the queries), ids cast, file name basename.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";

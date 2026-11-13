@@ -1,5 +1,5 @@
 <?php
-// ---- includes/labelTemplates.php --- ver 5.1.0 --- 2026.10.10 ---
+// ---- includes/labelTemplates.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,7 +18,7 @@
 // Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 SS Settings G5.8: loadLabelText(), saveLabelText(), parseLabelTemplate(), generateLabelTemplate(), labelTemplateEditableVisually() and saveVisualLabelEdit() moved here unchanged from systemdata/sys_div_func.php (their history is kept there), plus the list/template helpers the Mærkater page (systemdata/labels.php) needs. lager/labelprint.php prints what is saved here.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!function_exists('loadLabelText')) {
 
 /**

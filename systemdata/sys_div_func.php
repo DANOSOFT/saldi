@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 5.1.0 -- 2026.10.30 ---
+// --- systemdata/sys_div_func.php --- ver 5.1.1 -- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -158,7 +158,7 @@
 // 20261008 SS Settings 4e: the dead prislister() removed (price lists live in Indstillinger » Prislister).
 // 20261010 SS G5.8: the label template functions moved unchanged to includes/labelTemplates.php (shared with systemdata/labels.php); labels() stays only for the old page, which now redirects.
 // 20261011 SS The include of sys_div_func_includes/chooseProvision.php removed: the file left with 4a on 2 October (provision lives in Organisation » Provision) and the include has warned on every load since.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once("../includes/connect.php"); 
 include_once(__DIR__ . "/../includes/labelTemplates.php");
 

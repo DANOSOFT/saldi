@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- ver 5.1.0 -- 2026-10-08 --
+// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,7 +42,7 @@
 // 20261005 SS Settings redesign G1.2: the year list and "create" live in Indstillinger » Virksomhed » Regnskabsår; this page without an id redirects there and keeps the opening balance.
 //             Audit fixes: F4 (primo transfer query built with = instead of .=), F5 (the previous year was tested as the year itself), F7 (dead lock-stock redirect), F8 (aaben unchecked), F9 (posted values cast/escaped).
 // 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

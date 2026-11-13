@@ -1,5 +1,5 @@
 <?php
-// ----------------------------- systemdata/tekster.php ----------------- ver 5.1.0 -- 2026-11-03 --
+// ----------------------------- systemdata/tekster.php ----------------- ver 5.1.1 -- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 // 20261102 CL/ASR Opened without ?sprog_id (Oversættelser under Indstillinger > Sprog & lokalisering links plain tekster.php) the page showed "Sprog_id not found" and no texts; it now edits the texts of the language the user is logged in with, as the section says.
 //                 The language id is a number (it is printed in the page's links).
 // 20261103 CL/ASR QA round 2: the page needs Virksomhed (settings.company), where Oversættelser sits, instead of the general settings fallback.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Injected by ../includes/connect.php, included below:
  * @var string $db_encode

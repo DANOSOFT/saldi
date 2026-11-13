@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/roleReview.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- index/dashboardIncludes/roleReview.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // 20261101 CL/ASR The card uses the dashboard's classes (prototype D panel, the kit's buttons) instead of inline styles.
 // 20261103 CL/ASR QA: texts are escaped in the page's charset (htmlspecialchars() with UTF-8 blanked latin-1 texts).
 // 20261104 CL/ASR Final QA: the card counts the users, the administrators and the roles to review from the users as they are now (perm_migration_summary_live()); the stored summary missed the users seeded as Administrator and said 0.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Card on the dashboard. Hiding is per administrator.
  */

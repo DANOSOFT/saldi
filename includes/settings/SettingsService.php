@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/SettingsService.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/SettingsService.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,7 +40,7 @@
 // 20261018 SS Review 2 (PR #803): sqlValue()/columnIsNumeric(): an empty value goes into a number column as NULL.
 // 20261019 SS Review 2 (PR #803): a lone value in a tab-joined box is its first part only (DIV/3 box13); kode '0' also matches NULL/empty kode rows.
 // 20261103 CL/ASR QA: historyMasked() is the one rule for settings whose history keeps no values (secrets and the employees' CPR, bank and salary): the audit row, the history views and Gendan all use it, so a masked row can never be restored as ''.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/../../systemdata/settingsRegistry.php');
 
 class SettingsService

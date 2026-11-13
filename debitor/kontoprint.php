@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------------debitor/kontoprint.php-----ver 5.1.0---2025.09.25-------
+// ----------------debitor/kontoprint.php-----ver 5.1.1---2026.11.13-------
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 - 2025 Saldi.dk ApS
+// Copyright (c) 2023 - 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2013.05.10 Tjekker om formular er oprettet og opretter hvis den ikke er.
 // 2013.05.12 Virker nu også når der er mere end 1 konto
@@ -31,6 +31,7 @@
 // 2019.06.18 PHR Valuta is now calculated according to exchange rate.
 // 2019.06.19 PHR To date was not implemented.
 // 2025.09.25 LOE Kilde added to kontoprint function:formfunk.php and version and license text updated 
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $formular=11;

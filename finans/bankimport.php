@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- ver 5.1.0 --- 2026.09.16 ---
+// --- finans/bankimport.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20200820 PHR Added recognition of outgoing payments from Cultura Sparebank, Norway 20200820
 // 20211107 PHR Added recognition of customer account # when importing bank 20201107
 // 20210328 PHR Added recognition of payment ID from Jyske Bank 21210328
@@ -48,7 +48,7 @@
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ini_set("auto_detect_line_endings", true);
 
 @session_start();

@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/financialYearInc/deleteFinancialYear.php --- ver 5.1.0 --- 2026-10-19 --
+// --- systemdata/financialYearInc/deleteFinancialYear.php --- ver 5.1.1 --- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 // 20261005 SS Settings redesign G1.2 (audit F10-F15): returns '' when deleted or the reason it refused instead of alert + exit; refuses a year somebody has active; the base currency is compared as a value, not as the text '$baseCurrency'; the report rows are deleted once; no stray HTML after the include.
 //             The stock re-basing never ran (F11: its loops never started and would have died on db_modify(qtxt)); its variables are fixed but it stays switched off until the valuation rule is decided.
 // 20261019 SS Review 2 (PR #803): the active-year check casts with db_cast() (MySQL has no cast as text).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 function deleteFinancialYear($year, $rebaseStock = false) {
 	global $regnaar;
 	

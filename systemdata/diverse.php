@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.0 ----2026-11-03------------
+// --- systemdata/diverse.php -----ver 5.1.1 ----2026-11-13------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,7 +125,7 @@
 // 20261031 CL/ASR Merge of master into redesign: save_webshop_invoice_order_date() (SST-911) runs after the CSRF check, like every other save on this page.
 // 20261101 CL/ASR Settings hub: div_valg redirects to Indstillinger » Ansatte, where its last field (Tilføj ekstra felter på ansatte, DIV/2 box3) lives now.
 // 20261103 CL/ASR QA: the integration and variant-import sections declare their own key before online.php (settings.integrations, settings.import_export), so a role with only that key is not refused once enforcement is 'deny'. sektion=label and sektion=kreditor_io redirect to Varer » Lager and Import & eksport instead of an empty page.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/virtualStorage.php --- ver 5.1.0 --- 2026.10.19 ---
+// ---- includes/settings/virtualStorage.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,7 @@
 // 20261008 SS Settings decision 20: the matrix reads and writes only rows marked 'NR' (debitorart/vareart, by group number); settings_discount_transfer() moves one old row (stored by position) into it.
 //             No automatic migration.
 // 20261019 SS Review 2 (PR #803): floor_plan_count selects the ids to drop first, then deletes them (MySQL refuses a same-table LIMIT subquery).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * The value of a virtual setting.
  */

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/batch_oversigt.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- lager/batch_oversigt.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,7 @@
 // 20261104 CL/ASR Moved to Varerapport (owner, 4 Nov 2026): the page needs right 15 and the key lager.rapporter (read) instead of right 12 (Debitorrapport); it only reads data.
 //                 The button to batch_udfyld.php is shown only to users who may change batches (write on Varer).
 // 20261104 CL/ASR The return page (returside) is a plain page with a simple query string, as in udlobsrapport.php, else Lagerstatus, and it is escaped in the back link.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";

@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- ver 5.1.0 --- 2026.11.08 ---
+// ---- index/dashboard.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,7 @@
 // 20261108 CL/ASR css/dashboard.css ?v=8 and css/saldi-theme.css ?v=8: the page ground is Saldi's classic page colour #eeeef0, the panels stay white (owner, 8 Nov 2026).
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261104 LOE MB-62 A read-only user may open the overview but not change the settings it shares.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 ob_start();

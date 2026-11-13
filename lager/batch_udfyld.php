@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/batch_udfyld.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- lager/batch_udfyld.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,7 +34,7 @@
 // 20261020 CL/ASR 'for update of bk' only on Postgres; MariaDB has no OF clause in its locking clause.
 // 20261103 CL/ASR QA round 2: the page edits batches and splits stock, so it needs write on Varer ($modulnr 9, lager.varer) instead of the Debitorrapport right.
 // 20261104 CL/ASR Without a return page it goes back to the expiry report only for users who may open it (Varerapport, right 15), otherwise to the item list.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorvisning.php --- ver 5.1.0 --- 2026-10-02 ---
+// --- debitor/debitorvisning.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,7 +32,7 @@
 // 20231128 MSC - Copy pasted new design into code
 // 20240216 PHR - Added fiscal_year to sellect where art = 'DG'
 // 20261002 SS Saving the list columns updates only the chosen view (kode); it rewrote every DLV row of the user.
-	
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

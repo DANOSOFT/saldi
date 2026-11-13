@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------kreditor/kreditor.php---ver 5.1.0------2026-11-03----
+// ---------------kreditor/kreditor.php---ver 5.1.1------2026-11-13----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -34,8 +34,9 @@
 // 20251127 LOE Modified to use grid table structure. 
 // 20260506 sawaneh fixed not directing to new account creation when the look for that account does not exist
 // 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 8, kreditor.konti) instead of the debitor one, so Indkøb opens the page and Salg does not.
-
+//
 #ob_start();
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

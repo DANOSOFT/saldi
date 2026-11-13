@@ -1,5 +1,5 @@
 <?php
-// ------- systemdata/designer.php -------- ver 5.1.0 ----2026-11-03-------
+// ------- systemdata/designer.php -------- ver 5.1.1 ----2026-11-13-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -17,7 +17,7 @@
 // Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261103 CL/ASR QA round 2: the form designer needs Dokumenter & e-mail (settings.documents) besides its old module right.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

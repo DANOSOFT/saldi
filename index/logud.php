@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// -----------index/logud.php------ ver 5.1.0 --- 2026-11-04 -------------
+// -----------index/logud.php------ ver 5.1.1 --- 2026-11-13 -------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,7 +30,7 @@ $s_id=session_id();
 // 20260916 Sawaneh Logout written to audit_log while the company connection is still active.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261104 CL/ASR The session's unconfirmed restore uploads (admin/restore.php) are removed at logout, and expired ones of any session (includes/restorePending.php).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $title="logud";
 $css = "";
 

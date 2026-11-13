@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- ver 5.1.0 --- 2026.11.08 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -61,7 +61,7 @@
 //                 Masked history rows (SettingsService::historyMasked(): secrets, CPR, bank, salary) offer no Gendan and are refused.
 //                 A row error no longer saves the page's fields (dry run, spec §7.3).
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8, css/saldi-kit.css and css/unified-components.css as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var int    $sprog_id

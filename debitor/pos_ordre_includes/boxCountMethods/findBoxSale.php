@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- ver 5.1.0 --- 2026.10.19 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 // ----------------------------------------------------------------------
 //
 // 20260605 CL/PHR findBoxSale: inkluder kasse_nr=0 transaktioner for ordrer tilhørende denne kasse i kasseopgørelsen
-
+//
 // PHR Changed DKK to $baseCurrency
 // 20260523 CL/PHR Fixed typo: status = ' 3' (space before 3) corrected to status = '3' in else-branch
 // 20260523 CL/PHR Changed INNER JOIN with pos_betalinger to LEFT JOIN with COALESCE fallback to ordrer.felt_1/valuta,
@@ -37,6 +37,7 @@
 //                A sale without payment type is logged and shown as "Ukendt betalingstype" instead of a nameless bucket.
 //                A missing (NULL) payment type no longer reaches substr()/strtolower().
 // 20261009 SS The till account per currency comes from settings VK/till_account_<currency> per till (decision 22); box4 list only as fallback.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 	$reportOrderIds = array();
 	echo "<!-- function findBoxSale begin -->"; 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/index.php --- ver 5.1.0 --- 2026-11-06 ---
+// --- index/index.php --- ver 5.1.1 --- 2026-11-13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20260305 PHR Language Id counted one too many
 // 20261104 CL/ASR After a restore (admin/restore.php, ?restored=) the form says the ledger was restored from the backup and from when (texts 7821-7822).
 // 20261106 CL/MMR SD-812 The account label uses text 2682 (English 'Account' instead of 'Financial Accounting').
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 
 if (!isset($_SESSION['nonce'])) {

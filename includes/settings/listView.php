@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/listView.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/listView.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,7 +41,7 @@
 // 20261102 CL/ASR Review: an empty 'page_lead' leaves the lead's first sentence out (Ekstra felter: the row's help says it).
 // 20261103 CL/ASR No 'direct' sub-group heading any more (owner, 3 Nov 2026: a heading is never a link in Indstillinger): Brugere & roller is a heading like the others, with the rows Brugere, Roller, Audit-log and Ekstra felter.
 // 20261103 CL/ASR QA: the history hides the values of masked settings (SettingsService::historyMasked(): CPR, bank, salary as well as secrets) and offers no Gendan for them: their audit rows keep no values.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/integrations.php');
 
 if (!function_exists('settings_menu_html')):

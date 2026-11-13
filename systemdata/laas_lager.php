@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------systemdata/laas_lager.php---------------------ver 5.1.0-----2017.05.15---
+// ---------systemdata/laas_lager.php---------------------ver 5.1.1-----2026.11.13---
 // LICENS
 //
 // // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,9 +23,9 @@
 // // En dansk oversaettelse af licensen kan laeses her:
 // // http://www.saldi.dk/dok/GNU_GPL_v2.html
 // //
-// // Copyright (c) 2017 saldi.dk ApS
+// // Copyright (c) 2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

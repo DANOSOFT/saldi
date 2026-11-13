@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"><html><head><title>SALDI - backup</title><meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head>
 <?php
-// --------------------------------------/index/backup.php---ver 5.1.0----------------------------
+// --------------------------------------/index/backup.php---ver 5.1.1----------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -15,9 +15,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2006 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
   @session_start();
   $s_id=session_id();
   include("../includes/connect.php");

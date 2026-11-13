@@ -1,5 +1,5 @@
 <?php
-// --------------------------------------------------lager/beholdningsliste.php     ver 5.1.0 --- 20261027 ----------
+// --------------------------------------------------lager/beholdningsliste.php     ver 5.1.1 --- 20261027 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // 20261027 CL/LH MB-99 (review) the warehouse balance is summed over the item's lagerstatus rows (one per
 //                variant) in the sort and in the column, and the totals sort counts a missing balance as 0.
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

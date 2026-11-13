@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/mail_kontoudtog.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- kreditor/mail_kontoudtog.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,7 +45,7 @@
 // 20250925 LOE Kilde added to determine which emails to send
 // 20260706 MJ Use kontakt_emails 'kontoudtog' address when sending account statements.
 // 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 13, kreditor.rapporter) instead of the debitor one, so Indkøb opens the page and Salg does not.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/fetchbilagsmatch.php --- ver 5.1.0 --- 2026-10-12 ---
+// --- finans/kassekladde_includes/fetchbilagsmatch.php --- ver 5.1.1 --- 2026-11-13 ---
 // verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
@@ -55,8 +55,9 @@
 // 20261012 CL/SZ SD-730 Each match carries its pool row's version (poolMetadataVersion()): since SST-777 docPool.php refuses an
 //                   attach without it, so "Match valgte" attached nothing.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+//
     // Start buffering
+    // 20261113 CDX/NTR Align the file header with the release version and history conventions.
     ob_start();
 
     @session_start();

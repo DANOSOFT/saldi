@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/top.php --- ver 5.1.0 --- 2026-11-08 ---
+// --- systemdata/top.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,7 +39,7 @@
 // 20261102 CL/ASR No search field above the menu any more (search lives on the hub), so the menu starts where it does on every other settings page. unified-components.css v=20261102.
 // 20261102 CL/ASR unified-components.css v=20261102b (the direct Brugere & ansatte heading in the left menu).
 // 20261108 CL/ASR css/unified-components.css linked as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $small=NULL;
 if (!isset($css)) $css=NULL;
 if (!isset($rightoptxt)) $rightoptxt=NULL;

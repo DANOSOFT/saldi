@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----ver 5.1.0 ----2026-10-23--------------
+// --- debitor/ordreliste.php -----ver 5.1.1 ----2026-11-13--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240815 PHR- $title 
 // 20250828 PHR error in translation of 'tilbud'
@@ -77,7 +77,7 @@
 // 20261023 CL/MMR SST-874 Moved the "Ryd" database work into clearOrderListSearch() per the controller/view convention.
 //                 The list name (valg) is escaped in its SQL (review by Codex).
 // 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

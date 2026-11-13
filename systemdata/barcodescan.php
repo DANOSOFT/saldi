@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------systemdata/barcodescan.php-----ver 5.1.0 ----2026-11-02-----
+// --------------systemdata/barcodescan.php-----ver 5.1.1 ----2026-11-13-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,12 +23,12 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20240828 LOE created this file
 // 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu): opened from Indstillinger > Integrationer > App (Vis QR-kode til app-login) the page had no way back.
 //                 It shows the breadcrumb Indstillinger / Virksomhed / Integrationer / Vis QR-kode til app-login, Tilbage to the App panel and the Virksomhed menu with Integrationer marked; the QR code and its texts are unchanged, their styles only reach the page's own box.
 //                 The login is checked by includes/online.php as on every page, and the code's address is the session's own company ($db), not the first online row with the same user name (another company's, when two share a user name).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 session_start();
 $s_id = session_id();
 $title = "QR Code Page";

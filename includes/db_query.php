@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.0 ----2026-11-04--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-13--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,7 +67,7 @@
 // 20261104 CL/ASR A failed query shows the error box of includes/errorReport.php (saldi_error_box()) instead of the alert that told everyone to call 4690 2208.
 //                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
 //                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {

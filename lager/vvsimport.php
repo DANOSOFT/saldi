@@ -16,10 +16,10 @@
 //
 // Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20260729 LOE Updated to include stdFunc/dkDecimal.php and removed dkdecimal.php which is no longer used.
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
-
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 @session_start();
 $s_id=session_id();
 $title="Vareimport";

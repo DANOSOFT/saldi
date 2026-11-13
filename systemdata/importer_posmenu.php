@@ -2,7 +2,7 @@
 	@session_start();
 	$s_id=session_id();
 
-// ---- /systemdata/importer_posmenu.php ------- ver 5.1.0 -- 2026-11-02 --
+// ---- /systemdata/importer_posmenu.php ------- ver 5.1.1 -- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,7 +30,7 @@
 // 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
 //                 The left menu of Salg with POS-menuer marked under Kasse > Skærm & kassemenuer, Tilbage above the title back to POS-menuer, the breadcrumb Indstillinger / Salg / Skærm & kassemenuer / POS-menuer / this page.
 //                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $saldifileformat="saldi_posmenus";
 $title="Importer POS menuer";
 $css="../css/standard.css";

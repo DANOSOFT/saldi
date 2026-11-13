@@ -1,5 +1,5 @@
 <?php
-// ---- includes/formEditorState.php --- ver 5.1.0 --- 2026.10.06 ---
+// ---- includes/formEditorState.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // 20261005 SS Settings redesign G6.1 (audit FE3): the visual form editor's print-language lock and drafts are kept in the settings table (var_grp 'formeditor'), so they are in backups and the ledger, not in files under logolib/.
 //             A file left from before is moved into the table the first time it is read.
 // 20261006 SS Onboarding part 1: fe_logo_store() is the logo upload shared by the form editor and the welcome guide; the background helpers and fe_composite_logo() moved here from formeditor.php so the guide can put the logo on the invoice (an optional file for a form without a background).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!function_exists('fe_state_get')):
 
 function fe_state_get(string $name): string

@@ -1,6 +1,6 @@
 <?php
-
-// ------------lager/varespor.php---------------------ver 5.1.0--2026.11.04--
+//
+// ------------lager/varespor.php---------------------ver 5.1.1--2026.11.13--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -28,7 +28,7 @@
 // 20260907 CL/LH Saml kun rækker med samme linje_id (ikke modtime), bevar fortegn på
 //                lagerreguleringer og genopret tom firmanavn-celle ved slettet ordre (#495).
 // 20261104 CL/ASR Moved to Varerapport (owner, 4 Nov 2026): the page needs right 15 and the key lager.rapporter (read) instead of right 12 (Debitorrapport); it only reads data.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 function varesporBatchRows($table, $vareId, $excludeZero = false) {
 	if ($table !== 'batch_kob' && $table !== 'batch_salg') {
 		return array();

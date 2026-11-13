@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/serienummer.php --- ver 5.1.0 --- 2026-10-07 ---
+// --- kreditor/serienummer.php --- ver 5.1.1 --- 2026-11-13 ---
 /// LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 //                  escaped at each use. The return list and what Modtag counts are
 //                  unchanged; both need the customer's credited rows established first.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/settingsLookup.php --- ver 5.1.0 --- 2026.10.19 ---
+// ---- systemdata/settingsLookup.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 //             Read-only, JSON.
 // 20261004 SS Open to users with read on any settings group (no longer the Indstillinger bit); nothing for others.
 // 20261019 SS Review 2 (PR #803): a type answers only users who can read a section with a field of that type (the search term stays UTF-8: db_escape_string() hands every query to the database as UTF-8).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 @session_start();
 $s_id = session_id();

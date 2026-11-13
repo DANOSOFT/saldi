@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/uniqueIndex.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/uniqueIndex.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,7 @@
 // 20261103 CL/ASR QA: of two hour types with the same name, the one an open wage sheet resolves to today keeps the name.
 //                 The wage sheet (sager/loenIncludes/retLoen.php) reads casePayment in the order of its own query and the last match wins, so that row keeps the name and the others are renamed; every rename is written to the PHP error log.
 //                 The index is looked for in the company's own schema only (pg_indexes.schemaname).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 const SETTINGS_UNIQUE_INDEX = 'settings_key_unique';
 
 /**

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------index/menu.php------ ver 5.1.0 --- 2026-11-04 ---
+// -----------index/menu.php------ ver 5.1.1 --- 2026-11-13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,7 +39,7 @@
 // 20260917 CL/LH Debitor -> Ordre no longer forces the Ordrer tab; the list reopens the last used tab.
 // 20260930 SS Every user passes this page right after login: open to all, or Deny mode would refuse users without Kontoplan.
 // 20261030 LOE MB-62 The Items button accepts read-only (2); the employee stock-list button stays for it.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
 (isset($_COOKIE['saldi_std']))?$regnskab = $_COOKIE['saldi_std']:$regnskab = NULL;

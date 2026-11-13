@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/contraSuggestionLookup.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- finans/kassekladde_includes/contraSuggestionLookup.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,7 +30,7 @@
 // Request: kreditor=<kreditor account number>  kladde_id=<journal>
 // Answer:  {"suggestion": {account, type, name, moms, text, count, total, reason, source, alternatives: [{account, type, name, moms, text, count, reason}]}
 //           or null, "auto": bool}
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 
 session_start();

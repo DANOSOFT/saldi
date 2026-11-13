@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.1.0 --- 2026-11-10 ---
+// ---- index/main.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,6 +86,7 @@
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 (--page in light is Saldi's classic page colour #eeeef0).
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261110 CL/MMR SST-991 The System menu shows only "Sikkerhedskopi" (text 521, as the other menus use), so it is no longer cut off as "Sikkerhedskopi/Genda".
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));

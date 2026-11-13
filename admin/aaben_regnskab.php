@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- ver 5.1.0 --- 2026-10-08 ---
+// --- admin/aaben_regnskab.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 // 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 // 20260930 SS Roles stage 2 (§7.1): opening a company from the admin panel is written to its audit log (session.revisor_open).
 // 20260930 SS Declared permission key 'any' (the page checks the master database itself); unguarded pages are refused in Deny mode.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

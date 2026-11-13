@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/pageRoutes.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- includes/stdFunc/pageRoutes.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,7 @@
 //                 Settings pages without a trail of their own now read Indstillinger / group / row / page (Formularer, backup, import, export, opening balance, translations, POS menus).
 // 20261102 CL/ASR The hub is a page of its own ('systemdata/settings.php') and the groups hang under it; the pages under them use the module 'settings', which prints no module level, so the first crumb Indstillinger is a link again (the groups share the hub's path, which made it look like the landing page).
 //                 Import & eksport also holds importer_debitor, exporter_debitor, importer_kreditor and exporter_kreditor; the import pages are named as the section links them.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 return array(
 	'modules' => array(
 		'finans'     => array('l' => '600|Finans', 'href' => ''),

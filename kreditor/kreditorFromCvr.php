@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/kreditorFromCvr.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- kreditor/kreditorFromCvr.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,7 @@
 //                The company and the user come from the session; creating, undoing and confirming need the kreditor module's rights.
 // 20261004 CL/SZ SD-721 Action reopen ("Genåbn") for a closed kreditor with the document's CVR number; create takes allowClosed for "Opret ny".
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

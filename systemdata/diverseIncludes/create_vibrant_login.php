@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- systemdata/diverseIncludes/create_vibrant_login.php ---------- ver 5.1.0----2026.11.03-------
+// ------------- systemdata/diverseIncludes/create_vibrant_login.php ---------- ver 5.1.1----2026.11.13-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20261002 SS The user is created at Vibrant here on the server with the stored API key (spec B-D10: the key and the password no longer pass through the browser); needs settings.integrations write; answers JSON.
 // 20261023 ASR Merge of master (SST-843, CL/SZ): the answer is kept free of online.php's page frame ($header/$bg = nix and an output buffer, as save_flatpay_id.php), only POST is accepted (405), and a second Vibrant login is refused (409) before Vibrant is called - the settings page hides the form once a login is saved, so that only meets a stale tab or a direct call.
 // 20261103 CL/ASR QA: declares settings.integrations (write), the key it requires below, instead of system.indstillinger.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 
 # $header and $bg are read by includes/online.php; "nix" keeps the answer free of the page frame

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/restorePending.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- includes/restorePending.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,7 +19,7 @@
 // ----------------------------------------------------------------------
 // 20261104 CL/ASR Created: the clean-up of the two-step restore's work folders (admin/restore.php), shared with admin/backup.php and index/logud.php.
 //                 An upload that is never confirmed holds a full copy of the ledger, so it is removed when its 30 minutes have passed on the next visit to any of the three pages, and at once when its user logs out.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!defined('RESTORE_PENDING_TTL')) define('RESTORE_PENDING_TTL', 1800); // a pending upload must be confirmed within 30 minutes
 
 if (!function_exists('restore_pending_folder_ok')) {

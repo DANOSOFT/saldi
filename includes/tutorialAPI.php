@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.1.0 --- 2026.09.30 ---
+// ---- index/main.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,7 @@
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 20260930 SS Declared permission key 'any': the guides are for every logged-in user.
 // 17-10-2024 PBLM - Added link to booking
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

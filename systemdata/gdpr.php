@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/gdprInc/gdprLogic.php --- ver 5.1.0 --- 2023-01-09 --
+// --- systemdata/gdprInc/gdprLogic.php --- ver 5.1.1 --- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,8 +21,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 Saldi.dk ApS
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------------
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

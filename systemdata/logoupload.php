@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/logoupload.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- systemdata/logoupload.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,7 @@
 //                 The upload, delete and preview below are unchanged.
 // 20261102 CL/ASR Review: opened from Formularer (its Baggrund button) or the form editor, the page sits under Formularer again: Formularer marked, breadcrumb Indstillinger / Virksomhed / Formularer / Baggrunds- og bilagsfiler, Tilbage to the form or the editor, as before (it went to Logo & baggrunde).
 //                 The place is kept in the session (logoupload_from) after an upload, a delete, a filter or the preview, which post or link back without the returside.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 session_start();
 $s_id=session_id();
 $css="../css/standard.css";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/accountLookupData.php --- ver 5.1.0 --- 2026.09.16 ---
+// --- kreditor/accountLookupData.php --- ver 5.1.1 --- 2026.11.13 ---
 /// LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,7 @@
 // 20260304 LOE Updated to work with grid framework (same pattern as debitor/accountLookupData.php)
 // 20260512 CL/PHR Fixed error in search
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 header('Content-Type: application/json');
 
 try {

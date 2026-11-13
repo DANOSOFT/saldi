@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/hub.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/hub.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,7 +41,7 @@
 //                 Virksomhed's description is 7793 (brugere og roller); a new id, since a database keeps the old text of an existing id.
 //                 The 'direct' handling in the model, the menu, settings_hub_path() and the coverage check is gone again.
 // 20261103 CL/ASR QA: in the moved map an old setting whose own page the user cannot open links to its hub row's page when the row opens another way (Ansatte / Diverse valg for a user with Brugere but not Organisation: usersRoles.php).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!function_exists('getSettingsHub')):
 
 /**

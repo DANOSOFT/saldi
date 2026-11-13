@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// --- systemdata/ansatte.php --- ver 5.1.0 --- 2023-079-25 ---
+// --- systemdata/ansatte.php --- ver 5.1.1 --- 2023-079-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 // 20220614 MSC - Implementing new design
 // 20230925 PHR - PHP8
 // 20261005 SS G7.1: employees live in Indstillinger » Organisation » Ansatte (list + card per employee); this page only redirects, to the employee's card when an id is given. ansatte_load/_body/_save.php are no longer used.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 include("../includes/connect.php");

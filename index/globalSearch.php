@@ -1,5 +1,5 @@
 <?php
-// ---- index/globalSearch.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- index/globalSearch.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 //             Pages and settings are matched in the shell (sidebar) and by settingsSearch.php.
 // 20261031 CL/ASR $skipLogtime: the top bar's lookups do not touch online.logtime (includes/online.php).
 // 20261103 CL/ASR QA: a recently visited page links to its full path from the Saldi root (the request path without the install prefix, as page_came_from() does), not the last two segments: Lager » Varer (lager/lister/vareliste.php) gave a 404.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 @session_start();
 $s_id = session_id();

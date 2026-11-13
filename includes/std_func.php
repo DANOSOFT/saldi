@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -107,7 +107,7 @@
 //                  accepted decimals, signs and scientific notation).
 // 20261009 SS saldi_setcookie(): SameSite=Lax, Secure on https, HttpOnly unless JS reads it (settings redesign 4e, R11/C25).
 // 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
-//                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
+//                deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
 // 20261031 CL/ASR update_settings_value(): the text arguments are escaped by the caller again, as on master; master's callers pass db_escape_string()ed values, which the redesign's own escaping escaped a second time.
 // 20261016 CL/MJ SST-876 sync_shop_vare(): a variant now publishes this warehouse's figure as stock and the sum of every warehouse as totalStock, like the non-variant branch and lager/shopStockIncludes/sync.php already did. It used to send whichever single lagerstatus row came back first and no total at all.
 //                The fiscal_year in the stock-keeping lookup is cast, the dead is_integer() shop_id branch is gone, and shopSyncFailed() lets callers tell a real failure from an account with no webshop. shopSyncAlert() carries the one sentence the three user-facing call sites share.
@@ -125,7 +125,7 @@
 // 20261104 LOE SST-940 Include datotidTilTekst() for the datotid columns the Dagbog and the check sheets format.
 // 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
 //                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');

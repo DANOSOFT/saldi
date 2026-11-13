@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowHooks.php --- ver 5.1.0 --- 2026.10.19 ---
+// ---- includes/settings/rowHooks.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,8 +26,9 @@
 // 20261008 SS SST-769 from master: with Gem kurs uden bogføring the rate is saved and no adjustment is posted.
 // 20261009 SS Slet med data is refused while the year has stock movements (decision 22: no re-basing rule yet).
 // 20261019 SS Review 2 (PR #803): settings_fy_columns() reads information_schema for this database/schema only.
-
+//
 // 20261016 SS The discount transfer and the old-discount columns live in virtualStorage.php.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/virtualStorage.php');
 
 // ---------------------------------------------------------------- fiscal years (grupper art RA)

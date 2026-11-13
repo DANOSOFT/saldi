@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/projekter.php-----ver 5.1.0 ----2026-10-05-----------
+// --- systemdata/projekter.php-----ver 5.1.1 ----2026-11-13-----------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,7 +29,7 @@
 // 20211018 LOE Some bugs fixed + 20211019
 // 20230323 PBLM Fixed minor error
 // 20261005 SS Projects live in Indstillinger » Organisation » Projekter (settings redesign 4c, G7.3); this page only redirects.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 include("../includes/connect.php");

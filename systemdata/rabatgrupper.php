@@ -1,5 +1,5 @@
 <?php
-// -------------systemdata/rabatgrupper.php--------- ver 5.1.0 -- 2026.10.08 --
+// -------------systemdata/rabatgrupper.php--------- ver 5.1.1 -- 2026.11.13 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,7 +25,7 @@
 // 2019.02.25 MSC - Rettet topmenu design
 // 20261006 SS Settings 4c G3.5: the discount groups and the matrix are in Salg » Rabatter & prisgrupper (by group number, audit R1-R9); this page only redirects there.
 // 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 header('Location: settingsSection.php?s=sales.discounts&moved=rabatgrupper#sub-matrix');

@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// -----------------systemdata/brugerdata.php ------ver 5.1.0-----2026.09.16----------
+// -----------------systemdata/brugerdata.php ------ver 5.1.1-----2026.11.13----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -28,7 +28,7 @@
 // 20260916 SS Superseded by systemdata/personalSettings.php (personal settings + fiscal-year switch in the topbar).
 //             Old links land there; the legacy page below is unreachable.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 header('Location: personalSettings.php');
 exit;
 

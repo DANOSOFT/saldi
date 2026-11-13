@@ -1,11 +1,10 @@
- 
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------debitor/rentalIncludes/rtSettings.php---ver 5.1.0-----2026-10-01-----
+// ----------debitor/rentalIncludes/rtSettings.php---ver 5.1.1-----2026-11-13-----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +23,7 @@
 // Copyright (c) 2021-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261001 SS A new rental header is only inserted once (one row per setting).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 $itemName = $subItemNo = $subItemName = $subItemQty = $subItemUnit = NULL;
 $subItemUnits=array('i','h','d','w','m','y');

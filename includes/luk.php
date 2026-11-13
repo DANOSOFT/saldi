@@ -2,7 +2,7 @@
 <?php
   @session_start();
   $s_id=session_id();
- // -------------------includes/luk.php-----ver 5.1.0----2026.09.24------------------
+ // -------------------includes/luk.php-----ver 5.1.1----2026.11.13------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,6 +21,7 @@
 // ------------------------------------------------------------------------------
 // 20260907 CDX/LH Restrict record unlocking to supported tables and escape refresh targets.
 // 20260910 Sawaneh Blocked-close fallback without returside goes to nav_back_url(), not the login page.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ?>
 <head>
 

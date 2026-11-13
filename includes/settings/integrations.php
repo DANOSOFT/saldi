@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/integrations.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/integrations.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 // 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026): the one list of employees and logins is usersRoles.php; this list is the employee list of a user without it.
 //                 The card's "Bruger" line names the linked login without a link to usersRoles.php (its person card shows the login, and a user here may not open that page).
 // 20261103 CL/ASR QA round 2: the Hent link of the latest backup goes through admin/backup_download.php and is shown only with write on Sikkerhedskopi.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Status of one integration from what is stored: kind 'ok', 'off', 'err' or 'soon', the short text and the
  * button label. Nothing is called externally here (P5).

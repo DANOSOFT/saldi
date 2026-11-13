@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/grupperIndex.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/grupperIndex.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //             PostgreSQL only.
 // 20261002 SS Cannot stop a login: statements run through settings_mig_exec() (includes/settings/uniqueIndex.php) and are rolled back on failure; the index is looked for again once the table lock is held.
 // 20261103 CL/ASR QA: the index is looked for in the company's own schema only (pg_indexes.schemaname), so a schema migrated first in the same database does not make another one skip its clean-up.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/uniqueIndex.php');
 
 const GRUPPER_UNIQUE_INDEX = 'grupper_settings_key';

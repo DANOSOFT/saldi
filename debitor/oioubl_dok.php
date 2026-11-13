@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// ---------debitor/oioubl_dok.php----ver 5.1.0---2015-12-23---------
+// ---------debitor/oioubl_dok.php----ver 5.1.1---2026-11-13---------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,15 +21,16 @@ $s_id=session_id();
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2015 DANOSOFT ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 2012.09.20 Tilføjet integration med ebconnect
 // 2015.12.23 Rettet addslashes til db_escape_string
 // 2026.08.14 Sawaneh SST-726 Int-cast id and whitelist doktype from request
 // 2026.08.28 CL MB-22: valideringsfejl-mailadresse rettet fra oio@saldi.dk til Support@danosoft.dk
-
+//
 #$testdok="Tester"; # Skal slettes naar test er faerdig
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $css="../css/standard.css";
 
 #$form=array();

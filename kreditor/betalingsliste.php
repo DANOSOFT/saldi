@@ -1,5 +1,5 @@
 <?php
-// ---------kreditor/betalingsliste.php-----------------------ver 5.1.0---2026.11.03---
+// ---------kreditor/betalingsliste.php-----------------------ver 5.1.1---2026.11.13---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 //
 // 20211102 MSC - Implementing new design
 // 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 13, kreditor.rapporter) instead of the debitor one, so Indkøb opens the page and Salg does not.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

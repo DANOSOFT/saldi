@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---ver 5.1.0 --- 2026-10-31 ------
+// ----------kreditor/kreditorkort.php---ver 5.1.1 --- 2026-11-13 ------
 // 	LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,7 +53,7 @@
 // 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261031 CL/ASR The inactive-group filter in the creditor group dropdown is only added when grupper has the inaktiv column, as in includes/orderFuncIncludes/accountLookup.php.
 //                 A ledger whose database update has not added the column yet still lists its groups instead of failing the query.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 @session_start();
 $s_id = session_id();

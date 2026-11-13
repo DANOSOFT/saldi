@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/components.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- includes/settings/components.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,7 +46,7 @@
 // 20261102 CL/ASR settings_back_button() takes the access key (default 'l', Alt+L), so callers no longer patch its markup.
 // 20261103 CL/ASR QA: a reader (no write) keeps navigation links (another settings page, an export, external documentation such as the data processing agreement); only links to pages that change data are disabled.
 // 20261104 CL/ASR Final QA: a setting marked 'empty_is_default' also shows its default when its stored value is empty (Landekonfiguration: an empty adresser.land is Danmark), so the field is not blank and saving the page does not change it.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
 include_once(__DIR__ . '/virtualStorage.php');

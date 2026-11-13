@@ -4,7 +4,7 @@
 //                     \__ \/ _ \| |_| |) | | _ | |) |  <
 //                     |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importer_variantvarer.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- systemdata/importer_variantvarer.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,7 +41,7 @@
 //                 Fixed: the first upload stopped with a PHP fatal error before the mapping step (no saved column mapping yet, or no variants in the ledger).
 // 20261102 CL/ASR Review: the page's output is buffered (ob_start()) before the layout, so the column mapping cookie (saldi_variantimp, set in vis_data()) is sent again.
 //                 The layout prints about 4 KB more than the old head, so PHP's 4 KB output buffer was flushed before setcookie() and the mapping was no longer remembered.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";

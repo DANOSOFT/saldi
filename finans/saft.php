@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/saft.php --- ver 5.1.0 --- 2026.09.16 ---
+// --- finans/saft.php --- ver 5.1.1 --- 2026.11.13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,7 +30,7 @@
 // 20260615 LOE changed fax to mobile in company contact info, as fax is not used anymore.
 // 20261002 NTR - Added null coalescing operator to $PostalCode to avoid undefined index notice when postnr is null.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";

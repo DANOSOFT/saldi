@@ -1,5 +1,5 @@
 <?php
-// ----------finans/importer.php------------ver 5.1.0-----2026.09.16-----------
+// ----------finans/importer.php------------ver 5.1.1-----2026.11.13-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,7 +18,7 @@
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";

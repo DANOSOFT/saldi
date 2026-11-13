@@ -1,6 +1,6 @@
 <?php #topkode_start
 
-// -----------------------debitor/afslut_rykker.php-----ver 5.1.0--2009.10.12-------
+// -----------------------debitor/afslut_rykker.php-----ver 5.1.1--2026.11.13-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -15,9 +15,9 @@
 // En dansk oversaetelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2009 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

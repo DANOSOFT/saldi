@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/importer.php --- ver 5.1.0 -- 2026.09.16 ---
+// --- finans/importer.php --- ver 5.1.1 -- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,7 +42,7 @@
 // 20260525 CL/PHR - Debitor/kreditor bruger debet/kredit(konto) som fallback hvis feltet er tomt
 // 20260525 CL/PHR - Kolonnevalg gemmes nu også ved Flyt (ikke kun ved Vis)
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";

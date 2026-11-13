@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------ver 5.1.0------2026.11.03---
+// ------includes/genberegn.php-------ver 5.1.1------2026.11.13---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,7 +25,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20130210 Break ændret til break 1
 // 20181126 - PHR Definition af div. variabler mm.
 // 20190321 PHR Added function equalizeMatchingRecords.
@@ -35,7 +35,7 @@
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261018 SS Review 2 (PR #803): the direct ?regnskabsaar= recompute needs finans.regnskab write instead of 'any'.
 // 20261103 CL/ASR QA: the online.php include inside genberegn() declares $permission_key 'any' (as orderFuncIncludes/genberegn.php), so bogføring is not logged as unguarded.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

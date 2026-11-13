@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_genfakt.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- debitor/ret_genfakt.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,7 +25,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 16.08.2012 søg 20120816 - Udskriv_til i rødt hvis stamkort siger pbs og dette ikke er valgt.
 // 12.12.2012.søg 20121212 - Kontrolfejl v. pbs fakturering i 12. måned.
 // 17.01.2013 søg 20130117 - Fejl vi udskrivning til flere forskellige medier - f.eks alle til mail selvom 9 af 10 er til pbs.
@@ -42,7 +42,7 @@
 // 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 	that.style.color = fgcolor;

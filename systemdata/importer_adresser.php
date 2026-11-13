@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importer_adresser.php-----ver 5.1.0 ----2026-11-02--
+// --- systemdata/importer_adresser.php-----ver 5.1.1 ----2026-11-13--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------
-
+//
 // 2013.02.10 Break ændret til break 1
 // 2014.07.04 Ansatte og primær kontakt opdateres nu også ved opdatering 
 // 2014.08.11 se $find_kontakt... 
@@ -45,7 +45,7 @@
 //                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
 //                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
 //                 The div that centres the page's content opens inside the content column, so the title and the menu are not centred.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";

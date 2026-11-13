@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/pageChrome.php --- ver 5.1.0 --- 2026.10.31 ---
+// ---- includes/stdFunc/pageChrome.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,7 @@
 // 20261009 SS page_record(): the record as the last breadcrumb level on cards (decision 22 of 2026-10-09).
 // 20261010 SS systemdata/labels.php prints the settings breadcrumb itself, like settingsSection.php.
 // 20261031 CL/ASR The breadcrumb only feeds the topbar: no page's Luk/Tilbage is hidden in the shell. javascript/pageChrome.js (v=20261031) has no Alt+L handler.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!function_exists('page_breadcrumb')):
 
 /**

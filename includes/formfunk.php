@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- includes/formfunk.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -95,10 +95,10 @@
 // 20261103 CL/ASR The form editor's print-language lock is read from the settings table through fe_printlang_get() in includes/formEditorState.php instead of a JSON file under logolib.
 // 20261103 CL/SZ SD-797 With set prices shown, a felt_4 that is no number (text or empty) stopped the print with a TypeError.
 //                It now counts as 0, so felt_3 and felt_4 print blank as for 0.
-
+//
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 require_once __DIR__ . '/formFuncIncludes/htmlStyle.php';
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';

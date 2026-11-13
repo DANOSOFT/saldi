@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/posmenuer.php --- ver 5.1.0 -- 2026-10-05 --
+// --- systemdata/posmenuer.php --- ver 5.1.1 -- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,7 +56,7 @@
 // 20261005 LOE SST-849 Removed the unused input() function, which held its own copy of the
 //                system button list with the same wrong "Sæt" option.
 // 20261004 SS Shown inside the settings frame (top.php) with the Kasse tab list and breadcrumb, instead of its own Close header.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $title = "POS menuer";

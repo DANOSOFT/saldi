@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/showDoc.php --- ver 5.1.0 --- 2026-10-05 ---
+// --- includes/docsIncludes/showDoc.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,9 +23,10 @@
 // 20261005 CL/SZ SD-723 A document whose file is not on the server shows "Bilaget findes ikke på serveren" instead of an empty or "Not found" frame.
 // 20261005 CL/SZ SD-701 The XML notices (no EasyUBL key, conversion failed) keep their own height, so in the voucher tab the raw XML shows below them instead of below the fold.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
-
+//
+//
 // Check if we're in flexbox layout (docPool-style) or table layout
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $inFlexboxLayout = (isset($_GET['showDoc']) && isset($_GET['source']) && $_GET['source'] == 'kassekladde');
 
 if ($inFlexboxLayout) {

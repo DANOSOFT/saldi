@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/udlobsrapport.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- lager/udlobsrapport.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,7 +29,7 @@
 // 20261104 CL/ASR Moved to Varerapport (owner, 4 Nov 2026): the page needs right 15 and the key lager.rapporter (read) instead of right 12 (Debitorrapport); it only reads data.
 //                 The link to batch_udfyld.php is shown only to users who may change batches (write on Varer).
 // 20261104 CL/ASR Eksporter CSV sends the CSV alone: the page's output before it (the page head, the header and the filter) is buffered and discarded.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";

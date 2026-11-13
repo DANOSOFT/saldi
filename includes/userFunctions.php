@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/userFunctions.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/userFunctions.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,7 @@
 // 20261006 SS Onboarding step 5: user_invite_error() checks a new invitation (name, role, e-mail, duplicate name, R5) for the welcome guide; user_send_mail() takes an optional attachment (the guide's test invoice).
 // 20261103 CL/ASR QA: keeping a migrated role (Behold nuværende) has the same checks as a role change: not one's own role and only users within the actor's own access.
 //                 The last login from the audit log is read on PHP's clock (st_local_time()), like the rest of Indstillinger.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/permissions.php');
 
 /**

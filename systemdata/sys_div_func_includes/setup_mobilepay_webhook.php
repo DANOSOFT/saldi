@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/mobilepay/mobilepay.php --- ver 5.1.0 --- 2026.10.02 ---
+// --- payments/mobilepay/mobilepay.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 // 20261001 SS The old webhook secret is removed before the new one is stored (one row per setting).
 // 20261002 SS Started from Indstillinger » Integrationer » MobilePay (phase 4b): needs settings.integrations write, prints nothing, goes back to the drawer with webhook=ok or webhook=fail (the reason in the session).
 //             The commented-out list/delete experiments and the stray blank line before <?php are gone.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

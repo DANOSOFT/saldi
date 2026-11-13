@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/invoiceReuseCheck.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- finans/kassekladde_includes/invoiceReuseCheck.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 //
 // Request: kontonr=<kreditor>  faktura=<invoice no.>  line=<kassekladde id>  kladde_id  bilag  pool=<pool file name>
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 
 session_start();

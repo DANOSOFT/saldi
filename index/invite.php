@@ -1,5 +1,5 @@
 <?php
-// ---- index/invite.php --- ver 5.1.0 --- 2026.10.14 ---
+// ---- index/invite.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 //             The invited user chooses a password and is then logged in the normal way.
 // 20261001 SS MySQL: select the company database after connecting (as online.php).
 // 20261014 SS Review: the auto-login after an invitation keeps the password in the session for one minute, not in the HTML.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 if (empty($_SESSION['nonce'])) {
 	$_SESSION['nonce'] = bin2hex(random_bytes(16));

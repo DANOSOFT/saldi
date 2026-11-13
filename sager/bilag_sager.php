@@ -1,5 +1,5 @@
 <?php
-// ----------sager/bilag_sager.php------------ver 5.1.0-----2026-11-04-----------
+// ----------sager/bilag_sager.php------------ver 5.1.1-----2026-11-13-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,7 +25,7 @@
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261103 CL/MMR SD-799 The task names of the forms ("Opgave N") follow the user's language.
 // 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

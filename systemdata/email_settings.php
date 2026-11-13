@@ -1,5 +1,5 @@
 <?php
-// ------------systemdata/email_settings.php-----ver 5.1.0 ----2026-10-03--
+// ------------systemdata/email_settings.php-----ver 5.1.1 ----2026-11-13--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,8 +21,9 @@
 // Language-specific sender email settings
 // 20260710 SZ Added Settings search box to standalone/topmenu layouts (settingsSearch.php/.js/.css)
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+//
 // 20261003 SS G6.3: the page has landed in Indstillinger » Dokumenter & e-mail » E-mail; this file only redirects there.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 include("../includes/connect.php");

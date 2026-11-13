@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/importer_varianter.php --- ver 5.1.0 --- 2026.11.08 ---
+// ---- systemdata/importer_varianter.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,7 @@
 //                 The left menu of Køb & lager with Varianter marked (Varer), Tilbage above the title back to Varianter, the breadcrumb Indstillinger / Køb & lager / Varianter / this page.
 //                 The two import forms sit in the content column beside the menu, unchanged; the layout links css/unified-components.css, the page's head links the theme tokens (css/saldi-theme.css) as the section pages.
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

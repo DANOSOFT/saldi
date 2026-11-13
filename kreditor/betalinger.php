@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/betalinger.php --- ver 5.1.0 --- 20261103 ---
+// --- kreditor/betalinger.php --- ver 5.1.1 --- 20261103 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,7 +36,7 @@
 //                A name two kreditorer share gets the marker without "Bekræft" (confirmed on the kreditor card), so one's account can't fill the other's line.
 // 20261027 CL/SZ MB-93 "Bekræft" saves the list first (posts gem with bekraeft_bank); it reloaded the list without saving and lost the user's other unsaved edits.
 // 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 13, kreditor.rapporter) instead of the debitor one, so Indkøb opens the page and Salg does not.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $dan_liste=$gem=$listenote=$slet_ugyldige=$udskriv=NULL;
 
 @session_start();

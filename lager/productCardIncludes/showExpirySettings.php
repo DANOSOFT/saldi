@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productCardIncludes/showExpirySettings.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- lager/productCardIncludes/showExpirySettings.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 //                  inside the 'Diverse' box is gone. Label/field colspans
 //                  aligned with the other sections (2/4).
 // 20261104 CL/ASR The Batch oversigt button is shown only to users who may open the batch overview, which moved to Varerapport (right 15, lager.rapporter).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 global $has_due_date, $default_shelf_life_days;
 
 $has_due_date_checked = ($has_due_date == 'on') ? 'checked' : '';

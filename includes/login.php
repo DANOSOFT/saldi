@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// --------------includes/login.php----------ver 5.1.0------2026-10-29------
+// --------------includes/login.php----------ver 5.1.1------2026-11-13------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -29,7 +29,7 @@ ob_start(); //Starter output buffering
 // 2015.01.27 PHR	- Tilføjet rettigheder da man ellers bliver smidt af ved forsøg på login med tmp kode.  
 // 20261001 Sawaneh The temporary password is read with tmp_code_check() (type|expire|code, as in index/login.php).
 // 20261029 CDX/NTR Share login logs and temporary directories with the web server.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 require_once __DIR__ . '/sharedFile.php';
 
 @session_start();

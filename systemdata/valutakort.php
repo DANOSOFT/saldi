@@ -1,5 +1,5 @@
 <?php
-// -------------systemdata/valutakort.php-----ver 5.1.0 ----2026-10-05--
+// -------------systemdata/valutakort.php-----ver 5.1.1 ----2026-11-13--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,9 +34,9 @@
 //             still saves and posts the adjustment; the new one writes rate history only, with no
 //             transaktioner rows and no kontoplan change. Cast $_GET kodenr/id, which reached SQL raw.
 // 20260914 CDX/LH Recalculate account balances only after posting a currency adjustment.
- 
+//
 // 20261005 SS Currencies and rates live in Indstillinger » Finans » Valuta (settings redesign 4d, G2.3; audit V2-V9 fixed there, a rate change shows its postings before they are booked); this page only redirects.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 include("../includes/connect.php");

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/actions.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- includes/settings/actions.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,7 @@
 // 20261102 CL/ASR employee_add takes the name, initials and e-mail typed in "Tilføj person" (Brugere & ansatte, usersRoles.php), when settingsSection.php passes them (settings_action_person, checked and capped in includes/settings/people.php); without them it adds "Ny medarbejder" as before.
 //                 Same insert, audit entry and redirect.
 // 20261103 CL/ASR QA: the FTP test fails when the configured folder cannot be opened (it went on in the login's root and could report success).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/integrations.php');
 
 /**

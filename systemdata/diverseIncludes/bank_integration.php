@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/bank_integration.php --- ver 5.1.0 --- 2026-10-04 ---
+// --- systemdata/diverseIncludes/bank_integration.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,7 +26,7 @@
 //
 // 20260609 NTR - Initial version. Bank integration settings.
 // 20261004 SS show_status is a personal setting now (Indstillinger » Personlige indstillinger, settings redesign G2.7); only the date method stays here.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 global $bgcolor, $bgcolor5, $bruger_id, $sprog_id;
 
 // =====================================================================

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------debitor/mySaleMailTxt.php.php---ver 5.1.0------2026-11-03----
+// ---------------debitor/mySaleMailTxt.php.php---ver 5.1.1------2026-11-13----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,11 +23,11 @@
 // Copyright (c) 2020-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261001 SS Subject and text saved by key (update_settings_value) instead of the posted row id.
-
+//
 #ob_start();
 // 20261004 SS The mySale mail text lives in Indstillinger » Dokumenter » E-mail (settings redesign G6.3); this page only redirects.
 // 20261103 CL/ASR QA: output is buffered, so the redirect header still goes out after online.php has printed the page head (it only worked where PHP's output_buffering is on).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 @session_start();
 $s_id = session_id();

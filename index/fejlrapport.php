@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/fejlrapport.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- index/fejlrapport.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,7 @@
 //                 The recipient is $errorReportTo from includes/connect.php when set, else support@danosoft.dk; at most 5 reports per session and 20 per ledger per hour.
 //                 A field sent as an array (message[]) is refused with 400 before anything is sent.
 //                 Every answer is JSON, also when the session has expired or a query fails here.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $saldi_error_json = true; // a failing query here answers JSON (includes/errorReport.php), never the box or the old alert

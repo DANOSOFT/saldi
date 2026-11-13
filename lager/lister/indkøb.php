@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/indkøb.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- lager/lister/indkøb.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,7 +34,7 @@
 //                An order without a delivery date is still listed, with a dash for the date.
 // 20261103 CL/ASR $modulnr 9 (Lager) declared, so the purchase list follows the stock right; nothing else changed here.
 // 20261103 CL/ASR QA round 2: Bestil checks each answer from orderapi.php, so a refused order shows the refusal and no longer reports Bestillinger oprettet.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $modulnr = 9;

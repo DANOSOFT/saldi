@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___|_\_\
 //
-// ---- payments/vibrant.php --- ver 5.1.0 --- 2026.10.01 ---
+// ---- payments/vibrant.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,7 +26,7 @@
 // 20240301 PHR Added $printfile and call to saldiprint.php
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261001 SS KDS colours are named color_1, color_2... (one row per setting name).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

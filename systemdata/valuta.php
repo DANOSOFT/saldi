@@ -1,5 +1,5 @@
 <?php
-// -- -------------systemdata/valuta.php------------- ver 5.1.0 -- 2026-10-05 --
+// -- -------------systemdata/valuta.php------------- ver 5.1.1 -- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 // 20210706 LOE std_func.php missing file included and also translated some of the texts
 // 20260122 PHR - Restyled page with modern design, added POS checkbox
 // 20261005 SS Currencies live in Indstillinger » Finans » Valuta (settings redesign 4d, G2.3; audit V1, V10 gone with the new page); this page only redirects.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 include("../includes/connect.php");

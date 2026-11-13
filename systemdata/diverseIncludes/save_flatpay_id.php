@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- systemdata/diverseIncludes/save_flatpay_id.php ---------- ver 5.1.0----2026.10.08-------
+// ------------- systemdata/diverseIncludes/save_flatpay_id.php ---------- ver 5.1.1----2026.11.13-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,7 @@
 // 20261002 LOE SST-844 Flatpay ID saves need the Indstillinger right, a CSRF token and a GUID value.
 // 20260928 SS Security 4.0 (A10): the Flatpay login is exchanged for the GUID here on the server, so username/password never leave the browser for a third-party host and are never logged.
 // 20261008 SS Merge of master: SST-844's JSON answers, CSRF token and GUID check around the server-side login exchange; the right is settings.integrations (write), the legacy Indstillinger bit without roles.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 
 # $header and $bg are read by includes/online.php; "nix" keeps the answer free of the page frame

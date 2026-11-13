@@ -25,7 +25,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20120815 søg 20120815 V. Logoplacering blev ikke fundet v. opslag. 
 // 20130114 Tilføjet 0 som 1. parameter i "send mails"
 // 20140628 Indsat afrund for korrekt sum. Søg 20140628
@@ -33,7 +33,7 @@
 // 20170324 PHR Tilføjet id i kald til udskriv.php
 // 20190116 PHR kke nædret noget, blot en datoopdatering da der ligger forskellige versioner fra 2017 på ssl.   
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
-
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 @session_start();
 $s_id=session_id();
 

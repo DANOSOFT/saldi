@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/cookie.php --- ver 5.1.0 --- 2026.10.11 ---
+// ---- includes/stdFunc/cookie.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,7 +19,7 @@
 // ----------------------------------------------------------------------
 // 20261009 SS saldi_setcookie(): every cookie gets SameSite=Lax, Secure on https and HttpOnly unless JavaScript reads it (settings redesign §7.4 item 5, §7.6 R11, C25).
 //             Loaded by online.php and std_func.php so it exists before login too.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!function_exists('saldi_setcookie')) {
 	/**
 	 * setcookie() with the flags the settings redesign asks for (§7.4 item 5, §7.6 R11, C25): SameSite=Lax, Secure on https,

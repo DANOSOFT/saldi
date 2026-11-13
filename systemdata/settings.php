@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settings.php --- ver 5.1.0 --- 2026.11.08 ---
+// ---- systemdata/settings.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,7 +47,7 @@
 //                 The kit and css/settingsHub.css are linked as ?v=20261102 (the kit places Tilbage now).
 // 20261103 CL/ASR QA: settings_hub_json() converts a single string too on latin-1 installations (array_walk_recursive() on a string was a fatal error).
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 and css/saldi-kit.css as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var int    $sprog_id

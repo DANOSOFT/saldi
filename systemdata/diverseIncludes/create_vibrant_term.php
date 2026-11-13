@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- systemdata/diverseIncludes/create_vibrant_term.php ---------- ver 5.1.0----2026.11.03-------
+// ------------- systemdata/diverseIncludes/create_vibrant_term.php ---------- ver 5.1.1----2026.11.13-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261001 SS Older archived rows with the terminal's name are removed before archiving (unique index on settings).
 // 20261103 CL/ASR QA: declares settings.integrations (write), the key it requires below, instead of system.indstillinger.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

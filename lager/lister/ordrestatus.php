@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/ordrestatus.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- lager/lister/ordrestatus.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,7 @@
 //                An order without a delivery date is still listed, with a dash for the date.
 // 20261030 CL/MJ Text 7636/7637 are now 8407/8408: #921 also adds 7636, and findtekst() keeps the first text a tenant stores for an id.
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

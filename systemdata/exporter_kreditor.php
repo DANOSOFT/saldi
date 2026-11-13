@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// ------------/systemdata/exporter_dkreditor.php---ver 5.1.0----2026-11-02--
+// ------------/systemdata/exporter_dkreditor.php---ver 5.1.1----2026-11-13--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -38,7 +38,7 @@
 //                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
 //                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
 //                 The old blue-grey bottom bar under the content is gone; in the content column it was an empty strip right under the form.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $title="Eksporter kreditorer";

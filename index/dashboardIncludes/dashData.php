@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/dashData.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- index/dashboardIncludes/dashData.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 // 20261101 CL/ASR No active-user count and no suggestion list any more (both cards left the dashboard).
 // 20261101 CL/ASR Every item group is returned as well ('all'), so the page can show them all when its row has room.
 // 20261103 CL/ASR QA: the fiscal-year figure ends at the selected year's last day (an earlier year no longer counts later postings), the month chart runs over the year's own months (6 or 18 too, not always 12), and item groups with a negative revenue (credit notes) stay in the total and the list.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.
  *

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_modtagere.php --- ver 5.1.0 --- 2026.10.05 ---
+// --- debitor/mail_modtagere.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,7 +37,7 @@
 //                  as UTF-8 and its meta tag says so, but PHPMailer defaults CharSet to
 //                  iso-8859-1, so recipients saw "KÃ¦re" where the text said "Kære".
 // 20261001 SS The mail text row is found whether its user_id is 0 or NULL (one row per setting).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

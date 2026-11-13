@@ -1,5 +1,5 @@
 <?php
-// --- kreditor/ordreliste.php -----ver 5.1.0 ----2026-10-31---------
+// --- kreditor/ordreliste.php -----ver 5.1.1 ----2026-11-13---------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,7 +39,7 @@
 // 20260917 CL/LH Remember the last used tab per user and reopen it on menu entry (Havemoebelland).
 // 20260924 CL/LH MB-60: Only store the last used tab for a real user id (review, PR #638).
 // 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 ob_start();
 @session_start();

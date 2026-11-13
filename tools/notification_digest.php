@@ -1,5 +1,5 @@
 <?php
-// ---- tools/notification_digest.php --- ver 5.1.0 --- 2026.10.01 ---
+// ---- tools/notification_digest.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //             Nothing is sent when there is nothing new.
 //             Options: --db=<database> one company only, --dry-run count without sending.
 // 20261001 SS MySQL: select the company database after connecting (as online.php).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (php_sapi_name() !== 'cli') { header('HTTP/1.1 403 Forbidden'); print 'CLI only'; exit; }
 chdir(__DIR__);
 // db_query.php's get_relative()/logging read these; a depth-3 URI keeps temp/ at the install root.

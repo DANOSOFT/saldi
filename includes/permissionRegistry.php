@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissionRegistry.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- includes/permissionRegistry.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,7 +38,7 @@
 // 20261103 CL/ASR QA round 2: Kun visning no longer gets read on dangerous keys (settings.backup), and Bogholder and Revisor get no expiry block, which needs a lager key.
 // 20261104 CL/ASR The batch/expiry tools moved to Varerapport (owner, 4 Nov 2026), so the expiry warning goes to the roles with lager.rapporter: Lager gets Se Oversigt, the expiry warning and news, Indkøb loses the expiry warning.
 //                 dashboard.block.expiry derives from lager.rapporter alone (was lager.varer or lager.rapporter).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Every permission key the system knows. A key is granted at level none / read / write.
  *

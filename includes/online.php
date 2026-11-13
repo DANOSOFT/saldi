@@ -63,22 +63,18 @@
 // 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
 // 20260904 Sawaneh WP-1.3: nav_push popup arg now uses the popup=1 request flag, not the user preference
 // 20260909 CDX/LH SST-782: Use the light default for missing or empty background settings.
-// 20260916 Sawaneh Denied module access is now written to audit_log (the message always said so).
-//                  Phase 3 gate: perm_enforce_request() after the legacy check ($permission_key /
-//                  $permission_level / $permission_post_read declared by the page, $modulnr as
-//                  fallback); auditor sessions get the Revisor role once enforcement is 'deny'.
+// 20260916 SS Denied module access is now written to audit_log (the message always said so).
+//             Phase 3 gate: perm_enforce_request() after the legacy check ($permission_key / $permission_level / $permission_post_read declared by the page, $modulnr as fallback); auditor sessions get the Revisor role once enforcement is 'deny'.
 // 20260924 Sawaneh SST-757: Empty online.regnskabsaar falls back to the newest open fiscal year and is written back to online and brugere.
 //                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
-// 20261001 Sawaneh Settings insert skipped when a parallel request already added the key (unique index on settings).
-// 20261002 Sawaneh Same for the USET row in grupper (unique index on the settings arts of grupper).
+// 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
+// 20261002 SS Same for the USET row in grupper (unique index on the settings arts of grupper).
 // 20261002 CL/SZ SST-812: Inline javascript/posScanBuffer.js first in the head of the POS Ordre page, so scanner keystrokes typed while the page loads are not lost.
-// 20261004 Sawaneh $brugernavn_raw holds the user name unescaped; $brugernavn stays escaped as before.
+// 20261004 SS $brugernavn_raw holds the user name unescaped; $brugernavn stays escaped as before.
 // 20261031 CL/ASR <html data-theme/data-size> and css/saldi-fonts.css only on the shell, the dashboard and the settings pages (systemdata except kontoplan.php and kontokort.php).
 //                 Every other page prints master's plain <html>.
-// 20261031 CL/ASR $skipLogtime (set by the topbar's polling endpoints, index/notifications.php and index/globalSearch.php) leaves
-//                 online.logtime alone, so a tab that only polls still ages out.
-// 20261101 CL/ASR The per-user colours (settings colors/buttonColor and buttonTxtColor) are no longer read: $buttonColor and
-//                 $buttonTxtColor are always the standard #114691 / #ffffff, as for a user who never chose a colour.
+// 20261031 CL/ASR $skipLogtime (set by the topbar's polling endpoints, index/notifications.php and index/globalSearch.php) leaves online.logtime alone, so a tab that only polls still ages out.
+// 20261101 CL/ASR The per-user colours (settings colors/buttonColor and buttonTxtColor) are no longer read: $buttonColor and $buttonTxtColor are always the standard #114691 / #ffffff, as for a user who never chose a colour.
 // 20261102 CL/ASR $regnskab_pakke: the account's package from the self-service signup, used by finans/bogfor.php.
 // 20261103 CL/ASR QA round 2: the old module gate refuses through perm_refuse(), so both gates give the same translated text (5548), HTTP 403 and the way back to Oversigt.
 // 20261104 CL/ASR A fatal PHP error (E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR) on an HTML page with a session shows the error box of includes/errorReport.php, so the user can send a report.
@@ -90,7 +86,7 @@
 // 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
 //                 Their blocks include std_func.php through __DIR__.
 // 20261113 CDX/NTR Merge translated session messages with role enforcement and error reporting.
-
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001

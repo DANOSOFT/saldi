@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/syssetup.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- systemdata/syssetup.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -52,7 +52,7 @@
 // 20261001 CDX/PHR Show one editable definition per warehouse, preferring the selected fiscal year.
 // 20260928 SS Phase 4: only the side-menu frame (top.php) remains; top-menu and old-menu branches removed.
 // 20261103 CL/ASR QA: syssetup.php without valg (linked so from the old menus) redirects to Finans » Moms like valg=moms, instead of the old VAT editor.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

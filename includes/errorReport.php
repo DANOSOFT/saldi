@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/errorReport.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- includes/errorReport.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,7 @@
 //                 The browser never gets SQL, file paths or error texts: they stay in the session ($_SESSION['saldi_error_reports'], the 10 newest for 24 hours) until the user sends the report.
 //                 Requests that want JSON get {ok:false,error:'db',ref,message}; CLI, cron, API and webservice callers keep the old alert. A page that closed its session gets the box without the form (the reference and the support address).
 //                 A box on a page that moves on at once (a meta refresh right after the error) comes again on the next page until it has been seen. Texts 7830, 7833-7836, 7838-7840, 7842 and 7844-7848.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!defined('SALDI_ERROR_KEEP')) define('SALDI_ERROR_KEEP', 10);        // stored reports per session
 if (!defined('SALDI_ERROR_TTL')) define('SALDI_ERROR_TTL', 86400);       // a stored report can be sent for 24 hours
 if (!defined('SALDI_ERROR_SUPPORT')) define('SALDI_ERROR_SUPPORT', 'support@danosoft.dk');

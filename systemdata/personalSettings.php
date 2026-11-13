@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/personalSettings.php --- ver 5.1.0 --- 2026.11.08 ---
+// ---- systemdata/personalSettings.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -50,7 +50,7 @@
 // 20261103 CL/ASR QA round 2: when the current password is missing for a contact change, the page no longer also says Dine indstillinger er gemt; it says Øvrige indstillinger er gemt only when another preference changed (text 7807).
 // 20261104 CL/ASR Advar om udløb (dage før) is shown only to users who get the expiry warning, those with Varerapport (batch_reports_allowed(), includes/stdFunc/fefo.php).
 // 20261108 CL/ASR css/personalSettings.css and css/saldi-kit.css linked as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var string $brugernavn

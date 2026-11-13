@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/labels.php --- ver 5.1.0 --- 2026.11.12 ---
+// ---- systemdata/labels.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,7 +33,7 @@
 // 20261109 CL/ASR The list of labels has the settings modules' frame and soft shadow (--st-edge, --st-lift; owner, 9 Nov 2026).
 //                 Ny mærkat keeps its 12 px under the list again (.st-page .st-btn's margin 0 had won), so the shadow has room.
 // 20261112 CL/ASR The list of labels has the settings modules' 6 px corner (--st-r-mod; owner, 12 Nov 2026).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 ob_start();

@@ -1,8 +1,8 @@
 <?php
-
+//
 // 20260216 PHR - *1 -> (int)
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
-
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 ob_start();
 
 @session_start();

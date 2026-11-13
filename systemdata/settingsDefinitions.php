@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-04 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-13 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -75,9 +75,10 @@
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
 // 'join' + 'index' address one part of a composite box (R7).
 // 'legacy' is the old menu path as text ids; it feeds the "Tidligere: ..." search tag (§8.10).
-
+//
 // The registry is also read without a database connection (tools/check_settings_registry.php): the same cast
 // as includes/db_query.php's db_cast(), so the definitions load either way.
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 if (!function_exists('db_cast')) {
 	function db_cast($expr, $type) {
 		global $db_type;

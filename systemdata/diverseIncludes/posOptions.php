@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/posOptions.php --- ver 5.1.0 -- 2026-10-01 ---
+// --- systemdata/diverseIncludes/posOptions.php --- ver 5.1.1 -- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,7 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20261008 CDX/NTR pre-fetch terminal_type for all POS terminals before the render loop, as $terminal_type was never populated, throwing errors.
 // 20261001 SS KDS colours are named color_1, color_2... (one row per setting name).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 function posOptions () {
 	global $bgcolor,$bgcolor5;
 	global $regnaar;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/lane3000-sim.php --- ver 5.1.0 --- 2026.11.03 ---
+// --- payments/lane3000-sim.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 //                Connect@Cloud username and password into the page although the simulation never calls them.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261103 CL/ASR QA: $permission_key is 'pos.kasse|debitor.ordre', so a till user (pos.kasse) can pay by terminal once enforcement is 'deny'.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-10 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -226,7 +226,7 @@
 //                 The lookup return's $_GET reads use ifset(), and kontroller()'s line-check branch has braces on every multi-line body.
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rows.php --- ver 5.1.0 --- 2026.10.19 ---
+// ---- includes/settings/rows.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 // 20261008 SS Table option 'confirm_skip' (button text, explanation) for the confirm box. Warehouse usage follows
 // 20261018 SS Review 2 (PR #803): an empty cell in a number column is written as NULL (SettingsService::sqlValue). master's warehouseDeletion.php (history, order lines, departments; duplicates may go).
 // 20261019 SS Review 2 (PR #803): numeric codes compared as numbers ("01" = "1") in the uniqueness check, a row's own unchanged code is not checked again (legacy duplicates), copy-year keeps inaktiv, next auto code and the AFD default-warehouse cleanup without Postgres regex / same-table subquery (MySQL).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * The tables of a rows section with their defaults filled in.
  *

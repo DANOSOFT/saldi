@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
-
+//
 // 20120906 Tilføjet mulighed for at vise momssats på ordrelinjer.
 // 20130212 Tilføjet linjemoms og varemomssats, søg linjemoms eller varemomssats 
 // 20130221 Tilføjet kontokort (formular 11)
@@ -74,6 +74,7 @@
 // 20261102 CL/ASR Genindlæs standardformularer removed from the bottom row (both menu modes): it linked to formular_indlaes_std.php, which was deleted on 24 Sep 2025 (6a35fea7), so the link gave a 404.
 //                 The visual editor's Nulstil resets one form and background to the standard and keeps the e-mail texts and fee/interest rows.
 // 20261103 CL/ASR QA round 2: the page needs Dokumenter & e-mail (settings.documents), and the Vælg selector is a read, so a read-only role can choose a form; a new form language (VSPR) is created only with write.
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 @session_start();
 $s_id=session_id();
 

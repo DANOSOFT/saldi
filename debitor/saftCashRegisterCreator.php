@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/saftCashRegisterCreator.php --- ver 5.1.0 --- 2023-10-27 ---
+// --- debitor/saftCashRegisterCreator.php --- ver 5.1.1 --- 2026-11-13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,9 +21,10 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $auditSender = false;

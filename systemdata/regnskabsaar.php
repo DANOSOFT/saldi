@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 5.1.0 --- 2026-10-30 --
+// --- systemdata/regnskabsaar.php --- ver 5.1.1 --- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,7 +42,7 @@
 // 20260930 SS check_permissions() moved to includes/std_func.php (roles spec §4.4).
 // 20261005 SS Fiscal years live in Indstillinger » Virksomhed » Regnskabsår (settings redesign 4d, G1.2; audit F1-F3 fixed by the new list); this page only redirects.
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 include("../includes/connect.php");

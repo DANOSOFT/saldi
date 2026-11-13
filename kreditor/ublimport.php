@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// -------------kreditor/ublimport.php----------ver 5.1.0-----2026-11-03----
+// -------------kreditor/ublimport.php----------ver 5.1.1-----2026-11-13----
 //                           LICENSE
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -30,7 +30,7 @@
 // 2016-12-07 Rettet puljesti - søg nfs_mount
 // 20261020 CDX/NTR Replace shell system() calls with PHP file ops to close command injection via $_GET
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";

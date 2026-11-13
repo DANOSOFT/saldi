@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/mylabel.php --- ver 5.1.0 --- 2026-09-16 ---
+// --- mysale/mylabel.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -45,7 +45,7 @@
 //                 so they render one cell each; the printSheet button still fills the page grid.
 // 20260921 CDX/LH Retain ssl3 early label-condition default during master deployment.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

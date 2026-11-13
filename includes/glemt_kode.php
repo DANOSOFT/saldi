@@ -1,5 +1,5 @@
 <?php
-// -----------index/glemt_kode.php-----------ver 5.1.0------2026-11-03---
+// -----------index/glemt_kode.php-----------ver 5.1.1------2026-11-13---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -24,7 +24,7 @@
 //		mailadresse og der ikke er tilknyttet en mailadresse 20150137 
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20261103 CL/ASR The password-reset token in brugere.tmp_kode starts with 'reset|', the shared format the user system reads (invitations use 'invite|').
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $css="../css/standard.css";
 
 include("../includes/connect.php");

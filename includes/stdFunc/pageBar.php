@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/pageBar.php --- ver 5.1.0 --- 2026.11.08 ---
+// ---- includes/stdFunc/pageBar.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 // 20261031 CL/ASR Settings pages only: no dark-theme switch and no gear in the page toolbar (the gear is in the topbar).
 //                 The shell no longer hides Tilbage.
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 (--page is Saldi's classic page colour #eeeef0 now; no page_bar page uses it).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!function_exists('page_bar_back_ok')) {
 	/**
 	 * Whether a back link may be printed (review 2, PR #803). Several pages pass a returside taken from the request.

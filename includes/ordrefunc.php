@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
-
+//
+//
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -166,7 +166,7 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 

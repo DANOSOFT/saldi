@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------- admin/admin_settings.php --- ver 5.1.0 --- 2026.10.31 ---
+// --------------- admin/admin_settings.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,7 +32,7 @@
 // 20260320 PHR cleanup (pdftk)
 // 20260326 PHR Fixed error in weasyprint
 // 20261001 SS Saves look the row up when the form has no id (stale or resubmitted form made duplicates).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";

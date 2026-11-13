@@ -1,5 +1,5 @@
 <?php
-// -----------systemdata/kontoplan.php-----ver 5.1.0 ----2026-11-12-------
+// -----------systemdata/kontoplan.php-----ver 5.1.1 ----2026-11-13-------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,7 +33,7 @@
 //                 The frame is a ring around the wrapper, so the wrapper keeps its size and place; the table's outer #ddd line is hidden.
 //                 The content column shows overflow, so it does not cut the shadow off.
 // 20261112 CL/ASR Opened from Indstillinger the grid has the settings modules' 6 px corner (--st-r-mod; owner, 12 Nov 2026).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $title="Kontoplan";

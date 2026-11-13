@@ -1,5 +1,5 @@
 <?php
-// --- lager/varefoto.php --- ver 5.1.0 --- 2026.11.04 ---
+// --- lager/varefoto.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,6 +18,7 @@
 // Copyright (c) 2015-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261104 CL/ASR A photo folder that cannot be made shows the error box (includes/errorReport.php) instead of the text with the phone number; it comes again on the item card the refresh leads to.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $modulnr=9;

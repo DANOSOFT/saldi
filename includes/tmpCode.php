@@ -1,5 +1,5 @@
 <?php
-// ---- includes/tmpCode.php --- ver 5.1.0 --- 2026.09.29 ---
+// ---- includes/tmpCode.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,7 +18,7 @@
 // Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260929 SS Roles stage 2 (Requirements_roles_stage2_EN.md §8.6): brugere.tmp_kode has one format for its three uses, "<type>|<expire>|<code>", type reset, invite or 2fa.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * The value to store in brugere.tmp_kode.
  */

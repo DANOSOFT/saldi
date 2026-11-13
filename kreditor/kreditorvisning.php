@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/kreditorvisning.php --- ver 5.1.0--2026-11-03 ---
+// --- kreditor/kreditorvisning.php --- ver 5.1.1--2026-11-13 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -30,7 +30,7 @@
 // 2025.05.17 Fiscal Year
 // 20261002 SS Saving the list columns updates only the kreditor view row (kode) instead of every KLV row of the user.
 // 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 8, kreditor.konti) instead of the debitor one, so Indkøb opens the page and Salg does not.
-	
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

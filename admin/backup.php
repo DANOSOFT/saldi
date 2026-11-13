@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/admin/backup.php---ver 5.1.0--2026-11-04---------------------
+// ----------/admin/backup.php---ver 5.1.1--2026-11-13---------------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,7 +40,7 @@
 //                 The plain dump and backup.info are deleted once archived, the kept copy gets a random part in its name and is downloaded through backup_download.php, and Annullér deletes only that copy.
 // 20261104 CL/ASR Every visit removes expired work folders of the two-step restore (includes/restorePending.php), as restore.php does.
 // 20261104 CL/ASR Final QA: a backup that was created is written to the audit log (setting.action on import_export.backup, with the file name and size), as the restore's steps are.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- mysale/api.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,7 +30,7 @@
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 //
 // 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 $header = "nix";
 $bg = "nix";

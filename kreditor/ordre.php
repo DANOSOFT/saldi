@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20200827 PHR Added protection against delete if items recieved. 20200827
 // 20201002	PHR Orderline will no be created if no id.
 // 20201021 changed from '=substr($fokus,4)' to '=0' as $focus is 'varenr'?;
@@ -102,7 +102,7 @@
 // 20261105 CL/MMR SST-951 Saving the order header stores the chosen language (sprog) when that language has forms, and a restordre keeps the order's language.
 //                 ordreside() reads ordrer.sprog, so the language select and the mail texts on the order show it.
 //                 In the edited POST block the three-argument if_isset() lookups are now ifset() with the same keys and defaults, and ordreside() includes its order parts with __DIR__.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

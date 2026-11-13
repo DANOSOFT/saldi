@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func/migrateTillAccounts.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- includes/opdat_func/migrateTillAccounts.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261104 CL/ASR One-time move of the till account per currency from the tab list in grupper VK box4 to settings VK/till_account_<currency> per till, called from betweenUpdates.php.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!function_exists('migrateTillAccounts')) {
 	/**
 	 * Copies the till account per currency from the old tab list in grupper art 'VK' box4 (one entry per till,

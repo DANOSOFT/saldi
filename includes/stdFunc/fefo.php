@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/fefo.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- includes/stdFunc/fefo.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 // 20260930 LOE SST-836 Added batch_expiry_in_use() for the expiry report's menu entry.
 // 20261011 CL/ASR Added batch_missing_info_count() and batch_txt() for lager/batch_udfyld.php and its entry points.
 // 20261104 CL/ASR Added batch_reports_allowed() and batch_edit_allowed() for the menus and links into the batch/expiry tools, which moved to Varerapport (right 15, lager.rapporter).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!function_exists('fefo_order_clause')) {
 	/**
 	 * Returns the ORDER BY clause for batch selection.

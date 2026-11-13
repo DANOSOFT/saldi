@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/backup_download.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- admin/backup_download.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,7 +25,7 @@
 // ----------------------------------------------------------------------
 // 20261103 CL/ASR Created: hands this ledger's kept backup copy (temp/backup/<db>/, made by admin/backup.php) to a user with write on Sikkerhedskopi.
 //                 The file is no longer fetched from a public URL under temp/.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $header  = 'nix';

@@ -1,5 +1,5 @@
 <?php
-// ---- index/dashboardIncludes/unpaidInvoices.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- index/dashboardIncludes/unpaidInvoices.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 // 20261009 SS Items without a due date get one from the customer's payment terms with forfaldsdag(), as the account card does (§5.9.2 point 4); such items are grouped in PHP like the placeholder-rate ones.
 // 20261101 CL/ASR The list holds the oldest invoices of each due group (at most $limit per group, oldest first), so a group picked on the card shows its own invoices (prototype D); the page shows the first $limit of them unfiltered.
 // 20261103 CL/ASR QA: a foreign-currency invoice with the placeholder rate is converted posting by posting (each at its own date's rate, or its own rate when it has one) before the postings are netted, not the net at the first posting's rate.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . "/../../includes/forfaldsdag.php");
 
 /**

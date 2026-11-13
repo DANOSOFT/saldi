@@ -1,5 +1,5 @@
 <?php
-// ---------lager/modtageliste.php----------ver 5.1.0-------2026-11-03----------------
+// ---------lager/modtageliste.php----------ver 5.1.1-------2026-11-13----------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,7 +18,7 @@
 // -----------------------------------------------------------------------------------
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 // 20261103 CL/ASR QA round 2: gated on Varemodtagelse ($modulnr 10, lager.varemodtagelse) instead of Kassekladde (2), so Indkøb and Lager open it.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 	

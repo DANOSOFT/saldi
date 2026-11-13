@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php --- ver 5.1.0 --- 2026-10-19 ---
+// --- includes/documents.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,10 +51,11 @@
 //                  evaluates - a failed attach answered http 200 and looked like a success.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261018 SS Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
-
+//
 // SST-868: must stay above every include. online.php prints the page frame as it is included,
 // and php.ini buffers only 4096 bytes, so without a buffer of our own the response is already
 // committed by the time docPool.php decides whether an attach worked.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 
 @session_start();

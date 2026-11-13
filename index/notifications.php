@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/notifications.php --- ver 5.1.0 --- 2026.10.31 ---
+// ---- index/notifications.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 // ----------------------------------------------------------------------
 // 20260927 SS JSON endpoint for the shell's notification bell (topbar spec §3): GET = refresh sources (throttled per session) + list + unread count; POST action=read (id or all) marks as read.
 // 20261031 CL/ASR $skipLogtime: the shell polls this every 60 s, which must not keep the session's online.logtime fresh.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var int    $bruger_id

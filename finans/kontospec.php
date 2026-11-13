@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontospec.php --- ver 5.1.0 --- 2026.11.04 ---
+// --- finans/kontospec.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,7 +32,7 @@
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20260929 CL/SZ SD-698: Optional returside; when set, Tilbage goes back there instead of regnskab.php (used by the kassekladde account lookup).
 // 20261104 CL/MMR SST-914: Debet/Kredit filters use <> 0, so postings with a negative debet or kredit amount are shown.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 $fakturanr = array();
 $ordrenr   = array();

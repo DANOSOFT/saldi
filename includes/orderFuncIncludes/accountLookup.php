@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//---includes/orderFuncIncludes/accountLookup.php ---ver 5.1.0 ----2026-10-19 ---
+//---includes/orderFuncIncludes/accountLookup.php ---ver 5.1.1 ----2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,14 +23,14 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
+//
 // 20260827 CDX/PHR Restored supplier lookup for KO, including AJAX results.
 // 20260901 CL/LH Escape grid cell values before rendering (XSS) and pass
 //                 o_art=KO along on row select so supplier choice survives
 // 20260901 CL/LH Skip the debtor-creation form for KO (supplier) lookups
 // 20261008 CDX/PHR Include open accounts with a NULL closed flag in order lookups.
 // 20261019 SS Review 2 (PR #803): inactive debtor groups left out of the new-customer group dropdown.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
     $art = ($o_art == 'KO') ? 'K' : 'D';

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontokort_moms_standalone.php-----ver 5.1.0 ----2026-11-03-----
+// --- finans/kontokort_moms_standalone.php-----ver 5.1.1 ----2026-11-13-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,7 +29,7 @@
 // 20261030 CL/LAH per_page defaults to 0 = all lines.
 // 20261103 LOE SST-936 Resolve the employee range into the id list kontokort_moms() filters by.
 //              The employee list the report page resolved is used when the print link carries it.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

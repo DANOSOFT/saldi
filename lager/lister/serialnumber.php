@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/serialnumber.php --- ver 5.1.0 --- 2026-11-04 ---
+// ---- lager/lister/serialnumber.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,7 +39,7 @@
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261104 LOE MB-62 A read-only Items user may not rename or delete a serial number.
 //              The write icons are not drawn and a posted form is refused before either db_modify.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 

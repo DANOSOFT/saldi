@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/_varerInsert.php -----ver 5.1.0 ----2026-09-16--------------
+// --- debitor/_varerInsert.php -----ver 5.1.1 ----2026-11-13--------------
 //                           LICENSE
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20250107 LOE created
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

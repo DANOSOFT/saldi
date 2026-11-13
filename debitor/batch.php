@@ -1,5 +1,5 @@
 <?php
-// ------------------debitor/batch.php--------ver 5.1.0----2026.11.03--
+// ------------------debitor/batch.php--------ver 5.1.1----2026.11.13--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -34,7 +34,7 @@
 //                  throws, and the first one ($row[art], reached on every open of this
 //                  window) made the page a 500 before it printed anything.
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

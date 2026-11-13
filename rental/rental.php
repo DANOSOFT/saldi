@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- debitor/ordreliste.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,7 +36,7 @@
 //                 The stored password and API key are no longer sent back to the browser; an empty field keeps them.
 // 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
     @session_start();
     $s_id=session_id();
     $header = "nix";

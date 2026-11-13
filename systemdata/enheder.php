@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/enheder.php --- ver 5.1.0 --- 2026-10-05 ---
+// --- systemdata/enheder.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,10 +25,10 @@
 // 2019.02.25 MSC - Rettet topmenu design til og isset fejl
 // 2021.02.11 PHR	- Some cleanup
 // 20261004 SS Security 4.0 (A12e): enh_id/mat_id from the URL cast to integers before SQL and HTML.
-
-		
+//
+//
 // 20261005 SS Units and materials live in Indstillinger » Varer » Enheder & materialer (settings redesign 4c, G5.2); this page only redirects.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 include("../includes/connect.php");

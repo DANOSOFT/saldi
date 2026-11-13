@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/mainIncludes/topbar.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- index/mainIncludes/topbar.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,7 +40,7 @@
 // 20261031 CL/ASR MB-94: the fiscal-year switch offers only active_fiscal_years() (a year with box10 set is deleted).
 // 20261103 CL/ASR QA: the gear's map is converted to UTF-8 and written as ASCII JSON, so json_encode() does not fail on latin-1 installations.
 //                 "Hvem er online" lists only the company's own logins: revisor/support sessions, mySale customers and the anonymous booking session (all in the same online table) are left out, as master's count left out revisor sessions.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Sessions in the master `online` table that belong to the caller's company and
  * were active within the last hour. Must run BEFORE includes/online.php switches

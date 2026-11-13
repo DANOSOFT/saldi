@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// ------ systemdata/importer_varelokationer.php ------------ ver 5.1.0 -- 2026-11-02 --
+// ------ systemdata/importer_varelokationer.php ------------ ver 5.1.1 -- 2026-11-13 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -44,7 +44,7 @@
 // 20261102 CL/ASR Crashed on an account without warehouses (owner, 2 Nov 2026): count() of a list that was never set.
 //                 The warehouses are now counted as the item card counts them - the LG groups once each although they are copied to every fiscal year, and the one standard warehouse 1 when there are none - so such an account imports onto warehouse 1, where its stock rows are.
 //                 Also: the warehouse from the form must be one of those (it went into the SQL unchecked); the file's charset is the one chosen on the page (a global $charset hid it, so a UTF-8 file was converted as ISO-8859-1); the location goes on every stock row of the item on the warehouse, as the item card saves it, not only the first; an item number from the file is escaped when shown; blank lines are skipped; the three lines of instructions show (a missing quote hid them); the item lookup is exact, then any case, then numeric value, each taking the first item instead of the last.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";

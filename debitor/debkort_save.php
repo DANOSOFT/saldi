@@ -1,5 +1,5 @@
 <?php
-// ---------------------debitor/debkort_save.php----ver 5.1.0---2014-05-05---
+// ---------------------debitor/debkort_save.php----ver 5.1.1---2026-11-13---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,11 +18,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 2014.05.05 indsat  >>|| $_POST['firmanavn']<< da man ikke kunne oprette nye kunder. (PHR - Danosoft) Søg20140505
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if ($delete_category=if_isset($_GET['delete_category'])) {
 	$r=db_fetch_array(db_select("select * from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
 	$cat_id=explode(chr(9),$r['box1']);

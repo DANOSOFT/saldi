@@ -1,5 +1,5 @@
 <?php
-// ----------finans/pbswebimport.php------ver 5.1.0-----2026.09.16-----------
+// ----------finans/pbswebimport.php------ver 5.1.1-----2026.11.13-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,7 +27,7 @@
 // 20260831 Sawaneh Removed duplicate fclose() in flyt_data - fatal TypeError on PHP 8
 // 20260831 Sawaneh Restrict $filnavn from POST to the user's own upload - path traversal in fopen/unlink
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";

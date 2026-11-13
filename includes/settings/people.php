@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/people.php --- ver 5.1.0 --- 2026.11.02 ---
+// ---- includes/settings/people.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,7 @@
 // 20261102 CL/ASR Review: when the list is too narrow for its E-mail column (the app shell at 1366 px), a row's sub-line shows the initials and the e-mail (ur_people_sub).
 //                 A search hit for Tilføj person (organisation.employees.add) opens the list with its dialog (add=1).
 //                 Giv adgang names both buttons in its note (7792 replaces 7775).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Where a plain visit of the employee list goes for a user who may open usersRoles.php: the one list, or the person's card there
  * ('' = it stays: no access, a popup, a message is waiting, or an embedded/extra-fields address). The shell's inframe=1 (every

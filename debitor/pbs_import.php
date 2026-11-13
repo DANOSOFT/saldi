@@ -1,5 +1,5 @@
 <?php
-// ------------debitor/import.php------- ver 5.1.0---22026-09-16------
+// ------------debitor/import.php------- ver 5.1.1---22026-11-13------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -20,14 +20,14 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 2012-08-22 Tilrettet til leverandørservice
 // 2012-10-24 Søg #20121024
 // 2013-05-16 Afmelding af leverandørservice#20130516
 // 2015.09.04 Viser kundenavn og viser også detaljer selvom der hverken er til eller framelding.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";

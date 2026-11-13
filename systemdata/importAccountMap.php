@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importAccountMap.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- systemdata/importAccountMap.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 //                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
 //                 The page's own Tilbage and page_bar title are gone; the standard-map link, the upload form and the import are unchanged.
 //                 The div that centres the page's content opens inside the content column, so the title and the menu are not centred.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

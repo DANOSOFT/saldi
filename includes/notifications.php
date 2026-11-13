@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/notifications.php --- ver 5.1.0 --- 2026.11.04 ---
+// ---- includes/notifications.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,7 +37,7 @@
 // 20261104 CL/ASR The batch-expiry item follows lager/udlobsrapport.php to Varerapport (owner, 4 Nov 2026): it needs legacy right 15 and the key lager.rapporter instead of right 12, so it reaches exactly the users who may open the report it links to.
 //                 A user without them has a stored item removed, and the bell list and the daily summary hide the item from them as well.
 // 20261104 CL/ASR Final QA: when no fiscal year covers today (the last one has ended), the warning asks for the next year to be created (fiscal:none, texts 7852 and 7851) instead of asking for a year to be activated, which stays for a year that covers today but is not open.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * @return array<string, string> type -> label text id
  */

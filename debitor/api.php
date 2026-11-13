@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- debitor/api.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
 // &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
 // 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
@@ -82,7 +82,7 @@
 //                 A credit note's lines get their quantity negated instead of abs() on quantity and price, so its discount line is no longer credited as a charge.
 //                 In sendInvoice() "global $db;" is indented like the other statements, and the order id is cast in both queries.
 // 20261104 CL/MMR SST-746 Review (PR #998): the SST-746 history line no longer names a customer's item number.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");

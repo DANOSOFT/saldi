@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------debitor/genfakturer.php-----ver 5.1.0-----2026-09-16------
+// ---------debitor/genfakturer.php-----ver 5.1.1-----2026-11-13------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -36,7 +36,7 @@
 // 2020.02.20 PHR - $cvrnr set to '' if not valid; 
 // 20250815 PHR	Fiscal_year;
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

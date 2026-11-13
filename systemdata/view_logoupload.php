@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------systemdata/view_logoupload.php------------ver 5.1.0-----2026-11-02------
+// --------systemdata/view_logoupload.php------------ver 5.1.1-----2026-11-13------
 //                               LICENSE      
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 // 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) instead of the blue Close/Print bar: the preview of a background or attachment under Logo & baggrunde, titled Forhåndsvisning and the file, Tilbage to the upload page (as Close), the PDF as high as the window allows.
 // 20261102 CL/ASR Review: the preview sits under the row the upload page was opened from (Formularer or Logo & baggrunde, logoupload_from).
 //                 The page keeps 16 px under the PDF (not the section pages' 96 px), so the page itself does not scroll.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 session_start();
 $s_id=session_id();
 

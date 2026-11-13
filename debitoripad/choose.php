@@ -1,5 +1,5 @@
 <?php
-// ------------------debitoripad/choose.php--------ver 5.1.0----2024.06.07--
+// ------------------debitoripad/choose.php--------ver 5.1.1----2026.11.13--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,9 +18,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

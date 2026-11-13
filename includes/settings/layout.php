@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/layout.php --- ver 5.1.0 --- 2026.11.08 ---
+// ---- includes/settings/layout.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,7 +26,7 @@
 // 20261102 CL/ASR css/unified-components.css linked as ?v=20261102b (the direct Brugere & ansatte heading in the left menu).
 // 20261103 CL/ASR QA: the title's whitespace is normalised without the /u modifier on latin-1 installations (it returned null there: a blank heading).
 // 20261108 CL/ASR css/saldi-kit.css and css/unified-components.css linked as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
-
+//
 /*
  * HOW TO USE (for the pages that do not have the menu yet)
  *
@@ -77,7 +77,7 @@
  *    'class'        extra classes on the root (.st-page)
  *    'breadcrumb'   false = the page prints its own
  */
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/components.php');                     // st_h(), st_txt(), st_company(), settings_back_button()
 include_once(__DIR__ . '/../../systemdata/settingsRegistry.php'); // the hub (includes/settings/hub.php), settings_breadcrumb()
 include_once(__DIR__ . '/listView.php');                       // settings_menu_html()

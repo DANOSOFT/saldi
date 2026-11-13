@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------------lager/lagerflyt.php-----------ver 5.1.0-------2026-11-04------
+// ------------------lager/lagerflyt.php-----------ver 5.1.1-------2026-11-13------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 //
 // Copyright (c) 2014-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20170425 - total omskrivning
 // 20260526 PHR Fixed bug. In rare cases qty was not removed from the giving stock but just added to the recieving stock
 // 20260603 PHR Fixed: $nyt_antal[$x] → $nyt_antal (array-access på scalar gav kun første ciffer → commit fejlede ved antal ≥ 10)
@@ -37,7 +37,7 @@ det lager der flyttes fra,
 der oprettes et tilsvarende antal batch_salg linjer uden ordre & linje_id og der oprettes en ny linje i batch_kob 
 uden uden ordre & linje_id, med det flyttede antal som antal & rest, snitprisen for de flyttede varer samt nyt lager.
 */ 
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 @session_start();
 $s_id=session_id();

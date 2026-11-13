@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatusmailer.php--- ver 5.1.0 --- 2026-09-30 ----
+// -----------------lager/lagerstatusmailer.php--- ver 5.1.1 --- 2026-11-13 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260930 SS When run from the login, the login's own permission key stays in force (Deny mode refused users without Varer at login).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

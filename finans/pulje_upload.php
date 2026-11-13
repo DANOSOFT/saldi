@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docIncludes/poolUpload.php --- ver 5.1.0 --- 2026-09-16 ---
+// --- includes/docIncludes/poolUpload.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,7 +27,7 @@
 // ----------------------------------------------------------------------
 // 20250610 Created mobile-friendly document pool upload interface
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $title = "Document Pool Upload";
