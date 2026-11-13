@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- ver 5.0.0 -- 2026-10-07 --
+// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,12 @@
 // 20261007 MJ SST-829 A new accounting year no longer copies the art='LG' rows.
 //                  Warehouses are not per-year data - stock is keyed on grupper.kodenr
 //                  - so each copy only added a duplicate to every warehouse list.
+// 20261112 CL/MMR SST-1005 Gem/opdatér also updates the opening balances of the later years, and says so when a balance cannot be transferred.
+//                 The year before is carried forward again, so a fixed «Overfør til» clears the message; a blocked transfer leaves the later years alone.
+//                 A blocked transfer into the saved year keeps that year's opening balances as they were; the alert text is JSON-encoded.
+// 20261113 CL/MMR SST-1005 The «Overfør til» choices that change on the year before are written before this year is locked, and unchanged ones are not written there at all (Codex round 9).
+//                 A deleted year before this one is recognised by the timestamp deleteFiscalYear.php writes too, the card shows the year before's marker, not its own, and the Debet/Kredit opening balances of the first year after a deleted year are saved (Codex round 17).
+//                 The posted year number is cast to an integer, and the «Overfør til» loop only reads saldo when the form posted it (Codex round 18).
 
 @session_start();
 $s_id=session_id();
@@ -98,7 +104,8 @@ $id=if_isset($_GET['id']);
 if ($_POST) {
 	$id = (int)if_isset($_POST['id'],0);
 	$beskrivelse = if_isset($_POST['beskrivelse']);
-	$kodenr = if_isset($_POST['kodenr']);
+	// SST-1005: a fiscal year number, cast before it reaches any SQL (doc/ai/convention_sql_escaping.md).
+	$kodenr = (int)if_isset($_POST['kodenr'], 0);
 	$kode=if_isset($_POST['kode']);
 	$startmd = if_isset($_POST['startmd']);
 	$startaar = if_isset($_POST['startaar']);
@@ -158,6 +165,12 @@ if ($_POST) {
 	if ((($id!=0)||(!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))) &&
 	(($startmd)&&($slutmd)&&($startdato)&&($slutdato)&&($startaar)&&($slutaar)&&($beskrivelse))) {
 		transaktion ("begin");
+		// SST-1005: the «Overfør til» choices that change on the year before are written first, so this card never
+		// holds its own year while it waits for a journal posting in the year before. Then this year's opening
+		// balances before the save, kept if the transfer into the year cannot be made.
+		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+		followingOpeningBalanceSaveLastYearChoices($kodenr, $kontonr, $overfor_til, $kontoantal);
+		$primoBeforeSave = followingOpeningBalancePrimo($kodenr, true);
 		($id == 0)?$nn=2:$nn=1;
 		for($n=0;$n<$nn;$n++) { // 1. time it must be rerun to catch and update last year's result.
 		if ($id == 0){
@@ -222,14 +235,28 @@ if ($_POST) {
 			if ($preNo) {
 				$qtxt = "select box10 from grupper where art = 'RA' and kodenr = '$preNo'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				($r['box10'] == 'on')?$preDeleted = 1:$preDeleted = 0;
+				// SST-1005: deleteFiscalYear.php marks a deleted year with a timestamp, older deletions with 'on'.
+				$preDeleted = ($r && followingOpeningBalanceYearDeleted($r['box10'])) ? 1 : 0;
 			}
 			$qtxt = "update grupper set beskrivelse = '".db_escape_string($beskrivelse)."', kodenr = '$kodenr', kode = '$kode', ";
 			$qtxt.= "box1 = '$startmd', box2 = '$startaar', box3 = '$slutmd', box4 = '$slutaar', box5 = '$aaben' where id = '$id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($kodenr==1 || $preDeleted){
-				for ($x=1; $x<=$kontoantal; $x++) {
-					if ($saldo[$x] && $overfor_til[$x]) {
+				if ($kodenr != 1 && is_array($debet)) {
+					// SST-1005: the first year after a deleted year shows its opening balances as Debet/Kredit like year 1
+					// (fiscalYearInc/yearX1.php); they are saved the same way, and the later years are carried from them.
+					for ($x=1; $x<=$kontoantal; $x++) {
+						$sum=0;
+						if ($debet[$x]) $sum+=usdecimal($debet[$x]);
+						if ($kredit[$x]) $sum-=usdecimal($kredit[$x]);
+						$account = (int)$kontonr[$x];
+						$qtxt = "update kontoplan set primo='$sum' where kontonr='$account' and regnskabsaar='$kodenr'";
+						db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
+					}
+				}
+				// SST-1005: only a form with «Overfør til» posts saldo; the Debet/Kredit form above has none.
+				for ($x=1; is_array($saldo) && is_array($overfor_til) && $x<=$kontoantal; $x++) {
+					if (!empty($saldo[$x]) && !empty($overfor_til[$x])) {
 						$qtxt = "update kontoplan set primo=primo+$saldo[$x],overfor_til=$overfor_til[$x] where ";
 						$qtxt = "kontonr='$kontonr[$x]' and regnskabsaar=$kodenr";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -246,8 +273,9 @@ if ($_POST) {
 						$kontonr[$x]=$kontonr[$x]*1;
 						if ($overfor_til[$x]) {
 							$saldo[$x]=(float)$saldo[$x]; #phr 20110605
-							$qtxt = "update kontoplan set overfor_til='$overfor_til[$x]' ";
-							$qtxt.= "where kontonr='$kontonr[$x]' and (regnskabsaar=$kodenr-1 or regnskabsaar='$kodenr')";
+							// SST-1005: on the year before only when it changes; an existing year already did that above.
+							$qtxt = "update kontoplan set overfor_til='$overfor_til[$x]' where kontonr='$kontonr[$x]' and ";
+							$qtxt.= "(regnskabsaar='$kodenr' or (regnskabsaar=$kodenr-1 and coalesce(overfor_til,0)<>'$overfor_til[$x]'))";
 							db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
 							$qtxt = "update kontoplan set primo=primo+'$saldo[$x]' where kontonr='$overfor_til[$x]' and regnskabsaar=$kodenr";
 							db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
@@ -284,7 +312,12 @@ if ($_POST) {
 
 		}
 		}
+		// SST-1005: as if Gem/opdatér was pressed on this year and every later year.
+		$openingStop = updateOpeningBalancesAfterYearSave($kodenr, $primoBeforeSave);
 		transaktion("commit");
+		if ($openingStop) {
+			print followingOpeningBalanceAlertScript($openingStop, $sprog_id);
+		}
 	}
 }
 if ($setFiscialYear) {
@@ -301,11 +334,14 @@ if ($setFiscialYear) {
 if ($id > 0) {
 	$qtxt = "select kodenr from grupper where id = '$id' and art = 'RA'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$preNo = (int)$r['kodenr'];
-	if ($preNo) {
+	// SST-1005: the year before this one (it read this year's own marker), deleted with a timestamp or 'on'.
+	$preNo = (int)$r['kodenr'] - 1;
+	$preDeleted = 0;
+	if ($preNo > 0) {
 		$qtxt = "select box10 from grupper where art = 'RA' and kodenr = '$preNo'";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		($r['box10'] == 'on')?$preDeleted = 1:$preDeleted = 0;
+		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+		$preDeleted = ($r && followingOpeningBalanceYearDeleted($r['box10'])) ? 1 : 0;
 	}
 
 	$query = db_select("select * from grupper where id = '$id' and art = 'RA'",__FILE__ . " linje " . __LINE__);

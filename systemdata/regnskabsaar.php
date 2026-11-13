@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 5.1.0 --- 2026-10-30 --
+// --- systemdata/regnskabsaar.php --- ver 5.1.1 --- 2026-11-12 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,9 @@
 // 20260814 Sawaneh SST-705 Current fiscal year shows Lukket when bookkeeping is
 //                  not allowed (box5) and GET params are int-cast before SQL
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
+// 20261112 CL/MMR SST-1005 «Sæt aktivt» and «Sæt alle» update the opening balances of the chosen year and all later years, as Gem/opdatér does.
+//                 A transfer that cannot be made is shown above the list until a later update gets past it.
+//                 Year 1 and a year after a deleted year are carried forward from themselves; the alert text is JSON-encoded.
 
 @session_start();
 $s_id = session_id();
@@ -84,6 +87,15 @@ if ($aktiver) {
 	include("../includes/online.php");
 	if (!$revisor)
 		db_modify("update brugere set regnskabsaar = '$aktiver' where id = '$bruger_id'", __FILE__ . " linje " . __LINE__);
+}
+include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+if ($aktiver || $set_alle) {
+	// SST-1005: as if Gem/opdatér was pressed on the chosen year and every later year.
+	$chosenYear = $aktiver ? $aktiver : $set_alle;
+	$openingStop = syncFollowingOpeningBalances($chosenYear - 1, $chosenYear);
+	if ($openingStop) {
+		print followingOpeningBalanceAlertScript($openingStop, $sprog_id);
+	}
 }
 if ($deleteYear) {
 	print "<script>javascript:document.body.style.cursor = 'wait'</script>";
@@ -156,6 +168,10 @@ print "<tr>";
 print "<td colspan='9'><hr></td>";
 print "</tr>";
 print "</tr>";
+if ($openingStop = followingOpeningBalanceStop()) {
+	$txt = htmlspecialchars(followingOpeningBalanceStopText($openingStop, $sprog_id), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	print "<tr><td colspan='9' style='color:#cc0000;padding:4px 0 8px 0'><b>$txt</b></td></tr>";
+}
 $set_alle = 0;
 $q = db_select("select id,regnskabsaar from brugere", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
