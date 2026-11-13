@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.10
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 // 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
 //                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
+// 20261113 CL/MMR SST-898 Forms say "Mobilnr.: $egen_mobile" instead of "Fax: $egen_fax" (formularFaxToMobile()), and the stored old defaults of texts 378, 50 and 5230 are deleted so the new "Mobilnr." is used.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -51,5 +52,23 @@ include_once(__DIR__ . '/opdat_func/deleteStaleTekst.php');
 // It returns immediately once the completion flag is set. Do not move it into a future release gate.
 require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
 backfillOrderLineDelivered($db_type);
+
+// SST-898: SD-532 made the fax field the mobile field (adresser.mobile). The forms still printed "Fax: <mobile number>",
+// and accounts that had texts 378 (Stamdata, kreditor card, jobkort), 50 (form field list) or 5230 (debitor card) stored
+// kept an old default. The field is now "Mobilnr." in Danish and Norwegian (Morten 2026-11-13), so the old defaults
+// "Telefax"/"Fax"/"Faks", the interim "Mobile", the previous "Mobil" and "Mobilnummer" (5230, SD-525) are deleted and
+// findtekst() reads the new default from importfiler/tekster.csv. English keeps "Mobile" / "Mobile number"; only its
+// old "Fax" goes. Both steps only touch what is still old, so they are cheap at every login; a text a customer has
+// edited (e.g. "Mobiltlf.") is kept.
+require_once __DIR__ . '/opdat_func/formularFaxToMobile.php';
+formularFaxToMobile();
+deleteStaleTekst(378, array('Telefax', 'Mobile', 'Mobil'), 1);
+deleteStaleTekst(378, 'Fax', 2);
+deleteStaleTekst(378, array('Faks', 'Mobile', 'Mobil'), 3);
+deleteStaleTekst(50, array('Fax', 'Mobile', 'Mobil'), 1);
+deleteStaleTekst(50, 'Fax', 2);
+deleteStaleTekst(50, array('Faks', 'Mobile', 'Mobil'), 3);
+deleteStaleTekst(5230, 'Mobilnummer', 1);
+deleteStaleTekst(5230, 'Mobilnummer', 3);
 
 ?>
