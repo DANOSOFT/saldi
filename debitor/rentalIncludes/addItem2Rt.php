@@ -1,11 +1,10 @@
- 
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------debitor/rentalIncludes/rtSettings.php---lap 4.0.0-----2021-02-20-----
+// ----------debitor/rentalIncludes/rtSettings.php---ver 5.1.1-----2026-11-13-----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,9 +20,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2021 Saldi.dk ApS
+// Copyright (c) 2021-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+// 20261001 SS A new rental header is only inserted once (one row per setting).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 $itemName = $subItemNo = $subItemName = $subItemQty = $subItemUnit = NULL;
 $subItemUnits=array('i','h','d','w','m','y');
@@ -42,11 +42,14 @@ if (is_numeric($addSubItemTo) && $subItemId) {
 } elseif ($addSubItemTo == 'new' && $nextRtId) {
 echo __line__." $addSubItemTo && $subItemId && $nextRtId<br>";
 	
-	$newRtName ='rental_' . $nextRtId;
-	$qtxt = "insert into settings (var_name,var_grp,var_value,var_description,user_id) values ";
-	$qtxt.= "('$newRtName','rental','". db_escape_string($subItemName) ."','Given header name for rental items','0')"; 
+	$newRtName ='rental_' . (int) $nextRtId;
+	// A resubmitted form must not add the same header twice (one row per setting).
+	if (!db_fetch_array(db_select("select id from settings where var_name = '$newRtName' and var_grp = 'rental'", __FILE__ . " linje " . __LINE__))) {
+		$qtxt = "insert into settings (var_name,var_grp,var_value,var_description,user_id) values ";
+		$qtxt.= "('$newRtName','rental','". db_escape_string($subItemName) ."','Given header name for rental items','0')";
 echo "$qtxt<br>";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	}
 }
 
 $qtxt = "select varenr,beskrivelse from varer where id = '$subItemId'";
