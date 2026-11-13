@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/labelprint.php----------------ver 5.1.0---2026-11-12 ---
+// ----------/lager/labelprint.php----------------ver 5.1.0---2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,7 +40,8 @@
 // 20260914 CL/NTR Added single=1: asks newlabel.php for one label cell instead of the template's
 //                 rows x cols grid. Carried through the layout chooser and Brother qty forms.
 // 20261112 LOE SST-967 The Mit Salg session this page prints for keeps its own module gate lifted.
-// 20261112 LOE SST-967 A client cookie can no longer mint the session row the label exception trusts.
+// 20261112 LOE SST-967 Review 19 stopped this page minting the row; withdrawn, see 20261113.
+// 20261113 LOE SST-967 The row is minted here again as on master, because Mit Salg deletes its own (MB-157).
 
 @session_start();
 $s_id=session_id();
@@ -60,8 +61,14 @@ if (isset($_COOKIE['mylabel'])) {
 		setcookie("mylabel","$account|$db",time()-60,"/");
 		$account=NULL;
 	} else {
-		# SST-967 the label exception rests on the session row Mit Salg itself created. This page used to turn a
-		# client cookie into that row, which let a cookie alone satisfy the gate; a missing row is refused now.
+		# Mit Salg deletes its own session row at the end of every page it renders, before the print window it
+		# opens reaches this page, so the row has to be created here as on master. That a client cookie can mint
+		# a row the label exception trusts is a known weakness (MB-157), not something this page can decide.
+		$qtxt = "insert into online(session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor)";
+		$qtxt.= " values ";
+		$qtxt.= "('$s_id','". db_escape_string($account) ."','". db_escape_string($db) ."','". db_escape_string($squser) ."',";
+		$qtxt.= "'0',0,'". date('U') ."','0')";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 }
 # SST-967 the Mit Salg label page makes its own session row with rettigheder = '0' (mysale/mylabel.php and

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-12 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -184,6 +184,7 @@
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
 // 20261112 LOE SST-967 An offer or order for a case runs on the craft right, and the page binds the order, the line ids, the credit reference, the copy and the handlers that are not case work to what the gate proved.
 // 20261112 LOE SST-967 The order this page creates is the id the insert returned, not a lookup a concurrent request can win.
+// 20261113 LOE SST-967 A copy made through the exception reads the case customer's card, not a posted kontonr's.
 
 @session_start();
 $s_id = session_id();
@@ -2000,97 +2001,108 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	} elseif (!$art) $art = 'DO';
 	if (strlen($ordredate) < 6) $ordredate = date("Y-m-d");
 	// For copies, keep header values from the order; only fall back to account card if missing.
-	if ($kontonr && !$firmanavn) {
-		$query = db_select("select * from adresser where kontonr = '$kontonr' and art='D'", __FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query)) {
-			if ($row['lukket'] == 'on') {
-				$alert1 = findtekst('1830|er lukket', $sprog_id);
-				$alert2 = findtekst('440|Konto', $sprog_id);
-				alert("$alert2 $kontonr $alert1");
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">\n";
-				exit;
-			}
-			$konto_id = $row['id'];
-			$firmanavn = db_escape_string($row['firmanavn']);
-			$addr1 = db_escape_string($row['addr1']);
-			$addr2 = db_escape_string($row['addr2']);
-			$postnr = db_escape_string($row['postnr']);
-			$bynavn = db_escape_string($row['bynavn']);
-			$land = db_escape_string($row['land']);
-			$kontakt = db_escape_string($row['kontakt']);
-			$betalingsdage = $row['betalingsdage'];
-			$betalingsbet = $row['betalingsbet'];
-			$cvrnr = $row['cvrnr'];
-			$notes = db_escape_string($row['notes']);
-			if (empty($phone)) $phone = $row['tlf']; //added by CA for DFM consignment 20210219 dfm_
-			if (empty($phone)) {
-				$r_div2 = db_fetch_array(db_select("select box5 from grupper WHERE art = 'DIV' and kodenr='2'", __FILE__ . " linje " . __LINE__));
-				if ($r_div2['box5'] === "on") {
-					$phone = $kontonr;
-					db_modify("update ordrer set phone = '$phone' where id = '$id'", __FILE__ . " linje " . __LINE__); #20210506
-				}
-			}
-			$email = $row['email'];
-			$ean = $row['ean'];
-			$institution = $row['institution'];
-			$mail_fakt = $row['mailfakt'];
-			$gruppe = $row['gruppe'];
-
-			$lev_firmanavn = db_escape_string($row['lev_firmanavn']); #20190618 ->
-			$lev_addr1 = db_escape_string($row['lev_addr1']);
-			$lev_addr2 = db_escape_string($row['lev_addr2']);
-			$lev_postnr = trim($row['lev_postnr']);
-			$lev_bynavn = trim($row['lev_bynavn']);
-			if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
-			$lev_bynavn = db_escape_string($lev_bynavn);
-			$lev_postnr = db_escape_string($lev_postnr);
-			$lev_land = db_escape_string($row['lev_land']);
-			$lev_kontakt = db_escape_string($row['lev_kontakt']);
-			$lev_email = db_escape_string($row['lev_email']);
-
-			$vis_lev_addr = NULL; # <- 20190618
-
-			(findtekst('244|Ordrefelt 1', $sprog_id) == findtekst('255|Ekstrafelt 1', $sprog_id)) ? $felt_1 = db_escape_string($row['felt_1']) : $felt_1 = '';
-			(findtekst('245|Ordrefelt 2', $sprog_id) == findtekst('256|Ekstrafelt 2', $sprog_id)) ? $felt_2 = db_escape_string($row['felt_2']) : $felt_2 = '';
-			(findtekst('246|Ordrefelt 3', $sprog_id) == findtekst('257|Ekstrafelt 3', $sprog_id)) ? $felt_3 = db_escape_string($row['felt_3']) : $felt_3 = '';
-			(findtekst('247|Ordrefelt 4', $sprog_id) == findtekst('258|Ekstrafelt 4', $sprog_id)) ? $felt_4 = db_escape_string($row['felt_4']) : $felt_4 = '';
-			(findtekst('248|Ordrefelt 5', $sprog_id) == findtekst('259|Ekstrafelt 5', $sprog_id)) ? $felt_5 = db_escape_string($row['felt_5']) : $felt_5 = '';
-
-			if ($gruppe) {
-				$qtxt = "select box1,box3,box4,box6 from grupper ";
-				$qtxt .= "where art='DG' and kodenr='$gruppe' and fiscal_year = '$regnaar'";
-				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$tmp = (int)substr($r['box1'], 1, 1);
-				$std_rabat = (float)$r['box6'];
-				if (!$gl_id) { # valuta & sprog skal beholdes v. ordrekopiering.
-					$formularsprog = $r['box4'];
-					
-					$valuta = $r['box3'];
-				}
-				$qtxt = "select box2 from grupper where art='SM' and kodenr='$tmp' and fiscal_year = '$regnaar'";
-				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) { #20130227
-					$momssats = $r['box2'];
-				} elseif ($tmp) { #20140403 tilføjet if ($tmp)
-					$alert = findtekst('1831|Debitorgrupper forkert opsat', $sprog_id); #20210809
-					print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?id=$id\">\n";
-					exit;
-				} else  $momssats = 0; #20140403
-			} else {
-				$alert1 = findtekst('1822|Debitoren er ikke tilknyttet en debitorgruppe', $sprog_id);
-				print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
-				exit;
-			}
-		}
-	}
-	// SST-967 the exception admits this page for one case, so the customer is the case's customer: a posted
-	// kontonr cannot move the copy to another customer. It runs after the address lookup above, which sets it.
+	// SST-967 the exception admits this page for one case, so the case's customer is the customer: a posted
+	// kontonr cannot move the copy to another customer, and it cannot lend it that customer's name, address,
+	// phone or delivery details either. Both sources fill the same fields below, so they cannot drift apart.
+	$order_customer = false;
 	if ($sag_workflow_case_id) {
-		if ($r = db_fetch_array(db_select("select konto_id from sager where id = '$sag_workflow_case_id'", __FILE__ . " linje " . __LINE__))) {
-			$konto_id = (int) $r['konto_id'];
+		$wf_case = db_fetch_array(db_select("select konto_id from sager where id = '$sag_workflow_case_id'", __FILE__ . " linje " . __LINE__));
+		if ($wf_case) {
+			$konto_id = (int) $wf_case['konto_id'];
+			$order_customer = db_fetch_array(db_select("select * from adresser where id = '$konto_id' and art='D'", __FILE__ . " linje " . __LINE__));
+		}
+		unset($wf_case);
+		# Without the card the copy would keep whatever the request posted, so such a request is refused.
+		if (!$order_customer) {
+			sag_workflow_refuse();
+		}
+	} elseif ($kontonr && !$firmanavn) {
+		$order_customer = db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art='D'", __FILE__ . " linje " . __LINE__));
+	}
+	if ($row = $order_customer) {
+		if ($row['lukket'] == 'on') {
+			$alert1 = findtekst('1830|er lukket', $sprog_id);
+			$alert2 = findtekst('440|Konto', $sprog_id);
+			alert("$alert2 $row[kontonr] $alert1");
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">\n";
+			exit;
+		}
+		$konto_id = $row['id'];
+		# SST-967 the copy stores this number, so it comes from the customer record as well, not from the request.
+		$kontonr = db_escape_string($row['kontonr']);
+		$firmanavn = db_escape_string($row['firmanavn']);
+		$addr1 = db_escape_string($row['addr1']);
+		$addr2 = db_escape_string($row['addr2']);
+		$postnr = db_escape_string($row['postnr']);
+		$bynavn = db_escape_string($row['bynavn']);
+		$land = db_escape_string($row['land']);
+		$kontakt = db_escape_string($row['kontakt']);
+		$betalingsdage = $row['betalingsdage'];
+		$betalingsbet = $row['betalingsbet'];
+		$cvrnr = $row['cvrnr'];
+		$notes = db_escape_string($row['notes']);
+		if (empty($phone)) $phone = $row['tlf']; //added by CA for DFM consignment 20210219 dfm_
+		if (empty($phone)) {
+			$r_div2 = db_fetch_array(db_select("select box5 from grupper WHERE art = 'DIV' and kodenr='2'", __FILE__ . " linje " . __LINE__));
+			if ($r_div2['box5'] === "on") {
+				$phone = $kontonr;
+				db_modify("update ordrer set phone = '$phone' where id = '$id'", __FILE__ . " linje " . __LINE__); #20210506
+			}
+		}
+		$email = $row['email'];
+		$ean = $row['ean'];
+		$institution = $row['institution'];
+		$mail_fakt = $row['mailfakt'];
+		$gruppe = $row['gruppe'];
+
+		$lev_firmanavn = db_escape_string($row['lev_firmanavn']); #20190618 ->
+		$lev_addr1 = db_escape_string($row['lev_addr1']);
+		$lev_addr2 = db_escape_string($row['lev_addr2']);
+		$lev_postnr = trim($row['lev_postnr']);
+		$lev_bynavn = trim($row['lev_bynavn']);
+		if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
+		$lev_bynavn = db_escape_string($lev_bynavn);
+		$lev_postnr = db_escape_string($lev_postnr);
+		$lev_land = db_escape_string($row['lev_land']);
+		$lev_kontakt = db_escape_string($row['lev_kontakt']);
+		$lev_email = db_escape_string($row['lev_email']);
+
+		$vis_lev_addr = NULL; # <- 20190618
+
+		(findtekst('244|Ordrefelt 1', $sprog_id) == findtekst('255|Ekstrafelt 1', $sprog_id)) ? $felt_1 = db_escape_string($row['felt_1']) : $felt_1 = '';
+		(findtekst('245|Ordrefelt 2', $sprog_id) == findtekst('256|Ekstrafelt 2', $sprog_id)) ? $felt_2 = db_escape_string($row['felt_2']) : $felt_2 = '';
+		(findtekst('246|Ordrefelt 3', $sprog_id) == findtekst('257|Ekstrafelt 3', $sprog_id)) ? $felt_3 = db_escape_string($row['felt_3']) : $felt_3 = '';
+		(findtekst('247|Ordrefelt 4', $sprog_id) == findtekst('258|Ekstrafelt 4', $sprog_id)) ? $felt_4 = db_escape_string($row['felt_4']) : $felt_4 = '';
+		(findtekst('248|Ordrefelt 5', $sprog_id) == findtekst('259|Ekstrafelt 5', $sprog_id)) ? $felt_5 = db_escape_string($row['felt_5']) : $felt_5 = '';
+
+		if ($gruppe) {
+			$qtxt = "select box1,box3,box4,box6 from grupper ";
+			$qtxt .= "where art='DG' and kodenr='$gruppe' and fiscal_year = '$regnaar'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$tmp = (int)substr($r['box1'], 1, 1);
+			$std_rabat = (float)$r['box6'];
+			if (!$gl_id) { # valuta & sprog skal beholdes v. ordrekopiering.
+				$formularsprog = $r['box4'];
+				
+				$valuta = $r['box3'];
+			}
+			$qtxt = "select box2 from grupper where art='SM' and kodenr='$tmp' and fiscal_year = '$regnaar'";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) { #20130227
+				$momssats = $r['box2'];
+			} elseif ($tmp) { #20140403 tilføjet if ($tmp)
+				$alert = findtekst('1831|Debitorgrupper forkert opsat', $sprog_id); #20210809
+				print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?id=$id\">\n";
+				exit;
+			} else  $momssats = 0; #20140403
+		} else {
+			$alert1 = findtekst('1822|Debitoren er ikke tilknyttet en debitorgruppe', $sprog_id);
+			print "<BODY onLoad=\"javascript:alert('$alert1')\">\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
+			exit;
 		}
 	}
+	unset($order_customer);
 	if (!$id && !$gl_id && $konto_id && $firmanavn) {  # Opretter ny ordre fra konto id
 		$phone = str_replace('', '', $phone);
 		if (strlen($phone) > 15) {

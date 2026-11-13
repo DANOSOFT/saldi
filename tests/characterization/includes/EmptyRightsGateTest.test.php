@@ -230,8 +230,8 @@ final class EmptyRightsGateTest extends TestCase
         $label = @file_get_contents(__DIR__ . '/../../../lager/labelprint.php');
         self::assertNotFalse($label, 'cannot read lager/labelprint.php');
         self::assertStringContainsString('$mysale_label_page = true;', (string)$label, 'the label page declares itself');
-        self::assertStringNotContainsString('insert into online', (string)$label,
-            'and no longer turns a client cookie into a session row');
+        self::assertStringContainsString('insert into online', (string)$label,
+            'and creates the row Mit Salg deleted before the print window opened (MB-157 owns the credential)');
         self::assertLessThan(
             strpos((string)$label, 'include("../includes/online.php");'),
             strpos((string)$label, '$mysale_label_page = true;'),
@@ -313,6 +313,30 @@ final class EmptyRightsGateTest extends TestCase
         self::assertStringContainsString("nl2br(ordretekst_print_safe(\$r['tekst']))", $ref,
             'and is used for the library rows as well');
         self::assertStringContainsString("\$sag_id = (int)\$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
+        self::assertStringContainsString('$order_customer = false;', $ordre,
+            'the customer the copy reads is chosen once, so the case customer and a posted kontonr cannot drift apart');
+        self::assertStringContainsString("} elseif (\$kontonr && !\$firmanavn) {", $ordre,
+            'the posted-kontonr lookup is the fallback, not the source, when the exception admits the page');
+        // Precedence this depends on: the case arm comes first and the kontonr arm is an elseif, so a case id
+        // can never reach the request's customer even when the body carries a name.
+        $case_arm = strpos($ordre, '$order_customer = false;');
+        $kontonr_arm = strpos($ordre, "} elseif (\$kontonr && !\$firmanavn) {");
+        self::assertNotFalse($case_arm, 'the customer is resolved once, before the mapping');
+        self::assertNotFalse($kontonr_arm, 'and the request fallback is a separate arm');
+        self::assertLessThan((int)$kontonr_arm, (int)$case_arm,
+            'the case customer is resolved ahead of the posted-kontonr arm');
+        self::assertStringContainsString("if (\$row = \$order_customer) {", $ordre,
+            'and both sources fill the same block, so the phone and delivery fields come along');
+        self::assertStringContainsString("if (empty(\$phone)) \$phone = \$row['tlf'];", $ordre,
+            'the phone follows the customer the copy belongs to');
+        self::assertStringContainsString("\$lev_firmanavn = db_escape_string(\$row['lev_firmanavn']);", $ordre,
+            'and so does the delivery address');
+        self::assertStringContainsString("\$kontonr = db_escape_string(\$row['kontonr']);", $ordre,
+            'the number the copy stores is the record\'s, not the posted one');
+        self::assertStringContainsString("if (!\$order_customer) {\n\t\t\tsag_workflow_refuse();", $ordre,
+            'a case without a customer card is refused rather than filled from the request');
+        self::assertStringContainsString("select * from adresser where id = '\$konto_id' and art='D'", $ordre,
+            'and the case customer is read from its address row');
         self::assertStringContainsString("\$sag_workflow_order = -1;", $ordre,
             'a malformed order selector makes the gate refuse the request instead of ignoring it');
         self::assertStringContainsString("\$sag_workflow_sag = -1;", $ordre,
