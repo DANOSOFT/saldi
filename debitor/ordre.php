@@ -185,6 +185,7 @@
 // 20261112 LOE SST-967 An offer or order for a case runs on the craft right, and the page binds the order, the line ids, the credit reference, the copy and the handlers that are not case work to what the gate proved.
 // 20261112 LOE SST-967 The order this page creates is the id the insert returned, not a lookup a concurrent request can win.
 // 20261113 LOE SST-967 A copy made through the exception reads the case customer's card, not a posted kontonr's.
+// 20261113 LOE SST-967 Only a copy or a credit note inherits the card; an ordinary save keeps the header the user typed.
 
 @session_start();
 $s_id = session_id();
@@ -2001,11 +2002,14 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	} elseif (!$art) $art = 'DO';
 	if (strlen($ordredate) < 6) $ordredate = date("Y-m-d");
 	// For copies, keep header values from the order; only fall back to account card if missing.
-	// SST-967 the exception admits this page for one case, so the case's customer is the customer: a posted
-	// kontonr cannot move the copy to another customer, and it cannot lend it that customer's name, address,
-	// phone or delivery details either. Both sources fill the same fields below, so they cannot drift apart.
+	// SST-967 the exception admits this page for one case, so a copy or a credit note taken through it reads the
+	// case's customer: a posted kontonr cannot move it to another customer, and it cannot lend it that customer's
+	// name, address, phone or delivery details. Both sources fill the same fields below, so they cannot drift.
+	// An ordinary save is left alone - its header is what the user typed, and the order stays in the case because
+	// neither konto_id nor sag_id is written here.
+	$sst967_inherit_header = $sag_workflow_case_id && (strstr($b_submit, 'Kopi') || strstr($b_submit, 'Kred'));
 	$order_customer = false;
-	if ($sag_workflow_case_id) {
+	if ($sst967_inherit_header) {
 		$wf_case = db_fetch_array(db_select("select konto_id from sager where id = '$sag_workflow_case_id'", __FILE__ . " linje " . __LINE__));
 		if ($wf_case) {
 			$konto_id = (int) $wf_case['konto_id'];

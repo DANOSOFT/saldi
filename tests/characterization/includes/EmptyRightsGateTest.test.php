@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 
 // 20261112 LOE SST-967 Pins the gate, the sag workflow, the order and history bindings and the refusal.
+// 20261113 LOE SST-967 Pins that only a copy or a credit note inherits the case customer's card.
 //
 //                  includes/online.php refuses a page when the user's character at the page's $modulnr
 //                  position is below '1'. The first term of that condition used to be ($rettigheder), so
@@ -315,6 +316,16 @@ final class EmptyRightsGateTest extends TestCase
         self::assertStringContainsString("\$sag_id = (int)\$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
         self::assertStringContainsString('$order_customer = false;', $ordre,
             'the customer the copy reads is chosen once, so the case customer and a posted kontonr cannot drift apart');
+        // The card arm belongs to the flow that inherits a header - a copy and a credit note - and not to the
+        // page's ordinary save, where the posted header is what the user typed.
+        $inherit = strpos($ordre,
+            "\$sst967_inherit_header = \$sag_workflow_case_id && (strstr(\$b_submit, 'Kopi') || strstr(\$b_submit, 'Kred'));");
+        self::assertNotFalse($inherit, 'a copy or a credit note is what inherits the card');
+        self::assertStringContainsString("if (\$sst967_inherit_header) {", $ordre, 'and only that arm reads it');
+        $case_query = strpos($ordre, "select konto_id from sager where id = '\$sag_workflow_case_id'");
+        self::assertNotFalse($case_query, 'the case customer is looked up at all');
+        self::assertLessThan((int)$case_query, (int)$inherit,
+            'the decision comes before the lookup, so an ordinary save never reaches it');
         self::assertStringContainsString("} elseif (\$kontonr && !\$firmanavn) {", $ordre,
             'the posted-kontonr lookup is the fallback, not the source, when the exception admits the page');
         // Precedence this depends on: the case arm comes first and the kontonr arm is an elseif, so a case id
