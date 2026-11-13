@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------debitor/rykker.php---------lap 4.0.7-------2023-02-28--------
+// -----------debitor/rykker.php---------ver 5.0.0-------2026-11-11--------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2023 saldi.dk aps
+// Copyright (c) 2003 - 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20140628 - Diverse rettelser da rykkergebyr altid vistes i DKK Søg 20140628
 // 20140707 - Opdatering virkede kun når der blev ændret valuta 20140707
@@ -30,6 +30,11 @@
 // 20211110 MSC - Implementing new design
 // 20230228 PHR Implementing formular language $formularsprog, $newFormLanguage & FormLangId
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261109 CL/ASR Link reminders: a marker shows how the reminder fee is handled ("Linkrykker · gebyr på næste faktura" etc.).
+//                 Unticking "Send pr. mail" on a draft link reminder, or switching it to another language or currency, makes it a classic reminder.
+//                 "Frafald rykkergebyr" (with a session CSRF token) waives a carried fee that is not charged yet.
+// 20261109 CL/ASR Review fixes: a booked draft link reminder stays a link reminder (stripe_reminder_unregister()); "Frafald rykkergebyr" is stripe_reminder_waive_request(); the reminder id and line ids are cast to integers; texts are escaped in the page's charset; the e-mail helper is included with __DIR__.
+// 20261111 CDX/ASR Exclude carried fees and skipped invoices from the displayed total.
 
 @session_start();
 $s_id=session_id();
@@ -43,19 +48,35 @@ global $menu;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+// 20261109 CL/ASR link reminders (stripe_reminder_row/_marker/_unregister/_waive, reminder_txt()); without the file every reminder is classic
+if (is_file(__DIR__ . '/../includes/stripeIncludes/stripeReminder.php')) include_once(__DIR__ . '/../includes/stripeIncludes/stripeReminder.php');
+
+if (empty($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 $inkasso=if_isset($_POST['inkasso']);
 $mail_fakt=if_isset($_POST['mail_fakt']);
 $submit=if_isset($_POST['submit']);
-$rykker_id=if_isset($_GET['rykker_id']);
+$rykker_id = (int)($_GET['rykker_id'] ?? 0);   // 20261109 CL/ASR an integer, it goes into SQL and the page
 
+// 20261109 CL/ASR "Frafald rykkergebyr" on a link reminder (stripe_reminder_waive_request()); answered with an alert
+if ($rykker_id && isset($_POST['frafald']) && function_exists('stripe_reminder_waive_request')) {
+	$waiveMsg = stripe_reminder_waive_request($rykker_id, (string)($_POST['csrf_token'] ?? ''), (string)$_SESSION['csrf_token']);
+	/**
+	 * jsString() comes from includes/stdFunc/jsString.php, which std_func.php includes.
+	 *
+	 * @see jsString()
+	 */
+	print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars(jsString(array($waiveMsg)), ENT_QUOTES, 'UTF-8') . ")\">";
+}
 if ($rykker_id && $inkasso) {
 	db_modify("update ordrer set felt_5 = 'inkasso' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);
 	$felt_5='inkasso';
 }
 if ($submit || $inkasso) {
 	$linjeantal=if_isset($_POST['linjeantal']);
-	if (!$rykker_id) $rykker_id=if_isset($_POST['rykker_id']);
+	if (!$rykker_id) $rykker_id = (int)($_POST['rykker_id'] ?? 0); # 20261109 CL/ASR integer
 	$r=db_fetch_array(db_select("select status from ordrer where id = '$rykker_id'",__FILE__ . " linje " . __LINE__)); #20140903
 	$status=$r['status'];
 	$rykkernr=if_isset($_POST['rykkernr']);
@@ -108,6 +129,11 @@ if ($submit || $inkasso) {
 	$qtxt = "update ordrer set email ='$email',mail_fakt='$mail_fakt',kontakt='$kontakt',sprog = '$newFormLanguage' ";
 	$qtxt.= "where id='$rykker_id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	// 20261109 CL/ASR a draft link reminder becomes a classic reminder (sent rows are kept) when "Send pr. mail" is unticked,
+	// or when it is switched to another language or currency (link reminders are Danish and in DKK)
+	$linkStays = $mail_fakt && in_array(strtolower(trim((string)$newFormLanguage)), array('', 'dansk'), true)
+		&& in_array(strtoupper(trim((string)($ny_valuta ?: $valuta))), array('', 'DKK'), true);
+	if (!$linkStays && function_exists('stripe_reminder_unregister')) stripe_reminder_unregister((int)$rykker_id);
 	if ($submit=="Send" && $mail_fakt) {
 		#	print "<BODY onLoad=\"return confirm('Dokumentet sendes pr. mail til $email')\">";
 	}
@@ -116,12 +142,13 @@ if ($submit || $inkasso) {
 		$slettet=0;
 		for ($x=1; $x<=$linjeantal; $x++) {
 			if ($rykkerbox[$x]=='on') {
-				db_modify("delete from ordrelinjer where id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
+				db_modify("delete from ordrelinjer where id=" . (int)$linje_id[$x],__FILE__ . " linje " . __LINE__);
 				$slettet++;
 			}
 		}
 		if ($slettet==$linjeantal) {
 			db_modify("delete from ordrer where id=$rykker_id",__FILE__ . " linje " . __LINE__);
+			if (function_exists('stripe_reminder_unregister')) stripe_reminder_unregister((int)$rykker_id);   // 20261109 CL/ASR
 			$rykker_id=0;
 		} 
 	} elseif ($submit=="Opdater" && $status < 3) { #20140903
@@ -154,7 +181,7 @@ if ($submit || $inkasso) {
 				for ($x=1; $x<=$linjeantal; $x++) {
 					$beskrivelse[$x]=db_escape_string($beskrivelse[$x]);
 #			$pris[$x]=usdecimal($dkpris[$x]); 2009.02.05 - Pris fjernet fra update da den elles bogfoerer hele beloebet.
-					$qtxt = "update ordrelinjer set beskrivelse = '$beskrivelse[$x]' where id=$linje_id[$x]";
+					$qtxt = "update ordrelinjer set beskrivelse = '$beskrivelse[$x]' where id=" . (int)$linje_id[$x];
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}	
 			}
@@ -179,6 +206,7 @@ if ($submit || $inkasso) {
 
 
 	
+$linkRow = null;   // 20261109 CL/ASR the stripe_reminders row of a link reminder, read below
 if ($rykker_id) {
 	$query = db_select("select * from ordrer where id = '$rykker_id'",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
@@ -193,7 +221,7 @@ if ($rykker_id) {
 	$kontakt = htmlentities($row['kontakt'],ENT_COMPAT,$charset);
 	$email = htmlentities($row['email'],ENT_COMPAT,$charset);
 	// Combine order email with rykker-specific kontakt_emails
-	include_once("../includes/stdFunc/getKontaktEmail.php");
+	include_once(__DIR__ . '/../includes/stdFunc/getKontaktEmail.php');
 	$ke_rykker = getAllKontaktEmails($konto_id, 'rykker');
 	if ($ke_rykker) {
 		$all = array_filter(array_map('trim', preg_split('/[;,]/', $email . ';' . $ke_rykker)));
@@ -207,7 +235,7 @@ if ($rykker_id) {
 	$ean = htmlentities($row['ean'],ENT_COMPAT,$charset);
 	$institution = htmlentities($row['institution'],ENT_COMPAT,$charset);
 	$betalingsbet = trim($row['betalingsbet']);
-		$betalingsdage = $row['betalingsdage'];
+	$betalingsdage = $row['betalingsdage'];
 	$ref = trim(htmlentities($row['ref'],ENT_COMPAT,$charset));
 	$ordrenr=$row['ordrenr'];
 	$ordredato=dkdato($row['ordredate']);
@@ -221,6 +249,7 @@ if ($rykker_id) {
 	$kontonr=$row['kontonr'];
 	$felt_5=$row['felt_5'];
 	($felt_5=='inkasso')?$inkasso=2:$inkasso=0;
+	$linkRow = function_exists('stripe_reminder_row') ? stripe_reminder_row((int)$rykker_id) : null;   // 20261109 CL/ASR
 	$intxt1=0;
 	$intxt2=0;
 	if (!$inkasso && date('U')-strtotime($fakturadate)>=11*24*60*60) { 
@@ -231,9 +260,9 @@ if ($rykker_id) {
 		$qtxt="select beskrivelse from formularer where formular = '$formular' and art = '2' and lower(sprog)='dansk'";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
-		if (strstr(strtolower($r['beskrivelse']),$inkassotxt1)) $intxt1=1;
-		if (strstr(strtolower($r['beskrivelse']),$inkassotxt2)) $intxt2=1;
-		if ($intxt1 && $intxt2) $inkasso=1;
+			if (strstr(strtolower($r['beskrivelse']),$inkassotxt1)) $intxt1=1;
+			if (strstr(strtolower($r['beskrivelse']),$inkassotxt2)) $intxt2=1;
+			if ($intxt1 && $intxt2) $inkasso=1;
 		}
 	}
 } else {
@@ -269,6 +298,7 @@ print "<input type = 'hidden' name='rykker_id'     value=\"$rykker_id\">";
 print "<input type = 'hidden' name='rykkernr'      value=\"$rykkernr\">";
 print "<input type = 'hidden' name='valuta'        value=\"$valuta\">"; #21040628
 print "<input type = 'hidden' name='felt_5'        value=\"$felt_5\">"; #21070303
+print "<input type = 'hidden' name='csrf_token'    value=\"" . htmlspecialchars((string)$_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') . "\">"; # 20261109 CL/ASR
 
 $ordre_id=if_isset($id);
 print "<tr><td width=50%><table cellpadding=0 cellspacing=0 border=0 width=100%>";
@@ -291,6 +321,9 @@ print "<tr><td><b>".findtekst(935,$sprog_id)."</td><td>$betalingsbet&nbsp;+&nbsp
 print "<tr><td><b>".findtekst(1097,$sprog_id)."</td><td>$ref</td></tr>\n";
 if ($mail_fakt=='on') $mail_fakt='checked';
 print "<tr><td><b>".findtekst(1145,$sprog_id)."</td><td><input type=checkbox name=mail_fakt $mail_fakt></td></tr>\n";
+if ($linkRow) { # 20261109 CL/ASR Linkrykker · gebyr på næste faktura / som åben post / frafaldet
+	print "<tr><td colspan=2><b>" . htmlspecialchars(stripe_reminder_marker((int)$rykker_id), ENT_QUOTES, $charset ?: 'UTF-8') . "</b></td></tr>\n";
+}
 print "<tr><td><b>".findtekst(1069,$sprog_id)."</b></td><td><select class=\"inputbox\" name=ny_valuta>";
 for ($x=0;$x<count($valutakode);$x++) {
 	if ($valuta==$valutakode[$x]) print "<option title=\"$valutabesk[$x]\" onchange=\"javascript:docChange = true;\">$valutakode[$x]</option>";
@@ -317,6 +350,8 @@ print "<tr><td colspan=4></td></tr><tr>";
 	$x=0;
 	$sum=0;
 	$ialt=0;
+	include_once(__DIR__ . "/../includes/formFuncIncludes/reminderMailDelivery.php");
+	$pdfTreatment = formReminderPdfTreatment((int)$rykker_id);
 	$q = db_select("select * from ordrelinjer where ordre_id = '$rykker_id' order by serienr, posnr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
@@ -348,7 +383,9 @@ print "<tr><td colspan=4></td></tr><tr>";
 			$udlignet=$r2['udlignet'];
 			$inputtype[$x]="readonly";
 		} else $inputtype[$x]="text";
-		$ialt=$ialt+$pris[$x];
+		if (!($pdfTreatment['carried'] && $vare_id[$x]) && !in_array((int)$r['enhed'], $pdfTreatment['skip'], true)) {
+			$ialt += $pris[$x];
+		}
 #		print "<input type = 'hidden' name = 'linje_id[$x]' value = \"$linje_id[$x]\">";
 	}
 	$linjeantal=$x;
@@ -392,6 +429,10 @@ print "<tr><td colspan=4></td></tr><tr>";
 		} else {
 			if ($mail_fakt) print "<td align=center><input type=submit value=\"Send\" name=\"submit\" onclick=\"return confirm('Send rykker som mail til $email?') disabled=\"disabled\"></td>"; 
 			else print "<td align=center><input type=submit value=\"".findtekst(880,$sprog_id)."\" name=\"submit\" disabled=\"disabled\"></td>";
+		}
+		if (function_exists('stripe_reminder_waivable') && stripe_reminder_waivable($linkRow, $status)) { # 20261109 CL/ASR
+			$waiveConfirm = jsString(array(reminder_txt(8131, 'Frafald rykkergebyret på denne rykker?')));
+			print "<td align=center><input type=submit value=\"" . htmlspecialchars(reminder_txt(8130, 'Frafald rykkergebyr'), ENT_QUOTES, $charset ?: 'UTF-8') . "\" name=\"frafald\" onclick=\"return confirm(" . htmlspecialchars($waiveConfirm, ENT_QUOTES, 'UTF-8') . ")\"></td>";
 		}
 		if ($status<3) {
 			db_modify("update ordrer set sum='$sum' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);

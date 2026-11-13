@@ -1,10 +1,16 @@
 <?php
 // 20261023 CDX/LH Cover tenant settings access and shared invoice preferences in the redesign.
 // 20261023 CDX/LH Assert the real integration read/write permission and regress missing-table checks without warnings.
+// 20261109 CL/ASR Link reminders: the six settings in Salg › Betalingsbetingelser & rykkere (stored 'on'/'off' in var_grp stripe, read by stripe_reminder_settings()) and the renteloven § 9 b warnings on the reminder settings.
+// 20261109 CL/ASR Review fix: the warning text is hidden with its switch when "Altid klassisk" hides the switch (a chain of visible_if rules).
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../systemdata/diverseIncludes/stripeValg.php';
 require_once __DIR__ . '/../../includes/settings/SettingsService.php';
+require_once __DIR__ . '/reminderFixtures.php';
+if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeReminder.php')) {
+    require_once __DIR__ . '/../../includes/stripeIncludes/stripeReminder.php';
+}
 
 final class StripeRedesignSettingsTest extends StripeDatabaseTestCase
 {
@@ -120,6 +126,133 @@ final class StripeRedesignSettingsTest extends StripeDatabaseTestCase
         $this->assertTrue(stripe_feature_on('enrolment'));
         $this->assertSame('invoice_date', stripe_setting('charge_on'));
         $this->assertFalse($GLOBALS['db_modify_fejl']);
+    }
+
+    public function testLinkReminderSettingsAreInPaymentTermsAndReminders(): void
+    {
+        $section = getSettingsSections()['sales.reminders'];
+        $this->assertSame(8160, $section['subsections']['link']);
+        $this->assertSame('Rykker med betalingslink', findtekst(8160, 1));
+        $texts = [];
+        foreach (file(__DIR__ . '/../../importfiler/tekster.csv', FILE_IGNORE_NEW_LINES) as $line) {
+            $cells = explode("\t", $line);
+            $texts[$cells[0]] = $cells;
+        }
+        $defs = settings_section_definitions('sales.reminders');
+        foreach ([
+            'reminder_format' => ['select', 'auto', 'raw'],
+            'reminder_link_email' => ['bool', false, 'onOff'],
+            'reminder_fee_next' => ['bool', true, 'onOff'],
+            'reminder_fee_waive' => ['bool', true, 'onOff'],
+            'reminder_close_warning' => ['bool', false, 'onOff'],
+            'reminder_close_text' => ['textarea', 'Betales beløbet ikke senest {frist}, kan vi lukke for din adgang uden yderligere varsel.', 'raw'],
+        ] as $name => [$type, $default, $encoding]) {
+            $def = $defs['sales.reminders.' . $name] ?? null;
+            $this->assertNotNull($def, $name);
+            $this->assertSame('link', $def['sub'], $name);
+            $this->assertSame($type, $def['type'], $name);
+            $this->assertSame($default, $def['default'], $name);
+            $this->assertSame(['settings', 'stripe', $name, $encoding], $def['storage'], $name);
+            foreach (['label', 'help'] as $text) {
+                $this->assertCount(4, $texts[(string)$def[$text]] ?? [], "$name $text: Danish, English and Norwegian");
+            }
+        }
+        $this->assertSame(['auto', 'classic'], array_keys($defs['sales.reminders.reminder_format']['options']));
+        $this->assertSame(['setting', 'sales.reminders.reminder_close_warning', true], $defs['sales.reminders.reminder_close_text']['visible_if']);
+    }
+
+    public function testLinkReminderSettingsAreStoredOnOrOffAndReadByTheReminderCode(): void
+    {
+        $names = ['format' => 'reminder_format', 'link_email' => 'reminder_link_email', 'fee_next' => 'reminder_fee_next',
+            'waive' => 'reminder_fee_waive', 'close_warning' => 'reminder_close_warning', 'close_text' => 'reminder_close_text'];
+        foreach ($names as $name) {
+            StripeTestEnvironment::setting('stripe', $name, null);
+        }
+        $default = 'Betales beløbet ikke senest {frist}, kan vi lukke for din adgang uden yderligere varsel.';
+        $this->assertReminderSettings(['format' => 'auto', 'link_email' => false, 'fee_next' => true, 'waive' => true,
+            'close_warning' => false, 'close_text' => $default]);
+        // A missing row is the default, so saving the default writes nothing.
+        $this->assertFalse(SettingsService::save('sales.reminders.reminder_fee_next', true));
+        $this->assertFalse(SettingsService::save('sales.reminders.reminder_close_text', $default));
+        $this->assertSame([], $this->stored());
+
+        $this->assertTrue(SettingsService::save('sales.reminders.reminder_format', 'classic'));
+        $this->assertTrue(SettingsService::save('sales.reminders.reminder_link_email', true));
+        $this->assertTrue(SettingsService::save('sales.reminders.reminder_fee_next', false));
+        $this->assertTrue(SettingsService::save('sales.reminders.reminder_fee_waive', false));
+        $this->assertTrue(SettingsService::save('sales.reminders.reminder_close_warning', true));
+        $this->assertTrue(SettingsService::save('sales.reminders.reminder_close_text', 'Luk {frist}'));
+        $this->assertSame(['reminder_close_text' => 'Luk {frist}', 'reminder_close_warning' => 'on', 'reminder_fee_next' => 'off',
+            'reminder_fee_waive' => 'off', 'reminder_format' => 'classic', 'reminder_link_email' => 'on'], $this->stored());
+        $this->assertReminderSettings(['format' => 'classic', 'link_email' => true, 'fee_next' => false, 'waive' => false,
+            'close_warning' => true, 'close_text' => 'Luk {frist}']);
+
+        SettingsService::reset();
+        $this->assertTrue(SettingsService::save('sales.reminders.reminder_fee_next', true));
+        $this->assertSame('on', $this->stored()['reminder_fee_next']);
+        $this->assertTrue(SettingsService::save('sales.reminders.reminder_close_text', ''));
+        $this->assertSame($default, stripe_reminder_settings()['close_text'], 'empty = the default text');
+
+        // Saving Stripe's own settings page leaves them alone.
+        $before = $this->stored();
+        $_POST = [
+            'csrf_token' => $_SESSION['csrf_token'], 'stripe_enabled' => '1', 'stripe_mode' => 'test', 'stripe_invoice_payments' => '1',
+            'stripe_enrolment' => '1', 'stripe_publishable_key' => stripe_setting('publishable_key'), 'stripe_charge_on' => 'due',
+            'stripe_public_base_url' => stripe_setting('public_base_url'), 'invoice_format' => 'link', 'invoice_link_text' => '',
+        ];
+        $this->assertSame('', $this->saveStripe());
+        $this->assertSame($before, $this->stored());
+        $this->assertFalse($GLOBALS['db_modify_fejl']);
+    }
+
+    public function testReminderSettingsWarnAboutTheTenDaysAndTheFeeCapWithoutRefusing(): void
+    {
+        $none = ['days_2' => false, 'days_3' => false, 'fee_item_1' => false, 'fee_item_2' => false, 'fee_item_3' => false];
+        StripeTestEnvironment::query("DELETE FROM formularer WHERE beskrivelse = 'GEBYR'");
+        StripeTestEnvironment::query("DELETE FROM grupper WHERE art = 'DIV' AND kodenr = '4'");
+        $this->assertSame($none, settings_reminder_legal_warnings(), 'no fee items: nothing to warn about');
+
+        $items = StripeReminderFixtures::forms();   // 100 kr. on every level, no deadlines set
+        $this->assertSame(array_replace($none, ['days_2' => true, 'days_3' => true]), settings_reminder_legal_warnings());
+        StripeFixtures::insert('grupper', ['art' => 'DIV', 'kodenr' => '4', 'beskrivelse' => 'Div_valg (Rykker)', 'box6' => '10', 'box7' => '9']);
+        $this->assertSame(array_replace($none, ['days_3' => true]), settings_reminder_legal_warnings());
+
+        StripeTestEnvironment::query('UPDATE varer SET salgspris = 125 WHERE id = $1', [$items['fee']]);
+        $this->assertSame(array_replace($none, ['days_3' => true, 'fee_item_1' => true, 'fee_item_2' => true, 'fee_item_3' => true]), settings_reminder_legal_warnings());
+        // A 3rd reminder without a fee needs no 10 days and has no fee to cap.
+        StripeTestEnvironment::query("UPDATE formularer SET xb = 0 WHERE beskrivelse = 'GEBYR' AND formular = 8");
+        $this->assertSame(array_replace($none, ['fee_item_1' => true, 'fee_item_2' => true]), settings_reminder_legal_warnings());
+    }
+
+    public function testWarningTextIsHiddenWithItsSwitch(): void
+    {
+        require_once __DIR__ . '/../../includes/settings/components.php';
+        $text = SettingsService::definition('sales.reminders.reminder_close_text');
+        $values = ['sales.reminders.reminder_format' => 'auto', 'sales.reminders.reminder_close_warning' => '1'];
+        $this->assertTrue(st_visible($text, $values));
+        $this->assertFalse(st_visible($text, ['sales.reminders.reminder_close_warning' => '0'] + $values), 'the warning is off');
+        // "Altid klassisk" hides the switch, and the text under it with it.
+        $this->assertFalse(st_visible($text, ['sales.reminders.reminder_format' => 'classic'] + $values));
+        $this->assertFalse(st_visible(SettingsService::definition('sales.reminders.reminder_close_warning'), ['sales.reminders.reminder_format' => 'classic'] + $values));
+        // The browser follows the same chain.
+        $js = file_get_contents(__DIR__ . '/../../javascript/settingsSection.js');
+        $this->assertStringContainsString('return ruleHolds(JSON.parse(parent.dataset.visibleIf), depth + 1);', $js);
+    }
+
+    /** @param array<string, mixed> $expected stripe_reminder_settings() values. */
+    private function assertReminderSettings(array $expected): void
+    {
+        $actual = stripe_reminder_settings();
+        foreach ($expected as $key => $value) {
+            $this->assertSame($value, $actual[$key] ?? null, $key);
+        }
+    }
+
+    /** @return array<string, string> Stored link reminder settings (var_grp stripe) by name. */
+    private function stored(): array
+    {
+        $rows = pg_fetch_all(StripeTestEnvironment::query("SELECT var_name, var_value FROM settings WHERE var_grp = 'stripe' AND var_name LIKE 'reminder\\_%' ORDER BY var_name")) ?: [];
+        return array_column($rows, 'var_value', 'var_name');
     }
 
     /**

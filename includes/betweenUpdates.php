@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.10.25
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.11.09
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -121,6 +121,7 @@
 // 20261022 CDX/LH Add durable Stripe collection and delivery schema at the end of pending updates.
 // 20261022 CDX/LH Repair individual missing Stripe invoice indexes on tenant login.
 // 20261023 CDX/LH Retain redesign migrations and append the fixed Stripe schema repairs in chronological order.
+// 20261109 CL/ASR One-time: reminder fee open items made by bogfor_nu() get projekt '' instead of NULL, so a payment of the fee can settle them.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1720,5 +1721,20 @@ if ($db_type != 'mysql' && $db_type != 'mysqli') {
 // & payment flow reads it (stripe_invoice_load) and enrolment writes it. Independent of the patches above.
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='adresser' AND column_name='udskriv_til'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) db_modify("ALTER TABLE adresser ADD COLUMN udskriv_til varchar(10)", __FILE__ . " linje " . __LINE__);
+
+// 20261109 CL/ASR One-time backfill. bogfor_nu() (includes/rapportfunc.php, includes/openpost.php) inserted the reminder
+// fee open item without projekt, so it is NULL, and finans/bogfor.php's openpost() settles on projekt = '' only: a payment
+// of the fee never settled it. bogfor_nu() now writes ''. Only its own rows are touched: the fixed description, refnr =
+// the reminder order's id, faktnr = its fakturanr, same account.
+$qtxt = "SELECT var_value FROM settings WHERE var_name = 'reminder_fee_projekt_backfilled' AND var_grp = 'system'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "UPDATE openpost SET projekt = '' WHERE projekt IS NULL AND beskrivelse = 'Gebyr mm. fra tidligere rykker'";
+	$qtxt.= " AND EXISTS (SELECT 1 FROM ordrer WHERE ordrer.id = openpost.refnr AND ordrer.konto_id = openpost.konto_id";
+	$qtxt.= " AND ordrer.art IN ('R1', 'R2', 'R3') AND ordrer.fakturanr = openpost.faktnr)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	$qtxt = "INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('reminder_fee_projekt_backfilled', 'system', 'yes',";
+	$qtxt.= " 'One-time backfill of projekt on reminder fee open items (bogfor_nu)')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
 
 ?>

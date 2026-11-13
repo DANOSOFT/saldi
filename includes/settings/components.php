@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/components.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- includes/settings/components.php --- ver 5.0.0 --- 2026.11.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260929 Sawaneh Settings redesign phase 4a (spec §7.3, §8.1): the components every generated
 //                  settings form is built from, and the conversion between a posted field and
@@ -50,6 +50,7 @@
 // 20261008 Sawaneh Settings decision 21: the "?" opens the section's guide (guides/settings/<group>-<section>.html|.pdf)
 //                  when installed, otherwise the section description with a link to Guides.
 // 20261019 Sawaneh Review 2 (PR #803): the grupper.inaktiv column check reads information_schema for this database/schema only.
+// 20261109 CL/ASR st_visible(): a field whose parent field is hidden by its own visible_if is hidden too (a chain of rules, e.g. the link reminder's warning text under its switch under "Rykkerform").
 
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
@@ -623,9 +624,9 @@ function st_field_access(array $def): string
 	return ($cache[$k] === 'none' && empty($def['hide_without'])) ? 'read' : $cache[$k];
 }
 
-function st_visible(array $def, array $values): bool
+function st_visible(array $def, array $values, int $depth = 0): bool
 {
-	if (st_field_access($def) === 'none') {
+	if ($depth === 0 && st_field_access($def) === 'none') {
 		return false;
 	}
 	$rule = $def['visible_if'];
@@ -643,16 +644,20 @@ function st_visible(array $def, array $values): bool
 		$v = $pdef ? st_current_form_value($pdef + array('key' => $parent)) : '';
 	}
 	if ($rule[0] === 'setting') {
-		return ($v === '1') === (bool) $rule[2];
-	}
-	if ($rule[0] === 'setting_in') {
-		return in_array($v, (array) $rule[2], true);
-	}
-	if ($rule[0] === 'setting_set') {
+		$holds = ($v === '1') === (bool) $rule[2];
+	} elseif ($rule[0] === 'setting_in') {
+		$holds = in_array($v, (array) $rule[2], true);
+	} elseif ($rule[0] === 'setting_set') {
 		// A secret never reaches the form, so the stored value decides.
-		return $v !== '' || ($pdef !== null && $pdef['type'] === 'secret' && SettingsService::raw($parent) !== '');
+		$holds = $v !== '' || ($pdef !== null && $pdef['type'] === 'secret' && SettingsService::raw($parent) !== '');
+	} else {
+		return true;
 	}
-	return true;
+	// A parent hidden by its own rule hides this field too (javascript/settingsSection.js ruleHolds() does the same).
+	if ($holds && $pdef && !empty($pdef['visible_if']) && $depth < 5) {
+		return st_visible($pdef + array('key' => $parent), $values, $depth + 1);
+	}
+	return $holds;
 }
 
 /**

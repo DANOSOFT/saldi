@@ -6,6 +6,11 @@
 // 20261022 CDX/LH Exercise repair-only CLI work, project dimensions, one-off consent and enrolment failure after capture.
 // 20261022 CDX/LH Verify three-day reminder protection for page attempts and permanent saved-card authentication protection.
 // 20261022 CDX/LH Regress journal creation/reuse against the real tenant table with its sequence behind MAX(id).
+// 20261109 CL/ASR Link reminders: "Bogfør" (includes/openpost.php bogfor_rykker) posts nothing for a fee carried to the next invoice and keeps the classic posting, now with projekt '' on the fee's open item.
+// 20261109 CL/ASR Review fixes: the same for the "Bogfør" button's copy (includes/rapportfunc.php, in its own process), and the "Ryk alle" copy posts nothing outside the active fiscal year.
+
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeInvoiceWebhook.php';
@@ -831,6 +836,94 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
         $this->assertNull($payment['journal_line_id']);
         $this->assertSame(1, $this->lineCount($order));
         $this->assertSame([], StripeTestTransport::$requests);
+    }
+
+    public function testReminderBookingPostsNothingForACarriedFeeAndKeepsClassicPosting(): void
+    {
+        require_once __DIR__ . '/../../includes/openpost.php';   // bogfor_rykker()/bogfor_nu() as "Ryk alle" uses them
+        $this->assertReminderBooking();
+
+        // Outside the active fiscal year nothing is posted, as "Bogfør" refuses it (includes/rapportfunc.php, 20121106).
+        StripeTestEnvironment::query("UPDATE grupper SET box2 = '2025', box4 = '2025' WHERE art = 'RA'");
+        $debtor = StripeFixtures::debtor(['gruppe' => 7]);
+        $rykker = StripeReminderFixtures::reminder($debtor, [StripeFixtures::invoice($debtor, ['udskriv_til' => 'email'])]);
+        ob_start();
+        try {
+            $this->assertFalse(bogfor_rykker($rykker));
+        } finally {
+            $output = ob_get_clean();
+        }
+        $this->assertSame('', $output);
+        $this->assertSame(2, (int)StripeFixtures::row('ordrer', $rykker)['status']);
+        $this->assertSame([], pg_fetch_all(StripeTestEnvironment::query('SELECT id FROM openpost WHERE refnr = $1', [$rykker])) ?: []);
+        $this->assertSame([], pg_fetch_all(StripeTestEnvironment::query('SELECT id FROM transaktioner WHERE ordre_id = $1', [$rykker])) ?: []);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testBogforButtonPostsNothingForACarriedFeeAndKeepsClassicPosting(): void
+    {
+        // The "Bogfør" button's copy (debitor/rapport.php). It declares the same functions as includes/openpost.php, hence its
+        // own process, and includes ../includes/reportFunc/showOpenPosts.php from the page's folder.
+        $cwd = getcwd();
+        chdir(__DIR__ . '/../../debitor');
+        try {
+            require_once __DIR__ . '/../../includes/rapportfunc.php';
+        } finally {
+            chdir($cwd);
+        }
+        $this->assertReminderBooking();
+    }
+
+    /** bogfor_rykker() (whichever copy is loaded) for a link reminder whose fee goes on the next invoice, one whose fee is an open item, and a classic one. */
+    private function assertReminderBooking(): void
+    {
+        require_once __DIR__ . '/reminderFixtures.php';
+        if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeReminder.php')) {
+            require_once __DIR__ . '/../../includes/stripeIncludes/stripeReminder.php';
+        }
+        // bogfor_rykker() commits, so every table it or the fixtures write is a temporary copy.
+        foreach (['varer', 'formularer', 'stripe_reminders'] as $table) {
+            StripeTestEnvironment::query("CREATE TEMP TABLE $table (LIKE public.$table INCLUDING ALL)");
+            $this->tables[] = $table;
+        }
+        StripeFixtures::insert('grupper', ['art' => 'DG', 'kodenr' => 7, 'box2' => '5600', 'fiscal_year' => 5]);
+        StripeFixtures::insert('grupper', ['art' => 'VG', 'kodenr' => 9, 'box1' => '', 'box2' => '', 'box3' => '', 'box4' => '1010', 'box8' => '', 'box9' => '', 'fiscal_year' => 5]);
+        StripeReminderFixtures::forms(100.0, 9);
+        foreach (['next' => true, 'classic' => false, 'no row' => false] as $mode => $carried) {
+            $debtor = StripeFixtures::debtor(['gruppe' => 7]);
+            $rykker = StripeReminderFixtures::reminder($debtor, [StripeFixtures::invoice($debtor, ['udskriv_til' => 'Link'])], ['interest' => 20]);
+            if ($mode !== 'no row') {
+                StripeReminderFixtures::linkRow($rykker, ['fee_mode' => $mode, 'interest_ore' => 2000]);
+            }
+            foreach (['openpost', 'transaktioner'] as $table) {
+                // Fixture rows take explicit ids; the posting's own inserts use the temporary sequence after them.
+                StripeTestEnvironment::query("SELECT setval('pg_temp.s1_{$table}_seq', (SELECT coalesce(max(id), 0) + 1 FROM $table))");
+            }
+            ob_start();
+            try {
+                bogfor_rykker($rykker);
+            } finally {
+                $output = ob_get_clean();
+            }
+            $this->assertSame('', $output, $mode);
+            $reminder = StripeFixtures::row('ordrer', $rykker);
+            $this->assertSame(4, (int)$reminder['status'], $mode . ': moves to "Bogførte rykkere" and can be escalated');
+            $open = pg_fetch_all(StripeTestEnvironment::query('SELECT * FROM openpost WHERE refnr = $1', [$rykker])) ?: [];
+            $journal = pg_fetch_all(StripeTestEnvironment::query('SELECT * FROM transaktioner WHERE ordre_id = $1 ORDER BY debet DESC', [$rykker])) ?: [];
+            if ($carried) {
+                $this->assertSame([], $open, $mode);
+                $this->assertSame([], $journal, $mode);
+                continue;
+            }
+            $this->assertCount(1, $open, $mode);
+            $this->assertSame($reminder['fakturanr'], $open[0]['faktnr'], $mode);
+            $this->assertEqualsWithDelta(120.0, (float)$open[0]['amount'], 0.001, $mode);
+            $this->assertSame('', $open[0]['projekt'], $mode . ": finans/bogfor.php openpost() settles projekt '', never NULL");
+            $this->assertCount(2, $journal, $mode);
+            $this->assertSame([5600, 120.0, 0.0], [(int)$journal[0]['kontonr'], (float)$journal[0]['debet'], (float)$journal[0]['kredit']], $mode);
+            $this->assertSame([1010, 0.0, 120.0], [(int)$journal[1]['kontonr'], (float)$journal[1]['debet'], (float)$journal[1]['kredit']], $mode);
+        }
     }
 
 }

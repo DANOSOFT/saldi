@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-10-10 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-09 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260929 Sawaneh Registry v2 (Requirements_settings_redesign_EN.md §7.1): the definition of each
 // 20260930 Sawaneh Field links use ?field= so they work through the shell (spec §8.11).
@@ -90,6 +90,9 @@
 // 20261010 Sawaneh G5.8: Diverse → Mærkater moved to labels.php.
 // 20261019 Sawaneh Review 2 (PR #803): settings_floor_plans() limits its information_schema check to this database (saldi_schema_filter, with a fallback like db_cast).
 // 20261023 ASR Merge of master (#815 removed lager/vareliste.php): the warehouses gear link names lager/lister/vareliste.php, the list that is left.
+// 20261109 CL/ASR G3.4 Rykker med betalingslink (link reminders): sub-section 'link' with six settings in var_grp 'stripe' (reminder_format, reminder_link_email, reminder_fee_next, reminder_fee_waive, reminder_close_warning, reminder_close_text), read by stripe_reminder_settings(); a missing row is the default.
+//                 Renteloven § 9 b warnings: a 2nd/3rd reminder with a fee less than 10 days after the previous one, or a fee item above 100 kr., shows a warning as the field's help text (settings_reminder_legal_warnings()).
+//                 Saving is not refused.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
@@ -668,12 +671,13 @@ if (!function_exists('getSettingsSections')) {
 			),
 			'sales.reminders' => array(
 				'group' => 'sales', 'section' => 'reminders', 'number' => 'G3.4', 'label' => 6190, 'icon' => 'bx-bell',
-				'subsections' => array('responsible' => 6186, 'deadlines' => 6187, 'collection' => 6188, 'fees' => 6189),
-				'sub_help' => array('deadlines' => 6202),
+				'subsections' => array('responsible' => 6186, 'deadlines' => 6187, 'collection' => 6188, 'fees' => 6189, 'link' => 8160),
+				'sub_help' => array('deadlines' => 6202, 'link' => 8175),
 				'legacy' => array(array(782, 793), array(780)),
 				'old' => array('rykker_valg' => array(782, 793)),
 				'context' => array('debitor/rykker.php', 'debitor/ny_rykker.php'),
-				'keywords' => array('rykker', 'rykkere', 'reminder', 'reminders', 'påmindelse', 'inkasso', 'collection', 'rykkergebyr', 'rente', 'interest', 'betalingsbetingelser', 'payment terms'),
+				'keywords' => array('rykker', 'rykkere', 'reminder', 'reminders', 'påmindelse', 'inkasso', 'collection', 'rykkergebyr', 'rente', 'interest', 'betalingsbetingelser', 'payment terms',
+					'betalingslink', 'payment link', 'linkrykker', 'link reminder', 'renteloven'),
 			),
 			'documents.email' => array(
 				'group' => 'documents', 'section' => 'email', 'number' => 'G6.3', 'label' => 6166, 'icon' => 'bx-envelope', 'permission' => 'settings.email',
@@ -1430,6 +1434,33 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('formularer', 8, 'yb', 'raw'), 'legacy' => array(780), 'keywords' => array('rentevare', 'interest item', 'rykker 3')),
 			'sales.reminders.interest_rate_3' => array('sub' => 'fees', 'type' => 'decimal', 'label' => 6200, 'help' => 6201, 'unit' => '%', 'per' => 'language', 'group_label' => array(6195, 3),
 				'storage' => array('formularer', 8, 'str', 'raw'), 'legacy' => array(780), 'keywords' => array('rentesats', 'interest rate', 'rykker 3')),
+			// 20261109 CL/ASR Rykker med betalingslink: settings var_grp 'stripe', read by stripe_reminder_settings()
+			// (includes/stripeIncludes/stripeReminder.php). A missing row is the default; switches are stored 'on'/'off'.
+			'sales.reminders.reminder_format' => array('sub' => 'link', 'type' => 'select', 'label' => 8161, 'help' => 8162, 'default' => 'auto',
+				'options' => array('auto' => 8163, 'classic' => 8164),
+				'storage' => array('settings', 'stripe', 'reminder_format', 'raw'),
+				'keywords' => array('linkrykker', 'link reminder', 'betalingslink', 'payment link', 'rykkermail', 'reminder mail', 'stripe')),
+			'sales.reminders.reminder_link_email' => array('sub' => 'link', 'type' => 'bool', 'label' => 8165, 'help' => 8166, 'default' => false,
+				'storage' => array('settings', 'stripe', 'reminder_link_email', 'onOff'),
+				'visible_if' => array('setting_in', 'sales.reminders.reminder_format', array('auto')),
+				'keywords' => array('linkrykker', 'e-mail', 'email', 'pdf')),
+			'sales.reminders.reminder_fee_next' => array('sub' => 'link', 'type' => 'bool', 'label' => 8167, 'help' => 8168, 'default' => true,
+				'storage' => array('settings', 'stripe', 'reminder_fee_next', 'onOff'),
+				'visible_if' => array('setting_in', 'sales.reminders.reminder_format', array('auto')),
+				'keywords' => array('rykkergebyr', 'reminder fee', 'næste faktura', 'next invoice', 'renter', 'interest')),
+			'sales.reminders.reminder_fee_waive' => array('sub' => 'link', 'type' => 'bool', 'label' => 8169, 'help' => 8170, 'default' => true,
+				'storage' => array('settings', 'stripe', 'reminder_fee_waive', 'onOff'),
+				'visible_if' => array('setting_in', 'sales.reminders.reminder_format', array('auto')),
+				'keywords' => array('frafald', 'waive', 'rykkergebyr', 'automatisk betaling', 'automatic payment')),
+			'sales.reminders.reminder_close_warning' => array('sub' => 'link', 'type' => 'bool', 'label' => 8171, 'help' => 8172, 'default' => false,
+				'storage' => array('settings', 'stripe', 'reminder_close_warning', 'onOff'),
+				'visible_if' => array('setting_in', 'sales.reminders.reminder_format', array('auto')),
+				'keywords' => array('lukning', 'luk adgang', 'close access', 'rykker 3', 'advarsel', 'warning')),
+			'sales.reminders.reminder_close_text' => array('sub' => 'link', 'type' => 'textarea', 'label' => 8173, 'help' => 8174,
+				'default' => 'Betales beløbet ikke senest {frist}, kan vi lukke for din adgang uden yderligere varsel.',
+				'storage' => array('settings', 'stripe', 'reminder_close_text', 'raw'),
+				'visible_if' => array('setting', 'sales.reminders.reminder_close_warning', true),
+				'keywords' => array('lukning', 'advarselstekst', 'warning text', '{frist}')),
 
 			// ---------------------------------------------------------------- G6.3 E-mail
 			'documents.email.smtp_host' => array('sub' => 'server', 'type' => 'text', 'label' => 6170, 'help' => 6184,
@@ -1673,6 +1704,14 @@ if (!function_exists('getSettingsSections')) {
 			$defs['pos.kitchen.colour_' . $i] = array('sub' => 'colours', 'type' => 'color', 'label' => 1786, 'group_label' => array(6354, $i), 'default' => '',
 				'storage' => array('settings', 'KDS', 'color_' . $i, 'raw', 'join' => '-', 'index' => 1, 'list' => true), 'legacy' => $pos, 'on_save' => 'kds_colours',
 				'visible_if' => array('setting', 'pos.kitchen.kds_active', true));
+		}
+
+		// 20261109 CL/ASR renteloven § 9 b: a reminder field that breaks a rule shows a warning as its help text; saving is not refused.
+		$legalHelp = array('days_2' => 8176, 'days_3' => 8177, 'fee_item_1' => 8178, 'fee_item_2' => 8178, 'fee_item_3' => 8178);
+		foreach (settings_reminder_legal_warnings() as $suffix => $warn) {
+			if ($warn && isset($defs['sales.reminders.' . $suffix])) {
+				$defs['sales.reminders.' . $suffix]['help'] = $legalHelp[$suffix];
+			}
 		}
 
 		$groups = getSettingsGroups();
@@ -2174,6 +2213,41 @@ if (!function_exists('getSettingsSections')) {
 			$on = ($r && trim((string) $r['box9']) !== '');
 		}
 		return $on;
+	}
+
+	/**
+	 * Renteloven § 9 b checks on the reminder settings (G3.4), shown as warnings and never a refusal: a 2nd or 3rd
+	 * reminder whose fee item has a price needs at least 10 days after the previous reminder (days_2 / days_3 =
+	 * DIV/4 box6 / box7, also its payment days), and a fee item's price is at most 100 kr. Fee items are the GEBYR
+	 * rows of reminder forms 6/7/8 (xb), read without a language filter as debitor/ny_rykker.php does.
+	 *
+	 * @return array{
+	 *   days_2: bool,      The 2nd reminder has a fee and days_2 is below 10.
+	 *   days_3: bool,      The 3rd reminder has a fee and days_3 is below 10.
+	 *   fee_item_1: bool,  A fee item of the 1st reminder costs more than 100 kr.
+	 *   fee_item_2: bool,  Same for the 2nd reminder.
+	 *   fee_item_3: bool,  Same for the 3rd reminder.
+	 * }
+	 */
+	function settings_reminder_legal_warnings(): array
+	{
+		$fee = array(1 => 0.0, 2 => 0.0, 3 => 0.0);
+		$q = db_select("select formularer.formular as formular, varer.salgspris as salgspris from formularer, varer
+			where formularer.beskrivelse = 'GEBYR' and formularer.formular in (6, 7, 8) and varer.id = formularer.xb", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$level = (int) ($r['formular'] ?? 0) - 5;
+			if (isset($fee[$level])) {
+				$fee[$level] = max($fee[$level], (float) ($r['salgspris'] ?? 0));
+			}
+		}
+		$days = db_fetch_array(db_select("select box6, box7 from grupper where art = 'DIV' and kodenr = '4'", __FILE__ . " linje " . __LINE__));
+		return array(
+			'days_2' => $fee[2] > 0 && (int) ($days['box6'] ?? 0) < 10,
+			'days_3' => $fee[3] > 0 && (int) ($days['box7'] ?? 0) < 10,
+			'fee_item_1' => $fee[1] > 100,
+			'fee_item_2' => $fee[2] > 100,
+			'fee_item_3' => $fee[3] > 100,
+		);
 	}
 
 	function settings_form_language_name(int $langId): string

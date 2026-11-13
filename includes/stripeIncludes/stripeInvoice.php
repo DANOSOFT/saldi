@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeInvoice.php --- 2026.10.26
+// --- includes/stripeIncludes/stripeInvoice.php --- 2026.11.09
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,6 +56,7 @@ include_once(__DIR__ . '/stripeCollection.php');
 include_once(__DIR__ . '/stripeChargeSchema.php');
 include_once(__DIR__ . '/stripeAttempts.php');
 include_once(__DIR__ . '/stripeCharge.php');
+if (is_file(__DIR__ . '/stripeReminder.php')) include_once(__DIR__ . '/stripeReminder.php');   // $inv['reminder']; inert without its table
 
 // 20261022 CDX/LH Reconcile attempts before collection; restrict eligibility and full-open amounts; support manual payment state.
 // 20261025 CL/ASR Delivery per order (Link = link mail, email = classic); uncollectable reason; one-time switch of existing customers/orders to Link.
@@ -65,6 +66,12 @@ include_once(__DIR__ . '/stripeCharge.php');
 // 20261026 CL/NTR Multi-ledger: every ledger with Stripe switched on can offer and collect link/card invoices; invoice
 //                 links carry the ledger (r=). A ledger restored from a copy stays off until its settings are saved.
 // 20261027 CL/ASR The link mail offers automatic payment on every invoice (stripe_invoice_save_allowed), not only recurring ones.
+// 20261109 CL/ASR Link reminders (Linkrykker): customer texts for the reminder mail and for the payment page after a reminder.
+//                 stripe_mail_layout() takes an optional list block ($listHtml) and an 'offer' box; stripe_mail_send() can name an attachment.
+//                 stripe_invoice_load() adds $inv['reminder'] and shows a declined attempt that was later canceled at Stripe as failed (B8).
+// 20261109 CL/ASR Review fixes: interest is named as interest, never as part of "rykkergebyret" (stripe_reminder_fee_words()); the page note sums every carried fee still to come and tells an enrolled customer too; after a reminder that was not a link reminder the overdue lead no longer promises to avoid one.
+//                 Texts for the earlier classic level's fee in the reminder mail and for the invoice link of a row that cannot be paid by card.
+// 20261111 CL/ASR Review round 2: text mail_rem_row_prior_fee_interest for an earlier level's open item that includes interest.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -224,6 +231,70 @@ if (!function_exists('stripe_txt')) {
 			'bank_transfer'     => 'bankoverførsel',
 			'journal_name'      => 'Stripe-betalinger',
 			'journal_text'      => 'Stripe %card faktura %nr',
+			// 20261109 CL/ASR link reminders (stripeReminderMail.php): mail. %fee is an amount without "kr.".
+			'mail_subj_rem'             => 'Rykker: Faktura %nr fra %brand er ikke betalt',
+			'mail_subj_rem_multi'       => 'Rykker: %count fakturaer fra %brand er ikke betalt',
+			'mail_subj_rem_again'       => '%level. rykker: Faktura %nr fra %brand er stadig ikke betalt',
+			'mail_subj_rem_again_multi' => '%level. rykker: %count fakturaer fra %brand er stadig ikke betalt',
+			'mail_label_rem'            => '%level. RYKKER · FAKTURA %nr',
+			'mail_label_rem_multi'      => '%level. RYKKER · %count FAKTURAER',
+			'mail_h_rem'                => 'Vi mangler din betaling',
+			'mail_h_rem_again'          => 'Vi mangler stadig din betaling',
+			'mail_body_rem'             => 'Vi har endnu ikke modtaget betalingen af faktura %nr, som forfaldt den %date. Måske er den bare gledet forbi – du kan betale den med kort lige her.',
+			'mail_body_rem_multi'       => 'Vi har endnu ikke modtaget betalingen af disse fakturaer. Du kan betale dem med kort lige her – start med den ældste.',
+			'mail_body_rem_bank'        => 'Vi har endnu ikke modtaget betalingen af faktura %nr, som forfaldt den %date. Måske er den bare gledet forbi – du kan betale den med bankoverførsel.',
+			'mail_body_rem_bank_multi'  => 'Vi har endnu ikke modtaget betalingen af disse fakturaer. Du kan betale dem med bankoverførsel.',
+			'mail_body_rem_failed'      => 'Vi har forsøgt at trække betalingen af faktura %nr på dit gemte kort, men det lykkedes ikke. Betal den nu med et andet kort – så gemmer vi også det nye kort til dine næste fakturaer.',
+			'mail_body_rem_auto'        => 'Slår du automatisk betaling til, trækkes dine næste fakturaer automatisk på forfaldsdatoen, så du ikke får flere rykkere.',
+			'mail_body_rem_auto_invoice_date' => 'Slår du automatisk betaling til, trækkes dine næste fakturaer automatisk på fakturadatoen, så du ikke får flere rykkere.',
+			'mail_rem_offer_title'      => 'Slå automatisk betaling til – og spar %what',
+			'mail_rem_offer_sub'        => 'Betaler du med knappen nedenfor og gemmer kortet, fjerner vi %short.',
+			'mail_rem_row_invoice'      => 'Faktura %nr · forfaldt %date',
+			'mail_rem_pay_link'         => 'Betal ›',
+			'mail_rem_pay_text'         => 'Betal',
+			'mail_rem_view_link'        => 'Se faktura ›',
+			'mail_rem_view_text'        => 'Se faktura',
+			'mail_rem_row_credit'       => 'Tilgodehavende',
+			'mail_rem_row_fee'          => 'Rykkergebyr',
+			'mail_rem_row_interest'     => 'Renter',
+			'mail_rem_fee_next'         => 'på næste faktura',
+			'mail_rem_fee_classic'      => 'betales sammen med fakturaen',
+			'mail_rem_row_prior_fee'    => 'Rykkergebyr fra %level. rykker',
+			'mail_rem_row_prior_fee_interest' => 'Rykkergebyr og renter fra %level. rykker',
+			'mail_rem_prior_fee_note'   => 'betales via bankoverførsel',
+			'mail_rem_bank_box_fee'     => 'Rykkergebyr: reg. %reg · konto %konto · reference %nr',
+			'mail_rem_row_total'        => 'At betale nu',
+			'mail_rem_row_deadline'     => 'Betal senest',
+			'mail_btn_rem_auto'         => 'Betal og slå automatisk betaling til',
+			'mail_btn_rem_saved'        => 'Betal med dit gemte kort',
+			'mail_btn_rem_failed'       => 'Opdater kort og betal',
+			'mail_btn_rem_action'       => 'Godkend betalingen',
+			'mail_btn_rem_view'         => 'Se fakturaen',
+			'mail_rem_bank_box'         => 'Reg. %reg · konto %konto · reference %nr',
+			'mail_rem_bank_box_multi'   => 'Reg. %reg · konto %konto · fakturanummeret som reference',
+			'mail_rem_note_once'        => 'Vil du kun betale denne faktura, kan du vælge det på siden.',
+			'mail_rem_note_bank'        => 'Du kan også overføre beløbet til reg. %reg konto %konto med fakturanummeret som reference.',
+			'mail_rem_note_end'         => 'Har du betalt inden for de seneste dage, kan du se bort fra denne rykker. Rykkeren er vedhæftet som PDF.',
+			'mail_rem_note_contact'     => 'Spørgsmål? Skriv til %email.',
+			'mail_rem_note_contact_plain' => 'Spørgsmål? Kontakt os.',
+			'mail_rem_note_multi'       => 'Når automatisk betaling er slået til, betaler du de øvrige fakturaer med ét klik med dit gemte kort.',
+			// 20261109 CL/ASR payment page after a reminder (api/stripe/faktura.php)
+			'lead_reminded'             => 'Vi sendte dig en rykker den %date. Betal fakturaen nu, så undgår du flere rykkere.',
+			'lead_reminded_classic'     => 'Vi har sendt dig en rykker. Betal fakturaen nu, så undgår du flere rykkere.',
+			'lead_overdue_fee'          => 'Fakturaen forfaldt den %date. Betal nu, så undgår du en rykker med gebyr.',
+			// %what = rem_what_* (ends with "kr."), %it = det/de, %short = rem_short_* (stripe_reminder_fee_words())
+			'rem_fee_note_waive'        => 'Slår du automatisk betaling til, frafalder %what Ellers kommer %it på din næste faktura.',
+			'rem_fee_note_card'         => 'Betaler du med et nyt kort og gemmer det, frafalder %what Ellers kommer %it på din næste faktura.',
+			'rem_fee_note'              => '%what kommer på din næste faktura.',
+			'rem_what_fee'              => 'rykkergebyret på %fee kr.',
+			'rem_what_fee_interest'     => 'rykkergebyret på %fee kr. og renterne på %interest kr.',
+			'rem_what_interest'         => 'renterne på %interest kr.',
+			'rem_short_fee'             => 'rykkergebyret',
+			'rem_short_fee_interest'    => 'rykkergebyret og renterne',
+			'rem_short_interest'        => 'renterne',
+			'rem_it_one'                => 'det',
+			'rem_it_more'               => 'de',
+			'pay_saved_btn'             => 'Betal %amount med dit gemte kort',
 		);
 		$s = isset($t[$key]) ? $t[$key] : $key;
 		foreach ($vars as $k => $v) $s = str_replace('%' . $k, (string)$v, $s);
@@ -471,8 +542,11 @@ if (!function_exists('stripe_invoice_load')) {
 	 *   firma: array<string, mixed>, brand: string, debtor: array<string, mixed>,
 	 *   email: string, fornavn: string, no_card: bool, enrolled: bool, recurring: bool,
 	 *   paid: array|null, pending: array|null, failed: array|null, payments: array,
-	 *   paid_bank: bool, open_count: int, open_rest_ore: int, fully_open: bool, state: string
-	 * }|null Invoice and derived state; null if the order is not invoiced.
+	 *   paid_bank: bool, open_count: int, open_rest_ore: int, fully_open: bool,
+	 *   reminder: array{rykker_id: int, level: int, mailed_at: string, fee_ore: int, interest_ore: int, fee_mode: string, status: string}|null,
+	 *   state: string
+	 * }|null Invoice and derived state; null if the order is not invoiced. reminder: the latest sent link
+	 *   reminder covering this invoice (stripe_reminder_for_invoice()), null when none.
 	 */
 	function stripe_invoice_load($ordreId, $today = null) {
 		stripe_payments_ensure();
@@ -517,6 +591,9 @@ if (!function_exists('stripe_invoice_load')) {
 				|| ($p['status'] === 'pending' && stripe_bool($p['recent'])))) $inv['pending'] = $p;
 			if ($p['status'] === 'failed' && !$inv['failed']) $inv['failed'] = $p;
 		}
+		// 20261109 CL/ASR B8: a declined attempt that was later canceled at Stripe is still the last failure as long as
+		// nothing was tried after it, so the page offers the card form instead of a past "Trækkes den" date.
+		if (!$inv['failed'] && $inv['payments'] && stripe_payment_attempt_failed($inv['payments'][0])) $inv['failed'] = $inv['payments'][0];
 		$op = db_fetch_array(stripe_payment_select("select count(*) as n,
 			coalesce(sum(case when coalesce(udlignet, '0') <> '1' then amount else 0 end), 0) as rest
 			from openpost where faktnr = '" . db_escape_string($inv['nr']) . "' and konto_id = " . (int)$o['konto_id']));
@@ -530,6 +607,14 @@ if (!function_exists('stripe_invoice_load')) {
 		// An invoice-number-less remainder after split settlement cannot be attributed
 		// safely here. Only a verified full open amount may enter the card flow.
 		$inv['paid_bank'] = !$inv['paid'] && !$inv['is_credit'] && trim((string)$o['betalt']) === 'on';
+		$inv['reminder'] = null;
+		if (!$inv['is_credit'] && function_exists('stripe_reminder_for_invoice')) {
+			try {
+				$inv['reminder'] = stripe_reminder_for_invoice((int)$o['id']);
+			} catch (Throwable $e) {
+				stripe_log('reminder lookup for order ' . (int)$o['id'] . ': ' . $e->getMessage());
+			}
+		}
 		$inv['state'] = stripe_invoice_state($inv, $today);
 		return $inv;
 	}
@@ -605,6 +690,111 @@ if (!function_exists('stripe_invoice_load')) {
 		$sig = stripe_link_sign($ordreId, 'invoice');
 		if (!$base || $sig === '') return '';
 		return $base . '/api/stripe/faktura.php?' . stripe_link_ledger_param() . '&o=' . (int)$ordreId . '&s=' . $sig;
+	}
+}
+
+// ---------------------------------------------------------------- payment page after a reminder (20261109 CL/ASR)
+if (!function_exists('stripe_invoice_overdue_lead')) {
+	/** @return bool Whether a reminder fee item is set up for the 1st or 2nd reminder (formular 6/7 GEBYR xb, price > 0). */
+	function stripe_invoice_reminder_fee_configured() {
+		$r = db_fetch_array(stripe_payment_select("select id from varer where salgspris > 0 and id in (select xb from formularer
+			where beskrivelse = 'GEBYR' and formular in (6, 7))", __FILE__ . " linje " . __LINE__));
+		return (bool)$r;
+	}
+
+	/**
+	 * Lead of the "overdue" panel: after a link reminder it says when we sent it; after any other booked reminder that
+	 * we sent one; before, it mentions the fee when one is set up (not while a reminder is being prepared).
+	 *
+	 * @param array $inv Loaded invoice (stripe_invoice_load()).
+	 * @return string Danish lead text.
+	 */
+	function stripe_invoice_overdue_lead($inv) {
+		$reminded = stripe_invoice_reminded_lead($inv);
+		if ($reminded !== '') return $reminded;
+		$other = stripe_invoice_other_reminder($inv);
+		if ($other === 'booked') return stripe_txt('lead_reminded_classic');
+		$key = ($other === '' && stripe_invoice_reminder_fee_configured()) ? 'lead_overdue_fee' : 'lead_overdue';
+		return stripe_txt($key, array('date' => stripe_fmt_date($inv['due'])));
+	}
+
+	/**
+	 * A reminder Saldi did not mail as a link reminder (classic PDF, printed, or one that fell back to classic) that lists
+	 * this invoice: its comment line holds the invoice's open item id.
+	 *
+	 * @param array $inv Loaded invoice.
+	 * @return string 'booked' when such a reminder is booked (status 3+), 'open' when one is only prepared, '' when none.
+	 */
+	function stripe_invoice_other_reminder($inv) {
+		$kontoId = (int)($inv['o']['konto_id'] ?? 0);
+		$nr = trim((string)($inv['nr'] ?? ''));
+		if ($kontoId <= 0 || $nr === '') return '';
+		$idText = function_exists('db_cast') ? db_cast('op.id', 'text') : 'cast(op.id as varchar(30))';
+		$r = db_fetch_array(stripe_payment_select("select ro.status from ordrer ro where ro.art like 'R%' and ro.konto_id = $kontoId
+			and exists (select 1 from ordrelinjer l, openpost op where l.ordre_id = ro.id and coalesce(l.vare_id, 0) = 0
+				and l.enhed = $idText and op.konto_id = $kontoId and op.faktnr = '" . db_escape_string($nr) . "')
+			order by ro.status desc, ro.id desc", __FILE__ . " linje " . __LINE__));
+		if (!$r) return '';
+		return (int)$r['status'] >= 3 ? 'booked' : 'open';
+	}
+
+	/**
+	 * "Vi sendte dig en rykker den ..." when a sent link reminder covers the invoice.
+	 *
+	 * @param array $inv Loaded invoice with 'reminder'.
+	 * @return string Danish lead text, or '' when no reminder was mailed.
+	 */
+	function stripe_invoice_reminded_lead($inv) {
+		$mailed = substr((string)($inv['reminder']['mailed_at'] ?? ''), 0, 10);
+		return $mailed !== '' ? stripe_txt('lead_reminded', array('date' => stripe_fmt_date($mailed))) : '';
+	}
+
+	/**
+	 * How the carried reminder fee and interest are named to the customer. Interest is not a fee (renteloven § 9 b), so
+	 * it is never called "rykkergebyret".
+	 *
+	 * @param int $feeOre Fee in øre.
+	 * @param int $interestOre Interest in øre.
+	 * @return array{what: string, short: string, it: string} what: "rykkergebyret på 100,00 kr." / "rykkergebyret på
+	 *   100,00 kr. og renterne på 12,50 kr." / "renterne på 12,50 kr."; short: the same without amounts; it: det/de.
+	 */
+	function stripe_reminder_fee_words($feeOre, $interestOre) {
+		$kind = $interestOre > 0 ? ($feeOre > 0 ? 'fee_interest' : 'interest') : 'fee';
+		$amounts = array('fee' => stripe_fmt_kr($feeOre), 'interest' => stripe_fmt_kr($interestOre));
+		return array('what' => stripe_txt('rem_what_' . $kind, $amounts), 'short' => stripe_txt('rem_short_' . $kind),
+			'it' => stripe_txt($kind === 'fee' ? 'rem_it_one' : 'rem_it_more'));
+	}
+
+	/**
+	 * Note under the pay buttons after a reminder: the reminder fees and interest that go on the customer's next invoice,
+	 * all of them (every sent link reminder of the customer that carries its fee, stripe_reminder_carried_rows()), and
+	 * whether turning on automatic payment (or saving a new card) waives them. For a customer who already pays
+	 * automatically a fee of a reminder sent on or before the enrolment day is waived anyway and not counted.
+	 * Nothing when no fee is carried (fee posted as an open item, already charged or waived).
+	 *
+	 * @param array $inv Loaded invoice with 'reminder'.
+	 * @return string Danish sentence, or ''.
+	 */
+	function stripe_invoice_reminder_note($inv) {
+		if (empty($inv['reminder']) || !function_exists('stripe_reminder_carried_rows')) return '';
+		$waive = function_exists('stripe_reminder_settings') ? !empty(stripe_reminder_settings()['waive']) : true;
+		$enrolled = !empty($inv['enrolled']);
+		$since = substr((string)($inv['debtor']['stripe_date'] ?? ''), 0, 10);
+		$fee = 0;
+		$interest = 0;
+		foreach (stripe_reminder_carried_rows((int)$inv['o']['konto_id']) as $row) {
+			if ($waive && $enrolled && $since !== '' && $since >= substr($row['mailed_at'], 0, 10)) continue;
+			$fee += $row['fee_ore'];
+			$interest += $row['interest_ore'];
+		}
+		if ($fee + $interest <= 0) return '';
+		$words = stripe_reminder_fee_words($fee, $interest);
+		if ($waive && stripe_invoice_save_allowed($inv)) {
+			if (!$enrolled) return stripe_txt('rem_fee_note_waive', $words);
+			// Enrolled: only a new card saved with a payment here waives it (the card form of the failed state).
+			if (!empty($inv['failed'])) return stripe_txt('rem_fee_note_card', $words);
+		}
+		return stripe_txt('rem_fee_note', array('what' => ucfirst($words['what'])));
 	}
 }
 
@@ -839,7 +1029,13 @@ if (!function_exists('stripe_mail_sender')) {
 	}
 }
 if (!function_exists('stripe_mail_send')) {
-	/** @return bool Whether recipient validation and mail delivery succeeded. */
+	/**
+	 * Send one customer mail with the classic sender settings.
+	 *
+	 * @param array<int, string|array{path: string, name: string}> $attachments File paths; 20261109 CL/ASR an entry may
+	 *   also name the file the customer sees (array('path' => ..., 'name' => 'Rykker 17-1.pdf')).
+	 * @return bool Whether recipient validation and mail delivery succeeded.
+	 */
 	function stripe_mail_send($to, $subject, $html, $text, $attachments = array()) {
 		try {
 			$snd = stripe_mail_sender((int)($GLOBALS['ansat_id'] ?? 0));
@@ -875,7 +1071,10 @@ if (!function_exists('stripe_mail_send')) {
 			if (filter_var($replyTo, FILTER_VALIDATE_EMAIL)) $mail->AddReplyTo($replyTo, $snd['name']);
 			if (filter_var($snd['from'], FILTER_VALIDATE_EMAIL)) $mail->Sender = $snd['from'];
 			stripe_mail_apply_envelope($mail, $envelope);
-			foreach ($attachments as $attachment) $mail->AddAttachment($attachment);
+			foreach ($attachments as $attachment) {
+				if (is_array($attachment)) $mail->AddAttachment((string)$attachment['path'], (string)($attachment['name'] ?? ''));
+				else $mail->AddAttachment($attachment);
+			}
 			$mail->Subject = $subject;
 			$mail->IsHTML(true);
 			$mail->Body = $html;
@@ -889,8 +1088,9 @@ if (!function_exists('stripe_mail_send')) {
 	}
 }
 if (!function_exists('stripe_mail_layout')) {
-	// Fixed template (design_fakturamail.png). $rows = [[label, value], ...]; $box = ['kind'=>good|bad,'title'=>..,'sub'=>..] or null.
-	function stripe_mail_layout($inv, $label, $h1, $bodyText, $box, $rows, $btnText, $btnUrl, $btn2Text, $btn2Url, $noteHtml) {
+	// Fixed template (design_fakturamail.png). $rows = [[label, value], ...]; $box = ['kind'=>good|bad|offer,'title'=>..,'sub'=>..] or null.
+	// 20261109 CL/ASR $listHtml: optional ready-made HTML after $rows (the link reminder's rows with a "Betal" link each).
+	function stripe_mail_layout($inv, $label, $h1, $bodyText, $box, $rows, $btnText, $btnUrl, $btn2Text, $btn2Url, $noteHtml, $listHtml = '') {
 		$f = $inv['firma'];
 		$footer = stripe_h(trim((string)($f['firmanavn'] ?? ''))) . ' · CVR ' . stripe_h($f['cvrnr'] ?? '') . ' · ' . stripe_h(trim(($f['addr1'] ?? '') . ', ' . ($f['postnr'] ?? '') . ' ' . ($f['bynavn'] ?? ''), ' ,'));
 		$h = '<!doctype html><html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>' . stripe_h($h1) . '</title></head>';
@@ -908,20 +1108,32 @@ if (!function_exists('stripe_mail_layout')) {
 		foreach (preg_split('/\n{2,}/', (string)$bodyText) as $i => $para) {
 			$h .= '<p style="margin:' . ($i ? '12px' : '0') . ' 0 0;color:#4b5563">' . nl2br(stripe_h($para)) . '</p>';
 		}
-		if ($box) {
-			$bg = $box['kind'] === 'bad' ? '#fdeee8' : '#e9f7ee'; $fg = $box['kind'] === 'bad' ? '#c2410c' : '#15803d';
-			$h .= '<div style="margin:26px 0 6px;padding:16px 18px;border-radius:12px;background:' . $bg . '"><div style="font-weight:600;color:#111318">' . stripe_h($box['title']) . '</div><div style="font-size:14px;color:#4b5563">' . stripe_h($box['sub']) . '</div></div>';
-		}
+		if ($box) $h .= stripe_mail_box_html($box);
 		if ($rows) {
 			$h .= '<table role="presentation" style="width:100%;border-collapse:collapse;margin:28px 0;border-top:1px solid #e6e2da">';
 			foreach ($rows as $r) $h .= '<tr><td style="padding:14px 0;border-bottom:1px solid #e6e2da;color:#4b5563">' . stripe_h($r[0]) . '</td><td style="padding:14px 0;border-bottom:1px solid #e6e2da;text-align:right;font-weight:600">' . stripe_h($r[1]) . '</td></tr>';
 			$h .= '</table>';
 		}
+		if ($listHtml !== '') $h .= $listHtml;
 		if ($btnText && $btnUrl) $h .= '<a href="' . stripe_h($btnUrl) . '" style="display:block;text-align:center;color:#fff;text-decoration:none;font-weight:700;font-size:18px;padding:18px;border-radius:12px;background:#1b68bd;background-image:linear-gradient(90deg,#1b68bd,#8b33d4)">' . stripe_h($btnText) . '</a>';
 		if ($btn2Text && $btn2Url) $h .= '<a href="' . stripe_h($btn2Url) . '" style="display:block;text-align:center;color:#111318;text-decoration:none;font-weight:600;font-size:16px;padding:14px;border-radius:12px;border:1px solid #e6e2da;margin-top:12px">' . stripe_h($btn2Text) . '</a>';
 		if ($noteHtml) $h .= '<p style="margin:26px 0 0;color:#4b5563;font-size:15px">' . $noteHtml . '</p>';
 		$h .= '</div><p style="max-width:600px;margin:24px auto 0;color:#6b7280;font-size:13px">' . $footer . '</p></body></html>';
 		return $h;
+	}
+	/**
+	 * One coloured box of the mail template: good (green) and bad (red) as before, offer (20261109 CL/ASR) = green
+	 * with a border and a green title, for the link reminder's "spar rykkergebyret" offer.
+	 *
+	 * @param array{kind: string, title: string, sub: string} $box
+	 * @return string HTML.
+	 */
+	function stripe_mail_box_html($box) {
+		if ($box['kind'] === 'offer') {
+			return '<div style="margin:26px 0 6px;padding:16px 18px;border-radius:12px;background:#e9f7ee;border:1px solid #b7e4c7"><div style="font-weight:700;color:#15803d">' . stripe_h($box['title']) . '</div><div style="font-size:14px;color:#4b5563">' . stripe_h($box['sub']) . '</div></div>';
+		}
+		$bg = $box['kind'] === 'bad' ? '#fdeee8' : '#e9f7ee'; $fg = $box['kind'] === 'bad' ? '#c2410c' : '#15803d';
+		return '<div style="margin:26px 0 6px;padding:16px 18px;border-radius:12px;background:' . $bg . '"><div style="font-weight:600;color:#111318">' . stripe_h($box['title']) . '</div><div style="font-size:14px;color:#4b5563">' . stripe_h($box['sub']) . '</div></div>';
 	}
 	function stripe_mail_text_version($h1, $bodyText, $rows, $btnText, $btnUrl, $noteText) {
 		$t = $h1 . "\n\n" . $bodyText . "\n\n";
