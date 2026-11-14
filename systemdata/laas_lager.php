@@ -44,7 +44,7 @@ include("../includes/std_func.php");
  * Injected by ../includes/online.php, included above:
  * @var int $sprog_id
  */
-print "<p>" . findtekst('stock.recon.laas_lager_retired|Lås lagerværdi er udgået. Brug Lagerværdi i regnskabet.', $sprog_id) . "</p>\n";
+print "<p>" . findtekst('stock.recon.laas_lager_retired|Lås lagerværdi er udgået. Bogfør selv ændringen i lagerværdien i en kassekladde.', $sprog_id) . "</p>\n";
 exit;
 
 $regnaar=if_isset($_GET['regnaar']);

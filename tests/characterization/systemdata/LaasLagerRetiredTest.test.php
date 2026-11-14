@@ -25,7 +25,7 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
 final class LaasLagerRetiredTest extends CharacterizationTestCase
 {
-    private const RETIRED_TEXT = 'Lås lagerværdi er udgået. Brug Lagerværdi i regnskabet.';
+    private const RETIRED_TEXT = 'Lås lagerværdi er udgået. Bogfør selv ændringen i lagerværdien i en kassekladde.';
     private const STOCK_ACCOUNT = '6140';
 
     /** grupper.id of the fiscal year, the page's regnaar_id parameter. */
