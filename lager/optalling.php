@@ -1,6 +1,6 @@
 <?php
-
-// -- lager/optalling.php ------------------- patch 5.0.0 -- 2026-10-01 --
+//
+// -- lager/optalling.php ------------------- ver 5.1.1 -- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,7 +18,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20120913 Der kan nu optaelles til 0
 // 20130109 Hele optællingen kan nu slettes - søg 20130109
 // 20131119 Tilføjet variantvarer i importfunktion. Søg variant_id
@@ -49,6 +49,8 @@
 // 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
 // 20261001 CDX/PHR Show each warehouse number once, preferring its current-year name, and reuse the list during item lookup.
 // 20261001 CDX/PHR Initialize empty product and variant lookups so unmatched import rows do not crash on PHP 8.
+// 20261112 CL/MMR SST-1014 An item with variants is refused however it is opened (form, link, padded number or barcode) through countItemLookup() in optallingIncludes/countItem.php, because recounting it removed the other variants' lagerstatus rows.
+// 20261113 CL/MMR SST-1014 The refusal message is encoded with jsString(), so an item number with an apostrophe no longer breaks the dialog.
 
 @session_start();
 $s_id = session_id();
@@ -64,6 +66,7 @@ $lagernr = array();
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/topline_settings.php");
+require_once __DIR__ . '/optallingIncludes/countItem.php';
 
 $title = findtekst('1956|Lageroptælling', $sprog_id);
 
@@ -276,14 +279,21 @@ if (!$lager) {
 }
 */
 
+// 20261112 the 20230224 variant check on the item the recount below uses, however it was entered or linked
+$varenr = trim((string)$varenr);
+$countItem = countItemLookup($varenr);
+if ($countItem && countItemHasVariants($countItem['id'])) {
+	print countItemVariantRefusal($countItem['varenr']);
+	$varenr = '';
+	$countItem = false;
+}
+
 print "<form name=\"optalling\" action=\"optalling.php?gentael=$gentael&lager=$lager\" method=\"post\">\n";
-if ($varenr = trim($varenr)) {
+if ($varenr) {
 	$fokus = "optalt";
 
 	print "<tr><td>" . findtekst('917|Varenr.', $sprog_id) . "</td><td><!-- " . findtekst('608|Lager', $sprog_id) . " --></td><td>" . findtekst('914|Beskrivelse', $sprog_id) . "</td><td align=\"left\">" . findtekst('980|Beholdning', $sprog_id) . " ($dato)</td><td align=\"right\">" . findtekst('2243|Ny beholdning', $sprog_id) . "</td></tr>\n";
-	if (!$r = db_fetch_array(db_select("select * from varer where varenr='$varenr' or stregkode='$varenr'", __FILE__ . " linje " . __LINE__))) {
-		$r = db_fetch_array(db_select("select * from varer where lower(varenr)='" . strtolower($varenr) . "' or lower(stregkode)='" . strtolower($varenr) . "' or upper(varenr)='" . strtoupper($varenr) . "' or upper(stregkode)='" . strtoupper($varenr) . "'", __FILE__ . " linje " . __LINE__));
-	}
+	$r = $countItem;
 	if ($r['id']) { # 20140717 + 20161031
 		# 20140625 ->
 		db_modify("update batch_kob set lager='0' where lager is NULL", __FILE__ . " linje " . __LINE__);
@@ -333,10 +343,11 @@ if ($varenr = trim($varenr)) {
 		for ($l = 1; $l < count($ls_id); $l++) {
 			db_modify("delete from lagerstatus where id = '$ls_id[$l]'", __FILE__ . " linje " . __LINE__);
 		}
-		if (isset($ls_id[0]) && $ls_id[0])
+		if (isset($ls_id[0]) && $ls_id[0]) {
 			$qtxt = "update lagerstatus set beholdning='$beholdning' where id='$ls_id[0]'";
-		else
+		} else {
 			$qtxt = "insert into lagerstatus (vare_id,variant_id,beholdning,lager) values ('$r[id]','0','$beholdning','$lager')";
+		}
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 		# <-20140625
@@ -345,10 +356,12 @@ if ($varenr = trim($varenr)) {
 	print "<tr><td></td></tr>\n";
 
 	$tmp = dkdecimal($beholdning * 1, 2); #20140103
-	while (substr($tmp, -1) == '0')
+	while (substr($tmp, -1) == '0') {
 		$tmp = substr($tmp, 0, strlen($tmp) - 1);
-	if (substr($tmp, -1) == ',')
+	}
+	if (substr($tmp, -1) == ',') {
 		$tmp = substr($tmp, 0, strlen($tmp) - 1);
+	}
 	print "<tr><td>$r[varenr]</td><td><!-- $lager --></td><td>$r[beskrivelse]<input type=\"hidden\" name=\"dato\" value=\"$dato\"></td>
 	<td align=\"left\">$tmp</td><td align=\"right\"><input style=\"width:75px;text-align:right;\" type=\"text\" name=\"optalt\">\n";
 	print "<input type=\"hidden\" name=\"varenr\" value='$r[varenr]'>\n";
