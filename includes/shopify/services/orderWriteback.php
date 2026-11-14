@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderWriteback.php --- ver 5.1.0 --- 2026.11.12
+// --- includes/shopify/services/orderWriteback.php --- ver 5.1.0 --- 2026.11.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,7 @@
 //
 //   order.tags (10) - the hold tags the intake chose, so DTAILS' rule matrix holds the order
 //                     before anything else lands on it
-//   order.move (15) - built in L10b
+//   order.move (15) - the lines Saldi drew from another location are moved there (orderMove.php)
 //   order.references (20) - K23 order and invoice number, K45 invoice link
 //   order.note (25) - K55 split-set note and its JSON metafield
 //   order.processed (25) - saldi-behandlet, last of all
@@ -38,8 +38,8 @@
 // shopify_order_links.flags under writeback_v1, and every later stage checks those checkpoints
 // before it calls Shopify. A stage whose prerequisites are unmet fails its attempt and is retried
 // with the queue's backoff, which keeps saldi-behandlet off an order whose hold tags never landed.
-// order.processed waits for order.move only once a move has been recorded (L10b records it when
-// it enqueues one), so an order that needs no move is not held up.
+// order.processed waits for order.move only once a move has been recorded: order.tags records it
+// as pending when it enqueues it, so an order whose write-back began before L10b is not held up.
 //
 // The decision half (shopify_writeback_stage()) takes the checkpoints and the order's data as
 // arguments; shopify_writeback_job() is the worker handler that reads and records them.
@@ -51,8 +51,11 @@
 // 20261112 CL/MJ SD-759 (review): a waiting stage, or one of a shop whose orders flow is off, yields instead of failing; a recorded note op is not appended again.
 //                Two split sets of the same bundle keep apart (saet_id), and antal is a number in saet_fordeling.
 // 20261112 CL/MJ SD-759 (CodeRabbit): the invoice link's token is sent to Shopify but kept out of the call log.
+// 20261113 CL/MJ SD-760: order.tags enqueues order.move too and records it pending, so saldi-behandlet waits for the move.
+//                The order.move stage runs shopify_move_job() (orderMove.php).
 
 require_once __DIR__ . '/../noteAppend.php';
+require_once __DIR__ . '/orderMove.php';
 require_once __DIR__ . '/../links.php';
 require_once __DIR__ . '/../queue.php';
 require_once __DIR__ . '/../../documents/dokumentLinks.php';
@@ -71,8 +74,11 @@ const SHOPIFY_METAFIELD_NAMESPACE = 'saldi';
 
 const SHOPIFY_TAG_PROCESSED = 'saldi-behandlet';
 
-/** The stages order.tags enqueues once it is done; L10b adds order.move. */
-const SHOPIFY_WRITEBACK_FOLLOWERS = array('order.references', 'order.note', 'order.processed');
+/** The stages order.tags enqueues once it is done. */
+const SHOPIFY_WRITEBACK_FOLLOWERS = array('order.move', 'order.references', 'order.note', 'order.processed');
+
+/** The checkpoints that finish a stage; order.move is recorded as pending until then. */
+const SHOPIFY_WRITEBACK_FINISHED = array('done', 'abandoned');
 
 /** Seconds before a stage that waits (for an earlier stage, or for the orders flow) is claimed again. */
 const SHOPIFY_WRITEBACK_WAIT = 300;
@@ -256,7 +262,7 @@ function shopify_set_metafields(array $shop, array $metafields, array $rt = arra
 function shopify_writeback_stage(array $shop, string $orderGid, string $stage, array $context, array $checkpoints, array $rt = array()): array {
 	// A stage that already has a checkpoint is finished and never runs again, whatever the
 	// other checkpoints say: that is what keeps a tag HML removed from being put back.
-	if (($checkpoints[$stage] ?? '') !== '') {
+	if (in_array($checkpoints[$stage] ?? '', SHOPIFY_WRITEBACK_FINISHED, true)) {
 		return shopify_writeback_outcome('done', null, null, array());
 	}
 	$blockedBy = shopify_writeback_blocked_by($checkpoints, $stage);
@@ -275,7 +281,7 @@ function shopify_writeback_stage(array $shop, string $orderGid, string $stage, a
 		case 'order.processed':
 			return shopify_writeback_finished(shopify_tags_add_to($shop, $orderGid, array(SHOPIFY_TAG_PROCESSED), $rt));
 		case 'order.move':
-			throw new LogicException('order.move is built in L10b');
+			throw new LogicException('order.move runs through shopify_move_job()');
 	}
 	throw new InvalidArgumentException("unknown writeback stage: $stage");
 }
@@ -351,9 +357,12 @@ function shopify_writeback_job(array $job, float $deadline, callable $heartbeat,
 	}
 	$checkpoints = shopify_writeback_flags($link, SHOPIFY_WRITEBACK_NAMESPACE);
 	$shop = shopify_writeback_shop((int)$link['shop_id']);
-	$open = ($checkpoints[$stage] ?? '') === '';
+	$open = !in_array($checkpoints[$stage] ?? '', SHOPIFY_WRITEBACK_FINISHED, true);
 	if ($open && (!in_array($shop['orders_enabled'], array(true, 't', '1', 1), true) || shopify_writeback_blocked_by($checkpoints, $stage) !== null)) {
 		return array('outcome' => 'yield', 'run_after' => SHOPIFY_WRITEBACK_WAIT);
+	}
+	if ($open && $stage === 'order.move') {
+		return shopify_move_job($job, $link, $shop, $rt + array('deadline' => $deadline));
 	}
 	$context = $open ? shopify_writeback_context($link, $stage) : array();
 	$outcome = shopify_writeback_stage($shop, (string)$link['order_gid'], $stage, $context, $checkpoints, $rt + array('deadline' => $deadline));
@@ -451,6 +460,7 @@ function shopify_writeback_enqueue_followers(array $link, array $shop): void {
 	$dedupe = "{$shop['shop_key']}:{$link['order_gid']}";
 	$payload = array('link_id' => (int)$link['id'], 'ordre_id' => (int)$link['ordre_id'], 'order_gid' => (string)$link['order_gid']);
 	$correlation = array('ordre_id' => (int)$link['ordre_id'], 'order_gid' => (string)$link['order_gid']);
+	shopify_writeback_mark((int)$link['id'], 'order.move', 'pending');
 	foreach (SHOPIFY_WRITEBACK_FOLLOWERS as $stage) {
 		shopify_queue_enqueue($stage, (int)$link['shop_id'], $dedupe, $payload, SHOPIFY_QUEUE_PRIORITY[$stage], null, $correlation);
 	}
@@ -474,15 +484,16 @@ function shopify_writeback_flags(array $link, string $namespace): array {
 }
 
 /**
- * Records a stage's terminal result. Only order.move may be abandoned; a tags, references or
- * note stage that fails permanently records nothing, so saldi-behandlet stays unset.
+ * Records a stage's result. Only order.move may be pending (queued, not finished) or abandoned;
+ * a tags, references or note stage that fails permanently records nothing, so saldi-behandlet
+ * stays unset.
  */
 function shopify_writeback_mark(int $linkId, string $stage, string $result): void {
 	$stages = array_merge(array('order.tags', 'order.move'), SHOPIFY_WRITEBACK_FOLLOWERS);
 	if (!in_array($stage, $stages, true)) {
 		throw new InvalidArgumentException("unknown writeback stage: $stage");
 	}
-	if ($result !== 'done' && !($result === 'abandoned' && $stage === 'order.move')) {
+	if ($result !== 'done' && !(in_array($result, array('pending', 'abandoned'), true) && $stage === 'order.move')) {
 		throw new InvalidArgumentException("stage $stage cannot be recorded as $result");
 	}
 	shopify_writeback_flag_set($linkId, SHOPIFY_WRITEBACK_NAMESPACE, $stage, $result);
