@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.14
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,7 @@
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261114 CL/ASR Text 6631 (the lead of Abonnement & konto) no longer names Nulstil regnskab, now that the reset is in the admin panel; the cached old wording is removed.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -442,5 +443,12 @@ if (!$sawanehMysql) {
 require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
 migrateTillAccounts($db_type);
 
+// 20261114 CL/ASR Nulstil regnskab left the ledger's own settings (Abonnement & konto); Saldi's staff reset a ledger from
+// the admin panel. The section's lead is reworded. Rows still holding the old wording are removed so findtekst() re-seeds them.
+deleteStaleTekst(6631, array(
+	'Regnskabets navn og farezonen: nulstil eller slet regnskabet',
+	'The ledger\'s name and the danger zone: reset or delete the ledger',
+	'Regnskapets navn og faresonen: nullstill eller slett regnskapet',
+));
 
 ?>

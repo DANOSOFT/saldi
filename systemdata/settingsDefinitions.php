@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-13 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-14 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -79,6 +79,7 @@
 // The registry is also read without a database connection (tools/check_settings_registry.php): the same cast
 // as includes/db_query.php's db_cast(), so the definitions load either way.
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261114 CL/ASR Nulstil regnskab (company.account.reset) is no longer offered in the ledger's own settings. Saldi's staff reset a ledger from the admin panel (admin/admin_panel.php).
 if (!function_exists('db_cast')) {
 	function db_cast($expr, $type) {
 		global $db_type;
@@ -172,7 +173,7 @@ if (!function_exists('getSettingsSections')) {
 				'group' => 'company', 'section' => 'account', 'number' => 'G1.4', 'label' => 6630, 'icon' => 'bx-key', 'module' => 'hosted',
 				'lead' => 6631, 'subsections' => array('account' => 6632, 'danger' => 6633), 'sub_help' => array('danger' => 6634),
 				'legacy' => array(array(782, 783)), 'old' => array('kontoindstillinger' => array(782, 783)),
-				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'omdøb', 'nulstil regnskab', 'reset', 'slet regnskab', 'delete ledger', 'farezone', 'danger zone'),
+				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'omdøb', 'slet regnskab', 'delete ledger', 'farezone', 'danger zone'),
 			),
 			'company.gdpr' => array(
 				'group' => 'company', 'section' => 'gdpr', 'number' => 'G1.5', 'label' => 7737, 'renamed_from' => 6523, 'icon' => 'bx-shield-quarter',
@@ -1071,9 +1072,6 @@ if (!function_exists('getSettingsSections')) {
 			'company.account.name' => array('sub' => 'account', 'type' => 'text', 'label' => 6635, 'help' => 6636, 'maxlength' => 80, 'validate' => array('ledger_name'),
 				'storage' => array('virtual', 'ledger_name')),
 			'company.account.activity' => array('sub' => 'account', 'type' => 'info', 'label' => 6644, 'info' => 'ledger_activity', 'audit' => false),
-			'company.account.reset' => array('sub' => 'danger', 'type' => 'action', 'label' => 756, 'help' => 6642, 'confirm_title' => 756, 'confirm' => 6638,
-				'run' => 'ledger_reset', 'impact' => 'ledger_reset', 'danger' => true, 'danger_zone' => true, 'permission' => 'settings.company.danger',
-				'inputs' => array('keep_accounts' => 758, 'keep_items' => 760)),
 			'company.account.delete' => array('sub' => 'danger', 'type' => 'action', 'label' => 852, 'help' => 6643, 'confirm_title' => 852, 'confirm' => 851,
 				'run' => 'ledger_delete', 'danger' => true, 'danger_zone' => true, 'permission' => 'settings.company.danger'),
 

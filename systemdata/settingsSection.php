@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.1 --- 2026.11.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,6 +62,7 @@
 //                 A row error no longer saves the page's fields (dry run, spec §7.3).
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8, css/saldi-kit.css and css/unified-components.css as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR The action ledger_reset is gone from the list of actions that write their own audit entry: the reset moved to the admin panel.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var int    $sprog_id
@@ -286,7 +287,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		}
 		if (isset($defs[$key]) && $defs[$key]['type'] === 'action' && st_visible($defs[$key], array()) && st_field_access($defs[$key]) === 'write') {
 			// Till and price-list row actions write their own entry with before/after.
-			if (!in_array(isset($defs[$key]['run']) ? $defs[$key]['run'] : '', array('till_add', 'till_remove', 'pricelist_create', 'pricelist_delete', 'card_add', 'card_up', 'card_down', 'card_remove', 'pickup_add', 'pickup_delete', 'gdpr_delete_inactive', 'employee_add', 'employee_up', 'employee_down', 'employee_delete', 'ledger_reset', 'ledger_delete'), true)) {
+			if (!in_array(isset($defs[$key]['run']) ? $defs[$key]['run'] : '', array('till_add', 'till_remove', 'pricelist_create', 'pricelist_delete', 'card_add', 'card_up', 'card_down', 'card_remove', 'pickup_add', 'pickup_delete', 'gdpr_delete_inactive', 'employee_add', 'employee_up', 'employee_down', 'employee_delete', 'ledger_delete'), true)) {
 				audit_log('setting.action', '', 'indstilling', $key);
 			}
 			$GLOBALS['settings_action_inputs'] = array();
