@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/admin_panel.php --- 2026-11-13 ---
+// --- admin/admin_panel.php --- 2026-11-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,6 +19,8 @@
 //
 // 20261102 CL/ASR Reopening an account whose closing date (lukkes) has passed also clears that date, so the auto-close does not close it again at once.
 // 20261113 CDX/NTR Use the shared last-activity formatter for legacy registry date strings in both account views.
+// 20261114 CL/ASR Nulstil regnskab on the single ledger's page (action reset_ledger): the reset left the ledger's own settings, so only Saldi's staff can run it.
+//                 It needs the ledger's name typed and the session's CSRF token, and is written to the ledger's audit log.
 
 ob_start();
 
@@ -244,6 +246,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
         $message = "Indstillinger opdateret!";
+    }
+
+    // --- Reset a ledger (systemdata/resetAccount.php). The ledger's own users can no longer do this. ---
+    if ($action === 'reset_ledger') {
+        if (function_exists('perm_require_post_csrf')) {
+            perm_require_post_csrf(false);
+        }
+        $regnskab_id = (int)if_isset($_POST['regnskab_id'], 0);
+        $reset_row = db_fetch_array(db_select("SELECT regnskab, db FROM regnskab WHERE id = $regnskab_id", __FILE__ . " linje " . __LINE__));
+        $reset_db = $reset_row ? trim((string)$reset_row['db']) : '';
+        $reset_name = $reset_row ? trim((string)$reset_row['regnskab']) : '';
+        $typed_name = trim((string)if_isset($_POST['confirm_name'], ''));
+        $keep_accounts = !empty($_POST['keep_accounts']);
+        $keep_items = !empty($_POST['keep_items']);
+        $message_type = 'error';
+        if ($reset_db === '' || $reset_db === $sqdb) {
+            $message = "Regnskab ikke fundet. Intet er nulstillet.";
+        } elseif ($typed_name === '' || $typed_name !== $reset_name) {
+            $message = "Navnet passer ikke med regnskabets navn. Intet er nulstillet.";
+        } else {
+            require_once(__DIR__ . '/../systemdata/resetAccount.php');
+            $admin_db = $db;
+            $admin_user = function_exists('audit_user_name') ? audit_user_name() : (string)$brugernavn;
+            $admin_ip = isset($_SERVER['REMOTE_ADDR']) ? substr((string)$_SERVER['REMOTE_ADDR'], 0, 45) : '';
+            $client_conn = @db_connect($sqhost, $squser, $sqpass, $reset_db, __FILE__ . " linje " . __LINE__);
+            if (!$client_conn) {
+                $message = "Kunne ikke forbinde til regnskabets database. Intet er nulstillet.";
+            } else {
+                // While $db names the ledger, resetAccount()'s update of the sessions reaches the master database
+                // (db_query_connection()) and the statements land in the ledger's own modify log.
+                $db = $reset_db;
+                try {
+                    $count_row = db_fetch_array(db_select("SELECT count(*) AS n FROM transaktioner", __FILE__ . " linje " . __LINE__));
+                    $deleted_postings = $count_row ? (int)$count_row['n'] : 0;
+                    resetAccount($keep_accounts, $keep_items, (string)$db_type, $reset_db);
+                    // The ledger's own audit log says who reset it. Written here and not with audit_log(), which
+                    // remembers the master database's table layout for the whole request.
+                    if (tbl_exists('audit_log')) {
+                        $log_details = db_escape_string(json_encode(array(
+                            'reset_by' => $admin_user, 'from' => 'admin panel', 'postings_deleted' => $deleted_postings,
+                            'keep_accounts' => $keep_accounts, 'keep_items' => $keep_items,
+                        ), JSON_UNESCAPED_UNICODE));
+                        $log_columns = array();
+                        $log_q = db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'audit_log'" . (function_exists('saldi_schema_filter') ? saldi_schema_filter() : ''), __FILE__ . " linje " . __LINE__);
+                        while ($log_r = db_fetch_array($log_q)) {
+                            $log_columns[] = $log_r['column_name'];
+                        }
+                        $log_sql = "INSERT INTO audit_log (bruger_id, brugernavn, handling, detaljer, ip";
+                        $log_values = "0, 'system', 'setting.action', '$log_details', '" . db_escape_string($admin_ip) . "'";
+                        if (in_array('objekt_type', $log_columns, true) && in_array('objekt_id', $log_columns, true) && in_array('kilde', $log_columns, true)) {
+                            $log_sql .= ", objekt_type, objekt_id, kilde";
+                            $log_values .= ", 'indstilling', 'company.account.reset', 'admin'";
+                        }
+                        db_modify("$log_sql) VALUES ($log_values)", __FILE__ . " linje " . __LINE__);
+                    }
+                    $message = "Regnskabet $reset_name er nulstillet ($deleted_postings posteringer slettet).";
+                    $message_type = 'success';
+                } catch (Throwable $reset_error) {
+                    $message = "Regnskabet blev ikke nulstillet: " . $reset_error->getMessage();
+                }
+                $db = $admin_db;
+            }
+            // Reconnect master
+            include("../includes/connect.php");
+            $db = $admin_db;
+        }
     }
 }
 
@@ -1544,6 +1612,41 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             </div>
         </div>
         
+        <!-- Nulstil regnskab -->
+        <?php
+        if (session_status() === PHP_SESSION_ACTIVE && empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
+        $reset_token = isset($_SESSION['csrf_token']) ? (string)$_SESSION['csrf_token'] : '';
+        $reset_ledger_name = trim((string)$reg['regnskab']);
+        ?>
+        <div class="card card-full">
+            <div class="card-header">🗑️ Nulstil regnskab</div>
+            <div class="card-body">
+                <p style="margin: 0 0 12px 0;">Sletter alle ordrer, fakturaer, posteringer, kassekladder og bilag i <b><?php echo htmlspecialchars($reset_ledger_name); ?></b>, og regnskabet starter forfra i ét regnskabsår. Brugerne og deres personlige indstillinger beholdes. Kan ikke fortrydes, så tag en sikkerhedskopi først, hvis regnskabet har været i brug.</p>
+                <form method="post" action="admin_panel.php?regnskab_id=<?php echo $filter_regnskab; ?>" onsubmit="return confirm('Nulstil regnskabet? Det kan ikke fortrydes.');">
+                    <input type="hidden" name="action" value="reset_ledger">
+                    <input type="hidden" name="regnskab_id" value="<?php echo $filter_regnskab; ?>">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($reset_token); ?>">
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="keep_accounts" id="reset_keep_accounts" value="1">
+                        <label for="reset_keep_accounts">Behold debitorer &amp; kreditorer</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="keep_items" id="reset_keep_items" value="1">
+                        <label for="reset_keep_items">Behold varer (beholdningen sættes til 0)</label>
+                    </div>
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label for="reset_confirm_name">Skriv regnskabets navn for at bekræfte</label>
+                        <input type="text" name="confirm_name" id="reset_confirm_name" autocomplete="off" required placeholder="<?php echo htmlspecialchars($reset_ledger_name); ?>">
+                    </div>
+                    <div style="margin-top: 16px; text-align: right;">
+                        <button type="submit" class="btn btn-danger">Nulstil regnskab</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Brugere (Users) -->
         <div class="card card-full collapsed" id="usersCard">
             <div class="card-header card-header-toggle" onclick="toggleUsersCard()">

@@ -6428,7 +6428,7 @@
 6628	Den formularbaggrund, brugeren udskriver med.	The form background the user prints with.	Skjemabakgrunnen brukeren skriver ut med.
 6629	Rækkefølgen bruges i lister over medarbejdere.	The order is used in lists of employees.	Rekkefølgen brukes i lister over medarbeidere.
 6630	Abonnement & konto	Subscription & account	Abonnement og konto
-6631	Regnskabets navn og farezonen: nulstil eller slet regnskabet	The ledger's name and the danger zone: reset or delete the ledger	Regnskapets navn og faresonen: nullstill eller slett regnskapet
+6631	Regnskabets navn og farezonen: slet regnskabet	The ledger's name and the danger zone: delete the ledger	Regnskapets navn og faresonen: slett regnskapet
 6632	Regnskab	Ledger	Regnskap
 6633	Farezone	Danger zone	Faresone
 6634	Handlingerne her kan ikke fortrydes. De kræver din adgangskode og logges.	These actions cannot be undone. They require your password and are logged.	Handlingene her kan ikke angres. De krever passordet ditt og logges.

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/actions.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/actions.php --- ver 5.1.1 --- 2026.11.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 //                 Same insert, audit entry and redirect.
 // 20261103 CL/ASR QA: the FTP test fails when the configured folder cannot be opened (it went on in the login's root and could report success).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR The action ledger_reset and its impact line are gone: a ledger is reset from the admin panel (admin/admin_panel.php), not by its own users.
 include_once(__DIR__ . '/integrations.php');
 
 /**
@@ -215,22 +216,6 @@ function settings_run_action(array $def, string $selfUrl): string
 			}
 			$_SESSION['settings_flash'] = array('ok', st_txt(6249) . ': ' . $name);
 			return 'settingsSection.php?s=purchase.pricelists';
-		case 'ledger_reset':
-			// G1.4 danger zone: the reset plan of systemdata/resetAccount.php (personal settings are kept since 2026-10-05).
-			global $db_type, $db;
-			require_once(__DIR__ . '/../../systemdata/resetAccount.php');
-			$in = isset($GLOBALS['settings_action_inputs']) ? $GLOBALS['settings_action_inputs'] : array();
-			try {
-				resetAccount(!empty($in['keep_accounts']), !empty($in['keep_items']), (string) $db_type, (string) $db);
-				if (function_exists('audit_log')) {
-					audit_log('setting.action', json_encode(array('keep_accounts' => !empty($in['keep_accounts']), 'keep_items' => !empty($in['keep_items']))), 'indstilling', $def['key']);
-				}
-				$_SESSION['settings_flash'] = array('ok', st_txt(6640));
-				$_SESSION['settings_reload_shell'] = 1;
-			} catch (Throwable $error) {
-				$_SESSION['settings_flash'] = array('err', sprintf(st_txt(6641), $error->getMessage()));
-			}
-			return $selfUrl;
 		case 'ledger_delete':
 			// G1.4 danger zone: as the old page - the ledger is closed in the master database and every session of it ends.
 			global $db, $db_id, $brugernavn;
@@ -586,10 +571,6 @@ function settings_impact_text(array $def): string
 		}
 		$r = db_fetch_array(db_select("select count(*) as n from varer where $where", __FILE__ . " linje " . __LINE__));
 		$n = $r ? (int) $r['n'] : 0;
-	} elseif ($def['impact'] === 'ledger_reset') {
-		$t = db_fetch_array(db_select("select count(*) as n from transaktioner", __FILE__ . " linje " . __LINE__));
-		$o = db_fetch_array(db_select("select count(*) as n from ordrer", __FILE__ . " linje " . __LINE__));
-		return sprintf(st_txt(6423), number_format((int) $t['n'], 0, ',', '.')) . ' · ' . sprintf(st_txt(6422), number_format((int) $o['n'], 0, ',', '.'));
 	} elseif ($def['impact'] === 'employee_usage') {
 		$u = settings_employee_usage((int) $def['scope_id']);
 		return $u !== '' ? sprintf(st_txt(6415), $u) : '';
