@@ -6,10 +6,11 @@
 //
 // History:
 // 20261113 CL/MJ SD-760: created.
+// 20261114 CL/MJ SD-760 (CI): orderMove.php loads logging.php, so it is required when the class starts.
+//                Collecting the files no longer loads it, and ClientRetryTest keeps a client without a redactor.
 
 use PHPUnit\Framework\TestCase;
 
-require_once dirname(__DIR__, 2) . '/includes/shopify/services/orderMove.php';
 require_once __DIR__ . '/support/FakeShopify.php';
 
 final class OrderMoveTest extends TestCase
@@ -19,6 +20,11 @@ final class OrderMoveTest extends TestCase
     private const L3 = 'gid://shopify/Location/3';
     /** lager => location: 1 and 2 sellable; 3 (display) and 4 (ingen) are left out, as shopify_move_locations() leaves them out */
     private const LOCATIONS = [1 => self::L1, 2 => self::L2];
+
+    public static function setUpBeforeClass(): void
+    {
+        require_once dirname(__DIR__, 2) . '/includes/shopify/services/orderMove.php';
+    }
 
     /** @param array<string, int> $lines line gid => remaining */
     private static function fo(string $id, string $location, array $lines, bool $movable = true, string $status = 'OPEN'): array

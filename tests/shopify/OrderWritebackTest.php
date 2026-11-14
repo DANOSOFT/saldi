@@ -11,12 +11,13 @@
 // 20261112 CL/MJ SD-759 (review): a recorded note op is not appended again; two split sets of one bundle keep apart.
 // 20261112 CL/MJ SD-759 (CodeRabbit): the invoice link's token stays out of the logged request.
 // 20261113 CL/MJ SD-759 (review): the token test loads logging.php in its own process, so the rest of the run keeps a client without a redactor.
+// 20261114 CL/MJ SD-760 (CI): orderWriteback.php now loads orderMove.php and with it logging.php.
+//                It is required when the class starts, not while PHPUnit collects the files.
 
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/FakeShopifyStore.php';
-require_once dirname(__DIR__, 2) . '/includes/shopify/services/orderWriteback.php';
 
 final class OrderWritebackTest extends TestCase
 {
@@ -29,6 +30,11 @@ final class OrderWritebackTest extends TestCase
     private FakeShopifyStore $store;
     private string $domain;
     private string $order;
+
+    public static function setUpBeforeClass(): void
+    {
+        require_once dirname(__DIR__, 2) . '/includes/shopify/services/orderWriteback.php';
+    }
 
     protected function setUp(): void
     {
