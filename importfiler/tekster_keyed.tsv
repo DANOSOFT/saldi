@@ -14,7 +14,7 @@ item.import.campaign_only	Kun tilbudspris og tilbudsperiode opdateres. Ukendte v
 item.import.lines_skipped	Disse linjer indeholder fejl og er ikke importeret:	These lines contain errors and were not imported:	Disse linjene inneholder feil og er ikke importert:
 item.import.unknown_skipped	Disse varenumre findes ikke og er ikke oprettet:	These item numbers do not exist and were not created:	Disse varenumrene finnes ikke og er ikke opprettet:
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
-stock.recon.laas_lager_retired	Lås lagerværdi er udgået. Brug Lagerværdi i regnskabet.	Lock stock value has been retired. Use Stock value in the accounts.	Lås lagerverdi er utgått. Bruk Lagerverdi i regnskapet.
+stock.recon.laas_lager_retired	Lås lagerværdi er udgået. Brug Lagerværdi i regnskabet.	Lock stock value has been retired. Use Stock value in the ledger.	Lås lagerverdi er utgått. Bruk Lagerverdi i regnskapet.
 wage.overtime.hours_100	Overtid 100%	Overtime 100%	Overtid 100%
 wage.overtime.hours_50	Overtid 50%	Overtime 50%	Overtid 50%
 wage.overtime.no_access	Du har ikke adgang til denne side.	You do not have access to this page.	Du har ikke tilgang til denne siden.
