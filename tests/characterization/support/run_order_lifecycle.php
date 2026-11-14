@@ -13,9 +13,11 @@
 //   deliver  <ordre_id> <qty>   - set leveres=<qty> on every stock line, then
 //                                 levering($id, NULL, NULL): a delivery note,
 //                                 no invoice
-//   addline  <ordre_id> <vare_id> <antal> <pris> <rabat>
+//   addline  <ordre_id> <vare_id> <antal> <pris> <rabat> [varenr]
 //                               - opret_ordrelinje() the way debitor/ordre.php
-//                                 does when a line is typed in
+//                                 does when a line is typed in; varenr, when
+//                                 given, is what was typed (e.g. a variant's
+//                                 barcode) instead of the item's own number
 // A return is a `deliver` with a negative quantity - that is how the order
 // page books goods back in on a DO order (ordrefunc.php:340), and it keeps
 // this runner to the two entry points a human actually reaches.
@@ -25,6 +27,7 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261110 CL/MJ SST-959 addline takes what was typed as an optional last scenario argument, and an empty price as ''.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_order_lifecycle.php <scenario> <args...> <tenant_db>\n");
@@ -76,8 +79,9 @@ if ($scenario === 'deliver') {
     $ordreId = (int)$args[0];
     $vareId = (int)$args[1];
     $antal = (float)$args[2];
-    $pris = (float)$args[3];
+    $pris = $args[3] === '' ? '' : (float)$args[3]; # '' is an empty Pris field, as the order page sends it
     $rabat = (float)($args[4] ?? 0);
+    $typed = isset($args[5]) ? (string)$args[5] : null;
 
     $r = db_fetch_array(db_select("select varenr, beskrivelse from varer where id = '$vareId'", __FILE__ . " linje " . __LINE__));
     $posnr = 0;
@@ -86,7 +90,7 @@ if ($scenario === 'deliver') {
     }
     transaktion('begin');
     $out['opret_ordrelinje'] = opret_ordrelinje(
-        $ordreId, $vareId, $r['varenr'], $antal, $r['beskrivelse'], $pris, $rabat,
+        $ordreId, $vareId, $typed ?? $r['varenr'], $antal, $r['beskrivelse'], $pris, $rabat,
         100, 'DO', '', $posnr, 0, '', '', '', '', 0, 0, '', 0, 0
     );
     transaktion('commit');

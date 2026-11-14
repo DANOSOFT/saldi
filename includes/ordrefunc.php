@@ -167,6 +167,8 @@
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261110 CL/MJ SST-959 opret_ordrelinje(): a variant added without a price gets its own sales price, when it has one above 0, instead of the item's.
+// 20261112 CL/MJ SST-959 Not on an item with a quantity discount: m_rabat() only discounts lines at the item's price (CodeRabbit).
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 
@@ -4087,7 +4089,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$x++;
 	}
 
-	$qtxt = "SELECT id, vare_id, variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr_up'";
+	$qtxt = "SELECT id, vare_id, variant_type, variant_salgspris FROM variant_varer WHERE upper(variant_stregkode) = '$varenr_up'";
 	if (strlen($varenr) == 12 && is_numeric($varenr)) {
 		$qtxt .= " or variant_stregkode='0$varenr'";
 	}
@@ -4096,6 +4098,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$vare_id = $r['vare_id'];
 		$variant_id = $r['id'];
 		$variant_type = $r['variant_type'];
+		$variantPrice = (float) $r['variant_salgspris'];
 		$variant_type_array = explode(chr(9), $variant_type);
 		$variant_descriptions = array();
 
@@ -4119,6 +4122,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 	} else {
 		$variant_id = 0;
 		$variant_type = $variantText = NULL;
+		$variantPrice = 0.0;
 	}
 
 	$qtxt = NULL;
@@ -4178,6 +4182,12 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$m_antal = trim($m_antal);
 		if (!is_numeric($m_antal))
 			$m_antal = 0;
+		// SST-959 A variant's own price, as the quick search shows it, takes the item's place. 0 is no price:
+		// the webshop sync creates variants with variant_salgspris 0 when the shop sends none. Not on an item
+		// with a quantity discount: m_rabat() only discounts lines at the item's price, so the line would lose it.
+		if ($variant_id && $variantPrice > 0 && !$m_antal) {
+			$productPrice = $variantPrice;
+		}
 		if (!$varegruppe) {
 			return ("Varenr $varenr er ikke tilknyttet en varegruppe!");
 		}
