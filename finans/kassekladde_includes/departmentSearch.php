@@ -1,13 +1,16 @@
 <?php
-
+//
 // 20260216 PHR - *1 -> (int)
-
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 ob_start();
 
 @session_start();
 $s_id = session_id();
 $title = "departmentSearch"; 
 $modulnr = 0;  
+$permission_key = 'finans.kassekladde'; // 20261018 Sawaneh Review 2 (PR #803): modulnr 0 is no key
+$permission_post_read = true; // a lookup: its POST only reads
 $bg = "nix";   
 $header = "nix";
 $webservice = true; 
