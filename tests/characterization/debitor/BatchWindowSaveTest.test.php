@@ -20,18 +20,12 @@ namespace BatchWindowSaveFixture {
         return true;
     }
 
-    /** Array/key form of includes/std_func.php ifset(), the only form the save block uses. */
-    function ifset($arrayOrVar, $key = null, $default = null)
-    {
-        if ($key === null) {
-            return isset($arrayOrVar) ? $arrayOrVar : $default;
-        }
-        return (is_array($arrayOrVar) && array_key_exists($key, $arrayOrVar) && $arrayOrVar[$key] !== null)
-            ? $arrayOrVar[$key] : $default;
-    }
 }
 
 namespace {
+
+    // The lifted block calls ifset() and if_array(); the real helpers are used, not stubs (doc/ai/convention_ifset.md).
+    require_once __DIR__ . '/../../../includes/std_func.php';
 
     use PHPUnit\Framework\TestCase;
 

@@ -57,7 +57,7 @@ if ($_POST['submit']){
 	if ($submit=="Luk"){print "<body onload=\"javascript:window.close();\">";}
 	$vare_id=$_POST['vare_id'];
 	$leveres=$_POST['antal'];
-	$kred_linje_id = array_map('intval', (array)ifset($_POST, 'kred_linje_id', array()));
+	$kred_linje_id = array_map('intval', (array)if_array($_POST, 'kred_linje_id'));
 	$batch_antal = (int)ifset($_POST, 'batch_antal', 0);
 	$art=trim($_POST['art']);
 	// SST-1023 The hidden lager field is empty when the order's employee has no department, and
