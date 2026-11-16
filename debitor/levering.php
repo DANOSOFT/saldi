@@ -2,7 +2,7 @@
 	@session_start();
 	$s_id=session_id();
 
-// --------------debitor/levering.php--------ver 5.1.0 ----2026-10-29-----
+// --------------debitor/levering.php--------ver 5.1.1 ----2026-11-16-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,8 @@
 // 2016.09.13 Tilf�jet oioubl S�g 20160913
 // 20261027 CDX/MJ SST-876 Drain older webshop updates after the delivery transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261116 CL/MMR SD-827 Stops before anything is posted when a line would move stock on a warehouse
+//                 that no longer exists, and names the lines, so the user picks an active one first.
 
 $id=NULL;	
 if (isset($_GET['id'])) $id=($_GET['id']);
@@ -41,11 +43,26 @@ if ($id && $id>=1) {
 	include("../includes/std_func.php");
 	include("../includes/ordrefunc.php");
 	include("../includes/fuld_stykliste.php");
+	include_once(__DIR__ . '/orderIncludes/removedWarehouseLines.php');
 	$hurtigfakt=if_isset($_GET['hurtigfakt']);
 	$genfakt=if_isset($_GET['genfakt']);
 	$pbs=if_isset($_GET['pbs']);
 	$mail_fakt=if_isset($_GET['mail_fakt']);
 	$oioubl=if_isset($_GET['oioubl']); #20160913
+	# SD-827: a credit note copies the warehouse of the invoice it credits. If that warehouse has been
+	# removed since, posting would put the stock back on it, where no page shows it. Stop before the
+	# transaction, so nothing is posted, and send the user back to the order to choose a warehouse.
+	$removedWarehouseLines = order_lines_on_removed_warehouse($id, $hurtigfakt, $regnaar);
+	if ($removedWarehouseLines) {
+		$alert = findtekst('8511|Lageret på linjen findes ikke længere. Vælg et aktivt lager i feltet Lager på linjen, og prøv igen:', $sprog_id);
+		foreach ($removedWarehouseLines as $line) {
+			$alert .= "\n$line[varenr]: " . findtekst('608|Lager', $sprog_id) . " $line[lager]";
+		}
+		$alert = htmlspecialchars(json_encode($alert, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), ENT_QUOTES);
+		print "<BODY onLoad=\"javascript:alert($alert)\">";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=" . (int)$id . "\">";
+		exit;
+	}
 	transaktion("begin");
 	$svar=levering($id,$hurtigfakt,$genfakt,0);
 	if ($svar=='OK') {

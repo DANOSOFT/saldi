@@ -3,10 +3,13 @@ namespace Sst876DeliveryFixture;
 // Copyright (c) 2026 Danosoft ApS
 // 20261027 CDX/MJ SST-876 Execute the delivery page with transaction doubles to verify post-commit retries and rollback isolation.
 // 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
+// 20261116 CL/MMR SD-827 levering.php now asks order_lines_on_removed_warehouse() first; no line is on a
+//                 removed warehouse here, so the transaction order under test is unchanged.
 require_once dirname(__DIR__, 5) . '/includes/std_func.php';
 $events = array();
 $depth = 0;
 $result = 'OK';
+$regnaar = 10; // online.php sets it on the real page
 function session_start() { return true; }
 function session_id() { return 'fixture'; }
 function if_isset($value) { return $value; }
@@ -25,9 +28,11 @@ function shopSyncDrainQueue() {
 	$GLOBALS['events'][] = 'backlog';
 }
 function shopSyncAlertFailedItems() { $GLOBALS['events'][] = 'warning'; }
+function order_lines_on_removed_warehouse(...$arguments) { return array(); }
 function shopSyncClearFailedItems() { $GLOBALS['events'][] = 'clear'; }
 $src = file_get_contents(dirname(__DIR__, 5) . '/debitor/levering.php');
 $src = preg_replace('/^[\t ]*include\("\.\.\/includes\/[^"\n]+"\);[\t ]*$/m', '', $src);
+$src = preg_replace("/^[\\t ]*include_once\\(__DIR__ \\. '\\/orderIncludes\\/[^'\\n]+'\\);[\\t ]*$/m", '', $src);
 $src = substr($src, strlen('<?php'));
 foreach (array('OK', 'Failed delivery') as $result) {
 	$events = array();
