@@ -23,6 +23,8 @@
 //                 It needs the ledger's name typed and the session's CSRF token, and is written to the ledger's audit log.
 // 20261116 CL/ASR The number of deleted postings comes from resetAccount(), which counts them under the reset's own lock, so a posting committed meanwhile is counted too (review #1131).
 //                 When the reset went through but the active sessions' year was not updated, the audit entry is still written and the reset is reported as done, with that warning (review #1131).
+//                 Only a master user with the admin flag, or with the ledger in their access list, sees the card and may post the reset: the same rule as admin/slet_regnskab.php (review #1131).
+//                 The audit entry is written in db_modify()'s webservice mode, so a failed insert after the reset is reported instead of ending the request; the CSRF check is called directly, and the button uses the panel's danger style.
 
 ob_start();
 
@@ -180,6 +182,18 @@ function fetch_customer_invoices($search_term) {
     return ['invoices' => $invoices];
 }
 
+// Who may reset a ledger: the master user's admin flag, or the ledger in their access list, as in admin/slet_regnskab.php (review #1131).
+function admin_panel_may_reset($regnskab_id) {
+    global $brugernavn;
+    static $rights = null;
+    if ($rights === null) {
+        $r = db_fetch_array(db_select("SELECT rettigheder FROM brugere WHERE brugernavn = '" . db_escape_string((string)$brugernavn) . "'", __FILE__ . " linje " . __LINE__));
+        list($admin, , , $list) = array_pad(explode(",", (string)($r ? $r['rettigheder'] : ''), 4), 4, '');
+        $rights = array((bool)$admin, array_map('trim', explode(",", $list)));
+    }
+    return $rights[0] || in_array((string)(int)$regnskab_id, $rights[1], true);
+}
+
 // Security check
 if ($db != $sqdb) {
     print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at gøre her!')\">"; 
@@ -252,9 +266,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // --- Reset a ledger (systemdata/resetAccount.php). The ledger's own users can no longer do this. ---
     if ($action === 'reset_ledger') {
-        if (function_exists('perm_require_post_csrf')) {
-            perm_require_post_csrf(false);
-        }
+        perm_require_post_csrf(false);
         $regnskab_id = (int)if_isset($_POST['regnskab_id'], 0);
         $reset_row = db_fetch_array(db_select("SELECT regnskab, db FROM regnskab WHERE id = $regnskab_id", __FILE__ . " linje " . __LINE__));
         $reset_db = $reset_row ? trim((string)$reset_row['db']) : '';
@@ -265,6 +277,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message_type = 'error';
         if ($reset_db === '' || $reset_db === $sqdb) {
             $message = "Regnskab ikke fundet. Intet er nulstillet.";
+        } elseif (!admin_panel_may_reset($regnskab_id)) {
+            $message = "Du har ikke adgang til at nulstille dette regnskab. Intet er nulstillet.";
         } elseif ($typed_name === '' || $typed_name !== $reset_name) {
             $message = "Navnet passer ikke med regnskabets navn. Intet er nulstillet.";
         } else {
@@ -277,7 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "Kunne ikke forbinde til regnskabets database. Intet er nulstillet.";
             } else {
                 // While $db names the ledger, resetAccount()'s update of the sessions reaches the master database
-                // (db_query_connection()) and the statements land in the ledger's own modify log.
+                // (db_query_connection()).
                 $db = $reset_db;
                 try {
                     $deleted_postings = (int)resetAccount($keep_accounts, $keep_items, (string)$db_type, $reset_db, $session_warning); # counted under the reset's lock
@@ -299,7 +313,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $log_sql .= ", objekt_type, objekt_id, kilde";
                             $log_values .= ", 'indstilling', 'company.account.reset', 'admin'";
                         }
-                        db_modify("$log_sql) VALUES ($log_values)", __FILE__ . " linje " . __LINE__);
+                        // The ledger is reset by now: a failed insert must be reported, not end the request (webservice mode returns it).
+                        $was_webservice = $webservice ?? null;
+                        $webservice = true;
+                        try {
+                            $log_result = db_modify("$log_sql) VALUES ($log_values)", __FILE__ . " linje " . __LINE__);
+                        } finally {
+                            $webservice = $was_webservice;
+                        }
+                        if (substr((string)$log_result, 0, 1) !== '0') {
+                            $session_warning = trim($session_warning . ' Nulstillingen kunne ikke skrives i regnskabets log.');
+                        }
                     }
                     $message = "Regnskabet $reset_name er nulstillet ($deleted_postings posteringer slettet)." . ($session_warning !== '' ? " Bemærk: $session_warning" : '');
                     $message_type = 'success';
@@ -1613,6 +1637,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
         </div>
         
         <!-- Nulstil regnskab -->
+        <?php if (admin_panel_may_reset($reg['id'])): ?>
         <?php
         if (session_status() === PHP_SESSION_ACTIVE && empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -1641,11 +1666,12 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                         <input type="text" name="confirm_name" id="reset_confirm_name" autocomplete="off" required placeholder="<?php echo htmlspecialchars($reset_ledger_name); ?>">
                     </div>
                     <div style="margin-top: 16px; text-align: right;">
-                        <button type="submit" class="btn btn-danger">Nulstil regnskab</button>
+                        <button type="submit" class="btn-danger">Nulstil regnskab</button>
                     </div>
                 </form>
             </div>
         </div>
+        <?php endif; ?>
 
         <!-- Brugere (Users) -->
         <div class="card card-full collapsed" id="usersCard">
