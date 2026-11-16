@@ -3,13 +3,14 @@
 //                 BankImportColumnsTest and its child process use it.
 // 20261116 CL/MMR SST-962 Codex round 3: a failed query is read with pg_get_result(), so the tests of a failing lock or write get the exception without a PHP warning.
 // 20261116 CL/MMR SST-962 CodeRabbit: every statement is logged, and a test can make one statement return false like the real db_select().
+//                 The injected statement is read with ifset() (doc/ai/convention_ifset.md, Codex round 5).
 
 if (!function_exists('db_select')) {
 	/** @return PgSql\Result|false */
 	function db_select($sql, $source = '', $global = false) {
 		$GLOBALS['bank_import_sql_log'][] = $sql;
 		// A test can make one statement fail the way the real db_select() can report it: by returning false
-		$fails = $GLOBALS['bank_import_select_returns_false'] ?? '';
+		$fails = (string)ifset($GLOBALS, 'bank_import_select_returns_false', '');
 		if ($fails !== '' && stripos($sql, $fails) !== false) {
 			return false;
 		}
