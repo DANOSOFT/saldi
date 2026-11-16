@@ -23,8 +23,7 @@
 //
 // Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261116 CL/MMR SD-827 Lines that would move stock on a warehouse that no longer exists, so
-//                 debitor/levering.php can stop Fakturér, Kreditér and Lever with a message.
+// 20261116 CL/MMR SD-827 Lists the lines that would move stock on a warehouse that no longer exists, for the stop in debitor/levering.php.
 
 /**
  * Order lines that would move stock on a warehouse that is no longer set up.

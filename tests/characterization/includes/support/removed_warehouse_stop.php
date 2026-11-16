@@ -1,8 +1,7 @@
 <?php
 // Copyright (c) 2026 Danosoft ApS
-// 20261116 CL/MMR SD-827 Run order_lines_on_removed_warehouse() on fake order data, then run the real
-//                 debitor/levering.php with doubles and check that a removed warehouse stops it before
-//                 the transaction begins. Exits non-zero on the first difference.
+// 20261116 CL/MMR SD-827 Runs order_lines_on_removed_warehouse() on fake order data and the real debitor/levering.php with doubles.
+//                 Checks that a removed warehouse stops the page before the transaction begins, and exits non-zero on the first difference.
 $root = dirname(__DIR__, 4);
 
 // --- Doubles for the database layer used by removedWarehouseLines.php ---------------------------

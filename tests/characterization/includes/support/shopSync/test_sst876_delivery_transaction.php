@@ -3,8 +3,8 @@ namespace Sst876DeliveryFixture;
 // Copyright (c) 2026 Danosoft ApS
 // 20261027 CDX/MJ SST-876 Execute the delivery page with transaction doubles to verify post-commit retries and rollback isolation.
 // 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
-// 20261116 CL/MMR SD-827 levering.php now asks order_lines_on_removed_warehouse() first; no line is on a
-//                 removed warehouse here, so the transaction order under test is unchanged.
+// 20261116 CL/MMR SD-827 Stubs order_lines_on_removed_warehouse(), which levering.php now calls first.
+//                 No line is on a removed warehouse here, so the transaction order under test is unchanged.
 require_once dirname(__DIR__, 5) . '/includes/std_func.php';
 $events = array();
 $depth = 0;

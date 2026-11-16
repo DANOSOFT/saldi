@@ -30,8 +30,8 @@
 // 2016.09.13 Tilf�jet oioubl S�g 20160913
 // 20261027 CDX/MJ SST-876 Drain older webshop updates after the delivery transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
-// 20261116 CL/MMR SD-827 Stops before anything is posted when a line would move stock on a warehouse
-//                 that no longer exists, and names the lines, so the user picks an active one first.
+// 20261116 CL/MMR SD-827 Stops Fakturér, Kreditér and Lever before anything is posted when a line would move stock on a warehouse that no longer exists.
+//                 The message names the lines, so the user picks an active warehouse first.
 
 $id=NULL;	
 if (isset($_GET['id'])) $id=($_GET['id']);
