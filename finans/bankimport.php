@@ -51,6 +51,8 @@
 // 20261106 CL/MMR SST-962 The column choices are remembered for every column and per number of columns, not only for the first 8 columns.
 //                 A freshly uploaded file shows all its columns at once (bank_import_columns_for_upload()), and the choices are saved before the page prints (bank_import_save_columns()).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/MMR SST-962 Review (CodeRabbit): the preview posts the splitter it was made with (previewSplitter), and the choices are saved for that preview (bank_import_columns_for_post()).
+//                 «Vis» with a new splitter saves nothing and shows the choices saved for the new number of columns.
 ini_set("auto_detect_line_endings", true);
 
 @session_start();
@@ -69,7 +71,7 @@ include_once(__DIR__ . '/../includes/stdFunc/bankImportColumns.php');
 
 global $menu;
 
-$uploadErr = $vend = NULL;
+$uploadErr = $vend = $previewSplitter = NULL;
 $feltnavn = array();
 if(($_GET)||($_POST)) {
 	if ($_GET) {
@@ -81,6 +83,7 @@ if(($_GET)||($_POST)) {
 		$kladde_id   = if_isset($_POST['kladde_id'],0);
 		$filnavn     = if_isset($_POST['filnavn'],NULL);
 		$splitter    = if_isset($_POST['splitter'],NULL);
+		$previewSplitter = ifset($_POST, 'previewSplitter', null); // SST-962: the splitter the shown preview was made with
 		$feltnavn    = if_isset($_POST['feltnavn'],array());
 		$feltantal   = if_isset($_POST['feltantal'],0);
 		$kontonr     = if_isset($_POST['kontonr'],0);
@@ -92,8 +95,11 @@ if(($_GET)||($_POST)) {
 		$vend        = if_isset($_POST['vend'],NULL);
 		if ($vend) $vend='checked';
 	}
-	// SST-962: remember the column choices of "Vis" and "Hent" for this number of columns, before anything is printed
-	if ((!empty($show) || !empty($import)) && $feltnavn) bank_import_save_columns($bruger_id, $feltnavn, $feltantal);
+	// SST-962: remember the column choices of "Vis" and "Hent" for the shown preview's number of columns, before anything is printed.
+	// "Vis" with a new splitter saves nothing and shows the choices saved for the new number of columns.
+	if ((!empty($show) || !empty($import)) && $feltnavn) {
+		$feltnavn = bank_import_columns_for_post($bruger_id, $filnavn, $charset, $feltnavn, $splitter, $previewSplitter, !empty($show));
+	}
 
 	if ($menu=='T') {
 		include_once '../includes/top_header.php';
@@ -385,6 +391,7 @@ print "&nbsp;<span title='".findtekst(1395, $sprog_id)."'>".findtekst(1396, $spr
 print "&nbsp;<span title='".findtekst(1398, $sprog_id)."'>".findtekst(1397, $sprog_id)."<input type=text size=8 name=gebyrkonto value=$gebyrkonto></span>&nbsp;";
 print "<input type=\"hidden\" name=\"filnavn\" value=$filnavn>";
 print "<input type=\"hidden\" name=\"feltantal\" value=$feltantal>";
+print "<input type=\"hidden\" name=\"previewSplitter\" value=\"".htmlspecialchars((string)$splitter, ENT_QUOTES)."\">"; // SST-962
 print "<input type=\"hidden\" name=\"kladde_id\" value=$kladde_id>";
 print "&nbsp; <input type=\"submit\" name=\"show\" value=\"".findtekst(1133, $sprog_id)."\" />";
 $alertj=findtekst(1399, $sprog_id); $alertk=findtekst(1400, $sprog_id); $alertl=findtekst(1401, $sprog_id);
