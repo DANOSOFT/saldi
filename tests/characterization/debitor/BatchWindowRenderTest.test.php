@@ -11,6 +11,8 @@
 //                  database, so an undefined constant, an undefined function or a lost column
 //                  surfaces as a failure here rather than as a blank popup.
 //
+// 20261116 CL/MMR SST-1023 The legacy warning lines move down five lines because the save block above the window grew; the warnings themselves are unchanged.
+//
 // strict_types is deliberately off: eval'd code inherits the calling file's setting, and the
 // lifted legacy block passes ints where the stubs below take strings and back again.
 // 20261111 CDX/NTR Report known legacy warnings without failing; recognize PHP 8.2 null-offset wording.
@@ -141,11 +143,11 @@ namespace {
          * $valg would change what a saved form redisplays - not this PR's business.
          */
         private const LEGACY_WARNINGS = array(
-            '186: Undefined variable $valg' => 2,
-            '186: Trying to access array offset on value of type null' => 2,
-            '187: Undefined variable $valg' => 2,
-            '187: Trying to access array offset on value of type null' => 2,
-            '299: Array to string conversion' => 1,
+            '191: Undefined variable $valg' => 2,
+            '191: Trying to access array offset on value of type null' => 2,
+            '192: Undefined variable $valg' => 2,
+            '192: Trying to access array offset on value of type null' => 2,
+            '304: Array to string conversion' => 1,
         );
 
         private static function source(): string
