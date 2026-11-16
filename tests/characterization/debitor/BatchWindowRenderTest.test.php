@@ -11,14 +11,13 @@
 //                  database, so an undefined constant, an undefined function or a lost column
 //                  surfaces as a failure here rather than as a blank popup.
 //
-// 20261116 CL/MMR SST-1023 The legacy warning lines move down five lines because the save block above the window grew; the warnings themselves are unchanged.
-//
 // strict_types is deliberately off: eval'd code inherits the calling file's setting, and the
 // lifted legacy block passes ints where the stubs below take strings and back again.
 // 20261111 CDX/NTR Report known legacy warnings without failing; recognize PHP 8.2 null-offset wording.
 // 20261111 CDX/NTR Bound the legacy warning allowance by source location and occurrence count.
 // 20261111 CDX/NTR Normalize the two PHP null-offset wordings without changing warning locations or counts.
 // 20261113 CDX/NTR Align warning locations with the branch's added permission declaration and history line.
+// 20261116 CL/MMR SST-1023 The legacy warning lines move down five lines because the save block above the window grew; the warnings themselves are unchanged.
 namespace BatchWindowFixture {
 
     /** One query's worth of rows, handed back by db_fetch_array() one at a time. */
