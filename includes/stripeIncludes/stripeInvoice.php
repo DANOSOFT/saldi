@@ -73,6 +73,7 @@ if (is_file(__DIR__ . '/stripeReminder.php')) include_once(__DIR__ . '/stripeRem
 //                 Texts for the earlier classic level's fee in the reminder mail and for the invoice link of a row that cannot be paid by card.
 // 20261111 CL/ASR Review round 2: text mail_rem_row_prior_fee_interest for an earlier level's open item that includes interest.
 // 20261116 CDX/ASR Explain unavailable card links, route amounts below the DKK card minimum to bank transfer, and identify the invoice opened by a multi-invoice reminder.
+// 20261116 CDX/ASR Use the primary invoice recipient for Stripe customer creation while retaining Saldi's full recipient list.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -818,6 +819,12 @@ if (!function_exists('stripe_invoice_overdue_lead')) {
 
 // ---------------------------------------------------------------- Stripe customer for a debtor
 if (!function_exists('stripe_customer_for_debtor')) {
+	/**
+	 * Resolve the debtor's Stripe customer, using the invoice's primary recipient when creating one.
+	 *
+	 * @param array{debtor: array<string, mixed>, email: string} $inv Loaded invoice.
+	 * @return string Customer id, or an empty string when creation fails.
+	 */
 	function stripe_customer_for_debtor($inv) {
 		global $db;
 		$d = $inv['debtor'];
@@ -827,8 +834,9 @@ if (!function_exists('stripe_customer_for_debtor')) {
 		$r = db_fetch_array(stripe_payment_select("select stripe_customer_id from stripe_customers where konto_id = " . (int)$d['id'] . " order by $customerOrder limit 1"));
 		$cus = $r ? (string)$r['stripe_customer_id'] : '';
 		if ($cus === '') {
+			$recipients = stripe_mail_recipients($inv['email']);
 			$resp = stripeHttpRequest('POST', '/v1/customers', array(
-				'name' => (string)$d['firmanavn'], 'email' => $inv['email'],
+				'name' => (string)$d['firmanavn'], 'email' => $recipients ? $recipients[0] : $inv['email'],
 				'metadata' => array('saldi_konto_id' => (int)$d['id'], 'saldi_kontonr' => (string)$d['kontonr'], 'saldi_db' => (string)$db)),
 				array('idempotency_key' => 'cus:' . $db . ':' . (int)$d['id']));
 			if (!$resp['ok']) { stripe_log('customer create failed: ' . $resp['error']); return ''; }

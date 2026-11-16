@@ -3,6 +3,7 @@
 // 20261022 CDX/LH Use the private opaque PDF destination for Afmeld attachment fixtures.
 // 20261022 CDX/LH Cover full job exit/repair semantics, manual authentication, abandoned 3DS, replacement after decline and eligibility changes.
 // 20261022 CDX/LH Separate retryable rate limits from rejected creates and cover ambiguous auto requests after Afmeld.
+// 20261116 CDX/ASR Cover payment creation for invoices with multiple recipients without changing their mail envelope.
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeInvoiceWebhook.php';
@@ -602,6 +603,44 @@ final class StripeChargeTest extends PHPUnit\Framework\TestCase
         $this->assertSame('cus:' . $GLOBALS['db'] . ':' . $inv['o']['konto_id'], StripeTestTransport::$requests[0]['idempotency_key']);
         $this->assertSame('cus_created', stripe_customer_for_debtor(stripe_invoice_load($order)));
         $this->assertCount(1, StripeTestTransport::$requests);
+    }
+
+    public function testPaymentStartsWithPrimaryRecipientAndPreservesInvoiceRecipients(): void
+    {
+        foreach (['primary@example.invalid', 'primary@example.invalid,copy@example.invalid',
+            ' primary@example.invalid ; copy@example.invalid ',
+            'primary@example.invalid;copy@example.invalid,archive@example.invalid'] as $index => $email) {
+            StripeTestTransport::reset();
+            $order = $this->invoice(['stripe' => '', 'stripe_pm_id' => null, 'stripe_customer_id' => null],
+                ['email' => $email, 'udskriv_til' => 'Link']);
+            $inv = stripe_invoice_load($order);
+            $before = StripeFixtures::row('ordrer', $order);
+            $customer = 'cus_recipients_' . $index;
+            $pi = $this->intent($order, 'pi_recipients_' . $index, 'requires_payment_method', '', 'page');
+            $pi['customer'] = $customer;
+            $pi['payment_method'] = null;
+            $pi['latest_charge'] = null;
+            StripeTestTransport::queueBody(['id' => $customer], 'POST', '/v1/customers');
+            StripeTestTransport::queueBody($pi, 'POST', '/v1/payment_intents');
+
+            $result = stripe_payment_create($inv, 'page', false);
+
+            $this->assertTrue($result['ok']);
+            $this->assertSame('requires_payment_method', $result['status']);
+            $this->assertCount(2, StripeTestTransport::$requests);
+            $this->assertSame('primary@example.invalid', StripeTestTransport::$requests[0]['params']['email']);
+            $this->assertSame($customer, StripeTestTransport::$requests[1]['params']['customer']);
+            $this->assertArrayNotHasKey('confirm', StripeTestTransport::$requests[1]['params']);
+            $this->assertSame($before, StripeFixtures::row('ordrer', $order));
+            $updated = stripe_invoice_load($order);
+            $this->assertSame($customer, $updated['debtor']['stripe_customer_id']);
+            $this->assertFalse($updated['enrolled']);
+            $this->assertSame($inv['email'], $updated['email']);
+            $recipients = stripe_mail_recipients($email);
+            $envelope = stripe_mail_envelope($updated['email'], []);
+            $this->assertSame($recipients[0], $envelope['to']);
+            $this->assertSame(array_slice($recipients, 1), $envelope['cc']);
+        }
     }
 
     public function testReplaceCardUsageMatchesConsentAndSuccessfulPaymentUpdatesDefault(): void
