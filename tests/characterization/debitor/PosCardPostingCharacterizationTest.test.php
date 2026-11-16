@@ -10,6 +10,7 @@ require_once __DIR__ . '/../support/CharacterizationEnv.php';
 //                A 0-kr item paid by card is a cash withdrawal: the card is debited and the cash account credited with the card amount.
 //                A card payment that posts nothing (a card name without a card account) used to leave the sale at status 4 with no rows,
 //                invisible to the cash count. It is now refused and rolled back.
+// 20261116 CL/SS MB-49: card sales the day-end count posts together write their rows with ordre_id 0, and are posted, not refused.
 final class PosCardPostingCharacterizationTest extends TestCase
 {
     private const CASH_ACCOUNT = 58200;
@@ -88,11 +89,12 @@ final class PosCardPostingCharacterizationTest extends TestCase
     /**
      * Posts a sale in a child process.
      *
+     * @param int|string $id an ordre_id, or a comma list the day-end count posts together
      * @return array{bogfor: string, status: int, rows: list<array{0:int, 1:float, 2:float}>}
      */
-    private static function post(int $id): array
+    private static function post(int|string $id): array
     {
-        $res = CharacterizationEnv::runChild(__DIR__ . '/../support/run_pos_card_posting.php', [CharacterizationEnv::testDb(), $id]);
+        $res = CharacterizationEnv::runChild(__DIR__ . '/../support/run_pos_card_posting.php', [CharacterizationEnv::testDb(), (string)$id]);
         $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
         $json = $lines ? json_decode((string)end($lines), true) : null;
         self::assertIsArray($json, "runner output: {$res['stdout']} {$res['stderr']}");
@@ -158,5 +160,23 @@ final class PosCardPostingCharacterizationTest extends TestCase
             self::assertSame(4, $result['status'], "$payment $amount");
             self::assertSame([], $result['rows'], "$payment $amount");
         }
+    }
+
+    /**
+     * A till that posts at the day-end count posts its card sales together; the rows carry ordre_id 0, and the sales are posted, not refused.
+     */
+    public function testCardSalesPostedTogetherAtTheDayEndCountArePostedNotRefused(): void
+    {
+        $t = self::$tenant;
+        pg_query_params($t, "UPDATE grupper SET box9 = '' WHERE art = 'POS' AND kodenr = '1' AND fiscal_year = $1", [self::$regnaar]);
+        try {
+            $result = self::post(self::sale(100, 'Dankort', 125) . ',' . self::sale(100, 'Dankort', 125));
+        } finally {
+            pg_query_params($t, "UPDATE grupper SET box9 = 'on' WHERE art = 'POS' AND kodenr = '1' AND fiscal_year = $1", [self::$regnaar]);
+        }
+        self::assertSame('OK', $result['bogfor']);
+        self::assertSame(4, $result['status']);
+        self::assertContains([self::CARD_ACCOUNT, 250.0, 0.0], $result['rows']);
+        self::assertSame(array_sum(array_column($result['rows'], 1)), array_sum(array_column($result['rows'], 2)), 'debit and credit balance');
     }
 }

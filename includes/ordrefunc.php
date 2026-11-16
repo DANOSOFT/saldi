@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-13 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -168,6 +168,8 @@
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261112 CL/SS MB-49 bogfor_nu(): a POS sale with a card payment that posts nothing is refused instead of set to status 4.
 //                A card name without a card account on a 0-kr sale (cash withdrawal) wrote no rows, so the cash count couldn't see the sale.
+// 20261116 CL/SS MB-49 bogfor_nu(): the nothing-posted check counts the rows this posting wrote on the till.
+//                Day-end posting writes several sales' rows with ordre_id 0, and it is no longer refused.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2807,6 +2809,9 @@ function bogfor_nu($id, $kilde) {
 		print "<BODY onLoad=\"javascript:alert('$tekst')\">";
 		return ($tekst);
 	}
+	if ($art == 'PO') {
+		$rowsBefore = (int)db_fetch_array(db_select("select coalesce(max(id), 0) as id from transaktioner", __FILE__ . " linje " . __LINE__))['id'];
+	}
 	$hmlog = fopen("../temp/$db/hmlog.log", "a");
 	if (is_numeric($id))
 		$id *= 1;
@@ -3345,7 +3350,8 @@ function bogfor_nu($id, $kilde) {
 				$unpostedCard = $betaling[$b];
 			}
 		}
-		$written = db_fetch_array(db_select("select count(*) as n from transaktioner where ordre_id = '" . (int)$ordre_id . "'", __FILE__ . " linje " . __LINE__));
+		$qtxt = "select count(*) as n from transaktioner where id > '" . (int)$rowsBefore . "' and kasse_nr = '" . (int)$kasse . "'";
+		$written = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if (afrund($cardTotal, 2) && !(int)$written['n']) {
 			if ($unpostedCard) {
 				$txt = findtekst('pos.posting.card_account_missing|Betalingen med %s kan ikke bogføres, da %s ikke har en konto under kortbetalinger. Salget er ikke afsluttet.', $sprog_id);
