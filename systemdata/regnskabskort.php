@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-13 --
+// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-16 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,13 +39,18 @@
 // 20261007 MJ SST-829 A new accounting year no longer copies the art='LG' rows.
 //                  Warehouses are not per-year data - stock is keyed on grupper.kodenr
 //                  - so each copy only added a duplicate to every warehouse list.
+// 20261005 SS Settings redesign G1.2: the year list and "create" live in Indstillinger » Virksomhed » Regnskabsår; this page without an id redirects there and keeps the opening balance.
+//             Audit fixes: F4 (primo transfer query built with = instead of .=), F5 (the previous year was tested as the year itself), F7 (dead lock-stock redirect), F8 (aaben unchecked), F9 (posted values cast/escaped).
+// 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261112 CL/MMR SST-1005 Gem/opdatér also updates the opening balances of the later years, and says so when a balance cannot be transferred.
 //                 The year before is carried forward again, so a fixed «Overfør til» clears the message; a blocked transfer leaves the later years alone.
 //                 A blocked transfer into the saved year keeps that year's opening balances as they were; the alert text is JSON-encoded.
 // 20261113 CL/MMR SST-1005 The «Overfør til» choices that change on the year before are written before this year is locked, and unchanged ones are not written there at all (Codex round 9).
 //                 A deleted year before this one is recognised by the timestamp deleteFiscalYear.php writes too, the card shows the year before's marker, not its own, and the Debet/Kredit opening balances of the first year after a deleted year are saved (Codex round 17).
 //                 The posted year number is cast to an integer, and the «Overfør til» loop only reads saldo when the form posted it (Codex round 18).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/MMR SST-1005 Merged with the settings redesign: the «Overfør til» loop of year 1 and a year after a deleted year keeps the F4 fix (.=, cast values) and only runs when the form posted saldo.
+//                 A year after a deleted year shows its opening balance read-only again (fiscalYearInc/yearX1.php), so its Debet/Kredit save is gone; the later years are still carried from it.
 @session_start();
 $s_id=session_id();
 
@@ -61,62 +66,48 @@ include("../includes/std_func.php");
 include("../includes/genberegn.php");
 include("../includes/topline_settings.php");
 
+if (!(int) if_isset($_GET['id'], 0) && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+	header('Location: settingsSection.php?s=company.fiscal_years&moved=regnskabskort#create');
+	exit;
+}
+
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
-if ($menu=='T') {
-		#	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
-		include_once '../includes/top_header.php';
-		include_once '../includes/top_menu.php';
-		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=regnskabsaar.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
-		print "<div class=\"headerTxt\">$title</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
-		print "</div>";
-		print "<div class='content-noside'>";
-		print "<div id=\"leftmenuholder\">";
-		include_once 'left_menu.php';
-		print "</div><!-- end of leftmenuholder -->\n";
-		print "<div class=\"maincontentLargeHolder\">\n";
-		print "<div class='divSys'>";
-		print "<table class='dataTableSys' cellpadding=0 cellspacing=0 border=1 width='100%' bordercolor='$bgcolor5'><tbody>\n"; ############################	##table 3b start
+include("top.php");
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
+	print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>"; ####################table 1a start.
+	print "<tr><td align='center' valign=top>";
+	print "<a href=\"javascript:confirmClose('regnskabsaar.php','". findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id) ."')\">";
+	if ($menu=='S') {
+		print "<button style = '$buttonStyle; width: 10%' onMouseOver=\"this.style.cursor='pointer'\">";
 	} else {
-		include("top.php");
-		print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
-		print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>"; ####################table 1a start.
-		print "<tr><td align='center' valign=top>";
-		print "<a href=\"javascript:confirmClose('regnskabsaar.php','". findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id) ."')\">";
-		if ($menu=='S') {
-			print "<button style = '$buttonStyle; width: 10%' onMouseOver=\"this.style.cursor='pointer'\">";
-		} else {
-			print "<button style = 'width: 80px;'>";
-		}
-		print findtekst('2172|Luk', $sprog_id)."</button></a>";
-		print "<table width=100% align='center' border=0 cellspacing=4 cellpadding=0><tbody>\n"; ##############table 2b start
-		print "<tr>\n";
-		print "</tbody></table>\n"; #####################################################table 2b slut.
-		print "</td></tr>\n";
-		print "<tr>\n";
-		print "<td align = center valign = center>";
-		print "<table class='dataTable2' cellpadding=0 cellspacing=0 border=1><tbody>\n"; ############################	##table 3b start
+		print "<button style = 'width: 80px;'>";
 	}
+	print findtekst('2172|Luk', $sprog_id)."</button></a>";
+	print "<table width=100% align='center' border=0 cellspacing=4 cellpadding=0><tbody>\n"; ##############table 2b start
+	print "<tr>\n";
+	print "</tbody></table>\n"; #####################################################table 2b slut.
+	print "</td></tr>\n";
+	print "<tr>\n";
+	print "<td align = center valign = center>";
+	print "<table class='dataTable2' cellpadding=0 cellspacing=0 border=1><tbody>\n"; ############################	##table 3b start
 
 $id=if_isset($_GET['id']);
 
 if ($_POST) {
 	$id = (int)if_isset($_POST['id'],0);
 	$beskrivelse = if_isset($_POST['beskrivelse']);
-	// SST-1005: a fiscal year number, cast before it reaches any SQL (doc/ai/convention_sql_escaping.md).
-	$kodenr = (int)if_isset($_POST['kodenr'], 0);
-	$kode=if_isset($_POST['kode']);
+	$kodenr = (int) if_isset($_POST['kodenr'], 0);
+	$kode = db_escape_string((string) if_isset($_POST['kode'], ''));
 	$startmd = if_isset($_POST['startmd']);
 	$startaar = if_isset($_POST['startaar']);
 	$slutmd = if_isset($_POST['slutmd']);
 	$slutaar = if_isset($_POST['slutaar']);
-	$aaben=trim($_POST['aaben']);
-	$fakt=if_isset($_POST['fakt'],0);
-	$modt=if_isset($_POST['modt'],0);
-	$no_faktbill=trim(if_isset($_POST['no_faktbill']));
-	$faktbill=trim(if_isset($_POST['faktbill']));
-	$modtbill=trim(if_isset($_POST['modtbill']));
+	$aaben = isset($_POST['aaben']) ? 'on' : '';
+	$fakt = (int) if_isset($_POST['fakt'], 0);
+	$modt = (int) if_isset($_POST['modt'], 0);
+	$no_faktbill = isset($_POST['no_faktbill']) ? 'on' : '';
+	$faktbill = isset($_POST['faktbill']) ? 'on' : '';
+	$modtbill = isset($_POST['modtbill']) ? 'on' : '';
 	$kontoantal = if_isset($_POST['kontoantal']);
 	$kontonr = if_isset($_POST['kontonr']);
 	$debet=if_isset($_POST['debet']);
@@ -242,23 +233,11 @@ if ($_POST) {
 			$qtxt.= "box1 = '$startmd', box2 = '$startaar', box3 = '$slutmd', box4 = '$slutaar', box5 = '$aaben' where id = '$id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($kodenr==1 || $preDeleted){
-				if ($kodenr != 1 && is_array($debet)) {
-					// SST-1005: the first year after a deleted year shows its opening balances as Debet/Kredit like year 1
-					// (fiscalYearInc/yearX1.php); they are saved the same way, and the later years are carried from them.
-					for ($x=1; $x<=$kontoantal; $x++) {
-						$sum=0;
-						if ($debet[$x]) $sum+=usdecimal($debet[$x]);
-						if ($kredit[$x]) $sum-=usdecimal($kredit[$x]);
-						$account = (int)$kontonr[$x];
-						$qtxt = "update kontoplan set primo='$sum' where kontonr='$account' and regnskabsaar='$kodenr'";
-						db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
-					}
-				}
-				// SST-1005: only a form with «Overfør til» posts saldo; the Debet/Kredit form above has none.
+				// SST-1005: only a form with «Overfør til» posts saldo; fiscalYearInc/yearX1.php posts none.
 				for ($x=1; is_array($saldo) && is_array($overfor_til) && $x<=$kontoantal; $x++) {
 					if (!empty($saldo[$x]) && !empty($overfor_til[$x])) {
-						$qtxt = "update kontoplan set primo=primo+$saldo[$x],overfor_til=$overfor_til[$x] where ";
-						$qtxt = "kontonr='$kontonr[$x]' and regnskabsaar=$kodenr";
+						$qtxt = "update kontoplan set primo=primo+" . (float) $saldo[$x] . ",overfor_til=" . (int) $overfor_til[$x] . " where ";
+						$qtxt.= "kontonr='" . db_escape_string((string) $kontonr[$x]) . "' and regnskabsaar=$kodenr";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
 				}
@@ -304,12 +283,6 @@ if ($_POST) {
 					}
 				}
 			}
-		}
-		if (isset($_POST['laas_lager']) && $_POST['laas_lager']) {
-			$fra=$startaar."-".$startmd."01";
-			$til=usdate("31-".$slutmd."-".$slutaar);
-			print "<meta http-equiv=\"refresh\" content=\"1;URL=laas_lager.php?fra=$fra&til=$til\">";
-
 		}
 		}
 		// SST-1005: as if Gem/opdatér was pressed on this year and every later year.
