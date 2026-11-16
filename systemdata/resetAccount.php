@@ -10,6 +10,7 @@
 // 20261005 SS Settings redesign G1.4: users' personal settings (grupper USET) survive a reset.
 // 20261116 CL/ASR resetAccount() locks transaktioner inside its transaction before it counts the postings, and returns that count, so the number it reports is exactly what the reset deletes (review #1131).
 //                 A failed update of the active sessions' year after the commit no longer throws: the reset is done by then, so the message goes to the caller in $warning (review #1131).
+//                 That update runs in db_modify()'s webservice mode, which returns a failure instead of ending a browser request with exit, so the caller can still log and report the reset (review #1131).
 
 /**
  * Build reset statements. Unlisted tables are never cleared implicitly.
@@ -177,8 +178,17 @@ function accountResetLatestYear(array $years) {
 
 /** Update active sessions in the master database, restricted to the reset account. */
 function resetAccountSessionYear($database) {
+	global $webservice;
 	$sql = "UPDATE online SET regnskabsaar='1' WHERE db='" . db_escape_string($database) . "'";
-	$result = db_modify($sql, __FILE__ . ' linje ' . __LINE__, true);
+	// In a browser request db_modify() ends the request on a failed statement (error box, then exit). The ledger is reset
+	// by now, so this one update runs in webservice mode, where the failure is logged, mailed and returned. #20261116
+	$wasWebservice = $webservice;
+	$webservice = true;
+	try {
+		$result = db_modify($sql, __FILE__ . ' linje ' . __LINE__, true);
+	} finally {
+		$webservice = $wasWebservice;
+	}
 	if (substr((string)$result, 0, 1) !== '0') {
 		throw new RuntimeException('Regnskabet er nulstillet, men aktive sessioners regnskabsår kunne ikke opdateres.');
 	}

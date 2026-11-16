@@ -48,6 +48,7 @@ function db_escape_string($value) {
 function db_modify($sql, $trace, $global = false) {
 	$GLOBALS['resetStatementsIssued'][] = $sql;
 	$GLOBALS['resetSessionTestCall'] = array($sql, $global);
+	if ($global) $GLOBALS['resetSessionWebservice'] = !empty($GLOBALS['webservice']);
 	return ($global && !empty($GLOBALS['resetFailSession'])) ? "1\tfejl" : "0\tquery accepted";
 }
 function db_select($sql, $trace) {
@@ -126,6 +127,8 @@ foreach (array(false, true) as $failSession) {
 	resetCheck($lockAt !== false && $countAt !== false && $lockAt < $countAt, 'Postings must be counted after the lock is taken');
 	resetCheck($GLOBALS['resetTransactions'] === array('begin', 'commit'), 'The lock, the count and the reset share one transaction');
 	resetCheck($deleted === 5, 'The counted postings are returned');
+	resetCheck($GLOBALS['resetSessionWebservice'] === true, 'The session update runs in webservice mode, so a failure cannot end the request');
+	resetCheck(empty($GLOBALS['webservice']), 'Webservice mode is switched off again afterwards');
 	if ($failSession) {
 		resetCheck(strpos($warning, 'nulstillet') !== false, 'A failed session update comes back as a warning');
 	} else {
