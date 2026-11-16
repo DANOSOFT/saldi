@@ -8,6 +8,7 @@
 // 20261109 CL/ASR Review fixes: the fee of an earlier classic level of the chain is a row "Rykkergebyr fra 1. rykker" paid by bank transfer, counted in "At betale nu", with the bank details (D1).
 //                 Interest is named as interest in the offer; "Betal med dit gemte kort" only when the page offers the saved card; a row that cannot be paid by card links "Se faktura ›".
 // 20261111 CL/ASR Review round 2: an earlier level's open item that includes interest is "Rykkergebyr og renter fra 1. rykker"; stripe_reminder_deadline() moved to stripeReminder.php.
+// 20261116 CDX/ASR Identify the single invoice opened by a multi-invoice button and prefer one that can be paid by card over a below-minimum invoice.
 
 include_once(__DIR__ . '/stripeInvoice.php');
 include_once(__DIR__ . '/stripeDunning.php');
@@ -98,7 +99,7 @@ function stripe_reminder_variant(array $inv): string {
 	$state = (string)$inv['state'];
 	if ($state === 'requires_action') return 'action';
 	if ($state === 'failed' && in_array((string)($inv['failed']['source'] ?? ''), array('auto', 'backup', 'manual'), true)) return 'failed';
-	if (in_array($state, array('manual', 'nocard'), true)) return 'bank';
+	if (in_array($state, array('manual', 'nocard', 'below_minimum'), true)) return 'bank';
 	// Only where the page shows the saved card (#paynow); a declined card form payment ('failed', source page) shows the card form.
 	if (in_array($state, array('overdue', 'enrolled'), true) && stripe_invoice_pay_now_allowed($inv)) return 'saved';
 	if (in_array($state, array('open', 'open_recurring', 'overdue', 'failed'), true)) {
@@ -134,7 +135,8 @@ function stripe_reminder_list_html(array $rows): string {
 
 /**
  * Build and send the link reminder mail (SPEC_link_reminders §2.4) with the reminder PDF attached as
- * "Rykker <nr>.pdf". The primary button opens the oldest invoice; its text follows that invoice's page state.
+ * "Rykker <nr>.pdf". The primary button opens the oldest invoice with a card action, or the first invoice
+ * when none has one. Its label identifies that invoice when the reminder covers several invoices.
  *
  * @param int $rykkerId ordrer.id of the R1/R2/R3 order.
  * @param string $pdf Rendered reminder PDF (must exist).
@@ -166,7 +168,14 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$interestOre = $waived ? 0 : (int)round((float)$lines['interest'] * 100);
 		$carried = $feeNext && in_array($status, array('draft', 'sent'), true);
 
-		$first = $set['invoices'][0];
+		$buttonIndex = 0;
+		foreach ($set['invoices'] as $i => $item) {
+			if (!in_array(stripe_reminder_variant($item), array('bank', 'view'), true)) {
+				$buttonIndex = $i;
+				break;
+			}
+		}
+		$first = $set['invoices'][$buttonIndex];
 		$inv = $first;
 		$count = count($set['invoices']);
 		$multi = $count > 1;
@@ -188,6 +197,10 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$body = stripe_mail_greeting($inv) . "\n\n" . $para;
 		if ($variant === 'auto') {
 			$body .= "\n\n" . stripe_txt(stripe_setting('charge_on', 'due') === 'invoice_date' ? 'mail_body_rem_auto_invoice_date' : 'mail_body_rem_auto');
+		}
+		$buttonVars = array('nr' => $first['nr'], 'amount' => stripe_fmt_kr((int)round($first['amount'] * 100)) . ' kr.');
+		if ($multi) {
+			$body .= "\n\n" . stripe_txt('mail_rem_button_invoice', $buttonVars);
 		}
 
 		// Boxes: the close warning on a 3rd reminder (red) and the offer to save the carried fee (green).
@@ -251,7 +264,12 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$buttons = array('auto' => 'mail_btn_rem_auto', 'pay' => 'mail_btn_new', 'saved' => 'mail_btn_rem_saved', 'failed' => 'mail_btn_rem_failed',
 			'action' => 'mail_btn_rem_action', 'bank' => 'mail_btn_rem_view', 'view' => 'mail_btn_rem_view');
 		$btnText = stripe_txt($buttons[$variant]);
-		$btnUrl = $urls[0];
+		if ($multi) {
+			$buttonKey = in_array($variant, array('bank', 'view'), true) ? 'mail_btn_rem_invoice_view'
+				: ($variant === 'action' ? 'mail_btn_rem_invoice_action' : 'mail_btn_rem_invoice');
+			$btnText = stripe_txt($buttonKey, $buttonVars);
+		}
+		$btnUrl = $urls[$buttonIndex];
 
 		// Note: pay-once choice, the fee for manual payment (as on the payment page), bank, PDF, contact.
 		$notes = array();
@@ -264,7 +282,6 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$notes[] = stripe_txt('mail_rem_note_end');
 		$contactMail = stripe_contact_email($inv['firma']);
 		$notes[] = $contactMail !== '' ? stripe_txt('mail_rem_note_contact', array('email' => $contactMail)) : stripe_txt('mail_rem_note_contact_plain');
-		if ($multi && in_array($variant, array('auto', 'saved', 'failed'), true)) $notes[] = stripe_txt('mail_rem_note_multi');
 		$noteText = implode(' ', $notes);
 
 		$box = $close ?: $offer;

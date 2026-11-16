@@ -5,6 +5,7 @@
 // 20261025 CL/ASR Recurring invoices without automatic payment: consent text above Stripe and two pay buttons; fee note.
 // 20261109 CL/ASR Link reminders: the overdue lead before and after a reminder, where the carried reminder fee goes, the saved card on an overdue Link invoice, and a declined attempt canceled at Stripe shown as failed (B8).
 // 20261109 CL/ASR Review fixes: the fee note sums every carried fee and names interest as interest, an enrolled customer is told too, and the lead after a reminder that was not a link reminder.
+// 20261116 CDX/ASR Below-minimum invoices show bank payment without a Stripe element or saved-card button; paid states still win.
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php';
@@ -190,6 +191,25 @@ final class StripePageTest extends StripeDatabaseTestCase
         $this->assertStringContainsString("pe.on('ready',", $source);
         $this->assertStringContainsString("pe.on('loaderror',", $source);
         $this->assertStringContainsString('if (!elementReady || submitting) return;', $source);
+    }
+
+    public function testBelowMinimumInvoiceHasNoCardControlsAndKeepsPaymentStatus(): void
+    {
+        $id = StripeFixtures::invoice(StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved']),
+            ['sum' => 1, 'moms' => 0.25]);
+        $inv = stripe_invoice_load($id);
+        $rendered = $this->render($inv);
+        $this->assertSame('below_minimum', $inv['state']);
+        $this->assertStringContainsString('Kortbetaling kræver mindst 2,50 kr.', $rendered['panel']);
+        foreach (['id="payment-element"', 'id="pay"', 'id="paynow"', 'id="pay-once"'] as $control) {
+            $this->assertStringNotContainsString($control, $rendered['panel']);
+        }
+        StripeTestEnvironment::query("UPDATE ordrer SET betalt='on' WHERE id=$1", [$id]);
+        $this->assertSame('paidbank', stripe_invoice_load($id)['state']);
+        StripeFixtures::insert('stripe_payments', ['ordre_id' => $id, 'payment_intent_id' => 'pi_minimum_paid',
+            'amount_ore' => 125, 'status' => 'succeeded']);
+        $this->assertSame('paid', stripe_invoice_load($id)['state']);
+        $this->assertSame([], StripeTestTransport::$requests);
     }
 
     public function testPaidAndCreditedSaldiPanelsDoNotMentionUnavailableBillingMenu(): void

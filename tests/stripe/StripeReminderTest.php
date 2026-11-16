@@ -3,6 +3,7 @@
 // 20261109 CL/ASR Review fixes: paid and out-of-year reminders are not escalated, a shared fee/interest item, the earlier classic fee as a bank row (D1), the first mailed_at kept (D2), the PDF treatment (D3), staff texts in the database's encoding (D4), no fee on cash/card sales, the current lines and the order's project, the hold only while the job collects, booked drafts kept, "Frafald" with its token.
 
 // 20261111 CDX/ASR Cover link PDF deadlines and preserve classic and collection-warning text.
+// 20261116 CDX/ASR Multi-invoice buttons name one invoice and skip below-minimum invoices while retaining their balance and view link.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
@@ -559,19 +560,40 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         $this->assertSame("Rykker: 2 fakturaer fra $brand er ikke betalt", $mail['subject']);
         $plain = self::plain($mail['html']);
         $this->assertStringContainsStringIgnoringCase('1. rykker · 2 fakturaer', $plain);
-        $this->assertStringContainsString('Vi har endnu ikke modtaget betalingen af disse fakturaer. Du kan betale dem med kort lige her – start med den ældste.', $plain);
-        $this->assertStringContainsString('Når automatisk betaling er slået til, betaler du de øvrige fakturaer med ét klik med dit gemte kort.', $plain);
+        $this->assertStringContainsString('Fakturaerne betales én ad gangen via deres egne links nedenfor.', $plain);
+        $this->assertStringContainsString("Den store knap åbner faktura $olderNr på 340,00 kr.", $plain);
         $first = strpos($plain, "Faktura $olderNr · forfaldt 16.01.2026");
         $second = strpos($plain, "Faktura $newerNr · forfaldt 20.01.2026");
         $this->assertNotFalse($first);
         $this->assertNotFalse($second);
         $this->assertLessThan($second, $first, 'the oldest invoice first');
         $this->assertMatchesRegularExpression('/At betale nu 680,00 kr\./u', $plain);
-        $this->assertSame(stripe_invoice_url($older), self::link($mail['html'], 'Betal og slå automatisk betaling til'));
+        $this->assertSame(stripe_invoice_url($older), self::link($mail['html'], "Betal faktura $olderNr · 340,00 kr."));
         $this->assertSame([stripe_invoice_url($older), stripe_invoice_url($newer)], self::links($mail['html'], 'Betal ›'));
         foreach ([$older, $newer] as $invoice) {
             $this->assertStringContainsString(stripe_invoice_url($invoice), $mail['text']);
         }
+    }
+
+    public function testMultiInvoiceReminderStartsWithAnInvoiceThatCanBePaidByCard(): void
+    {
+        $GLOBALS['stripe_charge_today'] = '2026-01-25';
+        $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved']);
+        $small = StripeFixtures::invoice($debtor, ['sum' => 1, 'moms' => 0.25]);
+        $next = StripeFixtures::invoice($debtor, ['sum' => 4.5, 'moms' => 1.13]);
+        $last = StripeFixtures::invoice($debtor, ['sum' => 133, 'moms' => 33.25, 'betalingsdage' => 12]);
+        $rykker = StripeReminderFixtures::reminder($debtor, [$small, $next, $last]);
+        StripeReminderFixtures::linkRow($rykker, ['status' => 'draft']);
+        $mail = $this->mailReminder($rykker);
+        $nr = StripeFixtures::row('ordrer', $next)['fakturanr'];
+        $this->assertSame(stripe_invoice_url($next), self::link($mail['html'], "Betal faktura $nr · 5,63 kr."));
+        $this->assertSame([stripe_invoice_url($small)], self::links($mail['html'], 'Se faktura ›'));
+        $this->assertSame([stripe_invoice_url($next), stripe_invoice_url($last)], self::links($mail['html'], 'Betal ›'));
+        foreach ([self::plain($mail['html']), $mail['text']] as $body) {
+            $this->assertStringContainsString("Den store knap åbner faktura $nr på 5,63 kr.", $body);
+            $this->assertMatchesRegularExpression('/At betale nu\s*:?\s*173,13 kr\./u', $body);
+        }
+        $this->assertSame([], StripeTestTransport::$requests);
     }
 
     public function testLaterRemindersSayStillAndTheThirdCanWarnAboutClosing(): void
@@ -825,6 +847,10 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         // No saved card, a credit on the account or a partial payment: the job does not collect it.
         $noCard = StripeFixtures::invoice(StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => null, 'stripe_date' => '2025-12-01']), ['udskriv_til' => 'Stripe']);
         $this->assertTrue($this->remindable($noCard), 'no saved card');
+        foreach ([125, 249, 250] as $ore) {
+            $small = StripeFixtures::invoice($debtor, ['udskriv_til' => 'Stripe', 'sum' => $ore / 100, 'moms' => 0]);
+            $this->assertSame($ore < 250, $this->remindable($small), 'the hold must match the card minimum');
+        }
         $creditDebtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2025-12-01']);
         $credited = StripeFixtures::invoice($creditDebtor, ['udskriv_til' => 'Stripe']);
         $this->assertFalse($this->remindable($credited));

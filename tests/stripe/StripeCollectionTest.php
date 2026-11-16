@@ -1,6 +1,7 @@
 <?php
 // 20261022 CDX/LH Collection reconciliation, cancellation identity, full-open amounts and shared eligibility regressions.
 // 20261022 CDX/LH Cover caller-bound stalled requests, rejected creates, card-only requests and debtor credits.
+// 20261116 CDX/ASR Cover the card minimum and actionable missing-customer errors without changing agreements or posting payments.
 
 require_once __DIR__ . '/bootstrap.php';
 
@@ -151,6 +152,70 @@ final class StripeCollectionTest extends StripeDatabaseTestCase
             StripeTestEnvironment::query('UPDATE openpost SET amount=$1 WHERE faktnr=$2 AND konto_id=$3', [$amount, $inv['nr'], $inv['o']['konto_id']]);
             $this->assertSame($payable, stripe_invoice_payable(stripe_invoice_load($order)), $amount);
         }
+    }
+
+    public function testCardMinimumBlocksSmallInvoicesButAllowsTheExactBoundary(): void
+    {
+        $GLOBALS['stripe_charge_today'] = '2026-01-25';
+        foreach ([125, 249, 250, 251] as $ore) {
+            $order = $this->invoice(['sum' => $ore / 100, 'moms' => 0, 'udskriv_til' => 'Stripe'],
+                ['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2026-01-01']);
+            $inv = stripe_invoice_load($order);
+            $allowed = $ore >= 250;
+            $this->assertSame($allowed, stripe_invoice_payable($inv));
+            $this->assertSame($allowed, stripe_invoice_pay_now_allowed($inv));
+            $this->assertSame($allowed, stripe_auto_charge_allowed($inv));
+            if (!$allowed) {
+                $this->assertSame('below_minimum', $inv['state']);
+                foreach (['page', 'manual', 'auto', 'backup'] as $source) {
+                    $result = stripe_payment_create($inv, $source, false, $source === 'page' ? '' : 'pm_saved');
+                    $this->assertSame('amount_too_small', $result['error']);
+                    $response = stripe_payment_failure_response($result);
+                    $this->assertSame(409, $response['status']);
+                    $this->assertStringContainsString('bankoverførsel', $response['message']);
+                }
+                $this->assertSame([], StripeTestTransport::$requests);
+            } else {
+                $pi = array_replace($this->intent('pi_minimum_' . $ore), ['amount' => $ore]);
+                StripeTestTransport::queueBody($pi, 'POST', '/v1/payment_intents');
+                $this->assertTrue(stripe_payment_create($inv)['ok']);
+                $last = StripeTestTransport::$requests[count(StripeTestTransport::$requests) - 1];
+                $this->assertSame($ore, $last['params']['amount']);
+            }
+        }
+        $this->assertSame([], StripeTestTransport::$mails);
+    }
+
+    public function testMissingCustomerOrCardIsActionableAndPreservesTheAgreement(): void
+    {
+        $GLOBALS['stripe_charge_today'] = '2026-01-25';
+        foreach (['customer', 'payment_method'] as $parameter) {
+            $order = $this->invoice([], ['stripe' => 'on', 'stripe_pm_id' => 'pm_saved']);
+            $inv = stripe_invoice_load($order);
+            $before = StripeFixtures::row('adresser', (int)$inv['o']['konto_id']);
+            StripeTestTransport::queue(['ok' => false, 'status' => 400,
+                'body' => ['error' => ['type' => 'invalid_request_error', 'code' => 'resource_missing', 'param' => $parameter]],
+                'error' => 'No such ' . $parameter, 'error_code' => 'resource_missing'], 'POST', '/v1/payment_intents');
+            $result = stripe_payment_create($inv, 'manual', false, 'pm_saved');
+            $response = stripe_payment_failure_response($result);
+            $this->assertFalse($result['ok']);
+            $this->assertSame('card_unavailable', $response['code']);
+            $this->assertSame(409, $response['status']);
+            $this->assertStringContainsString('gemte korttilknytning', $response['message']);
+            $this->assertStringNotContainsString('Prøv igen', $response['message']);
+            $this->assertSame($before, StripeFixtures::row('adresser', (int)$inv['o']['konto_id']));
+            $this->assertNull(stripe_invoice_load($order)['paid']);
+            $attempt = pg_fetch_assoc(StripeTestEnvironment::query('SELECT status FROM stripe_collection_attempts WHERE ordre_id=$1', [$order]));
+            $this->assertSame('rejected', $attempt['status']);
+        }
+        // Missing unrelated resources and technical outages must not be blamed on the customer's card.
+        foreach ([['error_code' => 'resource_missing', 'error_param' => 'unrelated'], ['error' => 'network']] as $error) {
+            $response = stripe_payment_failure_response($error);
+            $this->assertSame(502, $response['status']);
+            $this->assertSame(stripe_txt('pay_start_failed'), $response['message']);
+        }
+        $this->assertCount(2, StripeTestTransport::$requests);
+        $this->assertSame([], StripeTestTransport::$mails);
     }
 
     public function testMissingOpenpostAndSplitSettlementCannotBePaidOrReportedFullyPaid(): void

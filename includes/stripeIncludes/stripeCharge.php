@@ -2,6 +2,7 @@
 // 20261022 CDX/LH Shared charge runner, durable authentication recovery and synchronous/asynchronous backup handling.
 // 20261022 CL/LH S5 Greeting and invoice details in the authentication mail; customer and raw Stripe code in bookkeeper alerts.
 // 20261022 CDX/LH Share the full repair/collection job and exit code with tenant-only regression tests.
+// 20261116 CDX/ASR Do not promise or schedule card collection below the DKK minimum.
 
 /**
  * Run the CLI's tenant work after bootstrap and acquisition of the whole-job lock.
@@ -47,7 +48,7 @@ function stripe_charge_job_lock($ledger, $directory = null) {
 
 /** @return bool Whether automatic collection was authorized for this issued invoice. */
 function stripe_auto_charge_allowed($inv) {
-	if (!$inv || !stripe_invoice_collectable($inv) || !$inv['enrolled']
+	if (!$inv || !stripe_invoice_collectable($inv) || stripe_invoice_below_card_minimum($inv) || !$inv['enrolled']
 		|| !stripe_feature_on('invoice_payments') || !stripe_feature_on('enrolment') || stripe_setting('enabled', 'off') !== 'on'
 		|| trim((string)$inv['o']['udskriv_til']) !== 'Stripe') return false;
 	$since = substr((string)($inv['debtor']['stripe_date'] ?? ''), 0, 10);

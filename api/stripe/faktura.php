@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura.php --- 2026.11.11
+// --- api/stripe/faktura.php --- 2026.11.16
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,7 @@
 //                 An enrolled customer on an overdue Link invoice pays with the saved card in one click (#paynow), bank as alternative.
 
 // 20261111 CDX/ASR Allow the invoice header to wrap on narrow screens.
+// 20261116 CDX/ASR Show bank payment instead of unusable card controls below the DKK minimum.
 
 include(__DIR__ . '/faktura_common.php');
 include_once(__DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php');
@@ -182,6 +183,9 @@ switch ($state) {
 		break;
 	case 'manual':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_manual')) . '</h2><p class="lead">' . $h(stripe_txt('lead_manual')) . '</p>' . $amountBox . $bankBox . $foot;
+		break;
+	case 'below_minimum':
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_below_minimum')) . '</h2><p class="lead">' . $h(stripe_txt('pay_amount_too_small')) . '</p>' . $amountBox . $bankBox . $foot;
 		break;
 	case 'nocard':
 		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_nocard')) . '</h2><p class="lead">' . $h(stripe_txt('lead_nocard')) . '</p>' . $amountBox . $bankBox . $foot;
