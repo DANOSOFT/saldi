@@ -231,7 +231,7 @@ final class StoreOrdersSyncTest extends TestCase
 
         $r = $this->steps(['enqueue', $before, '2026-11-10 07:59'], ['recover', 'hml']);
         $this->assertFalse($r['results'][0]['queued'], 'K38: the shop was not live yet');
-        $queued = array_map('intval', array_column($this->sql("SELECT payload->>'ordre_id' AS id FROM shopify_jobs WHERE type = 'store.export' ORDER BY 1"), 'id'));
+        $queued = array_map('intval', array_column($this->sql("SELECT (payload->>'ordre_id')::int AS id FROM shopify_jobs WHERE type = 'store.export' ORDER BY 1"), 'id'));
         $this->assertSame([$delivery, $sale], $queued, 'the scan queues the sales from go-live that were never queued and would go, so those that never go hold no place under its limit');
         $this->assertNotContains($old, $queued);
 
