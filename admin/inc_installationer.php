@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_installationer.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- admin/inc_installationer.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. "Egne installationer": customers who run Saldi themselves (open source) and have a support agreement with us.
@@ -55,8 +55,8 @@ function inst_actions(&$notes, &$id) {
 }
 // Payments: fetch from the billing ledger, store summary on the row.
 function inst_payments($row) {
-	$search = $row['billing_kontonr'] ?: ($row['cvr'] ?: $row['name']);
-	$data = bill_fetch($search);
+	list($search, $by) = bill_key($row['billing_kontonr'], $row['cvr'], $row['name']); # 20261116 CL/ASR exact match only (review #785)
+	$data = bill_fetch($search, $by);
 	if (!isset($data['error']) && ($dateErr = bill_date_error($data['invoices'])) !== '') $data['error'] = $dateErr; # an unreadable date would become a 1970 due date and a false "overdue"; the stored summary is kept
 	if (!isset($data['error'])) {
 		$c = $data['customer']; $dd = (int)($c['betaling']['betalingsdage'] ?? 0); $open = 0; $openN = 0; $ovN = 0; $oldest = null; $last = null; $lastPaid = null;

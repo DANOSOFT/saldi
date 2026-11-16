@@ -1,5 +1,5 @@
 <?php
-// --- includes/entitlements.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- includes/entitlements.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Catalogue + entitlement layer in the master database, tables as in Requirements_packages_entitlements_billing_EN.md §4.1/§5.1 with three additions needed for the operator's subscription card: prices on plans/addons (price_ore, billing_interval, extra_user_price_ore), valid_from on regnskab_entitlements, and regnskab_plan_changes for changes with a future effective date.
@@ -14,6 +14,7 @@
 //                 New ent_addon_purchase_error(), checked when a proposal is created and again when it is accepted: the add-on must be on sale for the account's effective plan, and a counted add-on with a time-limited allocation is refused, because a bought unit would share that row's end date (review #785).
 //                 ent_usage_collect() reads column names and the type of brugere.status from pg_attribute for the relation the unqualified table name resolves to (to_regclass), the same table the counts read (review #785).
 // 20261113 CL/ASR Accepting an add-on proposal and setting or removing the add-on on the Abonnement tab now wait for each other (ent_addon_locked()), so a bought unit cannot pick up an end date that another operator sets in between (review #785).
+// 20261116 CL/ASR ent_seed() runs in one transaction under an advisory lock and looks again once it holds it, so two first page loads cannot seed the catalogue twice and a failure halfway leaves no partial catalogue; the new ids come from RETURNING (review #785).
 
 if (!function_exists('ent_tables_ensure')) {
 
@@ -86,14 +87,17 @@ function ent_tables_ensure() {
 	if (operator_panel_ready()) ent_seed(); # catalogue rows on first use (data, not schema), only after a finished schema run
 }
 function ent_seed() {
+	global $db_transaktion_depth;
 	if (db_fetch_array(db_select("select 1 from catalog_versions", __FILE__ . " linje " . __LINE__))) return;
-	db_modify("insert into catalog_versions (name, valid_from, is_default) values ('Priser 2026-03-01', '2026-03-01', true)", __FILE__ . " linje " . __LINE__);
-	$cv = db_fetch_array(db_select("select max(id) as id from catalog_versions", __FILE__ . " linje " . __LINE__)); $cv = (int)$cv['id'];
+	$own = !$db_transaktion_depth; # the panel is PostgreSQL-only (ent_tables_ensure())
+	if ($own) transaktion('begin');
+	db_select("select pg_advisory_xact_lock(hashtext('catalog_seed'))", __FILE__ . " linje " . __LINE__);
+	if (db_fetch_array(db_select("select 1 from catalog_versions", __FILE__ . " linje " . __LINE__))) { if ($own) transaktion('commit'); return; } # seeded while we waited
+	$cv = db_fetch_array(db_select("insert into catalog_versions (name, valid_from, is_default) values ('Priser 2026-03-01', '2026-03-01', true) returning id", __FILE__ . " linje " . __LINE__)); $cv = (int)$cv['id'];
 	$n = fn($v) => $v === null ? 'NULL' : (int)$v;
 	$idx = 3;
 	foreach (ent_plan_defs() as $k => $d) {
-		db_modify("insert into plans (catalog_version_id, plan_key, name, sort, included_users, max_users, included_postings, max_items, included_webshops, price_ore, extra_user_price_ore) values ('$cv', '$k', '".db_escape_string($d[0])."', '$d[1]', '$d[3]', ".$n($d[4]).", ".$n($d[5]).", ".$n($d[6]).", ".(int)$d[7].", ".$n($d[2]).", ".$n($d[8]).")", __FILE__ . " linje " . __LINE__);
-		$p = db_fetch_array(db_select("select id from plans where catalog_version_id = '$cv' and plan_key = '$k'", __FILE__ . " linje " . __LINE__)); $pid = (int)$p['id'];
+		$p = db_fetch_array(db_select("insert into plans (catalog_version_id, plan_key, name, sort, included_users, max_users, included_postings, max_items, included_webshops, price_ore, extra_user_price_ore) values ('$cv', '$k', '".db_escape_string($d[0])."', '$d[1]', '$d[3]', ".$n($d[4]).", ".$n($d[5]).", ".$n($d[6]).", ".(int)$d[7].", ".$n($d[2]).", ".$n($d[8]).") returning id", __FILE__ . " linje " . __LINE__)); $pid = (int)$p['id'];
 		foreach (ent_feature_defs() as $f) {
 			$lv = array('✓' => 'included', '✗' => 'none', 'B' => 'basic', 'A' => 'addon');
 			db_modify("insert into plan_features (plan_id, feature_key, level) values ('$pid', '$f[0]', '".$lv[$f[$idx]]."')", __FILE__ . " linje " . __LINE__);
@@ -102,6 +106,7 @@ function ent_seed() {
 	}
 	foreach (ent_addon_defs() as $k => $d) db_modify("insert into addons (catalog_version_id, addon_key, name, feature_key, quantity_based, available_on, price_ore) values ('$cv', '$k', '".db_escape_string($d[0])."', '$d[1]', ".($d[2] ? 'true' : 'false').", '$d[4]', ".$n($d[3]).")", __FILE__ . " linje " . __LINE__);
 	foreach (array(array(0,100000,250), array(100000,199999,200), array(200000,499999,100), array(500000,1000000,50), array(1000000,null,36)) as $t) db_modify("insert into posting_tiers (catalog_version_id, from_count, to_count, unit_centiore) values ('$cv', '$t[0]', ".$n($t[1]).", '$t[2]')", __FILE__ . " linje " . __LINE__);
+	if ($own) transaktion('commit');
 }
 
 function ent_catalog() {

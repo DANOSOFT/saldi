@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func/operatorPanelSchema.php --- ver 5.1.1 --- 2026-11-09 ---
+// --- includes/opdat_func/operatorPanelSchema.php --- ver 5.1.1 --- 2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,9 +31,12 @@
 //                 operator_panel_ready() is the one check the panel's entry points use: a PostgreSQL master with the schema flag at the current version.
 //                 partner_users.scope comes in with default 'selected', is set to 'all' for employees without a selection, and only then defaults to 'all', so a run that stops halfway never widens anyone's access.
 //                 The information_schema lookups are limited to current_schema().
+// 20261116 CL/ASR The flag is set only when the indexes exist as well (review #785).
+//                 Before the two unique indexes on regnskab_partners are created, duplicate active links (possible where an earlier panel version made the tables) are ended and a second active owner of an account becomes 'full', keeping the oldest link, so the indexes can be created.
+//                 Schema version 2, so a master flagged at 1 runs the step once more.
 
 if (!function_exists('operator_panel_schema')) {
-	define('OPERATOR_PANEL_SCHEMA', '1');
+	define('OPERATOR_PANEL_SCHEMA', '2');
 	define('OPERATOR_PANEL_SCHEMA_LOCK', 731001); # pg advisory lock key (SD-731)
 
 	/**
@@ -94,6 +97,9 @@ if (!function_exists('operator_panel_schema')) {
 		"CREATE TABLE IF NOT EXISTS partners (id SERIAL PRIMARY KEY, kind varchar(10) NOT NULL DEFAULT 'bogholder', name varchar(120) NOT NULL, cvr varchar(20), home_regnskab_id int, status varchar(10) NOT NULL DEFAULT 'active', can_create boolean NOT NULL DEFAULT false, can_manage_features boolean NOT NULL DEFAULT true, can_manage_users boolean NOT NULL DEFAULT true, created timestamp NOT NULL DEFAULT now(), created_by int)",
 		"CREATE TABLE IF NOT EXISTS partner_users (bruger_id int PRIMARY KEY, partner_id int NOT NULL, partner_role varchar(20) NOT NULL DEFAULT 'employee', created timestamp NOT NULL DEFAULT now())",
 		"CREATE TABLE IF NOT EXISTS regnskab_partners (id SERIAL PRIMARY KEY, regnskab_id int NOT NULL, partner_id int NOT NULL, access varchar(10) NOT NULL DEFAULT 'full', since timestamp NOT NULL DEFAULT now(), until timestamp, created_by int, note text)",
+		// 20261116 CL/ASR duplicates an earlier panel version may have left would make the two unique indexes fail: the oldest active link stays
+		"UPDATE regnskab_partners SET until = now() WHERE until IS NULL AND id NOT IN (SELECT min(id) FROM regnskab_partners WHERE until IS NULL GROUP BY regnskab_id, partner_id)",
+		"UPDATE regnskab_partners SET access = 'full' WHERE until IS NULL AND access = 'owner' AND id NOT IN (SELECT min(id) FROM regnskab_partners WHERE until IS NULL AND access = 'owner' GROUP BY regnskab_id)",
 		"CREATE UNIQUE INDEX IF NOT EXISTS regnskab_partners_active ON regnskab_partners(regnskab_id, partner_id) WHERE until IS NULL",
 		"CREATE UNIQUE INDEX IF NOT EXISTS regnskab_partners_owner ON regnskab_partners(regnskab_id) WHERE until IS NULL AND access = 'owner'",
 		"CREATE TABLE IF NOT EXISTS partner_user_access (bruger_id int NOT NULL, regnskab_id int NOT NULL, PRIMARY KEY (bruger_id, regnskab_id))",
@@ -144,6 +150,7 @@ if (!function_exists('operator_panel_schema')) {
 		$missing = 0;
 		foreach ($tables as $qtxt) {
 			if (preg_match('/^CREATE TABLE IF NOT EXISTS (\w+)/', $qtxt, $m) && !db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = '$m[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++;
+			if (preg_match('/^CREATE (?:UNIQUE )?INDEX IF NOT EXISTS (\w+)/', $qtxt, $m) && !db_fetch_array(db_select("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = '$m[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++; # 20261116 CL/ASR
 		}
 		foreach ($columns as $c) {
 			if (!db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = '$c[0]' AND column_name = '$c[1]'", __FILE__ . " linje " . __LINE__, true))) $missing++;

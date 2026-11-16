@@ -5,7 +5,7 @@ ob_start();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/operator_panel.php --- ver 5.1.1 --- 2026-11-09 ---
+// --- admin/operator_panel.php --- ver 5.1.1 --- 2026-11-16 ---
 // 20261012 CL/ASR Operator copy of admin/admin_panel.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE
@@ -38,6 +38,9 @@ ob_start();
 // 20261109 CL/ASR The Brugere tab's "Nulstil tabeller" and "Slet bruger" buttons pass only the user id; the name for the confirm text and the note is looked up in USERS, so a user name with an apostrophe can neither break the buttons nor run as script.
 //                 Missing GET/POST keys (regnskab_id, sort, dir, action, user_action) no longer raise undefined-key warnings.
 //                 The catalogue seed (ent_tables_ensure()) runs after the staff check, not before it.
+// 20261116 CL/ASR Unlinking a bookkeeper on the customer card also takes the account out of the adgang_til list of the partner's users (partner_revoke_legacy()), so «… har ikke længere adgang» holds for the account list and aaben_regnskab.php too (review #785).
+//                 A user who still reaches every account through admin or '*' is named in the message.
+//                 The Betalinger tab finds the billing customer by an exact match (bill_key(), bill_fetch()).
 
 @session_start();
 $s_id = session_id();
@@ -369,7 +372,7 @@ if ($filter_regnskab) {
 		} elseif ($_POST['vr_action'] == 'unlink') {
 			$lid = (int)if_isset($_POST, 0, 'link_id');
 			$l = db_fetch_array(db_select("select rp.*, p.name from regnskab_partners rp join partners p on p.id = rp.partner_id where rp.id = '$lid' and rp.regnskab_id = '$rid' and rp.until is null", __FILE__ . " linje " . __LINE__));
-			if ($l) { db_modify("update regnskab_partners set until = now() where id = '$lid'", __FILE__ . " linje " . __LINE__); partner_log('partner.link_removed', $rid, (int)$l['partner_id'], $l['name']); $notes[] = $l['name'].' '.vr_t('har ikke længere adgang','no longer has access'); }
+			if ($l) { db_modify("update regnskab_partners set until = now() where id = '$lid'", __FILE__ . " linje " . __LINE__); partner_log('partner.link_removed', $rid, (int)$l['partner_id'], $l['name']); $kept = partner_revoke_legacy((int)$l['partner_id'], array($rid)); $notes[] = $l['name'].' '.vr_t('har ikke længere adgang','no longer has access').partner_kept_note($kept); }
 		}
 	}
 	vr_prg($notes); # POST -> redirect, so the card below is always drawn from fresh data
@@ -437,8 +440,8 @@ if ($filter_regnskab) {
 		print "<section class=\"vr-sect\"><h2>".vr_t('Kundens brugere','Customer users')." <small id=\"usersCnt\">".($live['ok'] ? $live['users'].' '.vr_t('aktive','active') : '')."</small></h2><div id=\"usersFlash\"></div><div class=\"vr-card\"><div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"uq\" placeholder=\"".vr_t('Søg bruger','Search user')."\" oninput=\"filterUsers(this.value)\"></label><span class=\"vr-hint\">".vr_t('Klik på en bruger for at rette adgangskode, e-mail, telefon, IP og 2FA','Click a user to edit password, e-mail, phone, IP and 2FA')."</span></div><div id=\"usersBox\"><div class=\"vr-empty\"><span>".vr_t('Henter brugere…','Loading users…')."</span></div></div><div class=\"vr-foot\" style=\"display:block\"><b style=\"font-weight:600;display:block;margin-bottom:8px\">".vr_t('Opret bruger i regnskabet','Create user in the account')."</b><div class=\"vr-inline\"><input class=\"vr-inp\" id=\"nuName\" placeholder=\"".vr_t('Brugernavn','Username')."\" style=\"width:170px\"><input class=\"vr-inp\" id=\"nuPw\" type=\"password\" placeholder=\"".vr_t('Adgangskode (min. 6)','Password (min. 6)')."\" style=\"width:170px\"><input class=\"vr-inp\" id=\"nuMail\" type=\"email\" placeholder=\"E-mail\" style=\"width:210px\"><select class=\"vr-sel\" id=\"nuRole\"><option value=\"all\">".vr_t('Alle rettigheder','All rights')."</option><option value=\"readonly\">".vr_t('Kun læsning','Read only')."</option></select><button type=\"button\" class=\"vr-btn vr-primary\" onclick=\"createUser()\">".vr_t('Opret','Create')."</button><span class=\"vr-mut2\" style=\"font-size:12px\">".vr_t('Roller pr. modul kommer med roller etape 2.','Per-module roles come with roles stage 2.')."</span></div></div></div></section>\n";
 	} elseif ($tab == 'betalinger') {
 		$cfg = bill_get($rid);
-		$search = $cfg['billing_kontonr'] ?: ($live['cvr'] ? $live['cvr'] : $reg['regnskab']);
-		$data = bill_fetch($search); bill_cache_store($rid, $data, $cfg, $search); $cfg = bill_get($rid);
+		list($search, $by) = bill_key($cfg['billing_kontonr'], $live['cvr'], $reg['regnskab']);
+		$data = bill_fetch($search, $by); bill_cache_store($rid, $data, $cfg, $search); $cfg = bill_get($rid);
 		bill_render($rid, $reg, $ent, $live, $data, $cfg);
 	} elseif ($tab == 'indstillinger') {
 		$bt = $reg['betalt_til'] && $reg['betalt_til'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['betalt_til'])) : ''; $lk = $reg['lukkes'] && $reg['lukkes'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['lukkes'])) : '';

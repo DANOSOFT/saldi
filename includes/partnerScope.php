@@ -1,5 +1,5 @@
 <?php
-// --- includes/partnerScope.php --- ver 5.1.1 --- 2026.11.09 ---
+// --- includes/partnerScope.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice.
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
@@ -10,6 +10,8 @@
 //                 Columns are added to the layer's own tables only (partner_cols_ensure).
 // 20261029 CL/ASR No tables are created here any more: they come from the update chain (operatorPanelSchema.php). partner_layer_ready() lets pages treat everyone as a non-partner user until the tables exist.
 // 20261109 CL/ASR partner_layer_ready() asks operator_panel_ready() (the schema flag, PostgreSQL only) instead of information_schema, so a MySQL/MariaDB master never reads the layer's tables (review #785).
+// 20261116 CL/ASR New partner_revoke_legacy(): when a partner's link to an account ends, the account also leaves the adgang_til list of the partner's users, because vis_regnskaber.php and aaben_regnskab.php still decide access by that list (review #785).
+//                 partner_move_ledger() calls it for the partner the account leaves.
 
 if (!function_exists('partner_tables_ensure')) {
 
@@ -62,8 +64,35 @@ function partner_move_ledger($rid, $from_pid, $to_pid, $access, $note) {
 	db_modify("update regnskab_partners set until = now() where regnskab_id = '$rid' and partner_id = '$from_pid' and until is null", __FILE__ . " linje " . __LINE__);
 	db_modify("insert into regnskab_partners (regnskab_id, partner_id, access, created_by, note) values ('$rid', '$to_pid', '".db_escape_string($access)."', '".(int)partner_current_user()['id']."', '".db_escape_string($note)."')", __FILE__ . " linje " . __LINE__);
 	db_modify("delete from partner_user_access where regnskab_id = '$rid' and bruger_id in (select bruger_id from partner_users where partner_id = '$from_pid')", __FILE__ . " linje " . __LINE__);
+	partner_revoke_legacy($from_pid, array($rid)); # 20261116 CL/ASR the old partner's users lose the account in the legacy list as well
 	partner_log('partner.ledger_moved', $rid, $to_pid, "fra partner $from_pid til ".$to['name']." ($access)".($note ? " – $note" : ''));
 	return '';
+}
+
+// 20261116 CL/ASR The legacy access list (the fourth field of brugere.rettigheder) still decides access in vis_regnskaber.php and
+//                  aaben_regnskab.php, and partner_migrate_adgang_til() copied it into the partner without clearing it. When a
+//                  partner's link to an account ends, the account leaves the list of each of the partner's users, so they can no
+//                  longer open it (review #785). Each change is logged with the list as it was. Returns the user names that still
+//                  reach every account through the admin flag or '*', which this does not take away.
+function partner_revoke_legacy($pid, $rids) {
+	$rids = array_values(array_filter(array_map('intval', (array)$rids)));
+	$kept = array();
+	if (!$rids) return $kept;
+	$q = db_select("select b.id, b.brugernavn, b.rettigheder from brugere b join partner_users pu on pu.bruger_id = b.id where pu.partner_id = '" . (int)$pid . "' order by b.id", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		list($a, $o, $s, $tmp) = array_pad(explode(",", (string)$r['rettigheder'], 4), 4, '');
+		$list = array_values(array_filter(array_map('trim', explode(",", $tmp)), 'strlen'));
+		$left = array_values(array_filter($list, fn($x) => !(ctype_digit($x) && in_array((int)$x, $rids, true))));
+		if ($a == 'on' || in_array('*', $list, true)) $kept[] = $r['brugernavn'];
+		if (count($left) == count($list)) continue;
+		db_modify("update brugere set rettigheder = '" . db_escape_string("$a,$o,$s," . implode(",", $left)) . "' where id = '" . (int)$r['id'] . "'", __FILE__ . " linje " . __LINE__);
+		partner_log('partner.legacy_access_removed', count($rids) == 1 ? $rids[0] : null, (int)$pid, $r['brugernavn'] . ': ' . implode(',', array_diff($list, $left)) . ' (adgang_til før: ' . $tmp . ')');
+	}
+	return $kept;
+}
+// Plain text for the page's note (vr_note() escapes it): who still reaches every account after partner_revoke_legacy().
+function partner_kept_note($kept) {
+	return $kept ? ' ' . vr_t('Bemærk:', 'Note:') . ' ' . implode(', ', $kept) . ' ' . vr_t('kan stadig åbne alle regnskaber via sine brugerrettigheder (administrator eller *).', 'can still open every account through their user rights (admin or *).') : '';
 }
 
 // 20261029 CL/ASR True when the partner layer's tables exist in the master database. Between a deploy and the first login

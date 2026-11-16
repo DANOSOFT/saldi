@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 3 "Betalinger og fakturering" on the customer card.
@@ -13,6 +13,9 @@
 // 20261029 CL/ASR regnskab_billing and its columns are created by the update chain (operatorPanelSchema.php).
 // 20261111 CL/ASR An invoice date from the billing API that PHP cannot read no longer becomes a 1970 due date and a false "overdue": bill_cache_store() keeps the stored summary and puts the reason in $data['error'] for the page (new bill_date_error(), review #785).
 // 20261113 CL/ASR The invoice tables no longer show an unreadable invoice date as 01-01-1970 and "Forfalden": bill_classify() gives such an invoice no due date, and bill_dmy() shows it as a dash (review #785).
+// 20261116 CL/ASR The billing customer is found by an exact match only, because the API's search is a substring match over name, e-mail, phone, CVR, customer number and contact, and its first hit could be another customer, whose invoices were then shown and cached on this account (review #785).
+//                 bill_key() says what the key is (saved customer number, else CVR, else the account name), and bill_match_customers() keeps the customers whose number, CVR or name equals it; none or several is an error, never a guess.
+//                 All of the customer's invoices are fetched page by page, not only the first 100, and only invoices with that customer number are kept (the endpoint also matches a numeric number against the internal customer id).
 
 if (!function_exists('bill_tables_ensure')) {
 function bill_tables_ensure() {
@@ -86,15 +89,44 @@ function bill_actions($rid, &$notes) {
 	partner_log('billing.updated', (int)$rid, null, "kanal=".($ch ?: 'auto').", kontonr=".$v['billing_kontonr'].", ansvarlig=".$v['payer_name']);
 	$notes[] = vr_t('Faktureringsoplysninger gemt','Billing details saved');
 }
-// Fetch customer + invoices from the billing ledger. $search: billing kontonr if set, else CVR, else name.
-function bill_fetch($search) {
+// The key for the billing ledger and what it is: the saved billing customer number, else the CVR, else the account's name.
+function bill_key($kontonr, $cvr, $name) {
+	$kontonr = trim((string)$kontonr); $cvr = trim((string)$cvr);
+	return $kontonr !== '' ? array($kontonr, 'kontonr') : ($cvr !== '' ? array($cvr, 'cvr') : array(trim((string)$name), 'name'));
+}
+// The customers in $list whose customer number, CVR or name ($by) equals $search: CVR by its digits, a name ignoring case and spacing.
+function bill_match_customers($list, $search, $by) {
+	$norm = function ($v) use ($by) {
+		$v = trim((string)$v);
+		if ($by == 'cvr') return preg_replace('/\D/', '', preg_replace('/^DK/i', '', $v));
+		if ($by == 'name') return mb_strtolower(preg_replace('/\s+/u', ' ', $v), 'UTF-8');
+		return $v;
+	};
+	$want = $norm($search); $field = $by == 'cvr' ? 'cvrnr' : ($by == 'name' ? 'firmanavn' : 'kontonr'); $hits = array();
+	if ($want === '') return $hits;
+	foreach ((array)$list as $c) if (is_array($c) && isset($c['kontonr']) && $norm($c[$field] ?? '') === $want) $hits[] = $c;
+	return $hits;
+}
+// Fetch customer + invoices from the billing ledger. $search and $by come from bill_key().
+function bill_fetch($search, $by = 'kontonr') {
 	if (!function_exists('get_saldi_api_token')) return array('error' => 'API-funktioner mangler');
 	$token = get_saldi_api_token(); if (!$token) return array('error' => vr_t('Kunne ikke logge ind på faktureringsregnskabets API','Could not log in to the billing ledger API'));
-	$customers = fetch_saldi_api('/debitor/customers/index.php', $token, array('search' => $search, 'limit' => 1));
-	if (!is_array($customers) || !count($customers) || !isset($customers[0]['kontonr'])) return array('error' => vr_t('Ingen kunde fundet i faktureringsregnskabet for','No billing customer found for').' "'.$search.'"');
-	$c = $customers[0];
-	$inv = fetch_saldi_api('/debitor/invoices/index.php', $token, array('customer' => $c['kontonr'], 'limit' => 100, 'page' => 1));
-	if (!is_array($inv)) return array('error' => vr_t('Kunne ikke hente fakturaer fra faktureringsregnskabet','Could not fetch invoices from the billing ledger')); # keep the cached summary
+	$hits = array(); # the search is a substring match, so every page is read and only exact matches count
+	for ($off = 0; $off < 5000; $off += 500) {
+		$page = fetch_saldi_api('/debitor/customers/index.php', $token, array('search' => $search, 'limit' => 500, 'offset' => $off));
+		if (!is_array($page)) return array('error' => vr_t('Kunne ikke hente kunder fra faktureringsregnskabet','Could not fetch customers from the billing ledger')); # keep the cached summary
+		$hits = array_merge($hits, bill_match_customers($page, $search, $by));
+		if (count($page) < 500) break;
+	}
+	if (count($hits) > 1) return array('error' => vr_t('Flere kunder i faktureringsregnskabet passer på','Several billing customers match').' "'.$search.'". '.vr_t('Gem kundenummeret under faktureringsoplysninger.','Save the customer number in the billing details.'));
+	if (!$hits) return array('error' => vr_t('Ingen kunde fundet i faktureringsregnskabet for','No billing customer found for').' "'.$search.'"');
+	$c = $hits[0]; $inv = array();
+	for ($p = 1; $p <= 50; $p++) {
+		$batch = fetch_saldi_api('/debitor/invoices/index.php', $token, array('customer' => $c['kontonr'], 'limit' => 100, 'page' => $p));
+		if (!is_array($batch)) return array('error' => vr_t('Kunne ikke hente fakturaer fra faktureringsregnskabet','Could not fetch invoices from the billing ledger')); # keep the cached summary
+		foreach ($batch as $i) if (!isset($i['accountNumber']) || trim((string)$i['accountNumber']) === trim((string)$c['kontonr'])) $inv[] = $i;
+		if (count($batch) < 100) break;
+	}
 	usort($inv, fn($a, $b) => strcmp($b['invoiceDate'] ?? '', $a['invoiceDate'] ?? ''));
 	return array('customer' => $c, 'invoices' => $inv);
 }

@@ -2,7 +2,7 @@
 ob_start(); # for the redirect after an action (vr_prg)
 @session_start();
 $s_id=session_id();
-// --- admin/partnere.php --- ver 5.1.1 --- 2026.11.09 ---
+// --- admin/partnere.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261020 CL/ASR Review #785: new ids from INSERT … RETURNING (max(id) could return another session's row); an
@@ -22,6 +22,7 @@ $s_id=session_id();
 // 20261109 CL/ASR Moving an account is refused unless it exists, is actively linked to this partner and not already to the target, and closing a partner returns to the partner list on operator_panel.php with the note (review #785).
 //                 Those checks and partner_move_ledger() run in one transaction with the source link locked, so a move that fails halfway is rolled back and the source link stays active (review #785).
 //                 The MRR on the Kunder tab counts an on/off add-on once and multiplies only counted add-ons by their quantity, the same rule as the Abonnement tab and the Overblik MRR (review #785).
+// 20261116 CL/ASR Closing a partner and unlinking an account on the partner card also take the accounts out of the adgang_til list of the partner's users (partner_revoke_legacy(); a move does the same in partner_move_ledger()), so «alle adgange er fjernet» and «Adgang fjernet» hold for the account list and aaben_regnskab.php too (review #785).
 
 $css="../css/standard.css";
 $title="Partnere";
@@ -76,10 +77,12 @@ if (isset($_POST['vr_action'])) {
 		} elseif ($act == 'close' && $op) {
 			$vr_pk = db_fetch_array(db_select("select kind from partners where id = '$pid'", __FILE__ . " linje " . __LINE__));
 			$vr_back = 'operator_panel.php?ltab='.($vr_pk && $vr_pk['kind'] == 'koncern' ? 'koncerner' : 'bogholdere'); # the card only shows active partners
+			$vr_ids = array(); $vr_q = db_select("select regnskab_id from regnskab_partners where partner_id = '$pid' and until is null", __FILE__ . " linje " . __LINE__); while ($vr_r = db_fetch_array($vr_q)) $vr_ids[] = (int)$vr_r['regnskab_id'];
 			db_modify("update partners set status = 'closed' where id = '$pid'", __FILE__ . " linje " . __LINE__);
 			db_modify("update regnskab_partners set until = now() where partner_id = '$pid' and until is null", __FILE__ . " linje " . __LINE__);
+			$kept = partner_revoke_legacy($pid, $vr_ids);
 			partner_log('partner.closed', null, $pid, '');
-			$notes[] = vr_t('Partneren er lukket, og alle adgange er fjernet','Partner closed, all access removed');
+			$notes[] = vr_t('Partneren er lukket, og alle adgange er fjernet','Partner closed, all access removed').partner_kept_note($kept);
 		} elseif ($act == 'link' && $op) {
 			$rid = (int) if_isset($_POST, 0, 'regnskab_id');
 			$access = in_array(if_isset($_POST, 'full', 'access'), array('full','readonly','owner'), true) ? $_POST['access'] : 'full';
@@ -90,7 +93,7 @@ if (isset($_POST['vr_action'])) {
 		} elseif ($act == 'unlink' && $op) {
 			$lid = (int) if_isset($_POST, 0, 'link_id');
 			$l = db_fetch_array(db_select("select * from regnskab_partners where id = '$lid' and partner_id = '$pid' and until is null", __FILE__ . " linje " . __LINE__));
-			if ($l) { db_modify("update regnskab_partners set until = now() where id = '$lid'", __FILE__ . " linje " . __LINE__); partner_log('partner.link_removed', (int)$l['regnskab_id'], $pid, ''); $notes[] = vr_t('Adgang fjernet','Access removed'); }
+			if ($l) { db_modify("update regnskab_partners set until = now() where id = '$lid'", __FILE__ . " linje " . __LINE__); partner_log('partner.link_removed', (int)$l['regnskab_id'], $pid, ''); $kept = partner_revoke_legacy($pid, array((int)$l['regnskab_id'])); $notes[] = vr_t('Adgang fjernet','Access removed').partner_kept_note($kept); }
 		} elseif ($act == 'move' && $op) {
 			$rid = (int)if_isset($_POST, 0, 'regnskab_id'); $to = (int)if_isset($_POST, 0, 'to_partner_id');
 			$access = in_array(if_isset($_POST, 'full', 'access'), array('full','readonly','owner'), true) ? $_POST['access'] : 'full';
