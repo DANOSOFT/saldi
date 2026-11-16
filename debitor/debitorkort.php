@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.1.1 --- 2026-11-12 ---
+// --- debitor/debitorkort.php --- ver 5.1.1 --- 2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -142,6 +142,7 @@
 //                A private card's first and last name are filled in from its name before the hash, and only while both are still empty.
 //                They are stored as plain text, so the first view and Gem no longer turn æøå into HTML entities (debitorkortFillPrivateNames()).
 //                A refused save keeps the card's way back (returside, ordre_id, fokus); split_navn() starts from an empty first name.
+// 20261116 CL/MMR SD-831 A new customer with the account number of the last kommission item (e.g. 4999) or higher gets the next block of kommission items created (includes/commissionItemSeries.php).
 @session_start();
 $s_id = session_id();
 
@@ -643,6 +644,8 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 			$q = db_select("select id from adresser where kontonr = '$ny_kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array($q);
 			$id = $r['id'];
+			include_once(__DIR__ . '/../includes/commissionItemSeries.php');
+			commissionItemSeriesEnsure($ny_kontonr);
 			if ($kontakt) db_modify("insert into ansatte(konto_id, navn) values ('$id', '$kontakt')", __FILE__ . " linje " . __LINE__);
 
 			// Save primary email for new customer
