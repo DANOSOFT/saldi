@@ -31,6 +31,7 @@
 // 20261116 CL/MMR SST-1019 pos_txt_print() sets $afd again, read-only, for the per-regnskab receipt templates.
 //                 MB-95 had removed it together with the write, so templates that pick the shop header and printer from $afd fell back to the default header.
 //                 The includes inside pos_txt_print() now use __DIR__.
+//                 The SQL in pos_txt_print() escapes the salesperson name and casts the ids, so a name with an apostrophe no longer breaks the print.
 
 include("pos_ordre_includes/posTxtPrint/posTxtFunctions.php"); #20190506
 function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$type = "standard") {
@@ -86,16 +87,16 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	if (!isset($tid) || !$tid) $tid=date("H:i");
 	if (!isset($betaling) || !$betaling) $betaling="Betalt";
 	if ($ref) {
-		if ($r=db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$ref'",__FILE__ . " linje " . __LINE__))) {
+		if ($r=db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '" . db_escape_string($ref) . "'",__FILE__ . " linje " . __LINE__))) {
 			$ansat_id=$r['ansat_id']*1;
-			if ($r=db_fetch_array(db_select("select navn from ansatte where id = '$ansat_id'",__FILE__ . " linje " . __LINE__))) $ref=$r['navn'];
+			if ($r=db_fetch_array(db_select("select navn from ansatte where id = '" . (int)$ansat_id . "'",__FILE__ . " linje " . __LINE__))) $ref=$r['navn'];
 		}
 	}
 	if (strpos($betaling,"|")) list($tmp,$betaling)=explode("|",$betaling);
 	if (strpos($betaling2,"|")) list($tmp,$betaling2)=explode("|",$betaling2);
 
 	if ($bordnr || $bordnr=='0') { #20150415
-		$r = db_fetch_array(db_select("select box2,box3,box4,box7,box10 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(db_select("select box2,box3,box4,box7,box10 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '" . (int)$regnaar . "'",__FILE__ . " linje " . __LINE__));
 		($r['box7'])?$bord=explode(chr(9),$r['box7']):$bord=array();
 		if (is_numeric($bordnr)) {
 #			$bordnavn=$bord[$bordnr];
@@ -121,7 +122,7 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 		$departments = explode(chr(9), (string)$r['box3']);
 		$afd = trim((string)ifset($departments, (int)$kasse - 1, ''));
 	}
-	$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '" . (int)$regnaar . "'",__FILE__ . " linje " . __LINE__));
 	$printer_ip=explode(chr(9),$r['box3']);
 	$tmp=$kasse-1;
 	$printserver=$printer_ip[$tmp];
@@ -135,7 +136,7 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	$linjeantal = $linecount = $x;
 	if ($rvnr) {
 		$x++;
-		$qtxt = "select * from ordrelinjer where ordre_id = '$id' and varenr = 'R'";
+		$qtxt = "select * from ordrelinjer where ordre_id = '" . (int)$id . "' and varenr = 'R'";
 		if($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)));
 		$antal[$x]="   ";
 		list($pris,$samlet_pris)=explode("|",$r['lev_varenr'],2);
