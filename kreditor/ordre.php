@@ -106,6 +106,8 @@
 // 20261116 CL/MMR SST-1024 An item added to an approved purchase order (status 1 or more, or approved in the same save) is inserted with leveres = antal, as approval does for the lines already on the order.
 //                 The line used to get leveres NULL, so «Modtag» showed empty, and the next «Gem» (also Enter in any field) stored 0, so «Modtag» received 0 of it.
 //                 The choice is the new function newLineReceiveQuantity(), so the save branch only calls it.
+//                 The same applies to an item picked through «Opslag» (GET vare_id), which inserts its line separately.
+//                 newLineQuantity() gives an empty quantity on a credit note (KK) -1 instead of +1, so its «Returner» starts at 1 too (Codex round 1).
 @session_start();
 $s_id=session_id();
 
@@ -291,7 +293,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 	$vare_id[0]=db_escape_string($_GET['vare_id']);
 	$linjenr=0; # 20201021 changed from substr($fokus,4)*1;
 	if ($id) {
-		$query = db_select("select konto_id, kontonr, status,omvbet from ordrer where id = $id for update",__FILE__ . " linje " . __LINE__);
+		$query = db_select("select konto_id, kontonr, status, art, omvbet from ordrer where id = $id for update",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
 		if (!$row || $row['status']>2) {
 			transaktion("rollback");
@@ -301,6 +303,8 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		}
 		$omlev=$row['omvbet'];
 		$konto_id=$row['konto_id'];
+		$opslagStatus = (int)$row['status']; # SST-1024
+		$opslagArt = $row['art'];
 		$query = db_select("select posnr from ordrelinjer where ordre_id = '$id' order by posnr desc",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) $posnr[0]=$row['posnr']+1;
 		else $posnr[0]=1;
@@ -330,7 +334,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		$id = insertAccount($id, $konto_id, false);
 	}
 	$pris[0]=$pris[0]*1;
-	if(!$antal[0]) $antal[0]=1;
+	$antal[0] = newLineQuantity($antal[0], $opslagArt ?? ''); # SST-1024: -1 on a credit note
 	if (!$rabat) $rabat=0;
 
 	$r=db_fetch_array(db_select("select momssats,valuta,ordredate from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));
@@ -375,9 +379,10 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 			} else {
 				($omlev && $omvare[0])?$omvbet[0]='on':$omvbet[0]='';
 				$lager = (int)$lager;
-				$qtxt = "insert into ordrelinjer (ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,pris,lev_varenr,serienr,antal,momsfri,samlevare,omvbet,momssats,lager) values ";
+				$nyLeveres = newLineReceiveQuantity($opslagStatus ?? 0, $antal[0]); # SST-1024
+				$qtxt = "insert into ordrelinjer (ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,pris,lev_varenr,serienr,antal,leveres,momsfri,samlevare,omvbet,momssats,lager) values ";
 				$qtxt.= "('$id','$posnr[0]','".db_escape_string($varenr[0])."','$vare_id[0]','".db_escape_string($beskrivelse[0])."',";
-				$qtxt.= "'$enhed[0]','$pris[0]','".db_escape_string($lev_varenr[0])."','".db_escape_string($serienr[0])."','$antal[0]',";
+				$qtxt.= "'$enhed[0]','$pris[0]','".db_escape_string($lev_varenr[0])."','".db_escape_string($serienr[0])."','$antal[0]',$nyLeveres,";
 				$qtxt.= "'$momsfri[0]','".db_escape_string($samlevare[0])."','$omvbet[0]','$varemomssats[0]','$lager')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
@@ -993,7 +998,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if (!$beskrivelse[0]) $beskrivelse[0]=db_escape_string($r0['beskrivelse']);
 						if (!$enhed[0])$enhed[0]=db_escape_string($r0['enhed']);
 						if (!$rabat[0]) $rabat[0]=$r0['rabat'];
-						if (!$antal[0]) $antal[0]=1;
+						$antal[0] = newLineQuantity($antal[0], $art); # SST-1024: -1 on a credit note
 						if (!$rabat[0]) $rabat[0]=0;
 						if ($antal[0] > 99999999) {
 							alert ("Ulovlig værdi i \"Antal\" ($antal[0])");
@@ -1903,11 +1908,27 @@ function find_vare_id ($varenr) {
  * because approval fills it in later.
  *
  * @param int|string $status the order status after any «Godkend» promotion in this save
- * @param int|float|string $antal the line quantity, already parsed (negated on a credit note)
+ * @param int|float|string $antal the line quantity from newLineQuantity(), so negative on a credit note
  * @return string "'<antal>'" or "NULL"
  */
 function newLineReceiveQuantity($status, $antal) {
 	return ((int)$status >= 1) ? "'" . (float)$antal . "'" : "NULL";
+}
+
+/**
+ * SST-1024: the quantity of a line added on a purchase order or credit note.
+ *
+ * A typed quantity is already parsed and, on a credit note (KK), negated by the line loop. An empty one defaults to
+ * one piece: 1 on a purchase order, -1 on a credit note, the sign every KK line is stored with (it used to be +1,
+ * which the page showed as -1 and the next save turned into -1 / Returner 0).
+ *
+ * @param int|float|string|null $antal the parsed quantity, empty when none was typed
+ * @param string|null $art the order art (KO or KK)
+ * @return int|float|string the quantity to store
+ */
+function newLineQuantity($antal, $art) {
+	if ($antal) return $antal;
+	return ($art == 'KK') ? -1 : 1;
 }
 ######################################################################################################################################
 function samlevare($id,$art,$v_id,$leveres) {
