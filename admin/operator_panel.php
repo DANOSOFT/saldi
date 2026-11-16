@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     // --- License bulk update ---
-    if ($action === 'bulk_update') {
+    if ($action === 'bulk_update' && op_table_exists('license_features')) { # legacy flags: not every install has the table
         $regnskab_id = (int)$_POST['regnskab_id'];
 
         foreach ($available_features as $feature_key => $feature_name) {
@@ -142,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Handle AJAX License toggle
-if (isset($_GET['ajax_license_toggle']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if (isset($_GET['ajax_license_toggle']) && $_SERVER['REQUEST_METHOD'] === 'POST' && op_table_exists('license_features')) {
     while (ob_get_level()) { ob_end_clean(); }
     header('Content-Type: application/json');
     $input = json_decode(file_get_contents('php://input'), true);
@@ -208,7 +208,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         exit;
     }
     $client_db = $reg_row['db'];
-    $client_conn = @db_connect($sqhost, $squser, $sqpass, $client_db, __FILE__ . " linje " . __LINE__);
+    $client_conn = op_connect_ledger($client_db, __FILE__ . " linje " . __LINE__);
     if (!$client_conn) {
         echo json_encode(['error' => 'Kunne ikke forbinde til klient-database: ' . $client_db]);
         exit;
@@ -381,7 +381,7 @@ if ($filter_regnskab) {
 	// live data from the customer database
 	$live = array('ok' => false, 'cvr' => '', 'firma' => '', 'users' => 0, 'trans12' => null, 'last' => null, 'items' => null, 'online' => 0);
 	$time_limit = time() - 1200; $qr = db_fetch_array(db_select("SELECT COUNT(DISTINCT session_id) as cnt FROM online WHERE db = '".db_escape_string($reg['db'])."' AND logtime >= '$time_limit'", __FILE__ . " linje " . __LINE__)); $live['online'] = (int)$qr['cnt'];
-	if ($reg['db'] && $reg['db'] != $sqdb && db_exists($reg['db']) && @db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) {
+	if ($reg['db'] && $reg['db'] != $sqdb && db_exists($reg['db']) && op_connect_ledger($reg['db'], __FILE__ . " linje " . __LINE__)) {
 		$live['ok'] = true;
 		if ($r = db_fetch_array(db_select("select firmanavn, cvrnr from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__))) { $live['firma'] = $r['firmanavn']; $live['cvr'] = str_replace(' ', '', preg_replace('/^DK\s*/i', '', trim((string)$r['cvrnr']))); }
 		if (tbl_exists('brugere')) { $cols = array(); $q = db_select("select column_name from information_schema.columns where table_name = 'brugere'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $cols[] = $r['column_name']; $r = db_fetch_array(db_select("select count(*) as n from brugere".(in_array('revisor', $cols) ? " where revisor is not true" : ""), __FILE__ . " linje " . __LINE__)); $live['users'] = (int)$r['n']; }
@@ -453,10 +453,13 @@ if ($filter_regnskab) {
 		print "<label>".vr_t('Betalt til','Paid until')."<input class=\"vr-inp\" type=\"date\" name=\"betalt_til\" value=\"$bt\"></label><label>".vr_t('Logintekst (vises ved login)','Login text')."<input class=\"vr-inp\" name=\"logintekst\" value=\"".vr_h($reg['logintekst'])."\"></label>";
 		print ($isClosed ? "<input type=\"hidden\" name=\"lukket\" value=\"on\">" : "")."<input type=\"hidden\" name=\"lukkes\" value=\"$lk\"><input type=\"hidden\" name=\"lukkes_kommentar\" value=\"".vr_h($reg['lukkes_kommentar'] ?? '')."\">"; # lifecycle is managed in the section above
 		print "<div><button type=\"submit\" class=\"vr-btn vr-primary\">".findtekst('3|Gem', $sprog_id)."</button></div></form></div></section>";
+		if (op_table_exists('license_features')) { # legacy flags: not every install has the table
 		$lic = array(); $q = db_select("SELECT feature_key, enabled, expires_at FROM license_features WHERE regnskab_id = $rid", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $lic[$r['feature_key']] = $r;
 		print "<section class=\"vr-sect\"><h2>".vr_t('Licenser (gamle flag)','Licences (legacy flags)')."</h2><div class=\"vr-card\"><form method=\"post\" action=\"operator_panel.php?regnskab_id=$rid&tab=indstillinger\" class=\"vr-form\"><input type=\"hidden\" name=\"action\" value=\"bulk_update\"><input type=\"hidden\" name=\"regnskab_id\" value=\"$rid\"><p class=\"vr-sub\">".vr_t('De tre flag, koden stadig læser (license_features). Afløses af Abonnement, når pakkelaget håndhæver.','The three flags the code still reads (license_features). Replaced by Subscription once the entitlement layer enforces.')."</p>";
 		foreach ($available_features as $k => $n) { $on = !isset($lic[$k]) || op_bool($lic[$k]['enabled']); print "<div class=\"vr-inline\"><label class=\"vr-chk\" style=\"min-width:220px\"><input type=\"checkbox\" name=\"feature_$k\"".($on ? " checked" : "")."> ".vr_h($n)."</label><input class=\"vr-inp\" type=\"date\" name=\"expires_$k\" value=\"".(isset($lic[$k]) && $lic[$k]['expires_at'] ? date('Y-m-d', strtotime($lic[$k]['expires_at'])) : '')."\" title=\"".vr_t('Udløber','Expires')."\"></div>"; }
-		print "<div><button type=\"submit\" class=\"vr-btn\">".findtekst('3|Gem', $sprog_id)."</button></div></form></div></section></div>\n";
+		print "<div><button type=\"submit\" class=\"vr-btn\">".findtekst('3|Gem', $sprog_id)."</button></div></form></div></section>";
+		}
+		print "</div>\n";
 	} else {
 		print "<section class=\"vr-sect\"><h2>".vr_t('Log','Log')."</h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th>".vr_t('Tidspunkt','Time')."</th><th>".vr_t('Hvem','Who')."</th><th>".vr_t('Hvad','What')."</th><th>".vr_t('Detaljer','Details')."</th></tr></thead><tbody>";
 		$q = db_select("select l.*, b.brugernavn, p.name as pname from partner_log l left join brugere b on b.id = l.actor_bruger_id left join partners p on p.id = l.actor_partner_id where l.regnskab_id = '$rid' order by l.id desc limit 300", __FILE__ . " linje " . __LINE__); $n = 0;

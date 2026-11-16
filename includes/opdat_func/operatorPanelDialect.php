@@ -6,6 +6,8 @@
 //                 New ids come from RETURNING on PostgreSQL and LAST_INSERT_ID() on MySQL/MariaDB, on the same connection.
 //                 Locks follow initializeFormHtmlLayoutVersion(): pg_advisory_* on PostgreSQL, GET_LOCK()/RELEASE_LOCK() on MySQL/MariaDB, where the lock is released in a finally on success and on failure.
 //                 The DDL helpers come from databaseDialect.php (opdat_id_column(), opdat_timestamp_column(), opdat_schema_filter(), opdat_index_query()).
+//                 op_connect_ledger() selects the ledger's database after db_connect(), which selects none on MySQL/MariaDB (db_select_database()).
+//                 op_table_exists() and op_column_exists() let the panel skip what an install does not have, e.g. license_features or brugere.email on a fresh install.
 
 if (!function_exists('op_is_mysql')) {
 	include_once(__DIR__ . '/databaseDialect.php');
@@ -39,6 +41,43 @@ if (!function_exists('op_is_mysql')) {
 	/** @return string a nullable timestamp column type: DATETIME on MySQL/MariaDB (no implicit default or time zone conversion) */
 	function op_ts() {
 		return op_is_mysql() ? 'DATETIME' : 'timestamp';
+	}
+
+	/**
+	 * Connect to a ledger's own database and make it the current connection. db_connect() selects no database on
+	 * MySQL/MariaDB, so db_select_database() follows it (a no-op on PostgreSQL). include("../includes/connect.php")
+	 * goes back to the master database afterwards, as before.
+	 *
+	 * @param string $dbname the ledger's database (regnskab.db)
+	 * @param string $spor the caller's trace
+	 * @return mixed the connection, or false
+	 */
+	function op_connect_ledger($dbname, $spor) {
+		global $sqhost, $squser, $sqpass;
+		$c = @db_connect($sqhost, $squser, $sqpass, $dbname, $spor);
+		if (!$c || !db_select_database($c, $dbname)) return false;
+		return $c;
+	}
+
+	/**
+	 * Whether a table exists in the current database (current_schema() on PostgreSQL, DATABASE() on MySQL/MariaDB).
+	 *
+	 * @param string $table
+	 * @return bool
+	 */
+	function op_table_exists($table) {
+		return (bool)db_fetch_array(db_select("SELECT 1 FROM information_schema.tables WHERE table_name = '" . db_escape_string($table) . "'" . opdat_schema_filter(op_db_type()), __FILE__ . " linje " . __LINE__));
+	}
+
+	/**
+	 * Whether a column exists in the current database.
+	 *
+	 * @param string $table
+	 * @param string $column
+	 * @return bool
+	 */
+	function op_column_exists($table, $column) {
+		return (bool)db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = '" . db_escape_string($table) . "' AND column_name = '" . db_escape_string($column) . "'" . opdat_schema_filter(op_db_type()), __FILE__ . " linje " . __LINE__));
 	}
 
 	/**

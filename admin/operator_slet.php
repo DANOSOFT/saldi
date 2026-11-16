@@ -34,6 +34,7 @@ ob_start(); # for the redirect after an action (vr_prg)
 //                 The backup is written with 0007 added to the umask and new backup directories request 0770, so other local users cannot read it.
 //                 The database password is passed to pg_dump or mysqldump as PGPASSWORD or MYSQL_PWD in the child's environment, no longer on the shell command line (review #785).
 //                 When rm cannot remove the uncompressed dump folder, the ledger is not deleted and the operator is told which folder to remove (review #785).
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). The backup passes a port in the host string to mysqldump as -P.
 
 @session_start();
 $s_id=session_id();
@@ -113,7 +114,9 @@ if (isset($_POST['regnskabsantal'])) {
 		if ($fp = fopen($tmpmappe."/backup.info", "w")) { fwrite($fp, date("YmdHis").chr(9).$dbn.chr(9).chr(9).$r['regnskab'].chr(9)."$db_encode".chr(9)."$db_type".chr(9)."$r[regnskab] slettet ".date("d-m-Y H:i")." af $brugernavn"); fclose($fp); }
 		// 20261109 CL/ASR The exit codes count: a dump or tar that fails partway can still leave a non-empty file (review #785).
 		$vr_out = array(); $dumpRc = 1; $tarRc = 1; $rmRc = 1;
-		if ($db_type == 'mysql' || $db_type == 'mysqli') $dumpRc = $vr_dump("mysqldump -h ".escapeshellarg($sqhost)." -u ".escapeshellarg($squser)." -n ".escapeshellarg($dbn)." > ".escapeshellarg($dump_filnavn), 'MYSQL_PWD');
+		// 20261116 CL/ASR mysqli takes the port in the host ("127.0.0.1:3307"), mysqldump wants it apart (-P) (review #785).
+		$vr_h = (string)$sqhost; $vr_p = ''; if (preg_match('/^(.+):(\d+)$/', $vr_h, $vr_m)) { $vr_h = $vr_m[1]; $vr_p = " -P ".(int)$vr_m[2]; }
+		if ($db_type == 'mysql' || $db_type == 'mysqli') $dumpRc = $vr_dump("mysqldump -h ".escapeshellarg($vr_h).$vr_p." -u ".escapeshellarg($squser)." -n ".escapeshellarg($dbn)." > ".escapeshellarg($dump_filnavn), 'MYSQL_PWD');
 		else $dumpRc = $vr_dump("pg_dump -h ".escapeshellarg($sqhost)." -U ".escapeshellarg($squser)." -f ".escapeshellarg($dump_filnavn)." ".escapeshellarg($dbn), 'PGPASSWORD');
 		$dumpOk = $dumpRc === 0 && file_exists($dump_filnavn) && filesize($dump_filnavn) > 0;
 		if ($dumpOk) exec("cd ".escapeshellarg($mappe)." && tar -pzcf ".escapeshellarg($dat_filnavn)." ".escapeshellarg($dbn), $vr_out, $tarRc);

@@ -324,7 +324,7 @@ function ent_usage_collect($reg) {
 	global $sqhost, $squser, $sqpass;
 	$u = array('ok' => false, 'users_active' => null, 'users_total' => null, 'postings_12m' => null, 'postings_month' => null, 'postings_by_month' => array(), 'items' => null, 'webshops' => null, 'pos_tills' => null, 'pos_locations' => null, 'warehouses' => null, 'invoices_12m' => null, 'last_activity' => null, 'modules' => array());
 	if (!$reg['db'] || !db_exists($reg['db'])) return $u;
-	if (!@db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) return $u;
+	if (!op_connect_ledger($reg['db'], __FILE__ . " linje " . __LINE__)) return $u;
 	$u['ok'] = true;
 	$one = function($q) { $r = @db_fetch_array(@db_select($q, __FILE__ . " linje " . __LINE__)); return $r ? $r : array(); };
 	# 20261111 CL/ASR Columns of the relation the unqualified name resolves to through search_path (to_regclass), the same table the counts below read; current_schema() can name a schema that has no such table (review #785).

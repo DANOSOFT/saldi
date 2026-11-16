@@ -198,7 +198,7 @@ $isK = ($p['kind'] == 'koncern');
 $KU = $isK ? vr_t('Selskaber','Companies') : vr_t('Kunder','Customers');
 if (!in_array($tab, array('oversigt','kunder','medarbejdere','indstillinger','log'), true)) $tab = 'oversigt';
 $links = array(); $q = db_select("select * from regnskab_partners where partner_id = '$pid' and until is null order by since", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $links[] = $r;
-$emps = array(); $q = db_select("select pu.*, b.brugernavn, b.email from partner_users pu join brugere b on b.id = pu.bruger_id where pu.partner_id = '$pid' order by pu.partner_role desc, b.brugernavn", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $emps[] = $r;
+$emps = array(); $q = db_select("select pu.*, b.brugernavn, ".(op_column_exists('brugere', 'email') ? "b.email" : "'' as email")." from partner_users pu join brugere b on b.id = pu.bruger_id where pu.partner_id = '$pid' order by pu.partner_role desc, b.brugernavn", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $emps[] = $r;
 $home = $p['home_regnskab_id'] && isset($regNames[(int)$p['home_regnskab_id']]) ? $regNames[(int)$p['home_regnskab_id']] : null;
 
 $crumbs = $op ? array(array(vr_t('Operatørpanel','Operator panel'), '../admin/operator_overblik.php'), array(vr_t('Regnskaber','Accounts'), 'operator_panel.php?ltab='.($isK ? 'koncerner' : 'bogholdere')), $p['name']) : array(array(vr_t('Bogholderpanel','Accountant panel'), '../admin/operator_overblik.php'), vr_t('Mit firma','My firm'));
