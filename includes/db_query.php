@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.1 ----2026-11-13--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-16--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -68,6 +68,7 @@
 //                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
 //                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/ASR db_query_connection() selects the master database on the cached global connection, since db_connect() selects none on MySQL/MariaDB; a $global query from a ledger's context failed there with "No database selected" (SD-731, review #785).
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -239,6 +240,7 @@ if (!function_exists('db_query_connection')) {
 				$current_connection = $connection;
 				$global_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
 				$connection = $current_connection;
+				if ($global_connection) db_select_database($global_connection, $sqdb); # a no-op on PostgreSQL
 			}
 			return $global_connection;
 		}
