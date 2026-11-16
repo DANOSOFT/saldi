@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/modtag.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- kreditor/modtag.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,8 @@
 //                 The log line is only written when the confirmStockChange setting is on, as on the item card.
 //                 The name is taken unescaped from the session's online row and escaped once after cutting, so an apostrophe is stored as typed.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/MMR SST-1010 The stock log takes the unescaped name online.php now provides, so no second lookup can fail.
+//                 Where that name is missing and the online row cannot be read either, no stock log line is written and the reason is logged.
 @session_start();
 $s_id=session_id();
 
@@ -294,14 +296,27 @@ if ($fejl==0) {
 				} else {
 					$initials = '';
 				}
-				// $brugernavn is already escaped by online.php, so cut the raw name from this session's online row in the master
-				// database (as online.php reads it; this also covers revisor sessions) and escape it once (stocklog.username is varchar(10))
-				$qtxt = "select brugernavn from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
-				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true));
-				$userName = db_escape_string(mb_substr($r ? (string)$r['brugernavn'] : '', 0, 10));
-				$qtxt = "insert into stocklog (item_id,username,initials,correction,reason,logtime) values ";
-				$qtxt.= "('$vare_id[$x]','$userName','$initials','$leveres[$x]','indkøbsordre $ordreNr','".date('U')."')";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				// $brugernavn is already escaped by online.php, so cut the raw session name (this also covers revisor sessions)
+				// and escape it once (stocklog.username is varchar(10)). Without $brugernavn_raw (code before #1033), read the
+				// name from this session's online row in the master database, as online.php does.
+				$rawUserName = null;
+				if (isset($brugernavn_raw)) {
+					$rawUserName = (string)$brugernavn_raw;
+				} else {
+					$qtxt = "select brugernavn from online where session_id = '" . db_escape_string($s_id) . "' order by logtime desc limit 1";
+					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true))) {
+						$rawUserName = (string)$r['brugernavn'];
+					}
+				}
+				if ($rawUserName === null) {
+					// A failed query has already been reported by db_select(); never write a log line without a user
+					error_log("modtag.php: no stocklog line for item $vare_id[$x] on purchase order $ordreNr, the session user name could not be read");
+				} else {
+					$userName = db_escape_string(mb_substr($rawUserName, 0, 10));
+					$qtxt = "insert into stocklog (item_id,username,initials,correction,reason,logtime) values ";
+					$qtxt.= "('$vare_id[$x]','$userName','$initials','$leveres[$x]','indkøbsordre $ordreNr','".date('U')."')";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				}
 			}
 			# SST-876: marked, not sent. The receipt sends once when every line is posted, so a
 			# receipt of thirteen lines is thirteen sends rather than thirteen times eight calls,
