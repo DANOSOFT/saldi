@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -103,6 +103,9 @@
 //                 ordreside() reads ordrer.sprog, so the language select and the mail texts on the order show it.
 //                 In the edited POST block the three-argument if_isset() lookups are now ifset() with the same keys and defaults, and ordreside() includes its order parts with __DIR__.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/MMR SST-1024 An item added to an approved purchase order (status 1 or more, or approved in the same save) is inserted with leveres = antal, as approval does for the lines already on the order.
+//                 The line used to get leveres NULL, so «Modtag» showed empty, and the next «Gem» (also Enter in any field) stored 0, so «Modtag» received 0 of it.
+//                 The choice is the new function newLineReceiveQuantity(), so the save branch only calls it.
 @session_start();
 $s_id=session_id();
 
@@ -1061,10 +1064,12 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 							samlevare($id,$art,$vare_id[0],$antal[0]);
 						} else {
 							($omlev && $omvare[0])?$omvbet[0]='on':$omvbet[0]=''; #20150415
+							// SST-1024: $status is already promoted here when «Godkend» is ticked in the same save.
+							$nyLeveres = newLineReceiveQuantity($status, $antal[0]);
 							$qtxt = "insert into ordrelinjer "; 
-							$qtxt.= "(ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,antal,pris,";
+							$qtxt.= "(ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,antal,leveres,pris,";
 							$qtxt.= "rabat,serienr,lev_varenr,momsfri,variant_id,samlevare,omvbet,momssats,lager) values ";
-							$qtxt.= "('$id','$posnr_ny[0]','$varenr[0]','$vare_id[0]','$beskrivelse[0]','$enhed[0]','$antal[0]',";
+							$qtxt.= "('$id','$posnr_ny[0]','$varenr[0]','$vare_id[0]','$beskrivelse[0]','$enhed[0]','$antal[0]',$nyLeveres,";
 							$qtxt.= "'$pris[0]','$rabat[0]','$serienr[0]','$lev_varenr[0]','$momsfri[0]','$variant_id[0]',";
 							$qtxt.= "'$samlevare[0]','$omvbet[0]',$varemomssats[0],'$lager')";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -1887,6 +1892,22 @@ function find_vare_id ($varenr) {
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		return ($r['id']);
 	}	else return (0);
+}
+######################################################################################################################################
+/**
+ * SST-1024: the «Modtag» quantity (ordrelinjer.leveres) a line added on a purchase order or credit note starts with,
+ * as an SQL literal for the insert.
+ *
+ * On an approved order (status 1 or more) the new line is ready to receive in full, like the lines approval set
+ * (leveres = antal), so «Modtag» shows the quantity and the next «Gem» keeps it. A draft (status 0) keeps NULL,
+ * because approval fills it in later.
+ *
+ * @param int|string $status the order status after any «Godkend» promotion in this save
+ * @param int|float|string $antal the line quantity, already parsed (negated on a credit note)
+ * @return string "'<antal>'" or "NULL"
+ */
+function newLineReceiveQuantity($status, $antal) {
+	return ((int)$status >= 1) ? "'" . (float)$antal . "'" : "NULL";
 }
 ######################################################################################################################################
 function samlevare($id,$art,$v_id,$leveres) {
