@@ -29,8 +29,8 @@
 // 20261023 CL/LH MB-95 pos_txt_print() no longer writes ordrer.afd, so a reprint on another terminal does not move a booked sale's
 //                department. Same hunk as SD-758 on hml/shopify; on master the open sale gets its afd from vis_pos_linjer().
 // 20261116 CL/MMR SST-1019 pos_txt_print() sets $afd again, read-only, for the per-regnskab receipt templates.
-//                  MB-95 had removed it together with the write, so templates that pick the shop header and printer
-//                  from $afd fell back to the default header.
+//                 MB-95 had removed it together with the write, so templates that pick the shop header and printer from $afd fell back to the default header.
+//                 The includes inside pos_txt_print() now use __DIR__.
 
 include("pos_ordre_includes/posTxtPrint/posTxtFunctions.php"); #20190506
 function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$type = "standard") {
@@ -76,8 +76,8 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	$betalt=0;
 	$fremmedvaluta=0;
 
-	include("pos_ordre_includes/posTxtPrint/posPayments.php"); #20190507
-	include("pos_ordre_includes/posTxtPrint/ordrerData.php"); #20190506
+	include(__DIR__ . "/posPayments.php"); #20190507
+	include(__DIR__ . "/ordrerData.php"); #20190506
 
 	if (getCountry() == "Norway" && $bruger_id != -1) {
 		$doNotPrint = setReceiptAsCopied($r, $type, $id);
@@ -127,7 +127,7 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	$printserver=$printer_ip[$tmp];
 
 	if (!$printserver)$printserver='localhost';
-	include("pos_ordre_includes/posTxtPrint/getOrdrelinjer.php"); #20190506
+	include(__DIR__ . "/getOrdrelinjer.php"); #20190506
 
 	if (isset($_POST['proforma']) && $_POST['proforma'] == 'Proforma') {
 		proformaCount($x, $dkkpris, $kasse);
@@ -145,14 +145,14 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 		while(strlen($beskrivelse[$x])<26) $beskrivelse[$x]=$beskrivelse[$x]." ";
 		$linjeantal=$x;
 	}
-	include_once("pos_ordre_includes/boxCountMethods/findBoxSale.php");
+	include_once(__DIR__ . "/../boxCountMethods/findBoxSale.php");
 // fucntions is located in: debitor/pos_ordre_includes/helperMethods/helperFuncII.php
 	$temp = findBoxSale($kasse, 0,'DKK');
 	$omsatning=$temp[1] + $temp[7];
 	$reportArray = setupReport($type, $kasse,$reportNumber); #Make report if that was the case
 	$uniqueShopId = getUniqueBoxId($kasse);
 	$vatRate = getVatArray($id);
-	include("pos_ordre_includes/posTxtPrint/setTextVar.php"); #20190507
+	include(__DIR__ . "/setTextVar.php"); #20190507
 }
 
 

@@ -11,10 +11,9 @@
 // dozen files and writes under ../temp), so the fragments are lifted from the shipped source and run
 // against sqlite.
 //
-// 20261116 CL/MMR SST-1019 The same block sets $afd again, read-only, because the per-regnskab receipt
-// templates (debitor/pos_print/pos_print_<db_id>.php, only on the server) pick the shop header and the
-// printer from it. MB-95 had removed the variable together with the write, and the templates fell back to
-// the default header. The tests below pin the value and that it still never writes the order.
+// 20261116 CL/MMR SST-1019 The same block sets $afd again, read-only, because the per-regnskab receipt templates (debitor/pos_print/pos_print_<db_id>.php, only on the server) pick the shop header and the printer from it.
+//                 MB-95 had removed the variable together with the write, and the templates fell back to the default header.
+//                 The tests below pin the value and that it still never writes the order.
 
 namespace Saldi\Tests\PosCallSites;
 
