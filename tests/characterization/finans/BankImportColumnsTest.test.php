@@ -12,6 +12,9 @@ use PHPUnit\Framework\TestCase;
 //                 The settings table is stubbed in memory, and the files are synthetic.
 // 20261116 CL/MMR SST-962 Review (CodeRabbit): the settings table is a private schema on the test database, so the save's lock and the
 //                 duplicate merge run for real. New: «Vis» with a new splitter, «Hent» after one, duplicate rows, two first saves at once.
+// 20261116 CL/MMR SST-962 Codex round 3: the columns are counted as vis_data() splits them, so a quoted field holding the separator
+//                 (Windows-1252 file) saves for the width the preview shows. A MySQL lock that is not granted saves nothing, and a lock is released on an exception.
+//                 The acquirer file no longer quotes a comma in the middle of a line, because vis_data() splits such a field (tested on its own).
 #[RunTestsInSeparateProcesses]
 #[PreserveGlobalState(false)]
 final class BankImportColumnsTest extends TestCase
@@ -19,10 +22,17 @@ final class BankImportColumnsTest extends TestCase
     private const FILE = __DIR__ . '/../../../includes/stdFunc/bankImportColumns.php';
     private const CHILD = __DIR__ . '/support/run_bank_import_save.php';
 
-    /** A card-acquirer export: 13 columns, comma separated, description in column 10 (index 9). */
+    /** A card-acquirer export: 13 columns, comma separated, description in column 10 (index 9). The first field may be quoted. */
     private const ACQUIRER = "-,merchant_id,merchant_name,id,arn,type,processed_at,amount,currency,text_on_statement,reference,threed_secure,settlement\n"
         . "1,1000001,Testbutik ApS,a-1,700,capture,2026-10-26,100.00,DKK,testbutik.dk,000520000,full,S1\n"
-        . "1,1000001,\"Testbutik, Nord\",a-2,701,refund,2026-10-26,37.50,DKK,testbutik.dk,000520001,full,S1\n";
+        . "\"1\",1000001,Testbutik Nord,a-2,701,refund,2026-10-26,37.50,DKK,testbutik.dk,000520001,full,S1\n";
+
+    /**
+     * Codex round 3: a Windows-1252 bank file with a separator inside quotes. vis_data() skips a quote that follows a
+     * separator, so the quoted text is split and the preview has 4 columns with «Semikolon».
+     */
+    private const QUOTED = "01-10-2026;\"\xE6\xF8\xE5; betaling\";100,00\r\n"
+        . "02-10-2026;\"\xC6\xD8\xC5; retur\";-37,50\r\n";
 
     /** A bank's own export: 7 columns, semicolon separated, no header. */
     private const BANK = "26-10-2026;Overførsel;Kunde A betaling;26-10-2026;1.250,00;10.250,00;DKK\n"
@@ -95,7 +105,7 @@ final class BankImportColumnsTest extends TestCase
 
     public function testLastColumnOfTheAcquirerFile(): void
     {
-        self::assertSame(12, bank_import_file_last_column(self::file(self::ACQUIRER), 'UTF-8'), 'a quoted comma does not count as a column');
+        self::assertSame(12, bank_import_file_last_column(self::file(self::ACQUIRER), 'UTF-8'), 'a quoted first field is one column');
     }
 
     public function testLastColumnOfTheBankFile(): void
@@ -164,6 +174,8 @@ final class BankImportColumnsTest extends TestCase
         self::assertLessThan($firstPrint, $save, 'the choices are saved before the page prints');
         self::assertStringContainsString('bank_import_columns_for_upload($bruger_id, $filnavn, $charset, $feltnavn)', $src);
         self::assertStringContainsString('name=\\"previewSplitter\\"', $src, 'the preview posts the splitter it was made with');
+        self::assertStringContainsString('$felt=bank_import_split_line($linje, $splittegn);', $src, 'the preview splits with the shared function');
+        self::assertStringNotContainsString('$anftegn', $src, 'no second split loop is left in bankimport.php');
     }
 
     public function testAChosenSplitterCountsItsOwnColumns(): void
@@ -302,5 +314,152 @@ final class BankImportColumnsTest extends TestCase
         $first = bank_import_saved_columns(27, 2);
         self::assertSame($first, bank_import_saved_columns(27, 2));
         self::assertSame(explode(',', $rows[0]['var_value']), $first);
+    }
+
+    /** The split vis_data() has always used, moved unchanged to bank_import_split_line(). Field numbers start at 1. */
+    public function testTheSplitIsTheLegacyOne(): void
+    {
+        self::assertSame([1 => 'a', 2 => 'b', 3 => 'c'], bank_import_split_line('a;b;c', ';'));
+        self::assertSame([1 => 'a;b', 2 => 'c'], bank_import_split_line('"a;b";c', ';'), 'a quoted first field keeps the separator');
+        self::assertSame([1 => 'a', 2 => 'b', 3 => 'c'], bank_import_split_line('a;"b";c', ';'), 'quotes around a later field are dropped');
+        self::assertSame([1 => 'a', 2 => 'b', 3 => ' c', 4 => 'd'], bank_import_split_line('a;"b; c";d', ';'), 'a later quoted field is split (legacy)');
+        self::assertSame([1 => 'a', 2 => '', 3 => 'c'], bank_import_split_line('a;;c', ';'));
+        self::assertSame([1 => 'a', 2 => ''], bank_import_split_line('a;', ';'));
+        self::assertSame([1 => 'a,b', 2 => 'c'], bank_import_split_line("a,b\tc", "\t"));
+        self::assertSame([], bank_import_split_line('', ';'));
+    }
+
+    /** Codex round 3: the preview of the quoted Windows-1252 file has 4 columns with «Semikolon», and that is the width counted. */
+    public function testAQuotedSeparatorCountsTheColumnsThePreviewShows(): void
+    {
+        $file = self::file(self::QUOTED);
+        foreach (['UTF-8', 'ISO-8859-15'] as $charset) {
+            self::assertSame(3, bank_import_file_last_column($file, $charset), "semicolons win the automatic choice ($charset)");
+            self::assertSame(3, bank_import_file_last_column($file, $charset, 'Semikolon'), $charset);
+            self::assertSame(1, bank_import_file_last_column($file, $charset, 'Komma'), $charset);
+        }
+        $lines = bank_import_read_lines($file, 'UTF-8');
+        self::assertSame([1 => '01-10-2026', 2 => 'æøå', 3 => ' betaling', 4 => '100,00'], bank_import_split_line(trim($lines[0]), ';'));
+        self::assertSame([1 => '02-10-2026', 2 => 'ÆØÅ', 3 => ' retur', 4 => '-37,50'], bank_import_split_line(trim($lines[1]), ';'));
+    }
+
+    /**
+     * Codex round 3, finding 2: with both widths saved, confirming the 4-column preview of the quoted file saves only
+     * columns_4. Before, the save counted 3 columns (str_getcsv) and cut the choice into columns_3, losing «belob».
+     */
+    public function testConfirmingTheQuotedPreviewChangesOnlyItsOwnWidth(): void
+    {
+        $file = self::file(self::QUOTED);
+        bank_import_save_columns(27, ['dato', 'beskrivelse', 'belob'], 2);
+        bank_import_save_columns(27, ['dato', 'beskrivelse', '', 'belob'], 3);
+
+        $shown = bank_import_columns_for_upload(27, $file, 'ISO-8859-15', ['dato', 'beskrivelse', 'belob']);
+        self::assertSame(['dato', 'beskrivelse', '', 'belob'], $shown, 'the upload shows the 4-column choices');
+
+        $posted = ['dato', 'beskrivelse', '', 'belob'];
+        self::assertSame($posted, bank_import_columns_for_post(27, $file, 'ISO-8859-15', $posted, 'Semikolon', 'Semikolon', true));
+        self::assertSame('dato,beskrivelse,belob', self::value(27, 3), 'the 3-column choices are left alone');
+        self::assertSame('dato,beskrivelse,,belob', self::value(27, 4));
+
+        $posted = ['dato', '', 'beskrivelse', 'belob'];
+        bank_import_columns_for_post(27, $file, 'ISO-8859-15', $posted, 'Semikolon', 'Semikolon', false);
+        self::assertSame('dato,beskrivelse,belob', self::value(27, 3), '«Hent» leaves the 3-column choices alone too');
+        self::assertSame('dato,,beskrivelse,belob', self::value(27, 4));
+        self::assertSame($posted, bank_import_columns_for_upload(27, $file, 'ISO-8859-15', []), 'the next upload shows them');
+    }
+
+    /** Makes get_lock()/release_lock() answer in the private schema, so the MySQL branch runs on the PostgreSQL test database. */
+    private static function fakeMysqlLock(?int $result): void
+    {
+        $GLOBALS['db_type'] = 'mysqli';
+        $value = $result === null ? 'null' : (string)$result;
+        pg_query($GLOBALS['connection'], "create table lock_calls (id serial primary key, fn text, name text)");
+        pg_query($GLOBALS['connection'], "create function get_lock(text, integer) returns integer language sql as
+            \$\$ insert into lock_calls (fn, name) values ('get', \$1); select $value::integer \$\$");
+        pg_query($GLOBALS['connection'], "create function release_lock(text) returns integer language sql as
+            \$\$ insert into lock_calls (fn, name) values ('release', \$1); select 1 \$\$");
+    }
+
+    /** @return string[] The lock calls in order, as "get" or "release". */
+    private static function lockCalls(): array
+    {
+        $calls = [];
+        $result = pg_query($GLOBALS['connection'], "select fn, name from lock_calls order by id");
+        while ($r = pg_fetch_assoc($result)) {
+            self::assertSame(bank_import_columns_lock_name(27, 2), $r['name']);
+            $calls[] = $r['fn'];
+        }
+        return $calls;
+    }
+
+    /** @return array<string, array{0: int|null}> */
+    public static function lockNotGranted(): array
+    {
+        return ['timeout (0)' => [0], 'error (NULL)' => [null]];
+    }
+
+    /** Codex round 3, finding 1: GET_LOCK() 0 (timeout) or NULL (error) means the lock is not held, so nothing is read or written. */
+    #[PHPUnit\Framework\Attributes\DataProvider('lockNotGranted')]
+    public function testAMysqlLockThatIsNotGrantedSavesNothing(?int $result): void
+    {
+        pg_query($GLOBALS['connection'], "insert into settings (var_name, var_grp, var_value, var_description, user_id)
+            values ('columns_3', 'bankimport', 'dato,beskrivelse,belob', '', 27)");
+        self::fakeMysqlLock($result);
+        pg_query($GLOBALS['connection'], "alter table settings rename to settings_hidden");
+        pg_query($GLOBALS['connection'], "create view settings as select * from settings_hidden where 1/0 = 1 limit 1000");
+        self::assertFalse(bank_import_save_columns(27, ['belob', 'dato', 'beskrivelse'], 2), 'not saved');
+        self::assertSame(['get'], self::lockCalls(), 'no release of a lock that is not held');
+        pg_query($GLOBALS['connection'], "drop view settings");
+        pg_query($GLOBALS['connection'], "alter table settings_hidden rename to settings");
+        self::assertSame('dato,beskrivelse,belob', self::value(27, 3), 'the saved choices are unchanged');
+    }
+
+    /** Codex round 3, finding 1: a GET_LOCK() query that fails stops the save before any read or write. */
+    public function testAMysqlLockQueryThatFailsSavesNothing(): void
+    {
+        $GLOBALS['db_type'] = 'mysqli';
+        pg_query($GLOBALS['connection'], "create table lock_calls (id serial primary key, fn text, name text)");
+        try {
+            bank_import_save_columns(27, ['dato', 'beskrivelse', 'belob'], 2);
+            self::fail('the failed lock query stops the save');
+        } catch (RuntimeException $e) {
+            self::assertStringContainsString('get_lock', $e->getMessage());
+        }
+        self::assertSame([], self::rows(), 'nothing is written');
+        self::assertSame([], self::lockCalls());
+    }
+
+    /** Codex round 3, finding 1: GET_LOCK() 1 is the lock held, so the choices are saved and the lock is released once. */
+    public function testAGrantedMysqlLockSavesAndIsReleased(): void
+    {
+        self::fakeMysqlLock(1);
+        self::assertTrue(bank_import_save_columns(27, ['dato', 'beskrivelse', 'belob'], 2));
+        self::assertSame('dato,beskrivelse,belob', self::value(27, 3));
+        self::assertSame(['get', 'release'], self::lockCalls());
+    }
+
+    /** A save that fails while it holds the lock releases it, on MySQL and on PostgreSQL. */
+    public function testTheLockIsReleasedWhenTheWriteFails(): void
+    {
+        $connection = $GLOBALS['connection'];
+        pg_query($connection, "alter table settings rename to settings_hidden");
+        pg_query($connection, "create view settings as select * from settings_hidden where 1/0 = 1 limit 1000");
+        try {
+            bank_import_save_columns(27, ['dato', 'beskrivelse', 'belob'], 2);
+            self::fail('the broken settings table stops the save');
+        } catch (RuntimeException $e) {
+            self::assertStringContainsString('division by zero', $e->getMessage());
+        }
+        $held = pg_fetch_result(pg_query($connection, "select count(*) from pg_locks where locktype = 'advisory' and pid = pg_backend_pid()"), 0, 0);
+        self::assertSame('0', $held, 'the PostgreSQL advisory lock is released');
+
+        self::fakeMysqlLock(1);
+        try {
+            bank_import_save_columns(27, ['dato', 'beskrivelse', 'belob'], 2);
+            self::fail('the broken settings table stops the save');
+        } catch (RuntimeException $e) {
+            self::assertStringContainsString('division by zero', $e->getMessage());
+        }
+        self::assertSame(['get', 'release'], self::lockCalls(), 'the MySQL lock is released');
     }
 }

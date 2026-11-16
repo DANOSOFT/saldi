@@ -53,6 +53,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261116 CL/MMR SST-962 Review (CodeRabbit): the preview posts the splitter it was made with (previewSplitter), and the choices are saved for that preview (bank_import_columns_for_post()).
 //                 «Vis» with a new splitter saves nothing and shows the choices saved for the new number of columns.
+//                 vis_data() splits each line with bank_import_split_line() (its own loop, moved unchanged), so the saved choices count the columns the preview shows.
 ini_set("auto_detect_line_endings", true);
 
 @session_start();
@@ -307,27 +308,10 @@ if ($line !== false) {
 			$y++;
 			$ny_linje[$y]='';
 			$linje=trim($linje);
-			$anftegn=0;
-				$felt=array();
-				$z=0;
-				for ($x=0; $x<strlen($linje);$x++) {
-				if ($x==0 && substr($linje,$x,1)=='"') {
-					$z++; $anftegn=1; $felt[$z]='';
-				} elseif ($x==0) {
-					$z++; $felt[$z]=substr($linje,$x,1);
-				} elseif (substr($linje,$x,1)=='"' && substr($linje,$x-1,1)==$splittegn && !$anftegn) {
-					$z++; $anftegn=1; $felt[$z]='';
-				} elseif (substr($linje,$x,1)=='"' && (substr($linje,$x+1,1)==$splittegn || $x==strlen($linje)-1)) {
-					$anftegn=0;
-					if (substr($linje,$x+2,1)=='"') $x++;
-#					if ($x==strlen($linje)) $z--;
-				}	elseif (!$anftegn && substr($linje,$x,1)==$splittegn) {
-					$z++; $felt[$z]='';
-					if (substr($linje,$x+1,1)=='"') $x++;
-				} else {
-					$felt[$z]=$felt[$z].substr($linje,$x,1);
-				} 
-			}
+			// SST-962: the split moved unchanged to bank_import_split_line(), so the saved column choices count the columns shown here
+			$felt=bank_import_split_line($linje, $splittegn);
+			$z=count($felt);
+			$x=strlen($linje);
 			if ($z>$feltantal) $feltantal=$z-1;
 			if (!isset($felt[$x])) $felt[$x] = NULL;
 			for ($x=1; $x<=$z; $x++) {

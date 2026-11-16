@@ -27,6 +27,8 @@
 // 20261116 CL/MMR SST-962 Review (CodeRabbit): the choices are saved for the number of columns of the preview they were made on, counted from the file (bank_import_columns_for_post()).
 //                 «Vis» with a new splitter saves nothing and shows the choices saved for the new number of columns.
 //                 The save runs under a lock, so two first saves at once cannot leave two rows, and the newest row is the one read.
+//                 Codex round 3: the columns are counted with vis_data()'s own split (bank_import_split_line()), not str_getcsv(), so a quoted field with the separator gives the width the preview shows.
+//                 A MySQL lock that is not granted (GET_LOCK() 0, NULL or a failed query) saves nothing, and a lock is released when the write fails.
 
 include_once(__DIR__ . '/bankImportEncoding.php');
 
@@ -135,7 +137,8 @@ if (!function_exists('bank_import_save_columns')) {
 	 * Nothing is stored when no column is chosen, so an empty post cannot wipe a saved layout.
 	 *
 	 * The look-up and the insert run under a lock per user and number of columns (a PostgreSQL advisory lock, or
-	 * GET_LOCK() on MySQL), so two first saves at once cannot both insert. Rows left over from before are merged:
+	 * GET_LOCK() on MySQL), so two first saves at once cannot both insert. A MySQL lock that is not granted within
+	 * 10 seconds (0) or fails (NULL) saves nothing. Rows left over from before are merged:
 	 * the newest gets the value and the others are deleted. The settings API itself is not changed. Call it outside
 	 * a transaction, so the row is committed before the lock is released.
 	 *
@@ -156,13 +159,42 @@ if (!function_exists('bank_import_save_columns')) {
 		}
 		$mysql = ($db_type == 'mysql' || $db_type == 'mysqli');
 		$lock = bank_import_columns_lock_name($userId, $feltantal);
-		$where = bank_import_columns_where($userId, $feltantal);
 		$value = db_escape_string(implode(',', $columns));
 		if ($mysql) {
-			db_select("select get_lock('$lock', 10)", __FILE__ . " linje " . __LINE__);
+			// GET_LOCK() gives 1 when granted, 0 on a timeout and NULL on an error: only 1 may write
+			$q = db_select("select get_lock('$lock', 10) as acquired", __FILE__ . " linje " . __LINE__);
+			$r = $q ? db_fetch_array($q) : false;
+			if (!$r || (string)ifset($r, 'acquired', '') !== '1') {
+				return false;
+			}
 		} else {
 			db_select("select pg_advisory_lock(hashtext('$lock'))", __FILE__ . " linje " . __LINE__);
 		}
+		try {
+			bank_import_write_columns($userId, $feltantal, $value);
+		} finally {
+			if ($mysql) {
+				db_select("select release_lock('$lock')", __FILE__ . " linje " . __LINE__);
+			} else {
+				db_select("select pg_advisory_unlock(hashtext('$lock'))", __FILE__ . " linje " . __LINE__);
+			}
+		}
+		return true;
+	}
+}
+
+if (!function_exists('bank_import_write_columns')) {
+	/**
+	 * Writes one user's choices for one number of columns: the newest row gets the value and older rows of the same
+	 * key are deleted, or a row is inserted. Only bank_import_save_columns() calls it, while it holds the lock.
+	 *
+	 * @param int|string $userId    brugere.id.
+	 * @param int|string $feltantal Index of the last column (number of columns - 1).
+	 * @param string     $value     The comma-separated whitelisted names, escaped for SQL.
+	 * @return void
+	 */
+	function bank_import_write_columns($userId, $feltantal, $value) {
+		$where = bank_import_columns_where($userId, $feltantal);
 		$ids = array();
 		$q = db_select("select id from settings where $where order by id desc", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
@@ -180,12 +212,6 @@ if (!function_exists('bank_import_save_columns')) {
 			$qtxt .= "('$name', 'bankimport', '$value', 'Bank import column choices for a file with this number of columns', " . (int)$userId . ")";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		if ($mysql) {
-			db_select("select release_lock('$lock')", __FILE__ . " linje " . __LINE__);
-		} else {
-			db_select("select pg_advisory_unlock(hashtext('$lock'))", __FILE__ . " linje " . __LINE__);
-		}
-		return true;
 	}
 }
 
@@ -193,7 +219,7 @@ if (!function_exists('bank_import_file_last_column')) {
 	/**
 	 * Index of the last column in an uploaded bank file (number of columns - 1), found the way vis_data() in
 	 * finans/bankimport.php finds it: the separator that occurs most often in the first 11 lines (comma, semicolon
-	 * or tab), then the line with the most fields, with double quotes around a field honoured.
+	 * or tab), then the line with the most fields, split as vis_data() splits them (bank_import_split_line()).
 	 *
 	 * With a splitter chosen on the page («Komma», «Semikolon» or «Tabulator») that separator is used instead, as
 	 * vis_data() does after «Vis».
@@ -230,10 +256,52 @@ if (!function_exists('bank_import_file_last_column')) {
 	}
 }
 
+if (!function_exists('bank_import_split_line')) {
+	/**
+	 * Splits one line of a bank file into its fields, as vis_data() in finans/bankimport.php has always done. The loop
+	 * was moved here unchanged, so the preview and the column count used for the saved choices cannot disagree.
+	 *
+	 * Legacy behaviour, kept on purpose: a field that starts the line in double quotes may hold the separator, but a
+	 * quote right after a separator is skipped, so a separator inside such a field still splits it ("a, b" in the
+	 * middle of a comma line gives two fields). str_getcsv() would give one, and a different number of columns.
+	 *
+	 * @param string $linje     One line, already trimmed.
+	 * @param string $splittegn The separator: ',', ';' or a tab.
+	 * @return array<int, string> Field number (from 1) => text; empty for an empty line.
+	 */
+	function bank_import_split_line($linje, $splittegn) {
+		$felt = array();
+		$z = 0;
+		$anftegn = 0;
+		for ($x = 0; $x < strlen($linje); $x++) {
+			if ($x == 0 && substr($linje, $x, 1) == '"') {
+				$z++; $anftegn = 1; $felt[$z] = '';
+			} elseif ($x == 0) {
+				$z++; $felt[$z] = substr($linje, $x, 1);
+			} elseif (substr($linje, $x, 1) == '"' && substr($linje, $x - 1, 1) == $splittegn && !$anftegn) {
+				$z++; $anftegn = 1; $felt[$z] = '';
+			} elseif (substr($linje, $x, 1) == '"' && (substr($linje, $x + 1, 1) == $splittegn || $x == strlen($linje) - 1)) {
+				$anftegn = 0;
+				if (substr($linje, $x + 2, 1) == '"') {
+					$x++;
+				}
+			} elseif (!$anftegn && substr($linje, $x, 1) == $splittegn) {
+				$z++; $felt[$z] = '';
+				if (substr($linje, $x + 1, 1) == '"') {
+					$x++;
+				}
+			} else {
+				$felt[$z] = $felt[$z] . substr($linje, $x, 1);
+			}
+		}
+		return $felt;
+	}
+}
+
 if (!function_exists('bank_import_lines_last_column')) {
 	/**
-	 * Index of the last column over the lines of a bank file: the line with the most fields, with double quotes
-	 * around a field honoured, as vis_data() splits them.
+	 * Index of the last column over the lines of a bank file: the line with the most fields, split as vis_data()
+	 * splits them for the preview (bank_import_split_line()), so the count is the number of columns the page shows.
 	 *
 	 * @param string[] $lines The file's lines, as from bank_import_read_lines().
 	 * @param string   $sep   The separator: ',', ';' or a tab.
@@ -246,7 +314,7 @@ if (!function_exists('bank_import_lines_last_column')) {
 			if ($line === '') {
 				continue;
 			}
-			$last = max($last, count(str_getcsv($line, $sep, '"', '')) - 1);
+			$last = max($last, count(bank_import_split_line($line, $sep)) - 1);
 		}
 		return $last;
 	}
