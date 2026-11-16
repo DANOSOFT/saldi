@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/resetAccount.php --- 2026-10-05 ---
+// --- systemdata/resetAccount.php --- 2026-11-16 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Build an explicit reset plan using only existing tenant tables.
 // 20260916 CDX/PHR Clear item texts when items are not retained.
@@ -8,6 +8,7 @@
 // 20260917 CL/LH Refuse the reset on MySQL/MariaDB, where TRUNCATE auto-commits and the
 //                transaction cannot be rolled back.
 // 20261005 SS Settings redesign G1.4: users' personal settings (grupper USET) survive a reset.
+// 20261116 CL/ASR resetAccount() locks transaktioner inside its transaction before it counts the postings, and returns that count, so the number it reports is exactly what the reset deletes (review #1131).
 
 /**
  * Build reset statements. Unlisted tables are never cleared implicitly.
@@ -83,7 +84,10 @@ function accountResetStatements(array $existingTables, $keepAccounts, $keepItems
 	return $statements;
 }
 
-/** Execute only the reset plan for the currently connected account. */
+/**
+ * Execute only the reset plan for the currently connected account.
+ * @return int the number of postings (transaktioner) the reset deleted, counted under the reset's lock
+ */
 function resetAccount($keepAccounts, $keepItems, $dbType, $database) {
 	// TRUNCATE forces an implicit commit on MySQL/MariaDB, so transaktion('rollback') cannot undo
 	// a reset that fails midway and the account would be left half emptied. Refuse before any
@@ -101,7 +105,17 @@ function resetAccount($keepAccounts, $keepItems, $dbType, $database) {
 	}
 	// PostgreSQL rolls back the entire reset on failure, including identity sequences.
 	transaktion('begin');
+	$deletedPostings = 0;
 	try {
+		// Lock the postings before counting them: a posting committed after the count would otherwise be deleted
+		// without being counted. TRUNCATE needs this lock anyway, so it only comes a moment earlier. #20261116
+		if (in_array('transaktioner', $existing, true)) {
+			if (substr((string)db_modify("LOCK TABLE transaktioner IN ACCESS EXCLUSIVE MODE", __FILE__ . ' linje ' . __LINE__), 0, 1) !== '0') {
+				throw new RuntimeException('Nulstilling af regnskab fejlede.');
+			}
+			$row = db_fetch_array(db_select("SELECT count(*) AS n FROM transaktioner", __FILE__ . ' linje ' . __LINE__));
+			$deletedPostings = $row ? (int)$row['n'] : 0;
+		}
 		$q = db_select("SELECT kodenr,box1,box2,box3,box4,box10 FROM grupper WHERE art='RA'", __FILE__ . ' linje ' . __LINE__);
 		$years = array();
 		while ($row = db_fetch_array($q)) {
@@ -121,6 +135,7 @@ function resetAccount($keepAccounts, $keepItems, $dbType, $database) {
 		throw $error;
 	}
 	resetAccountSessionYear($database);
+	return $deletedPostings;
 }
 
 /** Select the chronologically latest undeleted year; fail before deleting any data if none exists. */

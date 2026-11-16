@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/admin_panel.php --- 2026-11-14 ---
+// --- admin/admin_panel.php --- 2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,6 +21,7 @@
 // 20261113 CDX/NTR Use the shared last-activity formatter for legacy registry date strings in both account views.
 // 20261114 CL/ASR Nulstil regnskab on the single ledger's page (action reset_ledger): the reset left the ledger's own settings, so only Saldi's staff can run it.
 //                 It needs the ledger's name typed and the session's CSRF token, and is written to the ledger's audit log.
+// 20261116 CL/ASR The number of deleted postings comes from resetAccount(), which counts them under the reset's own lock, so a posting committed meanwhile is counted too (review #1131).
 
 ob_start();
 
@@ -278,9 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // (db_query_connection()) and the statements land in the ledger's own modify log.
                 $db = $reset_db;
                 try {
-                    $count_row = db_fetch_array(db_select("SELECT count(*) AS n FROM transaktioner", __FILE__ . " linje " . __LINE__));
-                    $deleted_postings = $count_row ? (int)$count_row['n'] : 0;
-                    resetAccount($keep_accounts, $keep_items, (string)$db_type, $reset_db);
+                    $deleted_postings = (int)resetAccount($keep_accounts, $keep_items, (string)$db_type, $reset_db); # counted under the reset's lock
                     // The ledger's own audit log says who reset it. Written here and not with audit_log(), which
                     // remembers the master database's table layout for the whole request.
                     if (tbl_exists('audit_log')) {
