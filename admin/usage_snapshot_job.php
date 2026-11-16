@@ -6,7 +6,9 @@
 //                 CLI only: cd admin && php usage_snapshot_job.php [limit] Cron (owner's decision 10/10-2026: 02:00 every night), as the web server user: 0 2 * * * cd /var/www/html/<map>/admin && /usr/bin/php usage_snapshot_job.php >> ../temp/usage_snapshot.log 2>&1
 // 20261029 CL/ASR Exits quietly until the update chain has created the panel's tables (operator_panel_schema flag).
 // 20261116 CL/ASR The billing status is looked up by an exact customer number, CVR or name (bill_key(), review #785).
+//                 The ledger's database is selected after db_connect() (op_connect_ledger()), and REQUEST_URI/REMOTE_ADDR get CLI defaults, since db_query.php's logging reads them.
 if (php_sapi_name() !== 'cli') { http_response_code(403); exit("cli only\n"); }
+$_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] ?? '/admin/usage_snapshot_job.php'; $_SERVER['REMOTE_ADDR'] = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'; # db_query.php's logging reads both, and the CLI has neither
 chdir(__DIR__);
 include("../includes/connect.php");
 if (!function_exists('db_select')) include("../includes/db_query.php");

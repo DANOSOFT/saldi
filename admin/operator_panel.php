@@ -42,6 +42,8 @@ ob_start();
 //                 A user who still reaches every account through admin or '*' is named in the message.
 //                 The Betalinger tab finds the billing customer by an exact match (bill_key(), bill_fetch()).
 // 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). The numeric sort columns cast through CAST(… AS SIGNED) there, the search uses like (ilike on PostgreSQL through db_select()), and boolean columns are read through op_bool().
+//                 The Brugere tab writes twofactor as true/false, which MySQL/MariaDB accepts for its tinyint column, and the ledger's database is selected after db_connect() (op_connect_ledger()).
+//                 The legacy licence flags are only read and written where the install has a license_features table.
 
 @session_start();
 $s_id = session_id();
@@ -264,8 +266,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
             $sets[] = "tlf='" . db_escape_string(trim($input['tlf'])) . "'";
         }
         if (isset($input['twofactor'])) {
-            $tf = $input['twofactor'] ? 't' : 'f';
-            $sets[] = "twofactor='$tf'";
+            $sets[] = 'twofactor=' . ($input['twofactor'] ? 'true' : 'false'); # a boolean literal both databases take (MySQL/MariaDB refuses 't'/'f' in a tinyint)
         }
         if (isset($input['ip_address'])) {
             $sets[] = "ip_address='" . db_escape_string(trim($input['ip_address'])) . "'";
