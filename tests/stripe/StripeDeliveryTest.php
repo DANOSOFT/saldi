@@ -1,5 +1,6 @@
 <?php
 // 20261022 CDX/LH Mixed batch ownership, classic/link delivery, fallback errors and recipient/archive regressions.
+// 20261116 CDX/ASR Expect the supplied dark Saldi logo in the shared invoice and receipt mail layout.
 // 20261022 CDX/LH Use valid PDF fixtures for protected cache validation and mixed-batch ownership checks.
 // 20261022 CL/LH S5 Pre-charge notice, PDF fallback, Danish decline sentences, greeting and consent texts.
 // 20261022 CDX/LH Verify configured consent/notice dates and PDF fallback when automatic collection is no longer eligible.
@@ -337,10 +338,10 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
         }
         $this->assertStringContainsString("(!empty(\$_GET['vis']) ? 'inline' : 'attachment')", file_get_contents(__DIR__ . '/../../api/stripe/faktura_pdf.php'));
         // 20261025 Saldi's own mails show the logo; another company keeps its name as text.
-        $this->assertStringContainsString('/img/SaldiMainLogo.png" width="128" alt="Saldi"', StripeTestTransport::$mails[0]['html']);
+        $this->assertStringContainsString('/img/saldi-moerk-logo-lys-baggrund.png" width="128" alt="Saldi"', StripeTestTransport::$mails[0]['html']);
         $other = $inv;
         $other['brand'] = 'Hansen Tømrer';
-        $this->assertStringNotContainsString('SaldiMainLogo', stripe_mail_layout($other, 'L', 'H', 'B', null, [], '', '', '', '', ''));
+        $this->assertStringNotContainsString('saldi-moerk-logo-lys-baggrund', stripe_mail_layout($other, 'L', 'H', 'B', null, [], '', '', '', '', ''));
         $this->assertStringContainsString('margin-bottom:32px">Hansen Tømrer</div>', stripe_mail_layout($other, 'L', 'H', 'B', null, [], '', '', '', '', ''));
         $page = file_get_contents(__DIR__ . '/../../api/stripe/faktura.php');
         $this->assertStringNotContainsString('Abonnement & fakturering', $page);

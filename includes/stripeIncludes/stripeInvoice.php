@@ -74,6 +74,7 @@ if (is_file(__DIR__ . '/stripeReminder.php')) include_once(__DIR__ . '/stripeRem
 // 20261111 CL/ASR Review round 2: text mail_rem_row_prior_fee_interest for an earlier level's open item that includes interest.
 // 20261116 CDX/ASR Explain unavailable card links, route amounts below the DKK card minimum to bank transfer, and identify the invoice opened by a multi-invoice reminder.
 // 20261116 CDX/ASR Use the primary invoice recipient for Stripe customer creation while retaining Saldi's full recipient list.
+// 20261116 CDX/ASR Use the supplied dark Saldi logo and matching blue-purple gradient in invoice and reminder mails.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -1150,7 +1151,7 @@ if (!function_exists('stripe_mail_layout')) {
 		// 20261025 CL/ASR Saldi's own invoices show the Saldi logo (public image, alt text when images are blocked)
 		$base = rtrim((string)stripe_setting('public_base_url'), '/');
 		$brandHtml = ($inv['brand'] === 'Saldi' && $base !== '')
-			? '<img src="' . stripe_h($base . '/img/SaldiMainLogo.png') . '" width="128" alt="Saldi" style="display:block;width:128px;height:auto;border:0">'
+			? '<img src="' . stripe_h($base . '/img/saldi-moerk-logo-lys-baggrund.png') . '" width="128" alt="Saldi" style="display:block;width:128px;height:auto;border:0">'
 			: stripe_h($inv['brand']);
 		$h .= '<div style="font-size:26px;font-weight:700;letter-spacing:-.02em;margin-bottom:32px">' . $brandHtml . '</div>';
 		$h .= '<div style="font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#9a5b1a;margin-bottom:12px">' . stripe_h($label) . '</div>';
@@ -1166,7 +1167,7 @@ if (!function_exists('stripe_mail_layout')) {
 			$h .= '</table>';
 		}
 		if ($listHtml !== '') $h .= $listHtml;
-		if ($btnText && $btnUrl) $h .= '<a href="' . stripe_h($btnUrl) . '" style="display:block;text-align:center;color:#fff;text-decoration:none;font-weight:700;font-size:18px;padding:18px;border-radius:12px;background:#1b68bd;background-image:linear-gradient(90deg,#1b68bd,#8b33d4)">' . stripe_h($btnText) . '</a>';
+		if ($btnText && $btnUrl) $h .= '<a href="' . stripe_h($btnUrl) . '" style="display:block;text-align:center;color:#fff;text-decoration:none;font-weight:700;font-size:18px;padding:18px;border-radius:12px;background:#183d78;background-image:linear-gradient(90deg,#183d78,#29295c 50%,#4c1d86)">' . stripe_h($btnText) . '</a>';
 		if ($btn2Text && $btn2Url) $h .= '<a href="' . stripe_h($btn2Url) . '" style="display:block;text-align:center;color:#111318;text-decoration:none;font-weight:600;font-size:16px;padding:14px;border-radius:12px;border:1px solid #e6e2da;margin-top:12px">' . stripe_h($btn2Text) . '</a>';
 		if ($noteHtml) $h .= '<p style="margin:26px 0 0;color:#4b5563;font-size:15px">' . $noteHtml . '</p>';
 		$h .= '</div><p style="max-width:600px;margin:24px auto 0;color:#6b7280;font-size:13px">' . $footer . '</p></body></html>';
@@ -1208,7 +1209,7 @@ if (!function_exists('stripe_mail_layout')) {
 			$body = preg_replace('/\s*(\[Fornavn\]|\[fornavn\]|\$fornavn)/', '', $body);
 		}
 		$rows = array(array(stripe_txt('amount_lbl'), stripe_fmt_kr($inv['total_ore']) . ' kr.'), array(stripe_txt('due_date'), stripe_fmt_date($inv['due'])));
-		$note = stripe_txt('mail_note_new', array('url' => '<a href="' . stripe_h($url) . '" style="color:#1b68bd">' . stripe_h($url) . '</a>'));
+		$note = stripe_txt('mail_note_new', array('url' => '<a href="' . stripe_h($url) . '" style="color:#183d78">' . stripe_h($url) . '</a>'));
 		$html = stripe_mail_layout($inv, stripe_txt('mail_label_invoice', array('nr' => $inv['nr'])), $h1, $body, null, $rows, stripe_txt('mail_btn_new'), $url, '', '', $note);
 		$text = stripe_mail_text_version($h1, $body, $rows, stripe_txt('mail_btn_new'), $url, strip_tags(stripe_txt('mail_note_new', array('url' => $url))));
 		$ok = stripe_mail_send($inv['email'], stripe_txt('mail_subj_new', array('nr' => $inv['nr'], 'brand' => $inv['brand'])), $html, $text);

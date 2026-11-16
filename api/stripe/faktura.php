@@ -53,6 +53,8 @@
 // 20261111 CDX/ASR Allow the invoice header to wrap on narrow screens.
 // 20261116 CDX/ASR Show bank payment instead of unusable card controls below the DKK minimum.
 
+// 20261116 CDX/ASR Use the supplied dark Saldi logo and matching payment-button and card-form colours.
+
 include(__DIR__ . '/faktura_common.php');
 include_once(__DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php');
 
@@ -218,12 +220,12 @@ header('Content-Type: text/html; charset=utf-8');
 <meta name="robots" content="noindex,nofollow">
 <title><?= $h(stripe_txt('page_title', array('nr' => $nr, 'firma' => $f['firmanavn'] ?? ''))) ?></title>
 <style>
-:root{--bg:#f7f5f0;--surface:#fff;--ink:#111318;--ink-2:#4b5563;--ink-3:#6b7280;--line:#e6e2da;--line-2:#efece6;--label:#9a5b1a;--soft:#f3eee6;--tint:#f1eefb;--tint-line:#e2dbf6;--blue:#1b68bd;--purple:#8b33d4;--purple-pill:#efe6fb;--purple-ink:#5b21a6;--good:#15803d;--good-bg:#e9f7ee;--bad:#c2410c;--bad-bg:#fdeee8;--warn:#a15c07;--warn-bg:#fdf3e2;--sans:Inter,"Segoe UI",system-ui,sans-serif;--r:16px;--shadow:0 1px 2px rgba(17,19,24,.04),0 8px 24px rgba(17,19,24,.06)}
+:root{--bg:#f7f5f0;--surface:#fff;--ink:#111318;--ink-2:#4b5563;--ink-3:#6b7280;--line:#e6e2da;--line-2:#efece6;--label:#9a5b1a;--soft:#f3eee6;--tint:#f1eefb;--tint-line:#e2dbf6;--blue:#183d78;--purple:#4c1d86;--brand-mid:#29295c;--purple-pill:#efe6fb;--purple-ink:#5b21a6;--good:#15803d;--good-bg:#e9f7ee;--bad:#c2410c;--bad-bg:#fdeee8;--warn:#a15c07;--warn-bg:#fdf3e2;--sans:Inter,"Segoe UI",system-ui,sans-serif;--r:16px;--shadow:0 1px 2px rgba(17,19,24,.04),0 8px 24px rgba(17,19,24,.06)}
 *{box-sizing:border-box;margin:0;padding:0}html{background:var(--bg)}body{font:15px/1.55 var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh}
 h1,h2{letter-spacing:-.01em}a{color:var(--blue)}.num{font-variant-numeric:tabular-nums}
 .top{display:flex;align-items:center;gap:16px;height:72px;padding:0 32px;background:var(--surface);border-bottom:1px solid var(--line)}.top .logo{font-weight:700;font-size:26px;letter-spacing:-.02em}.top .logo img{display:block;height:32px;width:auto}.top .sep{width:1px;height:28px;background:var(--line)}.top .ttl{font-size:17px;font-weight:500}.top .ttl span{color:var(--ink-3);font-size:14px;margin-left:10px;font-weight:400}.top .grow{flex:1}
 .btn{height:44px;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font:500 15px var(--sans);color:var(--ink);cursor:pointer;text-decoration:none;white-space:nowrap}.btn:hover{background:var(--soft)}
-.btn.primary{border:0;background:linear-gradient(90deg,var(--blue),var(--purple));color:#fff;font-weight:600;height:52px;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(139,51,212,.18);margin-top:8px}.btn.primary:hover{filter:brightness(1.06)}.btn.primary[disabled]{opacity:.55;cursor:default;filter:none}
+.btn.primary{border:0;background:linear-gradient(90deg,var(--blue),var(--brand-mid) 50%,var(--purple));color:#fff;font-weight:600;height:52px;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(76,29,134,.18);margin-top:8px}.btn.primary:hover{filter:brightness(1.06)}.btn.primary[disabled]{opacity:.55;cursor:default;filter:none}
 .wrap{display:grid;grid-template-columns:minmax(0,1fr) 440px;min-height:calc(100vh - 72px)}.left{padding:48px 56px 64px;display:flex;justify-content:center}.right{background:var(--surface);border-left:1px solid var(--line);padding:48px 40px;min-width:0}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}.right{border-left:0;border-top:1px solid var(--line);order:-1;padding:28px 20px}.left{padding:24px 16px 48px}.top{padding:0 16px}.top .ttl span{display:none}}
 @media(max-width:600px){.top{height:auto;min-height:72px;flex-wrap:wrap;gap:8px 12px;padding:12px 16px}.top .ttl{min-width:0;flex:1;overflow-wrap:anywhere}.top .sep,.top .grow{display:none}.top>.btn{margin-left:auto;max-width:100%}}
@@ -254,7 +256,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
 </head>
 <body>
 <header class="top">
-  <div class="logo"><?php if ($brand === 'Saldi'): ?><img src="../../img/SaldiMainLogo.png" alt="Saldi"><?php else: ?><?= $h($brand) ?><?php endif; ?></div>
+  <div class="logo"><?php if ($brand === 'Saldi'): ?><img src="../../img/saldi-moerk-logo-lys-baggrund.svg" alt="Saldi"><?php else: ?><?= $h($brand) ?><?php endif; ?></div>
   <div class="sep"></div>
   <div class="ttl"><?= $h($docName . ' ' . $nr) ?> <span>fra <?= $h($f['firmanavn'] ?? '') ?></span></div>
   <div class="grow"></div>
@@ -379,7 +381,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
   updBtn();
   var stripe = Stripe(cfg.pk, {locale:'da'});
   var elements = stripe.elements({mode:'payment', amount: cfg.amount, currency: cfg.currency, paymentMethodTypes:['card'], setupFutureUsage: saveCard ? 'off_session' : null, paymentMethodCreation:'manual',
-    appearance:{theme:'stripe', variables:{colorPrimary:'#1b68bd', colorText:'#111318', colorDanger:'#c2410c', fontFamily:'Inter, "Segoe UI", system-ui, sans-serif', borderRadius:'10px', fontSizeBase:'16px'}}});
+    appearance:{theme:'stripe', variables:{colorPrimary:'#183d78', colorText:'#111318', colorDanger:'#c2410c', fontFamily:'Inter, "Segoe UI", system-ui, sans-serif', borderRadius:'10px', fontSizeBase:'16px'}}});
   elements.on('update-end', function(){
     if (usageResolve) { var resolve = usageResolve; usageResolve = null; resolve(); }
   });

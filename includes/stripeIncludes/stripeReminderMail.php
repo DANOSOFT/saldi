@@ -9,6 +9,7 @@
 //                 Interest is named as interest in the offer; "Betal med dit gemte kort" only when the page offers the saved card; a row that cannot be paid by card links "Se faktura ›".
 // 20261111 CL/ASR Review round 2: an earlier level's open item that includes interest is "Rykkergebyr og renter fra 1. rykker"; stripe_reminder_deadline() moved to stripeReminder.php.
 // 20261116 CDX/ASR Identify the single invoice opened by a multi-invoice button and prefer one that can be paid by card over a below-minimum invoice.
+// 20261116 CDX/ASR Match invoice payment links to the supplied dark Saldi logo palette.
 
 include_once(__DIR__ . '/stripeInvoice.php');
 include_once(__DIR__ . '/stripeDunning.php');
@@ -124,7 +125,7 @@ function stripe_reminder_list_html(array $rows): string {
 			. '<td style="' . $td . 'padding-left:12px;text-align:right;white-space:nowrap;font-weight:' . ($strong ? '700' : '600') . '">' . stripe_h($row['value']) . '</td>'
 			. '<td style="' . $td . 'padding-left:16px;text-align:right;white-space:nowrap;font-size:14px">';
 		if (!empty($row['link'])) {
-			$h .= '<a href="' . stripe_h($row['link']) . '" style="color:#1b68bd;font-weight:700;text-decoration:none">' . stripe_h($row['link_label'] ?? stripe_txt('mail_rem_pay_link')) . '</a>';
+			$h .= '<a href="' . stripe_h($row['link']) . '" style="color:#183d78;font-weight:700;text-decoration:none">' . stripe_h($row['link_label'] ?? stripe_txt('mail_rem_pay_link')) . '</a>';
 		} elseif (!empty($row['note'])) {
 			$h .= '<span style="color:#6b7280">' . stripe_h($row['note']) . '</span>';
 		}

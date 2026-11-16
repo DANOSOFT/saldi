@@ -1,6 +1,7 @@
 <?php
 // 20261022 CDX/LH Purpose isolation, due-date and signup gates, private atomic PDFs, index repair and discount totals.
 // 20261026 CL/NTR Multi-ledger: links carry and bind the ledger, legacy v2 links only in the pinned ledger, copied ledgers stay off.
+// 20261116 CDX/ASR Expect the new Saldi logo in outstanding-invoice mail after card unenrolment.
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../includes/formFuncIncludes/subscriptionLink.php';
@@ -309,7 +310,7 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
             $before = count(StripeTestTransport::$mails);
             $this->assertTrue(stripe_mail_invoice_classic($inv));
             $mail = StripeTestTransport::$mails[$before];
-            $this->assertStringContainsString('/img/SaldiMainLogo.png" width="128" alt="Saldi"', $mail['html']);
+            $this->assertStringContainsString('/img/saldi-moerk-logo-lys-baggrund.png" width="128" alt="Saldi"', $mail['html']);
             $this->assertStringContainsString('Automatisk kortbetaling er stoppet', $mail['html']);
             $this->assertCount(1, $mail['attachments']);
             $this->assertSame(stripe_invoice_pdf_path($id, false), $mail['attachments'][0]);
