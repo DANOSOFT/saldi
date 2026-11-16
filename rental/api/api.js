@@ -1,4 +1,5 @@
 // 20261006 CL/LH SST-850: Added checkSettingsPassword and isSettingsUnlocked for the server-side settings password check.
+// 20261103 CL/ASR QA round 2: a refusal (HTTP 403 with a JSON message) is thrown as an error with that message.
 // Getting information from php file
 const apiUrl = "rental.php?"
 
@@ -17,12 +18,18 @@ const fetchJson = async (url, options) => {
   const response = await fetch(url, options)
   const text = await response.text()
 
+  let parsed
   try {
-    return JSON.parse(text)
+    parsed = JSON.parse(text)
   } catch (error) {
     const message = extractServerAlert(text) || text.trim() || "Der opstod en fejl ved kontakt til serveren."
     throw new Error(message)
   }
+  // A refusal (HTTP 403) comes as {ok: false, message}: shown as the error instead of being taken for data.
+  if (!response.ok && parsed && typeof parsed === "object" && parsed.message) {
+    throw new Error(parsed.message)
+  }
+  return parsed
 }
 
 export const getCustomers = async (month, year) => {

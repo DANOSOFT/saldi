@@ -35,11 +35,17 @@
 // 20220605 PHR - php8
 // 20250619 PHR - Somebody broke the code by omitting || in several if statements
 // 20260206	PHR	- discal_year
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
+// 20261031 CL/ASR The inactive-VAT-code filter is only added when grupper.inaktiv exists, so the page cannot fail on a database without the column.
+// 20261102 CL/ASR Opened from Kontoplan under Indstillinger (settings=1; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) the page shows the standard settings layout (includes/settings/layout.php): breadcrumb Indstillinger / Finans / Kontoplan / Kontokort, Tilbage to Kontoplan, previous, next and Ny above, the Finans group's menu with Kontoplan marked.
+//                 The form, the redirect after Gem and the way back to Kontoplan carry the marker on.
+//                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
 // 20261112 CL/MMR SST-1012 An account with postings on the first or last day of the year can no longer be deleted.
 //                 The delete action is checked again on the server and lives in chartOfAccountIncludes/accountDelete.php.
 //                 An account of another fiscal year than the selected one cannot be deleted from an old link or form.
 // 20261113 CL/LH SST-1012 The refusal alerts for a delete are translated and shown correctly on a LATIN9 regnskab.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $title = "Kontokort";
@@ -60,10 +66,14 @@ $css = "../css/standard.css";
 	</script>
 <?php
 include("../includes/connect.php");
+$permission_key = 'system.kontoplan';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/genberegn.php");
 include("../includes/topline_settings.php");
+include_once("../includes/settings/hub.php"); // settings_opened_from_settings()
+$fromSettings = settings_opened_from_settings(); // opened from Indstillinger: the settings layout, else the page as before
+$settingsMarker = $fromSettings ? '&settings=1' : ''; // on the page's own links
 
 require_once __DIR__ . '/chartOfAccountIncludes/accountDelete.php';
 
@@ -259,7 +269,7 @@ if (isset($_POST['slet'])) {
 	genberegn($regnaar);
 
 	if ($id > 0) {
-		$redirect_url = "kontokort.php?id=" . intval($id);
+		$redirect_url = "kontokort.php?id=" . intval($id) . $settingsMarker;
 		if ($regnaar_return) $redirect_url .= "&regnaar="    . urlencode($regnaar_return);
 		if ($maaned_fra)     $redirect_url .= "&maaned_fra=" . urlencode($maaned_fra);
 		if ($maaned_til)     $redirect_url .= "&maaned_til=" . urlencode($maaned_til);
@@ -327,7 +337,7 @@ if ($id > 0) {
 	$resultatkonto = $r['id'] * 1;
 
 	if (!$kontonr) {
-		print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=kontoplan.php\">";
+		print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=kontoplan.php" . ($fromSettings ? '?settings=1' : '') . "\">";
 		exit;
 	}
 	// Slet only for an account of the selected year with no postings in it (an unknown year or an account of another year: no Slet)
@@ -362,7 +372,23 @@ if ($refusedTxt) {
 	print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars($refusedJs, ENT_QUOTES, 'UTF-8') . ")\">";
 }
 
-if ($menu == 'T') {
+if ($fromSettings) {
+	// The standard settings layout: Kontokort under Kontoplan (includes/stdFunc/pageRoutes.php), Tilbage to Kontoplan; the arrows and Ny of
+	// the old head are its buttons. The card itself is the old form, at the left of the content column.
+	include_once("../includes/settings/layout.php");
+	$cardActions = array();
+	if (!empty($previousPage)) {
+		$cardActions[] = array('label' => findtekst('2598|Forrige', $sprog_id), 'href' => "kontokort.php?id=$previousPage&settings=1", 'icon' => 'bx-chevron-left');
+	}
+	if (!empty($nextPage)) {
+		$cardActions[] = array('label' => findtekst('1200|Næste', $sprog_id), 'href' => "kontokort.php?id=$nextPage&settings=1", 'icon' => 'bx-chevron-right');
+	}
+	$cardActions[] = array('label' => findtekst('39|Ny', $sprog_id), 'href' => 'kontokort.php?settings=1', 'icon' => 'bx-plus', 'accesskey' => 'N');
+	settings_layout_open(array('actions' => $cardActions));
+	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td align=\"left\" valign=\"top\">";
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+} elseif ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
@@ -421,6 +447,9 @@ if ($menu == 'T') {
 
 
 print "<form name=kontokort action=kontokort.php method=post>";
+if ($fromSettings) {
+	print settings_marker_input();
+}
 print "<input type=hidden name=id value='$id'>";
 print "<input type=hidden name=valuta value='$valuta'>";
 print "<input type=hidden name=saldo value='$saldo'>";
@@ -513,8 +542,9 @@ if ($kontotype == 'D' || $kontotype == 'S') {
   print "<tr><td>" . findtekst('1095|Momssats', $sprog_id) . ":</td><td><br></td>";
 	print "<td colspan=2><SELECT NAME = 'moms' style = 'width:70px'>";
 	print "<OPTION>$moms</OPTION>\n";
+	$hasInactive = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
 	$qtxt = "select kode, kodenr from grupper ";
-	$qtxt.= "where (art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM') and fiscal_year = '$regnaar'";
+	$qtxt.= "where (art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM') and fiscal_year = '$regnaar'" . ($hasInactive ? " and coalesce(inaktiv, false) = false" : '');
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($moms)
 		print "<OPTION></OPTION>\n";
@@ -602,7 +632,7 @@ print "</tbody>";
 print "</table>";
 print "</td></tr>";
 print "<tr><td align = 'center' valign = 'bottom'>";
-if ($menu == 'T' || $menu == 'S') {
+if ($menu == 'T' || $menu == 'S' || $fromSettings) {
 
 } else {
 	print "<table width='100%' align='center' border='1' cellspacing='0' cellpadding='0'><tbody>";
@@ -611,6 +641,9 @@ if ($menu == 'T' || $menu == 'S') {
 }
 print "</td></tr>";
 print "</tbody></table>";
+if ($fromSettings) {
+	settings_layout_close();
+}
 
 if ($menu == 'T') {
 	include_once '../includes/topmenu/footer.php';

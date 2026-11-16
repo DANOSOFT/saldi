@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------finans/datalonimport.php--------patch 3.9.8-----2020.11.03-----------
+// ------finans/datalonimport.php--------ver 5.1.1-----2026.11.13-----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2020 saldi.dk aps
+// Copyright (c) 2019-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20201103 PHR Switches $kontonr[$y],$beskrivelse[$y] in list | explode
@@ -30,13 +30,15 @@
 // 20260831 Sawaneh Restrict $filnavn from POST to the user's own upload - path traversal in fopen/unlink
 // 20260831 Sawaneh Convert $linje before branch selection so the non-preSetNo path also gets UTF-8
 // 20260831 Sawaneh Cast date parts with (int) instead of *=1 - fatal TypeError on non-numeric header row
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
 
 $title="Import fra Datal&oslash;n til kassekladde";
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
