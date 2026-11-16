@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- mysale/api.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
 // 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
@@ -32,8 +33,8 @@
 //                 Otherwise it answers 409 and the page tells the customer. A start or end date that is not a 'Y-m-d' calendar date is refused (400).
 //                 The action is now the handler handleCreateBooking().
 //                 It reads rentalclosed itself as remoteBooking does, since the entry block's query is not in scope there.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 //
-
 
 $header = "nix";
 $bg = "nix";
@@ -628,7 +629,7 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
             if (!is_numeric($debitorrabatgruppe)) $debitorrabatgruppe=0;
             if ( !is_numeric($varerabatgruppe)  ) $varerabatgruppe=0;
             if (!isset($rabat)) $rabat = 0;
-            $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
+            $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe' order by case when debitorart='NR' and vareart='NR' then 0 else 1 end, id desc limit 1";
             if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
                 $rabat=$r2['rabat'];
                 $rabatart=$r2['rabatart'];

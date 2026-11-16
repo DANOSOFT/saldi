@@ -3,6 +3,7 @@
 //
 // 20261110 CDX/NTR Cover the 5.1.1 login upgrade, version stamps, retries and resumable MB-73 work.
 // 20261111 CDX/NTR Use common database ownership and inspection retention.
+// 20261113 CDX/NTR Isolate the released backfill continuation from newly merged pending migrations.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -182,7 +183,12 @@ final class Release511UpgradeTest extends TestCase
     private function continueBackfill(): void
     {
         $db_type = $GLOBALS['db_type'];
-        include __DIR__ . '/../../../includes/betweenUpdates.php';
+        // Only the released continuation belongs to this fixture; later pending migrations
+        // exercise roles/settings tables outside the minimal release schema.
+        $includeDir = dirname(__DIR__, 3) . '/includes';
+        $source = file_get_contents($includeDir . '/betweenUpdates.php');
+        self::assertSame(1, preg_match('~require_once __DIR__ [^;]+/opdat_func/backfillOrderLineDelivered[.]php[^;]*;\s*backfillOrderLineDelivered\([^;]+\);~', $source, $match));
+        eval(str_replace('__DIR__', var_export($includeDir, true), $match[0]));
     }
 
     private function assertVersions(string $expected): void
