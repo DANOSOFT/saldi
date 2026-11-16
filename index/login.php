@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- index/login.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20220118 PHR - Added 'if ($db != $sqdb && $dbver > '4.0.4')'
 // 20200222 PHR - Added call to locator and added global_id;
 // 20200225 PHR - Added call to 'includes/betewwnUpdates';
@@ -61,16 +61,30 @@
 //                  shared is_input_too_long() from std_func.php.
 // 20260908 CDX/PHR Preserve Danish characters when redisplaying an unknown account.
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
+// 20260916 SS Successful login written to audit_log (roles & permissions, spec R7).
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
+// 20260929 SS Roles stage 2 (§8.4, §8.6): tmp_kode read and written in the common format; ?invite= opens the invitation page.
+// 20260930 SS Roles stage 2 (§7.1): login.failed, login.2fa_failed, login.ip_blocked and session.forced_logout in the audit log.
+// 20260930 SS Indexes on online.session_id and online.logtime (roles spec §4.7, without the primary key: see comment); created only when missing.
 // 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
+// 20261018 SS Review 2 (PR #803): the invitation's auto-login data is taken from the session before the reset at the top, which lost it.
 // 20261029 CDX/NTR Share online log permissions with the web server.
 // 20261102 CL/NTR Share the tenant SQL log permissions like includes/login.php does.
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 // 20261105 CL/MMR SD-807 The login messages and the max users and already logged in screens use the language chosen on the login page (languageId cookie, 1-3).
 //                 A message that names the account is kept within 80 characters (loginFejltxt()), so a long account name no longer makes it disappear.
+// 20261113 CDX/NTR Keep reset-token validation and login auditing alongside translated login messages.
 
+if (isset($_GET['invite'])) {
+	$inviteToken = preg_match('/^\d{1,9}-[a-f0-9]{48}$/', (string) $_GET['invite']) ? (string) $_GET['invite'] : '';
+	header('Location: invite.php?t=' . $inviteToken);
+	exit;
+}
 ob_start(); //Starter output buffering 
 @session_start();
+// The auto-login after an invitation (invite.php) is read before the session is reset below, else it is lost.
+$inviteLogin = (!empty($_POST['invite_login']) && isset($_SESSION['invite_login']) && is_array($_SESSION['invite_login'])) ? $_SESSION['invite_login'] : null;
 session_unset();
 session_destroy();
 
@@ -134,6 +148,26 @@ $qtxt="SELECT column_name, data_type, character_maximum_length FROM information_
 if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE online ALTER COLUMN session_id TYPE varchar(32)";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+}
+// The online table (master database) is read by session and by time on every request. Plain indexes:
+// a primary key on session_id would break mySale, which inserts one session per company it tries.
+if ($db_type == 'mysql' || $db_type == 'mysqli') {
+	foreach (array('online_session_idx' => 'session_id', 'online_logtime_idx' => 'logtime') as $idxName => $idxCol) {
+		$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'online' AND index_name = '$idxName'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			// guardrails-allow migrations until 2027-06-30 by ASR: the online table is in the master database, which the per-company update chain never touches; the index is looked up before it is created
+			db_modify("CREATE INDEX $idxName ON online ($idxCol)", __FILE__ . " linje " . __LINE__);
+		}
+	}
+} else {
+	// Look first: CREATE INDEX IF NOT EXISTS still takes a lock on the table at every login.
+	foreach (array('online_session_idx' => 'session_id', 'online_logtime_idx' => 'logtime') as $idxName => $idxCol) {
+		$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'online' AND indexname = '$idxName'";
+		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			// guardrails-allow migrations until 2027-06-30 by ASR: the online table is in the master database, which the per-company update chain never touches; the index is looked up before it is created
+			db_modify("CREATE INDEX IF NOT EXISTS $idxName ON online ($idxCol)", __FILE__ . " linje " . __LINE__);
+		}
+	}
 }
 #$_COOKIE['timezone'] = $timezone;#20210929
 $qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name = 'settings'";
@@ -263,6 +297,14 @@ if (isset($_POST['regnskab'])) {
 	if ($regnskab = trim($_POST['regnskab'])){
 		$brugernavn = isset($_POST['brugernavn']) ? sanitize_input(htmlspecialchars(trim($_POST['brugernavn']), ENT_COMPAT, $charset)) : null;
 		$password = isset($_POST['password']) ? trim($_POST['password']) : null;
+		// 20261014 Sawaneh Review: the auto-login after an invitation reads the password from the session (set by invite.php within the last minute).
+		if ($password === null && $inviteLogin !== null) {
+			$iv = $inviteLogin;
+			$inviteLogin = null;
+			if ((time() - (int) $iv['at']) < 60 && $iv['regnskab'] === $regnskab && $iv['brugernavn'] === (string) $_POST['brugernavn']) {
+				$password = (string) $iv['password'];
+			}
+		}
 		$timestamp = isset($_POST['timestamp']) ? sanitize_input(trim($_POST['timestamp'])) : null;
 		$fortsaet = isset($_POST['fortsaet']) ? sanitize_input(trim($_POST['fortsaet'])) : null;
 	}
@@ -387,6 +429,7 @@ while($row = db_fetch_array($query)) {
 }
 if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
     $user_to_logout = db_escape_string($_POST['user_to_logout']);
+    $forcedLogoutOf = (string) $_POST['user_to_logout'];
     
     // Remove the selected user from online table
     $qtxt = "DELETE FROM online WHERE brugernavn = '$user_to_logout' AND db = '$db'";
@@ -411,6 +454,7 @@ if ($db) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 else db_modify("delete from online where db=''",__FILE__ . " linje " . __LINE__); 
+$permission_key = 'any';
 include("../includes/online.php"); #20211115 moved from line 259
 # Versions kontrol / opdatering af database.
 if ( $db && $db!=$sqdb ) {
@@ -466,6 +510,7 @@ if (isset ($brug_timestamp)) {
 		$accepted_ips = explode(',', $accepted_ips);
 		if (!in_array($ip_address, $accepted_ips)) {
 			$fejltxt = findtekst('8432|Din IP-adresse er ikke godkendt til at logge ind.', $languageId);
+			login_audit('login.ip_blocked', (string) $brugernavn, isset($r['id']) ? (string) $r['id'] : '');
 			echo "<script type='text/javascript'>
 				alert(" . json_encode(mb_convert_encoding($fejltxt, 'UTF-8', $charset), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");
 					window.location.href = 'index.php';
@@ -493,15 +538,14 @@ if (isset ($brug_timestamp)) {
 		$qtxt = "select * from brugere where brugernavn='".db_escape_string($brugernavn)."'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		if (isset($r['tmp_kode'])) {
-			list($tidspkt,$tmp_kode)=explode("|",$r['tmp_kode']);
-			if (date("U")<=$tidspkt) {
-				if ($tmp_kode==$password) {
-					$userId=$r['id'];
-					$rettigheder=trim(if_isset($r['rettigheder'], '')); #20150209 + næste 2
-					$regnskabsaar=$r['regnskabsaar'];
-					$ansat_id=$r['ansat_id']*1;
-				} 
-			} elseif ($tmp_kode==$password) $fejltxt = findtekst('8430|Midlertidig adgangskode udløbet', $languageId);
+			include_once(__DIR__ . "/../includes/tmpCode.php");
+			$tmpState = tmp_code_check($r['tmp_kode'], 'reset', (string) $password);
+			if ($tmpState == 'ok') {
+				$userId=$r['id'];
+				$rettigheder=trim(if_isset($r['rettigheder'], '')); #20150209 + næste 2
+				$regnskabsaar=$r['regnskabsaar'];
+				$ansat_id=$r['ansat_id']*1;
+			} elseif ($tmpState == 'expired') $fejltxt = findtekst('8430|Midlertidig adgangskode udløbet', $languageId);
 		}
 	}
 }
@@ -510,6 +554,15 @@ if (!$dbMail && $db != $sqdb) {
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$mainMail = $r['email'];
 } else $mainMail = $dbMail;
+// 20260929 Sawaneh Roles stage 2 (§8.2): a closed user (brugere.status = false) cannot log in.
+if ($userId && $db != $sqdb) {
+	$statusRow = db_fetch_array(db_select("select * from brugere where id = '" . (int) $userId . "'", __FILE__ . " linje " . __LINE__));
+	if ($statusRow && array_key_exists('status', $statusRow) && in_array($statusRow['status'], array('f', false, '0', 0), true)) {
+		$fejltxt = "Din bruger er lukket. Kontakt din administrator. / Your user is closed. Contact your administrator.";
+		echo "<script type='text/javascript'>alert(" . json_encode($fejltxt) . "); window.location.href = 'index.php';</script>";
+		exit;
+	}
+}
 # Check whether the user exsists
 
 if ($userId) {
@@ -763,6 +816,13 @@ if ($userId) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	if ($login=="cookie") {setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
 	include("../includes/online.php"); #20111105
+	include_once("../includes/permissions.php");
+	if (function_exists('audit_log')) {
+		audit_log('login.success', $db, 'session', (string) $db);
+		if (!empty($forcedLogoutOf)) {
+			audit_log('session.forced_logout', $brugernavn . ' -> ' . $forcedLogoutOf, 'session', (string) $db);
+		}
+	}
 	if (!$regnskabsaar && $db != $sqdb) $regnskabsaar = if_isset($regnaar, '');
 
 	# ###################################################
@@ -796,10 +856,11 @@ if ($userId) {
 		$real_code = NULL;
 		$real_expire = 0;
 		if (!empty($r["tmp_kode"])) {
-			$tmp_kode_parts = explode("|", $r["tmp_kode"]);
-			if (count($tmp_kode_parts) >= 2) {
-				$real_code = $tmp_kode_parts[0];
-				$real_expire = $tmp_kode_parts[1];
+			include_once("../includes/tmpCode.php");
+			$tmpCode = tmp_code_parse($r["tmp_kode"], '2fa');
+			if ($tmpCode && $tmpCode['type'] == '2fa') {
+				$real_code = $tmpCode['code'];
+				$real_expire = $tmpCode['expire'];
 			}
 		}
 		$status = NULL;
@@ -810,6 +871,7 @@ if ($userId) {
 				$status = "success";
 			} else {
 				$status = "Ikke en valid kode, prøv igen";
+				login_audit('login.2fa_failed', (string) $brugernavn, (string) $bruger_id);
 			}
 		}
 		if ($bruger_id && $tlf_num) {
@@ -835,7 +897,8 @@ if ($userId) {
 				$current_time = time();
 				$expire = $current_time + 180; // Expires in 3 minutes
 				
-				db_modify("UPDATE brugere SET tmp_kode='$random_integer|$expire' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
+				include_once("../includes/tmpCode.php");
+				db_modify("UPDATE brugere SET tmp_kode='" . tmp_code_make('2fa', $expire, (string) $random_integer) . "' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
 
 				include("tofaktor.php");
 			}
@@ -862,7 +925,8 @@ if ($userId) {
 			} else {
 				$current_time = time();
 				$expire = $current_time + 180; // Expires in 3 minutes
-				db_modify("UPDATE brugere SET tmp_kode='$random_integer|$expire' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
+				include_once("../includes/tmpCode.php");
+				db_modify("UPDATE brugere SET tmp_kode='" . tmp_code_make('2fa', $expire, (string) $random_integer) . "' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
 				include("tofaktor.php");
 			}
 			exit;
@@ -973,6 +1037,7 @@ if (!$sag_rettigheder&&$rettigheder) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php\">";
 	}
 } else {
+	login_audit('login.failed', (string) $brugernavn, '');
 	include("../includes/connect.php");
 	db_modify("delete from online where session_id='$s_id'",__FILE__ . " linje " . __LINE__);
 	include("../includes/std_func.php");
@@ -980,6 +1045,19 @@ if (!$sag_rettigheder&&$rettigheder) {
 	login($regnskab,$brugernavn,$fejltxt);
 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
 	exit;
+}
+
+/**
+ * Audit entry for a refused login (roles stage 2, §7.1), written to the company database the
+ * connection points at. Never the password or a code.
+ */
+function login_audit($handling, $attemptedName, $userId) {
+	global $db, $sqdb;
+	if (!$db || $db == $sqdb) return;
+	include_once("../includes/permissions.php");
+	if (function_exists('audit_log')) {
+		audit_log($handling, 'brugernavn: ' . mb_substr((string) $attemptedName, 0, 80), $userId !== '' ? 'bruger' : '', (string) $userId, 'login');
+	}
 }
 
 /**
