@@ -98,7 +98,7 @@ final class DebtorNumberLockTest extends CharacterizationTestCase
 	private function startCard(string $page, array $get, array $post, string $output): array
 	{
 		$runner = __DIR__ . '/../support/run_legacy_shop_page.php';
-		$cmd = [PHP_BINARY, $runner, $page, CharacterizationEnv::SESSION_ID, json_encode(['get' => $get, 'post' => $post]), $output];
+		$cmd = [PHP_BINARY, $runner, $page, CharacterizationEnv::sessionId(), json_encode(['get' => $get, 'post' => $post]), $output];
 		$proc = proc_open($cmd, [0 => ['file', '/dev/null', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
 		$this->assertIsResource($proc, 'could not start the card page');
 		return ['proc' => $proc];

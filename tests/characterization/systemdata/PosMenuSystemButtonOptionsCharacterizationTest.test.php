@@ -19,7 +19,7 @@
 // why one test here insists the list is defined in one place only.
 //
 // This suite reads the sources as text, so it needs no database and no tenant.
-
+// 20261111 CDX/NTR Scan tracked sources without descending into runtime files.
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
@@ -131,29 +131,13 @@ final class PosMenuSystemButtonOptionsCharacterizationTest extends TestCase
     public function testNoOtherSourceFileOffersASetSystemButton(): void
     {
         $offenders = array();
-        $directory = new RecursiveDirectoryIterator(self::repoRoot(), FilesystemIterator::SKIP_DOTS);
-        $filtered = new RecursiveCallbackFilterIterator(
-            $directory,
-            static function (SplFileInfo $current): bool {
-                if (!$current->isDir()) {
-                    return true;
-                }
-                $name = $current->getFilename();
-
-                return !in_array($name, array('.git', 'node_modules', 'tests', 'vendor'), true);
-            }
-        );
-
-        foreach (new RecursiveIteratorIterator($filtered) as $file) {
-            /** @var SplFileInfo $file */
-            if (!$file->isFile() || $file->getExtension() !== 'php') {
-                continue;
-            }
-            $relativePath = substr($file->getPathname(), strlen(self::repoRoot()) + 1);
+        require_once __DIR__ . '/../support/database/SourceFiles.php';
+        foreach (SourceFiles::php() as $path) {
+            $relativePath = substr($path, strlen(self::repoRoot()) + 1);
             if ($relativePath === self::SYSTEM_BUTTONS) {
                 continue;
             }
-            if (strpos((string) file_get_contents($file->getPathname()), '>Sæt</OPTION>') !== false) {
+            if (strpos((string) file_get_contents($path), '>Sæt</OPTION>') !== false) {
                 $offenders[] = $relativePath;
             }
         }

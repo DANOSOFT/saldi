@@ -330,7 +330,7 @@ final class LegacyShopPagesCharacterizationTest extends CharacterizationTestCase
 	{
 		$output = (string)tempnam(sys_get_temp_dir(), 'legacy-shop-page');
 		try {
-			self::runChild('run_legacy_shop_page.php', [$page, CharacterizationEnv::SESSION_ID, json_encode(['get' => $get]), $output]);
+			self::runChild('run_legacy_shop_page.php', [$page, CharacterizationEnv::sessionId(), json_encode(['get' => $get]), $output]);
 			return (string)file_get_contents($output);
 		} finally {
 			unlink($output);

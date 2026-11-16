@@ -15,6 +15,8 @@ $allowed = [
 	'FileReservationTest::testReturnsNullForUnwritableDirectory',
 	// Same reason: as root, chmod 0555 does not make the journal folder unwritable (SST-929).
 	'JournalDocumentsDeleteRegressionTest::testDocumentInAFolderThatCanNotBeWrittenKeepsItsRow',
+	// hml/shopify: rest_api.php takes a test database without '_' (#1089) for the master database (SD-829).
+	'LegacyIntakeSwitchTest',
 ];
 
 $file = $argv[1] ?? '';

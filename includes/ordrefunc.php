@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
-
+//
+//
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -157,6 +157,8 @@
 // 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
 // 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery
 //                records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
+// 20261008 SS The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
+// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
 // 20261102 CL/SS SD-789 Core edit 3: opret_ordrelinje() $fixed_price stores the price and discount as given: no tier price,
 //                special or offer price, customer or quantity discount. Core edit 2: opret_saet() $lager_plan draws each
 //                component from the lagre the plan gives (validate_saet_lager_plan()). Default callers are unchanged.
@@ -168,7 +170,7 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 
@@ -4397,7 +4399,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				$varerabatgruppe = 0;
 			if (!isset($rabat))
 				$rabat = 0;
-			$qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
+			$qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe' order by case when debitorart='NR' and vareart='NR' then 0 else 1 end, id desc limit 1";
 			if ($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$rabat = $r2['rabat'];
 				$rabatart = $r2['rabatart'];

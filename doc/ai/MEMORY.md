@@ -4,7 +4,7 @@
 - [Protected update files](feedback_protected_update_files.md) — Do not inspect or edit `includes/betweenUpdates2.php`; `includes/opdat_*.php` may be read but not edited unless explicitly requested
 - [File history convention](convention_file_history.md) — Append `// YYYYMMDD <CL|CDX>/<Initials> <description>` to a file's header history block after AI-assisted changes; also bump the header's `ver #.#.#` line to match `includes/version.php`'s current `$version` on behavior/logic changes
 - [Database changes routing](convention_database_changes.md) — DB structure/content changes for existing regnskaber go at the END of `includes/betweenUpdates.php` in chronological order (earlier only for a documented dependency); `admin/opret.php` and `includes/opretfunc.php` define the initial schema for new regnskaber until structure helper functions replace this setup; only moved into `includes/opdat_<major>.<minor>.php` + `includes/version.php` bumped when explicitly cutting a new version
-- [Whitespace and indentation](feedback_whitespace_and_indentation.md) — Allow blank separator lines, including indentation; reject trailing whitespace after content and fix indentation/comment placement in the edited block
+- [Whitespace and indentation](feedback_whitespace_and_indentation.md) — Allow new blank separators and local indentation fixes; reject standalone blank-line rewrites and trailing whitespace after content
 - [Include paths](convention_include_paths.md) — Use `__DIR__ . '/path'` for new includes; prospective-only, upgrade legacy bare relative includes only when already editing that enclosing block
 - [Pre-PR test report](feedback_pre_pr_test_report.md) — Before a draft PR goes ready, proactively list affected functions/files with concrete manual test scenarios for each
 - [SQL escaping](convention_sql_escaping.md) — Cast (`intval`/`floatval`) or escape (`db_escape_string`) any externally-sourced value before interpolating into a SQL string; `injecttjek()` is not a substitute
@@ -19,3 +19,4 @@
 - [findtekst text keys](convention_findtekst_keys.md) — prefer descriptive string keys (tekst_key) over numeric ids for new findtekst() calls; common.* namespace; alphanumeric in CSV
 - [Recording feedback](convention_recording_feedback.md) — Record durable conventions in the linked topic files; repeated review corrections get enforcement, not more rules in AGENTS.md
 - [Change checks and review requirements](../../tools/guardrails/README.md#rules-and-enforcement) — Existing repository rules and the guardrails, tests or review that enforce each one
+- [Test database ownership](convention_test_databases.md) — Fresh UUID-owned tenants per mutating PHPUnit group; explicit SQL-fixture sharing, printed IDs and optional retention

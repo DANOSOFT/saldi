@@ -46,7 +46,7 @@ final class LegacyShopStockPullCharacterizationTest extends CharacterizationTest
 		self::$shop = new LegacyShopStub();
 		// lager/webshopStock.php wants exactly '1' in the varer rights position (9), not '9'.
 		$master = CharacterizationEnv::connect(CharacterizationEnv::masterDb());
-		CharacterizationEnv::rows($master, "UPDATE online SET rettigheder = overlay(rettigheder placing '1' from 10 for 1) WHERE session_id = $1", [CharacterizationEnv::SESSION_ID]);
+		CharacterizationEnv::rows($master, "UPDATE online SET rettigheder = overlay(rettigheder placing '1' from 10 for 1) WHERE session_id = $1", [CharacterizationEnv::sessionId()]);
 		pg_close($master);
 		self::rows("DELETE FROM grupper WHERE art = 'API'");
 		self::rows("INSERT INTO grupper (beskrivelse, art, kodenr) VALUES ($1, 'API', '1')", [Fixtures::TAG]);
@@ -356,7 +356,7 @@ final class LegacyShopStockPullCharacterizationTest extends CharacterizationTest
 	{
 		$output = (string)tempnam(sys_get_temp_dir(), 'legacy-shop-page');
 		try {
-			self::runChild('run_legacy_shop_page.php', [$page, CharacterizationEnv::SESSION_ID, json_encode(['get' => $get, 'post' => $post]), $output]);
+			self::runChild('run_legacy_shop_page.php', [$page, CharacterizationEnv::sessionId(), json_encode(['get' => $get, 'post' => $post]), $output]);
 			return (string)file_get_contents($output);
 		} finally {
 			unlink($output);
@@ -368,7 +368,7 @@ final class LegacyShopStockPullCharacterizationTest extends CharacterizationTest
 	{
 		$output = (string)tempnam(sys_get_temp_dir(), 'legacy-shop-page');
 		try {
-			$res = CharacterizationEnv::runChild(__DIR__ . '/../support/run_legacy_shop_page.php', [$page, CharacterizationEnv::SESSION_ID, json_encode(['get' => $get]), $output]);
+			$res = CharacterizationEnv::runChild(__DIR__ . '/../support/run_legacy_shop_page.php', [$page, CharacterizationEnv::sessionId(), json_encode(['get' => $get]), $output]);
 			return $res + ['output' => (string)file_get_contents($output)];
 		} finally {
 			unlink($output);
