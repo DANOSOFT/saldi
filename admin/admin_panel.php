@@ -25,6 +25,8 @@
 //                 When the reset went through but the active sessions' year was not updated, the audit entry is still written and the reset is reported as done, with that warning (review #1131).
 //                 Only a master user with the admin flag, or with the ledger in their access list, sees the card and may post the reset: the same rule as admin/slet_regnskab.php (review #1131).
 //                 The audit entry is written in db_modify()'s webservice mode, so a failed insert after the reset is reported instead of ending the request; the CSRF check is called directly, and the button uses the panel's danger style.
+//                 The rule is now the admin flag only (SirRolin, review #1131): a master user's access list no longer lets them see the card or post the reset.
+//                 The rights are looked up with the unescaped user name ($brugernavn_raw), escaped once, so a name with an apostrophe finds its row.
 
 ob_start();
 
@@ -182,16 +184,18 @@ function fetch_customer_invoices($search_term) {
     return ['invoices' => $invoices];
 }
 
-// Who may reset a ledger: the master user's admin flag, or the ledger in their access list, as in admin/slet_regnskab.php (review #1131).
-function admin_panel_may_reset($regnskab_id) {
-    global $brugernavn;
-    static $rights = null;
-    if ($rights === null) {
-        $r = db_fetch_array(db_select("SELECT rettigheder FROM brugere WHERE brugernavn = '" . db_escape_string((string)$brugernavn) . "'", __FILE__ . " linje " . __LINE__));
-        list($admin, , , $list) = array_pad(explode(",", (string)($r ? $r['rettigheder'] : ''), 4), 4, '');
-        $rights = array((bool)$admin, array_map('trim', explode(",", $list)));
+// Who may reset a ledger: only Saldi's staff, i.e. a master user with the admin flag; the access list does not count (SirRolin, review #1131).
+// The user name is looked up unescaped ($brugernavn_raw from includes/online.php; $brugernavn is escaped already) and escaped once here.
+function admin_panel_may_reset() {
+    global $brugernavn, $brugernavn_raw;
+    static $admin = null;
+    if ($admin === null) {
+        $name = isset($brugernavn_raw) ? (string)$brugernavn_raw : (string)$brugernavn;
+        $r = db_fetch_array(db_select("SELECT rettigheder FROM brugere WHERE brugernavn = '" . db_escape_string($name) . "'", __FILE__ . " linje " . __LINE__));
+        list($flag) = array_pad(explode(",", (string)($r ? $r['rettigheder'] : ''), 4), 4, '');
+        $admin = (bool)$flag;
     }
-    return $rights[0] || in_array((string)(int)$regnskab_id, $rights[1], true);
+    return $admin;
 }
 
 // Security check
@@ -277,8 +281,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message_type = 'error';
         if ($reset_db === '' || $reset_db === $sqdb) {
             $message = "Regnskab ikke fundet. Intet er nulstillet.";
-        } elseif (!admin_panel_may_reset($regnskab_id)) {
-            $message = "Du har ikke adgang til at nulstille dette regnskab. Intet er nulstillet.";
+        } elseif (!admin_panel_may_reset()) {
+            $message = "Kun Saldis personale kan nulstille et regnskab. Intet er nulstillet.";
         } elseif ($typed_name === '' || $typed_name !== $reset_name) {
             $message = "Navnet passer ikke med regnskabets navn. Intet er nulstillet.";
         } else {
@@ -1637,7 +1641,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
         </div>
         
         <!-- Nulstil regnskab -->
-        <?php if (admin_panel_may_reset($reg['id'])): ?>
+        <?php if (admin_panel_may_reset()): ?>
         <?php
         if (session_status() === PHP_SESSION_ACTIVE && empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
