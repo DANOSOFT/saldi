@@ -1,11 +1,12 @@
 <?php
-// --- tests/test_account_reset.php --- 2026-10-05 ---
+// --- tests/test_account_reset.php --- 2026-11-16 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Verify reset scope and preservation options without database writes.
 // 20260916 CDX/PHR Verify item texts follow the keep-items option.
 // 20260916 CDX/PHR Verify user year reset and tenant-scoped session updates.
 // 20260917 CL/LH Verify the reset is refused on MySQL/MariaDB before any statement is issued.
 // 20261005 SS Verify personal settings (USET) are not deleted by a reset.
+// 20261116 CL/ASR Verify the postings are counted under the lock and returned, and that a failed session update after the commit comes back as a warning, not an exception (review #1131).
 require_once(__DIR__ . '/../systemdata/resetAccount.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -47,11 +48,22 @@ function db_escape_string($value) {
 function db_modify($sql, $trace, $global = false) {
 	$GLOBALS['resetStatementsIssued'][] = $sql;
 	$GLOBALS['resetSessionTestCall'] = array($sql, $global);
-	return "0\tquery accepted";
+	return ($global && !empty($GLOBALS['resetFailSession'])) ? "1\tfejl" : "0\tquery accepted";
 }
 function db_select($sql, $trace) {
 	$GLOBALS['resetStatementsIssued'][] = $sql;
-	return null;
+	return $sql; # the handle is the query; db_fetch_array() answers it from $GLOBALS['resetRows']
+}
+function db_fetch_array($handle) {
+	foreach ($GLOBALS['resetRows'] as $prefix => $rows) {
+		if (strpos((string)$handle, $prefix) !== false) {
+			return array_shift($GLOBALS['resetRows'][$prefix]) ?: false;
+		}
+	}
+	return false;
+}
+function transaktion($what) {
+	$GLOBALS['resetTransactions'][] = $what;
 }
 resetAccountSessionYear('test_41');
 resetCheck($GLOBALS['resetSessionTestCall'] === array("UPDATE online SET regnskabsaar='1' WHERE db='test_41'", true), 'Session update must target only this tenant in the master database');
@@ -94,3 +106,31 @@ foreach (array('mysql', 'mysqli', 'MySQLi') as $dbType) {
 	resetCheck($GLOBALS['resetStatementsIssued'] === array(), 'Reset on ' . $dbType . ' must refuse before issuing any statement');
 }
 echo "OK: MySQL/MariaDB reset refused before any statement is issued.\n";
+
+// The PostgreSQL path: the postings are counted after the lock and returned, and a failed session update after the
+// commit is a warning, because the ledger is reset by then (review #1131).
+foreach (array(false, true) as $failSession) {
+	$GLOBALS['resetStatementsIssued'] = array();
+	$GLOBALS['resetTransactions'] = array();
+	$GLOBALS['resetFailSession'] = $failSession;
+	$GLOBALS['resetRows'] = array(
+		'information_schema.tables' => array(array('table_name' => 'transaktioner'), array('table_name' => 'grupper')),
+		'count(*) AS n FROM transaktioner' => array(array('n' => '5')),
+		"FROM grupper WHERE art='RA'" => array(array('kodenr' => '1', 'box1' => '1', 'box2' => '2026', 'box3' => '12', 'box4' => '2026', 'box10' => '')),
+	);
+	$warning = 'unset';
+	$deleted = resetAccount(false, false, 'postgresql', 'test_41', $warning);
+	$issued = $GLOBALS['resetStatementsIssued'];
+	$lockAt = array_search('LOCK TABLE transaktioner IN ACCESS EXCLUSIVE MODE', $issued, true);
+	$countAt = array_search('SELECT count(*) AS n FROM transaktioner', $issued, true);
+	resetCheck($lockAt !== false && $countAt !== false && $lockAt < $countAt, 'Postings must be counted after the lock is taken');
+	resetCheck($GLOBALS['resetTransactions'] === array('begin', 'commit'), 'The lock, the count and the reset share one transaction');
+	resetCheck($deleted === 5, 'The counted postings are returned');
+	if ($failSession) {
+		resetCheck(strpos($warning, 'nulstillet') !== false, 'A failed session update comes back as a warning');
+	} else {
+		resetCheck($warning === '', 'No warning when the session update succeeds');
+	}
+}
+$GLOBALS['resetFailSession'] = false;
+echo "OK: postings counted under the lock and returned; a failed session update after the commit is a warning.\n";

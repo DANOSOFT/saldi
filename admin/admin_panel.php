@@ -22,6 +22,7 @@
 // 20261114 CL/ASR Nulstil regnskab on the single ledger's page (action reset_ledger): the reset left the ledger's own settings, so only Saldi's staff can run it.
 //                 It needs the ledger's name typed and the session's CSRF token, and is written to the ledger's audit log.
 // 20261116 CL/ASR The number of deleted postings comes from resetAccount(), which counts them under the reset's own lock, so a posting committed meanwhile is counted too (review #1131).
+//                 When the reset went through but the active sessions' year was not updated, the audit entry is still written and the reset is reported as done, with that warning (review #1131).
 
 ob_start();
 
@@ -279,13 +280,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // (db_query_connection()) and the statements land in the ledger's own modify log.
                 $db = $reset_db;
                 try {
-                    $deleted_postings = (int)resetAccount($keep_accounts, $keep_items, (string)$db_type, $reset_db); # counted under the reset's lock
+                    $deleted_postings = (int)resetAccount($keep_accounts, $keep_items, (string)$db_type, $reset_db, $session_warning); # counted under the reset's lock
                     // The ledger's own audit log says who reset it. Written here and not with audit_log(), which
                     // remembers the master database's table layout for the whole request.
                     if (tbl_exists('audit_log')) {
                         $log_details = db_escape_string(json_encode(array(
                             'reset_by' => $admin_user, 'from' => 'admin panel', 'postings_deleted' => $deleted_postings,
-                            'keep_accounts' => $keep_accounts, 'keep_items' => $keep_items,
+                            'keep_accounts' => $keep_accounts, 'keep_items' => $keep_items, 'sessions_updated' => $session_warning === '',
                         ), JSON_UNESCAPED_UNICODE));
                         $log_columns = array();
                         $log_q = db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'audit_log'" . (function_exists('saldi_schema_filter') ? saldi_schema_filter() : ''), __FILE__ . " linje " . __LINE__);
@@ -300,7 +301,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         db_modify("$log_sql) VALUES ($log_values)", __FILE__ . " linje " . __LINE__);
                     }
-                    $message = "Regnskabet $reset_name er nulstillet ($deleted_postings posteringer slettet).";
+                    $message = "Regnskabet $reset_name er nulstillet ($deleted_postings posteringer slettet)." . ($session_warning !== '' ? " Bemærk: $session_warning" : '');
                     $message_type = 'success';
                 } catch (Throwable $reset_error) {
                     $message = "Regnskabet blev ikke nulstillet: " . $reset_error->getMessage();

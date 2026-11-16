@@ -9,6 +9,7 @@
 //                transaction cannot be rolled back.
 // 20261005 SS Settings redesign G1.4: users' personal settings (grupper USET) survive a reset.
 // 20261116 CL/ASR resetAccount() locks transaktioner inside its transaction before it counts the postings, and returns that count, so the number it reports is exactly what the reset deletes (review #1131).
+//                 A failed update of the active sessions' year after the commit no longer throws: the reset is done by then, so the message goes to the caller in $warning (review #1131).
 
 /**
  * Build reset statements. Unlisted tables are never cleared implicitly.
@@ -86,9 +87,11 @@ function accountResetStatements(array $existingTables, $keepAccounts, $keepItems
 
 /**
  * Execute only the reset plan for the currently connected account.
+ * @param string $warning set to '' or, when the ledger was reset but the active sessions' year could not be updated, to that message
  * @return int the number of postings (transaktioner) the reset deleted, counted under the reset's lock
  */
-function resetAccount($keepAccounts, $keepItems, $dbType, $database) {
+function resetAccount($keepAccounts, $keepItems, $dbType, $database, &$warning = null) {
+	$warning = '';
 	// TRUNCATE forces an implicit commit on MySQL/MariaDB, so transaktion('rollback') cannot undo
 	// a reset that fails midway and the account would be left half emptied. Refuse before any
 	// statement is issued; only the PostgreSQL path can roll the whole reset back. #20260917
@@ -134,7 +137,12 @@ function resetAccount($keepAccounts, $keepItems, $dbType, $database) {
 		transaktion('rollback');
 		throw $error;
 	}
-	resetAccountSessionYear($database);
+	// The ledger is reset once the commit is through, so a failed session update must not look like a failed reset. #20261116
+	try {
+		resetAccountSessionYear($database);
+	} catch (RuntimeException $error) {
+		$warning = $error->getMessage();
+	}
 	return $deletedPostings;
 }
 
