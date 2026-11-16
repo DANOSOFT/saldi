@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- ver 5.1.0 --- 2026.11.06 ---
+// --- finans/bankimport.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20200820 PHR Added recognition of outgoing payments from Cultura Sparebank, Norway 20200820
 // 20211107 PHR Added recognition of customer account # when importing bank 20201107
 // 20210328 PHR Added recognition of payment ID from Jyske Bank 21210328
@@ -45,11 +45,12 @@
 // 20251106 PHR Corrected date error
 // 20260311 PHR Corrected decimal error
 // 20260320 PHR	Removed 'This didn't work'
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
 // 20261106 CL/MMR SST-962 The column choices are remembered for every column and per number of columns, not only for the first 8 columns.
 //                 A freshly uploaded file shows all its columns at once (bank_import_columns_for_upload()), and the choices are saved before the page prints (bank_import_save_columns()).
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ini_set("auto_detect_line_endings", true);
 
 @session_start();
@@ -59,6 +60,7 @@ $bankName = NULL;
 
 $title="Bankimport";
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");

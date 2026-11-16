@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/contraSuggestion.php --- ver 5.0.0 --- 2026-10-03 ---
+// --- finans/kassekladde_includes/contraSuggestion.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,79 +26,166 @@
 //                Not tied to the pool page: contraSuggestionLookup.php serves it, so the bilag app can show the same suggestion.
 //                The sources are tried in order; a fixed "Standardmodkonto" (release plan 2.2) goes in front of the history when it is built.
 //                A closed account (kontoplan.lukket) is not suggested; poolAccountInfo() only left out missing accounts and headings.
+// 20261026 CL/LH The suggestion is the account most of the last 5 bilag went to (was: the newest account and its run); the other accounts come along as "alternatives" with their counts, and "total" says how many bilag were looked at.
+//                "Udfyld modkonto automatisk" is on by default; off is stored as modk_off (was: on stored as modk_auto).
+//                The history is read with up to 100 rows, so the 5 bilag are 5 bilag also when some are spread over several lines; a bilag is its journal, number and date.
+//                Every alternative brings its own reason.
+// 20261110 CDX/NTR Document ranking, suggestion payloads and the automatic-fill preference.
 
 include_once(__DIR__ . '/journalHistory.php');
 include_once(__DIR__ . '/../../includes/docsIncludes/poolAccountInfo.php');
 
-if (!function_exists('contraSuggestionPick')) {
+if (!function_exists('contraSuggestionRank')) {
 	/**
-	 * The account to suggest from "sidste 5 posteringer": the newest finance account, and how many of the newest bilag in a row went to it.
+	 * Rank finance accounts by the number of distinct bilag in the history window.
 	 *
-	 * @param array $rows sidste_5_forslag()'s rows, newest first.
-	 * @return array{kontonr: string, tekst: string, count: int}|null Null when no finance account was used.
+	 * The first $maxBilag distinct journal/number/date combinations form the window.
+	 * Later rows of an admitted bilag still count, even after the window is full.
+	 * A split bilag counts once per account, so account counts can sum to more than total.
+	 * Ties keep first-seen account order; input order supplies recency within each history source.
+	 *
+	 * @param array<array{kladde_id?: int|string|null, bilag?: int|string|null, dato?: string, kontonr?: int|string|null, art?: string, tekst?: string}> $rows History in priority order; missing art defaults to F.
+	 * @param int $maxBilag Maximum distinct bilag to admit; zero or less admits none.
+	 * @return array{
+	 *   accounts: array<array{
+	 *     kontonr: string, Nonzero finance account number, normalized to an integer string.
+	 *     tekst: string, Description from the first row for this account.
+	 *     count: int, Distinct admitted bilag using this account.
+	 *   }>, Accounts sorted by count descending, then first appearance.
+	 *   total: int, Distinct admitted bilag, including those using only customer or supplier accounts.
+	 * }
+	 * @see sidste_5_forslag()
 	 */
-	function contraSuggestionPick(array $rows) {
-		$pick = null;
-		$bilag = array();
+	function contraSuggestionRank(array $rows, $maxBilag = 5) {
+		$accounts = array();
+		$seen = array();
+		$all = array();
 		foreach ($rows as $row) {
+			$key = (string)($row['kladde_id'] ?? '') . '|' . (string)($row['bilag'] ?? '') . '|' . (string)($row['dato'] ?? '');
+			// The rows come by date, not grouped by bilag: an older bilag is skipped, a chosen bilag's later rows still count
+			if (!isset($all[$key]) && count($all) >= (int)$maxBilag) continue;
+			$all[$key] = true;
 			if (strtoupper((string)($row['art'] ?? 'F')) !== 'F' || !(int)($row['kontonr'] ?? 0)) continue;
 			$kontonr = (string)(int)$row['kontonr'];
-			if ($pick === null) {
-				$pick = array('kontonr' => $kontonr, 'tekst' => (string)($row['tekst'] ?? ''), 'count' => 0);
-			} elseif ($kontonr !== $pick['kontonr']) {
-				break;
+			if (!isset($accounts[$kontonr])) {
+				$accounts[$kontonr] = array('kontonr' => $kontonr, 'tekst' => (string)($row['tekst'] ?? ''), 'count' => 0, 'order' => count($accounts));
 			}
-			// A bilag spread over several lines ("Fordeling") counts once
-			$bilag[(string)($row['bilag'] ?? '') . '|' . (string)($row['dato'] ?? '')] = true;
+			if (empty($seen[$kontonr][$key])) {
+				$seen[$kontonr][$key] = true;
+				$accounts[$kontonr]['count']++;
+			}
 		}
-		if ($pick === null) return null;
-		$pick['count'] = count($bilag);
-		return $pick;
+		$accounts = array_values($accounts);
+		usort($accounts, function ($a, $b) {
+			return $b['count'] - $a['count'] ?: $a['order'] - $b['order'];
+		});
+		foreach ($accounts as &$account) unset($account['order']);
+		unset($account);
+		return array('accounts' => $accounts, 'total' => count($all));
+	}
+}
+
+if (!function_exists('contraSuggestionPick')) {
+	/**
+	 * Pick the highest-ranked finance account from the first five distinct history bilag.
+	 *
+	 * @param array<array{kladde_id?: int|string|null, bilag?: int|string|null, dato?: string, kontonr?: int|string|null, art?: string, tekst?: string}> $rows History in the order returned by sidste_5_forslag().
+	 * @return array{
+	 *   kontonr: string, Selected finance account number.
+	 *   tekst: string, Its first history description.
+	 *   count: int, Distinct bilag using the account.
+	 * }|null Null when the window contains no nonzero finance account.
+	 * @see contraSuggestionRank()
+	 */
+	function contraSuggestionPick(array $rows) {
+		$rank = contraSuggestionRank($rows);
+		return $rank['accounts'][0] ?? null;
 	}
 }
 
 if (!function_exists('contraSuggestionReason')) {
 	/**
-	 * "Foreslået fordi …" for a suggestion from history.
+	 * Translate the reason for a history suggestion and substitute its counts and account.
 	 *
-	 * @return string
+	 * @param int $count Distinct bilag using the suggested account.
+	 * @param string|int $kontonr Suggested finance account number.
+	 * @param int $sprog_id Language ID passed to findtekst().
+	 * @param int|null $total Bilag in the window; a larger total selects the "N of M" text, otherwise the single/all text is used.
+	 * @return string Localized reason with $antal, $total and $konto replaced.
 	 */
-	function contraSuggestionReason($count, $kontonr, $sprog_id) {
-		if ((int)$count > 1) {
+	function contraSuggestionReason($count, $kontonr, $sprog_id, $total = null) {
+		if ($total !== null && (int)$total > (int)$count) {
+			$text = findtekst('7663|Foreslået fordi $antal af de sidste $total bilag fra denne kreditor blev bogført på konto $konto', $sprog_id);
+		} elseif ((int)$count > 1) {
 			$text = findtekst('5372|Foreslået fordi de sidste $antal bilag fra denne kreditor blev bogført på konto $konto', $sprog_id);
 		} else {
 			$text = findtekst('5373|Foreslået fordi det seneste bilag fra denne kreditor blev bogført på konto $konto', $sprog_id);
 		}
-		return str_replace(array('$antal', '$konto'), array((string)(int)$count, (string)$kontonr), $text);
+		return str_replace(array('$antal', '$total', '$konto'), array((string)(int)$count, (string)(int)$total, (string)$kontonr), $text);
 	}
 }
 
 if (!function_exists('contraSuggestionFromHistory')) {
 	/**
-	 * The account the kreditor's bilag went to most recently: posted entries first, then journal lines (sidste_5_forslag()).
+	 * Build a suggestion and ranked alternatives from a supplier's history.
 	 *
-	 * @return array|null See contraSuggestion().
+	 * Reads up to 100 history rows, posted entries before journal lines, and ranks the
+	 * first five distinct bilag. Missing accounts, headings and closed accounts in the
+	 * selected fiscal year are omitted; total still includes all bilag in the window.
+	 *
+	 * @param string|int $kreditor Supplier account number.
+	 * @param int $kladdeId Current journal, excluded from unposted history.
+	 * @param int $regnaar Fiscal year used to resolve account names, VAT codes and availability.
+	 * @param int $sprog_id Language ID for the reason texts.
+	 * @return array{
+	 *   account: string, Highest-ranked available finance account number.
+	 *   type: string, Always F for history suggestions.
+	 *   name: string, Account name for the selected fiscal year.
+	 *   moms: string, Account VAT code, or an empty string.
+	 *   text: string, First history description for the account.
+	 *   count: int, Distinct bilag using the suggested account.
+	 *   total: int, Distinct bilag in the history window before account filtering.
+	 *   reason: string, Localized explanation of the suggestion.
+	 *   source: string, Always history for this source.
+	 *   alternatives: array<array{
+	 *     account: string, Alternative finance account number.
+	 *     type: string, Always F.
+	 *     name: string, Account name for the selected fiscal year.
+	 *     moms: string, Account VAT code, or an empty string.
+	 *     text: string, First history description for this account.
+	 *     count: int, Distinct bilag using this account.
+	 *     reason: string, Localized explanation for this alternative.
+	 *   }>, Remaining available accounts in rank order; may be empty.
+	 * }|null Null when no ranked account is available in the fiscal year.
 	 */
 	function contraSuggestionFromHistory($kreditor, $kladdeId, $regnaar, $sprog_id) {
-		$history = sidste_5_forslag($kreditor, 'K', 'D', $kladdeId, 'UTF-8', $sprog_id);
-		$pick = contraSuggestionPick($history['rows']);
-		if ($pick === null) return null;
-		// An account that is closed or missing in this fiscal year is not suggested
-		$info = poolAccountInfo('F', $pick['kontonr'], $regnaar);
-		if ($info['name'] === '') return null;
-		// Closed (kontoplan.lukket set) counts as the journal counts it: its save refuses the account
-		$closed = db_fetch_array(db_select("select lukket from kontoplan where kontonr = '" . db_escape_string($pick['kontonr']) . "' and regnskabsaar = '" . (int)$regnaar . "'", __FILE__ . " linje " . __LINE__));
-		if ($closed && $closed['lukket']) return null;
-		return array(
-			'account' => $pick['kontonr'],
-			'type' => 'F',
-			'name' => $info['name'],
-			'moms' => $info['moms'],
-			'text' => $pick['tekst'],
-			'count' => $pick['count'],
-			'reason' => contraSuggestionReason($pick['count'], $pick['kontonr'], $sprog_id),
-			'source' => 'history',
-		);
+		// More rows than bilag: a bilag spread over several lines must not push the older ones out
+		$history = sidste_5_forslag($kreditor, 'K', 'D', $kladdeId, 'UTF-8', $sprog_id, 100);
+		$rank = contraSuggestionRank($history['rows']);
+		$found = array();
+		foreach ($rank['accounts'] as $pick) {
+			// An account that is closed or missing in this fiscal year is not suggested
+			$info = poolAccountInfo('F', $pick['kontonr'], $regnaar);
+			if ($info['name'] === '') continue;
+			// Closed (kontoplan.lukket set) counts as the journal counts it: its save refuses the account
+			$closed = db_fetch_array(db_select("select lukket from kontoplan where kontonr = '" . db_escape_string($pick['kontonr']) . "' and regnskabsaar = '" . (int)$regnaar . "'", __FILE__ . " linje " . __LINE__));
+			if ($closed && $closed['lukket']) continue;
+			$found[] = array(
+				'account' => $pick['kontonr'],
+				'type' => 'F',
+				'name' => $info['name'],
+				'moms' => $info['moms'],
+				'text' => $pick['tekst'],
+				'count' => $pick['count'],
+				'reason' => contraSuggestionReason($pick['count'], $pick['kontonr'], $sprog_id, $rank['total']),
+			);
+		}
+		if (!$found) return null;
+		$suggestion = array_shift($found);
+		$suggestion['total'] = $rank['total'];
+		$suggestion['source'] = 'history';
+		$suggestion['alternatives'] = $found;
+		return $suggestion;
 	}
 }
 
@@ -115,11 +202,32 @@ if (!function_exists('contraSuggestionSources')) {
 
 if (!function_exists('contraSuggestion')) {
 	/**
-	 * The contra account to suggest for kreditor $kreditor. No history gives no suggestion.
+	 * Return the first available contra-account suggestion from the configured sources.
 	 *
 	 * @param string|int $kreditor Kreditor account number.
 	 * @param int        $kladdeId The journal being worked in (its own lines are not history).
-	 * @return array{account: string, type: string, name: string, moms: string, text: string, count: int, reason: string, source: string}|null
+	 * @param int $regnaar Fiscal year used to check account availability.
+	 * @param int $sprog_id Language ID for the reason texts.
+	 * @return array{
+	 *   account: string, Suggested finance account number.
+	 *   type: string, Suggested account type (F for history).
+	 *   name: string, Display name of the suggested account.
+	 *   moms: string, Account VAT code, or an empty string.
+	 *   text: string, History description for the account.
+	 *   count: int, Distinct bilag supporting this account.
+	 *   total: int, Distinct bilag examined by the source.
+	 *   reason: string, Localized explanation for the suggestion.
+	 *   source: string, Source identifier, currently history.
+	 *   alternatives: array<array{
+	 *     account: string, Alternative finance account number.
+	 *     type: string, Alternative account type.
+	 *     name: string, Alternative display name.
+	 *     moms: string, Alternative VAT code, or an empty string.
+	 *     text: string, Alternative history description.
+	 *     count: int, Distinct bilag supporting the alternative.
+	 *     reason: string, Localized explanation for the alternative.
+	 *   }>, Remaining candidates in rank order.
+	 * }|null Null for a nonnumeric supplier number or when every source returns no suggestion.
 	 */
 	function contraSuggestion($kreditor, $kladdeId, $regnaar, $sprog_id) {
 		$kreditor = trim((string)$kreditor);
@@ -134,15 +242,18 @@ if (!function_exists('contraSuggestion')) {
 
 if (!function_exists('contraSuggestionUserAuto')) {
 	/**
-	 * The user's "Udfyld modkonto automatisk" from the journal's gear box (grupper art 'KASKL', box3, option modk_auto). Off by default.
+	 * Read the user's automatic contra-account fill preference from KASKL box3.
 	 *
-	 * @param int|null $userId
-	 * @return bool
+	 * Only the modk_off token disables it; the legacy modk_auto token is ignored.
+	 * This preference alone does not authorize filling saved rows or single-bilag suggestions.
+	 *
+	 * @param int|null $userId User ID; null or zero uses the enabled default without a query.
+	 * @return bool True unless the user's settings explicitly contain modk_off; missing settings default to true.
 	 */
 	function contraSuggestionUserAuto($userId) {
-		if ($userId === null || (int)$userId === 0) return false;
+		if ($userId === null || (int)$userId === 0) return true;
 		$r = db_fetch_array(db_select("select box3 from grupper where art = 'KASKL' and kode = '1' and kodenr = '" . (int)$userId . "'", __FILE__ . " linje " . __LINE__));
-		if (!$r) return false;
-		return in_array('modk_auto', array_map('trim', explode(',', (string)$r['box3'])), true);
+		if (!$r) return true;
+		return !in_array('modk_off', array_map('trim', explode(',', (string)$r['box3'])), true);
 	}
 }

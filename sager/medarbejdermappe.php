@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/medarbejdermappe.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- sager/medarbejdermappe.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20261103 CL/MMR SD-799 The user setup error shown when the login has no employee is translated.
 // 20261104 CL/MMR SD-799 The user-setup alert text is passed to the script as UTF-8.
 // 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
+// 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
 @session_start();
 $s_id                  = session_id();
 
@@ -50,8 +51,10 @@ include("../includes/std_func.php");
 
 //$sag_id=if_isset($_GET['sag_id']);
 //$konto_id=if_isset($_GET['konto_id']);
-$funktion = if_isset($_GET['funktion']);
-if (!$funktion) $funktion = "medarbejdermappeliste";
+$funktion = $_GET['funktion'] ?? null;
+if (!in_array($funktion, ['medarbejdermappeliste', 'faellesmappe', 'ret_mappe', 'ret_bilag', 'vis_mappe', 'medarbejdermappe', 'ret_ansatmappe', 'ret_ansatbilag', 'vis_ansatmappe'], true)) {
+	$funktion = 'medarbejdermappeliste';
+}
 	
 		global $brugernavn;
 		global $db;
