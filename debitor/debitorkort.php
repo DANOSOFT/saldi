@@ -142,7 +142,7 @@
 //                A private card's first and last name are filled in from its name before the hash, and only while both are still empty.
 //                They are stored as plain text, so the first view and Gem no longer turn æøå into HTML entities (debitorkortFillPrivateNames()).
 //                A refused save keeps the card's way back (returside, ordre_id, fokus); split_navn() starts from an empty first name.
-// 20261116 CL/MMR SD-831 When the highest customer number (or the number typed on a card being saved) reaches the last kommission item (e.g. 4999), the next block of kommission items is created before the card is drawn (includes/commissionItemSeries.php).
+// 20261116 CL/MMR SD-831 When kommission is used, the drawn card posts to commissionItemSeries.php, which creates the next block of kommission items once the highest saved customer number reaches the last item (e.g. 4999).
 @session_start();
 $s_id = session_id();
 
@@ -165,8 +165,10 @@ include_once(__DIR__ . '/debitorkortIncludes/einvoiceCvrBanner.php');
 include_once(__DIR__ . '/debitorkortIncludes/staleSave.php');
 include_once(__DIR__ . '/../includes/commissionItemSeries.php');
 
-// SD-831 Kommission items for the highest customer number (or the number typed on the card being saved), before the card is drawn.
-commissionItemSeriesEnsureForDebitors(ifset($_POST, 'ny_kontonr', ''));
+// SD-831 The kommission items for new customers are created by debitor/commissionItemSeries.php, posted to once the card is drawn.
+if (commissionItemSeriesEnabled()) {
+	print "<script>window.addEventListener('load', function () { if (window.fetch) fetch('commissionItemSeries.php', {method: 'POST', credentials: 'same-origin'}).catch(function () {}); });</script>\n";
+}
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 

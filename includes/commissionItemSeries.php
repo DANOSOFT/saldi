@@ -23,7 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261116 CL/MMR SD-831 Created: when a kommission customer gets the account number of the last item in the shop's kommission series (e.g. kbsil4999) or a higher one, the next block of 5000 items (kbsil5000-kbsil9999, then 10000-14999 and so on) is created as copies of that item.
-//                 commissionItemSeriesEnsureForDebitors() runs it for the highest debitor number, for pages whose output starts before the customer is inserted.
+//                 commissionItemSeriesEnsureForDebitors() runs it for the highest stored debitor number; debitor/commissionItemSeries.php calls it for the debitor card.
 
 if (!defined('COMMISSION_ITEM_SERIES_BLOCK')) {
 	// Morten 2026-11-16: at 4999 the shop gets 5000-9999, at 9999 10000-14999, at 14999 15000-19999, and so on.
@@ -50,9 +50,7 @@ if (!function_exists('commissionItemSeriesEnsure')) {
 		if (!ctype_digit($accountNo) || strlen($accountNo) > 9 || (int)$accountNo < 1) {
 			return 0;
 		}
-		$qtxt = "select var_value from settings where var_name = 'useCommission' and var_grp = 'items'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if (!$r || !$r['var_value']) {
+		if (!commissionItemSeriesEnabled()) {
 			return 0;
 		}
 		if (!commissionItemSeriesLock()) {
@@ -202,21 +200,31 @@ if (!function_exists('commissionItemSeriesUnlock')) {
 	}
 }
 
-if (!function_exists('commissionItemSeriesEnsureForDebitors')) {
+if (!function_exists('commissionItemSeriesEnabled')) {
 	/**
-	 * Run commissionItemSeriesEnsure() for the highest debitor account number in the regnskab, or for $postedAccountNo
-	 * when that is higher (a card being saved with a number typed in). For pages that create customers but write their
-	 * output before the customer is inserted, so the call can sit in the page's controller phase: a customer created
-	 * with an automatically assigned number is then covered on the next page view.
+	 * Whether the regnskab uses kommission (Varerelaterede valg, settings useCommission).
 	 *
-	 * @param int|string $postedAccountNo Account number from the request, '' for none.
-	 * @return int Number of items created.
+	 * @return bool
 	 */
-	function commissionItemSeriesEnsureForDebitors($postedAccountNo = '') {
-		global $db_type;
+	function commissionItemSeriesEnabled() {
 		$qtxt = "select var_value from settings where var_name = 'useCommission' and var_grp = 'items'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if (!$r || !$r['var_value']) {
+		return ($r && $r['var_value']);
+	}
+}
+
+if (!function_exists('commissionItemSeriesEnsureForDebitors')) {
+	/**
+	 * Run commissionItemSeriesEnsure() for the highest debitor account number stored in the regnskab.
+	 *
+	 * Only customers that are saved count: a number typed on a card that is not (yet) saved is never used.
+	 * Called by debitor/commissionItemSeries.php, which the debitor card posts to after it is drawn.
+	 *
+	 * @return int Number of items created.
+	 */
+	function commissionItemSeriesEnsureForDebitors() {
+		global $db_type;
+		if (!commissionItemSeriesEnabled()) {
 			return 0;
 		}
 		if ($db_type == 'mysql' || $db_type == 'mysqli') {
@@ -226,10 +234,6 @@ if (!function_exists('commissionItemSeriesEnsureForDebitors')) {
 		}
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$accountNo = $r ? (int)$r['top'] : 0;
-		$postedAccountNo = trim((string)$postedAccountNo);
-		if (ctype_digit($postedAccountNo) && strlen($postedAccountNo) <= 9 && (int)$postedAccountNo > $accountNo) {
-			$accountNo = (int)$postedAccountNo;
-		}
 		return $accountNo > 0 ? commissionItemSeriesEnsure($accountNo) : 0;
 	}
 }
