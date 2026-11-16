@@ -10,6 +10,7 @@
 //
 // History:
 // 20261027 CL/LH Created.
+// 20261101 CL/MJ phpCommand() is exported for file-version: Docker gets -i so a caller can pipe stdin, and no mount without a dir.
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
@@ -26,12 +27,12 @@ for ($i = 0; $i < (int) $argv[1]; $i++) {
 }
 `;
 
-function phpCommand(dir) {
+export function phpCommand(dir) {
   const local = spawnSync("php", ["-r", "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;"], { encoding: "utf8" });
   if (local.status === 0 && local.stdout.trim() === "8.2") return ["php"];
   const image = process.env.GUARDRAILS_PHP_IMAGE ?? "php:8.2-cli";
   const docker = spawnSync("docker", ["version", "--format", "{{.Server.Version}}"], { encoding: "utf8" });
-  if (docker.status === 0) return ["docker", "run", "--rm", "-v", `${dir}:${dir}:ro`, image, "php"];
+  if (docker.status === 0) return ["docker", "run", "--rm", "-i", ...(dir ? ["-v", `${dir}:${dir}:ro`] : []), image, "php"];
   if (local.status === 0) {
     console.warn(`php-syntax: using PHP ${local.stdout.trim()} from PATH; production runs 8.2, so 8.3+ syntax slips through`);
     return ["php"];

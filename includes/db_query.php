@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 5.0.0 ----2026-09-25--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-13--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,8 +59,23 @@
 //                just gives them one place to call instead of hand-rolling the mysqli check.
 // 20261027 CL/NTR db_select_database(): also select on $db_type 'mysql', which db_connect()
 //                serves with a mysqli connection too (still supported, not actively used).
+// 20261029 CDX/NTR Use shared permissions for database logs and tenant temporary directories.
+// 20261029 CDX/NTR Document query and path helpers affected by shared runtime logging.
+// 20261103 CDX/NTR Attempt every database log line even when an earlier write is incomplete.
+// 20261103 CDX/NTR Report incomplete database log writes through non-throwing server diagnostics.
+// 20261103 CL/ASR db_cast() and saldi_schema_filter() added for the settings system (PR #803 review): one cast and one information_schema filter that MySQL and PostgreSQL both accept.
+// 20261104 CL/ASR A failed query shows the error box of includes/errorReport.php (saldi_error_box()) instead of the alert that told everyone to call 4690 2208.
+//                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
+//                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
+    /**
+     * Derive the application-relative prefix from the current request path.
+     *
+     * @return string Parent-directory prefix for runtime paths.
+     */
     function get_relative() {
         $url = $_SERVER['REQUEST_URI'];
         $questionMarkPos = strpos($url, '?');
@@ -77,12 +92,33 @@ if (!function_exists('get_relative')) {
 }
 
 if (!function_exists('db_log_append')) {
+    /**
+     * Write database log lines with permissions shared with the web server.
+     *
+     * @param string $path Local log path.
+     * @param string|string[] $lines Log text or lines to write.
+     * @param string $mode Writable fopen mode.
+     * @return bool Whether all lines were written successfully.
+     */
     function db_log_append($path, $lines, $mode = 'a') {
-        $fp = @fopen($path, $mode);
-        if ($fp === false) return false;
-        foreach ((array)$lines as $line) fwrite($fp, $line);
-        fclose($fp);
-        return true;
+        $fp = sharedFileOpen($path, $mode);
+        if ($fp === false) {
+            return false;
+        }
+        try {
+            $complete = true;
+            foreach ((array)$lines as $line) {
+                if (fwrite($fp, $line) !== strlen($line)) {
+                    $complete = false;
+                }
+            }
+            if (!$complete) {
+                sharedFileWarning("Incomplete write to database log: $path");
+            }
+            return $complete;
+        } finally {
+            fclose($fp);
+        }
     }
 }
 
@@ -291,6 +327,8 @@ if (!function_exists('db_modify')) {
 					db_log_append("$temp/opdatfejl.txt", date("U")."\n", 'w');
 				} 
 			} else {
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
+				$message .= " | ".saldi_error_ref(); #20261104 the error box's reference, so a customer's report can be matched to this mail
 				if (file_exists("$temp/modifyfejl.txt")) {
 					$ff=fopen("$temp/modifyfejl.txt","r");
 					$lastmail=trim(fgets($ff));
@@ -319,7 +357,9 @@ if (!function_exists('db_modify')) {
 					$db_modify_fejl = true;
 					return ('1'.chr(9)."$alerttekst");
 				}
-				alert("$alerttekst");
+				$shown = saldi_error_box($spor, (string) $errtxt, $qtext, true); #20261104 the error box (includes/errorReport.php) instead of the plain alert
+				if ($shown === 'nested') return ('1'.chr(9)."$alerttekst"); // a failure inside the box itself: no second box, no exit
+				if ($shown === 'nosession') alert("$alerttekst"); // CLI, cron, API: as before
 				exit;
 			}
 		}
@@ -328,13 +368,21 @@ if (!function_exists('db_modify')) {
 }
 
 if (!function_exists('db_select')) {
+	/**
+	 * Execute a SELECT against the tenant or master connection and log query errors.
+	 *
+	 * @param string $qtext SQL whose external values have already been escaped.
+	 * @param string $spor Caller context recorded in error logs.
+	 * @param bool $global Whether to use the master connection.
+	 * @return mysqli_result|\PgSql\Result|bool Database result or failure.
+	 */
 	function db_select($qtext, $spor, $global = false) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_type;
 		global $s_id,$sqdb,$sqhost,$squser,$sqpass;
 
-		if (!function_exists('alert')) include('std_func.php'); #20230730
+		if (!function_exists('alert')) include(__DIR__ . '/std_func.php'); #20230730
 
 		$qtext=injecttjek($qtext);
 
@@ -344,10 +392,10 @@ if (!function_exists('db_select')) {
 		$temp = get_relative() . 'temp/' . $db;
 
 		if (!file_exists($temp)) {
-			mkdir($temp, 0777);
+			sharedDirectory($temp);
 			$onlineLog = get_relative() . 'temp/.ht_online.log';
 			$onlineTxt = date("Y-m-d")." ".date("H:i:s")." ".$_SERVER['REMOTE_ADDR']." ".$s_id." ".$db." ".$brugernavn."\n";
-			file_put_contents($onlineLog, $onlineTxt, FILE_APPEND);
+			sharedFilePutContents($onlineLog, $onlineTxt, true);
 		}
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 			// Use mysqli for MySQL as mysql_query() is deprecated
@@ -389,13 +437,14 @@ if (!function_exists('db_select')) {
 					"-- Fejl!! ".$qtext." | $errtxt;\n",
 				]);
 				// if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
 				if (file_exists("$temp/selectfejl.txt")) {
 					$ff=fopen("$temp/selectfejl.txt","r");
 					$lastmail=trim(fgets($ff));
 					fclose($ff);
 				} else $lastmail=0; 
 				if($lastmail!=date("U")) {
-					$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
+					$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt | ".saldi_error_ref(); #20261104 + the error box's reference
 					if ($sqdb == 'develop') echo "$message<br>";
 					else {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
@@ -405,12 +454,15 @@ if (!function_exists('db_select')) {
 				} 
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
-				alert("$alerttekst");
+				if (saldi_error_box($spor, (string) $errtxt, $qtext, false) === 'nosession') alert("$alerttekst"); #20261104 the error box; the page goes on as before
 			} else {
 				#	$customAlertText saettes i connect.php;
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				echo $fejltxt; 
-				alert("$alerttekst");
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
+				$shown = saldi_error_box($spor, (string) $errtxt, $qtext, true); #20261104 the error box instead of the plain alert
+				if ($shown === 'nested') return $query;
+				if ($shown === 'nosession') alert("$alerttekst");
 				exit;
 			}
 		} else {
@@ -576,6 +628,26 @@ if (!function_exists('db_exists')) {
 			(db_fetch_array($q))?$db_exists=1:$db_exists=0;
 		}	
 		return($db_exists);
+	}
+}
+
+if (!function_exists('db_cast')) {
+	// 20261016 Sawaneh Review (PR #803): a cast MySQL and Postgres both accept: text -> CHAR, integer -> SIGNED on MySQL.
+	function db_cast($expr, $type) {
+		global $db_type;
+		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
+			return "cast($expr as " . ($type === 'text' ? 'char' : 'signed') . ")";
+		}
+		return "cast($expr as $type)";
+	}
+}
+
+if (!function_exists('saldi_schema_filter')) {
+	// 20261016 Sawaneh Review (PR #803): information_schema spans every database the user can see on MySQL, so a
+	// column/table check must name this one; appended to a WHERE on information_schema.columns/tables.
+	function saldi_schema_filter() {
+		global $db_type;
+		return in_array($db_type, array('mysql', 'mysqli'), true) ? " and table_schema = DATABASE()" : " and table_schema = current_schema()";
 	}
 }
 

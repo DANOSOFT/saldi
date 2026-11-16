@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- debitor/api.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20260518 NTR - Changed address fetch logic, such that multiple spaces doesn't result in a incorrect address
 // &&           - Changed the total logic, such that values above a thousand doesn't cut it to the thousands. aka. 27,010.40 became 27 due to the ,
 // 20260609 CL/PHR - Null-check på EasyUBL-svar: tomt svar (HTTP 500) ved kreditnotaer giver nu dansk fejlbesked i stedet for "null"
@@ -41,19 +41,13 @@
 // 20260825 CL/NTR - Added 0184 (Danish CVR) to the Peppol scheme map so an "0184:xxxxxxxx" EAN gets the DK prefix and correct country code instead of falling through unprefixed.
 // &&       Also added "0088" as a swedish prefix.
 // 20260914 Sawaneh    JOB-141: getInvoicesOrder() classifies EasyUBL's reply with
-// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
 //                     easyubl_interpret_response() (includes/stdFunc/easyUblResponse.php) - the
 //                     error branch looked for errorMessage/error, which EasyUBL never sends
 //                     (it returns errNo/message), so real API errors showed as "Uventet svar".
 //                     Every failure now logs one fakture-error file, sets ordrer.digital_status
 //                     to SendFailed so the order shows it and a resend asks first, and reports
 //                     through findtekst(); an HTTP 500 with a document is no longer a success.
-// 20261019 CL/MJ SST-870 sendInvoice() reads the country code off the invoice's own land field
-//                  (countryCodeIso2()), and only falls back to the prefix in the CVR field and
-//                  then DK. A foreign customer without a prefixed CVR was sent as DK whatever
-//                  the address said - 33 of MEDSHOP's invoices in a year, all Swedish or
-//                  Norwegian. lev_land gives the delivery address its own code when it is
-//                  filled. Greenland and the Faroe Islands are still sent as DK.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3).
 // 20261007 MJ SST-860 sendInvoice() no longer sends an empty accountingCustomerParty
 //                  companyId. A customer registered with an EAN/GLN and no CVR took the
 //                  GLN branch, which leaves $cvrnr_with_prefix empty, and the payload
@@ -62,6 +56,11 @@
 //                  PartyLegalEntity/CompanyID under schemeID 0088 instead of a CVR under
 //                  0184. The key is omitted when no CVR is known; routing on the GLN and
 //                  the GLN exemptions in both missing-CVR guards are unchanged.
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20261019 CL/MJ SST-870 sendInvoice() reads the country code off the invoice's own land field (countryCodeIso2()), and only falls back to the prefix in the CVR field and then DK.
+//                A foreign customer without a prefixed CVR was sent as DK whatever the address said - 33 of MEDSHOP's invoices in a year, all Swedish or Norwegian.
+//                lev_land gives the delivery address its own code when it is filled.
+//                Greenland and the Faroe Islands are still sent as DK.
 // 20261023 CL/MMR SST-884 sendInvoice() falls back to the customer card's CVR when the order has none, like EAN.
 // 20261023 CL/MMR SD-774 sendInvoice() stops before sending when a Danish receiver is reached on a GLN and neither the order nor the debitor card has a CVR, and the popup window says why (easyUblCvrMissing()).
 //                 Receivers reject such invoices (DK-R-017 / E-APS24003); EasyUBL requires the CVR since 2026-10-22.
@@ -73,7 +72,17 @@
 //                 0088 is the GS1 GLN; it was mapped to the Swedish organisation number (SE:ORGNR) and sent as "SE<gln>", also as companyId (MEDSHOP faktura 238877, Error 2026-07-07).
 // 20261029 CL/MJ SST-885 sendInvoice() and sendOrder() send "Bemærkning til ordre" (ordrer.notes) as the note only when the company has ticked "Send 'Bemærkning til ordre' med på e-fakturaer" (easyUblOrderNote()).
 //                 It is meant for internal remarks and the PDF only prints it when the form has the field, but every e-invoice carried it (MEDSHOP: 92 of 844 since April).
-
+// 20261030 CL/MJ SST-873 sendInvoice() leaves the Danish reg.nr./account out of the
+//                  paymentMeans when the invoice is foreign and an IBAN is on file, so
+//                  EasyUBL writes PaymentMeansCode 30/58 with IBAN and BIC instead of a
+//                  Danish 42 the recipient's bank cannot act on. IBAN and BIC are sent
+//                  without the spaces Stamdata stores them with.
+// 20261102 CL/MMR SST-746 sendInvoice() sends a line with a negative unit price (a discount line) as a negative quantity at a positive price, never as an allowance.
+//                 EasyUBL rejected those lines (BR-S-08, UNCL 5189), and Peppol does not allow a negative price (BR-27).
+//                 A credit note's lines get their quantity negated instead of abs() on quantity and price, so its discount line is no longer credited as a charge.
+//                 In sendInvoice() "global $db;" is indented like the other statements, and the order id is cast in both queries.
+// 20261104 CL/MMR SST-746 Review (PR #998): the SST-746 history line no longer names a customer's item number.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
@@ -85,11 +94,13 @@
     $apiKey = $res["var_value"];
     //echo $apiKey . "<br>";
 
+    $permission_key = 'debitor.ordre';
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
     include_once(__DIR__ . "/../includes/stdFunc/easyUblResponse.php");
     include_once(__DIR__ . "/../includes/stdFunc/countryCode.php");
     include_once(__DIR__ . "/../includes/stdFunc/einvoiceCvr.php");
+    include_once(__DIR__ . "/../includes/stdFunc/einvoiceLineSign.php");
 
     /**
      * @param string $address The full street address to split
@@ -522,10 +533,10 @@
      * @param array $context SD-774: 'db_encode' and 'sprog_id' of the caller, for the missing-CVR page
      */
     function sendInvoice($id, $type, array $context = array()) {
-            global $db;
+        global $db;
         $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $adresse = db_fetch_array($query);
-        $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
+        $query = db_select("SELECT * FROM ordrer WHERE id = " . (int)$id, __FILE__ . " linje " . __LINE__);
         $r_faktura = db_fetch_array($query);
 
         // get momssats of the order so that the moms can get reduced to that number.
@@ -741,6 +752,31 @@
         if (einvoice_cvr_missing($r_faktura["ean"], $r_faktura["cvrnr"], $r_faktura["land"] ?? "")) {
             easyUblCvrMissing(trim((string)$r_faktura["ean"]), $id, $db, (string)($context["db_encode"] ?? "UTF8"), $context["sprog_id"] ?? 1);
         }
+
+        // 20261021 CL/MJ SST-873 EasyUBL's API has no field for PaymentMeansCode and takes one
+        // paymentMeans object rather than a list, so the code it writes is decided entirely by
+        // which of the fields are filled. Reg.nr. and account number give a Danish 42, which is
+        // the format a foreign recipient's bank cannot act on. Leaving them out when the invoice
+        // is foreign and an IBAN is on file is the only lever Saldi has for asking for 30 or 58,
+        // and it is safe in exactly that case because IBAN and BIC are then left to identify the
+        // account. Without an IBAN nothing changes and the invoice keeps its 42.
+        $invoiceCurrency = strtoupper(trim($r_faktura["valuta"] ?? ""));
+        // An empty currency is this install's own, not a foreign one.
+        $foreignPayment = ($countryCode !== "DK") || ($invoiceCurrency !== "" && $invoiceCurrency !== "DKK");
+
+        // Stamdata stores both exactly as typed and an IBAN is usually written in groups of four.
+        // The legacy OIOUBL generator in includes/oioublfunk.php strips the spaces for the same
+        // reason; EasyUBL is only given the account identifiers, so they have to be usable ones.
+        $paymentIban = preg_replace('/\s+/', '', (string)($adresse["iban"] ?? ""));
+        $paymentBic = preg_replace('/\s+/', '', (string)($adresse["swift"] ?? ""));
+        $paymentRegNo = $adresse["bank_reg"];
+        $paymentAccount = $adresse["bank_konto"];
+
+        if($foreignPayment && $paymentIban !== ""){
+            $paymentRegNo = "";
+            $paymentAccount = "";
+        }
+
         $data = [
             "invoiceCreditnote" => $creditNote,
             "id" => $r_faktura["fakturanr"],
@@ -810,10 +846,10 @@
             "deliverAddress" => $deliverAddress,
             "paymentMeans" => [
                 "bankName" => $adresse["bank_navn"],
-                "bankRegNo" => $adresse["bank_reg"],
-                "bankAccount" => $adresse["bank_konto"],
-                "bic" => $adresse["swift"] ?? "",
-                "iban" => $adresse["iban"] ?? "",
+                "bankRegNo" => $paymentRegNo,
+                "bankAccount" => $paymentAccount,
+                "bic" => $paymentBic,
+                "iban" => $paymentIban,
                 "creditorIdentifier" => "",
                 "paymentID" => ""
             ],
@@ -841,18 +877,15 @@
             ],
         ];
 
-        $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
+        $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = " . (int)$id . " ORDER BY posnr", __FILE__ . " linje " . __LINE__);
         $line = [];
         while ($res = db_fetch_array($query)) {
 
             $res["rabat"] = abs((float)$res["rabat"]);
-            if($creditNote == "Cre"){
-                $res["antal"] = abs((float)$res["antal"]);
-                $res["pris"] = abs((float)$res["pris"]);
-            }else{
-                $res["antal"] = (float)$res["antal"];
-                $res["pris"] = (float)$res["pris"];
-            }
+            // SST-746: a negative unit price (a discount line) goes out as a negative quantity at a positive price
+            $linePrice = einvoice_line_quantity_price($res["antal"], $res["pris"], $creditNote == "Cre");
+            $res["antal"] = $linePrice["quantity"];
+            $res["pris"] = $linePrice["price"];
             $res["momssats"] = min(abs((float)$res["momssats"]), abs((float)$ordre_moms));
             if ($res["momsfri"] == 'on' || $res["omvbet"]) {
                 $res["momssats"] = 0;
@@ -901,7 +934,7 @@
                 "description" => $beskrivelse,
                 "accountingCost" => "",
                 "commodityCode" => "",
-                "isAllowanceCharge" => $price >= 0 ? false : true, // 20260825 - NTR - Set isAllowanceCharge based on price sign (negative price indicates allowance/charge)
+                "isAllowanceCharge" => false, // SST-746: a discount is a line with a negative quantity, never an allowance (EasyUBL rejected those, BR-S-08 / UNCL 5189)
                 "item" => [
                     "buyersItemID" => "",
                     "sellersItemID" => ($res["varenr"] != "" && $res["varenr"] != null && $res["varenr"] != "null") ? strval($res["varenr"]) : "",

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 
+// 20261111 CDX/NTR Own a fresh UUID tenant instead of relying on a pre-existing saldi_chartest.
+
+require_once __DIR__ . '/../../support/database/TestDatabase.php';
+
 /**
  * CHARACTERIZATION suite for lager/labelprint_includes/newlabel.php, pinning
  * two things:
@@ -26,15 +30,12 @@ use PHPUnit\Framework\TestCase;
  * against a real Postgres tenant, mirroring the reproduction used to
  * root-cause MB-16.
  *
- * Connection details come from the gitignored includes/connect.php, exactly
- * like the app (doc/ai/convention_no_hardcoded_secrets.md). The
- * "saldi_chartest" tenant database must already exist on that host, cloned
- * from an installed tenant; when it can't be reached the whole suite is
- * skipped rather than errored.
+ * The common helper installs this class's own UUID tenant. Only the test
+ * master and PostgreSQL connection settings are required; no existing tenant.
  */
 final class NewlabelCharacterizationTest extends TestCase
 {
-    private const TENANT_DB = 'saldi_chartest';
+    private static ?TestDatabase $database = null;
     private const KONTONR = '87654321';
 
     private static string $repoRoot;
@@ -44,6 +45,12 @@ final class NewlabelCharacterizationTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
+        $reason = TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
+        }
+        self::$database = TestDatabase::create(static::class);
+
         // Must come BEFORE the require below: an included file's top-level code
         // runs in the includer's scope, so connect.php's $sqhost/$squser/$sqpass
         // assignments would otherwise be trapped as locals of this method
@@ -66,17 +73,9 @@ final class NewlabelCharacterizationTest extends TestCase
         require_once self::$repoRoot . '/includes/std_func.php';
         ob_end_clean();
 
-        // db_connect() exits the process on an empty host, which would end the
-        // whole PHPUnit run - skip instead.
-        $db = self::TENANT_DB;
-        $connection = $sqhost ? @db_connect($sqhost, $squser, $sqpass, $db) : false;
-        if (!$connection) {
-            chdir(self::$originalCwd);
-            self::markTestSkipped(
-                "tenant db '" . self::TENANT_DB . "' not reachable on host '$sqhost' as user '$squser' " .
-                '- clone it from an installed tenant first'
-            );
-        }
+        $db = self::$database->name();
+        $db_type = 'postgresql';
+        $connection = TestDatabase::connect($db);
         self::$connected = true;
 
         db_modify("delete from adresser where kontonr = '" . self::KONTONR . "'", __FILE__ . ' linje ' . __LINE__);
@@ -107,11 +106,12 @@ final class NewlabelCharacterizationTest extends TestCase
         if (!self::$connected) {
             return;
         }
-        db_modify('delete from mylabel where account_id = ' . self::$accountId, __FILE__ . ' linje ' . __LINE__);
-        db_modify("delete from adresser where kontonr = '" . self::KONTONR . "'", __FILE__ . ' linje ' . __LINE__);
-        foreach (['knXXX', 'knPLAIN', 'knZERO', 'knZERO2', 'knPRICED', 'knSINGLE', 'knLEGACY', 'knLEGACY2', 'knDKKZERO', 'knDKKPRICED', 'knDKKLEGACY', 'knDKKLEGACY2'] as $prefix) {
-            db_modify("delete from varer where varenr = '" . $prefix . self::KONTONR . "'", __FILE__ . ' linje ' . __LINE__);
-        }
+        global $connection;
+        pg_close($connection);
+        $connection = null;
+        self::$connected = false;
+        self::$database->release();
+        self::$database = null;
         chdir(self::$originalCwd);
     }
 

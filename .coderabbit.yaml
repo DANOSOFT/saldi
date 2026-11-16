@@ -8,6 +8,20 @@
 # answers each one.
 inheritance: true
 reviews:
+  path_instructions:
+    - path: "**/*.php"
+      instructions: |
+        Follow doc/ai/convention_database_changes.md for schema changes.
+        Migrations for existing regnskaber belong at the end of
+        includes/betweenUpdates.php. Exception: admin/opret.php and
+        includes/opretfunc.php are new-regnskab creation paths, with the shared
+        schema builder opret_build_tenant() in includes/opretfunc.php.
+        Initial-schema DDL is permitted in both files. Do not flag that
+        initial-schema DDL as violating the migration-location convention.
+        Changes that also affect existing regnskaber need a corresponding
+        migration at the end of includes/betweenUpdates.php. This exception is
+        temporary, until structure helper functions replace the current setup;
+        it does not allow schema repair during ordinary page requests.
   auto_approvals:
     # Off: no change requests for blocking findings and no automatic approval.
     enabled: false

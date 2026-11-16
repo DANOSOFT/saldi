@@ -1,5 +1,6 @@
 <?php
-// --- debitor/generalLedgerTopLine.php --- patch 5.0.0 --- 2026-03-19 ---
+// --- debitor/generalLedgerTopLine.php --- patch 5.1.0 --- 2026-11-03 ---
+// 20261103 LOE SST-908 The E-mail button hands the selected Åbne poster view to the statement.
 
 $back_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 $ledger_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M280-600v-80h560v80H280Zm0 160v-80h560v80H280Zm0 160v-80h560v80H280ZM160-600q-17 0-28.5-11.5T120-640q0-17 11.5-28.5T160-680q17 0 28.5 11.5T200-640q0 17-11.5 28.5T160-600Zm0 160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520q17 0 28.5 11.5T200-480q0 17-11.5 28.5T160-440Zm0 160q-17 0-28.5-11.5T120-320q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320q0 17-11.5 28.5T160-280Z"/></svg>';
@@ -24,7 +25,7 @@ print "<button type='button' class='center-btn' style='$buttonStyle; width:100%;
 print "</td>";
 
 print "<td width='7%' style='$buttonStyle; white-space:nowrap;'>";
-print "<button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:center;' onclick=\"window.open('" . debitorGeneralLedgerEscape($emailUrl) . "','kontomail','" . debitorGeneralLedgerEscape($jsvars) . "')\">". $mail_icon . findtekst('52|E-mail', $sprog_id) . "</button>";
+print "<button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:center;' onclick=\"debitorOpenKontomail('" . debitorGeneralLedgerEscape($emailUrl) . "')\">". $mail_icon . findtekst('52|E-mail', $sprog_id) . "</button>";
 print "</td>";
 print "</tr></tbody></table></td></tr>\n";
 ?>

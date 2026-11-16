@@ -1,11 +1,10 @@
 <?php
-ob_start();
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/admin_panel.php --- 2026-03-05 ---
+// --- admin/admin_panel.php --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -13,10 +12,15 @@ ob_start();
 // which is published by The Free Software Foundation; either in version 2
 // of this license or later version of your choice.
 //
-// Copyright (c) 2026 Saldi.dk ApS
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Admin Panel - Comprehensive admin page for managing customer accounts,
 // feature licenses, usage stats, and account settings.
+//
+// 20261102 CL/ASR Reopening an account whose closing date (lukkes) has passed also clears that date, so the auto-close does not close it again at once.
+// 20261113 CDX/NTR Use the shared last-activity formatter for legacy registry date strings in both account views.
+
+ob_start();
 
 @session_start();
 $s_id = session_id();
@@ -28,6 +32,7 @@ $title = "Admin Panel";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/stdFunc/lastActivityDate.php';
 
 // ---- Ensure lukkes_kommentar column exists on regnskab ----
 $_col_check = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='lukkes_kommentar' AND table_schema='public'", __FILE__ . " linje " . __LINE__));
@@ -225,6 +230,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $betalt_til = $_POST['betalt_til'] ? "'" . db_escape_string($_POST['betalt_til']) . "'" : "'2099-12-31'";
         $logintekst = db_escape_string(if_isset($_POST['logintekst'], ''));
         $lukkes_post = trim(if_isset($_POST['lukkes'], ''));
+        // Reopening an account ("Lukket" unticked) whose closing date has passed also clears that date; otherwise the
+        // auto-close below (and at the account's next login, includes/online.php) closes it again at once.
+        if ($lukket === '' && $lukkes_post !== '' && strtotime($lukkes_post) !== false && strtotime($lukkes_post) <= strtotime(date('Y-m-d'))) {
+            $lukkes_post = '';
+        }
         $lukkes_sql = ($lukkes_post && $lukkes_post !== '') ? "'" . db_escape_string($lukkes_post) . "'" : "NULL";
         $lukkes_kommentar = db_escape_string(if_isset($_POST['lukkes_kommentar'], ''));
 
@@ -1206,7 +1216,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
         $max_brugere = $reg['brugerantal'] * 1;
         $max_posteringer = $reg['posteringer'] * 1;
         $posteret = $reg['posteret'] * 1;
-        $sidst = $reg['sidst'] ? date("d-m-Y", $reg['sidst']) : '-';
+        $sidst = lastActivityDate($reg['sidst']);
         $is_closed = ($reg['lukket'] == 'on');
         $betalt_til_raw = if_isset($reg, '', 'betalt_til');
         $betalt_til_display = $betalt_til_raw ? date("d-m-Y", strtotime($betalt_til_raw)) : '-'; 
@@ -1651,7 +1661,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                 $reg_id = $reg['id'];
                 $row_count++;
                 $is_closed = ($reg['lukket'] == 'on');
-                $sidst_val = $reg['sidst'] ? date("d-m-Y", $reg['sidst']) : '-';
+                $sidst_val = lastActivityDate($reg['sidst']);
                 
                 // License status
                 $reg_licenses = isset($all_licenses[$reg_id]) ? $all_licenses[$reg_id] : array();

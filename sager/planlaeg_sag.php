@@ -1,4 +1,5 @@
 <?php
+// 20261110 CDX/NTR Use one Gantt save callback for valid identifiers and visible failed-save recovery.
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id=session_id();
 	
@@ -18,6 +19,7 @@
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 	
 	$sag_id=if_isset($_GET['sag_id']);
 	
@@ -126,10 +128,13 @@
 			$opgnavn = findtekst('2872|Montage', $sprog_id);
 		}
 		
-		$items .= "{ id: \"0\", opg_id: \"$opg_id[$x]\", name: \"<a href='sager.php?funktion=ret_opgave&sag_id=$sag_id&konto_id=$konto_id&opgave_id=$opg_id[$x]' title='".findtekst('2870|Opgavenr.', $sprog_id).":\t$opg_nr[$x]\\n".findtekst('65|Oprettet', $sprog_id).":\t$opg_dato[$x]\\n".findtekst('958|Oprettet af', $sprog_id).":\t$opg_oprettet_af[$x]\\n".findtekst('494|Status', $sprog_id).":\t\t$opg_status[$x]'>$opg_beskrivelse[$x]<\/a>\", series: [{ name: \"<span style='color:$opgcolor'>$opgnavn<\/span>\", title: \"".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"}]},"; // #FF8E8E rød til demontage!
+		$items .= "{ id: \"0\", opg_id: \"$opg_id[$x]\", name: \"<a href='sager.php?funktion=ret_opgave&sag_id=$sag_id&konto_id=$konto_id&opgave_id=$opg_id[$x]' title='".findtekst('2870|Opgavenr.', $sprog_id).":\t$opg_nr[$x]\\n".findtekst('65|Oprettet', $sprog_id).":\t$opg_dato[$x]\\n".findtekst('958|Oprettet af', $sprog_id).":\t$opg_oprettet_af[$x]\\n".findtekst('494|Status', $sprog_id).":\t\t".sag_status_txt($opg_status[$x])."'>$opg_beskrivelse[$x]<\/a>\", series: [{ name: \"<span style='color:$opgcolor'>$opgnavn<\/span>\", title: \"".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"}]},"; // #FF8E8E rød til demontage!
 	
 	}
 	$ganttdata = "[".rtrim($items, ",")."]";
+	// Month names and the word after the number of days in the Gantt chart, in the user's language
+	$ganttMonthNames = json_encode(array_map('trim', explode(',', findtekst_utf8('8416|jan,feb,mar,apr,maj,jun,jul,aug,sep,okt,nov,dec', $sprog_id))), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+	$ganttDaysText = json_encode(findtekst_utf8('5025|dage', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 	
 	
 	//echo "$items";
@@ -197,14 +202,18 @@
 	<script type="text/javascript" src="../javascript/jquery-1.4.2.js"></script>
 	<script type="text/javascript" src="../javascript/date-da-DK.js"></script>
 	<script type="text/javascript" src="../javascript/jquery-ui-1.8.4.js"></script>
-	<script type="text/javascript" src="../javascript/jquery.ganttView.js"></script>
+	<script type="text/javascript" src="../javascript/jquery.ganttView.js?v=20261103"></script>
+	<script type="text/javascript" src="../javascript/saveGanttPlanDates.js?v=20261110"></script>
 	<script type="text/javascript" src="../javascript/jquery.scrollTo.js"></script>
 	<script type="text/javascript" src="../javascript/dragscrollable.js"></script>
 	<script type="text/javascript">
 		$(function () {
 			var ganttData = <?php echo $ganttdata; ?>;
+			var savePlanDates = createGanttPlanDateSaver("ajax_planlaeg_sag.php", <?php echo jsString([findtekst('planning.save_failed|Datoerne kunne ikke gemmes. Planlægningen genindlæses.', $sprog_id)]); ?>);
 			$("#ganttChart").ganttView({ 
 				data: ganttData,
+				monthNames: <?php echo $ganttMonthNames; ?>,
+				daysText: <?php echo $ganttDaysText; ?>,
 				slideWidth: 1550,
 				groupBySeries: false,
 				groupById: false,
@@ -215,41 +224,8 @@
 						//$("#eventMessage").text(msg);
 						//window.location.href = "sager.php?funktion=vis_sag&sag_id=" + data.id;
 					},
-					onResize: function (data) { 
-						var planfra = data.start.toString("dd-MM-yyyy");
-						var plantil = data.end.toString("dd-MM-yyyy");
-						var id = data.id;
-						var opg_id = data.opg_id;
-						var op = data.op;
-						var dataString = 'planfra='+ planfra + '&plantil=' + plantil + '&id=' + id + '&opg_id=' + opg_id + '&op=' + op; // 
-						$.ajax ({
-							type: "POST",
-							url: "ajax_planlaeg_sag.php",
-							data: dataString,
-							success: function(data) {
-								//alert(data);
-							} 
-						});
-					},
-					onDrag: function (data) { 
-						var planfra = data.start.toString("dd-MM-yyyy");
-						var plantil = data.end.toString("dd-MM-yyyy");
-						var id = data.id;
-						var opg_id = data.opg_id;
-						var op = data.op;
-						var dataString = 'planfra='+ planfra + '&plantil=' + plantil + '&id=' + id + '&opg_id=' + opg_id + '&op=' + op; //  
-						$.ajax ({
-							type: "POST",
-							url: "ajax_planlaeg_sag.php",
-							data: dataString,
-							success: function(data) {
-								//alert(data);
-								//var ganttData=data;
-								//return ganttData;
-								//$("#eventMessage").text(ganttData);
-							} 
-						});
-					}
+					onResize: savePlanDates,
+					onDrag: savePlanDates
 				}
 			});
 			

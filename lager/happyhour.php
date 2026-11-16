@@ -1,5 +1,5 @@
 <?php
-// ------------- lager/happyhour.php ---------- ver 3.6.1----2016.01.06-------
+// ------------- lager/happyhour.php ---------- ver 5.1.0 --- 2026-11-04 ---
 // LICENS
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
@@ -17,8 +17,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261104 LOE MB-62 A read-only Items user may look at a product's happy-hour prices but not save them.
+//              The prices print without inputs and without the button, so the page offers no refused action.
 @session_start();
 $s_id = session_id();
 
@@ -29,6 +31,18 @@ $css = "../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+
+// MB-62 a read-only Items user may not write happy-hour prices: the form below inserts, updates and
+// deletes varetilbud rows, and $modulnr alone lets that right into the page.
+$mb62_readonly = ($rettigheder !== '' && (substr($rettigheder, 9, 1) === '2' || substr($rettigheder, 9, 1) < '1'));
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $mb62_readonly) {
+	error_log('MB-62: happy hour change refused for user ' . $brugernavn . ' (Items right ' . substr($rettigheder, 9, 1) . ')');
+	print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varekortet'";
+	print " href='varekort.php?id=" . (int) if_isset($_GET['vare_id']) . "'";
+	print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+		. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+	exit;
+}
 
 $submit = if_isset($_POST['submit']);
 $vare_id = if_isset($_GET['vare_id']);
@@ -117,7 +131,8 @@ while ($r = db_fetch_array($q)) {
 	$ugedag[$x] = $r['ugedag'];
 	$x++;
 }
-print "<form name=\"happyhour\" action=\"happyhour.php?vare_id=$vare_id\" method=\"POST\">";
+# MB-62 a read-only user gets the prices without a form, so the page offers nothing its refusal would take back
+if (!$mb62_readonly) print "<form name=\"happyhour\" action=\"happyhour.php?vare_id=$vare_id\" method=\"POST\">";
 print "<div align=\"center\">\n";
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n";
@@ -134,8 +149,16 @@ print "<tr><td colspan=\"2\"></td><td>Kostpris</td><td align=\"right\">" . dkdec
 print "<tr><td colspan=\"7\"><hr></td></tr>";
 print "<tr><td align=\"center\">Aktiv fra</td><td align=\"center\">Aktiv til</td><td align=\"center\" style=\"width:90px\">Fra kl</td><td align=\"center\" style=\"width:90px\">Til kl.</td><td align=\"center\">Tilbudspris<br>(Incl. moms)</td><td align=\"center\">Kostpris<br>(Ex. moms)</td><td align=\"center\">Ugedag</td><td align=\"center\">Slet</td></tr>";
 
+$ugedagsnavn = array(1 => 'Mandag', 2 => 'Tirsdag', 3 => 'Onsdag', 4 => 'Torsdag', 5 => 'Fredag', 6 => 'Lørdag', 7 => 'Søndag');
 for ($x = 0; $x < count($id); $x++) {
 	print "<tr>";
+	if ($mb62_readonly) {
+		print "<td>$startdato[$x]</td><td>$slutdato[$x]</td><td>$starttid[$x]</td><td>$sluttid[$x]</td>";
+		print "<td style=\"text-align:right\">$salgspris[$x]</td><td style=\"text-align:right\">$kostpris[$x]</td>";
+		print "<td align=\"center\">" . ifset($ugedagsnavn, (int)$ugedag[$x], '') . "</td><td></td>";
+		print "</tr>";
+		continue;
+	}
 	print "<td>";
 	print "<input type=\"hidden\" name=\"id[$x]\" value=\"$id[$x]\">";
 	print "<input type=\"text\" style=\"width:90px\" name=\"startdato[$x]\" value=\"$startdato[$x]\">";
@@ -161,6 +184,12 @@ for ($x = 0; $x < count($id); $x++) {
 	print "</tr>";
 }
 $x++;
+if ($mb62_readonly) {
+	print "</tbody></table>\n";
+	print "</td></tr></tbody></table>\n";
+	print "<div style='text-align:center;margin-top:14px;'><a href=\"varekort.php?id=$vare_id\" style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+	exit;
+}
 print "<tr>";
 print "<td>";
 print "<input type=\"text\" style=\"width:90px\" name=\"startdato[$x]\" value=\"\">";

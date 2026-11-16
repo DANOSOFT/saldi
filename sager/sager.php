@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sager.php --- lap 5.0.0 --- 2026-08-05 ---
+// --- sager/sager.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2012-2026 DANOSOFT ApS
+// Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Har lagt al javascript i en separat fil ved navn 'jquery.sager.js' + diverse html rettelser
 // HTML rettelser til liste-visning og oprettelse af sag
@@ -52,6 +52,9 @@
 // 20241126 PHP8
 // 20260312 PHP8
 // 20260805 CX/PHR Cache-bust autocomplete scripts after adding safe field separators.
+// 20261103 CL/MMR SD-799 Case and task statuses, "Opgave N", the datepicker and the search dropdown labels follow the user's language.
+//                 The piecework date filter's clear button shows its label again.
+// 20261104 CL/MMR SD-799 The datepicker clear-button text is passed to the script as UTF-8.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -67,6 +70,7 @@ $s_id=session_id();
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 
 	$funktion = if_isset($_GET['funktion']);
 	$sag_id   = if_isset($_GET['sag_id'],0);
@@ -97,10 +101,11 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 		<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/print.css\" media=\"print\">
 		<script type=\"text/javascript\" src=\"../javascript/jquery-1.8.0.min.js\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery-ui-1.9.2.custom.min.js\"></script>
-		<script type=\"text/javascript\" src=\"../javascript/ui.datepicker-da.js\"></script>
+		".sager_datepicker_locale()."
 		<script type=\"text/javascript\" src=\"../javascript/jquery.autocomplete.js?v=20260805\"></script>
 		<script type=\"text/javascript\" src=\"../javascript/jquery.pajinate.js\"></script>
-		<script type=\"text/javascript\" src=\"../javascript/jquery.sager.js?v=20260805\"></script>
+		".sager_js_sagertekst()."
+		<script type=\"text/javascript\" src=\"../javascript/jquery.sager.js?v=20261103\"></script>
 		
 		<!--[if lt IE 9]>
 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
@@ -256,8 +261,8 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 					data: dataString,
 					dataType: \"json\",
 					success: function(data) {
-							$(\".updated_status\"+formId).html(data.status);
-							$(\".updated_status\"+formId).prop('title', data.status);
+							$(\".updated_status\"+formId).html(data.statustxt || data.status);
+							$(\".updated_status\"+formId).prop('title', data.statustxt || data.status);
 							if ($(\".updated_color\"+formId).hasClass('statcolor_1')) {
 								$(\".updated_color\"+formId).removeClass('statcolor_1').addClass(data.statcolor);
 							} else if ($(\".updated_color\"+formId).hasClass('statcolor_2')) {
@@ -415,7 +420,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 						showOtherMonths: true,
 						selectOtherMonths: true,
 						showButtonPanel: true,
-						closeText: '<?php print findtekst(\"1099|Slet\", $sprog_id)?>',
+						closeText: ".json_encode(findtekst_utf8('1099|Slet', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).",
 						defaultDate: $(\"#akkordfra1\").val(),
 						minDate: $(\"#akkordfra1\").val(),
 						maxDate: $(\"#akkordtil1\").val(),
@@ -438,7 +443,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 						showOtherMonths: true,
 						selectOtherMonths: true,
 						showButtonPanel: true,
-						closeText: '<?php print findtekst(\"1099|Slet\", $sprog_id)?>',
+						closeText: ".json_encode(findtekst_utf8('1099|Slet', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT).",
 						minDate: $(\"#akkordfra2\").val(),
 						maxDate: $(\"#akkordtil2\").val(),
 						beforeShowDay: highLight,
@@ -819,13 +824,13 @@ function sagsliste() {
 							if ($ss_ansvarlig) print "<option value=\"\">&nbsp;</option>\n";
 							print "</select>
 							</td>
-							<td><select name=\"ss_status\" class=\"selectinputsager\" style=\"width:73px\" title=\"$ss_status\">\n";
+							<td><select name=\"ss_status\" class=\"selectinputsager\" style=\"width:73px\" title=\"".sag_status_txt($ss_status)."\">\n";
 							for ($i=0;$i<=count($sag_status_liste);$i++) {
-								if ($sag_status_liste[$i]==$ss_status) print "<option value=\"$sag_status_liste[$i]\">$sag_status_liste[$i]&nbsp;</option>\n"; 
+								if ($sag_status_liste[$i]==$ss_status) print "<option value=\"$sag_status_liste[$i]\">".sag_status_txt($sag_status_liste[$i])."&nbsp;</option>\n";
 							}
 							if (!$sag_status_liste) print "<option value=\"\">&nbsp;</option>\n";
 							for ($i=0;$i<count($sag_status_liste);$i++) {
-								if ($sag_status_liste[$i]!=$ss_status) print "<option value=\"$sag_status_liste[$i]\">$sag_status_liste[$i]&nbsp;</option>\n"; 
+								if ($sag_status_liste[$i]!=$ss_status) print "<option value=\"$sag_status_liste[$i]\">".sag_status_txt($sag_status_liste[$i])."&nbsp;</option>\n";
 							}
 							if ($ss_status) print "<option value=\"\">&nbsp;</option>\n";
 							print "</select>
@@ -929,17 +934,17 @@ function sagsliste() {
 						<span class=\"felt02\" style=\"width:205px;\" title=\"$sag_firmanavn[$x]\">$sag_firmanavn[$x]&nbsp;</span>
 						<span class=\"felt03\" style=\"width:315px;\" title=\"$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]\">$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]&nbsp;</span>
 						<span class=\"felt04\" style=\"width:145px;\" title=\"$sag_ansvarlig[$x]\">$sag_ansvarlig[$x]&nbsp;</span></a>
-						<div class=\"contentkundestatussager\"><span class=\"felt05 togglelink updated_status$sag_id[$x] updated_color$sag_id[$x]\" style=\"width:75px;$statcolor\" title=\"$status[$x]\">$status[$x]&nbsp;</span>";
+						<div class=\"contentkundestatussager\"><span class=\"felt05 togglelink updated_status$sag_id[$x] updated_color$sag_id[$x]\" style=\"width:75px;$statcolor\" title=\"".sag_status_txt($status[$x])."\">".sag_status_txt($status[$x])."&nbsp;</span>";
 							if ($retstatus) { #20140610-2 #Indsættes ved begrænsning af ansatte '$sag_ansvarlig[$x]==$ansvarlig &&' 
 							print "
 							<div class=\"toggle\" style=\"display: none;\">
 								
 								<select style=\"width:95px;\" onchange=\"statussubmit($sag_id[$x])\" class=\"update_select$sag_id[$x]\" name=\"status\">\n";
 								for($y=0;$y<count($sag_status_liste);$y++) { #20140610-1
-									if ($status[$x]==$sag_status_liste[$y]) print "<option class=\"$color[$y] hideIt\" value=\"$sag_status_liste[$y]\">$sag_status_liste[$y]</option>\n";
+									if ($status[$x]==$sag_status_liste[$y]) print "<option class=\"$color[$y] hideIt\" value=\"$sag_status_liste[$y]\">".sag_status_txt($sag_status_liste[$y])."</option>\n";
 								}
 								for($y=0;$y<count($sag_status_liste);$y++) {
-									if ($status[$x]!=$sag_status_liste[$y]) print "<option class=\"$color[$y] hideIt\" value=\"$sag_status_liste[$y]\">$sag_status_liste[$y]</option>\n";
+									if ($status[$x]!=$sag_status_liste[$y]) print "<option class=\"$color[$y] hideIt\" value=\"$sag_status_liste[$y]\">".sag_status_txt($sag_status_liste[$y])."</option>\n";
 								}
 								print "</select>
 								<input type=\"hidden\" name=\"sagid\" class=\"update_id$sag_id[$x]\" value=\"$sag_id[$x]\">
@@ -1828,7 +1833,7 @@ function vis_sag() {
 		<td><p><b>".findtekst('2793|Ansvarlig', $sprog_id).":</b></p></td>
 		<td colspan=\"4\"><p>$ref&nbsp;</p></td>
 		<td rowspan=\"2\"><p><b>".findtekst('494|Status', $sprog_id).":</b></p></td>
-		<td rowspan=\"2\" colspan=\"3\"><p style=\"$statcolor\"><b>$status&nbsp;</b></p></td>
+		<td rowspan=\"2\" colspan=\"3\"><p style=\"$statcolor\"><b>".sag_status_txt($status)."&nbsp;</b></p></td>
 	</tr>
 	<tr>
 		<td><p><b>".findtekst('2917|Indtastet af', $sprog_id).":</b></p></td>
@@ -2024,7 +2029,7 @@ function vis_sag() {
 						
 						print "<tr>
 							<td colspan=\"1\"><p><a href=\"kontrol_sager.php?funktion=$funktion_navn&amp;sag_id=$id&amp;sag_fase=$fase&amp;tjek_id=$kontrol_tjek_id[$y]&amp;tjekskema_id=$kontrol_id[$y]\">$tjekpunkt</a></p></td>
-							<td colspan=\"3\"><p>$kontrol_opg_navn[$y]&nbsp;</p></td>
+							<td colspan=\"3\"><p>".opgave_navn_txt($kontrol_opg_navn[$y])."&nbsp;</p></td>
 							<td colspan=\"1\"><p>$kontrol_dato[$y]</p></td>
 							<td colspan=\"1\"><p>$kontrol_tidspkt[$y]</p></td>
 							<td colspan=\"3\" title=\"$kontrol_ref[$y]\"><p class=\"tableSagerEllipsis\" style=\"max-width:118px;\">$kontrol_ref[$y]</p></td>
@@ -2313,7 +2318,7 @@ function vis_sag() {
 	for ($x=0;$x<count($opgave_id);$x++) {
 		print "<tr><td colspan=\"1\"><p><a href=\"sager.php?sag_id=$id&amp;opgave_id=$opgave_id[$x]&amp;konto_id=$konto_id&amp;funktion=ret_opgave\">".findtekst('2800|Opgave', $sprog_id)." $opgave_nr[$x]</a></p></td>\n";
 		print "<td colspan=\"3\" title=\"$opgave_beskrivelse[$x]\"><p class=\"tableSagerEllipsis\" style=\"max-width:418px;\">$opgave_beskrivelse[$x]</p></td>\n";
-		print "<td colspan=\"2\"><p style=\"$opgcolor[$x]\">$opgave_status[$x]&nbsp;</p></td>\n";
+		print "<td colspan=\"2\"><p style=\"$opgcolor[$x]\">".sag_status_txt($opgave_status[$x])."&nbsp;</p></td>\n";
 		print "<td colspan=\"3\" title=\"$opgave_oprettet_af[$x]\"><p class=\"tableSagerEllipsis\" style=\"max-width:118px;\">$opgave_oprettet_af[$x]&nbsp;</p></td>\n";
 		print "</tr>\n";
 	}
@@ -2516,10 +2521,10 @@ function ret_opgave($sag_id) {
 					<div class=\"left\">".findtekst('494|Status', $sprog_id)."</div>
 					<div class=\"right\"><select onchange=\"this.className=this.options[this.selectedIndex].className\" style=\"width:194px;\" class=\"$statcolor\" name=\"opgave_status\">";
 		for($y=0;$y<=count($opg_status);$y++) {
-			if ($opgave_status==$opg_status[$y]) print "<option class=\"$color[$y]\" value=\"$opg_status[$y]\">$opg_status[$y]</option>";
+			if ($opgave_status==$opg_status[$y]) print "<option class=\"$color[$y]\" value=\"$opg_status[$y]\">".sag_status_txt($opg_status[$y])."</option>";
 		}
 		for($y=0;$y<=count($opg_status);$y++) {
-			if ($opgave_status!=$opg_status[$y]) print "<option class=\"$color[$y]\" value=\"$opg_status[$y]\">$opg_status[$y]</option>";
+			if ($opgave_status!=$opg_status[$y]) print "<option class=\"$color[$y]\" value=\"$opg_status[$y]\">".sag_status_txt($opg_status[$y])."</option>";
 		}
 		print "</select></div>
 					<div class=\"clear\"></div>
@@ -3004,10 +3009,10 @@ function ret_sag() {
 				<div class=\"left\">".findtekst('494|Status', $sprog_id)."</div>";
 							print "<div class=\"right\"><select onchange=\"this.className=this.options[this.selectedIndex].className\" style=\"width:194px;\" class=\"$statcolor printSelect3\" id=\"status\" name=\"status\">\n";
 							for($y=0;$y<count($sag_status);$y++) {
-								if ($status==$sag_status[$y]) print "<option class=\"$color[$y]\" value=\"$sag_status[$y]\">$sag_status[$y]</option>\n";
+								if ($status==$sag_status[$y]) print "<option class=\"$color[$y]\" value=\"$sag_status[$y]\">".sag_status_txt($sag_status[$y])."</option>\n";
 							}
 							for($y=0;$y<count($sag_status);$y++) {
-								if ($status!=$sag_status[$y]) print "<option class=\"$color[$y]\" value=\"$sag_status[$y]\">$sag_status[$y]</option>\n";
+								if ($status!=$sag_status[$y]) print "<option class=\"$color[$y]\" value=\"$sag_status[$y]\">".sag_status_txt($sag_status[$y])."</option>\n";
 							}
 							print "</select>
 				</div>
@@ -3707,7 +3712,7 @@ function kopi_ordre() {
 						<span class=\"felt02\" style=\"width:205px;\" title='$sag_firmanavn[$x]'>$sag_firmanavn[$x]&nbsp;</span>
 						<span class=\"felt03\" style=\"width:315px;\" title='$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]'>$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]&nbsp;</span>
 						<span class=\"felt04\" style=\"width:145px;\" title='$sag_ansvarlig[$x]'>$sag_ansvarlig[$x]&nbsp;</span>
-						<span class=\"felt05\" style=\"width:75px;$statcolor\" title='$status[$x]'>$status[$x]&nbsp;</span>       
+						<span class=\"felt05\" style=\"width:75px;$statcolor\" title='".sag_status_txt($status[$x])."'>".sag_status_txt($status[$x])."&nbsp;</span>
 					</a></li>";
 				}
 			print "</ul>

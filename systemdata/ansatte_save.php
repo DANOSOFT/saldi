@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// --- systemdata/ansatte_save.php --- lap 5.0.0 --- 2026-01-27 ---
+// --- systemdata/ansatte_save.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,12 +23,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20140923 PK - Validering af $nummer. Tjekker om $nummer er et tal, og om talet findes i forvejen 
 // 20140924 PK - Validering af $navn, så der skrives en meddelelse hvis der ikke er udfyldt navn
 // 20150213	PHR - header("location:ansatte.php?id=$id&funktion=ret_ansat"); smadrer alting, så jeg har sat "if ($menu=='T')" foran.
 // 20260127 PHR update settings value
+// 20261105 CL/MMR SD-807 The employee card's save messages (number must be a number, number already in use, name missing) follow the user's language.
+//                 The number-in-use alert is passed to JavaScript through json_encode().
 
 if ($konto_id=$_POST['konto_id']) {
 	$id=$_POST['id']*1;
@@ -67,14 +69,18 @@ if ($konto_id=$_POST['konto_id']) {
 
 	#echo "$nummer $initialer $afd $id<br>";
 	
-		if (!is_numeric($nummer) && $id) { #20140923
-			$messages = "Skal være et tal";
+	if (!is_numeric($nummer) && $id) { #20140923
+		$messages = findtekst('2911|Skal være et tal', $sprog_id);
 	} elseif ($id && $r=db_fetch_array(db_select("SELECT id,navn FROM ansatte WHERE nummer='$nummer' AND id != '$id'",__FILE__ . " linje " . __LINE__))){
-			$message = "Medarbejdernummer eksisterer i forvejen (". $r['navn'] .")";
-			alert($message); 
-		} else {
+		$employeeName = $r['navn'];
+		if (!mb_check_encoding($employeeName, 'UTF-8')) {
+			$employeeName = mb_convert_encoding($employeeName, 'UTF-8', 'ISO-8859-1');
+		}
+		$message = findtekst_utf8('8451|Medarbejdernummer eksisterer i forvejen', $sprog_id) . " (" . $employeeName . ")";
+		print "<script type='text/javascript'>alert(" . json_encode($message, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>";
+	} else {
 		if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
-		if (!$navn && !$id) $messages1 = "Medarbejder skal have et navn"; #20140924
+		if (!$navn && !$id) $messages1 = findtekst('8452|Medarbejder skal have et navn', $sprog_id); #20140924
 		if (($id==0)&&($navn)) {
 			if (!$nummer) {
 				$r=db_fetch_array(db_select("SELECT max (nummer) as nummer FROM ansatte WHERE konto_id='$konto_id'",__FILE__ . " linje " . __LINE__));

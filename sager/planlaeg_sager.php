@@ -1,4 +1,5 @@
 <?php
+// 20261110 CDX/NTR Use one Gantt save callback for valid identifiers and visible failed-save recovery.
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id=session_id();
 	
@@ -18,6 +19,7 @@
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
+	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 	
 	$vis=if_isset($_GET['vis']);
 	$sort=if_isset($_GET['sort']);
@@ -211,16 +213,19 @@
 				$opg_omfangNy = str_replace(array("\n", "\r"), ' ', $opg_omfang[$y]); // Fjerner skjulte linebreaks i omfang (textarea), da ganttView ikke kan vise dem
 				($opg_omfangNy)?$n = "\\n".findtekst('914|Beskrivelse', $sprog_id).":\\n".$opg_omfangNy:$n = ''; // Hvis omfang, indsættes det i strengen
 				
-				$itemopg .= "{ opg_id: \"$opg_id[$y]\", title: \"".findtekst('2870|Opgavenr.', $sprog_id).":\t$opg_nr[$y]\\n".findtekst('138|Navn', $sprog_id).":\t\t$opg_beskrivelse[$y]\\n".findtekst('65|Oprettet', $sprog_id).":\t$opg_dato[$y]\\n".findtekst('958|Oprettet af', $sprog_id).":\t$opg_oprettet_af[$y]\\n".findtekst('494|Status', $sprog_id).":\t\t$opg_status[$y]$n\\n\\n".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"},";
+				$itemopg .= "{ opg_id: \"$opg_id[$y]\", title: \"".findtekst('2870|Opgavenr.', $sprog_id).":\t$opg_nr[$y]\\n".findtekst('138|Navn', $sprog_id).":\t\t$opg_beskrivelse[$y]\\n".findtekst('65|Oprettet', $sprog_id).":\t$opg_dato[$y]\\n".findtekst('958|Oprettet af', $sprog_id).":\t$opg_oprettet_af[$y]\\n".findtekst('494|Status', $sprog_id).":\t\t".sag_status_txt($opg_status[$y])."$n\\n\\n".findtekst('3216|Planlagt', $sprog_id)."\", start: new Date($opg_yearstart,$opg_newmonthstart,$opg_daystart), end: new Date($opg_yearend,$opg_newmonthend,$opg_dayend), color: \"$bgcolor\"},";
 			
 			}
 		
 		$allitems = "$itemsag,$itemopg";
 		//echo "$allitems";
-		$items .= "{ name: \"<a href='sager.php?funktion=vis_sag&sag_id=$sag_id[$x]&konto_id=$konto_id[$x]' title='".findtekst('2792|Sag', $sprog_id).":\t\t$sag_nr[$x]\\n".findtekst('35|Kunde', $sprog_id).":\t\t$sag_firmanavn[$x]\\n".findtekst('3217|Udf. adr.', $sprog_id).":\t$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]\\n".findtekst('2793|Ansvarlig', $sprog_id).":\t$sag_ansvarlig[$x]\\n".findtekst('494|Status', $sprog_id).":\t\t$status[$x]'>$udf_addr1[$x]<\/a>\", series: [$allitems]},";
+		$items .= "{ name: \"<a href='sager.php?funktion=vis_sag&sag_id=$sag_id[$x]&konto_id=$konto_id[$x]' title='".findtekst('2792|Sag', $sprog_id).":\t\t$sag_nr[$x]\\n".findtekst('35|Kunde', $sprog_id).":\t\t$sag_firmanavn[$x]\\n".findtekst('3217|Udf. adr.', $sprog_id).":\t$udf_addr1[$x], $udf_postnr[$x] $udf_bynavn[$x]\\n".findtekst('2793|Ansvarlig', $sprog_id).":\t$sag_ansvarlig[$x]\\n".findtekst('494|Status', $sprog_id).":\t\t".sag_status_txt($status[$x])."'>$udf_addr1[$x]<\/a>\", series: [$allitems]},";
 	
 	}
 	$ganttdata = "[".rtrim($items, ",")."]";
+	// Month names and the word after the number of days in the Gantt chart, in the user's language
+	$ganttMonthNames = json_encode(array_map('trim', explode(',', findtekst_utf8('8416|jan,feb,mar,apr,maj,jun,jul,aug,sep,okt,nov,dec', $sprog_id))), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+	$ganttDaysText = json_encode(findtekst_utf8('5025|dage', $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 	
 	
 	
@@ -284,14 +289,18 @@
 	<script type="text/javascript" src="../javascript/jquery-1.4.2.js"></script>
 	<script type="text/javascript" src="../javascript/date-da-DK.js"></script>
 	<script type="text/javascript" src="../javascript/jquery-ui-1.8.4.js"></script>
-	<script type="text/javascript" src="../javascript/jquery.ganttView.js"></script>
+	<script type="text/javascript" src="../javascript/jquery.ganttView.js?v=20261103"></script>
+	<script type="text/javascript" src="../javascript/saveGanttPlanDates.js?v=20261110"></script>
 	<script type="text/javascript" src="../javascript/jquery.scrollTo.js"></script>
 	<script type="text/javascript" src="../javascript/dragscrollable.js"></script>
 	<script type="text/javascript">
 		$(function () {
 			var ganttData = <?php echo $ganttdata; ?>;
+			var savePlanDates = createGanttPlanDateSaver("ajax_planlaeg_sager.php", <?php echo jsString([findtekst('planning.save_failed|Datoerne kunne ikke gemmes. Planlægningen genindlæses.', $sprog_id)]); ?>);
 			$("#ganttChart").ganttView({ 
 				data: ganttData,
+				monthNames: <?php echo $ganttMonthNames; ?>,
+				daysText: <?php echo $ganttDaysText; ?>,
 				slideWidth: 1550,
 				groupBySeries: true,
 				groupById: false,
@@ -303,38 +312,8 @@
 						//$("#eventMessage").text(msg);
 						//window.location.href = "planlaeg_sag.php?sag_id=" + data.id;
 					//},
-					onResize: function (data) { 
-						var planfra = data.start.toString("dd-MM-yyyy");
-						var plantil = data.end.toString("dd-MM-yyyy");
-						var id = data.id;
-						var opg_id = data.opg_id;
-						var dataString = 'planfra='+ planfra + '&plantil=' + plantil + '&id=' + id + '&opg_id=' + opg_id;
-						$.ajax ({
-							type: "POST",
-							url: "ajax_planlaeg_sager.php",
-							data: dataString,
-							success: function(data) {
-								//alert(data);
-							} 
-						});
-					},
-					onDrag: function (data) { 
-						var planfra = data.start.toString("dd-MM-yyyy");
-						var plantil = data.end.toString("dd-MM-yyyy");
-						var id = data.id;
-						var opg_id = data.opg_id;
-						var dataString = 'planfra='+ planfra + '&plantil=' + plantil + '&id=' + id + '&opg_id=' + opg_id;
-						$.ajax ({
-							type: "POST",
-							url: "ajax_planlaeg_sager.php",
-							data: dataString,
-							success: function(data) {
-								//var ganttData=data;
-								//return ganttData;
-								//$("div.ganttview-block-text").text('test' + id);
-							} 
-						});
-					}
+					onResize: savePlanDates,
+					onDrag: savePlanDates
 				}
 			});
 			

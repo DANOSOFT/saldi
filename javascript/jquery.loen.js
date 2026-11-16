@@ -3,7 +3,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- javascript/jquery.loen.js.php --- lap 5.0.0 --- 2026-07-31 ---
+// --- javascript/jquery.loen.js --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,8 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260731 PHR - Warn when a former employee is selected in ret_loen autocomplete.
+// 20261103 CL/MMR SD-799 The former employee warning uses the translated text from loen.php.
+// 20261103 CL/MMR SD-799 The piecework list toggle, the list paging line and the date clear button use the translated texts from loen.php.
 
 $(document).ready(function() {
 	$('.contentB .left, .contentB input, .contentB textarea, .contentB select').focus(function(){
@@ -38,8 +40,13 @@ $(document).ready(function() {
 
 function advarHvisFratraadtMedarbejder(data, navn) {
 	if (data && data[2] === "fratraadt") {
-		var slutdato = data[3] ? data[3].split("-").reverse().join("-") : "ukendt";
-		alert("Advarsel: " + navn + " er fratrådt pr. " + slutdato + ".");
+		var tekst = window.loenTekst || {};
+		var slutdato = data[3] ? data[3].split("-").reverse().join("-") : (tekst.ukendt || "ukendt");
+		var vaerdier = [navn, slutdato];
+		var besked = (tekst.fratraadt || "Advarsel: %s er fratrådt pr. %s.").replace(/%s/g, function() {
+			return vaerdier.length ? vaerdier.shift() : "";
+		});
+		alert(besked);
 	}
 }
 
@@ -145,15 +152,19 @@ function toggleAndChangeText() {
 
 $(document).ready(function()
 {
+    var tekst = window.loenTekst || {};
+    var visAkkordliste = (tekst.visAkkordliste || 'Vis akkordliste') + ' &#9658;';
+    var lukAkkordliste = (tekst.lukAkkordliste || 'Luk akkordliste') + ' &#9660;';
+
     // Open / Close Panel According to Cookie //    
     if ($.cookie('panel') == 'open'){    
         //$('#toggle').slideDown('fast'); // Show on Page Load / Refresh with Animation
         $('#toggle').show(); // Show on Page Load / Refresh without Animation
-				$('#aTag').html('Luk akkordliste &#9660');
+        $('#aTag').html(lukAkkordliste);
     } else {
         //$('#toggle').slideUp('fast'); // Hide on Page Load / Refresh with Animation
         $('#toggle').hide(); // Hide on Page Load / Refresh without Animation
-				$('#aTag').html('Vis akkordliste &#9658');
+        $('#aTag').html(visAkkordliste);
     }
 
     // Toggle Panel and Set Cookie //
@@ -161,10 +172,10 @@ $(document).ready(function()
         $('#toggle').slideToggle('fast', function(){
             if ($(this).is(':hidden')) {
                 $.cookie('panel', 'closed');
-								$('#aTag').html('Vis akkordliste &#9658');
+                $('#aTag').html(visAkkordliste);
             } else {
                 $.cookie('panel', 'open');
-								$('#aTag').html('Luk akkordliste &#9660');
+                $('#aTag').html(lukAkkordliste);
             }
         });
     });
@@ -271,7 +282,7 @@ $(document).ready(function(){
 			item_container_id : '.paging_content',
 			num_page_links_to_display : 10,
 			abort_on_small_lists: true,
-			nav_label_info : 'Viser {0}-{1} af {2}',
+			nav_label_info : (window.loenTekst || {}).visning || 'Viser {0}-{1} af {2}',
 			nav_label_first : '<<',
 			nav_label_last : '>>',
 			nav_label_prev : '<',
@@ -346,7 +357,7 @@ $(document).ready(function() {
 				showOtherMonths: true,
 				selectOtherMonths: true,
 				showButtonPanel: true,
-				closeText: 'Slet',
+				closeText: (window.loenTekst || {}).slet || 'Slet',
 				onClose: function () {
 						var event = arguments.callee.caller.caller.arguments[0];
 						if ($(event.delegateTarget).hasClass('ui-datepicker-close')) {
@@ -362,7 +373,7 @@ $(document).ready(function() {
 				showOtherMonths: true,
 				selectOtherMonths: true,
 				showButtonPanel: true,
-				closeText: 'Slet',
+				closeText: (window.loenTekst || {}).slet || 'Slet',
 				onClose: function () {
 						var event = arguments.callee.caller.caller.arguments[0];
 						if ($(event.delegateTarget).hasClass('ui-datepicker-close')) {
@@ -378,7 +389,7 @@ $(document).ready(function() {
 				showOtherMonths: true,
 				selectOtherMonths: true,
 				showButtonPanel: true,
-				closeText: 'Slet',
+				closeText: (window.loenTekst || {}).slet || 'Slet',
 				onClose: function () {
 						var event = arguments.callee.caller.caller.arguments[0];
 						if ($(event.delegateTarget).hasClass('ui-datepicker-close')) {

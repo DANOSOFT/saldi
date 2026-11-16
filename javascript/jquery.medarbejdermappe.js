@@ -17,22 +17,35 @@ $(document).ready(function(){
 	});
 });
 */
+// Labels in the user's language from sagerTekst (printed by mm_kontrolskemaer.php), Danish as fallback
+function mmLabel(key, dansk) {
+	var tekst = window.sagerTekst || {};
+	return "<b>" + (tekst[key] || dansk) + ":</b>";
+}
+
+// The stored task name "Opgave N" is shown as e.g. "Task N"; other names are the user's own text
+function mmOpgaveNavn(navn) {
+	var tekst = window.sagerTekst || {};
+	var match = /^Opgave (\d+)$/.exec(navn);
+	return (match && tekst.opgave) ? tekst.opgave + " " + match[1] : navn;
+}
+
 // Her er function til autocomplete til arbejdsseddelskemaliste
 $(document).ready(function(){
 	function formatItemDato(row) {
-		return row[0] + " - <b>Sagsnr:</b> <i>" + row[1] + "</i> - <b>Af:</b> <i>" + row[2] + "</i><br><b>Adresse:</b> <i>" + row[3] + "</i><br><b>Skema:</b> <i>" + row[4] + "</i> - <b>Opgave:</b> <i>" + row[5] + "</i>";
+		return row[0] + " - " + mmLabel("sagsnr", "Sagsnr") + " <i>" + row[1] + "</i> - " + mmLabel("af", "Af") + " <i>" + row[2] + "</i><br>" + mmLabel("adresse", "Adresse") + " <i>" + row[3] + "</i><br>" + mmLabel("skema", "Skema") + " <i>" + row[4] + "</i> - " + mmLabel("opgave", "Opgave") + " <i>" + mmOpgaveNavn(row[5]) + "</i>";
 	}
 	
 	function formatItemSagsnr(row) {
-		return row[0] + " - <b>Dato:</b> <i>" + row[1] + "</i> - <b>Af:</b> <i>" + row[2] + "</i><br><b>Adresse:</b> <i>" + row[3] + "</i><br><b>Skema:</b> <i>" + row[4] + "</i> - <b>Opgave:</b> <i>" + row[5] + "</i>";
+		return row[0] + " - " + mmLabel("dato", "Dato") + " <i>" + row[1] + "</i> - " + mmLabel("af", "Af") + " <i>" + row[2] + "</i><br>" + mmLabel("adresse", "Adresse") + " <i>" + row[3] + "</i><br>" + mmLabel("skema", "Skema") + " <i>" + row[4] + "</i> - " + mmLabel("opgave", "Opgave") + " <i>" + mmOpgaveNavn(row[5]) + "</i>";
 	}
 	
 	function formatItemAf(row) {
-		return row[0] + " - <b>Dato:</b> <i>" + row[1] + "</i> - <b>Sagsnr:</b> <i>" + row[2] + "</i><br><b>Adresse:</b> <i>" + row[3] + "</i><br><b>Skema:</b> <i>" + row[4] + "</i> - <b>Opgave:</b> <i>" + row[5] + "</i>";
+		return row[0] + " - " + mmLabel("dato", "Dato") + " <i>" + row[1] + "</i> - " + mmLabel("sagsnr", "Sagsnr") + " <i>" + row[2] + "</i><br>" + mmLabel("adresse", "Adresse") + " <i>" + row[3] + "</i><br>" + mmLabel("skema", "Skema") + " <i>" + row[4] + "</i> - " + mmLabel("opgave", "Opgave") + " <i>" + mmOpgaveNavn(row[5]) + "</i>";
 	}
 	
 	function formatItemAdresse(row) {
-		return row[0] + "<br><b>Dato:</b> <i>" + row[1] + "</i> - <b>Sagsnr:</b> <i>" + row[2] + "</i><b>Af:</b> <i>" + row[3] + "</i><br><b>Skema:</b> <i>" + row[4] + "</i> - <b>Opgave:</b> <i>" + row[5] + "</i>";
+		return row[0] + "<br>" + mmLabel("dato", "Dato") + " <i>" + row[1] + "</i> - " + mmLabel("sagsnr", "Sagsnr") + " <i>" + row[2] + "</i>" + mmLabel("af", "Af") + " <i>" + row[3] + "</i><br>" + mmLabel("skema", "Skema") + " <i>" + row[4] + "</i> - " + mmLabel("opgave", "Opgave") + " <i>" + mmOpgaveNavn(row[5]) + "</i>";
 	}
 
 	function formatResult(row) {
@@ -111,19 +124,19 @@ $(document).ready(function(){
 // Her er function til autocomplete til kontrolseddelskemaliste
 $(document).ready(function(){
 	function formatItemDato(row) {
-		return row[0] + " - <b>Sagsnr:</b> <i>" + row[1] + "</i> - <b>Af:</b> <i>" + row[2] + "</i><br><b>Adresse:</b> <i>" + row[3] + "</i><br><b>Skema:</b> <i>" + row[4] + "</i> - <b>Opgave:</b> <i>" + row[5] + "</i>";
+		return row[0] + " - " + mmLabel("sagsnr", "Sagsnr") + " <i>" + row[1] + "</i> - " + mmLabel("af", "Af") + " <i>" + row[2] + "</i><br>" + mmLabel("adresse", "Adresse") + " <i>" + row[3] + "</i><br>" + mmLabel("skema", "Skema") + " <i>" + row[4] + "</i> - " + mmLabel("opgave", "Opgave") + " <i>" + mmOpgaveNavn(row[5]) + "</i>";
 	}
 	
 	function formatItemSagsnr(row) {
-		return row[0] + " - <b>Dato:</b> <i>" + row[1] + "</i> - <b>Af:</b> <i>" + row[2] + "</i><br><b>Adresse:</b> <i>" + row[3] + "</i><br><b>Skema:</b> <i>" + row[4] + "</i> - <b>Opgave:</b> <i>" + row[5] + "</i>";
+		return row[0] + " - " + mmLabel("dato", "Dato") + " <i>" + row[1] + "</i> - " + mmLabel("af", "Af") + " <i>" + row[2] + "</i><br>" + mmLabel("adresse", "Adresse") + " <i>" + row[3] + "</i><br>" + mmLabel("skema", "Skema") + " <i>" + row[4] + "</i> - " + mmLabel("opgave", "Opgave") + " <i>" + mmOpgaveNavn(row[5]) + "</i>";
 	}
 	
 	function formatItemAf(row) {
-		return row[0] + " - <b>Dato:</b> <i>" + row[1] + "</i> - <b>Sagsnr:</b> <i>" + row[2] + "</i><br><b>Adresse:</b> <i>" + row[3] + "</i><br><b>Skema:</b> <i>" + row[4] + "</i> - <b>Opgave:</b> <i>" + row[5] + "</i>";
+		return row[0] + " - " + mmLabel("dato", "Dato") + " <i>" + row[1] + "</i> - " + mmLabel("sagsnr", "Sagsnr") + " <i>" + row[2] + "</i><br>" + mmLabel("adresse", "Adresse") + " <i>" + row[3] + "</i><br>" + mmLabel("skema", "Skema") + " <i>" + row[4] + "</i> - " + mmLabel("opgave", "Opgave") + " <i>" + mmOpgaveNavn(row[5]) + "</i>";
 	}
 	
 	function formatItemAdresse(row) {
-		return row[0] + "<br><b>Dato:</b> <i>" + row[1] + "</i> - <b>Sagsnr:</b> <i>" + row[2] + "</i><b>Af:</b> <i>" + row[3] + "</i><br><b>Skema:</b> <i>" + row[4] + "</i> - <b>Opgave:</b> <i>" + row[5] + "</i>";
+		return row[0] + "<br>" + mmLabel("dato", "Dato") + " <i>" + row[1] + "</i> - " + mmLabel("sagsnr", "Sagsnr") + " <i>" + row[2] + "</i>" + mmLabel("af", "Af") + " <i>" + row[3] + "</i><br>" + mmLabel("skema", "Skema") + " <i>" + row[4] + "</i> - " + mmLabel("opgave", "Opgave") + " <i>" + mmOpgaveNavn(row[5]) + "</i>";
 	}
 
 	function formatResult(row) {
@@ -206,7 +219,7 @@ $(document).ready(function(){
 		item_container_id : '.paging_content',
 		num_page_links_to_display : 10,
 		abort_on_small_lists: true,
-		nav_label_info : 'Viser {0}-{1} af {2}',
+		nav_label_info : (window.sagerTekst || {}).visning || 'Viser {0}-{1} af {2}',
 		nav_label_first : '<<',
 		nav_label_last : '>>',
 		nav_label_prev : '<',

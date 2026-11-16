@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/report/rapportData.php --- lap 4.0.0 --- 2021.03.07 ---
+// --- debitor/pos_ordre_includes/report/rapportData.php --- ver 5.1.0 --- 2026.10.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,22 +20,28 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2021 saldi.dk aps
+// Copyright (c) 2019-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190312 Make functions that retrieve all type of payments and sold data to the report
 // 20210307 PHR Added $date to allmost all functions as it was countion all orders from day zero
+// 20261029 CL/MMR SST-896 calculateTurnover() and paymentMethods() count only register sales (reportOrderArtFilter()), indentation corrected.
+//                 productGroupDescription() lists only items from the report's own orders, so an invoice-only item group gets no zero line.
+//                 An ordinary invoice in a department with a register was added to the Z-report turnover.
 
 function productGroupDescription($kasse,$date) { # LN 20190212 Make varegrupper for the xRapport
 	$idArray = makeOrderIdArray($kasse,$date);
 	$itemId = $groupArray = array();
 	$x=0;
-	$qtxt = "select distinct(vare_id) as vare_id from ordrer,ordrelinjer where "; #added 20210307
-	$qtxt.= "ordrer.fakturadate = '$date' and ordrelinjer.ordre_id = ordrer.id";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$itemId[$x] = $r['vare_id'];
-		$x++;
+	// Only items sold on this report's own orders, so a group sold only on an excluded invoice gets no line.
+	if ($idArray) {
+		$qtxt = "select distinct(vare_id) as vare_id from ordrelinjer where "; #added 20210307
+		$qtxt.= "ordre_id in (" . implode(',', array_map('intval', $idArray)) . ")";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$itemId[$x] = $r['vare_id'];
+			$x++;
+		}
 	}
 	$query = db_select("select * from varer", __FILE__ . " linje " . __LINE__);
 	while ($product = db_fetch_array($query)) {
@@ -80,10 +86,12 @@ function setCountAndTotal($description, $productId, $productGroup, $groupArray, 
 
 
 function paymentMethods($kasse,$date) {
+	global $regnaar;
 	$payment='';
 	$paymentArray[$payment]=array();
 	$total = 0;
-	$orderQuery = db_select("select * from ordrer where felt_5='$kasse' and fakturadate = '$date'", __FILE__ . " linje " . __LINE__);
+	$qtxt = "select * from ordrer where felt_5 = '" . (int)$kasse . "' and fakturadate = '" . db_escape_string($date) . "'" . reportOrderArtFilter($regnaar);
+	$orderQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($order = db_fetch_array($orderQuery)) {
 		$payment = $order['felt_1'];
 		if ($payment != '') {
@@ -94,11 +102,11 @@ function paymentMethods($kasse,$date) {
 		}
 	}
 
-    $paymentArray['sum']['payment'] = "SUM";
-    $paymentArray['sum']['price'] = $total;
+	$paymentArray['sum']['payment'] = "SUM";
+	$paymentArray['sum']['price'] = $total;
 
-    $paymentArray = subtractData("Payment method", $paymentArray);
-    return $paymentArray;
+	$paymentArray = subtractData("Payment method", $paymentArray);
+	return $paymentArray;
 }
 
 function vatPayments($kasse,$date) {
@@ -140,26 +148,27 @@ function drawCount($kasse)
 }
 
 function calculateTurnover($kasse,$date) {
-		$turnover=$totalVat=0;
-		$qtxt = "select * from ordrer where felt_5 ='$kasse' and fakturadate = '$date'";
-    $ordreQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-    while ($order = db_fetch_array($ordreQuery)) {
-      $tempOrdreId = $order['id'];
-      $price = 0;
-      $number = 0;
-      $qtxt = "select pris, antal, rabat, momssats from ordrelinjer where ordre_id='$tempOrdreId'";
-      $orderLineQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-      while ($orderLine = db_fetch_array($orderLineQuery)) {
-				$amount = $orderLine['pris'] * $orderLine['antal']-($orderLine['pris'] * $orderLine['antal'] * $orderLine['rabat'] / 100);
-        $turnover += $amount ;
-        $totalVat += ($amount * $orderLine['momssats']  / 100);
-#        $turnoverWithVat += ($batch['pris'] * $batch['antal']) + ($moms/100 * ($batch['pris'] * $batch['antal']));
-      }
-    }
- 		$turnoverWithVat = $turnover + $totalVat;
-#		return 	[$turnover,$turnoverWithVat];
-    return ["turnoverWithoutVat" => subtractTurnover($turnover, false), 
-            "turnoverWithVat" => subtractTurnover($turnoverWithVat, true)]; #reportSubtract.php
+	global $regnaar;
+	$turnover = $totalVat = 0;
+	$qtxt = "select * from ordrer where felt_5 = '" . (int)$kasse . "' and fakturadate = '" . db_escape_string($date) . "'" . reportOrderArtFilter($regnaar);
+	$ordreQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($order = db_fetch_array($ordreQuery)) {
+		$tempOrdreId = $order['id'];
+		$price = 0;
+		$number = 0;
+		$qtxt = "select pris, antal, rabat, momssats from ordrelinjer where ordre_id='$tempOrdreId'";
+		$orderLineQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($orderLine = db_fetch_array($orderLineQuery)) {
+			$amount = $orderLine['pris'] * $orderLine['antal']-($orderLine['pris'] * $orderLine['antal'] * $orderLine['rabat'] / 100);
+			$turnover += $amount ;
+			$totalVat += ($amount * $orderLine['momssats']  / 100);
+#			$turnoverWithVat += ($batch['pris'] * $batch['antal']) + ($moms/100 * ($batch['pris'] * $batch['antal']));
+		}
+	}
+	$turnoverWithVat = $turnover + $totalVat;
+#	return [$turnover,$turnoverWithVat];
+	return ["turnoverWithoutVat" => subtractTurnover($turnover, false),
+		"turnoverWithVat" => subtractTurnover($turnoverWithVat, true)]; #reportSubtract.php
 }
 
 ?>

@@ -148,7 +148,7 @@
 				$beregntilbud=dkdato($beregn_tilbud[$x]);
 			}
 			
-			if ($beregn_tilbud[$x]==NULL) $beregntilbud='HM';
+			if ($beregn_tilbud[$x]==NULL) $beregntilbud=findtekst('8415|HM', $sprog_id);
 			
 		print "<tr>
 						<td>$beregn_opret[$x]</td>

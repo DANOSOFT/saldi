@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/insertAccount.php --- patch 5.0.0 --- 2026-07-13 ---
+// --- kreditor/ordreIncludes/insertAccount.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230509 PHR php8
 // 20230718 LOE Minor modification
@@ -32,6 +32,7 @@
 // 20260713 MJ Fix structural bug: orphaned if(!$afd){ caused all main logic to be skipped when afd was set. Also restore afd lookup from ansatte.
 // 20260902 CL/LH  L4 finding master-data-supplier DEVY-1: selecting the supplier used to stamp today's date over an Ordredato the operator had already typed, and never stored Levdato. Keep the dates from the form (kreditor/ordre.php passes them along) and only fall back to today when nothing was entered.
 // 20260908 CDX/LH Preserve the caller transaction during creditor order creation (SST-765).
+// 20261105 CL/MMR SST-951 A new creditor order takes the language (Sprog) of its creditor group, so it prints with that language's forms.
 
 if (!function_exists('insertAccount')) {
 /**
@@ -111,12 +112,15 @@ function insertAccount($id, $konto_id, $manageTransaction = true) {
 		if ($email && $mail_fakt) $udskriv_til = "email";
 		else $udskriv_til = "PDF";
 	}
+	$formularsprog = '';
 	if ($gruppe) {
-		$qtxt = "select box1, box3,box9 from grupper where art='KG' and kodenr='$gruppe' and fiscal_year = '$regnaar'";
+		$qtxt = "select box1, box3, box4, box9 from grupper where art='KG' and kodenr='$gruppe' and fiscal_year = '$regnaar'";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
-			$valuta = trim($r['box3']);
-			$omlev  = trim($r['box9']);
+		$valuta = trim($r['box3']);
+		$omlev  = trim($r['box9']);
+		// SST-951: the group's Sprog decides which forms the order prints with, as on a sales order
+		$formularsprog = trim((string)ifset($r, 'box4', ''));
 		if (substr($r['box1'],0,1)=='K') {
 			$tmp  = (float)substr($r['box1'],1,1);
 			$qtxt = "select box2 from grupper where art='KM' and kodenr = '$tmp' and fiscal_year = '$regnaar'";
@@ -146,12 +150,13 @@ function insertAccount($id, $konto_id, $manageTransaction = true) {
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,lev_addr1,";
 		$qtxt.= "lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,betalingsdage,betalingsbet,cvrnr,notes,art,ordredate,levdate,";
-		$qtxt.= "email,momssats,status,ref,afd,lager,sum,hvem,tidspkt,valuta,kred_ord_id,omvbet)";
+		$qtxt.= "email,momssats,status,ref,afd,lager,sum,hvem,tidspkt,valuta,kred_ord_id,omvbet,sprog)";
 		$qtxt.= " values ";
 		$qtxt.= "($ordrenr,$konto_id,'$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn',";
 		$qtxt.= "'$land','$kontakt','$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt',";
 		$qtxt.= "'$betalingsdage','$betalingsbet','$cvrnr','$notes','$art','" . db_escape_string($ordredate) . "',$levdate_sql,'$email','$momssats',$status,";
-		$qtxt.="'$insert_ref','$afd','$lager','$sum','$brugernavn','$tidspkt','$valuta','$kred_ord_id','$omlev')";
+		$qtxt.="'$insert_ref','$afd','$lager','$sum','$brugernavn','$tidspkt','$valuta','$kred_ord_id','$omlev',";
+		$qtxt.="'" . db_escape_string($formularsprog ? $formularsprog : 'Dansk') . "')";
 /*		
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land,betalingsdage,  ";

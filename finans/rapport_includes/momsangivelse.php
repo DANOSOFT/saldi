@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/momsangivelse.php --patch 4.0.8 ----2023-08-31----
+// --- finans/rapport_includes/momsangivelse.php --ver 5.1.0 ----2026-11-03----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20210107 PHR Corrected error in 'deferred financial year'.
 // 20210301 PHR php 7x issues
@@ -29,6 +29,8 @@
 // 20230110 MSC - Implementing new design
 // 20230829 MSC - Copy pasted new design into code
 // 20260515 PK - Removed csv button as it should not be possible to print csv from here
+// 20261103 LOE SST-936 Use dimensionSqlFragment() for the department, employee and project filters.
+//              The account range is cast as well, and a year that is not a year falls back to the fiscal year.
 
 
 function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev)
@@ -55,8 +57,13 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 	if ($row = db_fetch_array(db_select("select firmanavn from adresser where art='S'", __FILE__ . " linje " . __LINE__)))
 		$firmanavn = $row['firmanavn'];
-	if (($afd) && ($row = db_fetch_array(db_select("select beskrivelse from grupper where art='AFD' and kodenr='$afd'", __FILE__ . " linje " . __LINE__))))
+	// grupper.kodenr is an integer, so only a whole-number department can be looked up - the same test
+	// the transaction filter uses. Department 0 has no row and carries the label the other reports use.
+	if ($afd && preg_match('/^\d+$/', (string)$afd) && ($row = db_fetch_array(db_select("select beskrivelse from grupper where art='AFD' and kodenr='" . (int)$afd . "'", __FILE__ . " linje " . __LINE__)))) {
 		$afd_navn = $row['beskrivelse'];
+	} elseif ($afd == '0') {
+		$afd_navn = 'Kun poster uden afd.';
+	}
 	if (!isset($afgiftssum))
 		$afgiftssum = NULL;
 
@@ -67,8 +74,10 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 	$maaned_fra = trim($maaned_fra);
 	$maaned_til = trim($maaned_til);
-	$konto_fra = trim($konto_fra);
-	$konto_til = trim($konto_til);
+	// A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+	// not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+	$konto_fra = ($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
+	$konto_til = ($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
 
 	$mf = $maaned_fra;
 	$mt = $maaned_til;
@@ -126,6 +135,15 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	if (strlen($startdato) < 2)
 		$startdato = "0" . $startdato;
 
+	// The years come from the report form, and they are built straight into a date literal below; a
+	// value that is not a year would turn that literal into a failed query. Fall back to the fiscal
+	// year read from grupper art='RA' instead, the way the months and the day already come from there.
+	if (!preg_match('/^\d{4}$/', (string)$aar_fra)) {
+		$aar_fra = $startaar;
+	}
+	if (!preg_match('/^\d{4}$/', (string)$aar_til)) {
+		$aar_til = $slutaar;
+	}
 
 	$regnstart = $aar_fra . "-" . $startmaaned . "-" . $startdato;
 	$regnslut = $aar_til . "-" . $slutmaaned . "-" . $slutdato;
@@ -185,7 +203,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	}
 	print "<tr><td colspan=\"4\"><big><big>" . ucfirst($rapportart) . "</span></big></big></td>";
 	print "<td colspan=2 align=right><table style=\"text-align: left; width: 400px;\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody><tr>";
-	if ($afd) {
+	if ($afd || $afd == '0') {
 		print "<td>Afdeling</span></td>";
 		print "<td>$afd: $afd_navn</span></td></tr>";
 	}
@@ -217,24 +235,10 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	print "<tr><td colspan=6><hr></td></tr>";
 
 	$dim = '';
-	if ($afd || $ansat_fra || $projekt_fra) {
-		if ($afd)
-			$dim = "and afd = $afd ";
-		if ($ansat_fra)
-			$dim = $dim . "and ansat = '$ansat_fra' ";
+	if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
 		$projekt_fra = str2low($projekt_fra);
 		$projekt_til = str2low($projekt_til);
-		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til)
-			$dim = $dim . " and lower(projekt) >= '$projekt_fra' and lower(projekt) <= '$projekt_til' ";
-		elseif ($projekt_fra) {
-			$tmp = str_replace("?", "_", $projekt_fra);
-			if (substr($tmp, -1) == '_') {
-				while (substr($tmp, -1) == '_')
-					$tmp = substr($tmp, 0, strlen($tmp) - 1);
-				$tmp = str2low($tmp) . "%";
-			}
-			$dim = $dim . "and lower(projekt) LIKE '$tmp' ";
-		}
+		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 
 	$row = db_fetch_array($query = db_select("select box1, box2 from grupper where art='MR'", __FILE__ . " linje " . __LINE__));
@@ -243,7 +247,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		$konto_til = $row['box2'];
 
 		$x = 0;
-		$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' and kontonr>=$konto_fra and kontonr<=$konto_til order by kontonr";
+		$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' " . kontoRangeSqlFragment($konto_fra, $konto_til) . "order by kontonr";
 		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			$x++;
@@ -259,22 +263,27 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		$kontoantal = $x;
 		$kto_aar[$x] = 0;
 		$kto_periode[$x] = 0;
+		$kontoSql = kontoRangeSqlFragment($konto_fra, $konto_til);
+		// Only compared in PHP below, where an empty bound is the whole range.
+		$konto_fraSql = ($konto_fra === '') ? 0 : (preg_match('/^\d+$/', (string)$konto_fra) ? (int)$konto_fra : PHP_INT_MAX);
+		$konto_tilSql = ($konto_til === '') ? PHP_INT_MAX : (preg_match('/^\d+$/', (string)$konto_til) ? (int)$konto_til : 0);
+
 		$ktonr = array();
 		$x = 0;
-		$query = db_select("select * from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='$konto_fra' and kontonr<='$konto_til' $dim order by kontonr", __FILE__ . " linje " . __LINE__);
+		$query = db_select("select * from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' " . $kontoSql . "$dim order by kontonr", __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			if (!in_array($row['kontonr'], $ktonr)) { # Her fanges konto med bevaegelser i perioden.
 				$x++;
 				$ktonr[$x] = $row['kontonr'] * 1;
 				$kto_aar[$x] = 0;
-				if (($medtag_primo && !$afd) && ($r2 = db_fetch_array(db_select("select primo from kontoplan where regnskabsaar='$regnaar' and kontonr=$ktonr[$x] and kontotype='S'", __FILE__ . " linje " . __LINE__)))) {
+				if (($medtag_primo && !($afd || $afd == '0')) && ($r2 = db_fetch_array(db_select("select primo from kontoplan where regnskabsaar='$regnaar' and kontonr=$ktonr[$x] and kontotype='S'", __FILE__ . " linje " . __LINE__)))) {
 					$kto_aar[$x] = afrund($r2['primo'], 2);
 				}
 			}
 			$kto_aar[$x] = $kto_aar[$x] + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 		}
 		$kto_antal = $x;
-		if ($medtag_primo && !$afd) {
+		if ($medtag_primo && !($afd || $afd == '0')) {
 			for ($x = 1; $x <= $kontoantal; $x++) { # Her fanges konto med primovaerdi og ingen bevaegelser i perioden.
 				if (!in_array($kontonr[$x], $ktonr)) {
 					if ($primo[$x]) {
@@ -300,7 +309,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		}
 
 		for ($x = 1; $x <= $kontoantal; $x++) {
-			if (($kontonr[$x] >= $konto_fra) && ($kontonr[$x] <= $konto_til)) {
+			if (($kontonr[$x] >= $konto_fraSql) && ($kontonr[$x] <= $konto_tilSql)) {
 				print "<tr>";
 				$aarsum[$x] = afrund($aarsum[$x], 0);
 				print "<td>$kontonr[$x] </td>";
