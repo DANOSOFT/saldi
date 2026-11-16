@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/pageRoutes.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/stdFunc/pageRoutes.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20261102 CL/ASR The hub is a page of its own ('systemdata/settings.php') and the groups hang under it; the pages under them use the module 'settings', which prints no module level, so the first crumb Indstillinger is a link again (the groups share the hub's path, which made it look like the landing page).
 //                 Import & eksport also holds importer_debitor, exporter_debitor, importer_kreditor and exporter_kreditor; the import pages are named as the section links them.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/LH Removed the routes of the deleted Aiia pages (aiia_import.php, get_accounts.php).
 return array(
 	'modules' => array(
 		'finans'     => array('l' => '600|Finans', 'href' => ''),
@@ -70,10 +71,6 @@ return array(
 		'finans/regnskabbasis.php'             => array('m' => 'finans', 'l' => '2326|Regnskab Basis', 'p' => '/finans/rapport.php'),
 		'finans/saft.php'                      => array('m' => 'finans', 'l' => '2320|SAF-T', 'p' => '/finans/rapport.php'),
 		'finans/bankReconcile.php'             => array('m' => 'finans', 'l' => '2213|Bankafstemning', 'p' => '/finans/rapport.php'),
-
-		// bank_integration/
-		'bank_integration/aiia_import.php'     => array('m' => 'finans', 'l' => '1391|Bankimport', 'p' => '/finans/kassekladde.php'),
-		'bank_integration/get_accounts.php'    => array('m' => 'finans', 'l' => '|Vælg bankkonto', 'p' => '/finans/kassekladde.php'),
 
 		// admin/
 		'admin/backup.php'                     => array('m' => 'settings', 'l' => '614|Backup', 'p' => '/systemdata/settingsSection.php?s=import_export.backup'),

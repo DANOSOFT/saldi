@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/resetAccount.php --- 2026-10-05 ---
+// --- systemdata/resetAccount.php --- 2026-11-16 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Build an explicit reset plan using only existing tenant tables.
 // 20260916 CDX/PHR Clear item texts when items are not retained.
@@ -8,6 +8,7 @@
 // 20260917 CL/LH Refuse the reset on MySQL/MariaDB, where TRUNCATE auto-commits and the
 //                transaction cannot be rolled back.
 // 20261005 SS Settings redesign G1.4: users' personal settings (grupper USET) survive a reset.
+// 20261116 CL/LH Invalidate Enable Banking import links on reset.
 
 /**
  * Build reset statements. Unlisted tables are never cleared implicitly.
@@ -54,6 +55,9 @@ function accountResetStatements(array $existingTables, $keepAccounts, $keepItems
 		} else {
 			$statements[] = 'TRUNCATE ' . implode(',', $tables) . ' RESTART IDENTITY';
 		}
+	}
+	if (in_array('bank_import_links', $existingTables, true)) {
+		$statements[] = "UPDATE bank_import_links SET disposition='deleted', disposition_at=CURRENT_TIMESTAMP WHERE disposition IN ('active','posted')";
 	}
 	if (in_array('grupper', $existingTables, true)) {
 		// 20261011 MJ SST-829 art='LG' is excluded for the same reason as in

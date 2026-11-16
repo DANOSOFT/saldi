@@ -1,11 +1,12 @@
 <?php
-// --- tests/test_account_reset.php --- 2026-10-05 ---
+// --- tests/test_account_reset.php --- 2026-11-16 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Verify reset scope and preservation options without database writes.
 // 20260916 CDX/PHR Verify item texts follow the keep-items option.
 // 20260916 CDX/PHR Verify user year reset and tenant-scoped session updates.
 // 20260917 CL/LH Verify the reset is refused on MySQL/MariaDB before any statement is issued.
 // 20261005 SS Verify personal settings (USET) are not deleted by a reset.
+// 20261116 CL/LH Check bank import link invalidation only when the table exists.
 require_once(__DIR__ . '/../systemdata/resetAccount.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -37,6 +38,10 @@ foreach (array(false, true) as $keepAccounts) {
 		resetCheck(strpos(implode(';', $sql), "'USET'") === false, 'Personal settings (USET) must survive a reset');
 	}
 }
+$bankReset = "UPDATE bank_import_links SET disposition='deleted', disposition_at=CURRENT_TIMESTAMP WHERE disposition IN ('active','posted')";
+resetCheck(in_array($bankReset, accountResetStatements(array_merge($existing, array('bank_import_links')), true, true, 'postgresql'), true), 'Reset must invalidate bank import links when the table exists');
+resetCheck(!in_array($bankReset, accountResetStatements($existing, true, true, 'postgresql'), true), 'Reset must not reference an absent bank table');
+resetCheck(accountResetStatements(array('bank_import_links'), true, true, 'postgresql') === array($bankReset), 'Link reset needs only bank_import_links');
 resetCheck(accountResetStatements(array(), false, false, 'postgresql') === array(), 'Empty schema');
 $legacy = accountResetStatements(array('crm','tabeller'), true, true, 'postgresql');
 resetCheck($legacy === array('TRUNCATE crm,tabeller RESTART IDENTITY'), 'Legacy tables must still be reset when present');

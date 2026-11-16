@@ -20,6 +20,7 @@
 // 20261022 CL/NTR bootstrapTenantOnce() is guarded by $ownsTenant, so a teardown by one suite makes the next one re-clone.
 //                 runChild() collects stderr in a temp file so a chatty child cannot deadlock on a full pipe.
 // 20261111 CDX/NTR Replace the shared template clone with UUID-owned fresh installations.
+// 20261116 CL/LH Dropped the deleted bank_integration/aiia_import.php from the MAX(id)+1 examples (#877).
 
 require_once __DIR__ . '/database/TestDatabase.php';
 
@@ -109,7 +110,7 @@ final class CharacterizationEnv
      *
      * Saldi allocates several primary keys itself with "SELECT MAX(id)+1"
      * and inserts the id explicitly (finans/kassekladde.php:1045,
-     * admin/bankfordeling.php:516, bank_integration/aiia_import.php:69),
+     * admin/bankfordeling.php:516),
      * so the serial sequences behind those tables never advance and a clone
      * of a used tenant starts out with sequences far behind its data. Any
      * fixture that relies on the column default would then collide with an

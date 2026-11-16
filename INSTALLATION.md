@@ -295,3 +295,13 @@ With Docker Compose these are passed through from `.env` (see
 call `includes/saldi_assist_token.php?embed_session=<32 hex chars>` in the
 same browser session; it must answer `{"token": "v1.<kid>...."}`. Anonymous
 calls answer `{"error": "no_session"}` with HTTP 401.
+
+## Bank feed (Enable Banking)
+
+Optional. Fetches bank transactions; users pick which ones go into a kassekladde as unposted lines. Needs an Enable Banking
+application (one per server), its private key stored outside the Saldi directory, four configuration
+values (environment variables or `includes/connect.php` globals: `$enableBankingAppId`,
+`$enableBankingKeyPath`, `$enableBankingRedirectUrl`, `$enableBankingEnvironment`), the encryption key
+`bank_integration/.ht_oauth_key.bin` (created by the installer) and a cron entry for
+`bank_integration/worker.php` running as the web server user. Full instructions:
+[doc/enable-banking/OPERATIONS.md](doc/enable-banking/OPERATIONS.md).

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.16
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,8 @@
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261116 CL/LH Install the tenant Enable Banking schema (includes/opdat_func/ebSchemaInstall.php) idempotently.
+// 20261116 CL/LH Delete the removed Aiia integration's OAuth Client ID and Client Secret rows from the master database's settings table (from #877).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -442,5 +444,25 @@ if (!$sawanehMysql) {
 require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
 migrateTillAccounts($db_type);
 
+// 20261116 CL/LH Enable Banking bank feed tables (bank_connections, bank_accounts, bank_transactions, ...).
+require_once __DIR__ . '/opdat_func/ebSchemaInstall.php';
+if (!ebSchemaReady()) {
+	ebEnsureSchema();
+}
+
+// 20261116 CL/LH The Aiia bank integration is removed (Enable Banking replaces it, #877), so nothing reads its OAuth client
+// credentials any more. They are the 'Client ID' and 'Client Secret' rows with var_grp 'OAuth' in the master database's
+// settings table (the Aiia code read them with db_select(..., true)), so they are deleted there. Only those two rows: the
+// per-user 'oauth_data' rows and the 'bank_integration' preference rows are left alone. The column check keeps a master
+// database whose settings table has no var_grp from failing the login, and looking for the rows first means later logins only read.
+$aiiaCredentialsMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name = 'settings' AND column_name = 'var_grp'";
+$qtxt.= $aiiaCredentialsMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true))) {
+	$aiiaCredentialsWhere = "var_grp = 'OAuth' AND var_name IN ('Client ID', 'Client Secret')";
+	if (db_fetch_array(db_select("SELECT id FROM settings WHERE $aiiaCredentialsWhere", __FILE__ . " linje " . __LINE__, true))) {
+		db_modify("DELETE FROM settings WHERE $aiiaCredentialsWhere", __FILE__ . " linje " . __LINE__, true);
+	}
+}
 
 ?>

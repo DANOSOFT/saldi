@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.1 ----2026-11-13------------
+// --- systemdata/diverse.php -----ver 5.1.1 ----2026-11-16------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -126,6 +126,7 @@
 // 20261101 CL/ASR Settings hub: div_valg redirects to Indstillinger » Ansatte, where its last field (Tilføj ekstra felter på ansatte, DIV/2 box3) lives now.
 // 20261103 CL/ASR QA: the integration and variant-import sections declare their own key before online.php (settings.integrations, settings.import_export), so a role with only that key is not refused once enforcement is 'deny'. sektion=label and sektion=kreditor_io redirect to Varer » Lager and Import & eksport instead of an empty page.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/LH Bankforbindelse (Enable Banking) replaces the Aiia settings section; its POST is handled before any output.
 @session_start();
 $s_id = session_id();
 
@@ -165,6 +166,10 @@ if (is_file(__DIR__ . '/../bank_integration/includes/enabled.php')) {
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 include_once(__DIR__ . '/diverseIncludes/webshopInvoiceOrderDate.php');
+if (($_GET['sektion'] ?? '') == 'bank_integration' && $_SERVER['REQUEST_METHOD'] == 'POST' && function_exists('bankIntegrationAvailable')) {
+	include_once(__DIR__ . '/diverseIncludes/bank_integration.php');
+	bankIntegrationSave(); # Redirects back to the section.
+}
 
 $defaultProvision = $sqlstreng = NULL;
 if (!isset($_SESSION['UserName']) && isset($brugernavn)) {
@@ -692,7 +697,10 @@ if ($sektion == "pricelists") {
 	pricelists();
 }
 if ($sektion == "div_valg") div_valg(); # Kalder sys_div_valg.php
-if ($sektion == "bank_integration") include('diverseIncludes/bank_integration.php');
+if ($sektion == "bank_integration" && function_exists('bankIntegrationAvailable')) {
+	include_once(__DIR__ . '/diverseIncludes/bank_integration.php');
+	bankIntegrationSettings();
+}
 //if ($sektion=="barcodescan") barcodescan();
 if ($sektion == "massefakt") massefakt();
 
