@@ -60,6 +60,11 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261116 CL/MMR SST-1010 The stock log takes the unescaped name online.php now provides, so no second lookup can fail.
 //                 Where that name is missing and the online row cannot be read either, no stock log line is written and the reason is logged.
+/**
+ * Injected by ../includes/online.php, included below (unescaped user name of this session; set since #1033,
+ * absent on older code, where the stock log reads the name from the online row instead):
+ * @var string|null $brugernavn_raw
+ */
 @session_start();
 $s_id=session_id();
 
