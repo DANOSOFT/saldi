@@ -2,10 +2,17 @@
 // 20261116 CL/MMR SST-962 Run the settings queries of includes/stdFunc/bankImportColumns.php against a private schema on the PostgreSQL connection in $GLOBALS['connection'].
 //                 BankImportColumnsTest and its child process use it.
 // 20261116 CL/MMR SST-962 Codex round 3: a failed query is read with pg_get_result(), so the tests of a failing lock or write get the exception without a PHP warning.
+// 20261116 CL/MMR SST-962 CodeRabbit: every statement is logged, and a test can make one statement return false like the real db_select().
 
 if (!function_exists('db_select')) {
-	/** @return PgSql\Result */
+	/** @return PgSql\Result|false */
 	function db_select($sql, $source = '', $global = false) {
+		$GLOBALS['bank_import_sql_log'][] = $sql;
+		// A test can make one statement fail the way the real db_select() can report it: by returning false
+		$fails = $GLOBALS['bank_import_select_returns_false'] ?? '';
+		if ($fails !== '' && stripos($sql, $fails) !== false) {
+			return false;
+		}
 		// pg_send_query() + pg_get_result() report a failed query as a result, not as a PHP warning, so it becomes the exception only
 		if (!pg_send_query($GLOBALS['connection'], $sql) || ($result = pg_get_result($GLOBALS['connection'])) === false) {
 			throw new RuntimeException(pg_last_error($GLOBALS['connection']) . ' | ' . $sql);

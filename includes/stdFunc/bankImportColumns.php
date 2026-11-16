@@ -29,6 +29,7 @@
 //                 The save runs under a lock, so two first saves at once cannot leave two rows, and the newest row is the one read.
 //                 Codex round 3: the columns are counted with vis_data()'s own split (bank_import_split_line()), not str_getcsv(), so a quoted field with the separator gives the width the preview shows.
 //                 A MySQL lock that is not granted (GET_LOCK() 0, NULL or a failed query) saves nothing, and a lock is released when the write fails.
+//                 CodeRabbit: a PostgreSQL lock query that fails (db_select() gives false) saves nothing either.
 
 include_once(__DIR__ . '/bankImportEncoding.php');
 
@@ -138,7 +139,7 @@ if (!function_exists('bank_import_save_columns')) {
 	 *
 	 * The look-up and the insert run under a lock per user and number of columns (a PostgreSQL advisory lock, or
 	 * GET_LOCK() on MySQL), so two first saves at once cannot both insert. A MySQL lock that is not granted within
-	 * 10 seconds (0) or fails (NULL) saves nothing. Rows left over from before are merged:
+	 * 10 seconds (0) or fails (NULL) saves nothing, and so does a PostgreSQL lock query that fails. Rows left over from before are merged:
 	 * the newest gets the value and the others are deleted. The settings API itself is not changed. Call it outside
 	 * a transaction, so the row is committed before the lock is released.
 	 *
@@ -168,7 +169,11 @@ if (!function_exists('bank_import_save_columns')) {
 				return false;
 			}
 		} else {
-			db_select("select pg_advisory_lock(hashtext('$lock'))", __FILE__ . " linje " . __LINE__);
+			// A lock query that fails (db_select() gives false) or times out (statement_timeout) holds no lock: no write
+			$q = db_select("select pg_advisory_lock(hashtext('$lock'))", __FILE__ . " linje " . __LINE__);
+			if (!$q || !db_fetch_array($q)) {
+				return false;
+			}
 		}
 		try {
 			bank_import_write_columns($userId, $feltantal, $value);

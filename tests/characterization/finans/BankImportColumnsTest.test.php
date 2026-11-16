@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 // 20261116 CL/MMR SST-962 Codex round 3: the columns are counted as vis_data() splits them, so a quoted field holding the separator
 //                 (Windows-1252 file) saves for the width the preview shows. A MySQL lock that is not granted saves nothing, and a lock is released on an exception.
 //                 The acquirer file no longer quotes a comma in the middle of a line, because vis_data() splits such a field (tested on its own).
+// 20261116 CL/MMR SST-962 CodeRabbit: a lock query for which db_select() returns false (PostgreSQL and MySQL) saves nothing.
 #[RunTestsInSeparateProcesses]
 #[PreserveGlobalState(false)]
 final class BankImportColumnsTest extends TestCase
@@ -427,6 +428,30 @@ final class BankImportColumnsTest extends TestCase
         }
         self::assertSame([], self::rows(), 'nothing is written');
         self::assertSame([], self::lockCalls());
+    }
+
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function lockQueryReturnsFalse(): array
+    {
+        return ['PostgreSQL' => ['postgres', 'pg_advisory_lock'], 'MySQL' => ['mysqli', 'get_lock']];
+    }
+
+    /** CodeRabbit: a lock query for which db_select() gives false holds no lock, so nothing is read, written or unlocked. */
+    #[PHPUnit\Framework\Attributes\DataProvider('lockQueryReturnsFalse')]
+    public function testALockQueryThatReturnsFalseSavesNothing(string $dbType, string $lockFunction): void
+    {
+        pg_query($GLOBALS['connection'], "insert into settings (var_name, var_grp, var_value, var_description, user_id)
+            values ('columns_3', 'bankimport', 'dato,beskrivelse,belob', '', 27)");
+        $GLOBALS['db_type'] = $dbType;
+        $GLOBALS['bank_import_select_returns_false'] = $lockFunction;
+        $GLOBALS['bank_import_sql_log'] = [];
+        self::assertFalse(bank_import_save_columns(27, ['belob', 'dato', 'beskrivelse'], 2), 'not saved');
+        self::assertCount(1, $GLOBALS['bank_import_sql_log'], 'only the lock query ran: no settings read or write, no unlock');
+        self::assertStringContainsString($lockFunction, $GLOBALS['bank_import_sql_log'][0]);
+        unset($GLOBALS['bank_import_select_returns_false']);
+        self::assertSame('dato,beskrivelse,belob', self::value(27, 3), 'the saved choices are unchanged');
+        $held = pg_fetch_result(pg_query($GLOBALS['connection'], "select count(*) from pg_locks where locktype = 'advisory' and pid = pg_backend_pid()"), 0, 0);
+        self::assertSame('0', $held, 'no advisory lock is left');
     }
 
     /** Codex round 3, finding 1: GET_LOCK() 1 is the lock held, so the choices are saved and the lock is released once. */
