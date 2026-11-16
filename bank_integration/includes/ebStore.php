@@ -28,6 +28,7 @@
 // 20261007 CDX/LH Deferred incomplete no-reference days and preserved review boundaries and date overrides.
 // 20261007 CDX/LH Bound stored entry references to 255 characters while hashing their full identity.
 // 20261116 CL/LH Message through findtekst() (bank.account.missing).
+// 20261116 CL/LH changed_payload is stored as ASCII-escaped JSON, so a LATIN9 tenant keeps characters outside ISO-8859-15 and the change hash stays stable.
 
 require_once __DIR__ . '/ebNormalize.php';
 
@@ -78,7 +79,7 @@ function ebPersistTransactionsChecked(int $accountId, array $normalizedWithRef, 
                         $counts['changed']++;
                         if ($row['review_state'] === 'imported' || $row['review_reason'] === 'changed_after_import') {
                             $fields += ['review_state' => 'review', 'review_reason' => 'changed_after_import',
-                                'changed_payload' => json_encode($n, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)];
+                                'changed_payload' => json_encode($n, JSON_THROW_ON_ERROR)];
                             $counts['review']++;
                         } else {
                             $fields += ebStoredFields($n);

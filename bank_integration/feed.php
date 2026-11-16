@@ -34,6 +34,7 @@
 // 20261028 CL/LH Genoptag says when fetching stays stopped; bulk actions return to the first page.
 // 20261116 CL/LH Pull model: picked lines go into the journal the user came from (kladde_id, "Læg valgte i kladde N", ebImportIntoJournal()) and the user is sent back to it. Without a journal there is only a hint and skip.
 //                No automatic import switch, bank journal or deferral texts; texts through findtekst() (bank.feed.*).
+// 20261116 CL/LH The actor is the unescaped user name, so a name with an apostrophe matches its own journal lock.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -316,7 +317,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		ebRedirect(ebFeedUrl());
 	}
 	session_write_close();
-	$actor = (string)$brugernavn;
+	$actor = (string)($brugernavn_raw ?? $brugernavn);
 	try {
 		if ($action === 'refresh') {
 			$run = ebSyncAccount($accountId, 'manual', ebPsuHeadersFromRequest());

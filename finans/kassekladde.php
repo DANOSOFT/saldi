@@ -231,6 +231,7 @@
 //                Both save replay guards apply to Bankforbindelse, and a replay is sent on to the feed.
 //                Back from the feed, the journal shows once what was put into it (eb_journal_notice).
 //                The feed opens only after opdater() saved every line, so a partly refused save stays in the journal with its error.
+// 20261116 CL/LH A resend of a partially saved Bankforbindelse request stays in the journal instead of opening the feed.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -2032,8 +2033,8 @@ if (!$fejl && $kladde_id) {
 			print "<script>document.addEventListener('DOMContentLoaded', function () { window.location.replace(" . json_encode($kkPoolUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "); });</script>";
 		}
 	}
-	// Bankforbindelse opens the bank feed only once opdater() has saved every line; a refused line keeps the user here with the error
-	if (!$fejl && $submit == 'bankfeed') {
+	// Bankforbindelse opens the bank feed only once opdater() has saved every line; a refused line, or a resend of a partial save, keeps the user here
+	if (!$fejl && empty($kk_replay) && $submit == 'bankfeed') {
 		print "<meta http-equiv='refresh' content='0;URL=../bank_integration/feed.php?kladde_id=" . (int)$kladde_id . "'>";
 	}
 }
