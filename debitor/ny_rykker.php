@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ny_rykker.php --- ver 5.0.0 --- 2026.11.09 ---
+// --- debitor/ny_rykker.php --- ver 5.0.0 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,6 +48,7 @@
 //                 "Ryk alle" does not book a reminder dated outside the active fiscal year (as "Bogfør").
 //                 Reminder ids from the request are cast to integers.
 // 20261111 CL/ASR Review round 2: "Ryk alle" still books a reminder whose invoices were paid after it was sent (its fee is owed), only does not escalate it; a link reminder whose fee goes on the next invoice is not held by the fiscal year.
+// 20261116 CDX/ASR Iterate actual batch keys, validate debtor rows and use numeric group lookups before creating reminders.
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -73,16 +74,21 @@ include_once(__DIR__ . '/../includes/stripeIncludes/stripeDunning.php');
 $stripeDunningOpen = stripe_dunning_openpost_sql();
 $stripeDunningReminder = stripe_dunning_reminder_sql();
 include_once(__DIR__ . '/../includes/reminderLegal.php');
+if (!reminder_request_ledger_matches($_GET['thisDb'] ?? null, (string)$db)) {
+	alert(reminder_txt(8181, 'Regnskabet er skiftet, eller rapporten er for gammel. Åbn rapporten igen i det ønskede regnskab, før du opretter rykkere.'));
+	exit;
+}
 // 20261109 CL/ASR link reminders; without the file every reminder is classic
 if (is_file(__DIR__ . '/../includes/stripeIncludes/stripeReminder.php')) include_once(__DIR__ . '/../includes/stripeIncludes/stripeReminder.php');
 $legalNotes = array(); # staff notices (renteloven § 9 b), shown in one alert at the end
 
-$konto_antal=$_GET['kontoantal'];
+$konto_antal = $_GET['kontoantal'] ?? 0;
 if (isset($_GET['rykker_id'])) $rykker_id=array_map('intval', explode(";", $_GET['rykker_id'])); # 20261109 CL/ASR integers
-else $rykker_id=NULL;
-$konto_id =explode(";", $_GET['kontoliste']);
+else $rykker_id=array();
+$konto_id = explode(";", (string)($_GET['kontoliste'] ?? ''));
 
 $rykkerdate=date("Y-m-d");
+$tidspkt = date("H:i:s");
 
 $rentesats_1=0;
 $rentesats_2=0;
@@ -100,7 +106,7 @@ $ffdage3=(int)$r['box7'];
 $rykkerfrist1=dunning_cutoff_date($ffdage1);
 
 $r = db_fetch_array(db_select("select id from formularer where beskrivelse LIKE '%inkassotekst'",__FILE__ . " linje " . __LINE__));
-if ($r['id']) {
+if (!empty($r['id'])) {
 	$inkassotekst='';
 }
 
@@ -193,21 +199,26 @@ if ($konto_id[0]=="alle") {
 	$autoryk=0;
 	$rykkerfrist1=$rykkerdate;
 }
-for ($i=0; $i<=$konto_antal; $i++) {
+foreach (array_unique(array_merge(array_keys($konto_id), array_keys($rykker_id))) as $i) {
 	if (!empty($rykker_id[$i])) {
 		$heldReminder = db_fetch_array(db_select("select id from ordrer where id = " . (int)$rykker_id[$i] . " and not ($stripeDunningReminder)", __FILE__ . ' linje ' . __LINE__));
 		if ($heldReminder) continue;
 	}
 	$forfalden=0;
-	if (($konto_id[$i])||($rykker_id[$i])) {
-		if (!$rykker_id[$i]) {
+	if (!empty($konto_id[$i]) || !empty($rykker_id[$i])) {
+		if (empty($rykker_id[$i])) {
 			$sum=0;
 			$r_ordrenr=0;
 			
 			if ($r = db_fetch_array(db_select("select MAX(ordrenr) as r_ordrenr from ordrer where art LIKE 'R%'",__FILE__ . " linje " . __LINE__))) $r_ordrenr=$r['r_ordrenr'];
 			$r_ordrenr++;
 			$r_fakturanr=$r_ordrenr."-1";
-			$r=db_fetch_array(db_select("select * from adresser where id ='$konto_id[$i]'",__FILE__ . " linje " . __LINE__));
+			$konto_id[$i] = (int)$konto_id[$i];
+			$r=db_fetch_array(db_select("select * from adresser where id ='$konto_id[$i]' and art = 'D'",__FILE__ . " linje " . __LINE__));
+			if (!$r) {
+				$legalNotes[] = reminder_txt(8180, 'Kunde {konto} findes ikke. Der er ikke oprettet en rykker for denne kunde.', array('konto' => (string)$konto_id[$i]));
+				continue;
+			}
 			$kontonr=db_escape_string($r['kontonr']);
 			$firmanavn=db_escape_string($r['firmanavn']);
 			$addr1=db_escape_string($r['addr1']);
@@ -229,9 +240,10 @@ for ($i=0; $i<=$konto_antal; $i++) {
 			$cvrnr=db_escape_string($r['cvrnr']);
 			$ean=db_escape_string($r['ean']);
 			$institution=db_escape_string($r['institution']);
-			$r2 = db_fetch_array(db_select("select box1, box3, box4, box6 from grupper where art='DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
-			$valuta=$r2['box3'];
-			$sprog=$r2['box4'];
+			$gruppe = (int)($r['gruppe'] ?? 0);
+			$r2 = db_fetch_array(db_select("select box1, box3, box4, box6 from grupper where art='DG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__));
+			$valuta = $r2['box3'] ?? '';
+			$sprog = $r2['box4'] ?? '';
 			if ($valuta && $valuta!='DKK') {
 				if ($r2= db_fetch_array(db_select("select valuta.kurs from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=grupper.kodenr::INT and valuta.valdate <= '$rykkerdate' order by valuta.valdate",__FILE__ . " linje " . __LINE__))) {
 					$valutakurs=$r2['kurs'];
@@ -245,14 +257,14 @@ for ($i=0; $i<=$konto_antal; $i++) {
 			}
 			if ($ref) {
 				$r2 = db_fetch_array(db_select("select navn from ansatte where id = '$ref'",__FILE__ . " linje " . __LINE__));
-				$ref=$r['navn'];	
+				$ref = db_escape_string($r2['navn'] ?? '');
 			}	
 			$op_id=NULL;
 			$x=0;
 			$q=db_select("select * from openpost where udlignet = '0' and ((forfaldsdate<'$rykkerfrist1' and amount>'0') or amount < '0') and konto_id='" . (int)$konto_id[$i] . "' and $stripeDunningOpen",__FILE__ . " linje " . __LINE__);
 			while ($r=db_fetch_array($q)) {
 #				Finder tidligere rykkere på samme ordre.
-				if (!db_fetch_array(db_select("select ordrer.id from ordrer,ordrelinjer where ordrelinjer.enhed = '$r[id]' and ordrer.id = ordrelinjer.ordre_id and ordrer.betalt != 'on'",__FILE__ . " linje " . __LINE__)) && !db_fetch_array(db_select("select id from ordrer where id = '$r[refnr]' and art LIKE 'R%' and betalt != 'on'",__FILE__ . " linje " . __LINE__))) {
+				if (!db_fetch_array(db_select("select ordrer.id from ordrer,ordrelinjer where ordrelinjer.enhed = '$r[id]' and ordrer.id = ordrelinjer.ordre_id and ordrer.betalt != 'on'",__FILE__ . " linje " . __LINE__)) && !db_fetch_array(db_select("select id from ordrer where id = '" . (int)($r['refnr'] ?? 0) . "' and art LIKE 'R%' and betalt != 'on'",__FILE__ . " linje " . __LINE__))) {
 					$x++;
 					if ($op_id) $op_id=$op_id." or id ='".$r['id']."'"; #Liste over open post id numre der skal rykkes  
 					else $op_id="id ='".$r['id']."'";

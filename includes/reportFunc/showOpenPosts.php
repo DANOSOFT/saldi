@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- ver 5.0.0 --- 2026-10-14 ---
+// --- includes/reportFunc/showOpenPosts.php --- ver 5.0.0 --- 2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -93,6 +93,8 @@
 //                  transdate, so an invoice settled by a later payment looked closed on a date
 //                  it was still open and dropped out of the report. Only the historical path
 //                  joins the group dates; the everyday report issues no extra SQL.
+
+// 20261116 CDX/ASR Carry the displayed ledger with the open-items form to prevent cross-company reminders.
 
 if (!function_exists('openpost_account_filter')) {
 /**
@@ -777,6 +779,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 
 
 	print "<form name=aabenpost action=rapport.php method=post>";
+	print "<input type='hidden' name='thisDb' value='" . htmlspecialchars((string)($GLOBALS['db'] ?? ''), ENT_QUOTES, 'UTF-8') . "'>";
 
 	print "<tr><td colspan=10><hr></td></tr>\n";
 
