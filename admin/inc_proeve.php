@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_proeve.php --- ver 5.1.1 --- 2026.11.09 ---
+// --- admin/inc_proeve.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. Trial follow-up for the operator panel: tabs "Nye kunder" (ledgers still in the 30-day trial, with days left) and "Overskredet prøveperiode" (trial ended without payment, with follow-up status and note).
@@ -12,6 +12,9 @@
 //                 Extending a trial also moves the trial's plan override (ent_start_trial) to the new end date and logs it as entitlement.override_extended, so the Abonnement tab keeps the trial plan for the extended period.
 //                 Only the override that still ends together with the trial is moved, so an override the operator ended stays ended.
 //                 The new trial end and the moved override are written in one transaction, so an interrupted request cannot leave the trial extended and the override at the old date (review #785).
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin).
+//                 tr_sync() takes the latest trial override per account through a join on max(id) instead of DISTINCT ON, with CAST(… AS DATE) instead of ::date.
+//                 On MySQL/MariaDB a ledger's age is the creation time of its oldest table in information_schema, read in one query for the candidate databases; pg_stat_file() stays on PostgreSQL.
 
 if (!function_exists('tr_tables_ensure')) {
 define('TR_DAYS', 30);
@@ -31,12 +34,22 @@ function tr_register($rid, $days = TR_DAYS) {
 // Pick up ledgers created without operator_opret.php (once per request).
 function tr_sync() {
 	static $d = false; if ($d) return; $d = true; tr_tables_ensure(); global $sqdb;
-	db_modify("insert into regnskab_trial (regnskab_id, started, ends, source) select distinct on (o.regnskab_id) o.regnskab_id, o.created_at::date, o.expires_at::date, 'trial' from regnskab_overrides o join regnskab r on r.id = o.regnskab_id left join regnskab_trial t on t.regnskab_id = o.regnskab_id where o.reason = 'trial' and o.expires_at is not null and t.regnskab_id is null order by o.regnskab_id, o.id desc", __FILE__ . " linje " . __LINE__);
-	$ok = db_fetch_array(db_select("select (rolsuper or exists (select 1 from pg_auth_members m join pg_roles g on g.oid = m.roleid where g.rolname = 'pg_read_server_files' and m.member = r.oid)) as ok from pg_roles r where r.rolname = current_user", __FILE__ . " linje " . __LINE__));
-	if (!$ok || ($ok['ok'] !== 't' && $ok['ok'] !== true)) return;
-	$q = db_select("select r.id, (pg_stat_file('base/'||d.oid||'/PG_VERSION')).modification::date as born from regnskab r join pg_database d on d.datname = r.db left join regnskab_trial t on t.regnskab_id = r.id where t.regnskab_id is null and r.db != '".db_escape_string($sqdb)."'", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into regnskab_trial (regnskab_id, started, ends, source) select o.regnskab_id, CAST(o.created_at AS DATE), CAST(o.expires_at AS DATE), 'trial' from regnskab_overrides o join (select max(id) as id from regnskab_overrides where reason = 'trial' and expires_at is not null group by regnskab_id) n on n.id = o.id join regnskab r on r.id = o.regnskab_id left join regnskab_trial t on t.regnskab_id = o.regnskab_id where t.regnskab_id is null", __FILE__ . " linje " . __LINE__);
+	if (op_is_mysql()) { # the oldest table's creation time, for the candidate databases only; the ledger database itself has none
+		$rows = array(); $rq = db_select("select r.id, r.db from regnskab r left join regnskab_trial t on t.regnskab_id = r.id where t.regnskab_id is null and r.db != '".db_escape_string($sqdb)."'", __FILE__ . " linje " . __LINE__);
+		while ($rr = db_fetch_array($rq)) $rows[strtolower((string)$rr['db'])] = array('id' => $rr['id'], 'born' => null);
+		if ($rows) {
+			$bq = db_select("select table_schema as d, CAST(min(create_time) AS DATE) as born from information_schema.tables where table_schema in ('".implode("', '", array_map('db_escape_string', array_keys($rows)))."') group by table_schema", __FILE__ . " linje " . __LINE__);
+			while ($br = db_fetch_array($bq)) if (isset($rows[strtolower((string)$br['d'])])) $rows[strtolower((string)$br['d'])]['born'] = $br['born'];
+		}
+	} else {
+		$ok = db_fetch_array(db_select("select (rolsuper or exists (select 1 from pg_auth_members m join pg_roles g on g.oid = m.roleid where g.rolname = 'pg_read_server_files' and m.member = r.oid)) as ok from pg_roles r where r.rolname = current_user", __FILE__ . " linje " . __LINE__));
+		if (!$ok || !op_bool($ok['ok'])) return;
+		$q = db_select("select r.id, (pg_stat_file('base/'||d.oid||'/PG_VERSION')).modification::date as born from regnskab r join pg_database d on d.datname = r.db left join regnskab_trial t on t.regnskab_id = r.id where t.regnskab_id is null and r.db != '".db_escape_string($sqdb)."'", __FILE__ . " linje " . __LINE__);
+		$rows = array(); while ($rr = db_fetch_array($q)) $rows[] = $rr;
+	}
 	$cut = date('Y-m-d', strtotime('-60 days'));
-	while ($r = db_fetch_array($q)) if ($r['born'] && $r['born'] >= $cut && $r['born'] <= date('Y-m-d'))
+	foreach ($rows as $r) if ($r['born'] && $r['born'] >= $cut && $r['born'] <= date('Y-m-d'))
 		db_modify("insert into regnskab_trial (regnskab_id, started, ends, source) values ('".(int)$r['id']."', '".$r['born']."', '".date('Y-m-d', strtotime($r['born'].' +'.TR_DAYS.' days'))."', 'db')", __FILE__ . " linje " . __LINE__);
 }
 function tr_get($rid) { tr_tables_ensure(); return db_fetch_array(db_select("select * from regnskab_trial where regnskab_id = '".(int)$rid."'", __FILE__ . " linje " . __LINE__)); }

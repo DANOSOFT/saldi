@@ -12,8 +12,11 @@
 // 20261109 CL/ASR partner_layer_ready() asks operator_panel_ready() (the schema flag, PostgreSQL only) instead of information_schema, so a MySQL/MariaDB master never reads the layer's tables (review #785).
 // 20261116 CL/ASR New partner_revoke_legacy(): when a partner's link to an account ends, the account also leaves the adgang_til list of the partner's users, because vis_regnskaber.php and aaben_regnskab.php still decide access by that list (review #785).
 //                 partner_move_ledger() calls it for the partner the account leaves.
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin).
+//                 New ids come from op_insert_id() instead of INSERT … RETURNING, and partner_can() reads can_create through op_bool().
 
 if (!function_exists('partner_tables_ensure')) {
+include_once(__DIR__ . '/opdat_func/operatorPanelDialect.php');
 
 function partner_tables_ensure() {
 	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
@@ -146,7 +149,7 @@ function partner_can($regnskab_id, $what = 'open') {
 	$u = partner_current_user();
 	if ($u['is_operator']) return true;
 	if ($what == 'manage') return false;
-	if ($what == 'create') return $u['partner'] && $u['partner']['can_create'] === 't' && partner_user_can('create');
+	if ($what == 'create') return $u['partner'] && op_bool($u['partner']['can_create']) && partner_user_can('create');
 	$ids = partner_ledgers();
 	if ($ids === null) return true;
 	return in_array((int)$regnskab_id, $ids);
@@ -183,7 +186,7 @@ function partner_migrate_adgang_til() {
 		$ids = array_filter(array_map('intval', explode(",", $tmp)));
 		if (strpos($tmp, '*') !== false || !$ids) continue;
 		if (db_fetch_array(db_select("select 1 from partner_users where bruger_id = '" . (int)$r['id'] . "'", __FILE__ . " linje " . __LINE__))) continue;
-		$p = db_fetch_array(db_select("insert into partners (kind, name, created_by) values ('bogholder', '" . db_escape_string($r['brugernavn']) . "', '" . (int)partner_current_user()['id'] . "') returning id", __FILE__ . " linje " . __LINE__));
+		$p = array('id' => op_insert_id("insert into partners (kind, name, created_by) values ('bogholder', '" . db_escape_string($r['brugernavn']) . "', '" . (int)partner_current_user()['id'] . "')", __FILE__ . " linje " . __LINE__));
 		$pid = (int)$p['id'];
 		db_modify("insert into partner_users (bruger_id, partner_id, partner_role) values ('" . (int)$r['id'] . "', '$pid', 'owner')", __FILE__ . " linje " . __LINE__);
 		foreach ($ids as $id) db_modify("insert into regnskab_partners (regnskab_id, partner_id, created_by, note) values ('$id', '$pid', '" . (int)partner_current_user()['id'] . "', 'migreret fra adgang_til')", __FILE__ . " linje " . __LINE__);
@@ -200,11 +203,11 @@ function partner_login_free($username) { return !db_fetch_array(db_select("selec
 function partner_create_for_ledger($rid, $kind, $name, $cvr, $can_create, $login = null) {
 	if (!in_array($kind, partner_kinds(), true)) return array(0, 'Ukendt type');
 	partner_tables_ensure();
-	$r = db_fetch_array(db_select("insert into partners (kind, name, cvr, home_regnskab_id, can_create, created_by) values ('$kind', '".db_escape_string($name)."', '".db_escape_string($cvr)."', '".(int)$rid."', ".($can_create ? 'true' : 'false').", '".(int)partner_current_user()['id']."') returning id", __FILE__ . " linje " . __LINE__)); $pid = (int)$r['id'];
+	$r = array('id' => op_insert_id("insert into partners (kind, name, cvr, home_regnskab_id, can_create, created_by) values ('$kind', '".db_escape_string($name)."', '".db_escape_string($cvr)."', '".(int)$rid."', ".($can_create ? 'true' : 'false').", '".(int)partner_current_user()['id']."')", __FILE__ . " linje " . __LINE__)); $pid = (int)$r['id'];
 	partner_log('partner.created', (int)$rid, $pid, "$kind: $name (med eget regnskab)");
 	if ($login && $login[0] !== '' && strlen($login[1]) >= 6) {
 		if (!partner_login_free($login[0])) return array($pid, 'Login findes allerede i masterlaget – medarbejder kan tilføjes på partnerkortet');
-		$u = db_fetch_array(db_select("insert into brugere (brugernavn, rettigheder, status) values ('".db_escape_string($login[0])."', ',,,', true) returning id", __FILE__ . " linje " . __LINE__)); $bid = (int)$u['id'];
+		$u = array('id' => op_insert_id("insert into brugere (brugernavn, rettigheder, status) values ('".db_escape_string($login[0])."', ',,,', true)", __FILE__ . " linje " . __LINE__)); $bid = (int)$u['id'];
 		db_modify("update brugere set kode = '".db_escape_string(saldikrypt($bid, $login[1]))."' where id = '$bid'", __FILE__ . " linje " . __LINE__);
 		db_modify("insert into partner_users (bruger_id, partner_id, partner_role) values ('$bid', '$pid', 'owner')", __FILE__ . " linje " . __LINE__);
 		partner_log('partner.employee_added', (int)$rid, $pid, "login ".$login[0]." (ejer)");

@@ -1,5 +1,5 @@
 <?php
-// --- admin/vr_ui.php --- ver 5.1.1 --- 2026.11.09 ---
+// --- admin/vr_ui.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Shared view helpers for the admin-layer pages that use the new page layout (vis_regnskaber.php, regnskab.php, partnere.php): escaping that follows the database charset, number/date formatting, da/en texts without the uncached findtekst('plain text') path, and the page frame (head/tabs/foot).
@@ -7,6 +7,7 @@
 // 20261109 CL/ASR The CSRF exemption, the redirect after a POST and the active menu item use the script that actually runs (vr_self(): SCRIPT_FILENAME in admin/), not PHP_SELF, which also carries PATH_INFO.
 //                 A request with PATH_INFO (operator_brugere.php/godkend.php) is answered with 404, so a tokenless cross-site POST can no longer pass as godkend.php.
 //                 vr_require_operator() asks operator_panel_ready() (flag at the current version) and says so plainly on a MySQL/MariaDB master, where the panel never opens.
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). The page that waits for the schema step no longer says that the panel needs a PostgreSQL master.
 
 if (!function_exists('vr_h')) {
 function vr_cs() { global $db_encode; return ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1'; }
@@ -45,7 +46,7 @@ function vr_require_operator() {
 		include_once(__DIR__ . '/../includes/opdat_func/operatorPanelSchema.php');
 		if (!operator_panel_ready()) {
 			while (ob_get_level()) ob_end_clean();
-			$vr_np = operator_panel_supported() ? array(vr_t('Panelet er ved at blive klar','The panel is being prepared'), vr_t('Panelets tabeller oprettes ved næste login i et regnskab efter opdateringen. Log ind i et vilkårligt regnskab, og prøv igen.','The panel\'s tables are created at the next login to any account after the update. Log in to any account and try again.')) : array(vr_t('Panelet findes ikke på denne installation','The panel is not available on this installation'), vr_t('Operatørpanelet kræver en PostgreSQL-masterdatabase. Brug den klassiske menu.','The operator panel needs a PostgreSQL master database. Use the classic menu.'));
+			$vr_np = array(vr_t('Panelet er ved at blive klar','The panel is being prepared'), vr_t('Panelets tabeller oprettes ved næste login i et regnskab efter opdateringen. Log ind i et vilkårligt regnskab, og prøv igen.','The panel\'s tables are created at the next login to any account after the update. Log in to any account and try again.'));
 			print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;color:#222\"><h1 style=\"font-size:20px\">".$vr_np[0]."</h1><p>".$vr_np[1]."</p><p><a href=\"../index/admin_menu.php?klassisk=1\">".vr_t('Til den klassiske menu','To the classic menu')."</a></p></body></html>"; exit;
 		}
 		return;

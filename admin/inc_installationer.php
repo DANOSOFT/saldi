@@ -10,6 +10,7 @@
 // 20261109 CL/ASR Invoice dates from the billing API reach SQL only as validated YYYY-MM-DD dates, anything else is stored as NULL (review #785).
 //                 When an invoice date cannot be read at all (bill_date_error()), the refresh is refused and the stored status kept, where bill_classify() turned it into a 1970 due date and a false "overdue" (review #785).
 // 20261113 CL/ASR The invoice table shows an unreadable invoice date as a dash with no due date (bill_dmy(), bill_classify()), not as 01-01-1970 and overdue (review #785).
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). A new installation's id comes from op_insert_id().
 
 if (!function_exists('inst_tables_ensure')) {
 function inst_tables_ensure() {
@@ -40,7 +41,7 @@ function inst_actions(&$notes, &$id) {
 		if (trim((string)if_isset($_POST, '', 'name')) === '') { $notes[] = vr_t('Navn mangler','Name missing'); return; }
 		$f = inst_fields();
 		if ($a == 'create') {
-			$r = db_fetch_array(db_select("insert into self_hosted (".implode(', ', array_keys($f)).", created_by) values (".implode(', ', $f).", '".db_escape_string(ent_actor())."') returning id", __FILE__ . " linje " . __LINE__)); $id = (int)$r['id'];
+			$r = array('id' => op_insert_id("insert into self_hosted (".implode(', ', array_keys($f)).", created_by) values (".implode(', ', $f).", '".db_escape_string(ent_actor())."')", __FILE__ . " linje " . __LINE__)); $id = (int)$r['id'];
 			inst_log($id, 'install.created', trim($_POST['name'])); $notes[] = vr_t('Installationen er oprettet','Installation created');
 		} else {
 			$set = array(); foreach ($f as $k => $v) $set[] = "$k = $v";

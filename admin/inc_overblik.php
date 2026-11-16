@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_overblik.php --- ver 5.1.1 --- 2026.11.09 ---
+// --- admin/inc_overblik.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 5: a small commercial overview on the operator's Overblik page.
@@ -9,6 +9,8 @@
 //                 Add-ons and feature/add-on overrides do not change the user, entry or item limits, so the figures are the same as before.
 //                 ov_data() and ov_render() each have their own function_exists() guard and are laid out with one statement per line and a comment per section; the printed page is unchanged (review #785).
 //                 MRR counts an on/off add-on once and multiplies only counted add-ons by their quantity, the same rule as the Abonnement tab (review #785).
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin).
+//                 Accounts without a due date sort last through (oldest_due is null) instead of NULLS LAST, and the latest usage snapshot per account comes from a join on max(taken_at) instead of DISTINCT ON.
 
 if (!function_exists('ov_data')) {
 	// The overview's figures, computed from the master database on every call.
@@ -85,7 +87,7 @@ if (!function_exists('ov_data')) {
 		}
 
 		// Customers with overdue or failed payments, from the cached billing summary
-		$q = db_select("select b.*, r.regnskab from regnskab_billing b join regnskab r on r.id = b.regnskab_id where b.checked_at is not null and coalesce(r.lukket,'') != 'on' order by b.oldest_due nulls last, b.outstanding_ore desc", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select b.*, r.regnskab from regnskab_billing b join regnskab r on r.id = b.regnskab_id where b.checked_at is not null and coalesce(r.lukket,'') != 'on' order by (b.oldest_due is null), b.oldest_due, b.outstanding_ore desc", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$d['checked']++;
 			if (in_array($r['pay_status'], array('overdue','failed'))) {
@@ -95,7 +97,7 @@ if (!function_exists('ov_data')) {
 		}
 
 		// Ledgers near a limit: the latest usage snapshot per ledger against the ledger's limits
-		$q = db_select("select distinct on (regnskab_id) * from usage_snapshots order by regnskab_id, taken_at desc", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select s.* from usage_snapshots s join (select regnskab_id, max(taken_at) as taken_at from usage_snapshots group by regnskab_id) m on m.regnskab_id = s.regnskab_id and m.taken_at = s.taken_at", __FILE__ . " linje " . __LINE__);
 		$snaps = array();
 		while ($r = db_fetch_array($q)) {
 			$snaps[(int)$r['regnskab_id']] = $r;
