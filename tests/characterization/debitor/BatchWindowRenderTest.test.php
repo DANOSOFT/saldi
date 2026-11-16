@@ -17,7 +17,7 @@
 // 20261111 CDX/NTR Bound the legacy warning allowance by source location and occurrence count.
 // 20261111 CDX/NTR Normalize the two PHP null-offset wordings without changing warning locations or counts.
 // 20261113 CDX/NTR Align warning locations with the branch's added permission declaration and history line.
-// 20261116 CL/MMR SST-1023 The legacy warning lines move down five lines because the save block above the window grew; the warnings themselves are unchanged.
+// 20261116 CL/MMR SST-1023 The legacy warning lines move down six lines because the save block and the history above the window grew; the warnings themselves are unchanged.
 namespace BatchWindowFixture {
 
     /** One query's worth of rows, handed back by db_fetch_array() one at a time. */
@@ -142,11 +142,11 @@ namespace {
          * $valg would change what a saved form redisplays - not this PR's business.
          */
         private const LEGACY_WARNINGS = array(
-            '191: Undefined variable $valg' => 2,
-            '191: Trying to access array offset on value of type null' => 2,
             '192: Undefined variable $valg' => 2,
             '192: Trying to access array offset on value of type null' => 2,
-            '304: Array to string conversion' => 1,
+            '193: Undefined variable $valg' => 2,
+            '193: Trying to access array offset on value of type null' => 2,
+            '305: Array to string conversion' => 1,
         );
 
         private static function source(): string

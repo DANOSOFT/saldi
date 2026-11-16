@@ -36,6 +36,7 @@
 // 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261116 CL/MMR SST-1023 Gem in the batch window no longer gives a blank page on PHP 8: the posted lager, row count and Vælg fields are read as numbers, so an empty field counts as 0.
+// 20261116 CL/MMR SST-1023 The line id from the address and the chosen credit line are cast to whole numbers before they reach SQL.
 @session_start();
 $s_id=session_id();
 
@@ -43,7 +44,7 @@ $css="../css/standard.css";
 
 $title="batch";
 
-$linje_id=$_GET['linje_id'];
+$linje_id = (int)($_GET['linje_id'] ?? 0);
 include("../includes/connect.php");
 $permission_key = 'debitor.ordre';
 include("../includes/online.php");
@@ -56,7 +57,7 @@ if ($_POST['submit']){
 	if ($submit=="Luk"){print "<body onload=\"javascript:window.close();\">";}
 	$vare_id=$_POST['vare_id'];
 	$leveres=$_POST['antal'];
-	$kred_linje_id=$_POST['kred_linje_id'];
+	$kred_linje_id = array_map('intval', (array)ifset($_POST, 'kred_linje_id', array()));
 	$batch_antal = (int)ifset($_POST, 'batch_antal', 0);
 	$art=trim($_POST['art']);
 	// SST-1023 The hidden lager field is empty when the order's employee has no department, and
@@ -73,9 +74,9 @@ if ($_POST['submit']){
 			$temp="batch_kob_id_".$x;
 			$batch_kob_id[$x] = (int)ifset($_POST, $temp, 0);
 			$temp="ordrenr_".$x;
-			$ordrenr[$x]=$_POST[$temp];
+			$ordrenr[$x] = ifset($_POST, $temp, '');
 			$temp="batch_salg_id_".$x;
-			$batch_salg_id[$x]=$_POST[$temp];
+			$batch_salg_id[$x] = (int)ifset($_POST, $temp, 0);
 			$temp="res_linje_id_".$x;
 			$res_linje_id[$x] = (int)ifset($_POST, $temp, 0);
 			$temp="rest_".$x;
