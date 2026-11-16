@@ -36,6 +36,7 @@
 // 20261028 CL/LH Singular "1 ny bankpostering" and "N posteringer til gennemsyn" in the tooltip.
 // 20261028 CL/LH Stale warning only for an overdue scheduled fetch; support codes in one casing.
 // 20261116 CL/LH Shown to users who switched on "Vis bankstatus i kassekladden" (Personlige indstillinger), as the old icon was.
+// 20261116 CL/LH The personal setting is read first, so a user without the icon costs one query and no bank schema checks.
 //                Texts through findtekst() (bank.status.*).
 
 include_once __DIR__ . '/enabled.php';
@@ -52,7 +53,7 @@ if (!function_exists('ebStatusIndicator')) {
 	 */
 	function ebStatusIndicator(): array {
 		$result = array('level' => 0, 'reasons' => array(), 'href' => '../bank_integration/feed.php');
-		if (!bankIntegrationEnabled() || !ebCanViewFeed() || !ebStatusIconWanted()) {
+		if (!ebStatusIconWanted() || !bankIntegrationEnabled() || !ebCanViewFeed()) {
 			return $result;
 		}
 		$accounts = array();

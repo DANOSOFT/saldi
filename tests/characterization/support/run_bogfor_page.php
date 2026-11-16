@@ -17,6 +17,7 @@
 //            for real to transaktioner)
 //       2 = kladde_id (kladdeliste.id, fixture created by the test)
 //       3 = session id (must match the seeded online row)
+//       4 = optional journal note (default 'chartest'; '' posts without one)
 //
 // Prints CHARTEST_PAGE_DONE on stdout if the include ran to completion.
 // (Some page branches exit() before that - the test asserts on DB state,
@@ -24,6 +25,7 @@
 //
 // History:
 // 20260723 CL/LH SD-601: created.
+// 20261116 CL/LH Optional 4th argument for the journal note: without a note posting takes no header row lock on its own.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_bogfor_page.php <simuler|bogfor> <kladde_id> <session_id>\n");
@@ -48,7 +50,7 @@ $_GET['kladde_id'] = (string)$kladdeId;
 $_GET['funktion'] = $mode;
 $_POST['kladde_id'] = (string)$kladdeId;
 $_POST[$mode] = 'on';
-$_POST['kladdenote'] = 'chartest';
+$_POST['kladdenote'] = $argc > 4 ? $argv[4] : 'chartest';
 
 ini_set('session.save_path', sys_get_temp_dir());
 session_id($sessionId); // the page's @session_start() picks this id up -> online row matches

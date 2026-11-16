@@ -32,6 +32,7 @@
 // 20261028 CDX/LH Fence automatic delivery by date and validate manual selection atomically.
 // 20261028 CL/LH A restored possible duplicate returns to review; restore says where the line went.
 // 20261116 CL/LH Pull model: no bank-owned journals and no automatic delivery. ebImportIntoJournal() puts the lines a user picks into the journal the user works in; lines it cannot take stay under Nye with their reason.
+// 20261116 CL/LH The user name is compared with kladdeliste.hvem as UTF-8 (ebUtf8()), also on an ISO-8859-15 tenant.
 
 require_once __DIR__ . '/ebSchema.php';
 require_once __DIR__ . '/ebStore.php';
@@ -76,6 +77,8 @@ function ebActiveFiscalYear(): ?array
 function ebImportIntoJournal(int $kladdeId, int $accountId, array $ids, string $username): array
 {
     $ids = ebSelectedIds($ids);
+    // kladdeliste.hvem comes back as UTF-8 (ebRows()); the session's user name may still be ISO-8859-15.
+    $username = ebUtf8($username);
     $ownSaveLock = empty($GLOBALS['kkJournalLocked']);
     if ($ownSaveLock) {
         // A kassekladde save of the same journal stages and numbers its lines under this lock (MB-81).

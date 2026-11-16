@@ -37,6 +37,7 @@
 // 20261028 CL/LH Cover that a paused account with automatic import promises nothing before Genoptag.
 // 20261028 CDX/LH Cover stopped access on resume and safe authorization-specific errors with support codes.
 // 20261116 CL/LH Pull model: tests of bank-owned journals, automatic import, the journal line cap and the bogfor.php lock are gone; picks go through ebImportIntoJournal() into a given journal (vouchers, positions, links, locks, posted and simulated journals, fiscal year, idempotency, foreign ids), and the feed renders with and without a journal.
+// 20261116 CL/LH Review fixes: posting and import serialize on the journal header (both directions, real processes), import after an account reset, ISO-8859-15 bank text.
 
 use PHPUnit\Framework\TestCase;
 
@@ -616,8 +617,6 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertCount(0, ebRows('SELECT id FROM bank_import_links'));
         $this->assertCount(0, ebRows("SELECT id FROM bank_audit_log WHERE action='import_selected'"));
         $this->assertNull(ebAccountStatus($this->accountId)['last_import_at']);
-        // Posting code is untouched: the import takes the journal header lock itself.
-        $this->assertStringNotContainsString('FOR UPDATE', file_get_contents(__DIR__ . '/../../../finans/bogfor.php'));
     }
 
     /** @return void */
@@ -2372,5 +2371,175 @@ final class EnableBankingBackendTest extends TestCase
         $next = $this->journal();
         $this->assertSame(1, ebImportIntoJournal($next, $this->accountId, [3], 'chartest')['imported']);
         $this->assertSame('1', ebRow('SELECT COUNT(*) AS n FROM kassekladde WHERE kladde_id=' . $next)['n']);
+    }
+
+    /**
+     * Starts a support script without waiting for it; output goes to temporary files.
+     * @param list<string> $args
+     * @return array{proc:resource, out:resource, err:resource}
+     */
+    private function startChild(string $script, array $args): array
+    {
+        $out = tmpfile();
+        $err = tmpfile();
+        $proc = proc_open(array_merge([PHP_BINARY, $script], array_map('strval', $args)), [0 => ['pipe', 'r'], 1 => $out, 2 => $err], $pipes);
+        $this->assertIsResource($proc);
+        fclose($pipes[0]);
+        return ['proc' => $proc, 'out' => $out, 'err' => $err];
+    }
+
+    /** @return array{exit:int, stdout:string, stderr:string} */
+    private function finishChild(array $child): array
+    {
+        $deadline = time() + 120;
+        while (proc_get_status($child['proc'])['running'] && time() < $deadline) {
+            usleep(100000);
+        }
+        $status = proc_get_status($child['proc']);
+        $exit = proc_close($child['proc']);
+        rewind($child['out']);
+        rewind($child['err']);
+        $result = ['exit' => $status['running'] ? -1 : ($status['exitcode'] >= 0 ? $status['exitcode'] : $exit),
+            'stdout' => (string)stream_get_contents($child['out']), 'stderr' => (string)stream_get_contents($child['err'])];
+        fclose($child['out']);
+        fclose($child['err']);
+        return $result;
+    }
+
+    /** @return void Waits until another session of this database is blocked on a lock (the child), at most 60 s. */
+    private function waitForLockWaiter($holder, array $child): void
+    {
+        $deadline = time() + 60;
+        do {
+            // pg_stat_activity is a snapshot per transaction, and the holder is inside one.
+            pg_query($holder, 'SELECT pg_stat_clear_snapshot()');
+            $waiting = (int)pg_fetch_result(pg_query($holder, "SELECT COUNT(*) FROM pg_stat_activity WHERE datname=current_database()"
+                . " AND pid<>pg_backend_pid() AND wait_event_type='Lock'"), 0, 0);
+            if ($waiting > 0) {
+                return;
+            }
+            $this->assertTrue(proc_get_status($child['proc'])['running'], 'the child ended without waiting for the journal header');
+            usleep(100000);
+        } while (time() < $deadline);
+        $this->fail('The child never waited for the journal header lock');
+    }
+
+    /** @return void An import in progress holds the header; posting waits and then posts the bank lines too. */
+    public function test_posting_waits_for_an_import_holding_the_journal_header_and_posts_its_lines(): void
+    {
+        $this->persist([$this->page()['transactions'][0]]);
+        // Without a journal note posting took no header lock before it read the lines (the race this covers).
+        $journal = $this->journal(['kladdenote' => '']);
+        $this->importPending(null, $journal);
+        ebWrite('UPDATE kassekladde SET kredit=' . $this->otherLedger . ' WHERE kladde_id=' . $journal . ' AND kredit=0');
+        ebWrite('UPDATE kassekladde SET debet=' . $this->otherLedger . ' WHERE kladde_id=' . $journal . ' AND debet=0');
+        $import = CharacterizationEnv::connect(ebTestDb());
+        pg_query($import, 'BEGIN');
+        pg_query($import, 'SELECT id FROM kladdeliste WHERE id=' . $journal . ' FOR UPDATE');
+        pg_query($import, "INSERT INTO kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, faktura, amount, kladde_id, momsfri, afd, projekt, ansat, valuta, pos)
+            VALUES (99, '" . ebToday() . "', 'Bankimport i gang', 'F', " . $this->ledger . ", 'F', " . $this->otherLedger . ", '', 10, " . $journal . ", '', 0, '', '0', 0, 99)");
+        $posting = $this->startChild(__DIR__ . '/../support/run_bogfor_page.php', ['bogfor', $journal, CharacterizationEnv::sessionId(), '']);
+        // Commit only once posting is blocked on a row lock: with the header lock that is before it reads the lines.
+        try {
+            $this->waitForLockWaiter($import, $posting);
+        } finally {
+            pg_query($import, 'COMMIT');
+            pg_close($import);
+            $result = $this->finishChild($posting);
+        }
+        $this->assertSame(0, $result['exit'], $result['stderr'] . $result['stdout']);
+        $this->assertSame('V', ebRow('SELECT bogfort FROM kladdeliste WHERE id=' . $journal)['bogfort']);
+        // Every line of the posted journal is in transaktioner, the one committed while posting waited included.
+        $this->assertNotNull(ebRow("SELECT id FROM transaktioner WHERE kladde_id=" . $journal . " AND beskrivelse='Bankimport i gang'"));
+        $this->assertSame('2', ebRow('SELECT COUNT(DISTINCT bilag) AS n FROM transaktioner WHERE kladde_id=' . $journal)['n']);
+        $this->assertStringContainsString('for update', strtolower(file_get_contents(__DIR__ . '/../../../finans/bogfor.php')));
+    }
+
+    /** @return void Posting holds the header; the import waits and then refuses the posted journal, writing nothing. */
+    public function test_import_waiting_for_a_posting_refuses_the_posted_journal(): void
+    {
+        $this->persist($this->page()['transactions']);
+        $journal = $this->journal(['kladdenote' => '']);
+        $posting = CharacterizationEnv::connect(ebTestDb());
+        pg_query($posting, 'BEGIN');
+        pg_query($posting, 'SELECT id FROM kladdeliste WHERE id=' . $journal . ' FOR UPDATE');
+        $import = $this->startChild(__DIR__ . '/support/run_import.php', [$journal, $this->accountId, $GLOBALS['regnaar'], 1, 2]);
+        try {
+            $this->waitForLockWaiter($posting, $import);
+            pg_query($posting, "UPDATE kladdeliste SET bogfort='V' WHERE id=" . $journal);
+        } finally {
+            pg_query($posting, 'COMMIT');
+            pg_close($posting);
+            $result = $this->finishChild($import);
+        }
+        $this->assertSame(0, $result['exit'], $result['stderr'] . $result['stdout']);
+        $this->assertArrayHasKey('refused', json_decode(trim($result['stdout']), true, 512, JSON_THROW_ON_ERROR));
+        $this->assertSame('0', ebRow('SELECT COUNT(*) AS n FROM kassekladde WHERE kladde_id=' . $journal)['n']);
+        $this->assertSame('0', ebRow('SELECT COUNT(*) AS n FROM bank_import_links')['n']);
+        $this->assertSame('2', ebRow("SELECT COUNT(*) AS n FROM bank_transactions WHERE review_state='pending'")['n']);
+    }
+
+    /** @return void A reset restarts the kassekladde ids; the old links let go of them, so the next import works. */
+    public function test_import_after_account_reset_does_not_collide_with_old_links(): void
+    {
+        require_once __DIR__ . '/../../../systemdata/resetAccount.php';
+        $this->persist($this->page()['transactions']);
+        ebRows("SELECT setval(pg_get_serial_sequence('kassekladde','id'), 1, false)");
+        $first = $this->journal();
+        $this->assertSame(1, ebImportIntoJournal($first, $this->accountId, [1], 'chartest')['imported']);
+        $oldLink = ebRow('SELECT * FROM bank_import_links');
+        $this->assertSame('1', $oldLink['kassekladde_id']);
+        foreach (accountResetStatements(['kassekladde', 'kladdeliste', 'bank_import_links'], true, true, 'postgresql') as $statement) {
+            ebWrite($statement);
+        }
+        $link = ebRow('SELECT * FROM bank_import_links WHERE id=' . (int)$oldLink['id']);
+        $this->assertSame(['deleted', (string)-(int)$oldLink['id'], $oldLink['transaction_id'], $oldLink['kladde_id'], $oldLink['bilag']],
+            [$link['disposition'], $link['kassekladde_id'], $link['transaction_id'], $link['kladde_id'], $link['bilag']]);
+        $second = $this->journal();
+        $result = ebImportIntoJournal($second, $this->accountId, [2], 'chartest');
+        $this->assertSame(1, $result['imported']);
+        $this->assertSame('1', ebRow('SELECT kassekladde_id FROM bank_import_links WHERE transaction_id=2')['kassekladde_id']);
+        // The line from before the reset can be moved back to Nye and picked again.
+        $GLOBALS['ebActionAccountId'] = $this->accountId;
+        ebTransactionAction(1, 'reimport', 'chartest');
+        $this->assertSame(1, ebImportIntoJournal($second, $this->accountId, [1], 'chartest')['imported']);
+    }
+
+    /** @return void On an ISO-8859-15 company the bank text is stored as that charset and read back as UTF-8. */
+    public function test_latin9_company_gets_bank_text_in_its_own_charset(): void
+    {
+        $name = 'eb_latin9_' . bin2hex(random_bytes(6));
+        $admin = CharacterizationEnv::connect(CharacterizationEnv::masterDb());
+        pg_query($admin, "CREATE DATABASE $name ENCODING 'LATIN9' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0");
+        $saved = [$GLOBALS['connection'], $GLOBALS['db_encode']];
+        try {
+            $latin = CharacterizationEnv::connect($name);
+            pg_set_client_encoding($latin, 'LATIN9'); // what db_connect() does for $db_encode LATIN9
+            $GLOBALS['connection'] = $latin;
+            $GLOBALS['db_encode'] = 'LATIN9';
+            ebWrite('CREATE TABLE eb_text (id SERIAL PRIMARY KEY, txt VARCHAR(100))');
+            $id = ebInsert('eb_text', ['txt' => 'Køb hos Søren']);
+            // Legacy code (kassekladde) reads the tenant charset: one byte per letter.
+            $this->assertSame(mb_convert_encoding('Køb hos Søren', 'ISO-8859-15', 'UTF-8'), pg_fetch_result(pg_query($latin, 'SELECT txt FROM eb_text WHERE id=' . $id), 0, 0));
+            // The bank code reads UTF-8 again, legacy text included.
+            pg_query($latin, "INSERT INTO eb_text (txt) VALUES ('" . mb_convert_encoding('Lønkonto', 'ISO-8859-15', 'UTF-8') . "')");
+            $this->assertSame(['Køb hos Søren', 'Lønkonto'], array_column(ebRows('SELECT txt FROM eb_text ORDER BY id'), 'txt'));
+            $this->assertSame('1', ebRow('SELECT COUNT(*) AS n FROM eb_text WHERE txt=' . ebSql('Køb hos Søren'))['n']);
+            // A session user name that is already ISO-8859-15 is neither converted twice nor broken.
+            $latinUser = mb_convert_encoding('Søren', 'ISO-8859-15', 'UTF-8');
+            $this->assertSame($latinUser, ebToDb($latinUser));
+            $this->assertSame('Søren', ebUtf8($latinUser));
+            $this->assertSame('Søren', ebUtf8('Søren'));
+            // The stored bytes read through a UTF-8 client are the real letters, not "KÃ¸b".
+            $utf = CharacterizationEnv::connect($name);
+            pg_set_client_encoding($utf, 'UTF8');
+            $this->assertSame('Køb hos Søren', pg_fetch_result(pg_query($utf, 'SELECT txt FROM eb_text WHERE id=' . $id), 0, 0));
+            pg_close($utf);
+            pg_close($latin);
+        } finally {
+            [$GLOBALS['connection'], $GLOBALS['db_encode']] = $saved;
+            pg_query($admin, "DROP DATABASE IF EXISTS $name");
+            pg_close($admin);
+        }
     }
 }

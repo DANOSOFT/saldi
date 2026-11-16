@@ -230,6 +230,7 @@
 // 20261116 CL/LH Replaced the commented-out Aiia "Bank Import" button with a "Bankforbindelse" button (shown when Enable Banking is on for the company); it saves like Import and then opens the bank feed page.
 //                Both save replay guards apply to Bankforbindelse, and a replay is sent on to the feed.
 //                Back from the feed, the journal shows once what was put into it (eb_journal_notice).
+//                The feed opens only after opdater() saved every line, so a partly refused save stays in the journal with its error.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -1916,9 +1917,6 @@ if ($_POST) {
 				$bilagsnr = $next_bilagsnr;
 				print "<meta http-equiv='refresh' content='0;URL=../finans/importer.php?kladde_id=$kladde_id&bilagsnr=$bilagsnr'>";
 			}
-			if ($submit == 'bankfeed') {
-				print "<meta http-equiv='refresh' content='0;URL=../bank_integration/feed.php?kladde_id=" . (int)$kladde_id . "'>";
-			}
 			#if (strstr($submit,"Udlig")) {
 			if ($submit == 'offset') {
 				print "<meta http-equiv='refresh' content='0;URL=../finans/autoudlign.php?kladde_id=$kladde_id'>";
@@ -2033,6 +2031,10 @@ if (!$fejl && $kladde_id) {
 			// After the journal has loaded, so its pagehide handler releases the lock as on a normal click
 			print "<script>document.addEventListener('DOMContentLoaded', function () { window.location.replace(" . json_encode($kkPoolUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "); });</script>";
 		}
+	}
+	// Bankforbindelse opens the bank feed only once opdater() has saved every line; a refused line keeps the user here with the error
+	if (!$fejl && $submit == 'bankfeed') {
+		print "<meta http-equiv='refresh' content='0;URL=../bank_integration/feed.php?kladde_id=" . (int)$kladde_id . "'>";
 	}
 }
 /*

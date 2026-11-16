@@ -27,6 +27,7 @@
 // 20261006 CDX/LH Created Enable Banking ebDb backend service.
 // 20261007 CDX/LH Used native tenant writes and SQLSTATE errors without legacy SQL logging.
 // 20261116 CL/LH ebLang() and ebT() for the findtekst() texts of the bank feed.
+// 20261116 CL/LH On an ISO-8859-15 (LATIN9) tenant the bank code still works in UTF-8: ebSql() converts text to the tenant's charset and ebRows() converts it back, so bank text reaches kassekladde and legacy text reaches the bank pages correctly.
 
 /**
  * Database context is established by includes/connect.php and includes/online.php, or worker.php.
@@ -60,7 +61,44 @@ function ebLang(): int
  */
 function ebT(string $text): string
 {
-    return ($GLOBALS['db_encode'] ?? 'UTF8') !== 'UTF8' ? mb_convert_encoding($text, 'UTF-8', 'ISO-8859-1') : $text;
+    return ebFromDb($text);
+}
+
+/** @return bool Whether the tenant database (and its connection, see db_connect()) uses ISO-8859-15 instead of UTF-8. */
+function ebLatinTenant(): bool
+{
+    return ($GLOBALS['db_encode'] ?? 'UTF8') !== 'UTF8';
+}
+
+/**
+ * @param string $text Text from the bank code (UTF-8). Text that is not valid UTF-8 already came from the tenant
+ *                     (a user name from the session) and is left as it is.
+ * @return string The text in the tenant's charset; characters ISO-8859-15 lacks become '?'.
+ */
+function ebToDb(string $text): string
+{
+    if (!ebLatinTenant() || !preg_match('/[\x80-\xff]/', $text) || !mb_check_encoding($text, 'UTF-8')) {
+        return $text;
+    }
+    return mb_convert_encoding($text, 'ISO-8859-15', 'UTF-8');
+}
+
+/**
+ * @param string $text A user name or other text that may still be in the tenant's charset (session values).
+ * @return string The text as UTF-8, whichever of the two it arrived in.
+ */
+function ebUtf8(string $text): string
+{
+    return ebLatinTenant() && !mb_check_encoding($text, 'UTF-8') ? mb_convert_encoding($text, 'UTF-8', 'ISO-8859-15') : $text;
+}
+
+/**
+ * @param string $text Text from the tenant database or findtekst().
+ * @return string The text as UTF-8.
+ */
+function ebFromDb(string $text): string
+{
+    return ebLatinTenant() ? mb_convert_encoding($text, 'UTF-8', 'ISO-8859-15') : $text;
 }
 
 /** @return bool Whether the active driver is mysqli. */
@@ -100,7 +138,8 @@ function ebSql(string|int|bool|null $value): string
     if (is_int($value) || is_bool($value)) {
         return (string)(int)$value;
     }
-    return "'" . db_escape_string($value) . "'";
+    // Converted after escaping: db_escape_string() turns any text that is not UTF-8 into UTF-8.
+    return "'" . ebToDb(db_escape_string($value)) . "'";
 }
 
 /** @return void Write directly on the tenant connection, without logging SQL or inspecting bank text. */
@@ -146,7 +185,15 @@ function ebRows(string $sql): array
             throw new EbDbException();
         }
         $rows = [];
+        $latin = ebLatinTenant();
         while ($row = ebMysql() ? mysqli_fetch_assoc($result) : pg_fetch_assoc($result)) {
+            if ($latin) {
+                foreach ($row as $column => $value) {
+                    if (is_string($value)) {
+                        $row[$column] = ebFromDb($value);
+                    }
+                }
+            }
             $rows[] = $row;
         }
         return $rows;

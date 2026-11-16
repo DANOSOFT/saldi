@@ -6,7 +6,7 @@
 // 20260916 CDX/PHR Verify user year reset and tenant-scoped session updates.
 // 20260917 CL/LH Verify the reset is refused on MySQL/MariaDB before any statement is issued.
 // 20261005 SS Verify personal settings (USET) are not deleted by a reset.
-// 20261116 CL/LH Check bank import link invalidation only when the table exists.
+// 20261116 CL/LH Check bank import link invalidation and detachment only when the table exists.
 require_once(__DIR__ . '/../systemdata/resetAccount.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -38,7 +38,8 @@ foreach (array(false, true) as $keepAccounts) {
 		resetCheck(strpos(implode(';', $sql), "'USET'") === false, 'Personal settings (USET) must survive a reset');
 	}
 }
-$bankReset = "UPDATE bank_import_links SET disposition='deleted', disposition_at=CURRENT_TIMESTAMP WHERE disposition IN ('active','posted')";
+$bankReset = "UPDATE bank_import_links SET disposition=CASE WHEN disposition IN ('active','posted') THEN 'deleted' ELSE disposition END, "
+	. "disposition_at=CASE WHEN disposition IN ('active','posted') THEN CURRENT_TIMESTAMP ELSE disposition_at END, kassekladde_id=-id WHERE kassekladde_id>0";
 resetCheck(in_array($bankReset, accountResetStatements(array_merge($existing, array('bank_import_links')), true, true, 'postgresql'), true), 'Reset must invalidate bank import links when the table exists');
 resetCheck(!in_array($bankReset, accountResetStatements($existing, true, true, 'postgresql'), true), 'Reset must not reference an absent bank table');
 resetCheck(accountResetStatements(array('bank_import_links'), true, true, 'postgresql') === array($bankReset), 'Link reset needs only bank_import_links');

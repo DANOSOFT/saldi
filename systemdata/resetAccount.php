@@ -8,7 +8,7 @@
 // 20260917 CL/LH Refuse the reset on MySQL/MariaDB, where TRUNCATE auto-commits and the
 //                transaction cannot be rolled back.
 // 20261005 SS Settings redesign G1.4: users' personal settings (grupper USET) survive a reset.
-// 20261116 CL/LH Invalidate Enable Banking import links on reset.
+// 20261116 CL/LH Invalidate Enable Banking import links on reset and detach them from the restarted kassekladde ids.
 
 /**
  * Build reset statements. Unlisted tables are never cleared implicitly.
@@ -57,7 +57,9 @@ function accountResetStatements(array $existingTables, $keepAccounts, $keepItems
 		}
 	}
 	if (in_array('bank_import_links', $existingTables, true)) {
-		$statements[] = "UPDATE bank_import_links SET disposition='deleted', disposition_at=CURRENT_TIMESTAMP WHERE disposition IN ('active','posted')";
+		// The reset restarts the kassekladde ids, so every link lets go of its line id (kept as -link id, unique) and keeps the rest as history.
+		$statements[] = "UPDATE bank_import_links SET disposition=CASE WHEN disposition IN ('active','posted') THEN 'deleted' ELSE disposition END, "
+			. "disposition_at=CASE WHEN disposition IN ('active','posted') THEN CURRENT_TIMESTAMP ELSE disposition_at END, kassekladde_id=-id WHERE kassekladde_id>0";
 	}
 	if (in_array('grupper', $existingTables, true)) {
 		// 20261011 MJ SST-829 art='LG' is excluded for the same reason as in

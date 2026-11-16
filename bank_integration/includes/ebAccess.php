@@ -34,6 +34,7 @@
 // 20261028 CDX/LH Give authorization failures their own Danish message while retaining sanitized support codes.
 // 20261028 CL/LH Neutral text when a picked delivery finds the journal in use.
 // 20261116 CL/LH Pull model (no deferral texts), rights through perm_can() (settings.finance, finans.kassekladde), texts through findtekst() (bank.* keys) as UTF-8 (ebT()).
+// 20261116 CL/LH ebUnavailableReason() checks the company switch before the schema.
 
 require_once __DIR__ . '/ebConfig.php';
 require_once __DIR__ . '/ebSchema.php';
@@ -104,7 +105,7 @@ if (!function_exists('ebH')) {
 		if (($GLOBALS['db_encode'] ?? 'UTF8') === 'UTF8') {
 			return ebH($utf8);
 		}
-		return htmlspecialchars(mb_convert_encoding($utf8, 'ISO-8859-1', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'ISO-8859-1');
+		return htmlspecialchars(mb_convert_encoding($utf8, 'ISO-8859-15', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'ISO-8859-15');
 	}
 
 	/**
@@ -404,11 +405,11 @@ if (!function_exists('ebH')) {
 		if (!ebFeatureAvailable()) {
 			return ebT(findtekst('bank.unavailable.server|Bankforbindelse er ikke sat op på denne Saldi-server. Kontakt Saldi-support, hvis du vil bruge den.', ebLang()));
 		}
-		if (!ebSchemaReady()) {
-			return ebT(findtekst('bank.unavailable.schema|Bankforbindelse er ikke klar i dette regnskab endnu. Log ud og ind igen, eller kontakt Saldi-support.', ebLang()));
-		}
 		if ($requireCompany && !ebCompanyEnabled()) {
 			return ebT(findtekst('bank.unavailable.company|Bankforbindelse er ikke slået til for dette regnskab. Den slås til under Indstillinger > Bogføring & bank > Bankforbindelse.', ebLang()));
+		}
+		if (!ebSchemaReady()) {
+			return ebT(findtekst('bank.unavailable.schema|Bankforbindelse er ikke klar i dette regnskab endnu. Log ud og ind igen, eller kontakt Saldi-support.', ebLang()));
 		}
 		return null;
 	}
