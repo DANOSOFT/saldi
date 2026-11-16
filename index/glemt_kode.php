@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/glemt_kode.php ---  ver 5.1.0 --- 2026.11.06 ---
+// --- index/glemt_kode.php ---  ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,11 +29,14 @@
 // 20250313 LOE // converts any special HTML characters (like <, >, &, etc.) into their corresponding HTML entities for $regnskab and $brugernavn and updated some others 
 // 20250616 PHR Removed preg_match as it prevented special chars in user / account name and enabled composer | phpmailer
 // 20260225 PHR Some enhancements...
+// 20261103 CL/ASR The password-reset token in brugere.tmp_kode starts with 'reset|', the shared format the user system reads (invitations use 'invite|').
 // 20261105 CL/MMR SD-807 The page, its messages and the help text use the language chosen on the login page (languageId cookie, 1-3).
 //                 Send and Retur are recognised by their button name, so the translated button texts still work.
 //                 The BCC line and the send error are translated too; the send error escapes the address.
 // 20261106 CL/MMR SD-812 The mail with the temporary password, the user list and the account list use the same language; the names in it are escaped.
 // 20261106 CL/MMR SD-812 Review (Saul): the account list sentence reads «er tilknyttet:» (new text 8489), and the plain-text part of the mail also decodes apostrophes.
+// 20261113 CDX/NTR Keep the reset token prefix in translated temporary-password emails.
+
 $nonce = base64_encode(random_bytes(16));
 header("Content-Security-Policy: script-src 'self' 'nonce-$nonce'; object-src 'none';");
 
@@ -203,7 +206,7 @@ if (isset($_POST['retur'])) {
 			$tp=date("H:i",$tidspunkt);
 			$mailtext .= sprintf(findtekst('8470|Indtil den %s kl. %s kan anvendes adgangskoden: %s', $sprog_id), $dd, $tp, $tmp_kode) . "<br><br>";
 			$mailtext .= findtekst('8471|Efter login kan adgangskoden ændres under "Indstillinger -> Brugere"', $sprog_id) . "<br><br>";
-			$tmp_kode=$tidspunkt."|".$tmp_kode;
+			$tmp_kode="reset|".$tidspunkt."|".$tmp_kode;
 			#$tmp_kode=$tidspunkt."_".$tmp_kode;
 			$i = 0;
 			$feltnavne=array();
