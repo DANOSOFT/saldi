@@ -5,6 +5,7 @@ namespace Sst876DeliveryFixture;
 // 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 // 20261116 CL/MMR SD-827 Stubs order_lines_on_removed_warehouse(), which levering.php now calls first.
 //                 No line is on a removed warehouse here, so the transaction order under test is unchanged.
+//                 The bootstrap includes are also left out in their __DIR__ form.
 require_once dirname(__DIR__, 5) . '/includes/std_func.php';
 $events = array();
 $depth = 0;
@@ -31,7 +32,7 @@ function shopSyncAlertFailedItems() { $GLOBALS['events'][] = 'warning'; }
 function order_lines_on_removed_warehouse(...$arguments) { return array(); }
 function shopSyncClearFailedItems() { $GLOBALS['events'][] = 'clear'; }
 $src = file_get_contents(dirname(__DIR__, 5) . '/debitor/levering.php');
-$src = preg_replace('/^[\t ]*include\("\.\.\/includes\/[^"\n]+"\);[\t ]*$/m', '', $src);
+$src = preg_replace("/^[\\t ]*include(?:_once)?\\((?:\"\\.\\.\\/includes\\/[^\"\\n]+\"|__DIR__ \\. '\\/\\.\\.\\/includes\\/[^'\\n]+')\\);[\\t ]*$/m", '', $src);
 $src = preg_replace("/^[\\t ]*include_once\\(__DIR__ \\. '\\/orderIncludes\\/[^'\\n]+'\\);[\\t ]*$/m", '', $src);
 $src = substr($src, strlen('<?php'));
 foreach (array('OK', 'Failed delivery') as $result) {

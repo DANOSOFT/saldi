@@ -32,17 +32,24 @@
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261116 CL/MMR SD-827 Stops Fakturér, Kreditér and Lever before anything is posted when a line would move stock on a warehouse that no longer exists.
 //                 The message names the lines, so the user picks an active warehouse first.
+//                 The includes in the same block now use __DIR__.
+
+/**
+ * Injected by ../includes/online.php, included below:
+ * @var int|string $regnaar
+ * @var int $sprog_id
+ */
 
 $id=NULL;	
 if (isset($_GET['id'])) $id=($_GET['id']);
 echo __line__."<br>";
 if ($id && $id>=1) { 
 	$modulnr=5;
-	include("../includes/connect.php");
-	include("../includes/online.php");
-	include("../includes/std_func.php");
-	include("../includes/ordrefunc.php");
-	include("../includes/fuld_stykliste.php");
+	include(__DIR__ . '/../includes/connect.php');
+	include(__DIR__ . '/../includes/online.php');
+	include(__DIR__ . '/../includes/std_func.php');
+	include(__DIR__ . '/../includes/ordrefunc.php');
+	include(__DIR__ . '/../includes/fuld_stykliste.php');
 	include_once(__DIR__ . '/orderIncludes/removedWarehouseLines.php');
 	$hurtigfakt=if_isset($_GET['hurtigfakt']);
 	$genfakt=if_isset($_GET['genfakt']);

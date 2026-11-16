@@ -25,7 +25,7 @@ final class RemovedWarehouseStopTest extends TestCase
         fclose($pipes[2]);
         $exit = proc_close($process);
         self::assertSame(0, $exit, "$output\n$errors");
-        self::assertSame(10, substr_count($output, 'PASS:'), $output);
+        self::assertSame(11, substr_count($output, 'PASS:'), $output);
         self::assertDoesNotMatchRegularExpression('/(?:Warning|Fatal error|Deprecated|Parse error|FAIL):/', $output . $errors);
     }
 }

@@ -3,6 +3,7 @@
 // 20261116 CL/MMR SD-827 Runs order_lines_on_removed_warehouse() on fake order data and the real debitor/levering.php with doubles.
 //                 Checks that a removed warehouse stops the page before the transaction begins, and exits non-zero on the first difference.
 //                 The real includes/std_func.php is loaded, so if_isset(), afrund() and the other helpers are the production ones.
+//                 The bootstrap includes are left out in their __DIR__ form.
 
 namespace {
 	$root = dirname(__DIR__, 4);
@@ -104,7 +105,8 @@ namespace {
 
 	// --- The real levering.php: a removed warehouse stops it before the transaction -------------
 	$src = file_get_contents($root . '/debitor/levering.php');
-	$src = preg_replace('/^[\t ]*include\("\.\.\/includes\/[^"\n]+"\);[\t ]*$/m', '', $src);
+	$src = preg_replace("/^[\\t ]*include(?:_once)?\\((?:\"\\.\\.\\/includes\\/[^\"\\n]+\"|__DIR__ \\. '\\/\\.\\.\\/includes\\/[^'\\n]+')\\);[\\t ]*$/m", '', $src, -1, $bootstrap);
+	check('The five bootstrap includes are found and left out', $bootstrap, 5);
 	$src = preg_replace("/^[\\t ]*include_once\\(__DIR__ \\. '\\/orderIncludes\\/[^'\\n]+'\\);[\\t ]*$/m", '', $src, -1, $stripped);
 	check('levering.php includes the check from orderIncludes', $stripped, 1);
 	$src = str_replace(array('@session_start();', '$s_id=session_id();'), '', substr($src, strlen('<?php')));
