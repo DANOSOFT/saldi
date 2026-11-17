@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/admin_panel.php --- 2026-11-13 ---
+// --- admin/admin_panel.php --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,6 +19,7 @@
 //
 // 20261102 CL/ASR Reopening an account whose closing date (lukkes) has passed also clears that date, so the auto-close does not close it again at once.
 // 20261113 CDX/NTR Use the shared last-activity formatter for legacy registry date strings in both account views.
+// 20261117 CL/SZ MB-163 The page and its actions need a master user with admin rights; every POST carries the session token.
 
 ob_start();
 
@@ -33,6 +34,46 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 require_once __DIR__ . '/../includes/stdFunc/lastActivityDate.php';
+// The master database's pages do not get permissions.php from online.php.
+include_once __DIR__ . '/../includes/permissions.php';
+require_once __DIR__ . '/../includes/stdFunc/masterAdminRight.php';
+
+$isAjaxRequest = isset($_GET['ajax_license_toggle']) || isset($_GET['ajax_invoice_id']) || isset($_GET['ajax_users']);
+
+// Security check: a master login only, and only one with admin rights (rettigheder "admin,oprette,slette,adgang_til",
+// as in slet_regnskab.php). Runs before anything else on the page, the AJAX actions included.
+if ($db != $sqdb) {
+    print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at gøre her!')\">";
+    print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
+    exit;
+}
+$adminRow = db_fetch_array(db_select("SELECT rettigheder FROM brugere WHERE brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
+if (!masterUserIsAdmin(ifset($adminRow, 'rettigheder', null))) {
+    $noAccessTxt = findtekst('5548|Du har ikke adgang til denne funktion. Kontakt din administrator.', $sprog_id);
+    if ($isAjaxRequest) {
+        while (ob_get_level()) { ob_end_clean(); }
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => $noAccessTxt]);
+        exit;
+    }
+    print "<BODY onLoad=\"javascript:alert('" . htmlspecialchars(addslashes($noAccessTxt), ENT_QUOTES) . "')\">";
+    print "<meta http-equiv=\"refresh\" content=\"1;URL=vis_regnskaber.php\">";
+    exit;
+}
+
+// Every POST (the settings forms and the AJAX actions) must carry the session's CSRF token.
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($isAjaxRequest) {
+        // A refused AJAX call answers bare JSON, without the page header online.php has buffered.
+        while (ob_get_level()) { ob_end_clean(); }
+        ob_start();
+    }
+    perm_require_post_csrf($isAjaxRequest);
+}
 
 // ---- Ensure lukkes_kommentar column exists on regnskab ----
 $_col_check = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='lukkes_kommentar' AND table_schema='public'", __FILE__ . " linje " . __LINE__));
@@ -174,13 +215,6 @@ function fetch_customer_invoices($search_term) {
     });
     
     return ['invoices' => $invoices];
-}
-
-// Security check
-if ($db != $sqdb) {
-    print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at gøre her!')\">"; 
-    print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
-    exit;
 }
 
 // Available features for license management
@@ -1340,6 +1374,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             <div class="card-body">
                 <form method="post" action="admin_panel.php?regnskab_id=<?php echo $filter_regnskab; ?>">
                     <input type="hidden" name="action" value="bulk_update">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES); ?>">
                     <input type="hidden" name="regnskab_id" value="<?php echo $filter_regnskab; ?>">
                     
                     <?php foreach ($available_features as $feature_key => $feature_name) { 
@@ -1481,6 +1516,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             <div class="card-body">
                 <form method="post" action="admin_panel.php?regnskab_id=<?php echo $filter_regnskab; ?>">
                     <input type="hidden" name="action" value="update_settings">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES); ?>">
                     <input type="hidden" name="regnskab_id" value="<?php echo $filter_regnskab; ?>">
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
@@ -1896,6 +1932,7 @@ function openInvoiceModal(invoiceId) {
 
 // ─── Users Management ───
 const REGNSKAB_ID = <?php echo $filter_regnskab ? $filter_regnskab : 0; ?>;
+const CSRF_TOKEN = <?php echo json_encode($_SESSION['csrf_token']); ?>;
 
 function loadUsers() {
     if (!REGNSKAB_ID) return;
@@ -2017,13 +2054,13 @@ function saveUser(id) {
     
     fetch(`admin_panel.php?ajax_users=1&regnskab_id=${REGNSKAB_ID}&user_action=update`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
         body: JSON.stringify(payload)
     })
     .then(r => r.json())
     .then(data => {
-        if (data.error) {
-            alert('Fejl: ' + data.error);
+        if (data.error || data.ok === false) {
+            alert('Fejl: ' + (data.error || data.message));
             return;
         }
         const msg = document.getElementById('msg-' + id);
@@ -2040,13 +2077,13 @@ function deleteUser(id, username) {
     
     fetch(`admin_panel.php?ajax_users=1&regnskab_id=${REGNSKAB_ID}&user_action=delete`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
         body: JSON.stringify({user_id: id})
     })
     .then(r => r.json())
     .then(data => {
-        if (data.error) {
-            alert('Fejl: ' + data.error);
+        if (data.error || data.ok === false) {
+            alert('Fejl: ' + (data.error || data.message));
             return;
         }
         const el = document.getElementById('user-item-' + id);
@@ -2065,13 +2102,13 @@ function clearDatatables(id, username) {
     
     fetch(`admin_panel.php?ajax_users=1&regnskab_id=${REGNSKAB_ID}&user_action=clear_datatables`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
         body: JSON.stringify({user_id: id})
     })
     .then(r => r.json())
     .then(data => {
-        if (data.error) {
-            alert('Fejl: ' + data.error);
+        if (data.error || data.ok === false) {
+            alert('Fejl: ' + (data.error || data.message));
             return;
         }
         alert('Tabelvisninger er blevet nulstillet for brugeren "' + username + '".');
@@ -2093,7 +2130,7 @@ function toggleLicense(el, regId, featureKey) {
     
     fetch('admin_panel.php?ajax_license_toggle=1', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
         body: JSON.stringify({ regnskab_id: regId, feature_key: featureKey })
     })
     .then(r => r.json())
@@ -2101,8 +2138,8 @@ function toggleLicense(el, regId, featureKey) {
         el.style.opacity = '1';
         el.style.pointerEvents = 'auto';
         
-        if (data.error) {
-            alert('Fejl: ' + data.error);
+        if (data.error || data.ok === false) {
+            alert('Fejl: ' + (data.error || data.message));
             return;
         }
         
