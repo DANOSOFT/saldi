@@ -1,5 +1,5 @@
 <?php
-// ----------debitor/ordre.php---------ver 5.1.0------2026-11-09-------
+// ----------debitor/ordre.php---------ver 5.1.1------2026-11-17-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller

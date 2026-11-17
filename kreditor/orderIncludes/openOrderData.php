@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-11-09 ---
+// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,7 +48,7 @@
 //                 A blank order has no field: the order gets its language from the supplier's group when it is created.
 //                 The mail subject and text placeholders follow the order's language instead of always Dansk.
 // 20261109 CL/SZ MB-136 The Att. (kontakt) field escapes its value, so a name like Bo O'Neill shows in full and is not saved back as Bo O.
-
+//
 /*
 $attachId    = null;
 $email       = null;
