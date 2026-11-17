@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/stripe_invoice_pdf.php --- 2026.10.22
+// --- tools/stripe_invoice_pdf.php --- 2026.11.17
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // path on success. Exit code 0 = ok, 1 = usage, 2 = render failed.
 // 20261022 CDX/LH Use Europe/Copenhagen consistently for invoice and rendering dates.
 // 20261022 CDX/LH Render under one invoice lock in a private disposable workspace and publish the opaque PDF atomically.
+// 20261117 CDX/ASR Discover the installed pdftk when the ledger has no explicit tool setting, preserving invoice logos.
 
 date_default_timezone_set('Europe/Copenhagen');
 
@@ -89,7 +90,7 @@ function stripe_pdf_tool_setting($name, $fallback, $alias = '') {
 	return ($q && trim((string)$q['var_value']) !== '') ? trim((string)$q['var_value']) : $fallback;
 }
 $ps2pdf = stripe_pdf_tool_setting('ps2pdf', '/usr/bin/ps2pdf');
-$pdftk = stripe_pdf_tool_setting('pdftk', '');
+$pdftk = stripe_invoice_pdf_pdftk();
 $weasyprint = stripe_pdf_tool_setting('weasyprint', '', 'html2pdf');
 $saldi_pdf_only = true;                      // includes/formfunk.php: treat the order as "mail to email" so the PDF is built
 $regnaar = function_exists('newest_active_fiscal_year') ? (string)newest_active_fiscal_year() : '';

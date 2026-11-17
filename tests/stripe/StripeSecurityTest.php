@@ -2,6 +2,7 @@
 // 20261022 CDX/LH Purpose isolation, due-date and signup gates, private atomic PDFs, index repair and discount totals.
 // 20261026 CL/NTR Multi-ledger: links carry and bind the ledger, legacy v2 links only in the pinned ledger, copied ledgers stay off.
 // 20261116 CDX/ASR Expect the new Saldi logo in outstanding-invoice mail after card unenrolment.
+// 20261117 CDX/ASR Cover PDF compositor fallback and explicit administrator tool settings.
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../includes/formFuncIncludes/subscriptionLink.php';
@@ -212,6 +213,29 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
         $this->assertFalse(stripe_signup_allowed());
         $this->assertSame('', subscriptionLinkUrl($id));
         $this->assertSame([], StripeTestTransport::$requests);
+    }
+
+    public function testPdfBackgroundToolWorksWithoutAnExplicitLedgerSetting(): void
+    {
+        StripeTestEnvironment::query("DELETE FROM settings WHERE var_name='pdftk'");
+        $dir = sys_get_temp_dir() . '/saldi-pdftk-' . bin2hex(random_bytes(8));
+        mkdir($dir, 0700);
+        $tool = $dir . '/pdftk';
+        file_put_contents($tool, '#!/bin/sh');
+        try {
+            chmod($tool, 0600);
+            $this->assertSame('', stripe_invoice_pdf_pdftk([$tool]));
+            chmod($tool, 0700);
+            clearstatcache(true, $tool);
+            $this->assertSame($tool, stripe_invoice_pdf_pdftk(['relative/pdftk', $dir, $tool]));
+            StripeTestEnvironment::setting('programs', 'pdftk', '/opt/saldi/pdftk');
+            $this->assertSame('/opt/saldi/pdftk', stripe_invoice_pdf_pdftk([$tool]));
+            StripeTestEnvironment::setting('programs', 'pdftk', '');
+            $this->assertSame($tool, stripe_invoice_pdf_pdftk([$tool]));
+        } finally {
+            unlink($tool);
+            rmdir($dir);
+        }
     }
 
     public function testAtomicPublicationKeepsExistingReadersAndRefusesBrokenSource(): void
