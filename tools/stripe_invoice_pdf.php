@@ -38,6 +38,7 @@
 // 20261022 CDX/LH Use Europe/Copenhagen consistently for invoice and rendering dates.
 // 20261022 CDX/LH Render under one invoice lock in a private disposable workspace and publish the opaque PDF atomically.
 // 20261117 CDX/ASR Discover the installed pdftk when the ledger has no explicit tool setting, preserving invoice logos.
+// 20261117 CDX/ASR Read installation PDF tool settings before switching from the master database to the ledger.
 
 date_default_timezone_set('Europe/Copenhagen');
 
@@ -66,6 +67,16 @@ include(__DIR__ . '/../includes/connect.php');          // master connection + $
 include(__DIR__ . '/../includes/std_func.php');
 include_once(__DIR__ . '/../includes/stripeIncludes/stripePdf.php');
 
+// Installation tool paths belong to the master database, as in online.php.
+// Resolve them before opening the tenant connection.
+function stripe_pdf_tool_setting($name, $fallback, $alias = '') {
+	$q = db_fetch_array(db_select("select var_value from settings where var_name = '$name'" . ($alias !== '' ? " or var_name = '$alias'" : ''), __FILE__ . " linje " . __LINE__));
+	return ($q && trim((string)$q['var_value']) !== '') ? trim((string)$q['var_value']) : $fallback;
+}
+$ps2pdf = stripe_pdf_tool_setting('ps2pdf', '/usr/bin/ps2pdf');
+$pdftk = stripe_invoice_pdf_pdftk();
+$weasyprint = stripe_pdf_tool_setting('weasyprint', '', 'html2pdf');
+
 // Resolve the ledger through the master locator, exactly like stripeConfigDb().
 $r = db_fetch_array(db_select("select id, db from regnskab where db = '" . db_escape_string($targetDb) . "'", __FILE__ . " linje " . __LINE__, true));
 if (!$r) { fwrite(STDERR, "unknown ledger $targetDb\n"); exit(1); }
@@ -84,14 +95,6 @@ $exec_path = '';
 $returside = '';
 $locat = '';
 $popup = 0;
-// Tool paths the engine expects as globals (online.php reads the same settings rows).
-function stripe_pdf_tool_setting($name, $fallback, $alias = '') {
-	$q = db_fetch_array(db_select("select var_value from settings where var_name = '$name'" . ($alias !== '' ? " or var_name = '$alias'" : ''), __FILE__ . " linje " . __LINE__));
-	return ($q && trim((string)$q['var_value']) !== '') ? trim((string)$q['var_value']) : $fallback;
-}
-$ps2pdf = stripe_pdf_tool_setting('ps2pdf', '/usr/bin/ps2pdf');
-$pdftk = stripe_invoice_pdf_pdftk();
-$weasyprint = stripe_pdf_tool_setting('weasyprint', '', 'html2pdf');
 $saldi_pdf_only = true;                      // includes/formfunk.php: treat the order as "mail to email" so the PDF is built
 $regnaar = function_exists('newest_active_fiscal_year') ? (string)newest_active_fiscal_year() : '';
 if ($regnaar === '') { $ra = db_fetch_array(db_select("select max(fiscal_year) as y from grupper where art = 'RA'", __FILE__ . " linje " . __LINE__)); $regnaar = $ra ? (string)$ra['y'] : date('Y'); }

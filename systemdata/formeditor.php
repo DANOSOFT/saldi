@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- patch 5.0.0 --- 2026-07-10 ---
+// --- systemdata/formeditor.php --- ver 5.0.0 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261005 Sawaneh Settings redesign G6.1: reset keeps the e-mail texts and fee/interest rows (FE2); print-language lock
 //                  and drafts in the settings table via includes/formEditorState.php (FE3); the background link opens
@@ -30,6 +30,7 @@
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20261117 CDX/ASR Share PDF preview fallback with logo activation and report an unrendered logo after saving.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -82,7 +83,7 @@ $permission_key = 'system.indstillinger';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
-include_once("../includes/formEditorState.php");
+include_once(__DIR__ . '/../includes/formEditorState.php');
 
 // Background helpers and the logo compositor: includes/formEditorState.php (shared with the welcome guide).
 
@@ -223,9 +224,9 @@ if ($fe_action === 'save') {
 	@unlink("../logolib/$db_id/fe_draft_{$form_nr}_" . preg_replace('/[^A-Za-z0-9_]/', '_', $sprog_raw) . ".json");
 
 	// Stamp the placed logo onto the print background (if any logo uploaded).
-	fe_composite_logo($db_id, $form_nr, $sprog_raw);
+	$logoReady = fe_composite_logo($db_id, $form_nr, $sprog_raw);
 
-	print json_encode(array('ok' => true, 'updated' => $updated, 'deleted' => $deleted, 'inserted' => $inserted));
+	print json_encode(array('ok' => true, 'updated' => $updated, 'deleted' => $deleted, 'inserted' => $inserted, 'warning' => $logoReady ? '' : 'logo'));
 	exit;
 }
 
@@ -758,12 +759,8 @@ if (file_exists($logo_base) && $active_bg && isset($fe_meta['out_md5']) && md5_f
 if ($bg_src) {
 	$cache_png = "../logolib/$db_id/" . md5(basename($bg_src)) . "_feprev.png";
 	$need = !file_exists($cache_png) || filemtime($cache_png) < filemtime($bg_src);
-	if ($need && function_exists('shell_exec')) {
-		// pdftoppm writes <prefix>-1.png for page 1; render at ~100 dpi.
-		$prefix = escapeshellarg("../logolib/$db_id/" . md5(basename($bg_src)) . "_fetmp");
-		@shell_exec("pdftoppm -png -r 100 -f 1 -l 1 " . escapeshellarg($bg_src) . " " . $prefix . " 2>/dev/null");
-		$tmp1 = "../logolib/$db_id/" . md5(basename($bg_src)) . "_fetmp-1.png";
-		if (file_exists($tmp1)) { @rename($tmp1, $cache_png); }
+	if ($need) {
+		fe_pdf_png($bg_src, $cache_png, 100);
 	}
 	if (file_exists($cache_png)) $bg_url = $cache_png . '?t=' . filemtime($cache_png);
 }
@@ -1423,6 +1420,7 @@ print "</div>";
     unsaved:  <?php echo json_encode($T('Ikke gemte ændringer','Unsaved changes')); ?>,
     saving:   <?php echo json_encode($T('Gemmer…','Saving…')); ?>,
     saved:    <?php echo json_encode($T('Gemt (%s felter)','Saved (%s fields)')); ?>,
+    logoFailed: <?php echo json_encode($T('Layoutet er gemt, men logoet kunne ikke sættes på udskriften. Prøv Gem og aktivér igen, eller kontakt support.', 'The layout was saved, but the logo could not be added to the printout. Try Save and activate again, or contact support.')); ?>,
     session:  <?php echo json_encode($T('Session udløbet – genindlæs siden','Session expired – reload the page')); ?>,
     failed:   <?php echo json_encode($T('Kunne ikke gemme','Could not save')); ?>,
     neterr:   <?php echo json_encode($T('Netværksfejl','Network error')); ?>,
@@ -2816,7 +2814,8 @@ print "</div>";
         // patch newly-inserted elements with their real DB ids
         if (j.inserted) { elements.forEach(function(el){ if (el.id<=0 && j.inserted[el.id]!=null) el.id = j.inserted[el.id]; }); }
         hideDraftBanner();   // activating supersedes the draft (server deleted it)
-        statusEl.textContent=L.saved.replace('%s', j.updated); statusEl.style.color='#2a7d2a';
+        statusEl.textContent=j.warning==='logo' ? L.logoFailed : L.saved.replace('%s', j.updated);
+        statusEl.style.color=j.warning==='logo' ? '#b26a00' : '#2a7d2a';
       }
       else if (j && j.error==='session') { statusEl.textContent=L.session; statusEl.style.color='#c00'; }
       else { statusEl.textContent=L.failed; statusEl.style.color='#c00'; }
