@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -131,6 +131,8 @@
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CL/MMR MB-162 Switching user always asks for the new user's password.
+//                 skift_bruger=2 (the Ekspedient button) now only preselects that user in the password dialog, and the user name is escaped in the password check.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -338,10 +340,10 @@ if (!$projekt) {
 	($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $projekt = $r['box9'] : $projekt = '';
 }
 if (isset($_GET['skift_bruger'])) {
-	if ($_GET['skift_bruger'] == 1)
+	// MB-162: skift_bruger=2 used to switch without a password; both values now open the password dialog
+	if ($_GET['skift_bruger'] == 1 || $_GET['skift_bruger'] == 2) {
 		skift_bruger(null, null, 1);
-	elseif ($_GET['skift_bruger'] == 2 && $_GET['brugernavn'])
-		skift_bruger($_GET['brugernavn'], null, 2);
+	}
 	exit;
 }
 if (isset($_POST['bon']) && $_POST['bon']) {
@@ -2084,10 +2086,14 @@ function skift_bruger($ny_bruger, $kode, $pwtjek) {
 		print "</td></tr>\n";
 		$stil = find_stil('select', 2, 0);
 		print "<tr><td><big>" . findtekst('2252|Ekspedient', $sprog_id) . ": </big><select class=\"inputbox\" style=\"width:100px;font-size:$ifs;\" NAME=\"ny_bruger\">\n";
+		// MB-162: the Ekspedient button passes the user name, which is only preselected here
+		$forvalgt = strtolower((string) ifset($_GET, 'brugernavn', ''));
 		print "<option>$brugernavn</option>\n";
 		for ($x = 0; $x < count($loginnavn); $x++) {
-			if ($loginnavn[$x] != $brugernavn)
-				print "<option>$loginnavn[$x]</option>\n";
+			if ($loginnavn[$x] != $brugernavn) {
+				$valgt = ($forvalgt !== '' && strtolower($loginnavn[$x]) == $forvalgt) ? ' selected' : '';
+				print "<option$valgt>$loginnavn[$x]</option>\n";
+			}
 		}
 		print "</option></td>\n";
 		print "<td><input class=\"inputbox\" type=\"password\" style=\"width:100px;font-size:$ifs;\" name=\"kode\" value=\"\"></td></tr>\n";
@@ -2097,37 +2103,17 @@ function skift_bruger($ny_bruger, $kode, $pwtjek) {
 		print "</form>\n";
 		print "</td></tr>\n";
 		print "</tbody></table>\n";
-	} elseif ($pwtjek == 2) {
-		$id = if_isset($_GET['id']);
-		$menu_id = if_isset($_GET['menu_id']);
-		$qtxt = "select brugernavn from brugere where brugernavn = '$ny_bruger' or lower(brugernavn) = '" . strtolower($ny_bruger) . "' or upper(brugernavn) = '" . strtoupper($ny_bruger) . "'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($brugernavn = $r['brugernavn']) {
-			if ($id) { #20170417
-				$qtxt = "select status from ordrer where id = '$id'";
-				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				if ($r['status'] >= 3)
-					$id = 0;
-			}
-			include("../includes/connect.php");
-			$qtxt = "update online set brugernavn='" . db_escape_string($brugernavn) . "' where session_id='$s_id' and db = '$db'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id&menu_id=$menu_id\">\n";
-		} else {
-			$alert1 = findtekst(1867, $sprog_id);
-			print "<BODY onLoad=\"javascript:alert('$ny_bruger $alert1')\">\n";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}id=$id&menu_id=$menu_id\">\n";
-		}
 	} else {
-		$r = db_fetch_array(db_select("select id from brugere where brugernavn ='$ny_bruger'", __FILE__ . " linje " . __LINE__));
+		$nyBrugerSql = db_escape_string($ny_bruger);
+		$r = db_fetch_array(db_select("select id from brugere where brugernavn ='$nyBrugerSql'", __FILE__ . " linje " . __LINE__));
 		$pw1 = md5($kode);
 		$pw2 = saldikrypt($r['id'], $kode);
-		if (db_fetch_array(db_select("select id from brugere where brugernavn ='$ny_bruger' and (kode = '$pw1' or kode ='$pw2')", __FILE__ . " linje " . __LINE__))) {
-			include("../includes/connect.php");
-			db_modify("update online set brugernavn='$ny_bruger' where session_id='$s_id' and db = '$db'", __FILE__ . " linje " . __LINE__);
+		if (db_fetch_array(db_select("select id from brugere where brugernavn ='$nyBrugerSql' and (kode = '$pw1' or kode ='$pw2')", __FILE__ . " linje " . __LINE__))) {
+			include(__DIR__ . '/../includes/connect.php');
+			db_modify("update online set brugernavn='$nyBrugerSql' where session_id='$s_id' and db = '$db'", __FILE__ . " linje " . __LINE__);
 			$brugernavn = $ny_bruger;
 			print "<input type=\"hidden\" name=\"brugernavn\" value=\"$brugernavn\">\n";
-			include("../includes/online.php");
+			include(__DIR__ . '/../includes/online.php');
 		} else {
 			$alert = findtekst(1868, $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alert')\">\n";
