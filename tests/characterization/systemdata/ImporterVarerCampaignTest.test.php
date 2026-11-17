@@ -17,6 +17,7 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  * 20261117 CL/LH Created (Havemøbelland campaign import, Codex review round 1).
  * 20261117 CL/LH Codex review 2: a headerless ordinary file with a label-like item number, a quoted first cell, a new item twice, a bad cost price and 777.0.
  *                Runs on the live branch's older harness too (session id constant, template tenant).
+ * 20261117 CL/LH Codex review 3: a rejected price incl. moms with a Varegruppe chosen, and a last line "0" without a newline.
  */
 final class ImporterVarerCampaignTest extends CharacterizationTestCase
 {
@@ -87,20 +88,20 @@ final class ImporterVarerCampaignTest extends CharacterizationTestCase
 	}
 
 	/** @param list<string> $lines */
-	private static function csv(array $lines, string $prefix = ''): string
+	private static function csv(array $lines, string $prefix = '', string $end = "\r\n"): string
 	{
 		$file = tempnam(sys_get_temp_dir(), 'vareimp');
-		file_put_contents($file, $prefix . implode("\r\n", $lines) . "\r\n");
+		file_put_contents($file, $prefix . implode("\r\n", $lines) . $end);
 		chmod($file, 0644);
 		self::$files[] = $file;
 		return $file;
 	}
 
 	/** @param list<string> $mapping */
-	private static function import(string $csv, array $mapping, string $filter = 'all_products', string $tegnset = 'UTF-8'): string
+	private static function import(string $csv, array $mapping, string $filter = 'all_products', string $tegnset = 'UTF-8', string $itemGroup = ''): string
 	{
 		CharacterizationEnv::resyncSequences(self::$tenant); // the fixtures insert explicit ids; the page's own inserts use the sequences
-		$res = self::runChild('run_importer_varer_page.php', [$csv, self::sessionId(), implode(',', $mapping), $filter, $tegnset]);
+		$res = self::runChild('run_importer_varer_page.php', [$csv, self::sessionId(), implode(',', $mapping), $filter, $tegnset, $itemGroup]);
 		self::assertStringContainsString('CHARTEST_PAGE_DONE', $res['stdout'], "the page ran to the end\nstderr: {$res['stderr']}");
 		self::assertStringNotContainsString('itemImport.php', $res['stderr'], 'no warning from the shared import helpers');
 		self::assertStringNotContainsString('Query failed', $res['stderr'], 'every statement the import sent succeeded');
@@ -235,6 +236,24 @@ final class ImporterVarerCampaignTest extends CharacterizationTestCase
 		self::assertNull(self::one("SELECT id FROM varer WHERE varenr = '777.0'"));
 		self::assertStringContainsString('2 varer importeret, 3 varer opdateret', $page);
 		self::assertMatchesRegularExpression('/5 \| ORD5 \| kostpris \| abc \|/', $page);
+	}
+
+	public function testARejectedPriceInclVatIsListedWhenAGroupIsChosen(): void
+	{
+		$vat = self::vatGroup();
+		self::item('VAT1', $vat['gruppe'], 100.0);
+		self::item('VAT2', $vat['gruppe'], 100.0);
+		self::item('VAT3', $vat['gruppe'], 100.0);
+		$page = self::import(self::csv(['VAT1;abc', 'VAT2;125,00', 'VAT3;150,00']), ['varenr', 'salgspris_incl_moms'], 'all_products', 'UTF-8', (string)$vat['gruppe']);
+		$after = self::items(['VAT1', 'VAT2', 'VAT3']);
+		self::assertSame(['100.000', '100.000', '120.000'], [$after['VAT1']['salgspris'], $after['VAT2']['salgspris'], $after['VAT3']['salgspris']]);
+		self::assertMatchesRegularExpression('/1 \| VAT1 \| salgspris_incl_moms \| abc \|/', $page);
+	}
+
+	public function testALastLineZeroWithoutANewlineIsRead(): void
+	{
+		self::import(self::csv(['ZZ1', 'ZZ2', '0'], '', ''), ['varenr']);
+		self::assertSame(['0', 'ZZ1', 'ZZ2'], array_column(self::rows("SELECT varenr FROM varer WHERE varenr IN ('0', 'ZZ1', 'ZZ2') ORDER BY varenr"), 'varenr'));
 	}
 
 	public function testAnOrdinaryImportSkipsShortLinesAndKeepsCostHistory(): void

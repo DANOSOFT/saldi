@@ -12,11 +12,13 @@
 //       3 = column mapping, comma-separated field names ('-' for an unused column)
 //       4 = filterOption (all_products, only_existing_product, only_unknown_products)
 //       5 = tegnset (UTF-8 or ISO-8859-1)
+//       6 = Varegruppe chosen in the preview (optional, '' = keep each item's group)
 //
 // Prints the page's HTML, then CHARTEST_PAGE_DONE; PHP warnings go to stderr. The test asserts on the database and on the page's text.
 //
 // History:
 // 20261117 CL/LH Created for the campaign price import (Havemøbelland) and the Codex review of it.
+//                Codex review 3: the Varegruppe of the preview as an optional sixth argument.
 if ($argc < 6) {
 	fwrite(STDERR, "usage: php run_importer_varer_page.php <csv> <session_id> <mapping> <filterOption> <tegnset>\n");
 	exit(2);
@@ -37,7 +39,7 @@ $_POST = array(
 	'feltnavn' => $mapping,
 	'feltantal' => (string)(count($mapping) - 1),
 	'tegnset' => $argv[5],
-	'itemGroup' => '',
+	'itemGroup' => $argv[6] ?? '',
 	'filterOption' => $argv[4],
 	'csvFile' => '',
 );

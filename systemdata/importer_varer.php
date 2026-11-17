@@ -74,6 +74,7 @@
 // 20261117 CL/LH Codex review 2: every non-blank line is a row (a quoted first cell such as "ABC";149,95 was lost by preview and import), short lines show in the preview without warnings.
 //                A line the number checks reject (kostpris, salgspris, montage, min_lager ...) is now listed too; numbers such as 123.0 and 1E+05 find their item again (itemImport.php).
 //                An existing item keeps its item number: the update no longer writes the sheet's spelling over it (since 20140201/20161015 abc renamed ABC and 123 renamed 000123); new items get the sheet's number as before.
+// 20261117 CL/LH Codex review 3: a number cell is checked before salgspris_incl_moms converts it, so a rejected price is listed; a last line "0" without a newline is read, and item number 0 can be created.
 @session_start();
 $s_id=session_id();
 ini_set('max_execution_time', 120);
@@ -414,7 +415,7 @@ if ($fp) {
 		$varenr=NULL;
 		$isHeader=false;
 		$known=false;
-		if ($linje=fgets($fp)) {
+		if (($linje=fgets($fp)) !== false) { # 20261117 a last line "0" without a newline is a line too
 			$lineNo++;
 			# 20261117 every line is one row, read like the import reads it (it stopped joining short lines in 20220628)
 			if (itemImportIsRow($linje)) {
@@ -623,7 +624,8 @@ if ($fp) {
 		$varenr=''; # 20261117 a line never inherits the item number, cells or new-item flag of the line before
 		$medtag_felt=$campaignCells=array();
 		$newItem = $isRow = false;
- 		if ($linje=fgets($fp)) {
+		$badNumber = $badValue = NULL;
+ 		if (($linje=fgets($fp)) !== false) { # 20261117 a last line "0" without a newline is a line too
 			$lineNo++;
 			$colNum = itemImportIsRow($linje) ? 1 : 0; # 20220628 separators counted here, 20261117 any non-blank line, as in the preview
 			if ($colNum && $cols) { # 20220628 '>=' changed to '&&'
@@ -650,6 +652,10 @@ if ($fp) {
 					$felt[$y]=trim($felt[$y]);
 					$feltnavn[$y]=strtolower($feltnavn[$y]);
 					if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
+					if ($badNumber === NULL && itemImportInvalidNumberField(array($feltnavn[$y]), array($felt[$y])) !== NULL) { # 20261117 before the checks below convert it
+						$badNumber = $feltnavn[$y];
+						$badValue = $felt[$y];
+					}
 					if (in_array($feltnavn[$y], campaignImportFields())) { # 20261117 parsed below and written after the item is found
 						$campaignCells[$feltnavn[$y]] = $felt[$y];
 						$medtag_felt[$y] = 0;
@@ -757,7 +763,6 @@ if ($fp) {
 		if ($isRow) { # 20261117 the checks the preview shows in red; a skipped line is listed after the import
 			$match = itemImportResolve($itemIndex, $varenr, $enc);
 			$missing = itemImportMissingColumn($feltnavn, $cellCount);
-			$badNumber = itemImportInvalidNumberField($feltnavn, $felt);
 			if ($campaignCells) $campaign = campaignImportLine($campaignCells);
 			if ($lineNo == 1 && !$match['id'] && !$match['ambiguous'] && itemImportIsHeader($varenr)) {
 				$skriv_linje=0; // the header line
@@ -766,7 +771,7 @@ if ($fp) {
 				$lineErrors[] = array($lineNo, $varenr, $missing, '');
 			} elseif ($badNumber !== NULL) { // the number checks above skipped it
 				$skriv_linje=0;
-				$lineErrors[] = array($lineNo, $varenr, $badNumber, $felt[array_search($badNumber, $feltnavn)] ?? '');
+				$lineErrors[] = array($lineNo, $varenr, $badNumber, $badValue);
 			} elseif ($skriv_linje!=1) {
 				$skriv_linje=0;
 			} elseif ($campaign && $campaign['error']) {
@@ -806,7 +811,7 @@ if ($fp) {
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
 				} else $vare_id=0; // added to avoid the update further down
-			} elseif ($varenr) {// create new product
+			} elseif ((string)$varenr !== '') {// create new product (20261117 also item number 0)
 				if (($filterOption=='all_products')||($filterOption!='only_existing_product')){
 					$imp_antal++;
 					$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
