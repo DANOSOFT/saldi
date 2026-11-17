@@ -24,6 +24,7 @@
 //                  the background helpers and fe_composite_logo() moved here from formeditor.php so the guide can put the
 //                  logo on the invoice (an optional file for a form without a background).
 // 20261117 CDX/ASR Render editor backgrounds without Poppler and publish logo PDFs only after successful composition.
+// 20261117 CDX/ASR Withdraw the invoice-logo rendering change and restore the previous behavior.
 
 if (!function_exists('fe_state_get')):
 
@@ -143,121 +144,57 @@ function fe_active_bg($db_id, $form_nr, $sprog) {
 	foreach (fe_bg_candidates($db_id, $form_nr, $sprog) as $f) if (file_exists($f)) return $f;
 	return null;
 }
-/**
- * Render the first PDF page atomically; Ghostscript also works without Poppler.
- *
- * @return bool Whether a valid PNG was published at $target.
- */
-function fe_pdf_png(string $source, string $target, int $dpi): bool {
-	if (!function_exists('exec') || !is_file($source)) return false;
-	$dpi = max(36, min(300, $dpi));
-	$prefix = dirname($target) . '/.fe-preview-' . bin2hex(random_bytes(10));
-	$temporary = $prefix . '.png';
-	$commands = array(
-		'pdftoppm -singlefile -png -r ' . $dpi . ' -f 1 -l 1 ' . escapeshellarg($source) . ' ' . escapeshellarg($prefix),
-		'gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pngalpha -r' . $dpi . ' -dFirstPage=1 -dLastPage=1 '
-			. escapeshellarg('-sOutputFile=' . $temporary) . ' ' . escapeshellarg($source)
-	);
-	try {
-		foreach ($commands as $command) {
-			$output = array();
-			exec($command . ' 2>&1', $output, $status);
-			clearstatcache(true, $temporary);
-			if ($status === 0 && is_file($temporary) && filesize($temporary) > 0) {
-				$info = getimagesize($temporary);
-				if ($info && $info['mime'] === 'image/png') return rename($temporary, $target);
-			}
-			if (is_file($temporary)) unlink($temporary);
-		}
-		error_log('Form editor: unable to render PDF background ' . basename($source));
-		return false;
-	} finally {
-		if (is_file($temporary)) unlink($temporary);
-	}
-}
-
-/**
- * Stamp the placed logo onto a clean background, publishing only a complete PDF.
- *
- * @return bool True on success or when no sized logo needs rendering; false on a tool/storage failure.
- */
-function fe_composite_logo($db_id, $form_nr, $sprog, $defaultOut = 'bg.pdf'): bool {
-	$db_id = (int) $db_id;
-	$form_nr = (int) $form_nr;
-	$dir = "../logolib/$db_id";
+// Stamp the placed logo onto the print background at Save & activate. Keeps a
+// clean "base" copy so re-saves never double-stamp; the editor shows the base.
+// Non-fatal: any tool failure just leaves the background untouched.
+function fe_composite_logo($db_id, $form_nr, $sprog, $defaultOut = 'bg.pdf') {
+	if (!function_exists('shell_exec')) return;
+	$dir  = "../logolib/$db_id";
 	$logo = "$dir/fe_logo.png";
-	if (!is_file($logo)) return true;
+	if (!file_exists($logo)) return;                       // no logo -> nothing to do
 	$sp = db_escape_string($sprog);
 	$r = db_fetch_array(db_select("select xa,ya,xb,yb from formularer where formular=$form_nr and art=1 and beskrivelse='LOGO' and sprog='$sp'", __FILE__ . " linje " . __LINE__));
-	if (!$r || (float) $r['xb'] <= 0 || (float) $r['yb'] <= 0) return true;
-	return fe_write_logo_background($dir, fe_active_bg($db_id, $form_nr, $sprog), $r, $defaultOut);
-}
+	if (!$r) return;
+	$xa=(float)$r['xa']; $ya=(float)$r['ya']; $w=(float)$r['xb']; $h=(float)$r['yb'];
+	if ($w <= 0 || $h <= 0) return;                        // logo not sized -> skip
 
-/**
- * Compose a logo at the editor's millimetre coordinates without changing its source image.
- *
- * @param array{xa: float|string, ya: float|string, xb: float|string, yb: float|string} $position
- * @return bool Whether the active PDF and its metadata were successfully published.
- */
-function fe_write_logo_background(string $dir, ?string $active, array $position, string $defaultOut = 'bg.pdf'): bool {
-	if (!function_exists('exec')) return false;
-	$logo = "$dir/fe_logo.png";
+	$base   = "$dir/fe_logobase.pdf";
+	$active = fe_active_bg($db_id, $form_nr, $sprog);
+	$out    = $active ? $active : "$dir/" . basename($defaultOut);
+	$metaF  = "$dir/fe_logo_meta.json";
+	$meta   = file_exists($metaF) ? json_decode(@file_get_contents($metaF), true) : array();
+	$activeMd5 = ($active && file_exists($active)) ? md5_file($active) : '';
 
-	$base = "$dir/fe_logobase.pdf";
-	$out = $active ?: "$dir/" . basename($defaultOut);
-	$metaF = "$dir/fe_logo_meta.json";
-	$meta = is_file($metaF) ? json_decode(file_get_contents($metaF), true) : array();
-	$activeMd5 = $active ? md5_file($active) : '';
-
-	$work = "$dir/.fe-compose-" . bin2hex(random_bytes(10));
-	if (!mkdir($work, 0700)) return false;
-	try {
-		if (!is_file($base)) {
-			if ($active) {
-				if (!copy($active, $base)) return false;
-			} else {
-				$messages = array();
-				exec('convert -size 1654x2339 xc:white -units PixelsPerInch -density 200 ' . escapeshellarg("$work/base.pdf") . ' 2>&1', $messages, $status);
-				if ($status !== 0 || !is_file("$work/base.pdf")) return false;
-				if (!rename("$work/base.pdf", $base)) return false;
-			}
-		} elseif ($activeMd5 !== '' && isset($meta['out_md5']) && $activeMd5 !== $meta['out_md5']) {
-			if (!copy($active, $base)) return false;
-		}
-
-		$dpi = 200;
-		$basePng = "$work/base.png";
-		if (!fe_pdf_png($base, $basePng, $dpi)) return false;
-		$xpx = (int) round((float) $position['xa'] / 25.4 * $dpi);
-		$ypx = (int) round((297 - (float) $position['ya']) / 25.4 * $dpi);
-		$wpx = max(1, (int) round((float) $position['xb'] / 25.4 * $dpi));
-		$hpx = max(1, (int) round((float) $position['yb'] / 25.4 * $dpi));
-		$logoRs = "$work/logo.png";
-		$compPng = "$work/composite.png";
-		$compPdf = "$work/composite.pdf";
-		$geometry = sprintf('%+d%+d', $xpx, $ypx);
-		$commands = array(
-			'convert ' . escapeshellarg($basePng) . ' -resize 1654x2339! ' . escapeshellarg($basePng),
-			'convert ' . escapeshellarg($logo) . ' -resize ' . escapeshellarg($wpx . 'x' . $hpx . '!') . ' ' . escapeshellarg($logoRs),
-			'convert ' . escapeshellarg($basePng) . ' ' . escapeshellarg($logoRs) . ' -gravity NorthWest -geometry ' . escapeshellarg($geometry) . ' -composite ' . escapeshellarg($compPng),
-			'convert ' . escapeshellarg($compPng) . ' -units PixelsPerInch -density ' . $dpi . ' ' . escapeshellarg($compPdf)
-		);
-		foreach ($commands as $command) {
-			$messages = array();
-			exec($command . ' 2>&1', $messages, $status);
-			if ($status !== 0) {
-				error_log('Form editor: logo composition failed for ' . basename($out));
-				return false;
-			}
-		}
-		if (!is_file($compPdf) || file_get_contents($compPdf, false, null, 0, 5) !== '%PDF-') return false;
-		if (!rename($compPdf, $out)) return false;
-		if (file_put_contents($metaF, json_encode(array('active' => $out, 'out_md5' => md5_file($out)))) === false) return false;
-		foreach (glob("$dir/*_feprev.png") ?: array() as $preview) unlink($preview);
-		return true;
-	} finally {
-		foreach (glob("$work/*") ?: array() as $temporary) unlink($temporary);
-		rmdir($work);
+	if (!file_exists($base)) {
+		if ($active && file_exists($active)) @copy($active, $base);
+		else @shell_exec("convert -size 1654x2339 xc:white -units PixelsPerInch -density 200 " . escapeshellarg($base) . " 2>/dev/null");
+	} elseif ($activeMd5 !== '' && isset($meta['out_md5']) && $activeMd5 !== $meta['out_md5']) {
+		@copy($active, $base);
 	}
+	if (!file_exists($base)) return;
+
+	$dpi = 200;
+	$A4W = 1654; $A4H = 2339;   // A4 @200dpi (210x297mm)
+	$basePng = "$dir/fe_basetmp-1.png";
+	@shell_exec("pdftoppm -png -r $dpi -f 1 -l 1 " . escapeshellarg($base) . " " . escapeshellarg("$dir/fe_basetmp") . " 2>/dev/null");
+	if (!file_exists($basePng)) return;
+
+	@shell_exec("convert " . escapeshellarg($basePng) . " -resize " . $A4W . "x" . $A4H . "! " . escapeshellarg($basePng) . " 2>/dev/null");
+
+	$xpx = (int) round($xa/25.4*$dpi);
+	$ypx = (int) round((297-$ya)/25.4*$dpi);
+	$wpx = max(1, (int) round($w/25.4*$dpi));
+	$hpx = max(1, (int) round($h/25.4*$dpi));
+	$logoRs  = "$dir/fe_logors.png";
+	$compPng = "$dir/fe_comptmp.png";
+	@shell_exec("convert " . escapeshellarg($logo) . " -resize " . escapeshellarg($wpx . 'x' . $hpx . '!') . " " . escapeshellarg($logoRs) . " 2>/dev/null");
+	@shell_exec("convert " . escapeshellarg($basePng) . " " . escapeshellarg($logoRs) . " -gravity NorthWest -geometry +$xpx+$ypx -composite " . escapeshellarg($compPng) . " 2>/dev/null");
+	if (file_exists($compPng)) {
+		@shell_exec("convert " . escapeshellarg($compPng) . " -units PixelsPerInch -density $dpi " . escapeshellarg($out) . " 2>/dev/null");
+		@file_put_contents($metaF, json_encode(array('active'=>$out, 'out_md5'=> file_exists($out) ? md5_file($out) : '')));
+		// bust the editor bg preview cache so the base re-renders next load
+		@array_map('unlink', glob("$dir/*_feprev.png") ?: array());
+	}
+	@unlink($basePng); @unlink($logoRs); @unlink($compPng);
 }
 endif;
