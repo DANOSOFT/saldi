@@ -6,3 +6,10 @@ commission.settle.orders_deferred	%s ordrer med kommission er ikke afregnet, for
 common.accept	Acceptér	Accept	Godta
 debtor.card.changed_by_another_user	Kunden er ændret af en anden bruger, efter du åbnede kortet. Dine ændringer er ikke gemt. Kortet viser nu de gemte oplysninger, så indtast dine ændringer igen.	This customer was changed by another user after you opened the card. Your changes were not saved. The card now shows the saved data, so enter your changes again.	Kunden er endret av en annen bruker etter at du åpnet kortet. Endringene dine er ikke lagret. Kortet viser nå de lagrede opplysningene, så skriv inn endringene dine på nytt.
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
+wage.overtime.hours_100	Overtid 100%	Overtime 100%	Overtid 100%
+wage.overtime.hours_50	Overtid 50%	Overtime 50%	Overtid 50%
+wage.overtime.no_access	Du har ikke adgang til denne side.	You do not have access to this page.	Du har ikke tilgang til denne siden.
+wage.overtime.no_slips	Ingen godkendte sedler i perioden.	No approved slips in the period.	Ingen godkjente sedler i perioden.
+wage.overtime.note	Kun godkendte sedler tæller med. Overtid er timer med overtidstillæg.	Only approved slips are counted. Overtime is hours with overtime supplement.	Kun godkjente sedler telles med. Overtid er timer med overtidstillegg.
+wage.overtime.title	Overtid og løn pr. sag	Overtime and wages per project	Overtid og lønn per sak
+wage.overtime.total	Overtid i alt	Total overtime	Overtid totalt
