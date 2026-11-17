@@ -5,7 +5,6 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // --- finans/bankimport.php --- ver 5.1.1 --- 2026.11.16 ---
-// --- finans/bankimport.php --- patch 5.0.0 --- 2026.03.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,9 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20200820 PHR Added recognition of outgoing payments from Cultura Sparebank, Norway 20200820
 // 20211107 PHR Added recognition of customer account # when importing bank 20201107
 // 20210328 PHR Added recognition of payment ID from Jyske Bank 21210328
