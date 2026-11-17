@@ -1,5 +1,5 @@
 <?php
-// ------------------debitor/batch.php--------ver 5.0.0----2026.10.13--
+// ------------------debitor/batch.php--------ver 5.1.1----2026.11.16--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -33,7 +33,8 @@
 //                  identifiers outside a string. On PHP 8 each is an undefined constant and
 //                  throws, and the first one ($row[art], reached on every open of this
 //                  window) made the page a 500 before it printed anything.
-
+// 20261116 CL/MMR SST-1023 Gem in the batch window no longer gives a blank page on PHP 8: the posted lager, row count and Vælg fields are read as numbers, so an empty field counts as 0.
+// 20261116 CL/MMR SST-1023 The line id from the address and the chosen credit line are cast to whole numbers before they reach SQL.
 @session_start();
 $s_id=session_id();
 
@@ -41,7 +42,7 @@ $css="../css/standard.css";
 
 $title="batch";
 
-$linje_id=$_GET['linje_id'];
+$linje_id = (int)($_GET['linje_id'] ?? 0);
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/settings.php");
@@ -53,25 +54,30 @@ if ($_POST['submit']){
 	if ($submit=="Luk"){print "<body onload=\"javascript:window.close();\">";}
 	$vare_id=$_POST['vare_id'];
 	$leveres=$_POST['antal'];
-	$kred_linje_id=$_POST['kred_linje_id'];
-	$batch_antal=$_POST['batch_antal'];
+	$kred_linje_id = array_map('intval', (array)if_array($_POST, 'kred_linje_id'));
+	$batch_antal = (int)ifset($_POST, 'batch_antal', 0);
 	$art=trim($_POST['art']);
-	$lager=$_POST['lager'];
+	// SST-1023 The hidden lager field is empty when the order's employee has no department, and
+	// every Vælg field the user leaves empty posts ''. On PHP 8, '' * 1 throws, so Gem gave a blank page.
+	$lager = (int)ifset($_POST, 'lager', 0);
+	$vare_id = (int)$vare_id;
+	$valgt_antal = $rest_antal = 0;
 
 	if ($_POST['status']<3) {
 		for ($x=1; $x<=$batch_antal; $x++) {
 			$temp="valg_".$x;
-			$valg[$x]=$_POST[$temp]*1;
+			// The field is prefilled by reducer() with a dot ("1.5"), so the dot is kept as the decimal sign; a typed comma also works.
+			$valg[$x] = (float)str_replace(',', '.', trim((string)ifset($_POST, $temp, '')));
 			$temp="batch_kob_id_".$x;
-			$batch_kob_id[$x]=$_POST[$temp];
+			$batch_kob_id[$x] = (int)ifset($_POST, $temp, 0);
 			$temp="ordrenr_".$x;
-			$ordrenr[$x]=$_POST[$temp];
+			$ordrenr[$x] = ifset($_POST, $temp, '');
 			$temp="batch_salg_id_".$x;
-			$batch_salg_id[$x]=$_POST[$temp];
+			$batch_salg_id[$x] = (int)ifset($_POST, $temp, 0);
 			$temp="res_linje_id_".$x;
-			$res_linje_id[$x]=$_POST[$temp];
+			$res_linje_id[$x] = (int)ifset($_POST, $temp, 0);
 			$temp="rest_".$x;
-			$rest[$x]=$_POST[$temp];
+			$rest[$x] = (float)ifset($_POST, $temp, 0);
 
 			if ($leveres > 0) {
 				if ($valg[$x]>$rest[$x]) {$max_antal[$x]=$rest[$x];}
@@ -90,7 +96,6 @@ if ($_POST['submit']){
 				 $temp=$linje_id*-1;
 				 db_modify("delete from reservation where batch_salg_id=$temp",__FILE__ . " linje " . __LINE__);
 				 for ($x=1; $x<=$batch_antal; $x++) {
-					 $lager=$lager*1;
 					if (($valg[$x]>0)&&(!$res_linje_id[$x])) {db_modify("insert into reservation (linje_id, vare_id, batch_kob_id, antal, lager) values ($linje_id, $vare_id, $batch_kob_id[$x], $valg[$x], $lager)",__FILE__ . " linje " . __LINE__);}
 					elseif (($valg[$x]>0)&&($res_linje_id[$x])) {db_modify("insert into reservation (linje_id, vare_id, batch_salg_id, antal, lager) values ($res_linje_id[$x], $vare_id, $temp, $valg[$x], $lager)",__FILE__ . " linje " . __LINE__);}
 			 	} 
