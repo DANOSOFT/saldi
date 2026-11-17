@@ -26,6 +26,7 @@
 //                During an active offer (specialtype 'price', the window as find_pris() in includes/ordrefunc.php reads it) the shop gets the offer as salesPrice and the normal price as retailPrice, so it shows the normal price as the before-price; otherwise salgspris and retail_price.
 //                salesPrice keeps salgspris' convention (excluding VAT).
 //                retailPrice is sent the way varer.retail_price (Vejl.pris) is entered: as typed, beside a salgspris the item card shows including VAT when the setting vatOnItemCard is on (lager/varekort.php), so the normal price is sent including VAT then, as a user copying the card's price into Vejl.pris would have done.
+//                The lookups go through shopOfferFetchRow(), so inside the offer reconciler's tick they are bounded in time like its other queries.
 
 if (!function_exists('shopOfferActive')) {
 	/**
@@ -152,7 +153,7 @@ if (!function_exists('shopVatOnItemCard')) {
 		global $db;
 		static $cache = array();
 		if (!array_key_exists((string)$db, $cache)) {
-			$r = db_fetch_array(db_select("select var_value from settings where var_name = 'vatOnItemCard' and var_grp = 'items'", __FILE__ . " linje " . __LINE__));
+			$r = shopOfferFetchRow("select var_value from settings where var_name = 'vatOnItemCard' and var_grp = 'items'");
 			$cache[(string)$db] = ($r && $r['var_value']);
 		}
 		return $cache[(string)$db];
@@ -175,18 +176,34 @@ if (!function_exists('shopOfferVatRate')) {
 		$key = $db . ':' . $year . ':' . $gruppe;
 		if (isset($cache[$key])) return $cache[$key];
 		$cache[$key] = 0.0;
-		$r = db_fetch_array(db_select("select box4,box7 from grupper where art = 'VG' and kodenr = '$gruppe' and fiscal_year = '$year'", __FILE__ . " linje " . __LINE__));
+		$r = shopOfferFetchRow("select box4,box7 from grupper where art = 'VG' and kodenr = '$gruppe' and fiscal_year = '$year'");
 		if ($r && !$r['box7']) {
 			$kontonr = (int)$r['box4'];
-			$r = db_fetch_array(db_select("select moms from kontoplan where regnskabsaar = '$year' and kontonr = '$kontonr'", __FILE__ . " linje " . __LINE__));
+			$r = shopOfferFetchRow("select moms from kontoplan where regnskabsaar = '$year' and kontonr = '$kontonr'");
 			if ($r && $r['moms']) {
 				$art = db_escape_string(substr($r['moms'], 0, 1) . 'M');
 				$kodenr = (int)substr($r['moms'], 1);
-				$r = db_fetch_array(db_select("select box2 from grupper where art = '$art' and kodenr = '$kodenr' and fiscal_year = '$year'", __FILE__ . " linje " . __LINE__));
+				$r = shopOfferFetchRow("select box2 from grupper where art = '$art' and kodenr = '$kodenr' and fiscal_year = '$year'");
 				if ($r) $cache[$key] = (float)str_replace(',', '.', (string)$r['box2']);
 			}
 		}
 		return $cache[$key];
+	}
+}
+
+if (!function_exists('shopOfferFetchRow')) {
+	/**
+	 * One row of a lookup: inside the offer reconciler's tick through its time-bounded query (shopOfferBoundedQuery()),
+	 * elsewhere through db_select() as always.
+	 *
+	 * @param string $sql
+	 * @return array|false
+	 */
+	function shopOfferFetchRow($sql) {
+		if (!empty($GLOBALS['shopOfferBoundedUntil']) && function_exists('shopOfferBoundedQuery')) {
+			return db_fetch_array(shopOfferBoundedQuery($sql));
+		}
+		return db_fetch_array(db_select($sql, __FILE__ . " linje " . __LINE__));
 	}
 }
 

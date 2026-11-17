@@ -109,7 +109,8 @@
 // ----------------------------------------------------------------------
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
 // 20261117 CL/LH Action shop_offer_tick: one tick of the webshop offer reconciler (includes/stdFunc/shopOfferPush.php), the only sender of offer prices to the webshops.
-//                A scheduler calls it every few minutes with the account's API key; it is checked by access_check() like every shop call, and a tick that finds another one running answers "busy" at once.
+//                A scheduler calls it every 2 minutes with the account's API key; it is checked by access_check() like every shop call, and a tick that finds another one running answers "busy" at once.
+//                access_check() also takes the key from a POST body (before the query string), so a caller can keep it out of URLs, which web servers log, and out of command lines.
 date_default_timezone_set('Europe/Copenhagen');
 
 include("../includes/connect.php");
@@ -1239,7 +1240,8 @@ function access_check(){
 		$api_key=trim($r['box1']);
 		if (strpos($r['box2'],',')) $ip_list=explode(',',trim($r['box2']));
 		else $ip_list[0]=trim($r['box2']);
-		if (!$api_key || !hash_equals($api_key,(string) (isset($_GET['key']) ? $_GET['key'] : ''))) {
+		$suppliedKey = isset($_POST['key']) ? $_POST['key'] : (isset($_GET['key']) ? $_GET['key'] : ''); # 20261117 a POST body keeps the key out of URLs
+		if (!$api_key || !hash_equals($api_key,(string) $suppliedKey)) {
 			$log=fopen("../temp/$db/rest_api.log","a");
 			fwrite($log,__line__." Access denied (key)\n");
 			return "Access denied (key)";

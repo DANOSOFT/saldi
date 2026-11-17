@@ -93,9 +93,10 @@ while ($product = db_fetch_array($products_query)) {
     $stregkode = $product['stregkode'];
     $gruppe = $product['gruppe'];
     $delvare = $product['delvare'];
-    // 20261117 CL/LH an item under offer management (includes/stdFunc/shopOfferPush.php) gets, per shop, the price pair that shop
-    // confirmed to the offer reconciler, so this run never changes a shop's price during an offer (null: today's prices). The calls
-    // below are fire-and-forget, so their in-flight note is left to expire (120 s) and they stop after 60 s.
+    // 20261117 CL/LH an item the offer reconciler tracks (includes/stdFunc/shopOfferPush.php) gets, per shop, the price pair that
+    // shop last accepted from it, so this run starts no price of its own (null: today's prices); a pair that is not the item's
+    // current one is marked, and the reconciler sends the current pair after it. These calls are fire-and-forget, so for such an
+    // item they stop after 60 s: well within the 10 minutes the reconciler allows a request to arrive late.
     $offer = shopOfferForeignBegin($vare_id, $product, array_filter(array($api_fil, $api_fil2, $api_fil3)));
     $slotOf = array_flip(array_filter(array($api_fil, $api_fil2, $api_fil3)));
     

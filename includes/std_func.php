@@ -126,8 +126,8 @@
 // 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
 //                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261117 CL/LH Havemøbelland Black Week: sync_shop_price() and sync_shop_vare() send an item under offer management (tracked by stdFunc/shopOfferPush.php, or with a 'price' offer) each shop the price pair that shop confirmed to the offer reconciler, so a card save or a sale never changes a shop's price during an offer; other items keep today's prices.
-//                The reconciler, run only by an authorised scheduled call, is the one sender of offer prices and sends the new prices on its next tick; each send here leaves an in-flight note so the reconciler does not certify a send of its own that this one could overtake.
+// 20261117 CL/LH Havemøbelland Black Week: sync_shop_price() and sync_shop_vare() send an item the offer reconciler tracks (stdFunc/shopOfferPush.php) each shop the price pair that shop last accepted from it, so a card save or a sale starts no price of its own; other items keep today's prices.
+//                When that pair is not the item's current one, the send is marked as an event, and the reconciler, run only by an authorised scheduled call, sends the current pair after it.
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
@@ -2067,20 +2067,17 @@ if(!function_exists("sync_shop_price")){
 			'webFragt'     => $webFragt,
 			'barcode'      => $stregkode,
 		);
-		# 20261117 an item under offer management gets, per shop, the pair that shop confirmed; null: today's prices
+		# 20261117 a tracked item gets, per shop, the pair that shop last accepted from the offer reconciler; null: today's prices
 		$offer = shopOfferForeignBegin($vare_id, $r, array_filter(array($api_fil, $api_fil2, $api_fil3)));
-		$answers = array();
 		foreach (array($api_fil, $api_fil2, $api_fil3) as $slot => $endpoint) {
 		  if (!$endpoint) {
 			continue;
 		  }
 		  $res = shopApiRequest($endpoint, shopOfferForeignParams($params, $offer, $slot), $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
-		  $answers[$slot] = $res;
 		  if (!$res['ok']) {
 			$failed++;
 		  }
 		}
-		shopOfferForeignEnd($vare_id, $offer, $answers);
 	  }
 	  fclose($log);
 	  return ($failed ? "sync errors: $failed" : 'OK');
@@ -2166,13 +2163,13 @@ if (!function_exists('sync_shop_vare')) {
 		// A shop that could not be reached, or that was never called because the budget ran out,
 		// leaves the item on the queue so the next request delivers it. A shop that answered and
 		// refused the item is not queued: the figure is not what it objects to.
-		$send = function (array $targets, array $params, $context, $queueId, $queueVariant, $itemLabel, $offer = null)
+		$send = function (array $targets, array $params, $context, $queueId, $queueVariant, $itemLabel)
 			use ($log, $userAgent, $lager, $mode, &$failed) {
 			if (!$targets) {
-				return null;
+				return;
 			}
-			if (shopSyncCollect($targets, $params, $context, $queueId, $queueVariant, $lager, $mode, $itemLabel, $userAgent, $offer)) {
-				return null; // sent with the document; its in-flight note is ended there
+			if (shopSyncCollect($targets, $params, $context, $queueId, $queueVariant, $lager, $mode, $itemLabel, $userAgent)) {
+				return;
 			}
 			$results = shopApiRequestParallel($targets, $params, $log, array('context' => $context, 'userAgent' => $userAgent));
 			foreach ($results as $res) {
@@ -2187,30 +2184,14 @@ if (!function_exists('sync_shop_vare')) {
 					shopSyncQueueAdd($queueId, $queueVariant, $lager, $mode);
 				}
 			}
-			return $results;
 		};
-		// 20261117 a send that carries the item's prices (update_price, update_stock): an item under offer management gets, per
-		// shop, the pair that shop confirmed to the offer reconciler (stdFunc/shopOfferPush.php), so this send changes no price
+		// 20261117 a send that carries the item's prices (update_price, update_stock): a tracked item gets, per shop, the pair
+		// that shop last accepted from the offer reconciler (stdFunc/shopOfferPush.php), so this send starts no price of its own
 		$priceRow = null;
 		$sendPrices = function (array $targets, array $params, $context, $itemLabel) use ($send, $vare_id, &$priceRow) {
 			$offer = $priceRow ? shopOfferForeignBegin($vare_id, $priceRow, $targets) : null;
-			if (!$offer) {
-				$send($targets, $params, $context, $vare_id, 0, $itemLabel);
-				return;
-			}
-			$note = $offer['token'] ? array('vare_id' => $vare_id, 'token' => $offer['token']) : null;
-			$answers = array();
-			$collected = false;
 			foreach (shopOfferForeignGroups($targets, $offer, $params) as $group) {
-				$res = $send($group['targets'], $group['params'], $context, $vare_id, 0, $itemLabel, $note);
-				if ($res === null) {
-					$collected = true;
-				} else {
-					$answers += $res;
-				}
-			}
-			if (!$collected) {
-				shopOfferForeignEnd($vare_id, $offer, $answers);
+				$send($group['targets'], $group['params'], $context, $vare_id, 0, $itemLabel);
 			}
 		};
 		if ($variant_id) {

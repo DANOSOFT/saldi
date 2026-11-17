@@ -10,25 +10,27 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  * shop's own price per item as a real shop would (applied when the call is applied, which can be later than it arrived), and
  * can fail, refuse, apply late or answer late per shop.
  *
- * Pins that only a tick sends offer prices (no card save, sale, import or unauthorised API call does), that a tick sends the
- * offer that applies now and restores the normal prices after it, that the card's and the sale's calls send each shop only the
- * pair it confirmed, that a send is certified only when no other send overlapped it, that refusal counters belong to one price
- * pair, that unwritable state sends nothing, that one tick runs at a time within its budget and the next goes on from where it
- * stopped, that every tracked item is sent again after an hour, and that an item without an offer costs nothing.
+ * Pins the guarantee: when every request is applied within T_late (10 minutes) of being sent, each shop holds the item's
+ * current pair within T_late plus the next re-send after the item's last event, and no item stops being tracked while a request
+ * of the reconciler could still arrive. So: only a tick sends offer prices; it sends again after every event (a change, a
+ * failure, a refusal, a cut-off or killed send, an earlier pair sent by another path) on schedule; requests that arrive late
+ * (Codex v3: V3LATE, V3LOST, V3CRONLOST, V3PLAIN, a killed tick) are overwritten by the next re-send; an item stays tracked 24
+ * hours after its last event; refusal counters belong to one pair; unwritable state sends nothing; one tick at a time within its
+ * budget, a held table lock included; an item without an offer costs nothing.
  *
  * History:
  * 20261117 CL/LH Created (Havemøbelland Black Week: offers in the webshops).
  * 20261117 CL/LH Codex verification: one regression test per finding (unrecorded card/sale offers, partial delivery, the budget with
  *                slow shops, the schedule race, the retry state after a first failure, a refused restoration).
  * 20261117 CL/LH An install without a webshop keeps no push state after a campaign import, and a look there makes the push dormant.
- * 20261117 CL/LH Single-writer rebuild after the second Codex verification: the findings of both verifications that still apply,
- *                the concurrency of a card save, a stock sync and two ticks against a shop that applies late, the tick lock, and
- *                no offer price without an authorised tick.
+ * 20261117 CL/LH Single-writer rebuild after the second Codex verification: the concurrency of a card save, a stock sync and two
+ *                ticks against a shop that applies late, the tick lock, and no offer price without an authorised tick.
+ * 20261117 CL/LH Re-send rebuild after the third: requests that arrive late, a killed tick, a held table lock.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
-	/** @var resource|null */
-	private static $server = null;
+	/** @var list<resource> One fake shop server per shop, so calls to different shops never queue behind each other. */
+	private static array $servers = [];
 	private static string $shopLog = '';
 	private static string $tempDir = '';
 	private static int $stockGroup = 0;
@@ -40,15 +42,18 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		parent::setUpBeforeClass();
 		date_default_timezone_set('Europe/Copenhagen');
 		self::$shopLog = tempnam(sys_get_temp_dir(), 'shoprec');
-		$probe = stream_socket_server('tcp://127.0.0.1:0');
-		$name = (string)stream_socket_get_name($probe, false);
-		$port = (int)substr($name, strrpos($name, ':') + 1);
-		fclose($probe);
-		$env = array_merge(getenv(), ['SALDI_SHOP_RECORDER_LOG' => self::$shopLog, 'PHP_CLI_SERVER_WORKERS' => '12']);
-		self::$server = proc_open([PHP_BINARY, '-S', "127.0.0.1:$port", __DIR__ . '/../support/shop_price_recorder.php'],
-			[0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, null, $env);
-		for ($i = 0; $i < 50 && !@fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1); $i++) {
-			usleep(100000);
+		$env = array_merge(getenv(), ['SALDI_SHOP_RECORDER_LOG' => self::$shopLog, 'PHP_CLI_SERVER_WORKERS' => '6']);
+		$ports = [];
+		foreach ([1, 2, 3] as $n) {
+			$probe = stream_socket_server('tcp://127.0.0.1:0');
+			$name = (string)stream_socket_get_name($probe, false);
+			$ports[$n] = $port = (int)substr($name, strrpos($name, ':') + 1);
+			fclose($probe);
+			self::$servers[] = proc_open([PHP_BINARY, '-S', "127.0.0.1:$port", __DIR__ . '/../support/shop_price_recorder.php'],
+				[0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, null, $env);
+			for ($i = 0; $i < 50 && !@fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1); $i++) {
+				usleep(100000);
+			}
 		}
 		$db = CharacterizationEnv::testDb();
 		self::$tempDir = CharacterizationEnv::repoRoot() . '/temp/' . $db;
@@ -57,7 +62,7 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 			self::rows("INSERT INTO grupper (id, beskrivelse, kodenr, art, fiscal_year) VALUES ($1, 'API', '1', 'API', 0)", [CharacterizationEnv::nextId(self::$tenant, 'grupper')]);
 		}
 		self::rows("UPDATE grupper SET box1 = 'test-key', box2 = '*', box4 = $1, box5 = $2, box6 = $3 WHERE art = 'API'",
-			["http://127.0.0.1:$port/shop1.php?shop=1", "http://127.0.0.1:$port/shop2.php?shop=2", "http://127.0.0.1:$port/shop3.php?shop=3"]);
+			["http://127.0.0.1:{$ports[1]}/shop1.php?shop=1", "http://127.0.0.1:{$ports[2]}/shop2.php?shop=2", "http://127.0.0.1:{$ports[3]}/shop3.php?shop=3"]);
 		self::rows("DELETE FROM settings WHERE var_name = 'vatOnItemCard' AND var_grp = 'items'");
 		self::rows("INSERT INTO settings (id, var_name, var_grp, var_value, var_description, user_id) VALUES ($1, 'vatOnItemCard', 'items', 'on', 'test', 0)", [CharacterizationEnv::nextId(self::$tenant, 'settings')]);
 		$group = self::one(
@@ -72,9 +77,9 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 
 	public static function tearDownAfterClass(): void
 	{
-		if (self::$server) {
-			proc_terminate(self::$server);
-			proc_close(self::$server);
+		foreach (self::$servers as $server) {
+			proc_terminate($server);
+			proc_close($server);
 		}
 		foreach (array_merge(self::$files, (array)glob(self::$shopLog . '*')) as $file) {
 			@unlink((string)$file);
@@ -145,7 +150,6 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	/** @param list<string> $args @param list<string> $phpOptions @return array<string, mixed> */
 	private static function runner(array $args, array $phpOptions = []): array
 	{
-		CharacterizationEnv::resyncSequences(self::$tenant);
 		$cmd = array_merge([PHP_BINARY], $phpOptions, [__DIR__ . '/../support/run_shop_offer_push.php', CharacterizationEnv::testDb()], $args);
 		$proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
 		fclose($pipes[0]);
@@ -199,16 +203,14 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		return $run;
 	}
 
-	/** Waits until the fake shop has received a call for the item carrying $salesPrice (logged on arrival). */
-	private static function waitForCall(string $itemNo, string $salesPrice): void
+	/** Waits until the fake shop has received $count calls for the item carrying $salesPrice (logged on arrival). */
+	private static function waitForCall(string $itemNo, string $salesPrice, int $count = 1): void
 	{
-		for ($i = 0; $i < 200; $i++) {
-			foreach (self::priceCalls($itemNo, null) as $call) {
-				if ($call['salesPrice'] === $salesPrice) return;
-			}
+		for ($i = 0; $i < 600; $i++) {
+			if (count(array_filter(self::priceCalls($itemNo, null), fn($c) => $c['salesPrice'] === $salesPrice)) >= $count) return;
 			usleep(25000);
 		}
-		self::fail("no call for $itemNo with $salesPrice arrived");
+		self::fail("no $count calls for $itemNo with $salesPrice arrived: " . json_encode(array_map(fn($c) => [$c['_shop'], $c['salesPrice'], $c['_status']], self::priceCalls($itemNo, null))));
 	}
 
 	private static function control(string $name, string $content = ''): void
@@ -279,18 +281,6 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		return $out;
 	}
 
-	/** No shop is certified at a price it does not hold: the invariant a false certification would break. */
-	private static function assertNoFalseCertainty(int $id, string $itemNo): void
-	{
-		$remote = self::remote($itemNo);
-		foreach (self::stateByShop($id) as $shop => $entry) {
-			if (!empty($entry['certain'])) {
-				self::assertSame($entry['confirmed']['sales'] . ' / ' . $entry['confirmed']['retail'], $remote[$shop] ?? '(nothing)',
-					"$shop is certified at a price it does not hold");
-			}
-		}
-	}
-
 	/** The seeded session id for the page runner (master harness: sessionId(), live harness: SESSION_ID). */
 	private static function sessionId(): string
 	{
@@ -305,6 +295,27 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	private const NORMAL_ALL = ['shop 1' => ['639.200 / 899.000'], 'shop 2' => ['639.200 / 899.000'], 'shop 3' => ['639.200 / 899.000']];
 	private const REMOTE_OFFER = ['shop 1' => self::OFFER, 'shop 2' => self::OFFER, 'shop 3' => self::OFFER];
 	private const REMOTE_NORMAL = ['shop 1' => self::NORMAL, 'shop 2' => self::NORMAL, 'shop 3' => self::NORMAL];
+
+	/** Every fake shop holds $pair for the item. */
+	private static function assertShopsHold(string $itemNo, string $pair, string $message = ''): void
+	{
+		self::assertSame(['shop 1' => $pair, 'shop 2' => $pair, 'shop 3' => $pair], self::remote($itemNo), $message);
+	}
+
+	/** Waits until every shop holds $pair for the item (a request that is applied late), at most 20 seconds. */
+	private static function waitUntilShopsHold(string $itemNo, string $pair): void
+	{
+		for ($i = 0; $i < 400 && count(array_filter(self::remote($itemNo), fn($p) => $p === $pair)) < 3; $i++) {
+			usleep(50000);
+		}
+		self::assertShopsHold($itemNo, $pair, 'the late request was applied');
+	}
+
+	/** Calls per shop that carried prices for the item since the log was cleared. */
+	private static function sendsPerShop(string $itemNo): int
+	{
+		return intdiv(count(self::priceCalls($itemNo)), 3);
+	}
 
 	// ------------------------------------------------------------------ only a tick sends offer prices
 
@@ -333,26 +344,45 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::assertIsString($denied['response'], 'a tick without access is refused by access_check(): ' . json_encode($denied));
 		self::assertSame([], array_filter(self::priceCalls(), fn($c) => $c['salesPrice'] === '199.200'), 'and sends nothing');
 		self::tick();
-		self::assertSame(['shop 1' => '199.200 / 799.00', 'shop 2' => '199.200 / 799.00', 'shop 3' => '199.200 / 799.00'], self::remote('SPONLY'),
-			'the tick sends the new offer');
+		self::assertShopsHold('SPONLY', '199.200 / 799.00', 'the tick sends the new offer');
 	}
 
-	public function testATickSendsTheOfferThatAppliesNowAndRestoresItAfterwards(): void
+	public function testATickSendsTheOfferAndSendsItAgainOnSchedule(): void
 	{
-		$id = self::item('SPNOW', self::offer());
-		self::item('SPLATER', ['price' => 149.2, 'from' => date('Y-m-d', strtotime('+10 days')), 'to' => date('Y-m-d', strtotime('+12 days'))]);
-		$out = self::tick();
-		self::assertSame(self::OFFER_ALL, self::pricesSent('SPNOW'), 'one call per shop: the offer ex VAT, the normal price 639.20 incl. VAT as the before-price');
-		self::assertSame([], self::pricesSent('SPLATER'), 'an offer that starts later is not sent yet');
-		self::assertSame(3, $out['certified']);
-		self::clearLog();
+		self::item('SPNOW', self::offer(159.2, 3));
+		$t = time();
+		$sends = [];
+		foreach ([0, 60, 120, 200, 300, 900, 3600, 3600 + 10799, 3600 + 10800] as $offset) {
+			self::clearLog();
+			self::tick($t + $offset);
+			$sends[$offset] = self::sendsPerShop('SPNOW');
+		}
+		self::assertSame([0 => 1, 60 => 0, 120 => 1, 200 => 0, 300 => 1, 900 => 1, 3600 => 1, 14399 => 0, 14400 => 1], $sends,
+			'at once, after 2, 5, 15 and 60 minutes, then every 3 hours while the offer is active');
+		self::assertShopsHold('SPNOW', self::OFFER);
+	}
+
+	public function testTheEndIsSentAgainAndTheItemKeptFor24Hours(): void
+	{
+		$id = self::item('SPEND', self::offer());
 		self::tick();
-		self::assertSame([], self::priceCalls(), 'nothing certified is sent again within the hour');
-		$out = self::tick(strtotime('tomorrow') + 1);
-		self::assertSame(self::NORMAL_ALL, self::pricesSent('SPNOW'), 'the tick after the end restores the normal prices');
-		self::assertSame(self::REMOTE_NORMAL, self::remote('SPNOW'));
+		$end = strtotime('tomorrow') + 1;
+		$sends = [];
+		foreach ([0, 120, 300, 900, 3600, 21600, 43200, 64800, 86400] as $offset) {
+			self::clearLog();
+			self::tick($end + $offset);
+			$sends[] = self::sendsPerShop('SPEND');
+		}
+		self::assertSame([1, 1, 1, 1, 1, 1, 1, 1, 1], $sends, 'the normal prices at the end, after 2, 5, 15, 60 minutes and 6, 12, 18, 24 hours');
+		self::assertShopsHold('SPEND', self::NORMAL);
+		self::tick($end + 86400 + 599);
+		self::assertNotNull(self::runner(['state', (string)$id])['state'], 'not untracked while the last re-send could still be on its way');
+		$out = self::tick($end + 86400 + 600);
 		self::assertSame(1, $out['untracked']);
-		self::assertNull(self::runner(['state', (string)$id])['state'], 'no longer tracked once every shop confirmed the normal prices');
+		self::assertNull(self::runner(['state', (string)$id])['state']);
+		self::clearLog();
+		self::tick($end + 2 * 86400);
+		self::assertSame([], self::priceCalls(), 'and then nothing');
 	}
 
 	public function testTheStartOfALaterOfferIsSentByTheFirstTickAfterIt(): void
@@ -365,64 +395,34 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::assertSame(self::OFFER_ALL, self::pricesSent('SPSTART'), 'the tick 30 seconds after midnight sends it');
 	}
 
-	public function testEveryTrackedItemIsSentAgainAfterAnHour(): void
-	{
-		self::item('SPHEAL', self::offer(159.2, 3));
-		$t = time();
-		self::tick($t);
-		file_put_contents(self::$shopLog . '.remote', '{}'); // the shops lost the price behind our back
-		self::clearLog();
-		self::tick($t + 1800);
-		self::assertSame([], self::priceCalls(), 'within the hour a certified price is trusted');
-		$out = self::tick($t + 3601);
-		self::assertSame(self::OFFER_ALL, self::pricesSent('SPHEAL'), 'after an hour it is sent again');
-		self::assertSame(1, $out['healed']);
-		self::assertSame(self::REMOTE_OFFER, self::remote('SPHEAL'), 'drift healed');
-	}
+	// ------------------------------------------------------------------ the other paths start no price of their own
 
-	// ------------------------------------------------------------------ the other paths send what each shop confirmed (v1 1, v2 4)
-
-	public function testTheCardAndTheSaleSendEachShopOnlyThePairItConfirmed(): void
+	public function testTheCardAndTheSaleSendEachShopOnlyThePairItLastAccepted(): void
 	{
 		$id = self::item('SPCARD', self::offer(159.2, 3));
 		self::tick(); // so the state directory exists
-		self::clearState(); // and the item is not tracked yet
+		self::clearState(); // and the item is not tracked
 		@mkdir(self::$tempDir . '/shopoffer', 0700, true);
 		self::clearLog();
 		self::runner(['sync_price', (string)$id]);
-		self::assertSame(self::NORMAL_ALL, self::pricesSent('SPCARD'), 'before the reconciler sent the offer, a card save sends today\'s prices');
-		self::tick();
+		self::assertSame(self::NORMAL_ALL, self::pricesSent('SPCARD'), 'an item the reconciler does not track: today\'s prices');
+		$t = time();
+		self::tick($t);
 		self::assertSame(self::REMOTE_OFFER, self::remote('SPCARD'));
 		self::rows("UPDATE varer SET special_price = 99.2 WHERE id = $1", [$id]); // the card or an import changes the offer
 		foreach ([['sync_price', (string)$id], ['sync_vare', (string)$id, '1', 'all'], ['sync_vare', (string)$id, '1', 'stock'], ['sale', (string)$id, '1']] as $call) {
 			self::clearLog();
 			self::runner($call);
-			self::assertSame(self::REMOTE_OFFER, self::remote('SPCARD'), implode(' ', $call) . ' changed no shop\'s price');
+			self::assertShopsHold('SPCARD', self::OFFER, implode(' ', $call) . ' started no price of its own');
 			self::assertNotSame([], self::priceCalls('SPCARD', null), implode(' ', $call) . ' did send');
 			foreach (self::priceCalls('SPCARD', null) as $sent) {
-				self::assertSame(self::OFFER, $sent['salesPrice'] . ' / ' . $sent['retailPrice'], implode(' ', $call) . ' sent the confirmed pair');
+				self::assertSame(self::OFFER, $sent['salesPrice'] . ' / ' . $sent['retailPrice'], implode(' ', $call) . ' sent the pair last accepted');
 			}
 		}
-		self::tick();
-		self::assertSame(['shop 1' => '99.200 / 799.00', 'shop 2' => '99.200 / 799.00', 'shop 3' => '99.200 / 799.00'], self::remote('SPCARD'),
-			'the next tick sends the new offer');
-		self::tick(strtotime('+4 days'));
-		self::assertSame(self::REMOTE_NORMAL, self::remote('SPCARD'), 'and its end restores the normal prices');
-	}
-
-	public function testAStockSyncCarriesTheConfirmedPairNotTheNewOne(): void
-	{
-		$id = self::item('SPSTOCK', self::offer(159.2, 3));
-		self::tick();
-		self::rows("UPDATE varer SET special_price = 59.2 WHERE id = $1", [$id]);
-		self::runner(['sync_vare', (string)$id, '1', 'stock']);
-		self::assertSame(self::REMOTE_OFFER, self::remote('SPSTOCK'), 'the stock call carried A, not B');
-		self::rows("UPDATE varer SET special_price = 159.2 WHERE id = $1", [$id]); // back to A before any tick
-		self::clearLog();
-		self::tick();
-		self::assertSame([], self::priceCalls(), 'every shop still certainly has A');
-		self::assertSame(self::REMOTE_OFFER, self::remote('SPSTOCK'));
-		self::assertNoFalseCertainty($id, 'SPSTOCK');
+		self::assertGreaterThanOrEqual($t, self::runner(['state', (string)$id])['state']['foreign']['staleAt'] ?? 0,
+			'and marked that it was not the current pair');
+		self::tick($t + 1);
+		self::assertShopsHold('SPCARD', '99.200 / 799.00', 'the next tick sends the new offer');
 	}
 
 	public function testAnItemWithoutAnOfferCostsNothing(): void
@@ -441,67 +441,125 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::clearLog();
 		$out = self::tick();
 		self::assertSame([], self::priceCalls(), 'and the tick sends it nothing');
-		self::assertSame(0, $out['checked']);
+		self::assertSame([0, 0], [$out['tracked'], $out['due']]);
 	}
 
-	// ------------------------------------------------------------------ certainty under concurrent sends (v2 1)
+	// ------------------------------------------------------------------ requests that arrive late (Codex v3)
+
+	public function testARequestThatArrivesLateIsOverwrittenByTheNextResend(): void
+	{
+		$id = self::item('SPLATE', self::offer(79.2, 3));
+		self::control('rules', json_encode([['item' => 'SPLATE', 'sales' => '79.200', 'apply' => 6]]));
+		$t = time();
+		self::assertSame(3, self::tick($t, 1.5)['failed'], 'A gets no answer within the budget');
+		self::rows("UPDATE varer SET special_price = 59.2 WHERE id = $1", [$id]); // B
+		self::tick($t + 1);
+		self::waitUntilShopsHold('SPLATE', '79.200 / 799.00'); // A arrives after B (V3LATE)
+		self::tick($t + 61);
+		self::assertShopsHold('SPLATE', '79.200 / 799.00', 'until the next re-send the shops may hold the late pair');
+		self::tick($t + 121);
+		self::assertShopsHold('SPLATE', '59.200 / 799.00', 'the re-send 2 minutes after the last event overwrites it');
+	}
+
+	public function testACancelledOfferThatArrivesLateIsRestored(): void
+	{
+		$id = self::item('SPLOST', self::offer(79.2, 3));
+		self::control('rules', json_encode([['item' => 'SPLOST', 'sales' => '79.200', 'apply' => 6]]));
+		$t = time();
+		self::tick($t, 1.5);
+		self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]); // the offer is cancelled
+		self::tick($t + 1);
+		self::assertNotNull(self::runner(['state', (string)$id])['state'], 'still tracked after the normal prices went out');
+		self::waitUntilShopsHold('SPLOST', '79.200 / 799.00'); // the offer arrives late (V3LOST)
+		self::tick($t + 121);
+		self::assertShopsHold('SPLOST', self::NORMAL, 'the re-send restores the normal prices');
+	}
+
+	public function testTicksTwoMinutesApartRestoreAnOfferThatArrivesLate(): void
+	{
+		$id = self::item('SPCRON', self::offer(79.2, 3));
+		self::control('rules', json_encode([['item' => 'SPCRON', 'sales' => '79.200', 'apply' => 6]]));
+		$t = time();
+		self::tick($t, 1.5); // the scheduler's first tick: the offer's calls are cut off
+		self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]);
+		self::tick($t + 120); // the next tick, 2 minutes later (V3CRONLOST, on a test clock): the normal prices
+		self::waitUntilShopsHold('SPCRON', '79.200 / 799.00');
+		self::tick($t + 240); // and the one after it
+		self::assertShopsHold('SPCRON', self::NORMAL);
+		$late = $t + 120 + 86400 + 600;
+		$out = self::tick($late);
+		self::assertSame([0, 1], [$out['untracked'], $out['accepted'] > 0 ? 1 : 0], 'a day later, with the re-sends overdue: one more send first');
+		self::assertSame(1, self::tick($late + 600)['untracked'], 'untracked 24 hours after the last event, once no request can still arrive');
+	}
+
+	public function testAnOrdinarySendThatArrivesAfterTheItemGotAnOfferIsOverwritten(): void
+	{
+		$id = self::item('SPGAIN');
+		self::tick(); // the state directory exists; the item has no offer and is not tracked
+		self::control('rules', json_encode([['item' => 'SPGAIN', 'sales' => '639.200', 'apply' => 6]]));
+		$stock = self::start(['sync_vare', (string)$id, '1', 'stock']);
+		self::waitForCall('SPGAIN', '639.200'); // an ordinary stock call with today's prices is on its way
+		$offer = self::offer(79.2, 3);
+		self::rows("UPDATE varer SET specialtype = 'price', special_price = 79.2, special_from_date = $2, special_to_date = $3 WHERE id = $1",
+			[$id, $offer['from'], $offer['to']]);
+		$t = time();
+		self::tick($t); // the item gets the offer: an event
+		self::finish($stock);
+		self::assertShopsHold('SPGAIN', self::NORMAL, 'the ordinary call arrived after the offer (V3PLAIN)');
+		self::tick($t + 121);
+		self::assertShopsHold('SPGAIN', '79.200 / 799.00', 'the re-send overwrites it');
+	}
+
+	public function testATickKilledAfterItsCallsWentOutIsFollowedByResends(): void
+	{
+		$id = self::item('SPKILL', self::offer(79.2, 3));
+		self::control('rules', json_encode([['item' => 'SPKILL', 'sales' => '79.200', 'apply' => 6, 'answer' => 20]]));
+		$t = time();
+		$tick = self::start(['tick', (string)$t, '25']);
+		try {
+			self::waitForCall('SPKILL', '79.200', 3);
+		} catch (\PHPUnit\Framework\AssertionFailedError $e) {
+			proc_terminate($tick[0], 9);
+			proc_close($tick[0]);
+			self::fail($e->getMessage() . ' | tick stdout: ' . file_get_contents($tick[1]) . ' | stderr: ' . substr((string)file_get_contents($tick[2]), 0, 600));
+		}
+		proc_terminate($tick[0], 9); // SIGKILL, with its calls on their way
+		proc_close($tick[0]);
+		self::assertNotNull(self::runner(['state', (string)$id])['state'], 'its intent is on disk');
+		self::rows("UPDATE varer SET special_price = 59.2 WHERE id = $1", [$id]);
+		self::tick($t + 1);
+		self::waitUntilShopsHold('SPKILL', '79.200 / 799.00'); // the killed tick's calls arrive late
+		self::tick($t + 121);
+		self::assertShopsHold('SPKILL', '59.200 / 799.00');
+	}
 
 	public function testACardSaveAStockSyncAndTwoTicksAtOnceEndWithTheDesiredPrice(): void
 	{
 		$id = self::item('SPCONC', self::offer(159.2, 3));
-		self::tick();
-		self::assertSame(self::REMOTE_OFFER, self::remote('SPCONC'));
+		$t = time();
+		self::tick($t);
 		self::rows("UPDATE varer SET special_price = 99.2 WHERE id = $1", [$id]); // desired is now B
 		// The shops apply the old pair A late and answer the reconciler's B late, so A, sent by the card save and the stock sync
-		// while the tick waits for its answers, is applied after B: the order Codex's P1 race needs.
+		// while the tick waits for its answers, is applied after B.
 		self::control('rules', json_encode([
 			['item' => 'SPCONC', 'sales' => '159.200', 'apply' => 1.5],
 			['item' => 'SPCONC', 'sales' => '99.200', 'answer' => 2.5],
 		]));
 		self::clearLog();
-		$tick1 = self::start(['tick', 'now', '10']);
-		self::waitForCall('SPCONC', '99.200'); // the tick has sent B and waits 2.5 s for the answers
+		$tick1 = self::start(['tick', (string)($t + 1), '10']);
+		self::waitForCall('SPCONC', '99.200');
 		$card = self::start(['sync_price', (string)$id]);
 		$stock = self::start(['sync_vare', (string)$id, '1', 'stock']);
-		$tick2 = self::start(['tick', 'now', '10']);
+		$tick2 = self::start(['tick', (string)($t + 1), '10']);
 		$results = array_map([self::class, 'finish'], [$tick1, $card, $stock, $tick2]);
 		self::assertSame('busy', $results[3]['result'], 'the second tick found the first running');
-		self::assertGreaterThan(0, $results[0]['overlapped'] + $results[0]['deferred'], 'the first tick saw the other sends: ' . json_encode($results[0]));
-		self::assertSame(['shop 1' => self::OFFER, 'shop 2' => self::OFFER, 'shop 3' => self::OFFER], self::remote('SPCONC'),
-			'the late A landed after B in every shop');
-		self::assertNoFalseCertainty($id, 'SPCONC');
+		self::assertShopsHold('SPCONC', self::OFFER, 'the late A landed after B in every shop');
 		self::uncontrol('rules');
-		self::tick();
-		$b = '99.200 / 799.00';
-		self::assertSame(['shop 1' => $b, 'shop 2' => $b, 'shop 3' => $b], self::remote('SPCONC'), 'once a tick has run, every shop has the desired price');
-		foreach (self::stateByShop($id) as $shop => $entry) {
-			self::assertTrue($entry['certain'], "$shop certain");
-			self::assertSame('99.200', $entry['confirmed']['sales']);
-		}
+		self::tick($t + 121);
+		self::assertShopsHold('SPCONC', '99.200 / 799.00', 'the next re-send leaves every shop on the desired price');
 	}
 
-	public function testATickWaitsForASendAnotherPathHasUnderWay(): void
-	{
-		$id = self::item('SPWAIT', self::offer(159.2, 3));
-		self::tick();
-		self::rows("UPDATE varer SET special_price = 59.2 WHERE id = $1", [$id]);
-		// Codex's P1 order: the card save's call is applied at once but answered late; a tick starting meanwhile must not send B
-		// and certify it while the card save's call is still open.
-		self::control('rules', json_encode([['item' => 'SPWAIT', 'sales' => '159.200', 'answer' => 2.0]]));
-		self::clearLog();
-		$card = self::start(['sync_price', (string)$id]);
-		self::waitForCall('SPWAIT', '159.200'); // the card save's call is open: applied, its answer 2 s away
-		$out = self::tick();
-		self::assertSame(1, $out['deferred'], 'the item is left for the next tick while another send of it is under way');
-		self::finish($card);
-		self::uncontrol('rules');
-		self::assertNoFalseCertainty($id, 'SPWAIT');
-		self::tick();
-		self::assertSame(['shop 1' => '59.200 / 799.00', 'shop 2' => '59.200 / 799.00', 'shop 3' => '59.200 / 799.00'], self::remote('SPWAIT'));
-		self::assertNoFalseCertainty($id, 'SPWAIT');
-	}
-
-	// ------------------------------------------------------------------ per-shop state (v1 2, v1 5)
+	// ------------------------------------------------------------------ failures and refusals are events
 
 	public function testAPartialDeliveryIsCorrectedShopByShop(): void
 	{
@@ -511,19 +569,16 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::rows("UPDATE varer SET special_price = 59.2 WHERE id = $1", [$id]);
 		self::control('fail3');
 		$out = self::tick($t + 1);
-		self::assertSame([2, 1], [$out['certified'], $out['failed']], 'B: shops 1 and 2 took it, shop 3 answered 503');
+		self::assertSame([2, 1], [$out['accepted'], $out['failed']], 'B: shops 1 and 2 took it, shop 3 answered 503');
 		self::uncontrol('fail3');
 		self::rows("UPDATE varer SET special_price = 79.2 WHERE id = $1", [$id]); // back to A
 		self::clearLog();
-		self::tick($t + 120);
-		self::assertSame(['shop 1', 'shop 2', 'shop 3'], array_keys(self::pricesSent('SPPART')),
-			'shops 1 and 2 confirmed B; shop 3 is uncertain after its 503, so it gets A too');
-		$a = '79.200 / 799.00';
-		self::assertSame(['shop 1' => $a, 'shop 2' => $a, 'shop 3' => $a], self::remote('SPPART'));
-		self::assertNoFalseCertainty($id, 'SPPART');
+		self::tick($t + 2);
+		self::assertSame(['shop 1', 'shop 2', 'shop 3'], array_keys(self::pricesSent('SPPART')), 'a changed pair goes to every shop at once');
+		self::assertShopsHold('SPPART', '79.200 / 799.00');
 	}
 
-	public function testAFirstFailureKeepsItsBackOff(): void
+	public function testAFailedSendIsAnEventAndKeepsItsBackOff(): void
 	{
 		$id = self::item('SPFIRST', self::offer(159.2, 3));
 		$t = time();
@@ -531,30 +586,28 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::tick($t);
 		self::uncontrol('fail1');
 		$entry = self::stateByShop($id)['shop 1'];
-		self::assertSame([null, false, 1, $t + 60], [$entry['confirmed'], $entry['certain'], $entry['attempts'], $entry['retryAt']]);
+		self::assertSame([null, 1, $t + 60], [$entry['confirmed'], $entry['attempts'], $entry['retryAt']], 'every field kept, the empty one too');
 		self::clearLog();
-		self::tick($t + 30);
-		self::assertSame([], self::priceCalls(), 'not before the back-off');
 		self::tick($t + 61);
-		self::assertSame(['shop 1' => [self::OFFER]], self::pricesSent('SPFIRST'), 'then only shop 1');
+		self::assertSame([], self::priceCalls(), 'the failure starts the schedule again: nothing before 2 minutes');
+		self::tick($t + 121);
+		self::assertSame(self::OFFER_ALL, self::pricesSent('SPFIRST'), 'then every shop again');
 	}
 
-	// ------------------------------------------------------------------ refusals (v1 6, v2 3)
-
-	public function testARefusedRestorationIsRetriedUntilTheShopConfirms(): void
+	public function testARefusedRestorationIsSentAgainUntilTheShopAccepts(): void
 	{
 		$id = self::item('SPREFUSE', self::offer());
 		self::tick();
 		$end = strtotime('tomorrow') + 1;
 		self::control('reject3');
 		$out = self::tick($end);
-		self::assertSame([2, 1], [$out['certified'], $out['refused']], 'a refusal is not delivered');
+		self::assertSame([2, 1], [$out['accepted'], $out['refused']], 'a refusal is not delivered');
 		self::uncontrol('reject3');
 		self::clearLog();
-		self::tick($end + 61);
-		self::assertSame(['shop 3' => [self::NORMAL]], self::pricesSent('SPREFUSE'), 'shop 3 is sent again');
-		self::assertSame(self::REMOTE_NORMAL, self::remote('SPREFUSE'));
-		self::assertNull(self::runner(['state', (string)$id])['state']);
+		self::tick($end + 121);
+		self::assertSame(self::NORMAL_ALL, self::pricesSent('SPREFUSE'), 'every shop is sent the normal prices again');
+		self::assertShopsHold('SPREFUSE', self::NORMAL);
+		self::assertNotNull(self::runner(['state', (string)$id])['state'], 'and the item stays tracked for 24 hours');
 	}
 
 	public function testRefusalCountersBelongToThePricePair(): void
@@ -580,37 +633,34 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		$entry = self::stateByShop($id)['shop 2'];
 		self::assertSame([1, false, $at + 1 + 60], [$entry['refusals'], $entry['gaveUp'], $entry['retryAt']], 'B has its own back-off, not A\'s');
 		self::uncontrol('reject2');
-		self::tick($at + 62);
+		self::tick($at + 122);
 		self::assertSame('109.200 / 799.00', self::remote('SPPAIR')['shop 2'], 'shop 2 takes B once it accepts again');
-		self::assertTrue(self::stateByShop($id)['shop 2']['certain']);
 	}
 
-	// ------------------------------------------------------------------ state that cannot be written (v2 5)
+	// ------------------------------------------------------------------ state that cannot be written
 
 	public function testStateThatCannotBeWrittenSendsNoOffer(): void
 	{
-		$id = self::item('SPDISK', self::offer(159.2, 3));
-		self::tick(); // creates the state directory; the item is certified
-		self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]);
-		self::tick(); // restored and no longer tracked
-		self::rows("UPDATE varer SET specialtype = 'price', special_price = 159.2 WHERE id = $1", [$id]);
+		$id = self::item('SPDISK');
+		self::tick(); // creates the state directory
+		$offer = self::offer(159.2, 3);
+		self::rows("UPDATE varer SET specialtype = 'price', special_price = 159.2, special_from_date = $2, special_to_date = $3 WHERE id = $1",
+			[$id, $offer['from'], $offer['to']]);
 		mkdir(self::$tempDir . "/shopoffer/item-$id.json"); // the item's state file cannot be written (a directory is in the way)
 		try {
 			self::clearLog();
 			$out = self::tick();
 			self::assertSame('state not writable', $out['result']);
 			self::assertSame([], self::priceCalls(), 'the reconciler sends nothing it cannot record');
-			self::runner(['sync_price', (string)$id]);
-			self::assertSame(self::NORMAL_ALL, self::pricesSent('SPDISK'), 'a card save falls back to today\'s prices: no offer without a record');
-			self::assertFileExists(self::$tempDir . "/shopoffer/uncertain-$id", 'and leaves a note for the reconciler');
 			self::assertStringContainsString('STATE NOT WRITABLE', (string)@file_get_contents(self::$tempDir . '/rest_api.log'));
+			self::runner(['sync_price', (string)$id]);
+			self::assertSame(self::NORMAL_ALL, self::pricesSent('SPDISK'), 'a card save sends today\'s prices: no offer without a record');
 		} finally {
 			rmdir(self::$tempDir . "/shopoffer/item-$id.json");
 		}
 		self::clearLog();
-		self::assertSame(1, self::tick()['deferred'], 'the note holds the item while that send may still arrive');
-		self::tick(time() + 121);
-		self::assertSame(self::REMOTE_OFFER, self::remote('SPDISK'), 'then every shop is sent the offer');
+		self::tick();
+		self::assertSame(self::OFFER_ALL, self::pricesSent('SPDISK'), 'once it can be written, the offer');
 
 		// no state directory at all: the tick sends nothing; the other paths keep today's prices
 		self::clearState();
@@ -621,7 +671,7 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::assertSame(self::NORMAL_ALL, self::pricesSent('SPDISK'));
 	}
 
-	// ------------------------------------------------------------------ locks and the budget (v1 3, v1 4, v2 2, v2 6)
+	// ------------------------------------------------------------------ locks and budgets
 
 	public function testOneTickAtATimeAndABusyOneAnswersAtOnce(): void
 	{
@@ -637,48 +687,83 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	public function testASaleDoesNotWaitForAHeldItemLock(): void
 	{
 		$id = self::item('SPHELD', self::offer(159.2, 3));
-		self::tick();
+		$t = time();
+		self::tick($t);
+		self::rows("UPDATE varer SET special_price = 99.2 WHERE id = $1", [$id]); // the sale's pair is not the current one: it must mark that
 		$hold = self::hold('lock-' . ($id % 64), 3);
 		$out = self::runner(['sale', (string)$id, '1']);
 		self::finish($hold);
 		self::assertLessThan(1.5, $out['elapsed'], 'the sale waited at most 0.2 seconds for the lock');
 		self::assertSame(['shop 1' => [self::NORMAL], 'shop 2' => [self::NORMAL], 'shop 3' => [self::NORMAL]], self::pricesSent('SPHELD', 'update_stock'),
-			'it could not note its send, so it sent today\'s prices');
-		self::assertFileExists(self::$tempDir . "/shopoffer/uncertain-$id");
-		self::clearLog();
-		self::tick(time() + 121);
-		self::assertSame(self::REMOTE_OFFER, self::remote('SPHELD'), 'the next tick after the note sends every shop the offer again');
-		self::assertNoFalseCertainty($id, 'SPHELD');
+			'it could not mark its send, so it sent today\'s prices');
+		self::assertFileExists(self::$tempDir . "/shopoffer/uncertain-$id", 'and left a note, an event for the reconciler');
+		self::tick($t + 1);
+		self::assertShopsHold('SPHELD', '99.200 / 799.00');
 	}
 
 	public function testATickKeepsItsBudgetWithThreeSlowShopsOneAfterTheOther(): void
 	{
 		self::item('SPSLOW', self::offer());
 		self::control('slow', '3');
-		$out = self::runner(['tick', 'now', '1.5'], ['-d', 'disable_functions=curl_multi_init']);
+		$t = time();
+		$out = self::runner(['tick', (string)$t, '1.5'], ['-d', 'disable_functions=curl_multi_init']);
 		self::uncontrol('slow');
 		self::assertLessThan(1.9, $out['elapsed'], 'three shops answering after 3 s, one after the other: the tick stops at its budget');
-		$out = self::tick(time() + 3600);
-		self::assertSame(3, $out['certified'], 'a later tick delivers');
+		$out = self::tick($t + 121);
+		self::assertSame(3, $out['accepted'], 'a later tick delivers');
 	}
 
-	public function testTheNextTickGoesOnWhereTheLastStopped(): void
+	public function testAHeldTableLockEndsTheTickWithinItsBudget(): void
+	{
+		self::item('SPDBLOCK', self::offer());
+		$marker = sys_get_temp_dir() . '/shopoffer-tablelock-' . bin2hex(random_bytes(4));
+		self::$files[] = $marker;
+		$lock = self::start(['locktable', '8', 'varer', $marker]);
+		for ($i = 0; $i < 200 && !is_file($marker); $i++) {
+			usleep(50000);
+		}
+		self::assertFileExists($marker, 'the varer table is locked');
+		$out = self::tick(null, 3);
+		self::finish($lock);
+		self::assertSame('database busy', $out['result']);
+		self::assertLessThan(3.6, $out['elapsed'], 'within the budget, not after the lock');
+		self::assertStringContainsString('SHOP OFFER DATABASE BUSY', (string)@file_get_contents(self::$tempDir . '/rest_api.log'));
+		self::assertSame(3, self::tick()['accepted'], 'the next tick works');
+	}
+
+	public function testTheMostUrgentGoesFirstAndTheNextTickGoesOn(): void
 	{
 		for ($i = 1; $i <= 12; $i++) {
 			self::item(sprintf('SPMANY%02d', $i), self::offer());
 		}
-		$first = self::tick(null, 10, 5);
+		$t = time();
+		$first = self::tick($t, 10, 5);
 		$items1 = array_values(array_unique(array_map(fn($c) => $c['itemNo'], self::priceCalls())));
 		self::clearLog();
-		self::tick(null, 10, 5);
+		self::tick($t + 1, 10, 5);
 		$items2 = array_values(array_unique(array_map(fn($c) => $c['itemNo'], self::priceCalls())));
 		self::assertSame(5, count($items1));
 		self::assertSame(7, $first['left']);
 		self::assertSame([], array_intersect($items1, $items2), 'the second tick does not start over');
 		self::assertSame(5, count($items2));
 		self::clearLog();
-		self::tick(null, 10, 5);
+		self::tick($t + 2, 10, 5);
 		self::assertSame(2, count(array_unique(array_map(fn($c) => $c['itemNo'], self::priceCalls()))), 'the third tick does the last two');
+	}
+
+	public function testNewPricesGoBeforeRepeats(): void
+	{
+		for ($i = 1; $i <= 4; $i++) {
+			$ids[$i] = self::item(sprintf('SPPRIO%02d', $i), self::offer(159.2, 3));
+		}
+		$t = time();
+		self::tick($t);
+		self::rows("UPDATE varer SET special_price = 99.2 WHERE id = $1", [$ids[4]]); // the last item gets a new price
+		self::clearLog();
+		$out = self::tick($t + 300, 10, 1); // every item is owed its 5-minute re-send; room for one item
+		self::assertSame(4, $out['due']);
+		self::assertSame(['SPPRIO04'], array_values(array_unique(array_map(fn($c) => $c['itemNo'], self::priceCalls()))),
+			'the new price goes first, before the older re-sends');
 	}
 
 	public function testAnAccountWithoutAWebshopHasNoState(): void

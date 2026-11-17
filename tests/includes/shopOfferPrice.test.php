@@ -128,90 +128,143 @@ final class shopOfferPrice extends TestCase
 	private const SHOPS = ['k1' => 'http://shop1', 'k2' => 'http://shop2', 'k3' => 'http://shop3'];
 	private const OFFER = ['sales' => '159.200', 'retail' => '799.00'];
 	private const NORMAL = ['sales' => '639.200', 'retail' => '899.000'];
-	private const NOW = 1794920000;
+	private const T = 1794920000;
 
-	/** A shop entry certified at $pair at $at. */
-	private static function certified(array $pair, int $at = self::NOW): array
+	/** An item's state: planned for $desired, last event at $anchor, every shop last sent and accepting at $sent. */
+	private static function state(array $desired, int $anchor, int $sent, ?array $confirmed = null): array
 	{
-		return shopOfferShopEntry(['shops' => ['k' => ['confirmed' => $pair, 'certain' => true, 'verifiedAt' => $at]]], 'k');
+		$shops = [];
+		foreach (array_keys(self::SHOPS) as $key) {
+			$shops[$key] = ['confirmed' => $confirmed ?? $desired, 'okAt' => $sent, 'sentAt' => $sent, 'pending' => $desired];
+		}
+		return ['desired' => $desired, 'anchor' => $anchor, 'shops' => $shops];
 	}
 
-	public function testAnUntrackedItemIsSentToEveryShop(): void
+	/** @return list<int> Minutes after the event at which a shop is sent the pair during the first $hours. */
+	private static function sendsWithin(bool $active, int $hours): array
 	{
-		$plan = shopOfferPlanItem(['shops' => []], self::SHOPS, self::OFFER, self::NOW);
-		$this->assertSame(['k1' => 'send', 'k2' => 'send', 'k3' => 'send'], $plan['send']);
-		$this->assertFalse($plan['settled']);
-		$this->assertSame(self::OFFER, $plan['state']['shops']['k1']['pending'], 'the intent: the pair owed');
+		$at = [];
+		$last = -1;
+		while (($next = shopOfferNextSend(0, $last, $active)) !== null && $next <= $hours * 3600) {
+			$at[] = intdiv($next, 60);
+			$last = $next;
+		}
+		return $at;
 	}
 
-	public function testOnlyShopsThatMayNotHaveTheDesiredPairAreSent(): void
+	public function testTheScheduleAfterAnEvent(): void
 	{
-		$state = ['shops' => ['k1' => self::certified(self::OFFER), 'k2' => self::certified(['sales' => '59.200', 'retail' => '799.00']),
-			'k3' => ['certain' => false] + self::certified(self::OFFER)]];
-		$plan = shopOfferPlanItem($state, self::SHOPS, self::OFFER, self::NOW + 10);
-		$this->assertSame(['k2' => 'send', 'k3' => 'send'], $plan['send'], 'k2 has another pair; k3 is uncertain, whatever it was certified at');
-		$all = ['shops' => ['k1' => self::certified(self::OFFER), 'k2' => self::certified(self::OFFER), 'k3' => self::certified(self::OFFER)]];
-		$plan = shopOfferPlanItem($all, self::SHOPS, self::OFFER, self::NOW + 10);
-		$this->assertSame([[], true], [$plan['send'], $plan['settled']]);
+		$this->assertSame([0, 2, 5, 15, 60, 240, 420, 600, 780, 960, 1140, 1320], self::sendsWithin(true, 24),
+			'while an offer is active: at once, 2, 5, 15 and 60 minutes after, then every 3 hours');
+		$this->assertSame([0, 2, 5, 15, 60, 360, 720, 1080, 1440], self::sendsWithin(false, 48),
+			'without an offer: the same, then 6, 12, 18 and 24 hours after, and nothing more');
+		$this->assertSame(8, count(array_filter(self::sendsWithin(true, 48), fn($m) => $m >= 1440 && $m < 2880)), 'eight a day after the first day');
+		$this->assertSame(0, shopOfferNextSend(0, -1, true), 'never sent: owed at once');
+		$this->assertSame(900, shopOfferNextSend(0, 420, true), 'a late tick: the next time after the last send');
 	}
 
-	public function testACertifiedPairIsSentAgainAfterAnHour(): void
+	public function testAChangedPairIsAnEventAndEveryShopIsOwedItAtOnce(): void
 	{
-		$all = ['shops' => ['k1' => self::certified(self::OFFER), 'k2' => self::certified(self::OFFER, self::NOW + 600)]];
-		$plan = shopOfferPlanItem($all, ['k1' => 'a', 'k2' => 'b'], self::OFFER, self::NOW + 3600);
-		$this->assertSame(['k1' => 'heal'], $plan['send']);
-		$this->assertTrue($plan['settled'], 'a re-send due is still settled');
+		$plan = shopOfferPlanItem(self::state(self::NORMAL, self::T - 7200, self::T - 7200), self::SHOPS, self::OFFER, true, self::T);
+		$this->assertSame(self::T, $plan['state']['anchor']);
+		$this->assertSame('the prices changed', $plan['state']['event']);
+		$this->assertSame(['k1' => true, 'k2' => true, 'k3' => true], $plan['send']);
+		$this->assertTrue($plan['urgent']);
+		$this->assertTrue($plan['fresh'], 'new prices: they go before repeats');
+		$this->assertSame(self::OFFER, $plan['state']['shops']['k1']['pending']);
+		$resend = shopOfferPlanItem(self::state(self::OFFER, self::T, self::T), self::SHOPS, self::OFFER, true, self::T + 120);
+		$this->assertSame([true, false], [$resend['urgent'], $resend['fresh']], 'a re-send of what every shop accepted is a repeat');
 	}
 
-	public function testRemovedShopsAreDropped(): void
+	public function testNothingIsOwedBetweenScheduledTimesEvenWhenAShopIsNotKnownToHaveThePair(): void
 	{
-		$state = ['shops' => ['gone' => self::certified(self::OFFER), 'k1' => self::certified(self::OFFER)]];
-		$this->assertSame(['k1'], array_keys(shopOfferPlanItem($state, ['k1' => 'a'], self::OFFER, self::NOW)['state']['shops']));
+		$state = self::state(self::OFFER, self::T, self::T, ['sales' => '1.000', 'retail' => '2.00']);
+		$plan = shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 119);
+		$this->assertSame([], $plan['send'], 'the schedule decides; what a shop last accepted is bookkeeping');
+		$this->assertSame(self::T + 120, $plan['next']);
+		$this->assertCount(3, shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 120)['send']);
+		$certain = self::state(self::OFFER, self::T, self::T + 900);
+		$this->assertCount(3, shopOfferPlanItem($certain, self::SHOPS, self::OFFER, true, self::T + 3600)['send'],
+			'an accepted pair does not stop the re-sends');
+	}
+
+	public function testAnItemIsUntrackedOnly24HoursAfterItsLastEventWithEverythingDone(): void
+	{
+		$day = 86400;
+		$done = self::state(self::NORMAL, self::T, self::T + $day);
+		$this->assertFalse(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, self::T + $day + 599)['untrack'],
+			'the last re-send could still be on its way');
+		$this->assertTrue(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, self::T + $day + 600)['untrack']);
+		$this->assertFalse(shopOfferPlanItem($done, self::SHOPS, self::OFFER, true, self::T + 2 * $day)['untrack'], 'never while an offer is active');
+		$failed = $done;
+		$failed['shops']['k2']['attempts'] = 1;
+		$this->assertFalse(shopOfferPlanItem($failed, self::SHOPS, self::NORMAL, false, self::T + 2 * $day)['untrack'], 'not with a failure open');
+		$other = $done;
+		$other['shops']['k3']['confirmed'] = self::OFFER;
+		$this->assertFalse(shopOfferPlanItem($other, self::SHOPS, self::NORMAL, false, self::T + 2 * $day)['untrack'], 'not before every shop accepted it');
+		$early = self::state(self::NORMAL, self::T, self::T + 64800);
+		$this->assertFalse(shopOfferPlanItem($early, self::SHOPS, self::NORMAL, false, self::T + $day - 1)['untrack'], 'not within 24 hours');
 	}
 
 	public function testTheCountersBelongToThePendingPair(): void
 	{
-		$entry = ['pending' => self::OFFER, 'attempts' => 0, 'refusals' => 8, 'retryAt' => self::NOW + 1800, 'error' => 'x', 'gaveUp' => true]
-			+ self::certified(self::NORMAL);
-		$this->assertSame('gaveUp', shopOfferPlanShop($entry, self::OFFER, self::NOW + 9999)[0], 'given up for this pair');
-		[$action, $fresh] = shopOfferPlanShop($entry, ['sales' => '129.200', 'retail' => '799.00'], self::NOW + 1);
-		$this->assertSame('send', $action, 'a new pair is sent at once: no inherited refusals, no inherited back-off');
-		$this->assertSame([0, 0, 0, false], [$fresh['refusals'], $fresh['attempts'], $fresh['retryAt'], $fresh['gaveUp']]);
-		$waiting = ['pending' => self::OFFER, 'refusals' => 2, 'retryAt' => self::NOW + 120] + self::certified(self::NORMAL);
-		$this->assertSame('wait', shopOfferPlanShop($waiting, self::OFFER, self::NOW + 60)[0]);
-		$this->assertSame('send', shopOfferPlanShop($waiting, self::OFFER, self::NOW + 120)[0]);
+		$state = self::state(self::OFFER, self::T, self::T);
+		$state['shops']['k2'] = ['pending' => self::OFFER, 'attempts' => 0, 'refusals' => 8, 'retryAt' => self::T + 1800, 'error' => 'x', 'gaveUp' => true]
+			+ $state['shops']['k2'];
+		$plan = shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 99999);
+		$this->assertSame(['k2'], $plan['gaveUp']);
+		$this->assertArrayNotHasKey('k2', $plan['send'], 'given up for this pair');
+		$new = ['sales' => '129.200', 'retail' => '799.00'];
+		$plan = shopOfferPlanItem($state, self::SHOPS, $new, true, self::T + 1);
+		$this->assertArrayHasKey('k2', $plan['send'], 'a new pair is sent at once: no inherited refusals, no inherited back-off');
+		$e = $plan['state']['shops']['k2'];
+		$this->assertSame([0, 0, 0, false], [$e['refusals'], $e['attempts'], $e['retryAt'], $e['gaveUp']]);
 	}
 
 	public function testEachAnswerIsRecordedForItsShop(): void
 	{
-		$sent = ['pending' => self::OFFER, 'certain' => false] + self::certified(self::NORMAL);
-		[$o, $e] = shopOfferRecordShop($sent, true, self::OFFER, ['ok' => true, 'httpCode' => 200], false, self::NOW);
-		$this->assertSame(['certified', self::OFFER, true, self::NOW, null], [$o, $e['confirmed'], $e['certain'], $e['verifiedAt'], $e['pending']]);
-		[$o, $e] = shopOfferRecordShop($sent, true, self::OFFER, ['ok' => true, 'httpCode' => 200], true, self::NOW);
-		$this->assertSame(['overlapped', self::NORMAL, false], [$o, $e['confirmed'], $e['certain']],
-			'accepted, but another send overlapped: the shop may have either pair, so nothing is certified');
-		[$o, $e] = shopOfferRecordShop($sent, true, self::OFFER, ['ok' => false, 'httpCode' => 200, 'transient' => false, 'error' => 'refused'], false, self::NOW);
-		$this->assertSame(['refused', true, 1, self::NOW + 60], [$o, $e['certain'], $e['refusals'], $e['retryAt']],
-			'a refusal applied nothing: the shop still certainly has what it had');
-		[$o, $e] = shopOfferRecordShop($sent, true, self::OFFER, ['ok' => false, 'httpCode' => 404, 'transient' => false, 'error' => 'http status 404'], false, self::NOW);
-		$this->assertSame(['refused', 1], [$o, $e['refusals']], 'a 4xx is an answer too');
-		[$o, $e] = shopOfferRecordShop($sent, true, self::OFFER, ['ok' => false, 'httpCode' => 503, 'transient' => true, 'error' => 'http status 503'], false, self::NOW);
-		$this->assertSame(['failed', false, 1, 0], [$o, $e['certain'], $e['attempts'], $e['refusals']], 'a 5xx may or may not have been applied');
-		[$o, $e] = shopOfferRecordShop($sent, true, self::OFFER, ['ok' => false, 'httpCode' => 0, 'transient' => true, 'error' => 'timeout'], false, self::NOW);
-		$this->assertSame(['failed', false], [$o, $e['certain']]);
-		[$o, $e] = shopOfferRecordShop($sent, true, self::OFFER, ['untried' => true], false, self::NOW);
-		$this->assertSame(['untried', true, 0, 0], [$o, $e['certain'], $e['attempts'], $e['refusals']], 'not sent: nothing changes');
+		$entry = shopOfferShopEntry(self::state(self::OFFER, self::T, self::T, self::NORMAL), 'k1');
+		[$o, $e] = shopOfferRecordShop($entry, self::OFFER, ['ok' => true, 'httpCode' => 200], self::T);
+		$this->assertSame(['ok', self::OFFER, self::T], [$o, $e['confirmed'], $e['okAt']]);
+		[$o, $e] = shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 200, 'transient' => false, 'error' => 'refused'], self::T);
+		$this->assertSame(['refused', self::NORMAL, 1, self::T + 60], [$o, $e['confirmed'], $e['refusals'], $e['retryAt']]);
+		[$o, $e] = shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 404, 'transient' => false, 'error' => 'http status 404'], self::T);
+		$this->assertSame('refused', $o, 'a 4xx is an answer too');
+		[$o, $e] = shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 503, 'transient' => true, 'error' => 'http status 503'], self::T);
+		$this->assertSame(['failed', 1, 0], [$o, $e['attempts'], $e['refusals']]);
+		[$o, $e] = shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 0, 'transient' => true, 'error' => 'timeout'], self::T);
+		$this->assertSame('failed', $o);
 	}
 
-	public function testTheEighthRefusalOfAPairGivesUpOnceAndVisibly(): void
+	public function testTheEighthRefusalOfAPairGivesUpOnce(): void
 	{
-		$entry = ['pending' => self::OFFER, 'certain' => false] + self::certified(self::NORMAL);
+		$entry = shopOfferShopEntry(['shops' => ['k' => ['pending' => self::OFFER]]], 'k');
 		$gaveUp = [];
 		for ($i = 1; $i <= SHOP_OFFER_MAX_REFUSALS + 1; $i++) {
-			[, $entry, $now] = shopOfferRecordShop($entry, true, self::OFFER, ['ok' => false, 'httpCode' => 200, 'transient' => false, 'error' => 'no'], false, self::NOW);
+			[, $entry, $now] = shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 200, 'transient' => false, 'error' => 'no'], self::T);
 			$gaveUp[] = $now;
 		}
 		$this->assertSame([false, false, false, false, false, false, false, true, false], $gaveUp);
+	}
+
+	public function testUnfinishedSendsAndEarlierPairsSentByOtherPathsAreEvents(): void
+	{
+		$state = self::state(self::OFFER, self::T, self::T);
+		$state['intent'] = ['at' => self::T, 'pair' => self::OFFER, 'shops' => ['k1']];
+		shopOfferAbsorbEvents($state, self::T + 300, false);
+		$this->assertSame([self::T + 300, 'a send was not finished'], [$state['anchor'], $state['event']]);
+		$this->assertArrayNotHasKey('intent', $state);
+		$state['foreign']['staleAt'] = self::T + 400;
+		shopOfferAbsorbEvents($state, self::T + 500, false);
+		$this->assertSame(self::T + 400, $state['anchor'], 'from when the earlier pair was sent');
+		$events = $state['events'];
+		shopOfferAbsorbEvents($state, self::T + 510, false);
+		$this->assertSame($events, $state['events'], 'a mark is an event once');
+		$state['foreign']['staleAt'] = self::T + 9999;
+		shopOfferAbsorbEvents($state, self::T + 520, false);
+		$this->assertSame(self::T + 520, $state['anchor'], 'never later than the tick\'s clock');
+		shopOfferAbsorbEvents($state, self::T + 600, self::T + 550);
+		$this->assertSame([self::T + 550, 'another path sent without a mark'], [$state['anchor'], $state['event']]);
 	}
 
 	public function testTheBackOffDoublesUpToHalfAnHour(): void
@@ -228,40 +281,29 @@ final class shopOfferPrice extends TestCase
 		$this->assertFalse(shopOfferPairSame(self::OFFER, self::NORMAL));
 	}
 
-	public function testOtherPathsGetTheConfirmedPairPerShop(): void
+	public function testOtherPathsGetThePairEachShopLastAccepted(): void
 	{
 		$params = ['update_stock' => 1, 'stock' => 4, 'salesPrice' => '639.200', 'retailPrice' => '899.000'];
-		$handle = ['token' => 't', 'pairs' => [0 => self::OFFER, 1 => null, 2 => self::OFFER]];
+		$handle = ['pairs' => [0 => self::OFFER, 1 => null, 2 => self::OFFER]];
 		$groups = shopOfferForeignGroups([0 => 'a', 1 => 'b', 2 => 'c'], $handle, $params);
 		$this->assertSame([
 			['targets' => [0 => 'a', 2 => 'c'], 'params' => ['update_stock' => 1, 'stock' => 4, 'salesPrice' => '159.200', 'retailPrice' => '799.00']],
 			['targets' => [1 => 'b'], 'params' => $params],
-		], $groups, 'a shop that never confirmed a pair gets today\'s prices');
-		$this->assertSame([['targets' => [0 => 'a'], 'params' => $params]], shopOfferForeignGroups([0 => 'a'], null, $params), 'not managed: unchanged');
+		], $groups, 'a shop that never accepted a pair gets today\'s prices');
+		$this->assertSame([['targets' => [0 => 'a'], 'params' => $params]], shopOfferForeignGroups([0 => 'a'], null, $params), 'not tracked: unchanged');
 	}
 
-	public function testAnItemIsManagedByItsOfferFields(): void
-	{
-		$now = strtotime('2026-11-27 12:00:00');
-		$this->assertTrue(shopOfferHasOfferFields(['specialtype' => 'price', 'special_price' => '79.2', 'special_to_date' => '2026-11-26'], $now), 'ended yesterday');
-		$this->assertFalse(shopOfferHasOfferFields(['specialtype' => 'price', 'special_price' => '79.2', 'special_to_date' => '2026-11-25'], $now));
-		$this->assertFalse(shopOfferHasOfferFields(['specialtype' => 'percent', 'special_price' => '10', 'special_to_date' => '2026-12-01'], $now), 'percent offers are not');
-		$this->assertFalse(shopOfferHasOfferFields(['specialtype' => 'price', 'special_price' => '0', 'special_to_date' => '2026-12-01'], $now));
-	}
-
-	public function testTheStateIsSelfDescribingJsonAndKeepsEmptyFields(): void
+	public function testTheStateIsSelfDescribingJson(): void
 	{
 		$GLOBALS['db'] = 'unit_shopoffer_' . bin2hex(random_bytes(4));
 		$dir = dirname(__DIR__, 2) . '/temp/' . $GLOBALS['db'];
 		try {
 			$this->assertSame('', shopOfferPushDir(), 'no directory until the reconciler makes one');
 			$this->assertNotSame('', shopOfferPushDir(true));
-			[, $entry] = shopOfferRecordShop(['pending' => ['sales' => '', 'retail' => null], 'certain' => false] + self::certified(self::NORMAL), false,
-				['sales' => '', 'retail' => null], ['ok' => false, 'httpCode' => 503, 'transient' => true, 'error' => ''], false, self::NOW);
-			$this->assertTrue(shopOfferStateWrite(42, ['shops' => ['k1' => $entry]]));
+			$state = self::state(['sales' => '', 'retail' => null], self::T, self::T);
+			$this->assertTrue(shopOfferStateWrite(42, $state));
 			$this->assertStringStartsWith('{', (string)file_get_contents($dir . '/shopoffer/item-42.json'), 'JSON, no positional fields');
-			$this->assertSame(shopOfferShopEntry(['shops' => ['k1' => $entry]], 'k1'), shopOfferShopEntry(shopOfferStateRead(42), 'k1'), 'every field, the empty ones too');
-			$this->assertSame(self::NOW + 60, shopOfferShopEntry(shopOfferStateRead(42), 'k1')['retryAt'], 'a first failure keeps its back-off');
+			$this->assertSame(['sales' => '', 'retail' => null], shopOfferStateRead(42)['desired'], 'empty fields kept');
 			file_put_contents($dir . '/shopoffer/item-43.json', '{"shops":');
 			$this->assertFalse(shopOfferStateRead(43), 'unreadable is not the same as untracked');
 			$this->assertTrue(shopOfferStateWrite(42, null));
