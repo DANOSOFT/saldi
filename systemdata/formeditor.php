@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- ver 5.1.1 --- 2026-11-12 ---
+// --- systemdata/formeditor.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 //                 The editor keeps its own font; its canvas and side panel are 76 px shorter, so they end inside the window.
 // 20261103 CL/ASR QA round 2: the page needs Dokumenter & e-mail (settings.documents) instead of the general settings fallback, and Gem & aktivér shows a refusal as its message instead of Netværksfejl.
 // 20261112 CL/MMR SD-821: The own bank fields are named "Egen bank reg.nr." and "Egen bank kontonr." so they sit together in the field list.
+// 20261117 CDX/ASR Render editor logos and previews without Poppler; preserve the active background and report failed composition.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -88,7 +89,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 $title = findtekst('7012|Formulareditor', $sprog_id);
 include("../includes/topline_settings.php");
-include_once("../includes/formEditorState.php");
+include_once(__DIR__ . '/../includes/formEditorState.php');
 
 // Background helpers and the logo compositor: includes/formEditorState.php (shared with the welcome guide).
 
@@ -229,9 +230,9 @@ if ($fe_action === 'save') {
 	@unlink("../logolib/$db_id/fe_draft_{$form_nr}_" . preg_replace('/[^A-Za-z0-9_]/', '_', $sprog_raw) . ".json");
 
 	// Stamp the placed logo onto the print background (if any logo uploaded).
-	fe_composite_logo($db_id, $form_nr, $sprog_raw);
+	$logoReady = fe_composite_logo($db_id, $form_nr, $sprog_raw);
 
-	print json_encode(array('ok' => true, 'updated' => $updated, 'deleted' => $deleted, 'inserted' => $inserted));
+	print json_encode(array('ok' => true, 'updated' => $updated, 'deleted' => $deleted, 'inserted' => $inserted, 'warning' => $logoReady ? '' : 'logo'));
 	exit;
 }
 
@@ -764,12 +765,8 @@ if (file_exists($logo_base) && $active_bg && isset($fe_meta['out_md5']) && md5_f
 if ($bg_src) {
 	$cache_png = "../logolib/$db_id/" . md5(basename($bg_src)) . "_feprev.png";
 	$need = !file_exists($cache_png) || filemtime($cache_png) < filemtime($bg_src);
-	if ($need && function_exists('shell_exec')) {
-		// pdftoppm writes <prefix>-1.png for page 1; render at ~100 dpi.
-		$prefix = escapeshellarg("../logolib/$db_id/" . md5(basename($bg_src)) . "_fetmp");
-		@shell_exec("pdftoppm -png -r 100 -f 1 -l 1 " . escapeshellarg($bg_src) . " " . $prefix . " 2>/dev/null");
-		$tmp1 = "../logolib/$db_id/" . md5(basename($bg_src)) . "_fetmp-1.png";
-		if (file_exists($tmp1)) { @rename($tmp1, $cache_png); }
+	if ($need) {
+		fe_pdf_png($bg_src, $cache_png, 100);
 	}
 	if (file_exists($cache_png)) $bg_url = $cache_png . '?t=' . filemtime($cache_png);
 }
@@ -1429,6 +1426,7 @@ settings_layout_open(array('title' => $title, 'back' => $returside, 'legacy' => 
     unsaved:  <?php echo json_encode($T('Ikke gemte ændringer','Unsaved changes')); ?>,
     saving:   <?php echo json_encode($T('Gemmer…','Saving…')); ?>,
     saved:    <?php echo json_encode($T('Gemt (%s felter)','Saved (%s fields)')); ?>,
+    logoFailed: <?php echo json_encode($T('Layoutet er gemt, men logoet kunne ikke sættes på udskriften. Prøv Gem og aktivér igen, eller kontakt support.', 'The layout was saved, but the logo could not be added to the printout. Try Save and activate again, or contact support.')); ?>,
     session:  <?php echo json_encode($T('Session udløbet – genindlæs siden','Session expired – reload the page')); ?>,
     failed:   <?php echo json_encode($T('Kunne ikke gemme','Could not save')); ?>,
     neterr:   <?php echo json_encode($T('Netværksfejl','Network error')); ?>,
@@ -2823,7 +2821,8 @@ settings_layout_open(array('title' => $title, 'back' => $returside, 'legacy' => 
         // patch newly-inserted elements with their real DB ids
         if (j.inserted) { elements.forEach(function(el){ if (el.id<=0 && j.inserted[el.id]!=null) el.id = j.inserted[el.id]; }); }
         hideDraftBanner();   // activating supersedes the draft (server deleted it)
-        statusEl.textContent=L.saved.replace('%s', j.updated); statusEl.style.color='#2a7d2a';
+        statusEl.textContent=j.warning==='logo' ? L.logoFailed : L.saved.replace('%s', j.updated);
+        statusEl.style.color=j.warning==='logo' ? '#b26a00' : '#2a7d2a';
       }
       else if (j && j.error==='session') { statusEl.textContent=L.session; statusEl.style.color='#c00'; }
       else if (j && j.error==='denied' && j.message) { statusEl.textContent=j.message; statusEl.style.color='#c00'; }
