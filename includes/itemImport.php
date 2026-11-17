@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/campaignPriceImport.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- includes/itemImport.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,184 @@
 // ----------------------------------------------------------------------------
 // 20261117 CL/LH Created for the item import (systemdata/importer_varer.php): campaign (offer) prices and periods from an Excel/CSV sheet.
 //                Parses Danish and dot decimals, Danish and ISO dates with an optional time and times like 8.00, without touching the database.
+//                Codex review: the preview and the import share one line normalisation (BOM, character set), one column-mapping check and one item number resolver.
+//                An end time on minute 59 always gets second 59, and a no-break space in an ISO-8859-1 cell is read as a space.
+
+/**
+ * One line of the import file in the page's character set, without a UTF-8 byte order mark.
+ *
+ * The preview and the import both read lines through this, so they see the same text.
+ *
+ * @param string $line A line as read from the file.
+ * @param string|null $fileCharset The character set chosen for the file (UTF-8 or ISO-8859-1).
+ * @param string|null $pageCharset The installation's character set ($charset).
+ * @return string
+ */
+function itemImportLine($line, $fileCharset, $pageCharset) {
+	if (substr($line, 0, 3) == "\xEF\xBB\xBF") $line = substr($line, 3);
+	if ($pageCharset == 'UTF-8' && $fileCharset != 'UTF-8') $line = mb_convert_encoding($line, 'UTF-8', 'ISO-8859-1');
+	elseif ($pageCharset != 'UTF-8' && $fileCharset == 'UTF-8') $line = mb_convert_encoding($line, 'ISO-8859-1', 'UTF-8');
+	return $line;
+}
+
+/**
+ * True when a line holds columns: it has a column separator outside quotes. Other lines, such as an empty last line,
+ * are not rows. The rule the import has used since 20220628, now shared with the preview.
+ *
+ * @param string $line
+ * @param string $splitter The column separator (; , or a tab).
+ * @return bool
+ */
+function itemImportIsRow($line, $splitter) {
+	$count = 1;
+	for ($c = 0; $c < strlen($line); $c++) {
+		if (substr($line, $c, 2) == '"' . $splitter) $count = 0;
+		if (substr($line, $c, 2) == $splitter . '"') $count = 1;
+		if ($count && substr($line, $c, 1) == $splitter) return true;
+	}
+	return false;
+}
+
+/**
+ * The varer column a mapped import field writes, so two fields that write the same column count as the same field.
+ *
+ * @param string|null $fieldName
+ * @return string The column, or '' for an unused column.
+ */
+function itemImportTarget($fieldName) {
+	$name = strtolower(trim((string)$fieldName));
+	if ($name === '-') return '';
+	$targets = array(
+		'salgspris_excl_moms' => 'salgspris', 'salgspris_incl_moms' => 'salgspris', 'salgspris_ex_moms' => 'salgspris',
+		'vejl.pris' => 'retail_price', 'vejl_pris' => 'retail_price', 'varemærke' => 'trademark', 'lokation' => 'location',
+		'special_price_incl_moms' => 'special_price',
+	);
+	return $targets[$name] ?? $name;
+}
+
+/**
+ * The columns whose field an earlier column already uses. The preview clears them; the import is not run while there are any.
+ *
+ * @param array<int, string|null> $fieldNames The column mapping, '' or '-' for an unused column.
+ * @return array<int, string> Column index => the column's field name.
+ */
+function itemImportDuplicateColumns($fieldNames) {
+	$seen = $duplicates = array();
+	foreach ((array)$fieldNames as $column => $name) {
+		$target = itemImportTarget($name);
+		if ($target === '') continue;
+		if (isset($seen[$target])) $duplicates[$column] = strtolower(trim((string)$name));
+		else $seen[$target] = true;
+	}
+	return $duplicates;
+}
+
+/**
+ * The first mapped field whose column a line does not reach, as on a line cut short.
+ *
+ * @param array<int, string|null> $fieldNames The column mapping.
+ * @param int $cellCount The number of cells on the line.
+ * @return string|null The field name, or null when every mapped column is on the line.
+ */
+function itemImportMissingColumn($fieldNames, $cellCount) {
+	foreach ((array)$fieldNames as $column => $name) {
+		if (itemImportTarget($name) !== '' && $column >= $cellCount) return strtolower(trim((string)$name));
+	}
+	return null;
+}
+
+/**
+ * True when a line has a value in a mapped column other than varenr, so a line without an item number is an error
+ * rather than an empty spreadsheet row.
+ *
+ * @param array<int, string|null> $fieldNames The column mapping.
+ * @param array<int, string|null> $cells The line's cells.
+ * @return bool
+ */
+function itemImportHasData($fieldNames, $cells) {
+	foreach ((array)$fieldNames as $column => $name) {
+		$target = itemImportTarget($name);
+		if ($target !== '' && $target !== 'varenr' && trim((string)($cells[$column] ?? ''), " \t\r\n\"") !== '') return true;
+	}
+	return false;
+}
+
+/**
+ * Indexes the existing item numbers for itemImportResolve().
+ *
+ * @param array<int|string, string> $items varer.id => varer.varenr
+ * @param string $encoding The page's character set, for case-insensitive matching of letters like Æ.
+ * @return array{exact: array<string, int[]>, lower: array<string, int[]>, digits: array<string, int[]>}
+ */
+function itemImportIndex($items, $encoding) {
+	$index = array('exact' => array(), 'lower' => array(), 'digits' => array());
+	foreach ((array)$items as $id => $varenr) itemImportIndexAdd($index, $id, $varenr, $encoding);
+	return $index;
+}
+
+/**
+ * Adds an item, e.g. one the import has just created, to an index from itemImportIndex().
+ *
+ * @param array{exact: array<string, int[]>, lower: array<string, int[]>, digits: array<string, int[]>} $index
+ * @param int|string $id
+ * @param string $varenr
+ * @param string $encoding
+ * @return void
+ */
+function itemImportIndexAdd(&$index, $id, $varenr, $encoding) {
+	$varenr = (string)$varenr;
+	$index['exact'][$varenr][] = (int)$id;
+	$index['lower'][mb_strtolower($varenr, $encoding)][] = (int)$id;
+	if (ctype_digit($varenr)) $index['digits'][ltrim($varenr, '0')][] = (int)$id;
+}
+
+/**
+ * Finds the item a line's item number means.
+ *
+ * The exact item number first; otherwise the same number in other letter case; otherwise, for digits only, the same
+ * number without leading zeros, as when a spreadsheet drops them (0123 stored, 123 in the sheet).
+ * Each step is used only when it finds exactly one item: two or more is ambiguous, and nothing is updated.
+ *
+ * @param array{exact: array<string, int[]>, lower: array<string, int[]>, digits: array<string, int[]>} $index From itemImportIndex().
+ * @param string|null $varenr The line's item number.
+ * @param string $encoding
+ * @return array{id: int|null, ambiguous: bool}
+ */
+function itemImportResolve($index, $varenr, $encoding) {
+	$varenr = (string)$varenr;
+	if ($varenr === '') return array('id' => null, 'ambiguous' => false);
+	$keys = array('exact' => $varenr, 'lower' => mb_strtolower($varenr, $encoding));
+	if (ctype_digit($varenr)) $keys['digits'] = ltrim($varenr, '0');
+	foreach ($keys as $step => $key) {
+		$ids = $index[$step][$key] ?? array();
+		if (count($ids) == 1) return array('id' => $ids[0], 'ambiguous' => false);
+		if (count($ids) > 1) return array('id' => null, 'ambiguous' => true);
+	}
+	return array('id' => null, 'ambiguous' => false);
+}
+
+/**
+ * True when a first line's item number cell is a column label such as "Varenr" or "SKU", so the line is the header.
+ * The caller only asks for a first line whose item number is not an existing item.
+ *
+ * @param string|null $varenrCell
+ * @return bool
+ */
+function itemImportIsHeader($varenrCell) {
+	$label = preg_replace('/[^a-z]/', '', strtolower((string)$varenrCell));
+	return in_array($label, array('varenr', 'varenummer', 'varenumre', 'vnr', 'nr', 'nummer', 'itemno', 'itemnumber', 'itemnr', 'sku', 'artnr', 'artikelnr', 'artikelnummer', 'produktnr', 'produktnummer', 'varekode'), true);
+}
+
+/**
+ * A spreadsheet cell with no-break spaces read as spaces, trimmed. Covers UTF-8 and ISO-8859-1 cells; a cell that
+ * is meant as a price, date or time has no other characters for the lone ISO byte to belong to.
+ *
+ * @param string|null $text
+ * @return string
+ */
+function campaignImportCell($text) {
+	return trim(str_replace(array("\xC2\xA0", "\xA0"), ' ', (string)$text));
+}
 
 /**
  * The import columns that only set an item's offer price and offer period.
@@ -67,7 +245,7 @@ function campaignImportOnly($fieldNames) {
  * @return float|null The amount, or null when the cell is empty, negative or not a number.
  */
 function campaignImportAmount($text) {
-	$text = str_replace(array("\xC2\xA0", ' '), '', trim((string)$text));
+	$text = str_replace(' ', '', campaignImportCell($text));
 	$text = preg_replace('/^(dkk|kr\.?)/i', '', $text);
 	$text = preg_replace('/(dkk|kr\.?|,-)$/i', '', $text);
 	if ($text === '') return null;
@@ -99,21 +277,23 @@ function campaignImportExVat($amountInclVat, $vatRate) {
 /**
  * Reads a time of day from a spreadsheet cell: 8:00, 08:00, 8.00, 08:00:00, "kl. 8.00".
  *
- * An end time on minute 59 gets second 59, as on the item card (lager/varekort.php), and an end time 24:00 means 23:59:59.
+ * An end time on minute 59 gets second 59, as on the item card (lager/varekort.php), also when the cell has seconds
+ * (a spreadsheet's time format writes 23:59 as 23:59:00); an end time 24:00 means 23:59:59.
  *
  * @param string|null $text The cell text.
  * @param bool $isEnd True for the end of the offer period.
  * @return string|null The time as HH:MM:SS, or null when the cell is empty or not a time.
  */
 function campaignImportTime($text, $isEnd) {
-	$text = trim(preg_replace('/^kl\.?/i', '', trim((string)$text)));
+	$text = trim(preg_replace('/^kl\.?/i', '', campaignImportCell($text)));
 	if (!preg_match('/^(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?$/', $text, $m)) return null;
 	$hour = (int)$m[1];
 	$minute = (int)$m[2];
 	$second = isset($m[3]) ? (int)$m[3] : null;
 	if ($isEnd && $hour == 24 && $minute == 0 && !$second) return '23:59:59';
 	if ($hour > 23 || $minute > 59 || $second > 59) return null;
-	if ($second === null) $second = ($isEnd && $minute == 59) ? 59 : 0;
+	if ($isEnd && $minute == 59) $second = 59;
+	elseif ($second === null) $second = 0;
 	return sprintf('%02d:%02d:%02d', $hour, $minute, $second);
 }
 
@@ -129,7 +309,7 @@ function campaignImportTime($text, $isEnd) {
  *                                                     null when the cell is empty or not a valid date and time.
  */
 function campaignImportDateTime($text, $isEnd) {
-	$text = trim((string)$text);
+	$text = campaignImportCell($text);
 	if (!preg_match('/^(\d{1,4}[-.\/]\d{1,2}[-.\/]\d{1,4})(?:(?:\s+|T)(.+))?$/i', $text, $m)) return null;
 	if (preg_match('/^(\d{1,2})([-.\/])(\d{1,2})\2(\d{4})$/', $m[1], $d)) {
 		list(, $day, , $month, $year) = $d;
@@ -169,8 +349,8 @@ function campaignImportWindow($cells) {
 	foreach (array('from' => false, 'to' => true) as $side => $isEnd) {
 		$dateField = "special_{$side}_date";
 		$timeField = "special_{$side}_time";
-		$dateCell = trim((string)($cells[$dateField] ?? ''));
-		$timeCell = trim((string)($cells[$timeField] ?? ''));
+		$dateCell = campaignImportCell($cells[$dateField] ?? '');
+		$timeCell = campaignImportCell($cells[$timeField] ?? '');
 		$time = null;
 		if ($timeCell !== '') {
 			$time = campaignImportTime($timeCell, $isEnd);
@@ -195,8 +375,8 @@ function campaignImportWindow($cells) {
 /**
  * Reads one import line's campaign cells: the offer price and the offer period.
  *
- * An empty price cell leaves special_price as it is; 0 ends the offer. When both price columns are filled,
- * special_price_incl_moms is used.
+ * An empty price cell leaves special_price as it is; 0 ends the offer. The two price columns write the same column, so
+ * itemImportDuplicateColumns() keeps them from both being mapped; should both arrive, special_price_incl_moms is used.
  *
  * @param array<string, string|null> $cells Raw cells keyed by import column (see campaignImportFields()); a column that is not mapped is absent.
  * @return array{
@@ -209,7 +389,7 @@ function campaignImportWindow($cells) {
 function campaignImportLine($cells) {
 	$line = array('values' => array(), 'price' => null, 'priceInclVat' => false, 'error' => null);
 	foreach (array('special_price_incl_moms' => true, 'special_price' => false) as $field => $inclVat) {
-		$cell = trim((string)($cells[$field] ?? ''));
+		$cell = campaignImportCell($cells[$field] ?? '');
 		if ($cell === '') continue;
 		$amount = campaignImportAmount($cell);
 		if ($amount === null) {
