@@ -1,11 +1,11 @@
 <?php
-
+//
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.10 --- 2025-11-13 ----
+// --- kreditor/ordreIncludes/openOrerLines.php --- ver 5.1.1 --- 2026-11-17 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20230111 MSC - Implementing new design
@@ -43,6 +43,8 @@
 // 20260917 SZ HTML-escape batch_batch_no before printing it into the value attribute
 //             (CodeRabbit, PR #608); guard against a missing grupper row for box9 lookups
 //             so a fiscal-year mismatch degrades to "not tracked" instead of a PHP warning.
+// 20261117 CL/MMR SST-1024 The line «Opslag» just added (Antal empty with the quantity as placeholder) also posts that quantity as antaDefault<n>.
+//                 kreditor/ordre.php keeps it when Antal comes back empty, so Gem or Enter no longer stores 0.
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
 
@@ -88,7 +90,9 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   print "<td><input class='inputbox' type='text' size=7 name=lev_varenr$x value=\"".htmlentities($lev_varenr[$x])."\" ";
   print "onfocus='document.forms[0].fokus.value=this.name;' onchange='javascript:docChange = true;'></td>";
   if ($fokus == 'anta' . $x) {
-    print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta$x placeholder='$dkantal[$x]' value='' onchange='javascript:docChange = true;'></td>";
+    # SST-1024: an empty Antal on this line («Opslag» just added it) keeps the quantity shown in the placeholder.
+    print "<td><input type='hidden' name='antaDefault$x' value='$dkantal[$x]'>";
+    print "<input class='inputbox' type='text' style='text-align:right' size=4 name=anta$x placeholder='$dkantal[$x]' value='' onchange='javascript:docChange = true;'></td>";
   } else {
     print "<td><input class='inputbox' type='text' style='text-align:right' size=4 name=anta$x value='$dkantal[$x]' onchange='javascript:docChange = true;'></td>";
   }

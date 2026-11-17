@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -108,6 +108,8 @@
 //                 The choice is the new function newLineReceiveQuantity(), so the save branch only calls it.
 //                 The same applies to an item picked through «Opslag» (GET vare_id), which inserts its line separately.
 //                 newLineQuantity() gives an empty quantity on a credit note (KK) -1 instead of +1, so its «Returner» starts at 1 too (Codex round 1).
+// 20261117 CL/MMR SST-1024 After «Opslag» an empty «Antal» keeps the quantity the page showed (antaDefault<n>, new function opslagLineQuantities()), and «Modtag» follows «Antal» until the user changes it (Saul's review).
+//                 Gem or Enter used to post Antal 0 with Modtag 1, which cleared the line to 0 / 0, and Antal 5 kept Modtag 1.
 @session_start();
 $s_id=session_id();
 
@@ -597,12 +599,14 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$varenr[$x]=db_escape_string(trim($_POST[$y]));
 			$y="anta".$x;
 			$antal[$x]=$_POST[$y];
+			$y="leve".$x;
+			$leveres[$x]=ifset($_POST, $y);
+			// SST-1024: the line «Opslag» just added keeps its shown quantity, and «Modtag» follows it.
+			list($antal[$x], $leveres[$x]) = opslagLineQuantities($antal[$x], $leveres[$x], ifset($_POST, "antaDefault$x"));
 			if ($antal[$x]){
 				$antal[$x]=usdecimal($antal[$x],2);
 				if ($art=='KK') $antal[$x]=$antal[$x]*-1;
 			}
-			$y="leve".$x;
-			$leveres[$x]=ifset($_POST, $y);
 			if ($leveres[$x]){
 				$leveres[$x]=usdecimal($leveres[$x],2);
 				if ($art=='KK') $leveres[$x]=$leveres[$x]*-1;
@@ -1929,6 +1933,28 @@ function newLineReceiveQuantity($status, $antal) {
 function newLineQuantity($antal, $art) {
 	if ($antal) return $antal;
 	return ($art == 'KK') ? -1 : 1;
+}
+
+/**
+ * SST-1024: the posted «Antal» and «Modtag» of the line «Opslag» just added, before they are parsed.
+ *
+ * After «Opslag» the page shows that line's «Antal» empty with the quantity as placeholder, and posts the quantity as
+ * antaDefault<n>. An empty «Antal» keeps that quantity, so «Gem» (also Enter) no longer turns it into 0. «Modtag»
+ * («Returner» on a credit note) was shown with the same quantity; while it still shows that, it follows «Antal», so
+ * typing 5 in «Antal» receives 5. A «Modtag» the user changed is kept. Every other line posts no antaDefault<n> and
+ * is returned unchanged. Both values stay as posted (Danish format, positive on a credit note); the caller parses them.
+ *
+ * @param string|null $anta the posted «Antal»
+ * @param string|null $leve the posted «Modtag», null or empty when the column is not shown (draft)
+ * @param string|null $antaDefault the posted antaDefault<n>, null or empty on every other line
+ * @return array{0: string|null, 1: string|null} [«Antal», «Modtag»] as posted strings
+ */
+function opslagLineQuantities($anta, $leve, $antaDefault) {
+	if ($antaDefault === null || trim($antaDefault) === '') return array($anta, $leve);
+	$modtagFollows = ($leve !== null && trim($leve) !== '' && usdecimal($leve, 2) == usdecimal($antaDefault, 2));
+	if ($anta === null || trim($anta) === '') $anta = $antaDefault;
+	if ($modtagFollows) $leve = $anta;
+	return array($anta, $leve);
 }
 ######################################################################################################################################
 function samlevare($id,$art,$v_id,$leveres) {

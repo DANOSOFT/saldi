@@ -16,11 +16,19 @@ use PHPUnit\Framework\TestCase;
 //                 An empty quantity on a credit note (KK) is -1, the sign every KK line is stored with (Codex round 1 found +1 → Returner 0).
 //                 kreditor/ordre.php is a page script, so the parsing of the posted quantity, newLineQuantity(), newLineReceiveQuantity()
 //                 and each insert are lifted out of the source and the SQL they build is read back.
+// 20261117 CL/MMR SST-1024 The lifted parse now runs to the end of «Modtag» and through opslagLineQuantities() (Saul's review), which gets its own cases.
+//                 The page round trip (Opslag, then Gem) is OpslagThenSaveRoundTripTest.
 
 /** Stand-in for the real escape, which needs a database connection; quoting is not what is tested here. */
 function db_escape_string($value)
 {
 	return str_replace("'", "''", (string)$value);
+}
+
+/** Stand-in for includes/std_func.php ifset() for the plain array lookups the lifted parse makes. */
+function ifset($array, $key = null, $default = null)
+{
+	return (is_array($array) && isset($array[$key])) ? $array[$key] : $default;
 }
 
 final class NewLineReceiveQuantityTest extends TestCase
@@ -36,7 +44,7 @@ final class NewLineReceiveQuantityTest extends TestCase
 			self::assertNotFalse($src, 'could not read kreditor/ordre.php');
 			self::$src = $src;
 			require_once __DIR__ . '/../../../includes/stdFunc/usDecimal.php';
-			foreach (['newLineQuantity', 'newLineReceiveQuantity'] as $name) {
+			foreach (['newLineQuantity', 'newLineReceiveQuantity', 'opslagLineQuantities'] as $name) {
 				if (function_exists($name)) {
 					continue;
 				}
@@ -58,7 +66,8 @@ final class NewLineReceiveQuantityTest extends TestCase
 		self::assertNotFalse($at, "the block starting \"$from\" is gone from kreditor/ordre.php");
 		$end = strpos($src, $before, $at);
 		self::assertNotFalse($end, "the block starting \"$from\" no longer reaches \"$before\"");
-		return str_replace('db_escape_string(', '\\' . __NAMESPACE__ . '\\db_escape_string(', substr($src, $at, $end - $at));
+		$code = str_replace('db_escape_string(', '\\' . __NAMESPACE__ . '\\db_escape_string(', substr($src, $at, $end - $at));
+		return preg_replace('/(?<![\\w>])ifset\(/', '\\' . __NAMESPACE__ . '\\ifset(', $code);
 	}
 
 	/** @return array<string, string> column => value of an «insert into ordrelinjer (…) values (…)» */
@@ -78,13 +87,14 @@ final class NewLineReceiveQuantityTest extends TestCase
 	 */
 	private static function typedLine(string $art, int $status, string $postedAntal): array
 	{
-		$parse = self::slice('$y="anta".$x;', '$y="leve".$x;');
+		$parse = self::slice('$y="anta".$x;', '$y="lev_varenr".$x;');
 		$default = self::slice('$antal[0] = newLineQuantity($antal[0], $art);', 'if (!$rabat[0]) $rabat[0]=0;');
 		$insert = self::slice('$nyLeveres = newLineReceiveQuantity($status, $antal[0]);', 'db_modify($qtxt');
 
 		$_POST = ['anta0' => $postedAntal];
 		$x = 0;
 		$antal = [];
+		$leveres = [];
 		eval($parse);
 		eval($default);
 
@@ -194,5 +204,39 @@ final class NewLineReceiveQuantityTest extends TestCase
 		self::assertSame('M118006', $row['varenr']);
 		self::assertSame('3', $row['lager']);
 		self::assertSame('25', $row['momssats']);
+	}
+
+	/** @return array<string, array{?string, ?string, ?string, ?string, ?string}> posted Antal, Modtag, antaDefault; expected Antal, Modtag */
+	public static function opslagCases(): array
+	{
+		return [
+			'Opslag line, Gem without typing'        => ['', '1', '1', '1', '1'],
+			'Opslag line, Antal 5, Modtag untouched' => ['5', '1', '1', '5', '5'],
+			'Opslag line, Antal 5, Modtag 2'         => ['5', '2', '1', '5', '2'],
+			'Opslag line, Antal 2,5, Modtag 1,0'     => ['2,5', '1,0', '1', '2,5', '2,5'],
+			'Opslag line on a draft (no Modtag)'     => ['', null, '1', '1', null],
+			'Opslag line, Antal 0 typed'             => ['0', '1', '1', '0', '0'],
+			'any other line, Antal empty'            => ['', '1', null, '', '1'],
+			'any other line, Antal 5'                => ['5', '1', null, '5', '1'],
+		];
+	}
+
+	#[DataProvider('opslagCases')]
+	public function testTheLineOpslagAddedKeepsItsQuantityAndModtagFollowsIt(?string $anta, ?string $leve, ?string $default, ?string $antal, ?string $leveres): void
+	{
+		self::source();
+		self::assertSame([$antal, $leveres], \opslagLineQuantities($anta, $leve, $default));
+	}
+
+	public function testTheParseUsesTheDefaultOnACreditNote(): void
+	{
+		$parse = self::slice('$y="anta".$x;', '$y="lev_varenr".$x;');
+		$_POST = ['anta2' => '', 'leve2' => '1', 'antaDefault2' => '1'];
+		$x = 2;
+		$art = 'KK';
+		$antal = [];
+		$leveres = [];
+		eval($parse);
+		self::assertSame([-1.0, -1.0], [(float)$antal[2], (float)$leveres[2]]);
 	}
 }
