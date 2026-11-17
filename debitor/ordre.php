@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -192,6 +192,7 @@
 // 20261113 LOE SST-967 A copy made through the exception reads the case customer's card, not a posted kontonr's.
 // 20261113 LOE SST-967 Only a copy or a credit note inherits the card; an ordinary save keeps the header the user typed.
 // 20261113 LOE SST-967 An empty name on a plain save falls back to the case customer's card, not a posted kontonr's.
+// 20261117 LOE SST-967 The order's number and mail address come from the case card on every request the exception admits; notes are read by konto_id; the page refuses through perm_refuse().
 @session_start();
 $s_id = session_id();
 
@@ -342,13 +343,12 @@ function sag_workflow_order_ok($order_id) {
  * @return void
  */
 function sag_workflow_refuse() {
-	global $sprog_id;
-	$txt = findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id);
-	print tekstboks($txt);
-	print "<div style=\"position:fixed; top:10px; left:10px; z-index:101; font:14px Arial,Helvetica,sans-serif;\">";
-	print "<a href=\"" . get_relative() . "sager/sager.php\" target=\"_top\" style=\"display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;\">"
-		. "&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
-	exit;
+	global $sag_workflow_case_id;
+	# The same refusal as the gate: HTTP 403, the audit entry, a JSON body for scripts and one text. The page
+	# used to print its own box, so its refusals were not logged and carried no status.
+	include_once(__DIR__ . '/../includes/std_func.php');
+	include_once(__DIR__ . '/../includes/permissions.php');
+	perm_refuse('sag workflow ' . (int) $sag_workflow_case_id, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
 }
 
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
@@ -2039,6 +2039,14 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		} elseif (!$firmanavn) {
 			$order_customer = $wf_case_card;
 		}
+		# The identity of the order is atomic: the number it is filed on and the address its mail goes to come
+		# from the case's customer on every request the exception admits, not only on a copy. A plain save may
+		# still change the header text; it may not point the order at another customer or another mailbox.
+		if ($wf_case_card) {
+			$kontonr = db_escape_string($wf_case_card['kontonr']);
+			$email = db_escape_string($wf_case_card['email']);
+			$mail_fakt = $wf_case_card['mailfakt'];
+		}
 		unset($wf_case_card);
 	} elseif ($kontonr && !$firmanavn) {
 		$order_customer = db_fetch_array(db_select("select * from adresser where kontonr = '$kontonr' and art='D'", __FILE__ . " linje " . __LINE__));
@@ -2107,7 +2115,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$std_rabat = (float)$r['box6'];
 			if (!$gl_id) { # valuta & sprog skal beholdes v. ordrekopiering.
 				$formularsprog = $r['box4'];
-				
+
 				$valuta = $r['box3'];
 			}
 			$qtxt = "select box2 from grupper where art='SM' and kodenr='$tmp' and fiscal_year = '$regnaar'";
@@ -6012,8 +6020,10 @@ function ordreside($id, $regnskab)
 			}
 		}
 		print "</td></tr></tbody></table></td></tr>\n"; #<- Tabel 4.3
-		$kontonr = (int)$kontonr;
-		$row2 = db_fetch_array(db_select("select notes from adresser where kontonr = '$kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__)); #20142403-1
+			$kontonr = (int)$kontonr;
+		# SST-967 the notes belong to the order's customer row - the id the page proved - so a number in the
+		# request cannot pull another customer's notes onto this order.
+		$row2 = db_fetch_array(db_select("select notes from adresser where id = '" . (int) $konto_id . "' and art = 'D'", __FILE__ . " linje " . __LINE__)); #20142403-1
 		$notes = str_replace("\n", "<br>", if_isset($row2, NULL, 'notes'));
 		if ($notes) print "<tr><td colspan=\"3\" witdh=\"100%\" style=\"color: rgb(255,0,0)\">$notes</td></tr>\n";
 		/*

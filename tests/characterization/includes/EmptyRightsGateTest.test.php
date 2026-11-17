@@ -354,6 +354,27 @@ final class EmptyRightsGateTest extends TestCase
             'a case without a customer card is refused on a copy rather than filled from the request');
         self::assertStringContainsString("select * from adresser where id = '\$konto_id' and art='D'", $ordre,
             'and the case customer is read from its address row');
+        // Identity is atomic under the exception: the number the order is filed on and the address its mail
+        // goes to come from the case card on every admitted request, not only on a copy.
+        self::assertStringContainsString("\$kontonr = db_escape_string(\$wf_case_card['kontonr']);", $ordre,
+            'the number comes from the case card on every admitted request');
+        self::assertStringContainsString("\$email = db_escape_string(\$wf_case_card['email']);", $ordre,
+            'and so does the address the invoice mail goes to');
+        // The page's notes are read by the customer id the gate proved, never by a number in the request.
+        self::assertStringContainsString("select notes from adresser where id = '\" . (int) \$konto_id . \"' and art = 'D'", $ordre,
+            'notes belong to the order\'s customer row');
+        // The customer directory and the shared text library are not part of case work.
+        $lookup = @file_get_contents(__DIR__ . '/../../../includes/orderFuncIncludes/accountLookup.php');
+        self::assertNotFalse($lookup, 'cannot read includes/orderFuncIncludes/accountLookup.php');
+        self::assertStringContainsString("if (!empty(\$GLOBALS['sag_workflow_case_id'])) {", (string)$lookup,
+            'the customer lookup is refused for an admitted page');
+        $ref = @file_get_contents(__DIR__ . '/../../../includes/ordrefunc.php');
+        self::assertNotFalse($ref, 'cannot read includes/ordrefunc.php');
+        self::assertStringContainsString("perm_refuse('tekstopslag for case '", (string)$ref,
+            'and so is the shared text library');
+        // The page's own refusal is the gate's refusal, so it carries 403, the audit entry and JSON.
+        self::assertStringContainsString("perm_refuse('sag workflow ' . (int) \$sag_workflow_case_id", $ordre,
+            'the page refuses through the shared refusal');
         self::assertStringContainsString("\$sag_workflow_order = -1;", $ordre,
             'a malformed order selector makes the gate refuse the request instead of ignoring it');
         self::assertStringContainsString("\$sag_workflow_sag = -1;", $ordre,

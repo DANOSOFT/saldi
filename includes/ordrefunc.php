@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-13 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -169,6 +169,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261112 LOE SST-967 opret_ordre() and opret_ordre_kopi() let the caller's case and customer win; the request is only a fallback.
 // 20261112 LOE SST-967 The text-selection view escapes what it prints and keeps only b and i.
+// 20261117 LOE SST-967 The text-selection view is refused for a page the case exception admitted, because the library is one list for the whole book.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 
@@ -4827,6 +4828,13 @@ function ordretekst_print_safe($tekst)
 
 function tekstopslag($sort, $id)
 {
+	# SST-967 the text library is one list for the whole book, so a page admitted for one case must not open it:
+	# the view lists every stored text and the case's omfang. Case work uses the order's own lines instead.
+	if (!empty($GLOBALS['sag_workflow_case_id'])) {
+		include_once(__DIR__ . '/std_func.php');
+		include_once(__DIR__ . '/permissions.php');
+		perm_refuse('tekstopslag for case ' . (int) $GLOBALS['sag_workflow_case_id'], isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
+	}
 	global $bgcolor;
 	global $bgcolor5;
 	global $db, $db_skriv_id;
