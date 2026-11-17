@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.09
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,7 @@
 // 20261106 CL/MJ SD-790 review: set-app's messages end in \n like the other commands' do.
 // 20261108 CL/SS SD-803: the customer.export handler (a Saldi debtor becomes a Shopify customer).
 // 20261109 CL/MJ SD-759: the write-back handlers order.tags, order.references, order.note and order.processed.
+// 20261113 CL/MJ SD-760: the order.move and barrier.sweep handlers.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -134,9 +135,11 @@ function shopify_worker_wiring(): array {
 	shopify_worker_register($registry, 'stock.baseline', fn(array $job, float $deadline, callable $heartbeat): array
 		=> shopify_stock_baseline(array('heartbeat' => $heartbeat), $job, $deadline));
 	// SD-759: the invoiced order's hold tags, numbers and invoice link, split-set note and saldi-behandlet, in that order.
-	foreach (array('order.tags', 'order.references', 'order.note', 'order.processed') as $stage) {
+	foreach (array('order.tags', 'order.move', 'order.references', 'order.note', 'order.processed') as $stage) {
 		shopify_worker_register($registry, $stage, 'shopify_writeback_job');
 	}
+	// SD-760: the barriers of orders whose move never finished are abandoned, so their stock is pushed.
+	shopify_worker_register($registry, 'barrier.sweep', 'shopify_barrier_sweep_job');
 	// SD-790: the app was uninstalled; the token goes and every flow is switched off.
 	shopify_worker_register($registry, 'shop.uninstalled', 'shopify_shop_uninstalled_job');
 	return array('registry' => $registry, 'producers' => $producers);

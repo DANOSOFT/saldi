@@ -66,3 +66,19 @@ shopify.admin.shop.webhook_secret	Webhook-hemmelighed	Webhook secret	Webhook-hem
 shopify.admin.shops.title	Shopify-shops	Shopify shops	Shopify-nettbutikker
 shopify.admin.tab.lagre	Lagre	Warehouses	Lagre
 shopify.admin.tab.shops	Shops	Shops	Nettbutikker
+shopify.movelist.all	Alle	All	Alle
+shopify.movelist.bad_date	Ugyldig dato.	Invalid date.	Ugyldig dato.
+shopify.movelist.day	Dato	Date	Dato
+shopify.movelist.description	Beskrivelse	Description	Beskrivelse
+shopify.movelist.from	Fra lager	From warehouse	Fra lager
+shopify.movelist.help	Webordrelinjer trukket fra et andet lager end det, ordren sendes fra.	Web order lines drawn from another warehouse than the one the order ships from.	Nettordrelinjer trukket fra et annet lager enn det ordren sendes fra.
+shopify.movelist.item	Varenr.	Item no.	Varenr.
+shopify.movelist.none	Ingen linjer skal flyttes denne dag.	No lines to move on this day.	Ingen linjer skal flyttes denne dagen.
+shopify.movelist.order	Ordre	Order	Ordre
+shopify.movelist.print	Udskriv	Print	Skriv ut
+shopify.movelist.quantity	Antal	Quantity	Antall
+shopify.movelist.set	Sæt	Set	Sett
+shopify.movelist.ship_lager	Sendes fra	Ships from	Sendes fra
+shopify.movelist.show	Vis	Show	Vis
+shopify.movelist.title	Flytteliste	Move list	Flytteliste
+shopify.movelist.to	Til lager	To warehouse	Til lager

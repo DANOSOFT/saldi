@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-02 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-13 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // 20260930 CL/NTR Added HTML/CSS layout version search terms to div_valg entry.
 //                 Hid the admin_settings entry outside the master database ('masterDb' rule).
 // 20261102 CL/MJ SD-761: Shopify entry, shown only on a tenant with a Shopify shop ('shopify' rule).
+// 20261113 CL/MJ SD-760: Shopify move list (lager/flytteliste.php), shown by the same rule.
 //
 // Hand-maintained index of Settings pages, used by settingsSearch.php.
 // Each entry:
@@ -145,6 +146,8 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('qr code login','app login','mobile app authentication','one time access qr','saldi app login','scan to login')),
 			array('key' => 'shopify',               'url' => 'shopify/shops.php',                        'category' => 'integrations', 'labelDa' => 'Shopify', 'labelEn' => 'Shopify', 'labelNo' => 'Shopify', 'visibilityRule' => 'shopify',
 				'keywords' => array('shopify','webshop','web shop','nettbutikk','shop domain','access token','webhook secret','sellable warehouse','salgbart lager','udstillingslager','warehouse priority','lagerprioritet')),
+			array('key' => 'shopify_flytteliste',   'url' => '../lager/flytteliste.php',                 'category' => 'integrations', 'labelDa' => 'Flytteliste', 'labelEn' => 'Move list', 'labelNo' => 'Flytteliste', 'visibilityRule' => 'shopify',
+				'keywords' => array('flytteliste','move list','web order','webordre','nettordre','lager flytning','warehouse transfer','split set','delt sæt','ships from','sendes fra')),
 			array('key' => 'sprog',                 'url' => 'diverse.php?sektion=sprog',                'category' => 'company', 'textId' => 801,
 				'keywords' => array('language','languages','change language','select language','preferred language','edit translation texts','ui language','current language','sprogindstillinger','sprog','språk','språkinnstillinger')),
 			array('key' => 'div_io',                'url' => 'diverse.php?sektion=div_io',               'category' => 'data', 'textId' => 802,
