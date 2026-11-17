@@ -4,7 +4,7 @@
 //                     \__ \/ _ \| |_| |) | | _ | |) |  <
 //                     |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importer_varer.php --- 4.1.1 --- 2025-10-07 ---
+// --- systemdata/importer_varer.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // tilføjet vejl.pris til import.
 // 2014.02.01 Gjort søgning på eksisterende varenumre case uafhængig 20140201
@@ -45,6 +45,23 @@
 // 202605## PHR Added Max_execution_time setting.
 // 20260708 PHR defined v_nr as array()
 // 20260731 MJ Insert first kostpriser row explicitly when a product has none yet (no bool array access)
+// 20261117 CL/LH Campaign prices (Havemøbelland, Black Week): special_price is read as a Danish or dot decimal, special_from_date/special_to_date as dd-mm-yyyy, dd.mm.yyyy, dd/mm/yyyy or yyyy-mm-dd with an optional time (includes/itemImport.php).
+//                New columns special_price_incl_moms (converted with the VAT rate of the item's group), special_from_time and special_to_time.
+//                A date without a time gives 00:00:00 and 23:59:59, so the offer lasts the whole last day; an imported offer price above 0 sets specialtype 'price', which find_pris() requires.
+//                A line with an invalid campaign cell is skipped, never written; skipped lines and unknown item numbers are listed after the import.
+//                A file with only varenr and campaign columns updates existing items only: no new items, no varegruppe, and the matched item's varenr is not rewritten.
+//                kostpriser gets a row only when kostpris is imported or the item is new, instead of a 0 cost price for every updated item.
+// 20261117 CL/LH Codex review: a line no longer inherits the previous line's item number; a line that does not reach every mapped column, or has values but no item number, is skipped and listed.
+//                A column mapped twice (also two that write one column, such as special_price and special_price_incl_moms) goes back to the preview instead of importing; the import's own check used undefined variables.
+//                Preview and import read lines the same way (itemImportIsRow(), itemImportLine(): byte order mark removed, one character set conversion); the preview no longer joins short lines.
+//                Item numbers resolve exactly first, then in other letter case, then without leading zeros, each only when it finds one item; an ambiguous number is skipped and listed, and the preview colours by the same resolver.
+//                A first line whose item number is a label such as Varenr is the header: grey in the preview, not imported, not listed; every other invalid line is listed.
+// 20261117 CL/LH Codex review 2: every non-blank line is a row (a quoted first cell such as "ABC";149,95 was lost by preview and import), short lines show in the preview without warnings.
+//                A line the number checks reject (kostpris, salgspris, montage, min_lager ...) is now listed too; numbers such as 123.0 and 1E+05 find their item again (itemImport.php).
+//                An existing item keeps its item number: the update no longer writes the sheet's spelling over it (since 20140201/20161015 abc renamed ABC and 123 renamed 000123); new items get the sheet's number as before.
+// 20261117 CL/LH Back-port of master's 20261102 CL/ASR fix: the first upload of a file without a saved column mapping (no saldi_vareimp cookie) stopped with a PHP fatal error (string offset) before the mapping step.
+// 20261117 CL/LH Codex review 3: a number cell is checked before salgspris_incl_moms converts it, so a rejected price is listed; a last line "0" without a newline is read, and item number 0 can be created.
+// 20261117 CL/LH Without the settings layout the list of skipped lines is printed inside the full-height page table, with a last row taking the rest, so it shows at the top instead of below an empty screen.
 
 @session_start();
 $s_id=session_id();
@@ -56,6 +73,7 @@ $title="Import&eacute;r varer";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . "/../includes/itemImport.php");
 include("../includes/topline_settings.php");
 $returside="diverse.php?sektion=div_io";
 $csvFile = NULL;
@@ -155,7 +173,8 @@ if($submit || $import) {
 	} elseif($submit==findtekst(1133, $sprog_id)){ #20221025
 		vis_data($filnavn,$splitter,$feltnavn,$feltantal,$varenr,$csvFile,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod);
 	}	elseif($import) { #20221025
-		if (($filnavn)&&($splitter))	overfoer_data($filnavn,$splitter,$feltnavn,$feltantal,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod);
+		# 20261117 a column mapped twice goes back to the preview, which says so and clears it (itemImportDuplicateColumns())
+		if (($filnavn)&&($splitter)&&!itemImportDuplicateColumns($feltnavn))	overfoer_data($filnavn,$splitter,$feltnavn,$feltantal,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod);
 		else vis_data($filnavn,$splitter,$feltnavn,$feltantal,$varenr,$csvFile,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod);
 	}
 } else {
@@ -224,13 +243,19 @@ if ($feltnavn) {
 	list($tmp,$itemGroup) =  explode("|",$_COOKIE['saldi_vareimp']);
 	$feltnavn=explode(";",$tmp);
 }
-$v = 0;
-$v_nr = array();
-$q = db_select("select varenr from varer",__FILE__ . " linje " . __LINE__); #20161015 -> 4 linjer
-while($r=db_fetch_array($q)){
-	$v_nr[$v]=$r['varenr'];
-	$v++;
+if (!is_array($feltnavn)) $feltnavn = array(); // 20261102 CL/ASR on master, back-ported 20261117: the first upload passes '' and there is no saved mapping yet
+$campaignOnly = campaignImportOnly($feltnavn); // 20261117 CL/LH only varenr and campaign columns: existing items only, group kept
+if ($campaignOnly) {
+	$filterOption = 'only_existing_product';
+	$itemGroup = NULL;
 }
+$v_nr = array();
+$q = db_select("select id,varenr from varer",__FILE__ . " linje " . __LINE__); #20161015 -> 4 linjer
+while($r=db_fetch_array($q)){
+	$v_nr[$r['id']]=$r['varenr'];
+}
+$enc = ($charset == 'UTF-8') ? 'UTF-8' : 'ISO-8859-1';
+$itemIndex = itemImportIndex($v_nr, $enc); # 20261117 the import's item number resolver, so green and red mean what the import does
 $vg = 0;
 $qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -324,25 +349,27 @@ if ($show_autocalculate) {
 	print "</span>\n";
 	print "<br>\n";
 }
+if ($campaignOnly) {
+	print "<br><span>&nbsp;".findtekst('item.import.campaign_only|Kun tilbudspris og tilbudsperiode opdateres. Ukendte varenumre oprettes ikke, og salgspris, kostpris og varegruppe ændres ikke.', $sprog_id)."</span>\n";
+}
 print "<input type='hidden' name='filnavn' value='$filnavn'>\n";
 print "<input type='hidden' name='feltantal' value='$feltantal'>\n";
 print "&nbsp; <input type='submit' name='submit' value='" . findtekst('1133|Vis', $sprog_id) . "' />\n";
 
 #20140718
-$felt_navn=array("varenr","varenr_alias","stregkode","varemærke","beskrivelse","beskrivelse_alias","kostpris","salgspris_excl_moms","salgspris_incl_moms","vejl.pris","notes","enhed","enhed2","forhold","gruppe","provisionsfri","leverandor","min_lager","max_lager","lokation","lukket","serienr","samlevare","delvare","trademark","retail_price","netweight", "special_price","campaign_cost","tier_price","open_colli_price","colli","outer_colli","outer_colli_price", "special_from_date","special_to_date","komplementaer","circulate","operation","prisgruppe","tilbudgruppe","rabatgruppe", "dvrg","m_type","m_rabat","m_antal","folgevare", "kategori", "varianter", "publiceret","indhold","montage","demontage");
+$felt_navn=array("varenr","varenr_alias","stregkode","varemærke","beskrivelse","beskrivelse_alias","kostpris","salgspris_excl_moms","salgspris_incl_moms","vejl.pris","notes","enhed","enhed2","forhold","gruppe","provisionsfri","leverandor","min_lager","max_lager","lokation","lukket","serienr","samlevare","delvare","trademark","retail_price","netweight", "special_price","special_price_incl_moms","campaign_cost","tier_price","open_colli_price","colli","outer_colli","outer_colli_price", "special_from_date","special_to_date","special_from_time","special_to_time","komplementaer","circulate","operation","prisgruppe","tilbudgruppe","rabatgruppe", "dvrg","m_type","m_rabat","m_antal","folgevare", "kategori", "varianter", "publiceret","indhold","montage","demontage");
 
 
 $felt_antal=count($felt_navn);
 for ($y=0; $y<=$feltantal; $y++) {
 	$feltnavn[$y] = if_isset($feltnavn[$y],NULL);
-	for ($x=0; $x < $felt_antal; $x++) {
-		if (!isset($felt_navn[$x])) $felt_navn[$x] = '';
-		if (!isset($felt_aktiv[$x])) $felt_aktiv[$x] = '';
-		if ($felt_navn[$x] && $feltnavn[$y]==$felt_navn[$x] && $felt_aktiv[$x]==1) {
-			print "<body onLoad=\"javascript:alert('Der kan kun v&aelig;re &eacute;n kolonne med $felt_navn[$x]')\">"; #20151210
-			$feltnavn[$y]='';
-		} elseif ($felt_navn[$x] && $feltnavn[$y]==$felt_navn[$x]) $felt_aktiv[$x]=1;
-	}
+}
+foreach (itemImportDuplicateColumns($feltnavn) as $y => $name) { # 20261117 the check the import also makes
+	if (!in_array($name, $felt_navn, true)) $name = '';
+	print "<body onLoad=\"javascript:alert('Der kan kun v&aelig;re &eacute;n kolonne med $name')\">"; #20151210
+	$feltnavn[$y]='';
+}
+for ($y=0; $y<=$feltantal; $y++) {
 	if ($feltnavn[$y]=='varenr') $varenr=1;
 	if ($feltnavn[$y]=='beskrivelse') $beskrivelse=1;
 }
@@ -369,38 +396,29 @@ for ($y=0; $y<count($feltnavn); $y++) {
 print "</form></td></tr>";
 $fp=fopen("$filnavn","r");
 if ($fp) {
-	$preLine='';
-	$colNum=1;
 	$x=0;
+	$lineNo=0;
 	$kontonumre=array();
 	while (!feof($fp)) {
 		$skriv_linje=0;
 		$varenr=NULL;
-		if ($linje=fgets($fp)) {
-			for($c=0;$c<strlen($linje);$c++) {
-				if (substr($linje,$c,1)==$splitter) {
-					$colNum++;
-				}
-			}
-			if ($colNum < $cols) {
-				$preLine.= $linje;
-			}	else {
+		$isHeader=false;
+		$known=false;
+		if (($linje=fgets($fp)) !== false) { # 20261117 a last line "0" without a newline is a line too
+			$lineNo++;
+			# 20261117 every line is one row, read like the import reads it (it stopped joining short lines in 20220628)
+			if (itemImportIsRow($linje)) {
 			$x++;
-			if ($preLine) {
-				$preLine.= $linje;
-				$linje = $preLine;
-			}
-			$colNum=1;
-			$preLine='';
 			$skriv_linje=1;
-			if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
-			elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
+			$linje = itemImportLine($linje, $tegnset, $charset);
 			$felt=array();
 			$felt = opdel($splitter, $linje);
+			$cellCount = count($felt);
+			$campaignCells = array();
 			for ($y=0; $y<=$feltantal; $y++) {
 				$feltnavn[$y] = if_isset($feltnavn[$y],NULL);
 				$feltfejl[$y]=0;
-				$felt[$y]=trim($felt[$y]);
+				$felt[$y]=trim($felt[$y] ?? ''); // 20261117 a short line is shown, and listed by the import
 				if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
 				if ($feltnavn[$y]=='varenr') { #20161015
 					$varenr=trim($felt[$y]);
@@ -459,15 +477,24 @@ if ($fp) {
 				if ($feltnavn[$y]=='leverandor')	{
 					if ($felt[$y] && !$tmp=find_lev_id($felt[$y])) $feltfejl[$y]=1;
 				}
+				if (in_array($feltnavn[$y], campaignImportFields())) $campaignCells[$feltnavn[$y]] = $felt[$y];
 #				if ($feltnavn[$y]=='varenr'&&!is_numeric($felt[$y])) {
 #					$skriv_linje=2;
 #					print "<BODY onLoad=\"javascript:alert('R&oslash;de linjer indeholder fejl (kontonummer ikke numerisk) og bliver ikke importeret')\">";
 #					print "<BODY onLoad=\"javascript:alert('varenrnummer skal v&aelig;re numerisk')\">";
 #				}
 			}
+			# 20261117 the checks the import makes; a red line is skipped and listed
+			$match = itemImportResolve($itemIndex, $varenr, $enc);
+			$known = (bool)$match['id'];
+			if ($lineNo == 1 && !$known && !$match['ambiguous'] && itemImportIsHeader($varenr)) $isHeader = true;
+			elseif (itemImportMissingColumn($feltnavn, $cellCount) !== NULL) $skriv_linje=2;
+			elseif ($campaignCells && campaignImportLine($campaignCells)['error']) $skriv_linje=2;
+			elseif ($match['ambiguous']) $skriv_linje=2;
+			elseif ((string)$varenr === '' && itemImportHasData($feltnavn, $felt)) $skriv_linje=2;
  		}
  		}
-		if ($skriv_linje==2 || in_array($varenr,$v_nr)) { #20161015
+		if (!$isHeader && ($skriv_linje==2 || $known)) { #20161015
 			$txt=findtekst(1381, $sprog_id).findtekst(1382, $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$txt')\">";
 		}
@@ -476,9 +503,10 @@ if ($fp) {
 #			print "<tr><td>$csvFile</td>";
 			for ($y=0; $y<=$feltantal; $y++) {
 				$color="#000000"; // black
-				if (($skriv_linje==2)||($feltfejl[$y])) $color="#e00000"; // red
-				elseif ((($filterOption=='only_unknown_products')&&(in_array($varenr,$v_nr)))||(($filterOption=='only_existing_product')&&(!in_array($varenr,$v_nr)))) $color="#e00000"; // red
-				elseif (in_array($varenr,$v_nr)) $color="#00e000"; // green
+				if ($isHeader) $color="rgb(153, 153, 153)"; // grey: the header line is not imported
+				elseif (($skriv_linje==2)||($feltfejl[$y])) $color="#e00000"; // red
+				elseif ((($filterOption=='only_unknown_products')&&($known))||(($filterOption=='only_existing_product')&&(!$known))) $color="#e00000"; // red
+				elseif ($known) $color="#00e000"; // green
 				if ($feltnavn[$y]) {print "<td><span style=\"color: $color;\">$felt[$y]&nbsp;</span></td>";}
 				else {print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";}
 			}
@@ -492,7 +520,15 @@ print "</td></tr>";
 } # end function vis_data
 
 function overfoer_data($filnavn,$splitter,$feltnavn,$feltantal,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod) {
-global $charset,$regnaar;
+global $charset,$regnaar,$sprog_id;
+
+$campaignOnly = campaignImportOnly($feltnavn); # 20261117 CL/LH only varenr and campaign columns: existing items only, group kept
+if ($campaignOnly) {
+	$filterOption = 'only_existing_product';
+	$itemGroup = NULL;
+}
+$unknownSkipped = $ambiguousSkipped = $lineErrors = array();
+$lineNo = 0;
 
 if ($itemGroup) {
 	$VATrate = 0;
@@ -548,28 +584,20 @@ if ($fp) {
 }
 fclose($fp);
 
-for ($y=0; $y<count($feltnavn); $y++) {
-	for ($x=0; $x<=$felt_antal; $x++) {
-		if ($felt_navn[$x] && $feltnavn[$y]==$felt_navn[$x]&& $felt_aktiv[$x]==1) {
-		print "<BODY onLoad=\"javascript:alert('Der kan kun v&aelig;re 1 kolonne med $felt_navn[$x]')\">";
-		$feltnavn[$y]='';
-		} elseif ($felt_navn[$x] && $feltnavn[$y]==$felt_navn[$x]) $felt_aktiv[$x]=1;
-	}
-}
+# 20261117 a column mapped twice never gets here: the page sends it back to the preview (itemImportDuplicateColumns())
 print "<tr><td colspan=$cols><hr></td></tr>\n";
 if ((!$splitter)||($splitter=='Semikolon')) {$splitter=';';}
 elseif ($splitter=='Komma') {$splitter=',';}
 elseif ($splitter=='Tabulator') {$splitter=chr(9);}
 
 transaktion('begin');
-$v = 0;
-$v_id = array();
+$v_nr = array();
 $q=db_select("select id,varenr from varer",__FILE__ . " linje " . __LINE__);
 while($r=db_fetch_array($q)){
-	$v_id[$v] = $r['id'];
-	$v_nr[$v] = $r['varenr'];
-	$v++;
+	$v_nr[$r['id']] = $r['varenr'];
 }
+$enc = ($charset == 'UTF-8') ? 'UTF-8' : 'ISO-8859-1';
+$itemIndex = itemImportIndex($v_nr, $enc); # 20261117 the preview's resolver: exact item number first, other matches only when unique
 
 
 $fp=fopen("$filnavn","r");
@@ -579,22 +607,18 @@ if ($fp) {
 	$colNum=$imp_antal=$kostpris=$salgspris=$upd_antal=0;
 	$lokation=0;
 	$varenr="";
-	$salgspris_isset=$tier_price_isset=$retail_price_isset=false;
+	$salgspris_isset=$tier_price_isset=$retail_price_isset=$kostpris_isset=false;
 	while (!feof($fp)) {
 		$skriv_linje=0;
- 		if ($linje=fgets($fp)) {
-			$colNum = 0; # 20220628 Inserted this
-#			$felt = explode($splitter,$linje);
-#			$colNum = count($felt);
-			$count = 1;
-			for($c=0;$c<strlen($linje);$c++) {
-				if ((substr($linje,$c,2)) == '"'.$splitter) $count=0; # 20220628 Inserted this
-				if ((substr($linje,$c,2)) == $splitter.'"') $count=1; # 20220628 Inserted this
-				if ($count && substr($linje,$c,1)==$splitter) {
-					$colNum++;
-				}
-			}
+		$varenr=''; # 20261117 a line never inherits the item number, cells or new-item flag of the line before
+		$medtag_felt=$campaignCells=array();
+		$newItem = $isRow = false;
+		$badNumber = $badValue = NULL;
+ 		if (($linje=fgets($fp)) !== false) { # 20261117 a last line "0" without a newline is a line too
+			$lineNo++;
+			$colNum = itemImportIsRow($linje) ? 1 : 0; # 20220628 separators counted here, 20261117 any non-blank line, as in the preview
 			if ($colNum && $cols) { # 20220628 '>=' changed to '&&'
+				$isRow = true;
 #				$preLine.= $linje;
 
 #			}	else {
@@ -606,17 +630,25 @@ if ($fp) {
 				$colNum=1;
 				$preLine='';
 				$skriv_linje=1;
-				if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
-				elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
+				$linje = itemImportLine($linje, $tegnset, $charset); # 20261117 as the preview reads it
 				$vare_id=0;
 				$felt=array();
 				$felt = opdel($splitter, $linje);
+				$cellCount = count($felt);
 				for ($y=0; $y<count($felt); $y++) {
 					$medtag_felt[$y]=1;
 					if (!trim($feltnavn[$y])) $medtag_felt[$y]=0;
 					$felt[$y]=trim($felt[$y]);
 					$feltnavn[$y]=strtolower($feltnavn[$y]);
 					if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
+					if ($badNumber === NULL && itemImportInvalidNumberField(array($feltnavn[$y]), array($felt[$y])) !== NULL) { # 20261117 before the checks below convert it
+						$badNumber = $feltnavn[$y];
+						$badValue = $felt[$y];
+					}
+					if (in_array($feltnavn[$y], campaignImportFields())) { # 20261117 parsed below and written after the item is found
+						$campaignCells[$feltnavn[$y]] = $felt[$y];
+						$medtag_felt[$y] = 0;
+					}
 					if ($feltnavn[$y]=='varenr') {
 					$varenr = $felt[$y];
 #					if ($varenr != $felt[$y]) $skriv_linje=0;
@@ -632,6 +664,7 @@ if ($fp) {
 					if ($tmp && !is_numeric($tmp)) $skriv_linje=0;
 					elseif (!is_numeric($felt[$y])) $felt[$y]=usdecimal($felt[$y]);
 					$kostpris=(float)$felt[$y];
+					$kostpris_isset=true;
 				}
 				if ($feltnavn[$y]=='salgspris_ex_moms') $feltnavn[$y] = 'salgspris_excl_moms';
 				if ($feltnavn[$y]=='salgspris_excl_moms')	{
@@ -714,50 +747,60 @@ if ($fp) {
 				}
 			}
  		}}
+		$campaign = NULL;
+		$match = array('id' => NULL, 'ambiguous' => false);
+		if ($isRow) { # 20261117 the checks the preview shows in red; a skipped line is listed after the import
+			$match = itemImportResolve($itemIndex, $varenr, $enc);
+			$missing = itemImportMissingColumn($feltnavn, $cellCount);
+			if ($campaignCells) $campaign = campaignImportLine($campaignCells);
+			if ($lineNo == 1 && !$match['id'] && !$match['ambiguous'] && itemImportIsHeader($varenr)) {
+				$skriv_linje=0; // the header line
+			} elseif ($missing !== NULL) {
+				$skriv_linje=0;
+				$lineErrors[] = array($lineNo, $varenr, $missing, '');
+			} elseif ($badNumber !== NULL) { // the number checks above skipped it
+				$skriv_linje=0;
+				$lineErrors[] = array($lineNo, $varenr, $badNumber, $badValue);
+			} elseif ($skriv_linje!=1) {
+				$skriv_linje=0;
+			} elseif ($campaign && $campaign['error']) {
+				$skriv_linje=0;
+				$lineErrors[] = array($lineNo, $varenr, $campaign['error'], $campaignCells[$campaign['error']] ?? '');
+			} elseif ((string)$varenr === '') {
+				$skriv_linje=0;
+				if (itemImportHasData($feltnavn, $felt)) $lineErrors[] = array($lineNo, '', 'varenr', '');
+			} elseif ($match['ambiguous']) {
+				$skriv_linje=0;
+				$ambiguousSkipped[] = $varenr;
+			}
+		}
  		if ($skriv_linje==1) {
 			$vare_a='';
 			$vare_b='';
 			$upd='';
 			for ($y=0; $y<=$feltantal; $y++) {
-				if ($feltnavn[$y] && $medtag_felt[$y] && $feltnavn[$y]!='leverandor' && $feltnavn[$y]!='-') {
+				if ($feltnavn[$y] && !empty($medtag_felt[$y]) && $feltnavn[$y]!='leverandor' && $feltnavn[$y]!='-') {
 					((isset($nyt_feltnavn[$y])) && $nyt_feltnavn[$y])?$fName=$nyt_feltnavn[$y]:$fName=$feltnavn[$y];
 					$felt[$y]=db_escape_string($felt[$y]);
 					($vare_a)?$vare_a.=",".$fName:$vare_a=$fName;
 					($vare_b)?$vare_b.=",'".$felt[$y]."'":$vare_b="'".$felt[$y]."'";
-					($upd)?$upd.=",".$fName."='".$felt[$y]."'":$upd=$fName."='".$felt[$y]."'";
+					if ($fName != 'varenr') { # 20261117 a matched item keeps its number: 123 in a sheet finds 000123 and no longer renames it
+						($upd)?$upd.=",".$fName."='".$felt[$y]."'":$upd=$fName."='".$felt[$y]."'";
+					}
 				}
 			}
 			$vare_a=$vare_a.",lukket";
 			$vare_b=$vare_b.",''";
-			$tmp = db_escape_string($varenr);
-			$qtxt = "select id from varer where varenr='$tmp' or ";
-			$qtxt.= "lower(varenr)='".strtolower($tmp)."' ";
-			$qtxt.= "or upper(varenr)='".strtoupper($tmp)."'";
-			if ($varenr && $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) { #20140201
-				$vare_id=$r['id'];
-			}
-			if (!$vare_id) {
-				for ($v=0;$v<count($v_id);$v++) { #20161015
-					if ($v_nr[$v]==$varenr)	$vare_id=$v_id[$v];
-				}
-			}
-			if (!$vare_id) {
-				for ($v=0;$v<count($v_id);$v++) { #20161015
-					if (strtolower($v_nr[$v])==strtolower($varenr))	$vare_id=$v_id[$v];
-				}
-			}
-			If (!$vare_id && is_numeric($varenr)) { #20161015
-				for ($v=0;$v<count($v_id);$v++) {
-				 if (is_numeric($v_nr[$v]) && $v_nr[$v]*1==$varenr*1)	$vare_id=$v_id[$v];
-				}
-			}
+			$vare_id = (int)$match['id']; #20140201 any letter case, #20161015 leading zeros; 20261117 exact first, others only when unique
 			if ($vare_id) {// update existing product
 				if (($filterOption=='all_products')||($filterOption!='only_unknown_products')) {
 					$upd_antal++;
-					$qtxt="update varer set $upd where id='$vare_id'";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					if ($upd) { # 20261117 nothing to set when only varenr and campaign columns are mapped
+						$qtxt="update varer set $upd where id='$vare_id'";
+						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					}
 				} else $vare_id=0; // added to avoid the update further down
-			} elseif ($varenr) {// create new product
+			} elseif ((string)$varenr !== '') {// create new product (20261117 also item number 0)
 				if (($filterOption=='all_products')||($filterOption!='only_existing_product')){
 					$imp_antal++;
 					$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
@@ -772,12 +815,31 @@ if ($fp) {
 	 				$qtxt = "select id from varer where varenr='". db_escape_string($varenr) ."'";
 					$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 					$vare_id=$r['id'];
-				}
+					$newItem = true;
+					itemImportIndexAdd($itemIndex, $vare_id, $varenr, $enc); # 20261117 a later line with the same number updates it
+				} else $unknownSkipped[] = $varenr; # 20261117
 			}
 			if ($vare_id) {
 				if ($itemGroup) {
 						$qtxt = "update varer set gruppe = '$itemGroup' where id = '$vare_id'";
 					if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				}
+				if ($campaign && ($campaign['values'] || $campaign['price'] !== NULL)) { # 20261117
+					$set = array();
+					foreach ($campaign['values'] as $column => $value) {
+						$set[] = "$column = '" . db_escape_string($value) . "'";
+					}
+					if ($campaign['price'] !== NULL) {
+						$price = $campaign['price'];
+						if ($campaign['priceInclVat']) {
+							$r = db_fetch_array(db_select("select gruppe from varer where id = '" . (int)$vare_id . "'",__FILE__ . " linje " . __LINE__));
+							$price = campaignImportExVat($price, campaignVatRate($r['gruppe']));
+						}
+						$set[] = "special_price = '" . sprintf('%.3F', $price) . "'";
+						if ($price > 0) $set[] = "specialtype = 'price'";
+					}
+					$qtxt = "update varer set " . implode(",", $set) . " where id = '" . (int)$vare_id . "'";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 				if ($lokation) { #20180404
 					$qtxt="select id from lagerstatus where vare_id='$vare_id' and lager <= '1'";
@@ -791,7 +853,9 @@ if ($fp) {
 				$dd=date("Y-m-d");
 				$qtxt="select id,kostpris,transdate from kostpriser where vare_id='$vare_id' order by transdate desc limit 1"; #20150224
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				if (!$r) {
+				if (!$kostpris_isset && !$newItem) { # 20261117 no cost price in the file: the cost price history is left alone
+					$qtxt=NULL;
+				} elseif (!$r) {
 					$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$kostpris','$dd')";
 				} elseif ($r['transdate'] != $dd && $r['kostpris'] != $kostpris) {
 					$qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$kostpris','$dd')";
@@ -854,6 +918,37 @@ if ($fp) {
 fclose($fp);
 #xit;
 transaktion('commit');
+if ($unknownSkipped || $ambiguousSkipped || $lineErrors) { # 20261117 list what was skipped instead of returning at once
+	print "<tr><td colspan='$cols' align='left' valign='top'>";
+	print "<p><b>$imp_antal varer importeret, $upd_antal varer opdateret</b></p>\n";
+	if ($unknownSkipped) {
+		print "<p>".findtekst('item.import.unknown_skipped|Disse varenumre findes ikke og er ikke oprettet:', $sprog_id)."<br>\n";
+		print htmlspecialchars(implode(", ", $unknownSkipped), ENT_QUOTES | ENT_SUBSTITUTE, $enc)."</p>\n";
+	}
+	if ($ambiguousSkipped) {
+		print "<p>".findtekst('item.import.ambiguous_skipped|Disse varenumre passer på flere varer og er ikke opdateret:', $sprog_id)."<br>\n";
+		print htmlspecialchars(implode(", ", $ambiguousSkipped), ENT_QUOTES | ENT_SUBSTITUTE, $enc)."</p>\n";
+	}
+	if ($lineErrors) {
+		print "<p>".findtekst('item.import.lines_skipped|Disse linjer indeholder fejl og er ikke importeret:', $sprog_id)."</p>\n";
+		print "<table border='1' cellspacing='0' cellpadding='3'><tbody>\n";
+		print "<tr><th>".findtekst('3266|Linje', $sprog_id)."</th><th>".findtekst('917|Varenr.', $sprog_id)."</th>";
+		print "<th>".findtekst('543|Felt', $sprog_id)."</th><th>".findtekst('476|Værdi', $sprog_id)."</th></tr>\n";
+		foreach ($lineErrors as $error) {
+			print "<tr>";
+			foreach ($error as $cell) print "<td>".htmlspecialchars((string)$cell, ENT_QUOTES | ENT_SUBSTITUTE, $enc)."</td>";
+			print "</tr>\n";
+		}
+		print "</tbody></table>\n";
+	}
+	print "<p><a href='diverse.php?sektion=div_io'><button type='button'>".findtekst('30|Tilbage', $sprog_id)."</button></a></p>\n";
+	print "</td></tr>";
+	print "<tr><td colspan='$cols' style='height:100%'></td></tr>"; // the page table is full height: this row takes the rest, so the list stays at the top
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "</body></html>";
+	exit;
+}
 print "</tbody></table>";
 print "</td></tr>";
 print "<BODY onLoad=\"javascript:alert('$imp_antal varer importeret, $upd_antal varer opdateret')\">";
@@ -932,6 +1027,38 @@ function find_varegrp($gruppe) {
 	} elseif ($r=db_fetch_array(db_select("select id from grupper where art='VG' and kodenr = '$gruppe' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__))) {
 	 return ($gruppe);
 	} else return(0);
+}
+/**
+ * The VAT percentage of an item group, the way find_pris() (includes/ordrefunc.php) adds VAT to a price.
+ *
+ * The group's sales account (grupper box4) gives the VAT code in kontoplan.moms; that code's rate is grupper box2.
+ * A VAT-free group (box7) or a group or account without a VAT code gives 0.
+ *
+ * @param int|string|null $gruppe varer.gruppe
+ * @return float The rate, e.g. 25.
+ */
+function campaignVatRate($gruppe) { # 20261117 CL/LH
+	global $regnaar;
+	static $rates = array();
+
+	$gruppe = (int)$gruppe;
+	$year = (int)$regnaar;
+	if (isset($rates[$gruppe])) return $rates[$gruppe];
+	$rates[$gruppe] = 0;
+	$qtxt = "select box4,box7 from grupper where art = 'VG' and kodenr = '$gruppe' and fiscal_year = '$year'";
+	if (($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) && !$r['box7']) {
+		$kontonr = (int)$r['box4'];
+		$qtxt = "select moms from kontoplan where regnskabsaar = '$year' and kontonr = '$kontonr'";
+		if (($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) && $r['moms']) {
+			$art = db_escape_string(substr($r['moms'],0,1).'M');
+			$kodenr = (int)substr($r['moms'],1);
+			$qtxt = "select box2 from grupper where art = '$art' and kodenr = '$kodenr' and fiscal_year = '$year'";
+			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				$rates[$gruppe] = (float)str_replace(',', '.', $r['box2']);
+			}
+		}
+	}
+	return $rates[$gruppe];
 }
 function myAddToPriceFunc($kostpris, $roundingMethod, $value, $CalculationMethod) {
 	$price = 0;
