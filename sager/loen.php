@@ -118,6 +118,8 @@
 // 20261105 CL/MMR SST-943 The print icon is not shown on a wage slip whose save was stopped for a missing date.
 // 20261109 LOE SST-969 The rates page asks for the approver right the menu already asks for.
 // 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
+// 20261113 CL/MMR SD-824 New route 'overtid': overtime hours and wage expenses per case and month.
+// 20261113 CL/LH SD-824 The overtime page title uses a descriptive text key.
 // 20261113 LOE SST-969 Merge master: SST-968's whitelist supersedes this branch's list, and the approver check stays.
 // 20261113 LOE SST-969 The approver check runs after the route is chosen and before output, so the dispatch test can lift the selection.
 
@@ -185,7 +187,7 @@ if ($overtid == NULL) {
 }
 
 $funktion = $_GET['funktion'] ?? null;
-if (!in_array($funktion, ['loenliste', 'ret_loen', 'loenafregning', 'satser'], true)) {
+if (!in_array($funktion, ['loenliste', 'ret_loen', 'loenafregning', 'satser', 'overtid'], true)) {
 	$funktion = 'loenliste';
 }
 $sort = if_isset($_GET['sort']);
@@ -283,6 +285,10 @@ if ($funktion == 'ret_loen') {
 	include('loenIncludes/rates.php');
 	print "<li><a href='loen.php' title='".findtekst('2787|Lønliste', $sprog_id)."'>".findtekst('2784|Løn', $sprog_id)."</a></li>
 					<li>".findtekst('2782|Satser', $sprog_id)."</li>";
+} elseif ($funktion == 'overtid') {
+	include(__DIR__ . '/loenIncludes/overtid.php');
+	print "<li><a href='loen.php' title='".findtekst('2787|Lønliste', $sprog_id)."'>".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li>".findtekst('wage.overtime.title|Overtid og løn pr. sag', $sprog_id)."</li>";
 } else {
 	include('loenIncludes/visListe.php');
 	print "
