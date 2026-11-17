@@ -126,7 +126,7 @@
 // 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
 //                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261117 CL/LH Havemøbelland Black Week: sync_shop_price() and sync_shop_vare() send an item the offer reconciler tracks (stdFunc/shopOfferPush.php) each shop the price pair that shop last accepted from it, so a card save or a sale starts no price of its own; other items keep today's prices.
+// 20261117 CL/LH Havemøbelland Black Week: sync_shop_price() and sync_shop_vare() send an item the offer reconciler tracks (stdFunc/shopOfferPush.php) each shop the price pair that shop last accepted from it, looked up right before each call (a call collected for a document when the document sends it), so a card save or a sale starts no price of its own; other items keep today's prices.
 //                When that pair is not the item's current one, the send is marked as an event, and the reconciler, run only by an authorised scheduled call, sends the current pair after it.
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2067,12 +2067,12 @@ if(!function_exists("sync_shop_price")){
 			'webFragt'     => $webFragt,
 			'barcode'      => $stregkode,
 		);
-		# 20261117 a tracked item gets, per shop, the pair that shop last accepted from the offer reconciler; null: today's prices
-		$offer = shopOfferForeignBegin($vare_id, $r, array_filter(array($api_fil, $api_fil2, $api_fil3)));
 		foreach (array($api_fil, $api_fil2, $api_fil3) as $slot => $endpoint) {
 		  if (!$endpoint) {
 			continue;
 		  }
+		  # 20261117 a tracked item gets the pair this shop last accepted from the offer reconciler, looked up right before the call; null: today's prices
+		  $offer = shopOfferForeignBegin($vare_id, $r, array($slot => $endpoint));
 		  $res = shopApiRequest($endpoint, shopOfferForeignParams($params, $offer, $slot), $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
 		  if (!$res['ok']) {
 			$failed++;
@@ -2186,10 +2186,12 @@ if (!function_exists('sync_shop_vare')) {
 			}
 		};
 		// 20261117 a send that carries the item's prices (update_price, update_stock): a tracked item gets, per shop, the pair
-		// that shop last accepted from the offer reconciler (stdFunc/shopOfferPush.php), so this send starts no price of its own
+		// that shop last accepted from the offer reconciler (stdFunc/shopOfferPush.php), looked up right before the call, so this
+		// send starts no price of its own; a call collected for the document is looked up when the document sends it
 		$priceRow = null;
 		$sendPrices = function (array $targets, array $params, $context, $itemLabel) use ($send, $vare_id, &$priceRow) {
-			$offer = $priceRow ? shopOfferForeignBegin($vare_id, $priceRow, $targets) : null;
+			$collector = &shopSyncDocumentState();
+			$offer = ($priceRow && empty($collector['collecting'])) ? shopOfferForeignBegin($vare_id, $priceRow, $targets) : null;
 			foreach (shopOfferForeignGroups($targets, $offer, $params) as $group) {
 				$send($group['targets'], $group['params'], $context, $vare_id, 0, $itemLabel);
 			}

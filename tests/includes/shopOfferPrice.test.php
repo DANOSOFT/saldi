@@ -192,9 +192,9 @@ final class shopOfferPrice extends TestCase
 	{
 		$day = 86400;
 		$done = self::state(self::NORMAL, self::T, self::T + $day);
-		$this->assertFalse(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, self::T + $day + 599)['untrack'],
+		$this->assertFalse(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, self::T + $day + 659)['untrack'],
 			'the last re-send could still be on its way');
-		$this->assertTrue(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, self::T + $day + 600)['untrack']);
+		$this->assertTrue(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, self::T + $day + 660)['untrack']);
 		$this->assertFalse(shopOfferPlanItem($done, self::SHOPS, self::OFFER, true, self::T + 2 * $day)['untrack'], 'never while an offer is active');
 		$failed = $done;
 		$failed['shops']['k2']['attempts'] = 1;
@@ -208,17 +208,41 @@ final class shopOfferPrice extends TestCase
 
 	public function testTheCountersBelongToThePendingPair(): void
 	{
-		$state = self::state(self::OFFER, self::T, self::T);
-		$state['shops']['k2'] = ['pending' => self::OFFER, 'attempts' => 0, 'refusals' => 8, 'retryAt' => self::T + 1800, 'error' => 'x', 'gaveUp' => true]
+		$state = self::state(self::OFFER, self::T, self::T + 3600); // every shop was sent the pair at the 60-minute re-send
+		$state['shops']['k2'] = ['pending' => self::OFFER, 'attempts' => 0, 'refusals' => 9, 'retryAt' => self::T + 3600 + 10800, 'error' => 'x']
 			+ $state['shops']['k2'];
-		$plan = shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 99999);
-		$this->assertSame(['k2'], $plan['gaveUp']);
-		$this->assertArrayNotHasKey('k2', $plan['send'], 'given up for this pair');
+		$plan = shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 7200);
+		$this->assertSame(['k2'], $plan['refusing'], 'nine refusals: shown as stuck');
+		$this->assertArrayNotHasKey('k2', $plan['send'], 'not before its back-off');
+		$this->assertArrayHasKey('k2', shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 3600 + 10800)['send'], 'but never given up');
 		$new = ['sales' => '129.200', 'retail' => '799.00'];
-		$plan = shopOfferPlanItem($state, self::SHOPS, $new, true, self::T + 1);
+		$plan = shopOfferPlanItem($state, self::SHOPS, $new, true, self::T + 7201);
 		$this->assertArrayHasKey('k2', $plan['send'], 'a new pair is sent at once: no inherited refusals, no inherited back-off');
 		$e = $plan['state']['shops']['k2'];
-		$this->assertSame([0, 0, 0, false], [$e['refusals'], $e['attempts'], $e['retryAt'], $e['gaveUp']]);
+		$this->assertSame([0, 0, 0], [$e['refusals'], $e['attempts'], $e['retryAt']]);
+	}
+
+	public function testARefusingShopIsTriedAtMostThreeHoursAfterItsLastRefusalAlsoInTheTail(): void
+	{
+		$refusedAt = self::T + 21600; // the tail's 6-hour re-send of the normal prices; the next one is at 12 hours
+		$state = self::state(self::NORMAL, self::T, $refusedAt, self::OFFER);
+		$state['shops']['k2'] = ['pending' => self::NORMAL, 'refusals' => 5, 'retryAt' => $refusedAt + 960] + $state['shops']['k2'];
+		$this->assertArrayNotHasKey('k2', shopOfferPlanItem($state, self::SHOPS, self::NORMAL, false, $refusedAt + 959)['send']);
+		$this->assertSame(['k2' => true], shopOfferPlanItem($state, self::SHOPS, self::NORMAL, false, $refusedAt + 960)['send'],
+			'the fifth refusal waits 16 minutes, not for the 12-hour re-send');
+		$state['shops']['k2'] = ['refusals' => 12, 'retryAt' => $refusedAt + 10800] + $state['shops']['k2'];
+		$this->assertSame(['k2' => true], shopOfferPlanItem($state, self::SHOPS, self::NORMAL, false, $refusedAt + 10800)['send'],
+			'at most 3 hours, however often it refused');
+	}
+
+	public function testARefusingShopIsTriedAgainAfterTheScheduleHasRunOut(): void
+	{
+		$day = 86400;
+		$state = self::state(self::NORMAL, self::T, self::T + $day, self::OFFER);
+		$state['shops']['k2'] = ['pending' => self::NORMAL, 'refusals' => 12, 'retryAt' => self::T + 3 * $day] + $state['shops']['k2'];
+		$plan = shopOfferPlanItem($state, self::SHOPS, self::NORMAL, false, self::T + 3 * $day);
+		$this->assertSame(['k2' => true], $plan['send'], 'the tail is over, but shop 2 has not accepted the normal prices');
+		$this->assertFalse($plan['untrack']);
 	}
 
 	public function testEachAnswerIsRecordedForItsShop(): void
@@ -236,15 +260,29 @@ final class shopOfferPrice extends TestCase
 		$this->assertSame('failed', $o);
 	}
 
-	public function testTheEighthRefusalOfAPairGivesUpOnce(): void
+	public function testARefusingShopIsRetriedWithBackOffUpToThreeHoursAndNeverGivenUp(): void
 	{
 		$entry = shopOfferShopEntry(['shops' => ['k' => ['pending' => self::OFFER]]], 'k');
-		$gaveUp = [];
-		for ($i = 1; $i <= SHOP_OFFER_MAX_REFUSALS + 1; $i++) {
-			[, $entry, $now] = shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 200, 'transient' => false, 'error' => 'no'], self::T);
-			$gaveUp[] = $now;
+		$waits = $alerts = [];
+		for ($i = 1; $i <= 11; $i++) {
+			[$o, $entry, $alert] = shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 200, 'transient' => false, 'error' => 'no'], self::T);
+			$waits[] = intdiv($entry['retryAt'] - self::T, 60);
+			$alerts[] = $alert;
 		}
-		$this->assertSame([false, false, false, false, false, false, false, true, false], $gaveUp);
+		$this->assertSame([1, 2, 4, 8, 16, 32, 64, 128, 180, 180, 180], $waits, 'minutes to the next try');
+		$this->assertSame([false, false, false, false, false, false, false, true, false, false, false], $alerts, 'flagged once, at the eighth');
+		$this->assertArrayNotHasKey('gaveUp', $entry);
+	}
+
+	public function testUntrackingWaitsForTheLastDispatchPlusTLatePlusAMargin(): void
+	{
+		$day = 86400;
+		$dispatched = self::T + $day + 23; // the tick at T + 1 day sent; its request left 23 seconds later
+		$done = self::state(self::NORMAL, self::T, self::T + $day);
+		foreach ($done['shops'] as $key => $entry) $done['shops'][$key]['leftAt'] = $dispatched;
+		$this->assertFalse(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, $dispatched + 600)['untrack'], 'T_late after the dispatch: not yet');
+		$this->assertFalse(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, $dispatched + 659)['untrack']);
+		$this->assertTrue(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, $dispatched + 660)['untrack'], 'T_late plus a minute');
 	}
 
 	public function testUnfinishedSendsAndEarlierPairsSentByOtherPathsAreEvents(): void
@@ -270,6 +308,7 @@ final class shopOfferPrice extends TestCase
 	public function testTheBackOffDoublesUpToHalfAnHour(): void
 	{
 		$this->assertSame([60, 120, 240, 480, 960, 1800, 1800, 1800], array_map('shopOfferBackoff', [1, 2, 3, 4, 5, 6, 7, 20]));
+		$this->assertSame([7680, 10800, 10800], [shopOfferBackoff(8, 10800), shopOfferBackoff(9, 10800), shopOfferBackoff(500, 10800)]);
 	}
 
 	public function testPricePairsCompareToTheOere(): void

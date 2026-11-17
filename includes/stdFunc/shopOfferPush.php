@@ -28,9 +28,14 @@
 //                An item stays tracked until 24 hours after its last event with no offer active, so a request that arrives late (assumed within 10 minutes) is always overwritten; per shop the JSON state keeps the pair the shop last accepted (bookkeeping) and the retry and refusal counters of the pair owed.
 //                The intent is written before a send, and nothing is sent that cannot be recorded; the tick's database reads are bounded in time (Postgres statement_timeout and lock_timeout), so a held table lock ends the tick with "database busy" within its budget.
 //                The item card, the stock sync and the bulk sync send a tracked item the pair each shop last accepted; when that is not the item's current pair they mark an event, so the reconciler re-sends the current pair after them.
+//                Codex verification 4: every path looks the pair up at the moment it sends (shopOfferForeignAtSend() for document sends, the bulk sync re-reads the item), so no send carries a pair read earlier; a bulk sync's sends are events for the items they touch.
+//                A refusing shop is never given up: it gets the current pair again on the schedule and at its back-off, at most 3 hours after each refusal, logged each time, for as long as it refuses; a refusal applies nothing, so it is no event for the other shops.
+//                leftAt is when a request actually left, on the tick's clock; an item is untracked only once its last request left more than T_late plus a minute (more than a tick's budget) ago.
 
-if (!defined('SHOP_OFFER_MAX_REFUSALS')) {
-	define('SHOP_OFFER_MAX_REFUSALS', 8);      // refusals of one price pair before a shop is given up for that pair
+if (!defined('SHOP_OFFER_ALERT_REFUSALS')) {
+	define('SHOP_OFFER_ALERT_REFUSALS', 8);    // refusals of one price pair after which a shop counts as stuck (still retried)
+	define('SHOP_OFFER_REFUSAL_BACKOFF', 10800); // most a refusing shop waits for its next try: 3 hours
+	define('SHOP_OFFER_DISPATCH_MARGIN', 60);  // added to T_late before untracking: more than a tick's budget
 	define('SHOP_OFFER_MIN_CALL', 0.2);        // seconds a call or a query needs at least; with less left the tick stops
 	define('SHOP_OFFER_CALL_SECONDS', 10);     // most one call of the reconciler may take
 	define('SHOP_OFFER_TICK_SECONDS', 25);     // most one tick may take
@@ -252,13 +257,14 @@ if (!function_exists('shopOfferWithItemLock')) {
 
 if (!function_exists('shopOfferBackoff')) {
 	/**
-	 * Seconds to wait after the n-th failure or refusal of one pair: 1, 2, 4 ... minutes, at most half an hour.
+	 * Seconds to wait after the n-th failure or refusal of one pair: 1, 2, 4 ... minutes, at most $cap.
 	 *
 	 * @param int $n
+	 * @param int $cap Half an hour for failures, SHOP_OFFER_REFUSAL_BACKOFF (3 hours) for refusals.
 	 * @return int
 	 */
-	function shopOfferBackoff($n) {
-		return (int)min(1800, 60 * pow(2, max(0, (int)$n - 1)));
+	function shopOfferBackoff($n, $cap = 1800) {
+		return (int)min((int)$cap, 60 * pow(2, max(0, min(20, (int)$n) - 1)));
 	}
 }
 
@@ -367,12 +373,13 @@ if (!function_exists('shopOfferShopEntry')) {
 	 * One shop's entry in an item's state, with every field present.
 	 *
 	 * confirmed: the pair the shop last accepted from the reconciler (bookkeeping: a request that arrives late can still
-	 * change it); okAt: when; sentAt: when the reconciler last sent the shop the item; pending: the pair owed, which attempts,
-	 * refusals, retryAt, error and gaveUp belong to.
+	 * change it); okAt: when; sentAt: the tick (its clock at the start) that last sent the shop the item, which the schedule
+	 * counts from; leftAt: when that request actually left, which untracking counts from; pending: the pair owed, which
+	 * attempts, refusals, retryAt and error belong to.
 	 *
 	 * @param array|null $state
 	 * @param string $key From shopOfferShopKey().
-	 * @return array{confirmed: array|null, okAt: int, sentAt: int, pending: array|null, attempts: int, refusals: int, retryAt: int, error: string, gaveUp: bool}
+	 * @return array{confirmed: array|null, okAt: int, sentAt: int, leftAt: int, pending: array|null, attempts: int, refusals: int, retryAt: int, error: string}
 	 */
 	function shopOfferShopEntry($state, $key) {
 		$entry = (is_array($state) && isset($state['shops'][$key]) && is_array($state['shops'][$key])) ? $state['shops'][$key] : array();
@@ -380,12 +387,12 @@ if (!function_exists('shopOfferShopEntry')) {
 			'confirmed' => (isset($entry['confirmed']) && is_array($entry['confirmed'])) ? $entry['confirmed'] : null,
 			'okAt'      => (int)($entry['okAt'] ?? 0),
 			'sentAt'    => (int)($entry['sentAt'] ?? 0),
+			'leftAt'    => (int)max((int)($entry['leftAt'] ?? 0), (int)($entry['sentAt'] ?? 0)),
 			'pending'   => (isset($entry['pending']) && is_array($entry['pending'])) ? $entry['pending'] : null,
 			'attempts'  => (int)($entry['attempts'] ?? 0),
 			'refusals'  => (int)($entry['refusals'] ?? 0),
 			'retryAt'   => (int)($entry['retryAt'] ?? 0),
 			'error'     => (string)($entry['error'] ?? ''),
-			'gaveUp'    => !empty($entry['gaveUp']),
 		);
 	}
 }
@@ -400,11 +407,14 @@ if (!function_exists('shopOfferPlanItem')) {
 	 * @param array{sales: string|null, retail: string|null} $desired
 	 * @param bool $offerActive
 	 * @param int $now
-	 * @return array{state: array, send: array<string, bool>, next: int|null, fresh: bool, urgent: bool, gaveUp: list<string>, untrack: bool}
+	 * @return array{state: array, send: array<string, bool>, next: int|null, fresh: bool, urgent: bool, refusing: list<string>, untrack: bool}
 	 *         send: the shops owed a send now; next: the earliest time any shop is owed one; fresh: a shop owed a send did not
 	 *         last accept the current pair (new prices, which go before repeats); urgent: within the hour after the last event;
+	 *         refusing: shops that refused the current pair SHOP_OFFER_ALERT_REFUSALS times or more (still retried);
 	 *         untrack: 24 hours have passed since the last event with no offer, every re-send is done, no request of the
-	 *         reconciler can still arrive, and every shop last accepted the current pair.
+	 *         reconciler can still arrive (its last dispatch is older than T_late plus SHOP_OFFER_DISPATCH_MARGIN), and every shop
+	 *         last accepted the current pair. A shop whose last answer was not an acceptance is retried at its back-off for as
+	 *         long as that lasts, after the schedule has run out too.
 	 */
 	function shopOfferPlanItem(array $state, array $shops, array $desired, $offerActive, $now) {
 		$now = (int)$now;
@@ -414,7 +424,7 @@ if (!function_exists('shopOfferPlanItem')) {
 		}
 		$state['offer'] = (bool)$offerActive;
 		$anchor = (int)$state['anchor'];
-		$out = array('state' => $state, 'send' => array(), 'next' => null, 'fresh' => false, 'urgent' => false, 'gaveUp' => array(), 'untrack' => false);
+		$out = array('state' => $state, 'send' => array(), 'next' => null, 'fresh' => false, 'urgent' => false, 'refusing' => array(), 'untrack' => false);
 		$quiet = !$offerActive && $now >= $anchor + SHOP_OFFER_QUIET_SECONDS && empty($state['intent']);
 		$out['state']['shops'] = array();
 		foreach ($shops as $key => $endpoint) {
@@ -423,17 +433,19 @@ if (!function_exists('shopOfferPlanItem')) {
 				$entry['pending'] = $desired;
 				$entry['attempts'] = $entry['refusals'] = $entry['retryAt'] = 0;
 				$entry['error'] = '';
-				$entry['gaveUp'] = false;
 			}
 			$out['state']['shops'][$key] = $entry;
-			if ($entry['gaveUp']) {
-				$out['gaveUp'][] = $key;
-				$quiet = false;
-				continue;
+			if ($entry['refusals'] >= SHOP_OFFER_ALERT_REFUSALS) {
+				$out['refusing'][] = $key;
 			}
 			$next = shopOfferNextSend($anchor, $entry['sentAt'], $offerActive);
+			if ($next === null && ($entry['attempts'] || $entry['refusals'])) {
+				$next = $entry['retryAt']; // the schedule has run out, the shop has not accepted the pair: keep trying
+			}
 			if ($next !== null) {
-				$at = max($next, $entry['retryAt']);
+				// A failed send waits for the later of the schedule and its back-off. A refusing shop is tried at the earlier of them,
+				// so at most 3 hours after its last refusal, also where the schedule's next send is 6 hours away.
+				$at = $entry['refusals'] ? min($next, $entry['retryAt']) : max($next, $entry['retryAt']);
 				$out['next'] = $out['next'] === null ? $at : min($out['next'], $at);
 				if ($at <= $now) {
 					$out['send'][$key] = true;
@@ -441,7 +453,7 @@ if (!function_exists('shopOfferPlanItem')) {
 					$out['urgent'] = $out['urgent'] || $next <= $anchor + 3600;
 				}
 			}
-			if ($next !== null || $entry['attempts'] || $entry['refusals'] || $entry['sentAt'] + SHOP_OFFER_LATE_SECONDS > $now
+			if ($next !== null || $entry['attempts'] || $entry['refusals'] || $entry['leftAt'] + SHOP_OFFER_LATE_SECONDS + SHOP_OFFER_DISPATCH_MARGIN > $now
 				|| !shopOfferPairSame($entry['confirmed'], $desired)) {
 				$quiet = false;
 			}
@@ -454,15 +466,16 @@ if (!function_exists('shopOfferPlanItem')) {
 if (!function_exists('shopOfferRecordShop')) {
 	/**
 	 * Records one shop's answer to the reconciler's send of $pair. Accepted: the shop's bookkeeping says it has the pair.
-	 * Refused (an answer that is not a transport failure): counts towards giving up on this pair. A transport failure or no
-	 * answer: retried with back-off. Anything but accepted is an event for the caller.
+	 * Refused (an answer that is not a transport failure): nothing was applied; retried at the latest after its back-off (up
+	 * to 3 hours), for as long as the shop refuses. A transport failure or no answer: retried with back-off up to half an hour, and an event for
+	 * the caller (the request may still be applied).
 	 *
 	 * @param array $entry
 	 * @param array{sales: string|null, retail: string|null} $pair
 	 * @param array $result From shopOfferSend().
 	 * @param int $now
-	 * @return array{0: string, 1: array, 2: bool} 'ok', 'refused' or 'failed'; the entry; whether the shop was given up for
-	 *                                             this pair just now.
+	 * @return array{0: string, 1: array, 2: bool} 'ok', 'refused' or 'failed'; the entry; whether the shop has refused this
+	 *                                             pair SHOP_OFFER_ALERT_REFUSALS times just now (it is still retried).
 	 */
 	function shopOfferRecordShop(array $entry, array $pair, array $result, $now) {
 		$now = (int)$now;
@@ -476,12 +489,8 @@ if (!function_exists('shopOfferRecordShop')) {
 		$entry['error'] = (string)($result['error'] ?? '');
 		if ((int)($result['httpCode'] ?? 0) > 0 && !shopSyncWorthRetrying($result)) {
 			$entry['refusals']++;
-			$entry['retryAt'] = $now + shopOfferBackoff($entry['refusals']);
-			$gaveUpNow = false;
-			if ($entry['refusals'] >= SHOP_OFFER_MAX_REFUSALS && !$entry['gaveUp']) {
-				$entry['gaveUp'] = $gaveUpNow = true;
-			}
-			return array('refused', $entry, $gaveUpNow);
+			$entry['retryAt'] = $now + shopOfferBackoff($entry['refusals'], SHOP_OFFER_REFUSAL_BACKOFF);
+			return array('refused', $entry, $entry['refusals'] === SHOP_OFFER_ALERT_REFUSALS);
 		}
 		$entry['attempts']++;
 		$entry['retryAt'] = $now + shopOfferBackoff($entry['attempts']);
@@ -608,13 +617,17 @@ if (!function_exists('shopOfferForeignBegin')) {
 	 * sends the current pair after it. If the mark cannot be written, the path falls back to today's prices, leaves a
 	 * lock-free note (uncertain-<id>) that is an event too, and logs it.
 	 *
+	 * Call it right before the request goes out, never earlier: the pairs it gives are the ones to send now.
+	 *
 	 * @param int $vareId
 	 * @param array<string, mixed> $item varer row with salgspris, retail_price and the offer columns (shopOfferColumns()).
 	 * @param array<int|string, string> $endpoints Slot => endpoint the path sends to.
 	 * @param int|null $now
+	 * @param bool $markEvent Mark the send as an event even when it carries the current pair (the bulk sync, whose
+	 *                        fire-and-forget calls may still be on their way when the reconciler would otherwise untrack).
 	 * @return array{vare_id: int, pairs: array<int|string, array|null>, fallback: bool}|null
 	 */
-	function shopOfferForeignBegin($vareId, array $item, array $endpoints, $now = null) {
+	function shopOfferForeignBegin($vareId, array $item, array $endpoints, $now = null, $markEvent = false) {
 		$now = $now === null ? time() : (int)$now;
 		$vareId = (int)$vareId;
 		$dir = shopOfferPushDir(false);
@@ -633,7 +646,7 @@ if (!function_exists('shopOfferForeignBegin')) {
 				$stale = true;
 			}
 		}
-		if (!$stale) {
+		if (!$stale && !$markEvent) {
 			return array('vare_id' => $vareId, 'pairs' => $pairs, 'fallback' => false);
 		}
 		list($locked, $written) = shopOfferWithItemLock($vareId, function () use ($vareId, $now) {
@@ -651,6 +664,27 @@ if (!function_exists('shopOfferForeignBegin')) {
 			return array('vare_id' => $vareId, 'pairs' => array(), 'fallback' => true);
 		}
 		return array('vare_id' => $vareId, 'pairs' => $pairs, 'fallback' => false);
+	}
+}
+
+if (!function_exists('shopOfferForeignAtSend')) {
+	/**
+	 * shopOfferForeignBegin() for a send prepared earlier and sent now (a document's collected calls): the pairs are looked up
+	 * at the moment of sending. Null, at the cost of a file check, for an item the reconciler does not track (the prepared
+	 * call then keeps today's prices); for a tracked item it reads the item again (one query) for today's and the current pair.
+	 *
+	 * @param int $vareId
+	 * @param array<int|string, string> $endpoints Slot => endpoint the call goes to.
+	 * @param bool $markEvent As shopOfferForeignBegin().
+	 * @return array{vare_id: int, pairs: array<int|string, array|null>, fallback: bool}|null
+	 */
+	function shopOfferForeignAtSend($vareId, array $endpoints, $markEvent = false) {
+		$dir = shopOfferPushDir(false);
+		if ($dir === '' || !$endpoints || !is_file($dir . 'item-' . (int)$vareId . '.json')) {
+			return null;
+		}
+		$row = db_fetch_array(db_select("select salgspris, retail_price, " . shopOfferColumns() . " from varer where id = '" . (int)$vareId . "'", __FILE__ . " linje " . __LINE__));
+		return $row ? shopOfferForeignBegin($vareId, $row, $endpoints, null, $markEvent) : null;
 	}
 }
 
@@ -674,7 +708,7 @@ if (!function_exists('shopOfferReconcileTick')) {
 		$deadline = $started + $budget;
 		$now = isset($options['now']) ? (int)$options['now'] : time();
 		$result = array('result' => 'ok', 'tracked' => 0, 'due' => 0, 'sent' => 0, 'calls' => 0, 'accepted' => 0, 'refused' => 0,
-			'failed' => 0, 'events' => 0, 'left' => 0, 'gaveUp' => 0, 'stuck' => 0, 'untracked' => 0, 'stateErrors' => 0, 'elapsed' => 0);
+			'failed' => 0, 'events' => 0, 'left' => 0, 'stuck' => 0, 'untracked' => 0, 'stateErrors' => 0, 'elapsed' => 0);
 		$GLOBALS['shopOfferBoundedUntil'] = $deadline;
 		try {
 			$shops = shopOfferPushEndpoints();
@@ -692,7 +726,7 @@ if (!function_exists('shopOfferReconcileTick')) {
 					$result['result'] = 'busy';
 				} else {
 					try {
-						$result = shopOfferReconcileRun($now, $deadline, $shops, $dir, $options, $result);
+						$result = shopOfferReconcileRun($now, $deadline, $shops, $dir, array('started' => $started) + $options, $result);
 					} finally {
 						flock($lock, LOCK_UN);
 						fclose($lock);
@@ -779,7 +813,7 @@ if (!function_exists('shopOfferReconcileRun')) {
 				shopOfferEvent($preview, $now, 'pending');
 			}
 			$plan = shopOfferPlanItem($preview, $shops, shopOfferPair($prices), $prices['offer'], $now);
-			$result['stuck'] += count($plan['gaveUp']);
+			$result['stuck'] += count($plan['refusing']);
 			if ($plan['send']) {
 				if ($plan['fresh']) $fresh[$id] = $plan['next'];
 				elseif ($plan['urgent']) $urgent[$id] = $plan['next'];
@@ -806,7 +840,7 @@ if (!function_exists('shopOfferReconcileRun')) {
 				$result['left']++;
 				continue;
 			}
-			if (shopOfferReconcileItem($id, $items[$id], $shops, $now, $deadline, $dir, $dead, $log, $result)) {
+			if (shopOfferReconcileItem($id, $items[$id], $shops, $now, $deadline, $dir, $dead, $log, $result, (float)$options['started'])) {
 				$done++;
 			}
 		}
@@ -858,9 +892,11 @@ if (!function_exists('shopOfferReconcileItem')) {
 	 * @param array<string, bool> $dead Shops that did not answer in this tick; not called again in it.
 	 * @param resource|null $log
 	 * @param array $result Counts, updated.
+	 * @param float $started microtime(true) at the start of the tick, the moment $now stands for: a request's dispatch time
+	 *                       on the tick's clock is $now plus the time since.
 	 * @return bool Whether a call went out.
 	 */
-	function shopOfferReconcileItem($id, array $item, array $shops, $now, $deadline, $dir, array &$dead, $log, array &$result) {
+	function shopOfferReconcileItem($id, array $item, array $shops, $now, $deadline, $dir, array &$dead, $log, array &$result, $started) {
 		$prices = shopPricesForItem($item, $now);
 		$desired = shopOfferPair($prices);
 		$note = $dir . 'uncertain-' . (int)$id;
@@ -935,7 +971,7 @@ if (!function_exists('shopOfferReconcileItem')) {
 			}
 		}
 
-		list($locked, $outcomes) = shopOfferWithItemLock($id, function () use ($id, $now, $desired, $intent, $answers, $note) {
+		list($locked, $outcomes) = shopOfferWithItemLock($id, function () use ($id, $now, $desired, $intent, $answers, $note, $started) {
 			$state = shopOfferStateRead($id);
 			if (!is_array($state)) {
 				$state = array('shops' => array());
@@ -952,11 +988,14 @@ if (!function_exists('shopOfferReconcileItem')) {
 					$outcomes[$key] = array('untried', false, $entry);
 					continue;
 				}
-				list($outcome, $entry, $gaveUpNow) = shopOfferRecordShop($entry, $desired, $answer, $now);
+				// the schedule counts from the tick that read the pair; untracking from when the request actually left, on the tick's clock
+				$entry['sentAt'] = (int)$now;
+				$entry['leftAt'] = (int)$now + (int)ceil(max(0.0, (float)($answer['dispatchedAt'] ?? $started) - (float)$started));
+				list($outcome, $entry, $alertNow) = shopOfferRecordShop($entry, $desired, $answer, $now);
 				$state['shops'][$key] = $entry;
-				$outcomes[$key] = array($outcome, $gaveUpNow, $entry);
-				if ($outcome !== 'ok') {
-					shopOfferEvent($state, $now, $outcome === 'refused' ? 'a shop refused' : 'a send failed or got no answer');
+				$outcomes[$key] = array($outcome, $alertNow, $entry);
+				if ($outcome === 'failed') {
+					shopOfferEvent($state, $now, 'a send failed or got no answer'); // it may still be applied: every shop again
 				}
 			}
 			shopOfferAbsorbEvents($state, $now, @filemtime($note));
@@ -972,14 +1011,15 @@ if (!function_exists('shopOfferReconcileItem')) {
 		list($perShop, $newEvents) = $outcomes;
 		$result['events'] += $newEvents;
 		foreach ($perShop as $key => $o) {
-			list($outcome, $gaveUpNow, $entry) = $o;
+			list($outcome, $alertNow, $entry) = $o;
 			if ($outcome === 'untried') continue;
 			$result['calls']++;
 			$result[$outcome === 'ok' ? 'accepted' : $outcome]++;
-			if ($gaveUpNow) {
-				$result['gaveUp']++;
-				shopOfferLogLoud('GAVE UP: item ' . $item['varenr'] . ' (vare_id ' . (int)$id . ') shop ' . $key . ' refused '
-					. json_encode($desired) . ' ' . SHOP_OFFER_MAX_REFUSALS . ' times: ' . $entry['error'] . '; it is sent again when the item\'s prices change');
+			if ($outcome === 'refused') {
+				if ($alertNow) $result['stuck']++; // stuck from this answer on; later ticks count it from the plan
+				shopOfferLogLoud('REFUSED: item ' . $item['varenr'] . ' (vare_id ' . (int)$id . ') shop ' . $key . ' refused ' . json_encode($desired)
+					. ' (' . $entry['refusals'] . ' time' . ($entry['refusals'] === 1 ? '' : 's') . '): ' . $entry['error'] . '; next try in '
+					. round(($entry['retryAt'] - (int)$now) / 60) . ' min' . ($alertNow ? '; STUCK: check this shop' : ''));
 			}
 		}
 		return true;
@@ -988,7 +1028,7 @@ if (!function_exists('shopOfferReconcileItem')) {
 
 if (!function_exists('shopOfferPushStuck')) {
 	/**
-	 * The shops given up for an item's current pair (SHOP_OFFER_MAX_REFUSALS refusals of it), for a status page or support.
+	 * The shops that refused an item's current pair SHOP_OFFER_ALERT_REFUSALS times or more (still retried), for support.
 	 *
 	 * @return array<int, array<string, array{pair: array|null, error: string}>> vare_id => shop key => the pair and last error.
 	 */
@@ -1000,7 +1040,7 @@ if (!function_exists('shopOfferPushStuck')) {
 			if (!preg_match('/^item-([0-9]+)\.json$/D', (string)$name, $m)) continue;
 			$state = shopOfferStateRead((int)$m[1]);
 			foreach ((array)(is_array($state) ? $state['shops'] : array()) as $key => $entry) {
-				if (!empty($entry['gaveUp'])) {
+				if ((int)($entry['refusals'] ?? 0) >= SHOP_OFFER_ALERT_REFUSALS) {
 					$stuck[(int)$m[1]][$key] = array('pair' => $entry['pending'] ?? null, 'error' => (string)($entry['error'] ?? ''));
 				}
 			}
@@ -1056,7 +1096,8 @@ if (!function_exists('shopOfferSend')) {
 				if ($left < SHOP_OFFER_MIN_CALL) {
 					continue; // left untried, reported below
 				}
-				$calls[$key] = function_exists('curl_init') ? shopOfferCurlOne($url, $left) : shopOfferShellOne($url, $left);
+				$dispatchedAt = microtime(true);
+				$calls[$key] = (function_exists('curl_init') ? shopOfferCurlOne($url, $left) : shopOfferShellOne($url, $left)) + array('dispatchedAt' => $dispatchedAt);
 			}
 		}
 		foreach ($pending as $key => $url) {
@@ -1069,6 +1110,7 @@ if (!function_exists('shopOfferSend')) {
 			}
 			$call = $calls[$key];
 			$results[$key]['attempts'] = 1;
+			$results[$key]['dispatchedAt'] = (float)($call['dispatchedAt'] ?? microtime(true));
 			$results[$key]['httpCode'] = $call['httpCode'];
 			$results[$key]['body'] = $call['body'];
 			$results[$key]['transient'] = !empty($call['transient']);
@@ -1170,6 +1212,7 @@ if (!function_exists('shopOfferCurlMulti')) {
 		}
 		$multi = curl_multi_init();
 		$handles = array();
+		$dispatchedAt = microtime(true);
 		foreach ($urls as $key => $url) {
 			$ch = shopOfferCurlHandle($url, $left);
 			if ($ch !== false) {
@@ -1187,9 +1230,10 @@ if (!function_exists('shopOfferCurlMulti')) {
 		foreach ($handles as $key => $ch) {
 			$errno = curl_errno($ch);
 			$done = curl_getinfo($ch, CURLINFO_HTTP_CODE) || $errno;
-			$answers[$key] = $done
+			$answers[$key] = ($done
 				? shopOfferCurlAnswer($ch, curl_multi_getcontent($ch), $errno, curl_error($ch))
-				: array('httpCode' => 0, 'body' => '', 'error' => 'no answer before the offer push deadline', 'transient' => true, 'unreachable' => true);
+				: array('httpCode' => 0, 'body' => '', 'error' => 'no answer before the offer push deadline', 'transient' => true, 'unreachable' => true))
+				+ array('dispatchedAt' => $dispatchedAt);
 			curl_multi_remove_handle($multi, $ch);
 			curl_close($ch);
 		}

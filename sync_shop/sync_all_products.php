@@ -66,8 +66,7 @@ fwrite($log, "API Tertiary: $api_fil3\n\n");
 
 // Get all products that should be synced
 $qtxt = "SELECT DISTINCT v.id, v.varenr, v.kostpris, v.salgspris, v.m_type, v.m_rabat, 
-                v.retail_price, v.colli_webfragt, v.stregkode, v.gruppe, v.delvare,
-                v.specialtype, v.special_price, v.special_from_date, v.special_to_date, v.special_from_time, v.special_to_time
+                v.retail_price, v.colli_webfragt, v.stregkode, v.gruppe, v.delvare
          FROM varer v 
          INNER JOIN grupper g ON v.gruppe = g.kodenr 
          WHERE g.art = 'VG' AND g.fiscal_year = $regnaar AND g.box8 IS NOT NULL AND g.box8 != ''
@@ -93,11 +92,6 @@ while ($product = db_fetch_array($products_query)) {
     $stregkode = $product['stregkode'];
     $gruppe = $product['gruppe'];
     $delvare = $product['delvare'];
-    // 20261117 CL/LH an item the offer reconciler tracks (includes/stdFunc/shopOfferPush.php) gets, per shop, the price pair that
-    // shop last accepted from it, so this run starts no price of its own (null: today's prices); a pair that is not the item's
-    // current one is marked, and the reconciler sends the current pair after it. These calls are fire-and-forget, so for such an
-    // item they stop after 60 s: well within the 10 minutes the reconciler allows a request to arrive late.
-    $offer = shopOfferForeignBegin($vare_id, $product, array_filter(array($api_fil, $api_fil2, $api_fil3)));
     $slotOf = array_flip(array_filter(array($api_fil, $api_fil2, $api_fil3)));
     
     echo "<p>Processing product ID: $vare_id (varenr: $varenr)</p>";
@@ -147,6 +141,17 @@ while ($product = db_fetch_array($products_query)) {
         if ($api_fil2) $apis[] = $api_fil2;
         if ($api_fil3) $apis[] = $api_fil3;
         
+        // 20261117 CL/LH the prices are looked up now, right before the calls go out (this page can run long, and a stock query can
+        // wait): today's prices from the item as it is now, or, for an item the offer reconciler tracks (includes/stdFunc/shopOfferPush.php),
+        // the pair each shop last accepted from it, so this run starts no price of its own. Such a send is an event for the item, so
+        // the reconciler sends the current pair after it and keeps tracking it. The calls are fire-and-forget, so for such an item
+        // they stop after 60 s: well within the 10 minutes the reconciler allows a request to arrive late.
+        $itemNow = db_fetch_array(db_select("SELECT salgspris, retail_price, " . shopOfferColumns() . " FROM varer WHERE id = '" . (int)$vare_id . "'", __FILE__ . " linje " . __LINE__));
+        if ($itemNow) {
+            $salgspris = $itemNow['salgspris'];
+            $retail_price = $itemNow['retail_price'];
+        }
+        $offer = $itemNow ? shopOfferForeignBegin($vare_id, $itemNow, array_filter(array($api_fil, $api_fil2, $api_fil3)), null, true) : null;
         foreach ($apis as $api_url) {
             $shopPrices = shopOfferForeignParams(array('salesPrice' => $salgspris, 'retailPrice' => $retail_price), $offer, $slotOf[$api_url] ?? -1);
             $shopSalesPrice = $shopPrices['salesPrice'];

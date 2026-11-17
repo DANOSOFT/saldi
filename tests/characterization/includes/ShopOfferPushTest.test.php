@@ -26,6 +26,8 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  * 20261117 CL/LH Single-writer rebuild after the second Codex verification: the concurrency of a card save, a stock sync and two
  *                ticks against a shop that applies late, the tick lock, and no offer price without an authorised tick.
  * 20261117 CL/LH Re-send rebuild after the third: requests that arrive late, a killed tick, a held table lock.
+ * 20261118 CL/LH Codex verification 4: a bulk sync held back past untracking, a refusing shop that recovers days later, and the
+ *                send time recorded when a request left.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -185,6 +187,19 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		return [$proc, $out, $err];
 	}
 
+	/** @param list<string> $args @return array{0: resource, 1: string, 2: string} Another support script started in the background. */
+	private static function startScript(string $script, array $args): array
+	{
+		$out = (string)tempnam(sys_get_temp_dir(), 'offerrun');
+		$err = (string)tempnam(sys_get_temp_dir(), 'offerrun');
+		self::$files[] = $out;
+		self::$files[] = $err;
+		$cmd = array_merge([PHP_BINARY, __DIR__ . '/../support/' . $script], $args);
+		$proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['file', $out, 'w'], 2 => ['file', $err, 'w']], $pipes);
+		fclose($pipes[0]);
+		return [$proc, $out, $err];
+	}
+
 	/** @param array{0: resource, 1: string, 2: string} $run @return array<string, mixed> */
 	private static function finish(array $run): array
 	{
@@ -281,6 +296,12 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		return $out;
 	}
 
+	/** When the item's last own request left, as recorded: untracking counts T_late plus the margin from here. */
+	private static function lastSent(int $id): int
+	{
+		return (int)max(array_map(fn($e) => $e['leftAt'] ?? $e['sentAt'], self::stateByShop($id)));
+	}
+
 	/** The seeded session id for the page runner (master harness: sessionId(), live harness: SESSION_ID). */
 	private static function sessionId(): string
 	{
@@ -375,9 +396,11 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		}
 		self::assertSame([1, 1, 1, 1, 1, 1, 1, 1, 1], $sends, 'the normal prices at the end, after 2, 5, 15, 60 minutes and 6, 12, 18, 24 hours');
 		self::assertShopsHold('SPEND', self::NORMAL);
-		self::tick($end + 86400 + 599);
+		$sent = self::lastSent($id);
+		self::assertGreaterThanOrEqual($end + 86400, $sent);
+		self::tick($sent + 659);
 		self::assertNotNull(self::runner(['state', (string)$id])['state'], 'not untracked while the last re-send could still be on its way');
-		$out = self::tick($end + 86400 + 600);
+		$out = self::tick($sent + 660);
 		self::assertSame(1, $out['untracked']);
 		self::assertNull(self::runner(['state', (string)$id])['state']);
 		self::clearLog();
@@ -489,7 +512,7 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		$late = $t + 120 + 86400 + 600;
 		$out = self::tick($late);
 		self::assertSame([0, 1], [$out['untracked'], $out['accepted'] > 0 ? 1 : 0], 'a day later, with the re-sends overdue: one more send first');
-		self::assertSame(1, self::tick($late + 600)['untracked'], 'untracked 24 hours after the last event, once no request can still arrive');
+		self::assertSame(1, self::tick(self::lastSent($id) + 660)['untracked'], 'untracked 24 hours after the last event, once no request can still arrive');
 	}
 
 	public function testAnOrdinarySendThatArrivesAfterTheItemGotAnOfferIsOverwritten(): void
@@ -553,7 +576,12 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		$tick2 = self::start(['tick', (string)($t + 1), '10']);
 		$results = array_map([self::class, 'finish'], [$tick1, $card, $stock, $tick2]);
 		self::assertSame('busy', $results[3]['result'], 'the second tick found the first running');
-		self::assertShopsHold('SPCONC', self::OFFER, 'the late A landed after B in every shop');
+		// The card save calls the shops one after another and looks the pair up right before each call: a call that leaves
+		// after the tick recorded B carries B. Shop 1's call leaves while the tick still waits for its answers, so A.
+		for ($i = 0; $i < 100 && (self::remote('SPCONC')['shop 1'] ?? null) !== self::OFFER; $i++) {
+			usleep(50000);
+		}
+		self::assertSame(self::OFFER, self::remote('SPCONC')['shop 1'], 'the late A landed after B in shop 1');
 		self::uncontrol('rules');
 		self::tick($t + 121);
 		self::assertShopsHold('SPCONC', '99.200 / 799.00', 'the next re-send leaves every shop on the desired price');
@@ -617,24 +645,173 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::tick($t);
 		self::rows("UPDATE varer SET special_price = 129.2 WHERE id = $1", [$id]); // A
 		self::control('reject2');
-		$gaveUp = 0;
-		for ($i = 0, $at = $t + 1; $i < 8; $i++, $at += 1801) {
-			$gaveUp += self::tick($at)['gaveUp'];
+		$stuck = [];
+		for ($i = 0, $at = $t + 1; $i < 8; $i++, $at += 10801) {
+			$stuck[] = self::tick($at)['stuck'];
 		}
-		self::assertSame(1, $gaveUp, 'shop 2 is given up for A after eight refusals of A');
+		self::assertSame([0, 0, 0, 0, 0, 0, 0, 1], $stuck, 'shop 2 shows as stuck after eight refusals of A');
 		self::assertSame(8, self::stateByShop($id)['shop 2']['refusals']);
-		self::assertStringContainsString('SHOP OFFER GAVE UP', (string)@file_get_contents(self::$tempDir . '/rest_api.log'));
+		self::assertStringContainsString('SHOP OFFER REFUSED', (string)@file_get_contents(self::$tempDir . '/rest_api.log'));
+		self::assertStringContainsString('STUCK: check this shop', (string)@file_get_contents(self::$tempDir . '/rest_api.log'));
 		self::clearLog();
 		self::tick($at);
-		self::assertArrayNotHasKey('shop 2', self::pricesSent('SPPAIR'), 'A is not sent to shop 2 again');
+		self::assertArrayHasKey('shop 2', self::pricesSent('SPPAIR'), 'A is still sent to shop 2: refusals never give up');
 		self::rows("UPDATE varer SET special_price = 109.2 WHERE id = $1", [$id]); // B
-		$out = self::tick($at + 1);
-		self::assertSame(0, $out['gaveUp'], 'one refusal of B does not give up B: its counters start again');
+		self::tick($at + 1);
 		$entry = self::stateByShop($id)['shop 2'];
-		self::assertSame([1, false, $at + 1 + 60], [$entry['refusals'], $entry['gaveUp'], $entry['retryAt']], 'B has its own back-off, not A\'s');
+		self::assertSame([1, $at + 1 + 60], [$entry['refusals'], $entry['retryAt']], 'B has its own counters and back-off, not A\'s');
 		self::uncontrol('reject2');
 		self::tick($at + 122);
 		self::assertSame('109.200 / 799.00', self::remote('SPPAIR')['shop 2'], 'shop 2 takes B once it accepts again');
+	}
+
+	public function testARefusingShopGetsTheNormalPricesWhenItRecoversDaysLater(): void
+	{
+		$id = self::item('SPRECOVER', self::offer(79.2, 3));
+		$t = time();
+		self::tick($t);
+		self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]); // the offer is cancelled
+		self::control('rules', json_encode([['item' => 'SPRECOVER', 'shop' => '2', 'refuse' => true]]));
+		$stuck = 0;
+		$refusedAt = [];
+		for ($i = 0, $at = $t + 1; $i < 20 && count($refusedAt) < 10; $i++, $at += 10801) { // the scheduler, every 3 hours on a test clock
+			$before = self::stateByShop($id)['shop 2']['refusals'];
+			$stuck = max($stuck, self::tick($at)['stuck']);
+			if (self::stateByShop($id)['shop 2']['refusals'] > $before) $refusedAt[] = $at;
+		}
+		self::assertCount(10, $refusedAt, 'shop 2 refused the normal prices ten times, and was never given up');
+		$gaps = array_map(fn($a, $b) => $b - $a, array_slice($refusedAt, 0, -1), array_slice($refusedAt, 1));
+		self::assertSame(10801, max($gaps), 'tried at every tick 3 hours apart: never more than 3 hours after a refusal, the 6-hour tail too');
+		self::assertSame(1, $stuck);
+		self::assertSame('79.200 / 799.00', self::remote('SPRECOVER')['shop 2'], 'it still shows the cancelled offer');
+		self::uncontrol('rules'); // the shop recovers
+		self::clearLog();
+		$later = $at + 3 * 86400;
+		self::tick($later);
+		self::assertShopsHold('SPRECOVER', self::NORMAL, 'days later, the next try puts the normal prices in shop 2 too');
+		self::assertSame(1, self::tick(self::lastSent($id) + 660)['untracked'], 'then the item is no longer tracked');
+	}
+
+	// ------------------------------------------------------------------ no send carries a pair read earlier (Codex v4)
+
+	/**
+	 * Runs $body with the bulk sync page (sync_shop/sync_all_products.php) set up to handle one item alone: item $varenr, with
+	 * $offer, in a group of its own that is the only stocked one, and the shops configured without a query string (the page
+	 * builds its urls by appending "?" to the endpoint). Everything is put back afterwards.
+	 *
+	 * @param callable(int): void $body Gets the item id.
+	 */
+	private static function withBulkSyncOf(string $varenr, array $offer, callable $body): void
+	{
+		$endpoints = self::one("SELECT box4, box5, box6 FROM grupper WHERE art = 'API'");
+		$bare = array_map(fn($e) => preg_replace('/\\?.*$/', '', (string)$e), $endpoints);
+		$stocked = self::rows("SELECT id, box8 FROM grupper WHERE art = 'VG' AND COALESCE(box8, '') <> ''");
+		$own = self::one("SELECT box4, box7 FROM grupper WHERE art = 'VG' AND kodenr = $1 AND fiscal_year = $2", [(string)self::$stockGroup, self::$regnaar]);
+		$groupId = CharacterizationEnv::nextId(self::$tenant, 'grupper');
+		try {
+			self::rows("UPDATE grupper SET box4 = $1, box5 = $2, box6 = $3 WHERE art = 'API'", [$bare['box4'], $bare['box5'], $bare['box6']]);
+			self::rows("UPDATE grupper SET box8 = '' WHERE art = 'VG' AND COALESCE(box8, '') <> ''");
+			self::rows("INSERT INTO grupper (id, beskrivelse, kodenr, art, box4, box7, box8, fiscal_year) VALUES ($1, 'Bulk test', '9871', 'VG', $2, $3, 'on', $4)",
+				[$groupId, $own['box4'], $own['box7'], self::$regnaar]);
+			$id = self::item($varenr, $offer);
+			self::rows("UPDATE varer SET gruppe = 9871 WHERE id = $1", [$id]);
+			CharacterizationEnv::resyncSequences(self::$tenant); // the page's session setup inserts rows of its own
+			$body($id);
+		} finally {
+			self::rows("DELETE FROM grupper WHERE id = $1", [$groupId]);
+			foreach ($stocked as $row) {
+				self::rows("UPDATE grupper SET box8 = $1 WHERE id = $2", [$row['box8'], $row['id']]);
+			}
+			self::rows("UPDATE grupper SET box4 = $1, box5 = $2, box6 = $3 WHERE art = 'API'", [$endpoints['box4'], $endpoints['box5'], $endpoints['box6']]);
+		}
+	}
+
+	/** @param array{0: resource, 1: string, 2: string} $page Waits for the page to end and for its six calls (stock and price, three shops). */
+	private static function bulkSyncCalls(array $page, string $varenr): array
+	{
+		proc_close($page[0]);
+		for ($i = 0; $i < 300 && count(self::priceCalls($varenr, null)) < 6; $i++) {
+			usleep(50000);
+		}
+		usleep(500000);
+		$calls = self::priceCalls($varenr, null);
+		self::assertCount(6, $calls, 'the page sent its stock and price calls to the three shops');
+		return $calls;
+	}
+
+	public function testABulkSyncHeldBackPastUntrackingSendsTodaysPrices(): void
+	{
+		self::withBulkSyncOf('SPBULK', self::offer(79.2, 3), function (int $id): void {
+			$t = time();
+			self::tick($t);
+			self::assertShopsHold('SPBULK', '79.200 / 799.00');
+			$marker = sys_get_temp_dir() . '/shopoffer-bulklock-' . bin2hex(random_bytes(4));
+			self::$files[] = $marker;
+			$lock = self::start(['locktable', '60', 'lagerstatus', $marker]);
+			try {
+				for ($i = 0; $i < 200 && !is_file($marker); $i++) {
+					usleep(50000);
+				}
+				self::assertFileExists($marker, 'lagerstatus is locked');
+				self::clearLog();
+				// the bulk page starts while the offer is on, and waits on its stock query
+				$page = self::startScript('run_sync_all_products_page.php', [self::sessionId()]);
+				usleep(3000000);
+				self::assertSame([], self::priceCalls('SPBULK', null), 'the page waits on lagerstatus');
+				self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]); // the offer is cancelled
+				$end = $t + 1;
+				foreach ([0, 120, 300, 900, 3600, 21600, 43200, 64800, 86400] as $offset) {
+					self::tick($end + $offset); // restoration and the whole tail, on a test clock
+				}
+				self::assertSame(1, self::tick(self::lastSent($id) + 660)['untracked']);
+				self::assertNull(self::runner(['state', (string)$id])['state'], 'no longer tracked');
+				self::assertShopsHold('SPBULK', self::NORMAL);
+				self::clearLog();
+			} finally {
+				proc_terminate($lock[0]); // the lock goes: the page goes on and sends
+				proc_close($lock[0]);
+			}
+			foreach (self::bulkSyncCalls($page, 'SPBULK') as $sent) {
+				self::assertSame(self::NORMAL, $sent['salesPrice'] . ' / ' . $sent['retailPrice'], 'looked up when it sent: today\'s prices, not the offer it saw when it began');
+			}
+			self::assertShopsHold('SPBULK', self::NORMAL, 'the cancelled offer is not put back');
+		});
+	}
+
+	public function testABulkSyncSendIsAnEventForATrackedItem(): void
+	{
+		self::withBulkSyncOf('SPBULKON', self::offer(159.2, 3), function (int $id): void {
+			$t = time();
+			self::tick($t);
+			self::clearLog();
+			$page = self::startScript('run_sync_all_products_page.php', [self::sessionId()]);
+			foreach (self::bulkSyncCalls($page, 'SPBULKON') as $sent) {
+				self::assertSame(self::OFFER, $sent['salesPrice'] . ' / ' . $sent['retailPrice'], 'a tracked item: the pair each shop accepted');
+			}
+			$state = self::runner(['state', (string)$id])['state'];
+			self::assertGreaterThanOrEqual($t, (int)$state['foreign']['staleAt'], 'the send is marked on the item');
+			$sentByPage = time();
+			self::clearLog();
+			$out = self::tick($t + 2 * 3600);
+			self::assertGreaterThanOrEqual(1, $out['events'], 'the next tick takes it as an event');
+			self::assertSame(self::OFFER_ALL, self::pricesSent('SPBULKON'), 'and sends every shop the current pair after it');
+			$anchor = self::runner(['state', (string)$id])['state']['anchor'];
+			self::assertTrue($anchor >= $t && $anchor <= $sentByPage, 'the item\'s schedule, and its 24 hours of tracking, start again from the page\'s send');
+		});
+	}
+
+	public function testTheSendTimeIsWhenTheRequestLeft(): void
+	{
+		$first = self::item('SPLEFT1', self::offer(159.2, 3));
+		$second = self::item('SPLEFT2', self::offer(159.2, 3));
+		self::control('rules', json_encode([['item' => 'SPLEFT1', 'answer' => 3]]));
+		$t = time();
+		self::tick($t, 10);
+		$left1 = array_map(fn($e) => $e['leftAt'] ?? $e['sentAt'], self::stateByShop($first));
+		$left2 = array_map(fn($e) => $e['leftAt'] ?? $e['sentAt'], self::stateByShop($second));
+		self::assertLessThanOrEqual($t + 1, max($left1));
+		self::assertGreaterThanOrEqual($t + 3, min($left2), 'the second item left after the first one\'s 3-second answers, and its leftAt says so');
+		self::assertSame([$t, $t, $t], array_column(self::stateByShop($second), 'sentAt'), 'the schedule still counts from the tick that read the prices');
 	}
 
 	// ------------------------------------------------------------------ state that cannot be written

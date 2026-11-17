@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/shopSyncDocument.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/stdFunc/shopSyncDocument.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20261027 CDX/MJ SST-876 Retain correction markers for any successful low-level send inside a transaction, including parent sets.
 // 20261028 CDX/MJ SST-876 Refresh stock before each send batch and skip backlog preparation when the HTTP budget is exhausted.
 // 20261029 CDX/MJ SST-876 Keep history contiguous with the file header.
+// 20261118 CL/LH A collected call that carries an item's prices gets them when it is sent: for an item the offer reconciler tracks, the pair each shop last accepted, looked up then (shopOfferForeignAtSend()), not when the call was collected.
 
 /**
  * Request-local payload collection; quantities are rebuilt on every delivery.
@@ -319,9 +320,12 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 					}
 					$task = $fresh;
 				}
+				// the prices of an item the offer reconciler tracks are looked up now, as the call leaves (stdFunc/shopOfferPush.php)
+				$offer = (isset($task['params']['salesPrice']) && !$task['parent'] && function_exists('shopOfferForeignAtSend'))
+					? shopOfferForeignAtSend($task['vare_id'], $task['targets']) : null;
 				foreach ($task['targets'] as $slot => $endpoint) {
 					$index = $i . ':' . $slot;
-					$urls[$index] = shopApiUrl($endpoint, $task['params']);
+					$urls[$index] = shopApiUrl($endpoint, $offer ? shopOfferForeignParams($task['params'], $offer, $slot) : $task['params']);
 					$contexts[$index] = $task['context'];
 					$owners[$index] = $task['key'];
 				}
