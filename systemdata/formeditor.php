@@ -31,6 +31,7 @@
 // 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 // 20261117 CDX/ASR Share PDF preview fallback with logo activation and report an unrendered logo after saving.
+// 20261117 CDX/ASR Restore the previous logo behavior and translate the title only after session and helpers load.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -74,15 +75,17 @@ if ($FE_API) {
 	}
 }
 
-$title = findtekst('7012|Formulareditor', $sprog_id);
+$title = 'Formulareditor';
 $css   = "../css/standard.css";
 
-include("../includes/connect.php");
+include(__DIR__ . '/../includes/connect.php');
 $modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
 $permission_key = 'system.indstillinger';
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/topline_settings.php");
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+/** @var int $sprog_id Session language supplied by includes/online.php. */
+$title = findtekst('7012|Formulareditor', $sprog_id);
+include(__DIR__ . '/../includes/topline_settings.php');
 include_once(__DIR__ . '/../includes/formEditorState.php');
 
 // Background helpers and the logo compositor: includes/formEditorState.php (shared with the welcome guide).
@@ -224,9 +227,9 @@ if ($fe_action === 'save') {
 	@unlink("../logolib/$db_id/fe_draft_{$form_nr}_" . preg_replace('/[^A-Za-z0-9_]/', '_', $sprog_raw) . ".json");
 
 	// Stamp the placed logo onto the print background (if any logo uploaded).
-	$logoReady = fe_composite_logo($db_id, $form_nr, $sprog_raw);
+	fe_composite_logo($db_id, $form_nr, $sprog_raw);
 
-	print json_encode(array('ok' => true, 'updated' => $updated, 'deleted' => $deleted, 'inserted' => $inserted, 'warning' => $logoReady ? '' : 'logo'));
+	print json_encode(array('ok' => true, 'updated' => $updated, 'deleted' => $deleted, 'inserted' => $inserted));
 	exit;
 }
 
@@ -759,8 +762,12 @@ if (file_exists($logo_base) && $active_bg && isset($fe_meta['out_md5']) && md5_f
 if ($bg_src) {
 	$cache_png = "../logolib/$db_id/" . md5(basename($bg_src)) . "_feprev.png";
 	$need = !file_exists($cache_png) || filemtime($cache_png) < filemtime($bg_src);
-	if ($need) {
-		fe_pdf_png($bg_src, $cache_png, 100);
+	if ($need && function_exists('shell_exec')) {
+		// pdftoppm writes <prefix>-1.png for page 1; render at ~100 dpi.
+		$prefix = escapeshellarg("../logolib/$db_id/" . md5(basename($bg_src)) . "_fetmp");
+		@shell_exec("pdftoppm -png -r 100 -f 1 -l 1 " . escapeshellarg($bg_src) . " " . $prefix . " 2>/dev/null");
+		$tmp1 = "../logolib/$db_id/" . md5(basename($bg_src)) . "_fetmp-1.png";
+		if (file_exists($tmp1)) { @rename($tmp1, $cache_png); }
 	}
 	if (file_exists($cache_png)) $bg_url = $cache_png . '?t=' . filemtime($cache_png);
 }
@@ -1420,7 +1427,6 @@ print "</div>";
     unsaved:  <?php echo json_encode($T('Ikke gemte ændringer','Unsaved changes')); ?>,
     saving:   <?php echo json_encode($T('Gemmer…','Saving…')); ?>,
     saved:    <?php echo json_encode($T('Gemt (%s felter)','Saved (%s fields)')); ?>,
-    logoFailed: <?php echo json_encode($T('Layoutet er gemt, men logoet kunne ikke sættes på udskriften. Prøv Gem og aktivér igen, eller kontakt support.', 'The layout was saved, but the logo could not be added to the printout. Try Save and activate again, or contact support.')); ?>,
     session:  <?php echo json_encode($T('Session udløbet – genindlæs siden','Session expired – reload the page')); ?>,
     failed:   <?php echo json_encode($T('Kunne ikke gemme','Could not save')); ?>,
     neterr:   <?php echo json_encode($T('Netværksfejl','Network error')); ?>,
@@ -2814,8 +2820,7 @@ print "</div>";
         // patch newly-inserted elements with their real DB ids
         if (j.inserted) { elements.forEach(function(el){ if (el.id<=0 && j.inserted[el.id]!=null) el.id = j.inserted[el.id]; }); }
         hideDraftBanner();   // activating supersedes the draft (server deleted it)
-        statusEl.textContent=j.warning==='logo' ? L.logoFailed : L.saved.replace('%s', j.updated);
-        statusEl.style.color=j.warning==='logo' ? '#b26a00' : '#2a7d2a';
+        statusEl.textContent=L.saved.replace('%s', j.updated); statusEl.style.color='#2a7d2a';
       }
       else if (j && j.error==='session') { statusEl.textContent=L.session; statusEl.style.color='#c00'; }
       else { statusEl.textContent=L.failed; statusEl.style.color='#c00'; }
