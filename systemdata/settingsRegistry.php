@@ -237,14 +237,6 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'posmenuer',         'group' => 'pos',        'url' => 'posmenuer.php',             'category' => 'pos',      'textId' => 1940, 'visibilityRule' => 'posModule',
 				'keywords' => array('pos menus','cash register menus','buttons on register','kassemenuer','pos-menuer')),
 
-			// -- barcode
-			array('key' => 'barcodescan',           'url' => 'barcodescan.php',                          'category' => 'pos', 'labelDa' => 'App Barcode', 'labelEn' => 'Barcode scanning app', 'labelNo' => 'App-strekkode',
-				'keywords' => array('qr code login','app login','mobile app authentication','one time access qr','saldi app login','scan to login')),
-			array('key' => 'sprog',                 'url' => 'diverse.php?sektion=sprog',                'category' => 'company', 'textId' => 801,
-				'keywords' => array('language','languages','change language','select language','preferred language','edit translation texts','ui language','current language','sprogindstillinger','sprog','språk','språkinnstillinger')),
-			array('key' => 'div_io',                'url' => 'diverse.php?sektion=div_io',               'category' => 'data', 'textId' => 802,
-				'keywords' => array('import export','chart of accounts import export','customer import export','product import export','form import export','sql query tool','data import','data export','solar vvs import','kontoplan import','debitor import','varer import','formular import')),
-
 			// -- Scattered elsewhere in the app --
 			array('key' => 'admin_settings',    'group' => 'company', 'url' => '../admin/admin_settings.php',      'category' => 'system',  'textId' => 5668, 'requiresReseller' => true, 'visibilityRule' => 'masterDb',
 				'keywords' => array('pdf conversion tools','weasyprint','pdftk','ps2pdf','ftp tool path','database dump tool','backup tool path','zip unzip tar path','system alert text','dashboard news snippet','system tools')),
