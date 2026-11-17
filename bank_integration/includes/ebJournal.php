@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebJournal.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/includes/ebJournal.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20261028 CL/LH A restored possible duplicate returns to review; restore says where the line went.
 // 20261116 CL/LH Pull model: no bank-owned journals and no automatic delivery. ebImportIntoJournal() puts the lines a user picks into the journal the user works in; lines it cannot take stay under Nye with their reason.
 // 20261116 CL/LH The user name is compared with kladdeliste.hvem as UTF-8 (ebUtf8()), also on an ISO-8859-15 tenant.
+// 20261117 CL/LH accept_change requires the hash of the changed payload the user was shown.
 
 require_once __DIR__ . '/ebSchema.php';
 require_once __DIR__ . '/ebStore.php';
@@ -240,10 +241,14 @@ function ebReconcileLinks(int $accountId): array
     });
 }
 
-/** @return array{ok:bool, message:string} Explicit feed action on server-stored accounting fields. */
-function ebTransactionAction(int $txId, string $action, string $actor): array
+/**
+ * Explicit feed action on server-stored accounting fields.
+ * @param ?string $seenChange For accept_change: sha256 of the changed_payload the user was shown; approval fails when the bank has changed the line again since.
+ * @return array{ok:bool, message:string}
+ */
+function ebTransactionAction(int $txId, string $action, string $actor, ?string $seenChange = null): array
 {
-    return ebAtomic(function () use ($txId, $action, $actor): array {
+    return ebAtomic(function () use ($txId, $action, $actor, $seenChange): array {
         $tx = ebRow('SELECT * FROM bank_transactions WHERE id=' . (int)$txId . ' FOR UPDATE');
         if (!$tx) {
             throw new EbUserError(ebT(findtekst('bank.tx.missing|Posteringen findes ikke i dette regnskab.', ebLang())));
@@ -275,6 +280,9 @@ function ebTransactionAction(int $txId, string $action, string $actor): array
             $fields = ['date_override' => $tx['value_date'],
                 'review_state' => $review['state'], 'review_reason' => $review['reason']];
         } elseif ($action === 'accept_change' && $tx['review_state'] === 'review' && $tx['review_reason'] === 'changed_after_import') {
+            if ($seenChange === null || !hash_equals(hash('sha256', (string)$tx['changed_payload']), $seenChange)) {
+                throw new EbUserError(ebT(findtekst('bank.tx.change_changed_again|Banken har ændret posteringen igen. Se den nye ændring, før du godkender.', ebLang())));
+            }
             $fields = ['review_state' => 'imported', 'review_reason' => null];
             // Retain the original accounting values; remember the acknowledged payload hash to avoid reflagging it.
             $changed = json_decode($tx['changed_payload'] ?? '', true);

@@ -6,7 +6,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/enabled.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/includes/enabled.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 //                 bank integration API credentials are configured.
 // 20261006 CL/LH Aiia removed: bankIntegrationAvailable() = Enable Banking configured on the server, bankIntegrationEnabled() = available, tenant schema ready and switched on for the company.
 // 20261116 CL/LH bankIntegrationEnabled() checks the company switch before the schema, so a company without the feed costs one settings query (cached per request).
+// 20261117 CL/LH bankIntegrationEnabled() caches per company, since the notification digest switches companies in one process.
 
 require_once __DIR__ . '/ebAccess.php';
 
@@ -61,14 +62,16 @@ if (!function_exists('bankIntegrationEnabled')) {
 	 * @return bool
 	 */
 	function bankIntegrationEnabled(): bool {
-		static $enabled = null;
-		if ($enabled === null) {
+		// Cached per company: tools/notification_digest.php switches companies within one process.
+		static $enabled = array();
+		$company = (string)($GLOBALS['db'] ?? '');
+		if (!array_key_exists($company, $enabled)) {
 			try {
-				$enabled = bankIntegrationAvailable() && ebCompanyEnabled() && ebSchemaReady();
+				$enabled[$company] = bankIntegrationAvailable() && ebCompanyEnabled() && ebSchemaReady();
 			} catch (Throwable $e) {
-				$enabled = false;
+				$enabled[$company] = false;
 			}
 		}
-		return $enabled;
+		return $enabled[$company];
 	}
 }

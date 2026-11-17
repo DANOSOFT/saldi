@@ -307,6 +307,7 @@ bank.tab.imported	Importeret	Imported	Importert
 bank.tab.pending	Nye	New	Nye
 bank.tab.pre_cutover	Før startdato	Before start date	Før startdato
 bank.tab.review	Til gennemsyn	To review	Til gjennomgang
+bank.tx.change_changed_again	Banken har ændret posteringen igen. Se den nye ændring, før du godkender.	The bank has changed the entry again. Review the new change before you approve it.	Banken har endret posteringen igjen. Se den nye endringen før du godkjenner.
 bank.tx.foreign	Posteringen tilhører ikke bankkontoen.	The entry does not belong to the bank account.	Posteringen tilhører ikke bankkontoen.
 bank.tx.missing	Posteringen findes ikke i dette regnskab.	The entry does not exist in this company.	Posteringen finnes ikke i dette regnskapet.
 bank.tx.not_allowed	Handlingen er ikke tilladt for denne postering.	The action is not allowed for this entry.	Handlingen er ikke tillatt for denne posteringen.

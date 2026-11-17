@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebStore.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/includes/ebStore.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20261007 CDX/LH Bound stored entry references to 255 characters while hashing their full identity.
 // 20261116 CL/LH Message through findtekst() (bank.account.missing).
 // 20261116 CL/LH changed_payload is stored as ASCII-escaped JSON, so a LATIN9 tenant keeps characters outside ISO-8859-15 and the change hash stays stable.
+// 20261117 CL/LH Reference "0" is valid; a pre-cutover line the bank re-dates past the start date becomes pending.
 
 require_once __DIR__ . '/ebNormalize.php';
 
@@ -65,7 +66,8 @@ function ebPersistTransactionsChecked(int $accountId, array $normalizedWithRef, 
                         $counts['skipped']++;
                         continue;
                     }
-                    if (empty($n['entry_reference'])) {
+                    // "0" is a valid bank reference; only a missing one is an error.
+                    if ($n['entry_reference'] === null || $n['entry_reference'] === '') {
                         throw new InvalidArgumentException('Reference row without reference');
                     }
                     $key = 'r:' . hash('sha256', $n['entry_reference']);
@@ -84,7 +86,12 @@ function ebPersistTransactionsChecked(int $accountId, array $normalizedWithRef, 
                         } else {
                             $fields += ebStoredFields($n);
                             if (in_array($row['review_state'], ['ignored', 'pre_cutover'], true)) {
-                                $fields['review_reason'] = ebInitialReview($n, $account['import_from'])['reason'];
+                                $review = ebInitialReview($n, $account['import_from']);
+                                // A corrected date can move a line past the start date; a skipped line stays skipped.
+                                if ($row['review_state'] === 'pre_cutover') {
+                                    $fields['review_state'] = $review['state'];
+                                }
+                                $fields['review_reason'] = $review['reason'];
                             }
                             if (in_array($row['review_state'], ['pending', 'review'], true)) {
                                 $review = ebInitialReview($n + ['date_override' => $row['date_override']], $account['import_from']);

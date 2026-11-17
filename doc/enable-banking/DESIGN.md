@@ -50,8 +50,10 @@ Lines reach a journal only when a user picks them, into the journal the user is 
 - Rows under "Til gennemsyn" are moved to "Nye" by an explicit action (possible duplicate / legacy
   after_review: "Flyt til Nye"; missing booking date: "Brug valørdato"); a line whose journal line was
   deleted can be moved to "Nye" again. "Sprunget over" rows can be restored.
-- Posting code (`finans/bogfor.php`) is untouched: the import takes the header lock itself and only
-  writes into an open journal nobody else holds.
+- Posting and import take the same lock: `bogfor()` in `finans/bogfor.php` locks the journal header
+  (`SELECT ... FOR UPDATE`) before it reads the lines and refuses a journal that is posted by then;
+  the import locks the same header and only writes into an open journal nobody else holds. So posting
+  or simulation and an import into the same journal run one after the other. Keep both locks.
 - Account states: `new` (needs ledger account and start date), `active`, `paused` (not fetched; lines
   can still be picked), `unsupported` (not DKK), `disconnected` (lines can still be picked). Pause /
   Genoptag, disconnect, reconnect and mapping need the settings right; picking and skipping need write
@@ -108,9 +110,11 @@ piece (never the key contents). `ebFeatureAvailable(): bool` = configured.
 `ebEnsureSchema(): void` creates missing tables/indexes idempotently, portable PostgreSQL/MySQL
 (branch on `$db_type`: `SERIAL` vs `INT AUTO_INCREMENT`, `NUMERIC` vs `DECIMAL`, `TIMESTAMP` vs
 `DATETIME`, `TEXT`). Uses `tbl_exists()` per table and catalog checks per index (pg_indexes /
-information_schema.statistics). Never runs inside an import transaction. Called from
-the end of `includes/betweenUpdates.php`, from the worker before processing a tenant, from the settings
-save and from tests. Also exposes `ebSchemaReady(): bool`.
+information_schema.statistics). Never runs inside an import transaction. It lives in
+`includes/opdat_func/ebSchemaInstall.php` and is called only from the end of `includes/betweenUpdates.php`
+(the company's next login) and from tests. The worker and the settings save only check
+`ebSchemaReady(): bool` (in `bank_integration/includes/ebSchema.php`): the worker prints
+`schema_missing` and skips the company, the settings save shows an error.
 
 Timestamps are stored as `TIMESTAMP`/`DATETIME` in server local time, written as
 `date('Y-m-d H:i:s')`. Dates as `DATE`. Amounts `NUMERIC(15,3)`/`DECIMAL(15,3)`.
@@ -413,9 +417,10 @@ php bank_integration/worker.php --tenant=test_34 [--account=5] [--force] [--dry-
 - Parent mode enumerates master `regnskab` rows with non-empty db and lukket != 'on', and runs one
   child process per tenant (`proc_open([PHP_BINARY, __FILE__, '--tenant=<db>'])`, sequential, 10 min
   timeout per tenant) so a legacy exit or fatal in one tenant cannot affect others.
-- Child mode: connect to the tenant, set `$db`, run
-  `ebEnsureSchema()` only if tables are missing, skip when !ebCompanyEnabled() or !ebFeatureAvailable(),
-  then `ebSyncAccount($id, 'schedule')` for each due account (or the forced one). Prints one summary
+- Child mode: connect to the tenant, set `$db`, skip when !ebCompanyEnabled() or !ebFeatureAvailable(),
+  print `schema_missing` and skip when !ebSchemaReady() (tables are created at the next login), then
+  `ebSyncAccount($id, 'schedule')` for each due account (or the forced one). Without `--force` the
+  account must still be due when its lease is taken, so a "Hent nu" in between is not repeated. Prints one summary
   line per account: tenant, account id, status, fetched/new/review counts. Exit code 0 when
   every account ended ok/skipped/rate_limited, 2 when any failed (cron mail signal).
 - The parent writes `temp/.ht_bank_worker.heartbeat` after locking and after every tenant

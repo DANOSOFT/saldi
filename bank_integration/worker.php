@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/worker.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/worker.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20261028 CDX/LH Record a best-effort heartbeat after acquiring the parent lock.
 // 20261028 CL/LH Heartbeat after every tenant; one failing queued delivery no longer stops the tenant's other accounts.
 // 20261116 CL/LH Pull model: the worker only fetches; no queued delivery and no imported count.
+// 20261117 CL/LH Without --force an account is fetched only if it is still due when its lease is taken.
 //                A company without the bank tables is reported (schema_missing) and skipped; the tables come from the update chain.
 
 /**
@@ -183,7 +184,8 @@ try {
                 fwrite(STDOUT, "$db account=$id dry_run\n");
                 continue;
             }
-            $result = ebSyncAccount($id, 'schedule');
+            // --force fetches now; otherwise only an account that is still due when its lease is taken.
+            $result = ebSyncAccount($id, 'schedule', [], null, !isset($options['force']));
             $run = $result['run_id'] ? ebRow('SELECT fetched, new_count, review_count FROM bank_sync_runs WHERE id=' . (int)$result['run_id']) : null;
             fwrite(STDOUT, sprintf("%s account=%d status=%s fetched=%d new=%d review=%d\n", $db, $id, $result['status'],
                 (int)($run['fetched'] ?? 0), (int)($run['new_count'] ?? 0), (int)($run['review_count'] ?? 0)));

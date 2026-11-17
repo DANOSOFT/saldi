@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/characterization/bank_integration/EnableBankingBackendTest.test.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- tests/characterization/bank_integration/EnableBankingBackendTest.test.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20261028 CDX/LH Cover stopped access on resume and safe authorization-specific errors with support codes.
 // 20261116 CL/LH Pull model: tests of bank-owned journals, automatic import, the journal line cap and the bogfor.php lock are gone; picks go through ebImportIntoJournal() into a given journal (vouchers, positions, links, locks, posted and simulated journals, fiscal year, idempotency, foreign ids), and the feed renders with and without a journal.
 // 20261116 CL/LH Review fixes: posting and import serialize on the journal header (both directions, real processes), import after an account reset, ISO-8859-15 bank text.
+// 20261117 CL/LH CodeRabbit fixes: consent cleanup, reference "0", value-date overlap hint, re-dated pre-cutover line, due re-check, change approval bound to the shown change; child helper keeps the first exit status and stops a stuck child.
 
 use PHPUnit\Framework\TestCase;
 
@@ -512,7 +513,15 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertSame('changed_after_import', $tx['review_reason']);
         $this->assertSame($before, ebRow('SELECT * FROM kassekladde'));
         $this->rejects(fn() => ebTransactionAction((int)$tx['id'], 'import', 'chartest'));
-        ebTransactionAction((int)$tx['id'], 'accept_change', 'chartest');
+        // Approval binds to the change the user saw: none, or an older one, is refused; the bank's newest change stays in review.
+        $shown = hash('sha256', (string)$tx['changed_payload']);
+        $this->rejects(fn() => ebTransactionAction((int)$tx['id'], 'accept_change', 'chartest'));
+        $raw['transaction_amount']['amount'] = '300.12';
+        $this->assertSame(1, $this->persist([$raw])['changed']);
+        $this->rejects(fn() => ebTransactionAction((int)$tx['id'], 'accept_change', 'chartest', $shown));
+        $this->assertSame('changed_after_import', ebRow('SELECT review_reason FROM bank_transactions')['review_reason']);
+        $tx = ebRow('SELECT * FROM bank_transactions');
+        ebTransactionAction((int)$tx['id'], 'accept_change', 'chartest', hash('sha256', (string)$tx['changed_payload']));
         $this->assertSame(0, $this->persist([$raw])['changed']);
         $this->assertSame('imported', ebRow('SELECT review_state FROM bank_transactions')['review_state']);
         $this->assertSame($before, ebRow('SELECT * FROM kassekladde'));
@@ -682,6 +691,61 @@ final class EnableBankingBackendTest extends TestCase
         $this->rejects(fn() => ebImportIntoJournal($journal, (int)$GLOBALS['ebActionAccountId'], [$tx], 'chartest'));
         $this->assertCount(0, ebRows('SELECT id FROM kassekladde'));
         unset($GLOBALS['ebActionAccountId']);
+    }
+
+    /** @return void */
+    public function test_consent_that_cannot_be_stored_is_closed_at_the_bank(): void
+    {
+        $state = bin2hex(random_bytes(32));
+        $this->state($state, []);
+        $body = ['accounts' => [$this->resource('cleanup-primary', [str_repeat('x', 256)])], 'session_id' => 'orphan-session',
+            'access' => ['valid_until' => date(DATE_RFC3339, time() + 86400)]];
+        $connections = ebRows('SELECT id FROM bank_connections ORDER BY id');
+        $transport = new EbFixtureTransport([$this->step($body, 200, '/sessions', 'POST'),
+            $this->step(['message' => 'OK'], 200, '/sessions/orphan-session', 'DELETE')]);
+        $client = new EnableBankingClient(EbTestKeys::config(), $transport);
+        $row = ebConsumeAuthorization($state, 1);
+        $this->rejects(fn() => ebCompleteAuthorization($client, $row, bin2hex(random_bytes(16)), 'chartest'));
+        $this->assertSame($connections, ebRows('SELECT id FROM bank_connections ORDER BY id'));
+        $this->assertSame(['POST', 'DELETE'], array_column($transport->requests, 'method'));
+        $this->assertSame([], $transport->script);
+    }
+
+    /** @return void */
+    public function test_reference_zero_value_date_hint_corrected_cutover_and_due_recheck(): void
+    {
+        // "0" is a reference like any other.
+        $raw = $this->page()['transactions'][0];
+        $raw['entry_reference'] = '0';
+        $this->assertSame(1, $this->persist([$raw])['new']);
+        // The overlap hint uses the accounting date, also when it comes from "Brug valørdato".
+        $tx = ebRow('SELECT * FROM bank_transactions');
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+        ebUpdate('bank_transactions', (int)$tx['id'], ['booking_date' => null, 'date_override' => $yesterday, 'review_state' => 'pending']);
+        $amount = ltrim($tx['amount'], '-');
+        $journal = $this->journal();
+        ebInsert('kassekladde', ['kladde_id' => $journal, 'transdate' => $yesterday, 'amount' => $amount, 'bilag' => 1,
+            'debet' => str_starts_with($tx['amount'], '-') ? $this->otherLedger : $this->ledger,
+            'kredit' => str_starts_with($tx['amount'], '-') ? $this->ledger : $this->otherLedger, 'd_type' => 'F', 'k_type' => 'F']);
+        $this->assertArrayHasKey((int)$tx['id'], ebOverlapHints($this->accountId, [(int)$tx['id']]));
+        // A line before the start date that the bank re-dates past it becomes pickable.
+        $today = ebToday();
+        ebUpdate('bank_accounts', $this->accountId, ['import_from' => $today]);
+        $old = $this->page()['transactions'][1];
+        $old['entry_reference'] = 'redated';
+        $old['booking_date'] = $yesterday;
+        $this->persist([$old]);
+        $this->assertSame('pre_cutover', ebRow("SELECT review_state FROM bank_transactions WHERE booking_date=" . ebSql($yesterday))['review_state']);
+        $old['booking_date'] = $today;
+        $this->assertSame(1, $this->persist([$old])['changed']);
+        $this->assertSame('pending', ebRow('SELECT review_state FROM bank_transactions WHERE booking_date=' . ebSql($today))['review_state']);
+        // The worker re-checks under the lease that the account is still due; --force does not.
+        ebUpdate('bank_accounts', $this->accountId, ['next_fetch_at' => date('Y-m-d H:i:s', time() + 21600)]);
+        $transport = new EbFixtureTransport([$this->step($this->page())]);
+        $client = new EnableBankingClient(EbTestKeys::config(), $transport);
+        $this->assertSame('skipped', ebSyncAccount($this->accountId, 'schedule', [], $client, true)['status']);
+        $this->assertSame([], $transport->requests);
+        $this->assertSame('ok', ebSyncAccount($this->accountId, 'schedule', [], $client, false)['status']);
     }
 
     /** @return void */
@@ -2391,11 +2455,21 @@ final class EnableBankingBackendTest extends TestCase
     /** @return array{exit:int, stdout:string, stderr:string} */
     private function finishChild(array $child): array
     {
+        // Keep the first finished status: before PHP 8.3 only that call reports the real exit code.
         $deadline = time() + 120;
-        while (proc_get_status($child['proc'])['running'] && time() < $deadline) {
+        while (($status = proc_get_status($child['proc']))['running'] && time() < $deadline) {
             usleep(100000);
         }
-        $status = proc_get_status($child['proc']);
+        if ($status['running']) {
+            // A child stuck on a lock must not hang the suite: proc_close() would wait for it.
+            proc_terminate($child['proc']);
+            for ($i = 0; $i < 20 && proc_get_status($child['proc'])['running']; $i++) {
+                usleep(100000);
+            }
+            if (proc_get_status($child['proc'])['running']) {
+                proc_terminate($child['proc'], 9);
+            }
+        }
         $exit = proc_close($child['proc']);
         rewind($child['out']);
         rewind($child['err']);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebConnections.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/includes/ebConnections.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20261028 CDX/LH Preserve stopped consent, action-required and period errors when resuming fetching.
 // 20261028 CL/LH ebSetPaused reports whether a fetch is scheduled; revoke warning shows only a future expiry date.
 // 20261116 CL/LH Pull model: no automatic import switch, journal pointer or deferral in the account status.
+// 20261117 CL/LH A consent that cannot be stored is closed at the bank again; overlap hints use the accounting date (date_override first).
 //                Messages through findtekst() (bank.* keys).
 
 require_once __DIR__ . '/ebSync.php';
@@ -115,121 +116,138 @@ function ebCompleteAuthorization(EnableBankingClient $c, array $stateRow, string
     $session = $c->createSession($code);
     $encrypted = oauthEncrypt($session['session_id']);
     $old = $stateRow['connection_id'] ? ebRow('SELECT * FROM bank_connections WHERE id=' . (int)$stateRow['connection_id']) : null;
-    $newId = ebNamedLock('connections', function () use ($stateRow, $session, $encrypted, $username): int {
-        return ebAtomic(function () use ($stateRow, $session, $encrypted, $username): int {
-            $id = ebInsert('bank_connections', ['provider' => 'enablebanking', 'environment' => $stateRow['environment'],
-                'aspsp_name' => $stateRow['aspsp_name'], 'aspsp_country' => $stateRow['aspsp_country'], 'psu_type' => $stateRow['psu_type'],
-                'session_enc' => $encrypted, 'session_hash' => hash('sha256', $session['session_id']), 'status' => 'active',
-                'valid_until' => date('Y-m-d H:i:s', strtotime($session['access']['valid_until'])), 'created_by' => $username,
-                'created_at' => ebNow(), 'updated_at' => ebNow()]);
-            $hashCounts = [];
-            foreach ($session['accounts'] as $resource) {
-                $hashes = array_unique(array_merge([$resource['identification_hash']], $resource['identification_hashes'] ?? []));
-                foreach ($hashes as $hash) {
-                    if (!is_string($hash) || $hash === '' || strlen($hash) > 255) {
-                        throw new EbUserError(ebT(findtekst('bank.auth.bad_identity|Bankens kontoidentifikation er ugyldig.', ebLang())));
-                    }
-                    $hashCounts[$hash] = ($hashCounts[$hash] ?? 0) + 1;
-                }
-            }
-            $ambiguous = [];
-            if ($hashCounts !== []) {
-                $values = implode(',', array_map(static fn($hash): string => ebSql((string)$hash), array_keys($hashCounts)));
-                foreach (ebRows('SELECT identification_hash FROM bank_ambiguous_hashes WHERE identification_hash IN (' . $values . ')') as $row) {
-                    $ambiguous[$row['identification_hash']] = true;
-                }
-            }
-            foreach ($hashCounts as $hash => $count) {
-                if ($count > 1) {
-                    // Once proven ambiguous, a hash must never identify an account in a later consent.
-                    if (!isset($ambiguous[$hash])) {
-                        ebInsert('bank_ambiguous_hashes', ['identification_hash' => (string)$hash, 'created_at' => ebNow()]);
-                        $ambiguous[$hash] = true;
-                    }
-                    ebWrite('DELETE FROM bank_account_aliases WHERE identification_hash=' . ebSql((string)$hash));
-                    foreach (ebRows('SELECT id FROM bank_accounts WHERE identification_hash=' . ebSql((string)$hash)) as $row) {
-                        ebUpdate('bank_accounts', (int)$row['id'], ['identification_hash' => 'local:' . bin2hex(random_bytes(32))]);
+    // The consent exists at the bank from here on. If storing it fails, close it again, so no consent stays valid that Saldi cannot see or revoke.
+    $stored = false;
+    try {
+        $newId = ebNamedLock('connections', function () use ($stateRow, $session, $encrypted, $username, &$stored): int {
+            $id = ebAtomic(function () use ($stateRow, $session, $encrypted, $username): int {
+                $id = ebInsert('bank_connections', ['provider' => 'enablebanking', 'environment' => $stateRow['environment'],
+                    'aspsp_name' => $stateRow['aspsp_name'], 'aspsp_country' => $stateRow['aspsp_country'], 'psu_type' => $stateRow['psu_type'],
+                    'session_enc' => $encrypted, 'session_hash' => hash('sha256', $session['session_id']), 'status' => 'active',
+                    'valid_until' => date('Y-m-d H:i:s', strtotime($session['access']['valid_until'])), 'created_by' => $username,
+                    'created_at' => ebNow(), 'updated_at' => ebNow()]);
+                $hashCounts = [];
+                foreach ($session['accounts'] as $resource) {
+                    $hashes = array_unique(array_merge([$resource['identification_hash']], $resource['identification_hashes'] ?? []));
+                    foreach ($hashes as $hash) {
+                        if (!is_string($hash) || $hash === '' || strlen($hash) > 255) {
+                            throw new EbUserError(ebT(findtekst('bank.auth.bad_identity|Bankens kontoidentifikation er ugyldig.', ebLang())));
+                        }
+                        $hashCounts[$hash] = ($hashCounts[$hash] ?? 0) + 1;
                     }
                 }
-            }
-            $claimed = [];
-            foreach ($session['accounts'] as $resource) {
-                if (empty($resource['uid'])) {
-                    continue;
+                $ambiguous = [];
+                if ($hashCounts !== []) {
+                    $values = implode(',', array_map(static fn($hash): string => ebSql((string)$hash), array_keys($hashCounts)));
+                    foreach (ebRows('SELECT identification_hash FROM bank_ambiguous_hashes WHERE identification_hash IN (' . $values . ')') as $row) {
+                        $ambiguous[$row['identification_hash']] = true;
+                    }
                 }
-                $hashes = array_values(array_unique(array_merge([$resource['identification_hash']], $resource['identification_hashes'] ?? [])));
-                $hashes = array_values(array_filter($hashes, static fn(string $hash): bool => $hashCounts[$hash] === 1 && !isset($ambiguous[$hash])));
-                $primary = $resource['identification_hash'];
-                $currency = strtoupper($resource['currency']);
-                $matches = [];
-                if (in_array($primary, $hashes, true)) {
-                    $matches = ebRows('SELECT DISTINCT a.* FROM bank_accounts a LEFT JOIN bank_account_aliases h ON h.account_id=a.id'
-                        . ' WHERE a.identification_hash=' . ebSql($primary) . ' OR h.identification_hash=' . ebSql($primary));
-                }
-                $account = count($matches) === 1 ? $matches[0] : null;
-                if ($matches === [] && $hashes !== []) {
-                    $secondary = array_values(array_diff($hashes, [$primary]));
-                    if ($secondary !== []) {
-                        $values = implode(',', array_map('ebSql', $secondary));
-                        $matches = ebRows('SELECT DISTINCT a.* FROM bank_accounts a LEFT JOIN bank_account_aliases h ON h.account_id=a.id'
-                            . ' WHERE a.identification_hash IN (' . $values . ') OR h.identification_hash IN (' . $values . ')');
-                        if (count($matches) === 1 && $matches[0]['currency'] === $currency) {
-                            $account = $matches[0];
+                foreach ($hashCounts as $hash => $count) {
+                    if ($count > 1) {
+                        // Once proven ambiguous, a hash must never identify an account in a later consent.
+                        if (!isset($ambiguous[$hash])) {
+                            ebInsert('bank_ambiguous_hashes', ['identification_hash' => (string)$hash, 'created_at' => ebNow()]);
+                            $ambiguous[$hash] = true;
+                        }
+                        ebWrite('DELETE FROM bank_account_aliases WHERE identification_hash=' . ebSql((string)$hash));
+                        foreach (ebRows('SELECT id FROM bank_accounts WHERE identification_hash=' . ebSql((string)$hash)) as $row) {
+                            ebUpdate('bank_accounts', (int)$row['id'], ['identification_hash' => 'local:' . bin2hex(random_bytes(32))]);
                         }
                     }
                 }
-                if ($account && isset($claimed[(int)$account['id']])) {
-                    $account = null;
+                $claimed = [];
+                foreach ($session['accounts'] as $resource) {
+                    if (empty($resource['uid'])) {
+                        continue;
+                    }
+                    $hashes = array_values(array_unique(array_merge([$resource['identification_hash']], $resource['identification_hashes'] ?? [])));
+                    $hashes = array_values(array_filter($hashes, static fn(string $hash): bool => $hashCounts[$hash] === 1 && !isset($ambiguous[$hash])));
+                    $primary = $resource['identification_hash'];
+                    $currency = strtoupper($resource['currency']);
+                    $matches = [];
+                    if (in_array($primary, $hashes, true)) {
+                        $matches = ebRows('SELECT DISTINCT a.* FROM bank_accounts a LEFT JOIN bank_account_aliases h ON h.account_id=a.id'
+                            . ' WHERE a.identification_hash=' . ebSql($primary) . ' OR h.identification_hash=' . ebSql($primary));
+                    }
+                    $account = count($matches) === 1 ? $matches[0] : null;
+                    if ($matches === [] && $hashes !== []) {
+                        $secondary = array_values(array_diff($hashes, [$primary]));
+                        if ($secondary !== []) {
+                            $values = implode(',', array_map('ebSql', $secondary));
+                            $matches = ebRows('SELECT DISTINCT a.* FROM bank_accounts a LEFT JOIN bank_account_aliases h ON h.account_id=a.id'
+                                . ' WHERE a.identification_hash IN (' . $values . ') OR h.identification_hash IN (' . $values . ')');
+                            if (count($matches) === 1 && $matches[0]['currency'] === $currency) {
+                                $account = $matches[0];
+                            }
+                        }
+                    }
+                    if ($account && isset($claimed[(int)$account['id']])) {
+                        $account = null;
+                    }
+                    $name = $resource['name'] ?? $resource['details'] ?? $resource['product'] ?? '';
+                    $fields = ['connection_id' => $id, 'display_name' => ebText(ebBackendText((string)$name, ebMysql()), 200),
+                        'display_identity' => ebMaskedIdentity($resource), 'currency' => $currency,
+                        'cash_account_type' => mb_substr((string)($resource['cash_account_type'] ?? ''), 0, 4), 'updated_at' => ebNow()];
+                    if ($account) {
+                        $accountId = (int)$account['id'];
+                        if ($currency !== 'DKK') {
+                            $fields['state'] = 'unsupported';
+                            $fields['next_fetch_at'] = null;
+                        } elseif (in_array($account['state'], ['disconnected', 'unsupported'], true)) {
+                            $fields['state'] = $account['ledger_account'] && $account['import_from']
+                                ? 'active' : 'new';
+                        }
+                        if ($currency === 'DKK' && in_array($fields['state'] ?? $account['state'], ['active'], true)) {
+                            $fields['next_fetch_at'] = ebNow();
+                        }
+                        $fields += ['last_error_code' => null, 'last_error' => null, 'fail_count' => 0, 'lease_owner' => null, 'lease_until' => null];
+                        ebUpdate('bank_accounts', $accountId, $fields);
+                        ebWrite('UPDATE bank_account_sessions SET active=0 WHERE account_id=' . $accountId);
+                    } else {
+                        // Non-identifying or already-owned primaries need an independent local identity.
+                        $identity = $primary;
+                        if (!in_array($primary, $hashes, true) || ebRow('SELECT id FROM bank_accounts WHERE identification_hash=' . ebSql($primary))) {
+                            $identity = 'local:' . bin2hex(random_bytes(32));
+                        }
+                        $accountId = ebInsert('bank_accounts', $fields + ['identification_hash' => $identity,
+                            'state' => $currency === 'DKK' ? 'new' : 'unsupported', 'created_at' => ebNow()]);
+                    }
+                    $claimed[$accountId] = true;
+                    foreach ($hashes as $hash) {
+                        if (!ebRow('SELECT id FROM bank_accounts WHERE identification_hash=' . ebSql($hash) . ' AND id<>' . $accountId)
+                            && !ebRow('SELECT id FROM bank_account_aliases WHERE identification_hash=' . ebSql($hash))) {
+                            ebInsert('bank_account_aliases', ['account_id' => $accountId, 'identification_hash' => $hash]);
+                        }
+                    }
+                    ebInsert('bank_account_sessions', ['account_id' => $accountId, 'connection_id' => $id,
+                        'account_uid' => $resource['uid'], 'active' => 1, 'created_at' => ebNow()]);
                 }
-                $name = $resource['name'] ?? $resource['details'] ?? $resource['product'] ?? '';
-                $fields = ['connection_id' => $id, 'display_name' => ebText(ebBackendText((string)$name, ebMysql()), 200),
-                    'display_identity' => ebMaskedIdentity($resource), 'currency' => $currency,
-                    'cash_account_type' => mb_substr((string)($resource['cash_account_type'] ?? ''), 0, 4), 'updated_at' => ebNow()];
-                if ($account) {
-                    $accountId = (int)$account['id'];
-                    if ($currency !== 'DKK') {
-                        $fields['state'] = 'unsupported';
-                        $fields['next_fetch_at'] = null;
-                    } elseif (in_array($account['state'], ['disconnected', 'unsupported'], true)) {
-                        $fields['state'] = $account['ledger_account'] && $account['import_from']
-                            ? 'active' : 'new';
-                    }
-                    if ($currency === 'DKK' && in_array($fields['state'] ?? $account['state'], ['active'], true)) {
-                        $fields['next_fetch_at'] = ebNow();
-                    }
-                    $fields += ['last_error_code' => null, 'last_error' => null, 'fail_count' => 0, 'lease_owner' => null, 'lease_until' => null];
-                    ebUpdate('bank_accounts', $accountId, $fields);
-                    ebWrite('UPDATE bank_account_sessions SET active=0 WHERE account_id=' . $accountId);
-                } else {
-                    // Non-identifying or already-owned primaries need an independent local identity.
-                    $identity = $primary;
-                    if (!in_array($primary, $hashes, true) || ebRow('SELECT id FROM bank_accounts WHERE identification_hash=' . ebSql($primary))) {
-                        $identity = 'local:' . bin2hex(random_bytes(32));
-                    }
-                    $accountId = ebInsert('bank_accounts', $fields + ['identification_hash' => $identity,
-                        'state' => $currency === 'DKK' ? 'new' : 'unsupported', 'created_at' => ebNow()]);
+                if ($stateRow['purpose'] === 'reconnect' && $stateRow['connection_id']) {
+                    $oldId = (int)$stateRow['connection_id'];
+                    ebUpdate('bank_connections', $oldId, ['status' => 'replaced', 'updated_at' => ebNow()]);
+                    // Accounts absent from the renewed consent can no longer fetch on the replaced session.
+                    ebWrite("UPDATE bank_accounts SET state='disconnected', next_fetch_at=NULL, lease_owner=NULL, lease_until=NULL WHERE connection_id=" . $oldId);
+                    ebWrite('UPDATE bank_account_sessions SET active=0 WHERE connection_id=' . $oldId);
                 }
-                $claimed[$accountId] = true;
-                foreach ($hashes as $hash) {
-                    if (!ebRow('SELECT id FROM bank_accounts WHERE identification_hash=' . ebSql($hash) . ' AND id<>' . $accountId)
-                        && !ebRow('SELECT id FROM bank_account_aliases WHERE identification_hash=' . ebSql($hash))) {
-                        ebInsert('bank_account_aliases', ['account_id' => $accountId, 'identification_hash' => $hash]);
-                    }
-                }
-                ebInsert('bank_account_sessions', ['account_id' => $accountId, 'connection_id' => $id,
-                    'account_uid' => $resource['uid'], 'active' => 1, 'created_at' => ebNow()]);
-            }
-            if ($stateRow['purpose'] === 'reconnect' && $stateRow['connection_id']) {
-                $oldId = (int)$stateRow['connection_id'];
-                ebUpdate('bank_connections', $oldId, ['status' => 'replaced', 'updated_at' => ebNow()]);
-                // Accounts absent from the renewed consent can no longer fetch on the replaced session.
-                ebWrite("UPDATE bank_accounts SET state='disconnected', next_fetch_at=NULL, lease_owner=NULL, lease_until=NULL WHERE connection_id=" . $oldId);
-                ebWrite('UPDATE bank_account_sessions SET active=0 WHERE connection_id=' . $oldId);
-            }
-            ebAudit($username, $stateRow['purpose'] === 'reconnect' ? 'reconnected' : 'connected', null, $id);
+                ebAudit($username, $stateRow['purpose'] === 'reconnect' ? 'reconnected' : 'connected', null, $id);
+                return $id;
+            });
+            $stored = true;
             return $id;
         });
-    });
+    } catch (Throwable $e) {
+        if ($stored) {
+            // Committed; only releasing the lock failed. The connection is stored, so the consent stays.
+            throw $e;
+        }
+        try {
+            $c->deleteSession($session['session_id']);
+        } catch (Throwable $ignored) {
+            // Best effort: the original error is the one the user needs.
+        }
+        throw $e;
+    }
     if ($old) {
         ebCloseProviderSession($old, $c);
     }
@@ -394,13 +412,15 @@ function ebOverlapHints(int $accountId, array $txIds): array
     }
     $ledger = (int)$account['ledger_account'];
     $out = [];
-    foreach (ebRows('SELECT id, booking_date, amount FROM bank_transactions WHERE account_id=' . (int)$accountId . " AND review_state IN ('pending','review') AND id IN (" . implode(',', $txIds) . ')') as $tx) {
-        if (!$tx['booking_date']) {
+    foreach (ebRows('SELECT id, booking_date, date_override, amount FROM bank_transactions WHERE account_id=' . (int)$accountId . " AND review_state IN ('pending','review') AND id IN (" . implode(',', $txIds) . ')') as $tx) {
+        // Same accounting date the import uses: a value date chosen with "Brug valørdato" wins over the booking date.
+        $accountingDate = $tx['date_override'] ?: $tx['booking_date'];
+        if (!$accountingDate) {
             continue;
         }
         $negative = str_starts_with($tx['amount'], '-');
         $amount = $negative ? substr($tx['amount'], 1) : $tx['amount'];
-        $date = ebSql($tx['booking_date']);
+        $date = ebSql(substr((string)$accountingDate, 0, 10));
         $draft = ebRow('SELECT id FROM kassekladde WHERE transdate=' . $date . ' AND amount=' . ebSql($amount)
             . ' AND ' . ($negative ? 'kredit' : 'debet') . '=' . $ledger . ' AND ' . ($negative ? 'k_type' : 'd_type') . "='F' LIMIT 1");
         $posted = ebRow('SELECT id FROM transaktioner WHERE transdate=' . $date . ' AND kontonr=' . $ledger

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebSync.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/includes/ebSync.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20261028 CDX/LH Fetch active accounts and deliver local automatic queues between bank calls.
 // 20261028 CDX/LH Stop retries on period errors and expose the worker heartbeat age.
 // 20261116 CL/LH Pull model: a fetch only stores lines; nothing is delivered to a journal (ebDeliverQueued() removed).
+// 20261117 CL/LH ebSyncAccount($onlyIfDue): the worker re-checks under the lease that the account is still due.
 
 require_once __DIR__ . '/ebClient.php';
 require_once __DIR__ . '/ebJournal.php';
@@ -36,15 +37,16 @@ require_once __DIR__ . '/crypt.php';
 
 /**
  * @param array<string,string> $psuHeaders
+ * @param bool $onlyIfDue Worker run without --force: skip an account that is no longer due when its lease is taken.
  * @return array{status:string, run_id:int, message:string, error_code?:?string, error_kind?:?string}
  */
-function ebSyncAccount(int $accountId, string $trigger, array $psuHeaders = [], ?EnableBankingClient $client = null): array
+function ebSyncAccount(int $accountId, string $trigger, array $psuHeaders = [], ?EnableBankingClient $client = null, bool $onlyIfDue = false): array
 {
     if (!in_array($trigger, ['schedule', 'manual'], true)) {
         throw new InvalidArgumentException('Invalid sync trigger');
     }
     $owner = bin2hex(random_bytes(24));
-    $account = ebAtomic(function () use ($accountId, $owner, $trigger): ?array {
+    $account = ebAtomic(function () use ($accountId, $owner, $trigger, $onlyIfDue): ?array {
         $row = ebRow('SELECT * FROM bank_accounts WHERE id=' . (int)$accountId . ' FOR UPDATE');
         if (!$row) {
             throw new EbUserError(ebT(findtekst('bank.account.missing|Bankkontoen findes ikke.', ebLang())));
@@ -53,6 +55,11 @@ function ebSyncAccount(int $accountId, string $trigger, array $psuHeaders = [], 
             return null;
         }
         if ($row['lease_until'] !== null && $row['lease_until'] > ebNow()) {
+            return null;
+        }
+        // The worker lists due accounts before it fetches them; a "Hent nu" meanwhile moves the next fetch, so check again here (same rule as ebDueAccounts()).
+        if ($onlyIfDue && !($row['next_fetch_at'] !== null ? $row['next_fetch_at'] <= ebNow()
+            : $row['last_fetch_at'] === null && $row['last_error_code'] === null)) {
             return null;
         }
         if ($trigger === 'manual' && $row['last_manual_at'] !== null && strtotime($row['last_manual_at']) > time() - 300) {

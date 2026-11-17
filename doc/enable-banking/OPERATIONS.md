@@ -14,7 +14,7 @@ opens the journal, clicks "Bankforbindelse" and picks them ("Læg valgte i kladd
 | Connection, mapping, feed and settings pages | `bank_integration/*.php`, `systemdata/diverseIncludes/bank_integration.php` | web server (browser request) |
 | Provider callback (registered redirect URL) | `bank_integration/callback.php` | web server |
 | Background fetch (stores lines, never writes a journal) | `bank_integration/worker.php` (CLI) | cron, as the web server user |
-| Schema | `bank_integration/includes/ebSchema.php`, called from `includes/betweenUpdates.php` at login and by the worker | - |
+| Schema | `bank_integration/includes/ebSchema.php`, `ebSchemaReady()`; the tables are created only by `includes/opdat_func/ebSchemaInstall.php`, called from `includes/betweenUpdates.php` at the company's next login | - |
 
 All bank data lives in each company database (tables `bank_*`). Nothing is stored in the master
 database. Provider session ids are encrypted with `bank_integration/includes/crypt.php`
@@ -43,7 +43,7 @@ $enableBankingEnvironment = "PRODUCTION";
 
 Key file: `install -d -m 750 -o root -g www-data /etc/saldi/enablebanking`, copy the PEM there,
 `chown root:www-data`, `chmod 640`. Never commit it, never place it under the web root, never paste
-it into tickets or chat. The settings page (Indstillinger > Diverse > Bankintegration) shows whether
+it into tickets or chat. The settings page (Indstillinger » Bogføring & bank » Bankforbindelse) shows whether
 the configuration is complete and names the first missing piece without revealing values.
 
 Encryption key: `bank_integration/.ht_oauth_key.bin` (32 random bytes) is created by `index/install.php`.
@@ -95,7 +95,8 @@ background access to at most four fetches per account per day (bank/PSD2 limit f
 
 1. Snapshot/backup the server and company databases (policy for the Saldi VPS: snapshot first).
 2. Deploy the code. No manual SQL: the `bank_*` tables are created on the next login of each company
-   (`includes/betweenUpdates.php`) or by the worker on its first run for that company.
+   (`includes/betweenUpdates.php`). The worker does not create them; until that login it prints
+   `schema_missing` for the company and skips it.
 3. Place the private key and set the four configuration values (section 2). Register the production
    redirect URL on the production application in the Enable Banking control panel. Production
    applications accept only `https` redirect URLs (`http://localhost` is rejected with "uses unsupported
@@ -145,8 +146,9 @@ background access to at most four fetches per account per day (bank/PSD2 limit f
 - Disable globally: remove the cron entry and unset `$enableBankingAppId`; the pages show
   "ikke konfigureret" and the journal button disappears.
 - Code rollback: redeploy the previous release. The `bank_*` tables are additive and can stay; no
-  existing table is altered (posting code is untouched). Journal lines already created are ordinary
-  unposted kassekladde lines and stay valid.
+  existing table is altered. The rollback also removes the journal-header lock this release added to
+  `bogfor()` in `finans/bogfor.php`; that is safe because the old code has no bank import that could
+  race with posting. Journal lines already created are ordinary unposted kassekladde lines and stay valid.
 - Revoke provider access: "Afbryd" on the feed page or per connection on the bank accounts page
   (DELETE session at the provider), or revoke the application in the Enable Banking control panel.
   Saldi always disconnects locally. When the bank does not confirm the revoke, the connection keeps

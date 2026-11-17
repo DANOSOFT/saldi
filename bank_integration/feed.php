@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/feed.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/feed.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20261116 CL/LH Pull model: picked lines go into the journal the user came from (kladde_id, "Læg valgte i kladde N", ebImportIntoJournal()) and the user is sent back to it. Without a journal there is only a hint and skip.
 //                No automatic import switch, bank journal or deferral texts; texts through findtekst() (bank.feed.*).
 // 20261116 CL/LH The actor is the unescaped user name, so a name with an apostrophe matches its own journal lock.
+// 20261117 CL/LH The "Godkend ændring" button sends a hash of the change shown, so a newer change from the bank is never approved unseen.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -193,8 +194,8 @@ function ebFeedRowActions(array $tx, string $disposition): string {
 	$reason = (string)($tx['review_reason'] ?? '');
 	$url = ebFeedUrl();
 	$buttons = array();
-	$button = function (string $op, string $label, string $class = 'small secondary', string $confirm = '') use ($id, $url): string {
-		return ebPostButton($url, array('action' => 'tx', 'tx' => $id, 'op' => $op), $label, $class, $confirm);
+	$button = function (string $op, string $label, string $class = 'small secondary', string $confirm = '', array $extra = array()) use ($id, $url): string {
+		return ebPostButton($url, array('action' => 'tx', 'tx' => $id, 'op' => $op) + $extra, $label, $class, $confirm);
 	};
 	$skip = ebT(findtekst('bank.feed.skip|Spring over', ebLang()));
 	if ($state === 'review') {
@@ -202,7 +203,9 @@ function ebFeedRowActions(array $tx, string $disposition): string {
 			$buttons[] = $button('import', ebT(findtekst('bank.feed.move_to_new|Flyt til Nye', ebLang())), 'small',
 				$reason === 'possible_duplicate' ? ebT(findtekst('bank.feed.move_duplicate_confirm|Flyt posteringen til Nye, selv om en ens postering allerede findes?', ebLang())) : '');
 		} elseif ($reason === 'changed_after_import') {
-			$buttons[] = $button('accept_change', ebT(findtekst('bank.feed.accept_change|Godkend ændring', ebLang())), 'small');
+			// The approval names the change shown here, so a newer change from the bank is never approved unseen.
+			$buttons[] = $button('accept_change', ebT(findtekst('bank.feed.accept_change|Godkend ændring', ebLang())), 'small', '',
+				array('change' => hash('sha256', (string)($tx['changed_payload'] ?? ''))));
 		} elseif ($reason === 'missing_date' && !empty($tx['value_date'])) {
 			$buttons[] = $button('import_value_date', sprintf(ebT(findtekst('bank.feed.use_value_date|Brug valørdato %s', ebLang())), ebFormatDate($tx['value_date'])), 'small');
 		}
@@ -390,7 +393,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			} else {
 				// Binds the action to the selected account (see ebTransactionAction()).
 				$GLOBALS['ebActionAccountId'] = $accountId;
-				$result = ebTransactionAction($txId, $op, $actor);
+				$seenChange = isset($_POST['change']) && is_string($_POST['change']) ? $_POST['change'] : null;
+				$result = ebTransactionAction($txId, $op, $actor, $seenChange);
 				ebFlash('ok', (string)$result['message']);
 			}
 		}
