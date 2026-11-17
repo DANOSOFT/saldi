@@ -97,6 +97,8 @@ while ($product = db_fetch_array($products_query)) {
     $prices = shopPricesForItem($product);
     $salgspris = $prices['salesPrice'];
     $retail_price = $prices['retailPrice'];
+    // the calls below are fire-and-forget, so they confirm nothing; an offer they carry is restored when it ends
+    shopOfferObserve($vare_id, $product, $prices, array_filter(array($api_fil, $api_fil2, $api_fil3)), null, false);
     
     echo "<p>Processing product ID: $vare_id (varenr: $varenr)</p>";
     fwrite($log, "Processing product ID: $vare_id (varenr: $varenr)\n");

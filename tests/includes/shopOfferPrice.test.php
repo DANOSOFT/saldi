@@ -7,10 +7,11 @@ use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../includes/stdFunc/shopOfferPrice.php';
 require_once __DIR__ . '/../../includes/stdFunc/shopOfferPush.php';
+require_once __DIR__ . '/../../includes/stdFunc/shopSyncQueue.php';
 
 /**
- * The prices the webshops are sent during and outside an offer (includes/stdFunc/shopOfferPrice.php) and the push decision
- * (includes/stdFunc/shopOfferPush.php).
+ * The prices the webshops are sent during and outside an offer (includes/stdFunc/shopOfferPrice.php) and the reconciliation
+ * of what each shop confirmed (includes/stdFunc/shopOfferPush.php).
  */
 final class shopOfferPrice extends TestCase
 {
@@ -124,35 +125,130 @@ final class shopOfferPrice extends TestCase
 		], shopPriceParams($item, $prices, 77));
 	}
 
-	/**
-	 * @return array<string, array{array{salesPrice: string, retailPrice: string, offer: bool}, array{sales: string, retail: string, attempts: int, retryAt: int}|null, string}>
-	 */
-	public static function decisions(): array
+	private const SHOPS = ['k1' => 'http://shop1', 'k2' => 'http://shop2', 'k3' => 'http://shop3'];
+	private const OFFER = ['sales' => '159.200', 'retail' => '799.00'];
+	private const NORMAL = ['sales' => '639.200', 'retail' => '899.000'];
+
+	private static function confirmed(array $pair): array
 	{
-		$offer = ['salesPrice' => '159.200', 'retailPrice' => '799.00', 'offer' => true];
-		$normal = ['salesPrice' => '639.200', 'retailPrice' => '899.000', 'offer' => false];
-		$shown = ['sales' => '159.200', 'retail' => '799.00', 'attempts' => 0, 'retryAt' => 0];
-		return [
-			'offer starts'                      => [$offer, null, 'push'],
-			'nothing on record, no offer'       => [$normal, null, 'none'],
-			'offer already shown'               => [$offer, $shown, 'none'],
-			'offer ended'                       => [$normal, $shown, 'push'],
-			'offer price changed'               => [['salesPrice' => '149.000'] + $offer, $shown, 'push'],
-			'failed start, retry not yet due'   => [$offer, ['sales' => '', 'retail' => '', 'attempts' => 1, 'retryAt' => 2000], 'wait'],
-			'failed start, retry due'           => [$offer, ['sales' => '', 'retail' => '', 'attempts' => 1, 'retryAt' => 500], 'push'],
-			'failed start, offer over meanwhile' => [$normal, ['sales' => '', 'retail' => '', 'attempts' => 3, 'retryAt' => 2000], 'forget'],
-			'failed end, retry due'             => [$normal, ['attempts' => 2, 'retryAt' => 900] + $shown, 'push'],
-			'failed end, retry not yet due'     => [$normal, ['attempts' => 2, 'retryAt' => 1100] + $shown, 'wait'],
-		];
+		return ['confirmed' => $pair, 'attempts' => 0, 'refusals' => 0, 'retryAt' => 0, 'error' => '', 'gaveUp' => null];
 	}
 
-	/**
-	 * @param array{salesPrice: string, retailPrice: string, offer: bool} $prices
-	 * @param array{sales: string, retail: string, attempts: int, retryAt: int}|null $record
-	 */
-	#[DataProvider('decisions')]
-	public function testOnlyAChangeIsSent(array $prices, ?array $record, string $expected): void
+	public function testAnUntrackedItemIsSentToEveryShop(): void
 	{
-		$this->assertSame($expected, shopOfferPushDecide($prices, $record, 1000));
+		$plan = shopOfferPlan(null, self::SHOPS, self::OFFER, 1000);
+		$this->assertSame(self::SHOPS, $plan['send']);
+		$this->assertFalse($plan['settled']);
+	}
+
+	public function testOnlyTheShopsThatDisagreeAreSent(): void
+	{
+		$state = ['shops' => ['k1' => self::confirmed(self::OFFER), 'k2' => self::confirmed(['sales' => '59.200', 'retail' => '799.00']), 'k3' => self::confirmed(self::OFFER)]];
+		$this->assertSame(['k2' => 'http://shop2'], shopOfferPlan($state, self::SHOPS, self::OFFER, 1000)['send']);
+		$all = ['shops' => ['k1' => self::confirmed(self::OFFER), 'k2' => self::confirmed(self::OFFER), 'k3' => self::confirmed(self::OFFER)]];
+		$this->assertSame(['send' => [], 'waitUntil' => null, 'settled' => true, 'gaveUp' => []], shopOfferPlan($all, self::SHOPS, self::OFFER, 1000));
+		$this->assertCount(3, shopOfferPlan($all, self::SHOPS, self::NORMAL, 1000)['send'], 'the end of the offer: every shop is owed the normal prices');
+	}
+
+	public function testAShopWaitsForItsRetryTime(): void
+	{
+		$state = ['shops' => ['k1' => ['retryAt' => 1060, 'attempts' => 1] + self::confirmed(self::NORMAL)]];
+		$plan = shopOfferPlan($state, ['k1' => 'http://shop1'], self::OFFER, 1001);
+		$this->assertSame([], $plan['send']);
+		$this->assertSame(1060, $plan['waitUntil']);
+		$this->assertSame(['k1' => 'http://shop1'], shopOfferPlan($state, ['k1' => 'http://shop1'], self::OFFER, 1060)['send']);
+	}
+
+	public function testEachShopsAnswerIsRecordedOnItsOwn(): void
+	{
+		$results = [
+			'k1' => ['ok' => true],
+			'k2' => ['ok' => false, 'httpCode' => 503, 'transient' => true, 'error' => 'http status 503'],
+			'k3' => ['ok' => false, 'httpCode' => 200, 'transient' => false, 'error' => 'shop answered http 2xx with a rejection payload'],
+		];
+		$out = shopOfferRecord(null, $results, self::OFFER, 1000);
+		$this->assertSame(['k1'], $out['delivered']);
+		$this->assertSame(['k2', 'k3'], $out['failed']);
+		$this->assertSame(self::OFFER, $out['state']['shops']['k1']['confirmed']);
+		$this->assertNull($out['state']['shops']['k2']['confirmed'], 'a failure confirms nothing');
+		$this->assertSame([1, 0, 1060], [$out['state']['shops']['k2']['attempts'], $out['state']['shops']['k2']['refusals'], $out['state']['shops']['k2']['retryAt']]);
+		$this->assertSame([0, 1, 1060], [$out['state']['shops']['k3']['attempts'], $out['state']['shops']['k3']['refusals'], $out['state']['shops']['k3']['retryAt']],
+			'a refusal is not delivered: it is retried like a failure');
+	}
+
+	public function testAShopLeftUntriedByTheDeadlineIsNotAFailure(): void
+	{
+		$out = shopOfferRecord(null, ['k1' => ['ok' => false, 'skipped' => true, 'untried' => true]], self::OFFER, 1000);
+		$this->assertSame([[], []], [$out['delivered'], $out['failed']]);
+		$this->assertSame([], $out['state']['shops']);
+	}
+
+	public function testRefusalsOfTheSamePricesStopAfterTheLimitAndStartAgainForNewPrices(): void
+	{
+		$state = null;
+		$gaveUp = [];
+		for ($i = 1; $i <= SHOP_OFFER_MAX_REFUSALS + 1; $i++) {
+			$out = shopOfferRecord($state, ['k1' => ['ok' => false, 'httpCode' => 200, 'transient' => false, 'error' => 'refused']], self::OFFER, 1000 * $i);
+			$state = $out['state'];
+			$gaveUp = array_merge($gaveUp, $out['gaveUpNow']);
+		}
+		$this->assertSame(['k1'], $gaveUp, 'given up once, after ' . SHOP_OFFER_MAX_REFUSALS . ' refusals');
+		$plan = shopOfferPlan($state, ['k1' => 'http://shop1'], self::OFFER, PHP_INT_MAX - 1);
+		$this->assertSame([[], ['k1']], [$plan['send'], $plan['gaveUp']], 'the same prices are not sent again');
+		$this->assertSame(['k1' => 'http://shop1'], shopOfferPlan($state, ['k1' => 'http://shop1'], self::NORMAL, PHP_INT_MAX - 1)['send'],
+			'other prices are');
+	}
+
+	public function testTheBackOffDoublesUpToHalfAnHour(): void
+	{
+		$this->assertSame([60, 120, 240, 480, 960, 1800, 1800, 1800], array_map('shopOfferBackoff', [1, 2, 3, 4, 5, 6, 7, 20]));
+	}
+
+	public function testPricePairsCompareToTheOere(): void
+	{
+		$this->assertTrue(shopOfferPairSame(['sales' => '159.2', 'retail' => '799'], ['sales' => '159.200', 'retail' => '799.00']));
+		$this->assertTrue(shopOfferPairSame(['sales' => '639.200', 'retail' => null], ['sales' => '639.2', 'retail' => '']), 'an empty Vejl.pris');
+		$this->assertFalse(shopOfferPairSame(['sales' => '639.200', 'retail' => null], ['sales' => '639.2', 'retail' => '0']));
+		$this->assertFalse(shopOfferPairSame(null, self::OFFER));
+		$this->assertFalse(shopOfferPairSame(self::OFFER, self::NORMAL));
+	}
+
+	public function testTheStateKeepsEveryFieldOnDisk(): void
+	{
+		$GLOBALS['db'] = 'unit_shopoffer_' . bin2hex(random_bytes(4));
+		$dir = dirname(__DIR__, 2) . '/temp/' . $GLOBALS['db'];
+		try {
+			$state = shopOfferRecord(null, ['k1' => ['ok' => false, 'httpCode' => 503, 'transient' => true, 'error' => '']], ['sales' => '', 'retail' => null], 1000)['state'];
+			shopOfferItemSave(42, $state);
+			$this->assertStringStartsWith('{', (string)file_get_contents($dir . '/shopoffer/item-42.json'), 'self-describing JSON, no positional fields');
+			$loaded = shopOfferItemLoad(42);
+			$this->assertSame(['confirmed' => null, 'attempts' => 1, 'refusals' => 0, 'retryAt' => 1060, 'error' => '', 'gaveUp' => null], $loaded['shops']['k1'],
+				'a first failure keeps its back-off when the prices are empty');
+			$this->assertSame('wait', shopOfferPlan($loaded, ['k1' => 'x'], self::OFFER, 1001)['waitUntil'] === 1060 ? 'wait' : 'push');
+			shopOfferItemSave(42, null);
+			$this->assertNull(shopOfferItemLoad(42));
+		} finally {
+			array_map('unlink', (array)glob($dir . '/shopoffer/*'));
+			@rmdir($dir . '/shopoffer');
+			@rmdir($dir);
+		}
+	}
+
+	public function testASchedulingRequestOnlyMovesTheNextLookEarlier(): void
+	{
+		$GLOBALS['db'] = 'unit_shopoffer_' . bin2hex(random_bytes(4));
+		$dir = dirname(__DIR__, 2) . '/temp/' . $GLOBALS['db'];
+		try {
+			$this->assertSame(PHP_INT_MAX, shopOfferPushDueAt(), 'dormant');
+			shopOfferPushSchedule(5000);
+			shopOfferPushSchedule(3000);
+			shopOfferPushSchedule(9000);
+			$this->assertSame(3000, shopOfferPushDueAt());
+			$this->assertSame(['due' => 3000, 'gen' => 2], shopOfferScheduleRead(), 'two requests moved it, one did not');
+		} finally {
+			array_map('unlink', (array)glob($dir . '/shopoffer/*'));
+			@rmdir($dir . '/shopoffer');
+			@rmdir($dir);
+		}
 	}
 }
