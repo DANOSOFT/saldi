@@ -1,5 +1,5 @@
 <?php
-// --------includes/openpost.php ----- ver 5.0.0 ---- 2026.11.16 ---------------------------
+// --------includes/openpost.php ----- ver 5.0.0 ---- 2026.11.17 ---------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -28,6 +28,7 @@
 //                 bogfor_rykker() selects pris and bogfor_nu() initialises $afd (PHP warnings).
 // 20261109 CL/ASR Review fixes: bogfor_rykker() refreshes a carried fee from the reminder's lines before it moves it to "Bogførte rykkere", and posts nothing for a reminder dated outside the active fiscal year (as includes/rapportfunc.php).
 // 20261116 CDX/ASR Include the rendered ledger in report forms to prevent cross-company reminder creation.
+// 20261117 CDX/ASR Allow the scheduler to own the posting transaction and roll back an unbalanced reminder.
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $art) {
 	?>
@@ -757,8 +758,10 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 	print "</tbody></table>";
 } #endfunc vis_aabne_poster
 ####################################################################################### 
- function bogfor_rykker($id) {
-// Bemaerk at der ikke traekkes moms ved bogfoering af rykkergebyr - heller ikke selvom gebyret tilhorer en momsbelagt varegruppe.
+/** @return void|false Post fees; the scheduler may own the enclosing transaction. */
+function bogfor_rykker($id, bool $manageTransaction = true) {
+	$id = (int)$id;
+	// Bemaerk at der ikke traekkes moms ved bogfoering af rykkergebyr - heller ikke selvom gebyret tilhorer en momsbelagt varegruppe.
 	global $fakturadate; 
 	// 20261109 CL/ASR a link reminder whose fee and interest go on the customer's next invoice posts nothing here:
 	// no open item, no transactions. It only moves to "Bogførte rykkere" (status 4), so it can be escalated.
@@ -804,13 +807,15 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 		}
 	} 
 	if (!$fejl) {
-		transaktion('begin');
-		bogfor_nu($id);
-		transaktion('commit');
+		if ($manageTransaction) transaktion('begin');
+		bogfor_nu($id, !$manageTransaction);
+		if ($manageTransaction) transaktion('commit');
 	}
 }
-function bogfor_nu($id)
+/** @return void Write balanced reminder postings, or throw for an atomic scheduler rollback. */
+function bogfor_nu($id, bool $throwOnError = false)
 {
+	$id = (int)$id;
 	$d_kontrol=0; 
 	$k_kontrol=0;
 	$logdate=date("Y-m-d");
@@ -838,21 +843,21 @@ function bogfor_nu($id)
 #		$ym=$year.$month;
 		$art=$r['art'];
 		$konto_id=$r['konto_id'];
-		$kontonr=str_replace(" ","",$r['kontonr']);
+		$kontonr=db_escape_string(str_replace(" ","",$r['kontonr']));
 		$firmanavn=trim($r['firmanavn']);
 		$modtagelse=$r['modtagelse'];
 		$transdate=($r['fakturadate']);
-		$fakturanr=$r['fakturanr'];
+		$fakturanr=db_escape_string($r['fakturanr']);
 		$ordrenr=$r['ordrenr'];
 		$valutakurs=$r['valutakurs'];
-		$projekt=$r['projekt']*1;
-		$refnr;
+		$projekt=(int)($r['projekt'] ?? 0);
+		$refnr = 0;
 		if ($r['moms']) {$moms=$r['moms'];}
 		else {$moms=round($r['sum']*$r['momssats']/100,2);}
 		$sum=$r['sum']+$moms;
 		$ordreantal=$x;
 		$afd = 0;
-		if ($r= db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'",__FILE__ . " linje " . __LINE__))) $afd=$r['afd'];
+		if ($r= db_fetch_array(db_select("select afd from ansatte where navn = '" . db_escape_string((string)($r['ref'] ?? '')) . "'",__FILE__ . " linje " . __LINE__))) $afd=$r['afd'];
 		$afd=$afd*1; #sikkerhed for at 'afd' har en vaerdi 
 		 
 		$bilag=0;
@@ -881,8 +886,8 @@ function bogfor_nu($id)
 		$q = db_select("select * from ordrelinjer where ordre_id=" . (int)$id, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (!in_array($r['bogf_konto'], $bogf_konto)) {
-			$y++;
-			$bogf_konto[$y]=$r['bogf_konto'];
+				$y++;
+				$bogf_konto[$y]=$r['bogf_konto'];
 				$pris[$y]=$r['pris']*$r['antal']-round(($r['pris']*$r['antal']*$r['rabat']/100),2);
 			}
 			else {
@@ -924,6 +929,7 @@ function bogfor_nu($id)
 	$d_kontrol=round($d_kontrol,2);
 	$k_kontrol=round($k_kontrol,2);
 	if ($d_kontrol!=$k_kontrol) {
+		if ($throwOnError) throw new RuntimeException('Rykkerens posteringer stemmer ikke.');
 		print "<BODY onLoad=\"javascript:alert('Der er konstateret en uoverensstemmelse i posteringssummen, kontakt administrator')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?id=$id\">";
 		exit;

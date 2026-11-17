@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.0.0 --- 2026-11-11 ---
+// --- includes/formfunk.php --- ver 5.0.0 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -97,7 +97,8 @@
 // 20261109 CL/ASR Review fixes in rykkerprint(): a carried fee says where it went in any status (next invoice / charged on invoice X / waived) and is never in "I alt"; a link reminder's PDF leaves out what its mail leaves out (D3); every reminder of a batch writes its own HTML page ("Brug html"), so printed reminders no longer land on top of each other; a draft link reminder printed on paper counts as sent.
 // 20261111 CL/ASR The reminder letter's $rykker_gebyr / $rykker_rente say where a carried fee goes ("100,00 – opkræves på din næste faktura"), as the fee lines do.
 // 20261111 CDX/ASR Render link reminder deadlines consistently with the mail.
-
+// 20261117 CDX/ASR Return reminder delivery results to the scheduler; isolate generated files per request.
+//
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
 
@@ -2622,7 +2623,7 @@ if (!function_exists('utf8_iso8859')) {
 	}
 }
 if (!function_exists('rykkerprint')) {
-	function rykkerprint($konto_id, $rykker_id, $rykkernr, $maaned_fra, $maaned_til, $regnaar, $inkasso)
+	function rykkerprint($konto_id, $rykker_id, $rykkernr, $maaned_fra, $maaned_til, $regnaar, $inkasso, bool $returnResults = false)
 	{
 
 		global $bg_fil, $bruger_id;
@@ -2632,12 +2633,14 @@ if (!function_exists('rykkerprint')) {
 		global $pdftk,$ps2pdf,$weasyprint;
 
 		if (!$formularsprog) $formularsprog = 'dansk';
+		$deliveries = array();
 		$mailantal = 0;
 		$nomailantal = 0;
 		$reminderMessages = array();   // 20261109 CL/ASR staff messages of the batch: one alert before the redirect
 		$formular = $rykkernr + 5;
-		if ($formular < 6)
+		if ($formular < 6) {
 			$formular = 6;
+		}
 		$bg = "nix";
 
 		$pfnavn = abs($bruger_id) . "_" . date("his") . "/" . "$rykkernr";
@@ -2650,8 +2653,9 @@ if (!function_exists('rykkerprint')) {
 		fclose($fp);
 
 		print "<!-- kommentar for at skjule uddata til siden \n";
-		if (!file_exists("../logolib/$db_id"))
+		if (!file_exists("../logolib/$db_id")) {
 			mkdir("../logolib/$db_id");
+		}
 		if ($pdftk && file_exists("../logolib/$db_id/bg.pdf")) {
 			$logoart = 'PDF';
 		} elseif (file_exists("../logolib/$db_id/$formular.ps")) {
@@ -2677,10 +2681,12 @@ if (!function_exists('rykkerprint')) {
 				$logo_X = 430;
 				$logo_Y = 758;
 			}
-			if (file_exists("../logolib/logo_$db_id.eps"))
+			if (file_exists("../logolib/logo_$db_id.eps")) {
 				$logo = "../logolib/logo_$db_id.eps";
-			else
+			}
+			else {
 				$logo = "../logolib/logo.eps";
+			}
 			$logoart = 'EPS';
 		}
 		print "-->\n";
@@ -2701,16 +2707,21 @@ if (!function_exists('rykkerprint')) {
 						$logo = $logo . $linje;
 					}
 				} else {
-					if (strstr($linje, 'showpage'))
+					if (strstr($linje, 'showpage')) {
 						$linje = '';
-					if (strstr($linje, '%%PageTrailer'))
+					}
+					if (strstr($linje, '%%PageTrailer')) {
 						$linje = '';
-					if (strstr($linje, '%%Trailer'))
+					}
+					if (strstr($linje, '%%Trailer')) {
 						$linje = '';
-					if (strstr($linje, '%%Pages:'))
+					}
+					if (strstr($linje, '%%Pages:')) {
 						$linje = '';
-					if (strstr($linje, '%%EOF'))
+					}
+					if (strstr($linje, '%%EOF')) {
 						$linje = '';
+					}
 					$logo = $logo . $linje;
 				}
 			}
@@ -2725,10 +2736,12 @@ if (!function_exists('rykkerprint')) {
 		}
 		#	if ($inkasso) $printfilnavn=abs($bruger_id)."_".date("his")."/"."$inkasso";
 		#	else
-		if ($rykkernr[0])
+		if ($rykkernr[0]) {
 			$printfilnavn = $printDirectory . "/" . "$rykkernr[0]";
-		else
+		}
+		else {
 			$printfilnavn = $printDirectory . "/" . "rykker";
+		}
 		$psfp = fopen("../temp/$db/$printfilnavn.ps", "w");
 		$htmfp = fopen("../temp/$db/$printfilnavn.htm", "w");
 		$htminitxt = "<html>\n";
@@ -2765,6 +2778,12 @@ if (!function_exists('rykkerprint')) {
 			// between reminders): a refused reminder is left out with a message. The layout follows each reminder's own level.
 			if ($rykker_id[$q] && !$inkasso) {
 				$refusal = formReminderRefusal((int)$rykker_id[$q]);
+				require_once __DIR__ . '/reminderAutomation.php';
+				$autoService = reminder_automation_service();
+				if ($autoService && $autoService->job((int)$rykker_id[$q])) {
+					$autoOrder = db_fetch_array(db_select('select mail_fakt from ordrer where id=' . (int)$rykker_id[$q], __FILE__ . ' line ' . __LINE__));
+					if (($autoOrder['mail_fakt'] ?? '') !== 'on') $refusal = 'Automatiske rykkere skal godkendes og sendes pr. mail fra rykkeroversigten.';
+				}
 				if ($refusal !== '') {
 					$reminderMessages[] = $refusal;
 					continue;
@@ -2810,7 +2829,7 @@ if (!function_exists('rykkerprint')) {
 				($inkasso) ? $mailfakt = 'on' : $mailfakt = $r['mailfakt'];
 				if ($mailfakt) {
 					$mailantal++;
-					$pfnavn = "Rykker" . $rykker_id[$q];
+					$pfnavn = $printDirectory . "/Rykker" . $rykker_id[$q];
 					$pfliste[$mailantal] = $pfnavn;
 					$pfnavn = $db . "/" . $pfnavn;
 					$psfp2 = fopen("../temp/$pfnavn", "w");
@@ -2820,7 +2839,7 @@ if (!function_exists('rykkerprint')) {
 					$mailHtm[] = "../temp/$pfnavn.htm";
 					#				if ($r['felt_5']) $email[$mailantal]=$r['felt_5'];
 					$email[$mailantal] = $r['email'];
-					$mailsprog[$mailantal] = strtolower($r['sprog']);
+					$mailsprog[$mailantal] = strtolower((string)$r['sprog']);
 					$mailRykkerId[$mailantal] = $rykker_id[$q]; // 20260814 LH
 					#			$form_nr[$mailantal]=$formular;
 				} else {
@@ -2837,10 +2856,10 @@ if (!function_exists('rykkerprint')) {
 					if (!$inkasso) formReminderPrinted((int)$rykker_id[$q]);   // 20261109 CL/ASR a draft link reminder on paper is sent
 				}
 				fwrite($psfp, $ps_ini);
-				$formularsprog = strtolower($r['sprog']);
+				$formularsprog = strtolower((string)$r['sprog']);
 				$art = $r['art'];
 				$rykkerdate = $r['rykkerdate'];
-				$deb_valuta = $r['valuta'];
+				$deb_valuta = $r['valuta'] ?: 'DKK';
 				if (!$valuta) {
 					$valuta = 'DKK';
 				}
@@ -2957,26 +2976,29 @@ if (!function_exists('rykkerprint')) {
 			#		$ialt=dkdecimal($forfalden,2);
 			find_form_tekst("$rykker_id[$q]", "S", "$formular", "0", "$linjeafstand", "");
 			bundtekst($konto_id[$q]);
+			if ($mailfakt) {
+				fclose($psfp);
+				fclose($htmfp);
+			}
 		}
-		#	fclose($psfp);
+		if (is_resource($batchPsfp)) fclose($batchPsfp);
+		if (is_resource($htmfp)) fclose($htmfp);
+		if (is_resource($batchHtmfp)) fclose($batchHtmfp);
 		if ($mailantal > 0) {
 			if (!isset($exec_path)) $exec_path = "/usr/bin";
 			for ($x = 1; $x <= $mailantal; $x++) {
 				print "<!-- kommentar for at skjule uddata til siden \n";
-				system("$ps2pdf ../temp/$db/$pfliste[$x] ../temp/$db/$pfliste[$x].pdf");
-				if ($logoart == 'PDF') {
-					if (file_exists("../logolib/$db_id/bg.pdf")) { #20260312
-						$out = "../temp/$db/" . $pfliste[$x] . "x.pdf";
-						system("$pdftk ../temp/$db/$pfliste[$x].pdf background ../logolib/$db_id/bg.pdf output $out");
-					} else $out = "../temp/$db/$pfliste[$x].pdf";
-					if (!$inkasso) {
-						unlink("$mappe/$pfliste[$x].pdf");
-						system("mv $out $mappe/$pfliste[$x].pdf");
-					}
-				} else {
-					if (!$inkasso) {
-						unlink("$mappe/$pfliste[$x].pdf");
-						system("mv ../temp/$db/$pfliste[$x].pdf $mappe/$pfliste[$x].pdf");
+				$source = "../temp/$db/$pfliste[$x]";
+				$pdf = $source . '.pdf';
+				system($ps2pdf . ' ' . escapeshellarg($source) . ' ' . escapeshellarg($pdf), $pdfStatus);
+				if ($pdfStatus !== 0 || !is_file($pdf)) {
+					throw new RuntimeException('Rykkerens PDF kunne ikke dannes.');
+				}
+				if ($logoart === 'PDF' && is_file("../logolib/$db_id/bg.pdf")) {
+					$out = $source . 'x.pdf';
+					system($pdftk . ' ' . escapeshellarg($pdf) . ' background ' . escapeshellarg("../logolib/$db_id/bg.pdf") . ' output ' . escapeshellarg($out), $backgroundStatus);
+					if ($backgroundStatus !== 0 || !is_file($out) || !rename($out, $pdf)) {
+						throw new RuntimeException('Rykkerens baggrund kunne ikke tilføjes.');
 					}
 				}
 				print "--> \n";
@@ -2985,7 +3007,8 @@ if (!function_exists('rykkerprint')) {
 					exit;
 				} else {
 					// 20261109 CL/ASR link reminders get the mail with payment links (classic PDF mail as fallback); classic ones as before
-					$delivery = formSendReminderEntry((int)$mailRykkerId[$x], "$mappe/$pfliste[$x].pdf", (string)$email[$x], (string)$mailsprog[$x], $form_nr[$x]);
+					$delivery = formSendReminderEntry((int)$mailRykkerId[$x], "../temp/$db/$pfliste[$x].pdf", (string)$email[$x], (string)$mailsprog[$x], $form_nr[$x]);
+					$deliveries[(int)$mailRykkerId[$x]] = $delivery;
 					$svar = $delivery['result'];
 					if ($delivery['message'] !== '') {
 						$reminderMessages[] = $delivery['message'];
@@ -2996,6 +3019,7 @@ if (!function_exists('rykkerprint')) {
 		foreach ($mailHtm as $file) {
 			if (file_exists($file)) unlink($file);
 		}
+		if ($returnResults) return $deliveries;
 		if ($nomailantal > 0) {
 			print formReminderAlertHtml($reminderMessages);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$db/$printfilnavn&id=$id&art=R&udskriv_til=PDF\">";

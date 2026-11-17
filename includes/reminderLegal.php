@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reminderLegal.php --- ver 5.0.0 --- 2026.11.16 ---
+// --- includes/reminderLegal.php --- ver 5.0.0 --- 2026.11.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,8 +29,9 @@
 //                 Also the shared reading of a reminder's lines: its fee/interest lines (GEBYR items of formular level+5) and the newest invoice it reminds of.
 // 20261109 CL/ASR Review fixes: a fee item that is also the interest item counts only its last line as fee (the others are interest); the fee of an earlier level of the same chain is recognised (reminder_prior_fee_level()); which reminded invoices are paid (reminder_invoice_payment()); the active fiscal year (reminder_in_active_year()).
 //                 reminder_txt() returns its Danish fallback in the database's encoding, like findtekst().
-
+//
 // 20261116 CDX/ASR Bind reminder creation to the report's ledger, including popup requests.
+// 20261117 CDX/ASR Use the automation queue's confirmed sending date when checking the next reminder.
 
 /**
  * Whether the report and the current session refer to the same ledger.
@@ -289,6 +290,10 @@ function reminder_newest_invoice($rykkerId) {
  * @return string Y-m-d, or '' when the reminder does not exist.
  */
 function reminder_sent_date($rykkerId) {
+    if (tbl_exists('reminder_automation_jobs')) {
+        $tracked = db_fetch_array(db_select('select sent_date from reminder_automation_jobs where order_id=' . (int)$rykkerId, __FILE__ . ' line ' . __LINE__));
+        if (!empty($tracked['sent_date'])) return (string)$tracked['sent_date'];
+    }
 	if (reminder_link_table()) {
 		$s = db_fetch_array(db_select("select mailed_at from stripe_reminders where rykker_id = " . (int)$rykkerId . " and mailed_at is not null", __FILE__ . " linje " . __LINE__));
 		if ($s && preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$s['mailed_at'])) return substr((string)$s['mailed_at'], 0, 10);

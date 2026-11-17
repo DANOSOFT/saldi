@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.11.09
+// --- includes/betweenUpdates.php --- ver 5.0.0 --- 2026.11.17
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -122,6 +122,7 @@
 // 20261022 CDX/LH Repair individual missing Stripe invoice indexes on tenant login.
 // 20261023 CDX/LH Retain redesign migrations and append the fixed Stripe schema repairs in chronological order.
 // 20261109 CL/ASR One-time: reminder fee open items made by bogfor_nu() get projekt '' instead of NULL, so a payment of the fee can settle them.
+// 20261117 CDX/ASR Install the disabled reminder automation queue through the update chain.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1736,5 +1737,9 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt.= " 'One-time backfill of projekt on reminder fee open items (bogfor_nu)')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+
+// 20261117 CDX/ASR Opt-in reminder automation for redesign; schema installation never enables sending.
+require_once __DIR__ . '/opdat_func/reminderAutomation.php';
+reminder_automation_schema_ensure();
 
 ?>

@@ -10,6 +10,7 @@
 // 20261111 CL/ASR Review round 2: a link reminder whose fee was waived before it was ever sent ("Frafald", or its fee line deleted) still goes as a link mail and
 //                 gets its mailed_at; a link reminder with no invoice left to pay is refused when printed too (not only when mailed), so no fee is carried for it.
 // 20261111 CDX/ASR Match link reminder PDF payment terms to the mail deadline.
+// 20261117 CDX/ASR Claim tracked automation deliveries before SMTP and record their outcome.
 
 /**
  * Replace standard Danish fixed payment terms in a link reminder's form with its actual deadline.
@@ -227,6 +228,21 @@ function formReminderMarkSent(int $rykkerId, string $channel, string $email): vo
  * }
  */
 function formSendReminderEntry(int $rykkerId, string $pdf, string $email, string $language, $form, $classicSender = 'send_mails'): array {
+    require_once __DIR__ . '/../reminderAutomation.php';
+    $automation = reminder_automation_service();
+    if ($automation && $automation->job((int)$rykkerId)) {
+        return $automation->send((int)$rykkerId, function () use ($rykkerId, $pdf, $email, $language, $form, $classicSender) {
+            if (!is_file($pdf) || filesize($pdf) < 5 || file_get_contents($pdf, false, null, 0, 5) !== '%PDF-') {
+                throw new RuntimeException('Rykkerens PDF mangler eller er ugyldig.');
+            }
+            return formSendReminderUntracked($rykkerId, $pdf, $email, $language, $form, $classicSender, false);
+        }, (string)($GLOBALS['brugernavn'] ?? 'scheduler'));
+    }
+    return formSendReminderUntracked($rykkerId, $pdf, $email, $language, $form, $classicSender);
+}
+
+/** @return array{result: mixed, message: string, sent: bool, channel: string} Existing delivery implementation. */
+function formSendReminderUntracked(int $rykkerId, string $pdf, string $email, string $language, $form, $classicSender = 'send_mails', bool $allowFallback = true): array {
 	$refusal = formReminderRefusal($rykkerId);
 	if ($refusal !== '') {
 		return array('result' => false, 'message' => $refusal, 'sent' => false, 'channel' => '');
@@ -252,6 +268,9 @@ function formSendReminderEntry(int $rykkerId, string $pdf, string $email, string
 	} catch (Throwable $e) {
 		formReminderLog('reminder link mail ' . $rykkerId . ': ' . $e->getMessage());
 	}
+    if (!$allowFallback) {
+        return array('result' => false, 'message' => 'Linkmailens afsendelse er uafklaret. Kontrollér mailserverens log før nyt forsøg.', 'sent' => false, 'channel' => '');
+    }
 	// The link mail could not be sent: the classic PDF mail instead, so the customer still gets the reminder.
 	try {
 		$result = $classicSender((string)$rykkerId, $pdf, $email, $language, $form, '', '', '', 0);

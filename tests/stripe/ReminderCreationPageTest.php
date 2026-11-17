@@ -1,8 +1,10 @@
 <?php
 // 20261116 CDX/ASR Execute the reminder creation controller with missing customers and trailing batch separators.
+// 20261117 CDX/ASR Exercise the shared creation service inside the fixture transaction.
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/reminderFixtures.php';
 require_once __DIR__ . '/../../includes/stdFunc/dunningCutoff.php';
+require_once __DIR__ . '/../../includes/reminderCreate.php';
 
 final class ReminderCreationPageTest extends StripeDatabaseTestCase
 {
@@ -27,27 +29,14 @@ final class ReminderCreationPageTest extends StripeDatabaseTestCase
         $second = StripeFixtures::debtor(['gruppe' => 1, 'kontoansvarlig' => 999999999]);
         StripeFixtures::invoice($first);
         StripeFixtures::invoice($second);
-        $before = $_GET;
-        $_GET = ['kontoliste' => "$first;999999999;$second;", 'kontoantal' => 99];
-        $stripeDunningOpen = $stripeDunningReminder = '1=1';
-        $legalNotes = [];
-        $topniveau = null;
-        $brugernavn = 'reminder-test';
-        $source = file_get_contents(__DIR__ . '/../../debitor/ny_rykker.php');
-        if (!function_exists('find_rente')) {
-            eval(substr($source, strpos($source, 'function find_rente')));
-        }
-        $start = strpos($source, '$konto_antal =');
-        $end = strpos($source, 'if ($topniveau) $legalNotes');
-        $body = substr($source, $start, $end - $start);
         set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
             throw new ErrorException($message, 0, $severity, $file, $line);
         }, E_WARNING | E_NOTICE);
         try {
-            eval($body);
+            $created = reminder_create_batch([$first, 999999999, $second], [], date('Y-m-d'), date('Y-m-d'), 'reminder-test');
+            $legalNotes = $created['notes'];
         } finally {
             restore_error_handler();
-            $_GET = $before;
         }
         $rows = pg_fetch_all(StripeTestEnvironment::query("SELECT konto_id,art,ref,tidspkt FROM ordrer WHERE art='R1' ORDER BY konto_id"));
         $this->assertCount(2, $rows);

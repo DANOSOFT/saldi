@@ -6954,3 +6954,6 @@
 
 8180	Kunde {konto} findes ikke. Der er ikke oprettet en rykker for denne kunde.	Customer {konto} does not exist. No reminder was created for this customer.	Kunde {konto} finnes ikke. Det er ikke opprettet en purring for denne kunden.
 8181	Regnskabet er skiftet, eller rapporten er for gammel. Åbn rapporten igen i det ønskede regnskab, før du opretter rykkere.	The company has changed or the report is out of date. Reopen the report in the intended company before creating reminders.	Regnskapet er endret, eller rapporten er for gammel. Åpne rapporten på nytt i ønsket regnskap før du oppretter purringer.
+8200	Automatiske rykkere	Automatic reminders	Automatiske purringer
+8201	Vælg automatisk afsendelse eller kladder til godkendelse, og følg rykkerkørslerne.	Choose automatic sending or drafts for approval and follow reminder runs.	Velg automatisk sending eller utkast til godkjenning, og følg purrekjøringene.
+8202	Åbn rykkerflow	Open reminder flow	Åpne purreflyt
