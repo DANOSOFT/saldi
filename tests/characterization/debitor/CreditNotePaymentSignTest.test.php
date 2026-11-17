@@ -5,8 +5,8 @@
 // posted order inserted the credit note with the order's positive amounts, because the sign change in debitor/ordre.php
 // ran only after the insert. On a cash-paid order the credit note got cash +3.999, the page computed the card amount as
 // the total minus that (-7.998), and Kreditér booked both, since they add up to the total.
-// The helpers in debitor/orderIncludes/orderPayment.php are tested here, and the page is checked to call them
-// before the credit note is inserted and before Fakturér/Kreditér.
+// The helper in debitor/orderIncludes/orderPayment.php is tested here, the page is checked to call it before the
+// credit note is inserted, and the unchanged payment check is checked to let mixed refunds that add up through.
 //
 // History:
 // 20261117 CL/MMR SST-1018 Created.
@@ -51,57 +51,35 @@ final class CreditNotePaymentSignTest extends TestCase
         self::assertSame($creditNote, credit_note_payment_amount($order));
     }
 
-    /** @return array<string, array{mixed, mixed, bool}> amount, credit note total, stopped */
-    public static function creditNotePayments(): array
+    /**
+     * The payment check before Fakturér/Kreditér is unchanged: it stops only when the payments do not add up to the
+     * total. Mixed refunds that add up (a smaller card payment taken while a larger cash amount is paid back, as used
+     * in real credit notes) still go through.
+     *
+     * @return array<string, array{mixed, mixed, float, string, bool}> felt_2, felt_4, sum, moms, stopped
+     */
+    public static function paymentChecks(): array
     {
         return [
-            'positive cash on a negative credit note' => [3999.0, -3999.0, true],
-            'positive cash as text'                   => ['2700', '-4898.000', true],
-            'positive card on a negative credit note' => [1.0, -999.0, true],
-            'negative payment'                        => [-3999.0, -3999.0, false],
-            'zero payment'                            => ['0.00', -3999.0, false],
-            'less than half an øre'                   => [0.004, -3999.0, false],
-            'credit note with a positive total'       => [15000.0, 15000.0, false],
-            'credit note with a zero total'           => [100.0, 0.0, false],
-            'empty field'                             => ['', -3999.0, false],
+            'mixed refund, card +1 / cash -1.000'          => [1.0, -1000.0, -799.2, '-199.800', false],
+            'mixed refund, card +5.249,20 / cash -5.599,20' => [5249.2, -5599.2, -280.0, '-70.000', false],
+            'mixed refund, card +200,20 / cash -1.000'     => [200.2, -1000.0, -639.84, '-159.960', false],
+            'mixed refund, card +0,09 / cash -799,99'      => [0.09, -799.99, -639.92, '-159.980', false],
+            'cash refund after the fix'                    => ['0.00', -3999.0, -3199.2, '-799.800', false],
+            'amounts do not add up'                        => [-1000.0, -1000.0, -3199.2, '-799.800', true],
+            'sale that adds up'                            => [699.0, 1000.0, 1359.2, '339.800', false],
         ];
     }
 
-    #[DataProvider('creditNotePayments')]
-    public function testAPaymentWithASalesSignIsFound(mixed $amount, mixed $total, bool $wrong): void
+    #[DataProvider('paymentChecks')]
+    public function testThePaymentCheckStopsOnlyWhenTheSumIsWrong(mixed $felt_2, mixed $felt_4, float $sum, string $moms, bool $stop): void
     {
-        self::assertSame($wrong, credit_note_payment_sign_wrong($amount, $total));
-    }
-
-    /** @return array<string, array{string, string, string, mixed, mixed, float, string, bool, ?string}> art, felt_1, betalingsbet, felt_2, felt_4, sum, moms, stop, alert */
-    public static function invoiceChecks(): array
-    {
-        return [
-            'credit note, cash +3.999 and card -7.998 add up' => ['DK', 'Kortbetaling', 'Kontant', -7998.0, 3999.0, -3199.2, '-799.800', true, 'sign'],
-            'credit note, cash +3.999 and card 0'             => ['DK', 'Kortbetaling', 'Kontant', '0.00', 3999.0, -3199.2, '-799.800', true, 'sign'],
-            'credit note, cash -3.999 and card 0'             => ['DK', 'Kortbetaling', 'Kontant', '0.00', -3999.0, -3199.2, '-799.800', false, null],
-            'credit note, amounts do not add up'              => ['DK', 'Kortbetaling', 'Kontant', -1000.0, -1000.0, -3199.2, '-799.800', true, 'sum'],
-            'credit note with a positive total'               => ['DK', 'Kortbetaling', 'Kontant', 15000.0, '0.00', 12000.0, '3000.000', false, null],
-            'sale, card and cash add up'                      => ['DO', 'MASTERCARD', 'Kontant', 699.0, 1000.0, 1359.2, '339.800', false, null],
-            'sale, amounts do not add up'                     => ['DO', 'MASTERCARD', 'Kontant', 699.0, '0.00', 1359.2, '339.800', true, 'sum'],
-            'sale on Konto with Kontant terms'                => ['DO', 'Konto', 'Kontant', 1699.0, '0.00', 1359.2, '339.800', true, null],
-        ];
-    }
-
-    #[DataProvider('invoiceChecks')]
-    public function testInvoicingStopsOnAWrongSignOrSum(string $art, string $felt1, string $betalingsbet, mixed $felt2, mixed $felt4, float $sum, string $moms, bool $stop, ?string $alert): void
-    {
-        $check = order_invoice_payment_check($art, $felt1, $betalingsbet, $felt2, $felt4, $sum, $moms);
-
-        self::assertSame($stop, $check['stop']);
-        self::assertSame($alert, $check['alert']);
-    }
-
-    public function testTheSumMessageKeepsItsNumbers(): void
-    {
-        $check = order_invoice_payment_check('DK', 'Kortbetaling', 'Kontant', -1000.0, -1000.0, -3199.2, '-799.800');
-
-        self::assertSame('Betalt beløb (-2000 stemmer ikke med sum -3999)', "Betalt beløb ($check[paid] stemmer ikke med sum $check[total])");
+        $src = (string)file_get_contents(self::ORDRE);
+        $condition = "afrund(\$sum + \$r['moms'] - (\$felt_2 + \$felt_4), 2)";
+        self::pos($src, "if ($condition) {");
+        $r = ['moms' => $moms];
+        $stopped = (bool)eval("return $condition;");
+        self::assertSame($stop, $stopped);
     }
 
     public function testKreditTurnsThePaymentsBeforeTheCreditNoteIsInserted(): void
@@ -115,19 +93,6 @@ final class CreditNotePaymentSignTest extends TestCase
         self::assertLessThan($insert, $turn, 'the payments are turned before the credit note is inserted');
         self::assertStringContainsString("if (\$vis_saet && !(\$creditNotePaymentsTurned ?? false)) {", $src, 'the later sign change does not turn them back');
         self::assertStringNotContainsString('$felt_4 *= -1;', $src);
-    }
-
-    public function testFakturerAndKrediterUseThePaymentCheck(): void
-    {
-        $src = (string)file_get_contents(self::ORDRE);
-        $branch = self::pos($src, "if (\$b_submit == 'doInvoice' && \$vis_saet) {");
-        $check = self::pos($src, "\$paymentCheck = order_invoice_payment_check(\$art, \$felt_1, \$betalingsbet, \$felt_2, \$felt_4, \$sum, \$r['moms']);");
-        $stop = self::pos($src, "if (\$paymentCheck['stop']) \$b_submit = 'Gem';");
-
-        self::assertLessThan($check, $branch);
-        self::assertLessThan($stop, $check);
-        self::assertStringContainsString("include_once(__DIR__ . '/orderIncludes/orderPayment.php');", $src);
-        self::assertStringNotContainsString("afrund(\$sum + \$r['moms'] - (\$felt_2 + \$felt_4), 2)", $src, 'the old check is no longer in the page');
     }
 
     /** Position of the one occurrence of $needle in debitor/ordre.php. */

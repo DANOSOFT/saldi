@@ -189,8 +189,7 @@
 //                Without one, the next Gem posted an empty position and stopped with a TypeError.
 // 20261117 CL/MMR SST-1018 With Brug samlet pris, Kredit gives the new credit note the credited order's payments with the opposite sign before the credit note is created.
 //                 The old sign change came after the credit note was already inserted, so a cash amount stayed positive and the card amount became the total minus it.
-//                 Kreditér stops with a message while a payment on a credit note with a negative total is positive, also when the amounts add up to the total.
-//                 The payment check before Fakturér/Kreditér is order_invoice_payment_check() in orderIncludes/orderPayment.php, and the includes beside it use __DIR__.
+//                 The sign change is credit_note_payment_amount() in orderIncludes/orderPayment.php. The payment check before Fakturér/Kreditér is unchanged.
 @session_start();
 $s_id = session_id();
 
@@ -322,8 +321,8 @@ function bg_display_name($sprog_value) {
 }
 
 include(__DIR__ . "/../includes/gs1_parser.php");  # Absolute import
-include(__DIR__ . "/../includes/tid2decimal.php");
-include(__DIR__ . "/../includes/stdFunc/getKontaktEmail.php");
+include("../includes/tid2decimal.php");
+include("../includes/stdFunc/getKontaktEmail.php");
 include_once(__DIR__ . '/orderIncludes/orderPayment.php');
 
 
@@ -1702,15 +1701,15 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		}
 	}
 	if ($b_submit == 'doInvoice' && $vis_saet) {  #20190521
+		if ($felt_1 == 'Konto' && ($betalingsbet == 'Kreditkort' || $betalingsbet == 'Kontant')) $b_submit = 'Gem';
 		$qtxt = "select moms from ordrer where id='$id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		# SST-1018 a credit note payment with a sale's sign is stopped even when the amounts add up to the total.
-		$paymentCheck = order_invoice_payment_check($art, $felt_1, $betalingsbet, $felt_2, $felt_4, $sum, $r['moms']);
-		if ($paymentCheck['stop']) $b_submit = 'Gem';
-		if ($paymentCheck['alert'] == 'sign') {
-			alert(findtekst('order.credit_note.payment_positive|Betalt beløb er positivt, det skal være negativt på en kreditnota', $sprog_id));
-		} elseif ($paymentCheck['alert'] == 'sum') {
-			alert("Betalt beløb ($paymentCheck[paid] stemmer ikke med sum $paymentCheck[total])");
+		if (afrund($sum + $r['moms'] - ($felt_2 + $felt_4), 2)) {
+			$b_submit = 'Gem';
+			$a = $sum + $r['moms'];
+			$b = $felt_2 + $felt_4;
+			if ($art == 'DK' && $felt_2 > 0 && $sum < 0) alert ("Betalt beløb er positivt, det skal være negativt på en kreditota");
+			else alert ("Betalt beløb ($b stemmer ikke med sum $a)");
 		}
 	}
 	if ($id && $ny_valuta && $ny_valuta != $valuta && $status < 3) {
