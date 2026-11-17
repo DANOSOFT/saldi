@@ -93,12 +93,11 @@ while ($product = db_fetch_array($products_query)) {
     $stregkode = $product['stregkode'];
     $gruppe = $product['gruppe'];
     $delvare = $product['delvare'];
-    // 20261117 CL/LH during an active offer the shops get the offer, with the normal price as retailPrice (includes/stdFunc/shopOfferPrice.php)
-    $prices = shopPricesForItem($product);
-    $salgspris = $prices['salesPrice'];
-    $retail_price = $prices['retailPrice'];
-    // the calls below are fire-and-forget, so they confirm nothing; an offer they carry is restored when it ends
-    shopOfferObserve($vare_id, $product, $prices, array_filter(array($api_fil, $api_fil2, $api_fil3)), null, false);
+    // 20261117 CL/LH an item under offer management (includes/stdFunc/shopOfferPush.php) gets, per shop, the price pair that shop
+    // confirmed to the offer reconciler, so this run never changes a shop's price during an offer (null: today's prices). The calls
+    // below are fire-and-forget, so their in-flight note is left to expire (120 s) and they stop after 60 s.
+    $offer = shopOfferForeignBegin($vare_id, $product, array_filter(array($api_fil, $api_fil2, $api_fil3)));
+    $slotOf = array_flip(array_filter(array($api_fil, $api_fil2, $api_fil3)));
     
     echo "<p>Processing product ID: $vare_id (varenr: $varenr)</p>";
     fwrite($log, "Processing product ID: $vare_id (varenr: $varenr)\n");
@@ -148,14 +147,18 @@ while ($product = db_fetch_array($products_query)) {
         if ($api_fil3) $apis[] = $api_fil3;
         
         foreach ($apis as $api_url) {
+            $shopPrices = shopOfferForeignParams(array('salesPrice' => $salgspris, 'retailPrice' => $retail_price), $offer, $slotOf[$api_url] ?? -1);
+            $shopSalesPrice = $shopPrices['salesPrice'];
+            $shopRetailPrice = $shopPrices['retailPrice'];
             // Update stock
             $stock_url = "$api_url?update_stock=$shop_id&stock=$stock&totalStock=$total_stock";
-            $stock_url .= "&stockno=$lager&costPrice=$kostpris&salesPrice=$salgspris&discountType=$m_type&discount=$m_rabat";
-            $stock_url .= "&itemNo=" . urlencode($varenr) . "&rand=$rand&retailPrice=$retail_price&webFragt=$webFragt&barcode=$stregkode";
+            $stock_url .= "&stockno=$lager&costPrice=$kostpris&salesPrice=$shopSalesPrice&discountType=$m_type&discount=$m_rabat";
+            $stock_url .= "&itemNo=" . urlencode($varenr) . "&rand=$rand&retailPrice=$shopRetailPrice&webFragt=$webFragt&barcode=$stregkode";
             
             // Update price
-            $price_url = "$api_url?update_price=$shop_id&salesPrice=$salgspris&discountType=$m_type&discount=$m_rabat";
-            $price_url .= "&itemNo=" . urlencode($varenr) . "&rand=$rand&costPrice=$kostpris&retailPrice=$retail_price&webFragt=$webFragt&barcode=$stregkode";
+            $price_url = "$api_url?update_price=$shop_id&salesPrice=$shopSalesPrice&discountType=$m_type&discount=$m_rabat";
+            $price_url .= "&itemNo=" . urlencode($varenr) . "&rand=$rand&costPrice=$kostpris&retailPrice=$shopRetailPrice&webFragt=$webFragt&barcode=$stregkode";
+            $maxTime = $offer ? '--max-time 60 ' : '';
             
             // Update SKU/cost price
             $sku_url = "$api_url?sku=" . urlencode($varenr) . "&costPrice=$kostpris&rand=$rand";
@@ -170,13 +173,13 @@ while ($product = db_fetch_array($products_query)) {
             $api_success = true;
             
             // Stock update
-            $stock_cmd = "nohup curl '$stock_url' > ../temp/$db/curl_stock.txt 2>&1 &";
+            $stock_cmd = "nohup curl $maxTime'$stock_url' > ../temp/$db/curl_stock.txt 2>&1 &";
             $stock_result = shell_exec($stock_cmd);
             fwrite($log, "    Stock command: $stock_cmd\n");
             fwrite($log, "    Stock result: " . ($stock_result ? $stock_result : "No output") . "\n");
             
             // Price update
-            $price_cmd = "nohup curl '$price_url' > ../temp/$db/curl_price.txt 2>&1 &";
+            $price_cmd = "nohup curl $maxTime'$price_url' > ../temp/$db/curl_price.txt 2>&1 &";
             $price_result = shell_exec($price_cmd);
             fwrite($log, "    Price command: $price_cmd\n");
             fwrite($log, "    Price result: " . ($price_result ? $price_result : "No output") . "\n");

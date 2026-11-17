@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- lager/varekort.php --- ver 5.1.0 --- 2026-11-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -140,7 +140,6 @@
 //
 // 20261027 CDX/MJ SST-876 Retain master read-only protections while merging SST-876 stock-sync warnings.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
-// 20261117 CL/LH A save asks the webshop offer push (includes/stdFunc/shopOfferPush.php) to look again, so an offer entered here starts and ends in the webshops too.
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -1105,9 +1104,6 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= " where id = '$id'";
 
          $saved  =  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            if (shopSyncApiConfigured()) {
-                shopOfferPushSchedule(0); // 20261117 the offer period may have changed
-            }
             if ($submit == 'copy') {
                 $copyItemNo = "kopi_af_$varenr";
                 $r = db_fetch_array(db_select("select id from varer where varenr='$copyItemNo'", __FILE__ . " linje " . __LINE__));

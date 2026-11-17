@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/shopSyncDocument.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/stdFunc/shopSyncDocument.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20261027 CDX/MJ SST-876 Retain correction markers for any successful low-level send inside a transaction, including parent sets.
 // 20261028 CDX/MJ SST-876 Refresh stock before each send batch and skip backlog preparation when the HTTP budget is exhausted.
 // 20261029 CDX/MJ SST-876 Keep history contiguous with the file header.
+// 20261117 CL/LH A collected send can carry the offer reconciler's in-flight note (shopOfferForeignBegin()); it is ended once every shop answered the document's batches, so the reconciler does not wait for it.
 
 /**
  * Request-local payload collection; quantities are rebuilt on every delivery.
@@ -56,9 +57,10 @@ function &shopSyncDocumentState() {
  * @param string $mode Stock-only or full product synchronization.
  * @param string $label Item number for the document report.
  * @param string $userAgent Existing adapter user agent.
+ * @param array{vare_id: int, token: string}|null $offer The offer reconciler's in-flight note for a send carrying prices.
  * @return bool Whether the payload was collected instead of sent.
  */
-function shopSyncCollect(array $targets, array $params, $context, $id, $variant, $warehouse, $mode, $label, $userAgent) {
+function shopSyncCollect(array $targets, array $params, $context, $id, $variant, $warehouse, $mode, $label, $userAgent, $offer = null) {
 	$state = &shopSyncDocumentState();
 	if (!$state['collecting']) {
 		return false;
@@ -67,7 +69,7 @@ function shopSyncCollect(array $targets, array $params, $context, $id, $variant,
 	$state['tasks'][] = array('key' => $key, 'targets' => $targets, 'params' => $params,
 		'context' => $context, 'userAgent' => $userAgent, 'vare_id' => (int)$id, 'variant_id' => (int)$variant,
 		'lager' => (int)$warehouse, 'mode' => $mode, 'label' => $label,
-		'parent' => strpos($context, ' part vare_id ') !== false);
+		'parent' => strpos($context, ' part vare_id ') !== false, 'offer' => $offer);
 	return true;
 }
 
@@ -305,6 +307,15 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 			$ordered[] = $task;
 		}
 	}
+	// Sends that carry an offer note (shopOfferForeignBegin()): how many tasks each has, so it ends only when all were answered.
+	$offerNotes = array();
+	foreach ($tasks as $task) {
+		if (!empty($task['offer']['token'])) {
+			$token = $task['offer']['token'];
+			$offerNotes[$token] = array('vare_id' => (int)$task['offer']['vare_id'], 'tasks' => ($offerNotes[$token]['tasks'] ?? 0) + 1, 'sent' => 0, 'results' => array());
+		}
+	}
+	$offerOwners = array();
 	$directory = shopSyncQueueDir(false);
 	$log = $ordered && $directory !== '' ? fopen(dirname(rtrim($directory, '/')) . '/rest_api.log', 'a') : null;
 	try {
@@ -324,6 +335,12 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 					$urls[$index] = shopApiUrl($endpoint, $task['params']);
 					$contexts[$index] = $task['context'];
 					$owners[$index] = $task['key'];
+					if (!empty($task['offer']['token'])) {
+						$offerOwners[$index] = $task['offer']['token'];
+					}
+				}
+				if (!empty($task['offer']['token'])) {
+					$offerNotes[$task['offer']['token']]['sent']++;
 				}
 			}
 			$options = array('contexts' => $contexts, 'timeBudget' => $budget, 'userAgent' => $batch[0]['userAgent']);
@@ -340,6 +357,9 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 			}
 			$results = shopApiRequestParallel($urls, array(), $log, $options);
 			foreach ($results as $index => $res) {
+				if (isset($offerOwners[$index])) {
+					$offerNotes[$offerOwners[$index]]['results'][$index] = $res;
+				}
 				$key = $owners[$index];
 				$groups[$key]['sent'] = $groups[$key]['sent'] || $res['ok'];
 				if (!$res['ok']) {
@@ -354,6 +374,11 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 	} finally {
 		if (is_resource($log)) {
 			fclose($log);
+		}
+	}
+	foreach ($offerNotes as $token => $note) {
+		if ($note['sent'] === $note['tasks'] && function_exists('shopOfferForeignEnd')) {
+			shopOfferForeignEnd($note['vare_id'], array('token' => $token), $note['results']);
 		}
 	}
 	foreach ($groups as $key => $group) {

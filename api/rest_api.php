@@ -108,8 +108,8 @@
 //
 // ----------------------------------------------------------------------
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
-// 20261117 CL/LH After an authorised call the webshop offer push (includes/stdFunc/shopOfferPush.php) may send the prices of offers that started or ended.
-//                The shops call the API around the clock, so an offer that starts at midnight reaches them without a sale in a store.
+// 20261117 CL/LH Action shop_offer_tick: one tick of the webshop offer reconciler (includes/stdFunc/shopOfferPush.php), the only sender of offer prices to the webshops.
+//                A scheduler calls it every few minutes with the account's API key; it is checked by access_check() like every shop call, and a tick that finds another one running answers "busy" at once.
 date_default_timezone_set('Europe/Copenhagen');
 
 include("../includes/connect.php");
@@ -1417,6 +1417,10 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			fclose ($log);
 			$value = fakturer_ordre($ordre_id,$udskriv_til,$pos_betaling,$fakturadate);
 ##############################################
+		} elseif ($action == 'shop_offer_tick') {
+			fclose($log);
+			$value = shopOfferReconcileTick();
+##############################################
 		} elseif ($action == 'credit_shop_order') {
 			$shop_ordre_id = (int)if_isset($_GET['shop_ordre_id']);
 			fclose($log);
@@ -1501,10 +1505,6 @@ function send_api_invoice_email($ordre_id) {
 	return $result['message'];
 }
 
-// 20261117 offers that started or ended; usually only a check of a small file
-if (isset($svar) && $svar === 'OK' && function_exists('shopOfferPushTick')) {
-	shopOfferPushTick(array('maxItems' => 25, 'maxSeconds' => 8));
-}
 //return JSON array
 exit(json_encode($value));
 ?> 

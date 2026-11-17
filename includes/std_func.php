@@ -126,10 +126,8 @@
 // 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
 //                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261117 CL/LH Havemøbelland Black Week: sync_shop_price() and sync_shop_vare() send an item's effective prices (stdFunc/shopOfferPrice.php): during an active offer the offer as salesPrice and the normal price as retailPrice.
-//                Without it, a card save or a sale during an offer put the normal price back in the webshops.
-//                shopSyncDrainQueue() also lets stdFunc/shopOfferPush.php send the prices of offers that started or ended, within a small budget.
-//                Codex verification: both report what they sent to shopOfferObserve() (each shop's confirmation of an update_price, an unconfirmed obligation for an update_stock), so an offer sent by a card save or a sale is restored when it ends; the sale's look has a hard limit of 1.5 seconds.
+// 20261117 CL/LH Havemøbelland Black Week: sync_shop_price() and sync_shop_vare() send an item under offer management (tracked by stdFunc/shopOfferPush.php, or with a 'price' offer) each shop the price pair that shop confirmed to the offer reconciler, so a card save or a sale never changes a shop's price during an offer; other items keep today's prices.
+//                The reconciler, run only by an authorised scheduled call, is the one sender of offer prices and sends the new prices on its next tick; each send here leaves an in-flight note so the reconciler does not certify a send of its own that this one could overtake.
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
@@ -2049,13 +2047,12 @@ if(!function_exists("sync_shop_price")){
 	  }
 	  $qtxt = "SELECT varenr, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode, " . shopOfferColumns() . " FROM varer WHERE varer.id='" . (int)$vare_id . "'";
 	  if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$prices = shopPricesForItem($r); # 20261117 during an offer: the offer, with the normal price as retailPrice
-		$salesPrice = $prices['salesPrice'];
+		$salesPrice = $r['salgspris'];
 		$discountType = $r['m_type'];
 		$discount = $r['m_rabat'];
 		$itemNo = $r['varenr'];
 		$costPrice = $r['kostpris'];
-		$retailPrice = $prices['retailPrice'];
+		$retailPrice = $r["retail_price"];
 		$webFragt = $r["colli_webfragt"];
 		$stregkode = $r["stregkode"];
 		$params = array(
@@ -2070,19 +2067,20 @@ if(!function_exists("sync_shop_price")){
 			'webFragt'     => $webFragt,
 			'barcode'      => $stregkode,
 		);
-		$sentTo = $answers = array();
+		# 20261117 an item under offer management gets, per shop, the pair that shop confirmed; null: today's prices
+		$offer = shopOfferForeignBegin($vare_id, $r, array_filter(array($api_fil, $api_fil2, $api_fil3)));
+		$answers = array();
 		foreach (array($api_fil, $api_fil2, $api_fil3) as $slot => $endpoint) {
 		  if (!$endpoint) {
 			continue;
 		  }
-		  $res = shopApiRequest($endpoint, $params, $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
-		  $sentTo[$slot] = $endpoint;
+		  $res = shopApiRequest($endpoint, shopOfferForeignParams($params, $offer, $slot), $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
 		  $answers[$slot] = $res;
 		  if (!$res['ok']) {
 			$failed++;
 		  }
 		}
-		shopOfferObserve($vare_id, $r, $prices, $sentTo, $answers, true); # 20261117 what each shop confirmed, so an offer's end is restored
+		shopOfferForeignEnd($vare_id, $offer, $answers);
 	  }
 	  fclose($log);
 	  return ($failed ? "sync errors: $failed" : 'OK');
@@ -2168,13 +2166,13 @@ if (!function_exists('sync_shop_vare')) {
 		// A shop that could not be reached, or that was never called because the budget ran out,
 		// leaves the item on the queue so the next request delivers it. A shop that answered and
 		// refused the item is not queued: the figure is not what it objects to.
-		$send = function (array $targets, array $params, $context, $queueId, $queueVariant, $itemLabel)
+		$send = function (array $targets, array $params, $context, $queueId, $queueVariant, $itemLabel, $offer = null)
 			use ($log, $userAgent, $lager, $mode, &$failed) {
 			if (!$targets) {
 				return null;
 			}
-			if (shopSyncCollect($targets, $params, $context, $queueId, $queueVariant, $lager, $mode, $itemLabel, $userAgent)) {
-				return null; // sent later with the document: the answers are not known here
+			if (shopSyncCollect($targets, $params, $context, $queueId, $queueVariant, $lager, $mode, $itemLabel, $userAgent, $offer)) {
+				return null; // sent with the document; its in-flight note is ended there
 			}
 			$results = shopApiRequestParallel($targets, $params, $log, array('context' => $context, 'userAgent' => $userAgent));
 			foreach ($results as $res) {
@@ -2190,6 +2188,30 @@ if (!function_exists('sync_shop_vare')) {
 				}
 			}
 			return $results;
+		};
+		// 20261117 a send that carries the item's prices (update_price, update_stock): an item under offer management gets, per
+		// shop, the pair that shop confirmed to the offer reconciler (stdFunc/shopOfferPush.php), so this send changes no price
+		$priceRow = null;
+		$sendPrices = function (array $targets, array $params, $context, $itemLabel) use ($send, $vare_id, &$priceRow) {
+			$offer = $priceRow ? shopOfferForeignBegin($vare_id, $priceRow, $targets) : null;
+			if (!$offer) {
+				$send($targets, $params, $context, $vare_id, 0, $itemLabel);
+				return;
+			}
+			$note = $offer['token'] ? array('vare_id' => $vare_id, 'token' => $offer['token']) : null;
+			$answers = array();
+			$collected = false;
+			foreach (shopOfferForeignGroups($targets, $offer, $params) as $group) {
+				$res = $send($group['targets'], $group['params'], $context, $vare_id, 0, $itemLabel, $note);
+				if ($res === null) {
+					$collected = true;
+				} else {
+					$answers += $res;
+				}
+			}
+			if (!$collected) {
+				shopOfferForeignEnd($vare_id, $offer, $answers);
+			}
 		};
 		if ($variant_id) {
 			$variantItemNo = '';
@@ -2263,14 +2285,13 @@ if (!function_exists('sync_shop_vare')) {
 			$qtxt = "SELECT varenr, varenr_alias, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode, " . shopOfferColumns() . " FROM varer WHERE varer.id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$priceRow = $r;
-				$prices = shopPricesForItem($r); # 20261117 during an offer: the offer, with the normal price as retailPrice
-				$salesPrice = $prices['salesPrice'];
+				$salesPrice = $r['salgspris'];
 				$discountType = $r['m_type'];
 				$discount = $r['m_rabat'];
 				$itemNo = $r['varenr'];
 				$itemNoAlias = $r['varenr_alias'];
 				$costPrice = $r['kostpris'];
-				$retailPrice = $prices['retailPrice'];
+				$retailPrice = $r["retail_price"];
 				$webFragt = $r["colli_webfragt"];
 				$stregkode = $r["stregkode"];
 				$params = array(
@@ -2289,8 +2310,7 @@ if (!function_exists('sync_shop_vare')) {
 				// The query above still runs whatever the mode is: the stock send below is built from
 				// the prices it reads. Only the sending is skipped.
 				if ($mode !== 'stock') {
-					$answers = $send($endpoints, $params, "sync_shop_vare update_price vare_id $vare_id", $vare_id, 0, (string)$itemNo);
-					shopOfferObserve($vare_id, $r, $prices, $endpoints, $answers, $answers !== null); # 20261117 what each shop confirmed
+					$sendPrices($endpoints, $params, "sync_shop_vare update_price vare_id $vare_id", (string)$itemNo);
 				}
 			}
 			# lagerstatus.beholdning is numeric, so keep decimals - totalStock and variant stock
@@ -2327,11 +2347,7 @@ if (!function_exists('sync_shop_vare')) {
 					'webFragt'     => $webFragt,
 					'barcode'      => $stregkode,
 				);
-				$send($endpoints, $stockParams, "sync_shop_vare update_stock vare_id $vare_id", $vare_id, 0, (string)$itemNo);
-				if (isset($prices, $priceRow)) {
-					# 20261117 the stock call carries the prices too, but whether a shop takes them from it is not known: it only makes sure an offer's end is restored
-					shopOfferObserve($vare_id, $priceRow, $prices, $endpoints, null, false);
-				}
+				$sendPrices($endpoints, $stockParams, "sync_shop_vare update_stock vare_id $vare_id", (string)$itemNo);
 				if ($partOfItem) {
 					$x = 0;
 					$partOf = array();
@@ -2601,15 +2617,10 @@ if (!function_exists('shopSyncDrainQueue')) {
 			if (shopSyncMarkedCount() > 0) {
 				shopSyncFlush($limit, $maxAttempts);
 				$state = &shopSyncMarkState();
-				$delivered = $state['delivered'];
-			} else {
-				$result = shopSyncRunBacklog(shopSyncQueuePending($limit, $maxAttempts), 5, $maxAttempts);
-				$delivered = $result['delivered'];
+				return $state['delivered'];
 			}
-			// 20261117 offers that started or ended since the last look; usually only a check of a small file.
-			// A sale waits for this, so it gets few items and at most 1.5 seconds in all, slow shops included; the rest follows on later requests.
-			shopOfferPushTick(array('maxItems' => 3, 'maxSeconds' => 1.5));
-			return $delivered;
+			$result = shopSyncRunBacklog(shopSyncQueuePending($limit, $maxAttempts), 5, $maxAttempts);
+			return $result['delivered'];
 		} finally {
 			$draining = false;
 		}
