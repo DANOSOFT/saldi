@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-06---
+// --- includes/online.php --- ver 5.1.1 --- 2026-11-17---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,7 +71,8 @@
 //                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
 // 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
 //                 Their blocks include std_func.php through __DIR__.
-
+// 20261117 CL/LH MB-163 (release 2026-11-18) $brugernavn_raw holds the user name unescaped, as on master, for the Admin Panel's admin check.
+//
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
 if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
@@ -143,6 +144,7 @@ if ($r = db_fetch_array($q)) {
 	$db = trim(if_isset($r['db'], ''));
 	$regnaar = trim(if_isset($r['regnskabsaar'], ''));
 	$brugernavn = db_escape_string($r['brugernavn']);
+	$brugernavn_raw = (string) $r['brugernavn']; // unescaped, for values that are escaped again later (audit_log)
 	$rettigheder = $r['rettigheder'];
 	$superUserPermission = $rettigheder;
 	$revisor = $r['revisor'];
