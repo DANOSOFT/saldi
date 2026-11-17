@@ -20,17 +20,19 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2021 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20180131 
 // 20210916 LOE translated some texts 
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 
 @session_start();  # Skal angives oeverst i filen??!!
 $s_id=session_id();
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

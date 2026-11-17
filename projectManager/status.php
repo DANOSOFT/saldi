@@ -6,6 +6,7 @@
 @session_start();
 $s_id=session_id();
 require_once '../includes/connect.php';
+$permission_key = 'any';
 require_once '../includes/online.php';
 require_once 'config.php';
 

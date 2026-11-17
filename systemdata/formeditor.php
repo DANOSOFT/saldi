@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- systemdata/formeditor.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,15 @@
 // 20261030 CL/MMR SST-917: Text boxes keep every space (white-space: pre), because the PDF engine prints them all.
 //                 The draft preview shows the payment term as the field holds it ("Netto"), not "Netto 8 dage".
 //                 The draft preview leaves out order-line columns at x 0, which the PDF engine never prints.
+// 20261005 SS Settings redesign G6.1: reset keeps the e-mail texts and fee/interest rows (FE2); print-language lock and drafts in the settings table via includes/formEditorState.php (FE3); the background link opens in the same window and the upload page returns here (FE5).
+// 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 SS The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 SS The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) instead of page_bar: Tilbage above the title, breadcrumb Indstillinger / Virksomhed / Formularer / Formulareditor and the Virksomhed menu with Formularer marked beside the editor.
+//                 Tilbage goes where page_bar's did.
+//                 The editor keeps its own font; its canvas and side panel are 76 px shorter, so they end inside the window.
+// 20261103 CL/ASR QA round 2: the page needs Dokumenter & e-mail (settings.documents) instead of the general settings fallback, and Gem & aktivér shows a refusal as its message instead of Netværksfejl.
+// 20261112 CL/MMR SD-821: The own bank fields are named "Egen bank reg.nr." and "Egen bank kontonr." so they sit together in the field list.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -73,82 +82,15 @@ $title = "Formulareditor";
 $css   = "../css/standard.css";
 
 include("../includes/connect.php");
+$modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
+$permission_key = 'settings.documents'; // the invoice forms are Dokumenter & e-mail (QA round 2), not the general settings fallback
 include("../includes/online.php");
 include("../includes/std_func.php");
+$title = findtekst('7012|Formulareditor', $sprog_id);
 include("../includes/topline_settings.php");
+include_once("../includes/formEditorState.php");
 
-// ---------------------------------------------------------------------------
-//  Background helpers (shared by the view and the logo compositor)
-// ---------------------------------------------------------------------------
-function fe_bg_candidates($db_id, $form_nr, $sprog) {
-	$sp   = ($sprog != 'Dansk') ? $sprog . '_' : '';
-	$slug = array(1=>'tilbud', 4=>'faktura');
-	$c = array();
-	if (isset($slug[$form_nr])) {
-		$c[] = "../logolib/$db_id/{$sp}{$slug[$form_nr]}_bg.pdf";
-		$c[] = "../logolib/$db_id/{$slug[$form_nr]}_bg.pdf";
-	}
-	$c[] = "../logolib/$db_id/{$sp}bg.pdf";
-	$c[] = "../logolib/$db_id/bg.pdf";
-	return $c;
-}
-function fe_active_bg($db_id, $form_nr, $sprog) {
-	foreach (fe_bg_candidates($db_id, $form_nr, $sprog) as $f) if (file_exists($f)) return $f;
-	return null;
-}
-// Stamp the placed logo onto the print background at Save & activate. Keeps a
-// clean "base" copy so re-saves never double-stamp; the editor shows the base.
-// Non-fatal: any tool failure just leaves the background untouched.
-function fe_composite_logo($db_id, $form_nr, $sprog) {
-	if (!function_exists('shell_exec')) return;
-	$dir  = "../logolib/$db_id";
-	$logo = "$dir/fe_logo.png";
-	if (!file_exists($logo)) return;                       // no logo -> nothing to do
-	$sp = db_escape_string($sprog);
-	$r = db_fetch_array(db_select("select xa,ya,xb,yb from formularer where formular=$form_nr and art=1 and beskrivelse='LOGO' and sprog='$sp'", __FILE__ . " linje " . __LINE__));
-	if (!$r) return;
-	$xa=(float)$r['xa']; $ya=(float)$r['ya']; $w=(float)$r['xb']; $h=(float)$r['yb'];
-	if ($w <= 0 || $h <= 0) return;                        // logo not sized -> skip
-
-	$base   = "$dir/fe_logobase.pdf";
-	$active = fe_active_bg($db_id, $form_nr, $sprog);
-	$out    = $active ? $active : "$dir/bg.pdf";
-	$metaF  = "$dir/fe_logo_meta.json";
-	$meta   = file_exists($metaF) ? json_decode(@file_get_contents($metaF), true) : array();
-	$activeMd5 = ($active && file_exists($active)) ? md5_file($active) : '';
-
-	if (!file_exists($base)) {
-		if ($active && file_exists($active)) @copy($active, $base);
-		else @shell_exec("convert -size 1654x2339 xc:white -units PixelsPerInch -density 200 " . escapeshellarg($base) . " 2>/dev/null");
-	} elseif ($activeMd5 !== '' && isset($meta['out_md5']) && $activeMd5 !== $meta['out_md5']) {
-		@copy($active, $base);   
-	}
-	if (!file_exists($base)) return;
-
-	$dpi = 200;
-	$A4W = 1654; $A4H = 2339;   // A4 @200dpi (210x297mm)
-	$basePng = "$dir/fe_basetmp-1.png";
-	@shell_exec("pdftoppm -png -r $dpi -f 1 -l 1 " . escapeshellarg($base) . " " . escapeshellarg("$dir/fe_basetmp") . " 2>/dev/null");
-	if (!file_exists($basePng)) return;
-
-	@shell_exec("convert " . escapeshellarg($basePng) . " -resize " . $A4W . "x" . $A4H . "! " . escapeshellarg($basePng) . " 2>/dev/null");
-
-	$xpx = (int) round($xa/25.4*$dpi);
-	$ypx = (int) round((297-$ya)/25.4*$dpi);
-	$wpx = max(1, (int) round($w/25.4*$dpi));
-	$hpx = max(1, (int) round($h/25.4*$dpi));
-	$logoRs  = "$dir/fe_logors.png";
-	$compPng = "$dir/fe_comptmp.png";
-	@shell_exec("convert " . escapeshellarg($logo) . " -resize " . escapeshellarg($wpx . 'x' . $hpx . '!') . " " . escapeshellarg($logoRs) . " 2>/dev/null");
-	@shell_exec("convert " . escapeshellarg($basePng) . " " . escapeshellarg($logoRs) . " -gravity NorthWest -geometry +$xpx+$ypx -composite " . escapeshellarg($compPng) . " 2>/dev/null");
-	if (file_exists($compPng)) {
-		@shell_exec("convert " . escapeshellarg($compPng) . " -units PixelsPerInch -density $dpi " . escapeshellarg($out) . " 2>/dev/null");
-		@file_put_contents($metaF, json_encode(array('active'=>$out, 'out_md5'=> file_exists($out) ? md5_file($out) : '')));
-		// bust the editor bg preview cache so the base re-renders next load
-		@array_map('unlink', glob("$dir/*_feprev.png") ?: array());
-	}
-	@unlink($basePng); @unlink($logoRs); @unlink($compPng);
-}
+// Background helpers and the logo compositor: includes/formEditorState.php (shared with the welcome guide).
 
 
 if ($fe_action === 'save') {
@@ -283,8 +225,8 @@ if ($fe_action === 'save') {
 
 	// Activating supersedes any draft for this form + variant.
 	$sprog_raw = (string) $payload['sprog'];
-	$sprog_safe = preg_replace('/[^A-Za-z0-9_]/', '_', $sprog_raw);
-	@unlink("../logolib/$db_id/fe_draft_{$form_nr}_{$sprog_safe}.json");
+	fe_state_delete(fe_draft_name($form_nr, $sprog_raw));
+	@unlink("../logolib/$db_id/fe_draft_{$form_nr}_" . preg_replace('/[^A-Za-z0-9_]/', '_', $sprog_raw) . ".json");
 
 	// Stamp the placed logo onto the print background (if any logo uploaded).
 	fe_composite_logo($db_id, $form_nr, $sprog_raw);
@@ -357,9 +299,24 @@ if ($fe_action === 'reset') {
 	// Refuse to wipe the form if we have no standard to put back.
 	if (!count($rows)) { print json_encode(array('ok' => false, 'error' => 'nostd')); exit; }
 
+	// G6.1 (audit FE2): the e-mail texts (art 5) and the reminder fee/interest rows (GEBYR/RENTE) are the user's own
+	// settings, not layout - a reset keeps them and only adds the standard ones that are missing.
+	$keepMail = array();
+	$q = db_select("select xa from formularer where formular=$form_nr and sprog='$sprog_db' and art=5", __FILE__ . " linje " . __LINE__);
+	while ($k = db_fetch_array($q)) {
+		$keepMail[(string) (float) $k['xa']] = true;
+	}
+	$keepFee = array();
+	$q = db_select("select upper(beskrivelse) as b from formularer where formular=$form_nr and sprog='$sprog_db' and upper(beskrivelse) in ('GEBYR','RENTE')", __FILE__ . " linje " . __LINE__);
+	while ($k = db_fetch_array($q)) {
+		$keepFee[(string) $k['b']] = true;
+	}
 	transaktion('begin');
-	db_modify("delete from formularer where formular=$form_nr and sprog='$sprog_db'", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from formularer where formular=$form_nr and sprog='$sprog_db' and art <> 5 and upper(coalesce(beskrivelse, '')) not in ('GEBYR','RENTE')", __FILE__ . " linje " . __LINE__);
 	foreach ($rows as $r) {
+		if (($r['art'] == 5 && isset($keepMail[(string) (float) $r['xa']])) || isset($keepFee[strtoupper(stripslashes($r['besk']))])) {
+			continue;
+		}
 		$qtxt  = "insert into formularer (formular,art,beskrivelse,xa,ya,xb,yb,justering,str,color,font,fed,kursiv,side,sprog) values (";
 		$qtxt .= "$form_nr,$r[art],'$r[besk]',$r[xa],$r[ya],$r[xb],$r[yb],'$r[just]',$r[str],$r[color],'$r[font]','$r[fed]','$r[kursiv]','$r[side]','$sprog_db')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -376,43 +333,12 @@ if ($fe_action === 'logo_upload') {
 	header('Content-Type: application/json; charset=utf-8');
 	if (empty($db_id)) { http_response_code(401); print json_encode(array('ok'=>false,'error'=>'session')); exit; }
 
-	if (empty($_FILES['logo']) || !is_uploaded_file($_FILES['logo']['tmp_name'])) {
-		http_response_code(400); print json_encode(array('ok'=>false,'error'=>'nofile')); exit;
+	$res = fe_logo_store($db_id, isset($_FILES['logo']['tmp_name']) ? (string) $_FILES['logo']['tmp_name'] : '', isset($_FILES['logo']['size']) ? (int) $_FILES['logo']['size'] : 0);
+	if (!$res['ok']) {
+		if ($res['error'] === 'nofile') http_response_code(400);
+		print json_encode(array('ok'=>false,'error'=>$res['error'])); exit;
 	}
-	$tmp = $_FILES['logo']['tmp_name'];
-	if ((int) $_FILES['logo']['size'] > 5 * 1024 * 1024) { print json_encode(array('ok'=>false,'error'=>'toobig')); exit; }
-	$info = @getimagesize($tmp);
-	if (!$info || !in_array($info['mime'], array('image/png','image/jpeg','image/jpg'), true)) {
-		print json_encode(array('ok'=>false,'error'=>'badtype')); exit;
-	}
-	$w = (int) $info[0]; $h = (int) $info[1];
-	if ($w < 1 || $h < 1) { print json_encode(array('ok'=>false,'error'=>'badimg')); exit; }
-
-	$dir = "../logolib/$db_id";
-	if (!is_dir($dir)) @mkdir($dir, 0775, true);
-	$png = "$dir/fe_logo.png";
-
-	// Re-encode via ImageMagick to strip any embedded scripts/metadata (NR-8),
-	// and cap the size. Fall back to a plain move if convert is unavailable.
-	$ok = false;
-	if (function_exists('shell_exec')) {
-		@shell_exec("convert " . escapeshellarg($tmp) . "[0] -strip -background none -resize '1500x1500>' " . escapeshellarg($png) . " 2>/dev/null");
-		if (file_exists($png)) $ok = true;
-	}
-	if (!$ok) { $ok = @move_uploaded_file($tmp, $png); }
-	if (!$ok || !file_exists($png)) { print json_encode(array('ok'=>false,'error'=>'store')); exit; }
-
-	// IMPORTANT: do NOT write ../logolib/logo_<db_id>.eps here. The print engine
-	// auto-stamps that file on every form without a background PDF, which would
-	// silently change printed output (e.g. orders). The uploaded logo stays
-	// editor-only until an explicit, opt-in compositing step is built. We also
-	// remove any stale EPS a previous version of this endpoint may have created,
-	// so existing printing is restored.
-	@unlink("../logolib/logo_$db_id.eps");
-	// refresh natural size from the normalised file
-	$ni = @getimagesize($png); if ($ni) { $w = (int) $ni[0]; $h = (int) $ni[1]; }
-
-	print json_encode(array('ok'=>true, 'w'=>$w, 'h'=>$h, 'url'=>"../logolib/$db_id/fe_logo.png?t=".time()));
+	print json_encode(array('ok'=>true, 'w'=>$res['w'], 'h'=>$res['h'], 'url'=>$res['url']));
 	exit;
 }
 
@@ -459,12 +385,10 @@ if ($fe_action === 'savedraft' || $fe_action === 'discarddraft') {
 	if (!in_array($form_nr, $valid_forms, true) || $sprog === '') {
 		http_response_code(400); print json_encode(array('ok'=>false,'error'=>'payload')); exit;
 	}
-	$dir = "../logolib/$db_id";
-	if (!is_dir($dir)) @mkdir($dir, 0775, true);
-	$sprog_safe = preg_replace('/[^A-Za-z0-9_]/', '_', $sprog);
-	$file = "$dir/fe_draft_{$form_nr}_{$sprog_safe}.json";
+	$file = "../logolib/$db_id/fe_draft_{$form_nr}_" . preg_replace('/[^A-Za-z0-9_]/', '_', $sprog) . ".json";
 
 	if ($fe_action === 'discarddraft') {
+		fe_state_delete(fe_draft_name($form_nr, $sprog));
 		@unlink($file);
 		print json_encode(array('ok'=>true));
 		exit;
@@ -473,8 +397,8 @@ if ($fe_action === 'savedraft' || $fe_action === 'discarddraft') {
 	$state = isset($payload['state']) ? $payload['state'] : null;
 	if ($state === null) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'payload')); exit; }
 	$doc = array('ts' => time(), 'form_nr' => $form_nr, 'sprog' => $sprog, 'state' => $state);
-	$ok = @file_put_contents($file, json_encode($doc)) !== false;
-	print json_encode($ok ? array('ok'=>true,'ts'=>$doc['ts']) : array('ok'=>false,'error'=>'store'));
+	fe_state_set(fe_draft_name($form_nr, $sprog), json_encode($doc));
+	print json_encode(array('ok'=>true,'ts'=>$doc['ts']));
 	exit;
 }
 
@@ -526,7 +450,6 @@ if ($fe_action === 'set_printlang') {
 	$form_nr = isset($payload['form_nr']) ? (int) $payload['form_nr'] : 0;
 	$valid_forms = array(1,2,3,4,5,6,7,8,9,11,12,13,14);
 	if (!in_array($form_nr, $valid_forms, true)) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'form')); exit; }
-	if (!is_dir("../logolib/$db_id")) @mkdir("../logolib/$db_id", 0775, true);
 	$file = "../logolib/$db_id/fe_printlang_$form_nr.json";
 	$lock = !empty($payload['lock']);
 	if ($lock) {
@@ -540,8 +463,10 @@ if ($fe_action === 'set_printlang') {
 			$ok_variant = ($r && $r['ok']);
 		}
 		if (!$ok_variant) { http_response_code(400); print json_encode(array('ok'=>false,'error'=>'sprog')); exit; }
-		@file_put_contents($file, json_encode(array('sprog'=>$sp)));
+		fe_state_set('printlang_' . $form_nr, json_encode(array('sprog'=>$sp)));
+		@unlink($file);
 	} else {
+		fe_state_delete('printlang_' . $form_nr);
 		@unlink($file);
 	}
 	print json_encode(array('ok'=>true, 'locked'=>$lock));
@@ -572,8 +497,8 @@ function fe_var_map() {
 			'egen_tlf'        => array('Eget tlf.', 'Own phone'),
 			'egen_mobile'     => array('Egen mobil', 'Own mobile'),
 			'egen_bank_navn'  => array('Eget banknavn', 'Own bank name'),
-			'egen_bank_reg'   => array('Eget reg.nr.', 'Own reg. no.'),
-			'egen_bank_konto' => array('Egen bankkonto', 'Own bank account'),
+			'egen_bank_reg'   => array('Egen bank reg.nr.', 'Own bank reg. no.'),
+			'egen_bank_konto' => array('Egen bank kontonr.', 'Own bank account no.'),
 			'egen_email'      => array('Egen e-mail', 'Own e-mail'),
 			'egen_web'        => array('Egen hjemmeside', 'Own website'),
 			// --- employee / seller (ansat) ---
@@ -801,8 +726,7 @@ while ($rv = db_fetch_array($qv)) $variants[] = $rv['sprog'];
 
 // print-language lock: the sprog this form is forced to print in (or '')
 $fe_printlang = '';
-$_plf = "../logolib/$db_id/fe_printlang_$form_nr.json";
-if (@file_exists($_plf)) { $_pl = @json_decode(@file_get_contents($_plf), true); if (is_array($_pl) && !empty($_pl['sprog'])) $fe_printlang = (string) $_pl['sprog']; }
+$fe_printlang = fe_printlang_get($db_id, (int) $form_nr);
 
 // ---- e-mail text (art=5): xa 1=subject, 2=body, 3=attachment ---------------
 $fe_mail = array('subject'=>'', 'body'=>'', 'attach'=>'', 'has_attach'=>in_array($form_nr, array(1,2,4), true));
@@ -862,9 +786,9 @@ if (file_exists($logo_png)) {
 // existing draft for this form + variant (working state not yet activated)
 $fe_draft = null;
 $sprog_safe = preg_replace('/[^A-Za-z0-9_]/', '_', $sprog);
-$draft_file = "../logolib/$db_id/fe_draft_{$form_nr}_{$sprog_safe}.json";
-if (file_exists($draft_file)) {
-	$dj = json_decode(@file_get_contents($draft_file), true);
+$draft_json = fe_state_get_migrating(fe_draft_name((int) $form_nr, (string) $sprog), "../logolib/$db_id/fe_draft_{$form_nr}_{$sprog_safe}.json");
+if ($draft_json !== '') {
+	$dj = json_decode($draft_json, true);
 	if (is_array($dj) && isset($dj['state'])) $fe_draft = $dj;
 }
 
@@ -926,34 +850,13 @@ function fe_render_besk_labels($besk) {
 //  PAGE CHROME (modern top menu, mirrors formularkort.php / logoupload.php)
 // ---------------------------------------------------------------------------
 $menu = isset($menu) ? $menu : '';
-if ($menu == 'T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">\n";
-	print "<div class=\"headerbtnLft\">";
-	print "<a class='button gray small' href=\"" . htmlspecialchars($returside) . "\">" . findtekst('30|Tilbage', $sprog_id) . "</a> &nbsp;";
-	print "<a class='button blue small' href=\"formularkort.php\">" . findtekst('573|Formularkort', $sprog_id) . "</a>";
-	print "</div>";
-	print "<span class=\"headerTxt\">Formulareditor</span>\n";
-	print "<div class=\"headerbtnRght\"></div>";
-	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
-	include_once 'left_menu.php';
-	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontentLargeHolder\">\n";
-} else {
-
-	print "<div id=\"fe-header\">";
-	print "<table width=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>";
-	print "<td width=\"170\"><a href=\"" . htmlspecialchars($returside) . "\" accesskey=\"L\"><button type=\"button\" style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-	print "<td align=\"center\" style='$topStyle'>" . htmlspecialchars($title) . "<br></td>";
-	print "<td width=\"170\" style='$topStyle'><br></td>";
-	print "</tr></tbody></table>";
-	print "</div>";
-}
+// The standard settings layout: the editor under Formularer (includes/stdFunc/pageRoutes.php), Tilbage as page_bar's was.
+include_once("../includes/settings/layout.php");
+settings_layout_open(array('title' => $title, 'back' => $returside, 'legacy' => false));
 ?>
 <style>
   #fe-wrap { font-family: Arial, Helvetica, sans-serif; }
+  .st-page:has(#fe-main) { padding-bottom: 16px; } /* 20261102: the editor ends inside the window, so the page does not scroll under it */
 
   #fe-header table { font-family: Arial, Helvetica, sans-serif; }
   #fe-toolbar {
@@ -965,7 +868,7 @@ if ($menu == 'T') {
   #fe-toolbar select, #fe-toolbar input[type=number] { font-size:13px; padding:2px 4px; }
   #fe-toolbar .sep { width:1px; height:22px; background:#c7cdd6; }
   #fe-main { display:flex; align-items:flex-start; gap:0; position:relative; }
-  #fe-canvas-area { position:relative; flex:1 1 auto; height:calc(100vh - 190px); min-height:420px; }
+  #fe-canvas-area { position:relative; flex:1 1 auto; height:calc(100vh - 266px); min-height:420px; } /* 20261102: below the settings head */
   #fe-canvas-scroll {
     position:absolute; inset:0; overflow:auto; background:#8a90a0; padding:24px;
   }
@@ -993,7 +896,7 @@ if ($menu == 'T') {
   #fe-align-bar .fe-ab-btn:hover { background:#e9f0ff; border-color:#9db4e6; }
   #fe-align-bar .fe-ab-sep { width:1px; height:20px; background:#d3d8e0; margin:0 3px; }
   #fe-align-bar .fe-ab-count { font-size:11px; color:#667; margin-right:4px; white-space:nowrap; }
-  #fe-fields-drawer { position:absolute; z-index:39; top:8px; left:8px; width:234px; max-height:calc(100vh - 240px);
+  #fe-fields-drawer { position:absolute; z-index:39; top:8px; left:8px; width:234px; max-height:calc(100vh - 316px);
     background:#fff; border:1px solid #c7cdd6; border-radius:8px; box-shadow:0 6px 22px rgba(0,0,0,.18);
     display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; }
   #fe-fields-drawer .fe-fd-head { display:flex; align-items:center; justify-content:space-between;
@@ -1115,7 +1018,7 @@ if ($menu == 'T') {
   }
   .fe-el.fe-logo-ph:hover { border-color:#8894ad; color:#667; opacity:1; }
   #fe-side { width:280px; flex:0 0 280px; background:#fafbfc; border-left:1px solid #d3d8e0;
-    height:calc(100vh - 190px); overflow:auto; padding:12px; box-sizing:border-box; }
+    height:calc(100vh - 266px); overflow:auto; padding:12px; box-sizing:border-box; }
   #fe-side h3 { margin:0 0 8px; font-size:14px; color:#223; }
   #fe-side .row { display:flex; align-items:center; justify-content:space-between; margin:6px 0; font-size:12px; }
   #fe-side .row input[type=number] { width:80px; }
@@ -1251,7 +1154,7 @@ if ($menu == 'T') {
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-design-open" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Vælg en færdig skabelon (Klassisk/Moderne/Minimal) og brand-farve/skrifttype','Pick a ready-made template (Classic/Modern/Minimal) and brand colour/font'); ?>">&#127912; <?php echo $T('Skabeloner','Templates'); ?></button>
     <?php $bg_label = $bg_url ? $T('Skift baggrund','Change background') : $T('Tilføj baggrund','Add background'); ?>
-    <a id="fe-bg-btn" class="fe-btn" style="text-decoration:none;color:inherit;border:1px solid #c7cdd6;border-radius:3px;" href="logoupload.php?upload=yes" target="_blank" rel="noopener" title="<?php echo $T('Upload eller skift baggrund/logo (letterhead)','Upload or change background/logo (letterhead)'); ?>">&#128444; <?php echo htmlspecialchars($bg_label); ?></a>
+    <a id="fe-bg-btn" class="fe-btn" style="text-decoration:none;color:inherit;border:1px solid #c7cdd6;border-radius:3px;" href="logoupload.php?upload=yes&amp;returside=<?php echo urlencode('formeditor.php?form_nr=' . (int) $form_nr . '&sprog=' . rawurlencode((string) $sprog)); ?>" title="<?php echo $T('Upload eller skift baggrund/logo (letterhead)','Upload or change background/logo (letterhead)'); ?>">&#128444; <?php echo htmlspecialchars($bg_label); ?></a>
     <button type="button" class="fe-btn" id="fe-mail-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Rediger e-mailteksten der sendes med PDF&apos;en','Edit the e-mail text sent with the PDF'); ?>">&#9993; <?php echo $T('E-mailtekst','Email text'); ?></button>
     <label id="fe-lang-toggle" title="<?php echo $T('Skift sproget på alle tekster','Switch the language of all captions'); ?>">&#127760;
       <select id="fe-lang-select" class="fe-lang-select"><option value="da">Dansk</option><option value="en">English</option></select></label>
@@ -2923,6 +2826,7 @@ if ($menu == 'T') {
         statusEl.textContent=L.saved.replace('%s', j.updated); statusEl.style.color='#2a7d2a';
       }
       else if (j && j.error==='session') { statusEl.textContent=L.session; statusEl.style.color='#c00'; }
+      else if (j && j.error==='denied' && j.message) { statusEl.textContent=j.message; statusEl.style.color='#c00'; }
       else { statusEl.textContent=L.failed; statusEl.style.color='#c00'; }
     }).catch(function(){ statusEl.textContent=L.neterr; statusEl.style.color='#c00'; });
   });
@@ -4074,8 +3978,6 @@ if ($menu == 'T') {
 </script>
 
 <?php
-if ($menu == 'T') {
-	print "</div>\n"; // maincontentLargeHolder
-}
+settings_layout_close();
 print "</body></html>\n";
 ?>
