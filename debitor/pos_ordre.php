@@ -343,7 +343,10 @@ if (isset($_GET['skift_bruger'])) {
 	// MB-162: skift_bruger=2 used to switch without a password; both values now open the password dialog,
 	// and brugernavn (sent by the Ekspedient button) is only preselected there
 	if ($_GET['skift_bruger'] == 1 || $_GET['skift_bruger'] == 2) {
-		$forvalgtBruger = (string) ifset($_GET, 'brugernavn', '');
+		$forvalgtBruger = ifset($_GET, 'brugernavn', '');
+		if (!is_string($forvalgtBruger)) {
+			$forvalgtBruger = '';
+		}
 		skift_bruger(null, null, 1, $forvalgtBruger);
 	}
 	exit;
