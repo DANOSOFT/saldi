@@ -27,6 +27,7 @@
 // History:
 // 20261117 CL/MMR SST-1024 Created to drive «Opslag» and the next «Gem» on a purchase order end to end.
 //                 Records the page's diagnostics instead of narrowing error_reporting (Codex round 3).
+//                 Includes the page through __DIR__; the chdir stays for the page's own relative includes (Codex round 4).
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_kreditor_ordre_page.php <request.json> <session_id> <page.html>\n");
@@ -80,4 +81,4 @@ register_shutdown_function(static function () use ($pageFile, &$diagnostics): vo
     }
     fwrite(STDOUT, "CHARTEST_PAGE_DONE\n");
 });
-include 'ordre.php';
+include __DIR__ . '/../../../kreditor/ordre.php';
