@@ -71,6 +71,9 @@
 //                Preview and import read lines the same way (itemImportIsRow(), itemImportLine(): byte order mark removed, one character set conversion); the preview no longer joins short lines.
 //                Item numbers resolve exactly first, then in other letter case, then without leading zeros, each only when it finds one item; an ambiguous number is skipped and listed, and the preview colours by the same resolver.
 //                A first line whose item number is a label such as Varenr is the header: grey in the preview, not imported, not listed; every other invalid line is listed.
+// 20261117 CL/LH Codex review 2: every non-blank line is a row (a quoted first cell such as "ABC";149,95 was lost by preview and import), short lines show in the preview without warnings.
+//                A line the number checks reject (kostpris, salgspris, montage, min_lager ...) is now listed too; numbers such as 123.0 and 1E+05 find their item again (itemImport.php).
+//                An existing item keeps its item number: the update no longer writes the sheet's spelling over it (since 20140201/20161015 abc renamed ABC and 123 renamed 000123); new items get the sheet's number as before.
 @session_start();
 $s_id=session_id();
 ini_set('max_execution_time', 120);
@@ -414,7 +417,7 @@ if ($fp) {
 		if ($linje=fgets($fp)) {
 			$lineNo++;
 			# 20261117 every line is one row, read like the import reads it (it stopped joining short lines in 20220628)
-			if (itemImportIsRow($linje, $splitter)) {
+			if (itemImportIsRow($linje)) {
 			$x++;
 			$skriv_linje=1;
 			$linje = itemImportLine($linje, $tegnset, $charset);
@@ -425,7 +428,7 @@ if ($fp) {
 			for ($y=0; $y<=$feltantal; $y++) {
 				$feltnavn[$y] = if_isset($feltnavn[$y],NULL);
 				$feltfejl[$y]=0;
-				$felt[$y]=trim($felt[$y]);
+				$felt[$y]=trim($felt[$y] ?? ''); // 20261117 a short line is shown, and listed by the import
 				if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
 				if ($feltnavn[$y]=='varenr') { #20161015
 					$varenr=trim($felt[$y]);
@@ -619,11 +622,12 @@ if ($fp) {
 		$skriv_linje=0;
 		$varenr=''; # 20261117 a line never inherits the item number, cells or new-item flag of the line before
 		$medtag_felt=$campaignCells=array();
-		$newItem = false;
+		$newItem = $isRow = false;
  		if ($linje=fgets($fp)) {
 			$lineNo++;
-			$colNum = itemImportIsRow($linje, $splitter) ? 1 : 0; # 20220628 counted here, 20261117 shared with the preview
+			$colNum = itemImportIsRow($linje) ? 1 : 0; # 20220628 separators counted here, 20261117 any non-blank line, as in the preview
 			if ($colNum && $cols) { # 20220628 '>=' changed to '&&'
+				$isRow = true;
 #				$preLine.= $linje;
 
 #			}	else {
@@ -750,15 +754,21 @@ if ($fp) {
  		}}
 		$campaign = NULL;
 		$match = array('id' => NULL, 'ambiguous' => false);
-		if ($skriv_linje==1) { # 20261117 the checks the preview shows in red; a skipped line is listed after the import
+		if ($isRow) { # 20261117 the checks the preview shows in red; a skipped line is listed after the import
 			$match = itemImportResolve($itemIndex, $varenr, $enc);
 			$missing = itemImportMissingColumn($feltnavn, $cellCount);
+			$badNumber = itemImportInvalidNumberField($feltnavn, $felt);
 			if ($campaignCells) $campaign = campaignImportLine($campaignCells);
 			if ($lineNo == 1 && !$match['id'] && !$match['ambiguous'] && itemImportIsHeader($varenr)) {
 				$skriv_linje=0; // the header line
 			} elseif ($missing !== NULL) {
 				$skriv_linje=0;
 				$lineErrors[] = array($lineNo, $varenr, $missing, '');
+			} elseif ($badNumber !== NULL) { // the number checks above skipped it
+				$skriv_linje=0;
+				$lineErrors[] = array($lineNo, $varenr, $badNumber, $felt[array_search($badNumber, $feltnavn)] ?? '');
+			} elseif ($skriv_linje!=1) {
+				$skriv_linje=0;
 			} elseif ($campaign && $campaign['error']) {
 				$skriv_linje=0;
 				$lineErrors[] = array($lineNo, $varenr, $campaign['error'], $campaignCells[$campaign['error']] ?? '');
@@ -780,7 +790,9 @@ if ($fp) {
 					$felt[$y]=db_escape_string($felt[$y]);
 					($vare_a)?$vare_a.=",".$fName:$vare_a=$fName;
 					($vare_b)?$vare_b.=",'".$felt[$y]."'":$vare_b="'".$felt[$y]."'";
-					($upd)?$upd.=",".$fName."='".$felt[$y]."'":$upd=$fName."='".$felt[$y]."'";
+					if ($fName != 'varenr') { # 20261117 a matched item keeps its number: 123 in a sheet finds 000123 and no longer renames it
+						($upd)?$upd.=",".$fName."='".$felt[$y]."'":$upd=$fName."='".$felt[$y]."'";
+					}
 				}
 			}
 			$vare_a=$vare_a.",lukket";
@@ -789,7 +801,7 @@ if ($fp) {
 			if ($vare_id) {// update existing product
 				if (($filterOption=='all_products')||($filterOption!='only_unknown_products')) {
 					$upd_antal++;
-					if (!$campaignOnly) { # 20261117 the update would only rewrite varenr with the sheet's spelling
+					if ($upd) { # 20261117 nothing to set when only varenr and campaign columns are mapped
 						$qtxt="update varer set $upd where id='$vare_id'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}

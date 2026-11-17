@@ -22,13 +22,24 @@ final class itemImport extends TestCase
 		$this->assertSame("\xC6123;1", itemImportLine("\xC6123;1", null, 'ISO-8859-1'), 'no choice counts as ISO-8859-1, as the dropdown shows');
 	}
 
-	public function testALineWithoutAColumnSeparatorIsNoRow(): void
+	public function testEveryNonBlankLineIsARow(): void
 	{
-		$this->assertTrue(itemImportIsRow("A;149,95\r\n", ';'));
-		$this->assertTrue(itemImportIsRow("\"Bord; teak\";149,95", ';'));
-		$this->assertFalse(itemImportIsRow("\r\n", ';'));
-		$this->assertFalse(itemImportIsRow("A\r\n", ';'));
-		$this->assertTrue(itemImportIsRow("A\t1", "\t"));
+		$this->assertTrue(itemImportIsRow("A;149,95\r\n"));
+		$this->assertTrue(itemImportIsRow("\"ABC\";149,95"), 'a quoted first cell');
+		$this->assertTrue(itemImportIsRow("A\r\n"), 'a short line is a row, listed by the missing-column check');
+		$this->assertTrue(itemImportIsRow(';;;'));
+		$this->assertFalse(itemImportIsRow("\r\n"));
+		$this->assertFalse(itemImportIsRow(" \t"));
+	}
+
+	public function testNamesTheNumberFieldTheImportRejects(): void
+	{
+		$map = ['varenr', 'kostpris', 'vejl.pris', 'special_price'];
+		$this->assertNull(itemImportInvalidNumberField($map, ['A', '12,50', '1.299,00', 'x']), 'campaign cells have their own check');
+		$this->assertSame('kostpris', itemImportInvalidNumberField($map, ['A', 'bad', '10']));
+		$this->assertSame('vejl.pris', itemImportInvalidNumberField($map, ['A', '', 'ti kroner']));
+		$this->assertSame('retail_price', itemImportInvalidNumberField(['varenr', 'retail_price'], ['A', 'x']), 'the name after the import renamed it');
+		$this->assertNull(itemImportInvalidNumberField($map, ['A']), 'missing cells are the missing-column check');
 	}
 
 	public function testFindsColumnsMappedTwice(): void
@@ -71,9 +82,23 @@ final class itemImport extends TestCase
 		$this->assertSame(['id' => 7, 'ambiguous' => false], itemImportResolve($index, 'æBLE', 'UTF-8'));
 		$this->assertSame(['id' => null, 'ambiguous' => false], itemImportResolve($index, 'X1', 'UTF-8'));
 		$this->assertSame(['id' => null, 'ambiguous' => false], itemImportResolve($index, '', 'UTF-8'));
-		$this->assertSame(['id' => null, 'ambiguous' => false], itemImportResolve($index, '1e2', 'UTF-8'), 'no numeric juggling');
+		$this->assertSame(['id' => 4, 'ambiguous' => false], itemImportResolve($index, '123.0', 'UTF-8'), 'a whole number written with decimals');
+		$this->assertSame(['id' => 4, 'ambiguous' => false], itemImportResolve($index, '1.23E+2', 'UTF-8'), 'scientific notation');
+		$this->assertSame(['id' => null, 'ambiguous' => false], itemImportResolve($index, '123.5', 'UTF-8'), 'not a whole number');
 		itemImportIndexAdd($index, 8, 'NEW1', 'UTF-8');
 		$this->assertSame(['id' => 8, 'ambiguous' => false], itemImportResolve($index, 'new1', 'UTF-8'), 'an item the import created is found again');
+	}
+
+	public function testReadsWholeNumbersForTheLeadingZerosStep(): void
+	{
+		$this->assertSame('123', itemImportDigitsKey('000123'));
+		$this->assertSame('123', itemImportDigitsKey('123.00'));
+		$this->assertSame('100000', itemImportDigitsKey('1E+05'));
+		$this->assertSame('', itemImportDigitsKey('000'));
+		$this->assertNull(itemImportDigitsKey('12.5'));
+		$this->assertNull(itemImportDigitsKey('-12'));
+		$this->assertNull(itemImportDigitsKey('1e20'), 'beyond exact whole numbers');
+		$this->assertNull(itemImportDigitsKey('A12'));
 	}
 
 	public function testResolvesLettersInAnIsoInstallation(): void
@@ -84,10 +109,10 @@ final class itemImport extends TestCase
 
 	public function testRecognisesAHeaderLabel(): void
 	{
-		foreach (['Varenr', 'Varenr.', 'VARENUMMER', 'Vare nr', 'SKU', 'Item no.', 'Nr.'] as $label) {
+		foreach (['Varenr', 'Varenr.', 'VARENUMMER', 'Vare nr', 'Vare-nr:', 'SKU', 'Item no.', 'Nr.', ' Varenr '] as $label) {
 			$this->assertTrue(itemImportIsHeader($label), $label);
 		}
-		foreach (['BW001', 'UNKNOWN', '', '123', 'Tilbudspris'] as $cell) {
+		foreach (['BW001', 'UNKNOWN', '', '123', 'Tilbudspris', 'SKU123', 'SKU-001', 'Varenr123', 'Nr2'] as $cell) {
 			$this->assertFalse(itemImportIsHeader($cell), $cell);
 		}
 	}

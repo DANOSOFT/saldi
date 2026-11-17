@@ -13,7 +13,7 @@
 //       4 = filterOption (all_products, only_existing_product, only_unknown_products)
 //       5 = tegnset (UTF-8 or ISO-8859-1)
 //
-// Prints the page's HTML, then CHARTEST_PAGE_DONE; the test asserts on the database and on the page's text.
+// Prints the page's HTML, then CHARTEST_PAGE_DONE; PHP warnings go to stderr. The test asserts on the database and on the page's text.
 //
 // History:
 // 20261117 CL/LH Created for the campaign price import (Havemøbelland) and the Codex review of it.
@@ -22,7 +22,9 @@ if ($argc < 6) {
 	exit(2);
 }
 $mapping = explode(',', $argv[3]);
-error_reporting(E_ERROR | E_PARSE);
+error_reporting(E_ALL); // to stderr, where the test checks that none comes from includes/itemImport.php
+ini_set('display_errors', 'stderr');
+ini_set('log_errors', '0');
 $_SERVER['REQUEST_URI'] = '/saldi/systemdata/importer_varer.php';
 $_SERVER['PHP_SELF'] = '/saldi/systemdata/importer_varer.php';
 $_SERVER['REMOTE_ADDR'] = '127.0.0.1';

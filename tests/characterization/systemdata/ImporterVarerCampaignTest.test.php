@@ -15,6 +15,7 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  *
  * History:
  * 20261117 CL/LH Created (Havemøbelland campaign import, Codex review round 1).
+ * 20261117 CL/LH Codex review 2: a headerless ordinary file with a label-like item number, a quoted first cell, a new item twice, a bad cost price and 777.0.
  */
 final class ImporterVarerCampaignTest extends CharacterizationTestCase
 {
@@ -86,8 +87,11 @@ final class ImporterVarerCampaignTest extends CharacterizationTestCase
 	/** @param list<string> $mapping */
 	private static function import(string $csv, array $mapping, string $filter = 'all_products', string $tegnset = 'UTF-8'): string
 	{
+		CharacterizationEnv::resyncSequences(self::$tenant); // the fixtures insert explicit ids; the page's own inserts use the sequences
 		$res = self::runChild('run_importer_varer_page.php', [$csv, CharacterizationEnv::sessionId(), implode(',', $mapping), $filter, $tegnset]);
 		self::assertStringContainsString('CHARTEST_PAGE_DONE', $res['stdout'], "the page ran to the end\nstderr: {$res['stderr']}");
+		self::assertStringNotContainsString('itemImport.php', $res['stderr'], 'no warning from the shared import helpers');
+		self::assertStringNotContainsString('Query failed', $res['stderr'], 'every statement the import sent succeeded');
 		$text = str_replace(['</td>', '</th>', '<br>'], [' | ', ' | ', ' '], $res['stdout']);
 		return html_entity_decode(strip_tags($text), ENT_QUOTES, 'UTF-8');
 	}
@@ -194,6 +198,31 @@ final class ImporterVarerCampaignTest extends CharacterizationTestCase
 		self::assertSame('0.000', $after['042']['special_price']);
 		self::assertMatchesRegularExpression('/passer på flere varer og er ikke opdateret:\s*Amb, 42/', $page);
 		self::assertSame($upper, (int)self::one("SELECT id FROM varer WHERE special_price = 80 AND varenr ILIKE 'amb'")['id']);
+	}
+
+	public function testAnOrdinaryHeaderlessImportKeepsEveryValidLine(): void
+	{
+		$vat = self::vatGroup();
+		self::item('ORD4', $vat['gruppe'], 100.0, 'price', 'Old text 4');
+		self::item('ORD5', $vat['gruppe'], 100.0, 'price', 'Old text 5');
+		self::item('000777', $vat['gruppe'], 100.0, 'price', 'Old text 777');
+		$page = self::import(self::csv([
+			'SKU123;Garden chair;10,00',          // line 1 looks like a label but is an item number: created
+			'"ORD4";"Quoted; text";20,00',        // a quoted first cell
+			'NEW1;First;30,00',                   // created ...
+			'NEW1;Second;31,00',                  // ... and then updated, not created twice
+			'ORD5;Bad cost;abc',                  // the number check rejects it: listed
+			'777.0;Numeric;40,00',                // finds 000777
+		]), ['varenr', 'beskrivelse', 'kostpris']);
+		self::assertSame('Garden chair', self::one("SELECT beskrivelse FROM varer WHERE varenr = 'SKU123'")['beskrivelse'] ?? null);
+		$after = self::items(['ORD4', 'ORD5', '000777']);
+		self::assertSame('Quoted; text', $after['ORD4']['beskrivelse']);
+		self::assertSame('Old text 5', $after['ORD5']['beskrivelse']);
+		self::assertSame('Numeric', $after['000777']['beskrivelse'], '777.0 found 000777, which keeps its item number');
+		self::assertSame([['beskrivelse' => 'Second']], self::rows("SELECT beskrivelse FROM varer WHERE varenr = 'NEW1'"));
+		self::assertNull(self::one("SELECT id FROM varer WHERE varenr = '777.0'"));
+		self::assertStringContainsString('2 varer importeret, 3 varer opdateret', $page);
+		self::assertMatchesRegularExpression('/5 \| ORD5 \| kostpris \| abc \|/', $page);
 	}
 
 	public function testAnOrdinaryImportSkipsShortLinesAndKeepsCostHistory(): void

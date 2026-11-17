@@ -26,6 +26,8 @@
 //                Parses Danish and dot decimals, Danish and ISO dates with an optional time and times like 8.00, without touching the database.
 //                Codex review: the preview and the import share one line normalisation (BOM, character set), one column-mapping check and one item number resolver.
 //                An end time on minute 59 always gets second 59, and a no-break space in an ISO-8859-1 cell is read as a space.
+//                Codex review 2: every non-blank line is a row (a quoted first cell is no longer lost), and a header label keeps its digits (SKU123 is an item).
+//                A whole number such as 123.0 or 1E+05 still finds 000123 or 100000 when only one item matches; itemImportInvalidNumberField() names the field the import's number check rejects.
 
 /**
  * One line of the import file in the page's character set, without a UTF-8 byte order mark.
@@ -45,21 +47,14 @@ function itemImportLine($line, $fileCharset, $pageCharset) {
 }
 
 /**
- * True when a line holds columns: it has a column separator outside quotes. Other lines, such as an empty last line,
- * are not rows. The rule the import has used since 20220628, now shared with the preview.
+ * True when a line is a row of the file: anything but an empty line. A row that does not reach the mapped columns
+ * is then listed by itemImportMissingColumn() rather than dropped.
  *
  * @param string $line
- * @param string $splitter The column separator (; , or a tab).
  * @return bool
  */
-function itemImportIsRow($line, $splitter) {
-	$count = 1;
-	for ($c = 0; $c < strlen($line); $c++) {
-		if (substr($line, $c, 2) == '"' . $splitter) $count = 0;
-		if (substr($line, $c, 2) == $splitter . '"') $count = 1;
-		if ($count && substr($line, $c, 1) == $splitter) return true;
-	}
-	return false;
+function itemImportIsRow($line) {
+	return trim((string)$line) !== '';
 }
 
 /**
@@ -156,10 +151,28 @@ function itemImportIndexAdd(&$index, $id, $varenr, $encoding) {
 }
 
 /**
+ * The whole number an item number cell means, for the leading-zeros step of itemImportResolve(): digits without
+ * leading zeros, also when a spreadsheet wrote the number as 123.0 or 1E+05.
+ *
+ * @param string $varenr
+ * @return string|null Digits without leading zeros ('' for zero), or null when the cell is not a whole number.
+ */
+function itemImportDigitsKey($varenr) {
+	$varenr = trim((string)$varenr);
+	if (ctype_digit($varenr)) return ltrim($varenr, '0');
+	if (preg_match('/^(\d+)\.0+$/', $varenr, $m)) return ltrim($m[1], '0');
+	if (preg_match('/^\d+(\.\d+)?[eE]\+?\d+$/', $varenr) && is_numeric($varenr)) {
+		$number = (float)$varenr;
+		if ($number < 1e15 && floor($number) == $number) return ltrim(sprintf('%.0f', $number), '0');
+	}
+	return null;
+}
+
+/**
  * Finds the item a line's item number means.
  *
- * The exact item number first; otherwise the same number in other letter case; otherwise, for digits only, the same
- * number without leading zeros, as when a spreadsheet drops them (0123 stored, 123 in the sheet).
+ * The exact item number first; otherwise the same number in other letter case; otherwise, for a whole number, the same
+ * number without leading zeros, as when a spreadsheet drops them (0123 stored, 123 or 123.0 in the sheet).
  * Each step is used only when it finds exactly one item: two or more is ambiguous, and nothing is updated.
  *
  * @param array{exact: array<string, int[]>, lower: array<string, int[]>, digits: array<string, int[]>} $index From itemImportIndex().
@@ -171,7 +184,8 @@ function itemImportResolve($index, $varenr, $encoding) {
 	$varenr = (string)$varenr;
 	if ($varenr === '') return array('id' => null, 'ambiguous' => false);
 	$keys = array('exact' => $varenr, 'lower' => mb_strtolower($varenr, $encoding));
-	if (ctype_digit($varenr)) $keys['digits'] = ltrim($varenr, '0');
+	$digits = itemImportDigitsKey($varenr);
+	if ($digits !== null) $keys['digits'] = $digits;
 	foreach ($keys as $step => $key) {
 		$ids = $index[$step][$key] ?? array();
 		if (count($ids) == 1) return array('id' => $ids[0], 'ambiguous' => false);
@@ -188,8 +202,28 @@ function itemImportResolve($index, $varenr, $encoding) {
  * @return bool
  */
 function itemImportIsHeader($varenrCell) {
-	$label = preg_replace('/[^a-z]/', '', strtolower((string)$varenrCell));
+	$label = preg_replace('/[\s.\-_:#]/', '', strtolower(trim((string)$varenrCell)));
 	return in_array($label, array('varenr', 'varenummer', 'varenumre', 'vnr', 'nr', 'nummer', 'itemno', 'itemnumber', 'itemnr', 'sku', 'artnr', 'artikelnr', 'artikelnummer', 'produktnr', 'produktnummer', 'varekode'), true);
+}
+
+/**
+ * The number fields the import checks as it always has (a cell that is not a number skips the line), in their
+ * spellings before and after the import renames them.
+ *
+ * @param array<int, string|null> $fieldNames The column mapping.
+ * @param array<int, string|null> $cells The line's cells.
+ * @return string|null The first mapped number field whose cell the import rejects, or null.
+ */
+function itemImportInvalidNumberField($fieldNames, $cells) {
+	$numberFields = array('kostpris', 'salgspris_excl_moms', 'salgspris_ex_moms', 'salgspris_incl_moms', 'retail_price', 'vejl.pris', 'vejl_pris',
+		'montage', 'demontage', 'min_lager', 'max_lager', 'netweight');
+	foreach ((array)$fieldNames as $column => $name) {
+		$name = strtolower(trim((string)$name));
+		if (!in_array($name, $numberFields, true)) continue;
+		$digits = str_replace(array(',', '.'), '', trim((string)($cells[$column] ?? ''), " \t\r\n\""));
+		if ($digits && !is_numeric($digits)) return $name;
+	}
+	return null;
 }
 
 /**
