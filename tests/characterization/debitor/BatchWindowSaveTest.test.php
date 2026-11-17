@@ -1,11 +1,8 @@
 <?php
 // 20261116 CL/MMR SST-1023 Runs the batch window's Gem (save) block instead of reading it.
-//                  On PHP 8 the block threw a TypeError when a Vælg field was left empty or the
-//                  hidden lager field was empty, which the customer saw as a blank window.
-//                  The block also put the line id from the address and the chosen credit line
-//                  into SQL as received. The tests lift the line-id assignment and the save
-//                  block out of debitor/batch.php, run them against a recording db_modify(), and
-//                  check both the crash and what reaches SQL.
+//                 On PHP 8 the block threw a TypeError when a VM-CM-&lg field was left empty or the hidden lager field was empty, which the customer saw as a blank window.
+//                 The block also put the line id from the address and the chosen credit line into SQL as received.
+//                 The tests lift the line-id assignment and the save block out of debitor/batch.php, run them against a recording db_modify(), and check both the crash and what reaches SQL.
 namespace BatchWindowSaveFixture {
 
     final class Db
