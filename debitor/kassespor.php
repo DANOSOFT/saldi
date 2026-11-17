@@ -57,6 +57,7 @@
 // 20261006 CL/LH SST-835: Round net sales to 2 decimals before the BA division so a sub-øre remainder on an exchange order shows 0 % instead of 23 million %.
 // 20261117 CL/MMR SST-1017: BA leaves out the cost of a set head line when sets are on, as the order does.
 //                 The set's cost was counted twice (head line plus parts), so BA was too low.
+//                 udskriv(): sort limited to known columns, table name and other SQL values escaped or cast.
 
 ob_start();
 @session_start();
@@ -540,9 +541,9 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	global $omsaet;
 	global $modtaget;
 	global $retursum;
-    global $rabat_varenr, $vis_saet;
+	global $rabat_varenr, $vis_saet;
 	$total_discount = 0;
-    $total_gross_profit = 0;
+	$total_gross_profit = 0;
 	// With sets on, a set head line (samlevare) carries the cost of the whole set while its parts are on
 	// the order with their own cost, so its cost is left out, as debitor/ordre.php does for the order's DB/DG.
 	$line_cost = ($vis_saet) ? "(CASE WHEN COALESCE(samlevare, '') IN ('', '0') THEN kostpris ELSE 0 END)" : 'kostpris';
@@ -550,7 +551,16 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	$linjebg=NULL;
 	$y=0;
 	$sort=str_replace('+',' ',$sort);
-	
+	// $sort comes from the request or the cookie and goes into ORDER BY: only a known column, optionally desc.
+	$sort_parts = explode(' ', trim($sort));
+	$sort_columns = array('id', 'status', 'fakturadate', 'tidspkt', 'fakturanr', 'kontonr', 'felt_1', 'felt_2', 'felt_3', 'felt_4', 'felt_5', 'nr', 'ref', 'sum', 'logdate');
+	if (in_array($sort_parts[0], $sort_columns, true)) {
+		$sort = $sort_parts[0];
+		if (isset($sort_parts[1]) && strtolower($sort_parts[1]) == 'desc') $sort .= ' desc';
+	} else {
+		$sort = 'tidspkt desc';
+	}
+
 	# Check if the old system is in use.
 	$r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	if ($r[0]) {
@@ -562,7 +572,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 			}
 		}
 	} else {
-		$r=db_fetch_array(db_select("select id from table_plan where name='$borde'",__FILE__ . " linje " . __LINE__));
+		$r=db_fetch_array(db_select("select id from table_plan where name='" . db_escape_string($borde) . "'",__FILE__ . " linje " . __LINE__));
 		$bordnr = $r["id"];
 	}
 
@@ -610,48 +620,44 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 		$moms[$x]=$r['moms'];
 		$art[$x]=$r['art'];
 		$dkksum[$x]=dkdecimal($sum[$x]+$moms[$x],2);
-	
 
-					$q_dg = db_fetch_array(db_select("
-					SELECT
-					COALESCE(SUM(pris * antal), 0) AS total_sales,
-					COALESCE(SUM(
-						CASE 
-						WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
-						ELSE (pris * rabat / 100) * antal
-						END
-					), 0) AS discount,
-					COALESCE(SUM($line_cost * antal), 0) AS kostpris,
-					COALESCE(SUM(
-						(
-						pris - 
-						CASE 
-							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
-							ELSE (pris * rabat / 100)
-						END
-						- $line_cost
-						) * antal
-					), 0) AS dg
-					FROM ordrelinjer
-					WHERE ordre_id = '{$id[$x]}'
+		$q_dg = db_fetch_array(db_select("
+			SELECT
+			COALESCE(SUM(pris * antal), 0) AS total_sales,
+			COALESCE(SUM(
+				CASE
+				WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
+				ELSE (pris * rabat / 100) * antal
+				END
+			), 0) AS discount,
+			COALESCE(SUM($line_cost * antal), 0) AS kostpris,
+			COALESCE(SUM(
+				(
+				pris -
+				CASE
+					WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
+					ELSE (pris * rabat / 100)
+				END
+				- $line_cost
+				) * antal
+			), 0) AS dg
+			FROM ordrelinjer
+			WHERE ordre_id = '{$id[$x]}'
+		", __FILE__ . ' linje ' . __LINE__));
 
-			        ", __FILE__ . ' linje ' . __LINE__));
-
-                    $discount[$x] = $q_dg['discount'];
-					$gross_profit[$x] = $q_dg['dg'];
-					$kostpris[$x] = $q_dg['kostpris'];
-                    $total_discount += $discount[$x];
-				    $total_gross_profit += $gross_profit[$x];
-
-
+		$discount[$x] = $q_dg['discount'];
+		$gross_profit[$x] = $q_dg['dg'];
+		$kostpris[$x] = $q_dg['kostpris'];
+		$total_discount += $discount[$x];
+		$total_gross_profit += $gross_profit[$x];
 		$x++;
 	}
 	for ($x=0;$x<count($id);$x++) {
 		if (!strpos($tidspkt[$x],":")) {
-			$qtxt = "SELECT MAX(modtime) AS modtime FROM batch_salg WHERE ordre_id = '$id[$x]'";
+			$qtxt = "SELECT MAX(modtime) AS modtime FROM batch_salg WHERE ordre_id = '" . (int)$id[$x] . "'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$tidspkt[$x] = substr($r[0],11,5);
-				$qtxt = "UPDATE ordrer SET tidspkt = '$tidspkt[$x]' WHERE id = '$id[$x]'";
+				$qtxt = "UPDATE ordrer SET tidspkt = '" . db_escape_string($tidspkt[$x]) . "' WHERE id = '" . (int)$id[$x] . "'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 
@@ -666,7 +672,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 				else {$linjebg=$bgcolor5; $color='#000000';}
 				$y=0;
 				$ordre_id=array();
-				$qtxt="select * from pos_betalinger where ordre_id = '$id[$x]' order by betalingstype";
+				$qtxt="select * from pos_betalinger where ordre_id = '" . (int)$id[$x] . "' order by betalingstype";
 				$q2=db_select($qtxt,__FILE__ . " linje " . __LINE__);	
 				while ($r2=db_fetch_array($q2)) {
 					if (!$y) {
@@ -713,7 +719,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 							if ($bord[$x] == "") {
 								$txt="";
 							} else {
-								$r=db_fetch_array(db_select("select name from table_plan where id = $bord[$x]",__FILE__ . " linje " . __LINE__));
+								$r=db_fetch_array(db_select("select name from table_plan where id = '" . (int)$bord[$x] . "'",__FILE__ . " linje " . __LINE__));
 								$txt = $r[0];
 							}
 						}
@@ -734,12 +740,12 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 					if (!isset($ordre_id[$y-1]) || $ordre_id[$y]!=$ordre_id[$y-1]) {
 						print "<td align=right>".dkdecimal($retur,2)."<br></td>\n";
 						$retursum+=$retur;
-	
+
 						$q_dg = db_fetch_array(db_select("
 						SELECT
 						COALESCE(SUM(pris * antal), 0) AS total_sales,
 						COALESCE(SUM(
-							CASE 
+							CASE
 							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
 							ELSE (pris * rabat / 100) * antal
 							END
@@ -747,8 +753,8 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						COALESCE(SUM($line_cost * antal), 0) AS kostpris,
 						COALESCE(SUM(
 							(
-							pris - 
-							CASE 
+							pris -
+							CASE
 								WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
 								ELSE (pris * rabat / 100)
 							END
@@ -759,12 +765,12 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						WHERE ordre_id = '{$id[$x]}'
 						", __FILE__ . ' linje ' . __LINE__));
 
-						$discount_val = $q_dg['discount'];	
+						$discount_val = $q_dg['discount'];
 						$gross_profit_val = $q_dg['dg'];
-						
+
 						if ($rabat_varenr && $vis_saet) {
-								$q_rabat = db_fetch_array(db_select(
-								"SELECT lev_varenr FROM ordrelinjer WHERE ordre_id = '{$id[$x]}' AND TRIM(UPPER(varenr)) = TRIM(UPPER('$rabat_varenr')) AND rabat != 0 ORDER BY id ASC LIMIT 1",
+							$q_rabat = db_fetch_array(db_select(
+								"SELECT lev_varenr FROM ordrelinjer WHERE ordre_id = '{$id[$x]}' AND TRIM(UPPER(varenr)) = TRIM(UPPER('" . db_escape_string($rabat_varenr) . "')) AND rabat != 0 ORDER BY id ASC LIMIT 1",
 								__FILE__ . " linje " . __LINE__
 							));
 							$rabatrabat = '0.00';
@@ -789,15 +795,15 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 							$dg_percent = 0;
 						}
 						print "<td align=right>" . dkdecimal($dg_percent, 2) . " %</td>\n";
-					} else  {
-					print "<td align=right><br></td>\n";
+					} else {
+						print "<td align=right><br></td>\n";
 					}
 					/* print "<td></td>"; */
 				}
 			}
 		}
 	}
-if (!isset ($y)) $y = NULL;
+	if (!isset ($y)) $y = NULL;
 	return ($y);
 } #endfunction udskriv()
 ?>

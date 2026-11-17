@@ -9,6 +9,7 @@
 //
 // History:
 // 20261117 CL/MMR SST-1017 Created.
+// 20261117 CL/MMR SST-1017 The database part skips when the master-only TestDatabase helper is missing (live).
 
 declare(strict_types=1);
 
@@ -21,9 +22,18 @@ final class KassesporSetCostTest extends TestCase
     /** @var PgSql\Connection */
     private $connection;
 
-    protected function setUp(): void
+    /** Connects to the test database and builds the synthetic ordrelinjer table; skips when no database is available. */
+    private function database()
     {
-        require_once __DIR__ . '/../support/database/TestDatabase.php';
+        if (isset($this->connection)) {
+            return $this->connection;
+        }
+        $helper = __DIR__ . '/../support/database/TestDatabase.php';
+        if (!is_file($helper)) {
+            // The database test helper is on master but not yet on live; without it the SQL cannot be run here.
+            self::markTestSkipped('tests/characterization/support/database/TestDatabase.php is not available on this branch');
+        }
+        require_once $helper;
         $reason = TestDatabase::unavailableReason();
         if ($reason !== null) {
             self::markTestSkipped($reason);
@@ -40,6 +50,7 @@ final class KassesporSetCostTest extends TestCase
             (1, 1, 100, 5, 'amount', 40, '0'),
             (2, 2, 100, 0, '', 30, ''),
             (2, 1, 50, 10, '', 20, NULL)");
+        return $this->connection;
     }
 
     protected function tearDown(): void
@@ -89,6 +100,29 @@ final class KassesporSetCostTest extends TestCase
         self::assertSame($off, $on);
     }
 
+    /** udskriv() puts $sort into ORDER BY, so only a known column, optionally followed by desc, gets through. */
+    public function testSortIsLimitedToKnownColumns(): void
+    {
+        $src = (string)file_get_contents(self::KASSESPOR);
+        self::assertSame(1, preg_match('/\t\$sort_parts = explode.*?\n\t\}\n/s', $src, $m), 'sort guard not found in udskriv()');
+        $guard = $m[0];
+        $cases = [
+            'fakturanr' => 'fakturanr',
+            'sum desc' => 'sum desc',
+            'tidspkt DESC' => 'tidspkt desc',
+            'logdate' => 'logdate',
+            "id; drop table ordrer" => 'tidspkt desc',
+            "fakturanr desc, (select 1)" => 'fakturanr',
+            "(case when true then id end)" => 'tidspkt desc',
+            '' => 'tidspkt desc',
+        ];
+        foreach ($cases as $input => $expected) {
+            $sort = $input;
+            eval($guard);
+            self::assertSame($expected, $sort, "sort input: $input");
+        }
+    }
+
     /**
      * Runs the page's per-order BA query for one order.
      *
@@ -103,8 +137,9 @@ final class KassesporSetCostTest extends TestCase
         $id = [$orderId];
         $x = 0;
         $sql = eval('return "' . self::queries()[1] . '";');
-        $result = pg_query($this->connection, $sql);
-        self::assertNotFalse($result, pg_last_error($this->connection));
+        $connection = $this->database();
+        $result = pg_query($connection, $sql);
+        self::assertNotFalse($result, pg_last_error($connection));
         $row = pg_fetch_assoc($result);
         self::assertIsArray($row);
         return $row;
