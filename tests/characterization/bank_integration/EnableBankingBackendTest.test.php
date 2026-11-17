@@ -39,6 +39,7 @@
 // 20261116 CL/LH Pull model: tests of bank-owned journals, automatic import, the journal line cap and the bogfor.php lock are gone; picks go through ebImportIntoJournal() into a given journal (vouchers, positions, links, locks, posted and simulated journals, fiscal year, idempotency, foreign ids), and the feed renders with and without a journal.
 // 20261116 CL/LH Review fixes: posting and import serialize on the journal header (both directions, real processes), import after an account reset, ISO-8859-15 bank text.
 // 20261117 CL/LH CodeRabbit fixes: consent cleanup, reference "0", value-date overlap hint, re-dated pre-cutover line, due re-check, change approval bound to the shown change; child helper keeps the first exit status and stops a stuck child.
+// 20261117 CL/LH A missing key file after the bank session is created still closes the consent at the bank.
 
 use PHPUnit\Framework\TestCase;
 
@@ -706,6 +707,33 @@ final class EnableBankingBackendTest extends TestCase
         $client = new EnableBankingClient(EbTestKeys::config(), $transport);
         $row = ebConsumeAuthorization($state, 1);
         $this->rejects(fn() => ebCompleteAuthorization($client, $row, bin2hex(random_bytes(16)), 'chartest'));
+        $this->assertSame($connections, ebRows('SELECT id FROM bank_connections ORDER BY id'));
+        $this->assertSame(['POST', 'DELETE'], array_column($transport->requests, 'method'));
+        $this->assertSame([], $transport->script);
+    }
+
+    /** @return void */
+    public function test_consent_is_closed_when_the_key_file_is_missing(): void
+    {
+        $state = bin2hex(random_bytes(32));
+        $this->state($state, []);
+        $body = ['accounts' => [$this->resource('cleanup-key')], 'session_id' => 'keyless-session',
+            'access' => ['valid_until' => date(DATE_RFC3339, time() + 86400)]];
+        $connections = ebRows('SELECT id FROM bank_connections ORDER BY id');
+        $transport = new EbFixtureTransport([$this->step($body, 200, '/sessions', 'POST'),
+            $this->step(['message' => 'OK'], 200, '/sessions/keyless-session', 'DELETE')]);
+        $client = new EnableBankingClient(EbTestKeys::config(), $transport);
+        $row = ebConsumeAuthorization($state, 1);
+        $key = oauthKeyPath();
+        rename($key, $key . '.away');
+        try {
+            ebCompleteAuthorization($client, $row, bin2hex(random_bytes(16)), 'chartest');
+            $this->fail('Expected the missing key file to stop the authorization');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('OAuth key file not found', $e->getMessage());
+        } finally {
+            rename($key . '.away', $key);
+        }
         $this->assertSame($connections, ebRows('SELECT id FROM bank_connections ORDER BY id'));
         $this->assertSame(['POST', 'DELETE'], array_column($transport->requests, 'method'));
         $this->assertSame([], $transport->script);

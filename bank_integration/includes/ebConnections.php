@@ -37,6 +37,7 @@
 // 20261116 CL/LH Pull model: no automatic import switch, journal pointer or deferral in the account status.
 // 20261117 CL/LH A consent that cannot be stored is closed at the bank again; overlap hints use the accounting date (date_override first).
 //                Messages through findtekst() (bank.* keys).
+// 20261117 CL/LH The bank session's encryption and the old-connection lookup run inside the cleanup try, so a missing key file also closes the consent at the bank (Saul's review).
 
 require_once __DIR__ . '/ebSync.php';
 
@@ -114,11 +115,11 @@ function ebCompleteAuthorization(EnableBankingClient $c, array $stateRow, string
     }
     $stateRow = $storedState;
     $session = $c->createSession($code);
-    $encrypted = oauthEncrypt($session['session_id']);
-    $old = $stateRow['connection_id'] ? ebRow('SELECT * FROM bank_connections WHERE id=' . (int)$stateRow['connection_id']) : null;
-    // The consent exists at the bank from here on. If storing it fails, close it again, so no consent stays valid that Saldi cannot see or revoke.
+    // The consent exists at the bank from here on. If anything before the commit fails (a missing key file, a lookup, the insert), close it again, so no consent stays valid that Saldi cannot see or revoke.
     $stored = false;
     try {
+        $encrypted = oauthEncrypt($session['session_id']);
+        $old = $stateRow['connection_id'] ? ebRow('SELECT * FROM bank_connections WHERE id=' . (int)$stateRow['connection_id']) : null;
         $newId = ebNamedLock('connections', function () use ($stateRow, $session, $encrypted, $username, &$stored): int {
             $id = ebAtomic(function () use ($stateRow, $session, $encrypted, $username): int {
                 $id = ebInsert('bank_connections', ['provider' => 'enablebanking', 'environment' => $stateRow['environment'],
