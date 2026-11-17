@@ -20,6 +20,12 @@
 // 20261102 CL/ASR Reopening an account whose closing date (lukkes) has passed also clears that date, so the auto-close does not close it again at once.
 // 20261113 CDX/NTR Use the shared last-activity formatter for legacy registry date strings in both account views.
 // 20261117 CL/SZ MB-163 The page and its actions need a master user with admin rights; every POST carries the session token.
+// 20261117 CDX/NTR Use the shared master-admin lookup for the page and its actions.
+
+/**
+ * Injected by ../includes/online.php, included below:
+ * @var string $brugernavn_raw
+ */
 
 ob_start();
 
@@ -47,8 +53,7 @@ if ($db != $sqdb) {
     print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
     exit;
 }
-$adminRow = db_fetch_array(db_select("SELECT rettigheder FROM brugere WHERE brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
-if (!masterUserIsAdmin(ifset($adminRow, 'rettigheder', null))) {
+if (!masterUserHasAdminRights($brugernavn_raw)) {
     $noAccessTxt = findtekst('5548|Du har ikke adgang til denne funktion. Kontakt din administrator.', $sprog_id);
     if ($isAjaxRequest) {
         while (ob_get_level()) { ob_end_clean(); }
