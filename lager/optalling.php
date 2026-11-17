@@ -1,6 +1,6 @@
 <?php
 //
-// -- lager/optalling.php ------------------- ver 5.1.1 -- 2026-11-13 --
+// -- lager/optalling.php ------------------- ver 5.1.1 -- 2026-11-17 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,7 @@
 // 20261001 CDX/PHR Initialize empty product and variant lookups so unmatched import rows do not crash on PHP 8.
 // 20261112 CL/MMR SST-1014 An item with variants is refused however it is opened (form, link, padded number or barcode) through countItemLookup() in optallingIncludes/countItem.php, because recounting it removed the other variants' lagerstatus rows.
 // 20261113 CL/MMR SST-1014 The refusal message is encoded with jsString(), so an item number with an apostrophe no longer breaks the dialog.
+// 20261117 CDX/NTR Cast stock quantity explicitly to float before formatting instead of multiplying by one.
 
 @session_start();
 $s_id = session_id();
@@ -355,7 +356,7 @@ if ($varenr) {
 
 	print "<tr><td></td></tr>\n";
 
-	$tmp = dkdecimal($beholdning * 1, 2); #20140103
+	$tmp = dkdecimal((float) $beholdning, 2); #20140103
 	while (substr($tmp, -1) == '0') {
 		$tmp = substr($tmp, 0, strlen($tmp) - 1);
 	}
