@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.1.0 --- 2026-11-13 ---
+// --- api/rest_api.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -108,6 +108,8 @@
 //
 // ----------------------------------------------------------------------
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261117 CL/LH After an authorised call the webshop offer push (includes/stdFunc/shopOfferPush.php) may send the prices of offers that started or ended.
+//                The shops call the API around the clock, so an offer that starts at midnight reaches them without a sale in a store.
 date_default_timezone_set('Europe/Copenhagen');
 
 include("../includes/connect.php");
@@ -1499,6 +1501,10 @@ function send_api_invoice_email($ordre_id) {
 	return $result['message'];
 }
 
+// 20261117 offers that started or ended; usually only a check of a small file
+if (isset($svar) && $svar === 'OK' && function_exists('shopOfferPushTick')) {
+	shopOfferPushTick(array('maxItems' => 10, 'maxSeconds' => 3));
+}
 //return JSON array
 exit(json_encode($value));
 ?> 

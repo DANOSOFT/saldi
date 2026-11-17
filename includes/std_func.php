@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -126,6 +126,9 @@
 // 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
 //                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CL/LH Havemøbelland Black Week: sync_shop_price() and sync_shop_vare() send an item's effective prices (stdFunc/shopOfferPrice.php): during an active offer the offer as salesPrice and the normal price as retailPrice.
+//                Without it, a card save or a sale during an offer put the normal price back in the webshops.
+//                shopSyncDrainQueue() also lets stdFunc/shopOfferPush.php send the prices of offers that started or ended, within a small budget.
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
@@ -139,6 +142,8 @@ include_once(__DIR__ . '/permissions.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
 include(__DIR__ . '/stdFunc/shopSyncQueue.php');
 require_once(__DIR__ . '/stdFunc/shopSyncDocument.php');
+include_once(__DIR__ . '/stdFunc/shopOfferPrice.php');
+include_once(__DIR__ . '/stdFunc/shopOfferPush.php');
 include(__DIR__ . '/stdFunc/jsString.php');
 include(__DIR__ . '/stdFunc/datotidTilTekst.php');
 if (!function_exists('locateDir')) {
@@ -2041,14 +2046,15 @@ if(!function_exists("sync_shop_price")){
 		fclose($log);
 		return ('no api');
 	  }
-	  $qtxt = "SELECT varenr, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode FROM varer WHERE varer.id='$vare_id'";
+	  $qtxt = "SELECT varenr, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode, " . shopOfferColumns() . " FROM varer WHERE varer.id='" . (int)$vare_id . "'";
 	  if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$salesPrice = $r['salgspris'];
+		$prices = shopPricesForItem($r); # 20261117 during an offer: the offer, with the normal price as retailPrice
+		$salesPrice = $prices['salesPrice'];
 		$discountType = $r['m_type'];
 		$discount = $r['m_rabat'];
 		$itemNo = $r['varenr'];
 		$costPrice = $r['kostpris'];
-		$retailPrice = $r["retail_price"];
+		$retailPrice = $prices['retailPrice'];
 		$webFragt = $r["colli_webfragt"];
 		$stregkode = $r["stregkode"];
 		$params = array(
@@ -2248,15 +2254,16 @@ if (!function_exists('sync_shop_vare')) {
 				$shop_id = $r['shop_id'];
 			}
 
-			$qtxt = "SELECT varenr, varenr_alias, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode FROM varer WHERE varer.id='$vare_id'";
+			$qtxt = "SELECT varenr, varenr_alias, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode, " . shopOfferColumns() . " FROM varer WHERE varer.id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$salesPrice = $r['salgspris'];
+				$prices = shopPricesForItem($r); # 20261117 during an offer: the offer, with the normal price as retailPrice
+				$salesPrice = $prices['salesPrice'];
 				$discountType = $r['m_type'];
 				$discount = $r['m_rabat'];
 				$itemNo = $r['varenr'];
 				$itemNoAlias = $r['varenr_alias'];
 				$costPrice = $r['kostpris'];
-				$retailPrice = $r["retail_price"];
+				$retailPrice = $prices['retailPrice'];
 				$webFragt = $r["colli_webfragt"];
 				$stregkode = $r["stregkode"];
 				$params = array(
@@ -2582,10 +2589,15 @@ if (!function_exists('shopSyncDrainQueue')) {
 			if (shopSyncMarkedCount() > 0) {
 				shopSyncFlush($limit, $maxAttempts);
 				$state = &shopSyncMarkState();
-				return $state['delivered'];
+				$delivered = $state['delivered'];
+			} else {
+				$result = shopSyncRunBacklog(shopSyncQueuePending($limit, $maxAttempts), 5, $maxAttempts);
+				$delivered = $result['delivered'];
 			}
-			$result = shopSyncRunBacklog(shopSyncQueuePending($limit, $maxAttempts), 5, $maxAttempts);
-			return $result['delivered'];
+			// 20261117 offers that started or ended since the last look; usually only a check of a small file.
+			// A sale waits for this, so it gets few items and little time; the rest follows on later requests.
+			shopOfferPushTick(array('maxItems' => 3, 'maxSeconds' => 1.5, 'timeout' => 4, 'connectTimeout' => 2));
+			return $delivered;
 		} finally {
 			$draining = false;
 		}

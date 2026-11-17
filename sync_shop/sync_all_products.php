@@ -66,7 +66,8 @@ fwrite($log, "API Tertiary: $api_fil3\n\n");
 
 // Get all products that should be synced
 $qtxt = "SELECT DISTINCT v.id, v.varenr, v.kostpris, v.salgspris, v.m_type, v.m_rabat, 
-                v.retail_price, v.colli_webfragt, v.stregkode, v.gruppe, v.delvare
+                v.retail_price, v.colli_webfragt, v.stregkode, v.gruppe, v.delvare,
+                v.specialtype, v.special_price, v.special_from_date, v.special_to_date, v.special_from_time, v.special_to_time
          FROM varer v 
          INNER JOIN grupper g ON v.gruppe = g.kodenr 
          WHERE g.art = 'VG' AND g.fiscal_year = $regnaar AND g.box8 IS NOT NULL AND g.box8 != ''
@@ -92,6 +93,10 @@ while ($product = db_fetch_array($products_query)) {
     $stregkode = $product['stregkode'];
     $gruppe = $product['gruppe'];
     $delvare = $product['delvare'];
+    // 20261117 CL/LH during an active offer the shops get the offer, with the normal price as retailPrice (includes/stdFunc/shopOfferPrice.php)
+    $prices = shopPricesForItem($product);
+    $salgspris = $prices['salesPrice'];
+    $retail_price = $prices['retailPrice'];
     
     echo "<p>Processing product ID: $vare_id (varenr: $varenr)</p>";
     fwrite($log, "Processing product ID: $vare_id (varenr: $varenr)\n");
