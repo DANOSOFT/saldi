@@ -76,6 +76,7 @@
 //                An existing item keeps its item number: the update no longer writes the sheet's spelling over it (since 20140201/20161015 abc renamed ABC and 123 renamed 000123); new items get the sheet's number as before.
 // 20261117 CL/LH Codex review 3: a number cell is checked before salgspris_incl_moms converts it, so a rejected price is listed; a last line "0" without a newline is read, and item number 0 can be created.
 // 20261117 CL/LH After a campaign import the webshops get the offers that apply now (includes/stdFunc/shopOfferPush.php), the imported items first, within 100 items and 20 seconds; the rest, and later starts and ends, follow on ordinary requests.
+//                Only on an install with a webshop API, so an install without one gets no push state and no query on later requests.
 @session_start();
 $s_id=session_id();
 ini_set('max_execution_time', 120);
@@ -932,7 +933,7 @@ if ($fp) {
 fclose($fp);
 #xit;
 transaktion('commit');
-if ($campaignWritten && function_exists('shopOfferPushTick')) { # 20261117 the webshops get the offers that apply now; later starts and ends follow on their own
+if ($campaignWritten && function_exists('shopOfferPushTick') && shopSyncApiConfigured()) { # 20261117 the webshops get the offers that apply now; later starts and ends follow on their own
 	shopOfferPushSchedule(0);
 	shopOfferPushTick(array('force' => true, 'maxItems' => 100, 'maxSeconds' => 20, 'prefer' => $campaignWritten));
 }

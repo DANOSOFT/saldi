@@ -28,6 +28,7 @@
 //                Every path that sends prices reports to shopOfferObserve(); an item is tracked from the first offer sent on any path until every shop has confirmed the normal prices again.
 //                The next look can only be moved earlier by a request, atomically (flock); a look that ends moves it later only when no earlier look was asked for meanwhile.
 //                Sends use their own deadline: millisecond timeouts within the budget, also in the one-at-a-time fallback without curl_multi.
+//                Without a webshop API a look makes the push dormant again, so the check on later requests costs no query.
 
 if (!function_exists('shopOfferPushDir')) {
 	/**
@@ -498,7 +499,13 @@ if (!function_exists('shopOfferPushTick')) {
 		if (empty($options['force']) && shopOfferPushDueAt() > $now) {
 			return $result;
 		}
-		if (!empty($GLOBALS['db_transaktion_depth']) || !function_exists('shopSyncApiConfigured') || !shopSyncApiConfigured()) {
+		if (!empty($GLOBALS['db_transaktion_depth']) || !function_exists('shopSyncApiConfigured')) {
+			return $result;
+		}
+		if (!shopSyncApiConfigured()) {
+			if (shopOfferScheduleRead() !== null) {
+				shopOfferScheduleUpdate(function () { return null; }); // no webshop (any more): dormant, so later requests cost no query
+			}
 			return $result;
 		}
 		$dir = shopOfferPushDir();

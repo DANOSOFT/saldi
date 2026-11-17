@@ -18,6 +18,7 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  * 20261117 CL/LH Created (Havemøbelland Black Week: offers in the webshops).
  * 20261117 CL/LH Codex verification: one regression test per finding (unrecorded card/sale offers, partial delivery, the budget with
  *                slow shops, the schedule race, the retry state after a first failure, a refused restoration).
+ * 20261117 CL/LH An install without a webshop keeps no push state after a campaign import, and a look there makes the push dormant.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -496,6 +497,34 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::tick($t + 1, true);
 		self::assertSame(['shop 2' => ['149.200 / 799.00']], array_intersect_key(self::pricesSent('SPF6GIVE'), ['shop 2' => 1]),
 			'new prices are sent to shop 2 again');
+	}
+
+	// ------------------------------------------------------------------ an install without a webshop costs nothing
+
+	public function testAnInstallWithoutAWebshopKeepsNoPushState(): void
+	{
+		$endpoints = self::one("SELECT box4, box5, box6 FROM grupper WHERE art = 'API'");
+		self::rows("UPDATE grupper SET box4 = '', box5 = '', box6 = '' WHERE art = 'API'");
+		try {
+			self::item('SPNOAPI');
+			$csv = tempnam(sys_get_temp_dir(), 'offercsv');
+			self::$files[] = $csv;
+			file_put_contents($csv, "SPNOAPI;199,00;" . date('d-m-Y') . ";" . date('d-m-Y', strtotime('+3 days')) . "\r\n");
+			chmod($csv, 0644);
+			CharacterizationEnv::resyncSequences(self::$tenant);
+			$res = self::runChild('run_importer_varer_page.php', [$csv, self::sessionId(), 'varenr,special_price_incl_moms,special_from_date,special_to_date', 'all_products', 'UTF-8']);
+			self::assertStringContainsString('CHARTEST_PAGE_DONE', $res['stdout']);
+			self::assertSame('159.200', self::one("SELECT special_price FROM varer WHERE varenr = 'SPNOAPI'")['special_price'], 'the import itself is unchanged');
+			self::assertFileDoesNotExist(self::$tempDir . '/shopoffer/next.json', 'a campaign import without a webshop leaves no push state');
+			self::assertSame(PHP_INT_MAX, self::runner(['due'])['due'], 'dormant: the check on a request reads no item');
+
+			self::runner(['schedule', '0']); // a schedule left from when the account had a webshop
+			self::assertFalse(self::runner(['tick', 'now', '-'])['looked']);
+			self::assertFileDoesNotExist(self::$tempDir . '/shopoffer/next.json', 'the look made the push dormant again');
+			self::assertSame([], self::priceCalls());
+		} finally {
+			self::rows("UPDATE grupper SET box4 = $1, box5 = $2, box6 = $3 WHERE art = 'API'", [$endpoints['box4'], $endpoints['box5'], $endpoints['box6']]);
+		}
 	}
 
 	/** The seeded session id for the page runner (master harness: sessionId(), live harness: SESSION_ID). */
