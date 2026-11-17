@@ -340,9 +340,11 @@ if (!$projekt) {
 	($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $projekt = $r['box9'] : $projekt = '';
 }
 if (isset($_GET['skift_bruger'])) {
-	// MB-162: skift_bruger=2 used to switch without a password; both values now open the password dialog
+	// MB-162: skift_bruger=2 used to switch without a password; both values now open the password dialog,
+	// and brugernavn (sent by the Ekspedient button) is only preselected there
 	if ($_GET['skift_bruger'] == 1 || $_GET['skift_bruger'] == 2) {
-		skift_bruger(null, null, 1);
+		$forvalgtBruger = (string) ifset($_GET, 'brugernavn', '');
+		skift_bruger(null, null, 1, $forvalgtBruger);
 	}
 	exit;
 }
@@ -2063,7 +2065,16 @@ function betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, 
 	return ($sum);
 } #endfunc betaling
 
-function skift_bruger($ny_bruger, $kode, $pwtjek) {
+/**
+ * Shows the POS user-switch dialog, or switches the session's user after checking that user's password.
+ *
+ * @param string|null $ny_bruger      User name posted from the dialog; empty together with $kode shows the dialog
+ * @param string|null $kode           Password posted from the dialog
+ * @param int         $pwtjek         Always 1 since MB-162 removed the passwordless mode 2
+ * @param string      $forvalgtBruger User name to preselect in the dialog (sent by the Ekspedient button)
+ * @return void
+ */
+function skift_bruger($ny_bruger, $kode, $pwtjek, $forvalgtBruger = '') {
 	$posNavigationQuery = nav_popup_query($_GET, $_POST);
 	global $brugernavn;
 	global $s_id;
@@ -2086,8 +2097,8 @@ function skift_bruger($ny_bruger, $kode, $pwtjek) {
 		print "</td></tr>\n";
 		$stil = find_stil('select', 2, 0);
 		print "<tr><td><big>" . findtekst('2252|Ekspedient', $sprog_id) . ": </big><select class=\"inputbox\" style=\"width:100px;font-size:$ifs;\" NAME=\"ny_bruger\">\n";
-		// MB-162: the Ekspedient button passes the user name, which is only preselected here
-		$forvalgt = strtolower((string) ifset($_GET, 'brugernavn', ''));
+		// MB-162: the user name from the Ekspedient button is only preselected; the password is still required
+		$forvalgt = strtolower($forvalgtBruger);
 		print "<option>$brugernavn</option>\n";
 		for ($x = 0; $x < count($loginnavn); $x++) {
 			if ($loginnavn[$x] != $brugernavn) {

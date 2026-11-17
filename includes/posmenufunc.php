@@ -395,10 +395,11 @@ if (!function_exists('menubuttons')) {
 							print "<td onclick=\"return confirm('" . findtekst('2398|Slet alt og start forfra', $sprog_id) . "?')\"><INPUT TYPE=\"submit\" $tmp NAME=\"forfra\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 'f';pos_ordre.$fokus.focus();\">\n";
 						} elseif ($c == '14') {
 							$knap = "<input $disabled onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id&skift_bruger=1&brugernavn=" . urlencode($a) . "&bordnr=$bordnr&$menu=$menu_id'\" type=\"button\" $stil value= \"$a\">\n";
-							if (strtolower($brugernavn) == strtolower($a))
+							if (strtolower($brugernavn) == strtolower($a)) {
 								$knap = str_replace("background-color: ;", "background-color: #00ff00;", $knap);
-							else
+							} else {
 								$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
+							}
 							print "<td>" . $knap;
 						} elseif ($c == '15') {
 							$txt = findtekst('2117|Ryd', $sprog_id);
