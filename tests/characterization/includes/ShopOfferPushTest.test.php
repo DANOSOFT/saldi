@@ -107,10 +107,13 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	}
 
 	/** @return array<string, mixed> */
-	private static function tick(int $now, bool $force = false, int $maxItems = 10, float $maxSeconds = 3): array
+	/** @param list<int> $prefer */
+	private static function tick(int $now, bool $force = false, int $maxItems = 10, float $maxSeconds = 3, array $prefer = []): array
 	{
 		CharacterizationEnv::resyncSequences(self::$tenant);
-		return self::runner(['tick', (string)$now, $force ? 'force' : '-', (string)$maxItems, (string)$maxSeconds]);
+		$args = ['tick', (string)$now, $force ? 'force' : '-', (string)$maxItems, (string)$maxSeconds];
+		if ($prefer) $args[] = implode(',', $prefer);
+		return self::runner($args);
 	}
 
 	/** @param list<string> $args @return array<string, mixed> */
@@ -260,17 +263,22 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		$now = time();
 		$from = date('Y-m-d', $now - 86400);
 		$to = date('Y-m-d', $now + 86400);
+		$ids = [];
 		for ($i = 1; $i <= 120; $i++) {
-			self::item(sprintf('SPB%03d', $i), ['price' => 100 + $i, 'from' => $from, 'to' => $to]);
+			$ids[$i] = self::item(sprintf('SPB%03d', $i), ['price' => 100 + $i, 'from' => $from, 'to' => $to]);
 		}
 		$timeBound = self::tick($now, true, 200, 0.0);
 		self::assertSame([0, 120], [$timeBound['pushed'], $timeBound['pending']], 'a look with no time left starts no item');
 		self::assertSame([], self::priceCalls());
+		$preferred = self::tick($now, true, 3, 30, [$ids[118], $ids[119], $ids[120]]);
+		self::assertSame(3, $preferred['pushed']);
+		self::assertSame(['SPB118', 'SPB119', 'SPB120'], array_values(array_unique(array_map(fn($c) => $c['itemNo'], self::priceCalls()))),
+			'the items an import has just written go first');
 		$first = self::tick($now, true, 25, 30);
 		self::assertSame(25, $first['pushed']);
-		self::assertSame(95, $first['pending']);
+		self::assertSame(92, $first['pending']);
 		self::assertSame($now + 30, $first['next'], 'the rest no sooner than half a minute later');
-		self::assertSame(75, count(self::priceCalls()), '25 items to three shops');
+		self::assertSame(84, count(self::priceCalls()), '3 + 25 items to three shops');
 		self::assertFalse(self::tick($now + 10)['looked'], 'rate limited');
 		$t = $now + 30;
 		for ($round = 0; $round < 4; $round++) {

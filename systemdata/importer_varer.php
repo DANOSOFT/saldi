@@ -75,7 +75,7 @@
 //                A line the number checks reject (kostpris, salgspris, montage, min_lager ...) is now listed too; numbers such as 123.0 and 1E+05 find their item again (itemImport.php).
 //                An existing item keeps its item number: the update no longer writes the sheet's spelling over it (since 20140201/20161015 abc renamed ABC and 123 renamed 000123); new items get the sheet's number as before.
 // 20261117 CL/LH Codex review 3: a number cell is checked before salgspris_incl_moms converts it, so a rejected price is listed; a last line "0" without a newline is read, and item number 0 can be created.
-// 20261117 CL/LH After a campaign import the webshops get the offers that apply now (includes/stdFunc/shopOfferPush.php), within 100 items and 20 seconds; the rest, and later starts and ends, follow on ordinary requests.
+// 20261117 CL/LH After a campaign import the webshops get the offers that apply now (includes/stdFunc/shopOfferPush.php), the imported items first, within 100 items and 20 seconds; the rest, and later starts and ends, follow on ordinary requests.
 @session_start();
 $s_id=session_id();
 ini_set('max_execution_time', 120);
@@ -541,7 +541,7 @@ if ($campaignOnly) {
 }
 $unknownSkipped = $ambiguousSkipped = $lineErrors = array();
 $lineNo = 0;
-$campaignWritten = false;
+$campaignWritten = array();
 
 if ($itemGroup) {
 	$VATrate = 0;
@@ -853,7 +853,7 @@ if ($fp) {
 					}
 					$qtxt = "update varer set " . implode(",", $set) . " where id = '" . (int)$vare_id . "'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					$campaignWritten = true;
+					$campaignWritten[] = (int)$vare_id;
 				}
 				if ($lokation) { #20180404
 					$qtxt="select id from lagerstatus where vare_id='$vare_id' and lager <= '1'";
@@ -934,7 +934,7 @@ fclose($fp);
 transaktion('commit');
 if ($campaignWritten && function_exists('shopOfferPushTick')) { # 20261117 the webshops get the offers that apply now; later starts and ends follow on their own
 	shopOfferPushSchedule(0);
-	shopOfferPushTick(array('force' => true, 'maxItems' => 100, 'maxSeconds' => 20));
+	shopOfferPushTick(array('force' => true, 'maxItems' => 100, 'maxSeconds' => 20, 'prefer' => $campaignWritten));
 }
 print "</tbody></table>";
 print "</td></tr>";

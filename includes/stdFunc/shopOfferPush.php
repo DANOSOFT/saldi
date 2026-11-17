@@ -193,6 +193,7 @@ if (!function_exists('shopOfferPushTick')) {
 	 *   force: bool,          Look even when the due time has not come (after an import).
 	 *   timeout: int,         Seconds per shop call, default 5.
 	 *   connectTimeout: int,  Seconds to connect, default 2.
+	 *   prefer: int[],        varer.id values sent before the others (the items an import has just written).
 	 * } $options All keys optional.
 	 * @return array{looked: bool, pushed: int, failed: int, pending: int, next: int} pending counts the items still to send.
 	 */
@@ -280,6 +281,10 @@ if (!function_exists('shopOfferPushRun')) {
 		$endpoints = shopOfferPushEndpoints();
 		if (!$endpoints) {
 			$work = array();
+		}
+		if (!empty($options['prefer'])) {
+			$preferred = array_intersect_key($work, array_flip(array_map('intval', (array)$options['prefer'])));
+			$work = $preferred + array_diff_key($work, $preferred);
 		}
 		$log = @fopen(dirname(dirname(__DIR__)) . '/temp/' . $db . '/rest_api.log', 'a');
 		$log = $log ?: null;

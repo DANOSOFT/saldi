@@ -106,6 +106,12 @@ final class shopOfferPrice extends TestCase
 			shopPricesForItem(self::BLACK_WEEK, self::at('2026-11-26 23:59:59')), 'no VAT lookup outside an offer');
 	}
 
+	public function testAMissingVejlPrisIsPassedOnAsBefore(): void
+	{
+		$this->assertSame(['salesPrice' => '639.200', 'retailPrice' => null, 'offer' => false],
+			shopEffectivePrices(['retail_price' => null] + self::BLACK_WEEK, self::at('2026-12-01 00:00:00'), 25.0, true));
+	}
+
 	public function testThePriceCallIsTheItemCardsCall(): void
 	{
 		$item = ['varenr' => 'BW001', 'varenr_alias' => 'A1', 'kostpris' => '319.600', 'm_type' => 'amount', 'm_rabat' => '10',

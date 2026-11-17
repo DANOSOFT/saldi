@@ -10,6 +10,7 @@
 //       4 = tick: 'force' or '-'; sync_vare: warehouse number
 //       5 = tick: most items (default 10)
 //       6 = tick: most seconds (default 3)
+//       7 = tick: comma-separated varer.id values to send first (optional)
 //
 // Prints one JSON object on the last line of stdout.
 //
@@ -31,6 +32,7 @@ if ($scenario === 'tick') {
 		'force' => ($argv[4] ?? '-') === 'force',
 		'maxItems' => (int)($argv[5] ?? 10),
 		'maxSeconds' => (float)($argv[6] ?? 3),
+		'prefer' => isset($argv[7]) ? array_map('intval', explode(',', $argv[7])) : array(),
 	);
 	$out = shopOfferPushTick($options);
 } elseif ($scenario === 'sync_price') {

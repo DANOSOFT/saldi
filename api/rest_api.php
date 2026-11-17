@@ -1503,7 +1503,7 @@ function send_api_invoice_email($ordre_id) {
 
 // 20261117 offers that started or ended; usually only a check of a small file
 if (isset($svar) && $svar === 'OK' && function_exists('shopOfferPushTick')) {
-	shopOfferPushTick(array('maxItems' => 10, 'maxSeconds' => 3));
+	shopOfferPushTick(array('maxItems' => 25, 'maxSeconds' => 8));
 }
 //return JSON array
 exit(json_encode($value));

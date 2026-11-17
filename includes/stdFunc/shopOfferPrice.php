@@ -103,14 +103,15 @@ if (!function_exists('shopEffectivePrices')) {
 	 * @param float $vatRate The item group's VAT percentage, used only when $vatOnItemCard is set.
 	 * @param bool $vatOnItemCard The item card shows prices including VAT (settings items/vatOnItemCard).
 	 * @return array{
-	 *   salesPrice: string,   Excluding VAT, as salgspris: the offer price during an offer, otherwise salgspris.
-	 *   retailPrice: string,  During an offer the normal price in Vejl.pris' convention, otherwise retail_price as stored.
-	 *   offer: bool,          True during an active offer.
+	 *   salesPrice: string|null,   Excluding VAT, as salgspris: the offer price during an offer, otherwise salgspris as stored.
+	 *   retailPrice: string|null,  During an offer the normal price in Vejl.pris' convention, otherwise retail_price as stored
+	 *                              (null stays null, so the shops get what they always got).
+	 *   offer: bool,               True during an active offer.
 	 * }
 	 */
 	function shopEffectivePrices(array $item, $now, $vatRate, $vatOnItemCard) {
 		if (!shopOfferActive($item, $now)) {
-			return array('salesPrice' => (string)($item['salgspris'] ?? '0'), 'retailPrice' => (string)($item['retail_price'] ?? '0'), 'offer' => false);
+			return array('salesPrice' => $item['salgspris'] ?? null, 'retailPrice' => $item['retail_price'] ?? null, 'offer' => false);
 		}
 		$normal = (float)($item['salgspris'] ?? 0);
 		if ($vatOnItemCard) $normal = $normal * (100 + (float)$vatRate) / 100;
