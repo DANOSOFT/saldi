@@ -57,6 +57,7 @@
 // 20261104 CL/ASR A PDF print that cannot be made shows the error box (includes/errorReport.php) with a report to Saldi instead of "Kontakt support"; Tilbage stays below it.
 // 20261105 CL/MMR SD-807 The PDF error texts and the print choice screen (Luk, Udskriftsvalg) are shown in the user's language.
 //                 The print-batch error is escaped in the page charset.
+// 20261112 CL/MMR SST-1015 Removed the DIAG error_log line written on every print.
 // 20261113 CDX/NTR Keep error reporting and translate the PDF fallback in the page charset.
 
 @session_start();
@@ -110,7 +111,6 @@ $returside = (function($s) {
 })($returside);
 $locat      = if_isset($_GET, NULL, 'locat');
 $bulk       = if_isset($_GET, NULL, 'bulk'); # formularprint() was called with id=-1
-error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
 if ($art == 'R' && $id) {
 	$returside = "../debitor/rykker.php?rykker_id=" . (int)$id;
 }
