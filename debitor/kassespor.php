@@ -57,7 +57,7 @@
 // 20261006 CL/LH SST-835: Round net sales to 2 decimals before the BA division so a sub-øre remainder on an exchange order shows 0 % instead of 23 million %.
 // 20261117 CL/MMR SST-1017: BA leaves out the cost of a set head line when sets are on, as the order does.
 //                 The set's cost was counted twice (head line plus parts), so BA was too low.
-//                 udskriv(): sort limited to known columns, table name and other SQL values escaped or cast.
+//                 udskriv(): sort limited to known columns, table name and other SQL values escaped or cast (NULL as '').
 
 ob_start();
 @session_start();
@@ -572,7 +572,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 			}
 		}
 	} else {
-		$r=db_fetch_array(db_select("select id from table_plan where name='" . db_escape_string($borde) . "'",__FILE__ . " linje " . __LINE__));
+		$r=db_fetch_array(db_select("select id from table_plan where name='" . db_escape_string((string)$borde) . "'",__FILE__ . " linje " . __LINE__));
 		$bordnr = $r["id"];
 	}
 
@@ -657,7 +657,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 			$qtxt = "SELECT MAX(modtime) AS modtime FROM batch_salg WHERE ordre_id = '" . (int)$id[$x] . "'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$tidspkt[$x] = substr($r[0],11,5);
-				$qtxt = "UPDATE ordrer SET tidspkt = '" . db_escape_string($tidspkt[$x]) . "' WHERE id = '" . (int)$id[$x] . "'";
+				$qtxt = "UPDATE ordrer SET tidspkt = '" . db_escape_string((string)$tidspkt[$x]) . "' WHERE id = '" . (int)$id[$x] . "'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 
@@ -770,7 +770,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 
 						if ($rabat_varenr && $vis_saet) {
 							$q_rabat = db_fetch_array(db_select(
-								"SELECT lev_varenr FROM ordrelinjer WHERE ordre_id = '{$id[$x]}' AND TRIM(UPPER(varenr)) = TRIM(UPPER('" . db_escape_string($rabat_varenr) . "')) AND rabat != 0 ORDER BY id ASC LIMIT 1",
+								"SELECT lev_varenr FROM ordrelinjer WHERE ordre_id = '{$id[$x]}' AND TRIM(UPPER(varenr)) = TRIM(UPPER('" . db_escape_string((string)$rabat_varenr) . "')) AND rabat != 0 ORDER BY id ASC LIMIT 1",
 								__FILE__ . " linje " . __LINE__
 							));
 							$rabatrabat = '0.00';

@@ -123,6 +123,30 @@ final class KassesporSetCostTest extends TestCase
         }
     }
 
+    /** The table filter is NULL when the page opens without a saved Kassespor cookie; escaping it must not warn. */
+    public function testAnEmptyTableFilterIsEscapedWithoutADeprecation(): void
+    {
+        $src = (string)file_get_contents(self::KASSESPOR);
+        $line = trim(self::line($src, "select id from table_plan where name="));
+        self::assertSame(1, preg_match('/db_select\((".*?")\s*,\s*__FILE__/', $line, $m), 'table_plan query not found');
+        set_error_handler(static function (int $no, string $msg): never {
+            throw new ErrorException($msg, 0, $no);
+        });
+        try {
+            $escape = static fn (string $txt): string => str_replace("'", "''", $txt);
+            foreach ([null => "select id from table_plan where name=''", "Bord 1" => "select id from table_plan where name='Bord 1'"] as $input => $expected) {
+                $borde = ($input === '') ? null : $input;
+                $sql = eval('return ' . str_replace('db_escape_string(', '$escape(', $m[1]) . ';');
+                self::assertSame($expected, $sql);
+            }
+            $borde = "x' OR TRUE --";
+            $sql = eval('return ' . str_replace('db_escape_string(', '$escape(', $m[1]) . ';');
+            self::assertSame("select id from table_plan where name='x'' OR TRUE --'", $sql);
+        } finally {
+            restore_error_handler();
+        }
+    }
+
     /**
      * Runs the page's per-order BA query for one order.
      *
