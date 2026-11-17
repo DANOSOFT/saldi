@@ -1,0 +1,152 @@
+/* systemdata/usersRoles.php - Brugere & roller.
+   Look and layout after prototype_brugere_roller.html (Adam, 2026-09-30).
+   20261101 CL/ASR New design (prototype D, as the dashboard): the page is built from css/saldi-kit.css (linked just before
+                   this file); only what the kit lacks is here, scoped under .sk and with the kit's tokens.
+   20261101 CL/ASR Review 2: table text in the kit's text colour; the users list and the audit log fit the frame with long
+                   e-mails, details and IPv6 addresses (Status and the edit icon stayed out of view).
+   20261101 CL/ASR Tilbage is the shared settings button above the title (its quiet link and row are gone). The role list has no
+                   zebra (navigation, owner 1 Nov 2026) from css/saldi-kit.css's .sk-list; the data tables keep theirs.
+   20261102 CL/ASR The Tilbage button's place above the title is in css/saldi-kit.css now (.sk .sk-head-tx > .sk-back).
+   20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php): the page sits in the content column
+                   beside the left menu, so the users list and the role list + matrix follow the column's width (container queries), not
+                   the window's: E-mail and 2FA give way before the name gets cramped, and the role list narrows, then goes above the matrix. */
+
+/* the page runs in quirks mode (online.php's HTML 4.01 doctype), where tables do not inherit the colour: black, not --sk-text */
+.sk .sk-table { color: var(--sk-text); }
+
+/* ------------------------------------------------------------ the content column of the settings layout */
+/* tabs, notices and panels one under the other with the kit's gap, as on the kit's page before (.sk-page) */
+.sk.ur-page .st-frame-main { display: flex; flex-direction: column; gap: var(--sk-gap); }
+
+/* ------------------------------------------------------------ head */
+.sk .ur-review > .sk-grow b { margin-right: 4px; }
+.sk .ur-note-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* ------------------------------------------------------------ users list */
+.sk .ur-users .ur-cb { width: 2rem; }
+/* fixed columns, so a long name or e-mail ends in an ellipsis instead of pushing Status and the edit icon out of the frame;
+   counted from the right, as the tick column is only there for users who may write */
+.sk .ur-users { table-layout: fixed; }
+.sk .ur-users th:nth-last-child(1) { width: 2.5rem; }
+.sk .ur-users th:nth-last-child(2) { width: 6.5rem; }
+.sk .ur-users th:nth-last-child(3) { width: 8.5rem; }
+.sk .ur-users th:nth-last-child(4) { width: 3.5rem; }
+.sk .ur-users th:nth-last-child(5) { width: 18%; }
+.sk .ur-users th:nth-last-child(6) { width: 20%; }
+/* the role cell wraps rather than clipping the suggestion button */
+.sk .ur-users td:nth-last-child(5) { padding-top: 2px; padding-bottom: 2px; line-height: 1.4; white-space: normal; }
+.sk .ur-name-a { font-weight: 500; }
+.sk .ur-name .sk-tag { margin-left: 6px; }
+.sk .sk-table tbody tr.on > td { background: var(--sk-row-sel); }
+.sk .ur-tfa { font-size: 16px; line-height: 1; vertical-align: middle; }
+.sk .ur-tfa-on { color: var(--sk-good); }
+.sk .ur-tfa-off { color: var(--sk-text-3); }
+.sk .ur-sugg { margin-left: 8px; font-size: var(--sk-fs-s); font-weight: 500; }
+.sk .ur-pager { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ------------------------------------------------------------ user drawer */
+.sk .ur-drawer-st { margin-left: 8px; font: 400 var(--sk-fs-s)/1 var(--sk-font); vertical-align: 1px; }
+.sk .sk-drawer-b > .sk-note { margin-bottom: 12px; }
+.sk .ur-note-col { flex-direction: column; align-items: flex-start; }
+.sk .ur-note-col > .sk-input { width: 100%; }
+/* the password fields stay read-only until clicked (no browser autofill) but must look like fields */
+.sk .sk-input[data-nofill][readonly] { background-color: var(--sk-surface); border-color: var(--sk-border-field); }
+.sk textarea.sk-input.ur-ip { min-height: 3.25rem; }
+.sk .ur-checkrow { display: flex; align-items: flex-start; gap: 8px; margin: 2px 0 12px; cursor: pointer; }
+.sk .ur-checkrow > input { margin-top: 2px; }
+.sk .ur-checkrow b { display: block; font-weight: 500; }
+.sk .ur-checkrow small { display: block; margin-top: 2px; font-size: var(--sk-fs-s); line-height: 1.4; color: var(--sk-text-2); }
+.sk .ur-pw { margin: 0 0 12px; }
+.sk .ur-pw > summary { width: max-content; margin-bottom: 8px; color: var(--sk-link); font-size: var(--sk-fs-s); font-weight: 500; cursor: pointer; }
+.sk .ur-access { border: 1px solid var(--sk-border); border-radius: var(--sk-r); }
+.sk .sk-kv.ur-access > li:nth-last-child(1 of :not([hidden])) { border-bottom: 0; }
+.sk .sk-kv.ur-access > li > .ur-lv-none { color: var(--sk-text-3); font-weight: 400; }
+.sk .sk-kv.ur-access > li > .ur-lv-read { color: var(--sk-text-2); font-weight: 500; }
+.sk .sk-kv.ur-access > li > .ur-lv-write { color: var(--sk-good); font-weight: 600; }
+.sk .sk-kv.ur-access > li > .ur-lv-admin { color: var(--sk-bad); white-space: normal; }
+
+/* ------------------------------------------------------------ roles: list and matrix */
+.sk .ur-rlist .sk-list-row.on { background: var(--sk-row-sel); box-shadow: inset 2px 0 0 var(--sk-mark); }
+.sk .ur-rlist .sk-list-t .sk-tag { margin-left: 4px; }
+.sk .ur-rlist .sk-list-meta > i { font-size: 14px; }
+.sk .ur-matrix .sk-panel-h { flex-wrap: wrap; padding-top: 2px; padding-bottom: 2px; }
+.sk .ur-m-name { --sk-w: 20rem; font-weight: 600; }
+.sk .ur-lock { display: inline-flex; align-items: center; gap: 4px; margin-left: 0; font-size: var(--sk-fs-s); }
+.sk .ur-lock > i { font-size: 14px; }
+.sk .ur-m-desc .sk-input { --sk-w: 32rem; margin-right: 4px; }
+.sk .ur-mx th.ur-lvh { width: 5.5rem; }
+/* zebra inside each group, counted from the first permission row (the group heading is row 1) */
+.sk .ur-mx tbody tr:where(:nth-child(odd of :not([hidden]))) > td { background: var(--sk-surface-2); }
+.sk .ur-mx tbody tr:where(:nth-child(even of :not([hidden]))) > td { background: var(--sk-surface); }
+.sk .ur-grp-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sk .ur-grp-h > span { min-width: 0; white-space: normal; }   /* wraps in a narrow column (a nowrap name in this colspan cell made the matrix wider than the column) */
+.sk .ur-grp-d { font-weight: 400; }
+.sk .ur-grp-h .sk-link { flex: none; font-weight: 500; }
+.sk .ur-plock { margin-left: 2px; font-size: 13px; vertical-align: -1px; color: var(--sk-text-3); }
+.sk .ur-prow-block > td:first-child { padding-left: calc(var(--sk-pad) + 16px); }
+.sk .ur-prow-block.ur-prow-off { opacity: .55; }
+.sk .ur-prow-block.ur-prow-off input[type=radio] { pointer-events: none; }
+.sk .ur-prow small:not([hidden]) { display: block; padding-bottom: 3px; font-size: var(--sk-fs-s); line-height: 1.35; color: var(--sk-text-2); }
+
+/* ------------------------------------------------------------ audit log */
+.sk .ur-log-bar .sk-search { flex-basis: 14rem; }
+.sk .ur-date { width: auto; }
+/* Objekt, Detaljer and IP (an IPv6 address is long) wrap when the row is too narrow (as before the new design), so nothing is cut off */
+.sk .ur-aud td:is(:nth-child(4), .ur-det, :nth-child(6)) { padding-top: 2px; padding-bottom: 2px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+.sk .ur-aud details > summary { color: var(--sk-link); font-size: var(--sk-fs-s); cursor: pointer; }
+.sk .ur-aud details pre { max-width: 36rem; margin: 4px 0 6px; padding: 6px 8px; white-space: pre-wrap; word-break: break-word; font: 400 var(--sk-fs-s)/1.45 var(--sk-font);
+	color: var(--sk-text); background: var(--sk-surface-2); border: 1px solid var(--sk-border); border-radius: var(--sk-r); }
+.sk .ur-enforce > summary { list-style: none; cursor: pointer; }
+.sk .ur-enforce > summary::-webkit-details-marker { display: none; }
+.sk .ur-enforce:not([open]) > summary { border-bottom: 0; border-radius: calc(var(--sk-r) - 1px); }
+.sk .ur-enf-ic { font-size: 14px; color: var(--sk-text-2); }
+.sk .ur-enforce .sk-panel-h { gap: 6px; }
+.sk .ur-chev { font-size: 16px; color: var(--sk-text-3); transition: transform var(--sk-t); }
+.sk .ur-enforce[open] .ur-chev { transform: rotate(180deg); }
+.sk .ur-enforce > .sk-panel-note { margin: 0; }
+.sk .ur-enforce-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin: 0; padding: 8px var(--sk-pad); border-bottom: 1px solid var(--sk-border); }
+.sk .ur-enforce-form b { font-weight: 500; }
+.sk .ur-enforce-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); gap: var(--sk-gap); padding: 10px var(--sk-pad) 12px; }
+.sk .ur-enforce-lists h4 { margin: 0 0 6px; font: 600 var(--sk-fs-s)/1.3 var(--sk-font); color: var(--sk-text-2); }
+.sk .ur-none { margin: 0; }
+.sk .ur-list { max-height: 18rem; margin: 0; padding: 0; overflow-y: auto; list-style: none; border: 1px solid var(--sk-border); border-radius: var(--sk-r); }
+.sk .ur-list > li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--sk-row-h); padding: 2px 8px; border-top: 1px solid var(--sk-border); font-size: var(--sk-fs-s); }
+.sk .ur-list > li:first-child { border-top: 0; }
+.sk .ur-list > li:nth-child(even) { background: var(--sk-surface-2); }
+.sk .ur-list code { min-width: 0; font: inherit; word-break: break-all; }
+.sk .ur-list > li > span { flex: none; white-space: nowrap; }
+
+/* ------------------------------------------------------------ dialog */
+.sk .sk-dialog-b p { margin: 0 0 8px; }
+.sk .sk-dialog-b .sk-field { margin: 8px 0 0; }
+
+/* ------------------------------------------------------------ the width of the content column */
+/* The users panel and the roles split are query containers (no fixed layer - drawer, scrim, dialog - sits inside them, so the
+   containment does not catch one). Columns are counted from the right, so they go with or without the tick column. */
+.sk #ur-bulk, .sk .ur-roles { container-type: inline-size; }
+/* under 60rem (960 px): 2FA goes (its filter and the drawer still show it), so the name keeps its room */
+@container (max-width: 60rem) {
+	.sk #ur-users :is(th, td):nth-last-child(4) { display: none; }
+}
+/* under 54rem (864 px): E-mail goes as well (the search still finds it, the drawer shows it), before the name and the address
+   both end in an ellipsis */
+@container (max-width: 54rem) {
+	.sk #ur-users :is(th, td):nth-last-child(6) { display: none; }
+	.sk .ur-users th:nth-last-child(5) { width: 24%; }
+}
+/* under 35rem (560 px): the columns size by content and the table scrolls sideways in its frame */
+@container (max-width: 35rem) {
+	.sk .ur-users { table-layout: auto; }
+}
+/* the role list beside the matrix: 18rem, 15rem under 56rem, above the matrix under 46rem (the matrix keeps 30rem: its name
+   column and the three level columns) */
+@container (max-width: 56rem) {
+	.sk .ur-roles > .ur-rlist { flex-basis: 15rem; }
+	.sk .ur-rlist .sk-panel-tools .sk-btn > i { display: none; }   /* Kopiér and Ny rolle without icons, so the list's title keeps its room */
+	.sk .ur-rlist .sk-panel-tools { gap: 8px; }
+}
+@container (max-width: 46rem) {
+	.sk .ur-roles > :is(.ur-rlist, .sk-main) { flex-basis: 100%; }
+	.sk .ur-rlist .sk-panel-tools .sk-btn > i { display: inline-block; }
+}
+.sk .ur-roles { flex-wrap: wrap; }

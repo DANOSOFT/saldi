@@ -33,6 +33,7 @@ if (!$assistSession || empty($assistSession['brugernavn'])) {
     exit;
 }
 
+$permission_key = 'any';
 include("../includes/online.php");
 ob_end_clean();
 
