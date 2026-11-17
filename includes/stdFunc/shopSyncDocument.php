@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/shopSyncDocument.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/stdFunc/shopSyncDocument.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,9 @@
 // 20261027 CDX/MJ SST-876 Retain correction markers for any successful low-level send inside a transaction, including parent sets.
 // 20261028 CDX/MJ SST-876 Refresh stock before each send batch and skip backlog preparation when the HTTP budget is exhausted.
 // 20261029 CDX/MJ SST-876 Keep history contiguous with the file header.
+// 20261118 CL/LH A collected call that carries an item's prices gets them when it is sent: for an item the offer reconciler tracks, the pair each shop last accepted, looked up then (shopOfferForeignAtSend()), not when the call was collected.
+//                Codex verification 5: such calls follow the protocol of stdFunc/shopOfferPush.php: the batch's queries first, then each item's critical section (shopOfferForeignClaim(), with the varer row the call was built from), the batch at once, then the record (shopOfferForeignDone()).
+//                Codex verification 6: that row is read again when it is older than 2 minutes; if it cannot be, the call is not sent and stays queued.
 
 /**
  * Request-local payload collection; quantities are rebuilt on every delivery.
@@ -56,9 +59,11 @@ function &shopSyncDocumentState() {
  * @param string $mode Stock-only or full product synchronization.
  * @param string $label Item number for the document report.
  * @param string $userAgent Existing adapter user agent.
+ * @param array|null $offerItem The varer row a call with the item's prices was built from (salgspris, retail_price and the
+ *							  offer columns), for the critical section of stdFunc/shopOfferPush.php when the call is sent.
  * @return bool Whether the payload was collected instead of sent.
  */
-function shopSyncCollect(array $targets, array $params, $context, $id, $variant, $warehouse, $mode, $label, $userAgent) {
+function shopSyncCollect(array $targets, array $params, $context, $id, $variant, $warehouse, $mode, $label, $userAgent, $offerItem = null) {
 	$state = &shopSyncDocumentState();
 	if (!$state['collecting']) {
 		return false;
@@ -67,7 +72,7 @@ function shopSyncCollect(array $targets, array $params, $context, $id, $variant,
 	$state['tasks'][] = array('key' => $key, 'targets' => $targets, 'params' => $params,
 		'context' => $context, 'userAgent' => $userAgent, 'vare_id' => (int)$id, 'variant_id' => (int)$variant,
 		'lager' => (int)$warehouse, 'mode' => $mode, 'label' => $label,
-		'parent' => strpos($context, ' part vare_id ') !== false);
+		'parent' => strpos($context, ' part vare_id ') !== false, 'item' => $offerItem);
 	return true;
 }
 
@@ -309,7 +314,8 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 	$log = $ordered && $directory !== '' ? fopen(dirname(rtrim($directory, '/')) . '/rest_api.log', 'a') : null;
 	try {
 		foreach (array_chunk($ordered, 10) as $batch) {
-			$urls = $contexts = $owners = array();
+			$urls = $contexts = $owners = $claims = $tasks = array();
+			// the slow work first: the batch's current quantities and sets' availability
 			foreach ($batch as $i => $task) {
 				if ($budget - $apiState['spent'] >= 1 && (!$seconds || microtime(true) - $started < $seconds - 1)) {
 					$fresh = shopSyncRefreshTask($task);
@@ -319,9 +325,31 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 					}
 					$task = $fresh;
 				}
+				$tasks[$i] = $task;
+			}
+			// then, for each call that carries an item's prices, the critical section of stdFunc/shopOfferPush.php (a tracked item
+			// gets the pair each shop last accepted, otherwise today's prices), and the batch goes out at once; no query in between
+			foreach ($tasks as $i => $task) {
+				if (isset($task['params']['salesPrice']) && !$task['parent'] && function_exists('shopOfferForeignClaim')) {
+					shopOfferTestPause('document', 'queried', $task['vare_id']);
+					$item = is_array($task['item'] ?? null) ? $task['item']
+						: array('salgspris' => $task['params']['salesPrice'], 'retail_price' => $task['params']['retailPrice'] ?? null);
+					$claims[$i] = shopOfferForeignClaim('document', $task['vare_id'], $item, $task['targets']);
+				}
+			}
+			foreach ($tasks as $i => $task) {
+				if (isset($claims[$i])) {
+					$claims[$i] = shopOfferForeignReady($claims[$i]);
+					if (!empty($claims[$i]['noPrices'])) { // the item could not be read again: not sent now; it stays queued, the reconciler sends the prices
+						$groups[$task['key']]['failed'] = $groups[$task['key']]['retry'] = true;
+						unset($claims[$i]);
+						continue;
+					}
+					shopOfferTestPause('document', 'send', $task['vare_id']);
+				}
 				foreach ($task['targets'] as $slot => $endpoint) {
 					$index = $i . ':' . $slot;
-					$urls[$index] = shopApiUrl($endpoint, $task['params']);
+					$urls[$index] = shopApiUrl($endpoint, isset($claims[$i]) ? shopOfferForeignParams($task['params'], $claims[$i], $slot) : $task['params']);
 					$contexts[$index] = $task['context'];
 					$owners[$index] = $task['key'];
 				}
@@ -339,6 +367,9 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 				continue;
 			}
 			$results = shopApiRequestParallel($urls, array(), $log, $options);
+			foreach ($claims as $claim) {
+				shopOfferForeignDone($claim);
+			}
 			foreach ($results as $index => $res) {
 				$key = $owners[$index];
 				$groups[$key]['sent'] = $groups[$key]['sent'] || $res['ok'];

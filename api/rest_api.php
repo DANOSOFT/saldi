@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.1.0 --- 2026-11-10 ---
+// --- api/rest_api.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -104,10 +104,12 @@
 // 20261110 CL/MMR SST-989 insert_shop_order() refuses a DO when the shop order id is already on any order, and a DK when it is already on a DK or on a DO with a negative sum (shop_order_taken()).
 //                 The check was per art only, so a shop credit note sent once as DK and once as DO (an old integration script) was created and invoiced twice.
 //                 Also corrected the indentation of the new-debtor block in insert_shop_order() (no behaviour change).
-
-
+//
+//
 // ----------------------------------------------------------------------
-
+// 20261117 CL/LH Action shop_offer_tick: one tick of the webshop offer reconciler (includes/stdFunc/shopOfferPush.php), the only sender of offer prices to the webshops.
+//                A scheduler calls it every 2 minutes with the account's API key; it is checked by access_check() like every shop call, and a tick that finds another one running answers "busy" at once.
+//                access_check() also takes the key from a POST body (before the query string), so a caller can keep it out of URLs, which web servers log, and out of command lines.
 date_default_timezone_set('Europe/Copenhagen');
 
 include("../includes/connect.php");
@@ -1237,7 +1239,8 @@ function access_check(){
 		$api_key=trim($r['box1']);
 		if (strpos($r['box2'],',')) $ip_list=explode(',',trim($r['box2']));
 		else $ip_list[0]=trim($r['box2']);
-		if (!$api_key || !hash_equals($api_key,(string) (isset($_GET['key']) ? $_GET['key'] : ''))) {
+		$suppliedKey = isset($_POST['key']) ? $_POST['key'] : (isset($_GET['key']) ? $_GET['key'] : ''); # 20261117 a POST body keeps the key out of URLs
+		if (!$api_key || !hash_equals($api_key,(string) $suppliedKey)) {
 			$log=fopen("../temp/$db/rest_api.log","a");
 			fwrite($log,__line__." Access denied (key)\n");
 			return "Access denied (key)";
@@ -1414,6 +1417,10 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$fakturadate= if_isset($_GET['fakturadate']);
 			fclose ($log);
 			$value = fakturer_ordre($ordre_id,$udskriv_til,$pos_betaling,$fakturadate);
+##############################################
+		} elseif ($action == 'shop_offer_tick') {
+			fclose($log);
+			$value = shopOfferReconcileTick();
 ##############################################
 		} elseif ($action == 'credit_shop_order') {
 			$shop_ordre_id = (int)if_isset($_GET['shop_ordre_id']);

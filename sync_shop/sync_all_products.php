@@ -85,6 +85,7 @@ while ($product = db_fetch_array($products_query)) {
     $stregkode = $product['stregkode'];
     $gruppe = $product['gruppe'];
     $delvare = $product['delvare'];
+    $slotOf = array_flip(array_filter(array($api_fil, $api_fil2, $api_fil3)));
     
     echo "<p>Processing product ID: $vare_id (varenr: $varenr)</p>";
     fwrite($log, "Processing product ID: $vare_id (varenr: $varenr)\n");
@@ -133,37 +134,57 @@ while ($product = db_fetch_array($products_query)) {
         if ($api_fil2) $apis[] = $api_fil2;
         if ($api_fil3) $apis[] = $api_fil3;
         
+        // 20261117 CL/LH the prices are looked up now, right before the calls go out (this page can run long, and a stock query can
+        // wait): today's prices from the item as it is now, or, for an item the offer reconciler tracks (includes/stdFunc/shopOfferPush.php),
+        // the pair each shop last accepted from it, so this run starts no price of its own.
+        // 20261118 CL/LH by the protocol of shopOfferPush.php: the item is read first, then the critical section (shopOfferForeignClaim()),
+        // the calls go out at once, then the record (shopOfferForeignDone(): one catch-up for a tracked item or one with an offer,
+        // so the reconciler sends every shop the current pair once after the calls' late window). The calls are fire-and-forget, so
+        // on an account with offer state they stop after 60 s: within the 2 minutes the protocol allows between a claim and its calls.
+        $itemNow = db_fetch_array(db_select("SELECT salgspris, retail_price, " . shopOfferColumns() . " FROM varer WHERE id = '" . (int)$vare_id . "'", __FILE__ . " linje " . __LINE__));
+        if ($itemNow) {
+            $salgspris = $itemNow['salgspris'];
+            $retail_price = $itemNow['retail_price'];
+            $itemNow['_readAt'] = shopOfferForeignNow(); // 20261118 the claim reads it again when the calls would go out more than 2 minutes later
+        }
+        shopOfferTestPause('bulk', 'queried', $vare_id);
+        $claim = $itemNow ? shopOfferForeignClaim('bulk', $vare_id, $itemNow, array_filter(array($api_fil, $api_fil2, $api_fil3))) : null;
+        $maxTime = $claim ? '--max-time 60 ' : '';
         foreach ($apis as $api_url) {
-            // Update stock
-            $stock_url = "$api_url?update_stock=$shop_id&stock=$stock&totalStock=$total_stock";
-            $stock_url .= "&stockno=$lager&costPrice=$kostpris&salesPrice=$salgspris&discountType=$m_type&discount=$m_rabat";
-            $stock_url .= "&itemNo=" . urlencode($varenr) . "&rand=$rand&retailPrice=$retail_price&webFragt=$webFragt&barcode=$stregkode";
-            
-            // Update price
-            $price_url = "$api_url?update_price=$shop_id&salesPrice=$salgspris&discountType=$m_type&discount=$m_rabat";
-            $price_url .= "&itemNo=" . urlencode($varenr) . "&rand=$rand&costPrice=$kostpris&retailPrice=$retail_price&webFragt=$webFragt&barcode=$stregkode";
-            
             // Update SKU/cost price
             $sku_url = "$api_url?sku=" . urlencode($varenr) . "&costPrice=$kostpris&rand=$rand";
-            
             echo "<span style='margin-left: 40px; color: #666;'>Syncing to: " . parse_url($api_url, PHP_URL_HOST) . "</span><br>";
             fwrite($log, "    API: $api_url\n");
+            
+            $claim = shopOfferForeignReady($claim);
+            if (!empty($claim['noPrices'])) { // the item could not be read again: no calls for it; the reconciler sends its prices
+                fwrite($log, "    Item not read again: no stock or price call for this shop\n");
+                continue;
+            }
+            shopOfferTestPause('bulk', 'send', $vare_id);
+            $shopPrices = shopOfferForeignParams(array('salesPrice' => $salgspris, 'retailPrice' => $retail_price), $claim, $slotOf[$api_url] ?? -1);
+            $shopSalesPrice = $shopPrices['salesPrice'];
+            $shopRetailPrice = $shopPrices['retailPrice'];
+            // Update stock
+            $stock_url = "$api_url?update_stock=$shop_id&stock=$stock&totalStock=$total_stock";
+            $stock_url .= "&stockno=$lager&costPrice=$kostpris&salesPrice=$shopSalesPrice&discountType=$m_type&discount=$m_rabat";
+            $stock_url .= "&itemNo=" . urlencode($varenr) . "&rand=$rand&retailPrice=$shopRetailPrice&webFragt=$webFragt&barcode=$stregkode";
+            
+            // Update price
+            $price_url = "$api_url?update_price=$shop_id&salesPrice=$shopSalesPrice&discountType=$m_type&discount=$m_rabat";
+            $price_url .= "&itemNo=" . urlencode($varenr) . "&rand=$rand&costPrice=$kostpris&retailPrice=$shopRetailPrice&webFragt=$webFragt&barcode=$stregkode";
+            
+            // Execute API calls: the two that carry prices at once, the logging after them
+            $api_success = true;
+            $stock_cmd = "nohup curl $maxTime'$stock_url' > ../temp/$db/curl_stock.txt 2>&1 &";
+            $stock_result = shell_exec($stock_cmd);
+            $price_cmd = "nohup curl $maxTime'$price_url' > ../temp/$db/curl_price.txt 2>&1 &";
+            $price_result = shell_exec($price_cmd);
             fwrite($log, "    Stock URL: $stock_url\n");
             fwrite($log, "    Price URL: $price_url\n");
             fwrite($log, "    SKU URL: $sku_url\n");
-            
-            // Execute API calls
-            $api_success = true;
-            
-            // Stock update
-            $stock_cmd = "nohup curl '$stock_url' > ../temp/$db/curl_stock.txt 2>&1 &";
-            $stock_result = shell_exec($stock_cmd);
             fwrite($log, "    Stock command: $stock_cmd\n");
             fwrite($log, "    Stock result: " . ($stock_result ? $stock_result : "No output") . "\n");
-            
-            // Price update
-            $price_cmd = "nohup curl '$price_url' > ../temp/$db/curl_price.txt 2>&1 &";
-            $price_result = shell_exec($price_cmd);
             fwrite($log, "    Price command: $price_cmd\n");
             fwrite($log, "    Price result: " . ($price_result ? $price_result : "No output") . "\n");
             
@@ -185,6 +206,7 @@ while ($product = db_fetch_array($products_query)) {
                 fwrite($log, "    ✓ API calls sent successfully (curl: " . trim($curl_check) . ")\n");
             }
         }
+        shopOfferForeignDone($claim);
         
         // Handle parts/assemblies if this is a delvare
         if ($delvare) {
