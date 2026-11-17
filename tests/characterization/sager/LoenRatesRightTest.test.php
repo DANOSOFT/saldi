@@ -74,15 +74,17 @@ final class LoenRatesRightTest extends TestCase
         $loen = self::source('/sager/loen.php');
 
         // $funktion() runs the name the request sent, so the name has to be one of the file's own functions.
-        // SST-968 landed the same whitelist in master; this branch keeps it there and adds the right check on top.
-        self::assertStringContainsString(
-            "if (!in_array(\$funktion, ['loenliste', 'ret_loen', 'loenafregning', 'satser'], true)) {",
-            $loen,
-            'a name outside the page functions is replaced'
-        );
+        // SST-968 landed the allowlist in master, and master keeps adding routes to it (SD-824 added 'overtid'),
+        // so the pin is the shape of the allowlist plus the route this ticket is about - not a frozen list that
+        // turns red every time master adds a page route.
+        self::assertSame(1, preg_match('/^if \(!in_array\(\$funktion, \[[^\[\]]*\], true\)\) \{/m', $loen),
+            'the route name is checked against an allowlist');
+        self::assertMatchesRegularExpression('/^if \(!in_array\(\$funktion, \[[^\[\]]*\'satser\'[^\[\]]*\], true\)\) \{/m', $loen,
+            'and the rates route is on it');
 
-        $whitelist = strpos($loen, "if (!in_array(\$funktion, ['loenliste', 'ret_loen', 'loenafregning', 'satser'], true)) {");
+        $whitelist = strpos($loen, 'if (!in_array($funktion, [');
         $call = strpos($loen, '$funktion();');
+        self::assertNotFalse($whitelist, 'the allowlist is there');
         self::assertNotFalse($call, 'the page still calls the function the request names');
         self::assertLessThan($call, $whitelist, 'the list is applied before the call, not after it');
     }
