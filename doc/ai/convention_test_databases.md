@@ -16,5 +16,10 @@ It requires the creating role, matching database comment and internal UUID/name,
 retained status and originating master; a database-name prefix is never proof.
 Preserve active and unmarked databases. See `tests/README.md` for usage.
 
+Test routing accounts must follow the application's registry field formats.
+Store `regnskab.sidst` as Unix seconds, matching login, rather than a calendar
+date: these rows can appear in the admin account list while tests are running.
+`TestDatabaseLifecycleTest` checks this contract.
+
 Known batch-window legacy warnings remain visible as non-failing PHPUnit
 warnings until repaired; previously unseen warning classes still fail the test.

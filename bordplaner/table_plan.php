@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- bordplaner/bordplan.php ---------- lap 3.9.9----2023.03.15-------
+// ------------- bordplaner/bordplan.php ---------- ver 5.1.1----2026.11.13-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,8 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2012-2023 saldi.dk aps
+// Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -33,6 +34,7 @@ $css = "./planner/style.css";
 $pages = $takenTables = array();
 
 include ("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include ("../includes/online.php");
 include ("../includes/std_func.php");
 
