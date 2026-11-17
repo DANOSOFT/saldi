@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php --- patch 5.0.0 --- 2026-05-09 ---
+// --- debitor/kassespor.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20141119 PHR Tilføjet summer og bord
 // 20150305 PHR Tilføjet status.
@@ -55,6 +55,8 @@
 // 20260509 PHR '$svis_saet' was fetched from 'kodenr' 1. Changed to kodenr 2 and added fiscal_year
 // 20260709 SZ Added Grid Framework sticky header to Kassespor report
 // 20261006 CL/LH SST-835: Round net sales to 2 decimals before the BA division so a sub-øre remainder on an exchange order shows 0 % instead of 23 million %.
+// 20261117 CL/MMR SST-1017: BA leaves out the cost of a set head line when sets are on, as the order does.
+//                 The set's cost was counted twice (head line plus parts), so BA was too low.
 
 ob_start();
 @session_start();
@@ -541,6 +543,9 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
     global $rabat_varenr, $vis_saet;
 	$total_discount = 0;
     $total_gross_profit = 0;
+	// With sets on, a set head line (samlevare) carries the cost of the whole set while its parts are on
+	// the order with their own cost, so its cost is left out, as debitor/ordre.php does for the order's DB/DG.
+	$line_cost = ($vis_saet) ? "(CASE WHEN COALESCE(samlevare, '') IN ('', '0') THEN kostpris ELSE 0 END)" : 'kostpris';
 
 	$linjebg=NULL;
 	$y=0;
@@ -616,7 +621,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						ELSE (pris * rabat / 100) * antal
 						END
 					), 0) AS discount,
-					COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+					COALESCE(SUM($line_cost * antal), 0) AS kostpris,
 					COALESCE(SUM(
 						(
 						pris - 
@@ -624,7 +629,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
 							ELSE (pris * rabat / 100)
 						END
-						- kostpris
+						- $line_cost
 						) * antal
 					), 0) AS dg
 					FROM ordrelinjer
@@ -739,7 +744,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 							ELSE (pris * rabat / 100) * antal
 							END
 						), 0) AS discount,
-						COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+						COALESCE(SUM($line_cost * antal), 0) AS kostpris,
 						COALESCE(SUM(
 							(
 							pris - 
@@ -747,7 +752,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 								WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
 								ELSE (pris * rabat / 100)
 							END
-							- kostpris
+							- $line_cost
 							) * antal
 						), 0) AS dg
 						FROM ordrelinjer
