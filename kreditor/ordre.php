@@ -110,6 +110,7 @@
 //                 newLineQuantity() gives an empty quantity on a credit note (KK) -1 instead of +1, so its «Returner» starts at 1 too (Codex round 1).
 // 20261117 CL/MMR SST-1024 After «Opslag» an empty «Antal» keeps the quantity the page showed (antaDefault<n>, new function opslagLineQuantities()), and «Modtag» follows «Antal» until the user changes it (Saul's review).
 //                 Gem or Enter used to post Antal 0 with Modtag 1, which cleared the line to 0 / 0, and Antal 5 kept Modtag 1.
+//                 The posted Antal is read with ifset(), so a credit note without the empty line 0 raises no undefined-key warning (Codex round 3).
 @session_start();
 $s_id=session_id();
 
@@ -598,7 +599,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$y="vare".$x;
 			$varenr[$x]=db_escape_string(trim($_POST[$y]));
 			$y="anta".$x;
-			$antal[$x]=$_POST[$y];
+			$antal[$x]=ifset($_POST, $y); # a credit note made with «Kreditér» has no empty line 0
 			$y="leve".$x;
 			$leveres[$x]=ifset($_POST, $y);
 			// SST-1024: the line «Opslag» just added keeps its shown quantity, and «Modtag» follows it.

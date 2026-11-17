@@ -17,18 +17,13 @@ use PHPUnit\Framework\TestCase;
 //                 kreditor/ordre.php is a page script, so the parsing of the posted quantity, newLineQuantity(), newLineReceiveQuantity()
 //                 and each insert are lifted out of the source and the SQL they build is read back.
 // 20261117 CL/MMR SST-1024 The lifted parse now runs to the end of «Modtag» and through opslagLineQuantities() (Saul's review), which gets its own cases.
+//                 It runs with the real ifset() and usdecimal() from includes/std_func.php, not stubs (Codex round 3).
 //                 The page round trip (Opslag, then Gem) is OpslagThenSaveRoundTripTest.
 
 /** Stand-in for the real escape, which needs a database connection; quoting is not what is tested here. */
 function db_escape_string($value)
 {
 	return str_replace("'", "''", (string)$value);
-}
-
-/** Stand-in for includes/std_func.php ifset() for the plain array lookups the lifted parse makes. */
-function ifset($array, $key = null, $default = null)
-{
-	return (is_array($array) && isset($array[$key])) ? $array[$key] : $default;
 }
 
 final class NewLineReceiveQuantityTest extends TestCase
@@ -43,7 +38,7 @@ final class NewLineReceiveQuantityTest extends TestCase
 			$src = file_get_contents(self::ORDRE);
 			self::assertNotFalse($src, 'could not read kreditor/ordre.php');
 			self::$src = $src;
-			require_once __DIR__ . '/../../../includes/stdFunc/usDecimal.php';
+			require_once __DIR__ . '/../../../includes/std_func.php'; // the real ifset() and usdecimal() the lifted parse calls
 			foreach (['newLineQuantity', 'newLineReceiveQuantity', 'opslagLineQuantities'] as $name) {
 				if (function_exists($name)) {
 					continue;
@@ -66,8 +61,7 @@ final class NewLineReceiveQuantityTest extends TestCase
 		self::assertNotFalse($at, "the block starting \"$from\" is gone from kreditor/ordre.php");
 		$end = strpos($src, $before, $at);
 		self::assertNotFalse($end, "the block starting \"$from\" no longer reaches \"$before\"");
-		$code = str_replace('db_escape_string(', '\\' . __NAMESPACE__ . '\\db_escape_string(', substr($src, $at, $end - $at));
-		return preg_replace('/(?<![\\w>])ifset\(/', '\\' . __NAMESPACE__ . '\\ifset(', $code);
+		return str_replace('db_escape_string(', '\\' . __NAMESPACE__ . '\\db_escape_string(', substr($src, $at, $end - $at));
 	}
 
 	/** @return array<string, string> column => value of an «insert into ordrelinjer (…) values (…)» */

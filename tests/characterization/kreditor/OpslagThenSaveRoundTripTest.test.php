@@ -12,10 +12,15 @@
 // the request that adds the line, then the form of the page it rendered, filled and submitted the way a browser does
 // (every successful control plus the first submit button, which is also what Enter submits), and reads the line back.
 //
+// Every request runs with E_ALL. A request fails the test when it hits an SQL error, a fatal, or any PHP diagnostic in
+// the code SST-1024 added (the new functions, the line parse, the inserts and the antaDefault field); the rest of the
+// legacy page's warning floor is left alone.
+//
 // Requires the test PostgreSQL server - skips cleanly otherwise.
 //
 // History:
 // 20261117 CL/MMR SST-1024 Created for Saul's review: Opslag then Gem/Enter on KO and KK, Antal empty or typed, status 0/1/2, and the typed item.
+//                 Codex round 3: requests are checked for SQL errors and for diagnostics in the ticket's code, and a credit note is linked to a received, posted purchase order (kred_ord_id) as Kreditér makes it.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -42,10 +47,76 @@ final class OpslagThenSaveRoundTripTest extends CharacterizationTestCase
         $res = self::runChild('run_kreditor_ordre_page.php', [$requestFile, CharacterizationEnv::sessionId(), $pageFile]);
         self::assertStringContainsString('CHARTEST_PAGE_DONE', $res['stdout'], "the page did not finish.\nstderr: {$res['stderr']}");
         $page = (string)file_get_contents($pageFile);
-        unlink($requestFile);
-        unlink($pageFile);
-        @rmdir($dir);
+        $diagnostics = json_decode((string)file_get_contents("$pageFile.diagnostics.json"), true);
+        self::assertIsArray($diagnostics, 'the runner wrote no diagnostics');
+        foreach ([$requestFile, $pageFile, "$pageFile.diagnostics.json"] as $file) {
+            self::assertTrue(unlink($file), "could not remove $file");
+        }
+        self::assertTrue(rmdir($dir), "could not remove $dir");
+
+        $request = json_encode(['get' => $get, 'post' => array_keys($post)]);
+        self::assertStringNotContainsString('db_select failed', $res['stderr'], "SQL error in $request");
+        self::assertStringNotContainsString('db_modify failed', $res['stderr'], "SQL error in $request");
+        $ticketLines = self::ticketLines();
+        foreach ($diagnostics as $d) {
+            $where = "{$d['message']} at {$d['file']}:{$d['line']} in $request";
+            self::assertStringNotContainsString('Query failed', $d['message'], "SQL error: $where");
+            self::assertNotContains($d['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], "fatal: $where");
+            $file = realpath($d['file']) ?: $d['file'];
+            self::assertFalse(isset($ticketLines[$file][$d['line']]), "diagnostic in the code SST-1024 added: $where");
+        }
         return $page;
+    }
+
+    /** @var array<string, array<int, true>>|null */
+    private static ?array $ticketLines = null;
+
+    /**
+     * The lines SST-1024 added, by file: the three functions, the line parse, every line that calls them or uses their
+     * results, and the antaDefault field.
+     *
+     * @return array<string, array<int, true>> realpath => line number => true
+     */
+    private static function ticketLines(): array
+    {
+        if (self::$ticketLines !== null) {
+            return self::$ticketLines;
+        }
+        $root = CharacterizationEnv::repoRoot();
+        $ordre = realpath("$root/kreditor/ordre.php");
+        $lines = explode("\n", (string)file_get_contents($ordre));
+        $result = [$ordre => []];
+        $block = null;
+        foreach ($lines as $i => $text) {
+            $n = $i + 1;
+            if (preg_match('/^function (newLineReceiveQuantity|newLineQuantity|opslagLineQuantities)\(/', $text)) {
+                $block = '}';
+            } elseif (str_contains($text, '$y="anta".$x;')) {
+                $block = '$y="lev_varenr".$x;';
+            }
+            if ($block !== null || preg_match('/newLineQuantity\(|newLineReceiveQuantity\(|opslagLineQuantities\(|\$nyLeveres|\$opslag(Status|Art)|antaDefault/', $text)) {
+                $result[$ordre][$n] = true;
+            }
+            if ($block !== null && ($block === '}' ? rtrim($text) === '}' : str_contains($text, $block))) {
+                $block = null;
+            }
+        }
+        $lines = realpath("$root/kreditor/orderIncludes/openOrderLines.php");
+        foreach (explode("\n", (string)file_get_contents($lines)) as $i => $text) {
+            $code = !preg_match('#^\s*(//|\#)#', $text);
+            if ($code && (str_contains($text, 'antaDefault') || str_contains($text, "placeholder='\$dkantal"))) {
+                $result[$lines][$i + 1] = true;
+            }
+        }
+        return self::$ticketLines = $result;
+    }
+
+    /** The diagnostics check above only means something while it finds the code SST-1024 added. */
+    public function test_the_diagnostics_check_finds_the_ticket_code(): void
+    {
+        $lines = array_values(self::ticketLines());
+        $this->assertGreaterThan(40, count($lines[0]), 'the SST-1024 code is no longer found in kreditor/ordre.php');
+        $this->assertCount(2, $lines[1] ?? [], 'the antaDefault field is no longer found in openOrderLines.php');
     }
 
     /**
@@ -146,12 +217,37 @@ final class OpslagThenSaveRoundTripTest extends CharacterizationTestCase
         $creditor = self::$fx->creditor();
         $first = self::$fx->item();
         $added = self::$fx->item();
+        $source = null;
+        if ($art === 'KK') {
+            $source = self::receivedPurchaseOrder($creditor, [$first, $added]);
+        }
         $sign = $art === 'KK' ? -1 : 1;
         $order = self::$fx->creditorOrder($creditor, [['item' => $first, 'antal' => $sign * $antal, 'pris' => 60.00]], ['art' => $art, 'status' => $status]);
+        if ($source !== null) {
+            self::rows('UPDATE ordrer SET kred_ord_id = $1 WHERE id = $2', [$source, $order['id']]);
+        }
         if ($status >= 1) {
             self::rows('UPDATE ordrelinjer SET leveres = antal WHERE ordre_id = $1', [$order['id']]);
         }
         return ['order' => $order['id'], 'first' => $first, 'added' => $added];
+    }
+
+    /**
+     * The purchase order a credit note is made from (Kreditér, which only a posted order offers): the items received
+     * through modtag.php, so the credit note can return them, then posted (status 3).
+     *
+     * @param list<array> $items
+     */
+    private static function receivedPurchaseOrder(array $creditor, array $items): int
+    {
+        $lines = array_map(static fn(array $item) => ['item' => $item, 'antal' => 5, 'pris' => 60.00], $items);
+        $order = self::$fx->creditorOrder($creditor, $lines, ['status' => 1])['id'];
+        self::rows('UPDATE ordrelinjer SET leveres = antal WHERE ordre_id = $1', [$order]);
+        self::runChild('run_modtag_page.php', [$order, CharacterizationEnv::sessionId()]);
+        $received = self::rows('SELECT vare_id, rest FROM batch_kob WHERE ordre_id = $1 ORDER BY vare_id', [$order]);
+        self::assertCount(count($items), $received, 'precondition: the source order is received');
+        self::rows('UPDATE ordrer SET status = 3 WHERE id = $1', [$order]);
+        return $order;
     }
 
     /** «Opslag»: the item is picked in the lookup, which opens ordre.php?vare_id=… */

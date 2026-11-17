@@ -11,15 +11,22 @@
 // submitted, so a test can take the page this runner rendered, fill the form
 // the way a browser does, and send it back.
 //
+// Errors stay visible: the page runs with E_ALL, and every PHP diagnostic it
+// raises (warnings, notices, deprecations, a failed pg_query) is recorded and
+// then handled by PHP as usual. The test decides which of them matter, since
+// the legacy page has its own floor of warnings.
+//
 // argv: 1 = JSON file {"get": {...}, "post": {...}}
 //       2 = session id (must match the seeded online row)
-//       3 = file the rendered page is written to
+//       3 = file the rendered page is written to; the diagnostics go to
+//           <that file>.diagnostics.json as a list of {type, message, file, line}
 //
 // Prints CHARTEST_PAGE_DONE on stdout, also when the page ends with exit();
-// the test asserts on the rendered page and on database state.
+// the test asserts on the rendered page, the diagnostics and database state.
 //
 // History:
 // 20261117 CL/MMR SST-1024 Created to drive «Opslag» and the next «Gem» on a purchase order end to end.
+//                 Records the page's diagnostics instead of narrowing error_reporting (Codex round 3).
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_kreditor_ordre_page.php <request.json> <session_id> <page.html>\n");
@@ -33,7 +40,12 @@ if (!is_array($request)) {
 $sessionId = $argv[2];
 $pageFile = $argv[3];
 
-error_reporting(E_ERROR | E_PARSE);
+error_reporting(E_ALL);
+$diagnostics = [];
+set_error_handler(static function (int $type, string $message, string $file, int $line) use (&$diagnostics): bool {
+    $diagnostics[] = ['type' => $type, 'message' => $message, 'file' => $file, 'line' => $line];
+    return false; // PHP still reports it as usual
+});
 
 $_GET = $request['get'] ?? [];
 $_POST = $request['post'] ?? [];
@@ -52,7 +64,12 @@ session_id($sessionId);
 chdir(dirname(__DIR__, 3) . '/kreditor'); // the page uses ../includes/... relative includes
 
 ob_start();
-register_shutdown_function(static function () use ($pageFile): void {
+register_shutdown_function(static function () use ($pageFile, &$diagnostics): void {
+    $last = error_get_last();
+    if ($last !== null && in_array($last['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        $diagnostics[] = $last;
+    }
+    file_put_contents($pageFile . '.diagnostics.json', json_encode($diagnostics));
     $page = '';
     while (ob_get_level() > 0) {
         $page = ob_get_clean() . $page;
