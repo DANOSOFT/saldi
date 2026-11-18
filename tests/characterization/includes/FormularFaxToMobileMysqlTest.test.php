@@ -15,6 +15,8 @@ require_once __DIR__ . '/../../../includes/std_func.php';
 //                 password); skipped without it. Each case is a child process (support/run_formular_fax_to_mobile_mysql.php).
 // 20261118 CL/MMR SST-898 (review 11) The runner refuses an existing database and leaves it intact, and removes its own database after a failed setup.
 // 20261118 CL/MMR SST-898 (review 12) A valid name with a trailing newline is refused by the runner's own check.
+// 20261118 CL/MMR SST-898 (CI) admin() asks socket() first, so the test skips instead of failing on a PHP without mysqli; its four tests
+//                 are on the tools/ci/check-skips.php allowlist because the CI container has no MySQL/MariaDB server.
 final class FormularFaxToMobileMysqlTest extends TestCase
 {
     /** @return array<string, array{string, string, string}> column charset, connection charset, db_type */
@@ -108,8 +110,10 @@ final class FormularFaxToMobileMysqlTest extends TestCase
     /** @return \mysqli */
     private function admin()
     {
+        // socket() first: it skips the test before any mysqli function is called on a PHP without mysqli (the CI image).
+        $socket = $this->socket();
         mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
-        return mysqli_connect('localhost', getenv('SALDI_CHAR_MYSQL_USER') ?: 'root', getenv('SALDI_CHAR_MYSQL_PASS') ?: '', '', 0, $this->socket());
+        return mysqli_connect('localhost', getenv('SALDI_CHAR_MYSQL_USER') ?: 'root', getenv('SALDI_CHAR_MYSQL_PASS') ?: '', '', 0, $socket);
     }
 
     private function databaseExists(string $database): bool
