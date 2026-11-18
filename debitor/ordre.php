@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -188,6 +188,19 @@
 // 20261111 CL/MJ SST-1002 With Brug samlet pris, a line of a set item that is not a set (saet 0, e.g. a variant) gets a position number.
 //                Without one, the next Gem posted an empty position and stopped with a TypeError.
 // 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
+// 20261118 CL/MMR SST-1031 An original quote (OT) on a case no longer shows the general "Kopier" button, only the case copy "Kopiér".
+//                 The general copy made a new OT on the same case with quote number 0 and no timestamp.
+//                 A new order on a case now gets datotid (creation time), and datotid is escaped in the insert.
+//                 The other values in that insert are escaped or cast.
+//                 City names from bynavn() and the account-card cvrnr, email, ean and institution are escaped where they are read, like the form values.
+//                 The delivery postcode is escaped once where it is read, and the delivery-address save no longer escapes lev_* twice.
+//                 $notes is escaped when it is read from the form (the same change as SST-1026), and the update no longer escapes it a second time.
+//                 In that order update (Gem) the form values that came in raw are escaped or cast as in the insert.
+//                 An email typed in the phone field and the stored debitoripad values in the Gem block are escaped like the form values they replace.
+//                 In the print/send handler phone and email stay raw through the 15-character limit and are escaped once in its update.
+//                 That update also escapes pbs and mail_fakt (they can come from the account card) after their 2-character clamp.
+//                 A general copy posted for an OT on a case (e.g. from a page opened before the update) is sent to the case copy, nothing is written.
+//                 The insert that creates an order from the account card escapes or casts its raw values the same way.
 @session_start();
 $s_id = session_id();
 
@@ -961,9 +974,30 @@ if ($id && $status < 3 && isset($_GET['vare_id'])) {
 		}
 	}
 }
+# 20261118 SST-1031 a general copy of an original quote (OT) on a case, e.g. from an order form opened before
+# the button was hidden, goes to the case copy instead; checked on the stored order before anything is written
+# Same precedence as the b_submit dispatch below: the copy button, or a posted b_submit with "Kopi" when no other named button is set.
+$copyRequested = !empty($_POST['copy']);
+if (!$copyRequested) {
+	$namedAction = false;
+	foreach (array('credit', 'delete', 'doInvoice', 'deliver', 'receive', 'lookUp', 'print', 'save', 'send') as $actionKey) {
+		if (!empty($_POST[$actionKey])) $namedAction = true;
+	}
+	$copyRequested = !$namedAction && strstr((string) ifset($_POST, 'b_submit', ''), 'Kopi');
+}
+if ($copyRequested) {
+	$copySourceId = (int)(ifset($_POST, 'id', 0) ?: $id);
+	$r = $copySourceId ? db_fetch_array(db_select("select art, sag_id, konto_id from ordrer where id = '$copySourceId'", __FILE__ . " linje " . __LINE__)) : NULL;
+	if ($r && $r['art'] == 'OT' && (int)$r['sag_id']) {
+		$copyCaseId = (int)$r['sag_id'];
+		$copyAccountId = (int)$r['konto_id'];
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/sager.php?funktion=kopi_ordre&amp;sag_id=$copyCaseId&amp;konto_id=$copyAccountId&amp;ordre_id=$copySourceId&amp;returside=ordre\">\n";
+		exit;
+	}
+}
 if (isset($_POST['orderNoteText']) && $id) {
 	$orderNoteText = $_POST['orderNoteText'];
-	$notes = $orderNoteText;
+	$notes = db_escape_string($orderNoteText);
 	$qtxt = "update ordrer set notes='" . db_escape_string($orderNoteText) . "' where id=$id";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } elseif ($id) {
@@ -992,12 +1026,10 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$sum = if_isset($_POST, NULL, 'sum');
 
 	$phone = trim($_POST['phone']);
-	$phone = str_replace(' ', '', $phone);
-	$phone = db_escape_string($phone);
+	$phone = str_replace(' ', '', $phone); # 20261118 SST-1031 escaped once in the update below, after the length limit
 
 	$email = trim($_POST['email']);
 	$email = str_replace(' ', '', $email);
-	$email = db_escape_string($email);
 	if (substr($email, 0, 11) == "debitoripad") {
 		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
@@ -1060,7 +1092,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	if (strlen((string)$mail_fakt) > 2)  $mail_fakt  = substr((string)$mail_fakt, 0, 2);
 	if (strlen((string)$mail_bilag) > 2) $mail_bilag = substr((string)$mail_bilag, 0, 2);
 	$mail_bilag = db_escape_string($mail_bilag); // SD-639: raw request input, was reaching the UPDATE below unescaped - escaped AFTER the clamp above so a truncation can never land mid-escape-sequence
-	$qtxt = "update ordrer set sprog = '$formularsprog', email='$email',mail_fakt='$mail_fakt',phone='$phone',pbs='$pbs',";
+	$qtxt = "update ordrer set sprog = '$formularsprog', email='" . db_escape_string((string) $email) . "',mail_fakt='" . db_escape_string((string) $mail_fakt) . "',phone='" . db_escape_string((string) $phone) . "',pbs='" . db_escape_string((string) $pbs) . "',";
 	$qtxt .= "udskriv_til='$udskriv_til',  mail_bilag='$mail_bilag',ean='$ean' where id='$id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($genfakt && $genfakt != '-') db_modify("update ordrer set nextfakt='" . usdate($genfakt) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
@@ -1139,14 +1171,14 @@ if ($b_submit) {
 	$bynavn = isset($_POST['bynavn']) ? trim($_POST['bynavn']) : '';
 
 	if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
-	else $bynavn = db_escape_string($bynavn);
+	$bynavn = db_escape_string((string) $bynavn); # 20261118 SST-1031 also the bynavn() result
 	$postnr = db_escape_string($postnr);
 	$land = db_escape_string(trim($_POST['land']));
 	$email = db_escape_string(trim($_POST['email']));
 	$phone = if_isset($_POST['phone']);
 
 	if (strpos($phone, '@') && !$email) {
-		$email = $phone;
+		$email = db_escape_string((string) $phone); # 20261118 SST-1031 escaped like the email field
 		$phone = '';
 	}
 	if (strlen($phone) > 15) {
@@ -1156,12 +1188,13 @@ if ($b_submit) {
 	if (substr($email, 0, 11) == "debitoripad") {
 		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
-		$email = $r["email"];
+		# 20261118 SST-1031 escaped like the form values they replace; phone is escaped where it is used
+		$email = db_escape_string((string) $r["email"]);
 		$phone = $r["phone"];
-		$firmanavn = $r["firmanavn"];
-		$addr1 = $r["addr1"];
-		$postnr = $r["postnr"];
-		$bynavn = $r["bynavn"];
+		$firmanavn = db_escape_string((string) $r["firmanavn"]);
+		$addr1 = db_escape_string((string) $r["addr1"]);
+		$postnr = db_escape_string((string) $r["postnr"]);
+		$bynavn = db_escape_string((string) $r["bynavn"]);
 	}
 
 	$ean = isset($_POST['ean']) ? db_escape_string(trim($_POST['ean'])) : ''; // Default value if not set
@@ -1179,7 +1212,8 @@ if ($b_submit) {
 
 
 	if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
-	else $lev_bynavn = db_escape_string($lev_bynavn);
+	$lev_bynavn = db_escape_string((string) $lev_bynavn); # 20261118 SST-1031 escaped once here, also the bynavn() result,
+	$lev_postnr = db_escape_string((string) $lev_postnr); # as on the account-card path; the queries below use them as they are
 	$lev_kontakt = if_isset($_POST, NULL, 'lev_kontakt') ? db_escape_string(trim($_POST['lev_kontakt'])) : '';
 	$vis_lev_addr = if_isset($_POST, NULL, 'vis_lev_addr');
 	if ($vis_lev_addr != 'on') $vis_lev_addr = ''; // ordrer.vis_lev_addr er varchar(2) ('on'/''): 'off' fra gemt brugerindstilling overflow'er og vaelter hele ordre-opdateringen
@@ -1790,19 +1824,19 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$kontakt = db_escape_string($row['kontakt']);
 			$betalingsdage = $row['betalingsdage'];
 			$betalingsbet = $row['betalingsbet'];
-			$cvrnr = $row['cvrnr'];
+			$cvrnr = db_escape_string((string) $row['cvrnr']); # 20261118 SST-1031 escaped like the form values
 			$notes = db_escape_string($row['notes']);
 			if (empty($phone)) $phone = $row['tlf']; //added by CA for DFM consignment 20210219 dfm_
 			if (empty($phone)) {
 				$r_div2 = db_fetch_array(db_select("select box5 from grupper WHERE art = 'DIV' and kodenr='2'", __FILE__ . " linje " . __LINE__));
 				if ($r_div2['box5'] === "on") {
 					$phone = $kontonr;
-					db_modify("update ordrer set phone = '$phone' where id = '$id'", __FILE__ . " linje " . __LINE__); #20210506
+					db_modify("update ordrer set phone = '" . db_escape_string((string) $phone) . "' where id = '$id'", __FILE__ . " linje " . __LINE__); #20210506
 				}
 			}
-			$email = $row['email'];
-			$ean = $row['ean'];
-			$institution = $row['institution'];
+			$email = db_escape_string((string) $row['email']);
+			$ean = db_escape_string((string) $row['ean']);
+			$institution = db_escape_string((string) $row['institution']);
 			$mail_fakt = $row['mailfakt'];
 			$gruppe = $row['gruppe'];
 
@@ -1876,9 +1910,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		$qtxt .= ") VALUES (";
 		$qtxt .= "'$ordrenr', '$konto_id', '$kontonr', '$kundeordnr', '$firmanavn', '$addr1', '$addr2', '$postnr', ";
 		$qtxt .= "'$bynavn', '$land', '$kontakt', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr', ";
-		$qtxt .= "'$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '$betalingsdage', '$betalingsbet', ";
-		$qtxt .= "'$cvrnr', '$ean', '$institution', '$email', '$mail_fakt', '$phone', '$notes', '$art', '$ordredate', ";
-		$qtxt .= "'$momssats', $status, '" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
+		$qtxt .= "'$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '" . (int) $betalingsdage . "', '" . db_escape_string((string) $betalingsbet) . "', ";
+		$qtxt .= "'$cvrnr', '$ean', '$institution', '$email', '" . db_escape_string((string) $mail_fakt) . "', '" . db_escape_string((string) $phone) . "', '$notes', '" . db_escape_string((string) $art) . "', '$ordredate', ";
+		$qtxt .= "'" . (float) $momssats . "', " . (int) $status . ", '" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "', '" . db_escape_string((string) $lev_adr) . "', '" . db_escape_string((string) $valuta) . "', '" . db_escape_string((string) $masterprojekt) . "', '" . db_escape_string((string) $formularsprog) . "', '" . db_escape_string((string) $pbs) . "', '$afd', ";
 		$qtxt .= "'0', '$felt_1', '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -2484,12 +2518,12 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$qtxt .= "kontakt_tlf='$kontakt_tlf',lev_navn='$lev_navn',lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',";
 				$qtxt .= "lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_email='$lev_email',lev_land='$lev_land',lev_kontakt='$lev_kontakt',vis_lev_addr='$vis_lev_addr',";
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
-				$qtxt .= "betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',cvrnr='$cvrnr',momssats='$momssats',";
-				$qtxt .= "procenttillag='$procenttillag',ean='$ean',institution='$institution',email='$email',mail_fakt='$mail_fakt',";
-				$qtxt .= "phone='$phone',udskriv_til='$udskriv_til',notes='" . db_escape_string($notes) . "', ";
+				$qtxt .= "betalingsdage='" . (int) $betalingsdage . "',betalingsbet='" . db_escape_string((string) $betalingsbet) . "',cvrnr='$cvrnr',momssats='" . (float) $momssats . "',";
+				$qtxt .= "procenttillag='$procenttillag',ean='$ean',institution='$institution',email='$email',mail_fakt='" . db_escape_string((string) $mail_fakt) . "',";
+				$qtxt .= "phone='" . db_escape_string((string) $phone) . "',udskriv_til='$udskriv_til',notes='$notes', ";
 				$qtxt .= "ordredate='$ordredate',status='$status',ref='" . db_escape_string((string) $ref) . "',";
-				$qtxt .= "fakturanr='$fakturanr',lev_adr='$lev_adr',performed_by='" . db_escape_string((string) $performed_by) . "',tidspkt='$tidspkt',projekt='$projekt[0]',";
-				$qtxt .= "sprog='$formularsprog',pbs='$pbs',afd='$afd',restordre='$restordre',mail_subj='$mail_subj',mail_text='$mail_text' $tmp ";
+				$qtxt .= "fakturanr='" . db_escape_string((string) $fakturanr) . "',lev_adr='" . db_escape_string((string) $lev_adr) . "',performed_by='" . db_escape_string((string) $performed_by) . "',tidspkt='$tidspkt',projekt='" . db_escape_string((string) $projekt[0]) . "',";
+				$qtxt .= "sprog='" . db_escape_string((string) $formularsprog) . "',pbs='" . db_escape_string((string) $pbs) . "',afd='$afd',restordre='$restordre',mail_subj='$mail_subj',mail_text='$mail_text' $tmp ";
 				$qtxt .= "where id=$id";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				if ($vis_saet && $afd && !$felt_5) { #20180316
@@ -2542,6 +2576,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	// ------------------------------------------------------------------
 	// Save/update delivery address based on company name + account_id
 	// ------------------------------------------------------------------
+	# 20261118 SST-1031 the lev_* values are escaped where they are read (form and account card), so not again here
 	if (($b_submit == 'Gem' || $b_submit == 'save') && $id && $konto_id) {
 		// Only proceed if essential fields are filled
 		if (!empty($lev_navn) && !empty($lev_addr1) && !empty($lev_postnr) && !empty($lev_bynavn)) {
@@ -2555,20 +2590,20 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			// Look for existing address with same account_id and company_name
 			$qtxt_find = "SELECT id FROM delivery_addresses 
 						WHERE account_id = '" . db_escape_string($konto_id) . "'
-							AND company_name = '" . db_escape_string($lev_navn) . "'
+							AND company_name = '" . $lev_navn . "'
 						LIMIT 1";
 			$existing = db_fetch_array(db_select($qtxt_find, __FILE__ . " L " . __LINE__));
 			
 			if ($existing) {
 				// Update the existing row with current values
 				$qtxt_update = "UPDATE delivery_addresses SET
-									address_line1 = '" . db_escape_string($lev_addr1) . "',
-									address_line2 = '" . db_escape_string($lev_addr2) . "',
-									postal_code   = '" . db_escape_string($lev_postnr) . "',
-									city          = '" . db_escape_string($lev_bynavn) . "',
-									country       = '" . db_escape_string($lev_land) . "',
-									contact_name  = '" . db_escape_string($lev_kontakt) . "',
-									email         = '" . db_escape_string($lev_email) . "',
+									address_line1 = '" . $lev_addr1 . "',
+									address_line2 = '" . $lev_addr2 . "',
+									postal_code   = '" . $lev_postnr . "',
+									city          = '" . $lev_bynavn . "',
+									country       = '" . $lev_land . "',
+									contact_name  = '" . $lev_kontakt . "',
+									email         = '" . $lev_email . "',
 									is_primary    = 't'
 								WHERE id = " . (int)$existing['id'];
 				db_modify($qtxt_update, __FILE__ . " L " . __LINE__);
@@ -2579,14 +2614,14 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 								postal_code, city, country, contact_name, email, is_primary, sort_order)
 								VALUES (
 									'" . db_escape_string($konto_id) . "',
-									'" . db_escape_string($lev_navn) . "',
-									'" . db_escape_string($lev_addr1) . "',
-									'" . db_escape_string($lev_addr2) . "',
-									'" . db_escape_string($lev_postnr) . "',
-									'" . db_escape_string($lev_bynavn) . "',
-									'" . db_escape_string($lev_land) . "',
-									'" . db_escape_string($lev_kontakt) . "',
-									'" . db_escape_string($lev_email) . "',
+									'" . $lev_navn . "',
+									'" . $lev_addr1 . "',
+									'" . $lev_addr2 . "',
+									'" . $lev_postnr . "',
+									'" . $lev_bynavn . "',
+									'" . $lev_land . "',
+									'" . $lev_kontakt . "',
+									'" . $lev_email . "',
 									't', 0)";
 				db_modify($qtxt_insert, __FILE__ . " L " . __LINE__); 
 			}
@@ -2665,6 +2700,7 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 			$valutakurs = 100;
 		}
 		$nr = (int)if_isset($nr, 0);
+		if ($sag_id && !(int)$datotid) $datotid = date('U'); # 20261118 SST-1031 case pages show and sort orders by datotid
 		$qtxt = "insert into ordrer";
 		$qtxt .= "(ordrenr,konto_id,kontonr,kundeordnr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,";
 		$qtxt .= "lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,lev_email,lev_land,betalingsdage,betalingsbet,cvrnr,ean,institution,";
@@ -2672,10 +2708,10 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		$qtxt .= "pbs,afd,restordre,procenttillag,sag_id,sagsnr,tilbudnr,datotid,nr,returside,omvbet,felt_1,felt_2,felt_3,felt_4,felt_5)";
 		$qtxt .= " values ";
 		$qtxt .= "($ordrenr,'$konto_id','$kontonr','$kundeordnr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt',";
-		$qtxt .= "'$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$lev_email','$lev_land','$betalingsdage','$betalingsbet',";
-		$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats','$status','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "','$lev_adr',";
-		$qtxt .= "'$valuta','$projekt[0]','$formularsprog','$pbs',".($afd==""?"NULL":"'$afd'").",'0','$procenttillag',".($sag_id==""?"NULL":"'$sag_id'").",".($sagsnr==""?"NULL":"'$sagsnr'").",".($tilbudnr==""?"NULL":"'$tilbudnr'").",'$datotid',";
-		$qtxt .= "".($nr==""?"NULL":"'$nr'").",'$returside','$omkunde',";
+		$qtxt .= "'$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$lev_email','$lev_land','" . (int) $betalingsdage . "','" . db_escape_string((string) $betalingsbet) . "',";
+		$qtxt .= "'$cvrnr','$ean','$institution','$email','" . db_escape_string((string) $mail_fakt) . "','" . db_escape_string((string) $phone) . "','$notes','" . db_escape_string((string) $art) . "','$ordredate','" . (float) $momssats . "','" . (int) $status . "','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "','" . db_escape_string((string) $lev_adr) . "',";
+		$qtxt .= "'" . db_escape_string((string) $valuta) . "','" . db_escape_string((string) $projekt[0]) . "','" . db_escape_string((string) $formularsprog) . "','" . db_escape_string((string) $pbs) . "',".($afd==""?"NULL":"'" . (int) $afd . "'").",'0','$procenttillag',".($sag_id==""?"NULL":"'$sag_id'").",".($sagsnr==""?"NULL":"'$sagsnr'").",".($tilbudnr==""?"NULL":"'$tilbudnr'").",'" . db_escape_string((string) $datotid) . "',";
+		$qtxt .= "".($nr==""?"NULL":"'$nr'").",'$returside','" . db_escape_string((string) $omkunde) . "',";
 		($art == 'PO') ? $qtxt .= "'','','','','')" : $qtxt .= "'$felt_1','$felt_2','$felt_3','$felt_4','$felt_5')"; #20191004
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = "select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc";
@@ -6525,7 +6561,8 @@ function ordreside($id, $regnskab)
 
 				print "<td align=\"center\" width=$width><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" value=\"$txt\" name=\"$b_name\" $tmp title=\"$tekst2\" onclick=\"javascript:docChange = false;\"></td>\n";
 			}
-			if ($art != 'DK') print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" value=\"" . findtekst('1100|Kopier', $sprog_id) . "\" name=\"copy\" title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog_id) . "\"></td>\n";
+			# 20261118 SST-1031 an OT on a case is copied with the case copy below; the general copy made a broken OT on the same case
+			if ($art != 'DK' && !($art == 'OT' && $sag_id)) print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" value=\"" . findtekst('1100|Kopier', $sprog_id) . "\" name=\"copy\" title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog_id) . "\"></td>\n";
 			$txt = findtekst('2375|Sæt', $sprog_id);
 			if ($status < 3 && !$betalt && $vis_saet && $konto_id) {
 				print "<td align=\"center\" width=$width><input type=\"button\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" value=\"$txt\" name=\"ret_saet\" title=\"" . findtekst('1498|Klik her for at oprette eller rette i varesæt', $sprog_id) . "\" onclick=\"jacascript:window.location.href='saetpris.php?id=$id'\"></td>\n";
