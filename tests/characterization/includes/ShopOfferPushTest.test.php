@@ -59,6 +59,9 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  *                offer state.
  * 20261118 CL/LH Codex verification 11: folded and repeated Content-Encoding fields, and redirects, read alike on every transport
  *                (a raw fake shop, support/raw_http_answer.php).
+ * 20261118 CL/LH Codex verification 12: a malformed header field and a trailer field are transport failures on every transport,
+ *                100 Continue and chunked answers still judged; a shell header file cut, replaced or without curl's count is a
+ *                transport failure. The raw shop runs through withRawShop().
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -518,7 +521,10 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	/**
 	 * A directory with a `curl` that runs the real one, then damages its output file as SHOP_OFFER_TEST_CURL_FAULT says, before
 	 * the tick reads it: missing (removed), unreadable (replaced by a directory, which root cannot read as a file either) or
-	 * shortened (to 16 KB). Put first in PATH, it reaches only the shell transport.
+	 * shortened (to 16 KB). The header-* faults change the header file (-D) instead: cut to a status line, or inside a field
+	 * name or after its colon, each with curl's reported header count (SALDI_HSIZE) changed to agree with the cut file;
+	 * replaced by a complete plain block of another length (curl's count left as it was); or curl's count dropped. Put first
+	 * in PATH, it reaches only the shell transport.
 	 */
 	private static function curlShim(): string
 	{
@@ -529,11 +535,29 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		$dir = self::$shimDir;
 		file_put_contents($dir . '/curl', <<<'SH'
 #!/bin/sh
-out=""; prev=""
+out=""; hdr=""; prev=""
 for arg do
 	if [ "$prev" = "-o" ]; then out="$arg"; fi
+	if [ "$prev" = "-D" ]; then hdr="$arg"; fi
 	prev="$arg"
 done
+case "$SHOP_OFFER_TEST_CURL_FAULT" in
+header-*)
+	said=$(/usr/bin/curl "$@" 2>&1)
+	code=$?
+	case "$SHOP_OFFER_TEST_CURL_FAULT" in
+		header-status-only) printf 'HTTP/1.1 200 OK\r\n' > "$hdr";;
+		header-cut-name) printf 'HTTP/1.1 200 OK\r\nContent-Encod' > "$hdr";;
+		header-cut-value) printf 'HTTP/1.1 200 OK\r\nContent-Encoding:' > "$hdr";;
+		header-other) printf 'HTTP/1.1 200 OK\r\n\r\n' > "$hdr";;
+	esac
+	case "$SHOP_OFFER_TEST_CURL_FAULT" in
+		header-other) printf '%s\n' "$said";;
+		header-no-witness) printf '%s\n' "$said" | grep -v '^SALDI_HSIZE:';;
+		*) printf '%s\n' "$said" | sed "s/^SALDI_HSIZE:.*/SALDI_HSIZE:$(wc -c < "$hdr" | tr -d ' ')/";;
+	esac
+	exit "$code";;
+esac
 /usr/bin/curl "$@"
 code=$?
 case "$SHOP_OFFER_TEST_CURL_FAULT" in
@@ -692,12 +716,12 @@ SH);
 	}
 
 	/**
-	 * Codex verification 11: every transport reads the final response's Content-Encoding fields with one parser
-	 * (shopOfferContentCodings()), so a folded field (a line that starts with a space or tab continues it) and a repeated one
-	 * count on curl and on the shell alike, and only identity is accepted. The shop is a raw server (support/raw_http_answer.php),
-	 * since PHP's built-in one cannot send a folded field; its encoded answers are a zlib-compressed refusal.
+	 * Runs $body with a raw fake shop (support/raw_http_answer.php) as shop 2, since PHP's built-in server cannot send every
+	 * header shape. $body gets a function that points shop 2 at one of the raw shop's cases, after clearing every offer and the
+	 * offer state as setUp() does (a new shop 2 url is a new shop: earlier items would be due to it too). Shop 2's url is
+	 * restored and the raw shop stopped afterwards.
 	 */
-	public function testFoldedAndRepeatedContentEncodingFieldsAreReadAlikeOnEveryTransport(): void
+	private static function withRawShop(callable $body): void
 	{
 		$portFile = (string)tempnam(sys_get_temp_dir(), 'rawport');
 		self::$files[] = $portFile;
@@ -711,17 +735,34 @@ SH);
 			}
 			$port = (int)file_get_contents($portFile);
 			self::assertGreaterThan(0, $port, 'the raw shop listens');
-			$t = time();
+			$body(function (string $case) use ($port): void {
+				self::rows("UPDATE varer SET specialtype = NULL, special_price = 0");
+				self::clearState();
+				self::rows("UPDATE grupper SET box5 = $1 WHERE art = 'API'", ["http://127.0.0.1:$port/$case?shop=2"]);
+			});
+		} finally {
+			self::rows("UPDATE grupper SET box5 = $1 WHERE art = 'API'", [$box5]);
+			proc_terminate($server, 9);
+			proc_close($server);
+		}
+	}
+
+	/**
+	 * Codex verification 11: every transport reads the final response's Content-Encoding fields with one parser
+	 * (shopOfferContentCodings()), so a folded field (a line that starts with a space or tab continues it) and a repeated one
+	 * count on curl and on the shell alike, and only identity is accepted. The encoded answers are a zlib-compressed refusal.
+	 */
+	public function testFoldedAndRepeatedContentEncodingFieldsAreReadAlikeOnEveryTransport(): void
+	{
+		$t = time();
+		self::withRawShop(function (callable $shop2) use ($t): void {
 			$cases = ['folded' => false, 'folded-empty' => false, 'folded-identity' => false, 'folded-tab' => false,
 				'double-identity-first' => false, 'double-deflate-first' => false, 'redirect-to-encoded' => false,
 				'identity' => true, 'identity-mixed-case' => true, 'identity-folded' => true, 'identity-repeated' => true,
 				'redirect-from-encoded' => true];
 			$n = 0;
 			foreach ($cases as $case => $judged) {
-				// a new shop 2 url is a new shop: the earlier cases' items would be due to it too, so each case starts as setUp() does
-				self::rows("UPDATE varer SET specialtype = NULL, special_price = 0");
-				self::clearState();
-				self::rows("UPDATE grupper SET box5 = $1 WHERE art = 'API'", ["http://127.0.0.1:$port/$case?shop=2"]);
+				$shop2($case);
 				foreach (self::transports() as $transport => $php) {
 					$itemNo = 'SPHDR' . $n . strtoupper(substr($transport, 0, 2));
 					$id = self::item($itemNo, self::offer(159.2, 3));
@@ -732,17 +773,75 @@ SH);
 						continue;
 					}
 					self::assertSame([2, 0, 1], self::outcomes($out), "$transport, $case: shop 2's answer is not judged: " . json_encode($out));
-					$shop2 = self::stateByShop($id)['shop 2'];
-					self::assertSame([null, 1], [$shop2['confirmed'], $shop2['attempts']], "$transport, $case: retried as a failed send");
-					self::assertStringContainsString('deflate', $shop2['error'], "$transport, $case: the coding is named");
+					$shop2state = self::stateByShop($id)['shop 2'];
+					self::assertSame([null, 1], [$shop2state['confirmed'], $shop2state['attempts']], "$transport, $case: retried as a failed send");
+					self::assertStringContainsString('deflate', $shop2state['error'], "$transport, $case: the coding is named");
 				}
 				$n++;
 			}
-		} finally {
-			self::rows("UPDATE grupper SET box5 = $1 WHERE art = 'API'", [$box5]);
-			proc_terminate($server, 9);
-			proc_close($server);
-		}
+		});
+	}
+
+	/**
+	 * Codex verification 12 (F1): a header line that is not a well-formed field (space or tab before the colon, a name byte
+	 * outside a token) makes the answer's headers unreadable, so a deflate refusal declared that way is not judged on any
+	 * transport. The tick reads no trailer fields, so a chunked answer with one is not judged either. A 100 Continue block
+	 * before the answer and a chunked answer without trailers are judged as usual.
+	 */
+	public function testAMalformedHeaderFieldIsATransportFailureOnEveryTransport(): void
+	{
+		$t = time();
+		self::withRawShop(function (callable $shop2) use ($t): void {
+			$cases = ['space-colon' => false, 'tab-colon' => false, 'fold-space-colon' => false, 'name-not-token' => false,
+				'chunked-trailer' => false, 'continue' => true, 'chunked' => true];
+			$n = 0;
+			foreach ($cases as $case => $judged) {
+				$shop2($case);
+				foreach (self::transports() as $transport => $php) {
+					$itemNo = 'SPMAL' . $n . strtoupper(substr($transport, 0, 2));
+					$id = self::item($itemNo, self::offer(159.2, 3));
+					$out = self::runner(['tick', (string)$t, '10'], $php);
+					self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
+					if ($judged) {
+						self::assertSame([3, 0, 0], self::outcomes($out), "$transport, $case: judged as usual: " . json_encode($out));
+						continue;
+					}
+					self::assertSame([2, 0, 1], self::outcomes($out), "$transport, $case: shop 2's answer is not judged: " . json_encode($out));
+					$shop2state = self::stateByShop($id)['shop 2'];
+					self::assertSame([null, 1], [$shop2state['confirmed'], $shop2state['attempts']], "$transport, $case: retried as a failed send");
+					self::assertMatchesRegularExpression('/headers are incomplete or malformed|the header file holds/', $shop2state['error'], "$transport, $case");
+				}
+				$n++;
+			}
+		});
+	}
+
+	/**
+	 * Codex verification 12 (F2): on the shell transport the header file must hold exactly what curl says it received
+	 * (%{size_header}) and parse as complete response blocks. Shop 2 sends a deflate refusal; the curl wrapper then cuts every
+	 * header file after curl wrote it, with a count that agrees with the cut file (only the parser can tell: the block has no
+	 * blank line), replaces it with a complete plain block of another length (only curl's count can tell), or drops the count.
+	 */
+	public function testAShellHeaderFileThatIsCutReplacedOrUnwitnessedIsATransportFailure(): void
+	{
+		$t = time();
+		self::withRawShop(function (callable $shop2) use ($t): void {
+			$n = 0;
+			foreach (['header-status-only', 'header-cut-name', 'header-cut-value', 'header-other', 'header-no-witness'] as $fault) {
+				$shop2('deflate');
+				$itemNo = 'SPHDF' . $n++;
+				$id = self::item($itemNo, self::offer(159.2, 3));
+				$out = self::runner(['tick', (string)$t, '10'], self::withoutCurlExtension(),
+					['PATH' => self::curlShim() . ':' . getenv('PATH'), 'SHOP_OFFER_TEST_CURL_FAULT' => $fault]);
+				self::assertSame('shell', $out['transport'] ?? null, 'the shell transport ran');
+				self::assertSame([0, 0, 3], self::outcomes($out), "$fault: no shop's answer is judged: " . json_encode($out));
+				$why = in_array($fault, ['header-other', 'header-no-witness'], true) ? '/the header file holds/' : '/headers are incomplete or malformed/';
+				foreach (self::stateByShop($id) as $shop => $entry) {
+					self::assertSame([null, 1], [$entry['confirmed'], $entry['attempts']], "$fault: $shop is not confirmed");
+					self::assertMatchesRegularExpression($why, $entry['error'], "$fault: $shop");
+				}
+			}
+		});
 	}
 
 	/**

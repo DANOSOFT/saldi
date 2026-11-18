@@ -46,6 +46,7 @@
 //                CodeRabbit review of 63cf3d3f2: the tick's choice of transport has one owner (shopOfferTransport()), which the tests read to know which transport each leg ran.
 // 20261118 CL/LH Codex verification 10: every transport asks for the answer unencoded and decodes nothing (libcurl's decoding passed the partial body of a cut gzip stream as complete); an answer with a Content-Encoding other than identity is a transport failure on all three (shopOfferAnswer()). A shop counts as stuck once per item, whatever its reasons (shopOfferStuckShop()).
 // 20261118 CL/LH CodeRabbit review of 4cd96c7d2 and Codex verification 11: one header parser for all three transports (shopOfferContentCodings(): the final response's block, every Content-Encoding field, obsolete line folding), the shell reading curl's header file (-D); identity is accepted, every other declared coding fails. The shop's encoding is shown printable and short in the error, and the state and marker files are written even with invalid UTF-8 in them.
+// 20261118 CL/LH Codex verification 12: the header parser denies by default. A header text that does not parse as complete response blocks (a status line, valid fields, the blank line) is a transport failure, so a field name with space before its colon or a header block cut short no longer reads as "no coding". It has its own length bound (SHOP_OFFER_HEADER_BYTES), and the shell's header file must hold exactly what curl says it received (%{size_header}).
 
 if (!defined('SHOP_OFFER_ALERT_REFUSALS')) {
 	define('SHOP_OFFER_ALERT_REFUSALS', 8);    // refusals, or transport failures, of one price pair after which a shop counts as stuck (still retried)
@@ -66,6 +67,9 @@ if (!defined('SHOP_OFFER_FOREIGN_MARGIN')) {
 }
 if (!defined('SHOP_OFFER_BODY_BYTES')) {
 	define('SHOP_OFFER_BODY_BYTES', 1048576);  // the most of a shop's answer the tick keeps; a longer one is cut, and a cut answer is a transport failure
+}
+if (!defined('SHOP_OFFER_HEADER_BYTES')) {
+	define('SHOP_OFFER_HEADER_BYTES', 262144);  // the most header text (every response of one call) the tick reads; more is a transport failure
 }
 
 if (!function_exists('shopOfferPushDir')) {
@@ -1705,35 +1709,59 @@ if (!function_exists('shopOfferSend')) {
 if (!function_exists('shopOfferContentCodings')) {
 	/**
 	 * The content codings of an HTTP answer, from its header lines as received, for every tick transport (curl's header
-	 * callback, the shell's -D file): the last response's block only (after redirects), every Content-Encoding field of it,
-	 * repeated ones included, with obsolete line folding (a line that starts with a space or tab continues the field before
-	 * it), split into its comma-separated coding tokens, lower case.
+	 * callback, the shell's -D file). It reads them only if they parse whole, and otherwise says they are not known (null),
+	 * which shopOfferAnswer() makes a transport failure: the text must be one or more complete response blocks (redirects and
+	 * 1xx answers before the final one), each a status line, then fields, then its blank line, and nothing after the last
+	 * (no trailer fields). A field is a token name directly followed by ":" (RFC 9110); a line that starts with a space or tab
+	 * continues the field before it (obsolete line folding). Any other line, a control character other than a tab, a block
+	 * without its blank line, or more than SHOP_OFFER_HEADER_BYTES of text means not known. From the final block, every
+	 * Content-Encoding field counts (the name in any case, repeated fields too), split into its comma-separated coding tokens,
+	 * lower case.
 	 *
-	 * @param string $headers Header lines, CRLF or LF, of one or more responses.
-	 * @return list<string>|null The coding tokens ([] when there are none); null when the lines hold no response.
+	 * @param string $headers Header lines, CRLF or LF, of every response of one call.
+	 * @return list<string>|null The final response's coding tokens ([] when there are none); null when not known.
 	 */
 	function shopOfferContentCodings($headers) {
-		$fields = null;
-		foreach (preg_split('/\r?\n/', (string)$headers) as $line) {
-			if (strncasecmp($line, 'HTTP/', 5) === 0) {
-				$fields = array(); // a new response: only the last one counts
-			} elseif ($fields === null || $line === '') {
-				continue;
-			} elseif ($line[0] === ' ' || $line[0] === "\t") {
-				if ($fields) {
-					$fields[count($fields) - 1] .= ' ' . trim($line); // obsolete line folding: more of the field before
+		$headers = (string)$headers;
+		if ($headers === '' || strlen($headers) > SHOP_OFFER_HEADER_BYTES || substr($headers, -1) !== "\n") {
+			return null; // nothing, too much, or cut inside a line
+		}
+		$final = null;  // the fields of the last complete response block
+		$fields = null; // the fields of the block being read; null between blocks
+		foreach (explode("\n", substr($headers, 0, -1)) as $line) {
+			if (substr($line, -1) === "\r") {
+				$line = substr($line, 0, -1);
+			}
+			if (preg_match('/[\x00-\x08\x0a-\x1f\x7f]/', $line)) {
+				return null; // a control character other than a tab, a bare CR among them
+			}
+			if ($fields === null) {
+				if (!preg_match('~^HTTP/[0-9](?:\.[0-9])? [0-9]{3}(?: .*)?$~sD', $line)) {
+					return null; // only a status line may start a block (trailer fields after the body are not read either)
 				}
-			} else {
+				$fields = array();
+			} elseif ($line === '') {
+				$final = $fields; // the block's blank line: this response's header is complete
+				$fields = null;
+			} elseif ($line[0] === ' ' || $line[0] === "\t") {
+				if (!$fields) {
+					return null; // a continuation line with no field before it
+				}
+				$fields[count($fields) - 1] .= ' ' . trim($line, " \t"); // obsolete line folding: more of the field before
+			} elseif (preg_match('/^[!#$%&\'*+.^_`|~0-9A-Za-z-]+:/', $line)) {
 				$fields[] = $line;
+			} else {
+				return null; // not a field: a name that is not a token, or space before its colon
 			}
 		}
-		if ($fields === null) {
-			return null;
+		if ($fields !== null || $final === null) {
+			return null; // the last block has no blank line: it was cut short
 		}
 		$codings = array();
-		foreach ($fields as $field) {
-			if (strncasecmp($field, 'Content-Encoding:', 17) === 0) {
-				foreach (preg_split('/[\s,]+/', strtolower(trim(substr($field, 17))), -1, PREG_SPLIT_NO_EMPTY) as $token) {
+		foreach ($final as $field) {
+			$colon = strpos($field, ':');
+			if (strcasecmp(substr($field, 0, $colon), 'Content-Encoding') === 0) {
+				foreach (preg_split('/[\s,]+/', strtolower(substr($field, $colon + 1)), -1, PREG_SPLIT_NO_EMPTY) as $token) {
 					$codings[] = $token;
 				}
 			}
@@ -1746,12 +1774,13 @@ if (!function_exists('shopOfferAnswer')) {
 	/**
 	 * The one rule by which the tick turns a shop's HTTP exchange into an answer for the judge (shopApiOutcome()), on every one
 	 * of its transports (shopOfferCurlOne(), shopOfferCurlMulti(), shopOfferShellOne()). An answer is judged only when the
-	 * transport reports the transfer complete, every content coding of the final response is "identity" (or there is none:
-	 * every transport asks for the answer unencoded and decodes nothing), the answer fits in what the tick keeps, and what
-	 * arrived was read back whole; anything else is a transport failure, retried by the usual rules and never an acceptance
-	 * or a refusal. A body that still starts as gzip is not judged either. This does not prove the answer's content: a body
-	 * compressed without saying so in another format, or a shell answer file replaced by one of the same length, would still
-	 * be judged (residuals R10-F3, R10-F2). shopOfferSend() judges only answers made here ('checked').
+	 * transport reports the transfer complete, what arrived was read back whole, the answer's headers parse as complete,
+	 * well-formed response blocks (shopOfferContentCodings(); otherwise its codings are not known), every content coding of the
+	 * final response is "identity" or there is none (every transport asks for the answer unencoded and decodes nothing), and
+	 * the answer fits in what the tick keeps; anything else is a transport failure, retried by the usual rules and never an
+	 * acceptance or a refusal. A body that still starts as gzip is not judged either. This does not prove the answer's
+	 * content: a body compressed without saying so in another format, or a shell answer file replaced by one of the same
+	 * length, would still be judged (residuals R10-F3, R10-F2). shopOfferSend() judges only answers made here ('checked').
 	 *
 	 * @param int $httpCode 0: no answer.
 	 * @param string|false|null $body What the transport holds of the answer.
@@ -1765,16 +1794,16 @@ if (!function_exists('shopOfferAnswer')) {
 		$httpCode = (int)$httpCode;
 		$body = is_string($body) ? $body : '';
 		$error = (string)$failure;
+		if ($error === '' && $unread !== '') {
+			$error = 'answer could not be read: ' . $unread;
+		}
 		if ($error === '' && $codings === null) {
-			$error = 'the answer\'s headers could not be read, so not judged (a transport failure)';
+			$error = 'the answer\'s headers are incomplete or malformed, so not judged (a transport failure)';
 		}
 		if ($error === '' && array_diff((array)$codings, array('identity'))) {
 			// the shop's header values, printable and short: they are stored in the item's state and logged
 			$shown = substr((string)preg_replace('/[^\x20-\x7e]/', '?', implode(', ', (array)$codings)), 0, 40);
 			$error = 'answer encoded (' . $shown . ') although it was asked unencoded, so not judged (a transport failure)';
-		}
-		if ($error === '' && $unread !== '') {
-			$error = 'answer could not be read: ' . $unread;
 		}
 		if ($error === '' && $cut) {
 			$error = 'answer longer than ' . SHOP_OFFER_BODY_BYTES . ' bytes: cut, so not judged (a transport failure)';
@@ -1805,7 +1834,7 @@ if (!function_exists('shopOfferCurlHandle')) {
 	 * @param float $seconds Time the call may take.
 	 * @param string $body Receives the start of the answer.
 	 * @param bool $cut Set when more of the answer arrived than $body keeps.
-	 * @param string $headers Receives the header lines as received (libcurl bounds their size).
+	 * @param string $headers Receives the header lines as received, up to just past SHOP_OFFER_HEADER_BYTES (more fails the parser).
 	 * @return resource|CurlHandle|false
 	 */
 	function shopOfferCurlHandle($url, $seconds, &$body, &$cut, &$headers) {
@@ -1817,7 +1846,9 @@ if (!function_exists('shopOfferCurlHandle')) {
 		$ms = max(1, (int)floor($seconds * 1000));
 		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept-Encoding: identity'));
 		curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($handle, $line) use (&$headers) {
-			$headers .= $line; // judged after the transfer by shopOfferContentCodings(), as the shell's -D file is
+			if (strlen($headers) <= SHOP_OFFER_HEADER_BYTES) {
+				$headers .= $line; // judged after the transfer by shopOfferContentCodings(), as the shell's -D file is; past its bound it fails there
+			}
 			return strlen($line);
 		});
 		curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($handle, $chunk) use (&$body, &$cut) {
@@ -1940,10 +1971,11 @@ if (!function_exists('shopOfferShellOne')) {
 	 * the witness that the file was not lost or shortened afterwards), and what is read back must be all of it up to
 	 * SHOP_OFFER_BODY_BYTES (a larger file is cut). The call asks for the answer unencoded (Accept-Encoding: identity), because
 	 * curl's witness counts the bytes on the wire: an answer curl decoded could not be checked against it. The header lines go
-	 * to a second temporary file (-D, every response's block) and through the parser the extension uses
-	 * (shopOfferContentCodings()), so an answer that comes encoded anyway is not judged on either transport; a header file that
-	 * is missing, unreadable, too long or holds no response is a transport failure. -D and size_download are old curl options:
-	 * any curl command line does.
+	 * to a second temporary file (-D, every response's block), checked the same way against curl's own count (size_header),
+	 * and through the parser the extension uses (shopOfferContentCodings()), so an answer that comes encoded anyway is not
+	 * judged on either transport; a header file that is missing, unreadable, too long, shorter or longer than curl's count, or
+	 * not complete response blocks is a transport failure. -D, size_download and size_header are old curl options: any curl
+	 * command line does.
 	 *
 	 * @param string $url
 	 * @param float $seconds
@@ -1969,18 +2001,20 @@ if (!function_exists('shopOfferShellOne')) {
 			. ' -H ' . escapeshellarg('Accept-Encoding: identity')
 			. ' -D ' . escapeshellarg($headerFile)
 			. ' -o ' . escapeshellarg($bodyFile)
-			. ' -w ' . escapeshellarg("\nSALDI_HTTP:%{http_code}\nSALDI_SIZE:%{size_download}\n")
+			. ' -w ' . escapeshellarg("\nSALDI_HTTP:%{http_code}\nSALDI_SIZE:%{size_download}\nSALDI_HSIZE:%{size_header}\n")
 			. ' ' . escapeshellarg($url) . ' 2>&1; shop_curl_status=$?; printf "\nSALDI_EXIT:%s\n" "$shop_curl_status"';
 		$out = trim((string)shell_exec($cmd));
 		$httpCode = preg_match('/SALDI_HTTP:(\d{3})/', $out, $m) ? (int)$m[1] : 0;
 		$exitCode = preg_match('/(?:^|\n)SALDI_EXIT:(\d+)$/D', $out, $m) ? (int)$m[1] : -1;
 		$received = preg_match('/(?:^|\n)SALDI_SIZE:(\d+)(?:\n|$)/', $out, $m) ? (int)$m[1] : -1;
-		// the header lines, read whole or not at all: null codings (not known) is a transport failure in shopOfferAnswer()
+		$headerWitness = preg_match('/(?:^|\n)SALDI_HSIZE:(\d+)(?:\n|$)/', $out, $m) ? (int)$m[1] : -1;
+		// the header lines, read whole or not at all, and exactly what curl says it received: else not known (a transport failure)
 		clearstatcache(true, $headerFile);
 		$headerSize = @filesize($headerFile);
-		$headers = ($headerSize === false || $headerSize > SHOP_OFFER_BODY_BYTES) ? false : @file_get_contents($headerFile);
+		$headers = ($headerSize === false || $headerSize > SHOP_OFFER_HEADER_BYTES) ? false : @file_get_contents($headerFile);
 		@unlink($headerFile);
-		$codings = ($headers === false || strlen($headers) !== $headerSize) ? null : shopOfferContentCodings($headers);
+		$headersWhole = $headers !== false && strlen($headers) === $headerSize && $headerSize === $headerWitness;
+		$codings = $headersWhole ? shopOfferContentCodings($headers) : null;
 		clearstatcache(true, $bodyFile);
 		$size = @filesize($bodyFile);
 		$data = $size === false ? false : @file_get_contents($bodyFile, false, null, 0, SHOP_OFFER_BODY_BYTES);
@@ -1996,6 +2030,11 @@ if (!function_exists('shopOfferShellOne')) {
 			$unread = 'the answer file holds ' . $size . ' bytes, curl received ' . $received;
 		} elseif (strlen($data) !== min($size, SHOP_OFFER_BODY_BYTES)) {
 			$unread = 'read ' . strlen($data) . ' of ' . min($size, SHOP_OFFER_BODY_BYTES) . ' bytes';
+		} elseif ($headerWitness < 0 || $headerSize !== $headerWitness) {
+			$unread = 'the header file holds ' . ($headerSize === false ? 'nothing' : $headerSize . ' bytes') . ', curl received '
+				. ($headerWitness < 0 ? 'an unknown number' : $headerWitness);
+		} elseif (!$headersWhole) {
+			$unread = 'the header file could not be read whole (at most ' . SHOP_OFFER_HEADER_BYTES . ' bytes are read)';
 		}
 		return shopOfferAnswer($httpCode, $data === false ? '' : $data, $failure, $size !== false && $size > SHOP_OFFER_BODY_BYTES, $unread, $codings);
 	}
