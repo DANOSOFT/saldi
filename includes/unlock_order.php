@@ -2,6 +2,7 @@
 @session_start();
 $s_id = session_id();
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 require_once __DIR__ . '/stdFunc/unlockRecord.php';
 
