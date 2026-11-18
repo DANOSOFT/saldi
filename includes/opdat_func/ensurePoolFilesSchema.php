@@ -51,6 +51,7 @@
 // 20261118 CL/MMR SD-815 Codex round 23: on PostgreSQL only an index whose single key expression uses filename and no other column, without a predicate or included columns, counts as such; any other unique index (e.g. on lower(subject) WHERE filename IS NOT NULL) is never dropped.
 // 20261118 CL/MMR SD-815 Codex round 24: «uses filename and no other column» is read from the catalogue's column dependencies (pg_depend), not from the expression's text, so a literal 'filename' or an odd column name cannot mislead it.
 // 20261118 CL/MMR SD-815 Codex round 25: on PostgreSQL only an expression that is exactly a prefix of filename (left(filename, N), substr(filename, 1, N), SUBSTRING(filename FROM 1 FOR N)) is dropped; any other unique expression index on filename is kept and named in the log for review.
+// 20261118 CL/MMR SD-815 Codex round 26: and only when the index depends on nothing but pool_files' own columns: a tenant's own function (or type, operator, collation) of the same name records a dependency, the built-in ones do not; pg_catalog.-qualified names are recognised too.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -424,17 +425,20 @@ if (!function_exists('ensurePoolFilesBackfillPending')) {
 if (!function_exists('ensurePoolFilesIsPrefixExpression')) {
 	/**
 	 * Whether a PostgreSQL index expression, as pg_get_expr() prints it, is exactly a prefix of filename:
-	 * "left"((filename)::text, N), substr((filename)::text, 1, N) or SUBSTRING(filename FROM 1 FOR N).
+	 * "left"((filename)::text, N), substr((filename)::text, 1, N) or SUBSTRING(filename FROM 1 FOR N), possibly
+	 * pg_catalog.-qualified. The text alone does not prove the built-in function is meant; the caller also requires
+	 * that the index depends on nothing but pool_files' columns.
 	 *
 	 * @param string $expression
 	 * @return bool
 	 */
 	function ensurePoolFilesIsPrefixExpression(string $expression): bool {
 		$filename = '(?:filename|\\(filename\\)::text|\\(filename\\)::character varying)';
+		$catalog = '(?:pg_catalog\\.)?'; // printed when a tenant's own function of that name is earlier in search_path
 		$patterns = array(
-			'/^"?left"?\\(' . $filename . ', \\d+\\)$/i',
-			'/^substr\\(' . $filename . ', 1, \\d+\\)$/i',
-			'/^"?substring"?\\(' . $filename . ', 1, \\d+\\)$/i',
+			'/^' . $catalog . '"?left"?\\(' . $filename . ', \\d+\\)$/i',
+			'/^' . $catalog . 'substr\\(' . $filename . ', 1, \\d+\\)$/i',
+			'/^' . $catalog . '"?substring"?\\(' . $filename . ', 1, \\d+\\)$/i',
 			'/^SUBSTRING\\(' . $filename . ' FROM 1 FOR \\d+\\)$/i',
 		);
 		foreach ($patterns as $pattern) {
@@ -497,8 +501,9 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 			// full index allows; it is not an index ON CONFLICT (filename) can use either. Only an index that is surely
 			// that counts: one key, an expression (indkey 0), no predicate, no INCLUDE columns, and - from the catalogue,
 			// not from the expression's text - a column dependency on filename and on no other column (pg_depend records
-			// one per column the expression reads; a constant such as lower('filename') has none). Every other unique
-			// index is a rule of its own and is left alone.
+			// one per column the expression reads; a constant such as lower('filename') has none). And no dependency on
+			// anything else: built-in functions, types and operators are pinned and record none, while a tenant's own
+			// substr() that shadows the built-in one does. Every other unique index is a rule of its own and is left alone.
 			$filenameAttnum = "(SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename' AND NOT attisdropped)";
 			$columnDependency = "SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_class'::regclass AND d.objid = i.indexrelid
 					AND d.refclassid = 'pg_class'::regclass AND d.refobjid = t.oid AND d.refobjsubid > 0";
@@ -507,7 +512,9 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND i.indisunique
 				AND i.indnatts = 1 AND i.indnkeyatts = 1 AND i.indkey[0] = 0 AND i.indexprs IS NOT NULL AND i.indpred IS NULL
 				AND EXISTS ($columnDependency AND d.refobjsubid = $filenameAttnum)
-				AND NOT EXISTS ($columnDependency AND d.refobjsubid <> $filenameAttnum)";
+				AND NOT EXISTS ($columnDependency AND d.refobjsubid <> $filenameAttnum)
+				AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_class'::regclass AND d.objid = i.indexrelid
+					AND NOT (d.refclassid = 'pg_class'::regclass AND d.refobjid = t.oid))";
 			$normIndex = "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
 		}
 		$deferrableNames = array();

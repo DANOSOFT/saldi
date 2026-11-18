@@ -16,6 +16,7 @@
 // 20261118 CL/MMR SD-815 Codex round 23: a unique index on lower(subject) WHERE filename IS NOT NULL is not touched and still enforces its rule, with and without a repair.
 // 20261118 CL/MMR SD-815 Codex round 24: a unique index on the constant lower('filename') is kept and still allows one row; an odd column name ("scratch(") does not stop the left(filename, 7) repair.
 // 20261118 CL/MMR SD-815 Codex round 25: unique indexes on reverse(filename) and on a CASE rule over filename are kept (and the rule still holds); the log names them for review.
+// 20261118 CL/MMR SD-815 Codex round 26: with a tenant's own substr() earlier in search_path, the index on it is kept and the real pg_catalog.substr prefix index is replaced.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -787,5 +788,25 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertFalse($refused, 'and still refuses a second invoice');
         $this->sql('ROLLBACK TO SAVEPOINT rule');
         self::assertStringContainsString('pool_files_one_invoice', (string) file_get_contents($this->log), 'named in the log for review');
+    }
+
+    public function testATenantFunctionNamedSubstrIsNotTakenForTheBuiltIn(): void
+    {
+        $schema = (string) pg_fetch_result($this->sql('SELECT current_schema()'), 0, 0);
+        $this->sql("SET LOCAL search_path TO $schema, pg_catalog");
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql("CREATE FUNCTION substr(text, integer, integer) RETURNS text IMMUTABLE LANGUAGE sql AS 'SELECT $1'");
+        $this->sql('CREATE UNIQUE INDEX pool_files_tenant_key ON pool_files (substr(filename, 1, 7))');          // the tenant's function
+        $this->sql('CREATE UNIQUE INDEX pool_files_prefix_key ON pool_files (pg_catalog.substr(filename, 1, 7))'); // the real prefix
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00')");
+
+        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        $indexes = pg_fetch_all_columns($this->sql("SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' ORDER BY 1"));
+        self::assertContains('pool_files_tenant_key', $indexes, 'the index on the tenant\'s own function is kept');
+        self::assertNotContains('pool_files_prefix_key', $indexes, 'the built-in prefix index is replaced');
+        $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('d', 64));
+        self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')), 'a second, different name registers');
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
     }
 }
