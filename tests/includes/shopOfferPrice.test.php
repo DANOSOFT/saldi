@@ -289,6 +289,24 @@ final class shopOfferPrice extends TestCase
 		$this->assertFalse(shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 200, 'error' => 'refused', 'transient' => false], self::T)[1]['failedLast']);
 	}
 
+	public function testAShopWhoseSendsKeepFailingCountsAsStuckWithoutChangingItsSchedule(): void
+	{
+		$state = self::state(self::OFFER, self::T, self::T, self::NORMAL); // the failure at T is an event: the next slot is T + 120
+		$state['shops']['k2'] = ['attempts' => 7, 'retryAt' => self::T + 1800, 'failedLast' => true] + $state['shops']['k2'];
+		$this->assertSame([], shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 60)['failing']);
+		[$outcome, $entry, $alert] = shopOfferRecordShop(shopOfferShopEntry($state, 'k2'), self::OFFER,
+			['ok' => false, 'httpCode' => 200, 'error' => 'answer could not be read: no answer file', 'transient' => true], self::T);
+		$this->assertSame(['failed', true, 8], [$outcome, $alert, $entry['attempts']], 'the eighth failure raises the alarm');
+		$before = shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 1800);
+		$state['shops']['k2'] = $entry;
+		$after = shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 1800);
+		$this->assertSame(['k2'], $after['failing'], 'stuck from then on');
+		$this->assertSame([], $after['refusing']);
+		$this->assertSame([$before['send'], $before['next']], [$after['send'], $after['next']], 'reporting only: the same schedule');
+		$this->assertFalse(shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 0, 'error' => 'x', 'transient' => true], self::T)[2],
+			'the alarm is raised once, at the crossing');
+	}
+
 	public function testANoteTouchedAfterTheTickTookItStaysForTheNextTick(): void
 	{
 		$GLOBALS['db'] = 'unit_shopoffer_' . bin2hex(random_bytes(4));
