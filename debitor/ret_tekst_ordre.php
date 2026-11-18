@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_tekst_ordre.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- debitor/ret_tekst_ordre.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,8 @@
 //                After Gem the page returns to the order with a meta refresh, as online.php has already printed output.
 //                The sager header and menu variables are set, so the page renders without undefined-variable warnings.
 // 20261117 CDX/NTR Render database text as UTF-8 and preserve LATIN9 when saving form submissions.
-
+// 20261118 CL/LH File header kept contiguous: the blank line before the description is a comment line.
+//
 // Edits one standard order text (ordretekster) from the text lookup on a case order.
 
 /**
