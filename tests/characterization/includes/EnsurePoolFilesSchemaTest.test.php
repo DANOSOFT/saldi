@@ -26,6 +26,7 @@
 // 20261118 CL/MMR SD-815 Codex round 42: a DELETE trigger or a DELETE rule on pool_files and duplicate filenames: nothing deleted anywhere, no flag, named in the log.
 // 20261118 CL/MMR SD-815 Codex round 43: a table inheriting from pool_files (older duplicate and a DELETE trigger there) keeps every row anywhere, no unique index, no flag, named in the log; a unique index on pool_files alone does not count while a table inherits from it.
 // 20261118 CL/MMR SD-815 Codex round 44: in autocommit and in a caller's transaction, a temporary pool_files shadowing an indexed one changes nothing and writes no flag (the next run without it fills the permanent row), and a partly migrated table with an inheriting one keeps both tables' columns as they were.
+// 20261118 CL/MMR SD-815 Codex round 45: a partly migrated UNLOGGED pool_files with duplicates in current_schema() is repaired and backfilled like a logged one and stays unlogged (autocommit and a caller's transaction).
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -1114,7 +1115,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame(0, $this->backfillFlags(), 'no flag for the permanent table');
         self::assertNull(pg_fetch_result($this->sql("SELECT norm_amount FROM {$this->schema()}.pool_files WHERE id = 1"), 0, 0));
         self::assertNull(pg_fetch_result($this->sql('SELECT norm_amount FROM pg_temp.pool_files WHERE id = 7'), 0, 0), 'the temporary table untouched');
-        self::assertStringContainsString('not the permanent table in current_schema()', (string) file_get_contents($this->log));
+        self::assertStringContainsString('a temporary pool_files of this session shadows the table in current_schema()', (string) file_get_contents($this->log));
 
         $this->sql('DROP TABLE pg_temp.pool_files');
         self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
@@ -1146,6 +1147,40 @@ final class EnsurePoolFilesSchemaTest extends TestCase
     private function schema(): string
     {
         return pg_fetch_result($this->sql('SELECT quote_ident(current_schema())'), 0, 0);
+    }
+
+    private function anUnloggedPoolFiles(bool $autocommit): void
+    {
+        if ($autocommit) {
+            $this->autocommitSchema();
+        }
+        $this->sql(str_replace('CREATE TABLE pool_files', 'CREATE UNLOGGED TABLE pool_files', self::OLD_OPRET_POOL_FILES));
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '1,00'), (2, 'a.pdf', '99,00')");
+
+        $done = ensurePoolFilesSchema('postgresql');
+
+        foreach (['norm_amount', 'unique_filename', 'norm_amount_index', 'norm_amount_backfill'] as $step) {
+            self::assertContains($step, $done);
+        }
+        foreach (array_keys(ensurePoolFilesSchemaColumns()) as $column) {
+            self::assertContains($column, $this->columns(), "$column added");
+        }
+        self::assertSame([['id' => '2', 'norm_amount' => '99.000']], pg_fetch_all($this->sql('SELECT id, norm_amount FROM pool_files')), 'the newest row kept and filled');
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexdef ILIKE '%UNIQUE%(filename)%'")));
+        self::assertSame(1, $this->backfillFlags());
+        self::assertSame('u', pg_fetch_result($this->sql("SELECT relpersistence FROM pg_class WHERE oid = 'pool_files'::regclass"), 0, 0), 'still unlogged');
+        self::assertSame($autocommit ? PGSQL_TRANSACTION_IDLE : PGSQL_TRANSACTION_INTRANS, pg_transaction_status($this->connection));
+        self::assertSame([], ensurePoolFilesSchema('postgresql'), 'the next login has nothing to do');
+    }
+
+    public function testAnUnloggedPoolFilesIsRepairedInAutocommit(): void
+    {
+        $this->anUnloggedPoolFiles(true);
+    }
+
+    public function testAnUnloggedPoolFilesIsRepairedInACallersTransaction(): void
+    {
+        $this->anUnloggedPoolFiles(false);
     }
 }
 

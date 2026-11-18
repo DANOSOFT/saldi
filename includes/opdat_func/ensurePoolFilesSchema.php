@@ -70,6 +70,7 @@
 // 20261118 CL/MMR SD-815 Codex round 42: with duplicates, a user DELETE trigger on pool_files (PostgreSQL: or a DELETE rule) also stops the collapse - it could change other tables; on MySQL/MariaDB triggers are only visible with the TRIGGER privilege, so without it the collapse waits too.
 // 20261118 CL/MMR SD-815 Codex round 43: on PostgreSQL the repair first checks the exact table its statements use ('pool_files'::regclass): it must be the one in current_schema() that the state reads, and no table may inherit from it (or be a partition of it) - a unique index on pool_files does not cover their rows and a DELETE through pool_files also deletes there and fires their triggers; then nothing is changed and the log names them.
 // 20261118 CL/MMR SD-815 Codex round 44: on PostgreSQL that check runs before any change of every run (also a run that only fills norm_amount), and pool_files must be the permanent table (a temporary pool_files shadows it in search_path); when columns are missing, the check and the ALTER TABLEs run in one transaction under SHARE ROW EXCLUSIVE, so no table can start to inherit in between.
+// 20261118 CL/MMR SD-815 Codex round 45: only a temporary pool_files counts as a shadow; an UNLOGGED pool_files in current_schema() is the regnskab's own table and is repaired like a logged one (and stays unlogged); the log names which case stopped the run.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -360,8 +361,9 @@ if (!function_exists('ensurePoolFilesGuardInboundReferences')) {
 if (!function_exists('ensurePoolFilesGuardPostgresRelation')) {
 	/**
 	 * PostgreSQL: makes sure the table the statements resolve ('pool_files'::regclass, via search_path, where a temporary
-	 * table comes first) is the permanent one in current_schema() that ensurePoolFilesSchemaState() reads, and that no
-	 * table inherits from it or is a partition of it. A unique index on pool_files covers only the rows stored in pool_files itself, while a SELECT or
+	 * table comes first) is not a temporary table and is the one in current_schema() that ensurePoolFilesSchemaState()
+	 * reads (logged or UNLOGGED, both the regnskab's own), and that no table inherits from it or is a partition of it.
+	 * A unique index on pool_files covers only the rows stored in pool_files itself, while a SELECT or
 	 * DELETE on pool_files also reaches the inheriting tables (and fires their DELETE triggers), so the repair can then
 	 * neither guarantee unique filenames nor delete safely; a person has to decide. Called by ensurePoolFilesSchemaRun()
 	 * before any change (with the ALTER TABLEs under SHARE ROW EXCLUSIVE when columns are missing) and again under the
@@ -371,12 +373,19 @@ if (!function_exists('ensurePoolFilesGuardPostgresRelation')) {
 	 * @throws EnsurePoolFilesSchemaUnknown When pool_files is another table or has inheriting tables; logged.
 	 */
 	function ensurePoolFilesGuardPostgresRelation(): void {
-		$r = db_fetch_array(ensurePoolFilesSelect("SELECT (n.nspname = current_schema() AND c.relpersistence = 'p')::int AS same FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-			WHERE c.oid = 'pool_files'::regclass", __LINE__));
-		if (!$r || (int)($r['same'] ?? 0) !== 1) {
-			error_log('ensurePoolFilesSchema: nothing changed, the pool_files found through search_path is not the permanent table in current_schema()'
-				. ' (a temporary table or another schema shadows it); the next login tries again');
-			throw new EnsurePoolFilesSchemaUnknown('pool_files is not the permanent table in current_schema()');
+		// relpersistence: 'p' permanent, 'u' unlogged (both the regnskab's own table when in current_schema()), 't' temporary.
+		$r = db_fetch_array(ensurePoolFilesSelect("SELECT (n.nspname = current_schema())::int AS same_schema, (c.relpersistence = 't')::int AS temporary
+			FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = 'pool_files'::regclass", __LINE__));
+		if (!$r) {
+			throw new EnsurePoolFilesSchemaUnknown('pool_files could not be resolved');
+		}
+		if ((int)($r['temporary'] ?? 1) !== 0) {
+			error_log('ensurePoolFilesSchema: nothing changed, a temporary pool_files of this session shadows the table in current_schema(); the next login tries again');
+			throw new EnsurePoolFilesSchemaUnknown('a temporary pool_files shadows the table in current_schema()');
+		}
+		if ((int)($r['same_schema'] ?? 0) !== 1) {
+			error_log('ensurePoolFilesSchema: nothing changed, the pool_files found through search_path is in another schema than current_schema(); check the search_path of this regnskab');
+			throw new EnsurePoolFilesSchemaUnknown('pool_files is not the table in current_schema()');
 		}
 		$names = array();
 		$q = ensurePoolFilesSelect("SELECT h.inhrelid::regclass::text AS name FROM pg_inherits h WHERE h.inhparent = 'pool_files'::regclass ORDER BY 1", __LINE__);
