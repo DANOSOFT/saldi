@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-13 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-18 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -79,6 +79,7 @@
 // The registry is also read without a database connection (tools/check_settings_registry.php): the same cast
 // as includes/db_query.php's db_cast(), so the definitions load either way.
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261118 CL/MJ SD-830 pos.tills.brand: the brand per till (SD-758) had no screen after the PoS-valg page was retired. Same storage (POS kodenr 4 box1, tab list per fiscal year), choices from the form variants, and an unknown brand is refused.
 if (!function_exists('db_cast')) {
 	function db_cast($expr, $type) {
 		global $db_type;
@@ -1007,6 +1008,11 @@ if (!function_exists('getSettingsSections')) {
 				'options_from' => 'departments', 'options_literal' => true, 'storage' => array('grupper', 'POS', 1, 'box3', 'raw', 'row_name' => 'POS_valg', 'fiscal' => true, 'join' => "\t", 'list' => true), 'legacy' => $pos),
 			'pos.tills.vat_group' => array('sub' => 'tills', 'type' => 'select', 'label' => 286, 'help' => 285, 'per' => 'till', 'group_label' => array(6302, ''), 'default' => '0',
 				'options_from' => 'vat_sales', 'options_literal' => true, 'storage' => array('grupper', 'POS', 1, 'box7', 'raw', 'row_name' => 'POS_valg', 'fiscal' => true, 'join' => "\t", 'list' => true), 'legacy' => $pos),
+			// SD-830: the brand a till sells under (SD-758), in the row posSaleSettings.php owns and pos_terminal_sale_defaults() reads.
+			'pos.tills.brand' => array('sub' => 'tills', 'type' => 'select', 'label' => 7200, 'help' => 7201, 'per' => 'till', 'group_label' => array(6302, ''), 'default' => '',
+				'options_from' => 'pos_sale_brands', 'options_literal' => true, 'validate' => array('in_options', 7202),
+				'storage' => array('grupper', 'POS', 4, 'box1', 'raw', 'row_name' => 'POS salgsopsaetning', 'fiscal' => true, 'join' => "\t", 'list' => true), 'legacy' => $pos,
+				'keywords' => array('brand', 'formularvariant', 'form variant')),
 			'pos.tills.post_each_sale' => array('sub' => 'tills', 'type' => 'bool', 'label' => 6292, 'help' => 1728, 'per' => 'till', 'group_label' => array(6302, ''), 'default' => false,
 				'storage' => array('settings', 'POS', 'postEachSale', 'onEmpty', 'join' => "\t", 'list' => true, 'seed' => 'post_each_sale'), 'legacy' => $pos),
 			'pos.tills.cash_account' => array('sub' => 'tills', 'type' => 'account', 'label' => 6279, 'help' => 275, 'per' => 'till', 'group_label' => array(6300, ''),
