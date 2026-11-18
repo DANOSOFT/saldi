@@ -74,7 +74,7 @@
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 // 20261105 CL/MMR SD-807 The login messages and the max users and already logged in screens use the language chosen on the login page (languageId cookie, 1-3).
 //                 A message that names the account is kept within 80 characters (loginFejltxt()), so a long account name no longer makes it disappear.
-// 20261113 CL/MMR SST-1016 The max users screen no longer counts or lists the customer sessions from Mit salg, Mine labels, labelprint and booking (e.g. «3024» at Shoppe Loppe).
+// 20261113 CL/MMR SST-1016 The max users screen no longer counts or lists the customer sessions from Mit salg, Mine labels, labelprint and booking (shown by their account number or e-mail).
 //                 They are recognised by online.rettigheder '0' together with online.regnskabsaar 0, which a user login never writes.
 // 20261113 CDX/NTR Keep reset-token validation and login auditing alongside translated login messages.
 
