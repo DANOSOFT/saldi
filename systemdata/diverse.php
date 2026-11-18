@@ -119,6 +119,7 @@
 //                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast), and its alerts are shown after the save, escaped with jsString().
 // 20261030 CL/MMR SD-786 CodeRabbit (PR #959): the alerts from the ordre_valg save are shown in one alert (orderOptionsAlert()), so none is lost.
 // 20261118 CL/LH Bankforbindelse (Enable Banking) replaces the Aiia settings section; its POST is handled before any output.
+// 20261118 CL/LH The menu button Bankforbindelse shows once Enable Banking is configured on the server (bankIntegrationAvailable()), not only after the company switched it on, which it does in that section.
 
 @session_start();
 $s_id = session_id();
@@ -2126,11 +2127,11 @@ if ($menu != 'T') {
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst('797|Bilagshåndtering', $sprog_id)."</button></a></td></tr>\n";
 
-		if (function_exists('bankIntegrationEnabled') && bankIntegrationEnabled()) {
-			// TODO: findtekst. // TODO: Translation Tekst til bank integration
+		if (function_exists('bankIntegrationAvailable') && bankIntegrationAvailable()) {
+			// Offered once Enable Banking is configured on the server: the section is where the company switches the feed on.
 			print "<tr><td align=left><a href=diverse.php?sektion=bank_integration>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				   ."Bank Integration" ."</button></a></td></tr>\n";
+				   .findtekst('bank.settings.menu|Bankforbindelse', $sprog_id)."</button></a></td></tr>\n";
 		}
 
 		print "<tr><td align=left><a href=diverse.php?sektion=orediff>
