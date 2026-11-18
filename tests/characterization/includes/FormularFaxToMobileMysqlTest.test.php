@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../../includes/std_func.php';
 //                 Needs a MySQL/MariaDB server: SALDI_CHAR_MYSQL_SOCKET (and SALDI_CHAR_MYSQL_USER / SALDI_CHAR_MYSQL_PASS, default root without a
 //                 password); skipped without it. Each case is a child process (support/run_formular_fax_to_mobile_mysql.php).
 // 20261118 CL/MMR SST-898 (review 11) The runner refuses an existing database and leaves it intact, and removes its own database after a failed setup.
+// 20261118 CL/MMR SST-898 (review 12) A valid name with a trailing newline is refused by the runner's own check.
 final class FormularFaxToMobileMysqlTest extends TestCase
 {
     /** @return array<string, array{string, string, string}> column charset, connection charset, db_type */
@@ -79,8 +80,10 @@ final class FormularFaxToMobileMysqlTest extends TestCase
 
     public function testANameOutsideTheTestFormatIsRefused(): void
     {
-        $json = $this->runStep('saldi_1', 'utf8mb4', 'utf8mb4', 'mysqli');
-        self::assertStringContainsString('sst898_<8 hex digits>', (string)ifset($json, 'error', ''));
+        foreach (['saldi_1', "sst898_12345678\n"] as $name) {
+            $json = $this->runStep($name, 'utf8mb4', 'utf8mb4', 'mysqli');
+            self::assertStringStartsWith('InvalidArgumentException: database name must be sst898_<8 hex digits>', (string)ifset($json, 'error', ''), json_encode($name));
+        }
     }
 
     /** @return array<string, mixed> the runner's JSON line */

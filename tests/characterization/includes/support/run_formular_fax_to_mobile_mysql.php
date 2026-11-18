@@ -16,6 +16,7 @@
 // History:
 // 20261118 CL/MMR SST-898 (review 10) Created.
 // 20261118 CL/MMR SST-898 (review 11) Only a database this run created is dropped, also after an error; an existing one is never touched.
+// 20261118 CL/MMR SST-898 (review 12) The name check uses \A and \z, so a trailing newline is refused before connecting.
 
 if ($argc < 6) {
     fwrite(STDERR, "usage: php run_formular_fax_to_mobile_mysql.php <socket> <database> <column charset> <connection charset> <db_type>\n");
@@ -34,7 +35,7 @@ $connection = null;
 $created = false;
 $workDir = sys_get_temp_dir() . '/sst898my_' . getmypid() . '_' . bin2hex(random_bytes(4));
 try {
-    if (!preg_match('/^sst898_[0-9a-f]{8}$/', $database)) {
+    if (!preg_match('/\Asst898_[0-9a-f]{8}\z/', $database)) {
         throw new InvalidArgumentException("database name must be sst898_<8 hex digits>, got $database");
     }
     $columnCharset = preg_replace('/[^a-z0-9_]/', '', $columnCharset);
