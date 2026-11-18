@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/api.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,6 +86,11 @@
 // 20261110 CL/MJ SST-865 getInvoicesOrder() sends the invoice when EasyUBL refuses the company update, instead of stopping with die().
 //                updateCompany() saves EasyUBL's answer to temp/<db>/Update-company-error-*.json when it answers hasEndpointPeppol false.
 // 20261111 CL/MJ SST-865 That file leaves out the contact and bank details (defaultContact, payment), as temp/ is under the web root (CodeRabbit).
+// 20261118 CL/MMR SST-1003 The other error logs of updateCompany() and the NemHandel creation leave out the contact and bank details too.
+// 20261118 CL/MMR SST-1007 updateCompany() counts an answer that is not 2xx as a failure, so updatedCompany is not set on a 401 or 5xx.
+// 20261118 CL/MMR SST-1003 easyUblLogSafe() removes the contact and bank details at any depth and masks them in texts (Codex).
+// 20261118 CL/MMR SST-1003 easyUblLogAnswer() writes no text from EasyUBL's answer: known fields with checkable values, the rest by kind and size or counted (Codex).
+// 20261118 CL/MMR SST-1003 A code is compared with the private numbers (phone, reg. no., account) as a number, so «0042» sent is not kept as 42 (Codex).
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
@@ -199,6 +204,168 @@
 
     }
 
+    /**
+     * The contact and bank values in what is sent to EasyUBL (e-mail, phone, bank and account numbers,
+     * see easyUblIsPrivateKey()), so they can be masked where EasyUBL echoes them as text.
+     *
+     * @param mixed $data What is sent to EasyUBL (createCompany()).
+     * @return list<string>
+     */
+    function easyUblPrivateValues($data) {
+        $values = array();
+        $walk = function ($value) use (&$walk, &$values) {
+            if (!is_array($value)) {
+                return;
+            }
+            foreach ($value as $key => $item) {
+                // Only the contact and bank fields themselves: the blocks also hold the company name.
+                $field = is_string($key) && easyUblIsPrivateKey($key) && !in_array(strtolower($key), array('defaultcontact', 'payment', 'contact', 'contacts'), true);
+                if ($field && (is_string($item) || is_int($item) || is_float($item)) && trim((string)$item) !== '') {
+                    $values[] = trim((string)$item);
+                } else {
+                    $walk($item);
+                }
+            }
+        };
+        $walk($data);
+        return array_values(array_unique($values));
+    }
+
+    /**
+     * Whether a key in EasyUBL data holds contact or bank details (the whole defaultContact and
+     * payment blocks, and those fields wherever they turn up).
+     *
+     * @param string $key
+     * @return bool
+     */
+    function easyUblIsPrivateKey($key) {
+        return in_array(strtolower($key), array('defaultcontact', 'payment', 'contact', 'contacts', 'email', 'sms', 'phone',
+            'mobile', 'telephone', 'bankname', 'bankregno', 'bankaccount', 'iban', 'bic', 'creditoridentifier'), true);
+    }
+
+    /**
+     * A text or number for a log file with the contact and bank values masked: a value that is one of them
+     * becomes «[removed]», and in a text each of them (3 characters or more) is masked where it stands as a
+     * word of its own, as is anything that looks like an e-mail address.
+     *
+     * @param mixed $value
+     * @param list<string> $privateValues From easyUblPrivateValues().
+     * @return mixed
+     */
+    function easyUblMaskValue($value, array $privateValues) {
+        if (!is_string($value) && !is_int($value) && !is_float($value)) {
+            return $value;
+        }
+        if (in_array(trim((string)$value), $privateValues, true)) {
+            return '[removed]';
+        }
+        if (!is_string($value)) {
+            return $value;
+        }
+        foreach ($privateValues as $private) {
+            if (strlen($private) >= 3) {
+                $value = preg_replace('/(?<![\p{L}\p{N}])' . preg_quote($private, '/') . '(?![\p{L}\p{N}])/u', '[removed]', $value);
+            }
+        }
+        return preg_replace('/[^\s@"\'<>(),;:]+@[^\s@"\'<>(),;:]+\.[a-z]{2,}/i', '[e-mail removed]', $value);
+    }
+
+    /**
+     * What Saldi sent to EasyUBL, made safe for a log file in temp/<db>/, which is under the web root
+     * (SST-1003): the contact and bank fields are left out at any depth, and the other values are masked.
+     *
+     * @param mixed $value What was sent (createCompany()), or a part of it.
+     * @param list<string> $privateValues From easyUblPrivateValues() on what was sent.
+     * @return mixed The same structure without the contact and bank details.
+     */
+    function easyUblLogSafe($value, array $privateValues = array()) {
+        if (!is_array($value)) {
+            return easyUblMaskValue($value, $privateValues);
+        }
+        $safe = array();
+        foreach ($value as $key => $item) {
+            if (is_string($key) && easyUblIsPrivateKey($key)) {
+                continue;
+            }
+            $safe[$key] = easyUblLogSafe($item, $privateValues);
+        }
+        return $safe;
+    }
+
+    /**
+     * EasyUBL's answer for a log file in temp/<db>/ (SST-1003). The answer can echo what was sent in any
+     * form, so no text from it is written: only known field names, and of those only values whose meaning
+     * can be checked (the refusal flag as a boolean, numeric error codes 0-99999, ids in GUID form). Other
+     * known fields are logged by their kind and size, unknown fields only counted, and a bare text answer
+     * by its length.
+     *
+     * @param mixed $response The decoded answer.
+     * @param list<string> $privateValues From easyUblPrivateValues() on what was sent.
+     * @return array<string, mixed>|string
+     */
+    function easyUblLogAnswer($response, array $privateValues = array()) {
+        if (!is_array($response)) {
+            return easyUblAnswerSummary($response);
+        }
+        // Only these field names are written; any other key is counted, never written, as a key can carry data too.
+        $known = array('hasEndpointPeppol', 'errorNumber', 'status', 'code', 'companyID', 'id', 'error', 'errors',
+            'errorMessage', 'message', 'title', 'detail', 'type', 'traceId');
+        $kept = array();
+        $unknown = 0;
+        // The private values that are numbers (phone, reg. no., account: digits with spaces, +, -, ., /, parentheses)
+        // also as plain numbers without leading zeros, so «0042» sent is not kept as code 42. Text such as an
+        // e-mail address is not a number, so digits in it do not count.
+        $privateNumbers = array();
+        foreach ($privateValues as $private) {
+            if (!preg_match('/^[0-9\s+\-().\/]*[0-9][0-9\s+\-().\/]*$/', (string)$private)) {
+                continue;
+            }
+            $digits = ltrim(preg_replace('/[^0-9]/', '', (string)$private), '0');
+            $privateNumbers[] = $digits === '' ? '0' : $digits;
+        }
+        foreach ($response as $field => $value) {
+            if (!in_array($field, $known, true)) {
+                $unknown++;
+                continue;
+            }
+            $number = is_int($value) ? $value : ((is_string($value) && preg_match('/^[0-9]{1,5}$/', $value)) ? (int)$value : null);
+            if ($field === 'hasEndpointPeppol' && is_bool($value)) {
+                $kept[$field] = $value;
+            } elseif (in_array($field, array('errorNumber', 'status', 'code'), true) && $number !== null && $number >= 0 && $number <= 99999
+                && !in_array((string)$number, $privateNumbers, true)) {
+                $kept[$field] = $number;
+            } elseif (in_array($field, array('companyID', 'id'), true) && is_string($value)
+                && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
+                $kept[$field] = $value;
+            } else {
+                $kept[$field] = easyUblAnswerSummary($value);
+            }
+        }
+        if ($unknown > 0) {
+            $kept['otherFields'] = $unknown;
+        }
+        return $kept;
+    }
+
+    /**
+     * A value from EasyUBL's answer described without its content: «[text, 42 characters]», «[3 entries]», «[number]».
+     *
+     * @param mixed $value
+     * @return string|bool|null
+     */
+    function easyUblAnswerSummary($value) {
+        if ($value === null || is_bool($value)) {
+            return $value;
+        }
+        if (is_array($value)) {
+            return '[' . count($value) . ' entries]';
+        }
+        if (is_int($value) || is_float($value)) {
+            return '[number]';
+        }
+        return '[text, ' . mb_strlen((string)$value) . ' characters]';
+    }
+
     // Update company data at EasyUBL with new data from database
     function updateCompany() {
         global $apiKey, $db;
@@ -233,15 +400,18 @@
         curl_close($ch);
 
         $timestamp = date("Y-m-d-H-i-s");
+        // The error logs below are written to temp/, which is under the web root, so they leave out the
+        // contact and bank details, from what was sent and from EasyUBL's answer (SST-1003).
+        $privateValues = easyUblPrivateValues($data);
 
         if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === "") {
             // An error occurred
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
-            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response, 'status code' => $httpCode];
+            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => easyUblLogAnswer($response, $privateValues), 'status code' => $httpCode];
 
             // Save error response in temp folder
-            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode(easyUblLogSafe($data, $privateValues), JSON_UNESCAPED_UNICODE));
 
             return ['success' => false, 'message' => 'Error updating company: ' . (is_string($errorMessage) ? $errorMessage : json_encode($errorMessage))];
         } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
@@ -250,15 +420,20 @@
             // The update registers the company as a recipient; EasyUBL refuses that when the CVR is a
             // Peppol endpoint elsewhere. Keep its answer, as the other error branches do, but not the
             // contact and bank details: temp/ is under the web root.
-            $private = array_flip(['defaultContact', 'payment']);
-            $logged = json_encode(['response' => is_array($response) ? array_diff_key($response, $private) : $response, 'status code' => $httpCode], JSON_UNESCAPED_UNICODE);
-            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", $logged . "\n" . json_encode(array_diff_key($data, $private), JSON_UNESCAPED_UNICODE));
+            $logged = json_encode(['response' => easyUblLogAnswer($response, $privateValues), 'status code' => $httpCode], JSON_UNESCAPED_UNICODE);
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", $logged . "\n" . json_encode(easyUblLogSafe($data, $privateValues), JSON_UNESCAPED_UNICODE));
             return ['success' => false,
                 'message' => 'CVR is already registered in Semantics elsewhere, you have to cancel that first.',
                 'easyUBL_message' => 'Error updating company: ' . json_encode($errorMessage, JSON_PRETTY_PRINT),
                 'response' => $response,
                 'status code' => $httpCode
             ];
+        } else if ($httpCode < 200 || $httpCode >= 300) {
+            // A 401 or 5xx without error fields in the body is a failure too, so updatedCompany is not set
+            // and the update is tried again on the next send.
+            $logged = json_encode(['response' => easyUblLogAnswer($response, $privateValues), 'status code' => $httpCode], JSON_UNESCAPED_UNICODE);
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", $logged . "\n" . json_encode(easyUblLogSafe($data, $privateValues), JSON_UNESCAPED_UNICODE));
+            return ['success' => false, 'message' => "Error updating company: EasyUBL answered HTTP $httpCode", 'response' => $response, 'status code' => $httpCode];
         }
 
         // Save successful response in temp folder for debugging
@@ -295,6 +470,8 @@
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             $timestamp = date("Y-m-d-H-i-s");
+            // temp/ is under the web root: the error logs leave out the contact and bank details (SST-1003).
+            $privateValues = easyUblPrivateValues($data);
             if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
 				// An error occurred
 				$errorNumber = curl_errno($ch);
@@ -302,7 +479,7 @@
 				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'statusCode' => $httpCode];
 
 				// save response in file in temp folder
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode(easyUblLogSafe($data, $privateValues), JSON_UNESCAPED_UNICODE));
 				?>
 				<script>
 					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support.");
@@ -310,7 +487,7 @@
 				<?php
 				exit;
 			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000" || $httpCode >= 400) {
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($response)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode(easyUblLogAnswer($response, $privateValues), JSON_UNESCAPED_UNICODE)."\n".json_encode(easyUblLogSafe($data, $privateValues), JSON_UNESCAPED_UNICODE));
 				?>
 				<script>
 					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support");
