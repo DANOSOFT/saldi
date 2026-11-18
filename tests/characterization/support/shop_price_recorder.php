@@ -17,7 +17,10 @@
 //                                 (`cut`), refuses it with a complete JSON refusal of about 20 KB (`longRefusal`), or applies
 //                                 it and answers OK followed by `pad` bytes, or with nothing at all (`empty`); `gzip` sends the
 //                                 answer gzip-compressed whatever the client asked for, with Content-Encoding: gzip (true) or
-//                                 without it ("undeclared")
+//                                 without it ("undeclared"); `encoding` sends OK in that declared Content-Encoding (gzip,
+//                                 deflate, br, zstd, or any other name with the answer as it is); `negotiated` refuses with
+//                                 the long JSON refusal, plain unless the client advertises gzip, and then as a gzip stream cut
+//                                 15 bytes short with a Content-Length that matches what is sent
 // It never forwards anything to a real shop.
 //
 // History:
@@ -27,6 +30,7 @@
 // 20261118 CL/LH CodeRabbit review of #1157: a rule can cut an answer off after its status line (`cut`).
 // 20261118 CL/LH Codex verification 8: a long complete JSON refusal (`longRefusal`) and a long acceptance (`pad`).
 // 20261118 CL/LH Codex verification 9: a gzip answer, declared or not (`gzip`), and a completed empty answer (`empty`).
+// 20261118 CL/LH Codex verification 10: a declared content encoding (`encoding`) and a negotiated gzip stream cut short (`negotiated`).
 $log = (string)getenv('SALDI_SHOP_RECORDER_LOG');
 if ($log === '') {
 	http_response_code(500);
@@ -40,8 +44,9 @@ $slow = is_file($log . '.slow' . $shop) ? (float)file_get_contents($log . '.slow
 $status = (is_file($log . '.fail') || is_file($log . '.fail' . $shop)) ? 503 : 200;
 $reject = $status === 200 && is_file($log . '.reject' . $shop);
 $apply = $answer = 0.0;
-$cut = $longRefusal = $empty = $gzip = false;
+$cut = $longRefusal = $empty = $gzip = $negotiated = false;
 $pad = 0;
+$encoding = '';
 foreach ((array)json_decode((string)@file_get_contents($log . '.rules'), true) as $rule) {
 	if ((isset($rule['shop']) && (string)$rule['shop'] !== $shop) || (isset($rule['item']) && (string)$rule['item'] !== $item)
 		|| (isset($rule['sales']) && (string)$rule['sales'] !== (string)($_GET['salesPrice'] ?? '')) || (isset($rule['call']) && $rule['call'] !== $call)) {
@@ -57,6 +62,9 @@ foreach ((array)json_decode((string)@file_get_contents($log . '.rules'), true) a
 	$pad = (int)($rule['pad'] ?? 0);
 	$empty = !empty($rule['empty']);
 	$gzip = $rule['gzip'] ?? false;
+	$encoding = (string)($rule['encoding'] ?? '');
+	$negotiated = !empty($rule['negotiated']);
+	if ($negotiated) $reject = $longRefusal = true;
 	break;
 }
 // logged when the request arrives, so a test that clears the log after a slow call is not handed its line later
@@ -94,6 +102,25 @@ if ($status >= 400) {
 if ($gzip) {
 	$reply = gzencode($reply);
 	if ($gzip !== 'undeclared') header('Content-Encoding: gzip');
+	header('Content-Length: ' . strlen($reply));
+}
+if ($negotiated) {
+	if (stripos((string)($_SERVER['HTTP_ACCEPT_ENCODING'] ?? ''), 'gzip') !== false) {
+		$reply = substr(gzencode($reply), 0, -15); // a gzip stream cut short; the transfer itself completes
+		header('Content-Encoding: gzip');
+	}
+	header('Content-Length: ' . strlen($reply));
+}
+if ($encoding !== '') {
+	$okIn = array('br' => 'IQQABE9LAw==', 'zstd' => 'KLUv/SQCEQAAT0tPIJUi'); // "OK", brotli- and zstd-encoded
+	if ($encoding === 'gzip') {
+		$reply = gzencode($reply);
+	} elseif ($encoding === 'deflate') {
+		$reply = gzcompress($reply);
+	} elseif (isset($okIn[$encoding]) && $reply === 'OK') {
+		$reply = base64_decode($okIn[$encoding]);
+	}
+	header('Content-Encoding: ' . $encoding);
 	header('Content-Length: ' . strlen($reply));
 }
 echo $reply;

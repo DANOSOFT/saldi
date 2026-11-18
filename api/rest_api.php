@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- api/rest_api.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -111,6 +111,7 @@
 // 20261117 CL/LH Action shop_offer_tick: one tick of the webshop offer reconciler (includes/stdFunc/shopOfferPush.php), the only sender of offer prices to the webshops.
 //                A scheduler calls it every 2 minutes with the account's API key; it is checked by access_check() like every shop call, and a tick that finds another one running answers "busy" at once.
 //                access_check() also takes the key from a POST body (before the query string), so a caller can keep it out of URLs, which web servers log, and out of command lines.
+// 20261118 CL/LH CodeRabbit review of #1158: shop_offer_tick runs only for an account (a <master>_<n> database), which access_check() lets in by its API key and IP list; a master account, which it lets in from Danosoft's address without a key, is refused.
 date_default_timezone_set('Europe/Copenhagen');
 
 include("../includes/connect.php");
@@ -1421,7 +1422,8 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 ##############################################
 		} elseif ($action == 'shop_offer_tick') {
 			fclose($log);
-			$value = shopOfferReconcileTick();
+			// 20261118 an account only, let in by its API key: access_check() lets a master account (no "_<n>") in from Danosoft's address without one
+			$value = !strpos((string)$db, '_') ? 'Access denied (the offer tick needs an account and its API key)' : shopOfferReconcileTick();
 ##############################################
 		} elseif ($action == 'credit_shop_order') {
 			$shop_ordre_id = (int)if_isset($_GET['shop_ordre_id']);

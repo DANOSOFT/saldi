@@ -49,7 +49,9 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  * 20261118 CL/LH Codex verification 9: a gzip refusal is never an acceptance and a completed empty answer still is, on all three
  *                transports (curl_multi, curl alone, the shell); a lost, unreadable or shortened shell answer file is a transport
  *                failure. * 20261118 CL/LH CodeRabbit review of 63cf3d3f2: each transport leg asserts the transport the tick used; a barcode with an apostrophe
- *                reaches the shops from the bulk page.
+ *                reaches the shops from the bulk page. * 20261118 CL/LH Codex verification 10: a negotiated gzip stream cut short, and an answer in any declared content encoding, are never
+ *                acceptances; a shop that failed and refused is one stuck shop. CodeRabbit review of #1158: the cut-off test's offer
+ *                lasts through its retry; the curl wrapper is private to each run.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -62,6 +64,8 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	private static array $files = [];
 	/** @var list<resource> Children started by spawn(); tearDown() kills and reaps any a failed test left running. */
 	private static array $children = [];
+	/** The curl wrapper's directory, private to this run (curlShim()); removed after the class. */
+	private static string $shimDir = '';
 
 	public static function setUpBeforeClass(): void
 	{
@@ -104,6 +108,10 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 
 	public static function tearDownAfterClass(): void
 	{
+		if (self::$shimDir !== '') { // the children that ran it are reaped by now (tearDown())
+			@unlink(self::$shimDir . '/curl');
+			@rmdir(self::$shimDir);
+		}
 		foreach (self::$servers as $server) {
 			$pid = (int)(proc_get_status($server)['pid'] ?? 0);
 			if ($pid > 0 && function_exists('posix_kill')) {
@@ -467,7 +475,7 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	/** A shop that answers 200 and closes before its answer is complete has not accepted: a transport failure, sent again. */
 	public function testAnAnswerCutOffAfterItsStatusLineIsNotAnAcceptance(): void
 	{
-		$id = self::item('SPCUT', self::offer());
+		$id = self::item('SPCUT', self::offer(159.2, 3)); // active through the retry at +120 s, also when run just before midnight
 		$t = time();
 		self::control('rules', json_encode([['item' => 'SPCUT', 'shop' => '2', 'cut' => true]]));
 		$out = self::tick($t);
@@ -507,10 +515,11 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	 */
 	private static function curlShim(): string
 	{
-		$dir = sys_get_temp_dir() . '/shopoffer-curlshim';
-		if (!is_dir($dir)) {
-			mkdir($dir, 0755, true);
+		if (self::$shimDir === '') { // private to this run, so parallel runs never rewrite each other's wrapper
+			self::$shimDir = sys_get_temp_dir() . '/shopoffer-curlshim-' . getmypid() . '-' . bin2hex(random_bytes(4));
+			mkdir(self::$shimDir, 0755, true);
 		}
+		$dir = self::$shimDir;
 		file_put_contents($dir . '/curl', <<<'SH'
 #!/bin/sh
 out=""; prev=""
@@ -575,8 +584,8 @@ SH);
 	}
 
 	/**
-	 * Codex verification 9 (R9-F2): a gzip-compressed refusal is never an acceptance. curl_multi and curl decode it and see the
-	 * refusal; the shell transport asks for the answer unencoded, so a compressed answer is not judged (a transport failure). A
+	 * Codex verification 9 (R9-F2): a gzip-compressed refusal is never an acceptance. Every transport asks for the answer
+	 * unencoded and decodes nothing (Codex verification 10), so a declared gzip answer is not judged (a transport failure). A
 	 * gzip body without Content-Encoding is not judged either.
 	 */
 	public function testAGzipRefusalIsNeverAnAcceptanceOnAnyTransport(): void
@@ -589,8 +598,7 @@ SH);
 			$out = self::runner(['tick', (string)$t, '10'], $php);
 			self::uncontrol('rules');
 			self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
-			$expected = $transport === 'shell' ? [2, 0, 1] : [2, 1, 0];
-			self::assertSame($expected, self::outcomes($out), "$transport: shop 2's gzip refusal: " . json_encode($out));
+			self::assertSame([2, 0, 1], self::outcomes($out), "$transport: shop 2's gzip refusal: " . json_encode($out));
 			self::assertNull(self::stateByShop($id)['shop 2']['confirmed'], "$transport: shop 2 is not booked as holding the offer");
 		}
 		$id = self::item('SPGZUND', self::offer());
@@ -599,6 +607,77 @@ SH);
 		self::uncontrol('rules');
 		self::assertSame([2, 0, 1], self::outcomes($out), 'a gzip body without Content-Encoding is not judged: ' . json_encode($out));
 		self::assertNull(self::stateByShop($id)['shop 2']['confirmed']);
+	}
+
+	/**
+	 * Codex verification 10 (R10-F1): a shop that compresses only when asked, and then sends a gzip stream cut short with a
+	 * matching Content-Length, is never taken for an acceptance. No transport advertises compression any more, so the shop
+	 * answers with its plain, complete refusal.
+	 */
+	public function testANegotiatedGzipStreamCutShortIsNeverAnAcceptance(): void
+	{
+		$t = time();
+		foreach (self::transports() as $transport => $php) {
+			$itemNo = 'SPNEG' . strtoupper(substr($transport, 0, 2));
+			$id = self::item($itemNo, self::offer(159.2, 3));
+			self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'negotiated' => true]]));
+			$out = self::runner(['tick', (string)$t, '10'], $php);
+			self::uncontrol('rules');
+			self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
+			self::assertSame([2, 1, 0], self::outcomes($out), "$transport: shop 2 refused: " . json_encode($out));
+			self::assertNull(self::stateByShop($id)['shop 2']['confirmed'], "$transport: shop 2 is not booked as holding the offer");
+		}
+	}
+
+	/**
+	 * Codex verification 10: an answer in a declared content encoding is a transport failure on every transport, never decoded
+	 * and judged: gzip, deflate, br and zstd, here each a complete encoding of "OK", and a name no client knows. "identity" is
+	 * no encoding and is judged as usual.
+	 */
+	public function testADeclaredContentEncodingIsATransportFailureNotDecoded(): void
+	{
+		$t = time();
+		foreach (['gzip', 'deflate', 'br', 'zstd', 'x-unknown', 'identity'] as $n => $encoding) {
+			foreach (self::transports() as $transport => $php) {
+				$itemNo = 'SPENC' . $n . strtoupper(substr($transport, 0, 2));
+				$id = self::item($itemNo, self::offer(159.2, 3));
+				self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'encoding' => $encoding]]));
+				$out = self::runner(['tick', (string)$t, '10'], $php);
+				self::uncontrol('rules');
+				self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
+				if ($encoding === 'identity') {
+					self::assertSame([3, 0, 0], self::outcomes($out), "$transport, $encoding: " . json_encode($out));
+					continue;
+				}
+				self::assertSame([2, 0, 1], self::outcomes($out), "$transport, $encoding: shop 2's answer is not judged: " . json_encode($out));
+				$shop2 = self::stateByShop($id)['shop 2'];
+				self::assertSame([null, 1], [$shop2['confirmed'], $shop2['attempts']], "$transport, $encoding: retried as a failed send");
+			}
+		}
+	}
+
+	/**
+	 * Codex verification 10 (R10-F4): a shop whose sends of a pair both failed and were refused eight times is one stuck shop,
+	 * also in the tick in which its eighth failure comes on top of eight refusals.
+	 */
+	public function testAShopThatBothFailedAndRefusedCountsAsStuckOnce(): void
+	{
+		$id = self::item('SPSTUCK', self::offer(159.2, 3));
+		$t = time();
+		self::tick($t);
+		$file = self::$tempDir . "/shopoffer/item-$id.json";
+		$key = substr(sha1(trim((string)self::one("SELECT box5 FROM grupper WHERE art = 'API'")['box5'])), 0, 16);
+		$state = json_decode((string)file_get_contents($file), true);
+		$state['shops'][$key] = ['confirmed' => null, 'attempts' => 8, 'refusals' => 8, 'retryAt' => $t + 10800, 'failedLast' => true]
+			+ $state['shops'][$key];
+		file_put_contents($file, json_encode($state));
+		self::assertSame(1, self::tick($t + 1)['stuck'], 'eight failures and eight refusals: one stuck shop');
+		$state['shops'][$key] = ['attempts' => 7, 'retryAt' => 0, 'failedLast' => false] + $state['shops'][$key];
+		file_put_contents($file, json_encode($state));
+		self::control('fail2');
+		$out = self::tick($t + 120);
+		self::uncontrol('fail2');
+		self::assertSame([1, 1], [$out['failed'], $out['stuck']], 'its eighth failure on top of eight refusals is still one stuck shop: ' . json_encode($out));
 	}
 
 	/** Codex verification 9: a completed empty answer is still an acceptance, on every transport. */

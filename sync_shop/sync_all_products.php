@@ -156,7 +156,9 @@ while ($product = db_fetch_array($products_query)) {
             $itemNow['_readAt'] = shopOfferForeignNow(); // 20261118 the claim reads it again when the calls would go out more than 2 minutes later
         }
         shopOfferTestPause('bulk', 'queried', $vare_id);
-        $claim = $itemNow ? shopOfferForeignClaim('bulk', $vare_id, $itemNow, array_filter(array($api_fil, $api_fil2, $api_fil3))) : null;
+        // 20261118 CL/LH without a row the claim reads the item again itself (a read of time 0 is too old to send from); if that read
+        // fails too, the item is skipped as "not read again" below, and the reconciler is told: never the start-of-run prices
+        $claim = shopOfferForeignClaim('bulk', $vare_id, $itemNow ?: ($product + array('_readAt' => 0.0)), array_filter(array($api_fil, $api_fil2, $api_fil3)));
         $maxTime = $claim ? '--max-time 60 ' : '';
         foreach ($apis as $api_url) {
             // Update SKU/cost price
