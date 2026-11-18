@@ -46,6 +46,8 @@
 // 20261118 CL/MMR SD-815 Codex round 20: the MySQL repair's LOCK TABLES, DELETE, CREATE UNIQUE INDEX and UNLOCK TABLES go through the same checked exec: no lock, no delete; UNLOCK only after an own lock.
 //                 Added columns and the norm_amount index are reported only when they are read back; otherwise the run stops (db_modify() can report a failed statement as accepted).
 // 20261118 CL/MMR SD-815 Codex round 21: the backfill flag is reported only when it is read back; a failed flag INSERT stops the run (inside a caller's PostgreSQL transaction through the savepoint rollback, so the caller can still commit its own work).
+// 20261118 CL/MMR SD-815 Codex round 22: a unique index on only part of filename (a MySQL prefix like filename(7), a PostgreSQL expression such as left(filename, 7)) does not count and is removed once the full unique index is there, in the same locked step / transaction.
+//                 Such an index refused a second, different file whose name shares the part.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -134,7 +136,7 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 	 * @return void
 	 * @throws EnsurePoolFilesSchemaUnknown When the repair was rolled back.
 	 */
-	function ensurePoolFilesUniqueRepairPostgres(string $db_type, array $deferrable): void {
+	function ensurePoolFilesUniqueRepairPostgres(string $db_type, array $deferrable, array $restrictive = array()): void {
 		$nested = ensurePoolFilesInTransaction();
 		db_modify($nested ? 'SAVEPOINT pool_files_unique' : 'BEGIN', __FILE__ . " linje " . __LINE__);
 		$ok = false;
@@ -145,10 +147,14 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 			db_modify("DELETE FROM pool_files a USING pool_files b WHERE a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);
 			// An immediate one may already exist next to a dropped deferrable one; then nothing more is needed. The usual
 			// name may belong to an index that does not count (a partial one); then use another.
-			if (!ensurePoolFilesSchemaState($db_type)['uniqueFilename']) {
+			if (!ensurePoolFilesSchemaState($db_type)['fullFilename']) {
 				$taken = db_fetch_array(ensurePoolFilesSelect("SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'pool_files_filename_uidx' AND n.nspname = current_schema()", __LINE__));
 				$name = $taken ? 'pool_files_filename_full_uidx' : 'pool_files_filename_uidx';
 				db_modify("CREATE UNIQUE INDEX $name ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+			}
+			// Only after the full index is in place: the indexes on part of filename go.
+			foreach ($restrictive as $index) {
+				db_modify('DROP INDEX "' . str_replace('"', '""', $index) . '"', __FILE__ . " linje " . __LINE__);
 			}
 			$ok = ensurePoolFilesSchemaState($db_type)['uniqueFilename'];
 		} catch (EnsurePoolFilesSchemaUnknown $e) {
@@ -338,6 +344,7 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 	 * @throws EnsurePoolFilesSchemaUnknown When the index is not there afterwards.
 	 */
 	function ensurePoolFilesUniqueRepairMysql(string $db_type): void {
+		$before = ensurePoolFilesSchemaState($db_type);
 		$name = ensurePoolFilesMysqlIndexName(); // before anything is deleted
 		ensurePoolFilesMysqlProbeUniqueIndex();   // likewise: the table must be able to hold the index
 		// Every statement's own result is checked (ensurePoolFilesMysqlExec()): db_modify() can report a failed one as
@@ -351,8 +358,14 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 			if (!ensurePoolFilesMysqlExec("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id")) {
 				throw new EnsurePoolFilesSchemaUnknown('pool_files duplicate collapse failed');
 			}
-			if (!ensurePoolFilesMysqlExec("CREATE UNIQUE INDEX $name ON pool_files (filename)")) {
+			if (empty($before['fullFilename']) && !ensurePoolFilesMysqlExec("CREATE UNIQUE INDEX $name ON pool_files (filename)")) {
 				throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index not created');
+			}
+			// Only after the full index is in place: the prefix indexes on filename go.
+			foreach ($before['restrictiveFilename'] ?? array() as $index) {
+				if (!ensurePoolFilesMysqlExec('ALTER TABLE pool_files DROP INDEX `' . str_replace('`', '``', $index) . '`')) {
+					throw new EnsurePoolFilesSchemaUnknown('pool_files prefix index on filename not dropped');
+				}
 			}
 		} finally {
 			ensurePoolFilesMysqlExec("UNLOCK TABLES"); // this run's own lock; a failure is logged and the lock ends with the connection
@@ -409,7 +422,7 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 	 * norm_amount index, the norm_amount backfill. Null when there is no pool_files table.
 	 *
 	 * @param string $db_type
-	 * @return array{columns: list<string>, uniqueFilename: bool, deferrableFilename: list<string>, normAmountIndex: bool, normAmountBackfilled: bool}|null
+	 * @return array{columns: list<string>, uniqueFilename: bool, fullFilename: bool, deferrableFilename: list<string>, restrictiveFilename: list<string>, normAmountIndex: bool, normAmountBackfilled: bool}|null
 	 * @throws EnsurePoolFilesSchemaUnknown When a read failed.
 	 */
 	function ensurePoolFilesSchemaState(string $db_type): ?array {
@@ -430,8 +443,10 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 			}
 		}
 		if ($mysql) {
-			// Exactly one column in the index: a composite UNIQUE(filename, x) still allows duplicate filenames.
-			$unique = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND non_unique = 0 GROUP BY index_name HAVING COUNT(*) = 1 AND MAX(column_name) = 'filename'";
+			// Exactly one column in the index (a composite UNIQUE(filename, x) still allows duplicate filenames), on the
+			// whole column: a prefix index (sub_part set, e.g. filename(7)) refuses different names that share the prefix.
+			$unique = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND non_unique = 0 GROUP BY index_name HAVING COUNT(*) = 1 AND MAX(column_name) = 'filename' AND MAX(sub_part) IS NULL";
+			$restrictive = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND non_unique = 0 GROUP BY index_name HAVING COUNT(*) = 1 AND MAX(column_name) = 'filename' AND MAX(sub_part) IS NOT NULL";
 			$normIndex = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND column_name = 'norm_amount' AND seq_in_index = 1";
 		} else {
 			// Any single-column unique index on filename counts, whatever its name (a table created by
@@ -448,6 +463,12 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND c.contype IN ('u', 'x') AND c.condeferrable
 				AND array_length(c.conkey, 1) = 1
 				AND c.conkey[1] = (SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename')";
+			// A unique index on an expression of filename (left(filename, 7), lower(filename) ...) refuses names the full
+			// index allows; it is not an index ON CONFLICT (filename) can use either.
+			$restrictive = "SELECT ci.relname AS index_name FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_class ci ON ci.oid = i.indexrelid
+				JOIN pg_namespace n ON n.oid = t.relnamespace
+				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND i.indisunique AND i.indexprs IS NOT NULL
+				AND pg_get_indexdef(i.indexrelid) ~* '\\mfilename\\M'";
 			$normIndex = "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
 		}
 		$deferrableNames = array();
@@ -457,10 +478,18 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 				$deferrableNames[] = (string)$r['conname'];
 			}
 		}
+		$restrictiveNames = array();
+		$q = ensurePoolFilesSelect($restrictive, __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$restrictiveNames[] = (string)($r['index_name'] ?? $r['INDEX_NAME'] ?? '');
+		}
+		$full = (bool)db_fetch_array(ensurePoolFilesSelect($unique, __LINE__));
 		return array(
 			'columns' => $missing,
-			'uniqueFilename' => !$deferrableNames && (bool)db_fetch_array(ensurePoolFilesSelect($unique, __LINE__)),
+			'uniqueFilename' => $full && !$deferrableNames && !$restrictiveNames,
+			'fullFilename' => $full,
 			'deferrableFilename' => $deferrableNames,
+			'restrictiveFilename' => $restrictiveNames,
 			'normAmountIndex' => in_array('norm_amount', $missing, true) ? false : (bool)db_fetch_array(ensurePoolFilesSelect($normIndex, __LINE__)),
 			'normAmountBackfilled' => (bool)db_fetch_array(ensurePoolFilesSelect(ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY, __LINE__)),
 		);
@@ -577,7 +606,7 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 				if ($mysql) {
 					ensurePoolFilesUniqueRepairMysql($db_type);
 				} else {
-					ensurePoolFilesUniqueRepairPostgres($db_type, $state['deferrableFilename']);
+					ensurePoolFilesUniqueRepairPostgres($db_type, $state['deferrableFilename'], $state['restrictiveFilename']);
 				}
 				$done[] = 'unique_filename';
 			}

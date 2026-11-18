@@ -11,6 +11,7 @@
 // 20261118 CL/MMR SD-815 Codex round 19: with mysqli reporting off, a table another connection made under the probe's name before the probe's CREATE survives with its row.
 //                 $GLOBALS['connection'] is the test's mysqli connection, as in production.
 // 20261118 CL/MMR SD-815 Codex round 20: with mysqli reporting off, a repair whose LOCK TABLES times out deletes nothing and writes no flag; after the other session ends the retry completes.
+// 20261118 CL/MMR SD-815 Codex round 22: a unique prefix index on filename(7) is replaced by the full one, so two different names sharing the prefix both register; a full index alone is left as it is.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -379,5 +380,55 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         self::assertSame('99,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '3,00') ON DUPLICATE KEY UPDATE id = id");
         self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
+    }
+
+    /** Every later column, as a 5.0 table has them. */
+    private function allLaterColumns(): void
+    {
+        foreach (['norm_amount numeric(15,3)', 'manually_edited boolean NOT NULL DEFAULT false', 'source_sha256 char(64)', 'vendor_name text', 'vendor_cvr varchar(20)',
+            'vendor_iban varchar(40)', 'vendor_konto_id integer', 'vendor_score numeric(4,3)', 'vendor_match varchar(10)'] as $column) {
+            $this->sql("ALTER TABLE pool_files ADD COLUMN $column");
+        }
+        $this->sql('CREATE INDEX idx_pool_files_norm_amount ON pool_files (norm_amount)');
+    }
+
+    /** The pool writer's MySQL insert (poolUploadRegisterFile(): ON DUPLICATE KEY UPDATE id = id). */
+    private function poolInsert(string $filename): void
+    {
+        $this->sql("INSERT INTO pool_files (filename, subject, account, amount, file_date, invoice_number, description, currency, content_sha256, source_sha256, norm_amount)
+            VALUES ('$filename', 'x', '', '1,00', '2026-11-18', '', '', 'DKK', '" . str_repeat('a', 64) . "', NULL, 1.000) ON DUPLICATE KEY UPDATE id = id");
+    }
+
+    public function testAPrefixUniqueIndexIsReplacedByTheFullOne(): void
+    {
+        $this->allLaterColumns();
+        $this->sql('CREATE UNIQUE INDEX existing_filename ON pool_files (filename(7))');
+        $this->poolInsert('invoice-a.pdf');
+        $this->poolInsert('invoice-b.pdf');
+        self::assertSame('1', $this->one('SELECT count(*) FROM pool_files'), 'the prefix index refuses the second name (the defect)');
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        self::assertContains('unique_filename', $done);
+        self::assertSame('0', $this->one("SELECT count(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND index_name = 'existing_filename'"), 'the prefix index is gone');
+        self::assertSame('1', $this->one("SELECT count(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND column_name = 'filename' AND non_unique = 0 AND sub_part IS NULL"), 'one full unique index');
+        $this->poolInsert('invoice-b.pdf');
+        $this->poolInsert('invoice-b.pdf');
+        self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], array_column(mysqli_fetch_all($this->sql('SELECT filename FROM pool_files ORDER BY filename')), 0), 'both names register, each once');
+        self::assertSame([], ensurePoolFilesSchema('mysqli'));
+    }
+
+    public function testAFullUniqueIndexAloneIsLeftAsItIs(): void
+    {
+        $this->allLaterColumns();
+        $this->sql('CREATE UNIQUE INDEX existing_filename ON pool_files (filename)');
+        $this->poolInsert('invoice-a.pdf');
+        $this->poolInsert('invoice-b.pdf');
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('existing_filename', $this->one("SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND column_name = 'filename' AND non_unique = 0"));
+        self::assertSame('2', $this->one('SELECT count(*) FROM pool_files'));
     }
 }

@@ -12,6 +12,7 @@
 // 20261118 CL/MMR SD-815 Codex round 14: a pending read that times out inside a caller's transaction leaves that transaction usable and no advisory lock; transaction statements are not counted as writes.
 // 20261118 CL/MMR SD-815 Codex round 20: an ALTER TABLE that times out (db_modify() only logs it) is not reported as an added column, and the run stops without a flag.
 // 20261118 CL/MMR SD-815 Codex round 21: a rejected backfill-flag INSERT is not reported, in autocommit and inside a caller's transaction (which can still commit its own row); the retry writes one flag.
+// 20261118 CL/MMR SD-815 Codex round 22: a unique index on left(filename, 7) is replaced by the full one, so two different names sharing the prefix both register.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -662,5 +663,23 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
         self::assertSame(1, $this->backfillFlags());
         self::assertSame('99.000', $this->oldRow()['norm_amount']);
+    }
+
+    public function testAUniqueIndexOnPartOfTheFilenameIsReplacedByTheFullOne(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE UNIQUE INDEX existing_filename ON pool_files (left(filename, 7))');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00')");
+        $failed = @pg_query($this->connection, "SAVEPOINT before_fix; INSERT INTO pool_files (filename) VALUES ('invoice-b.pdf')");
+        self::assertFalse($failed, 'the expression index refuses the second name (the defect)');
+        $this->sql('ROLLBACK TO SAVEPOINT before_fix');
+
+        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame(0, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'existing_filename'")), 'the index on part of the name is gone');
+        $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('b', 64));
+        $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('b', 64));
+        self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')));
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
     }
 }
