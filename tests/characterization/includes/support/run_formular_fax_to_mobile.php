@@ -11,7 +11,7 @@
 //
 // History:
 // 20261118 CL/MMR SST-898 (review 4) Created.
-// 20261118 CL/MMR SST-898 (review 5) Loads the real includes/std_func.php (if_array()).
+// 20261118 CL/MMR SST-898 (review 5) Loads the real includes/std_func.php (if_array()), with a __DIR__ path.
 
 if ($argc < 2) {
     fwrite(STDERR, "usage: php run_formular_fax_to_mobile.php <db>\n");
@@ -61,7 +61,7 @@ function db_escape_string($value) {
 $repo = dirname(__DIR__, 4);
 $out = [];
 try {
-    require_once "$repo/includes/std_func.php";
+    require_once __DIR__ . '/../../../../includes/std_func.php';
     $db_type = 'postgresql';
     $source = (string)file_get_contents("$repo/includes/betweenUpdates.php");
     $pattern = "~require_once __DIR__ \\. '/opdat_func/formularFaxToMobile\\.php';\\s*formularFaxToMobile\\(\\);\\s*formularFaxToMobileTekster\\(\\);~";

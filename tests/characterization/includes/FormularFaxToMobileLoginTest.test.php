@@ -5,11 +5,13 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../support/CharacterizationEnv.php';
+require_once __DIR__ . '/../../../includes/std_func.php';
 
 // 20261118 CL/MMR SST-898 (review 4) The SST-898 login step on a real PostgreSQL database: an account without the formularer or
 //                 tekster table is skipped without an error and migrated at a later login, each table on its own; a populated
 //                 account gets "Mobilnr." on its forms and loses only the old default texts; a second login writes nothing.
 //                 Each login is a child process (support/run_formular_fax_to_mobile.php) that runs the lines from includes/betweenUpdates.php.
+// 20261118 CL/MMR SST-898 (review 6) The runner's error message is read with ifset().
 final class FormularFaxToMobileLoginTest extends TestCase
 {
     private ?TestDatabase $database = null;
@@ -146,7 +148,7 @@ final class FormularFaxToMobileLoginTest extends TestCase
         $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
         $json = $lines !== [] ? json_decode(end($lines), true) : null;
         self::assertIsArray($json, "runner must emit JSON (stdout: {$res['stdout']} stderr: {$res['stderr']})");
-        self::assertArrayNotHasKey('error', $json, (string)($json['error'] ?? ''));
+        self::assertArrayNotHasKey('error', $json, (string)ifset($json, 'error', ''));
         return $json['writes'];
     }
 }
