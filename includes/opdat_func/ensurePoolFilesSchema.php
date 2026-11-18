@@ -32,6 +32,8 @@
 // 20261118 CL/MMR SD-815 Codex round 10: the text is compared by the md5 the database computes, never put into the SQL (db_modify() turns ' like ' into ' ilike ' inside literals, and injecttjek() reads quotes and ';').
 // 20261118 CL/MMR SD-815 Codex round 11: a read that fails (db_select() returns false, e.g. a lock timeout) means «unknown», never «nothing to do»: the run stops without DDL or flag and the next login tries again.
 // 20261118 CL/MMR SD-815 Codex round 12: on MySQL/MariaDB PHP 8's mysqli throws mysqli_sql_exception instead of returning false; a failed read or write is handled the same way and the login goes on.
+// 20261118 CL/MMR SD-815 Codex round 13: on PostgreSQL the filename repair (drop deferrable constraints, collapse duplicates, create the index) runs in one transaction (a savepoint inside a caller's transaction) and is kept only when the index is read back; otherwise it is rolled back and the run stops.
+//                 «unique_filename» is reported only after that read-back, on MySQL too.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -91,6 +93,67 @@ if (!function_exists('ensurePoolFilesSelect')) {
 			throw new EnsurePoolFilesSchemaUnknown('pool_files schema read failed at line ' . $line);
 		}
 		return $result;
+	}
+}
+
+if (!function_exists('ensurePoolFilesInTransaction')) {
+	/**
+	 * Whether the tenant's PostgreSQL connection ($connection, as db_query_connection() uses) is inside a transaction,
+	 * so the filename repair takes a savepoint instead of its own BEGIN/COMMIT.
+	 *
+	 * @return bool
+	 */
+	function ensurePoolFilesInTransaction(): bool {
+		$connection = $GLOBALS['connection'] ?? null;
+		return $connection instanceof \PgSql\Connection && pg_transaction_status($connection) !== PGSQL_TRANSACTION_IDLE;
+	}
+}
+
+if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
+	/**
+	 * Gives pool_files a unique index on filename alone on PostgreSQL, all or nothing: deferrable constraints on
+	 * filename are dropped, duplicate filenames collapsed to the newest row and the index created in one transaction
+	 * (a savepoint when the caller is in one), which is kept only when ensurePoolFilesSchemaState() reads the index
+	 * back. A failed statement (db_modify() only logs it for an update file) aborts the transaction, so the read-back
+	 * fails too and everything is rolled back: no row is deleted and nothing is reported.
+	 *
+	 * @param string       $db_type
+	 * @param list<string> $deferrable ensurePoolFilesSchemaState()['deferrableFilename'].
+	 * @return void
+	 * @throws EnsurePoolFilesSchemaUnknown When the repair was rolled back.
+	 */
+	function ensurePoolFilesUniqueRepairPostgres(string $db_type, array $deferrable): void {
+		$nested = ensurePoolFilesInTransaction();
+		db_modify($nested ? 'SAVEPOINT pool_files_unique' : 'BEGIN', __FILE__ . " linje " . __LINE__);
+		$ok = false;
+		try {
+			foreach ($deferrable as $constraint) {
+				db_modify('ALTER TABLE pool_files DROP CONSTRAINT "' . str_replace('"', '""', $constraint) . '"', __FILE__ . " linje " . __LINE__);
+			}
+			db_modify("DELETE FROM pool_files a USING pool_files b WHERE a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);
+			// An immediate one may already exist next to a dropped deferrable one; then nothing more is needed. The usual
+			// name may belong to an index that does not count (a partial one); then use another.
+			if (!ensurePoolFilesSchemaState($db_type)['uniqueFilename']) {
+				$taken = db_fetch_array(ensurePoolFilesSelect("SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'pool_files_filename_uidx' AND n.nspname = current_schema()", __LINE__));
+				$name = $taken ? 'pool_files_filename_full_uidx' : 'pool_files_filename_uidx';
+				db_modify("CREATE UNIQUE INDEX $name ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+			}
+			$ok = ensurePoolFilesSchemaState($db_type)['uniqueFilename'];
+		} catch (EnsurePoolFilesSchemaUnknown $e) {
+			$ok = false; // a read failed, also when an earlier statement aborted the transaction
+		} finally {
+			if ($ok) {
+				db_modify($nested ? 'RELEASE SAVEPOINT pool_files_unique' : 'COMMIT', __FILE__ . " linje " . __LINE__);
+			} else {
+				db_modify($nested ? 'ROLLBACK TO SAVEPOINT pool_files_unique' : 'ROLLBACK', __FILE__ . " linje " . __LINE__);
+				if ($nested) {
+					db_modify('RELEASE SAVEPOINT pool_files_unique', __FILE__ . " linje " . __LINE__);
+				}
+			}
+		}
+		if (!$ok || !ensurePoolFilesSchemaState($db_type)['uniqueFilename']) {
+			throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename repair rolled back');
+		}
 	}
 }
 
@@ -265,20 +328,15 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 			}
 			if (!$state['uniqueFilename']) {
 				if ($mysql) {
+					// MySQL commits DDL at once, so this cannot be one transaction; the duplicates are stale rows (as in
+					// opdat_5.0.php). Reported only when the index is read back.
 					db_modify("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);
 					db_modify("CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
-				} else {
-					foreach ($state['deferrableFilename'] as $constraint) {
-						db_modify('ALTER TABLE pool_files DROP CONSTRAINT "' . str_replace('"', '""', $constraint) . '"', __FILE__ . " linje " . __LINE__);
-					}
-					db_modify("DELETE FROM pool_files a USING pool_files b WHERE a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);
-					// The usual name may already belong to an index that does not count (a partial one); then use another.
-					// An immediate one may already exist next to a dropped deferrable one; then nothing more is needed.
 					if (!ensurePoolFilesSchemaState($db_type)['uniqueFilename']) {
-						$taken = db_fetch_array(ensurePoolFilesSelect("SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'pool_files_filename_uidx' AND n.nspname = current_schema()", __LINE__));
-						$name = $taken ? 'pool_files_filename_full_uidx' : 'pool_files_filename_uidx';
-						db_modify("CREATE UNIQUE INDEX $name ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+						throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index missing after CREATE');
 					}
+				} else {
+					ensurePoolFilesUniqueRepairPostgres($db_type, $state['deferrableFilename']);
 				}
 				$done[] = 'unique_filename';
 			}

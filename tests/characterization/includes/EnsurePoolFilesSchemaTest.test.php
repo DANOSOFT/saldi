@@ -7,6 +7,8 @@
 // 20261118 CL/MMR SD-815 Codex round 9: two connections, a pool save committing while the backfill update waits for its row lock is kept (amount and norm_amount together, or the text alone, filled on the next run).
 // 20261118 CL/MMR SD-815 Codex round 10: the test's db_select()/db_modify() rewrite ' like ' to ' ilike ' as the production PostgreSQL branch does, and amount texts with ' like ', quotes and ';' are filled.
 // 20261118 CL/MMR SD-815 Codex round 11: the test's db_select() returns false on an error, as the production one does; a pending-row read cancelled by a real lock timeout leaves no flag, and the next run fills the row.
+// 20261118 CL/MMR SD-815 Codex round 13: CREATE UNIQUE INDEX timing out behind another session's lock rolls the whole filename repair back (both rows kept, nothing reported, no flag); the retry completes it.
+//                 $GLOBALS['connection'] is the test connection, as in production, and transaction statements pass straight through the test's db_modify().
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -36,6 +38,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $this->database = TestDatabase::sqlFixture(static::class)->name();
         $this->connection = TestDatabase::connect($this->database);
         $GLOBALS['ensurePoolFilesConnection'] = $this->connection;
+        $GLOBALS['connection'] = $this->connection; // ensurePoolFilesInTransaction() reads it, as db_query_connection() does
         $GLOBALS['ensurePoolFilesWrites'] = [];
         $GLOBALS['ensurePoolFilesErrors'] = [];
         if (!function_exists('db_select')) {
@@ -43,7 +46,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
                 // As includes/db_query.php on PostgreSQL: ' like ' becomes ' ilike ', and an error is logged and returns false.
                 $sql = str_replace(' like ', ' ilike ', $sql);
                 $connection = $GLOBALS['ensurePoolFilesConnection'];
-                $inTransaction = pg_transaction_status($connection) === PGSQL_TRANSACTION_INTRANS;
+                $inTransaction = pg_transaction_status($connection) === PGSQL_TRANSACTION_INTRANS && empty($GLOBALS['ensurePoolFilesRaw']);
                 if ($inTransaction) {
                     pg_query($connection, 'SAVEPOINT db_select');
                 }
@@ -66,7 +69,13 @@ final class EnsurePoolFilesSchemaTest extends TestCase
                 $GLOBALS['ensurePoolFilesWrites'][] = $sql;
                 $sql = str_replace(' like ', ' ilike ', $sql); // as includes/db_query.php does on PostgreSQL
                 $connection = $GLOBALS['ensurePoolFilesConnection'];
-                $inTransaction = pg_transaction_status($connection) === PGSQL_TRANSACTION_INTRANS;
+                if (preg_match('/^(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/', $sql)) {
+                    if (@pg_query($connection, $sql) === false) {
+                        $GLOBALS['ensurePoolFilesErrors'][] = pg_last_error($connection);
+                    }
+                    return '0' . chr(9) . 'query accepted';
+                }
+                $inTransaction = pg_transaction_status($connection) === PGSQL_TRANSACTION_INTRANS && empty($GLOBALS['ensurePoolFilesRaw']);
                 if ($inTransaction) {
                     pg_query($connection, 'SAVEPOINT db_modify');
                 }
@@ -124,7 +133,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
             pg_close($this->connection);
         }
         unset($GLOBALS['ensurePoolFilesWhileBlocked'], $GLOBALS['ensurePoolFilesBlockedRows']);
-        unset($GLOBALS['ensurePoolFilesConnection'], $GLOBALS['ensurePoolFilesWrites'], $GLOBALS['ensurePoolFilesErrors']);
+        unset($GLOBALS['ensurePoolFilesConnection'], $GLOBALS['ensurePoolFilesWrites'], $GLOBALS['ensurePoolFilesErrors'], $GLOBALS['connection'], $GLOBALS['ensurePoolFilesRaw']);
     }
 
     private function sql(string $sql): \PgSql\Result
@@ -489,5 +498,51 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame(['amount' => '99,00', 'norm_amount' => '99.000'], $this->oldRow());
         self::assertSame(1, $this->backfillFlags());
         self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+    }
+
+    public function testAnIndexCreationThatTimesOutRollsTheFilenameRepairBack(): void
+    {
+        // A committed schema (the other session must see it), every later column present, two rows with one filename.
+        $this->sql('ROLLBACK');
+        $this->committedSchema = 'pool_uidx_' . bin2hex(random_bytes(8));
+        $this->sql("CREATE SCHEMA {$this->committedSchema}");
+        $this->sql("SET search_path TO {$this->committedSchema}");
+        $this->sql('CREATE TABLE settings (id serial PRIMARY KEY, var_name text, var_grp text, var_value text, var_description text, user_id integer, group_id integer, pos_id integer)');
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('ALTER TABLE pool_files ADD COLUMN norm_amount numeric(15,3), ADD COLUMN manually_edited boolean NOT NULL DEFAULT false,
+            ADD COLUMN source_sha256 char(64), ADD COLUMN vendor_name text, ADD COLUMN vendor_cvr varchar(20), ADD COLUMN vendor_iban varchar(40),
+            ADD COLUMN vendor_konto_id integer, ADD COLUMN vendor_score numeric(4,3), ADD COLUMN vendor_match varchar(10)');
+        $this->sql('CREATE INDEX idx_pool_files_norm_amount ON pool_files (norm_amount)');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '2,00')");
+        // DELETE may run (ROW EXCLUSIVE does not conflict with it), CREATE INDEX (SHARE) may not.
+        $this->other = TestDatabase::connect($this->database);
+        pg_query($this->other, "SET search_path TO {$this->committedSchema}");
+        self::assertNotFalse(pg_query($this->other, 'BEGIN'));
+        self::assertNotFalse(pg_query($this->other, 'LOCK TABLE pool_files IN ROW EXCLUSIVE MODE'));
+        $this->sql("SET lock_timeout = '200ms'");
+        // No per-statement savepoints: like production, a failed statement aborts the repair's transaction.
+        $GLOBALS['ensurePoolFilesRaw'] = true;
+
+        $done = ensurePoolFilesSchema('postgresql');
+
+        self::assertNotContains('unique_filename', $done, 'nothing reported');
+        self::assertStringContainsString('lock timeout', implode(' ', $GLOBALS['ensurePoolFilesErrors']), 'the CREATE INDEX really failed');
+        self::assertSame(['1,00', '2,00'], pg_fetch_all_columns($this->sql("SELECT amount FROM pool_files WHERE filename = 'a.pdf' ORDER BY id")), 'the delete was rolled back');
+        self::assertSame(0, $this->backfillFlags(), 'the run stopped');
+        self::assertSame(PGSQL_TRANSACTION_IDLE, pg_transaction_status($this->connection), 'no transaction left open');
+        self::assertSame('0', pg_fetch_result($this->sql("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid()"), 0, 0));
+
+        pg_query($this->other, 'ROLLBACK');
+        $this->sql('RESET lock_timeout');
+        $GLOBALS['ensurePoolFilesErrors'] = [];
+        $done = ensurePoolFilesSchema('postgresql');
+        self::assertContains('unique_filename', $done);
+        self::assertSame(['2,00'], pg_fetch_all_columns($this->sql("SELECT amount FROM pool_files WHERE filename = 'a.pdf'")), 'the newest row is kept');
+        $this->poolInsert('a.pdf', '3,00', str_repeat('f', 64));
+        $this->poolInsert('semantic-invoice.xml', '125,00', str_repeat('f', 64));
+        $this->poolInsert('semantic-invoice.xml', '125,00', str_repeat('f', 64));
+        self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'semantic-invoice.xml'"), 0, 0));
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
     }
 }
