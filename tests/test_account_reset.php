@@ -7,6 +7,7 @@
 // 20260917 CL/LH Verify the reset is refused on MySQL/MariaDB before any statement is issued.
 // 20261005 SS Verify personal settings (USET) are not deleted by a reset.
 // 20261118 CL/MMR SST-1016 Verify the session update leaves the customer sessions (rettigheder '0', regnskabsaar 0) at year 0.
+// 20261118 CL/MMR SST-1016 The PostgreSQL check uses the shared test database helper (SALDI_CHAR_MASTER_DB); SALDI_CHAR_PGPORT is passed on as PGPORT, an explicit PGPORT wins.
 require_once(__DIR__ . '/../systemdata/resetAccount.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
