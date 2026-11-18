@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-10 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -224,7 +224,11 @@
 //                 The lookup return's $_GET reads use ifset(), and kontroller()'s line-check branch has braces on every multi-line body.
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
-
+// 20261116 CL/LH Replaced the commented-out Aiia "Bank Import" button with a "Bankforbindelse" button (shown when Enable Banking is on for the company); it saves like Import and then opens the bank feed page.
+//                Both save replay guards apply to Bankforbindelse, and a replay is sent on to the feed.
+//                Back from the feed, the journal shows once what was put into it (eb_journal_notice).
+//                The feed opens only after opdater() saved every line, so a partly refused save stays in the journal with its error.
+// 20261116 CL/LH A resend of a partially saved Bankforbindelse request stays in the journal instead of opening the feed.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -334,7 +338,7 @@ $kk_request_key = journalSaveRequestKey($_POST ?? [], (string)$db, (string)$brug
 $kk_form_key = $kk_request_key !== null ? journalSaveFormKey($_POST ?? [], (string)$db, (string)$brugernavn) : null;
 $kk_saved_journal = journalSavedRequest($_SESSION, $kk_request_key);
 if ($kk_saved_journal !== null) {
-	header('Location: kassekladde.php?kladde_id=' . $kk_saved_journal . '&tjek=' . $kk_saved_journal, true, 303);
+	header('Location: ' . journalSaveReplayLocation($_POST, $kk_saved_journal), true, 303);
 	exit;
 }
 include("../includes/std_func.php");
@@ -1094,6 +1098,7 @@ if ($_GET) {
 if ($_POST) {
 	if (isset($_POST['copy2new']) && $_POST['copy2new'])     $submit = 'copy2new';
 	elseif (isset($_POST['import']) && $_POST['import'])     $submit = 'import';
+	elseif (isset($_POST['bankfeed']) && $_POST['bankfeed']) $submit = 'bankfeed';
 	elseif (isset($_POST['lookup']) && $_POST['lookup'])     $submit = 'lookup';
 	elseif (isset($_POST['doPost']) && $_POST['doPost'])     $submit = 'doPost';
 	elseif (isset($_POST['revert']) && $_POST['revert'])     $submit = 'revert';
@@ -1110,7 +1115,7 @@ if ($_POST) {
 	# SST-888 (review) the payload is computed for every save: the journal a first save creates has no id
 	# yet, and without the payload a resend of that save was not recognised at all. The comparison needs
 	# the id, which journalSaveTarget() resolves from the session for exactly that resend.
-	if ($submit == 'save') {
+	if (in_array($submit, ['save', 'bankfeed'], true)) {
 		$kk_payload = md5(serialize($_POST));
 		if ($kladde_id && isset($_SESSION['kk_last_save'][$kladde_id]) && $_SESSION['kk_last_save'][$kladde_id] === $kk_payload) {
 			$kk_replay = true;
@@ -2020,6 +2025,10 @@ if (!$fejl && $kladde_id) {
 			// After the journal has loaded, so its pagehide handler releases the lock as on a normal click
 			print "<script>document.addEventListener('DOMContentLoaded', function () { window.location.replace(" . json_encode($kkPoolUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . "); });</script>";
 		}
+	}
+	// Bankforbindelse opens the bank feed only once opdater() has saved every line; a refused line, or a resend of a partial save, keeps the user here
+	if (!$fejl && empty($kk_replay) && $submit == 'bankfeed') {
+		print "<meta http-equiv='refresh' content='0;URL=../bank_integration/feed.php?kladde_id=" . (int)$kladde_id . "'>";
 	}
 }
 /*
@@ -4328,13 +4337,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				}
 				print "<td align='center'><span title='" . findtekst('1549|Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='i' value='" . findtekst('1356|Importér', $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span></td>";
 				print "<td align='center'><span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span></td>";
-				/*
-				// Temporarily commented out
-				?>
-
-				<td align='center'><span title='<?= "Importer bankposteringer via Aiia" ?>'><button id='Aiia_Import' type='button' class='menu_button button' style='width:120px;' accesskey='z' onclick='window.location.href="../bank_integration/aiia_import.php?kladde_id=<?= intval($kladde_id) ?>"'><?= "Bank Import"	// findtekst('????|Bank Import', $sprog_id) ?></button></span></td>
-
-				<?php */
+				include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
+				if (bankIntegrationEnabled()) {
+					print "<td align='center'><span title='" . findtekst('bank.journal.button_title|Gemmer kladden og åbner bankposteringerne, hvor du vælger, hvilke der skal i kladden', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='z' value='" . findtekst('bank.journal.button|Bankforbindelse', $sprog_id) . "' name='bankfeed' onclick='javascript:docChange = false;'></span></td>";
+				}
 			}
 		}
 		print "</form>";
@@ -5268,6 +5274,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	print "if (savedFocusField) savedFocusField.focus({preventScroll: true});";
 	if ($vat_reset_notice) {
 		print "alert(" . json_encode($vat_reset_notice) . ");";
+	}
+	// What "Læg valgte i kladde" on the bank feed put into this journal (UTF-8, ebJournalNotice() in bank_integration/includes/ebAccess.php)
+	if ($kladde_id && isset($_SESSION['eb_journal_notice'][(int)$kladde_id])) {
+		print "alert(" . json_encode((string)$_SESSION['eb_journal_notice'][(int)$kladde_id]) . ");";
+		unset($_SESSION['eb_journal_notice'][(int)$kladde_id]);
 	}
 	print "</script>";
 	// if ($menu == 'T') {

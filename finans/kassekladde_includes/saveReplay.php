@@ -1,5 +1,6 @@
 <?php
 // 20260914 CDX/LH Recognize completed journal saves before staging or creating a journal.
+// 20261116 CL/LH Protect Bankforbindelse saves and send a replay on to the bank feed for the journal.
 
 /** @return string|null Key for an explicit save, scoped to the authenticated tenant/user and form. */
 function journalSaveRequestKey(array $post, string $database, string $user): ?string {
@@ -8,13 +9,21 @@ function journalSaveRequestKey(array $post, string $database, string $user): ?st
 			return null;
 		}
 	}
-	if (empty($post['save']) && ($post['submit'] ?? null) !== 'save') {
+	if (empty($post['save']) && empty($post['bankfeed']) && ($post['submit'] ?? null) !== 'save') {
 		return null;
 	}
 	if (journalSaveFormKey($post, $database, $user) === null) {
 		return null;
 	}
 	return hash('sha256', serialize([$database, $user, $post]));
+}
+
+/** @return string Redirect destination for an already completed save. */
+function journalSaveReplayLocation(array $post, int $journalId): string {
+	if (!empty($post['bankfeed'])) {
+		return '../bank_integration/feed.php?kladde_id=' . $journalId;
+	}
+	return 'kassekladde.php?kladde_id=' . $journalId . '&tjek=' . $journalId;
 }
 
 /** @return string|null Stable form identity, also used to retry a failed first save in its existing journal. */

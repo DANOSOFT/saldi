@@ -1,0 +1,7 @@
+{
+  "transactions": [
+    {"entry_reference":"fixture-credit", "booking_date":"2026-10-06", "value_date":"2026-10-06", "status":"BOOK", "credit_debit_indicator":"CRDT", "transaction_amount":{"currency":"DKK", "amount":"125.123"}, "debtor":{"name":"Køber"}, "remittance_information":["Betaling", "oktober"]},
+    {"entry_reference":"fixture-debit", "booking_date":"2026-10-06", "value_date":"2026-10-06", "status":"BOOK", "credit_debit_indicator":"DBIT", "transaction_amount":{"currency":"DKK", "amount":"42.321"}, "creditor":{"name":"Leverandør"}, "remittance_information":["Køb"]}
+  ],
+  "continuation_key": null
+}
