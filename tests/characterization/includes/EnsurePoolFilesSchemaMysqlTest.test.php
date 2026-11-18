@@ -2,6 +2,7 @@
 // 20261118 CL/MMR SD-815 Created (Codex round 12). includes/opdat_func/ensurePoolFilesSchema.php on real MySQL/MariaDB with PHP 8's default mysqli reporting (exceptions).
 //                 A pending read that times out behind another session's table lock ends the run without an uncaught exception, flag or held lock; the next run fills the row.
 //                 Needs the mysqli extension and SALDI_CHAR_MYSQL_SOCKET (a disposable server, user root without password unless SALDI_CHAR_MYSQL_USER/PASS); skipped otherwise.
+// 20261118 CL/MMR SD-815 Codex round 14: when the unique-index repair cannot get the table (another session's open transaction has read pool_files), no duplicate row is deleted; the retry keeps the newest row.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -127,6 +128,41 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'old.pdf'"));
         self::assertSame('1', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
         self::assertNull($this->one("SELECT IS_USED_LOCK(CONCAT('saldi:pool_files_schema:', MD5(DATABASE())))"));
+        self::assertSame([], ensurePoolFilesSchema('mysqli'));
+    }
+
+    public function testABlockedIndexRepairDeletesNothing(): void
+    {
+        // Every later column present, only the unique index and the backfill missing; two rows with one filename.
+        foreach (['norm_amount numeric(15,3)', 'manually_edited boolean NOT NULL DEFAULT false', 'source_sha256 char(64)', 'vendor_name text', 'vendor_cvr varchar(20)',
+            'vendor_iban varchar(40)', 'vendor_konto_id integer', 'vendor_score numeric(4,3)', 'vendor_match varchar(10)'] as $column) {
+            $this->sql("ALTER TABLE pool_files ADD COLUMN $column");
+        }
+        $this->sql('CREATE INDEX idx_pool_files_norm_amount ON pool_files (norm_amount)');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '2,00')");
+        // Another session's open transaction has read pool_files: it holds a metadata lock until it ends.
+        $this->other = $this->connect();
+        mysqli_select_db($this->other, $this->database);
+        mysqli_query($this->other, 'START TRANSACTION');
+        mysqli_query($this->other, 'SELECT count(*) FROM pool_files');
+        $this->sql('SET SESSION lock_wait_timeout = 1');
+
+        $done = ensurePoolFilesSchema('mysqli'); // must not throw
+
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
+        self::assertStringContainsString('Lock wait timeout', (string) file_get_contents($this->log));
+        self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertNull($this->one("SELECT IS_USED_LOCK(CONCAT('saldi:pool_files_schema:', MD5(DATABASE())))"));
+        $this->sql('SELECT 1 FROM settings'); // no LOCK TABLES left on this session (it would refuse an unlocked table)
+
+        mysqli_query($this->other, 'COMMIT');
+        $this->sql('SET SESSION lock_wait_timeout = DEFAULT');
+        $done = ensurePoolFilesSchema('mysqli');
+        self::assertContains('unique_filename', $done);
+        self::assertSame('2,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '3,00') ON DUPLICATE KEY UPDATE id = id");
+        self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
         self::assertSame([], ensurePoolFilesSchema('mysqli'));
     }
 }

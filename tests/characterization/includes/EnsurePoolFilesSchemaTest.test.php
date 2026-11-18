@@ -9,6 +9,7 @@
 // 20261118 CL/MMR SD-815 Codex round 11: the test's db_select() returns false on an error, as the production one does; a pending-row read cancelled by a real lock timeout leaves no flag, and the next run fills the row.
 // 20261118 CL/MMR SD-815 Codex round 13: CREATE UNIQUE INDEX timing out behind another session's lock rolls the whole filename repair back (both rows kept, nothing reported, no flag); the retry completes it.
 //                 $GLOBALS['connection'] is the test connection, as in production, and transaction statements pass straight through the test's db_modify().
+// 20261118 CL/MMR SD-815 Codex round 14: a pending read that times out inside a caller's transaction leaves that transaction usable and no advisory lock; transaction statements are not counted as writes.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -66,15 +67,16 @@ final class EnsurePoolFilesSchemaTest extends TestCase
                 return $result === false ? false : pg_fetch_assoc($result);
             }
             function db_modify($sql, $location = '') {
-                $GLOBALS['ensurePoolFilesWrites'][] = $sql;
                 $sql = str_replace(' like ', ' ilike ', $sql); // as includes/db_query.php does on PostgreSQL
                 $connection = $GLOBALS['ensurePoolFilesConnection'];
                 if (preg_match('/^(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/', $sql)) {
+                    $GLOBALS['ensurePoolFilesTransactionStatements'][] = $sql;
                     if (@pg_query($connection, $sql) === false) {
                         $GLOBALS['ensurePoolFilesErrors'][] = pg_last_error($connection);
                     }
                     return '0' . chr(9) . 'query accepted';
                 }
+                $GLOBALS['ensurePoolFilesWrites'][] = $sql;
                 $inTransaction = pg_transaction_status($connection) === PGSQL_TRANSACTION_INTRANS && empty($GLOBALS['ensurePoolFilesRaw']);
                 if ($inTransaction) {
                     pg_query($connection, 'SAVEPOINT db_modify');
@@ -544,5 +546,37 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'semantic-invoice.xml'"), 0, 0));
         self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
         self::assertSame([], ensurePoolFilesSchema('postgresql'));
+    }
+
+    public function testATimedOutReadInsideACallersTransactionLeavesItUsable(): void
+    {
+        $this->committedPoolWithPendingRow();
+        $this->other = $this->other ?? TestDatabase::connect($this->database);
+        self::assertNotFalse(pg_query($this->other, 'BEGIN'));
+        self::assertNotFalse(pg_query($this->other, 'LOCK TABLE pool_files IN ACCESS EXCLUSIVE MODE'));
+        $this->sql("SET lock_timeout = '200ms'");
+        $GLOBALS['ensurePoolFilesRaw'] = true; // like production: no per-statement savepoints
+        $this->sql('BEGIN'); // the caller's transaction
+        $this->sql("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('caller', 'test', 'kept')");
+
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+
+        self::assertStringContainsString('lock timeout', implode(' ', $GLOBALS['ensurePoolFilesErrors']), 'the read really failed');
+        self::assertSame(PGSQL_TRANSACTION_INTRANS, pg_transaction_status($this->connection), 'the caller\'s transaction is usable, not aborted');
+        self::assertSame('kept', pg_fetch_result($this->sql("SELECT var_value FROM settings WHERE var_name = 'caller'"), 0, 0), 'the caller\'s own work is intact');
+        self::assertSame(0, $this->backfillFlags());
+        $this->sql('ROLLBACK');
+        self::assertSame('0', pg_fetch_result($this->sql("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid()"), 0, 0), 'no advisory lock after the caller ends');
+
+        pg_query($this->other, 'ROLLBACK');
+        $this->sql('RESET lock_timeout');
+        $GLOBALS['ensurePoolFilesErrors'] = [];
+        $this->sql('BEGIN');
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
+        $this->sql('COMMIT');
+        self::assertSame(['amount' => '99,00', 'norm_amount' => '99.000'], $this->oldRow());
+        self::assertSame(1, $this->backfillFlags());
+        self::assertSame('0', pg_fetch_result($this->sql("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid()"), 0, 0));
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
     }
 }

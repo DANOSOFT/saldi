@@ -34,6 +34,8 @@
 // 20261118 CL/MMR SD-815 Codex round 12: on MySQL/MariaDB PHP 8's mysqli throws mysqli_sql_exception instead of returning false; a failed read or write is handled the same way and the login goes on.
 // 20261118 CL/MMR SD-815 Codex round 13: on PostgreSQL the filename repair (drop deferrable constraints, collapse duplicates, create the index) runs in one transaction (a savepoint inside a caller's transaction) and is kept only when the index is read back; otherwise it is rolled back and the run stops.
 //                 «unique_filename» is reported only after that read-back, on MySQL too.
+// 20261118 CL/MMR SD-815 Codex round 14: inside a caller's PostgreSQL transaction the whole run sits in a savepoint with a transaction-level advisory lock, so a failure rolls back to it and leaves the caller's transaction usable and no lock behind.
+//                 On MySQL/MariaDB the duplicate collapse and the unique index run under LOCK TABLES pool_files WRITE: if the table lock cannot be had nothing is deleted, and once it is held the index cannot be blocked by another session.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -157,6 +159,32 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
+	/**
+	 * Gives pool_files a unique index on filename on MySQL/MariaDB. DDL commits at once there, so the duplicate collapse
+	 * and the index cannot share a transaction; instead both run under LOCK TABLES pool_files WRITE (with the aliases the
+	 * self-join needs). If the table lock cannot be had (another session uses the table past lock_wait_timeout), mysqli
+	 * throws before anything is deleted; once it is held no other session can use the table, so the index cannot be
+	 * blocked. The tables are always unlocked, and the index is reported only when it is read back.
+	 *
+	 * @param string $db_type
+	 * @return void
+	 * @throws EnsurePoolFilesSchemaUnknown When the index is not there afterwards.
+	 */
+	function ensurePoolFilesUniqueRepairMysql(string $db_type): void {
+		db_modify("LOCK TABLES pool_files WRITE, pool_files AS a WRITE, pool_files AS b READ", __FILE__ . " linje " . __LINE__);
+		try {
+			db_modify("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);
+			db_modify("CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+		} finally {
+			db_modify("UNLOCK TABLES", __FILE__ . " linje " . __LINE__);
+		}
+		if (!ensurePoolFilesSchemaState($db_type)['uniqueFilename']) {
+			throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index missing after CREATE');
+		}
+	}
+}
+
 if (!function_exists('ensurePoolFilesBackfillValue')) {
 	/**
 	 * The norm_amount a row's amount text gives, as SQL, or null when there is none to store: not parseable
@@ -276,15 +304,33 @@ if (!function_exists('ensurePoolFilesSchema')) {
 	 */
 	function ensurePoolFilesSchema(string $db_type): array {
 		$done = array();
+		// Inside a caller's PostgreSQL transaction a failed statement would abort the caller's transaction, so the run
+		// gets a savepoint of its own and rolls back to it on any failure (the caller can go on), and it takes a
+		// transaction-level advisory lock, which ends with the caller's transaction and never outlives it.
+		$nested = !in_array($db_type, array('mysql', 'mysqli'), true) && ensurePoolFilesInTransaction();
+		if ($nested) {
+			db_modify('SAVEPOINT pool_files_schema', __FILE__ . " linje " . __LINE__);
+		}
+		$completed = false;
 		try {
-			return ensurePoolFilesSchemaRun($db_type, $done);
+			$result = ensurePoolFilesSchemaRun($db_type, $done, $nested);
+			$completed = true;
+			return $result;
 		} catch (EnsurePoolFilesSchemaUnknown $e) {
-			return $done; // a read failed: no flag, nothing more this time; the next login tries again
+			// A read failed: no flag, nothing more this time; the next login tries again.
+			return $nested ? array() : $done;
 		} catch (mysqli_sql_exception $e) {
 			// A write that failed on MySQL/MariaDB (mysqli throws). The flag is only written after a verified
 			// backfill, so stopping here leaves it unset; the next login tries again.
 			error_log('ensurePoolFilesSchema: write failed: ' . $e->getMessage());
 			return $done;
+		} finally {
+			if ($nested) {
+				if (!$completed) {
+					db_modify('ROLLBACK TO SAVEPOINT pool_files_schema', __FILE__ . " linje " . __LINE__);
+				}
+				db_modify('RELEASE SAVEPOINT pool_files_schema', __FILE__ . " linje " . __LINE__);
+			}
 		}
 	}
 }
@@ -295,10 +341,11 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 	 *
 	 * @param string       $db_type
 	 * @param list<string> $done
+	 * @param bool         $nested  Inside a caller's PostgreSQL transaction (ensurePoolFilesSchema() holds a savepoint).
 	 * @return list<string>
 	 * @throws EnsurePoolFilesSchemaUnknown When a read failed.
 	 */
-	function ensurePoolFilesSchemaRun(string $db_type, array &$done): array {
+	function ensurePoolFilesSchemaRun(string $db_type, array &$done, bool $nested = false): array {
 		$state = ensurePoolFilesSchemaState($db_type);
 		if ($state === null || (!$state['columns'] && $state['uniqueFilename'] && $state['normAmountIndex'] && $state['normAmountBackfilled'])) {
 			return array();
@@ -311,6 +358,10 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 				return array(); // another login holds it; the next login checks again
 			}
 			$unlock = "SELECT RELEASE_LOCK($lockName)";
+		} elseif ($nested) {
+			// Ends with the caller's transaction (and with the savepoint when that is rolled back): nothing to unlock.
+			ensurePoolFilesSelect("SELECT pg_advisory_xact_lock(hashtext('saldi:pool_files_schema'))", __LINE__);
+			$unlock = null;
 		} else {
 			ensurePoolFilesSelect("SELECT pg_advisory_lock(hashtext('saldi:pool_files_schema'))", __LINE__);
 			$unlock = "SELECT pg_advisory_unlock(hashtext('saldi:pool_files_schema'))";
@@ -328,13 +379,7 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 			}
 			if (!$state['uniqueFilename']) {
 				if ($mysql) {
-					// MySQL commits DDL at once, so this cannot be one transaction; the duplicates are stale rows (as in
-					// opdat_5.0.php). Reported only when the index is read back.
-					db_modify("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);
-					db_modify("CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
-					if (!ensurePoolFilesSchemaState($db_type)['uniqueFilename']) {
-						throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index missing after CREATE');
-					}
+					ensurePoolFilesUniqueRepairMysql($db_type);
 				} else {
 					ensurePoolFilesUniqueRepairPostgres($db_type, $state['deferrableFilename']);
 				}
@@ -363,10 +408,12 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 				$done[] = 'norm_amount_backfill';
 			}
 		} finally {
-			try {
-				db_select($unlock, __FILE__ . " linje " . __LINE__);
-			} catch (mysqli_sql_exception $e) {
-				error_log('ensurePoolFilesSchema: unlock failed: ' . $e->getMessage()); // the lock ends with the connection
+			if ($unlock !== null) {
+				try {
+					db_select($unlock, __FILE__ . " linje " . __LINE__);
+				} catch (mysqli_sql_exception $e) {
+					error_log('ensurePoolFilesSchema: unlock failed: ' . $e->getMessage()); // the lock ends with the connection
+				}
 			}
 		}
 		return $done;
