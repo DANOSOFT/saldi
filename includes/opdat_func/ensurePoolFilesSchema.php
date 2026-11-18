@@ -31,6 +31,7 @@
 // 20261118 CL/MMR SD-815 Codex round 9: a backfill update only writes while norm_amount is still NULL and amount is still the text it was computed from, so a pool save that commits meanwhile is never overwritten.
 // 20261118 CL/MMR SD-815 Codex round 10: the text is compared by the md5 the database computes, never put into the SQL (db_modify() turns ' like ' into ' ilike ' inside literals, and injecttjek() reads quotes and ';').
 // 20261118 CL/MMR SD-815 Codex round 11: a read that fails (db_select() returns false, e.g. a lock timeout) means «unknown», never «nothing to do»: the run stops without DDL or flag and the next login tries again.
+// 20261118 CL/MMR SD-815 Codex round 12: on MySQL/MariaDB PHP 8's mysqli throws mysqli_sql_exception instead of returning false; a failed read or write is handled the same way and the login goes on.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -71,7 +72,8 @@ if (!class_exists('EnsurePoolFilesSchemaUnknown', false)) {
 
 if (!function_exists('ensurePoolFilesSelect')) {
 	/**
-	 * db_select() that tells a failed read from an empty one: it returns false on an error (logged by db_select()).
+	 * db_select() that tells a failed read from an empty one: on PostgreSQL it returns false on an error (logged by
+	 * db_select()); on MySQL/MariaDB PHP 8's mysqli throws mysqli_sql_exception instead.
 	 *
 	 * @param string $sql
 	 * @param int    $line Caller's line, for the log.
@@ -79,7 +81,12 @@ if (!function_exists('ensurePoolFilesSelect')) {
 	 * @throws EnsurePoolFilesSchemaUnknown When the read failed.
 	 */
 	function ensurePoolFilesSelect(string $sql, int $line) {
-		$result = db_select($sql, __FILE__ . " linje " . $line);
+		try {
+			$result = db_select($sql, __FILE__ . " linje " . $line);
+		} catch (mysqli_sql_exception $e) {
+			error_log('ensurePoolFilesSchema: read failed at line ' . $line . ': ' . $e->getMessage());
+			throw new EnsurePoolFilesSchemaUnknown('pool_files schema read failed at line ' . $line, 0, $e);
+		}
 		if ($result === false) {
 			throw new EnsurePoolFilesSchemaUnknown('pool_files schema read failed at line ' . $line);
 		}
@@ -210,6 +217,11 @@ if (!function_exists('ensurePoolFilesSchema')) {
 			return ensurePoolFilesSchemaRun($db_type, $done);
 		} catch (EnsurePoolFilesSchemaUnknown $e) {
 			return $done; // a read failed: no flag, nothing more this time; the next login tries again
+		} catch (mysqli_sql_exception $e) {
+			// A write that failed on MySQL/MariaDB (mysqli throws). The flag is only written after a verified
+			// backfill, so stopping here leaves it unset; the next login tries again.
+			error_log('ensurePoolFilesSchema: write failed: ' . $e->getMessage());
+			return $done;
 		}
 	}
 }
@@ -293,7 +305,11 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 				$done[] = 'norm_amount_backfill';
 			}
 		} finally {
-			db_select($unlock, __FILE__ . " linje " . __LINE__);
+			try {
+				db_select($unlock, __FILE__ . " linje " . __LINE__);
+			} catch (mysqli_sql_exception $e) {
+				error_log('ensurePoolFilesSchema: unlock failed: ' . $e->getMessage()); // the lock ends with the connection
+			}
 		}
 		return $done;
 	}
