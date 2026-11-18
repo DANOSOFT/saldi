@@ -169,6 +169,7 @@
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261118 CL/SS SD-833 linjeopdat(): a credit line with retur_lager 'of' and a set's own line are delivered without moving stock.
+//                batch_salg() gives such a line cost 0 and no stock value posting, and its batch the invoice date.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2062,6 +2063,10 @@ function batch_salg($id)
 			include("../includes/version.php");
 		$qtxt = "update ordrelinjer set bogf_konto='$bf_kto',momssats='$varemomssats',vat_account='$vatAccount',projekt='$projekt' where id='$ordre_linje_id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		if ($ordre_linje_id && order_line_is_stock_neutral((int)$ordre_linje_id, (float)$antal[$x])) { # SD-833: no stock moved, so no stock cost
+			stock_neutral_line_invoiced((int)$ordre_linje_id, (int)$batch_kob_id[$x], (string)$fakturadate);
+			continue;
+		}
 		if ($fifo && !$box9) {
 			$y = 0;
 			$mangler = $antal[$x];

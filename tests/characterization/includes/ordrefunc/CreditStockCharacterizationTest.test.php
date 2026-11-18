@@ -2,7 +2,7 @@
 // tests/characterization/includes/ordrefunc/CreditStockCharacterizationTest.test.php
 //
 // SD-833 (SD-746 core edit 4): what levering() does to stock for credit notes and set lines.
-// A credited stock line goes back on stock, unless the line asks for no restock (retur_lager 'of').
+// A credited stock line goes back on stock, unless the line asks for no restock (retur_lager 'of') or is a dekort.
 // A set's master line draws no stock of the set item; its components carry the stock.
 // A stock-neutral line still counts as delivered, and the stock counted from batches stays equal to the item's.
 // Batch-controlled items (VG box9) are left to SST-960 (#1102), which makes lagerstatus move once on delivery and return.
@@ -132,6 +132,53 @@ final class CreditStockCharacterizationTest extends CharacterizationTestCase
         $this->assertEqualsWithDelta(8.0, self::stockOf($item), 0.001);
         $this->assertEqualsWithDelta(8.0, self::batchStock($item), 0.001);
         $this->assertEqualsWithDelta(-1.0, self::delivered(self::lineId($note['id'])), 0.001);
+    }
+
+    public function test_a_no_restock_credit_invoiced_on_another_day_dates_its_batch_with_the_invoice(): void
+    {
+        $item = self::$fx->item(['beholdning' => 0.0, 'kostpris' => 50.00]);
+        $note = $this->noRestockCredit($item);
+        $this->deliver($note['id'], -1);
+        $this->assertNull(self::one('SELECT bk.fakturadate FROM batch_salg bs JOIN batch_kob bk ON bk.id = bs.batch_kob_id WHERE bs.linje_id = $1', [self::lineId($note['id'])])['fakturadate'], 'no invoice date before the invoice, like the row');
+        self::rows("UPDATE ordrer SET ordredate = date_trunc('month', current_date)::date - 1 WHERE id = $1", [$note['id']]);
+        $this->invoice($note['id']);
+
+        $dates = self::one('SELECT bs.fakturadate AS salg, bk.fakturadate AS kob FROM batch_salg bs JOIN batch_kob bk ON bk.id = bs.batch_kob_id WHERE bs.linje_id = $1', [self::lineId($note['id'])]);
+        $this->assertNotEmpty($dates['salg']);
+        $this->assertSame($dates['salg'], $dates['kob'], 'stock counted by invoice date nets to 0 too');
+    }
+
+    public function test_a_no_restock_credit_posts_no_stock_value_where_stock_value_is_kept(): void
+    {
+        $item = self::$fx->item(['beholdning' => 0.0, 'kostpris' => 50.00]);
+        $group = self::one('SELECT gruppe FROM varer WHERE id = $1', [$item['id']])['gruppe'];
+        $vg = self::one("SELECT id, box1, box2 FROM grupper WHERE art = 'VG' AND kodenr = $1 ORDER BY id DESC LIMIT 1", [$group]);
+        $ra = self::one("SELECT id, box2 FROM grupper WHERE art = 'RA' ORDER BY kodenr DESC LIMIT 1");
+        $note = $this->noRestockCredit($item);
+        self::rows("UPDATE grupper SET box1 = '1610', box2 = '1660' WHERE id = $1", [$vg['id']]);
+        self::rows("UPDATE grupper SET box2 = '2014' WHERE id = $1", [$ra['id']]);
+        try {
+            $this->invoice($note['id']);
+        } finally {
+            self::rows('UPDATE grupper SET box2 = $1 WHERE id = $2', [$ra['box2'], $ra['id']]);
+            self::rows('UPDATE grupper SET box1 = $1, box2 = $2 WHERE id = $3', [$vg['box1'], $vg['box2'], $vg['id']]);
+        }
+
+        $this->assertGreaterThanOrEqual(3, (int)self::one('SELECT status FROM ordrer WHERE id = $1', [$note['id']])['status']);
+        $stockValue = self::rows("SELECT kontonr FROM transaktioner WHERE ordre_id = $1 AND kontonr IN (1610, 1660)", [$note['id']]);
+        $this->assertSame([], $stockValue, 'no stock value posting: nothing came back on stock');
+    }
+
+    public function test_a_dekort_line_leaves_stock_alone(): void
+    {
+        $item = self::$fx->item(['beholdning' => 0.0, 'kostpris' => 50.00]);
+        $sale = $this->boughtAndSoldTwo($item);
+        $note = $this->creditNote(self::lineId($sale['id']), $item, 1);
+        self::rows("UPDATE ordrelinjer SET kredit_art = 'dekort' WHERE ordre_id = $1", [$note['id']]);
+        $this->deliver($note['id'], -1);
+
+        $this->assertEqualsWithDelta(8.0, self::stockOf($item), 0.001, 'the customer keeps the unit');
+        $this->assertEqualsWithDelta(8.0, self::batchStock($item), 0.001);
     }
 
     public function test_a_credit_line_marked_restock_goes_back_on_stock(): void

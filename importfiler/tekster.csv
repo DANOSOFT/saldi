@@ -5377,6 +5377,14 @@
 8058	Lagt på lager igen	Restocked	Lagt på lager igjen
 8059	Fejlet	Failed	Feilet
 8060	Forsendelse	Shipment	Forsendelse
+8061	Kreditering	Crediting	Kreditering
+8062	Dekort %	Allowance %	Avslag %
+8063	Læg på lager	Return to stock	Legg på lager
+8064	Tilbage at kreditere	Left to credit	Igjen å kreditere
+8065	Procent af linjens fakturerede beløb. Kunden beholder varen, og lageret ændres ikke.	Percentage of the line's invoiced amount. The customer keeps the item and stock does not change.	Prosent av linjens fakturerte beløp. Kunden beholder varen, og lageret endres ikke.
+8066	Varen lægges på lager igen på det lager, den blev trukket fra.	The item goes back on stock in the warehouse it was taken from.	Varen legges på lager igjen på lageret den ble trukket fra.
+8067	Reguleret til det, der er tilbage at kreditere	Adjusted to what is left to credit	Regulert til det som er igjen å kreditere
+8068	Alt på fakturaen er krediteret	Everything on the invoice has been credited	Alt på fakturaen er kreditert
 8400	Send "Bemærkning til ordre" med på e-fakturaer	Include "Order note" on e-invoices	Send "Ordrenotat" med på e-fakturaer
 8401	Afmærkes feltet, sendes teksten i "Bemærkning til ordre" med som bemærkning på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet bruges ofte til interne noter, så det er slået fra som standard. PDF-fakturaen er uændret.	When ticked, the text in "Order note" is sent as the note on e-invoices, e-credit notes and e-orders. The field is often used for internal notes, so this is off by default. The PDF invoice is unchanged.	Når feltet er avkrysset, sendes teksten i "Ordrenotat" med som merknad på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet brukes ofte til interne notater, så det er slått av som standard. PDF-fakturaen er uendret.
 8402	Afmærkes feltet, kommer der en besked ved levering af en ordre, når kostprisen på en vare er anslået, fordi der ikke var et købsparti at tage den fra, og prisen kommer fra varekortet eller fra en åben indkøbsordre med en anden pris end varekortet. Kostprisen beregnes ens, uanset om feltet er afmærket.	If ticked, delivering an order shows a message when an item's cost price was estimated because there was no purchase lot to take it from, and the price comes from the item card or from an open purchase order whose price differs from the item card. The cost price is calculated the same way whether or not this is ticked.	Hvis feltet er avkrysset, vises en melding ved levering av en ordre når kostprisen på en vare er anslått fordi det ikke fantes et innkjøpsparti å ta den fra, og prisen kommer fra varekortet eller fra en åpen innkjøpsordre med en annen pris enn varekortet. Kostprisen beregnes likt uansett om feltet er avkrysset.
