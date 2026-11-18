@@ -43,6 +43,9 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  *                test; fake shops stopped with their workers; the price snapshot read under a lock; the bulk group left empty;
  *                the recovery tick's own calls asserted. New: a VAT rate row only in another fiscal year, and an answer cut off
  *                after its status line.
+ * 20261118 CL/LH Codex verification 8: a long complete JSON refusal is a refusal and an answer longer than the tick keeps is a
+ *                transport failure, on the extension and the shell transport; shops refusing that way keep the item tracked
+ *                through the tail.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -470,6 +473,78 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::tick($t + 120); // the failure is an event: every shop is sent the pair again at the next slot
 		self::assertSame([self::OFFER], self::pricesSent('SPCUT')['shop 2'] ?? [], 'shop 2 is sent the offer again');
 		self::assertNotNull(self::stateByShop($id)['shop 2']['confirmed'], 'and has accepted it now');
+	}
+
+	/** @return list<string> PHP options for a runner whose tick has no curl extension: the tick's shell transport (shopOfferShellOne()). */
+	private static function withoutCurlExtension(): array
+	{
+		return ['-d', 'disable_functions=curl_init,curl_multi_init'];
+	}
+
+	/** @return array{0: int, 1: int, 2: int} accepted, refused and failed calls of a tick's result. */
+	private static function outcomes(array $tick): array
+	{
+		return [(int)$tick['accepted'], (int)$tick['refused'], (int)$tick['failed']];
+	}
+
+	/**
+	 * Codex verification 8: a complete JSON refusal longer than the 16 KB the tick once kept is a refusal, on the extension and on
+	 * the shell transport; cut to its start it was invalid JSON, which the judge took for an acceptance.
+	 */
+	public function testALongCompleteJsonRefusalIsARefusalOnBothTransports(): void
+	{
+		$t = time();
+		foreach (['curl' => [], 'shell' => self::withoutCurlExtension()] as $transport => $php) {
+			$itemNo = 'SPLONGREF' . strtoupper(substr($transport, 0, 2));
+			$id = self::item($itemNo, self::offer());
+			self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'longRefusal' => true]]));
+			$out = self::runner(['tick', (string)$t, '10'], $php);
+			self::uncontrol('rules');
+			self::assertSame([2, 1, 0], self::outcomes($out), "$transport: shop 2 refused, the others accepted: " . json_encode($out));
+			$shop2 = self::stateByShop($id)['shop 2'];
+			self::assertSame([null, 1], [$shop2['confirmed'], $shop2['refusals']], "$transport: shop 2 is not booked as holding the offer");
+		}
+	}
+
+	/** Codex verification 8: an answer longer than the tick keeps (1 MB) is a transport failure on both transports, never an acceptance. */
+	public function testAnAnswerLongerThanTheTickKeepsIsATransportFailureOnBothTransports(): void
+	{
+		$t = time();
+		foreach (['curl' => [], 'shell' => self::withoutCurlExtension()] as $transport => $php) {
+			$itemNo = 'SPPAD' . strtoupper(substr($transport, 0, 2));
+			$id = self::item($itemNo, self::offer());
+			self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'pad' => 1048576]]));
+			$out = self::runner(['tick', (string)$t, '10'], $php);
+			self::uncontrol('rules');
+			self::assertSame([2, 0, 1], self::outcomes($out), "$transport: shop 2's answer was cut, so not judged: " . json_encode($out));
+			$shop2 = self::stateByShop($id)['shop 2'];
+			self::assertSame([null, 1], [$shop2['confirmed'], $shop2['attempts']], "$transport: retried as a failed send");
+		}
+	}
+
+	/**
+	 * Codex verification 8 (tick-long-refusal): shops that refuse the normal prices after an offer with a long complete JSON
+	 * refusal, at every tick through the tail, keep the item tracked: no refusal is taken for an acceptance, so it is never retired.
+	 */
+	public function testShopsThatRefuseWithALongAnswerKeepTheItemTrackedThroughTheTail(): void
+	{
+		$id = self::item('SPLONGTAIL', self::offer());
+		$t = time();
+		self::tick($t);
+		self::assertShopsHold('SPLONGTAIL', self::OFFER);
+		self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]); // the offer ends
+		self::control('rules', json_encode([['item' => 'SPLONGTAIL', 'longRefusal' => true]]));
+		$accepted = 0;
+		foreach ([0, 120, 300, 900, 3600, 21600, 43200, 64800, 86400, 87121] as $offset) {
+			$accepted += (int)self::tick($t + 10 + $offset)['accepted'];
+		}
+		self::uncontrol('rules');
+		self::assertSame(0, $accepted, 'no refusal was taken for an acceptance');
+		self::assertTrue(self::tracked($id), 'at +87,121 s the item is still tracked: no shop accepted the normal prices');
+		foreach (self::stateByShop($id) as $shop => $entry) {
+			self::assertGreaterThanOrEqual(8, $entry['refusals'], "$shop refused every try and counts as stuck");
+		}
+		self::assertSame(self::REMOTE_OFFER, self::remote('SPLONGTAIL'), 'the shops still show the offer, which the reconciler keeps trying to end');
 	}
 
 	public function testATickSendsTheOfferAndSendsItAgainOnSchedule(): void

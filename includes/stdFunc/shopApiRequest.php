@@ -1,5 +1,5 @@
 <?php
-// --- includes/stdFunc/shopApiRequest.php --- ver 5.1.1 --- 2026-11-18 ---
+// --- includes/stdFunc/shopApiRequest.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,7 +33,6 @@
 // 20261023 CDX/MJ SST-876 Preserve each payload context when batching multiple items across shops.
 // 20261027 CDX/MJ SST-876 Read parallel transfer completion results and shell curl exit status so incomplete HTTP 200 responses remain retryable failures.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
-// 20261118 CL/LH CodeRabbit review of #1157: the single sender and its shell fallback keep at most 16 KB of an answer, as the parallel sender does, so a whole html page cannot use the request's memory up.
 
 if (!function_exists('shopApiUrl')) {
 	/**
@@ -312,14 +311,7 @@ if (!function_exists('shopApiCurlCall')) {
 		if ($ch === false) {
 			return array('httpCode' => 0, 'body' => '', 'error' => 'curl_init failed', 'transient' => false, 'unreachable' => false);
 		}
-		// the answer is bounded as it arrives, as shopApiCurlMultiCall() bounds it
-		$body = '';
-		curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($handle, $chunk) use (&$body) {
-			if (strlen($body) < 16384) {
-				$body .= substr($chunk, 0, 16384 - strlen($body));
-			}
-			return strlen($chunk);
-		});
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, (int)$options['connectTimeout']);
 		curl_setopt($ch, CURLOPT_TIMEOUT, (int)$options['timeout']);
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -329,7 +321,7 @@ if (!function_exists('shopApiCurlCall')) {
 			curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
 			curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
 		}
-		curl_exec($ch);
+		$body     = curl_exec($ch);
 		$errno    = curl_errno($ch);
 		$error    = $errno ? 'curl error ' . $errno . ': ' . curl_error($ch) : '';
 		$httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -370,7 +362,7 @@ if (!function_exists('shopApiShellCall')) {
 		if ($bodyFile === false) {
 			return array('httpCode' => 0, 'body' => '', 'error' => 'could not create temporary file', 'transient' => false, 'unreachable' => false);
 		}
-		$cmd = 'curl -s -S -L --max-redirs 3 --proto =http,https --max-filesize 1048576'
+		$cmd = 'curl -s -S -L --max-redirs 3 --proto =http,https'
 			. ' --connect-timeout ' . (int)$options['connectTimeout']
 			. ' --max-time ' . (int)$options['timeout']
 			. ' -A ' . escapeshellarg((string)$options['userAgent'])
@@ -378,7 +370,7 @@ if (!function_exists('shopApiShellCall')) {
 			. ' -w ' . escapeshellarg("\nSALDI_HTTP:%{http_code}\n")
 			. ' ' . escapeshellarg($url) . ' 2>&1; shop_curl_status=$?; printf "\nSALDI_EXIT:%s\n" "$shop_curl_status"';
 		$out      = shell_exec($cmd);
-		$body     = (string)@file_get_contents($bodyFile, false, null, 0, 16384); // the start of the answer, as the extension keeps it
+		$body     = (string)@file_get_contents($bodyFile);
 		@unlink($bodyFile);
 
 		// stderr is merged into the output, so read the status from its own marker rather
