@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -223,6 +223,10 @@
 //                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
 // 20261029 CL/LH "Opdatér alle" scans only the documents not read yet (poolListData() unscanned=1), not the whole pool again.
 // 20261030 CDX/NTR Stop bulk extraction when the unscanned list cannot be loaded, so captured documents are never retried from cached rows.
+// 20261118 CL/MMR SST-930 A bilag sent to the pool by mail is now read by AI scan when the pool is opened, as an upload is.
+//                 Before, it stayed unread until the user clicked "Opdatér alle" or the scan icon.
+//                 The folder sync lists the documents it gave a row (poolFolderSyncAdded()), and the page reads those once, only with "AI scan" on.
+//                 "Opdatér alle" and the new reading share poolReadDocuments().
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -769,6 +773,7 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 				'" . db_escape_string($description) . "'" . $syncContentHashSql . "
 			)$onConflictClause";
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
+			poolFolderSyncNoteAdded($file);
 		}
 	}
 	// Rows an upload's extraction created have no content hash; a batch of them gets it here (MB-42, SD-727)
@@ -906,6 +911,7 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 		$contentHashSql = ($contentHash) ? ", '" . db_escape_string($contentHash) . "'" : '';
 		$query = "INSERT INTO pool_files (filename, file_date" . $contentHashColumn . ") VALUES ('" . db_escape_string($file) . "', '" . db_escape_string($fileDate) . "'" . $contentHashSql . ")";
 		db_modify($query, __FILE__ . " line " . __LINE__);
+		poolFolderSyncNoteAdded($file);
 	}
 	// Only now is the folder as seen: every file listed has its row
 	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
@@ -922,12 +928,39 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 function poolFolderSync($docFolder, $db) {
 	$before = poolFilesSignature();
 	$restoredBefore = $GLOBALS['poolArchiveRestoredOnArrival'] ?? 0;
+	$GLOBALS['poolFolderSyncAdded'] = array();
 	// No table yet: the full sync creates it, so it runs now instead of waiting for the 10-minute window to end
 	if ($before === '') update_settings_value("skip_sync", "docs", 0, "Skip pool sync after initial run");
 	checkIfAllPoolFilesAreInDatabase();
 	syncPuljeFilesToDatabase($docFolder, $db);
+	// SST-930: with no table before, every document in the folder got its row now; they are the pool's old documents, not new arrivals to read
+	if ($before === '') $GLOBALS['poolFolderSyncAdded'] = array();
 	// SD-727: a document restored because it arrived again changes neither the row count nor the highest id
 	return poolFilesSignature() !== $before || ($GLOBALS['poolArchiveRestoredOnArrival'] ?? 0) !== $restoredBefore;
+}
+
+/**
+ * Notes a document the folder sync gave a row (SST-930). Such a document came into the folder another way than
+ * the pool page's upload, which makes its own row: by mail, as a rule.
+ *
+ * @param string $filename The document's file name in the pool folder.
+ * @return void
+ */
+function poolFolderSyncNoteAdded($filename) {
+	$GLOBALS['poolFolderSyncAdded'][(string)$filename] = true;
+}
+
+/**
+ * The documents the last poolFolderSync() gave a row (SST-930), for the page to read with AI scan.
+ * A name that is not valid UTF-8 is left out: it can't be sent in the JSON answer, and the document stays for "Opdatér alle".
+ *
+ * @return string[] File names in the pool folder.
+ */
+function poolFolderSyncAdded() {
+	$names = array_map('strval', array_keys($GLOBALS['poolFolderSyncAdded'] ?? array()));
+	return array_values(array_filter($names, function ($name) {
+		return preg_match('//u', $name) === 1;
+	}));
 }
 
 /**
@@ -4732,56 +4765,24 @@ window.extractPoolFile = function(poolFile) {
 };
 
 
-// Extract invoice data from ALL pool files
-window.extractAllPoolFiles = async function() {
-	// Every document in the list, not only the loaded pages (SD-719); archived documents are not extracted (SD-717).
-	// Only the ones not read yet: no snapshot, no amount and not corrected by hand (poolListData() unscanned=1)
-	let activeDocs = [];
-	try {
-		const listResponse = await fetch('_docPoolData.php?dir={$encodedDir}&filesOnly=1&unscanned=1', { credentials: 'same-origin' });
-		if (!listResponse.ok) {
-			throw new Error();
-		}
-		const listData = await listResponse.json();
-		if (!listData || !Array.isArray(listData.files)) {
-			throw new Error();
-		}
-		activeDocs = listData.files.map(function(name) { return { filename: name }; });
-	} catch (e) {
-		alert({$poolListErrorJs});
-		return;
-	}
-	if (activeDocs.length === 0) {
-		alert('{$txt41}');
-		return;
-	}
-	
-	const btn = document.getElementById('extractAllBtn');
-	const originalContent = btn.innerHTML;
+// Spinner and "done/total" on the "Opdatér alle" button while documents are read
+window.poolReadProgressHtml = function(processed, total) {
+	return '<svg class="icon-svg icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> <span style="font-size: 12px;">' + processed + '/' + total + '</span>';
+};
+
+// Reads the documents with AI scan and saves what was read, four at a time. The save is not marked as made by hand,
+// so a field the user corrected by hand is kept (SST-777). Used by "Opdatér alle" and, for documents that came by mail,
+// when the pool is opened (SST-930). onProgress(processed) is called after each document.
+window.poolReadDocuments = async function(files, onProgress) {
+	const queue = files.slice();
 	let processed = 0;
 	let successful = 0;
 	let failed = 0;
-	const total = activeDocs.length;
-	
-	// Disable button and show progress
-	btn.disabled = true;
-	btn.style.opacity = '0.7';
-	
-	const updateProgress = () => {
-		btn.innerHTML = '<svg class="icon-svg icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> <span style="font-size: 12px;">' + processed + '/' + total + '</span>';
-	};
-	
-	updateProgress();
-
-	
-	// Process each file sequentially
-	let queue = activeDocs.slice();
 
 	const THREADS = 4;
 	const promises = Array.from({length: THREADS}, async () => { 
-		while('undefined' !== typeof (file = queue.pop())){
-			const poolFile = file.filename;
-			
+		let poolFile;
+		while ('undefined' !== typeof (poolFile = queue.pop())) {
 			try {
 				// Extract data
 				const extractFormData = new FormData();
@@ -4840,32 +4841,72 @@ window.extractAllPoolFiles = async function() {
 				console.error('Error processing ' + poolFile + ': ' + error.message);
 			}
 			processed++;
-			updateProgress();
+			if (onProgress) onProgress(processed);
 		}
 	});
-	
-	await Promise.all(promises).then((messages) => {
-		// Restore button
-		btn.innerHTML = originalContent;
-		btn.disabled = false;
-		btn.style.opacity = '1';
-		
-		// Show summary
-		let message = '{$txt42}!';
-		message += '{$txt43}: ' + total + ' {$txt53}';
-		message += '{$txt44}: ' + successful;
-		if (failed > 0) {
-			message += '{$txt45}: ' + failed;
+	await Promise.all(promises);
+	return { successful: successful, failed: failed };
+};
+
+// Extract invoice data from ALL pool files
+window.extractAllPoolFiles = async function() {
+	// Every document in the list, not only the loaded pages (SD-719); archived documents are not extracted (SD-717).
+	// Only the ones not read yet: no snapshot, no amount and not corrected by hand (poolListData() unscanned=1)
+	let activeDocs = [];
+	try {
+		const listResponse = await fetch('_docPoolData.php?dir={$encodedDir}&filesOnly=1&unscanned=1', { credentials: 'same-origin' });
+		if (!listResponse.ok) {
+			throw new Error();
 		}
-		
-		alert(message);
-		
-		// Reload the page to show updated data
-		if (successful > 0) {
-			savePoolListView();
-			window.location.reload();
+		const listData = await listResponse.json();
+		if (!listData || !Array.isArray(listData.files)) {
+			throw new Error();
 		}
+		activeDocs = listData.files.map(function(name) { return { filename: name }; });
+	} catch (e) {
+		alert({$poolListErrorJs});
+		return;
+	}
+	if (activeDocs.length === 0) {
+		alert('{$txt41}');
+		return;
+	}
+
+	const btn = document.getElementById('extractAllBtn');
+	const originalContent = btn.innerHTML;
+	const total = activeDocs.length;
+
+	// Disable button and show progress
+	btn.disabled = true;
+	btn.style.opacity = '0.7';
+	btn.innerHTML = poolReadProgressHtml(0, total);
+
+	const counts = await poolReadDocuments(activeDocs.map(function(doc) { return doc.filename; }), function(processed) {
+		btn.innerHTML = poolReadProgressHtml(processed, total);
 	});
+	const successful = counts.successful;
+	const failed = counts.failed;
+
+	// Restore button
+	btn.innerHTML = originalContent;
+	btn.disabled = false;
+	btn.style.opacity = '1';
+
+	// Show summary
+	let message = '{$txt42}!';
+	message += '{$txt43}: ' + total + ' {$txt53}';
+	message += '{$txt44}: ' + successful;
+	if (failed > 0) {
+		message += '{$txt45}: ' + failed;
+	}
+
+	alert(message);
+
+	// Reload the page to show updated data
+	if (successful > 0) {
+		savePoolListView();
+		window.location.reload();
+	}
 };
 
 // Delete selected files
@@ -5137,12 +5178,32 @@ window.saveRowData = function(input) {
         return fetch('poolFolderSync.php', { method: 'POST', credentials: 'same-origin' });
     }).then(function (response) {
         return response.json();
-    }).then(function (result) {
+    }).then(async function (result) {
         if (!result || !result.changed) return;
         // A row being edited would lose its fields in the re-render: renderCurrentView() holds the drawing back until the edit is closed,
         // also when the edit is opened while the refreshed list is still being fetched
         poolBackgroundRefresh = true;
-        return fetchFiles();
+        await fetchFiles();
+        // SST-930: a document the folder sync gave a row came by mail, not through the upload here, so nothing read it yet.
+        // With "AI scan" on it is read now, once, as an upload is; the list is fetched again to show what was read.
+        const added = Array.isArray(result.added) ? result.added : [];
+        const btn = document.getElementById('extractAllBtn');
+        if (!added.length || !isAutoExtractEnabled() || !btn || btn.disabled) return;
+        const originalContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.innerHTML = poolReadProgressHtml(0, added.length);
+        let counts;
+        try {
+            counts = await poolReadDocuments(added, function (processed) {
+                btn.innerHTML = poolReadProgressHtml(processed, added.length);
+            });
+        } finally {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }
+        if (counts.successful > 0) return fetchFiles();
     }).catch(function () { /* the next page load checks the folder again */ }).then(function () {
         poolBackgroundRefresh = false;
     });
