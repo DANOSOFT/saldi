@@ -197,6 +197,7 @@
 //                 A rate of 0 is handled like a missing rate, so it no longer stops the page with a division by zero.
 //                 A post without a date is handled like a missing rate too, instead of comparing with an empty date.
 //                 A post amount that is not a number (NaN) counts as 0, and a post rate that is not a number gives the no-rate alert, so the sum cannot stop the page.
+//                 All invoices without a usable rate are named in one alert after the page has loaded, instead of one onload per post where only the first was shown.
 @session_start();
 $s_id = session_id();
 
@@ -6584,6 +6585,7 @@ function ordreside($id, $regnskab)
 				if ($valutakurs) $kreditmax = $kreditmax * 100 / $valutakurs;
 				$q = db_select("select * from openpost where konto_id = '" . (int)$konto_id . "' and udlignet='0'", __FILE__ . " linje " . __LINE__);
 				$tilgode = 0;
+				$noRateInvoices = array(); // invoices whose post could not be converted, shown in one alert after the loop
 				while ($r = db_fetch_array($q)) {
 					if (!$r['valuta']) $r['valuta'] = $baseCurrency;
 					if (!$r['valutakurs']) $r['valutakurs'] = 100;
@@ -6610,11 +6612,12 @@ function ordreside($id, $regnskab)
 							$opp_amount = ($valutakurs) ? $tmp * 100 / $valutakurs : $tmp; // and in the order's currency
 						}
 					} else $opp_amount = $postAmount;
-					if ($noRate && $valuta) {
-						$alertJs = htmlspecialchars(jsString(array(findtekst('1850|Ingen valutakurs for faktura', $sprog_id), ' ', (string)$r['faktnr'])), ENT_QUOTES, 'UTF-8');
-						print "<BODY onLoad=\"javascript:alert($alertJs)\">\n";
-					}
+					if ($noRate && $valuta) $noRateInvoices[] = (string)$r['faktnr'];
 					$tilgode = $tilgode + $opp_amount;
+				}
+				if ($noRateInvoices) {
+					$alertJs = jsString(array(findtekst('1850|Ingen valutakurs for faktura', $sprog_id), ' ', implode(', ', $noRateInvoices)));
+					print "<script>window.addEventListener('load', function () { alert($alertJs); });</script>\n";
 				}
 				if ($kreditmax < $ialt + $tilgode) {
 					$tmp = dkdecimal(($ialt + $tilgode) - $kreditmax, 2);
