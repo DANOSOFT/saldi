@@ -2,14 +2,16 @@
 // tests/characterization/includes/support/run_formular_fax_to_mobile.php
 //
 // Child-process runner for the SST-898 login step (FormularFaxToMobileLoginTest). Each run is one login with its
-// own PostgreSQL session. It runs the SST-898 lines of includes/betweenUpdates.php as they stand, with only
-// db_select(), db_fetch_array(), db_modify() and db_escape_string() defined, and records every write.
+// own PostgreSQL session. It runs the SST-898 lines of includes/betweenUpdates.php as they stand, with
+// db_select(), db_fetch_array(), db_modify() and db_escape_string() defined here (every write is recorded) and the
+// real includes/std_func.php loaded, as index/login.php and debitor/pos_ordre.php load it before betweenUpdates.php.
 //
 // Usage: php run_formular_fax_to_mobile.php <db>
 // Prints a single JSON object on the last line of stdout: {"writes": [<SQL of each write>]} or {"error": "..."}.
 //
 // History:
 // 20261118 CL/MMR SST-898 (review 4) Created.
+// 20261118 CL/MMR SST-898 (review 5) Loads the real includes/std_func.php (if_array()).
 
 if ($argc < 2) {
     fwrite(STDERR, "usage: php run_formular_fax_to_mobile.php <db>\n");
@@ -59,6 +61,7 @@ function db_escape_string($value) {
 $repo = dirname(__DIR__, 4);
 $out = [];
 try {
+    require_once "$repo/includes/std_func.php";
     $db_type = 'postgresql';
     $source = (string)file_get_contents("$repo/includes/betweenUpdates.php");
     $pattern = "~require_once __DIR__ \\. '/opdat_func/formularFaxToMobile\\.php';\\s*formularFaxToMobile\\(\\);\\s*formularFaxToMobileTekster\\(\\);~";

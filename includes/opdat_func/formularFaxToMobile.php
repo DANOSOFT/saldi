@@ -27,6 +27,7 @@
 //                 Morten chose the label on 2026-11-13: «Bare "Mobilnr."».
 // 20261118 CL/MMR SST-898 (review 4) A login on an account without the formularer or tekster table skips that step instead of failing, and runs it once the table exists.
 //                 The old default texts are deleted here (formularFaxToMobileTekster()) and only when one is still stored, so a login with nothing left to change writes nothing.
+// 20261118 CL/MMR SST-898 (review 5) The stored texts per id and language are looked up with if_array() (includes/std_func.php, loaded by every caller of betweenUpdates.php).
 
 if (!function_exists('formular_fax_to_mobile_text')) {
 	/**
@@ -138,7 +139,7 @@ if (!function_exists('formularFaxToMobileTekster')) {
 		$found = 0;
 		foreach (formular_fax_to_mobile_stale_tekster() as $stale) {
 			list($tekstId, $sprogId, $oldTexts) = $stale;
-			if (array_intersect($oldTexts, isset($stored["$tekstId/$sprogId"]) ? $stored["$tekstId/$sprogId"] : array())) {
+			if (array_intersect($oldTexts, if_array($stored, "$tekstId/$sprogId"))) {
 				require_once __DIR__ . '/deleteStaleTekst.php';
 				deleteStaleTekst($tekstId, $oldTexts, $sprogId);
 				$found++;
