@@ -6,6 +6,7 @@
 //                 The test's db_modify() acts like the production one for an update file: a failed statement is logged, rolled back to a savepoint and reported as accepted.
 // 20261118 CL/MMR SD-815 Codex round 9: two connections, a pool save committing while the backfill update waits for its row lock is kept (amount and norm_amount together, or the text alone, filled on the next run).
 // 20261118 CL/MMR SD-815 Codex round 10: the test's db_select()/db_modify() rewrite ' like ' to ' ilike ' as the production PostgreSQL branch does, and amount texts with ' like ', quotes and ';' are filled.
+// 20261118 CL/MMR SD-815 Codex round 11: the test's db_select() returns false on an error, as the production one does; a pending-row read cancelled by a real lock timeout leaves no flag, and the next run fills the row.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -39,10 +40,22 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $GLOBALS['ensurePoolFilesErrors'] = [];
         if (!function_exists('db_select')) {
             function db_select($sql, $location = '') {
-                $sql = str_replace(' like ', ' ilike ', $sql); // as includes/db_query.php does on PostgreSQL
-                $result = pg_query($GLOBALS['ensurePoolFilesConnection'], $sql);
+                // As includes/db_query.php on PostgreSQL: ' like ' becomes ' ilike ', and an error is logged and returns false.
+                $sql = str_replace(' like ', ' ilike ', $sql);
+                $connection = $GLOBALS['ensurePoolFilesConnection'];
+                $inTransaction = pg_transaction_status($connection) === PGSQL_TRANSACTION_INTRANS;
+                if ($inTransaction) {
+                    pg_query($connection, 'SAVEPOINT db_select');
+                }
+                $result = @pg_query($connection, $sql);
                 if ($result === false) {
-                    throw new RuntimeException(pg_last_error($GLOBALS['ensurePoolFilesConnection']));
+                    $GLOBALS['ensurePoolFilesErrors'][] = pg_last_error($connection);
+                    if ($inTransaction) {
+                        pg_query($connection, 'ROLLBACK TO SAVEPOINT db_select');
+                    }
+                }
+                if ($inTransaction) {
+                    pg_query($connection, 'RELEASE SAVEPOINT db_select');
                 }
                 return $result;
             }
@@ -452,5 +465,29 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $GLOBALS['ensurePoolFilesWrites'] = [];
         self::assertSame([], ensurePoolFilesSchema('postgresql'));
         self::assertSame([], $GLOBALS['ensurePoolFilesWrites']);
+    }
+
+    public function testAPendingReadCancelledByALockTimeoutLeavesNoFlag(): void
+    {
+        $this->committedPoolWithPendingRow();
+        // The other session holds pool_files; this one gives up after 200 ms, so the pending-row reads really fail.
+        self::assertNotFalse(pg_query($this->other, 'BEGIN'));
+        self::assertNotFalse(pg_query($this->other, 'LOCK TABLE pool_files IN ACCESS EXCLUSIVE MODE'));
+        $this->sql("SET lock_timeout = '200ms'");
+
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+
+        self::assertNotSame([], $GLOBALS['ensurePoolFilesErrors'], 'the read really failed');
+        self::assertStringContainsString('lock timeout', implode(' ', $GLOBALS['ensurePoolFilesErrors']));
+        self::assertSame(0, $this->backfillFlags(), 'a failed read is not «nothing left»');
+        self::assertSame('0', pg_fetch_result($this->sql("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid()"), 0, 0), 'the advisory lock was released');
+
+        pg_query($this->other, 'ROLLBACK');
+        $this->sql('RESET lock_timeout');
+        $GLOBALS['ensurePoolFilesErrors'] = [];
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
+        self::assertSame(['amount' => '99,00', 'norm_amount' => '99.000'], $this->oldRow());
+        self::assertSame(1, $this->backfillFlags());
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
     }
 }

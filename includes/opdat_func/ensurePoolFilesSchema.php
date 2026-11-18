@@ -30,6 +30,7 @@
 //                 The backfill flag is set only when a re-read finds no row left to fill (db_modify() reports a failed write from an update file as accepted), and an amount numeric(15,3) cannot hold stays NULL like an unparseable one.
 // 20261118 CL/MMR SD-815 Codex round 9: a backfill update only writes while norm_amount is still NULL and amount is still the text it was computed from, so a pool save that commits meanwhile is never overwritten.
 // 20261118 CL/MMR SD-815 Codex round 10: the text is compared by the md5 the database computes, never put into the SQL (db_modify() turns ' like ' into ' ilike ' inside literals, and injecttjek() reads quotes and ';').
+// 20261118 CL/MMR SD-815 Codex round 11: a read that fails (db_select() returns false, e.g. a lock timeout) means «unknown», never «nothing to do»: the run stops without DDL or flag and the next login tries again.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -63,6 +64,29 @@ if (!defined('ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY')) {
 	define('ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY', "SELECT var_value FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled' AND var_grp = 'system'");
 }
 
+if (!class_exists('EnsurePoolFilesSchemaUnknown', false)) {
+	/** A read ensurePoolFilesSchema() depends on failed; the run stops and the next login tries again. */
+	class EnsurePoolFilesSchemaUnknown extends RuntimeException {}
+}
+
+if (!function_exists('ensurePoolFilesSelect')) {
+	/**
+	 * db_select() that tells a failed read from an empty one: it returns false on an error (logged by db_select()).
+	 *
+	 * @param string $sql
+	 * @param int    $line Caller's line, for the log.
+	 * @return mixed The result.
+	 * @throws EnsurePoolFilesSchemaUnknown When the read failed.
+	 */
+	function ensurePoolFilesSelect(string $sql, int $line) {
+		$result = db_select($sql, __FILE__ . " linje " . $line);
+		if ($result === false) {
+			throw new EnsurePoolFilesSchemaUnknown('pool_files schema read failed at line ' . $line);
+		}
+		return $result;
+	}
+}
+
 if (!function_exists('ensurePoolFilesBackfillValue')) {
 	/**
 	 * The norm_amount a row's amount text gives, as SQL, or null when there is none to store: not parseable
@@ -87,10 +111,11 @@ if (!function_exists('ensurePoolFilesBackfillPending')) {
 	 * computed by the database (32 hex digits, so it is safe in SQL whatever the text holds), and the SQL value.
 	 *
 	 * @return array<int, array{amountMd5: string, value: string}>
+	 * @throws EnsurePoolFilesSchemaUnknown When the read failed (never mistaken for «nothing left»).
 	 */
 	function ensurePoolFilesBackfillPending(): array {
 		$pending = array();
-		$q = db_select("SELECT id, amount, md5(amount) AS amount_md5 FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __FILE__ . " linje " . __LINE__);
+		$q = ensurePoolFilesSelect("SELECT id, amount, md5(amount) AS amount_md5 FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$value = ensurePoolFilesBackfillValue($r['amount']);
 			$md5 = strtolower((string)($r['amount_md5'] ?? ''));
@@ -109,12 +134,13 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 	 *
 	 * @param string $db_type
 	 * @return array{columns: list<string>, uniqueFilename: bool, deferrableFilename: list<string>, normAmountIndex: bool, normAmountBackfilled: bool}|null
+	 * @throws EnsurePoolFilesSchemaUnknown When a read failed.
 	 */
 	function ensurePoolFilesSchemaState(string $db_type): ?array {
 		$mysql = in_array($db_type, array('mysql', 'mysqli'), true);
 		$schema = $mysql ? 'DATABASE()' : 'current_schema()';
 		$present = array();
-		$q = db_select("SELECT column_name FROM information_schema.columns WHERE table_schema = $schema AND table_name = 'pool_files'", __FILE__ . " linje " . __LINE__);
+		$q = ensurePoolFilesSelect("SELECT column_name FROM information_schema.columns WHERE table_schema = $schema AND table_name = 'pool_files'", __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$present[strtolower((string)($r['column_name'] ?? $r['COLUMN_NAME'] ?? ''))] = true;
 		}
@@ -150,17 +176,17 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 		}
 		$deferrableNames = array();
 		if (!$mysql) {
-			$q = db_select($deferrable, __FILE__ . " linje " . __LINE__);
+			$q = ensurePoolFilesSelect($deferrable, __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$deferrableNames[] = (string)$r['conname'];
 			}
 		}
 		return array(
 			'columns' => $missing,
-			'uniqueFilename' => !$deferrableNames && (bool)db_fetch_array(db_select($unique, __FILE__ . " linje " . __LINE__)),
+			'uniqueFilename' => !$deferrableNames && (bool)db_fetch_array(ensurePoolFilesSelect($unique, __LINE__)),
 			'deferrableFilename' => $deferrableNames,
-			'normAmountIndex' => in_array('norm_amount', $missing, true) ? false : (bool)db_fetch_array(db_select($normIndex, __FILE__ . " linje " . __LINE__)),
-			'normAmountBackfilled' => (bool)db_fetch_array(db_select(ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY, __FILE__ . " linje " . __LINE__)),
+			'normAmountIndex' => in_array('norm_amount', $missing, true) ? false : (bool)db_fetch_array(ensurePoolFilesSelect($normIndex, __LINE__)),
+			'normAmountBackfilled' => (bool)db_fetch_array(ensurePoolFilesSelect(ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY, __LINE__)),
 		);
 	}
 }
@@ -179,6 +205,25 @@ if (!function_exists('ensurePoolFilesSchema')) {
 	 *   empty when nothing.
 	 */
 	function ensurePoolFilesSchema(string $db_type): array {
+		$done = array();
+		try {
+			return ensurePoolFilesSchemaRun($db_type, $done);
+		} catch (EnsurePoolFilesSchemaUnknown $e) {
+			return $done; // a read failed: no flag, nothing more this time; the next login tries again
+		}
+	}
+}
+
+if (!function_exists('ensurePoolFilesSchemaRun')) {
+	/**
+	 * ensurePoolFilesSchema()'s work; $done collects what was done so far, also when a read fails halfway.
+	 *
+	 * @param string       $db_type
+	 * @param list<string> $done
+	 * @return list<string>
+	 * @throws EnsurePoolFilesSchemaUnknown When a read failed.
+	 */
+	function ensurePoolFilesSchemaRun(string $db_type, array &$done): array {
 		$state = ensurePoolFilesSchemaState($db_type);
 		if ($state === null || (!$state['columns'] && $state['uniqueFilename'] && $state['normAmountIndex'] && $state['normAmountBackfilled'])) {
 			return array();
@@ -186,16 +231,15 @@ if (!function_exists('ensurePoolFilesSchema')) {
 		$mysql = in_array($db_type, array('mysql', 'mysqli'), true);
 		if ($mysql) {
 			$lockName = "CONCAT('saldi:pool_files_schema:', MD5(DATABASE()))";
-			$locked = db_fetch_array(db_select("SELECT GET_LOCK($lockName, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			$locked = db_fetch_array(ensurePoolFilesSelect("SELECT GET_LOCK($lockName, 30) AS acquired", __LINE__));
 			if ((int)($locked['acquired'] ?? 0) !== 1) {
 				return array(); // another login holds it; the next login checks again
 			}
 			$unlock = "SELECT RELEASE_LOCK($lockName)";
 		} else {
-			db_select("SELECT pg_advisory_lock(hashtext('saldi:pool_files_schema'))", __FILE__ . " linje " . __LINE__);
+			ensurePoolFilesSelect("SELECT pg_advisory_lock(hashtext('saldi:pool_files_schema'))", __LINE__);
 			$unlock = "SELECT pg_advisory_unlock(hashtext('saldi:pool_files_schema'))";
 		}
-		$done = array();
 		try {
 			$state = ensurePoolFilesSchemaState($db_type);
 			if ($state === null) {
@@ -219,7 +263,7 @@ if (!function_exists('ensurePoolFilesSchema')) {
 					// The usual name may already belong to an index that does not count (a partial one); then use another.
 					// An immediate one may already exist next to a dropped deferrable one; then nothing more is needed.
 					if (!ensurePoolFilesSchemaState($db_type)['uniqueFilename']) {
-						$taken = db_fetch_array(db_select("SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'pool_files_filename_uidx' AND n.nspname = current_schema()", __FILE__ . " linje " . __LINE__));
+						$taken = db_fetch_array(ensurePoolFilesSelect("SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'pool_files_filename_uidx' AND n.nspname = current_schema()", __LINE__));
 						$name = $taken ? 'pool_files_filename_full_uidx' : 'pool_files_filename_uidx';
 						db_modify("CREATE UNIQUE INDEX $name ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
 					}
@@ -244,6 +288,7 @@ if (!function_exists('ensurePoolFilesSchema')) {
 				if (ensurePoolFilesBackfillPending()) {
 					return $done;
 				}
+				// (A failed pending read throws EnsurePoolFilesSchemaUnknown, so reaching here means: really nothing left.)
 				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description, user_id) VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes', 'One-time backfill of pool_files.norm_amount from the legacy amount text column', 0)", __FILE__ . " linje " . __LINE__);
 				$done[] = 'norm_amount_backfill';
 			}
