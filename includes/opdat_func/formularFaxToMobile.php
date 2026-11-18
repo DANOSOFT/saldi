@@ -29,6 +29,7 @@
 //                 The old default texts are deleted here (formularFaxToMobileTekster()) and only when one is still stored, so a login with nothing left to change writes nothing.
 // 20261118 CL/MMR SST-898 (review 5) The stored texts per id and language are looked up with if_array() (includes/std_func.php, loaded by every caller of betweenUpdates.php).
 // 20261118 CL/MMR SST-898 (review 7) A form is only rewritten while it still holds the text and language that were read, so a form saved in between is kept.
+// 20261118 CL/MMR SST-898 (review 8) The old and new form texts are sent hex-encoded on PostgreSQL, so db_modify()'s " like " to " ilike " rewrite cannot change them.
 
 if (!function_exists('formular_fax_to_mobile_text')) {
 	/**
@@ -95,6 +96,25 @@ if (!function_exists('formular_fax_to_mobile_has_table')) {
 	}
 }
 
+if (!function_exists('formular_fax_to_mobile_literal')) {
+	/**
+	 * A text as an SQL value that db_modify()/db_select() cannot alter. On PostgreSQL those wrappers turn every " like "
+	 * in the statement into " ilike ", also inside a quoted text, so the text is sent hex-encoded and decoded with the
+	 * connection's own client encoding (UTF8 or LATIN9), which gives the same value as a quoted literal. MySQL/MariaDB
+	 * statements are not rewritten, so there it is an ordinary escaped literal.
+	 *
+	 * @param string $value The text.
+	 * @return string The SQL expression.
+	 */
+	function formular_fax_to_mobile_literal($value) {
+		global $db_type;
+		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
+			return "'" . db_escape_string((string)$value) . "'";
+		}
+		return "convert_from(decode('" . bin2hex((string)$value) . "', 'hex'), pg_client_encoding())";
+	}
+}
+
 if (!function_exists('formular_fax_to_mobile_same')) {
 	/**
 	 * A WHERE condition that holds while the column still has exactly the value read earlier: IS NULL for a NULL,
@@ -112,7 +132,7 @@ if (!function_exists('formular_fax_to_mobile_same')) {
 			return "$column IS NULL";
 		}
 		$target = in_array($db_type, array('mysql', 'mysqli'), true) ? "CAST($column AS BINARY)" : $column;
-		return "$target = '" . db_escape_string((string)$value) . "'";
+		return "$target = " . formular_fax_to_mobile_literal($value);
 	}
 }
 
@@ -177,7 +197,8 @@ if (!function_exists('formularFaxToMobile')) {
 	 * Runs from includes/betweenUpdates.php at every login: it reads only rows that mention "fax", and a
 	 * rewritten row no longer holds a fax variable, so a second run (or a concurrent login) changes nothing.
 	 * The UPDATE only applies while the row still holds the text and language it was computed from, so a form
-	 * saved in the form editor between the read and the write is kept; the next login looks at it again.
+	 * saved in the form editor between the read and the write is kept; the next login looks at it again. Both texts go
+	 * through formular_fax_to_mobile_literal(), so a form with " like " in it is compared and saved unchanged.
 	 * An account without the formularer table is skipped and no flag is set, so a later login rewrites the texts.
 	 *
 	 * @return int The number of form texts changed: rows that hold the rewritten text after the UPDATE.
@@ -194,7 +215,7 @@ if (!function_exists('formularFaxToMobile')) {
 				continue;
 			}
 			$id = (int)$r['id'];
-			db_modify("UPDATE formularer SET beskrivelse = '" . db_escape_string($new) . "' WHERE id = '$id' AND "
+			db_modify("UPDATE formularer SET beskrivelse = " . formular_fax_to_mobile_literal($new) . " WHERE id = '$id' AND "
 				. formular_fax_to_mobile_same('beskrivelse', $r['beskrivelse']) . " AND " . formular_fax_to_mobile_same('sprog', $r['sprog']),
 				__FILE__ . " linje " . __LINE__);
 			$check = db_fetch_array(db_select("SELECT beskrivelse FROM formularer WHERE id = '$id'", __FILE__ . " linje " . __LINE__));

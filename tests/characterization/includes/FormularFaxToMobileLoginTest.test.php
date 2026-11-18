@@ -13,6 +13,8 @@ require_once __DIR__ . '/../../../includes/std_func.php';
 //                 Each login is a child process (support/run_formular_fax_to_mobile.php) that runs the lines from includes/betweenUpdates.php.
 // 20261118 CL/MMR SST-898 (review 6) The runner's error message is read with ifset().
 // 20261118 CL/MMR SST-898 (review 7) A form saved by another session between the migration's read and its write is kept; the next login migrates it if it still holds a fax variable.
+// 20261118 CL/MMR SST-898 (review 8) With the real includes/db_query.php wrappers: a form with " like " in its prose is migrated with the prose intact, and a form
+//                 saved by another session while the migration waits for its row lock is kept, also when the saved text differs from the read one only by "like"/"ilike".
 final class FormularFaxToMobileLoginTest extends TestCase
 {
     private ?TestDatabase $database = null;
@@ -137,6 +139,27 @@ final class FormularFaxToMobileLoginTest extends TestCase
         self::assertSame('Mobilnr.: $egen_mobile', CharacterizationEnv::one($this->db, 'SELECT beskrivelse FROM formularer')['beskrivelse']);
     }
 
+    public function testTheRealWrapperKeepsProseWithLikeInIt(): void
+    {
+        $this->createForms([['English', 'Fax: $egen_fax; Customers like this wording'], ['Dansk', 'Fax: $egen_fax']]);
+        self::assertSame(['forms' => 2, 'texts' => 0], $this->productionLogin());
+        self::assertSame([['English', 'Mobile: $egen_mobile; Customers like this wording'], ['Dansk', 'Mobilnr.: $egen_mobile']], $this->forms());
+        self::assertSame(['forms' => 0, 'texts' => 0], $this->productionLogin());
+    }
+
+    public function testTheRealWrapperKeepsAFormSavedWhileTheMigrationWaits(): void
+    {
+        $this->createForms([['English', 'Fax: $egen_fax; Customers like this wording'], ['Dansk', 'Fax: $egen_fax']]);
+        $first = (int)CharacterizationEnv::one($this->db, 'SELECT MIN(id) AS id FROM formularer')['id'];
+        // the saved text differs from the read one only by "ilike", which the wrapper's rewrite would produce
+        $result = $this->productionLoginWhileAnotherSessionSaves($first, 'Fax: $egen_fax; Customers ilike this wording');
+        self::assertSame(['forms' => 1, 'texts' => 0], $result, 'only the row nobody else saved counts');
+        self::assertSame([['English', 'Fax: $egen_fax; Customers ilike this wording'], ['Dansk', 'Mobilnr.: $egen_mobile']], $this->forms());
+        // the next login migrates the saved form, which still holds a fax variable
+        self::assertSame(['forms' => 1, 'texts' => 0], $this->productionLogin());
+        self::assertSame([['English', 'Mobile: $egen_mobile; Customers ilike this wording'], ['Dansk', 'Mobilnr.: $egen_mobile']], $this->forms());
+    }
+
     /** @param list<array{string, string}> $rows sprog, beskrivelse */
     private function createForms(array $rows = [['Dansk', 'Fax: $egen_fax']]): void
     {
@@ -173,7 +196,7 @@ final class FormularFaxToMobileLoginTest extends TestCase
      */
     private function loginWithSave(string $text): array
     {
-        $res = CharacterizationEnv::runChild(__DIR__ . '/support/run_formular_fax_to_mobile.php', [$this->database->name(), $text]);
+        $res = CharacterizationEnv::runChild(__DIR__ . '/support/run_formular_fax_to_mobile.php', [$this->database->name(), 'stub', $text]);
         $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
         $json = $lines !== [] ? json_decode(end($lines), true) : null;
         self::assertIsArray($json, "runner must emit JSON (stdout: {$res['stdout']} stderr: {$res['stderr']})");
@@ -181,10 +204,57 @@ final class FormularFaxToMobileLoginTest extends TestCase
         return $json;
     }
 
+    /** One login with the real includes/db_query.php wrappers. @return array{forms: int, texts: int} */
+    private function productionLogin(): array
+    {
+        $res = CharacterizationEnv::runChild(__DIR__ . '/support/run_formular_fax_to_mobile.php', [$this->database->name(), 'production']);
+        return $this->runnerResult($res['stdout'], $res['stderr']);
+    }
+
+    /**
+     * One login with the real wrappers while another session saves $text into form $id: that session updates the row
+     * in an open transaction, the login reads the old text and its UPDATE waits for the row lock, and the other
+     * session commits once the UPDATE is waiting. @return array{forms: int, texts: int}
+     */
+    private function productionLoginWhileAnotherSessionSaves(int $id, string $text): array
+    {
+        $other = CharacterizationEnv::connect($this->database->name());
+        CharacterizationEnv::rows($other, 'BEGIN');
+        CharacterizationEnv::rows($other, 'UPDATE formularer SET beskrivelse = $1 WHERE id = $2', [$text, $id]);
+        $errFile = tmpfile();
+        $proc = proc_open([PHP_BINARY, __DIR__ . '/support/run_formular_fax_to_mobile.php', $this->database->name(), 'production'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => $errFile], $pipes);
+        self::assertIsResource($proc, 'could not start the login');
+        fclose($pipes[0]);
+        $waiting = null;
+        for ($deadline = microtime(true) + 20; $waiting === null && microtime(true) < $deadline; usleep(50000)) {
+            $waiting = CharacterizationEnv::one($this->db, "SELECT pid FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'UPDATE formularer%'");
+        }
+        CharacterizationEnv::rows($other, 'COMMIT');
+        pg_close($other);
+        $stdout = (string)stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($proc);
+        rewind($errFile);
+        $stderr = (string)stream_get_contents($errFile);
+        fclose($errFile);
+        self::assertNotNull($waiting, "the login's UPDATE never waited for the other session (stdout: $stdout stderr: $stderr)");
+        return $this->runnerResult($stdout, $stderr);
+    }
+
+    /** @return array<string, mixed> the runner's JSON line */
+    private function runnerResult(string $stdout, string $stderr): array
+    {
+        $lines = array_values(array_filter(explode("\n", trim($stdout))));
+        $json = $lines !== [] ? json_decode(end($lines), true) : null;
+        self::assertIsArray($json, "runner must emit JSON (stdout: $stdout stderr: $stderr)");
+        self::assertArrayNotHasKey('error', $json, (string)ifset($json, 'error', ''));
+        return $json;
+    }
+
     /** One login: a child process with its own database session. @return list<string> the SQL it wrote */
     private function login(): array
     {
-        $res = CharacterizationEnv::runChild(__DIR__ . '/support/run_formular_fax_to_mobile.php', [$this->database->name()]);
+        $res = CharacterizationEnv::runChild(__DIR__ . '/support/run_formular_fax_to_mobile.php', [$this->database->name(), 'stub']);
         $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
         $json = $lines !== [] ? json_decode(end($lines), true) : null;
         self::assertIsArray($json, "runner must emit JSON (stdout: {$res['stdout']} stderr: {$res['stderr']})");
