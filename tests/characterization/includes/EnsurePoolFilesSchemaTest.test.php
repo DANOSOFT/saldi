@@ -1,6 +1,7 @@
 <?php
 // 20261118 CL/MMR SD-815 Created. pool_files of a regnskab created at 5.1 (includes/opretfunc.php before this fix) gets norm_amount, the other later columns and a unique filename at login (includes/opdat_func/ensurePoolFilesSchema.php).
 //                 So the pool writers' INSERT ... ON CONFLICT (filename) works, and a new regnskab gets that schema at once. Real PostgreSQL, private schema.
+// 20261118 CL/MMR SD-815 Codex round 7: a partial unique index on filename does not count, and an interrupted norm_amount backfill is finished by the next run.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -51,6 +52,12 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $schema = 'pool_schema_' . bin2hex(random_bytes(8));
         $this->sql("CREATE SCHEMA $schema");
         $this->sql("SET LOCAL search_path TO $schema");
+        $this->sql('CREATE TABLE settings (id serial PRIMARY KEY, var_name text, var_grp text, var_value text, var_description text, user_id integer, group_id integer, pos_id integer)');
+    }
+
+    private function backfillFlags(): int
+    {
+        return (int) pg_fetch_result($this->sql("SELECT count(*) FROM settings WHERE var_grp = 'system' AND var_name = 'pool_files_norm_amount_backfilled'"), 0, 0);
     }
 
     protected function tearDown(): void
@@ -95,6 +102,8 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertContains('norm_amount', $done);
         self::assertContains('unique_filename', $done);
         self::assertContains('norm_amount_index', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame(1, $this->backfillFlags());
         foreach (array_keys(ensurePoolFilesSchemaColumns()) as $column) {
             self::assertContains($column, $this->columns(), "$column added");
         }
@@ -123,7 +132,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
             manually_edited boolean NOT NULL DEFAULT false, currency varchar(10), updated timestamp DEFAULT CURRENT_TIMESTAMP,
             vendor_name text, vendor_cvr varchar(20), vendor_iban varchar(40), vendor_konto_id integer, vendor_match varchar(10),
             vendor_score numeric(4,3), content_sha256 char(64), source_sha256 char(64))");
-        self::assertSame(['norm_amount_index'], ensurePoolFilesSchema('postgresql'));
+        self::assertSame(['norm_amount_index', 'norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
         self::assertSame([], ensurePoolFilesSchema('postgresql'));
         $unique = pg_fetch_all_columns($this->sql("SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexdef ILIKE '%UNIQUE%(filename)%' ORDER BY 1"));
         self::assertSame(['pool_files_filename_key'], $unique, 'no second unique index on filename');
@@ -146,11 +155,63 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $id_column = 'id SERIAL NOT NULL';
         eval(substr($source, $start, $end - $start));
 
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'), 'a new regnskab has the schema; only the (empty) backfill is recorded once');
         $GLOBALS['ensurePoolFilesWrites'] = [];
-        self::assertSame([], ensurePoolFilesSchema('postgresql'), 'a new regnskab already has everything');
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+        self::assertSame([], $GLOBALS['ensurePoolFilesWrites']);
         $this->poolInsert('first.pdf', '125,00', str_repeat('b', 64));
         $this->poolInsert('first.pdf', '125,00', str_repeat('b', 64));
         self::assertSame('1', pg_fetch_result($this->sql('SELECT count(*) FROM pool_files'), 0, 0));
         self::assertSame('f', pg_fetch_result($this->sql('SELECT manually_edited FROM pool_files'), 0, 0));
+    }
+
+    public function testAPartialUniqueIndexOnFilenameDoesNotCount(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql("CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename) WHERE filename LIKE '%.xml'");
+        $failed = @pg_query($this->connection, "SAVEPOINT partial; INSERT INTO pool_files (filename) VALUES ('x.xml') ON CONFLICT (filename) DO NOTHING");
+        self::assertFalse($failed, 'a partial index cannot serve ON CONFLICT (filename)');
+        $this->sql('ROLLBACK TO SAVEPOINT partial');
+
+        $done = ensurePoolFilesSchema('postgresql');
+
+        self::assertContains('unique_filename', $done);
+        $this->poolInsert('semantic-invoice.xml', '125,00', str_repeat('c', 64));
+        $this->poolInsert('semantic-invoice.xml', '125,00', str_repeat('c', 64));
+        self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'semantic-invoice.xml'"), 0, 0));
+        self::assertSame(['pool_files_filename_full_uidx', 'pool_files_filename_uidx'],
+            pg_fetch_all_columns($this->sql("SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexdef ILIKE '%UNIQUE%(filename)%' ORDER BY 1")));
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+    }
+
+    public function testAnInterruptedBackfillIsFinishedByTheNextRun(): void
+    {
+        // The state after a run that added the column and the indexes but stopped before the backfill finished.
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('ALTER TABLE pool_files ADD COLUMN norm_amount numeric(15,3), ADD COLUMN manually_edited boolean NOT NULL DEFAULT false,
+            ADD COLUMN source_sha256 char(64), ADD COLUMN vendor_name text, ADD COLUMN vendor_cvr varchar(20), ADD COLUMN vendor_iban varchar(40),
+            ADD COLUMN vendor_konto_id integer, ADD COLUMN vendor_score numeric(4,3), ADD COLUMN vendor_match varchar(10)');
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)');
+        $this->sql('CREATE INDEX idx_pool_files_norm_amount ON pool_files (norm_amount)');
+        $this->sql("INSERT INTO pool_files (filename, amount, norm_amount) VALUES ('old.pdf', '99,00', NULL), ('done.pdf', '5,00', 5), ('text.pdf', 'ukendt', NULL)");
+        self::assertSame(0, $this->backfillFlags());
+
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame([['filename' => 'done.pdf', 'norm_amount' => '5.000'], ['filename' => 'old.pdf', 'norm_amount' => '99.000'], ['filename' => 'text.pdf', 'norm_amount' => null]],
+            pg_fetch_all($this->sql('SELECT filename, norm_amount FROM pool_files ORDER BY filename')));
+        self::assertSame(1, $this->backfillFlags());
+        $GLOBALS['ensurePoolFilesWrites'] = [];
+        self::assertSame([], ensurePoolFilesSchema('postgresql'), 'the next run makes no writes');
+        self::assertSame([], $GLOBALS['ensurePoolFilesWrites']);
+    }
+
+    public function testARegnskabThatRanTheOldBackfillIsNotScannedAgain(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes', 'opdat_5.0.php')");
+        $done = ensurePoolFilesSchema('postgresql');
+        self::assertNotContains('norm_amount_backfill', $done);
+        self::assertSame(1, $this->backfillFlags());
     }
 }
