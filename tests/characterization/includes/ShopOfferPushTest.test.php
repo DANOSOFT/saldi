@@ -48,7 +48,8 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  *                through the tail.
  * 20261118 CL/LH Codex verification 9: a gzip refusal is never an acceptance and a completed empty answer still is, on all three
  *                transports (curl_multi, curl alone, the shell); a lost, unreadable or shortened shell answer file is a transport
- *                failure.
+ *                failure. * 20261118 CL/LH CodeRabbit review of 63cf3d3f2: each transport leg asserts the transport the tick used; a barcode with an apostrophe
+ *                reaches the shops from the bulk page.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -549,6 +550,7 @@ SH);
 			self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'longRefusal' => true]]));
 			$out = self::runner(['tick', (string)$t, '10'], $php);
 			self::uncontrol('rules');
+			self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
 			self::assertSame([2, 1, 0], self::outcomes($out), "$transport: shop 2 refused, the others accepted: " . json_encode($out));
 			$shop2 = self::stateByShop($id)['shop 2'];
 			self::assertSame([null, 1], [$shop2['confirmed'], $shop2['refusals']], "$transport: shop 2 is not booked as holding the offer");
@@ -565,6 +567,7 @@ SH);
 			self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'pad' => 1048576]]));
 			$out = self::runner(['tick', (string)$t, '10'], $php);
 			self::uncontrol('rules');
+			self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
 			self::assertSame([2, 0, 1], self::outcomes($out), "$transport: shop 2's answer was cut, so not judged: " . json_encode($out));
 			$shop2 = self::stateByShop($id)['shop 2'];
 			self::assertSame([null, 1], [$shop2['confirmed'], $shop2['attempts']], "$transport: retried as a failed send");
@@ -585,6 +588,7 @@ SH);
 			self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'longRefusal' => true, 'gzip' => true]]));
 			$out = self::runner(['tick', (string)$t, '10'], $php);
 			self::uncontrol('rules');
+			self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
 			$expected = $transport === 'shell' ? [2, 0, 1] : [2, 1, 0];
 			self::assertSame($expected, self::outcomes($out), "$transport: shop 2's gzip refusal: " . json_encode($out));
 			self::assertNull(self::stateByShop($id)['shop 2']['confirmed'], "$transport: shop 2 is not booked as holding the offer");
@@ -607,6 +611,7 @@ SH);
 			self::control('rules', json_encode([['item' => $itemNo, 'empty' => true]]));
 			$out = self::runner(['tick', (string)$t, '10'], $php);
 			self::uncontrol('rules');
+			self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
 			self::assertSame([3, 0, 0], self::outcomes($out), "$transport: " . json_encode($out));
 		}
 	}
@@ -628,6 +633,7 @@ SH);
 				$out = self::runner(['tick', (string)$t, '10'], self::withoutCurlExtension(),
 					['PATH' => self::curlShim() . ':' . getenv('PATH'), 'SHOP_OFFER_TEST_CURL_FAULT' => $fault, 'SHOP_OFFER_TEST_CURL_DIRS' => $dirs]);
 				self::uncontrol('rules');
+				self::assertSame('shell', $out['transport'] ?? null, 'the shell transport ran');
 				self::assertSame([0, 0, 3], self::outcomes($out), "$fault: every shop's answer is a transport failure: " . json_encode($out));
 				foreach (self::stateByShop($id) as $shop => $entry) {
 					self::assertSame([null, 1], [$entry['confirmed'], $entry['attempts']], "$fault: $shop is not confirmed");
@@ -1037,6 +1043,19 @@ SH);
 		$calls = self::priceCalls($varenr, null);
 		self::assertCount(6, $calls, 'the page sent its stock and price calls to the three shops');
 		return $calls;
+	}
+
+	/** CodeRabbit on 63cf3d3f2: the bulk page passes every url to the shell through escapeshellarg(), so a barcode with an apostrophe arrives. */
+	public function testABulkSyncSendsABarcodeWithAnApostrophe(): void
+	{
+		self::withBulkSyncOf('SPBULKQ', self::offer(159.2, 3), function (int $id): void {
+			self::rows("UPDATE varer SET stregkode = $1 WHERE id = $2", ["57'01", $id]);
+			self::clearLog();
+			$page = self::startScript('run_sync_all_products_page.php', [self::sessionId()]);
+			foreach (self::bulkSyncCalls($page, 'SPBULKQ') as $sent) {
+				self::assertSame("57'01", $sent['barcode'] ?? null, 'the barcode arrives as it is stored');
+			}
+		});
 	}
 
 	public function testABulkSyncHeldBackPastUntrackingSendsTodaysPrices(): void

@@ -168,7 +168,7 @@ while ($product = db_fetch_array($products_query)) {
             if (!empty($claim['noPrices'])) { // the item could not be read again: no stock or price call for it; the reconciler sends its prices
                 // 20261118 CL/LH the SKU/cost call carries no prices, so it still goes out; the item counts as not synced, so the
                 // run ends with an error and can be run again for its stock
-                $sku_result = shell_exec("nohup curl '$sku_url' > ../temp/$db/curl_sku.txt 2>&1 &");
+                $sku_result = shell_exec("nohup curl " . escapeshellarg($sku_url) . " > ../temp/$db/curl_sku.txt 2>&1 &");
                 echo "<span style='margin-left: 40px; color: red;'>✗ Stock and price not sent: the item could not be read again (run the sync again)</span><br>";
                 fwrite($log, "    ✗ Item not read again: no stock or price call for this shop; SKU call sent\n");
                 $total_errors++;
@@ -191,9 +191,10 @@ while ($product = db_fetch_array($products_query)) {
             
             // Execute API calls: the two that carry prices at once, the logging after them
             $api_success = true;
-            $stock_cmd = "nohup curl $maxTime'$stock_url' > ../temp/$db/curl_stock.txt 2>&1 &";
+            // 20261118 CL/LH every url reaches the shell through escapeshellarg(): an apostrophe in an endpoint or a barcode ended the quoting
+            $stock_cmd = "nohup curl $maxTime" . escapeshellarg($stock_url) . " > ../temp/$db/curl_stock.txt 2>&1 &";
             $stock_result = shell_exec($stock_cmd);
-            $price_cmd = "nohup curl $maxTime'$price_url' > ../temp/$db/curl_price.txt 2>&1 &";
+            $price_cmd = "nohup curl $maxTime" . escapeshellarg($price_url) . " > ../temp/$db/curl_price.txt 2>&1 &";
             $price_result = shell_exec($price_cmd);
             fwrite($log, "    Stock URL: $stock_url\n");
             fwrite($log, "    Price URL: $price_url\n");
@@ -204,7 +205,7 @@ while ($product = db_fetch_array($products_query)) {
             fwrite($log, "    Price result: " . ($price_result ? $price_result : "No output") . "\n");
             
             // SKU update
-            $sku_cmd = "nohup curl '$sku_url' > ../temp/$db/curl_sku.txt 2>&1 &";
+            $sku_cmd = "nohup curl " . escapeshellarg($sku_url) . " > ../temp/$db/curl_sku.txt 2>&1 &";
             $sku_result = shell_exec($sku_cmd);
             fwrite($log, "    SKU command: $sku_cmd\n");
             fwrite($log, "    SKU result: " . ($sku_result ? $sku_result : "No output") . "\n");
@@ -262,13 +263,13 @@ while ($product = db_fetch_array($products_query)) {
                         $part_cost_url = "$api_url?costPrice=$part_kostpris&sku=" . urlencode($part_varenr);
                         
                         // Part stock update
-                        $part_stock_cmd = "nohup curl '$part_stock_url' > ../temp/$db/curl_part_stock.txt 2>&1 &";
+                        $part_stock_cmd = "nohup curl " . escapeshellarg($part_stock_url) . " > ../temp/$db/curl_part_stock.txt 2>&1 &";
                         $part_stock_result = shell_exec($part_stock_cmd);
                         fwrite($log, "      Part stock command: $part_stock_cmd\n");
                         fwrite($log, "      Part stock result: " . ($part_stock_result ? $part_stock_result : "No output") . "\n");
                         
                         // Part cost update
-                        $part_cost_cmd = "nohup curl '$part_cost_url' > ../temp/$db/curl_part_cost.txt 2>&1 &";
+                        $part_cost_cmd = "nohup curl " . escapeshellarg($part_cost_url) . " > ../temp/$db/curl_part_cost.txt 2>&1 &";
                         $part_cost_result = shell_exec($part_cost_cmd);
                         fwrite($log, "      Part cost command: $part_cost_cmd\n");
                         fwrite($log, "      Part cost result: " . ($part_cost_result ? $part_cost_result : "No output") . "\n");

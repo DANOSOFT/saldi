@@ -11,6 +11,7 @@ use PHPUnit\Framework\TestCase;
 //                (curl --data-urlencode key@file); a key in the query string works as before.
 //                The function is lifted from the source (including the file connects to a database) and run against stubs.
 // 20261118 CL/LH CodeRabbit review of #1157: the dispatcher runs the tick only inside the branch access_check() granted.
+//                CodeRabbit review of 63cf3d3f2: the tick is the shop_offer_tick action's own call, not merely in the branch.
 #[RunTestsInSeparateProcesses]
 final class ShopOfferTickAuthTest extends TestCase
 {
@@ -94,8 +95,11 @@ final class ShopOfferTickAuthTest extends TestCase
 		$refused = $granted === false ? false : strpos($src, '} else $value=$svar;', $granted);
 		$this->assertNotFalse($refused, 'the dispatcher\'s access branch is where it was');
 		$branch = substr($src, (int)$granted, (int)$refused - (int)$granted);
-		$this->assertStringContainsString("\$action == 'shop_offer_tick'", $branch);
-		$this->assertStringContainsString('shopOfferReconcileTick()', $branch);
+		$action = strpos($branch, "\$action == 'shop_offer_tick'");
+		$this->assertNotFalse($action, 'the action is dispatched in the granted branch');
+		$next = strpos($branch, '##############################################', (int)$action); // the separator before the next action
+		$own = substr($branch, (int)$action, ($next === false ? strlen($branch) : $next) - (int)$action);
+		$this->assertStringContainsString('shopOfferReconcileTick()', $own, 'and that action runs the tick');
 		$this->assertSame(1, substr_count($src, 'shopOfferReconcileTick('), 'and nowhere else in the file');
 	}
 

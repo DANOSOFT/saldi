@@ -43,6 +43,7 @@
 //                Codex verification 8: the tick keeps at most 1 MB of an answer (SHOP_OFFER_BODY_BYTES), and an answer cut there is a transport failure on the extension and the shell transport alike: the judge needs the whole answer to see a refusal, so a cut one never proves acceptance. The shell call no longer caps the download (--max-filesize).
 //                Codex verification 9: one rule for every tick transport (shopOfferAnswer()): a pair is confirmed only on positive evidence that the tick holds the complete, decoded answer; shopOfferSend() judges nothing else. The extension decodes every content encoding libcurl knows (an undecodable one fails the transfer), a body that is still gzip is not judged, and the shell call asks for the answer unencoded and checks its file against curl's own byte count (missing, unreadable, shortened or misread is a transport failure).
 //                A shop whose sends of a pair failed SHOP_OFFER_ALERT_REFUSALS times since its last acceptance counts as stuck too (reporting only), so a shop that is down for long or answers what the tick cannot judge raises the same alarm as one that refuses.
+//                CodeRabbit review of 63cf3d3f2: the tick's choice of transport has one owner (shopOfferTransport()), which the tests read to know which transport each leg ran.
 
 if (!defined('SHOP_OFFER_ALERT_REFUSALS')) {
 	define('SHOP_OFFER_ALERT_REFUSALS', 8);    // refusals, or transport failures, of one price pair after which a shop counts as stuck (still retried)
@@ -1579,6 +1580,21 @@ if (!function_exists('shopOfferPushStuck')) {
 	}
 }
 
+if (!function_exists('shopOfferTransport')) {
+	/**
+	 * The transport the tick sends with (shopOfferSend()): curl_multi, all shops at once, where the curl extension has it; curl,
+	 * one call after the other, where it has only curl_init; the curl command line without the extension.
+	 *
+	 * @return string 'multi', 'single' or 'shell'.
+	 */
+	function shopOfferTransport() {
+		if (function_exists('curl_init')) {
+			return function_exists('curl_multi_init') ? 'multi' : 'single';
+		}
+		return 'shell';
+	}
+}
+
 if (!function_exists('shopOfferSend')) {
 	/**
 	 * Sends one call to some shops and returns when they have answered or the deadline has passed, whichever is first.
@@ -1617,7 +1633,8 @@ if (!function_exists('shopOfferSend')) {
 			}
 			$results[$key] = $result;
 		}
-		if ($pending && function_exists('curl_multi_init') && function_exists('curl_init')) {
+		$transport = shopOfferTransport();
+		if ($pending && $transport === 'multi') {
 			$calls = shopOfferCurlMulti($pending, $deadline);
 		} else {
 			$calls = array();
@@ -1627,7 +1644,7 @@ if (!function_exists('shopOfferSend')) {
 					continue; // left untried, reported below
 				}
 				$dispatchedAt = microtime(true);
-				$calls[$key] = (function_exists('curl_init') ? shopOfferCurlOne($url, $left) : shopOfferShellOne($url, $left)) + array('dispatchedAt' => $dispatchedAt);
+				$calls[$key] = ($transport === 'single' ? shopOfferCurlOne($url, $left) : shopOfferShellOne($url, $left)) + array('dispatchedAt' => $dispatchedAt);
 			}
 		}
 		foreach ($pending as $key => $url) {
