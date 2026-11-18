@@ -15,9 +15,27 @@ require_once __DIR__ . '/../../includes/stdFunc/shopSyncQueue.php';
  */
 final class shopOfferPrice extends TestCase
 {
+	private string $timezone = '';
+	private bool $hadDb = false;
+	private mixed $db = null;
+
 	protected function setUp(): void
 	{
+		$this->timezone = date_default_timezone_get();
+		$this->hadDb = array_key_exists('db', $GLOBALS);
+		$this->db = $GLOBALS['db'] ?? null;
 		date_default_timezone_set('Europe/Copenhagen');
+	}
+
+	/** The process-wide timezone and tenant are as before the test. */
+	protected function tearDown(): void
+	{
+		date_default_timezone_set($this->timezone);
+		if ($this->hadDb) {
+			$GLOBALS['db'] = $this->db;
+		} else {
+			unset($GLOBALS['db']);
+		}
 	}
 
 	/** Black Week as the campaign import stores a sheet with dates only. */
@@ -243,6 +261,60 @@ final class shopOfferPrice extends TestCase
 		$plan = shopOfferPlanItem($state, self::SHOPS, self::NORMAL, false, self::T + 3 * $day);
 		$this->assertSame(['k2' => true], $plan['send'], 'the tail is over, but shop 2 has not accepted the normal prices');
 		$this->assertFalse($plan['untrack']);
+	}
+
+	public function testANewPairInTheSecondOfTheLastSendIsSentAtOnce(): void
+	{
+		$state = self::state(self::OFFER, self::T - 7200, self::T); // every shop was sent the offer in this very second
+		$plan = shopOfferPlanItem($state, self::SHOPS, self::NORMAL, true, self::T);
+		$this->assertSame(['k1' => true, 'k2' => true, 'k3' => true], $plan['send'], 'the new pair is owed at the event, not 2 minutes later');
+		$failed = self::state(self::OFFER, self::T, self::T);
+		$failed['shops']['k2'] = ['attempts' => 1, 'retryAt' => self::T + 60, 'failedLast' => true] + $failed['shops']['k2'];
+		$this->assertSame([], shopOfferPlanItem($failed, self::SHOPS, self::OFFER, true, self::T)['send'],
+			'another event in the second of the last send (a failure) waits for the next slot');
+	}
+
+	public function testAfterARefusalATransportFailureKeepsTheFailuresRule(): void
+	{
+		$state = self::state(self::OFFER, self::T, self::T, self::NORMAL); // the failure at T is an event: the next slot is T + 120
+		$state['shops']['k2'] = ['refusals' => 2, 'attempts' => 1, 'retryAt' => self::T + 60, 'failedLast' => true] + $state['shops']['k2'];
+		$this->assertArrayNotHasKey('k2', shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 60)['send'],
+			'the later of the schedule and the failure\'s back-off, as for any failed send');
+		$this->assertArrayHasKey('k2', shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 120)['send']);
+		$state['shops']['k2']['failedLast'] = false; // its last answer was the refusal
+		$this->assertArrayHasKey('k2', shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 60)['send'],
+			'a refusal: the earlier of them');
+		$entry = shopOfferShopEntry($state, 'k2');
+		$this->assertTrue(shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 0, 'error' => 'timeout', 'transient' => true], self::T)[1]['failedLast']);
+		$this->assertFalse(shopOfferRecordShop($entry, self::OFFER, ['ok' => false, 'httpCode' => 200, 'error' => 'refused', 'transient' => false], self::T)[1]['failedLast']);
+	}
+
+	public function testANoteTouchedAfterTheTickTookItStaysForTheNextTick(): void
+	{
+		$GLOBALS['db'] = 'unit_shopoffer_' . bin2hex(random_bytes(4));
+		$dir = dirname(__DIR__, 2) . '/temp/' . $GLOBALS['db'];
+		try {
+			$state = shopOfferPushDir(true);
+			touch($state . 'uncertain-7', self::T);
+			$claimed = shopOfferNoteClaim($state, 7);
+			$this->assertSame(self::T, $claimed['at']);
+			$this->assertCount(1, $claimed['files']);
+			$this->assertFileDoesNotExist($state . 'uncertain-7', 'taken by renaming it');
+			touch($state . 'uncertain-7', self::T + 30); // a sender notes another send while the tick records the first
+			foreach ($claimed['files'] as $file) {
+				unlink($file); // the tick consumes what it took
+			}
+			$this->assertSame(['files' => [$state . 'uncertain-7'], 'at' => self::T + 30], shopOfferNoteFiles($state, 7), 'the later note is still there');
+			$again = shopOfferNoteClaim($state, 7);
+			touch($state . 'uncertain-7', self::T + 40);
+			$this->assertSame(self::T + 40, shopOfferNoteFiles($state, 7)['at'], 'a claimed note not consumed yet still counts');
+			$this->assertCount(2, shopOfferNoteFiles($state, 7)['files']);
+			$this->assertCount(1, $again['files']);
+		} finally {
+			array_map('unlink', (array)glob($dir . '/shopoffer/*'));
+			@rmdir($dir . '/shopoffer');
+			@rmdir($dir);
+		}
 	}
 
 	public function testEachAnswerIsRecordedForItsShop(): void

@@ -24,6 +24,7 @@
 //                Codex verification: sale mode, scheduling, the due time, an item's state and the drain, with timing.
 //                Single-writer rebuild: the reconciler's tick, a committed sale, holding a lock, and api/rest_api.php.
 //                Re-send rebuild: holding a table lock, and a POST body for api/rest_api.php.
+// 20261118 CL/LH CodeRabbit review of #1157: the table lock's marker appears only once the lock is held.
 if ($argc < 3) {
 	fwrite(STDERR, "usage: php run_shop_offer_push.php <tenant_db> <scenario> <args...>\n");
 	exit(2);
@@ -78,9 +79,13 @@ if ($scenario === 'tick') {
 	$out = array('held' => (float)$argv[3]);
 } elseif ($scenario === 'locktable') {
 	$table = preg_replace('/[^a-z_]/', '', (string)$argv[4]);
-	pg_query($connection, 'BEGIN');
-	pg_query($connection, "LOCK TABLE $table IN ACCESS EXCLUSIVE MODE");
-	touch((string)$argv[5]);
+	if (@pg_query($connection, 'BEGIN') === false || @pg_query($connection, "LOCK TABLE $table IN ACCESS EXCLUSIVE MODE") === false) {
+		$error = pg_last_error($connection);
+		@pg_query($connection, 'ROLLBACK');
+		fwrite(STDERR, "could not lock $table: $error\n"); // no marker: the test sees the lock was never held
+		exit(1);
+	}
+	touch((string)$argv[5]); // the lock is held
 	usleep((int)((float)$argv[3] * 1000000));
 	unlink((string)$argv[5]);
 	pg_query($connection, 'COMMIT');
