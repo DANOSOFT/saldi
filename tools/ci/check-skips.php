@@ -55,6 +55,8 @@ $allowed = [
 	'EnsurePoolFilesSchemaMysqlTest::testAnotherHyphenatedDatabasesOwnReferenceDoesNotBlockTheRepair',
 	'EnsurePoolFilesSchemaMysqlTest::testANonAsciiParentDatabaseWithLatin1ResultsKeepsEveryRowStrict',
 	'EnsurePoolFilesSchemaMysqlTest::testANonAsciiParentDatabaseWithLatin1ResultsKeepsEveryRowReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAnsiQuotesIsRepairedStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAnsiQuotesIsRepairedReportingOff',
 ];
 
 $file = $argv[1] ?? '';

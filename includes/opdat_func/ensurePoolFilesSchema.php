@@ -66,6 +66,7 @@
 // 20261118 CL/MMR SD-815 Codex round 38: on MySQL/MariaDB the references are read from InnoDB's own list (INNODB_SYS_FOREIGN, MySQL 8: INNODB_FOREIGN), which also shows other databases' tables; when it cannot be read (no PROCESS privilege) and there are duplicates, nothing is deleted. Duplicates are looked for first.
 // 20261118 CL/MMR SD-815 Codex round 39: NULL filenames are not duplicates (the collapse never deletes them); InnoDB's REF_NAME is compared with this database's name in MySQL's filename encoding (a '-' is @002d); only a name with non-ASCII characters, whose encoding is not rebuilt here, counts every encoded reference as possibly its own.
 // 20261118 CL/MMR SD-815 Codex round 40: the database name and REF_NAME are read as HEX() and decoded in PHP, so the session's character_set_results cannot turn a non-ASCII name into '?'; the session settings are not touched.
+// 20261118 CL/MMR SD-815 Codex round 41: the CREATE TABLE header's name is also recognised in double quotes (sql_mode ANSI_QUOTES); the session's sql_mode is not touched.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -509,8 +510,10 @@ if (!function_exists('ensurePoolFilesMysqlTableDefinition')) {
 			return '';
 		}
 		$create = preg_replace('/\\sAUTO_INCREMENT=\\d+/i', '', $create);
-		// Only the header's table name, quoted or not (sql_quote_show_create=0 prints it bare); nothing else is touched.
-		return (string)preg_replace('/^CREATE TABLE `?' . preg_quote($table, '/') . '`?(?=\\s)/', 'CREATE TABLE `pool_files`', $create, 1);
+		// Only the header's table name, in backticks, in double quotes (sql_mode ANSI_QUOTES) or bare
+		// (sql_quote_show_create=0); nothing else is touched.
+		$name = preg_quote($table, '/');
+		return (string)preg_replace('/^CREATE TABLE (?:`' . $name . '`|"' . $name . '"|' . $name . ')(?=\\s)/', 'CREATE TABLE `pool_files`', $create, 1);
 	}
 }
 

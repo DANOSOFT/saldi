@@ -21,6 +21,7 @@
 // 20261118 CL/MMR SD-815 Codex round 38: a cascading reference from another database (as root, and as a user with rights on this database only) keeps every row; duplicates without the PROCESS privilege wait; the round-18 grants still repair a table without duplicates.
 // 20261118 CL/MMR SD-815 Codex round 39: a parent database named with a '-' (encoded @002d by InnoDB) and a cascading child elsewhere keeps every row; two NULL filenames are no duplicates and are repaired by a parent-only user.
 // 20261118 CL/MMR SD-815 Codex round 40: a non-ASCII parent database name with latin1 results (the name comes back as '?') and a cascading child elsewhere keeps every row; the session setting is left as it was.
+// 20261118 CL/MMR SD-815 Codex round 41: with sql_mode ANSI_QUOTES (SHOW CREATE TABLE prints "pool_files") the repair completes and the mode is left as it was, in both mysqli modes.
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -917,5 +918,31 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testANonAsciiParentDatabaseWithLatin1ResultsKeepsEveryRowReportingOff(): void
     {
         $this->aNonAsciiParentDatabaseWithLatin1Results(MYSQLI_REPORT_OFF);
+    }
+
+    private function ansiQuotesIsRepaired(int $reportMode): void
+    {
+        $this->allLaterColumns();
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $this->sql("SET SESSION sql_mode = CONCAT(@@SESSION.sql_mode, ',ANSI_QUOTES')");
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertContains('unique_filename', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept and filled');
+        self::assertStringContainsString('ANSI_QUOTES', (string) $this->one('SELECT @@SESSION.sql_mode'), 'the session mode is left as it was');
+    }
+
+    public function testAnsiQuotesIsRepairedStrict(): void
+    {
+        $this->ansiQuotesIsRepaired(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testAnsiQuotesIsRepairedReportingOff(): void
+    {
+        $this->ansiQuotesIsRepaired(MYSQLI_REPORT_OFF);
     }
 }
