@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/api.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/api.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,6 +86,8 @@
 // 20261110 CL/MJ SST-865 getInvoicesOrder() sends the invoice when EasyUBL refuses the company update, instead of stopping with die().
 //                updateCompany() saves EasyUBL's answer to temp/<db>/Update-company-error-*.json when it answers hasEndpointPeppol false.
 // 20261111 CL/MJ SST-865 That file leaves out the contact and bank details (defaultContact, payment), as temp/ is under the web root (CodeRabbit).
+// 20261118 CL/MMR SST-1003 The other error logs of updateCompany() and the NemHandel creation leave out the contact and bank details too.
+// 20261118 CL/MMR SST-1007 updateCompany() counts an answer that is not 2xx as a failure, so updatedCompany is not set on a 401 or 5xx.
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
@@ -233,15 +235,18 @@
         curl_close($ch);
 
         $timestamp = date("Y-m-d-H-i-s");
+        // The error logs below are written to temp/, which is under the web root, so they leave out the
+        // contact and bank details, from what was sent and from EasyUBL's answer.
+        $private = array_flip(['defaultContact', 'payment']);
 
         if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === "") {
             // An error occurred
             $errorNumber = curl_errno($ch);
             $errorMessage = curl_error($ch);
-            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response, 'status code' => $httpCode];
+            $error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => is_array($response) ? array_diff_key($response, $private) : $response, 'status code' => $httpCode];
 
             // Save error response in temp folder
-            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", json_encode($error, JSON_UNESCAPED_UNICODE)."\n".json_encode(array_diff_key($data, $private), JSON_UNESCAPED_UNICODE));
 
             return ['success' => false, 'message' => 'Error updating company: ' . (is_string($errorMessage) ? $errorMessage : json_encode($errorMessage))];
         } else if (isset($response["hasEndpointPeppol"]) && (false === $response["hasEndpointPeppol"])) {
@@ -250,7 +255,6 @@
             // The update registers the company as a recipient; EasyUBL refuses that when the CVR is a
             // Peppol endpoint elsewhere. Keep its answer, as the other error branches do, but not the
             // contact and bank details: temp/ is under the web root.
-            $private = array_flip(['defaultContact', 'payment']);
             $logged = json_encode(['response' => is_array($response) ? array_diff_key($response, $private) : $response, 'status code' => $httpCode], JSON_UNESCAPED_UNICODE);
             file_put_contents("../temp/$db/Update-company-error-$timestamp.json", $logged . "\n" . json_encode(array_diff_key($data, $private), JSON_UNESCAPED_UNICODE));
             return ['success' => false,
@@ -259,6 +263,12 @@
                 'response' => $response,
                 'status code' => $httpCode
             ];
+        } else if ($httpCode < 200 || $httpCode >= 300) {
+            // A 401 or 5xx without error fields in the body is a failure too, so updatedCompany is not set
+            // and the update is tried again on the next send.
+            $logged = json_encode(['response' => is_array($response) ? array_diff_key($response, $private) : $response, 'status code' => $httpCode], JSON_UNESCAPED_UNICODE);
+            file_put_contents("../temp/$db/Update-company-error-$timestamp.json", $logged . "\n" . json_encode(array_diff_key($data, $private), JSON_UNESCAPED_UNICODE));
+            return ['success' => false, 'message' => "Error updating company: EasyUBL answered HTTP $httpCode", 'response' => $response, 'status code' => $httpCode];
         }
 
         // Save successful response in temp folder for debugging
@@ -295,6 +305,8 @@
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             $timestamp = date("Y-m-d-H-i-s");
+            // temp/ is under the web root: the error logs leave out the contact and bank details.
+            $private = array_flip(['defaultContact', 'payment']);
             if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
 				// An error occurred
 				$errorNumber = curl_errno($ch);
@@ -302,7 +314,7 @@
 				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'statusCode' => $httpCode];
 
 				// save response in file in temp folder
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($error)."\n".json_encode(array_diff_key($data, $private), JSON_UNESCAPED_UNICODE));
 				?>
 				<script>
 					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support.");
@@ -310,7 +322,7 @@
 				<?php
 				exit;
 			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000" || $httpCode >= 400) {
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($response)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode(is_array($response) ? array_diff_key($response, $private) : $response)."\n".json_encode(array_diff_key($data, $private), JSON_UNESCAPED_UNICODE));
 				?>
 				<script>
 					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support");

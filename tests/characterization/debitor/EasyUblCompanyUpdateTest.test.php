@@ -18,6 +18,8 @@ use PHPUnit\Framework\TestCase;
 // History:
 // 20261110 CL/MJ SST-865 Created.
 // 20261111 CL/MJ SST-865 The refusal log leaves out the contact and bank details (CodeRabbit).
+// 20261118 CL/MMR SST-1003 The other error logs (failed call, NemHandel creation) leave out the contact and bank details too.
+// 20261118 CL/MMR SST-1007 An answer that is not 2xx counts as a failed update.
 final class EasyUblCompanyUpdateTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -178,5 +180,141 @@ final class EasyUblCompanyUpdateTest extends TestCase
         self::assertStringNotContainsString('bogholder@testfirma.example', $log, 'no contact e-mail: temp/ is under the web root');
         self::assertStringNotContainsString('+4512345678', $log, 'no phone number');
         self::assertStringNotContainsString('1234-0012345678', $log, 'no bank account');
+    }
+
+    /** Sent data and an answer that both carry the contact and bank details. */
+    private const DATA = array('name' => 'Testfirma ApS', 'cvr' => 'DK12345674', 'registerAsRecipient' => true,
+        'defaultContact' => array('email' => 'bogholder@testfirma.example', 'sms' => '+4512345678'),
+        'payment' => array('bankAccount' => '1234-0012345678'));
+
+    private function assertNoPrivateDetails(string $log): void
+    {
+        self::assertStringNotContainsString('bogholder@testfirma.example', $log, 'no contact e-mail: temp/ is under the web root');
+        self::assertStringNotContainsString('+4512345678', $log, 'no phone number');
+        self::assertStringNotContainsString('1234-0012345678', $log, 'no bank account');
+        self::assertStringContainsString('"registerAsRecipient":true', $log, 'what was sent is still there');
+    }
+
+    /** A temp dir with temp/sst865 and a work dir the page code runs in (it writes to ../temp/$db). */
+    private function tempDir(): string
+    {
+        $this->dir = sys_get_temp_dir() . '/sst865_' . bin2hex(random_bytes(4));
+        mkdir($this->dir . '/temp/sst865', 0777, true);
+        mkdir($this->dir . '/work');
+        return $this->dir;
+    }
+
+    /**
+     * Runs updateCompany() from the EasyUBL answer on: its error branches, or null when it gets past them
+     * (the success path). Returns the result and the Update-company-error files written.
+     *
+     * @return array{result: mixed, logs: list<string>}
+     */
+    private function runUpdateBranches(int $httpCode, mixed $response): array
+    {
+        $branch = $this->lift(
+            'function updateCompany()',
+            '$timestamp = date("Y-m-d-H-i-s");',
+            '// Save successful response in temp folder for debugging'
+        );
+        $this->tempDir();
+        $cwd = getcwd();
+        chdir($this->dir . '/work');
+        try {
+            $db = 'sst865';
+            $ch = curl_init();
+            $data = self::DATA;
+            $result = (function () use ($branch, $db, $ch, $httpCode, $data, $response) {
+                return eval($branch);
+            })();
+        } finally {
+            chdir((string)$cwd);
+        }
+        $logs = array_map(fn (string $f): string => (string)file_get_contents($f), glob($this->dir . '/temp/sst865/Update-company-error-*.json') ?: array());
+        return array('result' => $result, 'logs' => $logs);
+    }
+
+    public function testAFailedUpdateCallLogsWithoutContactOrBankDetails(): void
+    {
+        $out = $this->runUpdateBranches(500, array('errorNumber' => 7, 'error' => 'boom', 'defaultContact' => array('email' => 'bogholder@testfirma.example')));
+
+        self::assertFalse($out['result']['success']);
+        self::assertCount(1, $out['logs']);
+        self::assertStringContainsString('"errorNumber":7', $out['logs'][0], "EasyUBL's answer is in the file");
+        $this->assertNoPrivateDetails($out['logs'][0]);
+    }
+
+    public function testAnHttpErrorWithoutErrorFieldsCountsAsAFailedUpdate(): void
+    {
+        foreach (array(401, 500, 503) as $code) {
+            $out = $this->runUpdateBranches($code, array('title' => 'Unauthorized', 'payment' => array('bankAccount' => '1234-0012345678')));
+
+            self::assertIsArray($out['result'], "HTTP $code is not treated as success");
+            self::assertFalse($out['result']['success'], "HTTP $code");
+            self::assertStringContainsString((string)$code, $out['result']['message']);
+            self::assertCount(1, $out['logs'], "HTTP $code is logged like the other failures");
+            self::assertStringContainsString('"status code":' . $code, $out['logs'][0]);
+            self::assertStringContainsString('"title":"Unauthorized"', $out['logs'][0]);
+            $this->assertNoPrivateDetails($out['logs'][0]);
+            $this->tearDown();
+        }
+    }
+
+    public function testA2xxAnswerWithoutErrorFieldsStillSucceeds(): void
+    {
+        $out = $this->runUpdateBranches(200, array('id' => 'c-1', 'hasEndpointPeppol' => true));
+
+        self::assertNull($out['result'], 'no error branch is taken: updateCompany() goes on to the success path');
+        self::assertSame(array(), $out['logs']);
+    }
+
+    /**
+     * Runs the two error branches of the NemHandel creation (getCompanyID() without a companyID). Their
+     * exit becomes a return, the alert is caught.
+     *
+     * @return list<string> the Create-in-nemhandel-error files written
+     */
+    private function runNemHandelBranches(int $httpCode, mixed $response): array
+    {
+        $branch = $this->lift(
+            '"https://easyubl.net/api/Company/Update/$guid"',
+            '$timestamp = date("Y-m-d-H-i-s");',
+            '}else{'
+        );
+        $code = str_replace('exit;', 'return "exit";', $branch) . '}';
+        $this->tempDir();
+        $cwd = getcwd();
+        chdir($this->dir . '/work');
+        ob_start();
+        try {
+            $db = 'sst865';
+            $ch = curl_init();
+            $data = self::DATA;
+            (function () use ($code, $db, $ch, $httpCode, $data, $response) {
+                return eval($code);
+            })();
+        } finally {
+            ob_end_clean();
+            chdir((string)$cwd);
+        }
+        return array_map(fn (string $f): string => (string)file_get_contents($f), glob($this->dir . '/temp/sst865/Create-in-nemhandel-error-*.json') ?: array());
+    }
+
+    public function testAFailedNemHandelCreationLogsWithoutContactOrBankDetails(): void
+    {
+        $logs = $this->runNemHandelBranches(0, null);
+
+        self::assertCount(1, $logs);
+        $this->assertNoPrivateDetails($logs[0]);
+    }
+
+    public function testARefusedNemHandelCreationLogsEasyUblsAnswerWithoutContactOrBankDetails(): void
+    {
+        $logs = $this->runNemHandelBranches(400, array('companyID' => '00000000-0000-0000-0000-000000000000', 'title' => 'Bad Request',
+            'defaultContact' => array('email' => 'bogholder@testfirma.example'), 'payment' => array('bankAccount' => '1234-0012345678')));
+
+        self::assertCount(1, $logs);
+        self::assertStringContainsString('"title":"Bad Request"', $logs[0], "EasyUBL's answer is in the file");
+        $this->assertNoPrivateDetails($logs[0]);
     }
 }
