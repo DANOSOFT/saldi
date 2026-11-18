@@ -1149,14 +1149,14 @@ if ($b_submit) {
 	$bynavn = isset($_POST['bynavn']) ? trim($_POST['bynavn']) : '';
 
 	if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
-	$bynavn = db_escape_string($bynavn); # 20261118 SST-1031 also the bynavn() result
+	$bynavn = db_escape_string((string) $bynavn); # 20261118 SST-1031 also the bynavn() result
 	$postnr = db_escape_string($postnr);
 	$land = db_escape_string(trim($_POST['land']));
 	$email = db_escape_string(trim($_POST['email']));
 	$phone = if_isset($_POST['phone']);
 
 	if (strpos($phone, '@') && !$email) {
-		$email = db_escape_string($phone); # 20261118 SST-1031 escaped like the email field
+		$email = db_escape_string((string) $phone); # 20261118 SST-1031 escaped like the email field
 		$phone = '';
 	}
 	if (strlen($phone) > 15) {
@@ -1167,12 +1167,12 @@ if ($b_submit) {
 		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		# 20261118 SST-1031 escaped like the form values they replace; phone is escaped where it is used
-		$email = db_escape_string($r["email"]);
+		$email = db_escape_string((string) $r["email"]);
 		$phone = $r["phone"];
-		$firmanavn = db_escape_string($r["firmanavn"]);
-		$addr1 = db_escape_string($r["addr1"]);
-		$postnr = db_escape_string($r["postnr"]);
-		$bynavn = db_escape_string($r["bynavn"]);
+		$firmanavn = db_escape_string((string) $r["firmanavn"]);
+		$addr1 = db_escape_string((string) $r["addr1"]);
+		$postnr = db_escape_string((string) $r["postnr"]);
+		$bynavn = db_escape_string((string) $r["bynavn"]);
 	}
 
 	$ean = isset($_POST['ean']) ? db_escape_string(trim($_POST['ean'])) : ''; // Default value if not set
@@ -1190,8 +1190,8 @@ if ($b_submit) {
 
 
 	if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
-	$lev_bynavn = db_escape_string($lev_bynavn); # 20261118 SST-1031 escaped once here, also the bynavn() result,
-	$lev_postnr = db_escape_string($lev_postnr); # as on the account-card path; the queries below use them as they are
+	$lev_bynavn = db_escape_string((string) $lev_bynavn); # 20261118 SST-1031 escaped once here, also the bynavn() result,
+	$lev_postnr = db_escape_string((string) $lev_postnr); # as on the account-card path; the queries below use them as they are
 	$lev_kontakt = if_isset($_POST, NULL, 'lev_kontakt') ? db_escape_string(trim($_POST['lev_kontakt'])) : '';
 	$vis_lev_addr = if_isset($_POST, NULL, 'vis_lev_addr');
 	if ($vis_lev_addr != 'on') $vis_lev_addr = ''; // ordrer.vis_lev_addr er varchar(2) ('on'/''): 'off' fra gemt brugerindstilling overflow'er og vaelter hele ordre-opdateringen
@@ -1802,7 +1802,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$kontakt = db_escape_string($row['kontakt']);
 			$betalingsdage = $row['betalingsdage'];
 			$betalingsbet = $row['betalingsbet'];
-			$cvrnr = db_escape_string($row['cvrnr']); # 20261118 SST-1031 escaped like the form values
+			$cvrnr = db_escape_string((string) $row['cvrnr']); # 20261118 SST-1031 escaped like the form values
 			$notes = db_escape_string($row['notes']);
 			if (empty($phone)) $phone = $row['tlf']; //added by CA for DFM consignment 20210219 dfm_
 			if (empty($phone)) {
@@ -1812,9 +1812,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					db_modify("update ordrer set phone = '" . db_escape_string((string) $phone) . "' where id = '$id'", __FILE__ . " linje " . __LINE__); #20210506
 				}
 			}
-			$email = db_escape_string($row['email']);
-			$ean = db_escape_string($row['ean']);
-			$institution = db_escape_string($row['institution']);
+			$email = db_escape_string((string) $row['email']);
+			$ean = db_escape_string((string) $row['ean']);
+			$institution = db_escape_string((string) $row['institution']);
 			$mail_fakt = $row['mailfakt'];
 			$gruppe = $row['gruppe'];
 
