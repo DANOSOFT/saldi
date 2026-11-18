@@ -32,6 +32,8 @@
 // 20261118 CL/MMR SST-898 (review 8) The old and new form texts are sent hex-encoded on PostgreSQL, so db_modify()'s " like " to " ilike " rewrite cannot change them.
 // 20261118 CL/MMR SST-898 (review 9) A form text is rewritten in UTF-8 and sent back in the connection's encoding (LATIN9 too); a text that cannot be read or converted exactly is left as it is.
 //                 On MySQL/MariaDB the text compare uses the connection's _bin collation and CHAR_LENGTH(), so it is exact also when the column has another character set.
+// 20261118 CL/MMR SST-898 (review 10) All texts are sent hex-encoded on MySQL/MariaDB too, so db_escape_string() is not used; the compare converts both sides to utf8mb4_bin.
+//                 The old default texts are deleted with the same exact compare instead of deleteStaleTekst().
 
 if (!function_exists('formular_fax_to_mobile_text')) {
 	/**
@@ -107,8 +109,8 @@ if (!function_exists('formular_fax_to_mobile_has_table')) {
 if (!function_exists('formular_fax_to_mobile_connection')) {
 	/**
 	 * The encoding in which the database connection sends and expects text. Saldi's db_connect() sets the
-	 * PostgreSQL client encoding to UTF8 or LATIN9 from $db_encode; MySQL/MariaDB report their connection character
-	 * set (latin1 there is Windows-1252), which formular_fax_to_mobile_same() also needs for its _bin collation.
+	 * PostgreSQL client encoding to UTF8 or LATIN9 from $db_encode; MySQL/MariaDB report the character set of the
+	 * results (else of the client; latin1 there is Windows-1252), which formular_fax_to_mobile_literal() also names.
 	 *
 	 * @return array{encoding: string|null, mysql_charset: string|null} encoding: the mbstring name ('UTF-8',
 	 *         'ISO-8859-15', 'ISO-8859-1', 'Windows-1252'), null if not in the list; mysql_charset: MySQL/MariaDB only.
@@ -116,7 +118,8 @@ if (!function_exists('formular_fax_to_mobile_connection')) {
 	function formular_fax_to_mobile_connection() {
 		global $db_type;
 		$mysql = in_array($db_type, array('mysql', 'mysqli'), true);
-		$r = db_fetch_array(db_select($mysql ? "SELECT @@character_set_connection AS enc" : "SELECT pg_client_encoding() AS enc", __FILE__ . " linje " . __LINE__));
+		$sql = $mysql ? "SELECT COALESCE(@@character_set_results, @@character_set_client) AS enc" : "SELECT pg_client_encoding() AS enc";
+		$r = db_fetch_array(db_select($sql, __FILE__ . " linje " . __LINE__));
 		$name = $r ? strtolower((string)$r['enc']) : '';
 		$names = array(
 			'utf8' => 'UTF-8', 'utf8mb3' => 'UTF-8', 'utf8mb4' => 'UTF-8', 'unicode' => 'UTF-8',
@@ -132,29 +135,33 @@ if (!function_exists('formular_fax_to_mobile_connection')) {
 
 if (!function_exists('formular_fax_to_mobile_literal')) {
 	/**
-	 * A text as an SQL value that db_modify()/db_select() cannot alter. On PostgreSQL those wrappers turn every " like "
-	 * in the statement into " ilike ", also inside a quoted text, so the text is sent hex-encoded and decoded with the
-	 * connection's own client encoding (UTF8 or LATIN9), which gives the same value as a quoted literal. MySQL/MariaDB
-	 * statements are not rewritten, so there it is an ordinary escaped literal.
+	 * A text, in the connection's encoding, as an SQL value that keeps its exact bytes through db_modify() and
+	 * db_select(). The text is sent hex-encoded, so no escaping is needed: on PostgreSQL those wrappers turn every
+	 * " like " in the statement into " ilike ", also inside a quoted text, and db_escape_string() re-encodes
+	 * non-UTF-8 text on MySQL/MariaDB (and calls the removed mysql_real_escape_string() for $db_type 'mysql').
+	 * PostgreSQL decodes it with the connection's client encoding (UTF8 or LATIN9), MySQL/MariaDB with the
+	 * connection's character set, so the value is the same as a quoted literal would be.
 	 *
-	 * @param string $value The text.
+	 * @param string      $value        The text, in the connection's encoding.
+	 * @param string|null $mysqlCharset The MySQL/MariaDB character set (formular_fax_to_mobile_connection()).
 	 * @return string The SQL expression.
 	 */
-	function formular_fax_to_mobile_literal($value) {
+	function formular_fax_to_mobile_literal($value, $mysqlCharset = null) {
 		global $db_type;
+		$hex = bin2hex((string)$value);
 		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
-			return "'" . db_escape_string((string)$value) . "'";
+			return $mysqlCharset ? "CONVERT(X'$hex' USING $mysqlCharset)" : "X'$hex'";
 		}
-		return "convert_from(decode('" . bin2hex((string)$value) . "', 'hex'), pg_client_encoding())";
+		return "convert_from(decode('$hex', 'hex'), pg_client_encoding())";
 	}
 }
 
 if (!function_exists('formular_fax_to_mobile_same')) {
 	/**
 	 * A WHERE condition that holds while the column still has exactly the value read earlier: IS NULL for a NULL,
-	 * otherwise an exact match. MySQL/MariaDB compare with the _bin collation of the connection's character set
-	 * (so case counts, and the column is converted from its own character set first) plus CHAR_LENGTH(), because
-	 * a PAD SPACE collation ignores trailing spaces; PostgreSQL's = is exact already.
+	 * otherwise an exact match. MySQL/MariaDB convert both sides to utf8mb4 and compare them with utf8mb4_bin (so
+	 * case counts, whatever the column's and the connection's character sets are) plus CHAR_LENGTH(), because
+	 * utf8mb4_bin ignores trailing spaces (PAD SPACE); PostgreSQL's = is exact already.
 	 *
 	 * @param string      $column       A column of formularer (letters, digits and _ only).
 	 * @param string|null $value        The value read by the same function, in the connection's encoding.
@@ -167,9 +174,10 @@ if (!function_exists('formular_fax_to_mobile_same')) {
 		if ($value === null) {
 			return "$column IS NULL";
 		}
-		$literal = formular_fax_to_mobile_literal($value);
-		if (in_array($db_type, array('mysql', 'mysqli'), true) && $mysqlCharset) {
-			return "($column = $literal COLLATE {$mysqlCharset}_bin AND CHAR_LENGTH($column) = CHAR_LENGTH($literal))";
+		$literal = formular_fax_to_mobile_literal($value, $mysqlCharset);
+		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
+			return "(CONVERT($column USING utf8mb4) COLLATE utf8mb4_bin = CONVERT($literal USING utf8mb4) COLLATE utf8mb4_bin"
+				. " AND CHAR_LENGTH($column) = CHAR_LENGTH($literal))";
 		}
 		return "$column = $literal";
 	}
@@ -203,8 +211,10 @@ if (!function_exists('formularFaxToMobileTekster')) {
 	 * Deletes the stored old defaults of texts 378, 50 and 5230 (see formular_fax_to_mobile_stale_tekster()), so
 	 * findtekst() reads the new default from importfiler/tekster.csv. A text the customer has edited (e.g.
 	 * "Mobiltlf.") is kept. Runs from includes/betweenUpdates.php at every login: it reads the few rows of the three
-	 * ids and calls deleteStaleTekst() only for a language that still holds an old text, so a login with nothing left
-	 * to change writes nothing. An account without the tekster table is skipped; a later login handles it.
+	 * ids and deletes only for a language that still holds an old text, so a login with nothing left to change writes
+	 * nothing. The DELETE matches exactly like the form UPDATE (formular_fax_to_mobile_same()), as deleteStaleTekst()
+	 * would on PostgreSQL, without db_escape_string(). An account without the tekster table is skipped; a later login
+	 * handles it.
 	 *
 	 * @return int The number of text/language pairs that held an old text.
 	 */
@@ -218,13 +228,21 @@ if (!function_exists('formularFaxToMobileTekster')) {
 			$stored[(int)$r['tekst_id'] . '/' . (int)$r['sprog_id']][] = (string)$r['tekst'];
 		}
 		$found = 0;
+		$connection = null;
 		foreach (formular_fax_to_mobile_stale_tekster() as $stale) {
 			list($tekstId, $sprogId, $oldTexts) = $stale;
-			if (array_intersect($oldTexts, if_array($stored, "$tekstId/$sprogId"))) {
-				require_once __DIR__ . '/deleteStaleTekst.php';
-				deleteStaleTekst($tekstId, $oldTexts, $sprogId);
-				$found++;
+			if (!array_intersect($oldTexts, if_array($stored, "$tekstId/$sprogId"))) {
+				continue;
 			}
+			if ($connection === null) {
+				$connection = formular_fax_to_mobile_connection();
+			}
+			$matches = array();
+			foreach ($oldTexts as $oldText) {
+				$matches[] = formular_fax_to_mobile_same('tekst', $oldText, $connection['mysql_charset']);
+			}
+			db_modify("DELETE FROM tekster WHERE tekst_id = '" . (int)$tekstId . "' AND sprog_id = '" . (int)$sprogId . "' AND (" . implode(" OR ", $matches) . ")", __FILE__ . " linje " . __LINE__);
+			$found++;
 		}
 		return $found;
 	}
@@ -301,7 +319,7 @@ if (!function_exists('formularFaxToMobile')) {
 				continue;
 			}
 			$id = (int)$r['id'];
-			db_modify("UPDATE formularer SET beskrivelse = " . formular_fax_to_mobile_literal($new) . " WHERE id = '$id' AND "
+			db_modify("UPDATE formularer SET beskrivelse = " . formular_fax_to_mobile_literal($new, $connection['mysql_charset']) . " WHERE id = '$id' AND "
 				. formular_fax_to_mobile_same('beskrivelse', $r['beskrivelse'], $connection['mysql_charset'])
 				. " AND " . formular_fax_to_mobile_same('sprog', $r['sprog'], $connection['mysql_charset']),
 				__FILE__ . " linje " . __LINE__);
