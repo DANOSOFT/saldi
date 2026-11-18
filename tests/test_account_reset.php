@@ -100,6 +100,11 @@ echo "OK: MySQL/MariaDB reset refused before any statement is issued.\n";
 // Three staff and two customer sessions (Mit salg 3024, booking) on the reset account, plus another account's rows;
 // with 4 users allowed, the next login must still fit after the reset.
 require_once(__DIR__ . '/characterization/support/database/TestDatabase.php');
+// The shared helper leaves the port to libpq; keep honouring SALDI_CHAR_PGPORT by handing it on as PGPORT (an explicit PGPORT wins).
+$charPgPort = getenv('SALDI_CHAR_PGPORT');
+if ($charPgPort !== false && $charPgPort !== '' && (string) getenv('PGPORT') === '') {
+	putenv('PGPORT=' . $charPgPort);
+}
 $pgUnavailable = TestDatabase::unavailableReason();
 if ($pgUnavailable !== null) {
 	echo "SKIP: reset session update on PostgreSQL (" . $pgUnavailable . ").\n";
