@@ -2,6 +2,7 @@
 // 20261117 CDX/NTR Preserve database encodings when displaying and saving standard order text.
 // 20261117 CDX/NTR Limit lookup formatting to attribute-free bold and italic tags.
 // 20261118 CDX/NTR Bind saved text and preserve comparisons and LATIN9 glyphs in the lookup.
+// 20261118 CDX/NTR Reject lossy text saves and preserve incomplete markup as lookup text.
 
 /**
  * Escape database text for the UTF-8 order-text editor.
@@ -23,18 +24,26 @@ function orderTextEditorHtml(string $text, string $dbEncoding): string
  * @param string $text UTF-8 submitted text.
  * @param string $dbEncoding UTF8 or LATIN9.
  * @param string $dbType Database driver, used to select its parameter placeholders.
- * @return void
+ * @return bool False for invalid UTF-8 or text the database encoding cannot represent; true after saving.
  */
-function saveStandardOrderText(int $textId, string $text, string $dbEncoding, string $dbType): void
+function saveStandardOrderText(int $textId, string $text, string $dbEncoding, string $dbType): bool
 {
+    if (!mb_check_encoding($text, 'UTF-8')) {
+        return false;
+    }
     $text = str_replace("\0", '', $text);
     if ($dbEncoding !== 'UTF8') {
-        $text = mb_convert_encoding($text, 'ISO-8859-15', 'UTF-8');
+        $encoded = mb_convert_encoding($text, 'ISO-8859-15', 'UTF-8');
+        if (mb_convert_encoding($encoded, 'UTF-8', 'ISO-8859-15') !== $text) {
+            return false;
+        }
+        $text = $encoded;
     }
     $sql = ($dbType === 'mysql' || $dbType === 'mysqli')
         ? 'update ordretekster set tekst = ? where id = ?'
         : 'update ordretekster set tekst = $1 where id = $2';
     db_modify($sql, __FILE__ . " linje " . __LINE__, false, [$text, $textId]);
+    return true;
 }
 
 /**
@@ -48,17 +57,25 @@ function orderTextLookupHtml(string $text, string $dbEncoding): string
     if ($dbEncoding !== 'UTF8') {
         $text = mb_convert_encoding($text, 'UTF-8', 'ISO-8859-15');
     }
-    // A comparison such as <5 or <=5 cannot start an HTML tag; protect it from strip_tags().
-    $text = preg_replace('/<(?!\/?[a-zA-Z]|[!?])/', '&lt;', $text);
-    $text = strip_tags($text, '<b><i>');
-    $text = preg_replace('/<(\/?)(b|i)\b[^>]*>/i', '<$1$2>', $text);
-    $parts = preg_split('/(<\/?[bi]>)/i', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+    // Recognize only complete markup; quoted attributes may contain >, but an unquoted < starts another token.
+    // Incomplete fragments such as Load<max remain text, even when a complete tag follows them.
+    $markup = <<<'REGEX'
+~(
+    <!-- .*? -->
+    | <[!?] (?: [^<>"'] | "[^"]*" | '[^']*' )* >
+    | </? [a-zA-Z][a-zA-Z0-9:-]* (?=[\s/>])
+      (?: [^<>"'] | "[^"]*" | '[^']*' )* >
+)~sx
+REGEX;
+    $parts = preg_split($markup, $text, -1, PREG_SPLIT_DELIM_CAPTURE);
     $html = '';
-    foreach ($parts as $part) {
-        if (preg_match('/^<\/?[bi]>$/i', $part)) {
-            $html .= strtolower($part);
-        } else {
+    foreach ($parts as $index => $part) {
+        if ($index % 2 === 0) {
             $html .= htmlspecialchars($part, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
+        // Match only b/i tag names, followed by whitespace, / or >, at the start of a complete token.
+        } elseif (preg_match('~^<(/?)([bi])(?=[\\s/>])~i', $part, $tag)) {
+            // Rebuild allowed tags instead of preserving any stored attributes.
+            $html .= '<' . $tag[1] . strtolower($tag[2]) . '>';
         }
     }
     return $dbEncoding === 'UTF8' ? $html : mb_encode_numericentity($html, [0x80, 0x10FFFF, 0, 0x1FFFFF], 'UTF-8');

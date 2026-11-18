@@ -2,6 +2,7 @@
 // 20261117 CDX/NTR Cover Danish order-text display/save and safe formatting in the real page paths.
 // 20261118 CDX/NTR Cover CSRF rejection, bound saves, plain comparisons and LATIN9 lookup characters.
 // 20261118 CDX/NTR Exercise shared LIKE normalization in both query entry points.
+// 20261118 CDX/NTR Cover response status, lossless validation, SQL continuations and fresh driver captures.
 
 namespace OrderTextReviewFixture {
     final class Saved extends \RuntimeException {}
@@ -10,6 +11,16 @@ namespace OrderTextReviewFixture {
     function session_start() { return true; }
     function ifset($row, $key, $default = null) { return $row[$key] ?? $default; }
     function findtekst($key, $language = null) { return 'Fixture label'; }
+    function findtekst_utf8($key, $language = null) { return explode('|', $key, 2)[1] ?? $key; }
+    function fixtureOnline() {
+        $GLOBALS['orderTextReviewOutputStarted'] = true;
+        print '<!-- online output -->';
+    }
+    function headers_sent() { return $GLOBALS['orderTextReviewOutputStarted']; }
+    function http_response_code($code = null) {
+        if ($code !== null) $GLOBALS['orderTextReviewHttpStatus'] = $code;
+        return $GLOBALS['orderTextReviewHttpStatus'];
+    }
     function db_select($sql, $where) { return $sql; }
     function db_fetch_array($query) {
         $text = $GLOBALS['orderTextReviewStored'];
@@ -30,14 +41,17 @@ namespace OrderTextReviewFixture {
     function injecttjek($sql) { return $sql; }
     function db_query_connection($global) { return null; }
     function audit_log($action, $details) {}
-    function pg_query($connection, $sql) { $GLOBALS['orderTextReviewSql'] = $sql; return true; }
-    function pg_query_params($connection, $sql, $params) {
+    function captureQuery($driverFunction, $sql, $params = null) {
+        $GLOBALS['orderTextReviewDriverFunction'] = $driverFunction;
         $GLOBALS['orderTextReviewSql'] = $sql;
-        $GLOBALS['orderTextReviewParams'] = $params;
+        unset($GLOBALS['orderTextReviewParams']);
+        if ($params !== null) $GLOBALS['orderTextReviewParams'] = $params;
         return true;
     }
-    function mysqli_query($connection, $sql) { return pg_query($connection, $sql); }
-    function mysqli_execute_query($connection, $sql, $params) { return pg_query_params($connection, $sql, $params); }
+    function pg_query($connection, $sql) { return captureQuery(__FUNCTION__, $sql); }
+    function pg_query_params($connection, $sql, $params) { return captureQuery(__FUNCTION__, $sql, $params); }
+    function mysqli_query($connection, $sql) { return captureQuery(__FUNCTION__, $sql); }
+    function mysqli_execute_query($connection, $sql, $params) { return captureQuery(__FUNCTION__, $sql, $params); }
     // Keep the old escape adapter so these regressions also reproduce failures on the original save path.
     function pg_escape_string($connection, $text) { return str_replace("'", "''", $text); }
 }
@@ -96,7 +110,7 @@ namespace {
 
         protected function tearDown(): void
         {
-            unset($GLOBALS['orderTextReviewStored'], $GLOBALS['orderTextReviewSql'], $GLOBALS['orderTextReviewParams'], $GLOBALS['orderTextReviewStandardStrings']);
+            unset($GLOBALS['orderTextReviewStored'], $GLOBALS['orderTextReviewSql'], $GLOBALS['orderTextReviewParams'], $GLOBALS['orderTextReviewStandardStrings'], $GLOBALS['orderTextReviewDriverFunction'], $GLOBALS['orderTextReviewOutputStarted'], $GLOBALS['orderTextReviewHttpStatus']);
             foreach ($this->globals as $name => [$existed, $value]) {
                 if ($existed) $GLOBALS[$name] = $value;
                 else unset($GLOBALS[$name]);
@@ -120,9 +134,15 @@ namespace {
                 $_POST['csrf_token'] = $token;
             }
             $_SERVER['REQUEST_METHOD'] = $posted === null ? 'GET' : 'POST';
+            unset($_SERVER['HTTP_X_CSRF_TOKEN']);
+            $GLOBALS['orderTextReviewOutputStarted'] = false;
+            $GLOBALS['orderTextReviewHttpStatus'] = 200;
             $db_encode = $encoding;
             $db_type = $driver;
+            $sprog_id = 1;
             $source = file_get_contents(__DIR__ . '/../../../debitor/ret_tekst_ordre.php');
+            // Model online.php starting output so CSRF status checks must precede that include.
+            $source = str_replace('include(__DIR__ . "/../includes/online.php");', 'fixtureOnline();', $source);
             // Isolate the real controller and view from session/database/header bootstrapping.
             $source = preg_replace('/^\s*(?:include|require)(?:_once)?\b[^\n]*;/m', '', $source);
             $source = str_replace('exit();', 'throw new \\OrderTextReviewFixture\\Saved();', $source);
@@ -168,6 +188,8 @@ namespace {
             $expected = $driver === 'postgres' ? 'update ordretekster set tekst = $1 where id = $2' : 'update ordretekster set tekst = ? where id = ?';
             self::assertSame($expected, $GLOBALS['orderTextReviewSql']);
             self::assertSame([$stored . $literal, 9], $GLOBALS['orderTextReviewParams']);
+            self::assertSame('OrderTextReviewFixture\\' . ($driver === 'postgres' ? 'pg_query_params' : 'mysqli_execute_query'), $GLOBALS['orderTextReviewDriverFunction']);
+            self::assertSame(200, $GLOBALS['orderTextReviewHttpStatus']);
             self::assertStringContainsString('URL=ordre.php?id=7&amp;ret_tekst=7', $html);
         }
 
@@ -185,9 +207,41 @@ namespace {
             foreach ([null, 'wrong-token'] as $token) {
                 $html = $this->editor('UTF8', self::TEXT, 'Overwritten', $token);
                 self::assertStringContainsString('403', $html);
+                self::assertSame(403, $GLOBALS['orderTextReviewHttpStatus']);
                 self::assertArrayNotHasKey('orderTextReviewSql', $GLOBALS);
                 self::assertStringNotContainsString('URL=ordre.php', $html);
+                self::assertStringNotContainsString('online output', $html);
             }
+        }
+
+        /** @return array<string, array{string}> */
+        public static function unrepresentableText(): array
+        {
+            return [
+                'curly apostrophe' => ['L’entreprise <b>Æble</b>'],
+                'emoji' => ['Æble 🍎'],
+                'missing LATIN1 character' => ['Pris ¼'],
+                'malformed UTF8' => ["Invalid \xC3 text"],
+            ];
+        }
+
+        #[DataProvider('unrepresentableText')]
+        public function testLatin9RejectsLossySavesAndKeepsSubmittedText(string $text): void
+        {
+            $html = $this->editor('LATIN9', self::LATIN9_TEXT, $text);
+            self::assertArrayNotHasKey('orderTextReviewSql', $GLOBALS);
+            self::assertStringContainsString('role="alert"', $html);
+            self::assertStringContainsString(htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</textarea>', $html);
+            self::assertStringNotContainsString('URL=ordre.php', $html);
+            self::assertStringContainsString('name="csrf_token" value="fixture-csrf-token"', $html);
+        }
+
+        public function testUtf8AcceptsCharactersUnavailableInLatin9(): void
+        {
+            $text = 'L’entreprise 🍎';
+            $html = $this->editor('UTF8', self::TEXT, $text);
+            self::assertSame([$text, 9], $GLOBALS['orderTextReviewParams']);
+            self::assertStringContainsString('URL=ordre.php', $html);
         }
 
         public function testLegacyQueriesStillUseTheirExistingDriverPaths(): void
@@ -195,7 +249,10 @@ namespace {
             $sql = "update ordretekster set tekst = 'text' where tekst like 'match'";
             foreach (['postgres', 'mysqli', 'mysql'] as $driver) {
                 $GLOBALS['db_type'] = $driver;
+                unset($GLOBALS['orderTextReviewSql'], $GLOBALS['orderTextReviewDriverFunction']);
                 $result = \OrderTextReviewFixture\db_modify($sql, __FILE__);
+                self::assertArrayHasKey('orderTextReviewSql', $GLOBALS);
+                self::assertSame('OrderTextReviewFixture\\' . ($driver === 'postgres' ? 'pg_query' : 'mysqli_query'), $GLOBALS['orderTextReviewDriverFunction']);
                 self::assertSame($driver === 'postgres' ? str_replace(' like ', ' ilike ', $sql) : $sql, $GLOBALS['orderTextReviewSql']);
                 self::assertArrayNotHasKey('orderTextReviewParams', $GLOBALS);
                 self::assertSame("0\tquery accepted", $result);
@@ -213,6 +270,10 @@ namespace {
                 'select literal' => ["select 'I like this' as tekst where 'a' like 'A'", "select 'I like this' as tekst where 'a' ilike 'A'"],
                 'doubled quotes' => ["select 'It''s like this' like '%like%'", "select 'It''s like this' ilike '%like%'"],
                 'escape string' => ["select E'It\\'s like this' like '%like%'", "select E'It\\'s like this' ilike '%like%'"],
+                'escape string continuation' => ["select E'Prefix '\n'It\\'s like this' like 'prefix%'", "select E'Prefix '\n'It\\'s like this' ilike 'prefix%'"],
+                'escape string continuation with comment' => ["select E'Prefix ' -- like comment\r\n'It\\'s like this' like 'prefix%'", "select E'Prefix ' -- like comment\r\n'It\\'s like this' ilike 'prefix%'"],
+                'qualified AS column' => ['select t.as like \'A\' from (select \'a\'::text as "as") t', 'select t.as ilike \'A\' from (select \'a\'::text as "as") t'],
+                'qualified AS column with comments' => ['select t. /* comment */ as like \'A\' from t', 'select t. /* comment */ as ilike \'A\' from t'],
                 'standard backslash' => ["select 'path\\' like 'path%'", "select 'path\\' ilike 'path%'"],
                 'legacy backslash escape' => ["select 'It\\'s like this' like '%like%'", "select 'It\\'s like this' ilike '%like%'", false],
                 'legacy escaped backslash' => ["select 'path\\\\' like 'path%'", "select 'path\\\\' ilike 'path%'", false],
@@ -243,8 +304,14 @@ namespace {
             foreach (['postgres', 'mysqli', 'mysql'] as $driver) {
                 $GLOBALS['db_type'] = $driver;
                 foreach (['db_modify', 'selectQuery'] as $function) {
-                    $call = 'OrderTextReviewFixture\\' . $function;
-                    $call($sql, __FILE__);
+                    unset($GLOBALS['orderTextReviewSql'], $GLOBALS['orderTextReviewDriverFunction']);
+                    if ($function === 'db_modify') {
+                        \OrderTextReviewFixture\db_modify($sql, __FILE__);
+                    } else {
+                        \OrderTextReviewFixture\selectQuery($sql, __FILE__);
+                    }
+                    self::assertArrayHasKey('orderTextReviewSql', $GLOBALS, $driver . ' ' . $function);
+                    self::assertSame('OrderTextReviewFixture\\' . ($driver === 'postgres' ? 'pg_query' : 'mysqli_query'), $GLOBALS['orderTextReviewDriverFunction'], $driver . ' ' . $function);
                     self::assertSame($driver === 'postgres' ? $expected : $sql, $GLOBALS['orderTextReviewSql'], $driver . ' ' . $function);
                 }
             }
@@ -303,6 +370,21 @@ namespace {
         {
             $html = $this->lookup('Tolerance <5 mm; < 6 mm; <=7 mm; 9 > 8 <b>bold</b>');
             self::assertStringContainsString('Tolerance &lt;5 mm; &lt; 6 mm; &lt;=7 mm; 9 &gt; 8 <b>bold</b>', $html);
+        }
+
+        public function testLookupPreservesIncompleteNamedComparisons(): void
+        {
+            $html = $this->lookup('Load<max; level<limit <b>bold</b> end<name');
+            self::assertStringContainsString('Load&lt;max; level&lt;limit <b>bold</b> end&lt;name', $html);
+        }
+
+        public function testLookupHandlesQuotedAngleBracketsInsideTagAttributes(): void
+        {
+            $html = $this->lookup('<b title="a > b">bold</b> <img title="x > y" onerror="alert(1)"> Load<max');
+            self::assertStringContainsString('<b>bold</b>  Load&lt;max', $html);
+            self::assertStringNotContainsString('onerror', $html);
+            self::assertStringNotContainsString('title=', $html);
+            self::assertStringNotContainsString('<img', $html);
         }
 
         public function testLookupPreservesAllLatin9ReplacementCharacters(): void

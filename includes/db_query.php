@@ -71,6 +71,7 @@
 // 20261118 CDX/NTR Allow bound write parameters without changing legacy query handling.
 // 20261118 CDX/NTR Normalize LIKE outside literals, quoted identifiers and comments in both query paths.
 // 20261118 CDX/NTR Explain dollar-quote and SQL identifier matching in the LIKE normalizer.
+// 20261118 CDX/NTR Preserve escape-string continuations and normalize LIKE after qualified AS columns.
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -314,6 +315,12 @@ if (!function_exists('db_normalize_like_operators')) {
 						if ($offset < $length && $sql[$offset] === $quote) {
 							$offset++;
 						} else {
+							// A newline-separated single-quoted segment continues the same PostgreSQL string and escape mode.
+							// Match whitespace and -- comments with a required newline; block comments do not permit continuation.
+							if ($quote === "'" && preg_match("/\\G(?:[ \\t\\f\\v]|--[^\\r\\n]*)*[\\r\\n](?:[ \\t\\f\\v\\r\\n]|--[^\\r\\n]*[\\r\\n])*'/", $sql, $continuation, 0, $offset)) {
+								$offset += strlen($continuation[0]);
+								continue;
+							}
 							break;
 						}
 					} else {
@@ -339,7 +346,8 @@ if (!function_exists('db_normalize_like_operators')) {
 					continue;
 				}
 				$offset += strlen($word);
-				$previousToken = $word;
+				// A word after a dot is a column identifier, even when its spelling is the AS keyword.
+				$previousToken = $previousToken === '.' ? 'qualified identifier' : $word;
 			} else {
 				$offset++;
 				if (!ctype_space($char)) {
