@@ -25,6 +25,7 @@
 // 20261118 CL/MMR SD-815 Codex round 37: an ON DELETE CASCADE reference from another table and duplicate filenames: nothing deleted anywhere, no flag, the constraint named in the log; without duplicates the repair runs.
 // 20261118 CL/MMR SD-815 Codex round 42: a DELETE trigger or a DELETE rule on pool_files and duplicate filenames: nothing deleted anywhere, no flag, named in the log.
 // 20261118 CL/MMR SD-815 Codex round 43: a table inheriting from pool_files (older duplicate and a DELETE trigger there) keeps every row anywhere, no unique index, no flag, named in the log; a unique index on pool_files alone does not count while a table inherits from it.
+// 20261118 CL/MMR SD-815 Codex round 44: in autocommit and in a caller's transaction, a temporary pool_files shadowing an indexed one changes nothing and writes no flag (the next run without it fills the permanent row), and a partly migrated table with an inheriting one keeps both tables' columns as they were.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -1029,8 +1030,11 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame(['10', '11'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_linked_document ORDER BY id')), 'nothing else touched');
     }
 
-    public function testAnInheritingTableWithADeleteTriggerStopsTheCollapse(): void
+    private function anInheritingTableWithADeleteTrigger(bool $autocommit): void
     {
+        if ($autocommit) {
+            $this->autocommitSchema();
+        }
         $this->sql(self::OLD_OPRET_POOL_FILES);
         $this->sql('CREATE TABLE pool_linked_document (id integer PRIMARY KEY, pool_id integer)');
         $this->sql('CREATE TABLE pool_files_archive () INHERITS (pool_files)');
@@ -1039,14 +1043,29 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $this->sql('INSERT INTO pool_linked_document VALUES (10, 1), (11, 2)');
         $this->sql("CREATE FUNCTION pool_files_archive_unlink() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN DELETE FROM pool_linked_document WHERE pool_id = OLD.id; RETURN OLD; END'");
         $this->sql('CREATE TRIGGER pool_files_archive_unlink AFTER DELETE ON pool_files_archive FOR EACH ROW EXECUTE FUNCTION pool_files_archive_unlink()');
+        $before = $this->physicalColumns();
+        self::assertCount(11, $before['pool_files'], 'a partly migrated table');
 
-        self::assertNotContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+        self::assertSame([], ensurePoolFilesSchema('postgresql'), 'nothing done');
+
+        self::assertSame($before, $this->physicalColumns(), 'no column added to pool_files or pool_files_archive');
 
         self::assertSame(['1', '2'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_files ORDER BY id')), 'both duplicates kept');
         self::assertSame(['10', '11'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_linked_document ORDER BY id')), 'no linked row deleted');
         self::assertSame(0, $this->backfillFlags());
         self::assertSame(0, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexdef ILIKE '%UNIQUE%(filename)%'")), 'no unique index that would only cover the parent');
         self::assertStringContainsString('pool_files_archive', (string) file_get_contents($this->log), 'the inheriting table is named');
+        self::assertSame($autocommit ? PGSQL_TRANSACTION_IDLE : PGSQL_TRANSACTION_INTRANS, pg_transaction_status($this->connection));
+    }
+
+    public function testAnInheritingTableWithADeleteTriggerChangesNothingInAutocommit(): void
+    {
+        $this->anInheritingTableWithADeleteTrigger(true);
+    }
+
+    public function testAnInheritingTableWithADeleteTriggerChangesNothingInACallersTransaction(): void
+    {
+        $this->anInheritingTableWithADeleteTrigger(false);
     }
 
     public function testAnInheritingTableIsNotCoveredByAUniqueIndexOnPoolFiles(): void
@@ -1065,4 +1084,68 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame(0, $this->backfillFlags());
         self::assertStringContainsString('tables inherit from pool_files (pool_files_archive)', (string) file_get_contents($this->log));
     }
+
+    /** @return array<string, list<string>> The columns of pool_files and pool_files_archive as the catalogue has them. */
+    private function physicalColumns(): array
+    {
+        $columns = [];
+        foreach (['pool_files', 'pool_files_archive'] as $table) {
+            $columns[$table] = pg_fetch_all_columns($this->sql("SELECT attname FROM pg_attribute WHERE attrelid = '$table'::regclass AND attnum > 0 AND NOT attisdropped ORDER BY attnum"));
+        }
+        return $columns;
+    }
+
+    private function aTemporaryPoolFiles(bool $autocommit): void
+    {
+        if ($autocommit) {
+            $this->autocommitSchema();
+        }
+        // Every column and both indexes; one row still waits for its norm_amount, and no flag.
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        self::assertContains('norm_amount_backfill', ensurePoolFilesSchema('postgresql'));
+        $this->sql("DELETE FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'");
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '125,00')");
+        $this->sql('CREATE TEMPORARY TABLE pool_files (LIKE pool_files INCLUDING ALL)');
+        $this->sql("INSERT INTO pg_temp.pool_files (id, filename, amount) VALUES (7, 'shadow.pdf', '125,00')");
+        self::assertTrue(ensurePoolFilesSchemaState('postgresql')['uniqueFilename'] && ensurePoolFilesSchemaState('postgresql')['normAmountIndex'], 'only the backfill is missing');
+
+        self::assertSame([], ensurePoolFilesSchema('postgresql'), 'nothing done');
+
+        self::assertSame(0, $this->backfillFlags(), 'no flag for the permanent table');
+        self::assertNull(pg_fetch_result($this->sql("SELECT norm_amount FROM {$this->schema()}.pool_files WHERE id = 1"), 0, 0));
+        self::assertNull(pg_fetch_result($this->sql('SELECT norm_amount FROM pg_temp.pool_files WHERE id = 7'), 0, 0), 'the temporary table untouched');
+        self::assertStringContainsString('not the permanent table in current_schema()', (string) file_get_contents($this->log));
+
+        $this->sql('DROP TABLE pg_temp.pool_files');
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
+        self::assertSame('125.000', pg_fetch_result($this->sql('SELECT norm_amount FROM pool_files WHERE id = 1'), 0, 0));
+        self::assertSame(1, $this->backfillFlags());
+        self::assertSame($autocommit ? PGSQL_TRANSACTION_IDLE : PGSQL_TRANSACTION_INTRANS, pg_transaction_status($this->connection));
+    }
+
+    public function testATemporaryPoolFilesDoesNotStandInForTheRegnskabsTableInAutocommit(): void
+    {
+        $this->aTemporaryPoolFiles(true);
+    }
+
+    public function testATemporaryPoolFilesDoesNotStandInForTheRegnskabsTableInACallersTransaction(): void
+    {
+        $this->aTemporaryPoolFiles(false);
+    }
+
+    /** Leaves setUp()'s transaction: a committed schema of its own (dropped by tearDown()), as at a login. */
+    private function autocommitSchema(): void
+    {
+        $this->sql('ROLLBACK');
+        $this->committedSchema = 'pool_auto_' . bin2hex(random_bytes(8));
+        $this->sql("CREATE SCHEMA {$this->committedSchema}");
+        $this->sql("SET search_path TO {$this->committedSchema}");
+        $this->sql('CREATE TABLE settings (id serial PRIMARY KEY, var_name text, var_grp text, var_value text, var_description text, user_id integer, group_id integer, pos_id integer)');
+    }
+
+    private function schema(): string
+    {
+        return pg_fetch_result($this->sql('SELECT quote_ident(current_schema())'), 0, 0);
+    }
 }
+

@@ -69,6 +69,7 @@
 // 20261118 CL/MMR SD-815 Codex round 41: the CREATE TABLE header's name is also recognised in double quotes (sql_mode ANSI_QUOTES); the session's sql_mode is not touched.
 // 20261118 CL/MMR SD-815 Codex round 42: with duplicates, a user DELETE trigger on pool_files (PostgreSQL: or a DELETE rule) also stops the collapse - it could change other tables; on MySQL/MariaDB triggers are only visible with the TRIGGER privilege, so without it the collapse waits too.
 // 20261118 CL/MMR SD-815 Codex round 43: on PostgreSQL the repair first checks the exact table its statements use ('pool_files'::regclass): it must be the one in current_schema() that the state reads, and no table may inherit from it (or be a partition of it) - a unique index on pool_files does not cover their rows and a DELETE through pool_files also deletes there and fires their triggers; then nothing is changed and the log names them.
+// 20261118 CL/MMR SD-815 Codex round 44: on PostgreSQL that check runs before any change of every run (also a run that only fills norm_amount), and pool_files must be the permanent table (a temporary pool_files shadows it in search_path); when columns are missing, the check and the ALTER TABLEs run in one transaction under SHARE ROW EXCLUSIVE, so no table can start to inherit in between.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -358,22 +359,24 @@ if (!function_exists('ensurePoolFilesGuardInboundReferences')) {
 
 if (!function_exists('ensurePoolFilesGuardPostgresRelation')) {
 	/**
-	 * PostgreSQL: makes sure the table the repair's statements resolve ('pool_files'::regclass, via search_path) is the
-	 * one in current_schema() that ensurePoolFilesSchemaState() reads, and that no table inherits from it or is a
-	 * partition of it. A unique index on pool_files covers only the rows stored in pool_files itself, while a SELECT or
+	 * PostgreSQL: makes sure the table the statements resolve ('pool_files'::regclass, via search_path, where a temporary
+	 * table comes first) is the permanent one in current_schema() that ensurePoolFilesSchemaState() reads, and that no
+	 * table inherits from it or is a partition of it. A unique index on pool_files covers only the rows stored in pool_files itself, while a SELECT or
 	 * DELETE on pool_files also reaches the inheriting tables (and fires their DELETE triggers), so the repair can then
-	 * neither guarantee unique filenames nor delete safely; a person has to decide. Called under the repair's
-	 * SHARE ROW EXCLUSIVE lock, which keeps new inheriting tables out until the transaction ends.
+	 * neither guarantee unique filenames nor delete safely; a person has to decide. Called by ensurePoolFilesSchemaRun()
+	 * before any change (with the ALTER TABLEs under SHARE ROW EXCLUSIVE when columns are missing) and again under the
+	 * repair's SHARE ROW EXCLUSIVE lock; that lock keeps new inheriting tables and partitions out until the transaction ends.
 	 *
 	 * @return void
 	 * @throws EnsurePoolFilesSchemaUnknown When pool_files is another table or has inheriting tables; logged.
 	 */
 	function ensurePoolFilesGuardPostgresRelation(): void {
-		$r = db_fetch_array(ensurePoolFilesSelect("SELECT (n.nspname = current_schema())::int AS same FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+		$r = db_fetch_array(ensurePoolFilesSelect("SELECT (n.nspname = current_schema() AND c.relpersistence = 'p')::int AS same FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 			WHERE c.oid = 'pool_files'::regclass", __LINE__));
 		if (!$r || (int)($r['same'] ?? 0) !== 1) {
-			error_log('ensurePoolFilesSchema: nothing changed, the pool_files found through search_path is not the one in current_schema(); check the search_path of this regnskab');
-			throw new EnsurePoolFilesSchemaUnknown('pool_files is not the table in current_schema()');
+			error_log('ensurePoolFilesSchema: nothing changed, the pool_files found through search_path is not the permanent table in current_schema()'
+				. ' (a temporary table or another schema shadows it); the next login tries again');
+			throw new EnsurePoolFilesSchemaUnknown('pool_files is not the permanent table in current_schema()');
 		}
 		$names = array();
 		$q = ensurePoolFilesSelect("SELECT h.inhrelid::regclass::text AS name FROM pg_inherits h WHERE h.inhparent = 'pool_files'::regclass ORDER BY 1", __LINE__);
@@ -970,9 +973,34 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 				return array();
 			}
 			$types = ensurePoolFilesSchemaColumns();
-			foreach ($state['columns'] as $column) {
-				$ifNotExists = $mysql ? '' : 'IF NOT EXISTS ';
-				db_modify("ALTER TABLE pool_files ADD COLUMN $ifNotExists$column " . $types[$column], __FILE__ . " linje " . __LINE__);
+			if ($mysql) {
+				foreach ($state['columns'] as $column) {
+					db_modify("ALTER TABLE pool_files ADD COLUMN $column " . $types[$column], __FILE__ . " linje " . __LINE__);
+				}
+			} elseif (!$state['columns']) {
+				ensurePoolFilesGuardPostgresRelation(); // before the index and the backfill
+			} else {
+				// The check and the ALTER TABLEs in one transaction (a savepoint inside the caller's): SHARE ROW EXCLUSIVE
+				// keeps a new inheriting table or partition out in between, and a stop changes nothing.
+				db_modify($nested ? 'SAVEPOINT pool_files_columns' : 'BEGIN', __FILE__ . " linje " . __LINE__);
+				$ok = false;
+				try {
+					db_modify("LOCK TABLE pool_files IN SHARE ROW EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+					ensurePoolFilesGuardPostgresRelation();
+					foreach ($state['columns'] as $column) {
+						db_modify("ALTER TABLE pool_files ADD COLUMN IF NOT EXISTS $column " . $types[$column], __FILE__ . " linje " . __LINE__);
+					}
+					$ok = true;
+				} finally {
+					if ($ok) {
+						db_modify($nested ? 'RELEASE SAVEPOINT pool_files_columns' : 'COMMIT', __FILE__ . " linje " . __LINE__);
+					} else {
+						db_modify($nested ? 'ROLLBACK TO SAVEPOINT pool_files_columns' : 'ROLLBACK', __FILE__ . " linje " . __LINE__);
+						if ($nested) {
+							db_modify('RELEASE SAVEPOINT pool_files_columns', __FILE__ . " linje " . __LINE__);
+						}
+					}
+				}
 			}
 			if ($state['columns']) {
 				// Read back: db_modify() can report a failed ALTER as accepted. Report only what is there; stop if not all.
