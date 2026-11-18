@@ -48,10 +48,17 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  *                through the tail.
  * 20261118 CL/LH Codex verification 9: a gzip refusal is never an acceptance and a completed empty answer still is, on all three
  *                transports (curl_multi, curl alone, the shell); a lost, unreadable or shortened shell answer file is a transport
- *                failure. * 20261118 CL/LH CodeRabbit review of 63cf3d3f2: each transport leg asserts the transport the tick used; a barcode with an apostrophe
- *                reaches the shops from the bulk page. * 20261118 CL/LH Codex verification 10: a negotiated gzip stream cut short, and an answer in any declared content encoding, are never
- *                acceptances; a shop that failed and refused is one stuck shop. CodeRabbit review of #1158: the cut-off test's offer
- *                lasts through its retry; the curl wrapper is private to each run.
+ *                failure.
+ * 20261118 CL/LH CodeRabbit review of 63cf3d3f2: each transport leg asserts the transport the tick used; a barcode with an
+ *                apostrophe reaches the shops from the bulk page.
+ * 20261118 CL/LH Codex verification 10: a negotiated gzip stream cut short, and an answer in any declared content encoding, are
+ *                never acceptances; a shop that failed and refused is one stuck shop. CodeRabbit review of #1158: the cut-off
+ *                test's offer lasts through its retry; the curl wrapper is private to each run.
+ * 20261118 CL/LH CodeRabbit review of 4cd96c7d2: every Content-Encoding field counts and any value is stored printable; the
+ *                undeclared gzip case runs on every transport; a bulk run skips an item deleted during it on an account without
+ *                offer state.
+ * 20261118 CL/LH Codex verification 11: folded and repeated Content-Encoding fields, and redirects, read alike on every transport
+ *                (a raw fake shop, support/raw_http_answer.php).
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -601,12 +608,16 @@ SH);
 			self::assertSame([2, 0, 1], self::outcomes($out), "$transport: shop 2's gzip refusal: " . json_encode($out));
 			self::assertNull(self::stateByShop($id)['shop 2']['confirmed'], "$transport: shop 2 is not booked as holding the offer");
 		}
-		$id = self::item('SPGZUND', self::offer());
-		self::control('rules', json_encode([['item' => 'SPGZUND', 'shop' => '2', 'longRefusal' => true, 'gzip' => 'undeclared']]));
-		$out = self::tick($t);
-		self::uncontrol('rules');
-		self::assertSame([2, 0, 1], self::outcomes($out), 'a gzip body without Content-Encoding is not judged: ' . json_encode($out));
-		self::assertNull(self::stateByShop($id)['shop 2']['confirmed']);
+		foreach (self::transports() as $transport => $php) {
+			$itemNo = 'SPGZU' . strtoupper(substr($transport, 0, 2));
+			$id = self::item($itemNo, self::offer(159.2, 3));
+			self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'longRefusal' => true, 'gzip' => 'undeclared']]));
+			$out = self::runner(['tick', (string)$t, '10'], $php);
+			self::uncontrol('rules');
+			self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
+			self::assertSame([2, 0, 1], self::outcomes($out), "$transport: a gzip body without Content-Encoding is not judged: " . json_encode($out));
+			self::assertNull(self::stateByShop($id)['shop 2']['confirmed'], "$transport: shop 2 is not booked as holding the offer");
+		}
 	}
 
 	/**
@@ -653,6 +664,84 @@ SH);
 				$shop2 = self::stateByShop($id)['shop 2'];
 				self::assertSame([null, 1], [$shop2['confirmed'], $shop2['attempts']], "$transport, $encoding: retried as a failed send");
 			}
+		}
+	}
+
+	/**
+	 * CodeRabbit on 4cd96c7d2: every Content-Encoding field of the final response counts, also a second one after "identity"
+	 * (the shell's %header{} gave only the first). And a value that is not UTF-8 is stored printable: the state is still
+	 * written, and the send is a transport failure like any other.
+	 */
+	public function testEveryContentEncodingFieldCountsAndAnyValueIsStoredPrintable(): void
+	{
+		$t = time();
+		foreach (['repeated' => ['encodings' => ['identity', 'br']], 'not UTF-8' => ['encoding' => 'bad-bytes']] as $case => $rule) {
+			foreach (self::transports() as $transport => $php) {
+				$itemNo = 'SPFLD' . ($case === 'repeated' ? 'R' : 'B') . strtoupper(substr($transport, 0, 2));
+				$id = self::item($itemNo, self::offer(159.2, 3));
+				self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2'] + $rule]));
+				$out = self::runner(['tick', (string)$t, '10'], $php);
+				self::uncontrol('rules');
+				self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
+				self::assertSame([2, 0, 1, 0], [...self::outcomes($out), $out['stateErrors']], "$transport, $case: " . json_encode($out));
+				$shop2 = self::stateByShop($id)['shop 2'];
+				self::assertSame([null, 1], [$shop2['confirmed'], $shop2['attempts']], "$transport, $case: recorded as a failed send");
+				self::assertMatchesRegularExpression('/^[\x20-\x7e]*$/', $shop2['error'], "$transport, $case: the stored error is printable");
+			}
+		}
+	}
+
+	/**
+	 * Codex verification 11: every transport reads the final response's Content-Encoding fields with one parser
+	 * (shopOfferContentCodings()), so a folded field (a line that starts with a space or tab continues it) and a repeated one
+	 * count on curl and on the shell alike, and only identity is accepted. The shop is a raw server (support/raw_http_answer.php),
+	 * since PHP's built-in one cannot send a folded field; its encoded answers are a zlib-compressed refusal.
+	 */
+	public function testFoldedAndRepeatedContentEncodingFieldsAreReadAlikeOnEveryTransport(): void
+	{
+		$portFile = (string)tempnam(sys_get_temp_dir(), 'rawport');
+		self::$files[] = $portFile;
+		$server = proc_open([PHP_BINARY, __DIR__ . '/../support/raw_http_answer.php', $portFile],
+			[0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+		self::$children[] = $server;
+		$box5 = (string)self::one("SELECT box5 FROM grupper WHERE art = 'API'")['box5'];
+		try {
+			for ($i = 0; $i < 50 && (int)@file_get_contents($portFile) === 0; $i++) {
+				usleep(100000);
+			}
+			$port = (int)file_get_contents($portFile);
+			self::assertGreaterThan(0, $port, 'the raw shop listens');
+			$t = time();
+			$cases = ['folded' => false, 'folded-empty' => false, 'folded-identity' => false, 'folded-tab' => false,
+				'double-identity-first' => false, 'double-deflate-first' => false, 'redirect-to-encoded' => false,
+				'identity' => true, 'identity-mixed-case' => true, 'identity-folded' => true, 'identity-repeated' => true,
+				'redirect-from-encoded' => true];
+			$n = 0;
+			foreach ($cases as $case => $judged) {
+				// a new shop 2 url is a new shop: the earlier cases' items would be due to it too, so each case starts as setUp() does
+				self::rows("UPDATE varer SET specialtype = NULL, special_price = 0");
+				self::clearState();
+				self::rows("UPDATE grupper SET box5 = $1 WHERE art = 'API'", ["http://127.0.0.1:$port/$case?shop=2"]);
+				foreach (self::transports() as $transport => $php) {
+					$itemNo = 'SPHDR' . $n . strtoupper(substr($transport, 0, 2));
+					$id = self::item($itemNo, self::offer(159.2, 3));
+					$out = self::runner(['tick', (string)$t, '10'], $php);
+					self::assertSame($transport, $out['transport'] ?? null, 'the leg ran on its own transport');
+					if ($judged) {
+						self::assertSame([3, 0, 0], self::outcomes($out), "$transport, $case: only identity, judged: " . json_encode($out));
+						continue;
+					}
+					self::assertSame([2, 0, 1], self::outcomes($out), "$transport, $case: shop 2's answer is not judged: " . json_encode($out));
+					$shop2 = self::stateByShop($id)['shop 2'];
+					self::assertSame([null, 1], [$shop2['confirmed'], $shop2['attempts']], "$transport, $case: retried as a failed send");
+					self::assertStringContainsString('deflate', $shop2['error'], "$transport, $case: the coding is named");
+				}
+				$n++;
+			}
+		} finally {
+			self::rows("UPDATE grupper SET box5 = $1 WHERE art = 'API'", [$box5]);
+			proc_terminate($server, 9);
+			proc_close($server);
 		}
 	}
 
@@ -1134,6 +1223,32 @@ SH);
 			foreach (self::bulkSyncCalls($page, 'SPBULKQ') as $sent) {
 				self::assertSame("57'01", $sent['barcode'] ?? null, 'the barcode arrives as it is stored');
 			}
+		});
+	}
+
+	/**
+	 * CodeRabbit on 4cd96c7d2: on an account without offer state, an item deleted between the page's list and its read is
+	 * skipped as "not read again", never sent with the prices of the list.
+	 */
+	public function testABulkSyncSkipsAnItemDeletedDuringTheRunWithoutOfferState(): void
+	{
+		self::withBulkSyncOf('SPBULKDEL', self::offer(159.2, 3), function (int $id): void {
+			self::assertDirectoryDoesNotExist(self::$tempDir . '/shopoffer', 'an account whose scheduler never ran');
+			$prefix = sys_get_temp_dir() . '/shopoffer-stall-' . bin2hex(random_bytes(4));
+			self::$files[] = "$prefix.held";
+			self::$files[] = "$prefix.go";
+			self::clearLog();
+			$page = self::startScript('run_sync_all_products_page.php', [self::sessionId()], "bulk:listed:$id:$prefix");
+			for ($i = 0; $i < 600 && !is_file("$prefix.held"); $i++) {
+				usleep(50000);
+			}
+			self::assertFileExists("$prefix.held", 'the page is held after its list, before it reads the item');
+			self::rows("DELETE FROM varer WHERE id = $1", [$id]);
+			file_put_contents("$prefix.go", '');
+			self::assertSame(0, proc_close($page[0]), 'the page ran to its end');
+			self::assertStringContainsString('could not be read again', (string)file_get_contents($page[1]));
+			usleep(1500000); // the page's calls are fire-and-forget
+			self::assertSame([], self::priceCalls('SPBULKDEL', null), 'no stock or price call with the prices of the list');
 		});
 	}
 

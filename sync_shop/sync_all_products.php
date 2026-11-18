@@ -142,7 +142,9 @@ while ($product = db_fetch_array($products_query)) {
         // the calls go out at once, then the record (shopOfferForeignDone(): one catch-up for a tracked item or one with an offer,
         // so the reconciler sends every shop the current pair once after the calls' late window). The calls are fire-and-forget, so
         // on an account with offer state they stop after 60 s: within the 2 minutes the protocol allows between a claim and its calls.
+        shopOfferTestPause('bulk', 'listed', $vare_id); // 20261118 CL/LH for the tests only: the item is listed, not read yet
         $itemNow = db_fetch_array(db_select("SELECT salgspris, retail_price, " . shopOfferColumns() . " FROM varer WHERE id = '" . (int)$vare_id . "'", __FILE__ . " linje " . __LINE__));
+        $unreadable = !$itemNow; // 20261118 CL/LH no row now (the item was deleted during the run, or the read failed)
         if ($itemNow) {
             $salgspris = $itemNow['salgspris'];
             $retail_price = $itemNow['retail_price'];
@@ -160,7 +162,9 @@ while ($product = db_fetch_array($products_query)) {
             fwrite($log, "    API: $api_url\n");
             
             $claim = shopOfferForeignReady($claim);
-            if (!empty($claim['noPrices'])) { // the item could not be read again: no stock or price call for it; the reconciler sends its prices
+            // the item could not be read again: no stock or price call for it; the reconciler sends its prices. 20261118 CL/LH also
+            // on an account without offer state (no claim), where nothing could read it again: never the start-of-run prices
+            if (!empty($claim['noPrices']) || ($unreadable && !$claim)) {
                 // 20261118 CL/LH the SKU/cost call carries no prices, so it still goes out; the item counts as not synced, so the
                 // run ends with an error and can be run again for its stock
                 $sku_result = shell_exec("nohup curl " . escapeshellarg($sku_url) . " > ../temp/$db/curl_sku.txt 2>&1 &");

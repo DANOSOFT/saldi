@@ -20,7 +20,9 @@
 //                                 without it ("undeclared"); `encoding` sends OK in that declared Content-Encoding (gzip,
 //                                 deflate, br, zstd, or any other name with the answer as it is); `negotiated` refuses with
 //                                 the long JSON refusal, plain unless the client advertises gzip, and then as a gzip stream cut
-//                                 15 bytes short with a Content-Length that matches what is sent
+//                                 15 bytes short with a Content-Length that matches what is sent; `encodings` sends OK as a
+//                                 list of Content-Encoding fields (a repeated header, the body brotli-encoded when one is br);
+//                                 the `encoding` name "bad-bytes" sends a value that is not UTF-8
 // It never forwards anything to a real shop.
 //
 // History:
@@ -31,6 +33,7 @@
 // 20261118 CL/LH Codex verification 8: a long complete JSON refusal (`longRefusal`) and a long acceptance (`pad`).
 // 20261118 CL/LH Codex verification 9: a gzip answer, declared or not (`gzip`), and a completed empty answer (`empty`).
 // 20261118 CL/LH Codex verification 10: a declared content encoding (`encoding`) and a negotiated gzip stream cut short (`negotiated`).
+// 20261118 CL/LH CodeRabbit review of 4cd96c7d2: repeated Content-Encoding fields (`encodings`) and a value that is not UTF-8.
 $log = (string)getenv('SALDI_SHOP_RECORDER_LOG');
 if ($log === '') {
 	http_response_code(500);
@@ -47,6 +50,7 @@ $apply = $answer = 0.0;
 $cut = $longRefusal = $empty = $gzip = $negotiated = false;
 $pad = 0;
 $encoding = '';
+$encodings = array();
 foreach ((array)json_decode((string)@file_get_contents($log . '.rules'), true) as $rule) {
 	if ((isset($rule['shop']) && (string)$rule['shop'] !== $shop) || (isset($rule['item']) && (string)$rule['item'] !== $item)
 		|| (isset($rule['sales']) && (string)$rule['sales'] !== (string)($_GET['salesPrice'] ?? '')) || (isset($rule['call']) && $rule['call'] !== $call)) {
@@ -63,6 +67,7 @@ foreach ((array)json_decode((string)@file_get_contents($log . '.rules'), true) a
 	$empty = !empty($rule['empty']);
 	$gzip = $rule['gzip'] ?? false;
 	$encoding = (string)($rule['encoding'] ?? '');
+	$encodings = (array)($rule['encodings'] ?? array());
 	$negotiated = !empty($rule['negotiated']);
 	if ($negotiated) $reject = $longRefusal = true;
 	break;
@@ -120,7 +125,16 @@ if ($encoding !== '') {
 	} elseif (isset($okIn[$encoding]) && $reply === 'OK') {
 		$reply = base64_decode($okIn[$encoding]);
 	}
-	header('Content-Encoding: ' . $encoding);
+	header('Content-Encoding: ' . ($encoding === 'bad-bytes' ? "x-\xff\xfe" : $encoding));
+	header('Content-Length: ' . strlen($reply));
+}
+if ($encodings) {
+	if (in_array('br', $encodings, true) && $reply === 'OK') {
+		$reply = base64_decode('IQQABE9LAw=='); // "OK", brotli-encoded
+	}
+	foreach ($encodings as $value) {
+		header('Content-Encoding: ' . $value, false); // one field each
+	}
 	header('Content-Length: ' . strlen($reply));
 }
 echo $reply;

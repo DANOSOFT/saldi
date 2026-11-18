@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 //                CodeRabbit review of 63cf3d3f2: the tick is the shop_offer_tick action's own call, not merely in the branch.
 // 20261118 CL/LH CodeRabbit review of #1158: the dispatcher itself runs, with a counting stub tick: once for an account with its key,
 //                never for a refused call, another action or a master account.
+// 20261118 CL/LH CodeRabbit review of 4cd96c7d2: a key that is not a string is refused without a warning.
 #[RunTestsInSeparateProcesses]
 final class ShopOfferTickAuthTest extends TestCase
 {
@@ -132,6 +133,25 @@ final class ShopOfferTickAuthTest extends TestCase
 		$_POST = [];
 		$this->assertSame(['Access denied (the offer tick needs an account and its API key)', 0], $this->dispatch(),
 			'a master account from Danosoft\'s address, without a key: no tick');
+	}
+
+	/** A key sent as a form array (key[]=...) is refused before any comparison, without a warning, and not replaced by the query key. */
+	public function testAKeyThatIsNotAStringIsRefusedWithoutAWarning(): void
+	{
+		$casts = [];
+		set_error_handler(function (int $no, string $message) use (&$casts): bool {
+			if (stripos($message, 'Array to string') !== false) $casts[] = $message;
+			return false;
+		});
+		try {
+			$_POST = ['key' => ['test-key-1']];
+			$this->assertSame('Access denied (key)', access_check());
+			$_GET['key'] = 'test-key-1';
+			$this->assertSame('Access denied (key)', access_check(), 'a malformed POST key is not replaced by the query key');
+		} finally {
+			restore_error_handler();
+		}
+		$this->assertSame([], $casts, 'no "Array to string conversion"');
 	}
 
 	public function testTheSaldiuserIsStillRequired(): void
