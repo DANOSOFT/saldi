@@ -16,6 +16,7 @@
 // 20261118 CL/MMR SD-815 Codex round 33: another connection switching pool_files to ROW_FORMAT=COMPACT after the trial and before the lock: both rows kept, nothing reported; after DYNAMIC again the retry completes (both mysqli modes).
 // 20261118 CL/MMR SD-815 Codex round 34: with 63 keys, another connection taking the 64th key slot after the trial and before the lock: both rows and its key kept, nothing reported; after a slot is free the retry completes (both mysqli modes).
 // 20261118 CL/MMR SD-815 Codex round 35: another connection partitioning pool_files by HASH(id) after the trial and before the lock: both rows kept, nothing reported; the partitioned table defers at the trial; after REMOVE PARTITIONING the retry completes (both mysqli modes).
+// 20261118 CL/MMR SD-815 Codex round 36: a table with an outgoing foreign key, and a session with sql_quote_show_create=0, are repaired (FK and setting kept) in both mysqli modes.
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -641,5 +642,59 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testPartitioningBeforeTheLockReportingOff(): void
     {
         $this->partitioningBeforeTheLock(MYSQLI_REPORT_OFF);
+    }
+
+    private function aStableTableWithAForeignKeyIsRepaired(int $reportMode): void
+    {
+        $this->sql('CREATE TABLE pool_parent (id INT NOT NULL PRIMARY KEY) ENGINE=InnoDB');
+        $this->sql('INSERT INTO pool_parent VALUES (1)');
+        $this->allLaterColumns();
+        $this->sql('ALTER TABLE pool_files ADD COLUMN parent_id INT NULL, ADD CONSTRAINT pool_files_parent_fk FOREIGN KEY (parent_id) REFERENCES pool_parent (id)');
+        $this->sql("INSERT INTO pool_files (filename, amount, parent_id) VALUES ('a.pdf', '1,00', 1), ('a.pdf', '99,00', 1)");
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertContains('unique_filename', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame('99,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"));
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
+        self::assertSame('1', $this->one("SELECT count(*) FROM information_schema.referential_constraints WHERE constraint_schema = DATABASE() AND constraint_name = 'pool_files_parent_fk'"), 'the foreign key is kept');
+    }
+
+    public function testAStableTableWithAForeignKeyIsRepairedStrict(): void
+    {
+        $this->aStableTableWithAForeignKeyIsRepaired(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testAStableTableWithAForeignKeyIsRepairedReportingOff(): void
+    {
+        $this->aStableTableWithAForeignKeyIsRepaired(MYSQLI_REPORT_OFF);
+    }
+
+    private function unquotedShowCreateIsRepaired(int $reportMode): void
+    {
+        $this->allLaterColumns();
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $this->sql('SET SESSION sql_quote_show_create = 0');
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertContains('unique_filename', $done);
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
+        self::assertSame('0', $this->one('SELECT @@SESSION.sql_quote_show_create'), 'the session setting is left as it was');
+    }
+
+    public function testUnquotedShowCreateIsRepairedStrict(): void
+    {
+        $this->unquotedShowCreateIsRepaired(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testUnquotedShowCreateIsRepairedReportingOff(): void
+    {
+        $this->unquotedShowCreateIsRepaired(MYSQLI_REPORT_OFF);
     }
 }

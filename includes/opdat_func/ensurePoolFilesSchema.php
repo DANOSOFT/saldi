@@ -61,6 +61,7 @@
 // 20261118 CL/MMR SD-815 Codex round 33: the trial copy's definition (engine, row format, filename's type, character set, collation) is kept, and under the lock pool_files must still have that definition before anything is deleted; otherwise the run stops with both rows intact.
 // 20261118 CL/MMR SD-815 Codex round 34: that definition also covers every index of the table (name, columns, prefix, uniqueness), read on the copy before the trial index, so an index another session adds between the trial and the lock (e.g. taking MariaDB's last of 64 key slots) stops the run before anything is deleted.
 // 20261118 CL/MMR SD-815 Codex round 35: the definition is now the table's whole SHOW CREATE TABLE (AUTO_INCREMENT left out), so partitioning and every other option count too: taken before the trial copy, the copy must match it, and under the lock pool_files must still match it before anything is deleted.
+// 20261118 CL/MMR SD-815 Codex round 36: the trial copy is compared without FOREIGN KEY lines (CREATE TABLE ... LIKE does not copy them), pool_files before the trial and under the lock still in full; only the name in the CREATE TABLE header is normalised, quoted or not (sql_quote_show_create=0).
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -379,7 +380,29 @@ if (!function_exists('ensurePoolFilesMysqlTableDefinition')) {
 			return '';
 		}
 		$create = preg_replace('/\\sAUTO_INCREMENT=\\d+/i', '', $create);
-		return str_replace('`' . $table . '`', '`pool_files`', $create);
+		// Only the header's table name, quoted or not (sql_quote_show_create=0 prints it bare); nothing else is touched.
+		return (string)preg_replace('/^CREATE TABLE `?' . preg_quote($table, '/') . '`?(?=\\s)/', 'CREATE TABLE `pool_files`', $create, 1);
+	}
+}
+
+if (!function_exists('ensurePoolFilesMysqlDefinitionWithoutForeignKeys')) {
+	/**
+	 * A definition from ensurePoolFilesMysqlTableDefinition() without its FOREIGN KEY constraint lines, which CREATE
+	 * TABLE ... LIKE does not copy, and without the line-end commas their removal shifts. Only for comparing the trial
+	 * copy with pool_files; pool_files itself is always compared in full.
+	 *
+	 * @param string $definition
+	 * @return string
+	 */
+	function ensurePoolFilesMysqlDefinitionWithoutForeignKeys(string $definition): string {
+		$lines = array();
+		foreach (preg_split('/\\R/', $definition) as $line) {
+			if (preg_match('/^\\s*CONSTRAINT\\s.*\\sFOREIGN KEY\\s/i', $line)) {
+				continue;
+			}
+			$lines[] = rtrim($line, " ,");
+		}
+		return implode("\n", $lines);
 	}
 }
 
@@ -422,8 +445,9 @@ if (!function_exists('ensurePoolFilesMysqlProbeUniqueIndex')) {
 			$failed();
 		}
 		try {
-			// The copy, before the trial index, must be pool_files as read above; otherwise the trial would test something else.
-			if (ensurePoolFilesMysqlTableDefinition($probe) !== $definition) {
+			// The copy, before the trial index, must be pool_files as read above (apart from the foreign keys LIKE does not
+			// copy); otherwise the trial would test something else.
+			if (ensurePoolFilesMysqlDefinitionWithoutForeignKeys(ensurePoolFilesMysqlTableDefinition($probe)) !== ensurePoolFilesMysqlDefinitionWithoutForeignKeys($definition)) {
 				$stop('pool_files changed while the trial copy was made, or the copy differs from it');
 			}
 			if (!ensurePoolFilesMysqlExec("CREATE UNIQUE INDEX {$probe}_filename ON $probe (filename)")) {

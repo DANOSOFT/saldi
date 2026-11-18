@@ -38,6 +38,10 @@ $allowed = [
 	'EnsurePoolFilesSchemaMysqlTest::testTheLastKeySlotTakenBeforeTheLockReportingOff',
 	'EnsurePoolFilesSchemaMysqlTest::testPartitioningBeforeTheLockStrict',
 	'EnsurePoolFilesSchemaMysqlTest::testPartitioningBeforeTheLockReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAStableTableWithAForeignKeyIsRepairedStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAStableTableWithAForeignKeyIsRepairedReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testUnquotedShowCreateIsRepairedStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testUnquotedShowCreateIsRepairedReportingOff',
 ];
 
 $file = $argv[1] ?? '';
