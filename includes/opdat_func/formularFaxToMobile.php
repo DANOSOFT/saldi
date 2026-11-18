@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func/formularFaxToMobile.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- includes/opdat_func/formularFaxToMobile.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,8 @@
 // 20261111 CL/MMR SST-898 Created. SD-532 turned the fax field into the mobile field (adresser.mobile), but the forms kept "Fax: $egen_fax".
 //                 The forms now name the field "Mobilnr." and use $egen_mobile / $adresser_mobile (Morten 2026-11-11: «der er ingen der bruger Fax længere»).
 //                 Morten chose the label on 2026-11-13: «Bare "Mobilnr."».
+// 20261118 CL/MMR SST-898 (review 4) A login on an account without the formularer or tekster table skips that step instead of failing, and runs it once the table exists.
+//                 The old default texts are deleted here (formularFaxToMobileTekster()) and only when one is still stored, so a login with nothing left to change writes nothing.
 
 if (!function_exists('formular_fax_to_mobile_text')) {
 	/**
@@ -72,16 +74,94 @@ if (!function_exists('formular_fax_to_mobile_text')) {
 	}
 }
 
+if (!function_exists('formular_fax_to_mobile_has_table')) {
+	/**
+	 * Whether the account's own schema has the table: PostgreSQL current_schema(), MySQL/MariaDB DATABASE(), the same
+	 * filter as saldi_schema_filter() in includes/db_query.php. tbl_exists() is not used here: on PostgreSQL it reads
+	 * pg_tables in every schema and warns about a missing table, and the update's test runners load only
+	 * db_select() and db_fetch_array().
+	 *
+	 * @param string $table A table name (letters, digits and _ only).
+	 * @return bool True when the table exists.
+	 */
+	function formular_fax_to_mobile_has_table($table) {
+		global $db_type;
+		$schema = in_array($db_type, array('mysql', 'mysqli'), true) ? 'DATABASE()' : 'current_schema()';
+		$table = preg_replace('/[^A-Za-z0-9_]/', '', (string)$table);
+		$q = db_select("SELECT 1 AS found FROM information_schema.tables WHERE table_schema = $schema AND table_name = '$table'", __FILE__ . " linje " . __LINE__);
+		return (bool)($q && db_fetch_array($q));
+	}
+}
+
+if (!function_exists('formular_fax_to_mobile_stale_tekster')) {
+	/**
+	 * The old default texts that formularFaxToMobileTekster() deletes, per text id and language (1 = Danish,
+	 * 2 = English, 3 = Norwegian): "Telefax"/"Fax"/"Faks", the interim "Mobile", the previous "Mobil" and
+	 * "Mobilnummer" (5230, SD-525). English keeps "Mobile" / "Mobile number"; only its old "Fax" goes.
+	 * The new "Mobilnr." is never in the list.
+	 *
+	 * @return array<int, array{0: int, 1: int, 2: string[]}> [tekst_id, sprog_id, old texts]
+	 */
+	function formular_fax_to_mobile_stale_tekster() {
+		return array(
+			array(378, 1, array('Telefax', 'Mobile', 'Mobil')),
+			array(378, 2, array('Fax')),
+			array(378, 3, array('Faks', 'Mobile', 'Mobil')),
+			array(50, 1, array('Fax', 'Mobile', 'Mobil')),
+			array(50, 2, array('Fax')),
+			array(50, 3, array('Faks', 'Mobile', 'Mobil')),
+			array(5230, 1, array('Mobilnummer')),
+			array(5230, 3, array('Mobilnummer')),
+		);
+	}
+}
+
+if (!function_exists('formularFaxToMobileTekster')) {
+	/**
+	 * Deletes the stored old defaults of texts 378, 50 and 5230 (see formular_fax_to_mobile_stale_tekster()), so
+	 * findtekst() reads the new default from importfiler/tekster.csv. A text the customer has edited (e.g.
+	 * "Mobiltlf.") is kept. Runs from includes/betweenUpdates.php at every login: it reads the few rows of the three
+	 * ids and calls deleteStaleTekst() only for a language that still holds an old text, so a login with nothing left
+	 * to change writes nothing. An account without the tekster table is skipped; a later login handles it.
+	 *
+	 * @return int The number of text/language pairs that held an old text.
+	 */
+	function formularFaxToMobileTekster() {
+		if (!formular_fax_to_mobile_has_table('tekster')) {
+			return 0;
+		}
+		$stored = array();
+		$q = db_select("SELECT tekst_id, sprog_id, tekst FROM tekster WHERE tekst_id IN (378, 50, 5230)", __FILE__ . " linje " . __LINE__);
+		while ($q && ($r = db_fetch_array($q))) {
+			$stored[(int)$r['tekst_id'] . '/' . (int)$r['sprog_id']][] = (string)$r['tekst'];
+		}
+		$found = 0;
+		foreach (formular_fax_to_mobile_stale_tekster() as $stale) {
+			list($tekstId, $sprogId, $oldTexts) = $stale;
+			if (array_intersect($oldTexts, isset($stored["$tekstId/$sprogId"]) ? $stored["$tekstId/$sprogId"] : array())) {
+				require_once __DIR__ . '/deleteStaleTekst.php';
+				deleteStaleTekst($tekstId, $oldTexts, $sprogId);
+				$found++;
+			}
+		}
+		return $found;
+	}
+}
+
 if (!function_exists('formularFaxToMobile')) {
 	/**
 	 * Rewrites the account's form texts that still use a fax variable (see formular_fax_to_mobile_text()).
 	 * Runs from includes/betweenUpdates.php at every login: it reads only rows that mention "fax", and a
 	 * rewritten row no longer holds a fax variable, so a second run (or a concurrent login) changes nothing.
+	 * An account without the formularer table is skipped and no flag is set, so a later login rewrites the texts.
 	 *
 	 * @return int The number of form texts changed.
 	 */
 	function formularFaxToMobile() {
 		$changed = 0;
+		if (!formular_fax_to_mobile_has_table('formularer')) {
+			return $changed;
+		}
 		$q = db_select("SELECT id, sprog, beskrivelse FROM formularer WHERE LOWER(beskrivelse) LIKE '%fax%'", __FILE__ . " linje " . __LINE__);
 		while ($q && ($r = db_fetch_array($q))) {
 			$new = formular_fax_to_mobile_text($r['beskrivelse'], $r['sprog']);

@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../../includes/opdat_func/formularFaxToMobile.php';
 //                 The texts are the ones found in accounts and in importfiler/formular*.txt. The last tests check the templates and the update step.
 // 20261111 CL/MMR SST-898 (review) Own labels that end in Fax/FAX/Telefax/Faks ("Support Fax:") keep their text: only a whole standard label is replaced.
 // 20261113 CL/MMR SST-898 (review 2) The Danish and Norwegian label is "Mobilnr." on the forms and in texts 378, 50 and 5230 (debitor card); "Fax.:" gives no double dot.
+// 20261118 CL/MMR SST-898 (review 4) The old default texts are listed in formular_fax_to_mobile_stale_tekster() and deleted by formularFaxToMobileTekster(); the database behaviour is in FormularFaxToMobileLoginTest.
 final class FormularFaxToMobileTest extends TestCase
 {
     /** @return array<string, array{string, string, string}> text, sprog, expected */
@@ -91,15 +92,22 @@ final class FormularFaxToMobileTest extends TestCase
         $src = (string)file_get_contents(__DIR__ . '/../../../includes/betweenUpdates.php');
         self::assertStringContainsString("require_once __DIR__ . '/opdat_func/formularFaxToMobile.php';", $src);
         self::assertStringContainsString('formularFaxToMobile();', $src);
-        // old Danish and Norwegian defaults, including the previous "Mobil" and the debitor card's "Mobilnummer"
-        self::assertStringContainsString("deleteStaleTekst(378, array('Telefax', 'Mobile', 'Mobil'), 1);", $src);
-        self::assertStringContainsString("deleteStaleTekst(378, array('Faks', 'Mobile', 'Mobil'), 3);", $src);
-        self::assertStringContainsString("deleteStaleTekst(50, array('Fax', 'Mobile', 'Mobil'), 1);", $src);
-        self::assertStringContainsString("deleteStaleTekst(50, array('Faks', 'Mobile', 'Mobil'), 3);", $src);
-        self::assertStringContainsString("deleteStaleTekst(5230, 'Mobilnummer', 1);", $src);
-        self::assertStringContainsString("deleteStaleTekst(5230, 'Mobilnummer', 3);", $src);
-        // the current English defaults "Mobile" / "Mobile number" and the new "Mobilnr." must not be deleted
-        self::assertDoesNotMatchRegularExpression("/deleteStaleTekst\\((378|50|5230), [^;]*'Mobile( number)?'[^;]*, 2\\)/", $src);
-        self::assertDoesNotMatchRegularExpression("/deleteStaleTekst\\([^;]*'Mobilnr\\.'/", $src);
+        self::assertStringContainsString('formularFaxToMobileTekster();', $src);
+    }
+
+    public function testTheOldDefaultTextsThatAreDeleted(): void
+    {
+        // old Danish and Norwegian defaults, including the previous "Mobil" and the debitor card's "Mobilnummer";
+        // the current English defaults "Mobile" / "Mobile number" and the new "Mobilnr." are never deleted
+        self::assertSame([
+            [378, 1, ['Telefax', 'Mobile', 'Mobil']],
+            [378, 2, ['Fax']],
+            [378, 3, ['Faks', 'Mobile', 'Mobil']],
+            [50, 1, ['Fax', 'Mobile', 'Mobil']],
+            [50, 2, ['Fax']],
+            [50, 3, ['Faks', 'Mobile', 'Mobil']],
+            [5230, 1, ['Mobilnummer']],
+            [5230, 3, ['Mobilnummer']],
+        ], formular_fax_to_mobile_stale_tekster());
     }
 }

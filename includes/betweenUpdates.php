@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -52,6 +52,7 @@
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261118 CL/MMR SST-898 (review 4) The form and text step skips an account without the formularer or tekster table instead of failing, and writes nothing when nothing is left to change (formularFaxToMobileTekster()).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -448,17 +449,11 @@ migrateTillAccounts($db_type);
 // kept an old default. The field is now "Mobilnr." in Danish and Norwegian (Morten 2026-11-13), so the old defaults
 // "Telefax"/"Fax"/"Faks", the interim "Mobile", the previous "Mobil" and "Mobilnummer" (5230, SD-525) are deleted and
 // findtekst() reads the new default from importfiler/tekster.csv. English keeps "Mobile" / "Mobile number"; only its
-// old "Fax" goes. Both steps only touch what is still old, so they are cheap at every login; a text a customer has
-// edited (e.g. "Mobiltlf.") is kept.
+// old "Fax" goes. Both steps only touch what is still old, so they write nothing at a login with nothing left to change;
+// a text a customer has edited (e.g. "Mobiltlf.") is kept. An account without the formularer or tekster table skips
+// that step, and a later login runs it once the table exists.
 require_once __DIR__ . '/opdat_func/formularFaxToMobile.php';
 formularFaxToMobile();
-deleteStaleTekst(378, array('Telefax', 'Mobile', 'Mobil'), 1);
-deleteStaleTekst(378, 'Fax', 2);
-deleteStaleTekst(378, array('Faks', 'Mobile', 'Mobil'), 3);
-deleteStaleTekst(50, array('Fax', 'Mobile', 'Mobil'), 1);
-deleteStaleTekst(50, 'Fax', 2);
-deleteStaleTekst(50, array('Faks', 'Mobile', 'Mobil'), 3);
-deleteStaleTekst(5230, 'Mobilnummer', 1);
-deleteStaleTekst(5230, 'Mobilnummer', 3);
+formularFaxToMobileTekster();
 
 ?>
