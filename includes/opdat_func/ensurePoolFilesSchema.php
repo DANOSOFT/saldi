@@ -59,6 +59,7 @@
 // 20261118 CL/MMR SD-815 Codex round 31: the name search goes on past the four usual names (…_uidx4 … _uidx99, then a random suffix), on both databases, and every stop of the run is logged with its reason.
 // 20261118 CL/MMR SD-815 Codex round 32: on MySQL/MariaDB the index name and the filename index state are read under LOCK TABLES (information_schema only), right before the duplicate collapse, so another connection's index of that name cannot make CREATE fail after rows were deleted.
 // 20261118 CL/MMR SD-815 Codex round 33: the trial copy's definition (engine, row format, filename's type, character set, collation) is kept, and under the lock pool_files must still have that definition before anything is deleted; otherwise the run stops with both rows intact.
+// 20261118 CL/MMR SD-815 Codex round 34: that definition also covers every index of the table (name, columns, prefix, uniqueness), read on the copy before the trial index, so an index another session adds between the trial and the lock (e.g. taking MariaDB's last of 64 key slots) stops the run before anything is deleted.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -353,8 +354,9 @@ if (!function_exists('ensurePoolFilesMysqlProbeReason')) {
 
 if (!function_exists('ensurePoolFilesMysqlTableDefinition')) {
 	/**
-	 * What decides whether a unique index on filename fits a MySQL/MariaDB table: engine, row format, and filename's
-	 * column type, character set and collation, from information_schema (readable under LOCK TABLES).
+	 * What decides whether a unique index on filename fits a MySQL/MariaDB table: engine, row format, filename's column
+	 * type, character set and collation, and every index (the key count is limited), from information_schema (readable
+	 * under LOCK TABLES).
 	 *
 	 * @param string $table A fixed table name (pool_files or this run's trial copy).
 	 * @return string A comparable description; '' when the table or its filename column is not there.
@@ -371,7 +373,20 @@ if (!function_exists('ensurePoolFilesMysqlTableDefinition')) {
 		foreach (array('engine', 'row_format', 'column_type', 'character_set_name', 'collation_name') as $key) {
 			$values[] = strtolower((string)($r[$key] ?? $r[strtoupper($key)] ?? ''));
 		}
-		return implode('|', $values);
+		// Every index too: its name, columns, prefix lengths and uniqueness. A copy made with CREATE TABLE ... LIKE has the
+		// same ones, so a change between the trial and the lock (one more key, say) shows up here.
+		$indexes = array();
+		$q = ensurePoolFilesSelect("SELECT index_name, seq_in_index, column_name, sub_part, non_unique FROM information_schema.statistics
+			WHERE table_schema = DATABASE() AND table_name = '$table'", __LINE__);
+		while ($i = db_fetch_array($q)) {
+			$indexes[] = strtolower(implode(':', array(
+				(string)($i['index_name'] ?? $i['INDEX_NAME'] ?? ''), (string)($i['seq_in_index'] ?? $i['SEQ_IN_INDEX'] ?? ''),
+				(string)($i['column_name'] ?? $i['COLUMN_NAME'] ?? ''), (string)($i['sub_part'] ?? $i['SUB_PART'] ?? ''),
+				(string)($i['non_unique'] ?? $i['NON_UNIQUE'] ?? ''),
+			)));
+		}
+		sort($indexes);
+		return implode('|', $values) . '#' . implode(',', $indexes);
 	}
 }
 
@@ -408,12 +423,13 @@ if (!function_exists('ensurePoolFilesMysqlProbeUniqueIndex')) {
 			$failed();
 		}
 		try {
-			if (!ensurePoolFilesMysqlExec("CREATE UNIQUE INDEX {$probe}_filename ON $probe (filename)")) {
-				$failed();
-			}
+			// The copy's definition before the trial index: it is pool_files' definition at the time of the trial.
 			$definition = ensurePoolFilesMysqlTableDefinition($probe);
 			if ($definition === '') {
 				$stop('the trial copy of pool_files could not be read back');
+			}
+			if (!ensurePoolFilesMysqlExec("CREATE UNIQUE INDEX {$probe}_filename ON $probe (filename)")) {
+				$failed();
 			}
 			return $definition;
 		} finally {

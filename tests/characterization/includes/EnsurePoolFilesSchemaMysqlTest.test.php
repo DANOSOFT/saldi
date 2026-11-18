@@ -14,6 +14,8 @@
 // 20261118 CL/MMR SD-815 Codex round 22: a unique prefix index on filename(7) is replaced by the full one, so two different names sharing the prefix both register; a full index alone is left as it is.
 // 20261118 CL/MMR SD-815 Codex round 32: another connection creating an index named pool_files_filename_uidx just before the table lock: kept, the repair uses a free name, in both mysqli reporting modes.
 // 20261118 CL/MMR SD-815 Codex round 33: another connection switching pool_files to ROW_FORMAT=COMPACT after the trial and before the lock: both rows kept, nothing reported; after DYNAMIC again the retry completes (both mysqli modes).
+// 20261118 CL/MMR SD-815 Codex round 34: with 63 keys, another connection taking the 64th key slot after the trial and before the lock: both rows and its key kept, nothing reported; after a slot is free the retry completes (both mysqli modes).
+// 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -67,7 +69,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
                 return mysqli_real_escape_string($GLOBALS['ensurePoolFilesMysql'], (string) $value);
             }
         }
-        if (str_starts_with($this->name(), 'testARowFormatChangeBeforeTheLock') && !function_exists('ensurePoolFilesMysqlExec')) {
+        if ((str_starts_with($this->name(), 'testARowFormatChangeBeforeTheLock') || str_starts_with($this->name(), 'testTheLastKeySlotTakenBeforeTheLock')) && !function_exists('ensurePoolFilesMysqlExec')) {
             // The production statement runner, unchanged, with one addition for this test: a hook right before LOCK TABLES.
             function ensurePoolFilesMysqlExec(string $sql): ?bool {
                 if (str_starts_with($sql, 'LOCK TABLES') && isset($GLOBALS['ensurePoolFilesBeforeLock'])) {
@@ -155,7 +157,9 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
             mysqli_close($this->connection);
         }
         unset($GLOBALS['ensurePoolFilesMysql'], $GLOBALS['connection']);
-        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        if (function_exists('mysqli_report')) { // skipped tests run tearDown too, also where there is no mysqli
+            mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        }
         if ($this->log !== '' && is_file($this->log)) {
             unlink($this->log);
         }
@@ -547,5 +551,48 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testARowFormatChangeBeforeTheLockReportingOff(): void
     {
         $this->aRowFormatChangeBeforeTheLock(MYSQLI_REPORT_OFF);
+    }
+
+    private function theLastKeySlotTakenBeforeTheLock(int $reportMode): void
+    {
+        $this->allLaterColumns(); // PRIMARY and idx_pool_files_norm_amount: 2 keys
+        for ($i = 1; $i <= 61; $i++) {
+            $this->sql("CREATE INDEX extra_key_$i ON pool_files (account)"); // 63 keys; the trial index is the 64th
+        }
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $this->other = $this->connect();
+        mysqli_select_db($this->other, $this->database);
+        $other = $this->other;
+        $GLOBALS['ensurePoolFilesBeforeLock'] = static function () use ($other): void {
+            mysqli_query($other, 'CREATE INDEX rival_key ON pool_files (subject(10))'); // takes the last of 64 slots
+        };
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
+        self::assertSame('1', $this->one("SELECT count(DISTINCT index_name) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND index_name = 'rival_key'"), 'the other connection\'s key is kept');
+        self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertStringContainsString('changed between the trial and the table lock', (string) file_get_contents($this->log));
+
+        $this->sql('DROP INDEX extra_key_61 ON pool_files'); // a slot is free again
+        mysqli_report($reportMode);
+        $done = ensurePoolFilesSchema('mysqli');
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertContains('unique_filename', $done);
+        self::assertSame('99,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
+    }
+
+    public function testTheLastKeySlotTakenBeforeTheLockStrict(): void
+    {
+        $this->theLastKeySlotTakenBeforeTheLock(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testTheLastKeySlotTakenBeforeTheLockReportingOff(): void
+    {
+        $this->theLastKeySlotTakenBeforeTheLock(MYSQLI_REPORT_OFF);
     }
 }
