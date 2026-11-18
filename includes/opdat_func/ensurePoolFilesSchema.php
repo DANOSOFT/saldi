@@ -45,6 +45,7 @@
 // 20261118 CL/MMR SD-815 Codex round 19: the trial copy is this run's own only when its CREATE TABLE itself succeeded, read from mysqli directly (ensurePoolFilesMysqlExec()), in both mysqli reporting modes; db_modify() can report a failed statement as accepted.
 // 20261118 CL/MMR SD-815 Codex round 20: the MySQL repair's LOCK TABLES, DELETE, CREATE UNIQUE INDEX and UNLOCK TABLES go through the same checked exec: no lock, no delete; UNLOCK only after an own lock.
 //                 Added columns and the norm_amount index are reported only when they are read back; otherwise the run stops (db_modify() can report a failed statement as accepted).
+// 20261118 CL/MMR SD-815 Codex round 21: the backfill flag is reported only when it is read back; a failed flag INSERT stops the run (inside a caller's PostgreSQL transaction through the savepoint rollback, so the caller can still commit its own work).
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -603,6 +604,11 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 				}
 				// (A failed pending read throws EnsurePoolFilesSchemaUnknown, so reaching here means: really nothing left.)
 				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description, user_id) VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes', 'One-time backfill of pool_files.norm_amount from the legacy amount text column', 0)", __FILE__ . " linje " . __LINE__);
+				// Read back: db_modify() can report a failed INSERT as accepted. On PostgreSQL a failed INSERT also aborts
+				// the transaction, so this read fails and the caller's savepoint is rolled back (ensurePoolFilesSchema()).
+				if (!db_fetch_array(ensurePoolFilesSelect(ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY, __LINE__))) {
+					throw new EnsurePoolFilesSchemaUnknown('pool_files norm_amount backfill flag not written');
+				}
 				$done[] = 'norm_amount_backfill';
 			}
 		} finally {

@@ -11,6 +11,7 @@
 //                 $GLOBALS['connection'] is the test connection, as in production, and transaction statements pass straight through the test's db_modify().
 // 20261118 CL/MMR SD-815 Codex round 14: a pending read that times out inside a caller's transaction leaves that transaction usable and no advisory lock; transaction statements are not counted as writes.
 // 20261118 CL/MMR SD-815 Codex round 20: an ALTER TABLE that times out (db_modify() only logs it) is not reported as an added column, and the run stops without a flag.
+// 20261118 CL/MMR SD-815 Codex round 21: a rejected backfill-flag INSERT is not reported, in autocommit and inside a caller's transaction (which can still commit its own row); the retry writes one flag.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -612,5 +613,54 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertContains('norm_amount', $done);
         self::assertContains('norm_amount_backfill', $done);
         self::assertSame(['amount' => '99,00', 'norm_amount' => '99.000'], $this->oldRow());
+    }
+
+    /** A trigger that rejects only the backfill flag's INSERT into settings. */
+    private function rejectTheFlagInsert(): void
+    {
+        $this->sql("CREATE FUNCTION reject_pool_flag() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN IF NEW.var_name = ''pool_files_norm_amount_backfilled'' THEN RAISE EXCEPTION ''forced flag failure''; END IF; RETURN NEW; END'");
+        $this->sql('CREATE TRIGGER reject_pool_flag BEFORE INSERT ON settings FOR EACH ROW EXECUTE FUNCTION reject_pool_flag()');
+    }
+
+    public function testARejectedFlagInsertIsNotReportedInAutocommit(): void
+    {
+        $this->committedPoolWithPendingRow();
+        $this->rejectTheFlagInsert();
+        $GLOBALS['ensurePoolFilesRaw'] = true; // like production
+
+        self::assertNotContains('norm_amount_backfill', ensurePoolFilesSchema('postgresql'));
+        self::assertStringContainsString('forced flag failure', implode(' ', $GLOBALS['ensurePoolFilesErrors']));
+        self::assertSame(0, $this->backfillFlags());
+        self::assertSame(PGSQL_TRANSACTION_IDLE, pg_transaction_status($this->connection));
+
+        $this->sql('DROP TRIGGER reject_pool_flag ON settings');
+        $GLOBALS['ensurePoolFilesErrors'] = [];
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
+        self::assertSame(1, $this->backfillFlags());
+        self::assertSame(['amount' => '99,00', 'norm_amount' => '99.000'], $this->oldRow());
+    }
+
+    public function testARejectedFlagInsertInsideACallersTransactionLeavesItCommittable(): void
+    {
+        $this->committedPoolWithPendingRow();
+        $this->rejectTheFlagInsert();
+        $GLOBALS['ensurePoolFilesRaw'] = true; // like production
+        $this->sql('BEGIN'); // the caller's transaction
+        $this->sql("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('caller', 'test', 'kept')");
+
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame(PGSQL_TRANSACTION_INTRANS, pg_transaction_status($this->connection), 'not aborted');
+        $commit = pg_query($this->connection, 'COMMIT');
+        self::assertSame('COMMIT', pg_result_status($commit, PGSQL_STATUS_STRING), 'the caller commits, not a silent rollback');
+        self::assertSame('kept', pg_fetch_result($this->sql("SELECT var_value FROM settings WHERE var_name = 'caller'"), 0, 0));
+        self::assertSame(0, $this->backfillFlags());
+        self::assertNull($this->oldRow()['norm_amount'], 'the backfill was rolled back with the savepoint');
+
+        $this->sql('DROP TRIGGER reject_pool_flag ON settings');
+        $GLOBALS['ensurePoolFilesErrors'] = [];
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
+        self::assertSame(1, $this->backfillFlags());
+        self::assertSame('99.000', $this->oldRow()['norm_amount']);
     }
 }
