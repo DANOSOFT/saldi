@@ -19,6 +19,7 @@
 // 20261118 CL/MMR SD-815 Codex round 26: with a tenant's own substr() earlier in search_path, the index on it is kept and the real pg_catalog.substr prefix index is replaced.
 // 20261118 CL/MMR SD-815 Codex round 27: a lookup index on left(filename, 255) of a varchar(255) filename covers every name and is kept, with and without a repair.
 // 20261118 CL/MMR SD-815 Codex round 28: left(filename, 255) on a domain over varchar(255) is kept, and a left(filename, 0) one-row rule is kept and still holds.
+// 20261118 CL/MMR SD-815 Codex round 29: PostgreSQL never drops an expression index (tests that expected left(filename, 7) to be replaced now expect it kept and named for review); lookups on CHECK-limited text and domains are kept.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -677,21 +678,19 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame('99.000', $this->oldRow()['norm_amount']);
     }
 
-    public function testAUniqueIndexOnPartOfTheFilenameIsReplacedByTheFullOne(): void
+    public function testAUniqueIndexOnPartOfTheFilenameIsKeptAndNamedForReview(): void
     {
         $this->sql(self::OLD_OPRET_POOL_FILES);
         $this->sql('CREATE UNIQUE INDEX existing_filename ON pool_files (left(filename, 7))');
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00')");
-        $failed = @pg_query($this->connection, "SAVEPOINT before_fix; INSERT INTO pool_files (filename) VALUES ('invoice-b.pdf')");
-        self::assertFalse($failed, 'the expression index refuses the second name (the defect)');
-        $this->sql('ROLLBACK TO SAVEPOINT before_fix');
 
-        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'), 'the full index is added');
 
-        self::assertSame(0, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'existing_filename'")), 'the index on part of the name is gone');
-        $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('b', 64));
-        $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('b', 64));
-        self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')));
+        // PostgreSQL never drops an expression index: whether it is an obsolete prefix is left to a person.
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'existing_filename'")), 'kept');
+        self::assertStringContainsString('existing_filename', (string) file_get_contents($this->log), 'named in the log for review');
+        $this->poolInsert('invoice-a.pdf', '1,00', str_repeat('a', 64));
+        self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'invoice-a.pdf'"), 0, 0), 'the full index serves ON CONFLICT');
         self::assertSame([], ensurePoolFilesSchema('postgresql'));
     }
 
@@ -750,7 +749,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $this->sql('ROLLBACK TO SAVEPOINT singleton');
     }
 
-    public function testAnOddColumnNameDoesNotStopThePrefixRepair(): void
+    public function testAnOddColumnNameDoesNotStopTheRepair(): void
     {
         $this->sql(self::OLD_OPRET_POOL_FILES);
         $this->sql('ALTER TABLE pool_files ADD COLUMN "scratch(" text');
@@ -759,10 +758,8 @@ final class EnsurePoolFilesSchemaTest extends TestCase
 
         self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
 
-        self::assertSame(0, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'existing_filename'")), 'the prefix index is gone');
-        $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('b', 64));
-        self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')));
-        self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'existing_filename'")), 'kept');
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors'], 'no PostgreSQL error');
     }
 
     public function testALookupIndexOnReverseFilenameIsKept(): void
@@ -792,23 +789,22 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertStringContainsString('pool_files_one_invoice', (string) file_get_contents($this->log), 'named in the log for review');
     }
 
-    public function testATenantFunctionNamedSubstrIsNotTakenForTheBuiltIn(): void
+    public function testIndexesOnATenantSubstrAndTheBuiltInAreBothKept(): void
     {
         $schema = (string) pg_fetch_result($this->sql('SELECT current_schema()'), 0, 0);
         $this->sql("SET LOCAL search_path TO $schema, pg_catalog");
         $this->sql(self::OLD_OPRET_POOL_FILES);
         $this->sql("CREATE FUNCTION substr(text, integer, integer) RETURNS text IMMUTABLE LANGUAGE sql AS 'SELECT $1'");
-        $this->sql('CREATE UNIQUE INDEX pool_files_tenant_key ON pool_files (substr(filename, 1, 7))');          // the tenant's function
-        $this->sql('CREATE UNIQUE INDEX pool_files_prefix_key ON pool_files (pg_catalog.substr(filename, 1, 7))'); // the real prefix
+        $this->sql('CREATE UNIQUE INDEX pool_files_tenant_key ON pool_files (substr(filename, 1, 7))');
+        $this->sql('CREATE UNIQUE INDEX pool_files_prefix_key ON pool_files (pg_catalog.substr(filename, 1, 7))');
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00')");
 
         self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
 
         $indexes = pg_fetch_all_columns($this->sql("SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' ORDER BY 1"));
-        self::assertContains('pool_files_tenant_key', $indexes, 'the index on the tenant\'s own function is kept');
-        self::assertNotContains('pool_files_prefix_key', $indexes, 'the built-in prefix index is replaced');
-        $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('d', 64));
-        self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')), 'a second, different name registers');
+        self::assertContains('pool_files_tenant_key', $indexes);
+        self::assertContains('pool_files_prefix_key', $indexes);
+        self::assertStringContainsString('pool_files_prefix_key', (string) file_get_contents($this->log), 'the built-in prefix is named for review');
         self::assertSame([], ensurePoolFilesSchema('postgresql'));
     }
 
@@ -824,7 +820,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_left_lookup'")), 'kept');
     }
 
-    public function testAFullWidthLeftIndexIsKeptWhenTheRepairRuns(): void
+    public function testExpressionIndexesAreKeptWhenTheRepairRuns(): void
     {
         $this->sql(self::OLD_OPRET_POOL_FILES);
         $this->sql('CREATE UNIQUE INDEX pool_files_left_lookup ON pool_files (left(filename, 255))');
@@ -834,10 +830,8 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
 
         $indexes = pg_fetch_all_columns($this->sql("SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files'"));
-        self::assertContains('pool_files_left_lookup', $indexes, 'the full-width lookup is kept');
-        self::assertNotContains('pool_files_short_prefix', $indexes, 'the short prefix is replaced');
-        $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('e', 64));
-        self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')));
+        self::assertContains('pool_files_left_lookup', $indexes);
+        self::assertContains('pool_files_short_prefix', $indexes);
     }
 
     public function testAFullWidthLeftIndexOnADomainColumnIsKept(): void
@@ -866,5 +860,31 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $refused = @pg_query($this->connection, "SAVEPOINT one_row; INSERT INTO pool_files (filename) VALUES ('b.pdf')");
         self::assertFalse($refused, 'its rule still holds');
         $this->sql('ROLLBACK TO SAVEPOINT one_row');
+    }
+
+    public function testALookupOnACheckLimitedTextColumnIsKept(): void
+    {
+        $this->sql(str_replace('filename varchar(255)', 'filename text CHECK (char_length(filename) <= 255)', self::OLD_OPRET_POOL_FILES));
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)');
+        $this->sql('CREATE UNIQUE INDEX pool_files_left_lookup ON pool_files (left(filename, 255))');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00'), ('invoice-b.pdf', '1,00')");
+
+        ensurePoolFilesSchema('postgresql');
+
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_left_lookup'")), 'kept');
+    }
+
+    public function testALookupOnACheckLimitedDomainIsKept(): void
+    {
+        $this->sql('CREATE DOMAIN pool_filename_text AS text CHECK (char_length(VALUE) <= 255)');
+        $this->sql(str_replace('filename varchar(255)', 'filename pool_filename_text', self::OLD_OPRET_POOL_FILES));
+        $this->sql('CREATE UNIQUE INDEX pool_files_left_lookup ON pool_files (left(filename, 255))');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00')");
+
+        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_left_lookup'")), 'kept');
+        $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('f', 64));
+        self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')));
     }
 }

@@ -54,6 +54,7 @@
 // 20261118 CL/MMR SD-815 Codex round 26: and only when the index depends on nothing but pool_files' own columns: a tenant's own function (or type, operator, collation) of the same name records a dependency, the built-in ones do not; pg_catalog.-qualified names are recognised too.
 // 20261118 CL/MMR SD-815 Codex round 27: and only when the prefix is shorter than filename's declared width (varchar(255): left(filename, 255) covers every name and is a plain lookup index, kept).
 // 20261118 CL/MMR SD-815 Codex round 28: the width is read through a domain to its base type (only varchar/char with a length, or unbounded text/varchar, are understood; anything else is kept), and the prefix must be at least 1 (left(filename, 0) is a one-row rule).
+// 20261118 CL/MMR SD-815 Codex round 29: on PostgreSQL no expression index is dropped any more. Whether one is an obsolete prefix depends on more than the catalogue can say for sure (CHECK constraints, domains, the function, the width), so a unique expression index on filename alone is kept and named in the log for review whenever the repair runs; the full unique index is still added. The MySQL/MariaDB prefix repair (sub_part) is unchanged.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -138,13 +139,11 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 	 * fails too and everything is rolled back: no row is deleted and nothing is reported.
 	 *
 	 * @param string       $db_type
-	 * @param list<string> $deferrable  ensurePoolFilesSchemaState()['deferrableFilename'].
-	 * @param list<string> $restrictive ensurePoolFilesSchemaState()['restrictiveFilename']: unique indexes on an exact
-	 *                                  prefix of filename, dropped once the full index is in place.
+	 * @param list<string> $deferrable ensurePoolFilesSchemaState()['deferrableFilename'].
 	 * @return void
 	 * @throws EnsurePoolFilesSchemaUnknown When the repair was rolled back.
 	 */
-	function ensurePoolFilesUniqueRepairPostgres(string $db_type, array $deferrable, array $restrictive = array()): void {
+	function ensurePoolFilesUniqueRepairPostgres(string $db_type, array $deferrable): void {
 		$nested = ensurePoolFilesInTransaction();
 		db_modify($nested ? 'SAVEPOINT pool_files_unique' : 'BEGIN', __FILE__ . " linje " . __LINE__);
 		$ok = false;
@@ -159,10 +158,6 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 				$taken = db_fetch_array(ensurePoolFilesSelect("SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'pool_files_filename_uidx' AND n.nspname = current_schema()", __LINE__));
 				$name = $taken ? 'pool_files_filename_full_uidx' : 'pool_files_filename_uidx';
 				db_modify("CREATE UNIQUE INDEX $name ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
-			}
-			// Only after the full index is in place: the indexes on part of filename go.
-			foreach ($restrictive as $index) {
-				db_modify('DROP INDEX "' . str_replace('"', '""', $index) . '"', __FILE__ . " linje " . __LINE__);
 			}
 			$ok = ensurePoolFilesSchemaState($db_type)['uniqueFilename'];
 		} catch (EnsurePoolFilesSchemaUnknown $e) {
@@ -424,64 +419,6 @@ if (!function_exists('ensurePoolFilesBackfillPending')) {
 	}
 }
 
-if (!function_exists('ensurePoolFilesPrefixLength')) {
-	/**
-	 * The length N when a PostgreSQL index expression, as pg_get_expr() prints it, is exactly a prefix of filename:
-	 * "left"((filename)::text, N), substr((filename)::text, 1, N) or SUBSTRING(filename FROM 1 FOR N), possibly
-	 * pg_catalog.-qualified; null otherwise. The text alone does not prove the built-in function is meant; the caller
-	 * also requires that the index depends on nothing but pool_files' columns, that N is at least 1, and that N is less
-	 * than the column width (ensurePoolFilesFilenameWidth()).
-	 *
-	 * @param string $expression
-	 * @return int|null
-	 */
-	function ensurePoolFilesPrefixLength(string $expression): ?int {
-		$filename = '(?:filename|\\(filename\\)::text|\\(filename\\)::character varying)';
-		$catalog = '(?:pg_catalog\\.)?'; // printed when a tenant's own function of that name is earlier in search_path
-		$patterns = array(
-			'/^' . $catalog . '"?left"?\\(' . $filename . ', (\\d+)\\)$/i',
-			'/^' . $catalog . 'substr\\(' . $filename . ', 1, (\\d+)\\)$/i',
-			'/^' . $catalog . '"?substring"?\\(' . $filename . ', 1, (\\d+)\\)$/i',
-			'/^SUBSTRING\\(' . $filename . ' FROM 1 FOR (\\d+)\\)$/i',
-		);
-		foreach ($patterns as $pattern) {
-			if (preg_match($pattern, trim($expression), $m)) {
-				return (int)$m[1];
-			}
-		}
-		return null;
-	}
-}
-
-if (!function_exists('ensurePoolFilesFilenameWidth')) {
-	/**
-	 * filename's declared character width on PostgreSQL, from its pg_attribute/pg_type row: varchar(n) or char(n)
-	 * (typmod n + 4) gives n; text, or varchar without a length, is 'unbounded'. A domain is read through to its base
-	 * type with the domain's own typmod (a domain over a domain, or any other type, cannot be told safely: null).
-	 *
-	 * @param array<string, mixed> $row atttypmod, typtype, typname, typtypmod, basename, basetype.
-	 * @return int|string|null An int width, 'unbounded', or null when unknown.
-	 */
-	function ensurePoolFilesFilenameWidth(array $row) {
-		$domain = (string)($row['typtype'] ?? '') === 'd';
-		if ($domain && (string)($row['basetype'] ?? '') === 'd') {
-			return null;
-		}
-		$name = (string)($domain ? ($row['basename'] ?? '') : ($row['typname'] ?? ''));
-		$typmod = (int)($domain ? ($row['typtypmod'] ?? -1) : ($row['atttypmod'] ?? -1));
-		if ($name === 'text') {
-			return 'unbounded';
-		}
-		if ($name === 'varchar' || $name === 'bpchar') {
-			if ($typmod > 4) {
-				return $typmod - 4;
-			}
-			return ($name === 'varchar' && $typmod === -1) ? 'unbounded' : null;
-		}
-		return null;
-	}
-}
-
 if (!function_exists('ensurePoolFilesSchemaState')) {
 	/**
 	 * What pool_files is missing in the current database: columns, the unique index on filename alone, the
@@ -529,17 +466,15 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND c.contype IN ('u', 'x') AND c.condeferrable
 				AND array_length(c.conkey, 1) = 1
 				AND c.conkey[1] = (SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename')";
-			// A unique index on an expression of filename alone (left(filename, 7), lower(filename) ...) refuses names the
-			// full index allows; it is not an index ON CONFLICT (filename) can use either. Only an index that is surely
-			// that counts: one key, an expression (indkey 0), no predicate, no INCLUDE columns, and - from the catalogue,
-			// not from the expression's text - a column dependency on filename and on no other column (pg_depend records
-			// one per column the expression reads; a constant such as lower('filename') has none). And no dependency on
-			// anything else: built-in functions, types and operators are pinned and record none, while a tenant's own
-			// substr() that shadows the built-in one does. Every other unique index is a rule of its own and is left alone.
+			// Unique indexes on an expression of filename alone (left(filename, 7), reverse(filename), a CASE rule ...): the
+			// catalogue says which column an expression reads (pg_depend: filename and no other column, and no dependency
+			// on anything else), but not whether the index is an obsolete prefix, a lookup or a rule of its own (that also
+			// depends on CHECK constraints, domains and widths). They are therefore never dropped, only named in the log for
+			// review when the repair runs.
 			$filenameAttnum = "(SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename' AND NOT attisdropped)";
 			$columnDependency = "SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_class'::regclass AND d.objid = i.indexrelid
 					AND d.refclassid = 'pg_class'::regclass AND d.refobjid = t.oid AND d.refobjsubid > 0";
-			$restrictive = "SELECT ci.relname AS index_name, pg_get_expr(i.indexprs, i.indrelid) AS expression FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_class ci ON ci.oid = i.indexrelid
+			$restrictive = "SELECT ci.relname AS index_name FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_class ci ON ci.oid = i.indexrelid
 				JOIN pg_namespace n ON n.oid = t.relnamespace
 				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND i.indisunique
 				AND i.indnatts = 1 AND i.indnkeyatts = 1 AND i.indkey[0] = 0 AND i.indexprs IS NOT NULL AND i.indpred IS NULL
@@ -556,25 +491,14 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 				$deferrableNames[] = (string)$r['conname'];
 			}
 		}
+		// MySQL: prefix indexes (sub_part) are restrictive and replaced by the repair. PostgreSQL: unique expression
+		// indexes on filename alone are only listed for review, never dropped.
 		$restrictiveNames = array();
 		$otherNames = array();
-		// PostgreSQL: filename's declared character width - an int, 'unbounded', or null when it cannot be told safely.
-		$width = null;
-		if (!$mysql) {
-			$w = db_fetch_array(ensurePoolFilesSelect("SELECT a.atttypmod, ty.typtype, ty.typname, ty.typtypmod, bt.typname AS basename, bt.typtype AS basetype
-				FROM pg_attribute a JOIN pg_class t ON t.oid = a.attrelid JOIN pg_namespace n ON n.oid = t.relnamespace
-				JOIN pg_type ty ON ty.oid = a.atttypid LEFT JOIN pg_type bt ON bt.oid = ty.typbasetype
-				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND a.attname = 'filename' AND NOT a.attisdropped", __LINE__));
-			$width = ensurePoolFilesFilenameWidth(is_array($w) ? $w : array());
-		}
 		$q = ensurePoolFilesSelect($restrictive, __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$index = (string)($r['index_name'] ?? $r['INDEX_NAME'] ?? '');
-			// PostgreSQL: the catalogue says «filename and nothing else», but only an exact prefix expression shorter than
-			// the column is known to be the obsolete kind; anything else (reverse(filename), a CASE rule, a prefix as wide
-			// as the column ...) is a lookup or a rule of its own.
-			$length = $mysql ? 0 : ensurePoolFilesPrefixLength((string)($r['expression'] ?? ''));
-			if ($mysql || ($length !== null && $length >= 1 && $width !== null && ($width === 'unbounded' || $length < $width))) {
+			if ($mysql) {
 				$restrictiveNames[] = $index;
 			} else {
 				$otherNames[] = $index;
@@ -705,9 +629,9 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 					ensurePoolFilesUniqueRepairMysql($db_type);
 				} else {
 					if ($state['otherFilenameExpressions']) {
-						error_log('ensurePoolFilesSchema: kept unique expression indexes on filename for review (not a known prefix): ' . implode(', ', $state['otherFilenameExpressions']));
+						error_log('ensurePoolFilesSchema: kept unique expression indexes on filename for review (they may refuse names the full index allows): ' . implode(', ', $state['otherFilenameExpressions']));
 					}
-					ensurePoolFilesUniqueRepairPostgres($db_type, $state['deferrableFilename'], $state['restrictiveFilename']);
+					ensurePoolFilesUniqueRepairPostgres($db_type, $state['deferrableFilename']);
 				}
 				$done[] = 'unique_filename';
 			}
