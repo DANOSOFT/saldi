@@ -15,6 +15,7 @@
 // 20261118 CL/MMR SD-815 Codex round 22: a unique index on left(filename, 7) is replaced by the full one, so two different names sharing the prefix both register.
 // 20261118 CL/MMR SD-815 Codex round 23: a unique index on lower(subject) WHERE filename IS NOT NULL is not touched and still enforces its rule, with and without a repair.
 // 20261118 CL/MMR SD-815 Codex round 24: a unique index on the constant lower('filename') is kept and still allows one row; an odd column name ("scratch(") does not stop the left(filename, 7) repair.
+// 20261118 CL/MMR SD-815 Codex round 25: unique indexes on reverse(filename) and on a CASE rule over filename are kept (and the rule still holds); the log names them for review.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -28,6 +29,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
     private ?\PgSql\Connection $other = null;
     private string $database = '';
     private string $committedSchema = '';
+    private string $log = '';
 
     /** The pool_files statement includes/opretfunc.php ran for a new regnskab before this fix. */
     private const OLD_OPRET_POOL_FILES = "CREATE TABLE pool_files (id SERIAL NOT NULL, filename varchar(255), subject text, account varchar(50), "
@@ -41,6 +43,8 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
+        $this->log = (string) tempnam(sys_get_temp_dir(), 'pool_schema_pg_log_');
+        ini_set('error_log', $this->log); // error_log() from the helper, not to stderr
         $this->database = TestDatabase::sqlFixture(static::class)->name();
         $this->connection = TestDatabase::connect($this->database);
         $GLOBALS['ensurePoolFilesConnection'] = $this->connection;
@@ -140,6 +144,9 @@ final class EnsurePoolFilesSchemaTest extends TestCase
             pg_close($this->connection);
         }
         unset($GLOBALS['ensurePoolFilesWhileBlocked'], $GLOBALS['ensurePoolFilesBlockedRows']);
+        if ($this->log !== '' && is_file($this->log)) {
+            unlink($this->log);
+        }
         unset($GLOBALS['ensurePoolFilesConnection'], $GLOBALS['ensurePoolFilesWrites'], $GLOBALS['ensurePoolFilesErrors'], $GLOBALS['connection'], $GLOBALS['ensurePoolFilesRaw']);
     }
 
@@ -753,5 +760,32 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('b', 64));
         self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')));
         self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+    }
+
+    public function testALookupIndexOnReverseFilenameIsKept(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)');
+        $this->sql('CREATE UNIQUE INDEX pool_files_reverse_key ON pool_files (reverse(filename))');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00'), ('invoice-b.pdf', '1,00')");
+
+        self::assertNotContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_reverse_key'")), 'the lookup index is kept');
+    }
+
+    public function testAUniquenessRuleOverFilenameIsKeptWhenTheRepairRuns(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql("CREATE UNIQUE INDEX pool_files_one_invoice ON pool_files ((CASE WHEN filename LIKE 'invoice-%' THEN 1 ELSE NULL END))");
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00')");
+
+        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'), 'the full index is added');
+
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_one_invoice'")), 'the rule is kept');
+        $refused = @pg_query($this->connection, "SAVEPOINT rule; INSERT INTO pool_files (filename) VALUES ('invoice-b.pdf')");
+        self::assertFalse($refused, 'and still refuses a second invoice');
+        $this->sql('ROLLBACK TO SAVEPOINT rule');
+        self::assertStringContainsString('pool_files_one_invoice', (string) file_get_contents($this->log), 'named in the log for review');
     }
 }

@@ -50,6 +50,7 @@
 //                 Such an index refused a second, different file whose name shares the part.
 // 20261118 CL/MMR SD-815 Codex round 23: on PostgreSQL only an index whose single key expression uses filename and no other column, without a predicate or included columns, counts as such; any other unique index (e.g. on lower(subject) WHERE filename IS NOT NULL) is never dropped.
 // 20261118 CL/MMR SD-815 Codex round 24: «uses filename and no other column» is read from the catalogue's column dependencies (pg_depend), not from the expression's text, so a literal 'filename' or an odd column name cannot mislead it.
+// 20261118 CL/MMR SD-815 Codex round 25: on PostgreSQL only an expression that is exactly a prefix of filename (left(filename, N), substr(filename, 1, N), SUBSTRING(filename FROM 1 FOR N)) is dropped; any other unique expression index on filename is kept and named in the log for review.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -135,8 +136,8 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 	 *
 	 * @param string       $db_type
 	 * @param list<string> $deferrable  ensurePoolFilesSchemaState()['deferrableFilename'].
-	 * @param list<string> $restrictive ensurePoolFilesSchemaState()['restrictiveFilename']: unique indexes on a part of
-	 *                                  filename alone, dropped once the full index is in place.
+	 * @param list<string> $restrictive ensurePoolFilesSchemaState()['restrictiveFilename']: unique indexes on an exact
+	 *                                  prefix of filename, dropped once the full index is in place.
 	 * @return void
 	 * @throws EnsurePoolFilesSchemaUnknown When the repair was rolled back.
 	 */
@@ -420,13 +421,38 @@ if (!function_exists('ensurePoolFilesBackfillPending')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesIsPrefixExpression')) {
+	/**
+	 * Whether a PostgreSQL index expression, as pg_get_expr() prints it, is exactly a prefix of filename:
+	 * "left"((filename)::text, N), substr((filename)::text, 1, N) or SUBSTRING(filename FROM 1 FOR N).
+	 *
+	 * @param string $expression
+	 * @return bool
+	 */
+	function ensurePoolFilesIsPrefixExpression(string $expression): bool {
+		$filename = '(?:filename|\\(filename\\)::text|\\(filename\\)::character varying)';
+		$patterns = array(
+			'/^"?left"?\\(' . $filename . ', \\d+\\)$/i',
+			'/^substr\\(' . $filename . ', 1, \\d+\\)$/i',
+			'/^"?substring"?\\(' . $filename . ', 1, \\d+\\)$/i',
+			'/^SUBSTRING\\(' . $filename . ' FROM 1 FOR \\d+\\)$/i',
+		);
+		foreach ($patterns as $pattern) {
+			if (preg_match($pattern, trim($expression))) {
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
 if (!function_exists('ensurePoolFilesSchemaState')) {
 	/**
 	 * What pool_files is missing in the current database: columns, the unique index on filename alone, the
 	 * norm_amount index, the norm_amount backfill. Null when there is no pool_files table.
 	 *
 	 * @param string $db_type
-	 * @return array{columns: list<string>, uniqueFilename: bool, fullFilename: bool, deferrableFilename: list<string>, restrictiveFilename: list<string>, normAmountIndex: bool, normAmountBackfilled: bool}|null
+	 * @return array{columns: list<string>, uniqueFilename: bool, fullFilename: bool, deferrableFilename: list<string>, restrictiveFilename: list<string>, otherFilenameExpressions: list<string>, normAmountIndex: bool, normAmountBackfilled: bool}|null
 	 * @throws EnsurePoolFilesSchemaUnknown When a read failed.
 	 */
 	function ensurePoolFilesSchemaState(string $db_type): ?array {
@@ -476,7 +502,7 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 			$filenameAttnum = "(SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename' AND NOT attisdropped)";
 			$columnDependency = "SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_class'::regclass AND d.objid = i.indexrelid
 					AND d.refclassid = 'pg_class'::regclass AND d.refobjid = t.oid AND d.refobjsubid > 0";
-			$restrictive = "SELECT ci.relname AS index_name FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_class ci ON ci.oid = i.indexrelid
+			$restrictive = "SELECT ci.relname AS index_name, pg_get_expr(i.indexprs, i.indrelid) AS expression FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_class ci ON ci.oid = i.indexrelid
 				JOIN pg_namespace n ON n.oid = t.relnamespace
 				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND i.indisunique
 				AND i.indnatts = 1 AND i.indnkeyatts = 1 AND i.indkey[0] = 0 AND i.indexprs IS NOT NULL AND i.indpred IS NULL
@@ -492,9 +518,17 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 			}
 		}
 		$restrictiveNames = array();
+		$otherNames = array();
 		$q = ensurePoolFilesSelect($restrictive, __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$restrictiveNames[] = (string)($r['index_name'] ?? $r['INDEX_NAME'] ?? '');
+			$index = (string)($r['index_name'] ?? $r['INDEX_NAME'] ?? '');
+			// PostgreSQL: the catalogue says «filename and nothing else», but only an exact prefix expression is known to
+			// be the obsolete kind; anything else (reverse(filename), a CASE rule ...) is a lookup or a rule of its own.
+			if ($mysql || ensurePoolFilesIsPrefixExpression((string)($r['expression'] ?? ''))) {
+				$restrictiveNames[] = $index;
+			} else {
+				$otherNames[] = $index;
+			}
 		}
 		$full = (bool)db_fetch_array(ensurePoolFilesSelect($unique, __LINE__));
 		return array(
@@ -503,6 +537,7 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 			'fullFilename' => $full,
 			'deferrableFilename' => $deferrableNames,
 			'restrictiveFilename' => $restrictiveNames,
+			'otherFilenameExpressions' => $otherNames,
 			'normAmountIndex' => in_array('norm_amount', $missing, true) ? false : (bool)db_fetch_array(ensurePoolFilesSelect($normIndex, __LINE__)),
 			'normAmountBackfilled' => (bool)db_fetch_array(ensurePoolFilesSelect(ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY, __LINE__)),
 		);
@@ -619,6 +654,9 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 				if ($mysql) {
 					ensurePoolFilesUniqueRepairMysql($db_type);
 				} else {
+					if ($state['otherFilenameExpressions']) {
+						error_log('ensurePoolFilesSchema: kept unique expression indexes on filename for review (not a known prefix): ' . implode(', ', $state['otherFilenameExpressions']));
+					}
 					ensurePoolFilesUniqueRepairPostgres($db_type, $state['deferrableFilename'], $state['restrictiveFilename']);
 				}
 				$done[] = 'unique_filename';
