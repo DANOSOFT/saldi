@@ -12,6 +12,8 @@ use PHPUnit\Framework\TestCase;
 //                The function is lifted from the source (including the file connects to a database) and run against stubs.
 // 20261118 CL/LH CodeRabbit review of #1157: the dispatcher runs the tick only inside the branch access_check() granted.
 //                CodeRabbit review of 63cf3d3f2: the tick is the shop_offer_tick action's own call, not merely in the branch.
+// 20261118 CL/LH CodeRabbit review of #1158: the dispatcher itself runs, with a counting stub tick: once for an account with its key,
+//                never for a refused call, another action or a master account.
 #[RunTestsInSeparateProcesses]
 final class ShopOfferTickAuthTest extends TestCase
 {
@@ -50,6 +52,8 @@ final class ShopOfferTickAuthTest extends TestCase
 	{
 		@unlink($this->dir . '/temp/pos_50/rest_api.log');
 		@rmdir($this->dir . '/temp/pos_50');
+		@unlink($this->dir . '/temp/pos/rest_api.log');
+		@rmdir($this->dir . '/temp/pos');
 		@rmdir($this->dir . '/temp');
 		@rmdir($this->dir . '/api');
 		@rmdir($this->dir);
@@ -86,21 +90,48 @@ final class ShopOfferTickAuthTest extends TestCase
 		$this->assertSame('OK', access_check());
 	}
 
-	/** The dispatcher runs the tick in one place only, inside the branch access_check() granted; a refused call gets the refusal. */
-	public function testTheDispatcherRunsTheTickOnlyAfterAccessCheck(): void
+	/**
+	 * Runs the dispatcher of api/rest_api.php itself, lifted like access_check() (from its "$value = ..." to the else of an
+	 * absent action), with the real access_check() above and a stub tick that counts its calls.
+	 *
+	 * @return array{0: mixed, 1: int} The answer the dispatcher would print, and how many ticks ran.
+	 */
+	private function dispatch(): array
 	{
-		$src = (string)file_get_contents(self::API);
-		$check = strpos($src, '$svar = access_check();');
-		$granted = $check === false ? false : strpos($src, "if (\$svar == 'OK') {", $check);
-		$refused = $granted === false ? false : strpos($src, '} else $value=$svar;', $granted);
-		$this->assertNotFalse($refused, 'the dispatcher\'s access branch is where it was');
-		$branch = substr($src, (int)$granted, (int)$refused - (int)$granted);
-		$action = strpos($branch, "\$action == 'shop_offer_tick'");
-		$this->assertNotFalse($action, 'the action is dispatched in the granted branch');
-		$next = strpos($branch, '##############################################', (int)$action); // the separator before the next action
-		$own = substr($branch, (int)$action, ($next === false ? strlen($branch) : $next) - (int)$action);
-		$this->assertStringContainsString('shopOfferReconcileTick()', $own, 'and that action runs the tick');
-		$this->assertSame(1, substr_count($src, 'shopOfferReconcileTick('), 'and nowhere else in the file');
+		if (!function_exists('shopOfferReconcileTick')) {
+			eval('function shopOfferReconcileTick() { $GLOBALS["__ticks"]++; return array("result" => "ok"); }');
+		}
+		if (!function_exists('__shopOfferDispatch')) {
+			$src = (string)file_get_contents(self::API);
+			$a = strpos($src, '$value = "An error has occurred";');
+			$b = $a === false ? false : strpos($src, "} else \$value= if_isset(\$_GET['action']);", $a);
+			$this->assertNotFalse($b, 'the dispatcher is where it was');
+			eval('function __shopOfferDispatch() { global $db, $brugernavn, $regnaar, $db_skriv_id, $webservice; '
+				. substr($src, (int)$a, (int)$b - (int)$a) . '} else $value = null; return $value; }');
+		}
+		$GLOBALS['__ticks'] = 0;
+		$value = __shopOfferDispatch();
+		return [$value, $GLOBALS['__ticks']];
+	}
+
+	/**
+	 * The tick runs once for an account that passed access_check() with its key, and never for a refused call, another action,
+	 * or a master account, which access_check() lets in from Danosoft's address without a key.
+	 */
+	public function testTheDispatcherRunsTheTickOnceForAnAuthorisedAccountAndNeverOtherwise(): void
+	{
+		$_POST = ['key' => 'test-key-1'];
+		$this->assertSame([['result' => 'ok'], 1], $this->dispatch(), 'an account with its key: one tick');
+		$_POST = ['key' => 'not-the-key'];
+		$this->assertSame(['Access denied (key)', 0], $this->dispatch(), 'a wrong key: no tick');
+		$_POST = ['key' => 'test-key-1'];
+		$_GET['action'] = 'no_such_action';
+		$this->assertSame(['Illegal action (no_such_action)', 0], $this->dispatch(), 'another action: no tick');
+		$_GET = ['action' => 'shop_offer_tick', 'db' => 'pos', 'saldiuser' => 'offer-scheduler'];
+		$_SERVER['REMOTE_ADDR'] = '91.235.100.32';
+		$_POST = [];
+		$this->assertSame(['Access denied (the offer tick needs an account and its API key)', 0], $this->dispatch(),
+			'a master account from Danosoft\'s address, without a key: no tick');
 	}
 
 	public function testTheSaldiuserIsStillRequired(): void
