@@ -2,6 +2,8 @@
 // 20261118 CL/MMR SD-815 Created. pool_files of a regnskab created at 5.1 (includes/opretfunc.php before this fix) gets norm_amount, the other later columns and a unique filename at login (includes/opdat_func/ensurePoolFilesSchema.php).
 //                 So the pool writers' INSERT ... ON CONFLICT (filename) works, and a new regnskab gets that schema at once. Real PostgreSQL, private schema.
 // 20261118 CL/MMR SD-815 Codex round 7: a partial unique index on filename does not count, and an interrupted norm_amount backfill is finished by the next run.
+// 20261118 CL/MMR SD-815 Codex round 8: a deferrable filename constraint is replaced, and a failed or impossible norm_amount update never marks the backfill done.
+//                 The test's db_modify() acts like the production one for an update file: a failed statement is logged, rolled back to a savepoint and reported as accepted.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -28,6 +30,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $this->connection = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
         $GLOBALS['ensurePoolFilesConnection'] = $this->connection;
         $GLOBALS['ensurePoolFilesWrites'] = [];
+        $GLOBALS['ensurePoolFilesErrors'] = [];
         if (!function_exists('db_select')) {
             function db_select($sql, $location = '') {
                 $result = pg_query($GLOBALS['ensurePoolFilesConnection'], $sql);
@@ -41,7 +44,14 @@ final class EnsurePoolFilesSchemaTest extends TestCase
             }
             function db_modify($sql, $location = '') {
                 $GLOBALS['ensurePoolFilesWrites'][] = $sql;
-                return db_select($sql, $location);
+                $connection = $GLOBALS['ensurePoolFilesConnection'];
+                pg_query($connection, 'SAVEPOINT db_modify');
+                if (@pg_query($connection, $sql) === false) {
+                    $GLOBALS['ensurePoolFilesErrors'][] = pg_last_error($connection);
+                    pg_query($connection, 'ROLLBACK TO SAVEPOINT db_modify');
+                }
+                pg_query($connection, 'RELEASE SAVEPOINT db_modify');
+                return '0' . chr(9) . 'query accepted';
             }
             function db_escape_string($value) {
                 return pg_escape_string($GLOBALS['ensurePoolFilesConnection'], (string) $value);
@@ -66,7 +76,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
             pg_query($this->connection, 'ROLLBACK');
             pg_close($this->connection);
         }
-        unset($GLOBALS['ensurePoolFilesConnection'], $GLOBALS['ensurePoolFilesWrites']);
+        unset($GLOBALS['ensurePoolFilesConnection'], $GLOBALS['ensurePoolFilesWrites'], $GLOBALS['ensurePoolFilesErrors']);
     }
 
     private function sql(string $sql): \PgSql\Result
@@ -213,5 +223,90 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $done = ensurePoolFilesSchema('postgresql');
         self::assertNotContains('norm_amount_backfill', $done);
         self::assertSame(1, $this->backfillFlags());
+    }
+
+    /** @return array<int, array{conname: string}> */
+    private function deferrableConstraints(): array
+    {
+        return pg_fetch_all($this->sql("SELECT conname FROM pg_constraint c JOIN pg_class t ON t.oid = c.conrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND c.condeferrable"));
+    }
+
+    public function testADeferrableFilenameConstraintIsReplacedByAnImmediateIndex(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('ALTER TABLE pool_files ADD CONSTRAINT pool_files_filename_key UNIQUE (filename) DEFERRABLE INITIALLY IMMEDIATE');
+        $failed = @pg_query($this->connection, "SAVEPOINT before_deferrable; INSERT INTO pool_files (filename) VALUES ('x.xml') ON CONFLICT (filename) DO NOTHING");
+        self::assertFalse($failed, 'ON CONFLICT cannot use a deferrable constraint');
+        $this->sql('ROLLBACK TO SAVEPOINT before_deferrable');
+
+        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame([], $this->deferrableConstraints());
+        $this->poolInsert('semantic-invoice.xml', '125,00', str_repeat('d', 64));
+        $this->poolInsert('semantic-invoice.xml', '125,00', str_repeat('d', 64));
+        self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'semantic-invoice.xml'"), 0, 0));
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+    }
+
+    public function testADeferrableConstraintNextToAnImmediateIndexIsDropped(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('ALTER TABLE pool_files ADD CONSTRAINT pool_files_filename_key UNIQUE (filename) DEFERRABLE INITIALLY IMMEDIATE');
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)');
+
+        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame([], $this->deferrableConstraints());
+        self::assertSame(['pool_files_filename_uidx'],
+            pg_fetch_all_columns($this->sql("SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexdef ILIKE '%UNIQUE%(filename)%'")));
+        $this->poolInsert('semantic-invoice.xml', '125,00', str_repeat('e', 64));
+        $this->poolInsert('semantic-invoice.xml', '125,00', str_repeat('e', 64));
+        self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'semantic-invoice.xml'"), 0, 0));
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+    }
+
+    public function testAFailedUpdateLeavesTheBackfillOpenUntilALaterRunFillsTheRow(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('old.pdf', '99,00')");
+        self::assertNotSame([], ensurePoolFilesSchema('postgresql'));
+        // The schema is complete now; make the next backfill write fail, as a production write error would.
+        $this->sql("DELETE FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'");
+        $this->sql('UPDATE pool_files SET norm_amount = NULL');
+        $this->sql("CREATE FUNCTION pool_files_fail() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RAISE EXCEPTION ''forced pool_files update failure''; END'");
+        $this->sql('CREATE TRIGGER pool_files_fail BEFORE UPDATE ON pool_files FOR EACH ROW EXECUTE FUNCTION pool_files_fail()');
+
+        self::assertSame([], ensurePoolFilesSchema('postgresql'), 'nothing is reported done');
+        self::assertNotSame([], $GLOBALS['ensurePoolFilesErrors'], 'the update really failed');
+        self::assertSame(0, $this->backfillFlags(), 'no completion flag after a failed write');
+        self::assertNull(pg_fetch_result($this->sql("SELECT norm_amount FROM pool_files WHERE filename = 'old.pdf'"), 0, 0));
+
+        $this->sql('DROP TRIGGER pool_files_fail ON pool_files');
+        $GLOBALS['ensurePoolFilesErrors'] = [];
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
+        self::assertSame('99.000', pg_fetch_result($this->sql("SELECT norm_amount FROM pool_files WHERE filename = 'old.pdf'"), 0, 0));
+        self::assertSame(1, $this->backfillFlags());
+        $GLOBALS['ensurePoolFilesWrites'] = [];
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+        self::assertSame([], $GLOBALS['ensurePoolFilesWrites']);
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+    }
+
+    public function testAnAmountNumericCannotHoldStaysEmptyAndDoesNotBlockTheFlag(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('huge.pdf', '1000000000000'), ('max.pdf', '999.999.999.999,99'), ('ok.pdf', '12,50')");
+
+        ensurePoolFilesSchema('postgresql');
+
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors'], 'no overflow is attempted');
+        self::assertSame([['filename' => 'huge.pdf', 'norm_amount' => null], ['filename' => 'max.pdf', 'norm_amount' => '999999999999.990'], ['filename' => 'ok.pdf', 'norm_amount' => '12.500']],
+            pg_fetch_all($this->sql('SELECT filename, norm_amount FROM pool_files ORDER BY filename')));
+        self::assertSame(1, $this->backfillFlags());
+        $GLOBALS['ensurePoolFilesWrites'] = [];
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+        self::assertSame([], $GLOBALS['ensurePoolFilesWrites']);
     }
 }
