@@ -25,19 +25,18 @@
 //
 // 20220131 Moved functions from debitor/betalinger.php
 // 20231213 MSC - Implementing new design
-// 20261118 CL/MMR SST-1036: «Se / gem betalingsfil» links carry a digest of the file's content (payFileHref()).
+// 20261118 CL/MMR SST-1036: «Se / gem betalingsfil» links get a new random token per export (payFileHref()).
 //                 The file name never changes, so the browser could show a cached older bank file after a new one was made.
 
 /**
- * Href for the «Se / gem betalingsfil» link. The bank file always gets the same name, so the link carries a digest of
- * the file's content; without it the browser may show a cached older file after a new one has been written.
+ * Href for the «Se / gem betalingsfil» link. The bank file always gets the same name, so each export gets a link with
+ * a new random token. A link is never reused for a later export, so the browser cannot show a cached older file.
  *
  * @param string $filnavn Path of the bank file that was just written and closed
- * @return string The path with "?v=<content digest>"
+ * @return string The path with "?v=<random token>"
  */
 function payFileHref($filnavn) {
-	$digest = (is_file($filnavn) && is_readable($filnavn)) ? md5_file($filnavn) : false;
-	return $filnavn . '?v=' . ($digest ? substr($digest, 0, 12) : time());
+	return $filnavn . '?v=' . bin2hex(random_bytes(6));
 }
 
 function betalingskontrol($erh,$fra_kto,$egen_ref,$til_kto,$kort_ref,$modt_navn,$belob,$valuta,$betalingsdato) {
@@ -123,39 +122,39 @@ function udskriv_nordea($db_id,$bruger_id,$liste_id) {
 	while ($r=db_fetch_array($q)) {
 		#$kort_ref = $r['kort_ref'];
 #		if (substr($r['bet_type'], 0, 3)=="ERH") {
-			$x++;
+		$x++;
 #			if ($betalingsdato<$dd)$betalingsdato=$dd;
-			$linje='"0","45","","","","","","","","","","'; #felt 1-11
-			$linje.=$r['modt_navn']; #felt 12 Modtager
-			$linje.='","","","","","'; # felt 13-16 
-			$linje.=substr($r['til_kto'],0,4); # felt 17 Til-regnr
-			$tmp=substr($r['til_kto'],4,10); # 10 Til-konto-nr
-			while (strlen($tmp)<10)$tmp="0".$tmp;
-			$linje.=$tmp; # felt 17 Til-konto-nr
-			$linje.='","","","","","","';  # felt 18-22
-			$linje.=$r['kort_ref']; # felt 23 meddelelse til kunde  
-			$linje.='","';
-			$linje.=$r['kort_ref']; # felt 24   
-			$linje.='","0","';# felt 25
-			$linje.=$r['kort_ref']; # felt 26   
-			$linje.='","","","","","DKK","","'; # felt 27-32
-			$linje.=usdecimal($r['belob'],2); # felt 33;
-			$linje.='","'; #Felt 33
-			$linje.=str_replace("-","",usdate($r['betalingsdato'])); #Felt 34
-			$linje.='","","","'; #Felt 35-36
-			$linje.=substr($r['fra_kto'],0,4); # Felt 37 Til-regnr
-			$tmp=substr($r['fra_kto'],4,10); # Til-konto-nr
-			while (strlen($tmp)<10)$tmp="0".$tmp;
-			$linje.=$tmp; # Felt 37 Til-konto-nr
-			$linje.='","';
-			$linje.=substr($r['egen_ref'],0,20); #Felt 38 (max 20 tegn)
-			$linje.='","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","';
+		$linje='"0","45","","","","","","","","","","'; #felt 1-11
+		$linje.=$r['modt_navn']; #felt 12 Modtager
+		$linje.='","","","","","'; # felt 13-16
+		$linje.=substr($r['til_kto'],0,4); # felt 17 Til-regnr
+		$tmp=substr($r['til_kto'],4,10); # 10 Til-konto-nr
+		while (strlen($tmp)<10)$tmp="0".$tmp;
+		$linje.=$tmp; # felt 17 Til-konto-nr
+		$linje.='","","","","","","';  # felt 18-22
+		$linje.=$r['kort_ref']; # felt 23 meddelelse til kunde
+		$linje.='","';
+		$linje.=$r['kort_ref']; # felt 24
+		$linje.='","0","';# felt 25
+		$linje.=$r['kort_ref']; # felt 26
+		$linje.='","","","","","DKK","","'; # felt 27-32
+		$linje.=usdecimal($r['belob'],2); # felt 33;
+		$linje.='","'; #Felt 33
+		$linje.=str_replace("-","",usdate($r['betalingsdato'])); #Felt 34
+		$linje.='","","","'; #Felt 35-36
+		$linje.=substr($r['fra_kto'],0,4); # Felt 37 Til-regnr
+		$tmp=substr($r['fra_kto'],4,10); # Til-konto-nr
+		while (strlen($tmp)<10)$tmp="0".$tmp;
+		$linje.=$tmp; # Felt 37 Til-konto-nr
+		$linje.='","';
+		$linje.=substr($r['egen_ref'],0,20); #Felt 38 (max 20 tegn)
+		$linje.='","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","';
 #			$linje.='","","","","","","","","","","","","","","","'; #Felt 39-52
 #			$linje.=$r['kort_ref']; # felt 53 Kort advis
 #			$linje.='","","","","","","","","","","","","","","","","","","","","","","","","","","","0","'; #Felt 54-91
 #			$linje.=$r['kort_ref']; # felt 92 Modtagers identifikation af afsender  
-			$linje.='"';
-			$linje.="\r\n";
+		$linje.='"';
+		$linje.="\r\n";
 		fwrite($fp,$linje);
 	}
 	fclose($fp);
@@ -181,21 +180,21 @@ function udskriv_danskebank($db_id,$bruger_id,$liste_id) {
 	while ($r=db_fetch_array($q)) {
 		#$kort_ref = $r['kort_ref'];
 #		if (substr($r['bet_type'], 0, 3)=="ERH") {
-			$x++;
+		$x++;
 #			if ($betalingsdato<$dd)$betalingsdato=$dd;
-			$linje='"CMBO",'; #felt 1
-			$linje.='"'.$r['fra_kto'].'",'; # Felt 2 Fra-reg+ktonr
-			$linje.='"'.$r['til_kto'].'",'; # Felt 3 Til-reg+ktonr
-			$linje.='"'.str_replace('.','',$r['belob']).'",'; # felt 4; Beløb
-			if (usdate($r['betalingsdato'])>date('Y-m-d')) $linje.='"'.$r['betalingsdato'].'",'; #Felt 5 Betalingsdato DDMMYYYY
-			else $linje.='"",'; #Felt 5 Betaling snarest
-			$linje.='"DKK",'; # felt 6 Valuta
-			$linje.='"",'; # felt 7 Blank = Standard transfer
-			$linje.='"","","","","","","","","","","","",'; # felt 8-19 Ubrugt
-			$linje.='"'.$r['egen_ref'].'",'; # felt 20 meddelelse til egen kto  
-			$linje.='"",'; # felt 21 Ubrugt
-			$linje.='"'.$r['kort_ref'].'"'; # felt 22 meddelelse til kunde  
-			$linje.="\r\n";
+		$linje='"CMBO",'; #felt 1
+		$linje.='"'.$r['fra_kto'].'",'; # Felt 2 Fra-reg+ktonr
+		$linje.='"'.$r['til_kto'].'",'; # Felt 3 Til-reg+ktonr
+		$linje.='"'.str_replace('.','',$r['belob']).'",'; # felt 4; Beløb
+		if (usdate($r['betalingsdato'])>date('Y-m-d')) $linje.='"'.$r['betalingsdato'].'",'; #Felt 5 Betalingsdato DDMMYYYY
+		else $linje.='"",'; #Felt 5 Betaling snarest
+		$linje.='"DKK",'; # felt 6 Valuta
+		$linje.='"",'; # felt 7 Blank = Standard transfer
+		$linje.='"","","","","","","","","","","","",'; # felt 8-19 Ubrugt
+		$linje.='"'.$r['egen_ref'].'",'; # felt 20 meddelelse til egen kto
+		$linje.='"",'; # felt 21 Ubrugt
+		$linje.='"'.$r['kort_ref'].'"'; # felt 22 meddelelse til kunde
+		$linje.="\r\n";
 		fwrite($fp,$linje);
 	}
 	fclose($fp);
