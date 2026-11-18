@@ -21,7 +21,7 @@ use PHPUnit\Framework\TestCase;
 // 20261118 CL/MMR SST-1003 The other error logs (failed call, NemHandel creation) leave out the contact and bank details too.
 // 20261118 CL/MMR SST-1007 An answer that is not 2xx counts as a failed update.
 // 20261118 CL/MMR SST-1003 Nested contact and bank details and a bare text answer are kept out of the logs too (Codex).
-// 20261118 CL/MMR SST-1003 Only EasyUBL's error fields are logged: numeric echoes, e-mail keys and short values (Codex).
+// 20261118 CL/MMR SST-1003 No text from EasyUBL's answer is logged, only checkable values and the kind and size of the rest (Codex).
 final class EasyUblCompanyUpdateTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -264,7 +264,7 @@ final class EasyUblCompanyUpdateTest extends TestCase
             self::assertStringContainsString((string)$code, $out['result']['message']);
             self::assertCount(1, $out['logs'], "HTTP $code is logged like the other failures");
             self::assertStringContainsString('"status code":' . $code, $out['logs'][0]);
-            self::assertStringContainsString('"title":"Unauthorized"', $out['logs'][0]);
+            self::assertStringContainsString('"title":"[text, 12 characters]"', $out['logs'][0], 'the field is there, its text is not');
             $this->assertNoPrivateDetails($out['logs'][0]);
             $this->tearDown();
         }
@@ -324,7 +324,7 @@ final class EasyUblCompanyUpdateTest extends TestCase
             'defaultContact' => array('email' => 'bogholder@testfirma.example'), 'payment' => array('bankAccount' => '1234-0012345678')));
 
         self::assertCount(1, $logs);
-        self::assertStringContainsString('"title":"Bad Request"', $logs[0], "EasyUBL's answer is in the file");
+        self::assertStringContainsString('"title":"[text, 11 characters]"', $logs[0], "EasyUBL's answer is described in the file");
         $this->assertNoPrivateDetails($logs[0]);
     }
 
@@ -340,7 +340,7 @@ final class EasyUblCompanyUpdateTest extends TestCase
         self::assertFalse($out['result']['success']);
         self::assertCount(1, $out['logs']);
         self::assertStringContainsString('"status code":401', $out['logs'][0]);
-        self::assertStringContainsString('"otherFields":1', $out['logs'][0], 'the company object is left out, only counted');
+        self::assertStringContainsString('"company":"[4 entries]"', $out['logs'][0], 'the company object is left out, only counted');
         $this->assertNoPrivateDetails($out['logs'][0]);
     }
 
@@ -349,7 +349,7 @@ final class EasyUblCompanyUpdateTest extends TestCase
         $out = $this->runUpdateBranches(500, array('error' => 'Internal error', 'echo' => self::NESTED));
 
         self::assertFalse($out['result']['success']);
-        self::assertStringContainsString('"error":"Internal error"', $out['logs'][0]);
+        self::assertStringContainsString('"error":"[text, 14 characters]"', $out['logs'][0]);
         $this->assertNoPrivateDetails($out['logs'][0]);
     }
 
@@ -358,8 +358,8 @@ final class EasyUblCompanyUpdateTest extends TestCase
         $out = $this->runUpdateBranches(401, 'Unauthorized for bogholder@testfirma.example (+4512345678), account 1234-0012345678, other@example.org');
 
         self::assertFalse($out['result']['success']);
-        self::assertStringContainsString('Unauthorized for', $out['logs'][0], 'the text is still there');
-        self::assertStringNotContainsString('other@example.org', $out['logs'][0], 'any e-mail address is masked');
+        self::assertStringContainsString('"response":"[text, 102 characters]"', $out['logs'][0], 'a text answer is logged by its length');
+        self::assertStringNotContainsString('other@example.org', $out['logs'][0], 'no e-mail address at all');
         $this->assertNoPrivateDetails($out['logs'][0]);
     }
 
@@ -384,7 +384,7 @@ final class EasyUblCompanyUpdateTest extends TestCase
         }
 
         foreach ($logs as $log) {
-            self::assertStringContainsString('"title":"Bad"', $log);
+            self::assertStringContainsString('"title":"[text, 3 characters]"', $log);
             self::assertStringNotContainsString('12340012345678', $log, 'neither in an unknown field nor in a kept one');
         }
     }
@@ -397,11 +397,21 @@ final class EasyUblCompanyUpdateTest extends TestCase
         $this->assertNoPrivateDetails($out['logs'][0]);
     }
 
-    public function testAShortPrivateValueIsMaskedButOtherShortTextIsNot(): void
+    public function testNoTextFromTheAnswerReachesTheLog(): void
     {
-        $out = $this->runUpdateBranches(400, array('code' => '12', 'message' => 'Reg. 12 refused, 120 entries, a12b'));
+        // Codex round 3: a prefixed account, a short bank value inside a message and a phone number without +45.
+        $out = $this->runUpdateBranches(400, array('code' => '12', 'errorNumber' => 7, 'hasEndpointPeppol' => false,
+            'message' => 'Reg. 12 konto DK1234-0012345678 refused, ring 12345678',
+            'detail' => 'acct:12340012345678', 'id' => 'c1d2e3f4-0000-4000-8000-000000000001'));
+        $log = $out['logs'][0];
 
-        self::assertStringContainsString('"code":"[removed]"', $out['logs'][0], 'the exact value is masked');
-        self::assertStringContainsString('Reg. 12 refused, 120 entries, a12b', $out['logs'][0], 'a value under 3 characters is not masked inside other text');
+        self::assertStringContainsString('"errorNumber":7', $log, 'a short numeric code is kept');
+        self::assertStringContainsString('"hasEndpointPeppol":false', $log, 'the refusal flag is kept');
+        self::assertStringContainsString('"id":"c1d2e3f4-0000-4000-8000-000000000001"', $log, 'a GUID id is kept');
+        self::assertStringContainsString('"code":"[text, 2 characters]"', $log, 'the private bank value 12 is not kept as a code');
+        self::assertStringContainsString('"message":"[text, ', $log);
+        foreach (array('DK1234-0012345678', '0012345678', '12345678', 'Reg. 12', 'acct') as $text) {
+            self::assertStringNotContainsString($text, $log, "no text from the answer: $text");
+        }
     }
 }

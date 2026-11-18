@@ -89,7 +89,7 @@
 // 20261118 CL/MMR SST-1003 The other error logs of updateCompany() and the NemHandel creation leave out the contact and bank details too.
 // 20261118 CL/MMR SST-1007 updateCompany() counts an answer that is not 2xx as a failure, so updatedCompany is not set on a 401 or 5xx.
 // 20261118 CL/MMR SST-1003 easyUblLogSafe() removes the contact and bank details at any depth and masks them in texts (Codex).
-// 20261118 CL/MMR SST-1003 easyUblLogAnswer() logs only EasyUBL's error fields, masked; private values are masked as whole words and exact values (Codex).
+// 20261118 CL/MMR SST-1003 easyUblLogAnswer() writes no text from EasyUBL's answer: only checkable values, the rest by kind and size (Codex).
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
@@ -292,32 +292,58 @@
     }
 
     /**
-     * EasyUBL's answer for a log file in temp/<db>/ (SST-1003). The answer can echo anything, so only the
-     * fields that say what went wrong are kept, each as a single masked text or number; a list or object
-     * in one of them is logged by its size only. A bare text answer is masked.
+     * EasyUBL's answer for a log file in temp/<db>/ (SST-1003). The answer can echo what was sent in any
+     * form, so no text from it is written: only values whose meaning can be checked are kept (the refusal
+     * flag as a boolean, short numeric error codes, ids in GUID form). Every other field is logged by its
+     * kind and size, and a bare text answer by its length.
      *
      * @param mixed $response The decoded answer.
      * @param list<string> $privateValues From easyUblPrivateValues() on what was sent.
-     * @return mixed
+     * @return array<string, mixed>|string
      */
     function easyUblLogAnswer($response, array $privateValues = array()) {
         if (!is_array($response)) {
-            return easyUblMaskValue($response, $privateValues);
+            return easyUblAnswerSummary($response);
         }
         $kept = array();
-        foreach (array('error', 'errors', 'errorNumber', 'errorMessage', 'message', 'title', 'status', 'detail', 'type', 'traceId',
-            'code', 'hasEndpointPeppol', 'companyID', 'id') as $field) {
-            if (!array_key_exists($field, $response)) {
+        foreach ($response as $field => $value) {
+            $name = (string)$field;
+            if (!preg_match('/^[A-Za-z][A-Za-z0-9_]{0,40}$/', $name) || easyUblIsPrivateKey($name)) {
+                $kept['otherFields'] = ($kept['otherFields'] ?? 0) + 1;
                 continue;
             }
-            $value = $response[$field];
-            $kept[$field] = is_array($value) ? '[' . count($value) . ' entries]' : easyUblMaskValue($value, $privateValues);
-        }
-        $left = count($response) - count($kept);
-        if ($left > 0) {
-            $kept['otherFields'] = $left;
+            if ($name === 'hasEndpointPeppol' && is_bool($value)) {
+                $kept[$name] = $value;
+            } elseif (in_array($name, array('errorNumber', 'status', 'code'), true) && (is_int($value) || (is_string($value) && preg_match('/^[0-9]{1,5}$/', $value)))
+                && !in_array((string)$value, $privateValues, true)) {
+                $kept[$name] = (int)$value;
+            } elseif (in_array($name, array('companyID', 'id'), true) && is_string($value)
+                && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
+                $kept[$name] = $value;
+            } else {
+                $kept[$name] = easyUblAnswerSummary($value);
+            }
         }
         return $kept;
+    }
+
+    /**
+     * A value from EasyUBL's answer described without its content: «[text, 42 characters]», «[3 entries]», «[number]».
+     *
+     * @param mixed $value
+     * @return string|bool|null
+     */
+    function easyUblAnswerSummary($value) {
+        if ($value === null || is_bool($value)) {
+            return $value;
+        }
+        if (is_array($value)) {
+            return '[' . count($value) . ' entries]';
+        }
+        if (is_int($value) || is_float($value)) {
+            return '[number]';
+        }
+        return '[text, ' . mb_strlen((string)$value) . ' characters]';
     }
 
     // Update company data at EasyUBL with new data from database
