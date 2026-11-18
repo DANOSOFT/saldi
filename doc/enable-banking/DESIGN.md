@@ -382,8 +382,10 @@ timestamp (created + 30 min), used_at timestamp null. (Add it to ebEnsureSchema.
   disconnected/unsupported -> active when ledger_account and import_from are set (keep mapping and
   checkpoint) and set next_fetch_at = now; a reconnect therefore resolves to the same local account
   before any import. Not matched: create bank_accounts with state 'new' ('unsupported' when currency
-  != 'DKK'). For purpose 'reconnect' the previous connection gets status 'replaced' and the old
-  provider session is deleted best-effort (errors ignored, logged sanitized). Audit rows. Returns the
+  != 'DKK'). For purpose 'reconnect' the previous connection gets status 'replaced'; its provider
+  session is left to expire at the bank and is not deleted, because in Enable Banking's Nordea
+  sandbox DELETE /sessions on the old consent also broke the new one (session still AUTHORIZED,
+  every transactions call ASPSP_ERROR; reproduced 18/11). Audit rows. Returns the
   new connection id.
 - `ebDisconnect(int $connectionId, string $username, ?EnableBankingClient $c)`: DELETE
   /sessions/{id} best-effort, connection status disconnected, its accounts state disconnected,
