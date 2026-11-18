@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -193,6 +193,7 @@
 //                 The rate lookup for a base-currency post gets the debug argument db_select() requires (ArgumentCountError on PHP 8).
 //                 Without a rate the alert now has its text, and the previous post's amount is no longer counted again.
 //                 The alert text and invoice number are encoded with jsString() for the onload attribute.
+// 20261118 CL/MMR SST-1013 The credit-limit queries escape the order currency and the post date, and cast the account id.
 @session_start();
 $s_id = session_id();
 
@@ -6575,17 +6576,17 @@ function ordreside($id, $regnskab)
 			//print "<tr><td></td></tr>\n";
 		} # end if ($status < 3)
 		if ($konto_id) {
-			$r = db_fetch_array(db_select("select kreditmax from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(db_select("select kreditmax from adresser where id = '" . (int)$konto_id . "'", __FILE__ . " linje " . __LINE__));
 			if ($kreditmax = floatval(ifset($r, 'kreditmax', 0))) { // 20210719 checked whether it is set as it was throwing a boolean error // Changed it from string * int to floatval to avoid type errors.
 				if ($valutakurs) $kreditmax = $kreditmax * 100 / $valutakurs;
-				$q = db_select("select * from openpost where konto_id = '$konto_id' and udlignet='0'", __FILE__ . " linje " . __LINE__);
+				$q = db_select("select * from openpost where konto_id = '" . (int)$konto_id . "' and udlignet='0'", __FILE__ . " linje " . __LINE__);
 				$tilgode = 0;
 				while ($r = db_fetch_array($q)) {
 					if (!$r['valuta']) $r['valuta'] = $baseCurrency;
 					if (!$r['valutakurs']) $r['valutakurs'] = 100;
 					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
 					elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
-						if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__))) {
+						if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='" . db_escape_string((string)$valuta) . "' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '" . db_escape_string((string)$r['transdate']) . "' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__))) {
 							$opp_amount = $r['amount'] * 100 / $r3['kurs'];
 						} else {
 							$opp_amount = 0; // no rate: the post cannot be converted, and the previous post's amount must not be counted again
