@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebCoverage.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/includes/ebCoverage.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,9 @@
 //                Deliberately standalone (no provider code) so the CSV import does not load the bank client.
 // 20261028 CDX/LH Remove the retired onboarding state from bank feed coverage.
 // 20261116 CL/LH Texts through findtekst() (bank.coverage.*) in the page's charset; no automatic import wording.
+// 20261118 CL/LH Holder names joined with a comma (ebHolderName()), never the bank's raw "A;B".
+
+require_once __DIR__ . '/ebNames.php';
 
 if (!function_exists('ebFeedCoverageForLedger')) {
 	/**
@@ -77,7 +80,7 @@ if (!function_exists('ebFeedCoverageForLedger')) {
 		$lines = array();
 		foreach (ebFeedCoverageForLedger($kontonr) as $c) {
 			$from = ebCoverageDate($c['import_from']);
-			$name = trim($c['display_name'] . ' ' . $c['display_identity']);
+			$name = trim(ebHolderName($c['display_name']) . ' ' . $c['display_identity']);
 			if ($c['fetched_through'] !== '') {
 				$text = sprintf(findtekst('bank.coverage.fetched|Konto %s hentes via bankforbindelsen (%s) fra %s til %s', $sprog_id), $kontonr, $name, $from, ebCoverageDate($c['fetched_through']));
 			} else {
