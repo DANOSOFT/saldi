@@ -1,9 +1,9 @@
 <?php
 // 20261118 CL/MMR SST-1033 Runs the receipt half of kreditor/modtag.php's lot loop against recorded queries.
-//                  A receipt of a batch-controlled item (group box8 and box9 on) is its own lot, so it must
-//                  not cover negative rest on older lots. MEDshop received 5 x 966040 and 1 went to a 2021
-//                  return lot, after which an order of 4 could not be delivered. Items without batch control
-//                  keep covering negative rest as before (cost price of earlier sales).
+
+// A receipt of a batch-controlled item (group box8 and box9 on) is its own lot, so it must not cover negative rest on older lots.
+// MEDshop received 5 x 966040 and 1 went to a 2021 return lot, after which an order of 4 could not be delivered.
+// Items without batch control keep covering negative rest as before (cost price of earlier sales).
 namespace ModtagLotRestFixture {
 
     final class Db
