@@ -185,6 +185,8 @@
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261111 CL/MJ SST-1002 With Brug samlet pris, a line of a set item that is not a set (saet 0, e.g. a variant) gets a position number.
+//                Without one, the next Gem posted an empty position and stopped with a TypeError.
 @session_start();
 $s_id = session_id();
 
@@ -6967,7 +6969,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	$dkantal = $dkpris = $dkprocent = $dkrabat = $tidl_lev = 0;
 	# if (!$x) $x--; #20160915
 	if ($folgevare) $flgv = $folgevare;
-	if (!$samlevare || !$brugsamletpris) $ny_pos++; #20150317 
+	if (!$samlevare || !$brugsamletpris || !$saet) $ny_pos++; #20150317 #20261111 SST-1002
 	#lse cho "$beskrivelse $pris<br>";
 	#  if (!$ny_pos) $ny_pos=1;
 	if ($readonly) $readonly = "readonly=\"readonly\"";

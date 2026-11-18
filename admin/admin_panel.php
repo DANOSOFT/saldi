@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/admin_panel.php --- 2026-11-16 ---
+// --- admin/admin_panel.php --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,16 @@
 //                 The audit entry is written in db_modify()'s webservice mode, so a failed insert after the reset is reported instead of ending the request; the CSRF check is called directly, and the button uses the panel's danger style.
 //                 The rule is now the admin flag only (SirRolin, review #1131): a master user's access list no longer lets them see the card or post the reset.
 //                 The rights are looked up with the unescaped user name ($brugernavn_raw), escaped once, so a name with an apostrophe finds its row.
+// 20261117 CL/SZ MB-163 The page and its actions need a master user with admin rights; every POST carries the session token.
+// 20261117 CDX/NTR Use the shared master-admin lookup for the page and its actions.
+// 20261118 CL/ASR Merged master (MB-163): the page now refuses every user without the admin flag before any action, which is the rule
+//                 SirRolin set for Nulstil regnskab (review #1131), so the reset's own admin check and its second CSRF check are gone.
+//                 The reset button keeps its red outline: online.php paints every button[type="submit"] in the button colour with !important.
+
+/**
+ * Injected by ../includes/online.php, included below:
+ * @var string $brugernavn_raw
+ */
 
 ob_start();
 
@@ -41,6 +51,45 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 require_once __DIR__ . '/../includes/stdFunc/lastActivityDate.php';
+// The master database's pages do not get permissions.php from online.php.
+include_once __DIR__ . '/../includes/permissions.php';
+require_once __DIR__ . '/../includes/stdFunc/masterAdminRight.php';
+
+$isAjaxRequest = isset($_GET['ajax_license_toggle']) || isset($_GET['ajax_invoice_id']) || isset($_GET['ajax_users']);
+
+// Security check: a master login only, and only one with admin rights (rettigheder "admin,oprette,slette,adgang_til",
+// as in slet_regnskab.php). Runs before anything else on the page, the AJAX actions included.
+if ($db != $sqdb) {
+    print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at gøre her!')\">";
+    print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
+    exit;
+}
+if (!masterUserHasAdminRights($brugernavn_raw)) {
+    $noAccessTxt = findtekst('5548|Du har ikke adgang til denne funktion. Kontakt din administrator.', $sprog_id);
+    if ($isAjaxRequest) {
+        while (ob_get_level()) { ob_end_clean(); }
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => $noAccessTxt]);
+        exit;
+    }
+    print "<BODY onLoad=\"javascript:alert('" . htmlspecialchars(addslashes($noAccessTxt), ENT_QUOTES) . "')\">";
+    print "<meta http-equiv=\"refresh\" content=\"1;URL=vis_regnskaber.php\">";
+    exit;
+}
+
+// Every POST (the settings forms and the AJAX actions) must carry the session's CSRF token.
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($isAjaxRequest) {
+        // A refused AJAX call answers bare JSON, without the page header online.php has buffered.
+        while (ob_get_level()) { ob_end_clean(); }
+        ob_start();
+    }
+    perm_require_post_csrf($isAjaxRequest);
+}
 
 // ---- Ensure lukkes_kommentar column exists on regnskab ----
 $_col_check = db_fetch_array(db_select("SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='lukkes_kommentar' AND table_schema='public'", __FILE__ . " linje " . __LINE__));
@@ -184,27 +233,6 @@ function fetch_customer_invoices($search_term) {
     return ['invoices' => $invoices];
 }
 
-// Who may reset a ledger: only Saldi's staff, i.e. a master user with the admin flag; the access list does not count (SirRolin, review #1131).
-// The user name is looked up unescaped ($brugernavn_raw from includes/online.php; $brugernavn is escaped already) and escaped once here.
-function admin_panel_may_reset() {
-    global $brugernavn, $brugernavn_raw;
-    static $admin = null;
-    if ($admin === null) {
-        $name = isset($brugernavn_raw) ? (string)$brugernavn_raw : (string)$brugernavn;
-        $r = db_fetch_array(db_select("SELECT rettigheder FROM brugere WHERE brugernavn = '" . db_escape_string($name) . "'", __FILE__ . " linje " . __LINE__));
-        list($flag) = array_pad(explode(",", (string)($r ? $r['rettigheder'] : ''), 4), 4, '');
-        $admin = (bool)$flag;
-    }
-    return $admin;
-}
-
-// Security check
-if ($db != $sqdb) {
-    print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at gøre her!')\">"; 
-    print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
-    exit;
-}
-
 // Available features for license management
 $available_features = array(
     'booking' => 'Booking / Udlejning',
@@ -270,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // --- Reset a ledger (systemdata/resetAccount.php). The ledger's own users can no longer do this. ---
     if ($action === 'reset_ledger') {
-        perm_require_post_csrf(false);
+        // The page's own checks above already require the admin flag and the session's CSRF token (MB-163).
         $regnskab_id = (int)if_isset($_POST['regnskab_id'], 0);
         $reset_row = db_fetch_array(db_select("SELECT regnskab, db FROM regnskab WHERE id = $regnskab_id", __FILE__ . " linje " . __LINE__));
         $reset_db = $reset_row ? trim((string)$reset_row['db']) : '';
@@ -281,8 +309,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message_type = 'error';
         if ($reset_db === '' || $reset_db === $sqdb) {
             $message = "Regnskab ikke fundet. Intet er nulstillet.";
-        } elseif (!admin_panel_may_reset()) {
-            $message = "Kun Saldis personale kan nulstille et regnskab. Intet er nulstillet.";
         } elseif ($typed_name === '' || $typed_name !== $reset_name) {
             $message = "Navnet passer ikke med regnskabets navn. Intet er nulstillet.";
         } else {
@@ -1071,6 +1097,9 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             font-family: inherit; transition: all 0.2s;
         }
         .btn-danger:hover { background: #e53e3e; color: white; }
+        /* online.php paints every button[type="submit"] in the button colour with !important; the reset button keeps the red outline. */
+        button.btn-danger[type="submit"] { background: transparent !important; color: #e53e3e !important; border: 2px solid #e53e3e !important; }
+        button.btn-danger[type="submit"]:hover { background: #e53e3e !important; color: white !important; }
         .user-2fa-toggle {
             display: flex; align-items: center; gap: 10px;
             padding-top: 16px;
@@ -1436,6 +1465,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             <div class="card-body">
                 <form method="post" action="admin_panel.php?regnskab_id=<?php echo $filter_regnskab; ?>">
                     <input type="hidden" name="action" value="bulk_update">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES); ?>">
                     <input type="hidden" name="regnskab_id" value="<?php echo $filter_regnskab; ?>">
                     
                     <?php foreach ($available_features as $feature_key => $feature_name) { 
@@ -1577,6 +1607,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
             <div class="card-body">
                 <form method="post" action="admin_panel.php?regnskab_id=<?php echo $filter_regnskab; ?>">
                     <input type="hidden" name="action" value="update_settings">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES); ?>">
                     <input type="hidden" name="regnskab_id" value="<?php echo $filter_regnskab; ?>">
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
@@ -1641,14 +1672,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
         </div>
         
         <!-- Nulstil regnskab -->
-        <?php if (admin_panel_may_reset()): ?>
-        <?php
-        if (session_status() === PHP_SESSION_ACTIVE && empty($_SESSION['csrf_token'])) {
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        }
-        $reset_token = isset($_SESSION['csrf_token']) ? (string)$_SESSION['csrf_token'] : '';
-        $reset_ledger_name = trim((string)$reg['regnskab']);
-        ?>
+        <?php $reset_ledger_name = trim((string)$reg['regnskab']); ?>
         <div class="card card-full">
             <div class="card-header">🗑️ Nulstil regnskab</div>
             <div class="card-body">
@@ -1656,7 +1680,7 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                 <form method="post" action="admin_panel.php?regnskab_id=<?php echo $filter_regnskab; ?>" onsubmit="return confirm('Nulstil regnskabet? Det kan ikke fortrydes.');">
                     <input type="hidden" name="action" value="reset_ledger">
                     <input type="hidden" name="regnskab_id" value="<?php echo $filter_regnskab; ?>">
-                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($reset_token); ?>">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES); ?>">
                     <div class="checkbox-group">
                         <input type="checkbox" name="keep_accounts" id="reset_keep_accounts" value="1">
                         <label for="reset_keep_accounts">Behold debitorer &amp; kreditorer</label>
@@ -1675,7 +1699,6 @@ $filter_regnskab = (int)if_isset($_GET['regnskab_id'], 0);
                 </form>
             </div>
         </div>
-        <?php endif; ?>
 
         <!-- Brugere (Users) -->
         <div class="card card-full collapsed" id="usersCard">
@@ -2029,6 +2052,7 @@ function openInvoiceModal(invoiceId) {
 
 // ─── Users Management ───
 const REGNSKAB_ID = <?php echo $filter_regnskab ? $filter_regnskab : 0; ?>;
+const CSRF_TOKEN = <?php echo json_encode($_SESSION['csrf_token']); ?>;
 
 function loadUsers() {
     if (!REGNSKAB_ID) return;
@@ -2150,13 +2174,13 @@ function saveUser(id) {
     
     fetch(`admin_panel.php?ajax_users=1&regnskab_id=${REGNSKAB_ID}&user_action=update`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
         body: JSON.stringify(payload)
     })
     .then(r => r.json())
     .then(data => {
-        if (data.error) {
-            alert('Fejl: ' + data.error);
+        if (data.error || data.ok === false) {
+            alert('Fejl: ' + (data.error || data.message));
             return;
         }
         const msg = document.getElementById('msg-' + id);
@@ -2173,13 +2197,13 @@ function deleteUser(id, username) {
     
     fetch(`admin_panel.php?ajax_users=1&regnskab_id=${REGNSKAB_ID}&user_action=delete`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
         body: JSON.stringify({user_id: id})
     })
     .then(r => r.json())
     .then(data => {
-        if (data.error) {
-            alert('Fejl: ' + data.error);
+        if (data.error || data.ok === false) {
+            alert('Fejl: ' + (data.error || data.message));
             return;
         }
         const el = document.getElementById('user-item-' + id);
@@ -2198,13 +2222,13 @@ function clearDatatables(id, username) {
     
     fetch(`admin_panel.php?ajax_users=1&regnskab_id=${REGNSKAB_ID}&user_action=clear_datatables`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
         body: JSON.stringify({user_id: id})
     })
     .then(r => r.json())
     .then(data => {
-        if (data.error) {
-            alert('Fejl: ' + data.error);
+        if (data.error || data.ok === false) {
+            alert('Fejl: ' + (data.error || data.message));
             return;
         }
         alert('Tabelvisninger er blevet nulstillet for brugeren "' + username + '".');
@@ -2226,7 +2250,7 @@ function toggleLicense(el, regId, featureKey) {
     
     fetch('admin_panel.php?ajax_license_toggle=1', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
         body: JSON.stringify({ regnskab_id: regId, feature_key: featureKey })
     })
     .then(r => r.json())
@@ -2234,8 +2258,8 @@ function toggleLicense(el, regId, featureKey) {
         el.style.opacity = '1';
         el.style.pointerEvents = 'auto';
         
-        if (data.error) {
-            alert('Fejl: ' + data.error);
+        if (data.error || data.ok === false) {
+            alert('Fejl: ' + (data.error || data.message));
             return;
         }
         
