@@ -129,6 +129,7 @@
 // 20261117 CL/LH Havemøbelland Black Week: sync_shop_price() and sync_shop_vare() send an item the offer reconciler tracks (stdFunc/shopOfferPush.php) each shop the price pair that shop last accepted from it, looked up right before each call (a call collected for a document when the document sends it), so a card save or a sale starts no price of its own; other items keep today's prices.
 //                When that pair is not the item's current one, the send is marked as an event, and the reconciler, run only by an authorised scheduled call, sends the current pair after it.
 // 20261118 CL/LH Every send of an item's prices follows the protocol of stdFunc/shopOfferPush.php: the queries first, then the critical section (shopOfferForeignClaim()) right before each call, the call at once, then the record (shopOfferForeignDone()); no query runs between the state read and the call.
+//                Codex verification 6: the prices sent come from the claim, from an item read at most 2 minutes old (read again when older); when it cannot be read again, no price call is made (sync_shop_vare() queues it) and the reconciler sends the prices.
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
@@ -2048,6 +2049,7 @@ if(!function_exists("sync_shop_price")){
 	  }
 	  $qtxt = "SELECT varenr, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode, " . shopOfferColumns() . " FROM varer WHERE varer.id='" . (int)$vare_id . "'";
 	  if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$r['_readAt'] = shopOfferForeignNow(); # 20261118 when the prices were read: they are sent at most 2 minutes later (stdFunc/shopOfferPush.php)
 		$salesPrice = $r['salgspris'];
 		$discountType = $r['m_type'];
 		$discount = $r['m_rabat'];
@@ -2076,6 +2078,10 @@ if(!function_exists("sync_shop_price")){
 		  # 20261118 the protocol of stdFunc/shopOfferPush.php: the critical section right before the call, the call at once, then the
 		  # record. A tracked item gets the pair this shop last accepted from the offer reconciler; otherwise today's prices.
 		  $claim = shopOfferForeignReady(shopOfferForeignClaim('card', $vare_id, $r, array($slot => $endpoint)));
+		  if (!empty($claim['noPrices'])) { # the item could not be read again: no price call; the reconciler sends the prices
+			$failed++;
+			continue;
+		  }
 		  shopOfferTestPause('card', 'send', $vare_id);
 		  $res = shopApiRequest($endpoint, shopOfferForeignParams($params, $claim, $slot), $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
 		  shopOfferForeignDone($claim);
@@ -2195,13 +2201,18 @@ if (!function_exists('sync_shop_vare')) {
 		// last accepted from the offer reconciler; otherwise today's prices), the call at once, then the record. A call collected
 		// for the document goes through it when the document sends it (stdFunc/shopSyncDocument.php).
 		$priceRow = null;
-		$sendPrices = function (array $targets, array $params, $context, $itemLabel) use ($send, $vare_id, &$priceRow) {
+		$sendPrices = function (array $targets, array $params, $context, $itemLabel) use ($send, $vare_id, &$priceRow, $lager, $mode, &$failed) {
 			$collector = &shopSyncDocumentState();
 			if (!empty($collector['collecting'])) {
 				$send($targets, $params, $context, $vare_id, 0, $itemLabel, $priceRow);
 				return;
 			}
 			$claim = $priceRow ? shopOfferForeignReady(shopOfferForeignClaim('stock', $vare_id, $priceRow, $targets)) : null;
+			if (!empty($claim['noPrices'])) { // the item could not be read again: no call now; it is queued, and the reconciler sends the prices
+				$failed++;
+				shopSyncQueueAdd($vare_id, 0, $lager, $mode);
+				return;
+			}
 			shopOfferTestPause('stock', 'send', $vare_id);
 			foreach (shopOfferForeignGroups($targets, $claim, $params) as $group) {
 				$send($group['targets'], $group['params'], $context, $vare_id, 0, $itemLabel);
@@ -2280,6 +2291,7 @@ if (!function_exists('sync_shop_vare')) {
 			$qtxt = "SELECT varenr, varenr_alias, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode, " . shopOfferColumns() . " FROM varer WHERE varer.id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$priceRow = $r;
+				$priceRow['_readAt'] = shopOfferForeignNow(); // when the prices were read: they are sent at most 2 minutes later
 				shopOfferTestPause('stock', 'queried', $vare_id);
 				$salesPrice = $r['salgspris'];
 				$discountType = $r['m_type'];

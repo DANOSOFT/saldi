@@ -30,6 +30,7 @@
 // 20261029 CDX/MJ SST-876 Keep history contiguous with the file header.
 // 20261118 CL/LH A collected call that carries an item's prices gets them when it is sent: for an item the offer reconciler tracks, the pair each shop last accepted, looked up then (shopOfferForeignAtSend()), not when the call was collected.
 //                Codex verification 5: such calls follow the protocol of stdFunc/shopOfferPush.php: the batch's queries first, then each item's critical section (shopOfferForeignClaim(), with the varer row the call was built from), the batch at once, then the record (shopOfferForeignDone()).
+//                Codex verification 6: that row is read again when it is older than 2 minutes; if it cannot be, the call is not sent and stays queued.
 
 /**
  * Request-local payload collection; quantities are rebuilt on every delivery.
@@ -339,6 +340,11 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 			foreach ($tasks as $i => $task) {
 				if (isset($claims[$i])) {
 					$claims[$i] = shopOfferForeignReady($claims[$i]);
+					if (!empty($claims[$i]['noPrices'])) { // the item could not be read again: not sent now; it stays queued, the reconciler sends the prices
+						$groups[$task['key']]['failed'] = $groups[$task['key']]['retry'] = true;
+						unset($claims[$i]);
+						continue;
+					}
 					shopOfferTestPause('document', 'send', $task['vare_id']);
 				}
 				foreach ($task['targets'] as $slot => $endpoint) {

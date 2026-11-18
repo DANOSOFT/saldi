@@ -35,6 +35,7 @@
 //                The reconciler never untracks an item while one of its markers is younger than T_late plus 2 minutes; an expired marker is an event. No query runs between a path's state read and its call (the VAT lookup no longer runs there at all).
 //                shopOfferTestPause() is inert outside the stall tests, which hold each path at every point between its first read and its call.
 //                Black Week volume: a send by another path no longer restarts the item's schedule; it gets one catch-up (shopOfferCatchUp(): every shop is sent the current pair once, T_late plus 2 minutes after the send), and several sends share one, due after the latest. Price changes and the reconciler's own failures still restart the schedule; markers and untracking are unchanged.
+//                Codex verification 6: no send of another path carries prices read more than 2 minutes earlier. The prices come from the claim (the shop's accepted pair, or today's prices from the claim's item read); a claim or a last check before the call on an older item read reads the item again by key (shopOfferFreshItem(), bounded, in a savepoint inside a transaction); when that fails the call is not made and an event is left (shopOfferForeignSkipped()). The test clock of the stall tests (SALDI_SHOP_OFFER_CLOCK and the release clock) is inert otherwise.
 
 if (!defined('SHOP_OFFER_ALERT_REFUSALS')) {
 	define('SHOP_OFFER_ALERT_REFUSALS', 8);    // refusals of one price pair after which a shop counts as stuck (still retried)
@@ -277,7 +278,8 @@ if (!function_exists('shopOfferBackoff')) {
 
 if (!function_exists('shopOfferForeignParams')) {
 	/**
-	 * A call's parameters with the pair shopOfferForeignClaim() gave the shop in $slot, if any.
+	 * A call's prices as shopOfferForeignClaim() gave them for the shop in $slot: the pair it last accepted when the item is
+	 * tracked, else today's prices from the claim's own item read; none when the item could not be read again.
 	 *
 	 * @param array<string, mixed> $params With salesPrice and retailPrice.
 	 * @param array|null $handle From shopOfferForeignClaim().
@@ -285,7 +287,15 @@ if (!function_exists('shopOfferForeignParams')) {
 	 * @return array<string, mixed>
 	 */
 	function shopOfferForeignParams(array $params, $handle, $slot) {
-		$pair = is_array($handle) ? ($handle['pairs'][$slot] ?? null) : null;
+		if (!is_array($handle)) {
+			return $params; // an account without offer state: as before
+		}
+		if (!empty($handle['noPrices'])) { // the item could not be read again: no prices (the callers skip such a call)
+			unset($params['salesPrice'], $params['retailPrice']);
+			return $params;
+		}
+		// the shop's accepted pair when the item is tracked, else today's prices from the claim's item read (at most 2 minutes old)
+		$pair = $handle['pairs'][$slot] ?? ($handle['today'] ?? null);
 		if (is_array($pair)) {
 			$params['salesPrice'] = $pair['sales'] ?? null;
 			$params['retailPrice'] = $pair['retail'] ?? null;
@@ -642,9 +652,10 @@ if (!function_exists('shopOfferPushEndpoints')) {
 //   1. slow work first: the path's queries and its payload, before anything below (no query from here to the HTTP call);
 //   2. shopOfferForeignClaim(), a short critical section under the item's lock: read the state, choose each shop's pair (the
 //      pair the shop last accepted when the item is tracked, today's prices when not), write an in-flight marker
-//      {path, startedAt}, release the lock;
-//   3. shopOfferForeignReady() right before the HTTP call (a claim older than SHOP_OFFER_FOREIGN_MARGIN is taken again), then
-//      the call at once;
+//      {path, startedAt}, release the lock. Today's prices come from an item read at most SHOP_OFFER_FOREIGN_MARGIN old: an
+//      older read is repeated by key first, bounded; if it cannot be, no prices are sent and an event is left;
+//   3. shopOfferForeignReady() right before the HTTP call (a claim or an item read older than SHOP_OFFER_FOREIGN_MARGIN is
+//      taken again), then the call at once. The call's prices are the claim's (shopOfferForeignParams()), never the caller's;
 //   4. shopOfferForeignDone() after the send, whatever its outcome: one catch-up for the item (every shop gets the current pair
 //      once, when the send's late window has passed: T_late plus SHOP_OFFER_FOREIGN_MARGIN after it), when it is tracked, has a
 //      price offer running or to come, or a marker was written; several sends share one catch-up, due after the latest; the
@@ -737,22 +748,100 @@ if (!function_exists('shopOfferInflightCheck')) {
 	}
 }
 
+if (!function_exists('shopOfferForeignNow')) {
+	/**
+	 * The clock of the other paths' sends: now. For the stall tests only, the test's clock: SALDI_SHOP_OFFER_CLOCK (a unix
+	 * time) at the start of the process, and the clock the test gives when it releases a held path (shopOfferTestPause()).
+	 *
+	 * @return float
+	 */
+	function shopOfferForeignNow() {
+		if (!isset($GLOBALS['shopOfferClockShift'])) {
+			$clock = getenv('SALDI_SHOP_OFFER_CLOCK');
+			$GLOBALS['shopOfferClockShift'] = ($clock !== false && is_numeric($clock)) ? (float)$clock - microtime(true) : 0.0;
+		}
+		return microtime(true) + (float)$GLOBALS['shopOfferClockShift'];
+	}
+}
+
+if (!function_exists('shopOfferFreshItem')) {
+	/**
+	 * Reads an item's price columns again by its key, bounded as the reconciler's queries are: at most SHOP_OFFER_DB_LOCK_SECONDS
+	 * for a lock or the statement. Inside the caller's transaction it runs in a savepoint, so a timeout leaves the transaction as
+	 * it was. Never alerts, mails or exits as db_select() would.
+	 *
+	 * @param int $vareId
+	 * @return array<string, mixed>|null salgspris, retail_price and the offer columns, or null when it could not be read.
+	 */
+	function shopOfferFreshItem($vareId) {
+		global $connection, $db_type;
+		if (!$connection) {
+			return null;
+		}
+		$sql = "select salgspris, retail_price, " . shopOfferColumns() . " from varer where id = '" . (int)$vareId . "'";
+		$ms = SHOP_OFFER_DB_LOCK_SECONDS * 1000;
+		if (in_array(strtolower((string)$db_type), array('mysql', 'mysqli'), true)) { // a lock wait timeout ends the statement, not the transaction
+			@mysqli_query($connection, 'SET SESSION innodb_lock_wait_timeout = ' . SHOP_OFFER_DB_LOCK_SECONDS);
+			@mysqli_query($connection, 'SET SESSION max_execution_time = ' . $ms);
+			@mysqli_query($connection, 'SET SESSION max_statement_time = ' . SHOP_OFFER_DB_LOCK_SECONDS);
+			$res = @mysqli_query($connection, $sql);
+			$row = $res ? mysqli_fetch_assoc($res) : null;
+			@mysqli_query($connection, 'SET SESSION innodb_lock_wait_timeout = DEFAULT');
+			@mysqli_query($connection, 'SET SESSION max_execution_time = DEFAULT');
+			@mysqli_query($connection, 'SET SESSION max_statement_time = DEFAULT');
+			return $row ?: null;
+		}
+		$status = pg_transaction_status($connection);
+		if ($status === PGSQL_TRANSACTION_INERROR || $status === PGSQL_TRANSACTION_UNKNOWN) {
+			return null;
+		}
+		$inTx = ($status === PGSQL_TRANSACTION_INTRANS);
+		$prev = array();
+		foreach (array('statement_timeout', 'lock_timeout') as $name) {
+			$r = @pg_query($connection, 'SHOW ' . $name);
+			$prev[$name] = $r ? (string)(pg_fetch_row($r)[0] ?? '0') : '0';
+		}
+		$set = $inTx ? 'SET LOCAL ' : 'SET ';
+		if ($inTx) @pg_query($connection, 'SAVEPOINT shop_offer_fresh_item');
+		@pg_query($connection, $set . 'statement_timeout = ' . $ms);
+		@pg_query($connection, $set . 'lock_timeout = ' . $ms);
+		$res = @pg_query($connection, $sql);
+		$row = $res ? pg_fetch_assoc($res) : false;
+		if ($res === false && $inTx) {
+			@pg_query($connection, 'ROLLBACK TO SAVEPOINT shop_offer_fresh_item'); // undoes the error and the settings
+			@pg_query($connection, 'RELEASE SAVEPOINT shop_offer_fresh_item');
+			return null;
+		}
+		foreach ($prev as $name => $value) {
+			@pg_query($connection, $set . $name . " = '" . pg_escape_string($connection, $value) . "'");
+		}
+		if ($inTx) @pg_query($connection, 'RELEASE SAVEPOINT shop_offer_fresh_item');
+		return $row ?: null;
+	}
+}
+
 if (!function_exists('shopOfferForeignClaim')) {
 	/**
 	 * Step 2 of the protocol above: the critical section of a send of an item's prices by a path other than the reconciler.
-	 * Call it after the path's queries, right before the send. No query runs in it.
+	 * Call it after the path's queries, right before the send. No query runs in its critical section.
 	 *
-	 * Null when the account has no offer state (the reconciler has never run, or no webshop): the path sends today's prices
-	 * and there is nothing to record. An item that is not tracked and has no price offer running or to come costs one file
-	 * check and keeps today's prices, without lock or marker. Otherwise, under the item's lock: each shop's pair (the pair it
+	 * The item read it is given must be at most SHOP_OFFER_FOREIGN_MARGIN old ($item['_readAt'], shopOfferForeignNow() when
+	 * the caller read it; missing counts as old). An older one is read again by key, bounded (shopOfferFreshItem()); if that
+	 * fails, the claim carries no prices (noPrices: the caller skips the call) and leaves an event, so the reconciler sends the
+	 * current pair. No send carries prices read more than SHOP_OFFER_FOREIGN_MARGIN earlier.
+	 *
+	 * Null when the account has no offer state (the reconciler has never run, or no webshop): the path is unchanged. An item
+	 * the state file says is not tracked, and whose (fresh) row has no price offer running or to come, costs one file check and
+	 * gets today's prices from that row, without lock or marker. Otherwise, under the item's lock: each shop's pair (the pair it
 	 * last accepted when the item is tracked, else today's prices) and an in-flight marker. If the lock or the marker fails,
-	 * the path sends today's prices and leaves a lock-free note (uncertain-<id>), which is an event, before it sends.
+	 * the path sends today's prices and leaves a lock-free note (uncertain-<id>, its catch-up) before it sends.
 	 *
 	 * @param string $path 'card', 'stock', 'document' or 'bulk'.
 	 * @param int $vareId
-	 * @param array<string, mixed> $item varer row read before: salgspris, retail_price and the offer columns (shopOfferColumns()).
+	 * @param array<string, mixed> $item varer row read before: salgspris, retail_price and the offer columns (shopOfferColumns()),
+	 *                                   and _readAt.
 	 * @param array<int|string, string> $endpoints Slot => endpoint the send goes to.
-	 * @return array{path: string, vare_id: int, item: array, endpoints: array, pairs: array<int|string, array|null>, token: string|null, tracked: bool, offer: bool, claimedAt: float}|null
+	 * @return array{path: string, vare_id: int, item: array, endpoints: array, pairs: array<int|string, array|null>, today: array, token: string|null, tracked: bool, offer: bool, noPrices: bool, readAt: float, claimedAt: float}|null
 	 *         tracked: the item was tracked at the claim (the pairs came from its state).
 	 */
 	function shopOfferForeignClaim($path, $vareId, array $item, array $endpoints) {
@@ -761,13 +850,28 @@ if (!function_exists('shopOfferForeignClaim')) {
 		if ($dir === '' || !$endpoints) {
 			return null;
 		}
+		$now = shopOfferForeignNow();
+		$readAt = isset($item['_readAt']) ? (float)$item['_readAt'] : 0.0;
 		$handle = array('path' => (string)$path, 'vare_id' => $vareId, 'item' => $item, 'endpoints' => $endpoints, 'pairs' => array(),
-			'token' => null, 'tracked' => false, 'offer' => shopOfferHasOfferFields($item, time()), 'claimedAt' => microtime(true));
+			'today' => null, 'token' => null, 'tracked' => false, 'offer' => false, 'noPrices' => false, 'readAt' => $readAt, 'claimedAt' => $now);
+		if ($now - $readAt >= SHOP_OFFER_FOREIGN_MARGIN) { // the path's read of the item is too old to send from: read it again
+			$fresh = shopOfferFreshItem($vareId);
+			if ($fresh === null) {
+				$handle['noPrices'] = true;
+				shopOfferForeignSkipped($vareId, $path);
+				return $handle;
+			}
+			$handle['item'] = $fresh + $item;
+			$handle['readAt'] = $now = shopOfferForeignNow();
+		}
+		$handle['today'] = array('sales' => isset($handle['item']['salgspris']) ? (string)$handle['item']['salgspris'] : null,
+			'retail' => isset($handle['item']['retail_price']) ? (string)$handle['item']['retail_price'] : null);
+		$handle['offer'] = shopOfferHasOfferFields($handle['item'], (int)$now);
 		if (!$handle['offer'] && !is_file($dir . 'item-' . $vareId . '.json')) {
-			return $handle; // today's prices; after the send only a look whether the item got tracked meanwhile
+			return $handle; // not tracked, no offer: today's prices from a read at most 2 minutes old
 		}
 		$token = getmypid() . '-' . bin2hex(random_bytes(6));
-		list($locked, $pairs) = shopOfferWithItemLock($vareId, function () use ($vareId, $endpoints, $token, $path) {
+		list($locked, $pairs) = shopOfferWithItemLock($vareId, function () use ($vareId, $endpoints, $token, $path, $now) {
 			$state = shopOfferStateRead($vareId);
 			shopOfferTestPause($path, 'locked', $vareId);
 			$pairs = array();
@@ -778,7 +882,7 @@ if (!function_exists('shopOfferForeignClaim')) {
 			if (!is_array($markers)) {
 				return false;
 			}
-			$markers[$token] = array('path' => (string)$path, 'startedAt' => time(), 'pid' => (int)getmypid());
+			$markers[$token] = array('path' => (string)$path, 'startedAt' => (int)$now, 'pid' => (int)getmypid());
 			return shopOfferInflightWrite($vareId, $markers) ? array($pairs, is_array($state)) : false;
 		});
 		if (!$locked || $pairs === false) {
@@ -795,21 +899,58 @@ if (!function_exists('shopOfferForeignClaim')) {
 	}
 }
 
+if (!function_exists('shopOfferForeignSkipped')) {
+	/**
+	 * A send of other paths that was skipped because the item could not be read again: an event, so the reconciler sends the
+	 * current pair (and tracks the item if it did not). If the lock is busy or the state cannot be written, a lock-free note.
+	 *
+	 * @param int $vareId
+	 * @param string $path
+	 * @return void
+	 */
+	function shopOfferForeignSkipped($vareId, $path) {
+		$vareId = (int)$vareId;
+		$dir = shopOfferPushDir(false);
+		if ($dir === '') {
+			return;
+		}
+		$now = (int)shopOfferForeignNow();
+		list($locked, $written) = shopOfferWithItemLock($vareId, function () use ($vareId, $now) {
+			$state = shopOfferStateRead($vareId);
+			if (!is_array($state)) {
+				$state = array('shops' => array(), 'reset' => true);
+			}
+			$state['foreign']['staleAt'] = max((int)($state['foreign']['staleAt'] ?? 0), $now);
+			return shopOfferStateWrite($vareId, $state);
+		});
+		if (!$locked || !$written) {
+			@touch($dir . 'uncertain-' . $vareId);
+		}
+		shopOfferLogLoud('ITEM NOT READ AGAIN: the ' . $path . ' did not send the prices of item vare_id ' . $vareId
+			. ' (its read was older than ' . SHOP_OFFER_FOREIGN_MARGIN . ' s and could not be repeated); the reconciler sends them');
+	}
+}
+
 if (!function_exists('shopOfferForeignReady')) {
 	/**
-	 * Step 3: right before the HTTP call. A claim older than SHOP_OFFER_FOREIGN_MARGIN (the path stalled after it) is
-	 * recorded and taken again, so a send leaves within the margin of its claim's state read and marker.
+	 * Step 3: right before the HTTP call, the last freshness check. A claim or an item read older than
+	 * SHOP_OFFER_FOREIGN_MARGIN (the path stalled after it) is recorded and taken again, with the item read again; so a send
+	 * leaves within the margin of its state read, its marker and its item read.
 	 *
 	 * @param array|null $handle From shopOfferForeignClaim().
-	 * @param float|null $at microtime(true); for tests.
-	 * @return array|null The handle to send with.
+	 * @param float|null $at shopOfferForeignNow(); for tests.
+	 * @return array|null The handle to send with (check noPrices).
 	 */
 	function shopOfferForeignReady($handle, $at = null) {
-		if (!is_array($handle) || ($at ?? microtime(true)) - $handle['claimedAt'] < SHOP_OFFER_FOREIGN_MARGIN) {
+		if (!is_array($handle) || !empty($handle['noPrices'])) {
+			return $handle;
+		}
+		$at = $at ?? shopOfferForeignNow();
+		if ($at - (float)$handle['readAt'] < SHOP_OFFER_FOREIGN_MARGIN && $at - (float)$handle['claimedAt'] < SHOP_OFFER_FOREIGN_MARGIN) {
 			return $handle;
 		}
 		shopOfferForeignDone($handle);
-		return shopOfferForeignClaim($handle['path'], $handle['vare_id'], $handle['item'], $handle['endpoints']);
+		return shopOfferForeignClaim($handle['path'], $handle['vare_id'], array('_readAt' => (float)$handle['readAt']) + $handle['item'], $handle['endpoints']);
 	}
 }
 
@@ -834,10 +975,13 @@ if (!function_exists('shopOfferForeignDone')) {
 		}
 		$vareId = (int)$handle['vare_id'];
 		$dir = shopOfferPushDir(false);
+		if (!empty($handle['noPrices'])) {
+			return; // nothing was sent; shopOfferForeignSkipped() left the event
+		}
 		if ($dir === '' || ($handle['token'] === null && !$handle['offer'] && !is_file($dir . 'item-' . $vareId . '.json'))) {
 			return; // an item nobody tracks and without an offer: nothing to record
 		}
-		$now = $now === null ? time() : (int)$now;
+		$now = $now === null ? (int)shopOfferForeignNow() : (int)$now;
 		$token = $handle['token'];
 		$adopt = !empty($handle['tracked']) || shopOfferActive($handle['item'], $now);
 		list($locked, $written) = shopOfferWithItemLock($vareId, function () use ($vareId, $now, $token, $adopt) {
@@ -872,7 +1016,8 @@ if (!function_exists('shopOfferTestPause')) {
 	/**
 	 * A pause for the stall tests only (ShopOfferPushTest::testStallMatrix()); inert unless the environment variable
 	 * SALDI_SHOP_OFFER_STALL is "<path>:<point>:<vare_id, 0 for any>:<file prefix>". Then, the first time that path reaches that
-	 * point for that item, it creates <prefix>.held and waits for <prefix>.go (at most 10 minutes).
+	 * point for that item, it creates <prefix>.held and waits for <prefix>.go (at most 10 minutes). A unix time in <prefix>.go
+	 * becomes this path's clock from then on (shopOfferForeignNow()), so the hold lasts as long as the test's clock says.
 	 *
 	 * @param string $path 'card', 'stock', 'document', 'bulk' or 'tick'.
 	 * @param string $point 'queried', 'locked', 'marked' or 'send'.
@@ -894,6 +1039,10 @@ if (!function_exists('shopOfferTestPause')) {
 		@touch($parts[3] . '.held');
 		for ($i = 0; $i < 12000 && !is_file($parts[3] . '.go'); $i++) {
 			usleep(50000);
+		}
+		$clock = trim((string)@file_get_contents($parts[3] . '.go'));
+		if (is_numeric($clock)) { // the test's clock for the rest of this path (shopOfferForeignNow()): the hold lasted until then
+			$GLOBALS['shopOfferClockShift'] = (float)$clock - microtime(true);
 		}
 	}
 }

@@ -152,6 +152,7 @@ while ($product = db_fetch_array($products_query)) {
         if ($itemNow) {
             $salgspris = $itemNow['salgspris'];
             $retail_price = $itemNow['retail_price'];
+            $itemNow['_readAt'] = shopOfferForeignNow(); // 20261118 the claim reads it again when the calls would go out more than 2 minutes later
         }
         shopOfferTestPause('bulk', 'queried', $vare_id);
         $claim = $itemNow ? shopOfferForeignClaim('bulk', $vare_id, $itemNow, array_filter(array($api_fil, $api_fil2, $api_fil3))) : null;
@@ -163,6 +164,10 @@ while ($product = db_fetch_array($products_query)) {
             fwrite($log, "    API: $api_url\n");
             
             $claim = shopOfferForeignReady($claim);
+            if (!empty($claim['noPrices'])) { // the item could not be read again: no calls for it; the reconciler sends its prices
+                fwrite($log, "    Item not read again: no stock or price call for this shop\n");
+                continue;
+            }
             shopOfferTestPause('bulk', 'send', $vare_id);
             $shopPrices = shopOfferForeignParams(array('salesPrice' => $salgspris, 'retailPrice' => $retail_price), $claim, $slotOf[$api_url] ?? -1);
             $shopSalesPrice = $shopPrices['salesPrice'];

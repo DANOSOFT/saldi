@@ -308,14 +308,30 @@ final class shopOfferPrice extends TestCase
 		$this->assertFalse(shopOfferHasOfferFields(['salgspris' => '639.2'], $now));
 	}
 
-	public function testAClaimIsSentAsItIsWithinTwoMinutes(): void
+	public function testAClaimIsSentAsItIsWhileItAndItsItemReadAreUnderTwoMinutesOld(): void
 	{
-		$claim = ['path' => 'card', 'vare_id' => 7, 'item' => [], 'endpoints' => [0 => 'a'], 'pairs' => [0 => self::OFFER], 'token' => 't',
-			'offer' => false, 'claimedAt' => 1000.0];
-		$this->assertSame($claim, shopOfferForeignReady($claim, 1119.9));
+		$claim = ['path' => 'card', 'vare_id' => 7, 'item' => [], 'endpoints' => [0 => 'a'], 'pairs' => [0 => self::OFFER], 'today' => self::NORMAL,
+			'token' => 't', 'tracked' => true, 'offer' => false, 'noPrices' => false, 'readAt' => 990.0, 'claimedAt' => 1000.0];
+		$this->assertSame($claim, shopOfferForeignReady($claim, 1109.9));
 		$this->assertNull(shopOfferForeignReady(null, 5000.0));
-		// older: recorded and taken again; with no offer state on this account (the unit tests have none) that is today's prices
-		$this->assertNull(shopOfferForeignReady($claim, 1120.0));
+		// older: recorded and taken again, with the item read again; with no offer state on this account (the unit tests have
+		// none) that is a send as before
+		$this->assertNull(shopOfferForeignReady($claim, 1110.0), 'the item read is 120 s old, though the claim is not');
+		$this->assertNull(shopOfferForeignReady(['readAt' => 1000.0] + $claim, 1120.0), 'the claim is 120 s old');
+		$noPrices = ['noPrices' => true, 'readAt' => 0.0] + $claim;
+		$this->assertSame($noPrices, shopOfferForeignReady($noPrices, 9999.0), 'a claim without prices stays one');
+	}
+
+	public function testTheSentPricesComeFromTheClaim(): void
+	{
+		$params = ['update_stock' => 5, 'stock' => 3, 'salesPrice' => '100.000', 'retailPrice' => '200.00'];
+		$this->assertSame($params, shopOfferForeignParams($params, null, 0), 'no offer state on the account: as before');
+		$claim = ['pairs' => [0 => self::OFFER, 1 => null], 'today' => ['sales' => '259.200', 'retail' => '999.000'], 'noPrices' => false];
+		$this->assertSame(['salesPrice' => '159.200', 'retailPrice' => '799.00'], array_intersect_key(shopOfferForeignParams($params, $claim, 0), ['salesPrice' => 1, 'retailPrice' => 1]),
+			'a tracked shop: the pair it accepted');
+		$this->assertSame(['salesPrice' => '259.200', 'retailPrice' => '999.000'], array_intersect_key(shopOfferForeignParams($params, $claim, 1), ['salesPrice' => 1, 'retailPrice' => 1]),
+			'otherwise today\'s prices from the claim\'s own item read, not the caller\'s payload');
+		$this->assertSame(['update_stock' => 5, 'stock' => 3], shopOfferForeignParams($params, ['noPrices' => true] + $claim, 1), 'no prices when the item could not be read again');
 	}
 
 	public function testUntrackingWaitsForTheLastDispatchPlusTLatePlusAMargin(): void

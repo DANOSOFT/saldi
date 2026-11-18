@@ -35,6 +35,9 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  *                marker of a path that died.
  * 20261118 CL/LH A send by another path gets one catch-up instead of a new schedule: the matrix also releases the path early (the
  *                item still tracked, so only the catch-up repairs), and sends by several paths share one catch-up.
+ * 20261118 CL/LH Codex verification 6: the matrix also changes the normal prices while the path is held (its own read of today's
+ *                prices goes old), and the held path runs on the test's clock; an old item read that cannot be repeated sends no
+ *                prices.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -186,26 +189,30 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	 * @param string|null $stall For the stall tests: SALDI_SHOP_OFFER_STALL for the child (shopOfferTestPause()).
 	 * @return array{0: resource, 1: string, 2: string} The runner started in the background; finish it with finish().
 	 */
-	private static function start(array $args, array $phpOptions = [], ?string $stall = null): array
+	private static function start(array $args, array $phpOptions = [], ?string $stall = null, ?int $clock = null): array
 	{
 		$cmd = array_merge([PHP_BINARY], $phpOptions, [__DIR__ . '/../support/run_shop_offer_push.php', CharacterizationEnv::testDb()], $args);
-		return self::spawn($cmd, $stall);
+		return self::spawn($cmd, $stall, $clock);
 	}
 
 	/** @param list<string> $args @return array{0: resource, 1: string, 2: string} Another support script started in the background. */
-	private static function startScript(string $script, array $args, ?string $stall = null): array
+	private static function startScript(string $script, array $args, ?string $stall = null, ?int $clock = null): array
 	{
-		return self::spawn(array_merge([PHP_BINARY, __DIR__ . '/../support/' . $script], $args), $stall);
+		return self::spawn(array_merge([PHP_BINARY, __DIR__ . '/../support/' . $script], $args), $stall, $clock);
 	}
 
-	/** @param list<string> $cmd @return array{0: resource, 1: string, 2: string} */
-	private static function spawn(array $cmd, ?string $stall): array
+	/**
+	 * @param list<string> $cmd
+	 * @param int|null $clock For the stall tests: the child's clock at its start (SALDI_SHOP_OFFER_CLOCK, shopOfferForeignNow()).
+	 * @return array{0: resource, 1: string, 2: string}
+	 */
+	private static function spawn(array $cmd, ?string $stall, ?int $clock = null): array
 	{
 		$out = (string)tempnam(sys_get_temp_dir(), 'offerrun');
 		$err = (string)tempnam(sys_get_temp_dir(), 'offerrun');
 		self::$files[] = $out;
 		self::$files[] = $err;
-		$env = $stall === null ? null : array_merge(getenv(), ['SALDI_SHOP_OFFER_STALL' => $stall]);
+		$env = $stall === null ? null : array_merge(getenv(), ['SALDI_SHOP_OFFER_STALL' => $stall], $clock === null ? [] : ['SALDI_SHOP_OFFER_CLOCK' => (string)$clock]);
 		$proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['file', $out, 'w'], 2 => ['file', $err, 'w']], $pipes, null, $env);
 		fclose($pipes[0]);
 		return [$proc, $out, $err];
@@ -1005,17 +1012,21 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	// ------------------------------------------------------------------ the stall matrix (Codex v5)
 
 	/**
-	 * @return array<string, array{0: string, 1: string, 2: string}> Every path that sends an item's prices × every point between
-	 *         its first read and its call × when the path goes on: late (after the item was untracked) or early (2 hours after the
-	 *         cancellation, still tracked, the next scheduled send hours away, so only the catch-up can repair a stale send).
+	 * @return array<string, array{0: string, 1: string, 2: string, 3: string}> Every path that sends an item's prices × every point
+	 *         between its first read and its call × when the path goes on: late (after the item was untracked) or early (2 hours
+	 *         after the change, still tracked, the next scheduled send hours away, so only the catch-up can repair a stale send) ×
+	 *         what changes while it is held: the offer is cancelled, or (the offer ended before the path read the item) the normal
+	 *         prices change, so the path's own read of today's prices is old.
 	 */
 	public static function stallCells(): array
 	{
 		$cells = [];
-		foreach (['late', 'early'] as $release) {
-			foreach (['card', 'stock', 'document', 'bulk', 'tick'] as $path) {
-				foreach (['queried', 'locked', 'marked', 'send'] as $point) {
-					$cells["$path / $point / $release"] = [$path, $point, $release];
+		foreach (['cancel', 'normal'] as $change) {
+			foreach (['late', 'early'] as $release) {
+				foreach (['card', 'stock', 'document', 'bulk', 'tick'] as $path) {
+					foreach (['queried', 'locked', 'marked', 'send'] as $point) {
+						$cells["$change / $path / $point / $release"] = [$path, $point, $release, $change];
+					}
 				}
 			}
 		}
@@ -1027,17 +1038,19 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	 * reconciler, on its test clock, restores the normal prices, runs the tail and untracks the item where nothing stops it; then
 	 * the path goes on and sends, and the reconciler goes on. Every shop must hold the desired prices within T_late plus the next
 	 * re-send after the release (the ticks at +0, 2, 5 and 15 minutes), and at the end; no tick may untrack the item while an
-	 * in-flight marker of it is open. The clock starts two days back, so a marker written now is open while the tail runs.
+	 * in-flight marker of it is open. The path runs on the test's clock too (SALDI_SHOP_OFFER_CLOCK from just after the first
+	 * tick; on release the clock the reconciler has reached), so its markers, its catch-ups and the age of its item read are
+	 * measured as the reconciler measures time.
 	 * With SHOP_OFFER_MATRIX_LOG set, each cell appends what it saw there (one JSON line), for the evidence.
 	 */
 	#[DataProvider('stallCells')]
-	public function testStallMatrix(string $path, string $point, string $release = 'late'): void
+	public function testStallMatrix(string $path, string $point, string $release = 'late', string $change = 'cancel'): void
 	{
-		$name = 'SM' . strtoupper(substr($path, 0, 3) . substr($point, 0, 3) . $release[0]);
+		$name = 'SM' . strtoupper(substr($path, 0, 3) . substr($point, 0, 3) . $release[0] . $change[0]);
 		$t0 = $release === 'late' ? time() - 2 * 86400 : time() - 2 * 3600 - 10;
 		$offer = ['price' => 79.2, 'from' => date('Y-m-d', $t0 - 86400), 'to' => date('Y-m-d', time() + 3 * 86400)];
-		$cell = function (int $id) use ($path, $point, $name, $t0, $release): void {
-			self::stallCell($path, $point, $id, $name, $t0, $release);
+		$cell = function (int $id) use ($path, $point, $name, $t0, $release, $change): void {
+			self::stallCell($path, $point, $id, $name, $t0, $release, $change);
 		};
 		if ($path === 'bulk') {
 			self::withBulkSyncOf($name, $offer, $cell);
@@ -1046,29 +1059,38 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		}
 	}
 
-	private static function stallCell(string $path, string $point, int $id, string $name, int $t0, string $release): void
+	private static function stallCell(string $path, string $point, int $id, string $name, int $t0, string $release, string $change): void
 	{
 		self::tick($t0);
 		self::assertShopsHold($name, '79.200 / 799.00', 'the offer is in every shop');
+		$desired = $change === 'cancel' ? self::NORMAL : '259.200 / 999.000';
+		$want = ['shop 1' => $desired, 'shop 2' => $desired, 'shop 3' => $desired];
+		if ($change === 'normal') {
+			self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]); // the offer ended before the path reads the item
+		}
 		$prefix = sys_get_temp_dir() . '/shopoffer-stall-' . bin2hex(random_bytes(4));
 		self::$files[] = "$prefix.held";
 		self::$files[] = "$prefix.go";
 		$stall = "$path:$point:" . ($path === 'tick' && $point === 'queried' ? 0 : $id) . ":$prefix";
 		if ($path === 'tick') {
-			self::rows("UPDATE varer SET special_price = 99.2 WHERE id = $1", [$id]); // what the held tick will send
+			if ($change === 'cancel') self::rows("UPDATE varer SET special_price = 99.2 WHERE id = $1", [$id]); // what the held tick will send
 			$run = self::start(['tick', (string)($t0 + 5), '10'], [], $stall);
 		} elseif ($path === 'bulk') {
-			$run = self::startScript('run_sync_all_products_page.php', [self::sessionId()], $stall);
+			$run = self::startScript('run_sync_all_products_page.php', [self::sessionId()], $stall, $t0 + 5);
 		} else {
 			$args = ['card' => ['sync_price', (string)$id], 'stock' => ['sync_vare', (string)$id, '1', 'stock'], 'document' => ['sale', (string)$id, '1']][$path];
-			$run = self::start($args, [], $stall);
+			$run = self::start($args, [], $stall, $t0 + 5); // the path runs on the test's clock, from just after the first tick
 		}
 		for ($i = 0; $i < 600 && !is_file("$prefix.held"); $i++) {
 			usleep(50000);
 		}
 		self::assertFileExists("$prefix.held", "the $path is held at '$point'");
-		self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]); // cancelled: the normal prices are desired
-		$row = ['path' => $path, 'point' => $point, 'release' => $release, 'openWhenUntracked' => []];
+		if ($change === 'cancel') {
+			self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]); // cancelled: the normal prices are desired
+		} else {
+			self::rows("UPDATE varer SET salgspris = 259.2, retail_price = 999 WHERE id = $1", [$id]); // new normal prices: the path read the old ones
+		}
+		$row = ['path' => $path, 'point' => $point, 'release' => $release, 'change' => $change, 'openWhenUntracked' => []];
 		$watch = function (int $clock) use ($id, &$row): void {
 			self::tick($clock);
 			if (self::openMarkerWhenUntracked($id, $clock)) $row['openWhenUntracked'][] = $clock;
@@ -1088,9 +1110,10 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		$row['untrackedWhileHeld'] = !self::tracked($id);
 		$row['shopsWhileHeld'] = self::remote($name);
 
-		// released: the path sends what it chose before or after the hold
+		// released: the path goes on at the test's clock (the hold lasted until then) and sends what it chose before or after it
+		$released = max($c + 60, time()); // never before now: a path without the test's clock (older code) records on the wall clock
 		self::clearLog();
-		touch("$prefix.go");
+		file_put_contents("$prefix.go", (string)$released);
 		if ($path === 'bulk') {
 			proc_close($run[0]);
 			for ($i = 0; $i < 100 && count(self::priceCalls($name, null)) < 6; $i++) {
@@ -1103,7 +1126,7 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		$row['shopsAfterRelease'] = self::remote($name);
 
 		// the bound: T_late plus the next re-send after the release (for a send by another path: its catch-up, T_late plus 2 minutes)
-		$after = max($c, time()) + 60;
+		$after = $released + 60;
 		foreach ([0, 120, 300, 900] as $offset) {
 			$watch($after + $offset);
 		}
@@ -1116,15 +1139,15 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		$row['untrackedAtEnd'] = !self::tracked($id);
 		$row['markerLeft'] = is_file(self::$tempDir . "/shopoffer/inflight-$id.json");
 		$row['shopsAtEnd'] = self::remote($name);
-		$row['pass'] = $row['shopsWithinBound'] === self::REMOTE_NORMAL && $row['shopsAtEnd'] === self::REMOTE_NORMAL
+		$row['pass'] = $row['shopsWithinBound'] === $want && $row['shopsAtEnd'] === $want
 			&& $row['untrackedAtEnd'] && !$row['markerLeft'] && !$row['openWhenUntracked'];
 		if (($log = getenv('SHOP_OFFER_MATRIX_LOG')) !== false && $log !== '') {
 			file_put_contents($log, json_encode($row, JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND);
 		}
 
 		self::assertSame([], $row['openWhenUntracked'], 'no tick untracked the item while an in-flight marker of it was open');
-		self::assertSame(self::REMOTE_NORMAL, $row['shopsWithinBound'], 'every shop on the desired prices within T_late plus the next re-send after the release');
-		self::assertSame(self::REMOTE_NORMAL, $row['shopsAtEnd'], 'and at the end');
+		self::assertSame($want, $row['shopsWithinBound'], 'every shop on the desired prices within T_late plus the next re-send after the release');
+		self::assertSame($want, $row['shopsAtEnd'], 'and at the end');
 		self::assertTrue($row['untrackedAtEnd'], 'untracked at the end');
 		self::assertFalse($row['markerLeft'], 'with no marker left');
 	}
@@ -1146,6 +1169,58 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * A path whose read of the item is older than 2 minutes when it would send reads it again; when that read cannot finish
+	 * (varer locked), it sends no prices: the card makes no price call, the sale queues its stock sync, and both leave an event,
+	 * so the reconciler sends the current pair.
+	 */
+	public function testAnOldItemReadThatCannotBeRepeatedSendsNoPrices(): void
+	{
+		$t0 = time() - 3600;
+		$offer = ['price' => 79.2, 'from' => date('Y-m-d', $t0 - 86400), 'to' => date('Y-m-d', time() + 3 * 86400)];
+		$card = self::item('SPOLDCARD', $offer);
+		$sale = self::item('SPOLDSALE', $offer);
+		self::tick($t0);
+		$runs = [];
+		foreach ([[$card, 'card', ['sync_price', (string)$card]], [$sale, 'stock', ['sync_vare', (string)$sale, '1', 'stock']]] as [$id, $path, $args]) {
+			$prefix = sys_get_temp_dir() . '/shopoffer-stall-' . bin2hex(random_bytes(4));
+			self::$files[] = "$prefix.held";
+			self::$files[] = "$prefix.go";
+			$runs[] = [$id, $prefix, self::start($args, [], "$path:queried:$id:$prefix")];
+			for ($i = 0; $i < 600 && !is_file("$prefix.held"); $i++) {
+				usleep(50000);
+			}
+			self::assertFileExists("$prefix.held");
+		}
+		$marker = sys_get_temp_dir() . '/shopoffer-oldread-' . bin2hex(random_bytes(4));
+		self::$files[] = $marker;
+		$lock = self::start(['locktable', '45', 'varer', $marker]); // the card's three claims wait 5 s each, then the sale's
+		for ($i = 0; $i < 200 && !is_file($marker); $i++) {
+			usleep(50000);
+		}
+		self::assertFileExists($marker, 'varer is locked');
+		self::clearLog();
+		$results = [];
+		foreach ($runs as [$id, $prefix, $run]) {
+			file_put_contents("$prefix.go", (string)(time() + 600)); // the path goes on 10 minutes after its read
+			$results[] = self::finish($run)['result'];
+		}
+		proc_terminate($lock[0]);
+		proc_close($lock[0]);
+		self::assertSame([], self::priceCalls('SPOLDCARD', null), 'the card sent no prices');
+		self::assertSame([], self::priceCalls('SPOLDSALE', null), 'nor the sale');
+		self::assertSame(['sync errors: 3', 'sync errors: 1'], $results, 'each reported it');
+		self::assertNotSame([], (array)glob(self::$tempDir . "/shopsync/*"), 'the sale\'s stock sync is queued');
+		self::assertStringContainsString('ITEM NOT READ AGAIN', (string)@file_get_contents(self::$tempDir . '/rest_api.log'));
+		foreach ([$card, $sale] as $id) {
+			self::assertGreaterThan(0, (int)(self::runner(['state', (string)$id])['state']['foreign']['staleAt'] ?? 0), 'an event for the reconciler');
+		}
+		$out = self::tick(time() + 700);
+		self::assertGreaterThanOrEqual(2, $out['events']);
+		$offerPair = ['shop 1' => '79.200 / 799.00', 'shop 2' => '79.200 / 799.00', 'shop 3' => '79.200 / 799.00'];
+		self::assertSame([$offerPair, $offerPair], [self::remote('SPOLDCARD'), self::remote('SPOLDSALE')], 'and the next tick sends the current pair');
 	}
 
 	public function testAnOpenMarkerKeepsTheItemTrackedAndAnExpiredOneIsAnEvent(): void
