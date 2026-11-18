@@ -191,6 +191,9 @@
 // 20261118 CL/MMR SST-1031 An original quote (OT) on a case no longer shows the general "Kopier" button, only the case copy "Kopiér".
 //                 The general copy made a new OT on the same case with quote number 0 and no timestamp.
 //                 A new order on a case now gets datotid (creation time), and datotid is escaped in the insert.
+//                 The other values in that insert are escaped or cast; city names from bynavn() and the account-card
+//                 cvrnr, email, ean and institution are escaped where they are read, like the form values.
+//                 The delivery postcode is escaped once where it is read, and the delivery-address save no longer escapes lev_* twice.
 @session_start();
 $s_id = session_id();
 
@@ -1142,7 +1145,7 @@ if ($b_submit) {
 	$bynavn = isset($_POST['bynavn']) ? trim($_POST['bynavn']) : '';
 
 	if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
-	else $bynavn = db_escape_string($bynavn);
+	$bynavn = db_escape_string($bynavn); # 20261118 SST-1031 also the bynavn() result
 	$postnr = db_escape_string($postnr);
 	$land = db_escape_string(trim($_POST['land']));
 	$email = db_escape_string(trim($_POST['email']));
@@ -1182,7 +1185,8 @@ if ($b_submit) {
 
 
 	if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
-	else $lev_bynavn = db_escape_string($lev_bynavn);
+	$lev_bynavn = db_escape_string($lev_bynavn); # 20261118 SST-1031 escaped once here, also the bynavn() result,
+	$lev_postnr = db_escape_string($lev_postnr); # as on the account-card path; the queries below use them as they are
 	$lev_kontakt = if_isset($_POST, NULL, 'lev_kontakt') ? db_escape_string(trim($_POST['lev_kontakt'])) : '';
 	$vis_lev_addr = if_isset($_POST, NULL, 'vis_lev_addr');
 	if ($vis_lev_addr != 'on') $vis_lev_addr = ''; // ordrer.vis_lev_addr er varchar(2) ('on'/''): 'off' fra gemt brugerindstilling overflow'er og vaelter hele ordre-opdateringen
@@ -1793,7 +1797,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$kontakt = db_escape_string($row['kontakt']);
 			$betalingsdage = $row['betalingsdage'];
 			$betalingsbet = $row['betalingsbet'];
-			$cvrnr = $row['cvrnr'];
+			$cvrnr = db_escape_string($row['cvrnr']); # 20261118 SST-1031 escaped like the form values
 			$notes = db_escape_string($row['notes']);
 			if (empty($phone)) $phone = $row['tlf']; //added by CA for DFM consignment 20210219 dfm_
 			if (empty($phone)) {
@@ -1803,9 +1807,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					db_modify("update ordrer set phone = '$phone' where id = '$id'", __FILE__ . " linje " . __LINE__); #20210506
 				}
 			}
-			$email = $row['email'];
-			$ean = $row['ean'];
-			$institution = $row['institution'];
+			$email = db_escape_string($row['email']);
+			$ean = db_escape_string($row['ean']);
+			$institution = db_escape_string($row['institution']);
 			$mail_fakt = $row['mailfakt'];
 			$gruppe = $row['gruppe'];
 
@@ -2545,6 +2549,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	// ------------------------------------------------------------------
 	// Save/update delivery address based on company name + account_id
 	// ------------------------------------------------------------------
+	# 20261118 SST-1031 the lev_* values are escaped where they are read (form and account card), so not again here
 	if (($b_submit == 'Gem' || $b_submit == 'save') && $id && $konto_id) {
 		// Only proceed if essential fields are filled
 		if (!empty($lev_navn) && !empty($lev_addr1) && !empty($lev_postnr) && !empty($lev_bynavn)) {
@@ -2558,20 +2563,20 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			// Look for existing address with same account_id and company_name
 			$qtxt_find = "SELECT id FROM delivery_addresses 
 						WHERE account_id = '" . db_escape_string($konto_id) . "'
-							AND company_name = '" . db_escape_string($lev_navn) . "'
+							AND company_name = '" . $lev_navn . "'
 						LIMIT 1";
 			$existing = db_fetch_array(db_select($qtxt_find, __FILE__ . " L " . __LINE__));
 			
 			if ($existing) {
 				// Update the existing row with current values
 				$qtxt_update = "UPDATE delivery_addresses SET
-									address_line1 = '" . db_escape_string($lev_addr1) . "',
-									address_line2 = '" . db_escape_string($lev_addr2) . "',
-									postal_code   = '" . db_escape_string($lev_postnr) . "',
-									city          = '" . db_escape_string($lev_bynavn) . "',
-									country       = '" . db_escape_string($lev_land) . "',
-									contact_name  = '" . db_escape_string($lev_kontakt) . "',
-									email         = '" . db_escape_string($lev_email) . "',
+									address_line1 = '" . $lev_addr1 . "',
+									address_line2 = '" . $lev_addr2 . "',
+									postal_code   = '" . $lev_postnr . "',
+									city          = '" . $lev_bynavn . "',
+									country       = '" . $lev_land . "',
+									contact_name  = '" . $lev_kontakt . "',
+									email         = '" . $lev_email . "',
 									is_primary    = 't'
 								WHERE id = " . (int)$existing['id'];
 				db_modify($qtxt_update, __FILE__ . " L " . __LINE__);
@@ -2582,14 +2587,14 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 								postal_code, city, country, contact_name, email, is_primary, sort_order)
 								VALUES (
 									'" . db_escape_string($konto_id) . "',
-									'" . db_escape_string($lev_navn) . "',
-									'" . db_escape_string($lev_addr1) . "',
-									'" . db_escape_string($lev_addr2) . "',
-									'" . db_escape_string($lev_postnr) . "',
-									'" . db_escape_string($lev_bynavn) . "',
-									'" . db_escape_string($lev_land) . "',
-									'" . db_escape_string($lev_kontakt) . "',
-									'" . db_escape_string($lev_email) . "',
+									'" . $lev_navn . "',
+									'" . $lev_addr1 . "',
+									'" . $lev_addr2 . "',
+									'" . $lev_postnr . "',
+									'" . $lev_bynavn . "',
+									'" . $lev_land . "',
+									'" . $lev_kontakt . "',
+									'" . $lev_email . "',
 									't', 0)";
 				db_modify($qtxt_insert, __FILE__ . " L " . __LINE__); 
 			}
@@ -2676,10 +2681,10 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		$qtxt .= "pbs,afd,restordre,procenttillag,sag_id,sagsnr,tilbudnr,datotid,nr,returside,omvbet,felt_1,felt_2,felt_3,felt_4,felt_5)";
 		$qtxt .= " values ";
 		$qtxt .= "($ordrenr,'$konto_id','$kontonr','$kundeordnr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt',";
-		$qtxt .= "'$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$lev_email','$lev_land','$betalingsdage','$betalingsbet',";
-		$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats','$status','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "','$lev_adr',";
-		$qtxt .= "'$valuta','$projekt[0]','$formularsprog','$pbs',".($afd==""?"NULL":"'$afd'").",'0','$procenttillag',".($sag_id==""?"NULL":"'$sag_id'").",".($sagsnr==""?"NULL":"'$sagsnr'").",".($tilbudnr==""?"NULL":"'$tilbudnr'").",'" . db_escape_string((string) $datotid) . "',";
-		$qtxt .= "".($nr==""?"NULL":"'$nr'").",'$returside','$omkunde',";
+		$qtxt .= "'$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$lev_email','$lev_land','" . (int) $betalingsdage . "','" . db_escape_string((string) $betalingsbet) . "',";
+		$qtxt .= "'$cvrnr','$ean','$institution','$email','" . db_escape_string((string) $mail_fakt) . "','" . db_escape_string((string) $phone) . "','$notes','" . db_escape_string((string) $art) . "','$ordredate','" . (float) $momssats . "','" . (int) $status . "','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "','" . db_escape_string((string) $lev_adr) . "',";
+		$qtxt .= "'" . db_escape_string((string) $valuta) . "','" . db_escape_string((string) $projekt[0]) . "','" . db_escape_string((string) $formularsprog) . "','" . db_escape_string((string) $pbs) . "',".($afd==""?"NULL":"'" . (int) $afd . "'").",'0','$procenttillag',".($sag_id==""?"NULL":"'$sag_id'").",".($sagsnr==""?"NULL":"'$sagsnr'").",".($tilbudnr==""?"NULL":"'$tilbudnr'").",'" . db_escape_string((string) $datotid) . "',";
+		$qtxt .= "".($nr==""?"NULL":"'$nr'").",'$returside','" . db_escape_string((string) $omkunde) . "',";
 		($art == 'PO') ? $qtxt .= "'','','','','')" : $qtxt .= "'$felt_1','$felt_2','$felt_3','$felt_4','$felt_5')"; #20191004
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = "select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc";
