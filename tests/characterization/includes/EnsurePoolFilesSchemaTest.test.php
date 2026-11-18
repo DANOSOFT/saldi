@@ -10,6 +10,7 @@
 // 20261118 CL/MMR SD-815 Codex round 13: CREATE UNIQUE INDEX timing out behind another session's lock rolls the whole filename repair back (both rows kept, nothing reported, no flag); the retry completes it.
 //                 $GLOBALS['connection'] is the test connection, as in production, and transaction statements pass straight through the test's db_modify().
 // 20261118 CL/MMR SD-815 Codex round 14: a pending read that times out inside a caller's transaction leaves that transaction usable and no advisory lock; transaction statements are not counted as writes.
+// 20261118 CL/MMR SD-815 Codex round 20: an ALTER TABLE that times out (db_modify() only logs it) is not reported as an added column, and the run stops without a flag.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -578,5 +579,38 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame(1, $this->backfillFlags());
         self::assertSame('0', pg_fetch_result($this->sql("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid()"), 0, 0));
         self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+    }
+
+    public function testAColumnThatCouldNotBeAddedIsNotReported(): void
+    {
+        $this->sql('ROLLBACK');
+        $this->committedSchema = 'pool_cols_' . bin2hex(random_bytes(8));
+        $this->sql("CREATE SCHEMA {$this->committedSchema}");
+        $this->sql("SET search_path TO {$this->committedSchema}");
+        $this->sql('CREATE TABLE settings (id serial PRIMARY KEY, var_name text, var_grp text, var_value text, var_description text, user_id integer, group_id integer, pos_id integer)');
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('old.pdf', '99,00')");
+        // A reader's open transaction: ALTER TABLE (ACCESS EXCLUSIVE) must wait for it.
+        $this->other = TestDatabase::connect($this->database);
+        pg_query($this->other, "SET search_path TO {$this->committedSchema}");
+        pg_query($this->other, 'BEGIN');
+        pg_query($this->other, 'SELECT count(*) FROM pool_files');
+        $this->sql("SET lock_timeout = '200ms'");
+        $GLOBALS['ensurePoolFilesRaw'] = true; // like production
+
+        $done = ensurePoolFilesSchema('postgresql');
+
+        self::assertSame([], $done, 'no column is reported that is not there');
+        self::assertStringContainsString('lock timeout', implode(' ', $GLOBALS['ensurePoolFilesErrors']));
+        self::assertSame(0, $this->backfillFlags());
+        self::assertSame(0, pg_num_rows($this->sql("SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'pool_files' AND column_name = 'norm_amount'")));
+
+        pg_query($this->other, 'ROLLBACK');
+        $this->sql('RESET lock_timeout');
+        $GLOBALS['ensurePoolFilesErrors'] = [];
+        $done = ensurePoolFilesSchema('postgresql');
+        self::assertContains('norm_amount', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame(['amount' => '99,00', 'norm_amount' => '99.000'], $this->oldRow());
     }
 }

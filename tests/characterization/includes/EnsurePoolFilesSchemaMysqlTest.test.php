@@ -10,6 +10,7 @@
 //                 A user without CREATE keeps both rows and the log names the missing privilege, not the row format.
 // 20261118 CL/MMR SD-815 Codex round 19: with mysqli reporting off, a table another connection made under the probe's name before the probe's CREATE survives with its row.
 //                 $GLOBALS['connection'] is the test's mysqli connection, as in production.
+// 20261118 CL/MMR SD-815 Codex round 20: with mysqli reporting off, a repair whose LOCK TABLES times out deletes nothing and writes no flag; after the other session ends the retry completes.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -343,5 +344,40 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         self::assertSame('0', $this->one("SELECT count(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files_uidx_probe_rival' AND index_name = 'pool_files_uidx_probe_rival_filename'"), 'no index was added to it');
         self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
         self::assertStringContainsString('already exists', (string) file_get_contents($this->log));
+    }
+
+    public function testABlockedTableLockDeletesNothingWithReportingOff(): void
+    {
+        foreach (['norm_amount numeric(15,3)', 'manually_edited boolean NOT NULL DEFAULT false', 'source_sha256 char(64)', 'vendor_name text', 'vendor_cvr varchar(20)',
+            'vendor_iban varchar(40)', 'vendor_konto_id integer', 'vendor_score numeric(4,3)', 'vendor_match varchar(10)'] as $column) {
+            $this->sql("ALTER TABLE pool_files ADD COLUMN $column");
+        }
+        $this->sql('CREATE INDEX idx_pool_files_norm_amount ON pool_files (norm_amount)');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $this->other = $this->connect();
+        mysqli_select_db($this->other, $this->database);
+        mysqli_query($this->other, 'START TRANSACTION');
+        mysqli_query($this->other, 'SELECT count(*) FROM pool_files'); // a metadata lock until the transaction ends
+        $this->sql('SET SESSION lock_wait_timeout = 1');
+        mysqli_report(MYSQLI_REPORT_OFF); // the mode where a failed LOCK TABLES only returns false
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted without the table lock');
+        self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertStringContainsString('could not be locked', (string) file_get_contents($this->log));
+        $this->sql('SELECT 1 FROM settings'); // no LOCK TABLES left on this session
+
+        mysqli_query($this->other, 'COMMIT');
+        $this->sql('SET SESSION lock_wait_timeout = DEFAULT');
+        mysqli_report(MYSQLI_REPORT_OFF);
+        $done = ensurePoolFilesSchema('mysqli');
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertContains('unique_filename', $done);
+        self::assertSame('99,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '3,00') ON DUPLICATE KEY UPDATE id = id");
+        self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
     }
 }

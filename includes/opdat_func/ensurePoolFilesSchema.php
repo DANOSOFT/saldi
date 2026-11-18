@@ -43,6 +43,8 @@
 // 20261118 CL/MMR SD-815 Codex round 18: the copy is an ordinary table again (CREATE TEMPORARY TABLES is a privilege the migration did not need before), with a random name, created without IF NOT EXISTS and dropped only when this run created it.
 //                 The log tells a missing privilege from an index that does not fit the table.
 // 20261118 CL/MMR SD-815 Codex round 19: the trial copy is this run's own only when its CREATE TABLE itself succeeded, read from mysqli directly (ensurePoolFilesMysqlExec()), in both mysqli reporting modes; db_modify() can report a failed statement as accepted.
+// 20261118 CL/MMR SD-815 Codex round 20: the MySQL repair's LOCK TABLES, DELETE, CREATE UNIQUE INDEX and UNLOCK TABLES go through the same checked exec: no lock, no delete; UNLOCK only after an own lock.
+//                 Added columns and the norm_amount index are reported only when they are read back; otherwise the run stops (db_modify() can report a failed statement as accepted).
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -325,9 +327,10 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 	/**
 	 * Gives pool_files a unique index on filename on MySQL/MariaDB. DDL commits at once there, so the duplicate collapse
 	 * and the index cannot share a transaction; instead both run under LOCK TABLES pool_files WRITE (with the aliases the
-	 * self-join needs). If the table lock cannot be had (another session uses the table past lock_wait_timeout), mysqli
-	 * throws before anything is deleted; once it is held no other session can use the table, so the index cannot be
-	 * blocked. The tables are always unlocked, and the index is reported only when it is read back.
+	 * self-join needs). If the table lock cannot be had (another session uses the table past lock_wait_timeout), the run
+	 * stops before anything is deleted, in both mysqli reporting modes (ensurePoolFilesMysqlExec()); once it is held no
+	 * other session can use the table, so the index cannot be blocked. The tables are unlocked after an own lock, and the
+	 * index is reported only when it is read back.
 	 *
 	 * @param string $db_type
 	 * @return void
@@ -336,12 +339,22 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 	function ensurePoolFilesUniqueRepairMysql(string $db_type): void {
 		$name = ensurePoolFilesMysqlIndexName(); // before anything is deleted
 		ensurePoolFilesMysqlProbeUniqueIndex();   // likewise: the table must be able to hold the index
-		db_modify("LOCK TABLES pool_files WRITE, pool_files AS a WRITE, pool_files AS b READ", __FILE__ . " linje " . __LINE__);
+		// Every statement's own result is checked (ensurePoolFilesMysqlExec()): db_modify() can report a failed one as
+		// accepted when mysqli does not throw, and nothing may be deleted without the table lock.
+		$locked = ensurePoolFilesMysqlExec("LOCK TABLES pool_files WRITE, pool_files AS a WRITE, pool_files AS b READ");
+		if ($locked !== true) {
+			error_log('ensurePoolFilesSchema: nothing deleted, pool_files could not be locked for the unique filename repair');
+			throw new EnsurePoolFilesSchemaUnknown('pool_files table lock not acquired');
+		}
 		try {
-			db_modify("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);
-			db_modify("CREATE UNIQUE INDEX $name ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+			if (!ensurePoolFilesMysqlExec("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id")) {
+				throw new EnsurePoolFilesSchemaUnknown('pool_files duplicate collapse failed');
+			}
+			if (!ensurePoolFilesMysqlExec("CREATE UNIQUE INDEX $name ON pool_files (filename)")) {
+				throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index not created');
+			}
 		} finally {
-			db_modify("UNLOCK TABLES", __FILE__ . " linje " . __LINE__);
+			ensurePoolFilesMysqlExec("UNLOCK TABLES"); // this run's own lock; a failure is logged and the lock ends with the connection
 		}
 		if (!ensurePoolFilesSchemaState($db_type)['uniqueFilename']) {
 			throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index missing after CREATE');
@@ -546,7 +559,18 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 			foreach ($state['columns'] as $column) {
 				$ifNotExists = $mysql ? '' : 'IF NOT EXISTS ';
 				db_modify("ALTER TABLE pool_files ADD COLUMN $ifNotExists$column " . $types[$column], __FILE__ . " linje " . __LINE__);
-				$done[] = $column;
+			}
+			if ($state['columns']) {
+				// Read back: db_modify() can report a failed ALTER as accepted. Report only what is there; stop if not all.
+				$stillMissing = ensurePoolFilesSchemaState($db_type)['columns'] ?? $state['columns'];
+				foreach ($state['columns'] as $column) {
+					if (!in_array($column, $stillMissing, true)) {
+						$done[] = $column;
+					}
+				}
+				if ($stillMissing) {
+					throw new EnsurePoolFilesSchemaUnknown('pool_files columns still missing: ' . implode(', ', $stillMissing));
+				}
 			}
 			if (!$state['uniqueFilename']) {
 				if ($mysql) {
@@ -559,6 +583,9 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 			if (!$state['normAmountIndex']) {
 				$ifNotExists = $mysql ? '' : 'IF NOT EXISTS ';
 				db_modify("CREATE INDEX {$ifNotExists}idx_pool_files_norm_amount ON pool_files (norm_amount)", __FILE__ . " linje " . __LINE__);
+				if (!ensurePoolFilesSchemaState($db_type)['normAmountIndex']) {
+					throw new EnsurePoolFilesSchemaUnknown('pool_files norm_amount index not created');
+				}
 				$done[] = 'norm_amount_index';
 			}
 			if (!$state['normAmountBackfilled']) {
