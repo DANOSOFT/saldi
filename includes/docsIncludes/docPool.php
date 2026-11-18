@@ -4957,7 +4957,7 @@ window.extractAllPoolFiles = async function() {
 	const counts = await poolReadDocuments(activeDocs, function(processed, total) {
 		btn.innerHTML = poolReadProgressHtml(processed, total);
 	});
-	// The reading of new arrivals is finished first, so the reload below can't cut it off
+	// The folder check and its reading of new arrivals are finished first, so the reload below can't cut them off
 	while (window.poolArrivalRead) {
 		await window.poolArrivalRead;
 	}
@@ -5249,7 +5249,9 @@ window.saveRowData = function(input) {
 
 
     // SD-718: the list is shown from pool_files at once; the folder is checked afterwards, and the list is fetched again only when that added or removed documents
-    fetchFiles().then(function () {
+    // SST-930: the whole check, up to the reading of new arrivals, is window.poolArrivalRead. "Opdatér alle" waits for it before it reloads
+    // the page: the folder check may already have given a mailed bilag its row, and a reload before the answer is read would leave it unread.
+    const folderCheck = fetchFiles().then(function () {
         return fetch('poolFolderSync.php', { method: 'POST', credentials: 'same-origin' });
     }).then(function (response) {
         return response.json();
@@ -5264,23 +5266,19 @@ window.saveRowData = function(input) {
         const added = Array.isArray(result.added) ? result.added : [];
         const btn = document.getElementById('extractAllBtn');
         if (!added.length || !isAutoExtractEnabled() || !btn) return;
-        // The button shows the progress unless "Opdatér alle" holds it. The reading runs either way and skips what that is reading;
-        // "Opdatér alle" waits for it (window.poolArrivalRead) before it reloads the page.
+        // The button shows the progress unless "Opdatér alle" holds it. The reading runs either way and skips what that is reading.
         const ownsButton = !btn.disabled;
         const originalContent = btn.innerHTML;
         if (ownsButton) {
             btn.disabled = true;
             btn.style.opacity = '0.7';
         }
-        const reading = poolReadDocuments(added, ownsButton ? function (processed, total) {
-            btn.innerHTML = poolReadProgressHtml(processed, total);
-        } : null);
-        window.poolArrivalRead = reading;
         let counts;
         try {
-            counts = await reading;
+            counts = await poolReadDocuments(added, ownsButton ? function (processed, total) {
+                btn.innerHTML = poolReadProgressHtml(processed, total);
+            } : null);
         } finally {
-            if (window.poolArrivalRead === reading) window.poolArrivalRead = null;
             if (ownsButton) {
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
@@ -5290,7 +5288,9 @@ window.saveRowData = function(input) {
         if (counts.successful > 0) return fetchFiles();
     }).catch(function () { /* the next page load checks the folder again */ }).then(function () {
         poolBackgroundRefresh = false;
+        if (window.poolArrivalRead === folderCheck) window.poolArrivalRead = null;
     });
+    window.poolArrivalRead = folderCheck;
     window.sortFiles = sortFiles;
 
 
