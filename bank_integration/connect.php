@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/connect.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/connect.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20261028 CDX/LH Report connect and renewal failures as authorization errors with safe support codes.
 // 20261028 CL/LH Singular/plural for active connections and an en dash in the read-only note.
 // 20261116 CL/LH Texts through findtekst() (bank.connect.*); the lines go into a kassekladde from its Bankforbindelse button.
+// 20261118 CL/LH The privacy policy link opens the published PDF (saldi.dk/assets/dokumenter/privatlivspolitik.pdf); saldi.dk/privatlivspolitik is a 404.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -188,7 +189,7 @@ if ($unavailable !== null) {
 	print "<h2>" . ebHT(findtekst('bank.connect.heading|Forbind en bankkonto', ebLang())) . "</h2>";
 	print "<p>" . ebHT(findtekst('bank.connect.intro|Vælg din bank. Du sendes videre til bankens eget login, hvor du giver Saldi læseadgang til dine konti. Saldi kan kun læse posteringer – der kan ikke flyttes penge.', ebLang())) . "</p>";
 	print "<p>" . ebHT(findtekst('bank.connect.provider|Forbindelsen går gennem Enable Banking Oy, som er en godkendt udbyder af kontooplysninger. Enable Banking henter på Saldis vegne posteringer fra de konti, du giver adgang til i banken, og kan kun læse dem.', ebLang()));
-	print " <a href='https://saldi.dk/privatlivspolitik' target='_blank' rel='noopener'>" . ebHT(findtekst('bank.connect.privacy|Læs mere i Saldis privatlivspolitik', ebLang())) . "</a>.</p>";
+	print " <a href='https://saldi.dk/assets/dokumenter/privatlivspolitik.pdf' target='_blank' rel='noopener'>" . ebHT(findtekst('bank.connect.privacy|Læs mere i Saldis privatlivspolitik', ebLang())) . "</a>.</p>";
 	print "<p class='eb-muted'>" . ebHT(findtekst('bank.connect.after|Bagefter vælger du, hvilken konto i kontoplanen hver bankkonto skal bogføres på, og fra hvilken dato posteringerne skal hentes. Du lægger de hentede posteringer i en kassekladde fra kassekladden med knappen Bankforbindelse. Kun konti i danske kroner (DKK) kan importeres.', ebLang())) . "</p>";
 	if ($environment === 'SANDBOX') {
 		print "<p><span class='eb-badge warn'>" . ebHT(findtekst('bank.settings.sandbox|Testmiljø (sandbox)', ebLang())) . "</span> <span class='eb-muted'>" . ebHT(findtekst('bank.connect.sandbox_note|Forbindelser her bruger bankernes testdata, ikke rigtige konti.', ebLang())) . "</span></p>";
