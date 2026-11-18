@@ -13,6 +13,7 @@
 // 20261118 CL/MMR SD-815 Codex round 20: with mysqli reporting off, a repair whose LOCK TABLES times out deletes nothing and writes no flag; after the other session ends the retry completes.
 // 20261118 CL/MMR SD-815 Codex round 22: a unique prefix index on filename(7) is replaced by the full one, so two different names sharing the prefix both register; a full index alone is left as it is.
 // 20261118 CL/MMR SD-815 Codex round 32: another connection creating an index named pool_files_filename_uidx just before the table lock: kept, the repair uses a free name, in both mysqli reporting modes.
+// 20261118 CL/MMR SD-815 Codex round 33: another connection switching pool_files to ROW_FORMAT=COMPACT after the trial and before the lock: both rows kept, nothing reported; after DYNAMIC again the retry completes (both mysqli modes).
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -64,6 +65,35 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
             }
             function db_escape_string($value) {
                 return mysqli_real_escape_string($GLOBALS['ensurePoolFilesMysql'], (string) $value);
+            }
+        }
+        if (str_starts_with($this->name(), 'testARowFormatChangeBeforeTheLock') && !function_exists('ensurePoolFilesMysqlExec')) {
+            // The production statement runner, unchanged, with one addition for this test: a hook right before LOCK TABLES.
+            function ensurePoolFilesMysqlExec(string $sql): ?bool {
+                if (str_starts_with($sql, 'LOCK TABLES') && isset($GLOBALS['ensurePoolFilesBeforeLock'])) {
+                    $hook = $GLOBALS['ensurePoolFilesBeforeLock'];
+                    unset($GLOBALS['ensurePoolFilesBeforeLock']);
+                    $hook();
+                }
+                $GLOBALS['ensurePoolFilesMysqlLastError'] = null;
+                $connection = $GLOBALS['connection'] ?? null;
+                if (!($connection instanceof \mysqli)) {
+                    return null;
+                }
+                try {
+                    $ok = mysqli_query($connection, $sql) !== false;
+                    $error = $ok ? '' : mysqli_error($connection);
+                    $code = $ok ? 0 : mysqli_errno($connection);
+                } catch (\mysqli_sql_exception $e) {
+                    $ok = false;
+                    $error = $e->getMessage();
+                    $code = (int) $e->getCode();
+                }
+                if (!$ok) {
+                    $GLOBALS['ensurePoolFilesMysqlLastError'] = array('code' => $code, 'message' => $error);
+                    error_log('ensurePoolFilesSchema: ' . $sql . ' failed: ' . $error);
+                }
+                return $ok;
             }
         }
         if (str_starts_with($this->name(), 'testAnIndexTakingTheNameBeforeTheLock') && !function_exists('ensurePoolFilesMysqlProbeName')) {
@@ -476,5 +506,46 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testAnIndexTakingTheNameBeforeTheLockReportingOff(): void
     {
         $this->anIndexTakingTheNameBeforeTheLock(MYSQLI_REPORT_OFF);
+    }
+
+    private function aRowFormatChangeBeforeTheLock(int $reportMode): void
+    {
+        $this->sql('ALTER TABLE pool_files ROW_FORMAT=DYNAMIC, CONVERT TO CHARACTER SET utf8mb4');
+        $this->allLaterColumns();
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $this->other = $this->connect();
+        mysqli_select_db($this->other, $this->database);
+        $other = $this->other;
+        $GLOBALS['ensurePoolFilesBeforeLock'] = static function () use ($other): void {
+            mysqli_query($other, 'ALTER TABLE pool_files ROW_FORMAT=COMPACT');
+        };
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
+        self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertStringContainsString('changed between the trial and the table lock', (string) file_get_contents($this->log));
+        $this->sql('SELECT 1 FROM settings'); // no LOCK TABLES left
+
+        $this->sql('ALTER TABLE pool_files ROW_FORMAT=DYNAMIC');
+        mysqli_report($reportMode);
+        $done = ensurePoolFilesSchema('mysqli');
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertContains('unique_filename', $done);
+        self::assertSame('99,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
+    }
+
+    public function testARowFormatChangeBeforeTheLockStrict(): void
+    {
+        $this->aRowFormatChangeBeforeTheLock(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testARowFormatChangeBeforeTheLockReportingOff(): void
+    {
+        $this->aRowFormatChangeBeforeTheLock(MYSQLI_REPORT_OFF);
     }
 }

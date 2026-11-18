@@ -58,6 +58,7 @@
 // 20261118 CL/MMR SD-815 Codex round 30: a unique filename key with INCLUDE columns counts (indnkeyatts, not indnatts), and the new index's name is chosen from the free ones before anything is created or deleted.
 // 20261118 CL/MMR SD-815 Codex round 31: the name search goes on past the four usual names (…_uidx4 … _uidx99, then a random suffix), on both databases, and every stop of the run is logged with its reason.
 // 20261118 CL/MMR SD-815 Codex round 32: on MySQL/MariaDB the index name and the filename index state are read under LOCK TABLES (information_schema only), right before the duplicate collapse, so another connection's index of that name cannot make CREATE fail after rows were deleted.
+// 20261118 CL/MMR SD-815 Codex round 33: the trial copy's definition (engine, row format, filename's type, character set, collation) is kept, and under the lock pool_files must still have that definition before anything is deleted; otherwise the run stops with both rows intact.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -350,6 +351,30 @@ if (!function_exists('ensurePoolFilesMysqlProbeReason')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesMysqlTableDefinition')) {
+	/**
+	 * What decides whether a unique index on filename fits a MySQL/MariaDB table: engine, row format, and filename's
+	 * column type, character set and collation, from information_schema (readable under LOCK TABLES).
+	 *
+	 * @param string $table A fixed table name (pool_files or this run's trial copy).
+	 * @return string A comparable description; '' when the table or its filename column is not there.
+	 * @throws EnsurePoolFilesSchemaUnknown When the read failed.
+	 */
+	function ensurePoolFilesMysqlTableDefinition(string $table): string {
+		$r = db_fetch_array(ensurePoolFilesSelect("SELECT t.engine, t.row_format, c.column_type, c.character_set_name, c.collation_name
+			FROM information_schema.tables t JOIN information_schema.columns c ON c.table_schema = t.table_schema AND c.table_name = t.table_name
+			WHERE t.table_schema = DATABASE() AND t.table_name = '$table' AND c.column_name = 'filename'", __LINE__));
+		if (!$r) {
+			return '';
+		}
+		$values = array();
+		foreach (array('engine', 'row_format', 'column_type', 'character_set_name', 'collation_name') as $key) {
+			$values[] = strtolower((string)($r[$key] ?? $r[strtoupper($key)] ?? ''));
+		}
+		return implode('|', $values);
+	}
+}
+
 if (!function_exists('ensurePoolFilesMysqlProbeUniqueIndex')) {
 	/**
 	 * Tries the unique filename index on an empty copy of pool_files (CREATE TABLE ... LIKE keeps the row format, the
@@ -359,10 +384,11 @@ if (!function_exists('ensurePoolFilesMysqlProbeUniqueIndex')) {
 	 * created without IF NOT EXISTS through ensurePoolFilesMysqlExec(), so it counts as this run's own only when that
 	 * CREATE itself succeeded; it is dropped only then, and no other table is ever dropped.
 	 *
-	 * @return void
+	 * @return string The trial copy's definition (ensurePoolFilesMysqlTableDefinition()): the repair acts only while
+	 *                pool_files still has it.
 	 * @throws EnsurePoolFilesSchemaUnknown When the index cannot be tried or does not fit; the reason is logged.
 	 */
-	function ensurePoolFilesMysqlProbeUniqueIndex(): void {
+	function ensurePoolFilesMysqlProbeUniqueIndex(): string {
 		$probe = ensurePoolFilesMysqlProbeName();
 		$stop = static function (string $why): void {
 			error_log('ensurePoolFilesSchema: nothing deleted, ' . $why);
@@ -385,6 +411,11 @@ if (!function_exists('ensurePoolFilesMysqlProbeUniqueIndex')) {
 			if (!ensurePoolFilesMysqlExec("CREATE UNIQUE INDEX {$probe}_filename ON $probe (filename)")) {
 				$failed();
 			}
+			$definition = ensurePoolFilesMysqlTableDefinition($probe);
+			if ($definition === '') {
+				$stop('the trial copy of pool_files could not be read back');
+			}
+			return $definition;
 		} finally {
 			ensurePoolFilesMysqlExec("DROP TABLE $probe"); // this run's own table; a failure is logged
 		}
@@ -405,7 +436,7 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 	 * @throws EnsurePoolFilesSchemaUnknown When the index is not there afterwards.
 	 */
 	function ensurePoolFilesUniqueRepairMysql(string $db_type): void {
-		ensurePoolFilesMysqlProbeUniqueIndex(); // before anything is deleted: the table must be able to hold the index
+		$tried = ensurePoolFilesMysqlProbeUniqueIndex(); // before anything is deleted: the table must be able to hold the index
 		// Every statement's own result is checked (ensurePoolFilesMysqlExec()): db_modify() can report a failed one as
 		// accepted when mysqli does not throw, and nothing may be deleted without the table lock.
 		$locked = ensurePoolFilesMysqlExec("LOCK TABLES pool_files WRITE, pool_files AS a WRITE, pool_files AS b READ");
@@ -416,6 +447,12 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 		try {
 			// Under the lock, before anything is deleted: no other session can add or drop an index on pool_files now,
 			// so the name chosen here stays free and the state read here is the one the statements below act on.
+			// The trial holds only for the definition it was made on: if pool_files changed since (another session altered
+			// its row format, say), nothing is deleted and a later login tries again.
+			if (ensurePoolFilesMysqlTableDefinition('pool_files') !== $tried) {
+				error_log('ensurePoolFilesSchema: nothing deleted, pool_files changed between the trial and the table lock');
+				throw new EnsurePoolFilesSchemaUnknown('pool_files definition changed after the trial');
+			}
 			$before = ensurePoolFilesMysqlIndexState();
 			$name = ensurePoolFilesFreeIndexName($before['taken']);
 			if (!ensurePoolFilesMysqlExec("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id")) {
