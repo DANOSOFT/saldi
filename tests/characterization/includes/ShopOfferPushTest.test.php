@@ -46,6 +46,9 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  * 20261118 CL/LH Codex verification 8: a long complete JSON refusal is a refusal and an answer longer than the tick keeps is a
  *                transport failure, on the extension and the shell transport; shops refusing that way keep the item tracked
  *                through the tail.
+ * 20261118 CL/LH Codex verification 9: a gzip refusal is never an acceptance and a completed empty answer still is, on all three
+ *                transports (curl_multi, curl alone, the shell); a lost, unreadable or shortened shell answer file is a transport
+ *                failure.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -188,11 +191,15 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		return self::runner($args);
 	}
 
-	/** @param list<string> $args @param list<string> $phpOptions @return array<string, mixed> */
-	private static function runner(array $args, array $phpOptions = []): array
+	/**
+	 * @param list<string> $args @param list<string> $phpOptions
+	 * @param array<string, string> $env Added to the runner's environment.
+	 * @return array<string, mixed>
+	 */
+	private static function runner(array $args, array $phpOptions = [], array $env = []): array
 	{
 		$cmd = array_merge([PHP_BINARY], $phpOptions, [__DIR__ . '/../support/run_shop_offer_push.php', CharacterizationEnv::testDb()], $args);
-		$proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+		$proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, $env ? array_merge(getenv(), $env) : null);
 		fclose($pipes[0]);
 		$stdout = (string)stream_get_contents($pipes[1]);
 		$stderr = (string)stream_get_contents($pipes[2]);
@@ -481,6 +488,48 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		return ['-d', 'disable_functions=curl_init,curl_multi_init'];
 	}
 
+	/**
+	 * The tick's three transports, as PHP options for the runner: curl_multi (any number of shops while it exists), one call at a
+	 * time with curl when curl_multi is missing (shopOfferCurlOne()), and the curl command line without the extension.
+	 *
+	 * @return array<string, list<string>>
+	 */
+	private static function transports(): array
+	{
+		return ['multi' => [], 'single' => ['-d', 'disable_functions=curl_multi_init'], 'shell' => self::withoutCurlExtension()];
+	}
+
+	/**
+	 * A directory with a `curl` that runs the real one, then damages its output file as SHOP_OFFER_TEST_CURL_FAULT says, before
+	 * the tick reads it: missing (removed), unreadable (replaced by a directory, which root cannot read as a file either) or
+	 * shortened (to 16 KB). Put first in PATH, it reaches only the shell transport.
+	 */
+	private static function curlShim(): string
+	{
+		$dir = sys_get_temp_dir() . '/shopoffer-curlshim';
+		if (!is_dir($dir)) {
+			mkdir($dir, 0755, true);
+		}
+		file_put_contents($dir . '/curl', <<<'SH'
+#!/bin/sh
+out=""; prev=""
+for arg do
+	if [ "$prev" = "-o" ]; then out="$arg"; fi
+	prev="$arg"
+done
+/usr/bin/curl "$@"
+code=$?
+case "$SHOP_OFFER_TEST_CURL_FAULT" in
+	missing) rm -f "$out";;
+	unreadable) rm -f "$out"; mkdir "$out"; echo "$out" >> "$SHOP_OFFER_TEST_CURL_DIRS";;
+	shortened) truncate -s 16384 "$out";;
+esac
+exit "$code"
+SH);
+		chmod($dir . '/curl', 0755);
+		return $dir;
+	}
+
 	/** @return array{0: int, 1: int, 2: int} accepted, refused and failed calls of a tick's result. */
 	private static function outcomes(array $tick): array
 	{
@@ -491,10 +540,10 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	 * Codex verification 8: a complete JSON refusal longer than the 16 KB the tick once kept is a refusal, on the extension and on
 	 * the shell transport; cut to its start it was invalid JSON, which the judge took for an acceptance.
 	 */
-	public function testALongCompleteJsonRefusalIsARefusalOnBothTransports(): void
+	public function testALongCompleteJsonRefusalIsARefusalOnEveryTransport(): void
 	{
 		$t = time();
-		foreach (['curl' => [], 'shell' => self::withoutCurlExtension()] as $transport => $php) {
+		foreach (self::transports() as $transport => $php) {
 			$itemNo = 'SPLONGREF' . strtoupper(substr($transport, 0, 2));
 			$id = self::item($itemNo, self::offer());
 			self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'longRefusal' => true]]));
@@ -507,10 +556,10 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	}
 
 	/** Codex verification 8: an answer longer than the tick keeps (1 MB) is a transport failure on both transports, never an acceptance. */
-	public function testAnAnswerLongerThanTheTickKeepsIsATransportFailureOnBothTransports(): void
+	public function testAnAnswerLongerThanTheTickKeepsIsATransportFailureOnEveryTransport(): void
 	{
 		$t = time();
-		foreach (['curl' => [], 'shell' => self::withoutCurlExtension()] as $transport => $php) {
+		foreach (self::transports() as $transport => $php) {
 			$itemNo = 'SPPAD' . strtoupper(substr($transport, 0, 2));
 			$id = self::item($itemNo, self::offer());
 			self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'pad' => 1048576]]));
@@ -519,6 +568,76 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 			self::assertSame([2, 0, 1], self::outcomes($out), "$transport: shop 2's answer was cut, so not judged: " . json_encode($out));
 			$shop2 = self::stateByShop($id)['shop 2'];
 			self::assertSame([null, 1], [$shop2['confirmed'], $shop2['attempts']], "$transport: retried as a failed send");
+		}
+	}
+
+	/**
+	 * Codex verification 9 (R9-F2): a gzip-compressed refusal is never an acceptance. curl_multi and curl decode it and see the
+	 * refusal; the shell transport asks for the answer unencoded, so a compressed answer is not judged (a transport failure). A
+	 * gzip body without Content-Encoding is not judged either.
+	 */
+	public function testAGzipRefusalIsNeverAnAcceptanceOnAnyTransport(): void
+	{
+		$t = time();
+		foreach (self::transports() as $transport => $php) {
+			$itemNo = 'SPGZ' . strtoupper(substr($transport, 0, 2));
+			$id = self::item($itemNo, self::offer());
+			self::control('rules', json_encode([['item' => $itemNo, 'shop' => '2', 'longRefusal' => true, 'gzip' => true]]));
+			$out = self::runner(['tick', (string)$t, '10'], $php);
+			self::uncontrol('rules');
+			$expected = $transport === 'shell' ? [2, 0, 1] : [2, 1, 0];
+			self::assertSame($expected, self::outcomes($out), "$transport: shop 2's gzip refusal: " . json_encode($out));
+			self::assertNull(self::stateByShop($id)['shop 2']['confirmed'], "$transport: shop 2 is not booked as holding the offer");
+		}
+		$id = self::item('SPGZUND', self::offer());
+		self::control('rules', json_encode([['item' => 'SPGZUND', 'shop' => '2', 'longRefusal' => true, 'gzip' => 'undeclared']]));
+		$out = self::tick($t);
+		self::uncontrol('rules');
+		self::assertSame([2, 0, 1], self::outcomes($out), 'a gzip body without Content-Encoding is not judged: ' . json_encode($out));
+		self::assertNull(self::stateByShop($id)['shop 2']['confirmed']);
+	}
+
+	/** Codex verification 9: a completed empty answer is still an acceptance, on every transport. */
+	public function testACompletedEmptyAnswerIsStillAnAcceptanceOnEveryTransport(): void
+	{
+		$t = time();
+		foreach (self::transports() as $transport => $php) {
+			$itemNo = 'SPEMPTY' . strtoupper(substr($transport, 0, 2));
+			$id = self::item($itemNo, self::offer());
+			self::control('rules', json_encode([['item' => $itemNo, 'empty' => true]]));
+			$out = self::runner(['tick', (string)$t, '10'], $php);
+			self::uncontrol('rules');
+			self::assertSame([3, 0, 0], self::outcomes($out), "$transport: " . json_encode($out));
+		}
+	}
+
+	/**
+	 * Codex verification 9 (R9-F1): on the shell transport, an answer file that is missing, unreadable or shorter than what curl
+	 * received is a transport failure, never an empty or partial answer that could pass for an acceptance.
+	 */
+	public function testAShellAnswerFileThatIsLostOrShortenedIsATransportFailure(): void
+	{
+		$t = time();
+		$dirs = (string)tempnam(sys_get_temp_dir(), 'curldirs');
+		self::$files[] = $dirs;
+		try {
+			foreach (['missing', 'unreadable', 'shortened'] as $fault) {
+				$itemNo = 'SPSHF' . strtoupper(substr($fault, 0, 3));
+				$id = self::item($itemNo, self::offer());
+				self::control('rules', json_encode([['item' => $itemNo, 'longRefusal' => true]]));
+				$out = self::runner(['tick', (string)$t, '10'], self::withoutCurlExtension(),
+					['PATH' => self::curlShim() . ':' . getenv('PATH'), 'SHOP_OFFER_TEST_CURL_FAULT' => $fault, 'SHOP_OFFER_TEST_CURL_DIRS' => $dirs]);
+				self::uncontrol('rules');
+				self::assertSame([0, 0, 3], self::outcomes($out), "$fault: every shop's answer is a transport failure: " . json_encode($out));
+				foreach (self::stateByShop($id) as $shop => $entry) {
+					self::assertSame([null, 1], [$entry['confirmed'], $entry['attempts']], "$fault: $shop is not confirmed");
+					self::assertStringContainsString('answer could not be read', $entry['error'], "$fault: $shop");
+				}
+			}
+		} finally {
+			foreach (array_filter(explode("\n", (string)@file_get_contents($dirs))) as $dir) {
+				@rmdir($dir);
+			}
 		}
 	}
 
