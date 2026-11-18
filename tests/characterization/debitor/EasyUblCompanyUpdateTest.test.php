@@ -24,6 +24,7 @@ use PHPUnit\Framework\TestCase;
 // 20261118 CL/MMR SST-1003 No text from EasyUBL's answer is logged, only checkable values and the kind and size of the rest (Codex).
 // 20261118 CL/MMR SST-1003 Unknown keys are only counted, and codes must be 0-99999 (Codex).
 // 20261118 CL/MMR SST-1003 A private number is not kept as a code in another numeric form (Codex).
+// 20261118 CL/MMR SST-1003 Digits in an e-mail address do not hide a provider code (Codex).
 final class EasyUblCompanyUpdateTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -460,5 +461,19 @@ final class EasyUblCompanyUpdateTest extends TestCase
             self::assertSame(400, $log['status code']);
             $this->tearDown();
         }
+    }
+
+    public function testDigitsInAnEMailAddressDoNotHideAProviderCode(): void
+    {
+        $data = self::DATA;
+        $data['defaultContact']['email'] = 'regnskab404@testfirma.example';
+        $data['payment']['bankRegNo'] = '0042';
+        $out = $this->runUpdateBranches(400, array('code' => 404, 'errorNumber' => 42), $data);
+        $log = json_decode(strtok($out['logs'][0], "\n"), true);
+
+        self::assertSame(404, $log['response']['code'], 'the e-mail address is not a number, so code 404 is kept');
+        self::assertIsString($log['response']['errorNumber'], 'the bank reg. no. 0042 is still not kept as 42');
+        self::assertSame(400, $log['status code']);
+        self::assertStringNotContainsString('regnskab404@testfirma.example', $out['logs'][0]);
     }
 }

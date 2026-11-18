@@ -90,7 +90,7 @@
 // 20261118 CL/MMR SST-1007 updateCompany() counts an answer that is not 2xx as a failure, so updatedCompany is not set on a 401 or 5xx.
 // 20261118 CL/MMR SST-1003 easyUblLogSafe() removes the contact and bank details at any depth and masks them in texts (Codex).
 // 20261118 CL/MMR SST-1003 easyUblLogAnswer() writes no text from EasyUBL's answer: known fields with checkable values, the rest by kind and size or counted (Codex).
-// 20261118 CL/MMR SST-1003 A code is compared with the private values as a number, so «0042» sent is not kept as 42 (Codex).
+// 20261118 CL/MMR SST-1003 A code is compared with the private numbers (phone, reg. no., account) as a number, so «0042» sent is not kept as 42 (Codex).
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
@@ -312,13 +312,16 @@
             'errorMessage', 'message', 'title', 'detail', 'type', 'traceId');
         $kept = array();
         $unknown = 0;
-        // The private values as numbers too (digits only, leading zeros gone), so «0042» sent is not kept as code 42.
+        // The private values that are numbers (phone, reg. no., account: digits with spaces, +, -, ., /, parentheses)
+        // also as plain numbers without leading zeros, so «0042» sent is not kept as code 42. Text such as an
+        // e-mail address is not a number, so digits in it do not count.
         $privateNumbers = array();
         foreach ($privateValues as $private) {
-            $digits = ltrim(preg_replace('/[^0-9]/', '', (string)$private), '0');
-            if ($digits !== '' || preg_match('/^0+$/', preg_replace('/[^0-9]/', '', (string)$private))) {
-                $privateNumbers[] = $digits === '' ? '0' : $digits;
+            if (!preg_match('/^[0-9\s+\-().\/]*[0-9][0-9\s+\-().\/]*$/', (string)$private)) {
+                continue;
             }
+            $digits = ltrim(preg_replace('/[^0-9]/', '', (string)$private), '0');
+            $privateNumbers[] = $digits === '' ? '0' : $digits;
         }
         foreach ($response as $field => $value) {
             if (!in_array($field, $known, true)) {
