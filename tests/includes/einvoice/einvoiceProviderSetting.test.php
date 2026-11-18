@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/includes/einvoice/einvoiceProviderSetting.test.php --- ver 5.1.1 --- 2026-11-12 ---
+// --- tests/includes/einvoice/einvoiceProviderSetting.test.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261112 CL/MMR SD-815 Created. The guards of Indstillinger > Diverse > E-faktura (systemdata/diverseIncludes/einvoiceProvider.php) without a database: the value whitelist, the server flag, the rights, the CSRF token and the registration check.
+// 20261118 CL/MMR SD-815 The page and the save agree on who may save (Codex round 4): an administrator, a role with Integrationer write but only Indstillinger read, and a read-only user, through einvoice_provider_form_html().
 
 declare(strict_types=1);
 
@@ -238,5 +239,79 @@ final class einvoiceProviderSetting extends TestCase
         $decision = einvoice_provider_save_decision($this->request(array('state' => array())));
         $this->assertFalse($decision['save']);
         $this->assertSame('refused_unknown', $decision['reason']);
+    }
+
+    /**
+     * Texts as einvoice_provider_text() returns them, without findtekst().
+     *
+     * @return array<string, string>
+     */
+    private static function texts(): array
+    {
+        $keys = array('title', 'provider', 'easyubl', 'semantic', 'warning', 'stateEasyUbl', 'stateSemantic', 'yes', 'no',
+            'refused_registered_elsewhere', 'refused_copy', 'refused_db_unknown', 'backWarning', 'confirm', 'saved', 'unchanged',
+            'invalid', 'csrf', 'no_rights', 'save');
+        $texts = array_combine($keys, array_map(static fn (string $k): string => 'T-' . $k, $keys));
+        $texts['no_rights'] = 'Du har ikke rettighed til at ændre indstillingen.';
+        $texts['save'] = 'Gem';
+        return $texts;
+    }
+
+    /**
+     * Legacy rettigheder as the role projection gives them (position 1 is Indstillinger: '1' write, '2' read, '0' none).
+     *
+     * @return array<string, array{0: string, 1: bool}>
+     */
+    public static function roles(): array
+    {
+        return array(
+            'administrator' => array('1111111111111111', true),
+            'Integrationer write, Indstillinger read' => array('0200000000000000', false),
+            'read-only user' => array('2222222222222222', false),
+            'no Indstillinger at all' => array('1011111111111111', false),
+        );
+    }
+
+    #[DataProvider('roles')]
+    public function testThePageOffersASaveOnlyToAUserTheSaveAccepts(string $rettigheder, bool $writer): void
+    {
+        $state = array('easyUbl' => false, 'semantic' => false, 'semanticAllowed' => true, 'reason' => '');
+        $canEdit = einvoice_provider_can_edit($rettigheder);
+        $this->assertSame($writer, $canEdit);
+
+        $html = einvoice_provider_form_html(self::texts(), 'easyubl', $state, $this->token, $canEdit);
+        $decision = einvoice_provider_save_decision($this->request(array('rettigheder' => $rettigheder)));
+
+        $offersSave = str_contains($html, "type='submit'");
+        $this->assertSame($decision['save'], $offersSave, 'the page offers Gem exactly when the save accepts it');
+        $this->assertSame($writer, str_contains($html, '<form '), 'a form only for a writer');
+        $this->assertSame($writer, str_contains($html, $this->token), 'the CSRF token only in a writer\'s form');
+        $this->assertSame(2, substr_count($html, "type='radio'"), 'both choices are always shown');
+        if ($writer) {
+            $this->assertStringNotContainsString(' disabled>', $html);
+            $this->assertStringNotContainsString('Du har ikke rettighed', $html);
+        } else {
+            $this->assertSame('no_rights', $decision['reason']);
+            $this->assertSame(2, substr_count($html, ' disabled>'), 'every radio is disabled');
+            $this->assertStringContainsString('Du har ikke rettighed til at ændre indstillingen.', $html);
+            $this->assertStringContainsString("value='easyubl' checked disabled>", $html, 'the current choice still shows');
+        }
+    }
+
+    public function testAWriterStillCannotPickSemanticWhereItIsRefused(): void
+    {
+        $state = array('easyUbl' => true, 'semantic' => false, 'semanticAllowed' => false, 'reason' => 'registered_elsewhere');
+        $html = einvoice_provider_form_html(self::texts(), 'easyubl', $state, $this->token, true);
+        $this->assertStringContainsString("value='semantic' disabled>", $html);
+        $this->assertStringContainsString("value='easyubl' checked>", $html);
+        $this->assertStringContainsString('T-refused_registered_elsewhere', $html);
+    }
+
+    public function testDiversePassesTheSaveRuleToThePage(): void
+    {
+        $src = (string)file_get_contents(__DIR__ . '/../../../systemdata/diverse.php');
+        $this->assertStringContainsString("einvoiceProviderPage(\$sprog_id, (string)\$csrf_token, (string)(\$db ?? ''), einvoice_provider_can_edit(\$rettigheder ?? null));", $src);
+        $page = new \ReflectionFunction('einvoiceProviderPage');
+        $this->assertFalse($page->getParameters()[3]->getDefaultValue(), 'a call without canEdit shows the page read-only');
     }
 }

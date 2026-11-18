@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/einvoiceProvider.php --- ver 5.1.1 --- 2026-11-12 ---
+// --- systemdata/diverseIncludes/einvoiceProvider.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,8 @@
 // 20261112 CL/MMR SD-815 Created. Indstillinger > Diverse > E-faktura (sektion einvoice_valg): the regnskab's e-invoice provider, settings provider/einvoice = 'easyubl' or 'semantic'.
 //                 Shown only when the server has Semantic set up and SALDI_SEMANTIC_PROVIDER_CHOICE is on; saved only with Indstillinger rights and the page's CSRF token.
 //                 Semantic can not be chosen while the regnskab is registered at EasyUBL (semantic_onboarding_decision()).
+// 20261118 CL/MMR SD-815 A user who may not save (no Indstillinger write right, e.g. a role with Integrationer write that now reaches the page from the settings hub) sees the choice read-only: radios disabled, no Gem button, the no-rights text (Codex round 4).
+//                 The rows are built by einvoice_provider_form_html(), so the view is tested without a database; einvoiceProviderPage() takes canEdit and defaults to read-only.
 
 include_once(__DIR__ . '/../../includes/einvoice/semanticClient.php');
 include_once(__DIR__ . '/../../includes/einvoice/semanticOnboarding.php');
@@ -281,6 +283,68 @@ if (!function_exists('einvoiceProviderHandlePost')) {
 	}
 }
 
+if (!function_exists('einvoice_provider_form_html')) {
+	/**
+	 * The sektion's rows inside diverse.php's table, as HTML. Pure, so the read-only view is tested without a database.
+	 * A user who may not save (einvoice_provider_can_edit(), the same rule the save checks) sees the choice with every
+	 * radio disabled, no Gem button and the no-rights text, so the page never offers a save the server refuses.
+	 *
+	 * @param array<string, string> $text      einvoice_provider_text().
+	 * @param string                $current   einvoice_provider_current().
+	 * @param array{easyUbl: bool, semantic: bool, semanticAllowed: bool, reason: string} $state einvoice_provider_read_state().
+	 * @param string                $csrfToken $_SESSION['csrf_token'].
+	 * @param bool                  $canEdit   einvoice_provider_can_edit($rettigheder).
+	 * @param string                $notice    The reason left by the last save ('' when none).
+	 * @return string
+	 */
+	function einvoice_provider_form_html(array $text, $current, array $state, $csrfToken, $canEdit, $notice = '') {
+		$html = static function ($value) {
+			return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+		};
+		$out = "<tr><td colspan='4'><hr></td></tr>\n";
+		$out .= "<tr><td colspan='4'><b>" . $html($text['title']) . "</b></td></tr>\n";
+		if ($notice !== '') {
+			$noticeText = $text[$notice] ?? $text['invalid'];
+			$colour = ($notice === 'saved' || $notice === 'unchanged') ? 'green' : 'red';
+			$out .= "<tr><td colspan='4' style='color:$colour'>" . $html($noticeText) . "</td></tr>\n";
+		}
+		$out .= "<tr><td>" . $html($text['stateEasyUbl']) . "</td><td colspan='3'>" . $html($state['easyUbl'] ? $text['yes'] : $text['no']) . "</td></tr>\n";
+		$out .= "<tr><td>" . $html($text['stateSemantic']) . "</td><td colspan='3'>" . $html($state['semantic'] ? $text['yes'] : $text['no']) . "</td></tr>\n";
+		$out .= "<tr><td colspan='4'><br></td></tr>\n";
+
+		if ($canEdit) {
+			$confirm = json_encode($text['confirm'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+			// The form sits between table rows, so the radios belong to it without being inside it: read them through elements.
+			$onsubmit = "var r=this.elements['einvoiceProvider'], v=r ? r.value : '';"
+				. "return !(v==='semantic' && this.getAttribute('data-current')!=='semantic') || confirm($confirm);";
+			$out .= "<form name='einvoiceProvider' action='diverse.php?sektion=einvoice_valg' method='post' autocomplete='off' data-current='" . $html($current) . "' onsubmit=\"" . $html($onsubmit) . "\">\n";
+			$out .= "<input type='hidden' name='csrf_token' value='" . $html($csrfToken) . "'>\n";
+		}
+		$out .= "<tr><td valign='top'>" . $html($text['provider']) . "</td><td colspan='3'>\n";
+		foreach (einvoice_provider_options() as $option) {
+			$disabled = (!$canEdit || ($option === 'semantic' && !$state['semanticAllowed'] && $current !== 'semantic')) ? ' disabled' : '';
+			$checked = ($option === $current) ? ' checked' : '';
+			$out .= "<label><input type='radio' name='einvoiceProvider' value='" . $html($option) . "'$checked$disabled> " . $html($text[$option]) . "</label><br>\n";
+		}
+		$out .= "</td></tr>\n";
+		$out .= "<tr><td></td><td colspan='3' style='max-width:520px'><i>" . $html($text['warning']) . "</i></td></tr>\n";
+		if (!$state['semanticAllowed'] && isset($text['refused_' . $state['reason']])) {
+			$out .= "<tr><td></td><td colspan='3' style='color:red'>" . $html($text['refused_' . $state['reason']]) . "</td></tr>\n";
+		}
+		if ($current === 'semantic' && $state['semantic']) {
+			$out .= "<tr><td></td><td colspan='3' style='color:red'>" . $html($text['backWarning']) . "</td></tr>\n";
+		}
+		$out .= "<tr><td colspan='4'><br></td></tr>\n";
+		if ($canEdit) {
+			$out .= "<tr><td colspan='4'><input type='submit' value='" . $html($text['save']) . "'></td></tr>\n";
+			$out .= "</form>\n";
+		} else {
+			$out .= "<tr><td colspan='4'><i>" . $html($text['no_rights']) . "</i></td></tr>\n";
+		}
+		return $out;
+	}
+}
+
 if (!function_exists('einvoiceProviderPage')) {
 	/**
 	 * The sektion's rows inside diverse.php's table. Prints nothing when the choice is hidden on this server.
@@ -288,54 +352,15 @@ if (!function_exists('einvoiceProviderPage')) {
 	 * @param int|string $sprog_id
 	 * @param string     $csrfToken $_SESSION['csrf_token'].
 	 * @param string     $db
+	 * @param bool       $canEdit   einvoice_provider_can_edit($rettigheder): false shows the choice read-only.
 	 * @return void
 	 */
-	function einvoiceProviderPage($sprog_id, $csrfToken, $db) {
+	function einvoiceProviderPage($sprog_id, $csrfToken, $db, $canEdit = false) {
 		if (!einvoice_provider_choice_visible()) {
 			return;
 		}
-		$text = einvoice_provider_text($sprog_id);
-		$html = static function ($value) {
-			return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
-		};
-		$current = einvoice_provider_current();
-		$state = einvoice_provider_read_state($db);
 		$notice = (string)($_SESSION['einvoiceProviderNotice'] ?? '');
 		unset($_SESSION['einvoiceProviderNotice']);
-
-		print "<tr><td colspan='4'><hr></td></tr>\n";
-		print "<tr><td colspan='4'><b>" . $html($text['title']) . "</b></td></tr>\n";
-		if ($notice !== '') {
-			$noticeText = $text[$notice] ?? $text['invalid'];
-			$colour = ($notice === 'saved' || $notice === 'unchanged') ? 'green' : 'red';
-			print "<tr><td colspan='4' style='color:$colour'>" . $html($noticeText) . "</td></tr>\n";
-		}
-		print "<tr><td>" . $html($text['stateEasyUbl']) . "</td><td colspan='3'>" . $html($state['easyUbl'] ? $text['yes'] : $text['no']) . "</td></tr>\n";
-		print "<tr><td>" . $html($text['stateSemantic']) . "</td><td colspan='3'>" . $html($state['semantic'] ? $text['yes'] : $text['no']) . "</td></tr>\n";
-		print "<tr><td colspan='4'><br></td></tr>\n";
-
-		$confirm = json_encode($text['confirm'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-		// The form sits between table rows, so the radios belong to it without being inside it: read them through elements.
-		$onsubmit = "var r=this.elements['einvoiceProvider'], v=r ? r.value : '';"
-			. "return !(v==='semantic' && this.getAttribute('data-current')!=='semantic') || confirm($confirm);";
-		print "<form name='einvoiceProvider' action='diverse.php?sektion=einvoice_valg' method='post' autocomplete='off' data-current='" . $html($current) . "' onsubmit=\"" . $html($onsubmit) . "\">\n";
-		print "<input type='hidden' name='csrf_token' value='" . $html($csrfToken) . "'>\n";
-		print "<tr><td valign='top'>" . $html($text['provider']) . "</td><td colspan='3'>\n";
-		foreach (einvoice_provider_options() as $option) {
-			$disabled = ($option === 'semantic' && !$state['semanticAllowed'] && $current !== 'semantic') ? ' disabled' : '';
-			$checked = ($option === $current) ? ' checked' : '';
-			print "<label><input type='radio' name='einvoiceProvider' value='" . $html($option) . "'$checked$disabled> " . $html($text[$option]) . "</label><br>\n";
-		}
-		print "</td></tr>\n";
-		print "<tr><td></td><td colspan='3' style='max-width:520px'><i>" . $html($text['warning']) . "</i></td></tr>\n";
-		if (!$state['semanticAllowed'] && isset($text['refused_' . $state['reason']])) {
-			print "<tr><td></td><td colspan='3' style='color:red'>" . $html($text['refused_' . $state['reason']]) . "</td></tr>\n";
-		}
-		if ($current === 'semantic' && $state['semantic']) {
-			print "<tr><td></td><td colspan='3' style='color:red'>" . $html($text['backWarning']) . "</td></tr>\n";
-		}
-		print "<tr><td colspan='4'><br></td></tr>\n";
-		print "<tr><td colspan='4'><input type='submit' value='" . $html($text['save']) . "'></td></tr>\n";
-		print "</form>\n";
+		print einvoice_provider_form_html(einvoice_provider_text($sprog_id), einvoice_provider_current(), einvoice_provider_read_state($db), (string)$csrfToken, (bool)$canEdit, $notice);
 	}
 }
