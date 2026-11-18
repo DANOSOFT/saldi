@@ -1,0 +1,170 @@
+<?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- includes/opdat_func/ensurePoolFilesSchema.php --- ver 5.1.1 --- 2026-11-18 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20261118 CL/MMR SD-815 Created. Gives pool_files the columns and the unique filename index the pool writers need (poolUploadRegisterFile() inserts norm_amount with ON CONFLICT (filename)), called from betweenUpdates.php.
+//                 A regnskab created at 5.1 or later never ran opdat_5.0.php, where these were added, so its pool_files lacked them and every write into the Bilagspulje failed.
+
+if (!function_exists('ensurePoolFilesSchemaColumns')) {
+	/**
+	 * The pool_files columns added after the table's first schema, as in poolUploadEnsureSchema()
+	 * (includes/docsIncludes/poolUpload.php). vendor_match last: _docPoolData.php and the REST attachment model probe
+	 * that column before using the other vendor columns.
+	 *
+	 * @return array<string, string> column => type
+	 */
+	function ensurePoolFilesSchemaColumns(): array {
+		return array(
+			'invoice_number' => 'varchar(100)',
+			'description' => 'text',
+			'currency' => 'varchar(10)',
+			'norm_amount' => 'numeric(15,3)',
+			'manually_edited' => 'boolean NOT NULL DEFAULT false',
+			'content_sha256' => 'char(64)',
+			'source_sha256' => 'char(64)',
+			'vendor_name' => 'text',
+			'vendor_cvr' => 'varchar(20)',
+			'vendor_iban' => 'varchar(40)',
+			'vendor_konto_id' => 'integer',
+			'vendor_score' => 'numeric(4,3)',
+			'vendor_match' => 'varchar(10)',
+		);
+	}
+}
+
+if (!function_exists('ensurePoolFilesSchemaState')) {
+	/**
+	 * What pool_files is missing in the current database: columns, the unique index on filename alone, the
+	 * norm_amount index. Null when there is no pool_files table.
+	 *
+	 * @param string $db_type
+	 * @return array{columns: list<string>, uniqueFilename: bool, normAmountIndex: bool}|null
+	 */
+	function ensurePoolFilesSchemaState(string $db_type): ?array {
+		$mysql = in_array($db_type, array('mysql', 'mysqli'), true);
+		$schema = $mysql ? 'DATABASE()' : 'current_schema()';
+		$present = array();
+		$q = db_select("SELECT column_name FROM information_schema.columns WHERE table_schema = $schema AND table_name = 'pool_files'", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$present[strtolower((string)($r['column_name'] ?? $r['COLUMN_NAME'] ?? ''))] = true;
+		}
+		if (!$present) {
+			return null;
+		}
+		$missing = array();
+		foreach (array_keys(ensurePoolFilesSchemaColumns()) as $column) {
+			if (!isset($present[$column])) {
+				$missing[] = $column;
+			}
+		}
+		if ($mysql) {
+			// Exactly one column in the index: a composite UNIQUE(filename, x) still allows duplicate filenames.
+			$unique = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND non_unique = 0 GROUP BY index_name HAVING COUNT(*) = 1 AND MAX(column_name) = 'filename'";
+			$normIndex = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND column_name = 'norm_amount' AND seq_in_index = 1";
+		} else {
+			// Any single-column unique index on filename counts, whatever its name (a table created by
+			// poolUploadEnsureSchema() has the constraint pool_files_filename_key), as in opdat_5.0.php.
+			$unique = "SELECT i.indexrelid FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND i.indisunique AND i.indnatts = 1
+				AND i.indkey[0] = (SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename')";
+			$normIndex = "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
+		}
+		return array(
+			'columns' => $missing,
+			'uniqueFilename' => (bool)db_fetch_array(db_select($unique, __FILE__ . " linje " . __LINE__)),
+			'normAmountIndex' => in_array('norm_amount', $missing, true) ? false : (bool)db_fetch_array(db_select($normIndex, __FILE__ . " linje " . __LINE__)),
+		);
+	}
+}
+
+if (!function_exists('ensurePoolFilesSchema')) {
+	/**
+	 * Adds what pool_files is missing (see ensurePoolFilesSchemaState()). Cheap when nothing is missing: one column
+	 * query and two index lookups per login. Otherwise the work runs under a per-database lock and is checked again
+	 * inside it, so two logins at once do it once. Duplicate filenames are collapsed to the newest row (highest id)
+	 * before the unique index is added, as opdat_5.0.php does, so the index cannot fail on old data. Rows without
+	 * norm_amount get it from their amount text (normalizePoolAmount()), as opdat_5.0.php's catch-up does.
+	 *
+	 * @param string $db_type
+	 * @return list<string> What was done (column names, 'unique_filename', 'norm_amount_index'); empty when nothing.
+	 */
+	function ensurePoolFilesSchema(string $db_type): array {
+		$state = ensurePoolFilesSchemaState($db_type);
+		if ($state === null || (!$state['columns'] && $state['uniqueFilename'] && $state['normAmountIndex'])) {
+			return array();
+		}
+		$mysql = in_array($db_type, array('mysql', 'mysqli'), true);
+		if ($mysql) {
+			$lockName = "CONCAT('saldi:pool_files_schema:', MD5(DATABASE()))";
+			$locked = db_fetch_array(db_select("SELECT GET_LOCK($lockName, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int)($locked['acquired'] ?? 0) !== 1) {
+				return array(); // another login holds it; the next login checks again
+			}
+			$unlock = "SELECT RELEASE_LOCK($lockName)";
+		} else {
+			db_select("SELECT pg_advisory_lock(hashtext('saldi:pool_files_schema'))", __FILE__ . " linje " . __LINE__);
+			$unlock = "SELECT pg_advisory_unlock(hashtext('saldi:pool_files_schema'))";
+		}
+		$done = array();
+		try {
+			$state = ensurePoolFilesSchemaState($db_type);
+			if ($state === null) {
+				return array();
+			}
+			$types = ensurePoolFilesSchemaColumns();
+			foreach ($state['columns'] as $column) {
+				$ifNotExists = $mysql ? '' : 'IF NOT EXISTS ';
+				db_modify("ALTER TABLE pool_files ADD COLUMN $ifNotExists$column " . $types[$column], __FILE__ . " linje " . __LINE__);
+				$done[] = $column;
+			}
+			if (in_array('norm_amount', $done, true)) {
+				include_once(__DIR__ . '/../docsIncludes/poolAmountNormalizer.php');
+				$q = db_select("SELECT id, amount FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					$normalized = normalizePoolAmount($r['amount']);
+					if ($normalized !== null) {
+						db_modify("UPDATE pool_files SET norm_amount = " . db_escape_string((string)$normalized) . " WHERE id = " . (int)$r['id'], __FILE__ . " linje " . __LINE__);
+					}
+				}
+			}
+			if (!$state['uniqueFilename']) {
+				if ($mysql) {
+					db_modify("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);
+					db_modify("CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+				} else {
+					db_modify("DELETE FROM pool_files a USING pool_files b WHERE a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);
+					db_modify("CREATE UNIQUE INDEX IF NOT EXISTS pool_files_filename_uidx ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+				}
+				$done[] = 'unique_filename';
+			}
+			if (!$state['normAmountIndex']) {
+				$ifNotExists = $mysql ? '' : 'IF NOT EXISTS ';
+				db_modify("CREATE INDEX {$ifNotExists}idx_pool_files_norm_amount ON pool_files (norm_amount)", __FILE__ . " linje " . __LINE__);
+				$done[] = 'norm_amount_index';
+			}
+		} finally {
+			db_select($unlock, __FILE__ . " linje " . __LINE__);
+		}
+		return $done;
+	}
+}

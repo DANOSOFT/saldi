@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-12 ---
+// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,8 @@
 // 20261109 CL/MMR SD-815 (draft) A new regnskab gets the table einvoice_sendlog (e-documents sent through Semantic), as includes/betweenUpdates.php creates it on existing accounts.
 // 20261112 CL/MMR SD-815 A new regnskab also gets einvoice_incoming and the receiver_* columns of einvoice_sendlog, as includes/betweenUpdates.php adds them.
 // 20261112 CL/MMR SD-815 On MySQL einvoice_sendlog and einvoice_incoming are utf8mb4, as in includes/betweenUpdates.php.
+// 20261118 CL/MMR SD-815 A new regnskab's pool_files gets the current schema (as poolUploadEnsureSchema()): norm_amount, manually_edited, source_sha256, the vendor_* columns, a unique filename and the norm_amount index.
+//                 Without them every write into the Bilagspulje (poolUploadRegisterFile(): norm_amount, ON CONFLICT (filename)) failed in a regnskab created at 5.1, where opdat_5.0.php never runs (Codex SD-815 round 6).
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -621,10 +623,15 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 
 	db_modify("CREATE TABLE stockmovement ($id_column, vareid integer, beholdning integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
 
-	$qtxt = "CREATE TABLE pool_files ($id_column, filename varchar(255), subject text, account varchar(50), ";
-	$qtxt.= "amount varchar(50), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ";
-	$qtxt.= "invoice_number varchar(100), description text, currency varchar(10), content_sha256 char(64), PRIMARY KEY (id))";
+	// SD-815: the schema the pool writers expect (poolUploadEnsureSchema(), includes/opdat_func/ensurePoolFilesSchema.php).
+	$qtxt = "CREATE TABLE pool_files ($id_column, filename varchar(255) NOT NULL, subject text, account varchar(50), ";
+	$qtxt.= "amount varchar(50), norm_amount numeric(15,3), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "invoice_number varchar(100), description text, manually_edited boolean NOT NULL DEFAULT false, currency varchar(10), ";
+	$qtxt.= "content_sha256 char(64), source_sha256 char(64), vendor_name text, vendor_cvr varchar(20), vendor_iban varchar(40), ";
+	$qtxt.= "vendor_konto_id integer, vendor_score numeric(4,3), vendor_match varchar(10), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX idx_pool_files_norm_amount ON pool_files (norm_amount)", __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE kontakt_emails ($id_column, konto_id integer NOT NULL, email varchar(255) NOT NULL, email_type varchar(50) DEFAULT '', PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
 

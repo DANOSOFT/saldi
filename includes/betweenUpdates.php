@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,7 @@
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261118 CL/MMR SD-815 pool_files gets the columns and the unique filename index the pool writers need, where a regnskab created at 5.1 or later lacks them (includes/opdat_func/ensurePoolFilesSchema.php).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -533,5 +534,14 @@ if (db_fetch_array(db_select($incomingSendlog, __FILE__ . " linje " . __LINE__))
 		}
 	}
 }
+
+// 20261118 CL/MMR SD-815 A regnskab created at 5.1 or later never ran opdat_5.0.php, so its pool_files has no norm_amount,
+// no unique filename (and no manually_edited, source_sha256 or vendor_* columns), and every write into the Bilagspulje
+// failed: poolUploadRegisterFile() inserts norm_amount with ON CONFLICT (filename). Semantic's incoming invoices go into
+// the pool the same way. ensurePoolFilesSchema() adds what is missing under a lock, collapses duplicate filenames to the
+// newest row first (as opdat_5.0.php) and fills norm_amount from the amount text; when nothing is missing it is one
+// column query and two index lookups.
+require_once __DIR__ . '/opdat_func/ensurePoolFilesSchema.php';
+ensurePoolFilesSchema($db_type);
 
 ?>
