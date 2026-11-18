@@ -1027,4 +1027,41 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame('99,00', pg_fetch_result($this->sql("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 0, 0));
         self::assertSame(['10', '11'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_linked_document ORDER BY id')), 'nothing else touched');
     }
+
+    public function testAnInheritingTableWithADeleteTriggerStopsTheCollapse(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE TABLE pool_linked_document (id integer PRIMARY KEY, pool_id integer)');
+        $this->sql('CREATE TABLE pool_files_archive () INHERITS (pool_files)');
+        $this->sql("INSERT INTO pool_files_archive (id, filename, amount) VALUES (1, 'a.pdf', '1,00')");
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (2, 'a.pdf', '99,00')");
+        $this->sql('INSERT INTO pool_linked_document VALUES (10, 1), (11, 2)');
+        $this->sql("CREATE FUNCTION pool_files_archive_unlink() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN DELETE FROM pool_linked_document WHERE pool_id = OLD.id; RETURN OLD; END'");
+        $this->sql('CREATE TRIGGER pool_files_archive_unlink AFTER DELETE ON pool_files_archive FOR EACH ROW EXECUTE FUNCTION pool_files_archive_unlink()');
+
+        self::assertNotContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame(['1', '2'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_files ORDER BY id')), 'both duplicates kept');
+        self::assertSame(['10', '11'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_linked_document ORDER BY id')), 'no linked row deleted');
+        self::assertSame(0, $this->backfillFlags());
+        self::assertSame(0, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexdef ILIKE '%UNIQUE%(filename)%'")), 'no unique index that would only cover the parent');
+        self::assertStringContainsString('pool_files_archive', (string) file_get_contents($this->log), 'the inheriting table is named');
+    }
+
+    public function testAnInheritingTableIsNotCoveredByAUniqueIndexOnPoolFiles(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)');
+        $this->sql('CREATE TABLE pool_files_archive () INHERITS (pool_files)');
+        $this->sql("INSERT INTO pool_files_archive (id, filename, amount) VALUES (1, 'a.pdf', '1,00')");
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (2, 'a.pdf', '99,00')");
+
+        self::assertFalse(ensurePoolFilesSchemaState('postgresql')['uniqueFilename'], 'the index on pool_files does not make the filenames it reads unique');
+        self::assertSame(['pool_files_archive'], ensurePoolFilesSchemaState('postgresql')['inheritingTables']);
+        self::assertNotContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame(['1', '2'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_files ORDER BY id')), 'nothing deleted');
+        self::assertSame(0, $this->backfillFlags());
+        self::assertStringContainsString('tables inherit from pool_files (pool_files_archive)', (string) file_get_contents($this->log));
+    }
 }

@@ -68,6 +68,7 @@
 // 20261118 CL/MMR SD-815 Codex round 40: the database name and REF_NAME are read as HEX() and decoded in PHP, so the session's character_set_results cannot turn a non-ASCII name into '?'; the session settings are not touched.
 // 20261118 CL/MMR SD-815 Codex round 41: the CREATE TABLE header's name is also recognised in double quotes (sql_mode ANSI_QUOTES); the session's sql_mode is not touched.
 // 20261118 CL/MMR SD-815 Codex round 42: with duplicates, a user DELETE trigger on pool_files (PostgreSQL: or a DELETE rule) also stops the collapse - it could change other tables; on MySQL/MariaDB triggers are only visible with the TRIGGER privilege, so without it the collapse waits too.
+// 20261118 CL/MMR SD-815 Codex round 43: on PostgreSQL the repair first checks the exact table its statements use ('pool_files'::regclass): it must be the one in current_schema() that the state reads, and no table may inherit from it (or be a partition of it) - a unique index on pool_files does not cover their rows and a DELETE through pool_files also deletes there and fires their triggers; then nothing is changed and the log names them.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -265,10 +266,8 @@ if (!function_exists('ensurePoolFilesGuardDeleteTriggers')) {
 				$names[] = 'trigger ' . (string)($r['name'] ?? '');
 			}
 		} else {
-			$q = ensurePoolFilesSelect("SELECT 'trigger ' || t.tgname AS name FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
-				WHERE c.relname = 'pool_files' AND n.nspname = current_schema() AND NOT t.tgisinternal AND (t.tgtype & 8) <> 0
-				UNION ALL SELECT 'rule ' || r.rulename FROM pg_rewrite r JOIN pg_class c ON c.oid = r.ev_class JOIN pg_namespace n ON n.oid = c.relnamespace
-				WHERE c.relname = 'pool_files' AND n.nspname = current_schema() AND r.ev_type = '4'", __LINE__);
+			$q = ensurePoolFilesSelect("SELECT 'trigger ' || t.tgname AS name FROM pg_trigger t WHERE t.tgrelid = 'pool_files'::regclass AND NOT t.tgisinternal AND (t.tgtype & 8) <> 0
+				UNION ALL SELECT 'rule ' || r.rulename FROM pg_rewrite r WHERE r.ev_class = 'pool_files'::regclass AND r.ev_type = '4'", __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$names[] = (string)($r['name'] ?? '');
 			}
@@ -357,6 +356,39 @@ if (!function_exists('ensurePoolFilesGuardInboundReferences')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesGuardPostgresRelation')) {
+	/**
+	 * PostgreSQL: makes sure the table the repair's statements resolve ('pool_files'::regclass, via search_path) is the
+	 * one in current_schema() that ensurePoolFilesSchemaState() reads, and that no table inherits from it or is a
+	 * partition of it. A unique index on pool_files covers only the rows stored in pool_files itself, while a SELECT or
+	 * DELETE on pool_files also reaches the inheriting tables (and fires their DELETE triggers), so the repair can then
+	 * neither guarantee unique filenames nor delete safely; a person has to decide. Called under the repair's
+	 * SHARE ROW EXCLUSIVE lock, which keeps new inheriting tables out until the transaction ends.
+	 *
+	 * @return void
+	 * @throws EnsurePoolFilesSchemaUnknown When pool_files is another table or has inheriting tables; logged.
+	 */
+	function ensurePoolFilesGuardPostgresRelation(): void {
+		$r = db_fetch_array(ensurePoolFilesSelect("SELECT (n.nspname = current_schema())::int AS same FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+			WHERE c.oid = 'pool_files'::regclass", __LINE__));
+		if (!$r || (int)($r['same'] ?? 0) !== 1) {
+			error_log('ensurePoolFilesSchema: nothing changed, the pool_files found through search_path is not the one in current_schema(); check the search_path of this regnskab');
+			throw new EnsurePoolFilesSchemaUnknown('pool_files is not the table in current_schema()');
+		}
+		$names = array();
+		$q = ensurePoolFilesSelect("SELECT h.inhrelid::regclass::text AS name FROM pg_inherits h WHERE h.inhparent = 'pool_files'::regclass ORDER BY 1", __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$names[] = (string)($r['name'] ?? '');
+		}
+		if ($names) {
+			error_log('ensurePoolFilesSchema: nothing changed, tables inherit from pool_files (' . implode(', ', $names) . '): a unique filename index on pool_files'
+				. ' would not cover their rows, and removing duplicates through pool_files would delete there too; move their rows into pool_files'
+				. ' or remove the inheritance by hand, then the next login adds the unique filename index');
+			throw new EnsurePoolFilesSchemaUnknown('tables inherit from pool_files');
+		}
+	}
+}
+
 if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 	/**
 	 * Gives pool_files a unique index on filename alone on PostgreSQL, all or nothing: deferrable constraints on
@@ -377,6 +409,7 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 		try {
 			// No new reference or write while this decides and deletes; held until the transaction ends.
 			db_modify("LOCK TABLE pool_files IN SHARE ROW EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+			ensurePoolFilesGuardPostgresRelation();
 			ensurePoolFilesGuardInboundReferences($db_type);
 			foreach ($deferrable as $constraint) {
 				db_modify('ALTER TABLE pool_files DROP CONSTRAINT "' . str_replace('"', '""', $constraint) . '"', __FILE__ . " linje " . __LINE__);
@@ -742,7 +775,7 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 	 * norm_amount index, the norm_amount backfill. Null when there is no pool_files table.
 	 *
 	 * @param string $db_type
-	 * @return array{columns: list<string>, uniqueFilename: bool, fullFilename: bool, deferrableFilename: list<string>, restrictiveFilename: list<string>, otherFilenameExpressions: list<string>, normAmountIndex: bool, normAmountBackfilled: bool}|null
+	 * @return array{columns: list<string>, uniqueFilename: bool, fullFilename: bool, deferrableFilename: list<string>, restrictiveFilename: list<string>, otherFilenameExpressions: list<string>, inheritingTables: list<string>, normAmountIndex: bool, normAmountBackfilled: bool}|null
 	 * @throws EnsurePoolFilesSchemaUnknown When a read failed.
 	 */
 	function ensurePoolFilesSchemaState(string $db_type): ?array {
@@ -821,14 +854,25 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 				$otherNames[] = $index;
 			}
 		}
+		// PostgreSQL: tables that inherit from pool_files (or are partitions of it). A unique index on pool_files does not
+		// cover their rows, so filenames are not unique then; the repair stops on them (ensurePoolFilesGuardPostgresRelation()).
+		$inheritingNames = array();
+		if (!$mysql) {
+			$q = ensurePoolFilesSelect("SELECT ch.relname FROM pg_inherits h JOIN pg_class t ON t.oid = h.inhparent JOIN pg_namespace n ON n.oid = t.relnamespace
+				JOIN pg_class ch ON ch.oid = h.inhrelid WHERE t.relname = 'pool_files' AND n.nspname = current_schema()", __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$inheritingNames[] = (string)$r['relname'];
+			}
+		}
 		$full = (bool)db_fetch_array(ensurePoolFilesSelect($unique, __LINE__));
 		return array(
 			'columns' => $missing,
-			'uniqueFilename' => $full && !$deferrableNames && !$restrictiveNames,
+			'uniqueFilename' => $full && !$deferrableNames && !$restrictiveNames && !$inheritingNames,
 			'fullFilename' => $full,
 			'deferrableFilename' => $deferrableNames,
 			'restrictiveFilename' => $restrictiveNames,
 			'otherFilenameExpressions' => $otherNames,
+			'inheritingTables' => $inheritingNames,
 			'normAmountIndex' => in_array('norm_amount', $missing, true) ? false : (bool)db_fetch_array(ensurePoolFilesSelect($normIndex, __LINE__)),
 			'normAmountBackfilled' => (bool)db_fetch_array(ensurePoolFilesSelect(ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY, __LINE__)),
 		);
