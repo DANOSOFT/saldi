@@ -6,13 +6,14 @@
 // the register posts each sale), on the real ordrefunc.php against the caller-owned test tenant.
 //
 // argv: 1 = tenant database, 2 = ordre_id, or a comma list of ordre_ids that the day-end count posts together.
-// Prints one JSON line: bogfor()'s answer, the order's status and report_number, and the order's transaktioner rows.
+// Prints one JSON line: bogfor()'s answer, the order's status and report_number, the order's transaktioner rows and its pos_lines_amount().
 // For a comma list, bogfor() only finishes each sale (status 3) and bogfor_nu() posts them as posbogfor() does,
 // so 'bogfor' is bogfor_nu()'s answer and 'rows' are the rows it wrote.
 //
 // History:
 // 20261112 CL/SS MB-49: created.
 // 20261116 CL/SS MB-49: a comma list posts the sales together, as the day-end count does.
+// 20261118 CL/SS MB-49: a refused posting is rolled back, as afslut() does; 'lines' is pos_lines_amount() for the first sale.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_pos_card_posting.php <tenant_db> <ordre_id>\n");
@@ -40,7 +41,10 @@ if (count($ordreIds) > 1 && $out['bogfor'] === 'OK') {
 }
 if ($out['bogfor'] === 'OK') {
     transaktion('commit');
+} else {
+    transaktion('rollback');
 }
+$out['lines'] = pos_lines_amount($ordreId);
 $r = db_fetch_array(db_select("select status, report_number from ordrer where id = '$ordreId'", __FILE__ . " linje " . __LINE__));
 $out['status'] = (int)$r['status'];
 $out['rows'] = [];

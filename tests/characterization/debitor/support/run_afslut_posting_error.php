@@ -11,7 +11,7 @@
 //
 // History:
 // 20261112 CL/SS MB-49: created.
-// 20261117 CL/SS MB-49: the order lines' total ('lines' in the case) answers afslut()'s line query.
+// 20261117 CL/SS MB-49: the order lines' total ('lines' in the case) stands in for pos_lines_amount().
 
 $case = json_decode($argv[1], true, 512, JSON_THROW_ON_ERROR);
 chdir($argv[2] . '/debitor');
@@ -41,6 +41,8 @@ function betaling(...$args) { return $GLOBALS['case']['sum'] ?? 0; }
 function pos_afrund($amount, ...$args) { return round((float)$amount, 2); }
 /** @return float */
 function afrund($amount, $decimals) { return round((float)$amount, $decimals); }
+/** @return float */
+function pos_lines_amount(int $ordreId): float { return (float)($GLOBALS['case']['lines'] ?? 0); }
 /** @return string */
 function findtekst($id, $language) { return (string)(explode('|', (string)$id, 2)[1] ?? $id); }
 /** @return ArrayIterator */
@@ -57,9 +59,6 @@ function db_select($sql, ...$args) {
 	}
 	if (str_contains($sql, 'from pos_betalinger')) {
 		return new ArrayIterator([]);
-	}
-	if (str_contains($sql, 'as lines from ordrelinjer')) {
-		return new ArrayIterator([['lines' => $case['lines'] ?? 0]]);
 	}
 	if (str_contains($sql, 'select box3,box4,box5,box6')) {
 		return new ArrayIterator([['box3' => 'printer.example', 'box4' => '', 'box5' => '', 'box6' => '']]);

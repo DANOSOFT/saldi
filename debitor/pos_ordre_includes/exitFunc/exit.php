@@ -118,10 +118,7 @@ print "\n<!-- Function afslut (start)-->\n";
 	if ($id && $betaling && !$indbetaling && !afrund($modtaget, 2) && !afrund($modtaget2, 2) &&!in_array(strtolower($betaling), array('kontant', 'konto', 'cash', 'cash on amount'))) {
 		$r = db_fetch_array(db_select("select sum, moms from ordrer where id = '" . (int)$id . "'", __FILE__ . " linje " . __LINE__));
 		$paid = db_fetch_array(db_select("select sum(amount) as paid from pos_betalinger where ordre_id = '" . (int)$id . "' and betalingstype != '!'", __FILE__ . " linje " . __LINE__));
-		$qtxt = "select coalesce(sum(abs(case when rabatart = 'amount' then antal * (pris - coalesce(rabat, 0)) ";
-		$qtxt .= "else antal * pris * (100 - coalesce(rabat, 0)) / 100 end)), 0) as lines from ordrelinjer where ordre_id = '" . (int)$id . "'";
-		$lines = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r && !afrund((float)$r['sum'] + (float)$r['moms'], 2) && !afrund((float)$paid['paid'], 2) && !afrund((float)$lines['lines'], 2)) {
+		if ($r && !afrund((float)$r['sum'] + (float)$r['moms'], 2) && !afrund((float)$paid['paid'], 2) && !afrund(pos_lines_amount((int)$id), 2)) {
 			return sprintf(findtekst('pos.payment.card_amount_missing|Indtast beløbet, før du betaler med %s. En betaling på 0 kr. kan ikke bogføres.', $sprog_id), $betaling);
 		}
 	}

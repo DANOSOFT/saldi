@@ -12,6 +12,7 @@ require_once __DIR__ . '/../support/CharacterizationEnv.php';
 //                invisible to the cash count. It is now refused and rolled back.
 // 20261116 CL/SS MB-49: card sales the day-end count posts together write their rows with ordre_id 0, and are posted, not refused.
 // 20261117 CL/SS MB-49: a row another checkout commits on the same till during the posting does not hide a sale that posted nothing.
+// 20261118 CL/SS MB-49: an exchange whose lines cancel out posts on both sales accounts; an amount discount counts in kroner in pos_lines_amount().
 final class PosCardPostingCharacterizationTest extends TestCase
 {
     private const CASH_ACCOUNT = 58200;
@@ -99,7 +100,8 @@ final class PosCardPostingCharacterizationTest extends TestCase
         $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
         $json = $lines ? json_decode((string)end($lines), true) : null;
         self::assertIsArray($json, "runner output: {$res['stdout']} {$res['stderr']}");
-        $json['rows'] = array_map(static fn(array $row): array => [(int)$row[0], (float)$row[1], (float)$row[2]], $json['rows']);
+        $json['lines'] = (float)$json['lines'];
+        $json['rows'] =array_map(static fn(array $row): array => [(int)$row[0], (float)$row[1], (float)$row[2]], $json['rows']);
         return $json;
     }
 
@@ -190,14 +192,16 @@ final class PosCardPostingCharacterizationTest extends TestCase
         $t = self::$tenant;
         $lock = 4911;
         $id = self::sale(0, 'Visa', 400);
-        // Holds the posting at bogfor_nu()'s "update ordrelinjer set projekt='' where projekt is NULL", which runs after it starts and before its check.
-        pg_query($t, 'CREATE FUNCTION mb49_hold() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
-            IF current_query() LIKE $q$update ordrelinjer set projekt=\'\' where projekt is NULL%$q$ THEN PERFORM pg_advisory_xact_lock(' . $lock . '); END IF;
-            RETURN NULL; END $$');
-        pg_query($t, 'CREATE TRIGGER mb49_hold BEFORE UPDATE ON ordrelinjer FOR EACH STATEMENT EXECUTE FUNCTION mb49_hold()');
-        pg_query($t, "SELECT pg_advisory_lock($lock)");
         $child = null;
+        $result = null;
         try {
+            // Holds the posting at bogfor_nu()'s "update ordrelinjer set projekt='' where projekt is NULL", which runs after it starts and before its check.
+            pg_query($t, 'CREATE FUNCTION mb49_hold() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+                IF current_query() LIKE $q$update ordrelinjer set projekt=\'\' where projekt is NULL%$q$ THEN PERFORM pg_advisory_xact_lock(' . $lock . '); END IF;
+                RETURN NULL; END $$');
+            pg_query($t, 'CREATE TRIGGER mb49_hold BEFORE UPDATE ON ordrelinjer FOR EACH STATEMENT EXECUTE FUNCTION mb49_hold()');
+            // Session lock here; the child waits for it as a transaction lock inside its posting.
+            pg_query($t, "SELECT pg_advisory_lock($lock)");
             $child = self::startPost($id);
             $waiting = false;
             for ($i = 0; $i < 300 && !$waiting; $i++) {
@@ -209,15 +213,79 @@ final class PosCardPostingCharacterizationTest extends TestCase
                 VALUES (0, $1, 'Other checkout', $2, 50, 0, 0, 0, $1, '12:00', 0, 1)", [date('Y-m-d'), self::CASH_ACCOUNT]);
             self::assertNotFalse($other, pg_last_error($t));
         } finally {
-            pg_query($t, "SELECT pg_advisory_unlock($lock)");
+            pg_query($t, "SELECT pg_advisory_unlock_all()");
             $result = $child ? self::finishPost($child) : null;
-            pg_query($t, 'DROP TRIGGER mb49_hold ON ordrelinjer');
-            pg_query($t, 'DROP FUNCTION mb49_hold()');
+            pg_query($t, 'DROP TRIGGER IF EXISTS mb49_hold ON ordrelinjer');
+            pg_query($t, 'DROP FUNCTION IF EXISTS mb49_hold()');
             pg_query($t, "DELETE FROM transaktioner WHERE beskrivelse = 'Other checkout'");
         }
         self::assertStringContainsString('Betalingen med Visa kan ikke bogføres', $result['bogfor']);
         self::assertNotSame(4, $result['status'], 'a sale with nothing posted must not get status 4');
         self::assertSame([], $result['rows']);
+    }
+
+    /**
+     * An exchange (+100 on one item, -100 on an item with another sales account) totals 0 and is paid with card 0.
+     * Its lines carry an amount, so afslut() lets it through, and the posting writes balanced rows on both sales accounts.
+     */
+    public function testAnExchangeWhoseLinesCancelOutPostsOnBothSalesAccounts(): void
+    {
+        [$otherItem, $otherAccount] = self::itemOnAnotherSalesAccount();
+        $result = self::post(self::order([[self::$itemId, 1, 100, 0, ''], [$otherItem, -1, 100, 0, '']], 'Dankort', 0));
+        self::assertSame(200.0, $result['lines']);
+        self::assertSame('OK', $result['bogfor']);
+        self::assertSame(4, $result['status']);
+        self::assertContains([self::$salesAccount, 0.0, 100.0], $result['rows']);
+        self::assertContains([$otherAccount, 100.0, 0.0], $result['rows']);
+        self::assertSame(array_sum(array_column($result['rows'], 1)), array_sum(array_column($result['rows'], 2)), 'debit and credit balance');
+    }
+
+    /**
+     * An amount discount counts in kroner, as bogfor_nu() posts it: a 50 kr item with 50 kr off carries no amount,
+     * and an exchange at 200 with 100 kr off each way carries 200.
+     */
+    public function testLineAmountsCountAnAmountDiscountInKroner(): void
+    {
+        [$otherItem] = self::itemOnAnotherSalesAccount();
+        self::assertSame(0.0, self::post(self::order([[self::$itemId, 1, 50, 50, 'amount']], 'Dankort', 0))['lines']);
+        self::assertSame(200.0, self::post(self::order([[self::$itemId, 1, 200, 100, 'amount'], [$otherItem, -1, 200, 100, 'amount']], 'Dankort', 0))['lines']);
+    }
+
+    /**
+     * A second 0-kr item in a product group whose sales account differs from the first item's.
+     *
+     * @return array{0: int, 1: int} item id and its sales account
+     */
+    private static function itemOnAnotherSalesAccount(): array
+    {
+        $t = self::$tenant;
+        $vg = CharacterizationEnv::one($t, "SELECT kodenr, box4 FROM grupper WHERE art = 'VG' AND fiscal_year = $1 AND box4 != '' AND box4 != $2 ORDER BY kodenr LIMIT 1",
+            [self::$regnaar, (string)self::$salesAccount]);
+        self::assertNotNull($vg, 'the tenant needs a second product group with its own sales account');
+        $item = CharacterizationEnv::one($t, "SELECT id FROM varer WHERE varenr = 'k2'");
+        if (!$item) {
+            $item = ['id' => CharacterizationEnv::nextId($t, 'varer')];
+            pg_query_params($t, "INSERT INTO varer (id, varenr, beskrivelse, enhed, salgspris, kostpris, gruppe) VALUES ($1, 'k2', 'Byttevare', 'stk', 0, 0, $2)",
+                [$item['id'], $vg['kodenr']]);
+        }
+        return [(int)$item['id'], (int)$vg['box4']];
+    }
+
+    /**
+     * A settled POS sale with the given lines that sums to 0, paid with one payment.
+     *
+     * @param list<array{0: int, 1: float, 2: float, 3: float, 4: string}> $lines item id, quantity, price, discount, discount type
+     */
+    private static function order(array $lines, string $payment, float $amount): int
+    {
+        $t = self::$tenant;
+        $id = self::sale(0, $payment, $amount);
+        pg_query_params($t, 'DELETE FROM ordrelinjer WHERE ordre_id = $1', [$id]);
+        foreach ($lines as $n => [$item, $qty, $price, $discount, $type]) {
+            pg_query_params($t, "INSERT INTO ordrelinjer (ordre_id, vare_id, varenr, beskrivelse, antal, pris, rabat, rabatart, posnr, momsfri, momssats, kostpris, leveres)
+                SELECT $1, id, varenr, beskrivelse, $2, $3, $4, $5, $6, '', 25, 0, $2 FROM varer WHERE id = $7", [$id, $qty, $price, $discount, $type, $n + 1, $item]);
+        }
+        return $id;
     }
 
     /**

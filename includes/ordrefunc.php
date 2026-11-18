@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-17 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -172,6 +172,7 @@
 //                Day-end posting writes several sales' rows with ordre_id 0, and it is no longer refused.
 // 20261117 CL/SS MB-49 bogfor_nu(): the nothing-posted check counts the rows this call inserted, not rows read back from transaktioner.
 //                Rows another checkout commits on the same till meanwhile can no longer hide a sale that posted nothing.
+// 20261118 CL/SS MB-49 pos_lines_amount(): an order's lines as absolute amounts after discount, for afslut()'s card-0 refusal.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2515,6 +2516,16 @@ function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
 	if (abs($diff) < 0.05)
 		return NULL;
 	return $diff;
+}
+/**
+ * The order's lines added up as absolute amounts after discount, worked out as bogfor_nu() does.
+ * 0 means no line carries an amount; an exchange of +100 and -100 gives 200.
+ */
+function pos_lines_amount(int $ordreId): float {
+	$qtxt = "select coalesce(sum(abs(case when rabatart = 'amount' then antal * (pris - coalesce(rabat, 0)) ";
+	$qtxt .= "else antal * pris * (100 - coalesce(rabat, 0)) / 100 end)), 0) as lines from ordrelinjer where ordre_id = '$ordreId'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	return (float)($r['lines'] ?? 0);
 }
 ######################################################################################################################################
 /**
