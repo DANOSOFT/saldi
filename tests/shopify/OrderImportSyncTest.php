@@ -15,6 +15,7 @@
 // 20261104 CL/SS SD-743 review: a set whose BOM changed after the validation is refused before any write.
 // 20261104 CL/SS SD-743 review 2: an øre difference of the posting goes on OreDif; without a valid OreDif account on every row the order is not created.
 // 20261104 CL/SS SD-743 review 2: a debtor group without its VAT group refuses a Kreditkort order before it is created.
+// 20261113 CL/SS SD-841 (input for SD-760): the created link stores the allocation per Shopify line (flags.allocation_v1).
 
 use PHPUnit\Framework\TestCase;
 
@@ -517,6 +518,38 @@ final class OrderImportSyncTest extends TestCase
         $this->assertSame([[$c1, 8.0], [$c2, 9.0]], array_map(fn($s) => [(int)$s['vare_id'], (float)$s['beholdning']], $stock), 'the components are drawn');
         $lines = $this->sql('SELECT vare_id, posnr FROM ordrelinjer WHERE ordre_id = $1 ORDER BY posnr', [$o['order']['id']]);
         $this->assertSame([$c1, $c2, $set, $free], array_slice(array_map(fn($l) => (int)$l['vare_id'], $lines), 0, 4), 'the set\'s lines, the set line, then the next line');
+    }
+
+    public function testTheCreatedLinkStoresTheAllocationOfEachShopifyLineWithItsOrderLines(): void
+    {
+        $a = $this->item('A');
+        $set = $this->item('SAET', ['salgspris' => 0, 'samlevare' => 'on']);
+        $x = $this->item('X', ['salgspris' => 60]);
+        $y = $this->item('Y', ['salgspris' => 40]);
+        $this->sql("INSERT INTO styklister (vare_id, indgaar_i, antal, posnr) VALUES ($1, $3, 1, 1), ($2, $3, 1, 2)", [$x, $y, $set]);
+        $this->stock($a, 1, 2);
+        $this->stock($a, 2, 5);
+        $this->stock($x, 1, 5);
+        $this->stock($y, 2, 5);
+        $order = $this->order([self::line('A', 3, '300.00'), self::line('SAET', 2, '200.00')]);
+
+        $result = $this->import($order);
+        $this->assertSame('invoiced', $result['result']['state'] ?? null, json_encode($result));
+        $link = $this->sql('SELECT ordre_id, flags FROM shopify_order_links WHERE order_gid = $1', [$order['gid']])[0];
+        $alloc = json_decode($link['flags'], true)['allocation_v1']['lines'] ?? null;
+        $this->assertIsArray($alloc, $link['flags']);
+        $ids = array_column($this->sql('SELECT id FROM ordrelinjer WHERE ordre_id = $1 ORDER BY posnr', [(int)$link['ordre_id']]), 'id');
+        $this->assertSame(array_map('intval', array_slice($ids, 0, 5)), array_merge(...array_map(fn($l) => array_column($l['rows'], 'ordrelinje_id'), $alloc)),
+            'every Shopify line points to the order lines written for it, in order; the freight is no Shopify line');
+        $shape = array_map(fn($l) => [$l['line_gid'], $l['vare_id'], $l['quantity'], $l['set'], $l['split'], $l['lager'],
+            array_map(fn($r) => [$r['vare_id'], $r['lager'], $r['quantity_milli'], $r['set_line'] ?? false], $l['rows'])], $alloc);
+        $this->assertSame([
+            ['gid://shopify/LineItem/A', $a, 3, false, false, 1, [[$a, 1, 2000, false], [$a, 2, 1000, false]]],
+            ['gid://shopify/LineItem/SAET', $set, 2, true, true, 1, [[$x, 1, 2000, false], [$y, 2, 2000, false], [$set, 1, 1000, true]]],
+        ], $shape, 'a plain line drawn from two lagre, and a split set whose 2 Y come from lager 2 (K55); opret_saet() writes the set line once, as the price correction');
+
+        $this->import($order);
+        $this->assertSame($link['flags'], $this->sql('SELECT flags FROM shopify_order_links WHERE order_gid = $1', [$order['gid']])[0]['flags'], 'a replay leaves it as it is');
     }
 
     public function testASetWhoseBomChangedAfterTheValidationIsRefusedBeforeAnyWrite(): void

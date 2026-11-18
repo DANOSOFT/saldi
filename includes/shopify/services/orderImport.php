@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderImport.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/shopify/services/orderImport.php --- ver 5.1.0 --- 2026.11.13
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20261104 CL/SS SD-743 review: a set must be written with the components it was validated with.
 // 20261104 CL/SS SD-743 review 2: the account check includes OreDif, which bogfor_nu() posts an øre difference of the posting on.
 // 20261104 CL/SS SD-743 review 2: the debtor group must have the VAT group that bogfor() reads for an order with VAT.
+// 20261113 CL/SS SD-841 (input for SD-760): the created link stores the allocation per Shopify line (flags.allocation_v1): its lager and the order lines written for it.
 
 require_once __DIR__ . '/orderIntake.php';
 require_once __DIR__ . '/customers.php';
@@ -220,8 +221,8 @@ function shopify_create_web_order(int $linkId, array $validated, ?callable $cras
 		$shopId = (int)$link['shop_id'];
 		$kontoId = shopify_import_debtor($shopId, $h);
 		$ordreId = shopify_import_header($kontoId, $h);
-		shopify_with_legacy_context(array('momssats' => $h['momssats'], 'afd' => $h['afd']), function () use ($ordreId, $validated) {
-			shopify_import_lines($ordreId, $validated);
+		$allocation = shopify_with_legacy_context(array('momssats' => $h['momssats'], 'afd' => $h['afd']), function () use ($ordreId, $validated): array {
+			return shopify_import_lines($ordreId, $validated);
 		});
 		$totals = shopify_import_totals($ordreId);
 		$diff = round($totals['sum'] + $totals['moms'] - (float)$h['total'], 2);
@@ -245,7 +246,7 @@ function shopify_create_web_order(int $linkId, array $validated, ?callable $cras
 		shopify_advance_order_link($linkId, 'created', array(
 			'ordre_id' => $ordreId,
 			'ship_lager' => $validated['freight']['pickup_lager'] ?? null,
-			'flags' => array('intake' => array('tags' => $validated['tags'], 'total_diff' => $diff)),
+			'flags' => array('intake' => array('tags' => $validated['tags'], 'total_diff' => $diff), 'allocation_v1' => array('lines' => $allocation)),
 		));
 		shopify_intake_report($shopId, array('errors' => array(), 'alarms' => $validated['alarms']), $correlation + array('ordre_id' => $ordreId));
 		$crash('creating');
@@ -535,11 +536,15 @@ function shopify_import_payment_id(array $transactions): string {
  * Writes the order's lines as S09a validated them: a plain line one row per lager of
  * shopify_intake_line_rows() at its net unit price with $fixed_price, a set through
  * opret_saet() with its lager plan, then the freight. Every plain row must be written as asked,
- * and a set's rows must add up to its net price.
+ * and a set's rows must add up to its net price. Returns the allocation of each Shopify line: its
+ * lager (the assembly lager for a split set) and the order lines written for it, the set line last.
  *
+ * @return list<array{line_gid: string, vare_id: int, quantity: int, set: bool, split: bool, lager: int,
+ *   rows: list<array{ordrelinje_id: int, vare_id: int, lager: int, quantity_milli: int, set_line?: true}>}>
  * @throws ShopifyImportError when a line is refused or written differently
  */
-function shopify_import_lines(int $ordreId, array $validated): void {
+function shopify_import_lines(int $ordreId, array $validated): array {
+	$allocation = array();
 	$posnr = 0;
 	foreach ($validated['lines'] as $line) {
 		$varenr = (int)$line['variant_id'] > 0 ? (string)$line['variant_barcode'] : (string)$line['varenr'];
@@ -575,15 +580,18 @@ function shopify_import_lines(int $ordreId, array $validated): void {
 			if ($written !== $expected) {
 				throw new ShopifyImportError("set {$line['varenr']} was written as " . implode(', ', $written) . ', not as validated: ' . implode(', ', $expected));
 			}
+			$allocation[] = shopify_import_allocation($line, $new);
 			continue;
 		}
 		$rows = shopify_intake_line_rows($line);
+		$new = array();
 		foreach ($rows as $row) {
 			$posnr++;
 			$quantity = (float)$row['quantity'];
 			$price = $quantity > 0 ? round($row['net'] / $quantity, 3) : 0.0;
-			shopify_import_line($ordreId, (int)$line['vare_id'], $varenr, $quantity, $price, $posnr, (int)$row['lager'], (string)$line['varenr']);
+			$new[] = shopify_import_line($ordreId, (int)$line['vare_id'], $varenr, $quantity, $price, $posnr, (int)$row['lager'], (string)$line['varenr']);
 		}
+		$allocation[] = shopify_import_allocation($line, $new);
 	}
 	$freight = $validated['freight'];
 	if ($freight !== null) {
@@ -594,10 +602,25 @@ function shopify_import_lines(int $ordreId, array $validated): void {
 		$posnr++;
 		shopify_import_line($ordreId, (int)$freight['vare_id'], (string)$item['varenr'], 1.0, round((float)$freight['net'], 3), $posnr, 0, (string)$item['varenr']);
 	}
+	return $allocation;
 }
 
-/** One plain row through opret_ordrelinje(); it must be the row asked for. */
-function shopify_import_line(int $ordreId, int $vareId, string $varenr, float $quantity, float $price, int $posnr, int $lager, string $label): void {
+/** One Shopify line's allocation_v1 entry from the order lines written for it. */
+function shopify_import_allocation(array $line, array $written): array {
+	$rows = array();
+	foreach ($written as $r) {
+		$row = array('ordrelinje_id' => (int)$r['id'], 'vare_id' => (int)$r['vare_id'], 'lager' => (int)$r['lager'], 'quantity_milli' => (int)round((float)$r['antal'] * 1000));
+		if (!empty($line['set']) && $row['vare_id'] === (int)$line['vare_id'] && $r['samlevare'] === 'on') {
+			$row['set_line'] = true;
+		}
+		$rows[] = $row;
+	}
+	return array('line_gid' => (string)$line['key'], 'vare_id' => (int)$line['vare_id'], 'quantity' => (int)$line['quantity'], 'set' => !empty($line['set']),
+		'split' => !empty($line['split']), 'lager' => (int)($line['lager'] ?? 0), 'rows' => $rows);
+}
+
+/** One plain row through opret_ordrelinje(); it must be the row asked for. Returns the row as written. */
+function shopify_import_line(int $ordreId, int $vareId, string $varenr, float $quantity, float $price, int $posnr, int $lager, string $label): array {
 	$before = array_column(shopify_db_rows('SELECT id FROM ordrelinjer WHERE ordre_id = $1', array($ordreId)), 'id');
 	$answer = opret_ordrelinje($ordreId, $vareId, $varenr, $quantity, '', $price, 0, 100, 'DO', '', $posnr, '0', '', '', '', '0', '', '', '', $lager, __LINE__, true);
 	$new = shopify_reread_new_lines($ordreId, $before);
@@ -606,6 +629,7 @@ function shopify_import_line(int $ordreId, int $vareId, string $varenr, float $q
 		$why = is_string($answer) && !is_numeric($answer) ? ": $answer" : '';
 		throw new ShopifyImportError("item $label was not written as $quantity at $price on lager $lager$why");
 	}
+	return $new[0];
 }
 
 /**
