@@ -40,6 +40,7 @@
 // 20261118 CL/LH UI pass: one summary line per account (ledger-first name, Senest hentet, Hent nu, Administrér) instead of the status panel; Forny adgang only in the expired or action-required notice, Pause/Genoptag and Fjern bankforbindelse on the accounts page.
 //                Ind and Ud columns, a sticky pick bar with count and sums, a click on the row ticks it (shift-click for a range), account tabs only for accounts in use.
 //                Fetch feedback with the time and the number of new lines, the time Hent nu can be used again, support codes in a title attribute; dd-mm-åååå date filter; Tilbage til kladde N.
+// 20261118 CL/LH CodeRabbit: Hent nu counts the new lines from the run itself (new_count), and the "hent igen kl." notice only shows when the 5-minute limit refused the fetch; a running fetch or a lost lease shows the run's own message.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -346,7 +347,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$actor = (string)($brugernavn_raw ?? $brugernavn);
 	try {
 		if ($action === 'refresh') {
-			$pendingBefore = (int)(ebCountsByState($accountId)['pending'] ?? 0);
 			$run = ebSyncAccount($accountId, 'manual', ebPsuHeadersFromRequest());
 			$runStatus = (string)($run['status'] ?? '');
 			$runMessage = !empty($run['error_code'])
@@ -356,16 +356,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				$runMessage .= ' (kode ' . strtoupper($run['error_code']) . ')';
 			}
 			if ($runStatus === 'ok') {
-				$fresh = max(0, (int)(ebCountsByState($accountId)['pending'] ?? 0) - $pendingBefore);
+				// The run's own count of lines stored for the first time, also those sent to review; others' imports meanwhile do not hide them.
+				$fresh = max(0, (int)($run['new_count'] ?? 0));
 				$freshText = $fresh === 0 ? ebT(findtekst('bank.feed.new_none|ingen nye posteringer', ebLang()))
 					: ($fresh === 1 ? ebT(findtekst('bank.feed.new_one|1 ny postering', ebLang()))
 						: sprintf(ebT(findtekst('bank.feed.new_many|%s nye posteringer', ebLang())), $fresh));
 				ebFlash('ok', sprintf(ebT(findtekst('bank.feed.fetched_at|Hentet kl. %s - %s', ebLang())), date('H:i'), $freshText));
 			} elseif ($runStatus === 'skipped') {
-				// Hent nu works once every 5 minutes (ebSyncAccount()); say when it can be used again.
-				$lastManual = (string)(ebRow('SELECT last_manual_at FROM bank_accounts WHERE id=' . (int)$accountId)['last_manual_at'] ?? '');
-				$lastManualTs = $lastManual !== '' ? strtotime($lastManual) : false;
-				if ($lastManualTs !== false && $lastManualTs > time() - 300) {
+				// Hent nu works once every 5 minutes (ebSyncAccount()); when that limit refused it, say when it can be used again.
+				// Any other skip (a fetch already running, a lease lost) keeps the run's own message.
+				$lastManualTs = ($run['reason'] ?? '') === 'cooldown' ? strtotime((string)($run['last_manual_at'] ?? '')) : false;
+				if ($lastManualTs !== false) {
 					$runMessage = sprintf(ebT(findtekst('bank.feed.fetch_wait|Der blev hentet kl. %s. Du kan hente igen kl. %s.', ebLang())),
 						date('H:i', $lastManualTs), date('H:i', $lastManualTs + 300));
 				}

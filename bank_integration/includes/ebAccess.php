@@ -40,6 +40,7 @@
 // 20261118 CL/LH Live port: the company-off message names live's menu path (Indstillinger > Diverse > Bankforbindelse, text bank.unavailable.company_diverse).
 // 20261118 CL/LH UI pass: ebAccountLabel() (ledger-first account name), ebHolderName() (holder names joined with a comma, in ebNames.php), ebNoticeHtml() (support code in a title attribute, also for flash messages), ebParseDate() (dd-mm-åååå and friends).
 //                An unmapped account reads "Ikke i brug" (grey), a disconnected one "Fjernet"; the Tilbage button can name the journal; ebPageH() writes the ellipsis as three dots on ISO-8859-15 tenants.
+// 20261118 CL/LH CodeRabbit: ebConsentText() says "i dag", "i morgen" and "om N dage" by local calendar date; whether access has expired is still decided by the timestamp.
 
 require_once __DIR__ . '/ebConfig.php';
 require_once __DIR__ . '/ebNames.php';
@@ -729,6 +730,11 @@ if (!function_exists('ebH')) {
 		}
 		$date = ebFormatDate($status['valid_until']);
 		$days = (int)$status['days_left'];
+		// "i dag" / "i morgen" by local calendar date: at 23:30, access ending at 08:00 ends tomorrow, though less than a day is left.
+		$ts = $status['valid_until'] !== '' ? strtotime($status['valid_until']) : false;
+		if ($ts !== false) {
+			$days = (int)round((strtotime(date('Y-m-d', $ts)) - strtotime(date('Y-m-d'))) / 86400);
+		}
 		if ($days <= 0) {
 			$txt = ebT(findtekst('bank.consent.today|Adgangen udløber i dag', ebLang()));
 		} elseif ($days === 1) {
