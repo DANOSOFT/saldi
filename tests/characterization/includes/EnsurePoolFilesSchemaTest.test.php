@@ -4,6 +4,7 @@
 // 20261118 CL/MMR SD-815 Codex round 7: a partial unique index on filename does not count, and an interrupted norm_amount backfill is finished by the next run.
 // 20261118 CL/MMR SD-815 Codex round 8: a deferrable filename constraint is replaced, and a failed or impossible norm_amount update never marks the backfill done.
 //                 The test's db_modify() acts like the production one for an update file: a failed statement is logged, rolled back to a savepoint and reported as accepted.
+// 20261118 CL/MMR SD-815 Codex round 9: two connections, a pool save committing while the backfill update waits for its row lock is kept (amount and norm_amount together, or the text alone, filled on the next run).
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -14,6 +15,9 @@ use PHPUnit\Framework\TestCase;
 final class EnsurePoolFilesSchemaTest extends TestCase
 {
     private ?\PgSql\Connection $connection = null;
+    private ?\PgSql\Connection $other = null;
+    private string $database = '';
+    private string $committedSchema = '';
 
     /** The pool_files statement includes/opretfunc.php ran for a new regnskab before this fix. */
     private const OLD_OPRET_POOL_FILES = "CREATE TABLE pool_files (id SERIAL NOT NULL, filename varchar(255), subject text, account varchar(50), "
@@ -27,7 +31,8 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        $this->connection = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
+        $this->database = TestDatabase::sqlFixture(static::class)->name();
+        $this->connection = TestDatabase::connect($this->database);
         $GLOBALS['ensurePoolFilesConnection'] = $this->connection;
         $GLOBALS['ensurePoolFilesWrites'] = [];
         $GLOBALS['ensurePoolFilesErrors'] = [];
@@ -45,12 +50,31 @@ final class EnsurePoolFilesSchemaTest extends TestCase
             function db_modify($sql, $location = '') {
                 $GLOBALS['ensurePoolFilesWrites'][] = $sql;
                 $connection = $GLOBALS['ensurePoolFilesConnection'];
-                pg_query($connection, 'SAVEPOINT db_modify');
-                if (@pg_query($connection, $sql) === false) {
-                    $GLOBALS['ensurePoolFilesErrors'][] = pg_last_error($connection);
-                    pg_query($connection, 'ROLLBACK TO SAVEPOINT db_modify');
+                $inTransaction = pg_transaction_status($connection) === PGSQL_TRANSACTION_INTRANS;
+                if ($inTransaction) {
+                    pg_query($connection, 'SAVEPOINT db_modify');
                 }
-                pg_query($connection, 'RELEASE SAVEPOINT db_modify');
+                $whileBlocked = $GLOBALS['ensurePoolFilesWhileBlocked'] ?? null;
+                if ($whileBlocked !== null && str_starts_with($sql, 'UPDATE pool_files SET norm_amount')) {
+                    // Sent without waiting; the test lets its other connection commit while this one waits for the row lock.
+                    unset($GLOBALS['ensurePoolFilesWhileBlocked']);
+                    pg_send_query($connection, $sql);
+                    $whileBlocked(pg_get_pid($connection));
+                    $result = pg_get_result($connection);
+                    $ok = pg_result_status($result) === PGSQL_COMMAND_OK;
+                    $GLOBALS['ensurePoolFilesBlockedRows'] = $ok ? pg_affected_rows($result) : -1;
+                } else {
+                    $ok = @pg_query($connection, $sql) !== false;
+                }
+                if (!$ok) {
+                    $GLOBALS['ensurePoolFilesErrors'][] = pg_last_error($connection);
+                    if ($inTransaction) {
+                        pg_query($connection, 'ROLLBACK TO SAVEPOINT db_modify');
+                    }
+                }
+                if ($inTransaction) {
+                    pg_query($connection, 'RELEASE SAVEPOINT db_modify');
+                }
                 return '0' . chr(9) . 'query accepted';
             }
             function db_escape_string($value) {
@@ -72,10 +96,18 @@ final class EnsurePoolFilesSchemaTest extends TestCase
 
     protected function tearDown(): void
     {
+        if ($this->other !== null) {
+            @pg_query($this->other, 'ROLLBACK');
+            pg_close($this->other);
+        }
         if ($this->connection !== null) {
-            pg_query($this->connection, 'ROLLBACK');
+            @pg_query($this->connection, 'ROLLBACK');
+            if ($this->committedSchema !== '') {
+                pg_query($this->connection, "DROP SCHEMA {$this->committedSchema} CASCADE");
+            }
             pg_close($this->connection);
         }
+        unset($GLOBALS['ensurePoolFilesWhileBlocked'], $GLOBALS['ensurePoolFilesBlockedRows']);
         unset($GLOBALS['ensurePoolFilesConnection'], $GLOBALS['ensurePoolFilesWrites'], $GLOBALS['ensurePoolFilesErrors']);
     }
 
@@ -308,5 +340,83 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $GLOBALS['ensurePoolFilesWrites'] = [];
         self::assertSame([], ensurePoolFilesSchema('postgresql'));
         self::assertSame([], $GLOBALS['ensurePoolFilesWrites']);
+    }
+
+    /**
+     * A committed private schema (a second connection cannot see the per-test transaction), with the old 5.1 pool_files
+     * already given its columns and indexes, one row '99,00' without norm_amount and no backfill flag. Dropped in tearDown.
+     */
+    private function committedPoolWithPendingRow(): void
+    {
+        $this->sql('ROLLBACK');
+        $this->committedSchema = 'pool_lock_' . bin2hex(random_bytes(8));
+        $this->sql("CREATE SCHEMA {$this->committedSchema}");
+        $this->sql("SET search_path TO {$this->committedSchema}");
+        $this->sql('CREATE TABLE settings (id serial PRIMARY KEY, var_name text, var_grp text, var_value text, var_description text, user_id integer, group_id integer, pos_id integer)');
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('old.pdf', '99,00')");
+        ensurePoolFilesSchema('postgresql');
+        $this->sql("DELETE FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'");
+        $this->sql('UPDATE pool_files SET norm_amount = NULL');
+        $this->other = TestDatabase::connect($this->database);
+        pg_query($this->other, "SET search_path TO {$this->committedSchema}");
+    }
+
+    /** The other connection takes the row lock with $save and commits it once the backfill waits for that lock. */
+    private function saveWhileTheBackfillWaits(string $save): void
+    {
+        $other = $this->other;
+        self::assertNotFalse(pg_query($other, 'BEGIN'));
+        self::assertNotFalse(pg_query($other, $save));
+        $GLOBALS['ensurePoolFilesWhileBlocked'] = static function (int $pid) use ($other): void {
+            $deadline = microtime(true) + 20;
+            do {
+                $waiting = pg_fetch_result(pg_query($other, "SELECT count(*) FROM pg_locks WHERE pid = $pid AND NOT granted"), 0, 0);
+                if ((int) $waiting > 0) {
+                    break;
+                }
+                usleep(20000);
+            } while (microtime(true) < $deadline);
+            if ((int) $waiting === 0) {
+                throw new RuntimeException('the backfill update never waited for the row lock');
+            }
+            pg_query($other, 'COMMIT');
+        };
+    }
+
+    /** @return array{amount: string, norm_amount: string|null} */
+    private function oldRow(): array
+    {
+        return pg_fetch_assoc($this->sql("SELECT amount, norm_amount FROM pool_files WHERE filename = 'old.pdf'"));
+    }
+
+    public function testAPoolSaveCommittedWhileTheBackfillWaitsIsKept(): void
+    {
+        $this->committedPoolWithPendingRow();
+        $this->saveWhileTheBackfillWaits("UPDATE pool_files SET amount = '125,00', norm_amount = 125.000 WHERE filename = 'old.pdf'");
+
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame(0, $GLOBALS['ensurePoolFilesBlockedRows'], 'the waiting update re-checked the row and wrote nothing');
+        self::assertSame(['amount' => '125,00', 'norm_amount' => '125.000'], $this->oldRow(), 'the save is kept');
+        self::assertSame(1, $this->backfillFlags(), 'nothing is left to fill');
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+    }
+
+    public function testANewAmountTextSavedWhileTheBackfillWaitsIsFilledByTheNextRun(): void
+    {
+        $this->committedPoolWithPendingRow();
+        $this->saveWhileTheBackfillWaits("UPDATE pool_files SET amount = '125,00' WHERE filename = 'old.pdf'");
+
+        self::assertSame([], ensurePoolFilesSchema('postgresql'), 'the row changed under it: no flag yet');
+
+        self::assertSame(0, $GLOBALS['ensurePoolFilesBlockedRows']);
+        self::assertSame(['amount' => '125,00', 'norm_amount' => null], $this->oldRow(), 'no stale 99.000');
+        self::assertSame(0, $this->backfillFlags());
+
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
+        self::assertSame(['amount' => '125,00', 'norm_amount' => '125.000'], $this->oldRow());
+        self::assertSame(1, $this->backfillFlags());
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
     }
 }

@@ -28,6 +28,7 @@
 //                 The norm_amount backfill has its own completion flag (settings system/pool_files_norm_amount_backfilled, as opdat_5.0.php), set only after it has run, so an interrupted run is resumed by the next login.
 // 20261118 CL/MMR SD-815 Codex round 8: a deferrable unique constraint on filename (ON CONFLICT cannot use it) is replaced by an immediate unique index.
 //                 The backfill flag is set only when a re-read finds no row left to fill (db_modify() reports a failed write from an update file as accepted), and an amount numeric(15,3) cannot hold stays NULL like an unparseable one.
+// 20261118 CL/MMR SD-815 Codex round 9: a backfill update only writes while norm_amount is still NULL and amount is still the text it was computed from, so a pool save that commits meanwhile is never overwritten.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -81,9 +82,10 @@ if (!function_exists('ensurePoolFilesBackfillValue')) {
 
 if (!function_exists('ensurePoolFilesBackfillPending')) {
 	/**
-	 * Rows whose norm_amount is still empty although their amount text gives one: id => SQL value.
+	 * Rows whose norm_amount is still empty although their amount text gives one: id => the amount text read and
+	 * the SQL value it gives.
 	 *
-	 * @return array<int, string>
+	 * @return array<int, array{amount: string, value: string}>
 	 */
 	function ensurePoolFilesBackfillPending(): array {
 		$pending = array();
@@ -91,7 +93,7 @@ if (!function_exists('ensurePoolFilesBackfillPending')) {
 		while ($r = db_fetch_array($q)) {
 			$value = ensurePoolFilesBackfillValue($r['amount']);
 			if ($value !== null) {
-				$pending[(int)$r['id']] = $value;
+				$pending[(int)$r['id']] = array('amount' => (string)$r['amount'], 'value' => $value);
 			}
 		}
 		return $pending;
@@ -228,8 +230,11 @@ if (!function_exists('ensurePoolFilesSchema')) {
 				$done[] = 'norm_amount_index';
 			}
 			if (!$state['normAmountBackfilled']) {
-				foreach (ensurePoolFilesBackfillPending() as $id => $value) {
-					db_modify("UPDATE pool_files SET norm_amount = $value WHERE id = " . (int)$id, __FILE__ . " linje " . __LINE__);
+				foreach (ensurePoolFilesBackfillPending() as $id => $row) {
+					// Only while the row is as it was read: a pool save (poolMetadata.php writes amount and norm_amount
+					// together) that commits while this waits for the row lock is re-checked by the WHERE and kept.
+					db_modify("UPDATE pool_files SET norm_amount = " . $row['value'] . " WHERE id = " . (int)$id
+						. " AND norm_amount IS NULL AND amount = '" . db_escape_string($row['amount']) . "'", __FILE__ . " linje " . __LINE__);
 				}
 				// db_modify() reports a failed write from an update file as accepted, so read back: the flag only when no
 				// row is left to fill. Otherwise no flag, and the next login tries the rest again.
