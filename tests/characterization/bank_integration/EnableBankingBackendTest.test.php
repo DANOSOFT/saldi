@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/characterization/bank_integration/EnableBankingBackendTest.test.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- tests/characterization/bank_integration/EnableBankingBackendTest.test.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,8 @@
 // 20261116 CL/LH Review fixes: posting and import serialize on the journal header (both directions, real processes), import after an account reset, ISO-8859-15 bank text.
 // 20261117 CL/LH CodeRabbit fixes: consent cleanup, reference "0", value-date overlap hint, re-dated pre-cutover line, due re-check, change approval bound to the shown change; child helper keeps the first exit status and stops a stuck child.
 // 20261117 CL/LH A missing key file after the bank session is created still closes the consent at the bank.
+// 20261118 CL/LH A renewal does not close the replaced consent at the bank (it broke the new consent in the Nordea sandbox).
+// 20261118 CL/LH Disconnecting clears the account's old fetch error.
 
 use PHPUnit\Framework\TestCase;
 
@@ -788,7 +790,8 @@ final class EnableBankingBackendTest extends TestCase
         $row = ebConsumeAuthorization($state, 1);
         $fixture = json_decode(file_get_contents(__DIR__ . '/../../fixtures/enablebanking/accounts.json'), true);
         $body = $fixture + ['session_id' => bin2hex(random_bytes(16)), 'access' => ['valid_until' => date(DATE_RFC3339, time() + 86400)]];
-        $client = $this->client([$this->step($body, 200, '/sessions', 'POST'), $this->step(['message' => 'OK'], 200, '/sessions/', 'DELETE'), $this->step($this->page())]);
+        $transport = new EbFixtureTransport([$this->step($body, 200, '/sessions', 'POST'), $this->step($this->page())]);
+        $client = new EnableBankingClient(EbTestKeys::config(), $transport);
         $newId = ebCompleteAuthorization($client, $row, bin2hex(random_bytes(16)), 'chartest');
         $account = ebRow('SELECT * FROM bank_accounts WHERE id=' . $this->accountId);
         $this->assertSame((string)$newId, $account['connection_id']);
@@ -802,6 +805,8 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertCount(2, ebRows('SELECT id FROM bank_transactions'));
         $this->assertCount(2, ebRows('SELECT id FROM kassekladde'));
         $this->assertSame('replaced', ebRow('SELECT status FROM bank_connections WHERE id=' . $this->connectionId)['status']);
+        // The replaced consent is left to run out at the bank; closing it broke the new one in the Nordea sandbox.
+        $this->assertSame(['POST', 'GET'], array_column($transport->requests, 'method'));
     }
 
     /** @return void */
@@ -1954,6 +1959,7 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertSame(1, ebWaitingCountForConnection($this->connectionId));
         $this->assertSame(0, ebWaitingCountForConnection(2147483647));
         $before = ebRows('SELECT * FROM bank_transactions ORDER BY id');
+        ebUpdate('bank_accounts', $this->accountId, ['last_error_code' => 'ASPSP_ERROR', 'last_error' => 'Enable Banking: ASPSP_ERROR (HTTP 400).']);
         $transport = new EbFixtureTransport([$this->step(['error' => 'INTERNAL_SERVER_ERROR'], 500, '/sessions/', 'DELETE')]);
         ebDisconnect($this->connectionId, 'chartest', new EnableBankingClient(EbTestKeys::config(), $transport));
         $connection = ebRow('SELECT * FROM bank_connections WHERE id=' . $this->connectionId);
@@ -1963,6 +1969,8 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertSame($before, ebRows('SELECT * FROM bank_transactions ORDER BY id'));
         $this->assertSame('disconnected', ebAccountStatus($this->accountId)['state']);
         $this->assertNull(ebAccountStatus($this->accountId)['next_fetch_at']);
+        // The old fetch error promised an automatic retry that no longer happens.
+        $this->assertNull(ebRow('SELECT last_error_code FROM bank_accounts WHERE id=' . $this->accountId)['last_error_code']);
         $this->assertCount(0, ebRows('SELECT id FROM bank_account_sessions WHERE active=1'));
         $this->assertCount(1, ebRows('SELECT id FROM kassekladde'));
         ebUpdate('bank_connections', $this->connectionId, ['valid_until' => null, 'session_enc' => '']);
