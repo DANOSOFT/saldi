@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.10
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,8 @@
 // 20261102 CL/ASR Self-service signup (signup/, doc/signup.md): its master-database tables and the trial columns on regnskab, moved here from the flow's own first-use setup.
 //                 Serialized with an advisory lock; a settings flag (system/signup_schema) marks it done.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
+// 20261118 CL/LH Install the tenant Enable Banking schema (includes/opdat_func/ebSchemaInstall.php) idempotently.
+// 20261118 CL/LH Delete the removed Aiia integration's OAuth Client ID and Client Secret rows from the master database's settings table (from #877).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -51,5 +53,26 @@ include_once(__DIR__ . '/opdat_func/deleteStaleTekst.php');
 // It returns immediately once the completion flag is set. Do not move it into a future release gate.
 require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
 backfillOrderLineDelivered($db_type);
+
+// 20261118 CL/LH Enable Banking bank feed tables (bank_connections, bank_accounts, bank_transactions, ...).
+require_once __DIR__ . '/opdat_func/ebSchemaInstall.php';
+if (!ebSchemaReady()) {
+	ebEnsureSchema();
+}
+
+// 20261118 CL/LH The Aiia bank integration is removed (Enable Banking replaces it, #877), so nothing reads its OAuth client
+// credentials any more. They are the 'Client ID' and 'Client Secret' rows with var_grp 'OAuth' in the master database's
+// settings table (the Aiia code read them with db_select(..., true)), so they are deleted there. Only those two rows: the
+// per-user 'oauth_data' rows and the 'bank_integration' preference rows are left alone. The column check keeps a master
+// database whose settings table has no var_grp from failing the login, and looking for the rows first means later logins only read.
+$aiiaCredentialsMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$qtxt = "SELECT 1 FROM information_schema.columns WHERE table_name = 'settings' AND column_name = 'var_grp'";
+$qtxt.= $aiiaCredentialsMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true))) {
+	$aiiaCredentialsWhere = "var_grp = 'OAuth' AND var_name IN ('Client ID', 'Client Secret')";
+	if (db_fetch_array(db_select("SELECT id FROM settings WHERE $aiiaCredentialsWhere", __FILE__ . " linje " . __LINE__, true))) {
+		db_modify("DELETE FROM settings WHERE $aiiaCredentialsWhere", __FILE__ . " linje " . __LINE__, true);
+	}
+}
 
 ?>

@@ -1,0 +1,7 @@
+{
+  "accounts": [
+    {"uid":"fixture-account-one", "identification_hash":"fixture-primary-hash", "identification_hashes":["fixture-primary-hash","fixture-shared-hash"], "account_id":{"iban":"DK50000000001234"}, "name":"Driftskonto", "currency":"DKK", "cash_account_type":"CACC"},
+    {"uid":null,"identification_hash":"fixture-blocked-hash","name":"Lukket","currency":"DKK"},
+    {"uid":"fixture-eur-account","identification_hash":"fixture-eur-hash","name":"Eurokonto","currency":"EUR"}
+  ]
+}

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.0 ----2026-10-30------------
+// --- systemdata/diverse.php -----ver 5.1.1 ----2026-11-18------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -118,6 +118,7 @@
 // 20261029 CL/MMR SD-786 Save "Vis besked når kostprisen er anslået" (showCostEstimateNotice) under Ordrerelaterede valg.
 //                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast), and its alerts are shown after the save, escaped with jsString().
 // 20261030 CL/MMR SD-786 CodeRabbit (PR #959): the alerts from the ordre_valg save are shown in one alert (orderOptionsAlert()), so none is lost.
+// 20261118 CL/LH Bankforbindelse (Enable Banking) replaces the Aiia settings section; its POST is handled before any output.
 
 @session_start();
 $s_id = session_id();
@@ -143,6 +144,10 @@ include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 include_once(__DIR__ . '/diverseIncludes/webshopInvoiceOrderDate.php');
 save_webshop_invoice_order_date((string)ifset($_SERVER, 'REQUEST_METHOD', ''), (string)ifset($_GET, 'sektion', ''), $_POST); #SST-911
+if (($_GET['sektion'] ?? '') == 'bank_integration' && $_SERVER['REQUEST_METHOD'] == 'POST' && function_exists('bankIntegrationAvailable')) {
+	include_once(__DIR__ . '/diverseIncludes/bank_integration.php');
+	bankIntegrationSave(); # Redirects back to the section.
+}
 
 $defaultProvision = $sqlstreng = NULL;
 if (!isset($_SESSION['UserName']) && isset($brugernavn)) {
@@ -2220,7 +2225,10 @@ if ($sektion == "rykker_valg") rykker_valg();
 if ($sektion == "div_valg") div_valg(); # Kalder sys_div_valg.php
 if ($sektion == "docubizz") docubizz();
 if ($sektion == "bilag") bilag();
-if ($sektion == "bank_integration") include('diverseIncludes/bank_integration.php');
+if ($sektion == "bank_integration" && function_exists('bankIntegrationAvailable')) {
+	include_once(__DIR__ . '/diverseIncludes/bank_integration.php');
+	bankIntegrationSettings();
+}
 //if ($sektion=="barcodescan") barcodescan();
 if ($sektion == "orediff") orediff($diffkto);
 if ($sektion == "massefakt") massefakt();

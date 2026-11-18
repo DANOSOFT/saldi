@@ -1,5 +1,6 @@
 <?php
 // 20260914 CDX/LH Check journal save identity, retry, action and tenant/user boundaries.
+// 20261116 CL/LH Cover Bankforbindelse request identity, journal reuse and replay redirects to the feed.
 // Run: php tests/integration/journalSaveReplay.php
 require_once __DIR__ . '/../../finans/kassekladde_includes/saveReplay.php';
 error_reporting(E_ALL);
@@ -27,6 +28,23 @@ checkReplay(journalSaveTarget($session, $formKey, 0) === 42, 'A failed first sav
 checkReplay(journalSavedRequest($session, $key) === null, 'A failed save must be validated again');
 journalRememberSave($session, $key, 42);
 checkReplay(journalSavedRequest($session, $key) === 42, 'Identical completed POST must return the saved journal');
+
+$bankSession = [];
+$bankPost = $post;
+unset($bankPost['save']);
+$bankPost['bankfeed'] = 'Bankforbindelse';
+$bankKey = journalSaveRequestKey($bankPost, 'tenant_a', 'user_a');
+$bankFormKey = journalSaveFormKey($bankPost, 'tenant_a', 'user_a');
+checkReplay($bankKey !== null, 'Bankforbindelse must get an explicit save request key');
+checkReplay($bankFormKey !== null, 'Bankforbindelse must get a form key');
+checkReplay($bankKey !== $key, 'Bankforbindelse and Gem requests must not collide');
+journalRememberCreation($bankSession, $bankFormKey, 42);
+checkReplay(journalSaveTarget($bankSession, $bankFormKey, (int)$bankPost['kladde_id']) === 42, 'Repeated Bankforbindelse on a new form must reuse its journal');
+checkReplay(journalSavedRequest($bankSession, $bankKey) === null, 'Uncompleted Bankforbindelse must still save');
+journalRememberSave($bankSession, $bankKey, 42);
+checkReplay(journalSavedRequest($bankSession, journalSaveRequestKey($bankPost, 'tenant_a', 'user_a')) === 42, 'Repeated Bankforbindelse must find its completed save');
+checkReplay(journalSaveReplayLocation($bankPost, 42) === '../bank_integration/feed.php?kladde_id=42', 'Repeated Bankforbindelse must redirect to the bank feed');
+checkReplay(journalSaveReplayLocation($post, 42) === 'kassekladde.php?kladde_id=42&tjek=42', 'Repeated Gem must redirect to the journal');
 
 $changed = $post;
 $changed['belo1'] = '25,00';
