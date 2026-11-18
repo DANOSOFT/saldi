@@ -196,7 +196,7 @@
 // 20261118 CL/MMR SST-1013 The credit-limit queries escape the order currency and the post date, and cast the account id.
 //                 A rate of 0 is handled like a missing rate, so it no longer stops the page with a division by zero.
 //                 A post without a date is handled like a missing rate too, instead of comparing with an empty date.
-//                 A post amount or rate that is not a number (NULL, NaN) counts as 0 and 100, so the sum cannot stop the page.
+//                 A post amount that is not a number (NaN) counts as 0, and a post rate that is not a number gives the no-rate alert, so the sum cannot stop the page.
 @session_start();
 $s_id = session_id();
 
@@ -6586,30 +6586,34 @@ function ordreside($id, $regnskab)
 				$tilgode = 0;
 				while ($r = db_fetch_array($q)) {
 					if (!$r['valuta']) $r['valuta'] = $baseCurrency;
-					// NULL or a value that is not a number (e.g. PostgreSQL NaN) cannot be calculated with: the amount counts as 0, the rate as 100
+					if (!$r['valutakurs']) $r['valutakurs'] = 100;
+					// NULL or NaN cannot be calculated with: such an amount counts as 0, and such a rate means the post cannot be converted
 					$postAmount = is_numeric($r['amount']) ? (float)$r['amount'] : 0;
-					$postRate = is_numeric($r['valutakurs']) ? (float)$r['valutakurs'] : 0;
-					if (!$postRate) $postRate = 100;
-					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $postAmount * $postRate / 100;
-					elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
+					$postRate = is_numeric($r['valutakurs']) ? (float)$r['valutakurs'] : null;
+					$opp_amount = 0; // a post that cannot be converted adds nothing, and the previous post's amount is not counted again
+					$noRate = false;
+					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) {
+						if ($postRate === null) $noRate = true;
+						else $opp_amount = $postAmount * $postRate / 100;
+					} elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
 						$r3 = false; // a post without a date has no rate to look up
 						if ($r['transdate']) {
 							$r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='" . db_escape_string((string)$valuta) . "' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '" . db_escape_string((string)$r['transdate']) . "' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__));
 						}
 						$rateKurs = ($r3 && is_numeric($r3['kurs'])) ? (float)$r3['kurs'] : 0;
-						if ($rateKurs > 0) { // a rate of 0 or no rate is handled as no rate
-							$opp_amount = $postAmount * 100 / $rateKurs;
-						} else {
-							$opp_amount = 0; // no rate: the post cannot be converted, and the previous post's amount must not be counted again
-							if ($valuta) {
-								$alertJs = htmlspecialchars(jsString(array(findtekst('1850|Ingen valutakurs for faktura', $sprog_id), ' ', (string)$r['faktnr'])), ENT_QUOTES, 'UTF-8');
-								print "<BODY onLoad=\"javascript:alert($alertJs)\">\n";
-							}
-						}
+						if ($rateKurs > 0) $opp_amount = $postAmount * 100 / $rateKurs; // a rate of 0 or no rate is handled as no rate
+						else $noRate = true;
 					} elseif ($valuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $valuta) {
-						$tmp = $postAmount * $postRate / 100; // the post in the base currency
-						$opp_amount = ($valutakurs) ? $tmp * 100 / $valutakurs : $tmp; // and in the order's currency
+						if ($postRate === null) $noRate = true;
+						else {
+							$tmp = $postAmount * $postRate / 100; // the post in the base currency
+							$opp_amount = ($valutakurs) ? $tmp * 100 / $valutakurs : $tmp; // and in the order's currency
+						}
 					} else $opp_amount = $postAmount;
+					if ($noRate && $valuta) {
+						$alertJs = htmlspecialchars(jsString(array(findtekst('1850|Ingen valutakurs for faktura', $sprog_id), ' ', (string)$r['faktnr'])), ENT_QUOTES, 'UTF-8');
+						print "<BODY onLoad=\"javascript:alert($alertJs)\">\n";
+					}
 					$tilgode = $tilgode + $opp_amount;
 				}
 				if ($kreditmax < $ialt + $tilgode) {
