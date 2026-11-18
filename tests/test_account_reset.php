@@ -1,5 +1,5 @@
 <?php
-// --- tests/test_account_reset.php --- 2026-11-16 ---
+// --- tests/test_account_reset.php --- 2026-11-18 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Verify reset scope and preservation options without database writes.
 // 20260916 CDX/PHR Verify item texts follow the keep-items option.
@@ -7,6 +7,7 @@
 // 20260917 CL/LH Verify the reset is refused on MySQL/MariaDB before any statement is issued.
 // 20261005 SS Verify personal settings (USET) are not deleted by a reset.
 // 20261116 CL/ASR Verify the postings are counted under the lock and returned, and that a failed session update after the commit comes back as a warning, not an exception (review #1131).
+// 20261118 CL/ASR One ordered trace checks begin, lock, count, truncate and commit in that order, in webservice mode, and a failed lock rolls back before anything is deleted (review #1131).
 require_once(__DIR__ . '/../systemdata/resetAccount.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -47,12 +48,15 @@ function db_escape_string($value) {
 }
 function db_modify($sql, $trace, $global = false) {
 	$GLOBALS['resetStatementsIssued'][] = $sql;
+	$GLOBALS['resetTrace'][] = $sql . (empty($GLOBALS['webservice']) ? '' : ' [ws]');
+	if (!$global && isset($GLOBALS['resetFailSql']) && $GLOBALS['resetFailSql'] === $sql) return "1\tfejl";
 	$GLOBALS['resetSessionTestCall'] = array($sql, $global);
 	if ($global) $GLOBALS['resetSessionWebservice'] = !empty($GLOBALS['webservice']);
 	return ($global && !empty($GLOBALS['resetFailSession'])) ? "1\tfejl" : "0\tquery accepted";
 }
 function db_select($sql, $trace) {
 	$GLOBALS['resetStatementsIssued'][] = $sql;
+	$GLOBALS['resetTrace'][] = $sql;
 	return $sql; # the handle is the query; db_fetch_array() answers it from $GLOBALS['resetRows']
 }
 function db_fetch_array($handle) {
@@ -64,7 +68,13 @@ function db_fetch_array($handle) {
 	return false;
 }
 function transaktion($what) {
-	$GLOBALS['resetTransactions'][] = $what;
+	$GLOBALS['resetTrace'][] = "tx:$what";
+}
+/** The trace without the steps that do not matter for the order: the table list, the year setup (grupper) and the session update. */
+function resetOrderedTrace() {
+	return array_values(array_filter($GLOBALS['resetTrace'], function ($step) {
+		return strpos($step, 'information_schema') === false && strpos($step, 'grupper') === false && strpos($step, 'online') === false;
+	}));
 }
 resetAccountSessionYear('test_41');
 resetCheck($GLOBALS['resetSessionTestCall'] === array("UPDATE online SET regnskabsaar='1' WHERE db='test_41'", true), 'Session update must target only this tenant in the master database');
@@ -112,7 +122,7 @@ echo "OK: MySQL/MariaDB reset refused before any statement is issued.\n";
 // commit is a warning, because the ledger is reset by then (review #1131).
 foreach (array(false, true) as $failSession) {
 	$GLOBALS['resetStatementsIssued'] = array();
-	$GLOBALS['resetTransactions'] = array();
+	$GLOBALS['resetTrace'] = array();
 	$GLOBALS['resetFailSession'] = $failSession;
 	$GLOBALS['resetRows'] = array(
 		'information_schema.tables' => array(array('table_name' => 'transaktioner'), array('table_name' => 'grupper')),
@@ -121,11 +131,8 @@ foreach (array(false, true) as $failSession) {
 	);
 	$warning = 'unset';
 	$deleted = resetAccount(false, false, 'postgresql', 'test_41', $warning);
-	$issued = $GLOBALS['resetStatementsIssued'];
-	$lockAt = array_search('LOCK TABLE transaktioner IN ACCESS EXCLUSIVE MODE', $issued, true);
-	$countAt = array_search('SELECT count(*) AS n FROM transaktioner', $issued, true);
-	resetCheck($lockAt !== false && $countAt !== false && $lockAt < $countAt, 'Postings must be counted after the lock is taken');
-	resetCheck($GLOBALS['resetTransactions'] === array('begin', 'commit'), 'The lock, the count and the reset share one transaction');
+	$expected = array('tx:begin', 'LOCK TABLE transaktioner IN ACCESS EXCLUSIVE MODE [ws]', 'SELECT count(*) AS n FROM transaktioner', 'TRUNCATE transaktioner RESTART IDENTITY [ws]', 'tx:commit');
+	resetCheck(resetOrderedTrace() === $expected, 'Begin, lock, count, truncate and commit, in that order and in webservice mode: ' . implode(' | ', resetOrderedTrace()));
 	resetCheck($deleted === 5, 'The counted postings are returned');
 	resetCheck($GLOBALS['resetSessionWebservice'] === true, 'The session update runs in webservice mode, so a failure cannot end the request');
 	resetCheck(empty($GLOBALS['webservice']), 'Webservice mode is switched off again afterwards');
@@ -137,3 +144,21 @@ foreach (array(false, true) as $failSession) {
 }
 $GLOBALS['resetFailSession'] = false;
 echo "OK: postings counted under the lock and returned; a failed session update after the commit is a warning.\n";
+
+// A failed lock (a cancelled wait) is returned in webservice mode: the reset rolls back and throws before deleting anything (review #1131).
+$GLOBALS['resetTrace'] = array();
+$GLOBALS['resetFailSql'] = 'LOCK TABLE transaktioner IN ACCESS EXCLUSIVE MODE';
+$GLOBALS['resetRows'] = array(
+	'information_schema.tables' => array(array('table_name' => 'transaktioner'), array('table_name' => 'grupper')),
+);
+$thrown = '';
+try {
+	resetAccount(false, false, 'postgresql', 'test_41');
+} catch (RuntimeException $e) {
+	$thrown = $e->getMessage();
+}
+$GLOBALS['resetFailSql'] = null;
+resetCheck($thrown !== '', 'A failed lock must make the reset throw');
+resetCheck(resetOrderedTrace() === array('tx:begin', 'LOCK TABLE transaktioner IN ACCESS EXCLUSIVE MODE [ws]', 'tx:rollback'), 'A failed lock rolls back before any statement deletes: ' . implode(' | ', resetOrderedTrace()));
+resetCheck(empty($GLOBALS['webservice']), 'Webservice mode is switched off again after a failed reset');
+echo "OK: a failed lock rolls the reset back and is reported, not ending the request.\n";

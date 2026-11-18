@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/resetAccount.php --- 2026-11-16 ---
+// --- systemdata/resetAccount.php --- 2026-11-18 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Build an explicit reset plan using only existing tenant tables.
 // 20260916 CDX/PHR Clear item texts when items are not retained.
@@ -10,6 +10,7 @@
 // 20261005 SS Settings redesign G1.4: users' personal settings (grupper USET) survive a reset.
 // 20261116 CL/ASR resetAccount() locks transaktioner inside its transaction before it counts the postings, and returns that count, so the number it reports is exactly what the reset deletes (review #1131).
 //                 A failed update of the active sessions' year after the commit no longer throws: the reset is done by then, so the message goes to the caller in $warning (review #1131).
+// 20261118 CL/ASR The reset's transaction runs in db_modify()'s webservice mode, so a failed statement (the lock included) is rolled back and reported by resetAccount() instead of ending a browser request (review #1131).
 //                 That update runs in db_modify()'s webservice mode, which returns a failure instead of ending a browser request with exit, so the caller can still log and report the reset (review #1131).
 
 /**
@@ -108,6 +109,11 @@ function resetAccount($keepAccounts, $keepItems, $dbType, $database, &$warning =
 		throw new RuntimeException('Kunne ikke finde regnskabets tabeller; nulstilling afbrudt.');
 	}
 	// PostgreSQL rolls back the entire reset on failure, including identity sequences.
+	// In a browser request a failed db_modify() shows the error box and ends the request, so the checks and the rollback
+	// below would never run. In webservice mode the failure is logged, mailed and returned instead. #20261118
+	global $webservice;
+	$wasWebservice = $webservice;
+	$webservice = true;
 	transaktion('begin');
 	$deletedPostings = 0;
 	try {
@@ -137,6 +143,8 @@ function resetAccount($keepAccounts, $keepItems, $dbType, $database, &$warning =
 	} catch (Throwable $error) {
 		transaktion('rollback');
 		throw $error;
+	} finally {
+		$webservice = $wasWebservice;
 	}
 	// The ledger is reset once the commit is through, so a failed session update must not look like a failed reset. #20261116
 	try {

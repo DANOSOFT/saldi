@@ -32,6 +32,8 @@
 // 20261118 CL/ASR Merged master (MB-163): the page refuses every user without the admin flag, and every POST without the session token, before any action.
 //                 That is SirRolin's rule for Nulstil regnskab (review #1131), so the reset's own admin check and its second CSRF check are gone.
 //                 The reset button keeps its red outline: online.php paints every button[type="submit"] in the button colour with !important.
+//                 The reset ends in a redirect, so a refresh of its result cannot post it again past the confirm(); the result comes back once through the session (review #1131).
+//                 Missing POST fields are read with ifset(), and the audit entry's user name is made UTF-8 first, so json_encode() cannot drop the entry on a LATIN9 install (review #1131).
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -242,6 +244,11 @@ $available_features = array(
 
 $message = '';
 $message_type = 'success';
+// The result of a reset, kept over its redirect (see reset_ledger below).
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !empty($_SESSION['admin_panel_reset_result'])) {
+    list($message, $message_type) = $_SESSION['admin_panel_reset_result'];
+    unset($_SESSION['admin_panel_reset_result']);
+}
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -299,11 +306,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // --- Reset a ledger (systemdata/resetAccount.php). The ledger's own users can no longer do this. ---
     if ($action === 'reset_ledger') {
         // The page's own checks above already require the admin flag and the session's CSRF token (MB-163).
-        $regnskab_id = (int)if_isset($_POST['regnskab_id'], 0);
+        $regnskab_id = (int)ifset($_POST, 'regnskab_id', 0);
         $reset_row = db_fetch_array(db_select("SELECT regnskab, db FROM regnskab WHERE id = $regnskab_id", __FILE__ . " linje " . __LINE__));
         $reset_db = $reset_row ? trim((string)$reset_row['db']) : '';
         $reset_name = $reset_row ? trim((string)$reset_row['regnskab']) : '';
-        $typed_name = trim((string)if_isset($_POST['confirm_name'], ''));
+        $typed_name = trim((string)ifset($_POST, 'confirm_name', ''));
         $keep_accounts = !empty($_POST['keep_accounts']);
         $keep_items = !empty($_POST['keep_items']);
         $message_type = 'error';
@@ -328,10 +335,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // The ledger's own audit log says who reset it. Written here and not with audit_log(), which
                     // remembers the master database's table layout for the whole request.
                     if (tbl_exists('audit_log')) {
+                        // json_encode() refuses a name that is not UTF-8 (a LATIN9 install); escaped JSON is plain ASCII in either encoding.
+                        $utf8_install = !isset($db_encode) || $db_encode == 'UTF8';
+                        $reset_by = mb_check_encoding($admin_user, 'UTF-8') ? $admin_user : mb_convert_encoding($admin_user, 'UTF-8', 'ISO-8859-15');
                         $log_details = db_escape_string(json_encode(array(
-                            'reset_by' => $admin_user, 'from' => 'admin panel', 'postings_deleted' => $deleted_postings,
+                            'reset_by' => $reset_by, 'from' => 'admin panel', 'postings_deleted' => $deleted_postings,
                             'keep_accounts' => $keep_accounts, 'keep_items' => $keep_items, 'sessions_updated' => $session_warning === '',
-                        ), JSON_UNESCAPED_UNICODE));
+                        ), $utf8_install ? JSON_UNESCAPED_UNICODE : 0));
                         $log_columns = array();
                         $log_q = db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'audit_log'" . (function_exists('saldi_schema_filter') ? saldi_schema_filter() : ''), __FILE__ . " linje " . __LINE__);
                         while ($log_r = db_fetch_array($log_q)) {
@@ -366,6 +376,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             include("../includes/connect.php");
             $db = $admin_db;
         }
+        // Post/redirect/get: a browser refresh of the result must not post the reset again, past the confirm() (review #1131).
+        $_SESSION['admin_panel_reset_result'] = array($message, $message_type);
+        while (ob_get_level()) { ob_end_clean(); }
+        header('Location: admin_panel.php?regnskab_id=' . $regnskab_id, true, 303);
+        exit;
     }
 }
 
