@@ -58,12 +58,12 @@ Lines reach a journal only when a user picks them, into the journal the user is 
   can still be picked), `unsupported` (not DKK), `disconnected` (lines can still be picked). Pause /
   Genoptag, disconnect, reconnect and mapping need the settings right; picking and skipping need write
   on Kassekladde.
-- Rights (master's roles model, `perm_can()` in `includes/permissions.php`): `ebCanManage()` =
-  write on `settings.finance` (the settings area the Bankforbindelse section belongs to; connect,
-  accounts and callback declare the same `$permission_key`), `ebCanViewFeed()` = read on
-  `finans.kassekladde`, `ebCanActOnFeed()` = write on `finans.kassekladde`.
+- Rights (live port, no roles model): the `brugere.rettigheder` string, as `includes/online.php`
+  checks it with `$modulnr`. `ebCanManage()` = Indstillinger (position 1) granted and not read-only
+  ('2'); `ebCanViewFeed()` = Kassekladde (position 2) granted; `ebCanActOnFeed()` = Kassekladde and
+  not read-only. Connect, accounts and callback set `$modulnr = 1`, the feed `$modulnr = 2`.
 - Status icon (`auth_check_icon.php`, kassekladde and finans top lines): shown to users who switched
-  on "Vis bankstatus i kassekladden" (Personlige indstillinger, setting `bank_integration/show_status`).
+  on "Vis bankstatus i kassekladden (kun for dig)" in the Bankforbindelse section (setting `bank_integration/show_status` of the user).
   It lists "<konto>: N nye bankposteringer (ældste <d.m.Y>)" (yellow after 14 days), review rows,
   expiring or expired access, "Ingen hentning i N timer" for an overdue active account and a red
   "Den automatiske hentning kører ikke" when the worker heartbeat is missing or older than an hour.
@@ -439,7 +439,7 @@ shared header `bank_integration/includes/page_header.php`. CSRF: `ebCsrfField()`
 - `accounts.php`: map each DKK account to a ledger account and a start date; disconnect a connection.
 - `feed.php`: status panel, Hent nu, Forny adgang, pause, disconnect, tabs and the pick list (see
   "Pull model").
-- `systemdata/diverseIncludes/bank_integration.php` (Indstillinger » Bogføring & bank »
+- `systemdata/diverseIncludes/bank_integration.php` (Indstillinger » Diverse »
   Bankforbindelse, `diverse.php?sektion=bank_integration`): company toggle, server configuration
   status, connections and accounts. Offered when the server is configured (`bankIntegrationAvailable()`).
 - `finans/bankimport.php`: when the chosen ledger account is fed by the bank feed, a notice with the

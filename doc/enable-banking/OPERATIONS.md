@@ -43,7 +43,7 @@ $enableBankingEnvironment = "PRODUCTION";
 
 Key file: `install -d -m 750 -o root -g www-data /etc/saldi/enablebanking`, copy the PEM there,
 `chown root:www-data`, `chmod 640`. Never commit it, never place it under the web root, never paste
-it into tickets or chat. The settings page (Indstillinger » Bogføring & bank » Bankforbindelse) shows whether
+it into tickets or chat. The settings page (Indstillinger » Diverse » Bankforbindelse) shows whether
 the configuration is complete and names the first missing piece without revealing values.
 
 Encryption key: `bank_integration/.ht_oauth_key.bin` (32 random bytes) is created by `index/install.php`.
@@ -54,7 +54,7 @@ cannot be decrypted and every company must reconnect (accounting data is unaffec
 `.ht*` files (the Debian default does; verify `curl -I https://<host>/<inst>/bank_integration/.ht_oauth_key.bin` returns 403).
 
 Per company: a user with the Finans settings right enables "Aktiver bankforbindelse" under
-Indstillinger » Bogføring & bank » Bankforbindelse. Turning it off stops fetching for that company and
+Indstillinger » Diverse » Bankforbindelse. Turning it off stops fetching for that company and
 keeps all history.
 
 ### PHP settings
@@ -162,8 +162,8 @@ Stored per transaction: booking/value/transaction date, signed amount, currency,
 deduplication, review state. Not stored: raw provider responses, full IBANs of the account or
 counterparties, balances. Retention follows the company's accounting data (the transactions are the
 source of journal lines); disconnecting keeps them. Access: feed data is visible to users with the
-Kassekladde right (picking and skipping need write); connection management requires write on the
-Finans settings area (`settings.finance`); actions are audited in
+Kassekladde right (picking and skipping need write); connection management requires the Indstillinger right without
+read-only (position 1 of `brugere.rettigheder`); actions are audited in
 `bank_audit_log`.
 
 ## 9. External steps (not code)
