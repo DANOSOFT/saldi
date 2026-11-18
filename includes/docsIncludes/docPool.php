@@ -227,7 +227,8 @@
 //                 Before, it stayed unread until the user clicked "Opdatér alle" or the scan icon.
 //                 The folder sync lists the documents it gave a row (poolFolderSyncAdded()), and the page reads those once, only with "AI scan" on.
 //                 "Opdatér alle" and the new reading share poolReadDocuments().
-//                 Only a row the sync itself added and that is still unread is listed. A reading that finds only a fakturanr. is now saved too.
+//                 Only a row the sync's own insert added (poolFolderSyncInsert()) and that is still unread is listed.
+//                 A reading that finds only a fakturanr. is now saved too.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -773,11 +774,8 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 				'" . db_escape_string($invoiceNumber) . "',
 				'" . db_escape_string($description) . "'" . $syncContentHashSql . "
 			)$onConflictClause";
-			// SST-930: the conflict clause makes the insert a no-op when another request gave the file its row meanwhile;
-			// only a row this insert added is noted as a new arrival
-			$rowBefore = db_fetch_array(db_select("SELECT id FROM pool_files WHERE filename = '" . db_escape_string($file) . "'", __FILE__ . " line " . __LINE__));
-			db_modify($qtxt, __FILE__ . " line " . __LINE__);
-			if (!$rowBefore) poolFolderSyncNoteAdded($file);
+			// SST-930: only a row this insert added is a new arrival; the conflict clause makes it a no-op when another writer was first
+			if (poolFolderSyncInsert($qtxt)) poolFolderSyncNoteAdded($file);
 		}
 	}
 	// Rows an upload's extraction created have no content hash; a batch of them gets it here (MB-42, SD-727)
@@ -940,6 +938,34 @@ function poolFolderSync($docFolder, $db) {
 	if ($before === '') $GLOBALS['poolFolderSyncAdded'] = array();
 	// SD-727: a document restored because it arrived again changes neither the row count nor the highest id
 	return poolFilesSignature() !== $before || ($GLOBALS['poolArchiveRestoredOnArrival'] ?? 0) !== $restoredBefore;
+}
+
+/**
+ * Runs the full sync's INSERT into pool_files and tells whether this statement added the row (SST-930).
+ * Its conflict clause makes it a no-op when another writer gave the file its row first, and only the statement's own
+ * result tells the two apart: RETURNING on PostgreSQL, the affected rows on MySQL (0 for ON DUPLICATE KEY UPDATE id = id).
+ * On PostgreSQL the statement goes through db_select() to get its RETURNING row, so it is written to the modify log here,
+ * as db_modify() writes its statements.
+ *
+ * @param string $qtxt The INSERT, ending in its ON CONFLICT / ON DUPLICATE KEY clause.
+ * @return bool True when this statement inserted the row.
+ */
+function poolFolderSyncInsert($qtxt) {
+	global $brugernavn, $db, $db_skriv_id, $db_type, $sqdb;
+	if ($db_type == 'mysql' || $db_type == 'mysqli') {
+		db_modify($qtxt, __FILE__ . " line " . __LINE__);
+		return mysqli_affected_rows(db_query_connection(false)) === 1;
+	}
+	$spor = __FILE__ . " line " . __LINE__;
+	$inserted = (bool)db_fetch_array(db_select("$qtxt RETURNING filename", $spor));
+	$tenant = trim((string)$db);
+	if ($db_skriv_id > 1 && $tenant != $sqdb) {
+		db_log_append(get_relative() . "temp/$tenant/.ht_modify.log", [
+			"-- " . $brugernavn . " " . date("Y-m-d H:i:s") . ": " . $spor . ": " . $db_skriv_id . "\n",
+			$qtxt . ";\n",
+		]);
+	}
+	return $inserted;
 }
 
 /**
