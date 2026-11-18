@@ -20,6 +20,7 @@
 // 20261118 CL/MMR SD-815 Codex round 37: an ON DELETE CASCADE reference from another table and duplicate filenames: nothing deleted anywhere, no flag; without duplicates the repair runs (both mysqli modes).
 // 20261118 CL/MMR SD-815 Codex round 38: a cascading reference from another database (as root, and as a user with rights on this database only) keeps every row; duplicates without the PROCESS privilege wait; the round-18 grants still repair a table without duplicates.
 // 20261118 CL/MMR SD-815 Codex round 39: a parent database named with a '-' (encoded @002d by InnoDB) and a cascading child elsewhere keeps every row; two NULL filenames are no duplicates and are repaired by a parent-only user.
+// 20261118 CL/MMR SD-815 Codex round 40: a non-ASCII parent database name with latin1 results (the name comes back as '?') and a cascading child elsewhere keeps every row; the session setting is left as it was.
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -874,5 +875,47 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
 
         self::assertContains('unique_filename', $done, 'a reference to another database\'s pool_files is not ours');
         self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
+    }
+
+    private function aNonAsciiParentDatabaseWithLatin1Results(int $reportMode): void
+    {
+        $tokyo = 'pool_' . bin2hex(random_bytes(3)) . '_東京';
+        mysqli_set_charset($this->connection, 'utf8mb4');
+        $this->sql("CREATE DATABASE `$tokyo` CHARACTER SET utf8mb4");
+        $this->otherDatabases[] = "`$tokyo`";
+        mysqli_select_db($this->connection, $tokyo);
+        $this->sql('CREATE TABLE settings (id INT AUTO_INCREMENT NOT NULL, var_name text, var_grp text, var_value text, var_description text, user_id integer, group_id integer, pos_id integer, PRIMARY KEY (id))');
+        $this->sql('CREATE TABLE pool_files (id INT AUTO_INCREMENT NOT NULL, filename varchar(255), subject text, account varchar(50), amount varchar(50), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, invoice_number varchar(100), description text, currency varchar(10), content_sha256 char(64), PRIMARY KEY (id)) ENGINE=InnoDB');
+        $this->allLaterColumns();
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '1,00'), (2, 'a.pdf', '99,00')");
+        $child = $this->database . '_tokyochild';
+        $this->sql("CREATE DATABASE $child");
+        $this->otherDatabases[] = $child;
+        $this->sql("CREATE TABLE $child.pool_linked_document (id INT NOT NULL PRIMARY KEY, pool_id INT NOT NULL,
+            CONSTRAINT tokyo_pool_fk FOREIGN KEY (pool_id) REFERENCES `$tokyo`.pool_files (id) ON DELETE CASCADE) ENGINE=InnoDB");
+        $this->sql("INSERT INTO $child.pool_linked_document VALUES (10, 1), (11, 2)");
+        $this->sql('SET SESSION character_set_results = latin1'); // the name now comes back as '?'
+        self::assertStringContainsString('?', (string) $this->one('SELECT DATABASE()'));
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertSame('latin1', $this->one('SELECT @@SESSION.character_set_results'), 'the session setting is left as it was');
+        $this->sql('SET SESSION character_set_results = utf8mb4');
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'both parent rows kept');
+        self::assertSame('2', $this->one("SELECT count(*) FROM $child.pool_linked_document"), 'both child rows kept');
+        self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+    }
+
+    public function testANonAsciiParentDatabaseWithLatin1ResultsKeepsEveryRowStrict(): void
+    {
+        $this->aNonAsciiParentDatabaseWithLatin1Results(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testANonAsciiParentDatabaseWithLatin1ResultsKeepsEveryRowReportingOff(): void
+    {
+        $this->aNonAsciiParentDatabaseWithLatin1Results(MYSQLI_REPORT_OFF);
     }
 }

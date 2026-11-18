@@ -65,6 +65,7 @@
 // 20261118 CL/MMR SD-815 Codex round 37: when other tables refer to pool_files with foreign keys and there are duplicate filenames, nothing is deleted (a cascade would delete their rows too); the constraints are named in the log for a person. Checked under the lock that keeps the decision valid.
 // 20261118 CL/MMR SD-815 Codex round 38: on MySQL/MariaDB the references are read from InnoDB's own list (INNODB_SYS_FOREIGN, MySQL 8: INNODB_FOREIGN), which also shows other databases' tables; when it cannot be read (no PROCESS privilege) and there are duplicates, nothing is deleted. Duplicates are looked for first.
 // 20261118 CL/MMR SD-815 Codex round 39: NULL filenames are not duplicates (the collapse never deletes them); InnoDB's REF_NAME is compared with this database's name in MySQL's filename encoding (a '-' is @002d); only a name with non-ASCII characters, whose encoding is not rebuilt here, counts every encoded reference as possibly its own.
+// 20261118 CL/MMR SD-815 Codex round 40: the database name and REF_NAME are read as HEX() and decoded in PHP, so the session's character_set_results cannot turn a non-ASCII name into '?'; the session settings are not touched.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -256,20 +257,26 @@ if (!function_exists('ensurePoolFilesGuardInboundReferences')) {
 			$rows = null;
 			foreach (array('INNODB_SYS_FOREIGN', 'INNODB_FOREIGN') as $list) {
 				// REF_NAME is <database>/<table> in MySQL's filename encoding (a '-' is stored as @002d), so it is matched in
-				// PHP: the table part must be pool_files, and the database part this database, or encoded (then it may be
-				// this one; it is counted, to be safe).
-				$rows = ensurePoolFilesMysqlRows("SELECT ID AS id, FOR_NAME AS child, REF_NAME AS parent, DATABASE() AS here FROM information_schema.$list WHERE REF_NAME LIKE '%pool%files'");
+				// PHP: the table part must be pool_files and the database part this database's name encoded the same way
+				// (a non-ASCII name: any pool_files counts). HEX(): the names' bytes as they are, whatever
+				// character_set_results converts text results to.
+				$rows = ensurePoolFilesMysqlRows("SELECT ID AS id, FOR_NAME AS child, HEX(REF_NAME) AS parent_hex, HEX(DATABASE()) AS here_hex FROM information_schema.$list WHERE REF_NAME LIKE '%pool%files'");
 				if ($rows !== null) {
 					break;
 				}
 			}
 			if ($rows !== null) {
 				$rows = array_values(array_filter($rows, static function (array $r): bool {
-					$parts = explode('/', (string)($r['parent'] ?? ''), 2);
+					$parent = hex2bin((string)($r['parent_hex'] ?? ''));
+					$hereName = hex2bin((string)($r['here_hex'] ?? ''));
+					if ($parent === false || $hereName === false) {
+						return true; // cannot be read back: may be ours
+					}
+					$parts = explode('/', $parent, 2);
 					if (count($parts) !== 2 || strtolower($parts[1]) !== 'pool_files') {
 						return false;
 					}
-					$here = ensurePoolFilesMysqlEncodedName((string)($r['here'] ?? ''));
+					$here = ensurePoolFilesMysqlEncodedName($hereName);
 					// null: a non-ASCII name, whose encoding is not rebuilt here; then any reference to a pool_files may be ours.
 					return $here === null ? true : strtolower($parts[0]) === strtolower($here);
 				}));

@@ -53,6 +53,8 @@ $allowed = [
 	'EnsurePoolFilesSchemaMysqlTest::testAHyphenatedParentDatabaseKeepsEveryRowReportingOff',
 	'EnsurePoolFilesSchemaMysqlTest::testTwoNullFilenamesAreNoDuplicates',
 	'EnsurePoolFilesSchemaMysqlTest::testAnotherHyphenatedDatabasesOwnReferenceDoesNotBlockTheRepair',
+	'EnsurePoolFilesSchemaMysqlTest::testANonAsciiParentDatabaseWithLatin1ResultsKeepsEveryRowStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testANonAsciiParentDatabaseWithLatin1ResultsKeepsEveryRowReportingOff',
 ];
 
 $file = $argv[1] ?? '';
