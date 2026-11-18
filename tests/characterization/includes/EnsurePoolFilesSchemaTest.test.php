@@ -18,6 +18,7 @@
 // 20261118 CL/MMR SD-815 Codex round 25: unique indexes on reverse(filename) and on a CASE rule over filename are kept (and the rule still holds); the log names them for review.
 // 20261118 CL/MMR SD-815 Codex round 26: with a tenant's own substr() earlier in search_path, the index on it is kept and the real pg_catalog.substr prefix index is replaced.
 // 20261118 CL/MMR SD-815 Codex round 27: a lookup index on left(filename, 255) of a varchar(255) filename covers every name and is kept, with and without a repair.
+// 20261118 CL/MMR SD-815 Codex round 28: left(filename, 255) on a domain over varchar(255) is kept, and a left(filename, 0) one-row rule is kept and still holds.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -837,5 +838,33 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertNotContains('pool_files_short_prefix', $indexes, 'the short prefix is replaced');
         $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('e', 64));
         self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')));
+    }
+
+    public function testAFullWidthLeftIndexOnADomainColumnIsKept(): void
+    {
+        $this->sql('CREATE DOMAIN pool_filename AS varchar(255)');
+        $this->sql(str_replace('filename varchar(255)', 'filename pool_filename', self::OLD_OPRET_POOL_FILES));
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)');
+        $this->sql('CREATE UNIQUE INDEX pool_files_left_lookup ON pool_files (left(filename, 255))');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00'), ('invoice-b.pdf', '1,00')");
+
+        ensurePoolFilesSchema('postgresql');
+
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_left_lookup'")), 'kept');
+    }
+
+    public function testAZeroLengthLeftRuleIsKept(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)');
+        $this->sql('CREATE UNIQUE INDEX pool_files_one_row ON pool_files (left(filename, 0))');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00')");
+
+        ensurePoolFilesSchema('postgresql');
+
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_one_row'")), 'kept');
+        $refused = @pg_query($this->connection, "SAVEPOINT one_row; INSERT INTO pool_files (filename) VALUES ('b.pdf')");
+        self::assertFalse($refused, 'its rule still holds');
+        $this->sql('ROLLBACK TO SAVEPOINT one_row');
     }
 }

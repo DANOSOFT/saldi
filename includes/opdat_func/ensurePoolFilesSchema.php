@@ -53,6 +53,7 @@
 // 20261118 CL/MMR SD-815 Codex round 25: on PostgreSQL only an expression that is exactly a prefix of filename (left(filename, N), substr(filename, 1, N), SUBSTRING(filename FROM 1 FOR N)) is dropped; any other unique expression index on filename is kept and named in the log for review.
 // 20261118 CL/MMR SD-815 Codex round 26: and only when the index depends on nothing but pool_files' own columns: a tenant's own function (or type, operator, collation) of the same name records a dependency, the built-in ones do not; pg_catalog.-qualified names are recognised too.
 // 20261118 CL/MMR SD-815 Codex round 27: and only when the prefix is shorter than filename's declared width (varchar(255): left(filename, 255) covers every name and is a plain lookup index, kept).
+// 20261118 CL/MMR SD-815 Codex round 28: the width is read through a domain to its base type (only varchar/char with a length, or unbounded text/varchar, are understood; anything else is kept), and the prefix must be at least 1 (left(filename, 0) is a one-row rule).
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -428,7 +429,8 @@ if (!function_exists('ensurePoolFilesPrefixLength')) {
 	 * The length N when a PostgreSQL index expression, as pg_get_expr() prints it, is exactly a prefix of filename:
 	 * "left"((filename)::text, N), substr((filename)::text, 1, N) or SUBSTRING(filename FROM 1 FOR N), possibly
 	 * pg_catalog.-qualified; null otherwise. The text alone does not prove the built-in function is meant; the caller
-	 * also requires that the index depends on nothing but pool_files' columns, and compares N with the column width.
+	 * also requires that the index depends on nothing but pool_files' columns, that N is at least 1, and that N is less
+	 * than the column width (ensurePoolFilesFilenameWidth()).
 	 *
 	 * @param string $expression
 	 * @return int|null
@@ -446,6 +448,35 @@ if (!function_exists('ensurePoolFilesPrefixLength')) {
 			if (preg_match($pattern, trim($expression), $m)) {
 				return (int)$m[1];
 			}
+		}
+		return null;
+	}
+}
+
+if (!function_exists('ensurePoolFilesFilenameWidth')) {
+	/**
+	 * filename's declared character width on PostgreSQL, from its pg_attribute/pg_type row: varchar(n) or char(n)
+	 * (typmod n + 4) gives n; text, or varchar without a length, is 'unbounded'. A domain is read through to its base
+	 * type with the domain's own typmod (a domain over a domain, or any other type, cannot be told safely: null).
+	 *
+	 * @param array<string, mixed> $row atttypmod, typtype, typname, typtypmod, basename, basetype.
+	 * @return int|string|null An int width, 'unbounded', or null when unknown.
+	 */
+	function ensurePoolFilesFilenameWidth(array $row) {
+		$domain = (string)($row['typtype'] ?? '') === 'd';
+		if ($domain && (string)($row['basetype'] ?? '') === 'd') {
+			return null;
+		}
+		$name = (string)($domain ? ($row['basename'] ?? '') : ($row['typname'] ?? ''));
+		$typmod = (int)($domain ? ($row['typtypmod'] ?? -1) : ($row['atttypmod'] ?? -1));
+		if ($name === 'text') {
+			return 'unbounded';
+		}
+		if ($name === 'varchar' || $name === 'bpchar') {
+			if ($typmod > 4) {
+				return $typmod - 4;
+			}
+			return ($name === 'varchar' && $typmod === -1) ? 'unbounded' : null;
 		}
 		return null;
 	}
@@ -527,12 +558,14 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 		}
 		$restrictiveNames = array();
 		$otherNames = array();
-		$width = null; // PostgreSQL: filename's declared character width; null when unbounded (text)
+		// PostgreSQL: filename's declared character width - an int, 'unbounded', or null when it cannot be told safely.
+		$width = null;
 		if (!$mysql) {
-			$w = db_fetch_array(ensurePoolFilesSelect("SELECT a.atttypmod FROM pg_attribute a JOIN pg_class t ON t.oid = a.attrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+			$w = db_fetch_array(ensurePoolFilesSelect("SELECT a.atttypmod, ty.typtype, ty.typname, ty.typtypmod, bt.typname AS basename, bt.typtype AS basetype
+				FROM pg_attribute a JOIN pg_class t ON t.oid = a.attrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+				JOIN pg_type ty ON ty.oid = a.atttypid LEFT JOIN pg_type bt ON bt.oid = ty.typbasetype
 				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND a.attname = 'filename' AND NOT a.attisdropped", __LINE__));
-			$typmod = (int)($w['atttypmod'] ?? -1);
-			$width = ($typmod > 4) ? $typmod - 4 : null; // varchar(n)/char(n) store n + 4
+			$width = ensurePoolFilesFilenameWidth(is_array($w) ? $w : array());
 		}
 		$q = ensurePoolFilesSelect($restrictive, __LINE__);
 		while ($r = db_fetch_array($q)) {
@@ -541,7 +574,7 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 			// the column is known to be the obsolete kind; anything else (reverse(filename), a CASE rule, a prefix as wide
 			// as the column ...) is a lookup or a rule of its own.
 			$length = $mysql ? 0 : ensurePoolFilesPrefixLength((string)($r['expression'] ?? ''));
-			if ($mysql || ($length !== null && ($width === null || $length < $width))) {
+			if ($mysql || ($length !== null && $length >= 1 && $width !== null && ($width === 'unbounded' || $length < $width))) {
 				$restrictiveNames[] = $index;
 			} else {
 				$otherNames[] = $index;
