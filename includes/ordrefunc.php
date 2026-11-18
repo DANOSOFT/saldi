@@ -168,6 +168,7 @@
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261118 CL/MMR SST-1008 batch_salg(): the cost-transfer lines for batch items without automatic stock posting name the saet column.
+// 20261118 CL/MMR SST-1008 Those two lines cast the quantity, cost, order id and accounts and escape the project (Codex).
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 
@@ -2129,9 +2130,14 @@ function batch_salg($id)
 			}
 			if (!$aut_lager && $box1 && $box2 && $kostpris) { #kostvaerdien flyttes fra "afgang varelager" til "varekob".- hvis der ikke bogfoeres direkte paa varekobs kontoen
 				#	if ($valutakurs) $pris=$pris*100/$valutakurs;
-				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt, saet) values ('-1','$antal[$x]', '$kostpris', 0, '$id', '$box2','$projekt','0')", __FILE__ . " linje " . __LINE__);
+				$qtyCost = (float) $antal[$x];
+				$orderId = (int) $id;
+				$stockAccount = (int) $box2;
+				$purchaseAccount = (int) $box3;
+				$projectCost = db_escape_string((string) $projekt);
+				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt, saet) values ('-1', '$qtyCost', '" . (float) $kostpris . "', 0, '$orderId', '$stockAccount', '$projectCost', '0')", __FILE__ . " linje " . __LINE__);
 				$kostpris = $kostpris * -1;
-				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt, saet) values ('-1','$antal[$x]', '$kostpris', 0, '$id', '$box3','$projekt','0')", __FILE__ . " linje " . __LINE__);
+				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt, saet) values ('-1', '$qtyCost', '" . (float) $kostpris . "', 0, '$orderId', '$purchaseAccount', '$projectCost', '0')", __FILE__ . " linje " . __LINE__);
 			}
 			#xit;			
 		} elseif ($box8 == 'on') { # hvis box8 er 'on' er varen lagerfoert

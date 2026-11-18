@@ -10,6 +10,7 @@
 //
 // History:
 // 20261118 CL/MMR SST-1008 Created.
+// 20261118 CL/MMR SST-1008 A project text on the sale line is kept on the cost lines (Codex).
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -68,9 +69,22 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
 
     public function test_invoicing_a_batch_item_moves_the_cost_without_a_database_error(): void
     {
+        $this->invoiceAndAssertCostMoved('');
+    }
+
+    public function test_the_project_text_is_kept_on_the_cost_lines(): void
+    {
+        $this->invoiceAndAssertCostMoved('Projekt Æblehave');
+    }
+
+    private function invoiceAndAssertCostMoved(string $project): void
+    {
         $item = $this->batchItem(50.00);
         $this->receive($item);
         $sale = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 4]]);
+        if ($project !== '') {
+            self::rows('UPDATE ordrelinjer SET projekt = $1 WHERE ordre_id = $2', [$project, $sale['id']]);
+        }
 
         $out = $this->runChildJson('run_order_invoice.php', ['invoice', $sale['id'], CharacterizationEnv::testDb()]);
 
@@ -84,5 +98,9 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
         $purchase = $moved($item['purchase']);
         $this->assertEqualsWithDelta(200.0, (float)$stock['kredit'] - (float)$stock['debet'], 0.001, 'four at cost 50 leave the stock account');
         $this->assertEqualsWithDelta(200.0, (float)$purchase['debet'] - (float)$purchase['kredit'], 0.001, 'and go to the purchase account');
+        if ($project !== '') {
+            $projects = self::rows('SELECT DISTINCT projekt FROM transaktioner WHERE ordre_id = $1 AND kontonr::text IN ($2, $3)', [$sale['id'], $item['stock'], $item['purchase']]);
+            $this->assertSame([$project], array_column($projects, 'projekt'), 'the project is stored as typed');
+        }
     }
 }
