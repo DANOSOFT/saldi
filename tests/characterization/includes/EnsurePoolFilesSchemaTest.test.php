@@ -21,6 +21,7 @@
 // 20261118 CL/MMR SD-815 Codex round 28: left(filename, 255) on a domain over varchar(255) is kept, and a left(filename, 0) one-row rule is kept and still holds.
 // 20261118 CL/MMR SD-815 Codex round 29: PostgreSQL never drops an expression index (tests that expected left(filename, 7) to be replaced now expect it kept and named for review); lookups on CHECK-limited text and domains are kept.
 // 20261118 CL/MMR SD-815 Codex round 30: a unique filename key with INCLUDE (id) counts, so nothing is added and the backfill runs; with both usual names taken the new index gets pool_files_filename_uidx2.
+// 20261118 CL/MMR SD-815 Codex round 31: with the four usual names taken (three indexes and a table with a row) the new index is pool_files_filename_uidx4; a stopped run is logged with its reason.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -508,6 +509,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertNotSame([], $GLOBALS['ensurePoolFilesErrors'], 'the read really failed');
         self::assertStringContainsString('lock timeout', implode(' ', $GLOBALS['ensurePoolFilesErrors']));
         self::assertSame(0, $this->backfillFlags(), 'a failed read is not «nothing left»');
+        self::assertStringContainsString('stopped, the next login tries again', (string) file_get_contents($this->log), 'the stop is logged with its reason');
         self::assertSame('0', pg_fetch_result($this->sql("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid()"), 0, 0), 'the advisory lock was released');
 
         pg_query($this->other, 'ROLLBACK');
@@ -923,5 +925,28 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_filename_uidx2' AND indexdef ILIKE '%UNIQUE%(filename)%'")));
         self::assertSame(2, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname IN ('pool_files_filename_uidx', 'pool_files_filename_full_uidx')")), 'the others kept');
         self::assertSame('99.000', pg_fetch_result($this->sql("SELECT norm_amount FROM pool_files WHERE filename = 'old.pdf'"), 0, 0));
+    }
+
+    public function testFourTakenNamesStillLeaveAFreeOne(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE INDEX pool_files_filename_uidx ON pool_files (subject)');
+        $this->sql('CREATE INDEX pool_files_filename_full_uidx ON pool_files (account)');
+        $this->sql('CREATE INDEX pool_files_filename_uidx2 ON pool_files (file_date)');
+        $this->sql('CREATE TABLE pool_files_filename_uidx3 (id integer PRIMARY KEY, note text)');
+        $this->sql("INSERT INTO pool_files_filename_uidx3 VALUES (1, 'sentinel')");
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('old.pdf', '99,00')");
+
+        $done = ensurePoolFilesSchema('postgresql');
+
+        self::assertContains('unique_filename', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_filename_uidx4' AND indexdef ILIKE '%UNIQUE%(filename)%'")));
+        self::assertSame(3, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname IN ('pool_files_filename_uidx', 'pool_files_filename_full_uidx', 'pool_files_filename_uidx2')")), 'the other indexes kept');
+        self::assertSame('sentinel', pg_fetch_result($this->sql('SELECT note FROM pool_files_filename_uidx3 WHERE id = 1'), 0, 0), 'the table and its row kept');
+        $this->poolInsert('old.pdf', '99,00', str_repeat('a', 64));
+        self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'old.pdf'"), 0, 0), 'ON CONFLICT (filename) works');
+        self::assertSame('99.000', pg_fetch_result($this->sql("SELECT norm_amount FROM pool_files WHERE filename = 'old.pdf'"), 0, 0));
+        self::assertSame(1, $this->backfillFlags());
     }
 }

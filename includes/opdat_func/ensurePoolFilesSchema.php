@@ -56,6 +56,7 @@
 // 20261118 CL/MMR SD-815 Codex round 28: the width is read through a domain to its base type (only varchar/char with a length, or unbounded text/varchar, are understood; anything else is kept), and the prefix must be at least 1 (left(filename, 0) is a one-row rule).
 // 20261118 CL/MMR SD-815 Codex round 29: on PostgreSQL no expression index is dropped any more. Whether one is an obsolete prefix depends on more than the catalogue can say for sure (CHECK constraints, domains, the function, the width), so a unique expression index on filename alone is kept and named in the log for review whenever the repair runs; the full unique index is still added. The MySQL/MariaDB prefix repair (sub_part) is unchanged.
 // 20261118 CL/MMR SD-815 Codex round 30: a unique filename key with INCLUDE columns counts (indnkeyatts, not indnatts), and the new index's name is chosen from the free ones before anything is created or deleted.
+// 20261118 CL/MMR SD-815 Codex round 31: the name search goes on past the four usual names (…_uidx4 … _uidx99, then a random suffix), on both databases, and every stop of the run is logged with its reason.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -131,27 +132,47 @@ if (!function_exists('ensurePoolFilesInTransaction')) {
 	}
 }
 
-if (!function_exists('ensurePoolFilesPostgresIndexName')) {
+if (!function_exists('ensurePoolFilesFreeIndexName')) {
 	/**
-	 * A name for the new unique filename index that no relation in the current schema has yet (index names share the
-	 * namespace with tables): pool_files_filename_uidx, then _full_uidx, _uidx2, _uidx3.
+	 * The first name for the new unique filename index that is not in $taken: pool_files_filename_uidx, _full_uidx,
+	 * _uidx2 … _uidx99, then pool_files_filename_uidx_<random hex>.
 	 *
+	 * @param array<string, true> $taken Lower-case names already used.
 	 * @return string
-	 * @throws EnsurePoolFilesSchemaUnknown When the names cannot be read or none is free.
 	 */
-	function ensurePoolFilesPostgresIndexName(): string {
-		$taken = array();
-		$q = ensurePoolFilesSelect("SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = current_schema()
-			AND c.relname IN ('pool_files_filename_uidx', 'pool_files_filename_full_uidx', 'pool_files_filename_uidx2', 'pool_files_filename_uidx3')", __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$taken[(string)$r['relname']] = true;
+	function ensurePoolFilesFreeIndexName(array $taken): string {
+		$names = array('pool_files_filename_uidx', 'pool_files_filename_full_uidx');
+		for ($i = 2; $i <= 99; $i++) {
+			$names[] = 'pool_files_filename_uidx' . $i;
 		}
-		foreach (array('pool_files_filename_uidx', 'pool_files_filename_full_uidx', 'pool_files_filename_uidx2', 'pool_files_filename_uidx3') as $name) {
+		foreach ($names as $name) {
 			if (!isset($taken[$name])) {
 				return $name;
 			}
 		}
-		throw new EnsurePoolFilesSchemaUnknown('no free name for the pool_files unique filename index');
+		do {
+			$name = 'pool_files_filename_uidx_' . bin2hex(random_bytes(6));
+		} while (isset($taken[$name]));
+		return $name;
+	}
+}
+
+if (!function_exists('ensurePoolFilesPostgresIndexName')) {
+	/**
+	 * A name for the new unique filename index that no relation in the current schema has yet (index names share the
+	 * namespace with tables), from ensurePoolFilesFreeIndexName().
+	 *
+	 * @return string
+	 * @throws EnsurePoolFilesSchemaUnknown When the names cannot be read.
+	 */
+	function ensurePoolFilesPostgresIndexName(): string {
+		$taken = array();
+		$q = ensurePoolFilesSelect("SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = current_schema()
+			AND c.relname LIKE 'pool\\_files\\_filename%'", __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$taken[strtolower((string)$r['relname'])] = true;
+		}
+		return ensurePoolFilesFreeIndexName($taken);
 	}
 }
 
@@ -185,6 +206,7 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 			$ok = ensurePoolFilesSchemaState($db_type)['uniqueFilename'];
 		} catch (EnsurePoolFilesSchemaUnknown $e) {
 			$ok = false; // a read failed, also when an earlier statement aborted the transaction
+			$reason = $e->getMessage();
 		} finally {
 			if ($ok) {
 				db_modify($nested ? 'RELEASE SAVEPOINT pool_files_unique' : 'COMMIT', __FILE__ . " linje " . __LINE__);
@@ -196,7 +218,7 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 			}
 		}
 		if (!$ok || !ensurePoolFilesSchemaState($db_type)['uniqueFilename']) {
-			throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename repair rolled back');
+			throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename repair rolled back' . (isset($reason) ? ': ' . $reason : ''));
 		}
 	}
 }
@@ -236,7 +258,7 @@ if (!function_exists('ensurePoolFilesMysqlIndexName')) {
 	 * e.g. a non-unique one, would make CREATE fail after the duplicates were collapsed).
 	 *
 	 * @return string
-	 * @throws EnsurePoolFilesSchemaUnknown When the names cannot be read or none is free.
+	 * @throws EnsurePoolFilesSchemaUnknown When the names cannot be read.
 	 */
 	function ensurePoolFilesMysqlIndexName(): string {
 		$taken = array();
@@ -244,12 +266,7 @@ if (!function_exists('ensurePoolFilesMysqlIndexName')) {
 		while ($r = db_fetch_array($q)) {
 			$taken[strtolower((string)($r['index_name'] ?? $r['INDEX_NAME'] ?? ''))] = true;
 		}
-		foreach (array('pool_files_filename_uidx', 'pool_files_filename_full_uidx', 'pool_files_filename_uidx2', 'pool_files_filename_uidx3') as $name) {
-			if (!isset($taken[$name])) {
-				return $name;
-			}
-		}
-		throw new EnsurePoolFilesSchemaUnknown('no free name for the pool_files unique filename index');
+		return ensurePoolFilesFreeIndexName($taken);
 	}
 }
 
@@ -569,7 +586,8 @@ if (!function_exists('ensurePoolFilesSchema')) {
 			$completed = true;
 			return $result;
 		} catch (EnsurePoolFilesSchemaUnknown $e) {
-			// A read failed: no flag, nothing more this time; the next login tries again.
+			// A read failed or a step could not be completed: no flag, nothing more this time; the next login tries again.
+			error_log('ensurePoolFilesSchema: stopped, the next login tries again: ' . $e->getMessage());
 			return $nested ? array() : $done;
 		} catch (mysqli_sql_exception $e) {
 			// A write that failed on MySQL/MariaDB (mysqli throws). The flag is only written after a verified
