@@ -91,6 +91,7 @@
 // 20261118 CL/MMR SST-1003 easyUblLogSafe() removes the contact and bank details at any depth and masks them in texts (Codex).
 // 20261118 CL/MMR SST-1003 easyUblLogAnswer() writes no text from EasyUBL's answer: known fields with checkable values, the rest by kind and size or counted (Codex).
 // 20261118 CL/MMR SST-1003 A code is compared with the private numbers (phone, reg. no., account) as a number, so «0042» sent is not kept as 42 (Codex).
+// 20261118 CL/MMR SST-1038 The success log of the company update is written through easyUblLogAnswer() too, so no contact or bank details from EasyUBL's answer.
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
@@ -436,8 +437,9 @@
             return ['success' => false, 'message' => "Error updating company: EasyUBL answered HTTP $httpCode", 'response' => $response, 'status code' => $httpCode];
         }
 
-        // Save successful response in temp folder for debugging
-        file_put_contents("../temp/$db/Update-company-success-$timestamp.json", json_encode($response, JSON_UNESCAPED_UNICODE));
+        // Save successful response in temp folder for debugging: like the error logs, only what easyUblLogAnswer()
+        // keeps (e.g. id and hasEndpointPeppol), as an echo of the contact and bank details would sit under the web root.
+        file_put_contents("../temp/$db/Update-company-success-$timestamp.json", json_encode(easyUblLogAnswer($response, $privateValues), JSON_UNESCAPED_UNICODE));
 
         return ['success' => true, 'companyId' => $companyId, 'response' => $response];
     }

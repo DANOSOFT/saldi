@@ -25,6 +25,7 @@ use PHPUnit\Framework\TestCase;
 // 20261118 CL/MMR SST-1003 Unknown keys are only counted, and codes must be 0-99999 (Codex).
 // 20261118 CL/MMR SST-1003 A private number is not kept as a code in another numeric form (Codex).
 // 20261118 CL/MMR SST-1003 Digits in an e-mail address do not hide a provider code (Codex).
+// 20261118 CL/MMR SST-1038 The success log keeps id and hasEndpointPeppol, not the contact and bank details.
 final class EasyUblCompanyUpdateTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -475,5 +476,45 @@ final class EasyUblCompanyUpdateTest extends TestCase
         self::assertIsString($log['response']['errorNumber'], 'the bank reg. no. 0042 is still not kept as 42');
         self::assertSame(400, $log['status code']);
         self::assertStringNotContainsString('regnskab404@testfirma.example', $out['logs'][0]);
+    }
+
+    public function testTheSuccessLogHasNoContactOrBankDetails(): void
+    {
+        $branch = $this->lift(
+            'function updateCompany()',
+            '$timestamp = date("Y-m-d-H-i-s");',
+            '    // Getting the company id from the database'
+        );
+        $branch = substr($branch, 0, (int)strrpos($branch, '}')); # up to the end of updateCompany()
+        $this->tempDir();
+        $cwd = getcwd();
+        chdir($this->dir . '/work');
+        try {
+            $db = 'sst865';
+            $ch = curl_init();
+            $httpCode = 200;
+            $data = self::DATA;
+            $companyId = 'c1d2e3f4-0000-4000-8000-000000000001';
+            $response = array('id' => $companyId, 'hasEndpointPeppol' => true, 'name' => 'Testfirma ApS',
+                'defaultContact' => array('email' => 'bogholder@testfirma.example', 'sms' => '+4512345678'),
+                'payment' => array('bankAccount' => '1234-0012345678'), 'note' => 'ring +4512345678');
+            $result = (function () use ($branch, $db, $ch, $httpCode, $data, $response, $companyId) {
+                return eval($branch);
+            })();
+        } finally {
+            chdir((string)$cwd);
+        }
+
+        self::assertTrue($result['success']);
+        self::assertSame($response, $result['response'], 'the caller still gets the whole answer');
+        $logs = glob($this->dir . '/temp/sst865/Update-company-success-*.json') ?: array();
+        self::assertCount(1, $logs);
+        $log = (string)file_get_contents($logs[0]);
+        self::assertStringContainsString('"id":"' . $companyId . '"', $log);
+        self::assertStringContainsString('"hasEndpointPeppol":true', $log);
+        self::assertStringNotContainsString('bogholder@testfirma.example', $log);
+        self::assertStringNotContainsString('4512345678', $log);
+        self::assertStringNotContainsString('1234-0012345678', $log);
+        self::assertSame(array(), glob($this->dir . '/temp/sst865/Update-company-error-*.json') ?: array());
     }
 }
