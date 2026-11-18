@@ -12,6 +12,7 @@
 // 20261118 CL/MMR SST-1008 Created.
 // 20261118 CL/MMR SST-1008 A project text on the sale line is kept on the cost lines (Codex).
 // 20261118 CL/MMR SST-1008 An item group without a purchase account stops the invoice with a message and changes nothing (Codex).
+// 20261118 CL/MMR SST-1008 Each case gets an unused item group code (Codex).
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -43,7 +44,9 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
         [$stock, $purchase] = self::$fx->plainAccounts(2);
         $from = self::one("SELECT * FROM grupper WHERE art = 'VG' AND kodenr::text = $1 AND fiscal_year = $2", [(string)$item['gruppe'], self::$regnaar]);
         unset($from['id']);
-        $from['kodenr'] = (string)(10080 + random_int(0, 899));
+        // A group code no other row uses in this fiscal year, so every case gets its own group (Codex).
+        $free = self::one("SELECT COALESCE(max(kodenr), 0) + 1 AS n FROM grupper WHERE art = 'VG' AND fiscal_year = $1", [self::$regnaar]);
+        $from['kodenr'] = (string)max(10080, (int)$free['n']);
         $from['beskrivelse'] = 'Batch-kontrol uden automatisk lagerbogføring (test)';
         $from['box1'] = (string)($from['box1'] ?: $stock);
         $from['box2'] = (string)$stock;
