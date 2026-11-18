@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------patch 5.0.0 ----2026-07-06--------------
+// -------debitor/rapport.php------ver 5.0.0 ----2026-11-16--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
+// 20261116 CDX/ASR Carry and validate the report ledger before opening reminder creation popups.
 // 20121105 - Fejl ved "masseudligning (Klik på 0,00 i åbenpostoversigt) når kun 1 dato sat. Søg 20121105 
 // 20170303 - Inlføjet inkasso (ikke aktiv)
 // 20180207 - PHR Udlign kan nu bestå af flere kontonumre. Søg udlign
@@ -332,6 +333,14 @@ if (isset($_POST['submit']) || $rapportart) {
 		$_POST['kontoudtog'] = NULL;
 	if (!isset($_POST['rykkerbelob']))
 		$_POST['rykkerbelob'] = NULL;
+	if (in_array($submit, array('opret rykker', 'ryk alle', 'ny rykker'), true)) {
+		include_once(__DIR__ . '/../includes/reminderLegal.php');
+		if (!reminder_request_ledger_matches($_POST['thisDb'] ?? null, (string)$db)) {
+			alert(reminder_txt(8181, 'Regnskabet er skiftet, eller rapporten er for gammel. Åbn rapporten igen i det ønskede regnskab, før du opretter rykkere.'));
+			exit;
+		}
+	}
+	$reminderDb = rawurlencode((string)$db);
 	if (($submit == "mail kontoudtog") || ($submit == "opret rykker") || ($submit == "ryk alle")) {
 		$kontoantal = $_POST['kontoantal'];
 		// konto_id is only posted when the report had at least one matching account; with none
@@ -354,11 +363,11 @@ if (isset($_POST['submit']) || $rapportart) {
 			if ($submit == "mail kontoudtog") {
 				print "<BODY onLoad=\"window.open('mail_kontoudtog.php?kontoliste=$tmp&dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal','','$jsvars')\">";
 			} else {
-				print "<BODY onLoad=\"window.open('ny_rykker.php?kontoliste=$tmp&kontoantal=$kontoantal','','$jsvars')\">";
+				print "<BODY onLoad=\"window.open('ny_rykker.php?kontoliste=$tmp&kontoantal=$kontoantal&thisDb=$reminderDb','','$jsvars')\">";
 				$ny_rykker = 1;
 			}
 		} elseif ($submit == "ryk alle") {
-			print "<BODY onLoad=\"window.open('ny_rykker.php?kontoliste=alle&kontoantal=max','','$jsvars')\">";
+			print "<BODY onLoad=\"window.open('ny_rykker.php?kontoliste=alle&kontoantal=max&thisDb=$reminderDb','','$jsvars')\">";
 			$ny_rykker = 1;
 		} else {
 			$alert = findtekst(1791, $sprog_id); #20210805
@@ -403,7 +412,7 @@ if (isset($_POST['submit']) || $rapportart) {
 			if ($submit == "udskriv" && $tmp2 > 0)
 				print "<BODY onLoad=\"window.open('rykkerprint.php?rykker_id=$tmp&kontoantal=$tmp2','','$jsvars')\">";
 			elseif ($submit == "ny rykker" && $tmp2 > 0) {
-				print "<BODY onLoad=\"window.open('ny_rykker.php?rykker_id=$tmp&kontoantal=$tmp2','','$jsvars')\">";
+				print "<BODY onLoad=\"window.open('ny_rykker.php?rykker_id=$tmp&kontoantal=$tmp2&thisDb=$reminderDb','','$jsvars')\">";
 				$ny_rykker = 1;
 			} elseif ($submit == "afslut" && $tmp2 > 0) {
 				print "<BODY onLoad=\"window.open('afslut_rykker.php?rykker_id=$tmp&kontoantal=$tmp2','','$jsvars')\">";

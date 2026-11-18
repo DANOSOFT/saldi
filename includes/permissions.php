@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissions.php --- lap 5.0.0 --- 2026.09.16 ---
+// ---- includes/permissions.php --- ver 5.0.0 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260916 Sawaneh Roles & permissions layer (spec part 2): role -> permission levels,
 //                  compatibility with the legacy rettigheder string (a role is rendered
@@ -40,6 +40,7 @@
 //                  enforced), Sager pages keep their own rights string (spec B2).
 // 20261016 Sawaneh Review (PR #803): GET write verbs on legacy pages (slet, udlign, aktiver, bogfor, ...) need write, like
 //                  a POST does; audit_log column check filtered on the schema.
+// 20261116 CDX/ASR Read and write the existing built-in role flag across shared database schema versions.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 
@@ -482,6 +483,20 @@ function require_permission(string $key, string $level = 'read'): void
 // ------------------------------------------------------------------ roles
 
 /**
+ * Name of the existing built-in role flag, which shared databases may call is_built_in.
+ * Resolve it for the current database without renaming columns or changing stored permissions.
+ *
+ * @return string Fixed SQL identifier: is_built_in or system.
+ */
+function perm_role_system_column(): string
+{
+	global $db_type;
+	$schema = in_array($db_type, array('mysql', 'mysqli'), true) ? 'DATABASE()' : 'current_schema()';
+	$q = db_select("select column_name from information_schema.columns where table_name = 'roles' and column_name = 'is_built_in' and table_schema = " . $schema, __FILE__ . " linje " . __LINE__);
+	return db_fetch_array($q) ? 'is_built_in' : 'system';
+}
+
+/**
  * @return array<int, array{id: int, key: string, navn: string, beskrivelse: string, system: bool}>
  */
 function perm_roles(): array
@@ -490,7 +505,8 @@ function perm_roles(): array
 	if (!perm_tables_ready()) {
 		return $roles;
 	}
-	$q = db_select("select id, role_key, navn, beskrivelse, system from roles order by system desc, navn", __FILE__ . " linje " . __LINE__);
+	$systemColumn = perm_role_system_column();
+	$q = db_select("select id, role_key, navn, beskrivelse, $systemColumn as system from roles order by $systemColumn desc, navn", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$roles[] = array(
 			'id'          => (int) $r['id'],
@@ -646,7 +662,7 @@ function perm_ensure_default_roles(): void
 		$fresh[$key] = true;
 		$navn = db_escape_string(explode('|', $def['label'], 2)[1]);
 		$beskrivelse = db_escape_string(explode('|', $def['beskrivelse'], 2)[1]);
-		db_modify("insert into roles (role_key, navn, beskrivelse, system) values ('$key', '$navn', '$beskrivelse', true)", __FILE__ . " linje " . __LINE__);
+		db_modify("insert into roles (role_key, navn, beskrivelse, " . perm_role_system_column() . ") values ('$key', '$navn', '$beskrivelse', true)", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select id from roles where role_key = '$key'", __FILE__ . " linje " . __LINE__));
 		if ($r) {
 			$roleId = (int) $r['id'];
@@ -877,7 +893,7 @@ function perm_custom_role_for(string $string, int $sprog): int
 	}
 	$navn = sprintf(findtekst('5877|Tilpasset rolle %s', $sprog), $n);
 	$beskrivelse = sprintf(findtekst('5878|Oprettet ved overgangen til roller ud fra de gamle rettigheder: %s', $sprog), implode(', ', $grants));
-	db_modify("insert into roles (role_key, navn, beskrivelse, system) values ('" . db_escape_string($key) . "', '" . db_escape_string($navn) . "', '" . db_escape_string(mb_substr($beskrivelse, 0, 1000)) . "', false)", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into roles (role_key, navn, beskrivelse, " . perm_role_system_column() . ") values ('" . db_escape_string($key) . "', '" . db_escape_string($navn) . "', '" . db_escape_string(mb_substr($beskrivelse, 0, 1000)) . "', false)", __FILE__ . " linje " . __LINE__);
 	$roleId = perm_role_id_by_key($key);
 	if ($roleId > 0) {
 		perm_save_role_levels($roleId, $levels);

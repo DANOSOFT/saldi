@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-09 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-17 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -98,7 +98,8 @@
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
 // 'join' + 'index' address one part of a composite box (R7).
 // 'legacy' is the old menu path as text ids; it feeds the "Tidligere: ..." search tag (§8.10).
-
+// 20261117 CDX/ASR Link the optional automatic reminder queue from sales reminder settings.
+//
 // The registry is also read without a database connection (tools/check_settings_registry.php): the same cast
 // as includes/db_query.php's db_cast(), so the definitions load either way.
 if (!function_exists('db_cast')) {
@@ -1397,6 +1398,7 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('google docs', 'viewer', 'visning')),
 
 			// ---------------------------------------------------------------- G3.4 Payment terms & reminders
+			'sales.reminders.automation' => array('sub' => 'responsible', 'type' => 'link', 'label' => 8200, 'help' => 8201, 'href' => 'reminderAutomation.php', 'button' => 8202, 'audit' => false, 'legacy' => $rykker),
 			'sales.reminders.responsible_user' => array('sub' => 'responsible', 'type' => 'select', 'label' => 225, 'help' => 6191, 'default' => '',
 				'options_from' => 'users', 'options_mixed' => true,
 				'storage' => array('grupper', 'DIV', 4, 'box1', 'raw', 'row_name' => 'Div_valg (Rykker)'), 'legacy' => $rykker,

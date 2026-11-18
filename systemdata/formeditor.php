@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- patch 5.0.0 --- 2026-07-10 ---
+// --- systemdata/formeditor.php --- ver 5.0.0 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261005 Sawaneh Settings redesign G6.1: reset keeps the e-mail texts and fee/interest rows (FE2); print-language lock
 //                  and drafts in the settings table via includes/formEditorState.php (FE3); the background link opens
@@ -30,6 +30,8 @@
 // 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20261117 CDX/ASR Share PDF preview fallback with logo activation and report an unrendered logo after saving.
+// 20261117 CDX/ASR Restore the previous logo behavior and translate the title only after session and helpers load.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -73,16 +75,18 @@ if ($FE_API) {
 	}
 }
 
-$title = findtekst('7012|Formulareditor', $sprog_id);
+$title = 'Formulareditor';
 $css   = "../css/standard.css";
 
-include("../includes/connect.php");
+include(__DIR__ . '/../includes/connect.php');
 $modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
 $permission_key = 'system.indstillinger';
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/topline_settings.php");
-include_once("../includes/formEditorState.php");
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+/** @var int $sprog_id Session language supplied by includes/online.php. */
+$title = findtekst('7012|Formulareditor', $sprog_id);
+include(__DIR__ . '/../includes/topline_settings.php');
+include_once(__DIR__ . '/../includes/formEditorState.php');
 
 // Background helpers and the logo compositor: includes/formEditorState.php (shared with the welcome guide).
 

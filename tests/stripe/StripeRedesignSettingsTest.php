@@ -3,10 +3,13 @@
 // 20261023 CDX/LH Assert the real integration read/write permission and regress missing-table checks without warnings.
 // 20261109 CL/ASR Link reminders: the six settings in Salg › Betalingsbetingelser & rykkere (stored 'on'/'off' in var_grp stripe, read by stripe_reminder_settings()) and the renteloven § 9 b warnings on the reminder settings.
 // 20261109 CL/ASR Review fix: the warning text is hidden with its switch when "Altid klassisk" hides the switch (a chain of visible_if rules).
+// 20261117 CDX/ASR Regress background settings against ledgers without adresser.sprog and protect actual form references.
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../systemdata/diverseIncludes/stripeValg.php';
 require_once __DIR__ . '/../../includes/settings/SettingsService.php';
+require_once __DIR__ . '/../../includes/settings/components.php';
+require_once __DIR__ . '/../../includes/settings/rows.php';
 require_once __DIR__ . '/reminderFixtures.php';
 if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeReminder.php')) {
     require_once __DIR__ . '/../../includes/stripeIncludes/stripeReminder.php';
@@ -71,6 +74,38 @@ final class StripeRedesignSettingsTest extends StripeDatabaseTestCase
         try {
             $this->assertSame(1, tbl_exists('settings'));
             $this->assertSame(0, tbl_exists('stripe_gate_absent_table'));
+        } finally {
+            restore_error_handler();
+        }
+    }
+
+    public function testBackgroundSettingsUseActualLanguageReferencesWithoutAddressLanguageColumn(): void
+    {
+        $table = settings_rows_tables(getSettingsSections()['documents.backgrounds'])['backgrounds'];
+        $name = "Reparation O'Brien";
+        $id = StripeFixtures::insert('grupper', ['art' => 'VSPR', 'kodenr' => 9876, 'box1' => $name]);
+        // Saldi stores the customer's form language on its debtor group, not on adresser.
+        StripeTestEnvironment::query('CREATE TEMP TABLE adresser (id integer, art text, gruppe integer)');
+        set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
+            throw new ErrorException($message, 0, $severity, $file, $line);
+        }, E_WARNING);
+        try {
+            $rows = settings_rows_load($table, null);
+            $this->assertSame(0, $rows[$id]['usage']);
+
+            StripeFixtures::insert('grupper', ['art' => 'DG', 'kodenr' => 9876, 'box4' => strtolower($name)]);
+            StripeFixtures::insert('grupper', ['art' => 'KG', 'kodenr' => 9876, 'box4' => $name]);
+            StripeFixtures::insert('ordrer', ['sprog' => $name]);
+            StripeTestEnvironment::query("INSERT INTO settings (var_grp, var_name, var_value, user_id)
+                VALUES ('brugerSprog', 'sprog', $1, 9876)", [$name]);
+            $rows = settings_rows_load($table, null);
+            $this->assertSame(3, $rows[$id]['usage']);
+            $this->assertStringContainsString('1 grupper', $rows[$id]['usage_text']);
+            $this->assertStringContainsString('1 ordrer', $rows[$id]['usage_text']);
+            $this->assertStringContainsString('1 brugere', $rows[$id]['usage_text']);
+            $result = settings_rows_delete('documents.backgrounds', 'backgrounds', $table, $id, null);
+            $this->assertSame('err', $result[0]);
+            $this->assertSame($name, pg_fetch_result(StripeTestEnvironment::query('SELECT box1 FROM grupper WHERE id = $1', [$id]), 0, 0));
         } finally {
             restore_error_handler();
         }

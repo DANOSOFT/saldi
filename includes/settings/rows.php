@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rows.php --- lap 5.0.0 --- 2026.10.05 ---
+// ---- includes/settings/rows.php --- ver 5.0.0 --- 2026.11.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261005 Sawaneh G6.2: 'transient' columns (posted, given to the hooks, never stored - the template of a new background)
 //                  and 'create_only' columns (editable on a new row, read-only afterwards).
@@ -38,6 +38,7 @@
 // 20261019 Sawaneh Review 2 (PR #803): numeric codes compared as numbers ("01" = "1") in the uniqueness check, a row's
 //                  own unchanged code is not checked again (legacy duplicates), copy-year keeps inaktiv, next auto
 //                  code and the AFD default-warehouse cleanup without Postgres regex / same-table subquery (MySQL).
+// 20261117 CDX/ASR Read background usage from debtor groups, orders and personal preferences; adresser has no sprog column.
 
 /**
  * The tables of a rows section with their defaults filled in.
@@ -259,9 +260,12 @@ function settings_rows_usage(array $t, array $row): array
 				$add("select count(*) as n from varer where " . db_cast('gruppe', 'text') . " = '$esc'", 6427);
 				break;
 			case 'background':
-				// G6.2: customers, suppliers and orders name their background (form language) by its name.
-				$add("select count(*) as n from adresser where sprog = '$esc'", 6682);
-				$add("select count(*) as n from ordrer where sprog = '$esc'", 6422);
+				// A debtor inherits its form language from DG.box4. Personal preferences can override it;
+				// issued orders retain their own language. Protect references even before a group has customers.
+				$add("select count(*) as n from grupper where art = 'DG' and lower(trim(box4)) = lower('$esc')", 6464);
+				$add("select count(*) as n from ordrer where lower(trim(sprog)) = lower('$esc')", 6422);
+				$add("select count(distinct user_id) as n from settings where var_grp = 'brugerSprog' and var_name = 'sprog'
+					and lower(trim(var_value)) = lower('$esc')", 6625);
 				break;
 			case 'currency':
 				$k = isset($row['raw']['kodenr']) ? (int) $row['raw']['kodenr'] : 0;

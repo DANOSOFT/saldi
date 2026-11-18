@@ -8,6 +8,7 @@
 //                 A reminder is no longer held for good by an invoice on it that was paid by card while another is still owed (stripe_dunning_reminder_sql()):
 //                 a customer who pays one invoice from a link reminder still gets the next level for the rest; all paid by card still holds it.
 //                 The reminder's open items are found by primary key (seconds per reminder before on a ledger with thousands of open items).
+// 20261116 CDX/ASR Release amounts below the DKK card minimum because the charge job cannot collect them.
 
 /**
  * Predicate for an openpost row which can enter dunning. This lightweight include does
@@ -89,6 +90,7 @@ function stripe_dunning_card_hold_sql($alias, $columns) {
 		and s_ho.udskriv_til = 'Stripe' and s_ha.stripe = 'on' and s_ha.stripe_date is not null and s_ho.fakturadate >= s_ha.stripe_date
 		and coalesce(s_ha.stripe_pm_id, '') <> ''$neverAsked
 		and upper(coalesce(nullif(trim(s_ho.valuta), ''), 'DKK')) = 'DKK'
+		and round((coalesce(s_ho.sum, 0) + coalesce(s_ho.moms, 0)) * 100) >= 250
 		and lower(trim(coalesce(s_ho.betalingsbet, ''))) not in ('kontant', 'kreditkort')
 		and upper(trim(coalesce(s_ho.pbs, ''))) <> 'BS' and trim(coalesce(s_ha.pbs_nr, '')) in ('', '0')
 		and lower(trim(coalesce(s_ha.stripe_fravalg, ''))) not in ('on', 't', '1', 'true')$subscriber
