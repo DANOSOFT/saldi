@@ -36,6 +36,8 @@
 //                 «unique_filename» is reported only after that read-back, on MySQL too.
 // 20261118 CL/MMR SD-815 Codex round 14: inside a caller's PostgreSQL transaction the whole run sits in a savepoint with a transaction-level advisory lock, so a failure rolls back to it and leaves the caller's transaction usable and no lock behind.
 //                 On MySQL/MariaDB the duplicate collapse and the unique index run under LOCK TABLES pool_files WRITE: if the table lock cannot be had nothing is deleted, and once it is held the index cannot be blocked by another session.
+// 20261118 CL/MMR SD-815 Codex round 15: on MySQL/MariaDB the run does nothing while the connection is inside a transaction (DDL and LOCK TABLES would commit the caller's work); a later login does it.
+//                 The unique index gets a name no index has yet (an existing non-unique pool_files_filename_uidx made CREATE fail after the duplicate collapse); the name is chosen before anything is deleted.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -159,6 +161,58 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesMysqlInTransaction')) {
+	/**
+	 * Whether the MySQL/MariaDB connection is inside a transaction, where DDL or LOCK TABLES would commit the caller's
+	 * work: @@in_transaction (MariaDB); else an InnoDB transaction of this connection (MySQL, needs PROCESS); else
+	 * autocommit off. Null when none of them can be read.
+	 *
+	 * @return bool|null
+	 */
+	function ensurePoolFilesMysqlInTransaction(): ?bool {
+		$checks = array(
+			"SELECT @@in_transaction AS open",
+			"SELECT count(*) AS open FROM information_schema.innodb_trx WHERE trx_mysql_thread_id = CONNECTION_ID()",
+			"SELECT 1 - @@autocommit AS open",
+		);
+		foreach ($checks as $sql) {
+			try {
+				$q = db_select($sql, __FILE__ . " linje " . __LINE__);
+			} catch (mysqli_sql_exception $e) {
+				continue;
+			}
+			$r = ($q === false) ? false : db_fetch_array($q);
+			if ($r !== false && $r !== null && isset($r['open'])) {
+				return (int)$r['open'] > 0;
+			}
+		}
+		return null;
+	}
+}
+
+if (!function_exists('ensurePoolFilesMysqlIndexName')) {
+	/**
+	 * A name for the new unique filename index that no index on pool_files has yet (an existing index of that name,
+	 * e.g. a non-unique one, would make CREATE fail after the duplicates were collapsed).
+	 *
+	 * @return string
+	 * @throws EnsurePoolFilesSchemaUnknown When the names cannot be read or none is free.
+	 */
+	function ensurePoolFilesMysqlIndexName(): string {
+		$taken = array();
+		$q = ensurePoolFilesSelect("SELECT DISTINCT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files'", __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$taken[strtolower((string)($r['index_name'] ?? $r['INDEX_NAME'] ?? ''))] = true;
+		}
+		foreach (array('pool_files_filename_uidx', 'pool_files_filename_full_uidx', 'pool_files_filename_uidx2', 'pool_files_filename_uidx3') as $name) {
+			if (!isset($taken[$name])) {
+				return $name;
+			}
+		}
+		throw new EnsurePoolFilesSchemaUnknown('no free name for the pool_files unique filename index');
+	}
+}
+
 if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 	/**
 	 * Gives pool_files a unique index on filename on MySQL/MariaDB. DDL commits at once there, so the duplicate collapse
@@ -172,10 +226,11 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 	 * @throws EnsurePoolFilesSchemaUnknown When the index is not there afterwards.
 	 */
 	function ensurePoolFilesUniqueRepairMysql(string $db_type): void {
+		$name = ensurePoolFilesMysqlIndexName(); // before anything is deleted
 		db_modify("LOCK TABLES pool_files WRITE, pool_files AS a WRITE, pool_files AS b READ", __FILE__ . " linje " . __LINE__);
 		try {
 			db_modify("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);
-			db_modify("CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+			db_modify("CREATE UNIQUE INDEX $name ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
 		} finally {
 			db_modify("UNLOCK TABLES", __FILE__ . " linje " . __LINE__);
 		}
@@ -352,6 +407,13 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 		}
 		$mysql = in_array($db_type, array('mysql', 'mysqli'), true);
 		if ($mysql) {
+			// MySQL/MariaDB commit an open transaction on DDL and LOCK TABLES, so nothing here may run inside one: the
+			// caller's uncommitted work would be committed. A login outside a transaction does it instead.
+			$open = ensurePoolFilesMysqlInTransaction();
+			if ($open !== false) {
+				error_log('ensurePoolFilesSchema: skipped, ' . ($open === null ? 'transaction state unknown' : 'connection is inside a transaction'));
+				return array();
+			}
 			$lockName = "CONCAT('saldi:pool_files_schema:', MD5(DATABASE()))";
 			$locked = db_fetch_array(ensurePoolFilesSelect("SELECT GET_LOCK($lockName, 30) AS acquired", __LINE__));
 			if ((int)($locked['acquired'] ?? 0) !== 1) {

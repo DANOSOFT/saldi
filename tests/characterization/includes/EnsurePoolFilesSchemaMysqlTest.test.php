@@ -3,6 +3,7 @@
 //                 A pending read that times out behind another session's table lock ends the run without an uncaught exception, flag or held lock; the next run fills the row.
 //                 Needs the mysqli extension and SALDI_CHAR_MYSQL_SOCKET (a disposable server, user root without password unless SALDI_CHAR_MYSQL_USER/PASS); skipped otherwise.
 // 20261118 CL/MMR SD-815 Codex round 14: when the unique-index repair cannot get the table (another session's open transaction has read pool_files), no duplicate row is deleted; the retry keeps the newest row.
+// 20261118 CL/MMR SD-815 Codex round 15: inside a caller's transaction nothing runs (the caller can still roll back its own work), and an existing non-unique index named pool_files_filename_uidx does not stop the repair.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -161,6 +162,42 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         $done = ensurePoolFilesSchema('mysqli');
         self::assertContains('unique_filename', $done);
         self::assertSame('2,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '3,00') ON DUPLICATE KEY UPDATE id = id");
+        self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
+        self::assertSame([], ensurePoolFilesSchema('mysqli'));
+    }
+
+    public function testNothingRunsInsideACallersTransaction(): void
+    {
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '2,00')");
+        $this->sql('START TRANSACTION');
+        $this->sql("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('caller', 'test', 'uncommitted')");
+
+        self::assertSame([], ensurePoolFilesSchema('mysqli'));
+
+        self::assertSame('1', $this->one('SELECT @@in_transaction'), 'the caller is still in its transaction');
+        self::assertStringContainsString('inside a transaction', (string) file_get_contents($this->log));
+        $this->sql('ROLLBACK');
+        $this->other = $this->connect();
+        mysqli_select_db($this->other, $this->database);
+        self::assertSame('0', (string) mysqli_fetch_row(mysqli_query($this->other, "SELECT count(*) FROM settings WHERE var_name = 'caller'"))[0], 'the caller could roll its own work back');
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing touched');
+
+        $done = ensurePoolFilesSchema('mysqli'); // the next login, outside a transaction
+        self::assertContains('unique_filename', $done);
+        self::assertSame('2,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"));
+    }
+
+    public function testAnExistingNonUniqueIndexWithTheUsualNameIsNoObstacle(): void
+    {
+        $this->sql('CREATE INDEX pool_files_filename_uidx ON pool_files (filename)');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '2,00')");
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        self::assertContains('unique_filename', $done);
+        self::assertSame('2,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
+        self::assertSame('0', $this->one("SELECT non_unique FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND index_name = 'pool_files_filename_full_uidx'"), 'the new unique index');
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '3,00') ON DUPLICATE KEY UPDATE id = id");
         self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
         self::assertSame([], ensurePoolFilesSchema('mysqli'));
