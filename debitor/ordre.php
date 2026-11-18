@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -188,6 +188,9 @@
 // 20261111 CL/MJ SST-1002 With Brug samlet pris, a line of a set item that is not a set (saet 0, e.g. a variant) gets a position number.
 //                Without one, the next Gem posted an empty position and stopped with a TypeError.
 // 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
+// 20261118 CL/MMR SST-1031 An original quote (OT) on a case no longer shows the general "Kopier" button, only the case copy "Kopiér".
+//                 The general copy made a new OT on the same case with quote number 0 and no timestamp.
+//                 A new order on a case now gets datotid (creation time), and datotid is escaped in the insert.
 @session_start();
 $s_id = session_id();
 
@@ -2665,6 +2668,7 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 			$valutakurs = 100;
 		}
 		$nr = (int)if_isset($nr, 0);
+		if ($sag_id && !(int)$datotid) $datotid = date('U'); # 20261118 SST-1031 case pages show and sort orders by datotid
 		$qtxt = "insert into ordrer";
 		$qtxt .= "(ordrenr,konto_id,kontonr,kundeordnr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,";
 		$qtxt .= "lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,lev_email,lev_land,betalingsdage,betalingsbet,cvrnr,ean,institution,";
@@ -2674,7 +2678,7 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		$qtxt .= "($ordrenr,'$konto_id','$kontonr','$kundeordnr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt',";
 		$qtxt .= "'$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$lev_email','$lev_land','$betalingsdage','$betalingsbet',";
 		$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats','$status','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "','$lev_adr',";
-		$qtxt .= "'$valuta','$projekt[0]','$formularsprog','$pbs',".($afd==""?"NULL":"'$afd'").",'0','$procenttillag',".($sag_id==""?"NULL":"'$sag_id'").",".($sagsnr==""?"NULL":"'$sagsnr'").",".($tilbudnr==""?"NULL":"'$tilbudnr'").",'$datotid',";
+		$qtxt .= "'$valuta','$projekt[0]','$formularsprog','$pbs',".($afd==""?"NULL":"'$afd'").",'0','$procenttillag',".($sag_id==""?"NULL":"'$sag_id'").",".($sagsnr==""?"NULL":"'$sagsnr'").",".($tilbudnr==""?"NULL":"'$tilbudnr'").",'" . db_escape_string((string) $datotid) . "',";
 		$qtxt .= "".($nr==""?"NULL":"'$nr'").",'$returside','$omkunde',";
 		($art == 'PO') ? $qtxt .= "'','','','','')" : $qtxt .= "'$felt_1','$felt_2','$felt_3','$felt_4','$felt_5')"; #20191004
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -6525,7 +6529,8 @@ function ordreside($id, $regnskab)
 
 				print "<td align=\"center\" width=$width><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" value=\"$txt\" name=\"$b_name\" $tmp title=\"$tekst2\" onclick=\"javascript:docChange = false;\"></td>\n";
 			}
-			if ($art != 'DK') print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" value=\"" . findtekst('1100|Kopier', $sprog_id) . "\" name=\"copy\" title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog_id) . "\"></td>\n";
+			# 20261118 SST-1031 an OT on a case is copied with the case copy below; the general copy made a broken OT on the same case
+			if ($art != 'DK' && !($art == 'OT' && $sag_id)) print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" value=\"" . findtekst('1100|Kopier', $sprog_id) . "\" name=\"copy\" title=\"" . findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog_id) . "\"></td>\n";
 			$txt = findtekst('2375|Sæt', $sprog_id);
 			if ($status < 3 && !$betalt && $vis_saet && $konto_id) {
 				print "<td align=\"center\" width=$width><input type=\"button\" class=\"button gray medium\" style=\"width:75px; border-radius: 4px;\" value=\"$txt\" name=\"ret_saet\" title=\"" . findtekst('1498|Klik her for at oprette eller rette i varesæt', $sprog_id) . "\" onclick=\"jacascript:window.location.href='saetpris.php?id=$id'\"></td>\n";
