@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsSearch.php --- Settings search Phase 1 --- 2026-09-30 ----
+// ----------------systemdata/settingsSearch.php --- Settings search Phase 1 --- 2026-11-18 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,6 +20,7 @@
 // 20260709 SZ Created: JSON lookup endpoint backing the Settings search box
 // 20260710 SZ Added 3-tier label/keyword/word-fallback matching + Norwegian label support
 // 20260930 CL/NTR Added 'masterDb' visibility rule so master-only pages are not offered in other accounts.
+// 20261118 CL/LH 'bankFeature' visibility rule: Bankforbindelse is offered once Enable Banking is configured on the server (bankIntegrationAvailable()).
 // JSON lookup endpoint backing the Settings search box (see settingsRegistry.php).
 
 ob_start();
@@ -49,7 +50,7 @@ $search = isset($_GET['search']) ? trim($_GET['search']) : '';
  * Whether a registry entry may be offered to the current user.
  *
  * Checks the entry's 'requiresReseller' flag and its 'visibilityRule'
- * ('posModule', 'docubizz' or 'masterDb', see settingsRegistry.php).
+ * ('posModule', 'docubizz', 'masterDb' or 'bankFeature', see settingsRegistry.php).
  *
  * @param array $entry Registry entry from getSettingsRegistry()
  * @return bool True when the entry should appear in the search results
@@ -69,6 +70,14 @@ function settingsEntryIsVisible($entry) {
 				break;
 			case 'posModule':
 				if (!file_exists("../debitor/pos_ordre.php")) return false;
+				break;
+			case 'bankFeature':
+				// The section is where a company switches the feed on, so it is offered whenever the server is configured.
+				$enabledFile = __DIR__ . '/../bank_integration/includes/enabled.php';
+				if (!function_exists('bankIntegrationAvailable') && is_file($enabledFile)) {
+					include_once($enabledFile);
+				}
+				if (!function_exists('bankIntegrationAvailable') || !bankIntegrationAvailable()) return false;
 				break;
 			case 'docubizz':
 				$q = db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box6='on'", __FILE__ . " linje " . __LINE__);
