@@ -195,6 +195,7 @@
 //                 City names from bynavn() and the account-card cvrnr, email, ean and institution are escaped where they are read, like the form values.
 //                 The delivery postcode is escaped once where it is read, and the delivery-address save no longer escapes lev_* twice.
 //                 $notes is escaped when it is read from the form (the same change as SST-1026), and the update no longer escapes it a second time.
+//                 In that order update (Gem) the form values that came in raw are escaped or cast as in the insert.
 @session_start();
 $s_id = session_id();
 
@@ -2492,12 +2493,12 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$qtxt .= "kontakt_tlf='$kontakt_tlf',lev_navn='$lev_navn',lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',";
 				$qtxt .= "lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',lev_email='$lev_email',lev_land='$lev_land',lev_kontakt='$lev_kontakt',vis_lev_addr='$vis_lev_addr',";
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
-				$qtxt .= "betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',cvrnr='$cvrnr',momssats='$momssats',";
-				$qtxt .= "procenttillag='$procenttillag',ean='$ean',institution='$institution',email='$email',mail_fakt='$mail_fakt',";
-				$qtxt .= "phone='$phone',udskriv_til='$udskriv_til',notes='$notes', ";
+				$qtxt .= "betalingsdage='" . (int) $betalingsdage . "',betalingsbet='" . db_escape_string((string) $betalingsbet) . "',cvrnr='$cvrnr',momssats='" . (float) $momssats . "',";
+				$qtxt .= "procenttillag='$procenttillag',ean='$ean',institution='$institution',email='$email',mail_fakt='" . db_escape_string((string) $mail_fakt) . "',";
+				$qtxt .= "phone='" . db_escape_string((string) $phone) . "',udskriv_til='$udskriv_til',notes='$notes', ";
 				$qtxt .= "ordredate='$ordredate',status='$status',ref='" . db_escape_string((string) $ref) . "',";
-				$qtxt .= "fakturanr='$fakturanr',lev_adr='$lev_adr',performed_by='" . db_escape_string((string) $performed_by) . "',tidspkt='$tidspkt',projekt='$projekt[0]',";
-				$qtxt .= "sprog='$formularsprog',pbs='$pbs',afd='$afd',restordre='$restordre',mail_subj='$mail_subj',mail_text='$mail_text' $tmp ";
+				$qtxt .= "fakturanr='" . db_escape_string((string) $fakturanr) . "',lev_adr='" . db_escape_string((string) $lev_adr) . "',performed_by='" . db_escape_string((string) $performed_by) . "',tidspkt='$tidspkt',projekt='" . db_escape_string((string) $projekt[0]) . "',";
+				$qtxt .= "sprog='" . db_escape_string((string) $formularsprog) . "',pbs='" . db_escape_string((string) $pbs) . "',afd='$afd',restordre='$restordre',mail_subj='$mail_subj',mail_text='$mail_text' $tmp ";
 				$qtxt .= "where id=$id";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				if ($vis_saet && $afd && !$felt_5) { #20180316
