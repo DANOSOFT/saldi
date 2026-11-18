@@ -36,8 +36,11 @@
 // 20261116 CL/LH Pull model (no deferral texts), rights through perm_can() (settings.finance, finans.kassekladde), texts through findtekst() (bank.* keys) as UTF-8 (ebT()).
 // 20261116 CL/LH ebUnavailableReason() checks the company switch before the schema.
 // 20261118 CL/LH ebPostButton() takes a target; ebShellRedirect() returns from the bank login (run as the whole window) into index/main.php's content frame.
+// 20261118 CL/LH UI pass: ebAccountLabel() (ledger-first account name), ebHolderName() (holder names joined with a comma, in ebNames.php), ebNoticeHtml() (support code in a title attribute, also for flash messages), ebParseDate() (dd-mm-åååå and friends).
+//                An unmapped account reads "Ikke i brug" (grey), a disconnected one "Fjernet"; the Tilbage button can name the journal; ebPageH() writes the ellipsis as three dots on ISO-8859-15 tenants.
 
 require_once __DIR__ . '/ebConfig.php';
+require_once __DIR__ . '/ebNames.php';
 require_once __DIR__ . '/ebSchema.php';
 require_once __DIR__ . '/ebClient.php';
 require_once __DIR__ . '/ebConnections.php';
@@ -93,6 +96,110 @@ function ebErrorHtml(?string $code, ?string $kind = null): string
 	return ebMessageHtml($message);
 }
 
+/**
+ * Escaped Danish message for a flash or notice whose support code ("(kode XYZ)") is kept out of the text:
+ * the code goes into the title attribute of the surrounding element, so support can still find it.
+ *
+ * @param string $message Plain text, possibly ending in " (kode XYZ)".
+ * @param string $class CSS classes of the div, e.g. 'eb-flash eb-flash-error'.
+ * @return string HTML div.
+ */
+function ebNoticeHtml(string $message, string $class): string
+{
+	$title = '';
+	if (preg_match('/^(.*) \(kode ([A-Z0-9_]+)\)$/s', $message, $match)) {
+		$message = $match[1];
+		$title = " title='" . ebH(sprintf(ebT(findtekst('bank.error.code|Kode: %s', ebLang())), $match[2])) . "'";
+	}
+	return "<div class='" . ebH($class) . "'$title>" . ebH($message) . "</div>";
+}
+
+/**
+ * Name of a ledger account in the fiscal year the user works in ($regnaar), cached per request.
+ *
+ * @param int $kontonr kontoplan.kontonr
+ * @return string Plain UTF-8 text ('' when the account is not in this year's chart or cannot be read).
+ */
+function ebLedgerName(int $kontonr): string
+{
+	static $names = array();
+	if ($kontonr <= 0) {
+		return '';
+	}
+	$regnaar = (int)($GLOBALS['regnaar'] ?? 0);
+	$key = ($GLOBALS['db'] ?? '') . '|' . $regnaar . '|' . $kontonr; // Long-running processes may switch tenant or year.
+	if (!array_key_exists($key, $names)) {
+		try {
+			$row = ebRow('SELECT beskrivelse FROM kontoplan WHERE kontonr=' . $kontonr . ' AND regnskabsaar=' . $regnaar);
+			$names[$key] = trim((string)($row['beskrivelse'] ?? ''));
+		} catch (Throwable $e) {
+			$names[$key] = ''; // A label never stops a page.
+		}
+	}
+	return $names[$key];
+}
+
+/**
+ * Ledger-first name of a bank account, the one Saldi shows everywhere: "9800 Bank & giro · Nordea …8028".
+ * An account without a ledger account (not in use yet) is "Bankkonto …8028".
+ *
+ * @param array<string, mixed> $account bank_accounts row (ebListAccounts()): ledger_account, display_identity, connection_id.
+ * @param array<string, mixed>|null $connection Its bank_connections row (ebListConnections()); read from the database when null.
+ * @return string Plain UTF-8 text; escape when printing (ebH on the bank pages, ebPageH on pages in the tenant's charset).
+ */
+function ebAccountLabel(array $account, ?array $connection = null): string
+{
+	static $bankNames = array();
+	$last4 = ebAccountLast4((string)($account['display_identity'] ?? ''));
+	$ledger = (int)($account['ledger_account'] ?? 0);
+	if ($ledger <= 0) {
+		return trim(ebT(findtekst('bank.feed.bank_account|Bankkonto', ebLang())) . ' ' . $last4);
+	}
+	$connectionId = (int)($account['connection_id'] ?? 0);
+	if ($connection === null && $connectionId > 0) {
+		$key = ($GLOBALS['db'] ?? '') . '|' . $connectionId;
+		if (!array_key_exists($key, $bankNames)) {
+			try {
+				$bankNames[$key] = (string)(ebRow('SELECT aspsp_name FROM bank_connections WHERE id=' . $connectionId)['aspsp_name'] ?? '');
+			} catch (Throwable $e) {
+				$bankNames[$key] = '';
+			}
+		}
+		$bankName = $bankNames[$key];
+	} else {
+		$bankName = (string)($connection['aspsp_name'] ?? '');
+	}
+	$ledgerText = trim($ledger . ' ' . ebLedgerName($ledger));
+	$bankText = trim($bankName . ' ' . $last4);
+	return $bankText !== '' ? $ledgerText . ' · ' . $bankText : $ledgerText;
+}
+
+/**
+ * Reads a date typed the way Danish users type it: dd-mm-åååå, dd.mm.åååå, dd/mm/åååå, ddmmåå, ddmmåååå,
+ * or åååå-mm-dd (the form the pages' own links use). Two-digit years are 20åå. Nothing is guessed or corrected:
+ * an impossible date such as 31-02-2026 is invalid.
+ *
+ * @param string|null $input Raw form value.
+ * @return string|null Y-m-d, or null when empty or invalid (check trim($input) === '' to tell the two apart).
+ */
+function ebParseDate(?string $input): ?string
+{
+	$text = trim((string)$input);
+	if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $text, $m)) {
+		$year = (int)$m[1];
+		$month = (int)$m[2];
+		$day = (int)$m[3];
+	} elseif (preg_match('/^(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{2}|\d{4})$/', $text, $m)
+		|| preg_match('/^(\d{2})(\d{2})(\d{2}|\d{4})$/', $text, $m)) {
+		$day = (int)$m[1];
+		$month = (int)$m[2];
+		$year = strlen($m[3]) === 2 ? 2000 + (int)$m[3] : (int)$m[3];
+	} else {
+		return null;
+	}
+	return checkdate($month, $day, $year) ? sprintf('%04d-%02d-%02d', $year, $month, $day) : null;
+}
+
 if (!function_exists('ebH')) {
 
 	/**
@@ -106,7 +213,8 @@ if (!function_exists('ebH')) {
 		if (($GLOBALS['db_encode'] ?? 'UTF8') === 'UTF8') {
 			return ebH($utf8);
 		}
-		return htmlspecialchars(mb_convert_encoding($utf8, 'ISO-8859-15', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'ISO-8859-15');
+		// ISO-8859-15 has no ellipsis (ebAccountLabel()'s "…8028"); three dots read the same.
+		return htmlspecialchars(mb_convert_encoding(str_replace("\u{2026}", '...', $utf8), 'ISO-8859-15', 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'ISO-8859-15');
 	}
 
 	/**
@@ -340,7 +448,7 @@ if (!function_exists('ebH')) {
 		$html = '';
 		foreach (ebTakeFlash() as $f) {
 			$type = in_array($f['type'] ?? '', array('ok', 'info', 'warn', 'error'), true) ? $f['type'] : 'info';
-			$html .= "<div class='eb-flash eb-flash-$type'>" . ebMessageHtml($f['text'] ?? '') . "</div>\n";
+			$html .= ebNoticeHtml((string)($f['text'] ?? ''), "eb-flash eb-flash-$type") . "\n";
 		}
 		return $html;
 	}
@@ -434,11 +542,11 @@ if (!function_exists('ebH')) {
 	 */
 	function ebAccountStateLabel(?string $state): string {
 		$labels = array(
-			'new'          => findtekst('bank.account_state.new|Mangler opsætning', ebLang()),
+			'new'          => findtekst('bank.account_state.unused|Ikke i brug', ebLang()),
 			'active'       => findtekst('bank.account_state.active|Aktiv', ebLang()),
 			'paused'       => findtekst('bank.account_state.paused|Sat på pause', ebLang()),
 			'unsupported'  => findtekst('bank.account_state.unsupported|Ikke understøttet - kun DKK', ebLang()),
-			'disconnected' => findtekst('bank.account_state.disconnected|Afbrudt', ebLang()),
+			'disconnected' => findtekst('bank.account_state.removed|Fjernet', ebLang()),
 		);
 		return isset($labels[(string)$state]) ? ebT($labels[(string)$state]) : (string)$state;
 	}
@@ -450,7 +558,7 @@ if (!function_exists('ebH')) {
 	 * @return string 'ok' | 'warn' | 'bad' | 'muted'
 	 */
 	function ebAccountStateTone(?string $state): string {
-		$tones = array('new' => 'warn', 'active' => 'ok', 'paused' => 'muted', 'unsupported' => 'muted', 'disconnected' => 'muted');
+		$tones = array('new' => 'muted', 'active' => 'ok', 'paused' => 'muted', 'unsupported' => 'muted', 'disconnected' => 'muted');
 		return $tones[(string)$state] ?? 'muted';
 	}
 
@@ -465,7 +573,7 @@ if (!function_exists('ebH')) {
 			'active'       => findtekst('bank.connection_status.active|Aktiv', ebLang()),
 			'expired'      => findtekst('bank.connection_status.expired|Adgangen er udløbet', ebLang()),
 			'revoked'      => findtekst('bank.connection_status.revoked|Adgangen er tilbagekaldt', ebLang()),
-			'disconnected' => findtekst('bank.connection_status.disconnected|Afbrudt', ebLang()),
+			'disconnected' => findtekst('bank.connection_status.removed|Fjernet', ebLang()),
 			'replaced'     => findtekst('bank.connection_status.replaced|Erstattet af ny forbindelse', ebLang()),
 			'error'        => findtekst('bank.connection_status.error|Fejl', ebLang()),
 		);
@@ -649,12 +757,14 @@ if (!function_exists('ebH')) {
 	 *
 	 * @param string $title Page title (plain text).
 	 * @param string $backHref Relative URL for the Tilbage button.
+	 * @param string $backLabel Button text instead of "Tilbage" (plain UTF-8), e.g. "Tilbage til kladde 26".
 	 * @return string HTML.
 	 */
-	function ebRenderTopline(string $title, string $backHref): string {
+	function ebRenderTopline(string $title, string $backHref, string $backLabel = ''): string {
 		global $icon_back;
+		$backLabel = $backLabel !== '' ? $backLabel : ebT(findtekst('bank.feed.back|Tilbage', ebLang()));
 		$html = "<div class='topline'>";
-		$html .= "<a class='topline-btn eb-back' href='" . ebH($backHref) . "' accesskey='L'>" . ($icon_back ?? '') . ebH(ebT(findtekst('bank.feed.back|Tilbage', ebLang()))) . "</a>";
+		$html .= "<a class='topline-btn eb-back' href='" . ebH($backHref) . "' accesskey='L'>" . ($icon_back ?? '') . ebH($backLabel) . "</a>";
 		$html .= "<div class='topline-center'><span class='center-title'>" . ebH($title) . "</span></div>";
 		$html .= "</div>\n";
 		return $html;

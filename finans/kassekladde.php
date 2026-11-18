@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -232,6 +232,9 @@
 //                Back from the feed, the journal shows once what was put into it (eb_journal_notice).
 //                The feed opens only after opdater() saved every line, so a partly refused save stays in the journal with its error.
 // 20261116 CL/LH A resend of a partially saved Bankforbindelse request stays in the journal instead of opening the feed.
+// 20261118 CL/LH The bank button is "Bankposteringer" (bank.journal.button_postings) and sits right after Importér.
+//                Back from the feed, what was put into the journal shows once as a notice under the balance instead of an alert().
+//                The empty contra field of lines from the bank (active bank_import_links rows) is pale yellow until filled, and after an import the first one has the focus.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -3057,6 +3060,15 @@ print "<td width='2%' align='center' style='vertical-align: middle;'>
     <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;' title='Print'></a></td>
     <td width='12%' align='center' style='vertical-align: middle; white-space: nowrap;'><a href=$help_link>$help_txt</a> <a href=$help_link>$help_icon</a></td></tr>\n";
 print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
+// What "Læg valgte i kladde" on the bank feed put into this journal, shown once under the balance (UTF-8, ebJournalNotice() in bank_integration/includes/ebAccess.php)
+$ebJournalNotice = '';
+if ($kladde_id && isset($_SESSION['eb_journal_notice'][(int)$kladde_id])) {
+	include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
+	$ebJournalNotice = (string)$_SESSION['eb_journal_notice'][(int)$kladde_id];
+	unset($_SESSION['eb_journal_notice'][(int)$kladde_id]);
+	print "<div id='eb-journal-notice' role='status' style='text-align:left;padding:3px 0 0 6px;'><span style='display:inline-block;background:#fff6cc;border:1px solid #e8cf7a;border-radius:4px;padding:2px 10px;font-size:12px;'>"
+		. ebPageH($ebJournalNotice) . ' ' . htmlspecialchars(findtekst('bank.journal.fill_contra|Udfyld modkonto i de gule felter.', $sprog_id), ENT_QUOTES, $charset) . "</span></div>";
+}
 	#}
 
 }
@@ -4343,11 +4355,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					print "<td align='center'><input type='submit' style='width:120px;float:left' accesskey='d' value='DocuBizz' name='submit' onclick='javascript:docChange = false;' onclick=\"return confirm('$confirm1')\"></td>"; #20210720
 				}
 				print "<td align='center'><span title='" . findtekst('1549|Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='i' value='" . findtekst('1356|Importér', $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span></td>";
-				print "<td align='center'><span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span></td>";
 				include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
 				if (bankIntegrationEnabled()) {
-					print "<td align='center'><span title='" . findtekst('bank.journal.button_title|Gemmer kladden og åbner bankposteringerne, hvor du vælger, hvilke der skal i kladden', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='z' value='" . findtekst('bank.journal.button|Bankforbindelse', $sprog_id) . "' name='bankfeed' onclick='javascript:docChange = false;'></span></td>";
+					print "<td align='center'><span title='" . findtekst('bank.journal.button_title|Gemmer kladden og åbner bankposteringerne, hvor du vælger, hvilke der skal i kladden', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='z' value='" . findtekst('bank.journal.button_postings|Bankposteringer', $sprog_id) . "' name='bankfeed' onclick='javascript:docChange = false;'></span></td>";
 				}
+				print "<td align='center'><span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span></td>";
 			}
 		}
 		print "</form>";
@@ -5272,6 +5284,21 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<style>@media print{#kk-balance-status{display:none;}}</style>";
 		print "<script>var kkBalEl=document.getElementById('kk-balance-status');if(kkBalEl){kkBalEl.innerHTML=" . json_encode($balance_pill) . ";}</script>";
 	}
+	// Lines the bank feed put into this journal (active bank_import_links rows): their empty contra field is pale yellow until it is filled
+	$ebBankLineIds = array();
+	if (!empty($kk_editable_view) && $kladde_id) {
+		include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
+		if (bankIntegrationEnabled()) {
+			try {
+				$ebBankLineIds = array_map('intval', array_column(ebRows('SELECT kassekladde_id FROM bank_import_links WHERE kladde_id=' . (int)$kladde_id . " AND disposition='active'"), 'kassekladde_id'));
+			} catch (Throwable $e) {
+				$ebBankLineIds = array(); // Only a help: a failed lookup never stops the journal.
+			}
+		}
+		if ($ebBankLineIds) {
+			print "<style>@media screen{input.eb-contra-empty{background-color:#fff3b0 !important;}}</style>";
+		}
+	}
 	print "<script language=\"javascript\">";
 	print "var savedFocus = " . json_encode((string)$fokus) . ";";
 	print "var savedFocusField = savedFocus && document.forms[0] ? document.forms[0].elements[savedFocus] : null;";
@@ -5282,10 +5309,29 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if ($vat_reset_notice) {
 		print "alert(" . json_encode($vat_reset_notice) . ");";
 	}
-	// What "Læg valgte i kladde" on the bank feed put into this journal (UTF-8, ebJournalNotice() in bank_integration/includes/ebAccess.php)
-	if ($kladde_id && isset($_SESSION['eb_journal_notice'][(int)$kladde_id])) {
-		print "alert(" . json_encode((string)$_SESSION['eb_journal_notice'][(int)$kladde_id]) . ");";
-		unset($_SESSION['eb_journal_notice'][(int)$kladde_id]);
+	// The empty contra field of each bank line (the one of Debet/Kredit that is empty) is marked; right after "Læg valgte i kladde"
+	// (the notice above the lines) the first of them gets the focus.
+	if ($ebBankLineIds) {
+		print "(function () {
+			var ids = " . json_encode($ebBankLineIds) . ", focusFirst = " . json_encode(!empty($ebJournalNotice)) . ";
+			var form = document.forms['kassekladde'] || document.forms[0], first = null;
+			if (!form) return;
+			var lines = form.querySelectorAll(\"input[name^='id[']\");
+			for (var i = 0; i < lines.length; i++) {
+				var m = /^id\\[(\\d+)\\]$/.exec(lines[i].name);
+				if (!m || ids.indexOf(parseInt(lines[i].value, 10)) < 0) continue;
+				var d = form.elements['debe' + m[1]], k = form.elements['kred' + m[1]];
+				if (!d || !k || !d.tagName || !k.tagName || !d.value.trim() === !k.value.trim()) continue;
+				var field = d.value.trim() ? k : d;
+				field.classList.add('eb-contra-empty');
+				field.addEventListener('input', function () { this.classList.toggle('eb-contra-empty', !this.value.trim()); });
+				first = first || field;
+			}
+			if (!first || !focusFirst) return;
+			// The page's DOMContentLoaded handler (MB-41) focuses savedFocus and scrolls it into view.
+			savedFocus = first.name;
+			first.focus({preventScroll: true});
+		})();";
 	}
 	print "</script>";
 	// if ($menu == 'T') {

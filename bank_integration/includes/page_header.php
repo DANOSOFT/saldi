@@ -5,6 +5,7 @@
 // Outputs <!DOCTYPE html> … <body> and leaves the document open.
 // The caller is responsible for rendering .topline and .content-noside.
 // 20261028 CL/LH Sticky action bar and narrow checkbox column for the bank feed pick list; secondary and danger buttons win over the global !important submit style that includes/online.php prints.
+// 20261118 CL/LH UI pass: 13px body text like the rest of Saldi, the feed's summary line, a pick bar that stays visible with a border, picked rows highlighted, notices with a button, collapsible account settings (details) on the accounts page.
 
 $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 ?>
@@ -85,6 +86,7 @@ $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" vie
             border-radius: 10px;
             border: 1px solid #ddd;
             padding: 15px;
+            font-size: 13px;
         }
 
         /* ── Bank feed pages (connect, accounts, feed) ───────────── */
@@ -97,7 +99,22 @@ $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" vie
             margin-bottom: 12px;
         }
         .eb-panel h2 { font-size: 15px; margin: 0 0 8px 0; }
-        .eb-panel p { margin: 4px 0 8px 0; }
+        .eb-panel p { margin: 4px 0 8px 0; font-size: 13px; }
+        .eb-panel p.eb-muted { font-size: 12px; }
+        .eb-panel h2 .eb-badge { font-weight: 400; vertical-align: 1px; }
+        .eb-link { color: <?= $buttonColor ?? '#114691' ?>; text-decoration: none; font-size: 13px; white-space: nowrap; }
+        .eb-link:hover { text-decoration: underline; }
+        /* Feed: one summary line per account. */
+        .eb-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; padding: 8px 16px; }
+        .eb-summary-name { font-size: 14px; }
+        .eb-summary-bank { color: #555; }
+        .eb-summary-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+        .eb-summary-meta .eb-muted { font-size: 13px; }
+        .eb-list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; margin-bottom: 8px; }
+        .eb-list-head p { margin: 0; }
+        .eb-form-row.eb-filter { align-items: center; gap: 6px 10px; margin: 0; }
+        .eb-form-row.eb-filter label { flex-direction: row; align-items: center; gap: 6px; }
+        .eb-filter input[type=text] { width: 7.5em; }
         .eb-muted { color: #666; font-size: 12px; }
         .eb-grid { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; font-size: 13px; }
         .eb-grid dt { color: #555; }
@@ -107,6 +124,8 @@ $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" vie
         .eb-flash-info { background: #e8effa; border: 1px solid #a8bfe6; }
         .eb-flash-warn { background: #fff6dd; border: 1px solid #e8cf7a; }
         .eb-flash-error { background: #fde8e6; border: 1px solid #eba59c; }
+        .eb-flash-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .eb-flash[title] { cursor: help; }
         .eb-badge { display: inline-block; border-radius: 10px; padding: 1px 8px; font-size: 12px; white-space: nowrap; }
         .eb-badge.ok { background: #e6f4ea; color: #1a6b3a; }
         .eb-badge.warn { background: #fff3cd; color: #7a5a00; }
@@ -163,9 +182,29 @@ $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" vie
         .eb-sub { display: block; color: #666; font-size: 12px; }
         .eb-form-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; }
         .eb-form-row label { display: flex; flex-direction: column; font-size: 12px; color: #555; gap: 2px; }
-        .eb-pickbar { position: sticky; top: 0; z-index: 1; background: #fff; margin: 0; padding: 6px 0; }
+        .eb-pickbar { position: sticky; top: 0; z-index: 2; background: #fff; margin: 0; padding: 6px 0; border-bottom: 1px solid #e3e6ee; }
+        .eb-pick-count { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-left: 6px; font-variant-numeric: tabular-nums; }
         table.eb-table .eb-check { width: 1%; padding-right: 0; }
         table.eb-table td label { cursor: pointer; }
+        table.eb-pick-table tbody tr { cursor: pointer; }
+        table.eb-table tbody tr.eb-picked td { background-color: #e8effa; }
+        table.eb-table th.num { text-align: right; }
+        table.eb-table td.num, table.eb-table th.num { width: 1%; min-width: 80px; }
+        /* Accounts page: one block per bank connection, one line per account. */
+        .eb-conn-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
+        .eb-conn-head h2 { margin: 0; }
+        .eb-conn-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+        .eb-account { border-top: 1px solid #eceef2; padding: 8px 0 6px 0; }
+        .eb-account:first-of-type { margin-top: 8px; }
+        .eb-account.eb-highlight { background: #f4f7fc; box-shadow: -16px 0 0 #f4f7fc, 16px 0 0 #f4f7fc; }
+        .eb-account-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
+        .eb-account-name { font-size: 13px; }
+        .eb-account-sub { color: #666; font-size: 12px; }
+        .eb-account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+        .eb-account details { margin-top: 4px; }
+        .eb-account details > summary { cursor: pointer; color: <?= $buttonColor ?? '#114691' ?>; font-size: 13px; display: inline-block; }
+        .eb-account details > summary:hover { text-decoration: underline; }
+        .eb-account details[open] > summary { margin-bottom: 6px; }
         .eb-form-row input[type=text], .eb-form-row input[type=date], .eb-form-row select {
             font-size: 13px; padding: 3px 6px; border: 1px solid #c4c8d2; border-radius: 4px;
         }

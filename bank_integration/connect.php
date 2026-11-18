@@ -32,6 +32,8 @@
 // 20261116 CL/LH Texts through findtekst() (bank.connect.*); the lines go into a kassekladde from its Bankforbindelse button.
 // 20261118 CL/LH The privacy policy link opens the published PDF (saldi.dk/assets/dokumenter/privatlivspolitik.pdf); saldi.dk/privatlivspolitik is a 404.
 // 20261118 CL/LH The bank choice posts as the whole window (target _top), since banks refuse to be shown in Saldi's frame; errors return into the frame layout (ebShellRedirect()).
+// 20261118 CL/LH UI pass: shorter texts at Saldi's 13px; the journal button is called Bankposteringer.
+// 20261118 CL/LH A refused POST that returns to this page no longer prints the refusal twice (flash and panel).
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -101,12 +103,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$returnAccount = (int)($_POST['return_account'] ?? 0);
 	$errorTarget   = $returnAccount > 0 ? 'feed.php?account=' . $returnAccount : 'connect.php';
 	// The form posts as the whole window (target _top), so every way back goes through the frame layout.
+	// Back on this page the panel below already says why; a flash would print the same sentence twice.
 	if ($unavailable !== null) {
-		ebFlash('error', $unavailable);
+		if ($errorTarget !== 'connect.php') {
+			ebFlash('error', $unavailable);
+		}
 		ebShellRedirect($errorTarget);
 	}
 	if (!$canManage) {
-		ebFlash('error', ebT(findtekst('bank.connect.no_right|Du har ikke adgang til at oprette eller forny bankforbindelser. Det kræver adgang til Indstillinger.', ebLang())));
+		if ($errorTarget !== 'connect.php') {
+			ebFlash('error', ebT(findtekst('bank.connect.no_right|Du har ikke adgang til at oprette eller forny bankforbindelser. Det kræver adgang til Indstillinger.', ebLang())));
+		}
 		ebShellRedirect($errorTarget);
 	}
 	session_write_close();
@@ -191,9 +198,9 @@ if ($unavailable !== null) {
 	print "<div class='eb-panel'>";
 	print "<h2>" . ebHT(findtekst('bank.connect.heading|Forbind en bankkonto', ebLang())) . "</h2>";
 	print "<p>" . ebHT(findtekst('bank.connect.intro|Vælg din bank. Du sendes videre til bankens eget login, hvor du giver Saldi læseadgang til dine konti. Saldi kan kun læse posteringer – der kan ikke flyttes penge.', ebLang())) . "</p>";
-	print "<p>" . ebHT(findtekst('bank.connect.provider|Forbindelsen går gennem Enable Banking Oy, som er en godkendt udbyder af kontooplysninger. Enable Banking henter på Saldis vegne posteringer fra de konti, du giver adgang til i banken, og kan kun læse dem.', ebLang()));
+	print "<p>" . ebHT(findtekst('bank.connect.provider_short|Forbindelsen går gennem Enable Banking Oy, en godkendt udbyder af kontooplysninger, som henter posteringerne på Saldis vegne og kun kan læse dem.', ebLang()));
 	print " <a href='https://saldi.dk/assets/dokumenter/privatlivspolitik.pdf' target='_blank' rel='noopener'>" . ebHT(findtekst('bank.connect.privacy|Læs mere i Saldis privatlivspolitik', ebLang())) . "</a>.</p>";
-	print "<p class='eb-muted'>" . ebHT(findtekst('bank.connect.after|Bagefter vælger du, hvilken konto i kontoplanen hver bankkonto skal bogføres på, og fra hvilken dato posteringerne skal hentes. Du lægger de hentede posteringer i en kassekladde fra kassekladden med knappen Bankforbindelse. Kun konti i danske kroner (DKK) kan importeres.', ebLang())) . "</p>";
+	print "<p class='eb-muted'>" . ebHT(findtekst('bank.connect.after_postings|Bagefter vælger du bogføringskonto og startdato for hver bankkonto, og i kassekladden lægger du posteringerne ind med knappen Bankposteringer. Kun konti i danske kroner (DKK) kan bruges.', ebLang())) . "</p>";
 	if ($environment === 'SANDBOX') {
 		print "<p><span class='eb-badge warn'>" . ebHT(findtekst('bank.settings.sandbox|Testmiljø (sandbox)', ebLang())) . "</span> <span class='eb-muted'>" . ebHT(findtekst('bank.connect.sandbox_note|Forbindelser her bruger bankernes testdata, ikke rigtige konti.', ebLang())) . "</span></p>";
 	}
@@ -205,7 +212,7 @@ if ($unavailable !== null) {
 	print "</div>\n";
 
 	if ($loadError !== '') {
-		print "<div class='eb-flash eb-flash-error'>" . ebHT(findtekst('bank.connect.list_failed|Banklisten kunne ikke hentes:', ebLang())) . " " . ebMessageHtml($loadError) . "</div>";
+		print ebNoticeHtml(ebT(findtekst('bank.connect.list_failed|Banklisten kunne ikke hentes:', ebLang())) . ' ' . $loadError, 'eb-flash eb-flash-error');
 		print "<p><a class='eb-btn secondary' href='connect.php'>" . ebHT(findtekst('bank.connect.try_again|Prøv igen', ebLang())) . "</a></p>\n";
 	} elseif (!$banks) {
 		print "<div class='eb-panel'><p>" . ebHT(findtekst('bank.connect.no_banks|Der er ingen banker at vælge imellem lige nu. Prøv igen senere.', ebLang())) . "</p></div>\n";
