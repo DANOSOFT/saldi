@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_genfakt.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/ret_genfakt.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -47,6 +47,7 @@
 //                The alert text is JSON-encoded, so a name with an apostrophe or a multi-line message no longer breaks it.
 // 20261112 CL/SZ SST-927 The fallback text of the message is written with HTML entities, so it shows correctly whatever the company charset.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261118 CL/SZ SST-927 The order names are added to the message after the entity decode, so a name is shown exactly as typed.
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 	that.style.color = fgcolor;
@@ -260,7 +261,6 @@ if ($_GET['ordreliste']) {
 				$r=db_fetch_array(db_select("select ordrenr from ordrer where id = '$ordreId'",__FILE__ . " linje " . __LINE__));
 				$ugyldigGenfakt[$ordreId]=trim(($r ? $r['ordrenr'] : '')." $ordreNavn");
 				$fejltekst=findtekst('debtor.recurring.next_invoice_not_after_invoice_date|Genfaktureringsdato skal v&aelig;re efter fakturadato. Ret Genfakt. p&aring; de markerede ordrer:',$sprog_id);
-				$fejltekst.="\n".implode("\n",$ugyldigGenfakt);
 			}
 			if (!$fejltekst && strstr($udskriv_til[$x],'PBS')) {
 				$betalingsdate=forfaldsdag($fakturadate, $betalingsbet[$x], $betalingsdage[$x]);
@@ -280,6 +280,8 @@ if ($_GET['ordreliste']) {
 	}
 	if ($fejltekst) {
 		$alertTekst=html_entity_decode($fejltekst,ENT_QUOTES,$charset);
+		# The order names are added after the decode, so a name is shown as it was typed
+		if ($ugyldigGenfakt) $alertTekst.="\n".implode("\n",$ugyldigGenfakt);
 		if ($charset != 'UTF-8') $alertTekst=mb_convert_encoding($alertTekst,'UTF-8',$charset);
 		print "<BODY onLoad=\"javascript:alert(".htmlspecialchars(json_encode($alertTekst),ENT_QUOTES).")\">\n";
 	}
