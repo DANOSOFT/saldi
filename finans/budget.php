@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------finans/budget.php ----------- ver 5.1.0 --- 2026.10.30 ---
+// -------------finans/budget.php ----------- ver 5.1.1 --- 2026.11.18 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,8 @@
 //                  Read posted IDs safely and initialize the ID grid independently of duplicate cleanup, including when filling from last year's figures.
 // 20261030 CDX/NTR Reject saves with missing budget dimensions before any includes or database writes.
 // 20261030 CDX/NTR Keep the default Save button rendered off-screen for old Internet Explorer.
+// 20261118 CL/MMR The Hjælp button now opens a guide to the page (it did nothing), «Udfyld med sidste års tal»
+//                 is explained and asks before it replaces figures, and the percent accepts a decimal comma.
 
 if (!isset($_POST['udfyld']) && isset($_POST['gem']) && !isset($_POST['kontoantal'], $_POST['maanedantal'])) {
 	http_response_code(400);
@@ -98,6 +100,8 @@ $icon_budget = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0
 
 $udfyld=ifset($_POST, ['udfyld'], '');
 $procent=ifset($_POST, ['procent']);
+// Danish users type «10,5»: the comma is the decimal separator here, so 10,5 % stays 10,5 % (it became 10 before).
+$procent=(float) str_replace(',', '.', trim((string) $procent));
 $plusminus=ifset($_POST, ['plusminus']);
 
 $query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
@@ -126,7 +130,7 @@ print "<tr><td height='25' align='center' valign='top'>";
 print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 print "<td width='75%' style='$topStyle' align='left'><table border='0' cellspacing='2' cellpadding='0'><tbody>";
 
-print "<td width='200px' align='center'>
+print "<td id='budget-regnskab-link' width='200px' align='center'>
     <a href='regnskab.php?returside=$returside'>
     <button class='headerbtn' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
     $icon_regnskab ".findtekst('849|Regnskab', $sprog_id)."
@@ -323,15 +327,18 @@ print "<form name=budget action='budget.php?regnaar=$regnaar&returside=$retursid
 print "<button type='submit' name='gem' value='1' tabindex='-1' aria-hidden='true' style='position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;'></button>";
 print "<table width='100%' cellpadding='0' cellspacing='1px' border='0' valign='top'>";
 print "<thead>";
-print "<tr><td><br></td><td colspan=15>".findtekst(806, $sprog_id)." ";
+$fillHint = findtekst('budget.fill.hint|Henter sidste års bogførte tal for hver konto og måned og lægger procenten til (+) eller trækker den fra (-). Tallene i felterne bliver erstattet. Intet gemmes, før du trykker Gem.', $sprog_id);
+$fillConfirm = findtekst('budget.fill.confirm|Tallene i felterne bliver erstattet med sidste års tal. Konti uden tal sidste år bliver tomme, og når du trykker Gem, slettes deres gemte budget. Vil du fortsætte?', $sprog_id);
+print "<tr><td><br></td><td id='budget-fill' colspan=15 title=\"".htmlspecialchars($fillHint, ENT_QUOTES)."\">".findtekst(806, $sprog_id)." ";
 print "<select class=\"inputbox\" NAME=\"plusminus\">";
 if ($plusminus) print "<option value=\"$plusminus\">$plusminus</option>";
 if ($plusminus != "+") print "<option value=\"+\">+</option>";
 if ($plusminus != "-") print "<option value=\"-\">-</option>";
 print "</select>";
-$procent=$procent*1;
-print " &nbsp;<input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=2 name=\"procent\" value=\"$procent\">% &nbsp;";
-print "<input class='button blue small' type=submit name=udfyld value=OK>";
+$procentShown = str_replace('.', ',', (string) $procent);
+print " &nbsp;<input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=2 name=\"procent\" value=\"$procentShown\">% &nbsp;";
+// Ask before replacing figures, but only when a month field holds a figure (an empty budget has nothing to lose).
+print "<input class='button blue small' type=submit name=udfyld value=OK onclick=\"return budgetConfirmFill(this.form, ".htmlspecialchars(json_encode($fillConfirm), ENT_QUOTES).");\">";
 
 print "</td></tr>";
 print "<tr>";
@@ -385,7 +392,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 				$tal=$amount[$x][$z];
 				$ultimo[$x]+=$tal;
 				if (!$tal) $tal="";
-				($z==1)?$title="Sæt * efter værdien for at få samme beløb i alle felter for konto $kontonr[$x]":$title=NULL;
+				($z==1)?$title=sprintf(findtekst('budget.star.hint|Sæt * efter værdien for at få samme beløb i alle felter for konto %s', $sprog_id), $kontonr[$x]):$title=NULL;
 				print "<td title=\"".$title."\" align='right'><input type=\"text\" size=\"6\" style=\"text-align:right\" name=\"amount[$x][$z]\" value=\"$tal\"></td>";
 				$tmp=$id[$x][$z];
 				print "<input type = \"hidden\" name=\"id[$x][$z]\" value=\"$tmp\">"; 
@@ -440,9 +447,9 @@ print "<tr>";
 print "<td colspan='20' style='text-align:center; padding:15px;'>";
 print "<input type='hidden' name='kontoantal' value='$kontoantal'>\n";
 print "<input type='hidden' name='maanedantal' value='$maanedantal'>\n";
-print "<input class='button green medium' style='width:150px;' type='submit' name='gem' value='".findtekst('3|Gem', $sprog_id)."' accesskey='g'>";
+print "<input id='budget-save' class='button green medium' style='width:150px;' type='submit' name='gem' value='".findtekst('3|Gem', $sprog_id)."' accesskey='g'>";
 print "<br><br>";
-print findtekst('807|Hent budget som datafil ved at højreklikke på', $sprog_id)." <a href='".$filnavn."'>".findtekst('809|dette link', $sprog_id)."</a> ".findtekst('808|og vælg &apos;Gem link som ..', $sprog_id)."'";
+print findtekst('807|Hent budget som datafil ved at højreklikke på', $sprog_id)." <a id='budget-csv' href='".$filnavn."'>".findtekst('809|dette link', $sprog_id)."</a> ".findtekst('808|og vælg &apos;Gem link som ..', $sprog_id)."'";
 print "</td></tr>";
 print "</tfoot>";
 ####################################################################################################
@@ -450,6 +457,44 @@ print "</tfoot>";
 print "</table>";
 print "</form>\n";
 print "</div>";
+?>
+<script>
+function budgetConfirmFill(form, question) {
+	var fields = form.querySelectorAll("input[name^='amount[']");
+	for (var i = 0; i < fields.length; i++) {
+		if (fields[i].value.trim() !== '') {
+			return window.confirm(question);
+		}
+	}
+	return true;
+}
+</script>
+<?php
+// Guide for the Hjælp button (#tutorial-help): without create_tutorial() the button did nothing.
+$steps = array();
+$steps[] = array(
+	"selector" => "#budget-fill",
+	"content" => findtekst('budget.guide.fill|Udfyld med sidste års tal: henter sidste års bogførte tal for hver konto og måned. Vælg + eller - og en procent for at lægge til eller trække fra, og tryk OK. Tallene i felterne bliver erstattet, og konti uden tal sidste år bliver tomme. Intet gemmes, før du trykker Gem, og så slettes det gemte budget på de tomme konti', $sprog_id).".",
+);
+$steps[] = array(
+	"selector" => "#budget-wrapper tbody input[name^='amount[']",
+	"content" => findtekst('budget.guide.star|Skriv beløbet for hver måned. Sætter du * efter beløbet i første måned, fx 5000*, får alle måneder for kontoen det beløb, når du trykker Gem', $sprog_id).".",
+);
+$steps[] = array(
+	"selector" => "#budget-save",
+	"content" => findtekst('budget.guide.save|Tryk Gem (eller Enter) for at gemme budgettet', $sprog_id).".",
+);
+$steps[] = array(
+	"selector" => "#budget-csv",
+	"content" => findtekst('budget.guide.csv|Her kan du hente budgettet som en CSV-fil', $sprog_id).".",
+);
+$steps[] = array(
+	"selector" => "#budget-regnskab-link",
+	"content" => findtekst('budget.guide.followup|Følg op på budgettet under Finans → Rapporter → Resultat/budget, som viser resultat, budget og afvigelse pr. konto. Under Regnskab kan du klikke på et kontonummer og se kontoens tal og budget som en graf', $sprog_id).".",
+);
+include(__DIR__ . "/../includes/tutorial.php");
+create_tutorial("budget", $steps);
+
 if ($menu=='T') {
 	include_once '../includes/topmenu/footer.php';
 } else {
