@@ -196,6 +196,7 @@
 //                 The delivery postcode is escaped once where it is read, and the delivery-address save no longer escapes lev_* twice.
 //                 $notes is escaped when it is read from the form (the same change as SST-1026), and the update no longer escapes it a second time.
 //                 In that order update (Gem) the form values that came in raw are escaped or cast as in the insert.
+//                 An email typed in the phone field and the stored debitoripad values are escaped like the form values they replace.
 @session_start();
 $s_id = session_id();
 
@@ -1009,12 +1010,13 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	if (substr($email, 0, 11) == "debitoripad") {
 		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
-		$email = $r["email"];
-		$phone = $r["phone"];
-		$firmanavn = $r["firmanavn"];
-		$addr1 = $r["addr1"];
-		$postnr = $r["postnr"];
-		$bynavn = $r["bynavn"];
+		# 20261118 SST-1031 escaped like the form values they replace
+		$email = db_escape_string($r["email"]);
+		$phone = db_escape_string($r["phone"]);
+		$firmanavn = db_escape_string($r["firmanavn"]);
+		$addr1 = db_escape_string($r["addr1"]);
+		$postnr = db_escape_string($r["postnr"]);
+		$bynavn = db_escape_string($r["bynavn"]);
 	}
 
 	if (strpos($phone, '@') && !$email) {
@@ -1154,7 +1156,7 @@ if ($b_submit) {
 	$phone = if_isset($_POST['phone']);
 
 	if (strpos($phone, '@') && !$email) {
-		$email = $phone;
+		$email = db_escape_string($phone); # 20261118 SST-1031 escaped like the email field
 		$phone = '';
 	}
 	if (strlen($phone) > 15) {
@@ -1164,12 +1166,13 @@ if ($b_submit) {
 	if (substr($email, 0, 11) == "debitoripad") {
 		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
-		$email = $r["email"];
+		# 20261118 SST-1031 escaped like the form values they replace; phone is escaped where it is used
+		$email = db_escape_string($r["email"]);
 		$phone = $r["phone"];
-		$firmanavn = $r["firmanavn"];
-		$addr1 = $r["addr1"];
-		$postnr = $r["postnr"];
-		$bynavn = $r["bynavn"];
+		$firmanavn = db_escape_string($r["firmanavn"]);
+		$addr1 = db_escape_string($r["addr1"]);
+		$postnr = db_escape_string($r["postnr"]);
+		$bynavn = db_escape_string($r["bynavn"]);
 	}
 
 	$ean = isset($_POST['ean']) ? db_escape_string(trim($_POST['ean'])) : ''; // Default value if not set
