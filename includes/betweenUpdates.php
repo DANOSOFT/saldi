@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,7 @@
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261118 CL/MMR SST-841 (master merge): the rentalperiod payment-column block is the last entry again, after the roles/settings migrations master's 5.1.1 work placed after the backfill continuation.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -76,54 +77,6 @@ require_once __DIR__ . '/opdat_func/migrateRoleBuiltInFlag.php';
 // It returns immediately once the completion flag is set. Do not move it into a future release gate.
 require_once __DIR__ . '/opdat_func/backfillOrderLineDelivered.php';
 backfillOrderLineDelivered($db_type);
-// 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url hold the Vibrant payment the server created for
-// a booking, so only that payment can approve it. Only accounts that use the rental module (the table exists) get
-// the columns; the login-free booking pages only check for them (includes/vibrantPayment.php).
-// Both lookups are limited to the active schema, as a rentalperiod table in another schema must not decide it.
-// Two first logins at the same moment can both find them missing: PostgreSQL adds them with IF NOT EXISTS, MySQL
-// (no IF NOT EXISTS) takes a per-database lock and reads the columns again while holding it. A MySQL login that does
-// not get the lock in time leaves the columns to the next login.
-if (isset($db) && is_string($db) && $db !== '') {
-	$rentalMysql = in_array($db_type, ['mysql', 'mysqli'], true);
-	$rentalSchema = $rentalMysql ? "table_schema = DATABASE()" : "table_schema = current_schema()";
-	$rentalTable = db_fetch_array(db_select(
-		"SELECT table_name FROM information_schema.tables WHERE $rentalSchema AND table_name = 'rentalperiod'",
-		__FILE__ . " linje " . __LINE__
-	));
-	if ($rentalTable) {
-		$rentalWanted = array('payment_id' => 'varchar(100)', 'payment_url' => 'varchar(500)');
-		$rentalColumnsQuery = "SELECT column_name FROM information_schema.columns WHERE $rentalSchema AND table_name = 'rentalperiod'";
-		$rentalColumns = array();
-		$q = db_select($rentalColumnsQuery, __FILE__ . " linje " . __LINE__);
-		while ($q && $r = db_fetch_array($q)) {
-			$rentalColumns[] = $r['column_name'];
-		}
-		$rentalMissing = array_diff(array_keys($rentalWanted), $rentalColumns);
-		if ($rentalMissing && !$rentalMysql) {
-			foreach ($rentalMissing as $column) {
-				db_modify("ALTER TABLE rentalperiod ADD COLUMN IF NOT EXISTS $column $rentalWanted[$column]", __FILE__ . " linje " . __LINE__);
-			}
-		} elseif ($rentalMissing) {
-			$rentalLock = "CONCAT('saldi:rental_payment:', MD5(DATABASE()))";
-			$rentalLocked = db_fetch_array(db_select("SELECT GET_LOCK($rentalLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
-			if ((int)($rentalLocked['acquired'] ?? 0) === 1) {
-				try {
-					// Another login may have added them while this one waited for the lock.
-					$rentalColumns = array();
-					$q = db_select($rentalColumnsQuery, __FILE__ . " linje " . __LINE__);
-					while ($q && $r = db_fetch_array($q)) {
-						$rentalColumns[] = $r['column_name'];
-					}
-					foreach (array_diff(array_keys($rentalWanted), $rentalColumns) as $column) {
-						db_modify("ALTER TABLE rentalperiod ADD COLUMN $column $rentalWanted[$column]", __FILE__ . " linje " . __LINE__);
-					}
-				} finally {
-					db_select("SELECT RELEASE_LOCK($rentalLock)", __FILE__ . " linje " . __LINE__);
-				}
-			}
-		}
-	}
-}
 
 // 20261002 Sawaneh Text 5646 (no active fiscal year) named the old "System » Indstillinger" menu. Rows still holding the
 // old wording are removed so findtekst() re-seeds them from tekster.csv; edited texts are left alone.
@@ -493,6 +446,55 @@ if (!$sawanehMysql) {
 // findBoxSale() and posbogfor() read the new rows first and the list only while no row is stored.
 require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
 migrateTillAccounts($db_type);
+
+// 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url hold the Vibrant payment the server created for
+// a booking, so only that payment can approve it. Only accounts that use the rental module (the table exists) get
+// the columns; the login-free booking pages only check for them (includes/vibrantPayment.php).
+// Both lookups are limited to the active schema, as a rentalperiod table in another schema must not decide it.
+// Two first logins at the same moment can both find them missing: PostgreSQL adds them with IF NOT EXISTS, MySQL
+// (no IF NOT EXISTS) takes a per-database lock and reads the columns again while holding it. A MySQL login that does
+// not get the lock in time leaves the columns to the next login.
+if (isset($db) && is_string($db) && $db !== '') {
+	$rentalMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+	$rentalSchema = $rentalMysql ? "table_schema = DATABASE()" : "table_schema = current_schema()";
+	$rentalTable = db_fetch_array(db_select(
+		"SELECT table_name FROM information_schema.tables WHERE $rentalSchema AND table_name = 'rentalperiod'",
+		__FILE__ . " linje " . __LINE__
+	));
+	if ($rentalTable) {
+		$rentalWanted = array('payment_id' => 'varchar(100)', 'payment_url' => 'varchar(500)');
+		$rentalColumnsQuery = "SELECT column_name FROM information_schema.columns WHERE $rentalSchema AND table_name = 'rentalperiod'";
+		$rentalColumns = array();
+		$q = db_select($rentalColumnsQuery, __FILE__ . " linje " . __LINE__);
+		while ($q && $r = db_fetch_array($q)) {
+			$rentalColumns[] = $r['column_name'];
+		}
+		$rentalMissing = array_diff(array_keys($rentalWanted), $rentalColumns);
+		if ($rentalMissing && !$rentalMysql) {
+			foreach ($rentalMissing as $column) {
+				db_modify("ALTER TABLE rentalperiod ADD COLUMN IF NOT EXISTS $column $rentalWanted[$column]", __FILE__ . " linje " . __LINE__);
+			}
+		} elseif ($rentalMissing) {
+			$rentalLock = "CONCAT('saldi:rental_payment:', MD5(DATABASE()))";
+			$rentalLocked = db_fetch_array(db_select("SELECT GET_LOCK($rentalLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int)($rentalLocked['acquired'] ?? 0) === 1) {
+				try {
+					// Another login may have added them while this one waited for the lock.
+					$rentalColumns = array();
+					$q = db_select($rentalColumnsQuery, __FILE__ . " linje " . __LINE__);
+					while ($q && $r = db_fetch_array($q)) {
+						$rentalColumns[] = $r['column_name'];
+					}
+					foreach (array_diff(array_keys($rentalWanted), $rentalColumns) as $column) {
+						db_modify("ALTER TABLE rentalperiod ADD COLUMN $column $rentalWanted[$column]", __FILE__ . " linje " . __LINE__);
+					}
+				} finally {
+					db_select("SELECT RELEASE_LOCK($rentalLock)", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		}
+	}
+}
 
 
 ?>
