@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-13 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -167,6 +167,7 @@
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261118 CL/MMR SST-1008 batch_salg(): the cost-transfer lines for batch items without automatic stock posting name the saet column.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 
@@ -2128,9 +2129,9 @@ function batch_salg($id)
 			}
 			if (!$aut_lager && $box1 && $box2 && $kostpris) { #kostvaerdien flyttes fra "afgang varelager" til "varekob".- hvis der ikke bogfoeres direkte paa varekobs kontoen
 				#	if ($valutakurs) $pris=$pris*100/$valutakurs;
-				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt) values ('-1','$antal[$x]', '$kostpris', 0, '$id', '$box2','$projekt','0')", __FILE__ . " linje " . __LINE__);
+				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt, saet) values ('-1','$antal[$x]', '$kostpris', 0, '$id', '$box2','$projekt','0')", __FILE__ . " linje " . __LINE__);
 				$kostpris = $kostpris * -1;
-				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt) values ('-1','$antal[$x]', '$kostpris', 0, '$id', '$box3','$projekt','0')", __FILE__ . " linje " . __LINE__);
+				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt, saet) values ('-1','$antal[$x]', '$kostpris', 0, '$id', '$box3','$projekt','0')", __FILE__ . " linje " . __LINE__);
 			}
 			#xit;			
 		} elseif ($box8 == 'on') { # hvis box8 er 'on' er varen lagerfoert
