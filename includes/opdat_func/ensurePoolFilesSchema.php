@@ -73,6 +73,7 @@
 // 20261118 CL/MMR SD-815 Codex round 45: only a temporary pool_files counts as a shadow; an UNLOGGED pool_files in current_schema() is the regnskab's own table and is repaired like a logged one (and stays unlogged); the log names which case stopped the run.
 // 20261118 CL/MMR SD-815 Codex round 46: on PostgreSQL the backfill flag is read and written in current_schema()'s settings by its qualified name, so a temporary settings of the session can neither hide nor receive it; without a settings table there the run stops before any change.
 //                 MySQL/MariaDB: a TEMPORARY pool_files or settings of the session (it shadows the table of the same name) stops the run before any change, as SHOW CREATE TABLE shows.
+// 20261118 CL/MMR SD-815 Codex round 47: MySQL/MariaDB: a settings (or pool_files) VIEW is the regnskab's own (SHOW CREATE TABLE answers Create View) and the flag goes through it; the temporary-settings check is part of every flag read, so a temporary settings holding the flag stops the run with a log line instead of passing for done.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -105,14 +106,18 @@ if (!function_exists('ensurePoolFilesSettingsTable')) {
 	/**
 	 * The settings table that holds the backfill flag, as SQL. PostgreSQL: current_schema()'s own settings, qualified,
 	 * so a temporary settings of this session (pg_temp comes first in search_path) neither hides nor receives the flag.
-	 * MySQL/MariaDB: settings.
+	 * MySQL/MariaDB: settings, after checking that it is not a temporary table of this session (a view is fine).
 	 *
 	 * @param string $db_type
 	 * @return string
-	 * @throws EnsurePoolFilesSchemaUnknown When the read failed, or there is no settings table in current_schema(); logged.
+	 * @throws EnsurePoolFilesSchemaUnknown When the read failed, there is no settings table in current_schema() (PostgreSQL),
+	 *                                      or settings is temporary or unreadable (MySQL/MariaDB); logged.
 	 */
 	function ensurePoolFilesSettingsTable(string $db_type): string {
 		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
+			// A temporary settings shadows the table even when qualified: no flag read or written through it, also not
+			// the «all done» check at the start of a login.
+			ensurePoolFilesGuardMysqlNotTemporary('settings');
 			return 'settings';
 		}
 		$r = db_fetch_array(ensurePoolFilesSelect("SELECT quote_ident(n.nspname) || '.settings' AS name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -265,21 +270,40 @@ if (!function_exists('ensurePoolFilesGuardMysqlTemporary')) {
 	 */
 	function ensurePoolFilesGuardMysqlTemporary(): void {
 		foreach (array('pool_files', 'settings') as $table) {
-			$rows = ensurePoolFilesMysqlRows("SHOW CREATE TABLE `$table`");
-			$create = '';
-			foreach ($rows[0] ?? array() as $key => $value) {
-				if (strcasecmp((string)$key, 'Create Table') === 0) {
-					$create = (string)$value;
-				}
+			ensurePoolFilesGuardMysqlNotTemporary($table);
+		}
+	}
+}
+
+if (!function_exists('ensurePoolFilesGuardMysqlNotTemporary')) {
+	/**
+	 * MySQL/MariaDB: stops when $table, as this session's statements see it, is a TEMPORARY table. SHOW CREATE TABLE
+	 * answers Create Table for a table (CREATE TEMPORARY TABLE for a temporary one) and Create View for a view; a view
+	 * cannot be temporary, so it is the database's own (an updatable settings view takes the flag like the table).
+	 *
+	 * @param string $table pool_files or settings.
+	 * @return void
+	 * @throws EnsurePoolFilesSchemaUnknown When it is temporary or cannot be read; logged.
+	 */
+	function ensurePoolFilesGuardMysqlNotTemporary(string $table): void {
+		$rows = ensurePoolFilesMysqlRows("SHOW CREATE TABLE `$table`");
+		$create = '';
+		$view = false;
+		foreach ($rows[0] ?? array() as $key => $value) {
+			if (strcasecmp((string)$key, 'Create Table') === 0) {
+				$create = (string)$value;
+			} elseif (strcasecmp((string)$key, 'Create View') === 0) {
+				$create = (string)$value;
+				$view = true;
 			}
-			if ($create === '') {
-				error_log("ensurePoolFilesSchema: nothing changed, SHOW CREATE TABLE $table cannot be read; the next login tries again");
-				throw new EnsurePoolFilesSchemaUnknown("$table cannot be read");
-			}
-			if (preg_match('/^CREATE\s+TEMPORARY\s+TABLE\b/i', $create)) {
-				error_log("ensurePoolFilesSchema: nothing changed, a temporary $table of this session shadows the table of this database; the next login tries again");
-				throw new EnsurePoolFilesSchemaUnknown("a temporary $table shadows the table of this database");
-			}
+		}
+		if ($create === '') {
+			error_log("ensurePoolFilesSchema: nothing changed, SHOW CREATE TABLE $table cannot be read; the next login tries again");
+			throw new EnsurePoolFilesSchemaUnknown("$table cannot be read");
+		}
+		if (!$view && preg_match('/^CREATE\s+TEMPORARY\s+TABLE\b/i', $create)) {
+			error_log("ensurePoolFilesSchema: nothing changed, a temporary $table of this session shadows the table of this database; the next login tries again");
+			throw new EnsurePoolFilesSchemaUnknown("a temporary $table shadows the table of this database");
 		}
 	}
 }
@@ -959,7 +983,8 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 if (!function_exists('ensurePoolFilesSchema')) {
 	/**
 	 * Adds what pool_files is missing (see ensurePoolFilesSchemaState()). Cheap when nothing is missing: one column
-	 * query, three index/constraint lookups and one settings lookup per login. Otherwise the work runs under a per-database lock
+	 * query, a few index/constraint lookups and one settings lookup per login (PostgreSQL also resolves its settings
+	 * table, MySQL/MariaDB reads SHOW CREATE TABLE settings to rule out a temporary one). Otherwise the work runs under a per-database lock
 	 * and is checked again inside it, so two logins at once do it once. Duplicate filenames are collapsed to the newest row (highest id)
 	 * before the unique index is added, as opdat_5.0.php does, so the index cannot fail on old data. Rows without
 	 * norm_amount get it from their amount text (normalizePoolAmount()), as opdat_5.0.php's backfill does; its flag is

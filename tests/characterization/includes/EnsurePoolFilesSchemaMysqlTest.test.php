@@ -24,6 +24,7 @@
 // 20261118 CL/MMR SD-815 Codex round 41: with sql_mode ANSI_QUOTES (SHOW CREATE TABLE prints "pool_files") the repair completes and the mode is left as it was, in both mysqli modes.
 // 20261118 CL/MMR SD-815 Codex round 42: a DELETE trigger on pool_files and duplicates keeps every row (both mysqli modes); a user without the TRIGGER privilege waits with duplicates.
 // 20261118 CL/MMR SD-815 Codex round 46: a TEMPORARY pool_files or settings of the session stops the run before any change (both mysqli modes); without it the next run completes.
+// 20261118 CL/MMR SD-815 Codex round 47: an updatable settings view takes the flag (a base-table control next to it); a temporary settings holding the flag stops every run on that connection with a log line, and the run after DROP completes (both mysqli modes).
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -1057,4 +1058,80 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     {
         $this->aTemporaryTable('settings', MYSQLI_REPORT_OFF);
     }
+
+    private function aPartlyMigratedPoolWithSettings(bool $asAView, int $reportMode): void
+    {
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('b.pdf', '2,50')");
+        if ($asAView) {
+            $this->sql('RENAME TABLE settings TO settings_storage');
+            $this->sql('CREATE VIEW settings AS SELECT * FROM settings_storage');
+        }
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertContains('norm_amount', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame('1.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
+        self::assertSame('2.500', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'b.pdf'"));
+        $stored = $asAView ? 'settings_storage' : 'settings';
+        self::assertSame('1', $this->one("SELECT count(*) FROM $stored WHERE var_grp = 'system' AND var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertSame([], ensurePoolFilesSchema('mysqli'), 'the next login has nothing to do');
+    }
+
+    public function testAnUpdatableSettingsViewTakesTheFlagStrict(): void
+    {
+        $this->aPartlyMigratedPoolWithSettings(true, MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testAnUpdatableSettingsViewTakesTheFlagReportingOff(): void
+    {
+        $this->aPartlyMigratedPoolWithSettings(true, MYSQLI_REPORT_OFF);
+    }
+
+    public function testASettingsTableTakesTheFlagStrict(): void
+    {
+        $this->aPartlyMigratedPoolWithSettings(false, MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testASettingsTableTakesTheFlagReportingOff(): void
+    {
+        $this->aPartlyMigratedPoolWithSettings(false, MYSQLI_REPORT_OFF);
+    }
+
+    private function aTemporarySettingsHoldingTheFlag(int $reportMode): void
+    {
+        $this->onlyTheBackfillMissing();
+        $create = (string) mysqli_fetch_row($this->sql('SHOW CREATE TABLE settings'))[1];
+        $this->sql((string) preg_replace('/^CREATE TABLE/', 'CREATE TEMPORARY TABLE', $create));
+        $this->sql("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes')");
+        mysqli_report($reportMode);
+
+        $first = ensurePoolFilesSchema('mysqli');
+        $second = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertSame([[], []], [$first, $second]);
+        self::assertSame(2, substr_count((string) file_get_contents($this->log), 'a temporary settings of this session shadows'), 'each run says why it stopped');
+        self::assertNull($this->permanent('SELECT norm_amount FROM pool_files WHERE id = 1'));
+        self::assertSame('0', $this->permanent("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertSame('1', $this->one('SELECT count(*) FROM settings'), 'the temporary settings untouched');
+
+        $this->sql('DROP TEMPORARY TABLE settings');
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('mysqli'));
+        self::assertSame('125.000', $this->one('SELECT norm_amount FROM pool_files WHERE id = 1'));
+        self::assertSame('1', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+    }
+
+    public function testATemporarySettingsHoldingTheFlagStopsWithAReasonStrict(): void
+    {
+        $this->aTemporarySettingsHoldingTheFlag(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testATemporarySettingsHoldingTheFlagStopsWithAReasonReportingOff(): void
+    {
+        $this->aTemporarySettingsHoldingTheFlag(MYSQLI_REPORT_OFF);
+    }
 }
+

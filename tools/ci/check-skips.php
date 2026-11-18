@@ -64,6 +64,12 @@ $allowed = [
 	'EnsurePoolFilesSchemaMysqlTest::testATemporaryPoolFilesStopsTheRunReportingOff',
 	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsStopsTheRunStrict',
 	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsStopsTheRunReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAnUpdatableSettingsViewTakesTheFlagStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAnUpdatableSettingsViewTakesTheFlagReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testASettingsTableTakesTheFlagStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testASettingsTableTakesTheFlagReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsHoldingTheFlagStopsWithAReasonStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsHoldingTheFlagStopsWithAReasonReportingOff',
 ];
 
 $file = $argv[1] ?? '';
