@@ -24,6 +24,7 @@
 // 20261118 CL/MMR SD-815 Codex round 31: with the four usual names taken (three indexes and a table with a row) the new index is pool_files_filename_uidx4; a stopped run is logged with its reason.
 // 20261118 CL/MMR SD-815 Codex round 37: an ON DELETE CASCADE reference from another table and duplicate filenames: nothing deleted anywhere, no flag, the constraint named in the log; without duplicates the repair runs.
 // 20261118 CL/MMR SD-815 Codex round 42: a DELETE trigger or a DELETE rule on pool_files and duplicate filenames: nothing deleted anywhere, no flag, named in the log.
+// 20261118 CL/MMR SD-815 Codex round 43: a table inheriting from pool_files (older duplicate and a DELETE trigger there) keeps every row anywhere, no unique index, no flag, named in the log; a unique index on pool_files alone does not count while a table inherits from it.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
