@@ -36,7 +36,7 @@
  * @return string The path with "?v=<content digest>"
  */
 function payFileHref($filnavn) {
-	$digest = is_file($filnavn) ? md5_file($filnavn) : false;
+	$digest = (is_file($filnavn) && is_readable($filnavn)) ? md5_file($filnavn) : false;
 	return $filnavn . '?v=' . ($digest ? substr($digest, 0, 12) : time());
 }
 
@@ -652,7 +652,7 @@ function udskriv_xml($db_id,$bruger_id,$liste_id){
 		$xmltxt.= "         </Purp>\r\n";
 		$xmltxt.= "       </CdtTrfTxInf>\r\n";
 		$xmltxt.= "    </PmtInf>\r\n";
-	fwrite($fp,$xmltxt);
+		fwrite($fp,$xmltxt);
 	}
 	$xmltxt = "</CstmrCdtTrfInitn>\r\n";
 	$xmltxt.= "</Document>\r\n";
