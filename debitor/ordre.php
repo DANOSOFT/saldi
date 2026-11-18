@@ -195,6 +195,7 @@
 //                 The alert text and invoice number are encoded with jsString() for the onload attribute.
 // 20261118 CL/MMR SST-1013 The credit-limit queries escape the order currency and the post date, and cast the account id.
 //                 A rate of 0 is handled like a missing rate, so it no longer stops the page with a division by zero.
+//                 A post without a date is handled like a missing rate too, instead of comparing with an empty date.
 @session_start();
 $s_id = session_id();
 
@@ -6587,7 +6588,10 @@ function ordreside($id, $regnskab)
 					if (!$r['valutakurs']) $r['valutakurs'] = 100;
 					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
 					elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
-						$r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='" . db_escape_string((string)$valuta) . "' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '" . db_escape_string((string)$r['transdate']) . "' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__));
+						$r3 = false; // a post without a date has no rate to look up
+						if ($r['transdate']) {
+							$r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='" . db_escape_string((string)$valuta) . "' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '" . db_escape_string((string)$r['transdate']) . "' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__));
+						}
 						$rateKurs = ($r3 && is_numeric($r3['kurs'])) ? (float)$r3['kurs'] : 0;
 						if ($rateKurs > 0) { // a rate of 0 or no rate is handled as no rate
 							$opp_amount = $r['amount'] * 100 / $rateKurs;
