@@ -3,6 +3,7 @@
 // 20261022 CDX/LH Exercise payable with invoice context, required by the shared eligibility guard.
 // 20261022 CDX/LH Assert signup defaults off independently of invoice collection and enrolment.
 // 20261022 CDX/LH Give synthetic pending/paid state fixtures their required status, matching persisted payment rows.
+// 20261118 CDX/ASR Verify that customer mails greet the recipient company rather than a contact person.
 
 require_once __DIR__ . '/bootstrap.php';
 
@@ -217,7 +218,7 @@ final class StripeSmokeTest extends StripeDatabaseTestCase
         $this->assertCount(1, StripeTestTransport::$mails);
         $mail = StripeTestTransport::$mails[0];
         $this->assertSame('debtor@stripe-tests.invalid', $mail['to']);
-        $this->assertStringContainsString('Hej Anne, her er jeres faktura.', $mail['text']);
+        $this->assertStringContainsString('Hej Stripe test debtor, her er jeres faktura.', $mail['text']);
         $this->assertStringContainsString(stripe_invoice_url($id), $mail['text']);
         $this->assertStringContainsString('340,00 kr.', $mail['html']);
         $this->assertSame([], StripeTestTransport::$requests);
