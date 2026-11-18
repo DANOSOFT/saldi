@@ -36,6 +36,8 @@ $allowed = [
 	'EnsurePoolFilesSchemaMysqlTest::testARowFormatChangeBeforeTheLockReportingOff',
 	'EnsurePoolFilesSchemaMysqlTest::testTheLastKeySlotTakenBeforeTheLockStrict',
 	'EnsurePoolFilesSchemaMysqlTest::testTheLastKeySlotTakenBeforeTheLockReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testPartitioningBeforeTheLockStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testPartitioningBeforeTheLockReportingOff',
 ];
 
 $file = $argv[1] ?? '';

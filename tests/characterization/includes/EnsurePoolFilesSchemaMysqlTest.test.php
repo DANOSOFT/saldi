@@ -15,6 +15,7 @@
 // 20261118 CL/MMR SD-815 Codex round 32: another connection creating an index named pool_files_filename_uidx just before the table lock: kept, the repair uses a free name, in both mysqli reporting modes.
 // 20261118 CL/MMR SD-815 Codex round 33: another connection switching pool_files to ROW_FORMAT=COMPACT after the trial and before the lock: both rows kept, nothing reported; after DYNAMIC again the retry completes (both mysqli modes).
 // 20261118 CL/MMR SD-815 Codex round 34: with 63 keys, another connection taking the 64th key slot after the trial and before the lock: both rows and its key kept, nothing reported; after a slot is free the retry completes (both mysqli modes).
+// 20261118 CL/MMR SD-815 Codex round 35: another connection partitioning pool_files by HASH(id) after the trial and before the lock: both rows kept, nothing reported; the partitioned table defers at the trial; after REMOVE PARTITIONING the retry completes (both mysqli modes).
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -69,7 +70,8 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
                 return mysqli_real_escape_string($GLOBALS['ensurePoolFilesMysql'], (string) $value);
             }
         }
-        if ((str_starts_with($this->name(), 'testARowFormatChangeBeforeTheLock') || str_starts_with($this->name(), 'testTheLastKeySlotTakenBeforeTheLock')) && !function_exists('ensurePoolFilesMysqlExec')) {
+        if ((str_starts_with($this->name(), 'testARowFormatChangeBeforeTheLock') || str_starts_with($this->name(), 'testTheLastKeySlotTakenBeforeTheLock')
+            || str_starts_with($this->name(), 'testPartitioningBeforeTheLock')) && !function_exists('ensurePoolFilesMysqlExec')) {
             // The production statement runner, unchanged, with one addition for this test: a hook right before LOCK TABLES.
             function ensurePoolFilesMysqlExec(string $sql): ?bool {
                 if (str_starts_with($sql, 'LOCK TABLES') && isset($GLOBALS['ensurePoolFilesBeforeLock'])) {
@@ -594,5 +596,50 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testTheLastKeySlotTakenBeforeTheLockReportingOff(): void
     {
         $this->theLastKeySlotTakenBeforeTheLock(MYSQLI_REPORT_OFF);
+    }
+
+    private function partitioningBeforeTheLock(int $reportMode): void
+    {
+        $this->sql('ALTER TABLE pool_files ROW_FORMAT=DYNAMIC, CONVERT TO CHARACTER SET utf8mb4');
+        $this->allLaterColumns();
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $this->other = $this->connect();
+        mysqli_select_db($this->other, $this->database);
+        $other = $this->other;
+        $GLOBALS['ensurePoolFilesBeforeLock'] = static function () use ($other): void {
+            mysqli_query($other, 'ALTER TABLE pool_files PARTITION BY HASH(id) PARTITIONS 2');
+        };
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
+        self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertStringContainsString('changed between the trial and the table lock', (string) file_get_contents($this->log));
+
+        mysqli_report($reportMode);
+        self::assertNotContains('unique_filename', ensurePoolFilesSchema('mysqli'), 'a partitioned table cannot hold it: the trial defers');
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
+
+        $this->sql('ALTER TABLE pool_files REMOVE PARTITIONING');
+        mysqli_report($reportMode);
+        $done = ensurePoolFilesSchema('mysqli');
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertContains('unique_filename', $done);
+        self::assertSame('99,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
+    }
+
+    public function testPartitioningBeforeTheLockStrict(): void
+    {
+        $this->partitioningBeforeTheLock(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testPartitioningBeforeTheLockReportingOff(): void
+    {
+        $this->partitioningBeforeTheLock(MYSQLI_REPORT_OFF);
     }
 }
