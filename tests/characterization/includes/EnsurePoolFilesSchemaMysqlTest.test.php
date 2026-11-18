@@ -6,8 +6,8 @@
 // 20261118 CL/MMR SD-815 Codex round 15: inside a caller's transaction nothing runs (the caller can still roll back its own work), and an existing non-unique index named pool_files_filename_uidx does not stop the repair.
 // 20261118 CL/MMR SD-815 Codex round 16: an old ROW_FORMAT=COMPACT utf8mb4 pool_files that cannot hold the index keeps both rows and logs why; after ROW_FORMAT=DYNAMIC the retry completes.
 // 20261118 CL/MMR SD-815 Codex round 17: a permanent table called pool_files_uidx_probe, with a row, survives both a deferred and a successful repair (the probe is a temporary table).
-// 20261118 CL/MMR SD-815 Codex round 18: a database user with only SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX and LOCK TABLES (no CREATE TEMPORARY TABLES) gets the repair;
-//                 a user without CREATE keeps both rows and the log names the missing privilege, not the row format.
+// 20261118 CL/MMR SD-815 Codex round 18: a database user with only SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX and LOCK TABLES (no CREATE TEMPORARY TABLES) gets the repair.
+//                 A user without CREATE keeps both rows and the log names the missing privilege, not the row format.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
