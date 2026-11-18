@@ -39,7 +39,8 @@
 // 20261118 CL/LH CodeRabbit review of #1157: a new pair is owed at once also when a shop's last send fell in the same second (it waited 2 minutes); after a refusal, a transport failure keeps the failure's rule (failedLast).
 //                The tick claims a note by renaming it, so a note touched while it records stays for the next tick; an expired in-flight marker goes only after its event is written.
 //                MySQL/MariaDB: only the server's own statement-time variable is set, and a failed setting or query ends the tick with "database busy" (the re-read with no row) instead of an exception.
-//                The tick keeps at most 16 KB of an answer, a transfer without a completion message is a transport failure, and the tick's counts survive "database busy".
+//                A transfer without a completion message is a transport failure, and the tick's counts survive "database busy".
+//                Codex verification 8: the tick keeps at most 1 MB of an answer (SHOP_OFFER_BODY_BYTES), and an answer cut there is a transport failure on the extension and the shell transport alike: the judge needs the whole answer to see a refusal, so a cut one never proves acceptance. The shell call no longer caps the download (--max-filesize).
 
 if (!defined('SHOP_OFFER_ALERT_REFUSALS')) {
 	define('SHOP_OFFER_ALERT_REFUSALS', 8);    // refusals of one price pair after which a shop counts as stuck (still retried)
@@ -59,7 +60,7 @@ if (!defined('SHOP_OFFER_FOREIGN_MARGIN')) {
 	define('SHOP_OFFER_FOREIGN_MARGIN', 120);  // another path sends within this of its claim (else it claims again); a marker lives T_late plus this
 }
 if (!defined('SHOP_OFFER_BODY_BYTES')) {
-	define('SHOP_OFFER_BODY_BYTES', 16384);    // the most of a shop's answer kept in memory, as the shared transport keeps (shopApiCurlMultiCall())
+	define('SHOP_OFFER_BODY_BYTES', 1048576);  // the most of a shop's answer the tick keeps; a longer one is cut, and a cut answer is a transport failure
 }
 
 if (!function_exists('shopOfferPushDir')) {
@@ -1647,22 +1648,28 @@ if (!function_exists('shopOfferSend')) {
 if (!function_exists('shopOfferCurlHandle')) {
 	/**
 	 * A curl handle for a shop call, set up as shopApiCurlCall() sets it up but with millisecond timeouts. The answer is kept
-	 * in $body as it arrives, at most SHOP_OFFER_BODY_BYTES of it (the rest is read and dropped, so a whole html page cannot use
-	 * the tick's memory up), as shopApiCurlMultiCall() keeps it.
+	 * in $body as it arrives, at most SHOP_OFFER_BODY_BYTES of it, so no answer can use the tick's memory up. The rest is read and
+	 * dropped, and $cut says so: the dropped end could hold a refusal, so a cut answer proves nothing (shopOfferCurlAnswer()).
 	 *
 	 * @param string $url
 	 * @param float $seconds Time the call may take.
 	 * @param string $body Receives the start of the answer.
+	 * @param bool $cut Set when more of the answer arrived than $body keeps.
 	 * @return resource|CurlHandle|false
 	 */
-	function shopOfferCurlHandle($url, $seconds, &$body) {
+	function shopOfferCurlHandle($url, $seconds, &$body, &$cut) {
 		$body = '';
+		$cut = false;
 		$ch = curl_init($url);
 		if ($ch === false) return false;
 		$ms = max(1, (int)floor($seconds * 1000));
-		curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($handle, $chunk) use (&$body) {
-			if (strlen($body) < SHOP_OFFER_BODY_BYTES) {
-				$body .= substr($chunk, 0, SHOP_OFFER_BODY_BYTES - strlen($body));
+		curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($handle, $chunk) use (&$body, &$cut) {
+			$room = SHOP_OFFER_BODY_BYTES - strlen($body);
+			if (strlen($chunk) > $room) {
+				$cut = true;
+			}
+			if ($room > 0) {
+				$body .= substr($chunk, 0, $room);
 			}
 			return strlen($chunk);
 		});
@@ -1682,23 +1689,33 @@ if (!function_exists('shopOfferCurlHandle')) {
 
 if (!function_exists('shopOfferCurlAnswer')) {
 	/**
-	 * A finished curl handle as the shared outcome judge takes it.
+	 * A finished curl handle as the shared outcome judge takes it. An answer that was cut (longer than SHOP_OFFER_BODY_BYTES) is
+	 * a transport failure: the judge needs the whole answer to see a refusal, so a cut one is neither an acceptance nor a refusal,
+	 * and it is retried as any failed send.
 	 *
 	 * @param resource|CurlHandle $ch
 	 * @param string|false|null $body
 	 * @param int $errno
 	 * @param string $error
+	 * @param bool $cut
 	 * @return array{httpCode: int, body: string, error: string, transient: bool, unreachable: bool}
 	 */
-	function shopOfferCurlAnswer($ch, $body, $errno, $error) {
+	function shopOfferCurlAnswer($ch, $body, $errno, $error, $cut = false) {
 		$httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
 		return array(
 			'httpCode'    => $httpCode,
 			'body'        => is_string($body) ? $body : '',
-			'error'       => $errno ? 'curl error ' . $errno . ': ' . $error : '',
-			'transient'   => ($errno !== 0 || $httpCode === 0 || $httpCode >= 500),
+			'error'       => $errno ? 'curl error ' . $errno . ': ' . $error : ($cut ? shopOfferCutError() : ''),
+			'transient'   => ($errno !== 0 || $cut || $httpCode === 0 || $httpCode >= 500),
 			'unreachable' => ($httpCode === 0),
 		);
+	}
+}
+
+if (!function_exists('shopOfferCutError')) {
+	/** The error of an answer longer than the tick keeps. */
+	function shopOfferCutError() {
+		return 'answer longer than ' . SHOP_OFFER_BODY_BYTES . ' bytes: cut, so not judged (a transport failure)';
 	}
 }
 
@@ -1712,12 +1729,13 @@ if (!function_exists('shopOfferCurlOne')) {
 	 */
 	function shopOfferCurlOne($url, $seconds) {
 		$body = '';
-		$ch = shopOfferCurlHandle($url, $seconds, $body);
+		$cut = false;
+		$ch = shopOfferCurlHandle($url, $seconds, $body, $cut);
 		if ($ch === false) {
 			return array('httpCode' => 0, 'body' => '', 'error' => 'curl_init failed', 'transient' => true, 'unreachable' => true);
 		}
 		curl_exec($ch);
-		$answer = shopOfferCurlAnswer($ch, $body, curl_errno($ch), curl_error($ch));
+		$answer = shopOfferCurlAnswer($ch, $body, curl_errno($ch), curl_error($ch), $cut);
 		curl_close($ch);
 		return $answer;
 	}
@@ -1737,11 +1755,12 @@ if (!function_exists('shopOfferCurlMulti')) {
 			return array();
 		}
 		$multi = curl_multi_init();
-		$handles = $bodies = $completed = array();
+		$handles = $bodies = $cuts = $completed = array();
 		$dispatchedAt = microtime(true);
 		foreach ($urls as $key => $url) {
 			$bodies[$key] = '';
-			$ch = shopOfferCurlHandle($url, $left, $bodies[$key]);
+			$cuts[$key] = false;
+			$ch = shopOfferCurlHandle($url, $left, $bodies[$key], $cuts[$key]);
 			if ($ch !== false) {
 				curl_multi_add_handle($multi, $ch);
 				$handles[$key] = $ch;
@@ -1771,7 +1790,7 @@ if (!function_exists('shopOfferCurlMulti')) {
 			// transport failure, as in shopApiCurlMultiCall()
 			if (isset($completed[$key])) {
 				$errno = $completed[$key];
-				$answers[$key] = shopOfferCurlAnswer($ch, $bodies[$key], $errno, $errno ? curl_strerror($errno) : '');
+				$answers[$key] = shopOfferCurlAnswer($ch, $bodies[$key], $errno, $errno ? curl_strerror($errno) : '', $cuts[$key]);
 			} else {
 				$answers[$key] = array('httpCode' => 0, 'body' => '', 'error' => 'no answer before the offer push deadline', 'transient' => true, 'unreachable' => true);
 			}
@@ -1786,7 +1805,9 @@ if (!function_exists('shopOfferCurlMulti')) {
 
 if (!function_exists('shopOfferShellOne')) {
 	/**
-	 * One call with the curl command line, used only when ext-curl is missing; --max-time takes fractions of a second.
+	 * One call with the curl command line, used only when ext-curl is missing; --max-time takes fractions of a second. The answer
+	 * goes to a temporary file; at most SHOP_OFFER_BODY_BYTES of it is read, and a longer one is a transport failure, as on the
+	 * extension (shopOfferCurlAnswer()).
 	 *
 	 * @param string $url
 	 * @param float $seconds
@@ -1801,7 +1822,7 @@ if (!function_exists('shopOfferShellOne')) {
 			return array('httpCode' => 0, 'body' => '', 'error' => 'could not create temporary file', 'transient' => true, 'unreachable' => true);
 		}
 		$seconds = max(0.1, (float)$seconds);
-		$cmd = 'curl -s -S -L --max-redirs 3 --proto =http,https --max-filesize 1048576'
+		$cmd = 'curl -s -S -L --max-redirs 3 --proto =http,https'
 			. ' --connect-timeout ' . sprintf('%.3F', min(2.0, $seconds))
 			. ' --max-time ' . sprintf('%.3F', $seconds)
 			. ' -A ' . escapeshellarg('Saldi shop sync')
@@ -1809,15 +1830,19 @@ if (!function_exists('shopOfferShellOne')) {
 			. ' -w ' . escapeshellarg("\nSALDI_HTTP:%{http_code}\n")
 			. ' ' . escapeshellarg($url) . ' 2>&1; shop_curl_status=$?; printf "\nSALDI_EXIT:%s\n" "$shop_curl_status"';
 		$out = trim((string)shell_exec($cmd));
+		clearstatcache(true, $bodyFile);
+		$size = @filesize($bodyFile);
+		$cut = $size !== false && $size > SHOP_OFFER_BODY_BYTES;
 		$body = (string)@file_get_contents($bodyFile, false, null, 0, SHOP_OFFER_BODY_BYTES); // the start of the answer, as the extension keeps it
 		@unlink($bodyFile);
 		$httpCode = preg_match('/SALDI_HTTP:(\d{3})/', $out, $m) ? (int)$m[1] : 0;
 		$exitCode = preg_match('/(?:^|\n)SALDI_EXIT:(\d+)$/D', $out, $m) ? (int)$m[1] : -1;
+		$failed = ($exitCode !== 0 || !$httpCode);
 		return array(
 			'httpCode'    => $httpCode,
 			'body'        => $body,
-			'error'       => ($exitCode !== 0 || !$httpCode) ? 'curl command failed (exit ' . $exitCode . ')' : '',
-			'transient'   => ($exitCode !== 0 || $httpCode === 0 || $httpCode >= 500),
+			'error'       => $failed ? 'curl command failed (exit ' . $exitCode . ')' : ($cut ? shopOfferCutError() : ''),
+			'transient'   => ($exitCode !== 0 || $cut || $httpCode === 0 || $httpCode >= 500),
 			'unreachable' => ($httpCode === 0),
 		);
 	}

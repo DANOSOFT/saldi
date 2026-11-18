@@ -9,11 +9,13 @@
 //   <log>.fail or <log>.failN     HTTP 503 (all shops, or shop N), nothing applied
 //   <log>.rejectN                 HTTP 200 with {"success":false,"error":"temporary lock"}, a refusal, nothing applied
 //   <log>.slow or <log>.slowN     wait the number of seconds in the file before answering
-//   <log>.rules                   JSON list of {shop?, item?, sales?, call?, apply?, answer?, refuse?, status?, cut?}: the first
-//                                 rule whose given fields match delays applying by `apply` and the answer after it by `answer`
-//                                 seconds, refuses the call (`refuse`), answers with an HTTP `status` (nothing applied), or
-//                                 applies the call and answers 200 with a Content-Length longer than the answer, so the
-//                                 connection closes with the transfer incomplete (`cut`)
+//   <log>.rules                   JSON list of {shop?, item?, sales?, call?, apply?, answer?, refuse?, status?, cut?,
+//                                 longRefusal?, pad?}: the first rule whose given fields match delays applying by `apply` and
+//                                 the answer after it by `answer` seconds, refuses the call (`refuse`), answers with an HTTP
+//                                 `status` (nothing applied), applies the call and answers 200 with a Content-Length longer
+//                                 than the answer, so the connection closes with the transfer incomplete (`cut`), refuses it
+//                                 with a complete JSON refusal of about 20 KB (`longRefusal`), or applies it and answers OK
+//                                 followed by `pad` bytes
 // It never forwards anything to a real shop.
 //
 // History:
@@ -21,6 +23,7 @@
 //                Codex verification: per-shop failures, refusals and delays, and a shop number from the path.
 //                Single-writer rebuild: the shop's applied price per item (<log>.remote), with apply and answer delays, refusals and statuses per rule.
 // 20261118 CL/LH CodeRabbit review of #1157: a rule can cut an answer off after its status line (`cut`).
+// 20261118 CL/LH Codex verification 8: a long complete JSON refusal (`longRefusal`) and a long acceptance (`pad`).
 $log = (string)getenv('SALDI_SHOP_RECORDER_LOG');
 if ($log === '') {
 	http_response_code(500);
@@ -34,7 +37,8 @@ $slow = is_file($log . '.slow' . $shop) ? (float)file_get_contents($log . '.slow
 $status = (is_file($log . '.fail') || is_file($log . '.fail' . $shop)) ? 503 : 200;
 $reject = $status === 200 && is_file($log . '.reject' . $shop);
 $apply = $answer = 0.0;
-$cut = false;
+$cut = $longRefusal = false;
+$pad = 0;
 foreach ((array)json_decode((string)@file_get_contents($log . '.rules'), true) as $rule) {
 	if ((isset($rule['shop']) && (string)$rule['shop'] !== $shop) || (isset($rule['item']) && (string)$rule['item'] !== $item)
 		|| (isset($rule['sales']) && (string)$rule['sales'] !== (string)($_GET['salesPrice'] ?? '')) || (isset($rule['call']) && $rule['call'] !== $call)) {
@@ -45,6 +49,9 @@ foreach ((array)json_decode((string)@file_get_contents($log . '.rules'), true) a
 	if (!empty($rule['refuse'])) $reject = true;
 	if (isset($rule['status'])) $status = (int)$rule['status'];
 	$cut = !empty($rule['cut']);
+	$longRefusal = !empty($rule['longRefusal']);
+	if ($longRefusal) $reject = true;
+	$pad = (int)($rule['pad'] ?? 0);
 	break;
 }
 // logged when the request arrives, so a test that clears the log after a slow call is not handed its line later
@@ -72,5 +79,11 @@ http_response_code($status);
 if ($cut) {
 	header('Content-Length: 4096'); // more than follows: the server closes the connection with the answer incomplete
 }
-echo $status >= 400 ? 'down' : ($reject ? '{"success":false,"error":"temporary lock"}' : 'OK');
+if ($status >= 400) {
+	echo 'down';
+} elseif ($reject) {
+	echo $longRefusal ? json_encode(array('success' => false, 'message' => str_repeat('x', 20000))) : '{"success":false,"error":"temporary lock"}';
+} else {
+	echo 'OK' . str_repeat(' ', max(0, $pad));
+}
 return true;
