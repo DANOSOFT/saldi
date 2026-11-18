@@ -170,6 +170,7 @@
 // 20261118 CL/MMR SST-1008 batch_salg(): the cost-transfer lines for batch items without automatic stock posting name the saet column.
 // 20261118 CL/MMR SST-1008 Those two lines cast the quantity, cost, order id and accounts and escape the project (Codex).
 // 20261118 CL/MMR SST-1008 batch_salg() stops the invoice with a message when the item group has no purchase account for the cost transfer (Codex).
+// 20261118 CL/MMR SST-1008 In a page that stop rolls back and ends the page, like the database error before, so massefakt.php does not print the order (Codex).
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 
@@ -1905,11 +1906,33 @@ function momsupdat($id)
 }
 ###########################################################
 /**
+ * The item group has no purchase account (VG box3) for the cost transfer in a year without automatic stock posting.
+ * It stops the posting the way a failed database write in batch_salg() always has: in a page (no global $webservice)
+ * the transaction is rolled back and the page stops with the message, so a caller that does not read bogfor()'s
+ * answer, like debitor/massefakt.php, never goes on to print the order. A webservice caller gets the message back.
+ *
+ * @param int|string $gruppe The item group (VG kodenr).
+ * @return string The message, for bogfor() to return (webservice only; a page stops here).
+ */
+function batchSalgMissingPurchaseAccount($gruppe)
+{
+	global $webservice;
+
+	$message = "Varegruppe $gruppe mangler kontonummer for varekøb";
+	if (!$webservice) {
+		transaktion('rollback');
+		alert($message);
+		exit;
+	}
+	return $message;
+}
+###########################################################
+/**
  * Sets cost and accounts on the invoice's stock lines and, in a fiscal year without automatic stock posting,
  * adds the lines that move the cost from the stock account to the purchase account. Called by bogfor().
  *
  * @param int|string $id The order being invoiced.
- * @return string|null A message when the invoice cannot be posted (bogfor() rolls back and shows it), else null.
+ * @return string|null A message when the invoice cannot be posted (webservice; bogfor() rolls back and returns it), else null.
  */
 function batch_salg($id)
 {
@@ -2143,8 +2166,8 @@ function batch_salg($id)
 			if (!$aut_lager && $box1 && $box2 && $kostpris) { #kostvaerdien flyttes fra "afgang varelager" til "varekob".- hvis der ikke bogfoeres direkte paa varekobs kontoen
 				#	if ($valutakurs) $pris=$pris*100/$valutakurs;
 				if (!(int) $box3) {
-					// Without a purchase account only one side of the cost transfer could be posted; bogfor() rolls back.
-					return "Varegruppe $gruppe mangler kontonummer for varekøb";
+					// Without a purchase account only one side of the cost transfer could be posted.
+					return batchSalgMissingPurchaseAccount($gruppe);
 				}
 				$qtyCost = (float) $antal[$x];
 				$orderId = (int) $id;
@@ -2176,7 +2199,7 @@ function batch_salg($id)
 			}
 			if (!$aut_lager && $box1 && $box2 && ($kostpris || $linjekostpris)) {
 				if (!(int) $box3) {
-					return "Varegruppe $gruppe mangler kontonummer for varekøb";
+					return batchSalgMissingPurchaseAccount($gruppe);
 				}
 				if (!$kostpris)
 					$kostpris = $linjekostpris;

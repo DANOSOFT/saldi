@@ -13,6 +13,7 @@
 // 20261118 CL/MMR SST-1008 A project text on the sale line is kept on the cost lines (Codex).
 // 20261118 CL/MMR SST-1008 An item group without a purchase account stops the invoice with a message and changes nothing (Codex).
 // 20261118 CL/MMR SST-1008 Each case gets an unused item group code (Codex).
+// 20261118 CL/MMR SST-1008 In a page the missing purchase account ends the page; a webservice caller gets the message (Codex).
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -108,7 +109,8 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
         }
     }
 
-    public function test_a_group_without_a_purchase_account_stops_the_invoice_and_changes_nothing(): void
+    /** A sale of 4 of an item whose group has no purchase account, and a reader of its stock. */
+    private function saleWithoutPurchaseAccount(): array
     {
         $item = $this->batchItem(50.00, false);
         $this->receive($item);
@@ -118,14 +120,37 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
             (float)self::one('SELECT COALESCE(sum(beholdning), 0) AS b FROM lagerstatus WHERE vare_id = $1', [$item['id']])['b'],
             (float)self::one('SELECT COALESCE(sum(rest), 0) AS r FROM batch_kob WHERE vare_id = $1', [$item['id']])['r'],
         ];
-        $before = $stock();
+        return [$item, $sale, $stock];
+    }
 
-        $out = $this->runChildJson('run_order_invoice.php', ['invoice', $sale['id'], CharacterizationEnv::testDb()]);
-
-        $this->assertSame("Varegruppe {$item['gruppe']} mangler kontonummer for varekøb", $out['bogfor'], 'the missing setup is named');
+    private function assertNothingPosted(array $sale, callable $stock, array $before): void
+    {
         $this->assertSame(0, (int)self::one('SELECT count(*) AS n FROM transaktioner WHERE ordre_id = $1', [$sale['id']])['n'], 'nothing is posted');
         $this->assertSame(0, (int)self::one('SELECT count(*) AS n FROM ordrelinjer WHERE ordre_id = $1 AND posnr < 0', [$sale['id']])['n'], 'no cost lines are left');
         $this->assertSame($before, $stock(), 'the stock is unchanged');
-        $this->assertNotSame('3', trim((string)$out['status']), 'the order is not invoiced');
+        $this->assertNotSame('3', trim((string)self::one('SELECT status FROM ordrer WHERE id = $1', [$sale['id']])['status']), 'the order is not invoiced');
+    }
+
+    public function test_a_group_without_a_purchase_account_stops_the_invoice_and_changes_nothing(): void
+    {
+        [$item, $sale, $stock] = $this->saleWithoutPurchaseAccount();
+        $before = $stock();
+
+        $out = $this->runChildJson('run_order_invoice.php', ['invoice-webservice', $sale['id'], CharacterizationEnv::testDb()]);
+
+        $this->assertSame("Varegruppe {$item['gruppe']} mangler kontonummer for varekøb", $out['bogfor'], 'a webservice caller gets the message back');
+        $this->assertNothingPosted($sale, $stock, $before);
+    }
+
+    public function test_in_a_page_the_missing_purchase_account_ends_the_page_like_a_database_error(): void
+    {
+        [$item, $sale, $stock] = $this->saleWithoutPurchaseAccount();
+        $before = $stock();
+
+        $res = self::runChild('run_order_invoice.php', ['invoice', $sale['id'], CharacterizationEnv::testDb()]);
+
+        $this->assertStringContainsString("Varegruppe {$item['gruppe']} mangler kontonummer for varek", $res['stdout'], 'the page shows the message');
+        $this->assertStringNotContainsString('"bogfor"', $res['stdout'], 'and stops: the caller never gets an answer to go on with (massefakt.php would print the order)');
+        $this->assertNothingPosted($sale, $stock, $before);
     }
 }
