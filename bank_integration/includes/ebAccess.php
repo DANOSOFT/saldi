@@ -36,6 +36,7 @@
 // 20261116 CL/LH Pull model (no deferral texts), texts through findtekst() (bank.* keys) as UTF-8 (ebT()).
 // 20261116 CL/LH ebUnavailableReason() checks the company switch before the schema.
 // 20261118 CL/LH Live port: rights from the brugere.rettigheder string (Indstillinger position 1, Kassekladde position 2), as includes/online.php checks them on live.
+// 20261118 CL/LH ebPostButton() takes a target; ebShellRedirect() returns from the bank login (run as the whole window) into index/main.php's content frame.
 
 require_once __DIR__ . '/ebConfig.php';
 require_once __DIR__ . '/ebSchema.php';
@@ -344,6 +345,17 @@ if (!function_exists('ebH')) {
 			$html .= "<div class='eb-flash eb-flash-$type'>" . ebMessageHtml($f['text'] ?? '') . "</div>\n";
 		}
 		return $html;
+	}
+
+	/**
+	 * Back from the bank into Saldi's frame layout. The bank login and its callback run as the whole window
+	 * (banks refuse to be shown in a frame), and index/main.php loads the page named after # in its content frame.
+	 *
+	 * @param string $page Page under bank_integration/, with its query string.
+	 * @return never
+	 */
+	function ebShellRedirect(string $page): never {
+		ebRedirect('../index/main.php#/bank_integration/' . ltrim($page, '/'));
 	}
 
 	/**
@@ -660,8 +672,9 @@ if (!function_exists('ebH')) {
 	 * @param string $confirm Optional confirm() question.
 	 * @return string HTML.
 	 */
-	function ebPostButton(string $action, array $fields, string $label, string $class = '', string $confirm = ''): string {
-		$html = "<form method='post' action='" . ebH($action) . "' class='eb-inline'>" . ebCsrfField();
+	function ebPostButton(string $action, array $fields, string $label, string $class = '', string $confirm = '', string $target = ''): string {
+		$targetAttribute = $target !== '' ? " target='" . ebH($target) . "'" : '';
+		$html = "<form method='post' action='" . ebH($action) . "' class='eb-inline'$targetAttribute>" . ebCsrfField();
 		foreach ($fields as $name => $value) {
 			$html .= "<input type='hidden' name='" . ebH($name) . "' value='" . ebH($value) . "'>";
 		}
