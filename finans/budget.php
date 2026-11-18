@@ -42,8 +42,9 @@
 //                  Read posted IDs safely and initialize the ID grid independently of duplicate cleanup, including when filling from last year's figures.
 // 20261030 CDX/NTR Reject saves with missing budget dimensions before any includes or database writes.
 // 20261030 CDX/NTR Keep the default Save button rendered off-screen for old Internet Explorer.
-// 20261118 CL/MMR The Hjælp button now opens a guide to the page (it did nothing), «Udfyld med sidste års tal»
-//                 is explained and asks before it replaces figures, and the percent accepts a decimal comma.
+// 20261118 CL/MMR SST-1034 The Hjælp button now opens a guide to the page; before, it did nothing.
+//                 «Udfyld med sidste års tal» is explained and asks before it replaces figures.
+//                 The percent accepts a decimal comma.
 
 if (!isset($_POST['udfyld']) && isset($_POST['gem']) && !isset($_POST['kontoantal'], $_POST['maanedantal'])) {
 	http_response_code(400);
@@ -364,6 +365,7 @@ print "<tbody>";
 // print "</tr>";
 
 $y='';
+$firstAmountShown = false;
 for ($x=1; $x<=$kontoantal; $x++){
 	$budget_csvdata.="\"$kontonr[$x]\";\"$beskrivelse[$x]\";"; #20150622
 	print "<input type=\"hidden\" name=\"kontonr[$x]\" value=\"$kontonr[$x]\">";
@@ -385,15 +387,18 @@ for ($x=1; $x<=$kontoantal; $x++){
 			if (!isset($id[$x][$z])) $id[$x][$z]=0;
 			if ($kontotype[$x]!='Z') {
 				if ($udfyld) {
-				$tmp=afrund($amount[$x][$z]*$procent/100,0);
-				if ($plusminus == "+") $amount[$x][$z]=afrund($amount[$x][$z]+$tmp,0);
-				else $amount[$x][$z]=afrund($amount[$x][$z]-$tmp,0);
+					$tmp=afrund($amount[$x][$z]*$procent/100,0);
+					if ($plusminus == "+") $amount[$x][$z]=afrund($amount[$x][$z]+$tmp,0);
+					else $amount[$x][$z]=afrund($amount[$x][$z]-$tmp,0);
 				}
 				$tal=$amount[$x][$z];
 				$ultimo[$x]+=$tal;
 				if (!$tal) $tal="";
 				($z==1)?$title=sprintf(findtekst('budget.star.hint|Sæt * efter værdien for at få samme beløb i alle felter for konto %s', $sprog_id), $kontonr[$x]):$title=NULL;
-				print "<td title=\"".$title."\" align='right'><input type=\"text\" size=\"6\" style=\"text-align:right\" name=\"amount[$x][$z]\" value=\"$tal\"></td>";
+				// The guide's «*» step needs exactly one target: the first month field of the first account row.
+				$firstAmount = (!$firstAmountShown && $z==1) ? " id='budget-first-amount'" : '';
+				if ($firstAmount) $firstAmountShown = true;
+				print "<td title=\"".htmlspecialchars((string) $title, ENT_QUOTES)."\" align='right'><input$firstAmount type=\"text\" size=\"6\" style=\"text-align:right\" name=\"amount[$x][$z]\" value=\"$tal\"></td>";
 				$tmp=$id[$x][$z];
 				print "<input type = \"hidden\" name=\"id[$x][$z]\" value=\"$tmp\">"; 
 			}	else print "<td align=right>$tal<br></td>";
@@ -477,7 +482,7 @@ $steps[] = array(
 	"content" => findtekst('budget.guide.fill|Udfyld med sidste års tal: henter sidste års bogførte tal for hver konto og måned. Vælg + eller - og en procent for at lægge til eller trække fra, og tryk OK. Tallene i felterne bliver erstattet, og konti uden tal sidste år bliver tomme. Intet gemmes, før du trykker Gem, og så slettes det gemte budget på de tomme konti', $sprog_id).".",
 );
 $steps[] = array(
-	"selector" => "#budget-wrapper tbody input[name^='amount[']",
+	"selector" => "#budget-first-amount",
 	"content" => findtekst('budget.guide.star|Skriv beløbet for hver måned. Sætter du * efter beløbet i første måned, fx 5000*, får alle måneder for kontoen det beløb, når du trykker Gem', $sprog_id).".",
 );
 $steps[] = array(
