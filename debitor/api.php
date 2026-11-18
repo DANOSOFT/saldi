@@ -90,6 +90,7 @@
 // 20261118 CL/MMR SST-1007 updateCompany() counts an answer that is not 2xx as a failure, so updatedCompany is not set on a 401 or 5xx.
 // 20261118 CL/MMR SST-1003 easyUblLogSafe() removes the contact and bank details at any depth and masks them in texts (Codex).
 // 20261118 CL/MMR SST-1003 easyUblLogAnswer() writes no text from EasyUBL's answer: known fields with checkable values, the rest by kind and size or counted (Codex).
+// 20261118 CL/MMR SST-1003 A code is compared with the private values as a number, so «0042» sent is not kept as 42 (Codex).
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
@@ -311,6 +312,14 @@
             'errorMessage', 'message', 'title', 'detail', 'type', 'traceId');
         $kept = array();
         $unknown = 0;
+        // The private values as numbers too (digits only, leading zeros gone), so «0042» sent is not kept as code 42.
+        $privateNumbers = array();
+        foreach ($privateValues as $private) {
+            $digits = ltrim(preg_replace('/[^0-9]/', '', (string)$private), '0');
+            if ($digits !== '' || preg_match('/^0+$/', preg_replace('/[^0-9]/', '', (string)$private))) {
+                $privateNumbers[] = $digits === '' ? '0' : $digits;
+            }
+        }
         foreach ($response as $field => $value) {
             if (!in_array($field, $known, true)) {
                 $unknown++;
@@ -320,7 +329,7 @@
             if ($field === 'hasEndpointPeppol' && is_bool($value)) {
                 $kept[$field] = $value;
             } elseif (in_array($field, array('errorNumber', 'status', 'code'), true) && $number !== null && $number >= 0 && $number <= 99999
-                && !in_array((string)$value, $privateValues, true)) {
+                && !in_array((string)$number, $privateNumbers, true)) {
                 $kept[$field] = $number;
             } elseif (in_array($field, array('companyID', 'id'), true) && is_string($value)
                 && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {

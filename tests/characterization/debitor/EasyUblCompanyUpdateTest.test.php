@@ -23,6 +23,7 @@ use PHPUnit\Framework\TestCase;
 // 20261118 CL/MMR SST-1003 Nested contact and bank details and a bare text answer are kept out of the logs too (Codex).
 // 20261118 CL/MMR SST-1003 No text from EasyUBL's answer is logged, only checkable values and the kind and size of the rest (Codex).
 // 20261118 CL/MMR SST-1003 Unknown keys are only counted, and codes must be 0-99999 (Codex).
+// 20261118 CL/MMR SST-1003 A private number is not kept as a code in another numeric form (Codex).
 final class EasyUblCompanyUpdateTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -442,5 +443,22 @@ final class EasyUblCompanyUpdateTest extends TestCase
         self::assertStringContainsString('"code":404', $out['logs'][0], 'a code in range is kept');
         self::assertStringContainsString('"status code":400', $out['logs'][0], 'the locally observed HTTP status is kept');
         self::assertStringNotContainsString('12340012345678', $out['logs'][0]);
+    }
+
+    public function testAPrivateNumberIsNotKeptInAnotherNumericForm(): void
+    {
+        $data = self::DATA;
+        $data['payment']['bankRegNo'] = '0042';
+        foreach (array('0042', '042', 42, '42') as $echo) {
+            $out = $this->runUpdateBranches(400, array('code' => $echo, 'errorNumber' => 404), $data);
+            $log = json_decode(strtok($out['logs'][0], "\n"), true);
+
+            self::assertFalse($out['result']['success']);
+            self::assertNotSame(42, $log['response']['code'], 'code ' . var_export($echo, true) . ' is the private 0042');
+            self::assertIsString($log['response']['code'], 'it is summarized');
+            self::assertSame(404, $log['response']['errorNumber'], 'an ordinary code is still kept');
+            self::assertSame(400, $log['status code']);
+            $this->tearDown();
+        }
     }
 }
