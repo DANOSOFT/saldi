@@ -198,6 +198,7 @@
 //                 In that order update (Gem) the form values that came in raw are escaped or cast as in the insert.
 //                 An email typed in the phone field and the stored debitoripad values in the Gem block are escaped like the form values they replace.
 //                 In the print/send handler phone and email stay raw through the 15-character limit and are escaped once in its update.
+//                 That update also escapes pbs and mail_fakt (they can come from the account card) after their 2-character clamp.
 //                 The insert that creates an order from the account card escapes or casts its raw values the same way.
 @session_start();
 $s_id = session_id();
@@ -1069,7 +1070,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	if (strlen((string)$mail_fakt) > 2)  $mail_fakt  = substr((string)$mail_fakt, 0, 2);
 	if (strlen((string)$mail_bilag) > 2) $mail_bilag = substr((string)$mail_bilag, 0, 2);
 	$mail_bilag = db_escape_string($mail_bilag); // SD-639: raw request input, was reaching the UPDATE below unescaped - escaped AFTER the clamp above so a truncation can never land mid-escape-sequence
-	$qtxt = "update ordrer set sprog = '$formularsprog', email='" . db_escape_string((string) $email) . "',mail_fakt='$mail_fakt',phone='" . db_escape_string((string) $phone) . "',pbs='$pbs',";
+	$qtxt = "update ordrer set sprog = '$formularsprog', email='" . db_escape_string((string) $email) . "',mail_fakt='" . db_escape_string((string) $mail_fakt) . "',phone='" . db_escape_string((string) $phone) . "',pbs='" . db_escape_string((string) $pbs) . "',";
 	$qtxt .= "udskriv_til='$udskriv_til',  mail_bilag='$mail_bilag',ean='$ean' where id='$id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($genfakt && $genfakt != '-') db_modify("update ordrer set nextfakt='" . usdate($genfakt) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
