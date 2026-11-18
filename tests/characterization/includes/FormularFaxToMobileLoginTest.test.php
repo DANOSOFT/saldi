@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../../includes/std_func.php';
 //                 account gets "Mobilnr." on its forms and loses only the old default texts; a second login writes nothing.
 //                 Each login is a child process (support/run_formular_fax_to_mobile.php) that runs the lines from includes/betweenUpdates.php.
 // 20261118 CL/MMR SST-898 (review 6) The runner's error message is read with ifset().
+// 20261118 CL/MMR SST-898 (review 7) A form saved by another session between the migration's read and its write is kept; the next login migrates it if it still holds a fax variable.
 final class FormularFaxToMobileLoginTest extends TestCase
 {
     private ?TestDatabase $database = null;
@@ -111,6 +112,31 @@ final class FormularFaxToMobileLoginTest extends TestCase
         self::assertSame($before, CharacterizationEnv::rows($this->db, 'SELECT id, xmin::text AS xmin FROM formularer ORDER BY id'));
     }
 
+    public function testAFormSavedBetweenTheReadAndTheWriteIsKept(): void
+    {
+        $this->createForms([['Dansk', 'Fax: $egen_fax'], ['English', 'Fax: $egen_fax']]);
+        self::assertSame(1, $this->loginWithSave('Updated contact: $egen_mobile')['forms'], 'only the row nobody else saved counts');
+        self::assertSame([['Dansk', 'Updated contact: $egen_mobile'], ['English', 'Mobile: $egen_mobile']], $this->forms());
+        self::assertSame([], $this->login(), 'the saved text has no fax variable: nothing left to do');
+    }
+
+    public function testAFormSavedInBetweenWithAFaxVariableIsMigratedAtTheNextLogin(): void
+    {
+        $this->createForms([['Dansk', 'Fax: $egen_fax'], ['Dansk', '$adresser_fax']]);
+        self::assertSame(1, $this->loginWithSave('Tlf: $egen_tlf * Fax: $egen_fax')['forms']);
+        self::assertSame([['Dansk', 'Tlf: $egen_tlf * Fax: $egen_fax'], ['Dansk', '$adresser_mobile']], $this->forms());
+        self::assertCount(1, $this->login());
+        self::assertSame([['Dansk', 'Tlf: $egen_tlf * Mobilnr.: $egen_mobile'], ['Dansk', '$adresser_mobile']], $this->forms());
+    }
+
+    public function testAFormWithoutALanguageIsRewritten(): void
+    {
+        CharacterizationEnv::rows($this->db, 'CREATE TABLE formularer (id serial PRIMARY KEY, formular integer, art integer, beskrivelse text, sprog varchar(25))');
+        CharacterizationEnv::rows($this->db, "INSERT INTO formularer (formular, art, beskrivelse, sprog) VALUES (1, 2, 'Fax: \$egen_fax', NULL)");
+        self::assertCount(1, $this->login());
+        self::assertSame('Mobilnr.: $egen_mobile', CharacterizationEnv::one($this->db, 'SELECT beskrivelse FROM formularer')['beskrivelse']);
+    }
+
     /** @param list<array{string, string}> $rows sprog, beskrivelse */
     private function createForms(array $rows = [['Dansk', 'Fax: $egen_fax']]): void
     {
@@ -139,6 +165,20 @@ final class FormularFaxToMobileLoginTest extends TestCase
     private function texts(): array
     {
         return array_map(fn ($r) => [$r['tekst_id'], $r['sprog_id'], $r['tekst']], CharacterizationEnv::rows($this->db, 'SELECT tekst_id, sprog_id, tekst FROM tekster ORDER BY tekst_id, sprog_id, id'));
+    }
+
+    /**
+     * One login during which another session saves $text into the first form the migration rewrites, just before
+     * the migration's UPDATE. @return array{forms: int, writes: list<string>}
+     */
+    private function loginWithSave(string $text): array
+    {
+        $res = CharacterizationEnv::runChild(__DIR__ . '/support/run_formular_fax_to_mobile.php', [$this->database->name(), $text]);
+        $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
+        $json = $lines !== [] ? json_decode(end($lines), true) : null;
+        self::assertIsArray($json, "runner must emit JSON (stdout: {$res['stdout']} stderr: {$res['stderr']})");
+        self::assertArrayNotHasKey('error', $json, (string)ifset($json, 'error', ''));
+        return $json;
     }
 
     /** One login: a child process with its own database session. @return list<string> the SQL it wrote */

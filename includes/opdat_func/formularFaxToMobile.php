@@ -28,6 +28,7 @@
 // 20261118 CL/MMR SST-898 (review 4) A login on an account without the formularer or tekster table skips that step instead of failing, and runs it once the table exists.
 //                 The old default texts are deleted here (formularFaxToMobileTekster()) and only when one is still stored, so a login with nothing left to change writes nothing.
 // 20261118 CL/MMR SST-898 (review 5) The stored texts per id and language are looked up with if_array() (includes/std_func.php, loaded by every caller of betweenUpdates.php).
+// 20261118 CL/MMR SST-898 (review 7) A form is only rewritten while it still holds the text and language that were read, so a form saved in between is kept.
 
 if (!function_exists('formular_fax_to_mobile_text')) {
 	/**
@@ -94,6 +95,27 @@ if (!function_exists('formular_fax_to_mobile_has_table')) {
 	}
 }
 
+if (!function_exists('formular_fax_to_mobile_same')) {
+	/**
+	 * A WHERE condition that holds while the column still has exactly the value read earlier: IS NULL for a NULL,
+	 * otherwise an exact match (MySQL/MariaDB compare the bytes with CAST(... AS BINARY), so case and trailing spaces
+	 * count as they do on PostgreSQL).
+	 *
+	 * @param string      $column A column of formularer (letters, digits and _ only).
+	 * @param string|null $value  The value read by the same function.
+	 * @return string The condition, e.g. "sprog = 'Dansk'" or "sprog IS NULL".
+	 */
+	function formular_fax_to_mobile_same($column, $value) {
+		global $db_type;
+		$column = preg_replace('/[^A-Za-z0-9_]/', '', (string)$column);
+		if ($value === null) {
+			return "$column IS NULL";
+		}
+		$target = in_array($db_type, array('mysql', 'mysqli'), true) ? "CAST($column AS BINARY)" : $column;
+		return "$target = '" . db_escape_string((string)$value) . "'";
+	}
+}
+
 if (!function_exists('formular_fax_to_mobile_stale_tekster')) {
 	/**
 	 * The old default texts that formularFaxToMobileTekster() deletes, per text id and language (1 = Danish,
@@ -154,20 +176,29 @@ if (!function_exists('formularFaxToMobile')) {
 	 * Rewrites the account's form texts that still use a fax variable (see formular_fax_to_mobile_text()).
 	 * Runs from includes/betweenUpdates.php at every login: it reads only rows that mention "fax", and a
 	 * rewritten row no longer holds a fax variable, so a second run (or a concurrent login) changes nothing.
+	 * The UPDATE only applies while the row still holds the text and language it was computed from, so a form
+	 * saved in the form editor between the read and the write is kept; the next login looks at it again.
 	 * An account without the formularer table is skipped and no flag is set, so a later login rewrites the texts.
 	 *
-	 * @return int The number of form texts changed.
+	 * @return int The number of form texts changed: rows that hold the rewritten text after the UPDATE.
 	 */
 	function formularFaxToMobile() {
 		$changed = 0;
 		if (!formular_fax_to_mobile_has_table('formularer')) {
 			return $changed;
 		}
-		$q = db_select("SELECT id, sprog, beskrivelse FROM formularer WHERE LOWER(beskrivelse) LIKE '%fax%'", __FILE__ . " linje " . __LINE__);
+		$q = db_select("SELECT id, sprog, beskrivelse FROM formularer WHERE LOWER(beskrivelse) LIKE '%fax%' ORDER BY id", __FILE__ . " linje " . __LINE__);
 		while ($q && ($r = db_fetch_array($q))) {
 			$new = formular_fax_to_mobile_text($r['beskrivelse'], $r['sprog']);
-			if ($new !== (string)$r['beskrivelse']) {
-				db_modify("UPDATE formularer SET beskrivelse = '" . db_escape_string($new) . "' WHERE id = '" . (int)$r['id'] . "'", __FILE__ . " linje " . __LINE__);
+			if ($new === (string)$r['beskrivelse']) {
+				continue;
+			}
+			$id = (int)$r['id'];
+			db_modify("UPDATE formularer SET beskrivelse = '" . db_escape_string($new) . "' WHERE id = '$id' AND "
+				. formular_fax_to_mobile_same('beskrivelse', $r['beskrivelse']) . " AND " . formular_fax_to_mobile_same('sprog', $r['sprog']),
+				__FILE__ . " linje " . __LINE__);
+			$check = db_fetch_array(db_select("SELECT beskrivelse FROM formularer WHERE id = '$id'", __FILE__ . " linje " . __LINE__));
+			if ($check && (string)$check['beskrivelse'] === $new) {
 				$changed++;
 			}
 		}
