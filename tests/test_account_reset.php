@@ -1,11 +1,12 @@
 <?php
-// --- tests/test_account_reset.php --- 2026-10-05 ---
+// --- tests/test_account_reset.php --- 2026-11-18 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Verify reset scope and preservation options without database writes.
 // 20260916 CDX/PHR Verify item texts follow the keep-items option.
 // 20260916 CDX/PHR Verify user year reset and tenant-scoped session updates.
 // 20260917 CL/LH Verify the reset is refused on MySQL/MariaDB before any statement is issued.
 // 20261005 SS Verify personal settings (USET) are not deleted by a reset.
+// 20261118 CL/MMR SST-1016 Verify the session update leaves the customer sessions (rettigheder '0', regnskabsaar 0) at year 0.
 require_once(__DIR__ . '/../systemdata/resetAccount.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -54,9 +55,9 @@ function db_select($sql, $trace) {
 	return null;
 }
 resetAccountSessionYear('test_41');
-resetCheck($GLOBALS['resetSessionTestCall'] === array("UPDATE online SET regnskabsaar='1' WHERE db='test_41'", true), 'Session update must target only this tenant in the master database');
+resetCheck($GLOBALS['resetSessionTestCall'] === array("UPDATE online SET regnskabsaar='1' WHERE db='test_41' AND NOT (COALESCE(rettigheder, '') = '0' AND COALESCE(regnskabsaar, -1) = 0)", true), 'Session update must target only this tenant in the master database and skip the customer sessions');
 resetAccountSessionYear("test'41");
-resetCheck($GLOBALS['resetSessionTestCall'][0] === "UPDATE online SET regnskabsaar='1' WHERE db='test''41'", 'Database name must be escaped');
+resetCheck($GLOBALS['resetSessionTestCall'][0] === "UPDATE online SET regnskabsaar='1' WHERE db='test''41' AND NOT (COALESCE(rettigheder, '') = '0' AND COALESCE(regnskabsaar, -1) = 0)", 'Database name must be escaped');
 echo "OK: reset scope, preservation options, user year 1 and tenant-scoped active sessions.\n";
 
 $years = array(
@@ -94,3 +95,46 @@ foreach (array('mysql', 'mysqli', 'MySQLi') as $dbType) {
 	resetCheck($GLOBALS['resetStatementsIssued'] === array(), 'Reset on ' . $dbType . ' must refuse before issuing any statement');
 }
 echo "OK: MySQL/MariaDB reset refused before any statement is issued.\n";
+
+// SST-1016: the reset's session update on a real PostgreSQL online table (a TEMP table, gone with the connection).
+// Three staff and two customer sessions (Mit salg 3024, booking) on the reset account, plus another account's rows;
+// with 4 users allowed, the next login must still fit after the reset.
+if (!extension_loaded('pgsql') || !getenv('SALDI_CHAR_PGHOST') || !getenv('SALDI_CHAR_PGUSER')) {
+	echo "SKIP: reset session update on PostgreSQL (needs the pgsql extension and SALDI_CHAR_PGHOST/PGUSER).\n";
+} else {
+	$parts = array();
+	foreach (array('host', 'port', 'user', 'password', 'dbname') as $key) {
+		$env = array('password' => 'PASS', 'dbname' => 'DATABASE');
+		$value = getenv('SALDI_CHAR_PG' . ($env[$key] ?? strtoupper($key)));
+		if ($value !== false && $value !== '') {
+			$parts[] = $key . "='" . str_replace(array('\\', "'"), array('\\\\', "\\'"), $value) . "'";
+		}
+	}
+	$pg = pg_connect(implode(' ', $parts), PGSQL_CONNECT_FORCE_NEW);
+	resetCheck($pg !== false, 'PostgreSQL connection for the reset session check');
+	pg_query($pg, "CREATE TEMP TABLE online (session_id varchar(32), brugernavn text, db text, rettigheder text, regnskabsaar integer, revisor boolean)");
+	pg_query($pg, "INSERT INTO online VALUES
+		('s1', 'tom1', 'sst1016_1', '0000011001000000', 10, null),
+		('s2', 'tom2', 'sst1016_1', '1111111111111111', 10, false),
+		('s3', 'tom3', 'sst1016_1', '0', 10, false),
+		('s4', '3024', 'sst1016_1', '0', 0, false),
+		('s5', 'booking', 'sst1016_1', '0', 0, false),
+		('s6', 'anna', 'other_7', '1111111111111111', 5, false),
+		('s7', '4711', 'other_7', '0', 0, false)");
+	resetAccountSessionYear('sst1016_1');
+	resetCheck(pg_query($pg, $GLOBALS['resetSessionTestCall'][0]) !== false, 'The reset session update must run on PostgreSQL');
+	$rows = array();
+	$res = pg_query($pg, "SELECT brugernavn, regnskabsaar FROM online ORDER BY session_id");
+	while ($row = pg_fetch_assoc($res)) {
+		$rows[$row['brugernavn']] = (int) $row['regnskabsaar'];
+	}
+	resetCheck($rows === array('tom1' => 1, 'tom2' => 1, 'tom3' => 1, '3024' => 0, 'booking' => 0, 'anna' => 5, '4711' => 0),
+		'Staff of the reset account get year 1, its customer sessions keep year 0, another account is untouched');
+	// The max users count from index/login.php (maxUsersUserSessionCondition()).
+	$res = pg_query($pg, "SELECT COUNT(DISTINCT brugernavn) AS n FROM online WHERE db = 'sst1016_1' AND revisor IS NOT true"
+		. " AND NOT (COALESCE(rettigheder, '') = '0' AND COALESCE(regnskabsaar, -1) = 0)");
+	$counted = (int) pg_fetch_result($res, 0, 'n');
+	resetCheck($counted === 3 && $counted < 4, 'After the reset only the 3 staff count, so a 4th user can log in');
+	pg_close($pg);
+	echo "OK: reset session update on PostgreSQL keeps the customer sessions out of the max users count.\n";
+}

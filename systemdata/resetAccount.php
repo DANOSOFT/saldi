@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/resetAccount.php --- 2026-10-05 ---
+// --- systemdata/resetAccount.php --- 2026-11-18 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Build an explicit reset plan using only existing tenant tables.
 // 20260916 CDX/PHR Clear item texts when items are not retained.
@@ -8,6 +8,7 @@
 // 20260917 CL/LH Refuse the reset on MySQL/MariaDB, where TRUNCATE auto-commits and the
 //                transaction cannot be rolled back.
 // 20261005 SS Settings redesign G1.4: users' personal settings (grupper USET) survive a reset.
+// 20261118 CL/MMR SST-1016 The reset leaves the customer sessions from Mit salg, Mine labels, labelprint and booking at year 0, so they still do not count as users at login.
 
 /**
  * Build reset statements. Unlisted tables are never cleared implicitly.
@@ -152,9 +153,14 @@ function accountResetLatestYear(array $years) {
 	return $number;
 }
 
-/** Update active sessions in the master database, restricted to the reset account. */
+/**
+ * Update active sessions in the master database, restricted to the reset account.
+ * SST-1016: the customer sessions from Mit salg, Mine labels, labelprint and booking (rettigheder '0', regnskabsaar 0)
+ * keep year 0, so the login's max users screen still leaves them out.
+ */
 function resetAccountSessionYear($database) {
-	$sql = "UPDATE online SET regnskabsaar='1' WHERE db='" . db_escape_string($database) . "'";
+	$sql = "UPDATE online SET regnskabsaar='1' WHERE db='" . db_escape_string($database) . "'"
+		. " AND NOT (COALESCE(rettigheder, '') = '0' AND COALESCE(regnskabsaar, -1) = 0)";
 	$result = db_modify($sql, __FILE__ . ' linje ' . __LINE__, true);
 	if (substr((string)$result, 0, 1) !== '0') {
 		throw new RuntimeException('Regnskabet er nulstillet, men aktive sessioners regnskabsår kunne ikke opdateres.');

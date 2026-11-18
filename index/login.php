@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- index/login.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -74,9 +74,9 @@
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 // 20261105 CL/MMR SD-807 The login messages and the max users and already logged in screens use the language chosen on the login page (languageId cookie, 1-3).
 //                 A message that names the account is kept within 80 characters (loginFejltxt()), so a long account name no longer makes it disappear.
-// 20261113 CL/MMR SST-1016 The max users screen no longer counts or lists the customer sessions from Mit salg, Mine labels, labelprint and booking (shown by their account number or e-mail).
-//                 They are recognised by online.rettigheder '0' together with online.regnskabsaar 0, which a user login never writes.
 // 20261113 CDX/NTR Keep reset-token validation and login auditing alongside translated login messages.
+// 20261118 CL/MMR SST-1016 The max users screen no longer counts or lists the customer sessions from Mit salg, Mine labels, labelprint and booking (shown by their account number or e-mail).
+//                 They are recognised by online.rettigheder '0' together with online.regnskabsaar 0, which a user login never writes.
 
 if (isset($_GET['invite'])) {
 	$inviteToken = preg_match('/^\d{1,9}-[a-f0-9]{48}$/', (string) $_GET['invite']) ? (string) $_GET['invite'] : '';
