@@ -130,7 +130,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261118 CL/MMR SD-815 Merge of master's settings redesign: the E-faktura link is an entry of systemdata/settingsRegistry.php (Integrationer, rule einvoiceProviderChoice), as the old menu column is gone.
 //                 einvoiceProviderHandlePost() still runs before page output with its own rights and CSRF check; save_webshop_invoice_order_date() (SST-911) runs only after the page's CSRF check, as on master.
-//                 The E-faktura page is read-only for a user the save would refuse (einvoice_provider_can_edit(), the same rule as the save).
+// 20261118 CL/MMR SD-815 The E-faktura page is read-only for a user the save would refuse (einvoice_provider_can_edit(), the same rule as the save).
 @session_start();
 $s_id = session_id();
 
