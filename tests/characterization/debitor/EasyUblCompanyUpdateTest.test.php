@@ -22,6 +22,7 @@ use PHPUnit\Framework\TestCase;
 // 20261118 CL/MMR SST-1007 An answer that is not 2xx counts as a failed update.
 // 20261118 CL/MMR SST-1003 Nested contact and bank details and a bare text answer are kept out of the logs too (Codex).
 // 20261118 CL/MMR SST-1003 No text from EasyUBL's answer is logged, only checkable values and the kind and size of the rest (Codex).
+// 20261118 CL/MMR SST-1003 Unknown keys are only counted, and codes must be 0-99999 (Codex).
 final class EasyUblCompanyUpdateTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -340,7 +341,7 @@ final class EasyUblCompanyUpdateTest extends TestCase
         self::assertFalse($out['result']['success']);
         self::assertCount(1, $out['logs']);
         self::assertStringContainsString('"status code":401', $out['logs'][0]);
-        self::assertStringContainsString('"company":"[4 entries]"', $out['logs'][0], 'the company object is left out, only counted');
+        self::assertStringContainsString('"otherFields":1', $out['logs'][0], 'the company object is left out, only counted');
         $this->assertNoPrivateDetails($out['logs'][0]);
     }
 
@@ -413,5 +414,33 @@ final class EasyUblCompanyUpdateTest extends TestCase
         foreach (array('DK1234-0012345678', '0012345678', '12345678', 'Reg. 12', 'acct') as $text) {
             self::assertStringNotContainsString($text, $log, "no text from the answer: $text");
         }
+    }
+
+    public function testUnknownKeysAreCountedNotWrittenAndCannotOverwriteTheCount(): void
+    {
+        foreach (array(
+            array('otherFields' => 'bogholder@testfirma.example', 'title' => 'Bad', 'bogholder@testfirma.example' => 1),
+            array('bogholder@testfirma.example' => 1, 'title' => 'Bad', 'otherFields' => 'bogholder@testfirma.example'),
+        ) as $answer) {
+            $out = $this->runUpdateBranches(400, $answer);
+
+            self::assertFalse($out['result']['success']);
+            self::assertCount(1, $out['logs']);
+            self::assertStringContainsString('"otherFields":2', $out['logs'][0], 'both unknown keys counted, whatever the order');
+            self::assertStringContainsString('"title":"[text, 3 characters]"', $out['logs'][0]);
+            $this->assertNoPrivateDetails($out['logs'][0]);
+            $this->tearDown();
+        }
+    }
+
+    public function testACodeOutsideTheCodeRangeIsNotWritten(): void
+    {
+        $out = $this->runUpdateBranches(400, array('errorNumber' => 12340012345678, 'status' => -5, 'code' => 404));
+
+        self::assertStringContainsString('"errorNumber":"[number]"', $out['logs'][0], 'an out-of-range integer is summarized');
+        self::assertStringContainsString('"status":"[number]"', $out['logs'][0]);
+        self::assertStringContainsString('"code":404', $out['logs'][0], 'a code in range is kept');
+        self::assertStringContainsString('"status code":400', $out['logs'][0], 'the locally observed HTTP status is kept');
+        self::assertStringNotContainsString('12340012345678', $out['logs'][0]);
     }
 }

@@ -89,7 +89,7 @@
 // 20261118 CL/MMR SST-1003 The other error logs of updateCompany() and the NemHandel creation leave out the contact and bank details too.
 // 20261118 CL/MMR SST-1007 updateCompany() counts an answer that is not 2xx as a failure, so updatedCompany is not set on a 401 or 5xx.
 // 20261118 CL/MMR SST-1003 easyUblLogSafe() removes the contact and bank details at any depth and masks them in texts (Codex).
-// 20261118 CL/MMR SST-1003 easyUblLogAnswer() writes no text from EasyUBL's answer: only checkable values, the rest by kind and size (Codex).
+// 20261118 CL/MMR SST-1003 easyUblLogAnswer() writes no text from EasyUBL's answer: known fields with checkable values, the rest by kind and size or counted (Codex).
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
@@ -293,9 +293,10 @@
 
     /**
      * EasyUBL's answer for a log file in temp/<db>/ (SST-1003). The answer can echo what was sent in any
-     * form, so no text from it is written: only values whose meaning can be checked are kept (the refusal
-     * flag as a boolean, short numeric error codes, ids in GUID form). Every other field is logged by its
-     * kind and size, and a bare text answer by its length.
+     * form, so no text from it is written: only known field names, and of those only values whose meaning
+     * can be checked (the refusal flag as a boolean, numeric error codes 0-99999, ids in GUID form). Other
+     * known fields are logged by their kind and size, unknown fields only counted, and a bare text answer
+     * by its length.
      *
      * @param mixed $response The decoded answer.
      * @param list<string> $privateValues From easyUblPrivateValues() on what was sent.
@@ -305,24 +306,31 @@
         if (!is_array($response)) {
             return easyUblAnswerSummary($response);
         }
+        // Only these field names are written; any other key is counted, never written, as a key can carry data too.
+        $known = array('hasEndpointPeppol', 'errorNumber', 'status', 'code', 'companyID', 'id', 'error', 'errors',
+            'errorMessage', 'message', 'title', 'detail', 'type', 'traceId');
         $kept = array();
+        $unknown = 0;
         foreach ($response as $field => $value) {
-            $name = (string)$field;
-            if (!preg_match('/^[A-Za-z][A-Za-z0-9_]{0,40}$/', $name) || easyUblIsPrivateKey($name)) {
-                $kept['otherFields'] = ($kept['otherFields'] ?? 0) + 1;
+            if (!in_array($field, $known, true)) {
+                $unknown++;
                 continue;
             }
-            if ($name === 'hasEndpointPeppol' && is_bool($value)) {
-                $kept[$name] = $value;
-            } elseif (in_array($name, array('errorNumber', 'status', 'code'), true) && (is_int($value) || (is_string($value) && preg_match('/^[0-9]{1,5}$/', $value)))
+            $number = is_int($value) ? $value : ((is_string($value) && preg_match('/^[0-9]{1,5}$/', $value)) ? (int)$value : null);
+            if ($field === 'hasEndpointPeppol' && is_bool($value)) {
+                $kept[$field] = $value;
+            } elseif (in_array($field, array('errorNumber', 'status', 'code'), true) && $number !== null && $number >= 0 && $number <= 99999
                 && !in_array((string)$value, $privateValues, true)) {
-                $kept[$name] = (int)$value;
-            } elseif (in_array($name, array('companyID', 'id'), true) && is_string($value)
+                $kept[$field] = $number;
+            } elseif (in_array($field, array('companyID', 'id'), true) && is_string($value)
                 && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
-                $kept[$name] = $value;
+                $kept[$field] = $value;
             } else {
-                $kept[$name] = easyUblAnswerSummary($value);
+                $kept[$field] = easyUblAnswerSummary($value);
             }
+        }
+        if ($unknown > 0) {
+            $kept['otherFields'] = $unknown;
         }
         return $kept;
     }
