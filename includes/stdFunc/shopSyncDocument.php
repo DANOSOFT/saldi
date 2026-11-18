@@ -31,6 +31,7 @@
 // 20261118 CL/LH A collected call that carries an item's prices gets them when it is sent: for an item the offer reconciler tracks, the pair each shop last accepted, looked up then (shopOfferForeignAtSend()), not when the call was collected.
 //                Codex verification 5: such calls follow the protocol of stdFunc/shopOfferPush.php: the batch's queries first, then each item's critical section (shopOfferForeignClaim(), with the varer row the call was built from), the batch at once, then the record (shopOfferForeignDone()).
 //                Codex verification 6: that row is read again when it is older than 2 minutes; if it cannot be, the call is not sent and stays queued.
+// 20261118 CL/LH CodeRabbit review of #1157: a collected call whose salesPrice is null goes through the critical section too.
 
 /**
  * Request-local payload collection; quantities are rebuilt on every delivery.
@@ -330,7 +331,7 @@ function shopSyncRunDocument(array $entries, $report = true, $seconds = 0, $maxA
 			// then, for each call that carries an item's prices, the critical section of stdFunc/shopOfferPush.php (a tracked item
 			// gets the pair each shop last accepted, otherwise today's prices), and the batch goes out at once; no query in between
 			foreach ($tasks as $i => $task) {
-				if (isset($task['params']['salesPrice']) && !$task['parent'] && function_exists('shopOfferForeignClaim')) {
+				if (array_key_exists('salesPrice', (array)$task['params']) && !$task['parent'] && function_exists('shopOfferForeignClaim')) { // a null salesPrice is a price call too
 					shopOfferTestPause('document', 'queried', $task['vare_id']);
 					$item = is_array($task['item'] ?? null) ? $task['item']
 						: array('salgspris' => $task['params']['salesPrice'], 'retail_price' => $task['params']['retailPrice'] ?? null);

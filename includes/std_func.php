@@ -122,6 +122,7 @@
 //                When that pair is not the item's current one, the send is marked as an event, and the reconciler, run only by an authorised scheduled call, sends the current pair after it.
 // 20261118 CL/LH Every send of an item's prices follows the protocol of stdFunc/shopOfferPush.php: the queries first, then the critical section (shopOfferForeignClaim()) right before each call, the call at once, then the record (shopOfferForeignDone()); no query runs between the state read and the call.
 //                Codex verification 6: the prices sent come from the claim, from an item read at most 2 minutes old (read again when older); when it cannot be read again, no price call is made (sync_shop_vare() queues it) and the reconciler sends the prices.
+// 20261118 CL/LH CodeRabbit review of #1157: such a skipped stock sync names its item as failed, and a queue write that fails is logged.
 
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
@@ -2199,7 +2200,10 @@ if (!function_exists('sync_shop_vare')) {
 			$claim = $priceRow ? shopOfferForeignReady(shopOfferForeignClaim('stock', $vare_id, $priceRow, $targets)) : null;
 			if (!empty($claim['noPrices'])) { // the item could not be read again: no call now; it is queued, and the reconciler sends the prices
 				$failed++;
-				shopSyncQueueAdd($vare_id, 0, $lager, $mode);
+				shopSyncNoteFailedItem($itemLabel !== '' ? $itemLabel : '#' . (int)$vare_id); // the stock was not sent either: name it
+				if (!shopSyncQueueAdd($vare_id, 0, $lager, $mode)) {
+					shopOfferLogLoud('SYNC NOT QUEUED: the stock sync of vare_id ' . (int)$vare_id . ' was not sent (its prices could not be read again) and could not be queued for a retry');
+				}
 				return;
 			}
 			shopOfferTestPause('stock', 'send', $vare_id);

@@ -86,6 +86,7 @@ while ($product = db_fetch_array($products_query)) {
     $gruppe = $product['gruppe'];
     $delvare = $product['delvare'];
     $slotOf = array_flip(array_filter(array($api_fil, $api_fil2, $api_fil3)));
+    $productIncomplete = false; // 20261118 CL/LH a shop skipped (item not read again): the product does not count as synced
     
     echo "<p>Processing product ID: $vare_id (varenr: $varenr)</p>";
     fwrite($log, "Processing product ID: $vare_id (varenr: $varenr)\n");
@@ -157,8 +158,15 @@ while ($product = db_fetch_array($products_query)) {
             fwrite($log, "    API: $api_url\n");
             
             $claim = shopOfferForeignReady($claim);
-            if (!empty($claim['noPrices'])) { // the item could not be read again: no calls for it; the reconciler sends its prices
-                fwrite($log, "    Item not read again: no stock or price call for this shop\n");
+            if (!empty($claim['noPrices'])) { // the item could not be read again: no stock or price call for it; the reconciler sends its prices
+                // 20261118 CL/LH the SKU/cost call carries no prices, so it still goes out; the item counts as not synced, so the
+                // run ends with an error and can be run again for its stock
+                $sku_result = shell_exec("nohup curl '$sku_url' > ../temp/$db/curl_sku.txt 2>&1 &");
+                echo "<span style='margin-left: 40px; color: red;'>✗ Stock and price not sent: the item could not be read again (run the sync again)</span><br>";
+                fwrite($log, "    ✗ Item not read again: no stock or price call for this shop; SKU call sent\n");
+                $total_errors++;
+                $api_success = false;
+                $productIncomplete = true;
                 continue;
             }
             shopOfferTestPause('bulk', 'send', $vare_id);
@@ -266,7 +274,7 @@ while ($product = db_fetch_array($products_query)) {
         }
     }
     
-    $total_synced++;
+    if (!$productIncomplete) $total_synced++;
     
     // Add small delay to prevent overwhelming the APIs
     usleep(100000); // 0.1 second delay

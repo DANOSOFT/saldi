@@ -38,6 +38,11 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  * 20261118 CL/LH Codex verification 6: the matrix also changes the normal prices while the path is held (its own read of today's
  *                prices goes old), and the held path runs on the test's clock; an old item read that cannot be repeated sends no
  *                prices.
+ * 20261118 CL/LH CodeRabbit review of #1157: the refused REST tick asserted exactly; sends counted per shop; the bulk
+ *                page's exit and its six price calls asserted; open markers read before each tick; children reaped after a failed
+ *                test; fake shops stopped with their workers; the price snapshot read under a lock; the bulk group left empty;
+ *                the recovery tick's own calls asserted. New: a VAT rate row only in another fiscal year, and an answer cut off
+ *                after its status line.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -48,6 +53,8 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	private static int $stockGroup = 0;
 	/** @var list<string> */
 	private static array $files = [];
+	/** @var list<resource> Children started by spawn(); tearDown() kills and reaps any a failed test left running. */
+	private static array $children = [];
 
 	public static function setUpBeforeClass(): void
 	{
@@ -61,7 +68,8 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 			$name = (string)stream_socket_get_name($probe, false);
 			$ports[$n] = $port = (int)substr($name, strrpos($name, ':') + 1);
 			fclose($probe);
-			self::$servers[] = proc_open([PHP_BINARY, '-S', "127.0.0.1:$port", __DIR__ . '/../support/shop_price_recorder.php'],
+			// in a session of its own (setsid), so teardown stops the server's workers with it (PHP_CLI_SERVER_WORKERS forks them)
+			self::$servers[] = proc_open(['setsid', PHP_BINARY, '-S', "127.0.0.1:$port", __DIR__ . '/../support/shop_price_recorder.php'],
 				[0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, null, $env);
 			for ($i = 0; $i < 50 && !@fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1); $i++) {
 				usleep(100000);
@@ -90,7 +98,12 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	public static function tearDownAfterClass(): void
 	{
 		foreach (self::$servers as $server) {
-			proc_terminate($server);
+			$pid = (int)(proc_get_status($server)['pid'] ?? 0);
+			if ($pid > 0 && function_exists('posix_kill')) {
+				posix_kill(-$pid, 15); // the server's process group: the server and its workers
+			} else {
+				proc_terminate($server);
+			}
 			proc_close($server);
 		}
 		foreach (array_merge(self::$files, (array)glob(self::$shopLog . '*')) as $file) {
@@ -117,6 +130,19 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 			@unlink((string)$file);
 		}
 		file_put_contents(self::$shopLog, '');
+	}
+
+	/** A child a failed test did not join (a held path, a table lock) must not keep a lock into the next test. */
+	protected function tearDown(): void
+	{
+		foreach (self::$children as $child) {
+			if (is_resource($child)) {
+				proc_terminate($child, 9);
+				proc_close($child);
+			}
+		}
+		self::$children = [];
+		parent::tearDown();
 	}
 
 	private static function clearState(): void
@@ -215,6 +241,7 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		$env = $stall === null ? null : array_merge(getenv(), ['SALDI_SHOP_OFFER_STALL' => $stall], $clock === null ? [] : ['SALDI_SHOP_OFFER_CLOCK' => (string)$clock]);
 		$proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['file', $out, 'w'], 2 => ['file', $err, 'w']], $pipes, null, $env);
 		fclose($pipes[0]);
+		self::$children[] = $proc;
 		return [$proc, $out, $err];
 	}
 
@@ -291,7 +318,14 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	private static function remote(string $itemNo): array
 	{
 		$out = [];
-		foreach ((array)json_decode((string)@file_get_contents(self::$shopLog . '.remote'), true) as $key => $price) {
+		$snapshot = '';
+		if (($fh = @fopen(self::$shopLog . '.remote', 'r')) !== false) { // the recorder rewrites it under an exclusive lock
+			flock($fh, LOCK_SH);
+			$snapshot = (string)stream_get_contents($fh);
+			flock($fh, LOCK_UN);
+			fclose($fh);
+		}
+		foreach ((array)json_decode($snapshot, true) as $key => $price) {
 			[$shop, $item] = explode('|', (string)$key, 2);
 			if ($item === $itemNo) {
 				$out['shop ' . $shop] = $price['sales'] . ' / ' . $price['retail'];
@@ -350,10 +384,15 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::assertShopsHold($itemNo, $pair, 'the late request was applied');
 	}
 
-	/** Calls per shop that carried prices for the item since the log was cleared. */
+	/** Calls per shop that carried prices for the item since the log was cleared; every shop must have had the same number. */
 	private static function sendsPerShop(string $itemNo): int
 	{
-		return intdiv(count(self::priceCalls($itemNo)), 3);
+		$perShop = ['1' => 0, '2' => 0, '3' => 0];
+		foreach (self::priceCalls($itemNo) as $call) {
+			$perShop[$call['_shop']] = ($perShop[$call['_shop']] ?? 0) + 1;
+		}
+		self::assertCount(1, array_unique($perShop), 'every shop got the same number of sends: ' . json_encode($perShop));
+		return $perShop['1'];
 	}
 
 	// ------------------------------------------------------------------ only a tick sends offer prices
@@ -379,11 +418,58 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		foreach (self::priceCalls(null, null) as $call) {
 			self::assertNotSame('199.200', $call['salesPrice'], 'no card save or sale sends the new offer');
 		}
-		$denied = self::runner(['rest', http_build_query(['action' => 'shop_offer_tick', 'db' => CharacterizationEnv::testDb(), 'saldiuser' => 'tick', 'key' => 'wrong'])]);
-		self::assertIsString($denied['response'], 'a tick without access is refused by access_check(): ' . json_encode($denied));
+		// The test tenant's name has no "_<n>", so access_check() takes it for a master account, which it serves only from
+		// Danosoft's own address: the route is refused before any key is read. The key rules are ShopOfferTickAuthTest's, which also
+		// pins that the dispatcher runs the tick only in the branch access_check() granted.
+		$route = http_build_query(['action' => 'shop_offer_tick', 'db' => CharacterizationEnv::testDb(), 'saldiuser' => 'tick']);
+		$denied = self::runner(['rest', $route, http_build_query(['key' => 'wrong'])]);
+		self::assertSame('Wrong IP', $denied['response'], 'a tick without access is refused by access_check()');
 		self::assertSame([], array_filter(self::priceCalls(), fn($c) => $c['salesPrice'] === '199.200'), 'and sends nothing');
 		self::tick();
 		self::assertShopsHold('SPONLY', '199.200 / 799.00', 'the tick sends the new offer');
+	}
+
+	/** The VAT rate row kept only in another fiscal year: find_pris() reads it without a year, so the before-price still has VAT. */
+	public function testTheBeforePriceFindsAVatRateKeptOnlyInAnotherFiscalYear(): void
+	{
+		$account = self::one(
+			"SELECT k.moms FROM grupper g JOIN kontoplan k ON k.kontonr::text = g.box4 AND k.regnskabsaar = g.fiscal_year
+			 WHERE g.art = 'VG' AND g.kodenr = $1 AND g.fiscal_year = $2",
+			[(string)self::$stockGroup, self::$regnaar]
+		);
+		$art = substr((string)$account['moms'], 0, 1) . 'M';
+		$kodenr = substr((string)$account['moms'], 1);
+		$moved = self::rows("UPDATE grupper SET fiscal_year = fiscal_year + 1000 WHERE art = $1 AND kodenr = $2 AND fiscal_year = $3 RETURNING id",
+			[$art, $kodenr, self::$regnaar]);
+		self::assertNotSame([], $moved, 'the VAT rate row of this fiscal year now belongs to another year');
+		try {
+			self::item('SPVATYEAR', self::offer());
+			self::tick();
+			self::assertShopsHold('SPVATYEAR', self::OFFER, 'the normal price 639.20 plus 25 % VAT is the before-price');
+		} finally {
+			foreach ($moved as $row) {
+				self::rows("UPDATE grupper SET fiscal_year = fiscal_year - 1000 WHERE id = $1", [$row['id']]);
+			}
+		}
+	}
+
+	/** A shop that answers 200 and closes before its answer is complete has not accepted: a transport failure, sent again. */
+	public function testAnAnswerCutOffAfterItsStatusLineIsNotAnAcceptance(): void
+	{
+		$id = self::item('SPCUT', self::offer());
+		$t = time();
+		self::control('rules', json_encode([['item' => 'SPCUT', 'shop' => '2', 'cut' => true]]));
+		$out = self::tick($t);
+		self::uncontrol('rules');
+		self::assertSame([2, 1], [$out['accepted'], $out['failed']], 'shop 2\'s transfer did not complete: ' . json_encode($out));
+		$shops = self::stateByShop($id);
+		self::assertNull($shops['shop 2']['confirmed'], 'shop 2 is not booked as holding the offer');
+		self::assertSame(1, $shops['shop 2']['attempts']);
+		self::assertNotNull($shops['shop 1']['confirmed']);
+		self::clearLog();
+		self::tick($t + 120); // the failure is an event: every shop is sent the pair again at the next slot
+		self::assertSame([self::OFFER], self::pricesSent('SPCUT')['shop 2'] ?? [], 'shop 2 is sent the offer again');
+		self::assertNotNull(self::stateByShop($id)['shop 2']['confirmed'], 'and has accepted it now');
 	}
 
 	public function testATickSendsTheOfferAndSendsItAgainOnSchedule(): void
@@ -737,6 +823,7 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 			CharacterizationEnv::resyncSequences(self::$tenant); // the page's session setup inserts rows of its own
 			$body($id);
 		} finally {
+			self::rows("UPDATE varer SET gruppe = $1 WHERE gruppe = 9871", [self::$stockGroup]); // the group is made again by the next run
 			self::rows("DELETE FROM grupper WHERE id = $1", [$groupId]);
 			foreach ($stocked as $row) {
 				self::rows("UPDATE grupper SET box8 = $1 WHERE id = $2", [$row['box8'], $row['id']]);
@@ -1092,8 +1179,9 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		}
 		$row = ['path' => $path, 'point' => $point, 'release' => $release, 'change' => $change, 'openWhenUntracked' => []];
 		$watch = function (int $clock) use ($id, &$row): void {
+			$open = self::openMarker($id, $clock); // read before the tick: a tick that removed the marker too would hide it after
 			self::tick($clock);
-			if (self::openMarkerWhenUntracked($id, $clock)) $row['openWhenUntracked'][] = $clock;
+			if (!self::tracked($id) && ($open || self::openMarker($id, $clock))) $row['openWhenUntracked'][] = $clock;
 		};
 
 		// held: the restoration; late: the tail and on until the item is untracked (where nothing stops that) or two days past now
@@ -1115,10 +1203,13 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::clearLog();
 		file_put_contents("$prefix.go", (string)$released);
 		if ($path === 'bulk') {
-			proc_close($run[0]);
-			for ($i = 0; $i < 100 && count(self::priceCalls($name, null)) < 6; $i++) {
+			$exit = proc_close($run[0]);
+			self::assertSame(0, $exit, 'the bulk page ran to its end: ' . file_get_contents($run[2]));
+			self::assertStringContainsString('CHARTEST_PAGE_DONE', (string)file_get_contents($run[1]));
+			for ($i = 0; $i < 200 && count(self::priceCalls($name, null)) < 6; $i++) {
 				usleep(50000);
 			}
+			self::assertCount(6, self::priceCalls($name, null), 'and sent its stock and price calls to the three shops');
 		} else {
 			self::finish($run);
 		}
@@ -1157,12 +1248,9 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		return is_file(self::$tempDir . "/shopoffer/item-$id.json");
 	}
 
-	/** Whether the item is untracked while an in-flight marker of it is open at the tick's clock (T_late plus 2 minutes). */
-	private static function openMarkerWhenUntracked(int $id, int $clock): bool
+	/** Whether an in-flight marker of the item is open at the tick's clock (T_late plus 2 minutes; one expired by then is not). */
+	private static function openMarker(int $id, int $clock): bool
 	{
-		if (self::tracked($id)) {
-			return false;
-		}
 		foreach ((array)json_decode((string)@file_get_contents(self::$tempDir . "/shopoffer/inflight-$id.json"), true) as $marker) {
 			if ((int)($marker['startedAt'] ?? 0) + 720 > $clock) {
 				return true;
@@ -1217,10 +1305,13 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		foreach ([$card, $sale] as $id) {
 			self::assertGreaterThan(0, (int)(self::runner(['state', (string)$id])['state']['foreign']['staleAt'] ?? 0), 'an event for the reconciler');
 		}
+		self::clearLog();
 		$out = self::tick(time() + 700);
 		self::assertGreaterThanOrEqual(2, $out['events']);
 		$offerPair = ['shop 1' => '79.200 / 799.00', 'shop 2' => '79.200 / 799.00', 'shop 3' => '79.200 / 799.00'];
-		self::assertSame([$offerPair, $offerPair], [self::remote('SPOLDCARD'), self::remote('SPOLDSALE')], 'and the next tick sends the current pair');
+		$sent = ['shop 1' => ['79.200 / 799.00'], 'shop 2' => ['79.200 / 799.00'], 'shop 3' => ['79.200 / 799.00']];
+		self::assertSame([$sent, $sent], [self::pricesSent('SPOLDCARD'), self::pricesSent('SPOLDSALE')], 'the next tick sends both items the current pair');
+		self::assertSame([$offerPair, $offerPair], [self::remote('SPOLDCARD'), self::remote('SPOLDSALE')], 'and the shops hold it');
 	}
 
 	public function testAnOpenMarkerKeepsTheItemTrackedAndAnExpiredOneIsAnEvent(): void

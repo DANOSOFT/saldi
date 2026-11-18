@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 //                The scheduler sends the key in a POST body, so it is in no URL (web server access logs) and on no command line
 //                (curl --data-urlencode key@file); a key in the query string works as before.
 //                The function is lifted from the source (including the file connects to a database) and run against stubs.
+// 20261118 CL/LH CodeRabbit review of #1157: the dispatcher runs the tick only inside the branch access_check() granted.
 #[RunTestsInSeparateProcesses]
 final class ShopOfferTickAuthTest extends TestCase
 {
@@ -82,6 +83,20 @@ final class ShopOfferTickAuthTest extends TestCase
 		$this->assertSame('Access denied (ip)', access_check());
 		$_SERVER['REMOTE_ADDR'] = '198.51.100.2';
 		$this->assertSame('OK', access_check());
+	}
+
+	/** The dispatcher runs the tick in one place only, inside the branch access_check() granted; a refused call gets the refusal. */
+	public function testTheDispatcherRunsTheTickOnlyAfterAccessCheck(): void
+	{
+		$src = (string)file_get_contents(self::API);
+		$check = strpos($src, '$svar = access_check();');
+		$granted = $check === false ? false : strpos($src, "if (\$svar == 'OK') {", $check);
+		$refused = $granted === false ? false : strpos($src, '} else $value=$svar;', $granted);
+		$this->assertNotFalse($refused, 'the dispatcher\'s access branch is where it was');
+		$branch = substr($src, (int)$granted, (int)$refused - (int)$granted);
+		$this->assertStringContainsString("\$action == 'shop_offer_tick'", $branch);
+		$this->assertStringContainsString('shopOfferReconcileTick()', $branch);
+		$this->assertSame(1, substr_count($src, 'shopOfferReconcileTick('), 'and nowhere else in the file');
 	}
 
 	public function testTheSaldiuserIsStillRequired(): void

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/shopOfferPrice.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- includes/stdFunc/shopOfferPrice.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 //                salesPrice keeps salgspris' convention (excluding VAT).
 //                retailPrice is sent the way varer.retail_price (Vejl.pris) is entered: as typed, beside a salgspris the item card shows including VAT when the setting vatOnItemCard is on (lager/varekort.php), so the normal price is sent including VAT then, as a user copying the card's price into Vejl.pris would have done.
 //                The lookups go through shopOfferFetchRow(), so inside the offer reconciler's tick they are bounded in time like its other queries.
+// 20261118 CL/LH CodeRabbit review of #1157: the VAT rate row is the fiscal year's where it has one, else another year's, as find_pris() reads it; the before-price had no VAT when the rate row was kept only in another year.
 
 if (!function_exists('shopOfferActive')) {
 	/**
@@ -163,7 +164,9 @@ if (!function_exists('shopVatOnItemCard')) {
 if (!function_exists('shopOfferVatRate')) {
 	/**
 	 * An item group's VAT percentage by the chain find_pris() adds VAT with: grupper VG box4 (sales account) to
-	 * kontoplan.moms to grupper <S|K..>M box2; a VAT-free group (box7) or a missing link gives 0.
+	 * kontoplan.moms to grupper <S|K..>M box2; a VAT-free group (box7) or a missing link gives 0. The group and the account are
+	 * the fiscal year's; the VAT rate row is the fiscal year's where it has one, else another year's, as find_pris() reads it
+	 * without a year.
 	 *
 	 * @param int|string|null $gruppe varer.gruppe
 	 * @return float
@@ -183,7 +186,8 @@ if (!function_exists('shopOfferVatRate')) {
 			if ($r && $r['moms']) {
 				$art = db_escape_string(substr($r['moms'], 0, 1) . 'M');
 				$kodenr = (int)substr($r['moms'], 1);
-				$r = shopOfferFetchRow("select box2 from grupper where art = '$art' and kodenr = '$kodenr' and fiscal_year = '$year'");
+				$r = shopOfferFetchRow("select box2 from grupper where art = '$art' and kodenr = '$kodenr'"
+					. " order by case when fiscal_year = '$year' then 0 else 1 end, fiscal_year desc limit 1");
 				if ($r) $cache[$key] = (float)str_replace(',', '.', (string)$r['box2']);
 			}
 		}
