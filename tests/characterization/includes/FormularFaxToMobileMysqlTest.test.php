@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../../includes/std_func.php';
 //                 exactly, the old default texts go and the customer's ones stay, the compare is exact, and a second run changes nothing.
 //                 Needs a MySQL/MariaDB server: SALDI_CHAR_MYSQL_SOCKET (and SALDI_CHAR_MYSQL_USER / SALDI_CHAR_MYSQL_PASS, default root without a
 //                 password); skipped without it. Each case is a child process (support/run_formular_fax_to_mobile_mysql.php).
+// 20261118 CL/MMR SST-898 (review 11) The runner refuses an existing database and leaves it intact, and removes its own database after a failed setup.
 final class FormularFaxToMobileMysqlTest extends TestCase
 {
     /** @return array<string, array{string, string, string}> column charset, connection charset, db_type */
@@ -32,16 +33,10 @@ final class FormularFaxToMobileMysqlTest extends TestCase
     #[DataProvider('setups')]
     public function testTheLoginStep(string $columnCharset, string $connectionCharset, string $dbType): void
     {
-        $socket = (string)getenv('SALDI_CHAR_MYSQL_SOCKET');
-        if ($socket === '' || !extension_loaded('mysqli')) {
-            self::markTestSkipped('SALDI_CHAR_MYSQL_SOCKET and the mysqli extension are required');
-        }
         $database = 'sst898_' . bin2hex(random_bytes(4));
-        $res = CharacterizationEnv::runChild(__DIR__ . '/support/run_formular_fax_to_mobile_mysql.php', [$socket, $database, $columnCharset, $connectionCharset, $dbType]);
-        $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
-        $json = $lines !== [] ? json_decode(end($lines), true) : null;
-        self::assertIsArray($json, "runner must emit JSON (stdout: {$res['stdout']} stderr: {$res['stderr']})");
+        $json = $this->runStep($database, $columnCharset, $connectionCharset, $dbType);
         self::assertArrayNotHasKey('error', $json, (string)ifset($json, 'error', ''));
+        self::assertFalse($this->databaseExists($database), 'the runner removes its database');
 
         self::assertSame([5, 3], $json['first'], 'five forms; the old texts of 378/1, 50/2 and 5230/3');
         self::assertSame([0, 0], $json['second']);
@@ -55,5 +50,70 @@ final class FormularFaxToMobileMysqlTest extends TestCase
         ], $json['forms']);
         // only exact old defaults go: "telefax" (other case) and "Mobilnummer " (trailing space) stay
         self::assertSame([['378', '1', 'telefax'], ['378', '1', 'Mobiltlf.'], ['50', '2', 'Mobile'], ['5230', '1', 'Mobilnummer ']], $json['texts']);
+    }
+
+    public function testAnExistingDatabaseIsLeftIntact(): void
+    {
+        $database = 'sst898_' . bin2hex(random_bytes(4));
+        $admin = $this->admin();
+        mysqli_query($admin, "CREATE DATABASE `$database`");
+        try {
+            mysqli_query($admin, "CREATE TABLE `$database`.keep_me (v INT)");
+            mysqli_query($admin, "INSERT INTO `$database`.keep_me VALUES (42)");
+            $json = $this->runStep($database, 'utf8mb4', 'utf8mb4', 'mysqli');
+            self::assertStringContainsString('exists', (string)ifset($json, 'error', ''));
+            self::assertSame([['42']], mysqli_fetch_all(mysqli_query($admin, "SELECT v FROM `$database`.keep_me"), MYSQLI_NUM));
+        } finally {
+            mysqli_query($admin, "DROP DATABASE IF EXISTS `$database`");
+            mysqli_close($admin);
+        }
+    }
+
+    public function testAFailedSetupRemovesItsDatabase(): void
+    {
+        $database = 'sst898_' . bin2hex(random_bytes(4));
+        $json = $this->runStep($database, 'nosuchcharset', 'utf8mb4', 'mysqli');
+        self::assertStringContainsString('nosuchcharset', (string)ifset($json, 'error', ''));
+        self::assertFalse($this->databaseExists($database));
+    }
+
+    public function testANameOutsideTheTestFormatIsRefused(): void
+    {
+        $json = $this->runStep('saldi_1', 'utf8mb4', 'utf8mb4', 'mysqli');
+        self::assertStringContainsString('sst898_<8 hex digits>', (string)ifset($json, 'error', ''));
+    }
+
+    /** @return array<string, mixed> the runner's JSON line */
+    private function runStep(string $database, string $columnCharset, string $connectionCharset, string $dbType): array
+    {
+        $res = CharacterizationEnv::runChild(__DIR__ . '/support/run_formular_fax_to_mobile_mysql.php', [$this->socket(), $database, $columnCharset, $connectionCharset, $dbType]);
+        $lines = array_values(array_filter(explode("\n", trim($res['stdout']))));
+        $json = $lines !== [] ? json_decode(end($lines), true) : null;
+        self::assertIsArray($json, "runner must emit JSON (stdout: {$res['stdout']} stderr: {$res['stderr']})");
+        return $json;
+    }
+
+    private function socket(): string
+    {
+        $socket = (string)getenv('SALDI_CHAR_MYSQL_SOCKET');
+        if ($socket === '' || !extension_loaded('mysqli')) {
+            self::markTestSkipped('SALDI_CHAR_MYSQL_SOCKET and the mysqli extension are required');
+        }
+        return $socket;
+    }
+
+    /** @return \mysqli */
+    private function admin()
+    {
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        return mysqli_connect('localhost', getenv('SALDI_CHAR_MYSQL_USER') ?: 'root', getenv('SALDI_CHAR_MYSQL_PASS') ?: '', '', 0, $this->socket());
+    }
+
+    private function databaseExists(string $database): bool
+    {
+        $admin = $this->admin();
+        $found = mysqli_fetch_all(mysqli_execute_query($admin, 'SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?', [$database]));
+        mysqli_close($admin);
+        return $found !== [];
     }
 }

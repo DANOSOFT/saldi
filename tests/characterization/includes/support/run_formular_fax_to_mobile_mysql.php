@@ -5,6 +5,8 @@
 // includes/db_query.php and std_func.php wrappers, run from a temporary directory with temp/<db>.
 //
 // Usage: php run_formular_fax_to_mobile_mysql.php <socket> <database> <column charset> <connection charset> <db_type>
+// <database> must be a fresh name of the form sst898_<8 hex digits>. The runner creates it (and stops if it exists
+// already), and drops it at the end, also after an error, only when this run created it.
 // Creates formularer and tekster in <column charset> (seeded over utf8mb4), switches the connection to
 // <connection charset>, runs formularFaxToMobile() and formularFaxToMobileTekster() twice, checks the exact
 // compare, and reads everything back over utf8mb4.
@@ -13,6 +15,7 @@
 //
 // History:
 // 20261118 CL/MMR SST-898 (review 10) Created.
+// 20261118 CL/MMR SST-898 (review 11) Only a database this run created is dropped, also after an error; an existing one is never touched.
 
 if ($argc < 6) {
     fwrite(STDERR, "usage: php run_formular_fax_to_mobile_mysql.php <socket> <database> <column charset> <connection charset> <db_type>\n");
@@ -26,12 +29,20 @@ set_error_handler(function ($severity, $message, $file, $line) {
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 $out = [];
+$error = null;
+$connection = null;
+$created = false;
 $workDir = sys_get_temp_dir() . '/sst898my_' . getmypid() . '_' . bin2hex(random_bytes(4));
 try {
+    if (!preg_match('/^sst898_[0-9a-f]{8}$/', $database)) {
+        throw new InvalidArgumentException("database name must be sst898_<8 hex digits>, got $database");
+    }
     $columnCharset = preg_replace('/[^a-z0-9_]/', '', $columnCharset);
     $connection = mysqli_connect('localhost', getenv('SALDI_CHAR_MYSQL_USER') ?: 'root', getenv('SALDI_CHAR_MYSQL_PASS') ?: '', '', 0, $socket);
     mysqli_set_charset($connection, 'utf8mb4');
-    mysqli_query($connection, "CREATE DATABASE IF NOT EXISTS `$database`");
+    // no IF NOT EXISTS: an existing database makes this fail, so it is never used or dropped
+    mysqli_query($connection, "CREATE DATABASE `$database`");
+    $created = true;
     mysqli_select_db($connection, $database);
     mkdir("$workDir/temp/$database", 0700, true);
     chdir($workDir);
@@ -43,7 +54,6 @@ try {
     require_once __DIR__ . '/../../../../includes/db_query.php';
     require_once __DIR__ . '/../../../../includes/std_func.php';
     require_once __DIR__ . '/../../../../includes/opdat_func/formularFaxToMobile.php';
-    mysqli_query($connection, 'DROP TABLE IF EXISTS formularer, tekster');
     mysqli_query($connection, "CREATE TABLE formularer (id INT PRIMARY KEY, sprog VARCHAR(255), beskrivelse TEXT) CHARACTER SET $columnCharset");
     mysqli_query($connection, "CREATE TABLE tekster (id INT AUTO_INCREMENT PRIMARY KEY, tekst_id INT, sprog_id INT, tekst VARCHAR(255)) CHARACTER SET $columnCharset");
     foreach ([
@@ -72,9 +82,20 @@ try {
     mysqli_set_charset($connection, 'utf8mb4');
     $out['forms'] = array_column(mysqli_fetch_all(mysqli_query($connection, 'SELECT beskrivelse FROM formularer ORDER BY id'), MYSQLI_ASSOC), 'beskrivelse');
     $out['texts'] = mysqli_fetch_all(mysqli_query($connection, 'SELECT tekst_id, sprog_id, tekst FROM tekster ORDER BY id'), MYSQLI_NUM);
-    mysqli_query($connection, "DROP DATABASE `$database`");
 } catch (Throwable $e) {
-    $out['error'] = get_class($e) . ': ' . $e->getMessage();
+    $error = get_class($e) . ': ' . $e->getMessage();
+} finally {
+    if ($created) {
+        try {
+            mysqli_query($connection, "DROP DATABASE `$database`");
+        } catch (Throwable $e) {
+            // keep the original error and add the cleanup failure
+            $error = ($error === null ? '' : "$error | ") . 'cleanup: ' . get_class($e) . ': ' . $e->getMessage();
+        }
+    }
+}
+if ($error !== null) {
+    $out['error'] = $error;
 }
 if (is_dir($workDir)) {
     chdir(sys_get_temp_dir());
