@@ -149,11 +149,15 @@ background access to at most four fetches per account per day (bank/PSD2 limit f
   existing table is altered. The rollback also removes the journal-header lock this release added to
   `bogfor()` in `finans/bogfor.php`; that is safe because the old code has no bank import that could
   race with posting. Journal lines already created are ordinary unposted kassekladde lines and stay valid.
-- Revoke provider access: "Afbryd" on the feed page or per connection on the bank accounts page
+- Revoke provider access: "Fjern bankforbindelse" per connection on the bank accounts page
   (DELETE session at the provider), or revoke the application in the Enable Banking control panel.
   Saldi always disconnects locally. When the bank does not confirm the revoke, the connection keeps
   `last_error` "Banken bekræftede ikke afbrydelsen. Adgangen udløber senest <dato>." and the pages show
   it until the access would have expired. Lines already fetched can still be picked after disconnecting.
+- Renewal ("Forny adgang") leaves the replaced consent open at the bank, because closing it broke the
+  new consent in the Nordea sandbox. The replaced row stays in `bank_connections` as `replaced`, and
+  "Fjern bankforbindelse" closes only the current consent. The old one stays valid at the bank until
+  it runs out; a customer who wants it gone sooner withdraws it in the bank's own netbank.
 
 ## 8. Data handling
 
