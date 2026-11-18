@@ -25,6 +25,7 @@
 // 20261118 CL/MMR SD-815 Codex round 42: a DELETE trigger on pool_files and duplicates keeps every row (both mysqli modes); a user without the TRIGGER privilege waits with duplicates.
 // 20261118 CL/MMR SD-815 Codex round 46: a TEMPORARY pool_files or settings of the session stops the run before any change (both mysqli modes); without it the next run completes.
 // 20261118 CL/MMR SD-815 Codex round 47: an updatable settings view takes the flag (a base-table control next to it); a temporary settings holding the flag stops every run on that connection with a log line, and the run after DROP completes (both mysqli modes).
+// 20261118 CL/MMR SD-815 Codex round 48: an account with SELECT, INSERT, UPDATE but no SHOW VIEW fills pool_files and writes the flag through the settings view (control with SHOW VIEW); for such an account a temporary settings holding the flag still stops the run and stays untouched (both mysqli modes).
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -1132,5 +1133,84 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testATemporarySettingsHoldingTheFlagStopsWithAReasonReportingOff(): void
     {
         $this->aTemporarySettingsHoldingTheFlag(MYSQLI_REPORT_OFF);
+    }
+
+    /** Only the backfill missing, settings a view over settings_storage. */
+    private function onlyTheBackfillMissingWithASettingsView(): void
+    {
+        $this->onlyTheBackfillMissing();
+        $this->sql('RENAME TABLE settings TO settings_storage');
+        $this->sql('CREATE VIEW settings AS SELECT * FROM settings_storage');
+    }
+
+    private function aSettingsViewForARestrictedAccount(bool $showView, int $reportMode): void
+    {
+        $this->onlyTheBackfillMissingWithASettingsView();
+        $limited = $this->runAs('SELECT, INSERT, UPDATE' . ($showView ? ', SHOW VIEW' : ''));
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertSame(['norm_amount_backfill'], $done, (string) file_get_contents($this->log));
+        self::assertSame('125.000', $this->one('SELECT norm_amount FROM pool_files WHERE id = 1'));
+        self::assertSame('1', $this->one("SELECT count(*) FROM settings_storage WHERE var_grp = 'system' AND var_name = 'pool_files_norm_amount_backfilled'"), 'the flag through the view');
+        self::assertSame([], ensurePoolFilesSchema('mysqli'), 'the next login has nothing to do');
+        mysqli_close($limited);
+    }
+
+    public function testASettingsViewWithoutShowViewTakesTheFlagStrict(): void
+    {
+        $this->aSettingsViewForARestrictedAccount(false, MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testASettingsViewWithoutShowViewTakesTheFlagReportingOff(): void
+    {
+        $this->aSettingsViewForARestrictedAccount(false, MYSQLI_REPORT_OFF);
+    }
+
+    public function testASettingsViewWithShowViewTakesTheFlagStrict(): void
+    {
+        $this->aSettingsViewForARestrictedAccount(true, MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testASettingsViewWithShowViewTakesTheFlagReportingOff(): void
+    {
+        $this->aSettingsViewForARestrictedAccount(true, MYSQLI_REPORT_OFF);
+    }
+
+    private function aTemporarySettingsOverAViewForARestrictedAccount(int $reportMode): void
+    {
+        $this->onlyTheBackfillMissingWithASettingsView();
+        $create = (string) mysqli_fetch_row($this->sql('SHOW CREATE TABLE settings_storage'))[1];
+        $limited = $this->runAs('SELECT, INSERT, UPDATE, CREATE TEMPORARY TABLES');
+        mysqli_query($limited, (string) preg_replace('/^CREATE TABLE `settings_storage`/', 'CREATE TEMPORARY TABLE `settings`', $create));
+        mysqli_query($limited, "INSERT INTO settings (var_name, var_grp, var_value) VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes')");
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertSame([], $done);
+        self::assertStringContainsString('a temporary settings of this session shadows', (string) file_get_contents($this->log));
+        self::assertNull($this->one('SELECT norm_amount FROM pool_files WHERE id = 1'));
+        self::assertSame('0', $this->one("SELECT count(*) FROM settings_storage WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertSame('1', (string) mysqli_fetch_row(mysqli_query($limited, 'SELECT count(*) FROM settings'))[0], 'the temporary settings untouched');
+
+        mysqli_query($limited, 'DROP TEMPORARY TABLE settings');
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('mysqli'));
+        self::assertSame('125.000', $this->one('SELECT norm_amount FROM pool_files WHERE id = 1'));
+        self::assertSame('1', $this->one("SELECT count(*) FROM settings_storage WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        mysqli_close($limited);
+    }
+
+    public function testATemporarySettingsOverAViewStopsARestrictedAccountStrict(): void
+    {
+        $this->aTemporarySettingsOverAViewForARestrictedAccount(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testATemporarySettingsOverAViewStopsARestrictedAccountReportingOff(): void
+    {
+        $this->aTemporarySettingsOverAViewForARestrictedAccount(MYSQLI_REPORT_OFF);
     }
 }

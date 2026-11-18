@@ -74,6 +74,7 @@
 // 20261118 CL/MMR SD-815 Codex round 46: on PostgreSQL the backfill flag is read and written in current_schema()'s settings by its qualified name, so a temporary settings of the session can neither hide nor receive it; without a settings table there the run stops before any change.
 //                 MySQL/MariaDB: a TEMPORARY pool_files or settings of the session (it shadows the table of the same name) stops the run before any change, as SHOW CREATE TABLE shows.
 // 20261118 CL/MMR SD-815 Codex round 47: MySQL/MariaDB: a settings (or pool_files) VIEW is the regnskab's own (SHOW CREATE TABLE answers Create View) and the flag goes through it; the temporary-settings check is part of every flag read, so a temporary settings holding the flag stops the run with a log line instead of passing for done.
+// 20261118 CL/MMR SD-815 Codex round 48: without SHOW VIEW, SHOW CREATE TABLE on the settings view is refused (1142); a temporary table never is (its own session needs no privilege), so a refusal on what information_schema lists as a VIEW of this database counts as that view and the flag goes through it.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -280,13 +281,37 @@ if (!function_exists('ensurePoolFilesGuardMysqlNotTemporary')) {
 	 * MySQL/MariaDB: stops when $table, as this session's statements see it, is a TEMPORARY table. SHOW CREATE TABLE
 	 * answers Create Table for a table (CREATE TEMPORARY TABLE for a temporary one) and Create View for a view; a view
 	 * cannot be temporary, so it is the database's own (an updatable settings view takes the flag like the table).
+	 * Without SHOW VIEW the view's definition is refused (1142); a temporary table is always shown to its own session,
+	 * so a refusal on a name that information_schema lists as a VIEW of this database counts as that view.
 	 *
 	 * @param string $table pool_files or settings.
 	 * @return void
 	 * @throws EnsurePoolFilesSchemaUnknown When it is temporary or cannot be read; logged.
 	 */
 	function ensurePoolFilesGuardMysqlNotTemporary(string $table): void {
-		$rows = ensurePoolFilesMysqlRows("SHOW CREATE TABLE `$table`");
+		$connection = $GLOBALS['connection'] ?? null;
+		$rows = null;
+		$errno = 0;
+		if ($connection instanceof \mysqli) {
+			try {
+				$result = mysqli_query($connection, "SHOW CREATE TABLE `$table`");
+				if ($result instanceof \mysqli_result) {
+					$rows = array(mysqli_fetch_assoc($result) ?: array());
+				} else {
+					$errno = (int)mysqli_errno($connection);
+				}
+			} catch (mysqli_sql_exception $e) {
+				$errno = (int)$e->getCode();
+			}
+		}
+		if ($rows === null && $errno === 1142) {
+			// Refused for lack of a privilege (a view needs SHOW VIEW). A temporary table of this session would have been
+			// shown, it needs none; so when information_schema lists a VIEW of that name here, the refused one is that view.
+			$type = ensurePoolFilesMysqlRows("SELECT TABLE_TYPE AS type FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$table'");
+			if (strtoupper((string)($type[0]['type'] ?? $type[0]['TYPE'] ?? '')) === 'VIEW') {
+				return;
+			}
+		}
 		$create = '';
 		$view = false;
 		foreach ($rows[0] ?? array() as $key => $value) {
