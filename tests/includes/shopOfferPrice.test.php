@@ -329,7 +329,7 @@ final class shopOfferPrice extends TestCase
 		$this->assertTrue(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, $dispatched + 660)['untrack'], 'T_late plus a minute');
 	}
 
-	public function testUnfinishedSendsAndEarlierPairsSentByOtherPathsAreEvents(): void
+	public function testUnfinishedSendsAndEarlierPairsAreEventsAndUnmarkedSendsGetACatchUp(): void
 	{
 		$state = self::state(self::OFFER, self::T, self::T);
 		$state['intent'] = ['at' => self::T, 'pair' => self::OFFER, 'shops' => ['k1']];
@@ -346,7 +346,82 @@ final class shopOfferPrice extends TestCase
 		shopOfferAbsorbEvents($state, self::T + 520, false);
 		$this->assertSame(self::T + 520, $state['anchor'], 'never later than the tick\'s clock');
 		shopOfferAbsorbEvents($state, self::T + 600, self::T + 550);
-		$this->assertSame([self::T + 550, 'another path sent without a mark'], [$state['anchor'], $state['event']]);
+		$this->assertSame([self::T + 520, self::T + 550 + 720], [$state['anchor'], $state['catchup']],
+			'a send another path could not mark or record: its catch-up, not an event');
+	}
+
+	public function testASendByAnotherPathGetsOneCatchUpWithoutRestartingTheSchedule(): void
+	{
+		// an active offer whose early re-sends are done: the next scheduled send is the 3-hourly one, at T + 4 hours
+		$state = self::state(self::OFFER, self::T, self::T + 3600);
+		shopOfferCatchUp($state, self::T + 4000);
+		shopOfferCatchUp($state, self::T + 4100);
+		shopOfferCatchUp($state, self::T + 3900);
+		$this->assertSame(self::T + 4100 + 720, $state['catchup'], 'several sends: one catch-up, after the latest');
+		$plan = shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 4819);
+		$this->assertSame([[], self::T + 4820, 0, false], [$plan['send'], $plan['next'], $plan['catchupDue'], $plan['untrack']],
+			'not before the latest send\'s late window has passed');
+		$plan = shopOfferPlanItem($state, self::SHOPS, self::OFFER, true, self::T + 4820);
+		$this->assertSame(['k1' => true, 'k2' => true, 'k3' => true], $plan['send'], 'then every shop once');
+		$this->assertSame([self::T + 4820, true, self::T, 0], [$plan['catchupDue'], $plan['urgent'], $plan['state']['anchor'], (int)($plan['state']['events'] ?? 0)],
+			'no event: the schedule goes on from the same anchor');
+	}
+
+	/**
+	 * The reconciler's calls (three shops) in one Black Week day for an offer item that other paths send N times, spread evenly
+	 * over 08:00-20:00, with the shipped planner, recorder and catch-up. Before the catch-up (6d521cc22) every such send was an
+	 * event: 1,101 calls for 200 sends (shop-push/resend-6/harness/volume-sales-day.php).
+	 *
+	 * @return array{0: int, 1: int} Calls, catch-ups.
+	 */
+	private static function dayOfSends(int $sends): array
+	{
+		$shops = self::SHOPS;
+		$day = strtotime('2026-11-28 00:00:00');
+		$state = ['desired' => self::OFFER, 'anchor' => $day - 86400, 'events' => 1, 'shops' => []];
+		foreach (array_keys($shops) as $key) {
+			$state['shops'][$key] = ['confirmed' => self::OFFER, 'okAt' => $day - 3600, 'sentAt' => $day - 3600, 'leftAt' => $day - 3600, 'pending' => self::OFFER];
+		}
+		$times = [];
+		for ($i = 0; $i < $sends; $i++) $times[] = $day + 8 * 3600 + (int)round(($i + 0.5) * 12 * 3600 / $sends);
+		$calls = $catchUps = 0;
+		for ($t = $day; $t < $day + 86400; $t += 120) {
+			foreach ($times as $at) {
+				if ($at > $t - 120 && $at <= $t) shopOfferCatchUp($state, $at);
+			}
+			$plan = shopOfferPlanItem($state, $shops, self::OFFER, true, $t);
+			$state = $plan['state'];
+			if ($plan['catchupDue'] && count($plan['send']) === count($shops)) {
+				$catchUps++;
+				if ((int)($state['catchup'] ?? 0) <= $plan['catchupDue']) unset($state['catchup']);
+			}
+			foreach (array_keys($plan['send']) as $key) {
+				$entry = shopOfferShopEntry($state, $key);
+				$entry['sentAt'] = $entry['leftAt'] = $t;
+				[, $entry] = shopOfferRecordShop($entry, self::OFFER, ['ok' => true, 'httpCode' => 200], $t);
+				$state['shops'][$key] = $entry;
+				$calls++;
+			}
+		}
+		return [$calls, $catchUps];
+	}
+
+	public function testTwoHundredSalesInADayCostOneCatchUp(): void
+	{
+		$this->assertSame([24, 0], self::dayOfSends(0), 'the schedule alone: every 3 hours');
+		$this->assertSame([27, 1], self::dayOfSends(200), 'a send every 3.6 minutes: one catch-up, after the last of them');
+		$this->assertSame([168, 50], self::dayOfSends(50), 'a send every 14.4 minutes, more than its 12-minute window apart: one catch-up each');
+	}
+
+	public function testAPendingCatchUpKeepsTheItemTracked(): void
+	{
+		$day = 86400;
+		$done = self::state(self::NORMAL, self::T, self::T + $day);
+		$at = self::T + $day + 700;
+		$this->assertTrue(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, $at)['untrack']);
+		shopOfferCatchUp($done, $at - 100);
+		$plan = shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, $at);
+		$this->assertSame([false, [], $at + 620], [$plan['untrack'], $plan['send'], $plan['next']], 'tracked until its catch-up is sent');
 	}
 
 	public function testTheBackOffDoublesUpToHalfAnHour(): void

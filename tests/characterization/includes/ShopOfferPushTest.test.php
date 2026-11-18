@@ -33,6 +33,8 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  * 20261118 CL/LH Codex verification 5: the stall matrix (every path that sends an item's prices, held at every point between its
  *                first read and its call, while the offer is cancelled and the item is repaired and untracked), and the in-flight
  *                marker of a path that died.
+ * 20261118 CL/LH A send by another path gets one catch-up instead of a new schedule: the matrix also releases the path early (the
+ *                item still tracked, so only the catch-up repairs), and sends by several paths share one catch-up.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -451,8 +453,8 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 				self::assertSame(self::OFFER, $sent['salesPrice'] . ' / ' . $sent['retailPrice'], implode(' ', $call) . ' sent the pair last accepted');
 			}
 		}
-		self::assertGreaterThanOrEqual($t, self::runner(['state', (string)$id])['state']['foreign']['staleAt'] ?? 0,
-			'and marked that it was not the current pair');
+		self::assertGreaterThanOrEqual($t + 720, self::runner(['state', (string)$id])['state']['catchup'] ?? 0,
+			'and left one catch-up for after their late window');
 		self::tick($t + 1);
 		self::assertShopsHold('SPCARD', '99.200 / 799.00', 'the next tick sends the new offer');
 	}
@@ -788,26 +790,57 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		});
 	}
 
-	public function testABulkSyncSendIsAnEventForATrackedItem(): void
+	public function testABulkSyncSendOfATrackedItemGetsOneCatchUp(): void
 	{
 		self::withBulkSyncOf('SPBULKON', self::offer(159.2, 3), function (int $id): void {
-			$t = time();
+			$t = time() - 3600;
 			self::tick($t);
+			self::tick($t + 3600); // the early re-sends are done; the next scheduled one is 3 hours on
 			self::clearLog();
 			$page = self::startScript('run_sync_all_products_page.php', [self::sessionId()]);
 			foreach (self::bulkSyncCalls($page, 'SPBULKON') as $sent) {
 				self::assertSame(self::OFFER, $sent['salesPrice'] . ' / ' . $sent['retailPrice'], 'a tracked item: the pair each shop accepted');
 			}
-			$state = self::runner(['state', (string)$id])['state'];
-			self::assertGreaterThanOrEqual($t, (int)$state['foreign']['staleAt'], 'the send is marked on the item');
-			$sentByPage = time();
-			self::clearLog();
-			$out = self::tick($t + 2 * 3600);
-			self::assertGreaterThanOrEqual(1, $out['events'], 'the next tick takes it as an event');
-			self::assertSame(self::OFFER_ALL, self::pricesSent('SPBULKON'), 'and sends every shop the current pair after it');
-			$anchor = self::runner(['state', (string)$id])['state']['anchor'];
-			self::assertTrue($anchor >= $t && $anchor <= $sentByPage, 'the item\'s schedule, and its 24 hours of tracking, start again from the page\'s send');
+			self::assertCatchUpOnly($id, 'SPBULKON', $t);
 		});
+	}
+
+	public function testSendsByOtherPathsShareOneCatchUp(): void
+	{
+		$id = self::item('SPSHARE', self::offer(159.2, 3));
+		$t = time() - 3600;
+		self::tick($t);
+		self::tick($t + 3600);
+		foreach ([['sync_price', (string)$id], ['sync_vare', (string)$id, '1', 'stock'], ['sale', (string)$id, '1'], ['sync_price', (string)$id]] as $call) {
+			self::runner($call);
+		}
+		self::assertCatchUpOnly($id, 'SPSHARE', $t);
+	}
+
+	/**
+	 * After sends by other paths of a tracked item whose early re-sends are done: one catch-up, due T_late plus 2 minutes after
+	 * the latest send, sends every shop the current pair once; no event, so nothing more until the schedule's next send.
+	 */
+	private static function assertCatchUpOnly(int $id, string $varenr, int $anchor): void
+	{
+		$lastSend = time();
+		$state = self::runner(['state', (string)$id])['state'];
+		self::assertSame($anchor, $state['anchor'], 'the schedule is not restarted');
+		self::assertEqualsWithDelta($lastSend + 720, $state['catchup'], 3, 'one catch-up, after the latest send\'s late window');
+		self::clearLog();
+		$out = self::tick($state['catchup'] - 1);
+		self::assertSame(0, $out['calls'], 'nothing before it');
+		$out = self::tick($state['catchup']);
+		self::assertSame([3, 0], [$out['calls'], $out['events']], 'then every shop once, and no event');
+		self::assertSame(self::OFFER_ALL, self::pricesSent($varenr));
+		$after = self::runner(['state', (string)$id])['state'];
+		self::assertArrayNotHasKey('catchup', $after, 'served');
+		self::assertSame($anchor, $after['anchor']);
+		self::clearLog();
+		foreach ([120, 300, 900, 3600] as $offset) {
+			self::tick($state['catchup'] + $offset);
+		}
+		self::assertSame([], self::priceCalls($varenr, null), 'and no re-send schedule after it');
 	}
 
 	public function testTheSendTimeIsWhenTheRequestLeft(): void
@@ -971,13 +1004,19 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 
 	// ------------------------------------------------------------------ the stall matrix (Codex v5)
 
-	/** @return array<string, array{0: string, 1: string}> Every path that sends an item's prices × every point between its first read and its call. */
+	/**
+	 * @return array<string, array{0: string, 1: string, 2: string}> Every path that sends an item's prices × every point between
+	 *         its first read and its call × when the path goes on: late (after the item was untracked) or early (2 hours after the
+	 *         cancellation, still tracked, the next scheduled send hours away, so only the catch-up can repair a stale send).
+	 */
 	public static function stallCells(): array
 	{
 		$cells = [];
-		foreach (['card', 'stock', 'document', 'bulk', 'tick'] as $path) {
-			foreach (['queried', 'locked', 'marked', 'send'] as $point) {
-				$cells["$path / $point"] = [$path, $point];
+		foreach (['late', 'early'] as $release) {
+			foreach (['card', 'stock', 'document', 'bulk', 'tick'] as $path) {
+				foreach (['queried', 'locked', 'marked', 'send'] as $point) {
+					$cells["$path / $point / $release"] = [$path, $point, $release];
+				}
 			}
 		}
 		return $cells;
@@ -992,13 +1031,13 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 	 * With SHOP_OFFER_MATRIX_LOG set, each cell appends what it saw there (one JSON line), for the evidence.
 	 */
 	#[DataProvider('stallCells')]
-	public function testStallMatrix(string $path, string $point): void
+	public function testStallMatrix(string $path, string $point, string $release = 'late'): void
 	{
-		$name = 'SM' . strtoupper(substr($path, 0, 3) . substr($point, 0, 3));
-		$t0 = time() - 2 * 86400;
+		$name = 'SM' . strtoupper(substr($path, 0, 3) . substr($point, 0, 3) . $release[0]);
+		$t0 = $release === 'late' ? time() - 2 * 86400 : time() - 2 * 3600 - 10;
 		$offer = ['price' => 79.2, 'from' => date('Y-m-d', $t0 - 86400), 'to' => date('Y-m-d', time() + 3 * 86400)];
-		$cell = function (int $id) use ($path, $point, $name, $t0): void {
-			self::stallCell($path, $point, $id, $name, $t0);
+		$cell = function (int $id) use ($path, $point, $name, $t0, $release): void {
+			self::stallCell($path, $point, $id, $name, $t0, $release);
 		};
 		if ($path === 'bulk') {
 			self::withBulkSyncOf($name, $offer, $cell);
@@ -1007,7 +1046,7 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		}
 	}
 
-	private static function stallCell(string $path, string $point, int $id, string $name, int $t0): void
+	private static function stallCell(string $path, string $point, int $id, string $name, int $t0, string $release): void
 	{
 		self::tick($t0);
 		self::assertShopsHold($name, '79.200 / 799.00', 'the offer is in every shop');
@@ -1029,19 +1068,20 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		}
 		self::assertFileExists("$prefix.held", "the $path is held at '$point'");
 		self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]); // cancelled: the normal prices are desired
-		$row = ['path' => $path, 'point' => $point, 'openWhenUntracked' => []];
+		$row = ['path' => $path, 'point' => $point, 'release' => $release, 'openWhenUntracked' => []];
 		$watch = function (int $clock) use ($id, &$row): void {
 			self::tick($clock);
 			if (self::openMarkerWhenUntracked($id, $clock)) $row['openWhenUntracked'][] = $clock;
 		};
 
-		// held: the restoration, the tail, and on until the item is untracked (where nothing stops that) or two days past now
+		// held: the restoration; late: the tail and on until the item is untracked (where nothing stops that) or two days past now
 		$clock = $t0 + 10;
-		foreach ([0, 120, 300, 900, 3600, 21600, 43200, 64800, 86400, 86400 + 700] as $offset) {
+		$offsets = $release === 'late' ? [0, 120, 300, 900, 3600, 21600, 43200, 64800, 86400, 86400 + 700] : [0, 120, 300, 900, 3600];
+		foreach ($offsets as $offset) {
 			$watch($clock + $offset);
 		}
-		$c = $clock + 86400 + 700;
-		while (self::tracked($id) && $c < time() + 2 * 86400) {
+		$c = $clock + end($offsets);
+		while ($release === 'late' && self::tracked($id) && $c < time() + 2 * 86400) {
 			$c += 21600;
 			$watch($c);
 		}
@@ -1062,8 +1102,8 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		$row['sentAfterRelease'] = array_values(array_unique(array_map(fn($call) => $call['salesPrice'] . ' / ' . $call['retailPrice'], self::priceCalls($name, null))));
 		$row['shopsAfterRelease'] = self::remote($name);
 
-		// the bound: T_late plus the next re-send after the release
-		$after = $c + 60;
+		// the bound: T_late plus the next re-send after the release (for a send by another path: its catch-up, T_late plus 2 minutes)
+		$after = max($c, time()) + 60;
 		foreach ([0, 120, 300, 900] as $offset) {
 			$watch($after + $offset);
 		}

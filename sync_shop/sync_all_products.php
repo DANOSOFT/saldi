@@ -145,9 +145,9 @@ while ($product = db_fetch_array($products_query)) {
         // wait): today's prices from the item as it is now, or, for an item the offer reconciler tracks (includes/stdFunc/shopOfferPush.php),
         // the pair each shop last accepted from it, so this run starts no price of its own.
         // 20261118 CL/LH by the protocol of shopOfferPush.php: the item is read first, then the critical section (shopOfferForeignClaim()),
-        // the calls go out at once, then the record (shopOfferForeignDone(), an event for a tracked item or one with an offer, so the
-        // reconciler sends the current pair after it and keeps tracking it). The calls are fire-and-forget, so on an account with
-        // offer state they stop after 60 s: within the 2 minutes the protocol allows between a claim and its calls.
+        // the calls go out at once, then the record (shopOfferForeignDone(): one catch-up for a tracked item or one with an offer,
+        // so the reconciler sends every shop the current pair once after the calls' late window). The calls are fire-and-forget, so
+        // on an account with offer state they stop after 60 s: within the 2 minutes the protocol allows between a claim and its calls.
         $itemNow = db_fetch_array(db_select("SELECT salgspris, retail_price, " . shopOfferColumns() . " FROM varer WHERE id = '" . (int)$vare_id . "'", __FILE__ . " linje " . __LINE__));
         if ($itemNow) {
             $salgspris = $itemNow['salgspris'];
