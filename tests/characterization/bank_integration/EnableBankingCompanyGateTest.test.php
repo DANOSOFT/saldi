@@ -26,11 +26,13 @@
 //
 //
 // 20261118 CL/LH Created: the pilot company allowlist opens the feature for the listed company databases only.
+// 20261118 CL/LH CodeRabbit: an allowlist of only separators is a configuration problem, a trailing comma keeps the list; the per-company enabled.php check runs in a child process.
 
 use PHPUnit\Framework\TestCase;
 
 // Only the config reader at load time: enabled.php pulls in crypt.php, which EnableBankingBackendTest loads from its own key tree.
 require_once __DIR__ . '/../../../bank_integration/includes/ebConfig.php';
+require_once __DIR__ . '/../support/CharacterizationEnv.php';
 
 final class EnableBankingCompanyGateTest extends TestCase
 {
@@ -95,6 +97,37 @@ final class EnableBankingCompanyGateTest extends TestCase
         }
     }
 
+    public function test_allowlist_without_company_names_is_a_configuration_problem(): void
+    {
+        foreach (['env', 'connect.php'] as $source) {
+            if ($source === 'env') {
+                putenv('SALDI_ENABLEBANKING_COMPANIES=, ,');
+            } else {
+                putenv('SALDI_ENABLEBANKING_COMPANIES=');
+                $GLOBALS['enableBankingCompanies'] = ' , ';
+            }
+            $config = ebConfig();
+            $this->assertFalse($config['configured'], $source);
+            $this->assertNotSame('', $config['problem'], $source);
+            foreach (['saldi_1091', 'saldi_7', ''] as $db) {
+                $GLOBALS['db'] = $db;
+                $this->assertFalse(ebFeatureAvailable(), "$source, company '$db'");
+            }
+        }
+        // Blank stays unrestricted; a trailing comma keeps the one listed company.
+        putenv('SALDI_ENABLEBANKING_COMPANIES=   ');
+        $GLOBALS['enableBankingCompanies'] = '  ';
+        $this->assertTrue(ebConfig()['configured']);
+        $this->assertSame([], ebConfig()['companies']);
+        putenv('SALDI_ENABLEBANKING_COMPANIES=saldi_42,');
+        $this->assertTrue(ebConfig()['configured']);
+        $this->assertSame(['saldi_42'], ebConfig()['companies']);
+        foreach (['saldi_42' => true, 'saldi_7' => false] as $db => $expected) {
+            $GLOBALS['db'] = $db;
+            $this->assertSame($expected, ebFeatureAvailable(), "company '$db'");
+        }
+    }
+
     public function test_environment_allowlist_wins_over_connect_php(): void
     {
         $GLOBALS['enableBankingCompanies'] = 'saldi_1091';
@@ -108,13 +141,9 @@ final class EnableBankingCompanyGateTest extends TestCase
     public function test_settings_gate_is_decided_per_company_in_one_process(): void
     {
         // tools/notification_digest.php switches companies within one PHP process; the cached answer must not leak.
-        require_once __DIR__ . '/../../../bank_integration/includes/enabled.php';
-        $GLOBALS['enableBankingCompanies'] = 'saldi_1091';
-        $GLOBALS['db'] = 'saldi_7';
-        $this->assertFalse(bankIntegrationAvailable());
-        $GLOBALS['db'] = 'saldi_1091';
-        $this->assertTrue(bankIntegrationAvailable());
-        $GLOBALS['db'] = 'saldi_7';
-        $this->assertFalse(bankIntegrationAvailable());
+        // A child process: enabled.php loads crypt.php, which must not bind to the checkout before EnableBankingBackendTest's key tree.
+        $result = CharacterizationEnv::runChild(__DIR__ . '/support/run_gate.php', ['saldi_1091', 'saldi_7', 'saldi_1091', 'saldi_7']);
+        $this->assertSame(0, $result['exit'], $result['stderr']);
+        $this->assertSame("saldi_7=0\nsaldi_1091=1\nsaldi_7=0\n", $result['stdout'], $result['stderr']);
     }
 }

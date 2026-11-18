@@ -33,6 +33,7 @@
 // 20261118 CL/LH Forbind igen / Forny adgang posts as the whole window (target _top): the bank login cannot be shown in Saldi's frame.
 // 20261118 CL/LH UI pass: one block per bank connection (status, access expiry, Forny adgang, Fjern bankforbindelse) with one line per account (ledger-first name, Sæt på pause / Genoptag, Bankposteringer, the settings behind Ret).
 //                Unmapped accounts read "Ikke i brug", a removed connection says so once, a removed account never shows an old fetch error; the start date is typed as dd-mm-åååå.
+// 20261118 CL/LH CodeRabbit: typing in Søg i kontoplanen only filters the ledger list and never changes the chosen ledger, which stays visible.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -429,22 +430,15 @@ if ($unavailable !== null) {
 		if (!select) {
 			return;
 		}
+		// Typing only narrows the list; the chosen ledger changes only when the user picks another one, and stays visible.
 		input.addEventListener('input', function () {
 			var q = input.value.trim().toLowerCase();
-			var firstMatch = null;
 			Array.prototype.forEach.call(select.options, function (opt) {
 				if (opt.value === '') {
 					return;
 				}
-				var hit = q === '' || opt.text.toLowerCase().indexOf(q) !== -1;
-				opt.hidden = !hit;
-				if (hit && firstMatch === null) {
-					firstMatch = opt;
-				}
+				opt.hidden = !(q === '' || opt.selected || opt.text.toLowerCase().indexOf(q) !== -1);
 			});
-			if (q !== '' && firstMatch && (select.selectedIndex <= 0 || select.options[select.selectedIndex].hidden)) {
-				firstMatch.selected = true;
-			}
 		});
 	});
 })();

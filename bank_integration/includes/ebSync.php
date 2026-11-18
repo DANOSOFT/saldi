@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebSync.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- bank_integration/includes/ebSync.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20261028 CDX/LH Stop retries on period errors and expose the worker heartbeat age.
 // 20261116 CL/LH Pull model: a fetch only stores lines; nothing is delivered to a journal (ebDeliverQueued() removed).
 // 20261117 CL/LH ebSyncAccount($onlyIfDue): the worker re-checks under the lease that the account is still due.
+// 20261118 CL/LH ebSyncAccount() returns the run's new_count, and reason 'cooldown' with last_manual_at when only the 5-minute Hent nu limit refused it.
 
 require_once __DIR__ . '/ebClient.php';
 require_once __DIR__ . '/ebJournal.php';
@@ -38,7 +39,9 @@ require_once __DIR__ . '/crypt.php';
 /**
  * @param array<string,string> $psuHeaders
  * @param bool $onlyIfDue Worker run without --force: skip an account that is no longer due when its lease is taken.
- * @return array{status:string, run_id:int, message:string, error_code?:?string, error_kind?:?string}
+ * @return array{status:string, run_id:int, message:string, error_code?:?string, error_kind?:?string, new_count?:int, reason?:string, last_manual_at?:string}
+ *   new_count: lines this run stored for the first time (also those sent to review); reason 'cooldown' (with the
+ *   last_manual_at that blocks it) only when a manual fetch came within 5 minutes of the previous one.
  */
 function ebSyncAccount(int $accountId, string $trigger, array $psuHeaders = [], ?EnableBankingClient $client = null, bool $onlyIfDue = false): array
 {
@@ -46,7 +49,8 @@ function ebSyncAccount(int $accountId, string $trigger, array $psuHeaders = [], 
         throw new InvalidArgumentException('Invalid sync trigger');
     }
     $owner = bin2hex(random_bytes(24));
-    $account = ebAtomic(function () use ($accountId, $owner, $trigger, $onlyIfDue): ?array {
+    $cooldownSince = null;
+    $account = ebAtomic(function () use ($accountId, $owner, $trigger, $onlyIfDue, &$cooldownSince): ?array {
         $row = ebRow('SELECT * FROM bank_accounts WHERE id=' . (int)$accountId . ' FOR UPDATE');
         if (!$row) {
             throw new EbUserError(ebT(findtekst('bank.account.missing|Bankkontoen findes ikke.', ebLang())));
@@ -63,6 +67,7 @@ function ebSyncAccount(int $accountId, string $trigger, array $psuHeaders = [], 
             return null;
         }
         if ($trigger === 'manual' && $row['last_manual_at'] !== null && strtotime($row['last_manual_at']) > time() - 300) {
+            $cooldownSince = (string)$row['last_manual_at'];
             return null;
         }
         $fields = ['lease_owner' => $owner, 'lease_until' => date('Y-m-d H:i:s', time() + 900)];
@@ -73,7 +78,8 @@ function ebSyncAccount(int $accountId, string $trigger, array $psuHeaders = [], 
         return $row;
     });
     if ($account === null) {
-        return ['status' => 'skipped', 'run_id' => 0, 'message' => ebT(findtekst('bank.fetch.busy|En hentning er allerede i gang eller er netop udført.', ebLang()))];
+        return ['status' => 'skipped', 'run_id' => 0, 'message' => ebT(findtekst('bank.fetch.busy|En hentning er allerede i gang eller er netop udført.', ebLang()))]
+            + ($cooldownSince !== null ? ['reason' => 'cooldown', 'last_manual_at' => $cooldownSince] : []);
     }
     $runId = 0;
     $stats = ['pages' => 0, 'fetched' => 0, 'new_count' => 0, 'changed_count' => 0, 'imported_count' => 0, 'review_count' => 0];
@@ -231,7 +237,8 @@ function ebSyncAccount(int $accountId, string $trigger, array $psuHeaders = [], 
             ebWrite('UPDATE bank_accounts SET lease_owner=NULL, lease_until=NULL WHERE id=' . (int)$accountId . ' AND lease_owner=' . ebSql($owner));
         }
     }
-    return ['status' => $status, 'run_id' => $runId, 'message' => $message, 'error_code' => $errorCode, 'error_kind' => $errorKind];
+    return ['status' => $status, 'run_id' => $runId, 'message' => $message, 'error_code' => $errorCode, 'error_kind' => $errorKind,
+        'new_count' => $stats['new_count']];
 }
 
 /**

@@ -32,6 +32,7 @@
 //                "Tilføj bankforbindelse" is a button, Bankkonti and Bankposteringer secondary buttons.
 //                Accounts are named ledger-first (ebAccountLabel()) with the holders joined (ebHolderName()), an unmapped one reads "Ikke i brug", a removed connection says so once, and no stale fetch errors.
 // 20261118 CL/LH Switching the feed back on with a bank still connected says that fetching resumes, not "Forbind en bank".
+// 20261118 CL/LH CodeRabbit: "henter igen" only when a connected bank has an account in use, a neutral "Bankforbindelse er slået til." when its accounts are all paused or unused (bankIntegrationEnabledMessage()); a failing lookup after the committed switch no longer reports an error.
 
 require_once __DIR__ . '/../../bank_integration/includes/ebAccess.php';
 
@@ -86,12 +87,8 @@ function bankIntegrationSave(): never {
 		// One Gem saves both switches, so the company switch is only written (and audited) when it changes.
 		if ($on !== ebCompanyEnabled()) {
 			ebSetCompanyEnabled($on, (string)$brugernavn);
-			// Switched back on with a bank still connected: fetching simply resumes, so do not ask for a new connection.
-			$connected = $on && ebRow("SELECT id FROM bank_connections WHERE status='active'") !== null;
-			ebFlash('ok', $connected
-				? ebT(findtekst('bank.settings.enabled_connected|Bankforbindelse er slået til. Saldi henter igen fra de forbundne bankkonti.', ebLang()))
-				: ($on ? ebT(findtekst('bank.settings.enabled|Bankforbindelse er slået til. Forbind en bank for at komme i gang.', ebLang()))
-				: ebT(findtekst('bank.settings.disabled|Bankforbindelse er slået fra. Der hentes ikke flere posteringer, men forbindelser og data er bevaret.', ebLang()))));
+			ebFlash('ok', $on ? bankIntegrationEnabledMessage()
+				: ebT(findtekst('bank.settings.disabled|Bankforbindelse er slået fra. Der hentes ikke flere posteringer, men forbindelser og data er bevaret.', ebLang())));
 		} else {
 			ebFlash('ok', $saved);
 		}
@@ -99,6 +96,27 @@ function bankIntegrationSave(): never {
 		ebFlash('error', ebErrorMessage($e));
 	}
 	ebRedirect($self);
+}
+
+/**
+ * The message after the company switch has been turned on (and committed): fetching resumes only when a connected
+ * bank has an account in use; a connected bank with only paused or unused accounts gets a neutral confirmation;
+ * without a connected bank the user is asked to connect one. A failing lookup never turns the saved switch into an error.
+ *
+ * @return string UTF-8 text.
+ */
+function bankIntegrationEnabledMessage(): string {
+	try {
+		$fetching = ebRow("SELECT c.id FROM bank_connections c JOIN bank_accounts a ON a.connection_id=c.id WHERE c.status='active' AND a.state='active'") !== null;
+		$connected = $fetching || ebRow("SELECT id FROM bank_connections WHERE status='active'") !== null;
+	} catch (Throwable $e) {
+		return ebT(findtekst('bank.settings.enabled_plain|Bankforbindelse er slået til.', ebLang()));
+	}
+	if ($fetching) {
+		return ebT(findtekst('bank.settings.enabled_connected|Bankforbindelse er slået til. Saldi henter igen fra de forbundne bankkonti.', ebLang()));
+	}
+	return $connected ? ebT(findtekst('bank.settings.enabled_plain|Bankforbindelse er slået til.', ebLang()))
+		: ebT(findtekst('bank.settings.enabled|Bankforbindelse er slået til. Forbind en bank for at komme i gang.', ebLang()));
 }
 
 /**

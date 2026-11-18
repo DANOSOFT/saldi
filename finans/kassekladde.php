@@ -230,6 +230,7 @@
 //                The feed opens only after opdater() saved every line, so a partly refused save stays in the journal with its error.
 // 20261116 CL/LH A resend of a partially saved Bankforbindelse request stays in the journal instead of opening the feed.
 // 20261118 CL/LH The bank button is "Bankposteringer" (bank.journal.button_postings) and sits right after Importér.
+// 20261118 CL/LH The bank button's title and label are escaped (htmlspecialchars ENT_QUOTES), so a translation with an apostrophe cannot end the attribute.
 //                Back from the feed, what was put into the journal shows once as a notice under the balance instead of an alert().
 //                The empty contra field of lines from the bank (active bank_import_links rows) is pale yellow until filled, and after an import the first one has the focus.
 
@@ -4350,7 +4351,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td align='center'><span title='" . findtekst('1549|Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='i' value='" . findtekst('1356|Importér', $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span></td>";
 				include_once(__DIR__ . '/../bank_integration/includes/enabled.php');
 				if (bankIntegrationEnabled()) {
-					print "<td align='center'><span title='" . findtekst('bank.journal.button_title|Gemmer kladden og åbner bankposteringerne, hvor du vælger, hvilke der skal i kladden', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='z' value='" . findtekst('bank.journal.button_postings|Bankposteringer', $sprog_id) . "' name='bankfeed' onclick='javascript:docChange = false;'></span></td>";
+					print "<td align='center'><span title='" . htmlspecialchars(findtekst('bank.journal.button_title|Gemmer kladden og åbner bankposteringerne, hvor du vælger, hvilke der skal i kladden', $sprog_id), ENT_QUOTES, $charset) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='z' value='" . htmlspecialchars(findtekst('bank.journal.button_postings|Bankposteringer', $sprog_id), ENT_QUOTES, $charset) . "' name='bankfeed' onclick='javascript:docChange = false;'></span></td>";
 				}
 				print "<td align='center'><span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span></td>";
 			}
