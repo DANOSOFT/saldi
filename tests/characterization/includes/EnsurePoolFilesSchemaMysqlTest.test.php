@@ -19,6 +19,7 @@
 // 20261118 CL/MMR SD-815 Codex round 36: a table with an outgoing foreign key, and a session with sql_quote_show_create=0, are repaired (FK and setting kept) in both mysqli modes.
 // 20261118 CL/MMR SD-815 Codex round 37: an ON DELETE CASCADE reference from another table and duplicate filenames: nothing deleted anywhere, no flag; without duplicates the repair runs (both mysqli modes).
 // 20261118 CL/MMR SD-815 Codex round 38: a cascading reference from another database (as root, and as a user with rights on this database only) keeps every row; duplicates without the PROCESS privilege wait; the round-18 grants still repair a table without duplicates.
+// 20261118 CL/MMR SD-815 Codex round 39: a parent database named with a '-' (encoded @002d by InnoDB) and a cascading child elsewhere keeps every row; two NULL filenames are no duplicates and are repaired by a parent-only user.
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -160,7 +161,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     protected function tearDown(): void
     {
         if ($this->connection !== null) {
-            foreach ($this->otherDatabases as $other) {
+            foreach (array_reverse($this->otherDatabases) as $other) { // children before the parents they refer to
                 mysqli_query($this->connection, "DROP DATABASE IF EXISTS $other");
             }
             foreach ($this->users as $user) {
@@ -806,5 +807,72 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testAChildInAnotherDatabaseKeepsEveryRowForAParentOnlyUser(): void
     {
         $this->aChildInAnotherDatabase(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT, true);
+    }
+
+    private function aHyphenatedParentDatabase(int $reportMode): void
+    {
+        $dashed = 'pool-dash-' . bin2hex(random_bytes(4));
+        $this->sql("CREATE DATABASE `$dashed`");
+        $this->otherDatabases[] = "`$dashed`";
+        mysqli_select_db($this->connection, $dashed);
+        $this->sql('CREATE TABLE settings (id INT AUTO_INCREMENT NOT NULL, var_name text, var_grp text, var_value text, var_description text, user_id integer, group_id integer, pos_id integer, PRIMARY KEY (id))');
+        $this->sql('CREATE TABLE pool_files (id INT AUTO_INCREMENT NOT NULL, filename varchar(255), subject text, account varchar(50), amount varchar(50), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, invoice_number varchar(100), description text, currency varchar(10), content_sha256 char(64), PRIMARY KEY (id)) ENGINE=InnoDB');
+        $this->allLaterColumns();
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '1,00'), (2, 'a.pdf', '99,00')");
+        $child = $this->database . '_dashchild';
+        $this->sql("CREATE DATABASE $child");
+        $this->otherDatabases[] = $child;
+        $this->sql("CREATE TABLE $child.pool_linked_document (id INT NOT NULL PRIMARY KEY, pool_id INT NOT NULL,
+            CONSTRAINT dashed_pool_fk FOREIGN KEY (pool_id) REFERENCES `$dashed`.pool_files (id) ON DELETE CASCADE) ENGINE=InnoDB");
+        $this->sql("INSERT INTO $child.pool_linked_document VALUES (10, 1), (11, 2)");
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'both parent rows kept');
+        self::assertSame('2', $this->one("SELECT count(*) FROM $child.pool_linked_document"), 'both child rows kept');
+        self::assertStringContainsString('pool_linked_document', (string) file_get_contents($this->log));
+    }
+
+    public function testAHyphenatedParentDatabaseKeepsEveryRowStrict(): void
+    {
+        $this->aHyphenatedParentDatabase(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testAHyphenatedParentDatabaseKeepsEveryRowReportingOff(): void
+    {
+        $this->aHyphenatedParentDatabase(MYSQLI_REPORT_OFF);
+    }
+
+    public function testTwoNullFilenamesAreNoDuplicates(): void
+    {
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES (NULL, '10,00'), (NULL, '99,00'), ('a.pdf', '5,00')");
+        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES');
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        self::assertContains('unique_filename', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame(['10.000', '99.000'], array_column(mysqli_fetch_all($this->sql('SELECT norm_amount FROM pool_files WHERE filename IS NULL ORDER BY norm_amount')), 0), 'both NULL rows kept and filled');
+        mysqli_close($limited);
+    }
+
+    public function testAnotherHyphenatedDatabasesOwnReferenceDoesNotBlockTheRepair(): void
+    {
+        // Another tenant-like database, named with a '-', has a pool_files with a referring child of its own.
+        $dashed = 'pool-other-' . bin2hex(random_bytes(4));
+        $this->sql("CREATE DATABASE `$dashed`");
+        $this->otherDatabases[] = "`$dashed`";
+        $this->sql("CREATE TABLE `$dashed`.pool_files (id INT NOT NULL PRIMARY KEY, filename varchar(255)) ENGINE=InnoDB");
+        $this->sql("CREATE TABLE `$dashed`.pool_linked_document (id INT NOT NULL PRIMARY KEY, pool_id INT NOT NULL,
+            FOREIGN KEY (pool_id) REFERENCES `$dashed`.pool_files (id) ON DELETE CASCADE) ENGINE=InnoDB");
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        self::assertContains('unique_filename', $done, 'a reference to another database\'s pool_files is not ours');
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
     }
 }

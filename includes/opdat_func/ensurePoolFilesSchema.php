@@ -64,6 +64,7 @@
 // 20261118 CL/MMR SD-815 Codex round 36: the trial copy is compared without FOREIGN KEY lines (CREATE TABLE ... LIKE does not copy them), pool_files before the trial and under the lock still in full; only the name in the CREATE TABLE header is normalised, quoted or not (sql_quote_show_create=0).
 // 20261118 CL/MMR SD-815 Codex round 37: when other tables refer to pool_files with foreign keys and there are duplicate filenames, nothing is deleted (a cascade would delete their rows too); the constraints are named in the log for a person. Checked under the lock that keeps the decision valid.
 // 20261118 CL/MMR SD-815 Codex round 38: on MySQL/MariaDB the references are read from InnoDB's own list (INNODB_SYS_FOREIGN, MySQL 8: INNODB_FOREIGN), which also shows other databases' tables; when it cannot be read (no PROCESS privilege) and there are duplicates, nothing is deleted. Duplicates are looked for first.
+// 20261118 CL/MMR SD-815 Codex round 39: NULL filenames are not duplicates (the collapse never deletes them); InnoDB's REF_NAME is compared with this database's name in MySQL's filename encoding (a '-' is @002d); only a name with non-ASCII characters, whose encoding is not rebuilt here, counts every encoded reference as possibly its own.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -212,6 +213,25 @@ if (!function_exists('ensurePoolFilesMysqlRows')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesMysqlEncodedName')) {
+	/**
+	 * A database name as InnoDB writes it in REF_NAME (MySQL's filename encoding): letters, digits and '_' as they
+	 * are, any other ASCII character as @ and four lower-case hex digits ('-' → @002d). Null for a name with non-ASCII
+	 * characters, whose encoding (a table of its own in MySQL) is not rebuilt here.
+	 *
+	 * @param string $name
+	 * @return string|null
+	 */
+	function ensurePoolFilesMysqlEncodedName(string $name): ?string {
+		if (preg_match('/[^\\x00-\\x7f]/', $name)) {
+			return null;
+		}
+		return (string)preg_replace_callback('/[^A-Za-z0-9_]/', static function (array $m): string {
+			return '@' . sprintf('%04x', ord($m[0]));
+		}, $name);
+	}
+}
+
 if (!function_exists('ensurePoolFilesGuardInboundReferences')) {
 	/**
 	 * Stops the duplicate collapse when there is something to delete and other tables may refer to pool_files with
@@ -227,17 +247,32 @@ if (!function_exists('ensurePoolFilesGuardInboundReferences')) {
 	 * @throws EnsurePoolFilesSchemaUnknown When duplicates exist and references exist or cannot be ruled out; logged.
 	 */
 	function ensurePoolFilesGuardInboundReferences(string $db_type): void {
-		if (!db_fetch_array(ensurePoolFilesSelect("SELECT filename FROM pool_files GROUP BY filename HAVING COUNT(*) > 1 LIMIT 1", __LINE__))) {
+		// The same rows the collapse deletes: equal, non-NULL filenames (two NULLs are never equal there, nor in the index).
+		if (!db_fetch_array(ensurePoolFilesSelect("SELECT filename FROM pool_files WHERE filename IS NOT NULL GROUP BY filename HAVING COUNT(*) > 1 LIMIT 1", __LINE__))) {
 			return; // nothing to delete, nothing can cascade
 		}
 		$names = array();
 		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
 			$rows = null;
 			foreach (array('INNODB_SYS_FOREIGN', 'INNODB_FOREIGN') as $list) {
-				$rows = ensurePoolFilesMysqlRows("SELECT ID AS id, FOR_NAME AS child FROM information_schema.$list WHERE LOWER(REF_NAME) = LOWER(CONCAT(DATABASE(), '/pool_files'))");
+				// REF_NAME is <database>/<table> in MySQL's filename encoding (a '-' is stored as @002d), so it is matched in
+				// PHP: the table part must be pool_files, and the database part this database, or encoded (then it may be
+				// this one; it is counted, to be safe).
+				$rows = ensurePoolFilesMysqlRows("SELECT ID AS id, FOR_NAME AS child, REF_NAME AS parent, DATABASE() AS here FROM information_schema.$list WHERE REF_NAME LIKE '%pool%files'");
 				if ($rows !== null) {
 					break;
 				}
+			}
+			if ($rows !== null) {
+				$rows = array_values(array_filter($rows, static function (array $r): bool {
+					$parts = explode('/', (string)($r['parent'] ?? ''), 2);
+					if (count($parts) !== 2 || strtolower($parts[1]) !== 'pool_files') {
+						return false;
+					}
+					$here = ensurePoolFilesMysqlEncodedName((string)($r['here'] ?? ''));
+					// null: a non-ASCII name, whose encoding is not rebuilt here; then any reference to a pool_files may be ours.
+					return $here === null ? true : strtolower($parts[0]) === strtolower($here);
+				}));
 			}
 			if ($rows === null) {
 				error_log('ensurePoolFilesSchema: nothing deleted, pool_files has duplicate filenames and the foreign keys that may refer to it cannot be read'

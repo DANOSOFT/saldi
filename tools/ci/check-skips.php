@@ -49,6 +49,10 @@ $allowed = [
 	'EnsurePoolFilesSchemaMysqlTest::testAChildInAnotherDatabaseKeepsEveryRowStrict',
 	'EnsurePoolFilesSchemaMysqlTest::testAChildInAnotherDatabaseKeepsEveryRowReportingOff',
 	'EnsurePoolFilesSchemaMysqlTest::testAChildInAnotherDatabaseKeepsEveryRowForAParentOnlyUser',
+	'EnsurePoolFilesSchemaMysqlTest::testAHyphenatedParentDatabaseKeepsEveryRowStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAHyphenatedParentDatabaseKeepsEveryRowReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testTwoNullFilenamesAreNoDuplicates',
+	'EnsurePoolFilesSchemaMysqlTest::testAnotherHyphenatedDatabasesOwnReferenceDoesNotBlockTheRepair',
 ];
 
 $file = $argv[1] ?? '';
