@@ -42,6 +42,9 @@
 // 20261117 CL/LH A missing key file after the bank session is created still closes the consent at the bank.
 // 20261118 CL/LH A renewal does not close the replaced consent at the bank (it broke the new consent in the Nordea sandbox).
 // 20261118 CL/LH Disconnecting clears the account's old fetch error.
+// 20261118 CL/LH UI pass: Sæt på pause / Genoptag and Fjern bankforbindelse (with the waiting count) are checked on the accounts page.
+//                The support code sits in a title attribute, dates are dd-mm-åååå text fields, the journal button is named Bankposteringer, and the expired notice replaces the removed "Næste hentning" row.
+// 20261118 CL/LH The journal's bank status: accounts named ledger-first in the tooltip, the short label ("2 nye", "ajour", "hentning forsinket", "forny adgang", "fejl") and the link to the feed on the account.
 
 use PHPUnit\Framework\TestCase;
 
@@ -1364,7 +1367,7 @@ final class EnableBankingBackendTest extends TestCase
             ebUpdate('bank_accounts', $this->accountId, ['state' => $state]);
             $html = $render('accounts');
             $this->assertStringContainsString("name='ledger_account'", $html);
-            $this->assertStringContainsString("name='import_from' value='" . date('Y-m-01') . "'", $html);
+            $this->assertStringContainsString("name='import_from' value='" . date('01-m-Y') . "'", $html);
             $this->assertStringContainsString('Linjer, der allerede er lagt i en kassekladde, ændres ikke.', $html);
         }
         ebUpdate('bank_accounts', $this->accountId, ['state' => 'active']);
@@ -1373,8 +1376,7 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertStringContainsString('Flyt til Nye', $html);
         $this->assertStringNotContainsString("value='retry'", $html);
         $this->assertStringContainsString('Banken svarede ikke. Saldi prøver igen automatisk.', $html);
-        $this->assertStringContainsString('<small', $html);
-        $this->assertStringContainsString('ASPSP_TIMEOUT', $html);
+        $this->assertStringContainsString("title='Kode: ASPSP_TIMEOUT'", $html);
         $this->assertStringContainsString(', bilag ' . $imported['bilag'], $render('feed', 'imported'));
         $this->assertStringContainsString('Ikke lagt i kassekladden: Momsperioden for datoen er lukket', $render('feed', 'pending'));
         $html = $render('settings');
@@ -1410,7 +1412,7 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertStringContainsString('Læg valgte i kladde ' . $journal, $html);
         $this->assertStringContainsString("name='action' value='ignore_selected'", $html);
         $this->assertStringContainsString('kladde_id=' . $journal, $html);
-        $this->assertStringNotContainsString('åbn kassekladden, og klik Bankforbindelse', $html);
+        $this->assertStringNotContainsString('åbn kassekladden, og klik Bankposteringer', $html);
         foreach ($txs as $id) {
             $this->assertStringContainsString("name='ids[]' value='$id'", $html);
         }
@@ -1421,16 +1423,18 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertStringNotContainsString('<dt>Import</dt>', $html);
         $this->assertStringNotContainsString('utomatisk import', $html);
         $this->assertStringNotContainsString("name='action' value='auto_import'", $html);
-        $this->assertStringContainsString("name='action' value='pause'", $html);
-        $this->assertStringContainsString('2 posteringer venter stadig på at blive lagt i en kassekladde. Du kan fortsat vælge dem her, efter forbindelsen er afbrudt.', $html);
-        $this->assertStringContainsString("type='date' name='from'", $html);
+        $this->assertStringContainsString("type='text' name='from'", $html);
+        $this->assertStringNotContainsString("name='action' value='pause'", $html);
+        $accounts = $render('accounts');
+        $this->assertStringContainsString("name='action' value='pause'", $accounts);
+        $this->assertStringContainsString('2 posteringer venter stadig på at blive lagt i en kassekladde. Du kan stadig vælge dem under Bankposteringer, når forbindelsen er fjernet.', $accounts);
 
         // Without a journal: no import button, a hint with a link to the journal list; skipping still works.
         $html = $render('feed');
         $this->assertStringNotContainsString("value='import_selected'", $html);
         $this->assertStringNotContainsString('Læg valgte i kladde', $html);
         $this->assertStringContainsString("name='action' value='ignore_selected'", $html);
-        $this->assertStringContainsString('åbn kassekladden, og klik Bankforbindelse', $html);
+        $this->assertStringContainsString('åbn kassekladden, og klik Bankposteringer', $html);
         $this->assertStringContainsString("href='../finans/kladdeliste.php'", $html);
 
         // A posted journal is no journal context.
@@ -1441,7 +1445,7 @@ final class EnableBankingBackendTest extends TestCase
 
         ebSetPaused($this->accountId, true, 'chartest');
         $html = $render('feed', 'pending', $journal);
-        $this->assertStringContainsString("name='action' value='resume'", $html);
+        $this->assertStringContainsString("name='action' value='resume'", $render('accounts'));
         $this->assertStringContainsString('Hentningen er sat på pause.', $html);
         $this->assertStringContainsString("name='ids[]' value='{$txs[1]}'", $html);
         $this->assertStringContainsString("name='action' value='import_selected'", $html);
@@ -1465,7 +1469,7 @@ final class EnableBankingBackendTest extends TestCase
             pg_close($master);
         }
 
-        // Accounts: Afbryd per connection, also when every account on it is unsupported.
+        // Accounts: Fjern bankforbindelse per connection, also when every account on it is unsupported.
         ebUpdate('bank_accounts', $this->accountId, ['state' => 'unsupported', 'currency' => 'EUR']);
         $html = $render('accounts');
         $this->assertStringContainsString("name='action' value='disconnect_connection'", $html);
@@ -1925,7 +1929,7 @@ final class EnableBankingBackendTest extends TestCase
         $view = CharacterizationEnv::runChild(__DIR__ . '/support/run_bank_view.php',
             ['feed', $this->accountId, EbTestKeys::$privatePath, 'pending']);
         $this->assertSame(0, $view['exit'], $view['stderr'] . $view['stdout']);
-        $this->assertStringContainsString('Stoppet - adgangen skal fornys', $view['stdout']);
+        $this->assertStringContainsString('Adgangen til banken er udløbet. Saldi henter ikke flere posteringer, før adgangen er fornyet.', $view['stdout']);
 
         ebUpdate('bank_connections', $this->connectionId, ['status' => 'active']);
         foreach (['consent_expired', 'CONSENT_EXPIRED', 'EXPIRED_SESSION', 'REVOKED_SESSION', 'CLOSED_SESSION',
@@ -2221,7 +2225,7 @@ final class EnableBankingBackendTest extends TestCase
 
     /**
      * Exercise the production indicator with an isolated heartbeat value and temporary server configuration.
-     * @return array{level:int, reasons:list<string>, href:string}
+     * @return array{level:int, reasons:list<string>, href:string, label:string}
      */
     private function indicator(?int $heartbeat = null): array
     {
@@ -2275,18 +2279,33 @@ final class EnableBankingBackendTest extends TestCase
         }
     }
 
+    /**
+     * The account's name in the indicator's tooltip: ledger first, then bank and the last four digits.
+     * @return string
+     */
+    private function indicatorName(): string
+    {
+        $ledgerName = trim((string)(ebRow('SELECT beskrivelse FROM kontoplan WHERE kontonr=' . $this->ledger . ' AND regnskabsaar=' . (int)$GLOBALS['regnaar'])['beskrivelse'] ?? ''));
+        return trim($this->ledger . ' ' . $ledgerName) . " · Fixture Bank \u{2026}1234";
+    }
+
     /** @return void */
     public function test_indicator_reports_stale_thresholds_and_never_reports_paused_accounts_stale(): void
     {
         ebUpdate('bank_connections', $this->connectionId, ['valid_until' => date('Y-m-d H:i:s', time() + 90 * 86400)]);
-        $this->assertSame(1, $this->indicator()['level']); // Never fetched is unknown, not stale.
+        $indicator = $this->indicator();
+        $this->assertSame(1, $indicator['level']); // Never fetched is unknown, not stale.
+        $this->assertSame('ajour', $indicator['label']);
+        // The only account: the link opens the feed on it (no journal outside the kassekladde).
+        $this->assertSame('../bank_integration/feed.php?account=' . $this->accountId, $indicator['href']);
         foreach ([13 => 1, 14 => 2, 30 => 2, 31 => 3] as $hours => $level) {
             // The worker runs (fresh heartbeat) but this account's scheduled fetch, 6 h after the last one, is overdue.
             $last = time() - $hours * 3600 - 120;
             ebUpdate('bank_accounts', $this->accountId, ['last_fetch_at' => date('Y-m-d H:i:s', $last), 'next_fetch_at' => date('Y-m-d H:i:s', $last + 21600)]);
             $indicator = $this->indicator(time());
             $this->assertSame($level, $indicator['level']);
-            $this->assertSame($hours > 13, in_array('Driftskonto: Ingen hentning i ' . $hours . ' timer', $indicator['reasons'], true));
+            $this->assertSame($hours > 13, in_array($this->indicatorName() . ': Ingen hentning i ' . $hours . ' timer', $indicator['reasons'], true));
+            $this->assertSame($hours > 13 ? 'hentning forsinket' : 'ajour', $indicator['label']);
         }
         // Just resumed or renewed: the next fetch is due now, so an old last fetch is not reported as stale.
         ebUpdate('bank_accounts', $this->accountId, ['next_fetch_at' => ebNow()]);
@@ -2296,8 +2315,18 @@ final class EnableBankingBackendTest extends TestCase
         ebSetPaused($this->accountId, true, 'chartest');
         $indicator = $this->indicator();
         $this->assertSame(1, $indicator['level']);
-        $this->assertContains('Driftskonto: Automatisk hentning er sat på pause', $indicator['reasons']);
+        $this->assertContains($this->indicatorName() . ': Automatisk hentning er sat på pause', $indicator['reasons']);
         $this->assertStringNotContainsString('Ingen hentning', implode(' ', $indicator['reasons']));
+        $this->assertSame('sat på pause', $indicator['label']);
+        // Access running out within 14 days asks for renewal (amber), expired access too (red).
+        ebSetPaused($this->accountId, false, 'chartest');
+        ebUpdate('bank_connections', $this->connectionId, ['valid_until' => date('Y-m-d H:i:s', time() + 10 * 86400)]);
+        $indicator = $this->indicator(time());
+        $this->assertSame([2, 'forny adgang'], [$indicator['level'], $indicator['label']]);
+        ebUpdate('bank_connections', $this->connectionId, ['valid_until' => date('Y-m-d H:i:s', time() - 3600)]);
+        $indicator = $this->indicator(time());
+        $this->assertSame([3, 'forny adgang'], [$indicator['level'], $indicator['label']]);
+        $this->assertSame('../bank_integration/feed.php?account=' . $this->accountId, $indicator['href']);
     }
 
     /** @return void */
@@ -2310,10 +2339,21 @@ final class EnableBankingBackendTest extends TestCase
             ebUpdate('bank_transactions', 1, ['date_override' => $date]);
             $indicator = $this->indicator();
             $this->assertSame($level, $indicator['level']);
-            $this->assertContains('Driftskonto: 2 nye bankposteringer (ældste ' . date('d.m.Y', strtotime($date)) . ')', $indicator['reasons']);
+            $this->assertContains($this->indicatorName() . ': 2 nye bankposteringer (ældste ' . date('d.m.Y', strtotime($date)) . ')', $indicator['reasons']);
+            $this->assertSame('2 nye', $indicator['label']);
         }
         ebUpdate('bank_transactions', 2, ['review_state' => 'ignored']);
-        $this->assertContains('Driftskonto: 1 ny bankpostering (ældste ' . date('d.m.Y', strtotime($date)) . ')', $this->indicator()['reasons']);
+        $indicator = $this->indicator();
+        $this->assertContains($this->indicatorName() . ': 1 ny bankpostering (ældste ' . date('d.m.Y', strtotime($date)) . ')', $indicator['reasons']);
+        $this->assertSame('1 ny', $indicator['label']);
+        // An account that is not in use yet keeps the status amber; the waiting line still leads the label.
+        $unused = $this->account($this->connectionId, 'unused-account');
+        ebUpdate('bank_accounts', $unused, ['state' => 'new', 'ledger_account' => null]);
+        $indicator = $this->indicator();
+        $this->assertSame([2, '1 ny'], [$indicator['level'], $indicator['label']]);
+        $this->assertSame('../bank_integration/feed.php?account=' . $this->accountId, $indicator['href']);
+        ebUpdate('bank_transactions', 1, ['review_state' => 'ignored']);
+        $this->assertSame('1 konto ikke i brug', $this->indicator()['label']);
     }
 
     /** @return void */
@@ -2330,6 +2370,7 @@ final class EnableBankingBackendTest extends TestCase
             $indicator = $this->indicator($heartbeat);
             $this->assertSame(3, $indicator['level']);
             $this->assertSame(1, count(array_keys($indicator['reasons'], $reason, true)));
+            $this->assertSame('fejl', $indicator['label']);
         }
         $this->assertSame(1, $this->indicator(time())['level']);
         ebUpdate('bank_accounts', $other, ['state' => 'disconnected']);

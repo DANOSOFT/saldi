@@ -37,6 +37,9 @@
 // 20261116 CL/LH The actor is the unescaped user name, so a name with an apostrophe matches its own journal lock.
 // 20261117 CL/LH The "Godkend ændring" button sends a hash of the change shown, so a newer change from the bank is never approved unseen.
 // 20261118 CL/LH Forbind igen / Forny adgang posts as the whole window (target _top): the bank login cannot be shown in Saldi's frame.
+// 20261118 CL/LH UI pass: one summary line per account (ledger-first name, Senest hentet, Hent nu, Administrér) instead of the status panel; Forny adgang only in the expired or action-required notice, Pause/Genoptag and Fjern bankforbindelse on the accounts page.
+//                Ind and Ud columns, a sticky pick bar with count and sums, a click on the row ticks it (shift-click for a range), account tabs only for accounts in use.
+//                Fetch feedback with the time and the number of new lines, the time Hent nu can be used again, support codes in a title attribute; dd-mm-åååå date filter; Tilbage til kladde N.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -145,17 +148,17 @@ function ebFeedTextCell(array $tx): string {
 }
 
 /**
- * Amount cell with currency when not DKK.
+ * The Ind and Ud cells: money in on the left, money out on the right, both without a sign; currency when not DKK.
  *
  * @param array<string, mixed> $tx bank_transactions row.
- * @return string HTML.
+ * @return string HTML (two td elements).
  */
-function ebFeedAmountCell(array $tx): string {
-	$amount = (string)($tx['amount'] ?? '');
+function ebFeedAmountCells(array $tx): string {
+	$amount = trim((string)($tx['amount'] ?? ''));
 	$currency = (string)($tx['currency'] ?? '');
-	$class = str_starts_with(ltrim($amount), '-') ? " class='eb-amount-neg'" : '';
-	$text = ebH(ebFormatAmount($amount)) . ($currency !== '' && $currency !== 'DKK' ? ' ' . ebH($currency) : '');
-	return "<span$class>$text</span>";
+	$out = str_starts_with($amount, '-');
+	$text = ebH(ebFormatAmount(ltrim($amount, '+-'))) . ($currency !== '' && $currency !== 'DKK' ? ' ' . ebH($currency) : '');
+	return $out ? "<td class='num'></td><td class='num'>$text</td>" : "<td class='num'>$text</td><td class='num'></td>";
 }
 
 /**
@@ -254,8 +257,12 @@ function ebFeedLinkCell(?array $link): string {
 $accountId     = (int)($_GET['account'] ?? 0);
 $tab           = in_array($_GET['tab'] ?? '', EB_FEED_TABS, true) ? (string)$_GET['tab'] : '';
 $page          = max(0, (int)($_GET['page'] ?? 0));
-$from          = ebDate(is_string($_GET['from'] ?? null) ? $_GET['from'] : null);
-$to            = ebDate(is_string($_GET['to'] ?? null) ? $_GET['to'] : null);
+$fromInput     = trim(is_string($_GET['from'] ?? null) ? $_GET['from'] : '');
+$toInput       = trim(is_string($_GET['to'] ?? null) ? $_GET['to'] : '');
+$from          = ebParseDate($fromInput);
+$to            = ebParseDate($toInput);
+// A date that cannot be read filters nothing and is shown back as typed, with a message.
+$badDates      = array_values(array_filter(array($from === null ? $fromInput : '', $to === null ? $toInput : ''), fn($v) => $v !== ''));
 $kladdeId      = max(0, (int)($_GET['kladde_id'] ?? 0));
 $unavailable   = ebUnavailableReason();
 $canView       = ebCanViewFeed();
@@ -270,7 +277,7 @@ if ($unavailable === null && $canView) {
 	try {
 		$accounts    = ebIndexById(ebListAccounts());
 		$connections = ebIndexById(ebListConnections());
-		// The journal the user came from (the kassekladde button "Bankforbindelse"): picked lines go there.
+		// The journal the user came from (the kassekladde button "Bankposteringer"): picked lines go there.
 		if ($kladdeId > 0 && ebRow('SELECT id FROM kladdeliste WHERE id=' . $kladdeId . " AND bogfort='-'") === null) {
 			$journalNotice = sprintf(ebT(findtekst('bank.feed.journal_unavailable|Kassekladde %s findes ikke eller er bogført, så der kan ikke lægges posteringer i den.', ebLang())), $kladdeId);
 			$kladdeId = 0;
@@ -280,15 +287,30 @@ if ($unavailable === null && $canView) {
 	}
 }
 
-// Pick the account: explicit id, else the only live one.
+// Accounts with lines to work on get a tab: those in use, and removed ones that still have fetched lines.
+// An account without a ledger account (not in use yet) or in a foreign currency is set up on the accounts page.
+$feedAccounts = array();
+foreach ($accounts as $id => $row) {
+	$rowState = (string)($row['state'] ?? '');
+	if (in_array($rowState, array('active', 'paused'), true)) {
+		$feedAccounts[$id] = $row;
+	} elseif ($rowState === 'disconnected') {
+		try {
+			if (array_sum(ebCountsByState((int)$id)) > 0) {
+				$feedAccounts[$id] = $row;
+			}
+		} catch (Throwable $e) {
+			// Without counts the removed account simply gets no tab.
+		}
+	}
+}
+
+// Pick the account: explicit id, else the only one with a tab.
 if ($accountId > 0 && !isset($accounts[$accountId])) {
 	$accountId = 0;
 }
-if ($accountId === 0) {
-	$live = array_keys(array_filter($accounts, fn($a) => in_array((string)($a['state'] ?? ''), array('new', 'active', 'paused'), true)));
-	if (count($live) === 1) {
-		$accountId = (int)$live[0];
-	}
+if ($accountId === 0 && count($feedAccounts) === 1) {
+	$accountId = (int)array_key_first($feedAccounts);
 }
 $account    = $accountId > 0 ? $accounts[$accountId] : null;
 $bankConnection = $account ? ($connections[(int)($account['connection_id'] ?? 0)] ?? array()) : array();
@@ -324,6 +346,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$actor = (string)($brugernavn_raw ?? $brugernavn);
 	try {
 		if ($action === 'refresh') {
+			$pendingBefore = (int)(ebCountsByState($accountId)['pending'] ?? 0);
 			$run = ebSyncAccount($accountId, 'manual', ebPsuHeadersFromRequest());
 			$runStatus = (string)($run['status'] ?? '');
 			$runMessage = !empty($run['error_code'])
@@ -333,10 +356,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				$runMessage .= ' (kode ' . strtoupper($run['error_code']) . ')';
 			}
 			if ($runStatus === 'ok') {
-				$fresh = (int)(ebCountsByState($accountId)['pending'] ?? 0);
-				ebFlash('ok', ebT(findtekst('bank.feed.fetched|Hentet fra banken.', ebLang()))
-					. ($fresh > 0 ? ' ' . ebT(findtekst('bank.feed.fetched_pick|Vælg under Nye, hvilke posteringer der skal i kassekladden.', ebLang())) : ''));
+				$fresh = max(0, (int)(ebCountsByState($accountId)['pending'] ?? 0) - $pendingBefore);
+				$freshText = $fresh === 0 ? ebT(findtekst('bank.feed.new_none|ingen nye posteringer', ebLang()))
+					: ($fresh === 1 ? ebT(findtekst('bank.feed.new_one|1 ny postering', ebLang()))
+						: sprintf(ebT(findtekst('bank.feed.new_many|%s nye posteringer', ebLang())), $fresh));
+				ebFlash('ok', sprintf(ebT(findtekst('bank.feed.fetched_at|Hentet kl. %s - %s', ebLang())), date('H:i'), $freshText));
 			} elseif ($runStatus === 'skipped') {
+				// Hent nu works once every 5 minutes (ebSyncAccount()); say when it can be used again.
+				$lastManual = (string)(ebRow('SELECT last_manual_at FROM bank_accounts WHERE id=' . (int)$accountId)['last_manual_at'] ?? '');
+				$lastManualTs = $lastManual !== '' ? strtotime($lastManual) : false;
+				if ($lastManualTs !== false && $lastManualTs > time() - 300) {
+					$runMessage = sprintf(ebT(findtekst('bank.feed.fetch_wait|Der blev hentet kl. %s. Du kan hente igen kl. %s.', ebLang())),
+						date('H:i', $lastManualTs), date('H:i', $lastManualTs + 300));
+				}
 				ebFlash('info', $runMessage !== '' ? $runMessage : ebRunStatusLabel($runStatus) . '.');
 			} elseif (in_array($runStatus, array('failed', 'partial'), true)) {
 				ebFlash('error', $runMessage !== '' ? sprintf(ebT(findtekst('bank.feed.fetch_failed_reason|Hentningen fejlede: %s', ebLang())), $runMessage)
@@ -366,7 +398,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		} elseif ($action === 'import_selected') {
 			$ebFeedParams['page'] = null;
 			if ($kladdeId <= 0) {
-				throw new EbUserError(ebT(findtekst('bank.feed.open_journal_first|Åbn den kassekladde, posteringerne skal i, og klik Bankforbindelse.', ebLang())));
+				throw new EbUserError(ebT(findtekst('bank.feed.open_journal_first_postings|Åbn den kassekladde, posteringerne skal i, og klik Bankposteringer.', ebLang())));
 			}
 			$result = ebImportIntoJournal($kladdeId, $accountId, (array)($_POST['ids'] ?? array()), $actor);
 			$skipped = count($result['skipped']);
@@ -450,31 +482,37 @@ if ($account && $tab === 'pending' && $loadError === '') {
 
 if ($kladdeId > 0) {
 	$backHref = ebFeedJournalUrl($kladdeId);
+	$backLabel = sprintf(ebT(findtekst('bank.feed.back_to_journal|Tilbage til kladde %s', ebLang())), $kladdeId);
 } elseif ($canManage) {
 	$backHref = '../systemdata/diverse.php?sektion=bank_integration';
+	$backLabel = '';
 } else {
 	$backHref = '../finans/kladdeliste.php';
+	$backLabel = '';
 }
 
 // ---------------------------------------------------------------------
 // View
 // ---------------------------------------------------------------------
 $feedTitle = ebT(findtekst('bank.feed.title|Bankposteringer', ebLang()));
-$accountName = $account ? (($account['display_name'] ?? '') ?: ebT(findtekst('bank.feed.bank_account|Bankkonto', ebLang()))) : '';
+$ledger = $account ? (int)($account['ledger_account'] ?? 0) : 0;
+$ledgerTitle = $ledger > 0 ? trim($ledger . ' ' . ebLedgerName($ledger)) : ($account ? ebAccountLabel($account, $bankConnection) : '');
 include(__DIR__ . '/includes/page_header.php');
-print ebRenderTopline($feedTitle . ($account ? ' - ' . $accountName : ''), $backHref);
+print ebRenderTopline($feedTitle . ($ledgerTitle !== '' ? ' - ' . $ledgerTitle : ''), $backHref, $backLabel);
 print "<div class='content-noside'>\n";
-print ebRenderFlash();
+$flashHtml = ebRenderFlash();
+print $flashHtml;
 if ($journalNotice !== '') {
 	print "<div class='eb-flash eb-flash-warn'>" . ebH($journalNotice) . "</div>\n";
 }
+$askSettings = ebT(findtekst('bank.feed.ask_settings_user|Bed en bruger med adgang til Indstillinger om det.', ebLang()));
 
 if ($unavailable !== null) {
 	print "<div class='eb-panel'><p>" . ebH($unavailable) . "</p></div>\n";
 } elseif (!$canView) {
 	print "<div class='eb-panel'><p>" . ebHT(findtekst('bank.feed.no_view_right|Du har ikke adgang til bankposteringer. Det kræver adgang til Kassekladde.', ebLang())) . "</p></div>\n";
 } elseif ($loadError !== '' && !$account) {
-	print "<div class='eb-flash eb-flash-error'>" . ebMessageHtml($loadError) . "</div>\n";
+	print ebNoticeHtml($loadError, 'eb-flash eb-flash-error') . "\n";
 } elseif (!$accounts) {
 	print "<div class='eb-panel'><h2>" . ebHT(findtekst('bank.feed.none_title|Ingen bankforbindelse endnu', ebLang())) . "</h2>";
 	print "<p>" . ebHT(findtekst('bank.feed.none_text|Når en bankkonto er forbundet, henter Saldi kontoens posteringer fra banken flere gange i døgnet. Du vælger selv, hvilke posteringer der skal lægges i kassekladden, hvor du udfylder modkonto og vedhæfter bilag.', ebLang())) . "</p>";
@@ -485,65 +523,68 @@ if ($unavailable !== null) {
 	}
 	print "</div>\n";
 } else {
-	// Account switcher.
-	if (count($accounts) > 1 || !$account) {
+	// Account tabs: only accounts with lines to work on, named ledger-first.
+	if (count($feedAccounts) > 1 || ($feedAccounts && !isset($feedAccounts[$accountId]))) {
 		print "<div class='eb-tabs'>";
-		foreach ($accounts as $id => $row) {
-			$label = (($row['display_name'] ?? '') ?: ebT(findtekst('bank.feed.bank_account|Bankkonto', ebLang()))) . ' ' . ($row['display_identity'] ?? '');
-			$active = $id === $accountId ? " class='active'" : '';
+		foreach ($feedAccounts as $id => $row) {
 			$rowState = (string)($row['state'] ?? '');
-			$rowConnectionStatus = (string)($connections[(int)($row['connection_id'] ?? 0)]['status'] ?? '');
-			if (in_array($rowState, EB_FEED_LIVE, true) && in_array($rowConnectionStatus, array('expired', 'revoked'), true)) {
-				$badge = "<span class='eb-badge bad'>" . ebHT(findtekst('bank.connection_status.expired|Adgangen er udløbet', ebLang())) . "</span>";
-			} else {
-				$badge = "<span class='eb-badge " . ebH(ebAccountStateTone($rowState)) . "'>" . ebH(ebAccountStateLabel($rowState)) . "</span>";
+			$rowConnection = $connections[(int)($row['connection_id'] ?? 0)] ?? array();
+			$badge = '';
+			if ($rowState === 'active' && in_array((string)($rowConnection['status'] ?? ''), array('expired', 'revoked'), true)) {
+				$badge = " <span class='eb-badge bad'>" . ebHT(findtekst('bank.connection_status.expired|Adgangen er udløbet', ebLang())) . "</span>";
+			} elseif ($rowState !== 'active') {
+				$badge = " <span class='eb-badge " . ebH(ebAccountStateTone($rowState)) . "'>" . ebH(ebAccountStateLabel($rowState)) . "</span>";
 			}
-			print "<a$active href='" . ebH(ebFeedUrl(array('account' => $id, 'tab' => null, 'page' => null, 'from' => null, 'to' => null))) . "'>" . ebH(trim($label)) . " $badge</a>";
+			$active = $id === $accountId ? " class='active'" : '';
+			print "<a$active href='" . ebH(ebFeedUrl(array('account' => $id, 'tab' => null, 'page' => null, 'from' => null, 'to' => null))) . "'>"
+				. ebH(ebAccountLabel($row, $rowConnection)) . "$badge</a>";
 		}
 		print "</div>\n";
 	}
 
-	if (!$account) {
+	if (!$account && $feedAccounts) {
 		print "<div class='eb-panel'><p>" . ebHT(findtekst('bank.feed.choose_account_above|Vælg en bankkonto ovenfor.', ebLang())) . "</p></div>\n";
+	} elseif (!$account) {
+		// Connected, but no bank account has a ledger account yet.
+		print "<div class='eb-panel'><p>" . ebHT(findtekst('bank.feed.none_in_use|Ingen bankkonti er i brug endnu. Vælg en bogføringskonto til bankkontoen for at tage den i brug.', ebLang())) . "</p>";
+		print $canManage ? "<div class='eb-actions'><a class='eb-btn' href='accounts.php'>" . ebHT(findtekst('bank.feed.choose_ledger_link|Vælg bogføringskonto', ebLang())) . "</a></div>"
+			: "<p class='eb-muted'>" . ebH($askSettings) . "</p>";
+		print "</div>\n";
 	} elseif ($loadError !== '' || !$status) {
-		print "<div class='eb-flash eb-flash-error'>" . ebH($loadError ?: ebT(findtekst('bank.feed.status_failed|Status for kontoen kunne ikke hentes.', ebLang()))) . "</div>\n";
+		print ebNoticeHtml($loadError ?: ebT(findtekst('bank.feed.status_failed|Status for kontoen kunne ikke hentes.', ebLang())), 'eb-flash eb-flash-error') . "\n";
 	} else {
 		$state          = $status['state'];
 		$live           = in_array($state, EB_FEED_LIVE, true);
 		$connectionId   = (int)($bankConnection['id'] ?? 0);
 		$connActive     = ($bankConnection['status'] ?? '') === 'active';
-		$bankName       = (string)(($bankConnection['aspsp_name'] ?? '') ?: ebT(findtekst('bank.feed.the_bank|banken', ebLang())));
-		$ledger         = (int)($account['ledger_account'] ?? 0);
+		$bankName       = (string)($bankConnection['aspsp_name'] ?? '');
 		$actionRequired = $status['last_error_code'] === 'ASPSP_PSU_ACTION_REQUIRED';
 		$showConsent    = $connectionId > 0 && !in_array($state, array('disconnected', 'unsupported'), true);
 		$pendingCount   = (int)($counts['pending'] ?? 0);
-		$askSettings    = ' ' . ebT(findtekst('bank.feed.ask_settings_user|Bed en bruger med adgang til Indstillinger om det.', ebLang()));
+		$renewButton    = $canManage && $connectionId > 0
+			? ebPostButton('connect.php', array('purpose' => 'reconnect', 'connection' => $connectionId, 'return_account' => $accountId),
+				ebT(findtekst('bank.feed.renew|Forny adgang', ebLang())), '', '', '_top')
+			: '';
 
-		// Notices: the most urgent first.
+		// Notices: problems stay loud, the most urgent first.
 		if (ebBaseCurrency() !== 'DKK') {
 			print "<div class='eb-flash eb-flash-warn'>" . ebHT(findtekst('bank.feed.base_currency|Bankimport kræver, at regnskabets basisvaluta er DKK. Posteringerne kan ikke lægges i kassekladden.', ebLang())) . "</div>";
 		}
-		if ($showConsent && $status['expired']) {
-			print "<div class='eb-flash eb-flash-error'>" . ebHT(findtekst('bank.feed.consent_expired|Adgangen til banken er udløbet. Saldi henter ikke flere posteringer, før adgangen er fornyet.', ebLang()));
-			print $canManage ? '' : ebH($askSettings);
-			print "</div>";
-		} elseif ($showConsent && $actionRequired) {
-			print "<div class='eb-flash eb-flash-error'>" . ebHT(findtekst('bank.feed.action_required|Banken kræver, at adgangen godkendes igen, før der kan hentes flere posteringer. Brug Forny adgang.', ebLang())) . "</div>";
-		} elseif ($showConsent && $status['days_left'] !== null && $status['days_left'] <= 14) {
-			print "<div class='eb-flash eb-flash-warn'>" . ebH(ebConsentText($status)) . ". " . ebHT(findtekst('bank.feed.renew_in_time|Forny adgangen i god tid, så hentningen ikke stopper.', ebLang())) . "</div>";
+		if ($showConsent && ($status['expired'] || $actionRequired)) {
+			$text = $status['expired']
+				? ebT(findtekst('bank.feed.consent_expired|Adgangen til banken er udløbet. Saldi henter ikke flere posteringer, før adgangen er fornyet.', ebLang()))
+				: ebT(findtekst('bank.feed.action_required_renew|Banken kræver, at adgangen godkendes igen, før der kan hentes flere posteringer.', ebLang()));
+			print "<div class='eb-flash eb-flash-error eb-flash-row'><span>" . ebH($text) . ($renewButton === '' ? ' ' . ebH($askSettings) : '') . "</span>$renewButton</div>";
 		}
 		if ($state === 'new') {
-			print "<div class='eb-flash eb-flash-warn'>" . ebHT(findtekst('bank.feed.account_new|Kontoen mangler opsætning: vælg bogføringskonto og startdato, før der hentes posteringer.', ebLang()));
-			if ($canManage) {
-				print " <a href='accounts.php?account=$accountId#konto-$accountId'>" . ebHT(findtekst('bank.feed.setup_account|Sæt kontoen op', ebLang())) . "</a>.";
-			} else {
-				print ebH($askSettings);
-			}
+			print "<div class='eb-flash eb-flash-info'>" . ebHT(findtekst('bank.feed.account_unused|Bankkontoen er ikke i brug. Vælg en bogføringskonto for at tage den i brug.', ebLang()));
+			print $canManage ? " <a href='" . ebH('accounts.php?account=' . $accountId . '#konto-' . $accountId) . "'>" . ebHT(findtekst('bank.feed.choose_ledger_link|Vælg bogføringskonto', ebLang())) . "</a>"
+				: ' ' . ebH($askSettings);
 			print "</div>";
 		} elseif ($state === 'unsupported') {
 			print "<div class='eb-flash eb-flash-info'>" . ebH(sprintf(ebT(findtekst('bank.feed.account_unsupported|Kontoen er i %s. Saldi kan kun lægge posteringer fra konti i danske kroner (DKK) i kassekladden.', ebLang())), (string)($account['currency'] ?? ''))) . "</div>";
 		} elseif ($state === 'disconnected') {
-			print "<div class='eb-flash eb-flash-info'>" . ebHT(findtekst('bank.feed.account_disconnected|Forbindelsen er afbrudt. Der hentes ikke flere posteringer. Importerede og bogførte posteringer er bevaret.', ebLang()));
+			print "<div class='eb-flash eb-flash-info'>" . ebHT(findtekst('bank.feed.account_removed|Bankforbindelsen er fjernet. Der hentes ikke flere posteringer, og allerede hentede og bogførte posteringer er bevaret.', ebLang()));
 			if ($pendingCount > 0) {
 				print " " . ebHT(findtekst('bank.feed.still_pick|Du kan stadig lægge de hentede posteringer under Nye i en kassekladde.', ebLang()));
 			}
@@ -554,86 +595,59 @@ if ($unavailable !== null) {
 			}
 		} elseif ($state === 'paused') {
 			print "<div class='eb-flash eb-flash-info'>" . ebHT(findtekst('bank.feed.account_paused|Hentningen er sat på pause. Saldi henter ikke nye posteringer fra banken, før den genoptages. Du kan stadig bruge de posteringer, der allerede er hentet.', ebLang()));
-			print $canManage ? '' : ebH($askSettings);
+			print $canManage ? '' : ' ' . ebH($askSettings);
 			print "</div>";
 		}
 		if ($status['last_run_status'] === 'rate_limited') {
 			print "<div class='eb-flash eb-flash-info'>" . ebHT(findtekst('bank.feed.rate_limited|Banken begrænser antallet af automatiske hentninger. Saldi prøver igen ved næste planlagte hentning.', ebLang())) . "</div>";
 		}
-
-		// Status panel.
-		print "<div class='eb-panel'>";
-		print "<h2>" . ebH($accountName) . " <span class='eb-badge " . ebH(ebAccountStateTone($state)) . "'>" . ebH(ebAccountStateLabel($state)) . "</span></h2>";
-		print "<dl class='eb-grid'>";
-		print "<dt>" . ebHT(findtekst('bank.feed.bank|Bank', ebLang())) . "</dt><dd>" . ebH($bankConnection['aspsp_name'] ?? '') . " · " . ebH($account['display_identity'] ?? '') . "</dd>";
-		if ($ledger > 0) {
-			print "<dt>" . ebHT(findtekst('bank.feed.ledger|Bogføres på', ebLang())) . "</dt><dd>" . ebH(sprintf(ebT(findtekst('bank.feed.ledger_n|Konto %s', ebLang())), $ledger));
-			if (!empty($account['import_from'])) {
-				print ' · ' . ebH(sprintf(ebT(findtekst('bank.feed.fetched_from|hentes fra %s', ebLang())), ebFormatDate($account['import_from'])));
+		if (in_array($status['last_run_status'], array('failed', 'partial'), true) && $status['last_error_code'] !== ''
+			&& !$status['expired'] && !$actionRequired && $state !== 'disconnected') {
+			$failText = ebErrorText($status['last_error_code'], null);
+			$safeCode = preg_replace('/[^A-Z0-9_]/', '', strtoupper($status['last_error_code'])) ?? '';
+			$failText = sprintf(ebT(findtekst('bank.feed.fetch_failed_reason|Hentningen fejlede: %s', ebLang())), $failText)
+				. (!str_contains($failText, '(kode ') && $safeCode !== '' ? " (kode $safeCode)" : '');
+			// The same failure was just reported by Hent nu: say it once.
+			if (!str_contains($flashHtml, ebH(preg_replace('/ \(kode [A-Z0-9_]+\)$/', '', $failText) ?? $failText))) {
+				print ebNoticeHtml($failText, 'eb-flash eb-flash-error');
 			}
-			print "</dd>";
 		}
-		if ($showConsent) {
-			$tone = $status['expired'] ? 'bad' : (($status['days_left'] !== null && $status['days_left'] <= 14) ? 'warn' : 'ok');
-			print "<dt>" . ebHT(findtekst('bank.feed.access|Adgang', ebLang())) . "</dt><dd><span class='eb-badge $tone'>" . ebH(ebConsentText($status)) . "</span></dd>";
-		}
-		print "<dt>" . ebHT(findtekst('bank.feed.last_fetch|Seneste hentning', ebLang())) . "</dt><dd>" . ebH($status['last_fetch_at'] !== '' ? ebFormatDateTime($status['last_fetch_at']) : ebT(findtekst('bank.feed.never_fetched|Endnu ikke hentet', ebLang())));
-		if ($status['last_run_status'] !== '' && $status['last_run_status'] !== 'ok') {
-			print " <span class='eb-muted'>(" . ebH(sprintf(ebT(findtekst('bank.feed.last_attempt|seneste forsøg: %s', ebLang())), ebRunStatusLabel($status['last_run_status']))) . ")</span>";
-		}
-		print "</dd>";
-		if ($live) {
-			$next = $status['next_fetch_at'] !== '' ? ebFormatDateTime($status['next_fetch_at'])
-				: (($status['expired'] || $actionRequired) ? ebT(findtekst('bank.feed.next_stopped|Stoppet - adgangen skal fornys', ebLang())) : ebT(findtekst('bank.feed.next_none|Ikke planlagt', ebLang())));
-			print "<dt>" . ebHT(findtekst('bank.feed.next_fetch|Næste hentning', ebLang())) . "</dt><dd>" . ebH($next) . "</dd>";
-		} elseif ($state === 'paused') {
-			print "<dt>" . ebHT(findtekst('bank.feed.next_fetch|Næste hentning', ebLang())) . "</dt><dd>" . ebH(ebAccountStateLabel('paused')) . "</dd>";
-		}
-		print "<dt>" . ebHT(findtekst('bank.feed.last_import|Seneste import til kassekladde', ebLang())) . "</dt><dd>" . ebH($status['last_import_at'] !== '' ? ebFormatDateTime($status['last_import_at']) : ebT(findtekst('bank.feed.never_imported|Endnu ingen', ebLang()))) . "</dd>";
-		print "<dt>" . ebH(ebReviewStateLabel('pending')) . "</dt><dd>" . $pendingCount . "</dd>";
-		print "<dt>" . ebH(ebReviewStateLabel('review')) . "</dt><dd>" . (int)$status['review'] . "</dd>";
-		if ($status['last_error'] !== '' && $state !== 'disconnected' && !in_array($status['last_run_status'], array('ok', ''), true)) {
-			print "<dt>" . ebHT(findtekst('bank.feed.last_error|Seneste fejl', ebLang())) . "</dt><dd>" . ebErrorHtml($status['last_error_code'], $status['last_run_status']) . "</dd>";
-		}
-		print "</dl>";
 
-		// Buttons.
-		print "<div class='eb-actions'>";
+		// One summary line: which account, when it was fetched, Hent nu, Administrér.
+		$holder = ebHolderName($account['display_name'] ?? '');
+		$last4 = ebAccountLast4($account['display_identity'] ?? '');
+		print "<div class='eb-panel eb-summary'><div class='eb-summary-name'" . ($holder !== '' ? " title='" . ebH($holder) . "'" : '') . ">";
+		if ($ledger > 0) {
+			print "<strong>" . ebH($ledgerTitle) . "</strong> <span class='eb-summary-bank'>· " . ebH(trim($bankName . ' ' . $last4)) . "</span>";
+		} else {
+			print "<strong>" . ebH(ebAccountLabel($account, $bankConnection)) . "</strong>" . ($bankName !== '' ? " <span class='eb-summary-bank'>· " . ebH($bankName) . "</span>" : '');
+		}
+		if ($state !== 'active') {
+			print " <span class='eb-badge " . ebH(ebAccountStateTone($state)) . "'>" . ebH(ebAccountStateLabel($state)) . "</span>";
+		}
+		if ($showConsent && ($status['expired'] || ($status['days_left'] !== null && $status['days_left'] <= 30))) {
+			print " <span class='eb-badge " . ($status['expired'] ? 'bad' : 'warn') . "'>" . ebH(ebConsentText($status)) . "</span>";
+		}
+		print "</div><div class='eb-summary-meta'>";
+		if ($state !== 'new') {
+			print "<span class='eb-muted'>" . ebH($status['last_fetch_at'] !== ''
+				? sprintf(ebT(findtekst('bank.feed.last_fetched|Senest hentet %s', ebLang())), ebFormatDateTime($status['last_fetch_at']))
+				: ebT(findtekst('bank.feed.never_fetched|Endnu ikke hentet', ebLang()))) . "</span>";
+		}
 		if ($canAct && $live) {
-			$disabled = ($status['expired'] || !$connActive) ? " disabled title='" . ebHT(findtekst('bank.feed.renew_first|Adgangen skal fornys først', ebLang())) . "'" : '';
+			$disabled = ($status['expired'] || !$connActive) ? " disabled title='" . ebHT(findtekst('bank.feed.renew_first|Adgangen skal fornys først', ebLang())) . "'"
+				: " title='" . ebHT(findtekst('bank.feed.fetch_schedule|Saldi henter nye posteringer fra banken op til fire gange i døgnet. Hent nu kan bruges én gang hvert 5. minut.', ebLang())) . "'";
 			print "<form method='post' action='" . ebH(ebFeedUrl()) . "' class='eb-inline'>" . ebCsrfField();
 			print "<input type='hidden' name='action' value='refresh'><button type='submit' class='eb-btn'$disabled>" . ebHT(findtekst('bank.feed.fetch_now|Hent nu', ebLang())) . "</button></form>";
 		}
-		if ($canManage && $connectionId > 0 && $state !== 'unsupported') {
-			$renewLabel = $state === 'disconnected' ? ebT(findtekst('bank.feed.reconnect|Forbind igen', ebLang())) : ebT(findtekst('bank.feed.renew|Forny adgang', ebLang()));
-			print ebPostButton('connect.php', array('purpose' => 'reconnect', 'connection' => $connectionId, 'return_account' => $accountId), $renewLabel,
-				($status['expired'] || $actionRequired || $state === 'disconnected') ? '' : 'secondary', '', '_top');
-		}
-		if ($canManage && $state === 'active') {
-			print ebPostButton(ebFeedUrl(), array('action' => 'pause'), ebT(findtekst('bank.feed.pause|Sæt på pause', ebLang())), 'secondary',
-				ebT(findtekst('bank.feed.pause_confirm|Sæt hentningen på pause? Saldi henter ikke posteringer fra banken, før du genoptager. Du kan stadig bruge de posteringer, der allerede er hentet.', ebLang())));
-		} elseif ($canManage && $state === 'paused') {
-			print ebPostButton(ebFeedUrl(), array('action' => 'resume'), ebT(findtekst('bank.feed.resume|Genoptag', ebLang())), 'secondary');
-		}
-		if ($canManage && $connActive && !in_array($state, array('disconnected', 'unsupported'), true)) {
-			$confirm = sprintf(ebT(findtekst('bank.feed.disconnect_confirm|Afbryd forbindelsen til %s? Alle konti fra denne bankforbindelse stopper med at hente posteringer. Importerede og bogførte posteringer bevares.', ebLang())), $bankName);
-			if ($waitingForConnection > 0) {
-				$confirm .= "\n\n" . sprintf(ebT(findtekst('bank.feed.disconnect_waiting|%s venter stadig på at blive lagt i en kassekladde. Du kan fortsat vælge dem her, efter forbindelsen er afbrudt.', ebLang())), ebFeedCount($waitingForConnection));
-			}
-			print ebPostButton(ebFeedUrl(), array('action' => 'disconnect'), ebT(findtekst('bank.feed.disconnect|Afbryd', ebLang())), 'danger', $confirm);
-		}
 		if ($canManage) {
-			print "<a class='eb-btn secondary' href='accounts.php?account=$accountId" . ($connectionId > 0 ? "&amp;connection=$connectionId" : '') . "#konto-$accountId'>" . ebHT(findtekst('bank.feed.settings|Indstillinger', ebLang())) . "</a>";
+			print "<a class='eb-link' href='" . ebH('accounts.php?account=' . $accountId . '#konto-' . $accountId) . "'>" . ebHT(findtekst('bank.feed.manage|Administrér', ebLang())) . "</a>";
 		}
-		print "</div>";
-		if ($canAct && $live) {
-			print "<p class='eb-muted'>" . ebHT(findtekst('bank.feed.fetch_schedule|Saldi henter nye posteringer fra banken op til fire gange i døgnet. Hent nu kan bruges én gang hvert 5. minut.', ebLang())) . "</p>";
-		}
-		print "</div>\n";
+		print "</div></div>\n";
 
 		// Tabs (nothing to show before the first transactions arrive).
 		$hasTransactions = array_sum(array_map('intval', $counts)) > 0;
-		if (!$hasTransactions) {
+		if (!$hasTransactions && $state !== 'new') {
 			print "<div class='eb-panel'><p>" . ebHT(findtekst('bank.feed.nothing_yet|Der er endnu ikke hentet nogen posteringer for kontoen.', ebLang())) . "</p>";
 			if ($live) {
 				print "<p class='eb-muted'>" . ebHT(findtekst('bank.feed.nothing_yet_hint|Brug Hent nu, eller vent på næste automatiske hentning. Bagefter vælger du under Nye, hvilke posteringer der skal i kassekladden.', ebLang())) . "</p>";
@@ -655,39 +669,46 @@ if ($unavailable !== null) {
 				if (!$canAct) {
 					$intro = findtekst('bank.feed.intro_pending_read|Nye posteringer fra banken, som endnu ikke er lagt i en kassekladde.', ebLang());
 				} elseif ($kladdeId > 0) {
-					$intro = sprintf(findtekst('bank.feed.intro_pending_journal|Sæt flueben ved de posteringer, der skal i kassekladde %s, og vælg Læg valgte i kladde %s. Er en postering allerede bogført på anden måde, fx fra kontoudtog, så vælg Spring valgte over.', ebLang()), $kladdeId, $kladdeId);
+					$intro = sprintf(findtekst('bank.feed.intro_pick_journal|Sæt flueben ved posteringerne til kassekladde %s, og spring over dem, der allerede er bogført.', ebLang()), $kladdeId);
 				} else {
-					$intro = findtekst('bank.feed.intro_pending|Nye posteringer fra banken. Er en postering allerede bogført på anden måde, fx fra kontoudtog, så sæt flueben og vælg Spring valgte over.', ebLang());
+					$intro = findtekst('bank.feed.intro_pick|Nye posteringer fra banken - spring over dem, der allerede er bogført.', ebLang());
 				}
 			} else {
 				$intros = array(
 					'review'      => findtekst('bank.feed.intro_review|Posteringer, du skal tage stilling til, før de kan lægges i en kassekladde.', ebLang()),
-					'imported'    => findtekst('bank.feed.intro_imported|Posteringer, der er lagt i en kassekladde. Modkonto og bilag udfyldes i kassekladden.', ebLang()),
-					'ignored'     => findtekst('bank.feed.intro_ignored|Posteringer, der er sprunget over. De lægges ikke i en kassekladde, medmindre du gendanner dem.', ebLang()),
-					'pre_cutover' => findtekst('bank.feed.intro_pre_cutover|Posteringer fra før startdatoen. De lægges ikke i en kassekladde.', ebLang()),
+					'imported'    => findtekst('bank.feed.intro_imported_short|Posteringer, der er lagt i en kassekladde.', ebLang()),
+					'ignored'     => findtekst('bank.feed.intro_ignored_short|Posteringer, der er sprunget over - gendan dem, der alligevel skal i en kassekladde.', ebLang()),
+					'pre_cutover' => findtekst('bank.feed.intro_pre_cutover_short|Posteringer fra før startdatoen, som ikke lægges i en kassekladde.', ebLang()),
 				);
 				$intro = $intros[$tab] ?? '';
 			}
-			print "<div class='eb-panel'><p class='eb-muted'>" . ebHT($intro) . "</p>";
+			print "<div class='eb-panel eb-list'>";
 			if ($tab === 'pending' && $canAct && $kladdeId === 0) {
-				print "<p class='eb-hint eb-journal-hint'>" . ebHT(findtekst('bank.feed.hint_open_journal|Posteringerne lægges i den kassekladde, du arbejder i: åbn kassekladden, og klik Bankforbindelse.', ebLang()))
+				print "<p class='eb-hint eb-journal-hint'>" . ebHT(findtekst('bank.feed.hint_open_journal_postings|Posteringerne lægges i den kassekladde, du arbejder i: åbn kassekladden, og klik Bankposteringer.', ebLang()))
 					. " <a href='../finans/kladdeliste.php'>" . ebHT(findtekst('bank.feed.go_journals|Gå til kassekladder', ebLang())) . "</a></p>";
 			}
 
-			// Date filter (GET, works without JavaScript).
-			print "<form method='get' action='feed.php' class='eb-form-row' style='margin:6px 0 10px 0'>";
+			// Intro and date filter on one line (GET, works without JavaScript).
+			$placeholder = ebHT(findtekst('bank.feed.date_placeholder|dd-mm-åååå', ebLang()));
+			print "<div class='eb-list-head'><p class='eb-muted'>" . ebHT($intro) . "</p>";
+			print "<form method='get' action='feed.php' class='eb-form-row eb-filter'>";
 			foreach (array('account' => $accountId ?: null, 'tab' => $tab, 'kladde_id' => $kladdeId ?: null) as $name => $value) {
 				if ($value !== null) {
 					print "<input type='hidden' name='$name' value='" . ebH($value) . "'>";
 				}
 			}
-			print "<label>" . ebHT(findtekst('bank.feed.from_date|Fra dato', ebLang())) . "<input type='date' name='from' value='" . ebH($from ?? '') . "'></label>";
-			print "<label>" . ebHT(findtekst('bank.feed.to_date|Til dato', ebLang())) . "<input type='date' name='to' value='" . ebH($to ?? '') . "'></label>";
+			print "<label>" . ebHT(findtekst('bank.feed.from_date|Fra dato', ebLang())) . "<input type='text' name='from' size='10' maxlength='10' autocomplete='off' placeholder='$placeholder' value='"
+				. ebH($from !== null ? ebFormatDate($from) : $fromInput) . "'></label>";
+			print "<label>" . ebHT(findtekst('bank.feed.to_date|Til dato', ebLang())) . "<input type='text' name='to' size='10' maxlength='10' autocomplete='off' placeholder='$placeholder' value='"
+				. ebH($to !== null ? ebFormatDate($to) : $toInput) . "'></label>";
 			print "<button type='submit' class='eb-btn secondary'>" . ebHT(findtekst('bank.feed.show|Vis', ebLang())) . "</button>";
-			if ($filtered) {
+			if ($filtered || $badDates) {
 				print "<a class='eb-btn secondary' href='" . ebH(ebFeedUrl(array('from' => null, 'to' => null, 'page' => null))) . "'>" . ebHT(findtekst('bank.feed.all_dates|Vis alle datoer', ebLang())) . "</a>";
 			}
-			print "</form>";
+			print "</form></div>";
+			foreach ($badDates as $badDate) {
+				print "<div class='eb-flash eb-flash-warn'>" . ebH(sprintf(ebT(findtekst('bank.feed.bad_date|%s er ikke en gyldig dato. Skriv datoen som dd-mm-åååå, fx 01-10-2026.', ebLang())), '"' . $badDate . '"')) . "</div>";
+			}
 
 			if (!$rows) {
 				if ($filtered) {
@@ -711,15 +732,16 @@ if ($unavailable !== null) {
 					print "<button type='submit' name='action' value='ignore_selected' class='eb-btn secondary' data-confirm='"
 						. ebHT(findtekst('bank.feed.skip_confirm|Spring de valgte posteringer over? De lægges ikke i en kassekladde. Du kan gendanne dem under Sprunget over.', ebLang())) . "'>"
 						. ebHT(findtekst('bank.feed.skip_selected|Spring valgte over', ebLang())) . "</button>";
-					print "<span class='eb-muted eb-pick-count'></span>";
+					print "<span class='eb-pick-count'></span>";
 					print "</div>";
 				}
-				print "<table class='eb-table'><thead><tr>";
+				print "<table class='eb-table" . ($pickList ? ' eb-pick-table' : '') . "'><thead><tr>";
 				if ($pickList) {
 					$selectAll = ebHT(findtekst('bank.feed.select_all|Vælg alle på siden', ebLang()));
 					print "<th class='eb-check'><input type='checkbox' id='eb-pick-all' hidden title='$selectAll' aria-label='$selectAll'></th>";
 				}
-				print "<th>" . ebHT(findtekst('bank.feed.col_date|Dato', ebLang())) . "</th><th>" . ebHT(findtekst('bank.feed.col_text|Tekst', ebLang())) . "</th><th class='num'>" . ebHT(findtekst('bank.feed.col_amount|Beløb', ebLang())) . "</th>";
+				print "<th>" . ebHT(findtekst('bank.feed.col_date|Dato', ebLang())) . "</th><th>" . ebHT(findtekst('bank.feed.col_text|Tekst', ebLang())) . "</th>";
+				print "<th class='num'>" . ebHT(findtekst('bank.feed.col_in|Ind', ebLang())) . "</th><th class='num'>" . ebHT(findtekst('bank.feed.col_out|Ud', ebLang())) . "</th>";
 				print $showReason ? "<th>" . ebHT(findtekst('bank.feed.col_reason|Årsag', ebLang())) . "</th>" : '';
 				print $showLink ? "<th>" . ebHT(findtekst('bank.feed.col_journal|Kassekladde', ebLang())) . "</th>" : '';
 				print $showActions ? "<th></th>" : '';
@@ -734,7 +756,7 @@ if ($unavailable !== null) {
 					print "<tr>";
 					if ($pickList) {
 						// Overlap hints are advice only: a row is never preselected.
-						print "<td class='eb-check'><input type='checkbox' name='ids[]' value='$id' id='eb-tx-$id' aria-label='$pickLabel'></td>";
+						print "<td class='eb-check'><input type='checkbox' name='ids[]' value='$id' id='eb-tx-$id' data-amount='" . ebH(trim((string)($tx['amount'] ?? ''))) . "' aria-label='$pickLabel'></td>";
 						print "<td class='nowrap'><label for='eb-tx-$id'>" . ebFeedDateCell($tx) . "</label></td>";
 					} else {
 						print "<td class='nowrap'>" . ebFeedDateCell($tx) . "</td>";
@@ -750,7 +772,7 @@ if ($unavailable !== null) {
 						}
 					}
 					print "</td>";
-					print "<td class='num'>" . ebFeedAmountCell($tx) . "</td>";
+					print ebFeedAmountCells($tx);
 					if ($showReason) {
 						print "<td>" . ebH(ebReviewReasonLabel($tx['review_reason'] ?? '')) . ebFeedChangedCell($tx) . "</td>";
 					}
@@ -780,9 +802,10 @@ if ($unavailable !== null) {
 			print "</div>\n";
 			if ($pickList) {
 				$pickTexts = array(
-					'one'  => ebT(findtekst('bank.feed.picked_one|1 postering valgt', ebLang())),
-					'many' => ebT(findtekst('bank.feed.picked_many|%s posteringer valgt', ebLang())),
-					'none' => ebT(findtekst('bank.feed.pick_at_least_one|Vælg mindst én postering.', ebLang())),
+					'count' => ebT(findtekst('bank.feed.picked_count|%s valgt', ebLang())),
+					'in'    => ebT(findtekst('bank.feed.picked_in|Ind %s', ebLang())),
+					'out'   => ebT(findtekst('bank.feed.picked_out|Ud %s', ebLang())),
+					'none'  => ebT(findtekst('bank.feed.pick_at_least_one|Vælg mindst én postering.', ebLang())),
 				);
 				?>
 <script>
@@ -795,23 +818,102 @@ if ($unavailable !== null) {
 	}
 	var boxes = Array.prototype.slice.call(form.querySelectorAll("input[name='ids[]']"));
 	var counters = form.querySelectorAll('.eb-pick-count');
+	var last = null;
+	// Amounts in thousandths, as the bank sends them (3 decimals), so the sums never meet float rounding.
+	function thousandths(text) {
+		var m = /^([+-]?)(\d*)(?:\.(\d*))?$/.exec(String(text || '').trim());
+		if (!m) {
+			return 0;
+		}
+		var value = parseInt(m[2] || '0', 10) * 1000 + parseInt(((m[3] || '') + '000').slice(0, 3), 10);
+		return m[1] === '-' ? -value : value;
+	}
+	function money(value) {
+		var whole = String(Math.floor(value / 1000)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+		var frac = String(value % 1000);
+		frac = '000'.slice(frac.length) + frac;
+		return whole + ',' + (frac.charAt(2) === '0' ? frac.slice(0, 2) : frac);
+	}
 	function selected() {
 		return boxes.filter(function (b) { return b.checked; }).length;
 	}
 	function update() {
-		var n = selected();
+		var n = 0, money_in = 0, money_out = 0;
+		boxes.forEach(function (b) {
+			var row = b.closest('tr');
+			if (row) {
+				row.classList.toggle('eb-picked', b.checked);
+			}
+			if (b.checked) {
+				var v = thousandths(b.getAttribute('data-amount'));
+				n++;
+				if (v < 0) {
+					money_out -= v;
+				} else {
+					money_in += v;
+				}
+			}
+		});
 		all.checked = n > 0 && n === boxes.length;
 		all.indeterminate = n > 0 && n < boxes.length;
+		var parts = [];
+		if (n > 0) {
+			parts.push(texts.count.replace('%s', n));
+			if (money_in > 0) {
+				parts.push(texts['in'].replace('%s', money(money_in)));
+			}
+			if (money_out > 0) {
+				parts.push(texts.out.replace('%s', money(money_out)));
+			}
+		}
 		Array.prototype.forEach.call(counters, function (c) {
-			c.textContent = n === 0 ? '' : (n === 1 ? texts.one : texts.many.replace('%s', n));
+			c.textContent = parts.join(' · ');
 		});
+	}
+	// Shift-click ticks or clears every row between the last one clicked and this one.
+	function pick(box, shift) {
+		var i = boxes.indexOf(box);
+		if (shift && last !== null && last !== i) {
+			var a = Math.min(last, i), b = Math.max(last, i);
+			for (var k = a; k <= b; k++) {
+				boxes[k].checked = box.checked;
+			}
+		}
+		last = i;
+		update();
 	}
 	all.hidden = false;
 	all.addEventListener('change', function () {
 		boxes.forEach(function (b) { b.checked = all.checked; });
+		last = null;
 		update();
 	});
-	boxes.forEach(function (b) { b.addEventListener('change', update); });
+	boxes.forEach(function (b) {
+		b.addEventListener('click', function (e) { pick(b, e.shiftKey); });
+	});
+	var body = form.querySelector('tbody');
+	// A shift-click selects a range of rows, not the text in them.
+	body.addEventListener('mousedown', function (e) {
+		if (e.shiftKey) {
+			e.preventDefault();
+		}
+	});
+	// A click anywhere on the row ticks it, except on links, buttons and the box itself (or while text is selected).
+	body.addEventListener('click', function (e) {
+		if (e.target.closest('a, button, input, label, select, textarea')) {
+			return;
+		}
+		if (window.getSelection && String(window.getSelection()).length > 0) {
+			return;
+		}
+		var row = e.target.closest('tr');
+		var box = row ? row.querySelector("input[name='ids[]']") : null;
+		if (!box) {
+			return;
+		}
+		box.checked = !box.checked;
+		pick(box, e.shiftKey);
+	});
 	form.addEventListener('submit', function (e) {
 		if (selected() === 0) {
 			e.preventDefault();
