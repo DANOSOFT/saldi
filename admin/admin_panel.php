@@ -29,8 +29,8 @@
 //                 The rights are looked up with the unescaped user name ($brugernavn_raw), escaped once, so a name with an apostrophe finds its row.
 // 20261117 CL/SZ MB-163 The page and its actions need a master user with admin rights; every POST carries the session token.
 // 20261117 CDX/NTR Use the shared master-admin lookup for the page and its actions.
-// 20261118 CL/ASR Merged master (MB-163): the page now refuses every user without the admin flag before any action, which is the rule
-//                 SirRolin set for Nulstil regnskab (review #1131), so the reset's own admin check and its second CSRF check are gone.
+// 20261118 CL/ASR Merged master (MB-163): the page refuses every user without the admin flag, and every POST without the session token, before any action.
+//                 That is SirRolin's rule for Nulstil regnskab (review #1131), so the reset's own admin check and its second CSRF check are gone.
 //                 The reset button keeps its red outline: online.php paints every button[type="submit"] in the button colour with !important.
 
 /**
