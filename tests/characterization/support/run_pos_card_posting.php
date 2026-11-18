@@ -9,11 +9,13 @@
 // Prints one JSON line: bogfor()'s answer, the order's status and report_number, the order's transaktioner rows and its pos_lines_amount().
 // For a comma list, bogfor() only finishes each sale (status 3) and bogfor_nu() posts them as posbogfor() does,
 // so 'bogfor' is bogfor_nu()'s answer and 'rows' are the rows it wrote.
+// That posting runs in its own transaction, so a refused count leaves no rows.
 //
 // History:
 // 20261112 CL/SS MB-49: created.
 // 20261116 CL/SS MB-49: a comma list posts the sales together, as the day-end count does.
 // 20261118 CL/SS MB-49: a refused posting is rolled back, as afslut() does; 'lines' is pos_lines_amount() for the first sale.
+// 20261118 CL/SS MB-49: bogfor() commits each sale, so the day-end posting opens its own transaction, as beginCashCountPosting() does.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_pos_card_posting.php <tenant_db> <ordre_id>\n");
@@ -37,6 +39,7 @@ foreach ($ordreIds as $oid) {
     $out['bogfor'] = bogfor($oid, '');
 }
 if (count($ordreIds) > 1 && $out['bogfor'] === 'OK') {
+    transaktion('begin');
     $out['bogfor'] = bogfor_nu(implode(',', $ordreIds), 'Dagsafslutning');
 }
 if ($out['bogfor'] === 'OK') {

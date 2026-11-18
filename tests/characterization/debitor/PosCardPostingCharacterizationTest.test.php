@@ -13,6 +13,8 @@ require_once __DIR__ . '/../support/CharacterizationEnv.php';
 // 20261116 CL/SS MB-49: card sales the day-end count posts together write their rows with ordre_id 0, and are posted, not refused.
 // 20261117 CL/SS MB-49: a row another checkout commits on the same till during the posting does not hide a sale that posted nothing.
 // 20261118 CL/SS MB-49: an exchange whose lines cancel out posts on both sales accounts; an amount discount counts in kroner in pos_lines_amount().
+// 20261118 CL/SS MB-49: at the day-end count, another sale's rows do not hide a withdrawal that posts nothing; card payments that cancel out within a sale pass.
+//                The trigger is dropped even when the child's result fails its assertion.
 final class PosCardPostingCharacterizationTest extends TestCase
 {
     private const CASH_ACCOUNT = 58200;
@@ -106,6 +108,22 @@ final class PosCardPostingCharacterizationTest extends TestCase
     }
 
     /**
+     * Posts sales together as the day-end count does, on a till that does not post each sale.
+     *
+     * @return array{bogfor: string, status: int, rows: list<array{0:int, 1:float, 2:float}>}
+     */
+    private static function postAtDayEnd(string $ids): array
+    {
+        $t = self::$tenant;
+        pg_query_params($t, "UPDATE grupper SET box9 = '' WHERE art = 'POS' AND kodenr = '1' AND fiscal_year = $1", [self::$regnaar]);
+        try {
+            return self::post($ids);
+        } finally {
+            pg_query_params($t, "UPDATE grupper SET box9 = 'on' WHERE art = 'POS' AND kodenr = '1' AND fiscal_year = $1", [self::$regnaar]);
+        }
+    }
+
+    /**
      * Cash withdrawal: a 0-kr item paid by card debits the card and credits the cash account with the card amount.
      */
     public function testACashWithdrawalPaidByCardDebitsTheCardAndCreditsTheCash(): void
@@ -170,16 +188,50 @@ final class PosCardPostingCharacterizationTest extends TestCase
      */
     public function testCardSalesPostedTogetherAtTheDayEndCountArePostedNotRefused(): void
     {
-        $t = self::$tenant;
-        pg_query_params($t, "UPDATE grupper SET box9 = '' WHERE art = 'POS' AND kodenr = '1' AND fiscal_year = $1", [self::$regnaar]);
-        try {
-            $result = self::post(self::sale(100, 'Dankort', 125) . ',' . self::sale(100, 'Dankort', 125));
-        } finally {
-            pg_query_params($t, "UPDATE grupper SET box9 = 'on' WHERE art = 'POS' AND kodenr = '1' AND fiscal_year = $1", [self::$regnaar]);
-        }
+        $result = self::postAtDayEnd(self::sale(100, 'Dankort', 125) . ',' . self::sale(100, 'Dankort', 125));
         self::assertSame('OK', $result['bogfor']);
         self::assertSame(4, $result['status']);
         self::assertContains([self::CARD_ACCOUNT, 250.0, 0.0], $result['rows']);
+        self::assertSame(array_sum(array_column($result['rows'], 1)), array_sum(array_column($result['rows'], 2)), 'debit and credit balance');
+    }
+
+    /**
+     * At the day-end count, a Dankort sale's rows do not hide a cash withdrawal paid with a card that has no card account:
+     * the withdrawal posts nothing, so the count is refused and rolled back.
+     */
+    public function testADayEndSaleWithRowsDoesNotHideAWithdrawalThatPostsNothing(): void
+    {
+        $result = self::postAtDayEnd(self::sale(100, 'Dankort', 125) . ',' . self::sale(0, 'Visa', 400));
+        self::assertStringContainsString('Betalingen med Visa kan ikke bogføres', $result['bogfor']);
+        self::assertNotSame(4, $result['status'], 'a refused count must not mark the sales posted');
+        self::assertSame([], $result['rows']);
+    }
+
+    /**
+     * At the day-end count, an exchange whose Visa payments cancel out (+125, -125) has nothing to lose, so it is posted, not refused.
+     */
+    public function testADayEndExchangeWhoseCardPaymentsCancelOutIsPosted(): void
+    {
+        [$otherItem, $otherAccount] = self::itemOnAnotherSalesAccount();
+        $exchange = self::order([[self::$itemId, 1, 100, 0, ''], [$otherItem, -1, 100, 0, '']], 'Visa', 125);
+        pg_query_params(self::$tenant, "INSERT INTO pos_betalinger (ordre_id, betalingstype, amount, valuta, valutakurs) VALUES ($1, 'Visa', -125, 'DKK', 100)", [$exchange]);
+        $result = self::postAtDayEnd(self::sale(100, 'Dankort', 125) . ',' . $exchange);
+        self::assertSame('OK', $result['bogfor']);
+        self::assertSame(4, $result['status']);
+        self::assertContains([$otherAccount, 100.0, 0.0], $result['rows']);
+        self::assertSame(array_sum(array_column($result['rows'], 1)), array_sum(array_column($result['rows'], 2)), 'debit and credit balance');
+    }
+
+    /**
+     * At the day-end count, a priced sale paid with a card that has no card account still posts on the cash account, as before.
+     */
+    public function testADayEndPricedSaleWithoutACardAccountPostsAsBefore(): void
+    {
+        $result = self::postAtDayEnd(self::sale(100, 'Dankort', 125) . ',' . self::sale(100, 'Visa', 125));
+        self::assertSame('OK', $result['bogfor']);
+        self::assertSame(4, $result['status']);
+        self::assertContains([self::CARD_ACCOUNT, 125.0, 0.0], $result['rows']);
+        self::assertContains([self::CASH_ACCOUNT, 125.0, 0.0], $result['rows']);
         self::assertSame(array_sum(array_column($result['rows'], 1)), array_sum(array_column($result['rows'], 2)), 'debit and credit balance');
     }
 
@@ -214,10 +266,13 @@ final class PosCardPostingCharacterizationTest extends TestCase
             self::assertNotFalse($other, pg_last_error($t));
         } finally {
             pg_query($t, "SELECT pg_advisory_unlock_all()");
-            $result = $child ? self::finishPost($child) : null;
-            pg_query($t, 'DROP TRIGGER IF EXISTS mb49_hold ON ordrelinjer');
-            pg_query($t, 'DROP FUNCTION IF EXISTS mb49_hold()');
-            pg_query($t, "DELETE FROM transaktioner WHERE beskrivelse = 'Other checkout'");
+            try {
+                $result = $child ? self::finishPost($child) : null;
+            } finally {
+                pg_query($t, 'DROP TRIGGER IF EXISTS mb49_hold ON ordrelinjer');
+                pg_query($t, 'DROP FUNCTION IF EXISTS mb49_hold()');
+                pg_query($t, "DELETE FROM transaktioner WHERE beskrivelse = 'Other checkout'");
+            }
         }
         self::assertStringContainsString('Betalingen med Visa kan ikke bogføres', $result['bogfor']);
         self::assertNotSame(4, $result['status'], 'a sale with nothing posted must not get status 4');

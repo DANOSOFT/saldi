@@ -173,6 +173,8 @@
 // 20261117 CL/SS MB-49 bogfor_nu(): the nothing-posted check counts the rows this call inserted, not rows read back from transaktioner.
 //                Rows another checkout commits on the same till meanwhile can no longer hide a sale that posted nothing.
 // 20261118 CL/SS MB-49 pos_lines_amount(): an order's lines as absolute amounts after discount, for afslut()'s card-0 refusal.
+// 20261118 CL/SS MB-49 bogfor_nu(): a card payment on a 0-kr sale with no card account is refused per sale, before the day-end batch adds them up.
+//                Another sale's rows in the same batch no longer hide it.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2550,7 +2552,7 @@ function bogfor_nu($id, $kilde) {
 	global $title;
 	global $sprog_id;
 
-	$korttyper = $kortkonti = $vatAccount = $cardPosted = array();
+	$korttyper = $kortkonti = $vatAccount = $cardPosted = $zeroTotalPayments = array();
 	// 20260312 next 2 lines
 	if (!$valuta)    $valuta      = $baseCurrency;
 	if (!$valutakurs) $valutakurs = 100;
@@ -2685,17 +2687,26 @@ function bogfor_nu($id, $kilde) {
 			// -----
 			$qtxt = "select * from pos_betalinger where ordre_id='$ordre_id' order by betalingstype";
 			$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			$orderPaid = array();
 			while ($r2 = db_fetch_array($q2)) {
 				if (in_array($r2['betalingstype'], $betaling)) {
 					for ($c = 0; $c < count($betaling); $c++) {
 						if ($betaling[$c] == $r2['betalingstype']) {
 							$modtaget[$c] += $r2['amount'];
+							$b = $c;
 						}
 					}
 				} else {
 					$bnr++;
 					$betaling[$bnr] = $r2['betalingstype'];
 					$modtaget[$bnr] = $r2['amount'];
+					$b = $bnr;
+				}
+				$orderPaid[$b] = ($orderPaid[$b] ?? 0) + (float)$r2['amount'];
+			}
+			if (!afrund((float)$r['sum'] + (float)$r['moms'], 2)) {
+				foreach ($orderPaid as $b => $paid) {
+					$zeroTotalPayments[] = array($b, $paid);
 				}
 			}
 			$kasse = (int)$r['felt_5'];
@@ -3357,6 +3368,12 @@ function bogfor_nu($id, $kilde) {
 						}
 				*/
 	if ($art == 'PO') {
+		foreach ($zeroTotalPayments as list($b, $paid)) {
+			if (afrund($paid, 2) &&empty($cardPosted[$b]) && !in_array(strtolower($betaling[$b]), array('kontant', 'konto'))) {
+				$txt = findtekst('pos.posting.card_account_missing|Betalingen med %s kan ikke bogføres, da %s ikke har en konto under kortbetalinger. Salget er ikke afsluttet.', $sprog_id);
+				return sprintf($txt, $betaling[$b], $betaling[$b]);
+			}
+		}
 		$cardTotal = 0;
 		$unpostedCard = '';
 		for ($b = 0; $b < count($betaling); $b++) {
