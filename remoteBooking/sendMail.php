@@ -53,6 +53,7 @@
         $mailRow = db_fetch_array($query);
         try{
             $mail = new PHPMailer(true);
+            $mail->CharSet = PHPMailer::CHARSET_UTF8;                   // SST-994: template and data are UTF-8
             $mail->isSMTP();                                            // Send using SMTP
             $mail->SMTPDebug = SMTP::DEBUG_OFF;
             $mail->Host     = $mailRow["host"];                       // Set the SMTP server to send through                       
@@ -78,6 +79,7 @@
     }else{
         try{
             $mail = new PHPMailer(true);
+            $mail->CharSet = PHPMailer::CHARSET_UTF8;                   // SST-994: template and data are UTF-8
             $mail->isSMTP();
             $mail->SMTPDebug = SMTP::DEBUG_OFF;
             $mail->Host     = 'localhost';

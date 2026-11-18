@@ -1,5 +1,5 @@
 <?php
-// ------------- kreditor/modtagelse.php ----- (modul nr 6)------ ver 5.0.0----2026-10-21-------
+// ------------- kreditor/modtagelse.php ----- (modul nr 6)------ ver 5.1.1----2026-11-13-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,7 +27,8 @@
 //                A list that is already received is not booked again; modtaget_af is escaped and tidspkt uses minutes (H:i:s).
 // 20261027 CL/LH MB-75: The warehouse-1 comment in modtag() no longer claims kreditor/modtag.php matches lager 0/null rows;
 //                it states where this receipt and the product card differ.
-
+// 20261103 CL/ASR QA round 2: gated on Varemodtagelse ($modulnr 10, lager.varemodtagelse) instead of Debitorkonti (6), so Indkøb and Lager open it.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -36,7 +37,8 @@ $modtag = NULL;
 $varenr = NULL;
 $i_ordre = NULL;
 
-$modulnr = 6;
+$modulnr = 10; // Varemodtagelse (was 6, Debitorkonti)
+$permission_key = 'lager.varemodtagelse';
 $title = "Varemodtagelse";
 $css = "../css/standard.css";
 

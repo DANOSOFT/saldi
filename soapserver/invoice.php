@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/invoice.php -----ver 5.1.0---- 2026.10.28 ----------
+// #----------------- soapserver/invoice.php -----ver 5.1.1---- 2026.11.13 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,7 +21,7 @@
 // Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ini_set("soap.wsdl_cache_enabled", "0");
 
 function invoice($string) {
@@ -33,6 +33,7 @@ function invoice($string) {
 	if (!$s_id) return('1'.chr(9)."Missing session ID");
 #	include("../includes/select.php");
 	include ("../includes/connect.php");
+	$permission_key = 'any';
 	include ("../includes/online.php");
 	include ("../includes/std_func.php");
 	include ("../includes/ordrefunc.php");
