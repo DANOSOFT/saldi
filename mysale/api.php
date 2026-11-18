@@ -28,11 +28,11 @@
 // 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
-// 20261111 CL/MMR SST-999 createBooking moves the end of the booking one day on for every closed day in the period.
-//                 rentalclosed.day is a unix time, and strtotime() on it gave false, so no closed day was ever counted.
 //
 // 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261111 CL/MMR SST-999 createBooking moves the end of the booking one day on for every closed day in the period.
+//                 rentalclosed.day is a unix time, and strtotime() on it gave false, so no closed day was ever counted.
 
 $header = "nix";
 $bg = "nix";
