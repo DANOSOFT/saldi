@@ -11,6 +11,7 @@
 // History:
 // 20261118 CL/MMR SST-1008 Created.
 // 20261118 CL/MMR SST-1008 A project text on the sale line is kept on the cost lines (Codex).
+// 20261118 CL/MMR SST-1008 An item group without a purchase account stops the invoice with a message and changes nothing (Codex).
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -36,7 +37,7 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
     }
 
     /** A stock item in a group with batch control and a stock account (box2) and a purchase account (box3). */
-    private function batchItem(float $kostpris): array
+    private function batchItem(float $kostpris, bool $purchaseAccount = true): array
     {
         $item = self::$fx->item(['beholdning' => 0.0, 'kostpris' => $kostpris]);
         [$stock, $purchase] = self::$fx->plainAccounts(2);
@@ -46,7 +47,7 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
         $from['beskrivelse'] = 'Batch-kontrol uden automatisk lagerbogføring (test)';
         $from['box1'] = (string)($from['box1'] ?: $stock);
         $from['box2'] = (string)$stock;
-        $from['box3'] = (string)$purchase;
+        $from['box3'] = $purchaseAccount ? (string)$purchase : '';
         $from['box8'] = 'on';
         $from['box9'] = 'on';
         $cols = array_keys($from);
@@ -102,5 +103,26 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
             $projects = self::rows('SELECT DISTINCT projekt FROM transaktioner WHERE ordre_id = $1 AND kontonr::text IN ($2, $3)', [$sale['id'], $item['stock'], $item['purchase']]);
             $this->assertSame([$project], array_column($projects, 'projekt'), 'the project is stored as typed');
         }
+    }
+
+    public function test_a_group_without_a_purchase_account_stops_the_invoice_and_changes_nothing(): void
+    {
+        $item = $this->batchItem(50.00, false);
+        $this->receive($item);
+        $sale = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 4]]);
+        $stock = static fn (): array => [
+            (float)self::one('SELECT beholdning FROM varer WHERE id = $1', [$item['id']])['beholdning'],
+            (float)self::one('SELECT COALESCE(sum(beholdning), 0) AS b FROM lagerstatus WHERE vare_id = $1', [$item['id']])['b'],
+            (float)self::one('SELECT COALESCE(sum(rest), 0) AS r FROM batch_kob WHERE vare_id = $1', [$item['id']])['r'],
+        ];
+        $before = $stock();
+
+        $out = $this->runChildJson('run_order_invoice.php', ['invoice', $sale['id'], CharacterizationEnv::testDb()]);
+
+        $this->assertSame("Varegruppe {$item['gruppe']} mangler kontonummer for varekøb", $out['bogfor'], 'the missing setup is named');
+        $this->assertSame(0, (int)self::one('SELECT count(*) AS n FROM transaktioner WHERE ordre_id = $1', [$sale['id']])['n'], 'nothing is posted');
+        $this->assertSame(0, (int)self::one('SELECT count(*) AS n FROM ordrelinjer WHERE ordre_id = $1 AND posnr < 0', [$sale['id']])['n'], 'no cost lines are left');
+        $this->assertSame($before, $stock(), 'the stock is unchanged');
+        $this->assertNotSame('3', trim((string)$out['status']), 'the order is not invoiced');
     }
 }

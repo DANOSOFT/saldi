@@ -169,6 +169,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261118 CL/MMR SST-1008 batch_salg(): the cost-transfer lines for batch items without automatic stock posting name the saet column.
 // 20261118 CL/MMR SST-1008 Those two lines cast the quantity, cost, order id and accounts and escape the project (Codex).
+// 20261118 CL/MMR SST-1008 batch_salg() stops the invoice with a message when the item group has no purchase account for the cost transfer (Codex).
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 
@@ -1753,7 +1754,11 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 			}
 		}
 		batch_kob($id, $art);
-		batch_salg($id);
+		$batchError = batch_salg($id);
+		if ($batchError) {
+			if (!$callerOwnsTransaction) transaktion('rollback');
+			return $batchError;
+		}
 		$tidspkt = date("H:i");
 		$betaling_id = "";
 		if(isset($_SESSION["payment_id"]) && $_SESSION["payment_id"] != '') {
@@ -1899,6 +1904,13 @@ function momsupdat($id)
 	return ("OK");
 }
 ###########################################################
+/**
+ * Sets cost and accounts on the invoice's stock lines and, in a fiscal year without automatic stock posting,
+ * adds the lines that move the cost from the stock account to the purchase account. Called by bogfor().
+ *
+ * @param int|string $id The order being invoiced.
+ * @return string|null A message when the invoice cannot be posted (bogfor() rolls back and shows it), else null.
+ */
 function batch_salg($id)
 {
 	global $fakturadate;
@@ -2130,6 +2142,10 @@ function batch_salg($id)
 			}
 			if (!$aut_lager && $box1 && $box2 && $kostpris) { #kostvaerdien flyttes fra "afgang varelager" til "varekob".- hvis der ikke bogfoeres direkte paa varekobs kontoen
 				#	if ($valutakurs) $pris=$pris*100/$valutakurs;
+				if (!(int) $box3) {
+					// Without a purchase account only one side of the cost transfer could be posted; bogfor() rolls back.
+					return "Varegruppe $gruppe mangler kontonummer for varekøb";
+				}
 				$qtyCost = (float) $antal[$x];
 				$orderId = (int) $id;
 				$stockAccount = (int) $box2;
@@ -2159,6 +2175,9 @@ function batch_salg($id)
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			if (!$aut_lager && $box1 && $box2 && ($kostpris || $linjekostpris)) {
+				if (!(int) $box3) {
+					return "Varegruppe $gruppe mangler kontonummer for varekøb";
+				}
 				if (!$kostpris)
 					$kostpris = $linjekostpris;
 				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt,saet) values ('-1','$antal[$x]', '$kostpris', '0', '$id', '$box2','$projekt','0')", __FILE__ . " linje " . __LINE__);
