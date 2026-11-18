@@ -89,7 +89,11 @@ namespace {
             return \ModtagLotRestFixture\Db::$writes;
         }
 
-        /** The receipt's own lot, and a 2021 return lot on another purchase order left at rest -1. */
+        /**
+         * The receipt's own lot, and a 2021 return lot on another purchase order left at rest -1.
+         *
+         * @return array<string, array<int, array{id: int, rest: int, kobsdate: string|null}>> rows per query fragment
+         */
         private static function otherOrderRows(): array
         {
             return array(
@@ -102,7 +106,11 @@ namespace {
             );
         }
 
-        /** The receipt's own lot, and a hole (antal 0, ordre 0) from a sale before the item had a lot. */
+        /**
+         * The receipt's own lot, and a hole (antal 0, ordre 0) from a sale before the item had a lot.
+         *
+         * @return array<string, array<int, array{id: int, rest: int, kobsdate: string|null}>> rows per query fragment
+         */
         private static function holeRows(): array
         {
             return array(
@@ -115,6 +123,7 @@ namespace {
             );
         }
 
+        /** @return array<string, array{0: string}> the name of the fixture method per case */
         public static function batchControlledCases(): array
         {
             return array(
@@ -145,7 +154,11 @@ namespace {
             ), $this->receive(false, self::holeRows()));
         }
 
-        /** box9 only takes the reservation() lot path when the group is also stock-managed (box8). */
+        /**
+         * box9 only takes the reservation() lot path when the group is also stock-managed (box8).
+         *
+         * @return array<string, array{0: string, 1: string, 2: bool}> box8, box9 and the expected flag per case
+         */
         public static function groupCases(): array
         {
             return array(
