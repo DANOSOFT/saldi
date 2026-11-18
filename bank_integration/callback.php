@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/callback.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/callback.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20261007 CDX/LH Released the session lock before authorization completion and translated bank errors.
 // 20261028 CDX/LH Use authorization-specific error messages when a bank login cannot be completed.
 // 20261116 CL/LH Texts through findtekst() (bank.callback.*).
+// 20261118 CL/LH The bank sends the whole window here; success and failure both return into Saldi's frame layout (ebShellRedirect()), the failure as a message on the connect page.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -93,25 +94,15 @@ if ($unavailable !== null) {
 		} else {
 			ebFlash('ok', sprintf(ebT(findtekst('bank.callback.connected|Forbindelsen til %s er oprettet. Vælg bogføringskonto og startdato for hver bankkonto nedenfor.', ebLang())), $bankName));
 		}
-		ebRedirect('accounts.php?connection=' . (int)$connectionId);
+		ebShellRedirect('accounts.php?connection=' . (int)$connectionId);
 	} catch (Throwable $e) {
 		$message = ebErrorMessage($e, 'authorization');
 	}
 }
 
 // ---------------------------------------------------------------------
-// View (only reached when something went wrong)
+// Something went wrong: the bank sent the whole window here, so the message is shown on the connect page
+// inside Saldi's frame layout, where the user can try again or go back to the settings.
 // ---------------------------------------------------------------------
-include(__DIR__ . '/includes/page_header.php');
-print ebRenderTopline(ebT(findtekst('bank.journal.button|Bankforbindelse', ebLang())), '../systemdata/diverse.php?sektion=bank_integration');
-print "<div class='content-noside'>\n";
-print ebRenderFlash();
-print "<div class='eb-panel'><h2>" . ebHT(findtekst('bank.callback.failed|Forbindelsen blev ikke oprettet', ebLang())) . "</h2>";
-print "<p>" . ebMessageHtml($message) . "</p>";
-print "<div class='eb-actions'>";
-if ($unavailable === null && ebCanManage()) {
-	print "<a class='eb-btn' href='connect.php'>" . ebHT(findtekst('bank.connect.try_again|Prøv igen', ebLang())) . "</a>";
-}
-print "<a class='eb-btn secondary' href='../systemdata/diverse.php?sektion=bank_integration'>" . ebHT(findtekst('bank.callback.to_settings|Til indstillinger', ebLang())) . "</a>";
-print "</div></div>\n";
-print "</div>\n</body>\n</html>\n";
+ebFlash('error', ebT(findtekst('bank.callback.failed|Forbindelsen blev ikke oprettet', ebLang())) . ': ' . $message);
+ebShellRedirect('connect.php');
