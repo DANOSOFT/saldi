@@ -1134,4 +1134,3 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         $this->aTemporarySettingsHoldingTheFlag(MYSQLI_REPORT_OFF);
     }
 }
-
