@@ -23,6 +23,7 @@
 // 20261118 CL/MMR SD-815 Codex round 30: a unique filename key with INCLUDE (id) counts, so nothing is added and the backfill runs; with both usual names taken the new index gets pool_files_filename_uidx2.
 // 20261118 CL/MMR SD-815 Codex round 31: with the four usual names taken (three indexes and a table with a row) the new index is pool_files_filename_uidx4; a stopped run is logged with its reason.
 // 20261118 CL/MMR SD-815 Codex round 37: an ON DELETE CASCADE reference from another table and duplicate filenames: nothing deleted anywhere, no flag, the constraint named in the log; without duplicates the repair runs.
+// 20261118 CL/MMR SD-815 Codex round 42: a DELETE trigger or a DELETE rule on pool_files and duplicate filenames: nothing deleted anywhere, no flag, named in the log.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -979,5 +980,51 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertContains('unique_filename', $done);
         self::assertContains('norm_amount_backfill', $done);
         self::assertSame(['10', '11'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_linked_document ORDER BY id')));
+    }
+
+    private function linkedDocumentsWithoutAForeignKey(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE TABLE pool_linked_document (id integer PRIMARY KEY, pool_id integer)');
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '1,00'), (2, 'a.pdf', '99,00')");
+        $this->sql('INSERT INTO pool_linked_document VALUES (10, 1), (11, 2)');
+    }
+
+    private function assertNothingDeleted(string $named): void
+    {
+        self::assertSame('2', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 0, 0), 'both duplicates kept');
+        self::assertSame(['10', '11'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_linked_document ORDER BY id')), 'no linked row deleted');
+        self::assertSame(0, $this->backfillFlags());
+        self::assertStringContainsString($named, (string) file_get_contents($this->log));
+    }
+
+    public function testADeleteTriggerStopsTheCollapse(): void
+    {
+        $this->linkedDocumentsWithoutAForeignKey();
+        $this->sql("CREATE FUNCTION pool_files_unlink() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN DELETE FROM pool_linked_document WHERE pool_id = OLD.id; RETURN OLD; END'");
+        $this->sql('CREATE TRIGGER pool_files_unlink AFTER DELETE ON pool_files FOR EACH ROW EXECUTE FUNCTION pool_files_unlink()');
+
+        self::assertNotContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        $this->assertNothingDeleted('trigger pool_files_unlink');
+    }
+
+    public function testADeleteRuleStopsTheCollapse(): void
+    {
+        $this->linkedDocumentsWithoutAForeignKey();
+        $this->sql('CREATE RULE pool_files_unlink_rule AS ON DELETE TO pool_files DO ALSO DELETE FROM pool_linked_document WHERE pool_id = OLD.id');
+
+        self::assertNotContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        $this->assertNothingDeleted('rule pool_files_unlink_rule');
+    }
+
+    public function testWithoutATriggerTheCollapseRuns(): void
+    {
+        $this->linkedDocumentsWithoutAForeignKey();
+
+        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+        self::assertSame('99,00', pg_fetch_result($this->sql("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 0, 0));
+        self::assertSame(['10', '11'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_linked_document ORDER BY id')), 'nothing else touched');
     }
 }

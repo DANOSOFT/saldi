@@ -22,6 +22,7 @@
 // 20261118 CL/MMR SD-815 Codex round 39: a parent database named with a '-' (encoded @002d by InnoDB) and a cascading child elsewhere keeps every row; two NULL filenames are no duplicates and are repaired by a parent-only user.
 // 20261118 CL/MMR SD-815 Codex round 40: a non-ASCII parent database name with latin1 results (the name comes back as '?') and a cascading child elsewhere keeps every row; the session setting is left as it was.
 // 20261118 CL/MMR SD-815 Codex round 41: with sql_mode ANSI_QUOTES (SHOW CREATE TABLE prints "pool_files") the repair completes and the mode is left as it was, in both mysqli modes.
+// 20261118 CL/MMR SD-815 Codex round 42: a DELETE trigger on pool_files and duplicates keeps every row (both mysqli modes); a user without the TRIGGER privilege waits with duplicates.
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -147,13 +148,16 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     }
 
     /** A database user of this test with exactly $grants on the test database; the helper then runs as that user. */
-    private function runAs(string $grants): \mysqli
+    private function runAs(string $grants, string $globalGrants = ''): \mysqli
     {
         $user = 'pool_mig_' . bin2hex(random_bytes(4));
         $pass = bin2hex(random_bytes(12));
         $this->sql("CREATE USER '$user'@'localhost' IDENTIFIED BY '$pass'");
         $this->users[] = $user;
         $this->sql("GRANT $grants ON {$this->database}.* TO '$user'@'localhost'");
+        if ($globalGrants !== '') {
+            $this->sql("GRANT $globalGrants ON *.* TO '$user'@'localhost'");
+        }
         $limited = mysqli_connect('localhost', $user, $pass, $this->database, 0, (string) getenv('SALDI_CHAR_MYSQL_SOCKET'));
         $GLOBALS['ensurePoolFilesMysql'] = $limited;
         $GLOBALS['connection'] = $limited;
@@ -365,7 +369,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     {
         // Without duplicates: with duplicates the collapse also needs PROCESS (round 38, see the test below).
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('b.pdf', '99,00')");
-        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES');
+        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES, TRIGGER');
 
         $done = ensurePoolFilesSchema('mysqli');
 
@@ -764,7 +768,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     {
         $this->allLaterColumns();
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
-        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES');
+        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES, TRIGGER');
 
         $done = ensurePoolFilesSchema('mysqli');
 
@@ -780,7 +784,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '1,00'), (2, 'a.pdf', '99,00')");
         $other = $this->childInAnotherDatabase();
         $this->sql("INSERT INTO $other.pool_linked_document VALUES (10, 1), (11, 2)");
-        $limited = $limitedUser ? $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES') : null;
+        $limited = $limitedUser ? $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES, TRIGGER') : null;
         mysqli_report($reportMode);
 
         $done = ensurePoolFilesSchema('mysqli');
@@ -851,7 +855,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testTwoNullFilenamesAreNoDuplicates(): void
     {
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES (NULL, '10,00'), (NULL, '99,00'), ('a.pdf', '5,00')");
-        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES');
+        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES, TRIGGER');
 
         $done = ensurePoolFilesSchema('mysqli');
 
@@ -944,5 +948,49 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testAnsiQuotesIsRepairedReportingOff(): void
     {
         $this->ansiQuotesIsRepaired(MYSQLI_REPORT_OFF);
+    }
+
+    private function aDeleteTrigger(int $reportMode): void
+    {
+        $this->allLaterColumns();
+        $this->sql('CREATE TABLE pool_linked_document (id INT NOT NULL PRIMARY KEY, pool_id INT) ENGINE=InnoDB');
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '1,00'), (2, 'a.pdf', '99,00')");
+        $this->sql('INSERT INTO pool_linked_document VALUES (10, 1), (11, 2)');
+        $this->sql('CREATE TRIGGER pool_files_unlink AFTER DELETE ON pool_files FOR EACH ROW DELETE FROM pool_linked_document WHERE pool_id = OLD.id');
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'both duplicates kept');
+        self::assertSame('2', $this->one('SELECT count(*) FROM pool_linked_document'), 'no linked row deleted');
+        self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertStringContainsString('trigger pool_files_unlink', (string) file_get_contents($this->log));
+    }
+
+    public function testADeleteTriggerStopsTheCollapseStrict(): void
+    {
+        $this->aDeleteTrigger(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testADeleteTriggerStopsTheCollapseReportingOff(): void
+    {
+        $this->aDeleteTrigger(MYSQLI_REPORT_OFF);
+    }
+
+    public function testDuplicatesWithoutTheTriggerPrivilegeAreNotDeleted(): void
+    {
+        $this->allLaterColumns();
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        // PROCESS so the reference check could pass; the trigger check is what decides.
+        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES', 'PROCESS');
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
+        self::assertStringContainsString('TRIGGER privilege', (string) file_get_contents($this->log));
+        mysqli_close($limited);
     }
 }

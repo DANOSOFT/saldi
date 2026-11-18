@@ -57,6 +57,9 @@ $allowed = [
 	'EnsurePoolFilesSchemaMysqlTest::testANonAsciiParentDatabaseWithLatin1ResultsKeepsEveryRowReportingOff',
 	'EnsurePoolFilesSchemaMysqlTest::testAnsiQuotesIsRepairedStrict',
 	'EnsurePoolFilesSchemaMysqlTest::testAnsiQuotesIsRepairedReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testADeleteTriggerStopsTheCollapseStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testADeleteTriggerStopsTheCollapseReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesWithoutTheTriggerPrivilegeAreNotDeleted',
 ];
 
 $file = $argv[1] ?? '';

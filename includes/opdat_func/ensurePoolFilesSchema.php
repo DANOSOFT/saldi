@@ -67,6 +67,7 @@
 // 20261118 CL/MMR SD-815 Codex round 39: NULL filenames are not duplicates (the collapse never deletes them); InnoDB's REF_NAME is compared with this database's name in MySQL's filename encoding (a '-' is @002d); only a name with non-ASCII characters, whose encoding is not rebuilt here, counts every encoded reference as possibly its own.
 // 20261118 CL/MMR SD-815 Codex round 40: the database name and REF_NAME are read as HEX() and decoded in PHP, so the session's character_set_results cannot turn a non-ASCII name into '?'; the session settings are not touched.
 // 20261118 CL/MMR SD-815 Codex round 41: the CREATE TABLE header's name is also recognised in double quotes (sql_mode ANSI_QUOTES); the session's sql_mode is not touched.
+// 20261118 CL/MMR SD-815 Codex round 42: with duplicates, a user DELETE trigger on pool_files (PostgreSQL: or a DELETE rule) also stops the collapse - it could change other tables; on MySQL/MariaDB triggers are only visible with the TRIGGER privilege, so without it the collapse waits too.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -234,6 +235,52 @@ if (!function_exists('ensurePoolFilesMysqlEncodedName')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesGuardDeleteTriggers')) {
+	/**
+	 * Stops the duplicate collapse when a user DELETE trigger (PostgreSQL: or a DELETE rule) is defined on pool_files:
+	 * it would run for every deleted duplicate. PostgreSQL's pg_trigger and pg_rewrite are complete for every user.
+	 * MySQL/MariaDB show a table's triggers only with the TRIGGER privilege on it, so without that privilege (global,
+	 * on this database or on pool_files) the triggers cannot be ruled out and the collapse waits as well. Called by
+	 * ensurePoolFilesGuardInboundReferences() under the same lock, only when there are duplicates.
+	 *
+	 * @param string $db_type
+	 * @return void
+	 * @throws EnsurePoolFilesSchemaUnknown When a DELETE trigger exists or cannot be ruled out; logged.
+	 */
+	function ensurePoolFilesGuardDeleteTriggers(string $db_type): void {
+		$names = array();
+		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
+			$grantee = "CONCAT('''', SUBSTRING_INDEX(CURRENT_USER(), '@', 1), '''@''', SUBSTRING_INDEX(CURRENT_USER(), '@', -1), '''')";
+			$privilege = ensurePoolFilesMysqlRows("SELECT 1 AS ok FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = $grantee AND PRIVILEGE_TYPE = 'TRIGGER'
+				UNION SELECT 1 FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = $grantee AND PRIVILEGE_TYPE = 'TRIGGER' AND TABLE_SCHEMA = DATABASE()
+				UNION SELECT 1 FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = $grantee AND PRIVILEGE_TYPE = 'TRIGGER' AND TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pool_files'");
+			$triggers = $privilege ? ensurePoolFilesMysqlRows("SELECT TRIGGER_NAME AS name FROM information_schema.TRIGGERS
+				WHERE EVENT_OBJECT_SCHEMA = DATABASE() AND EVENT_OBJECT_TABLE = 'pool_files' AND EVENT_MANIPULATION = 'DELETE'") : null;
+			if ($triggers === null) {
+				error_log('ensurePoolFilesSchema: nothing deleted, pool_files has duplicate filenames and its DELETE triggers cannot be read'
+					. ' (information_schema.TRIGGERS needs the TRIGGER privilege); grant it or merge the duplicates by hand');
+				throw new EnsurePoolFilesSchemaUnknown('DELETE triggers on pool_files cannot be ruled out');
+			}
+			foreach ($triggers as $r) {
+				$names[] = 'trigger ' . (string)($r['name'] ?? '');
+			}
+		} else {
+			$q = ensurePoolFilesSelect("SELECT 'trigger ' || t.tgname AS name FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+				WHERE c.relname = 'pool_files' AND n.nspname = current_schema() AND NOT t.tgisinternal AND (t.tgtype & 8) <> 0
+				UNION ALL SELECT 'rule ' || r.rulename FROM pg_rewrite r JOIN pg_class c ON c.oid = r.ev_class JOIN pg_namespace n ON n.oid = c.relnamespace
+				WHERE c.relname = 'pool_files' AND n.nspname = current_schema() AND r.ev_type = '4'", __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$names[] = (string)($r['name'] ?? '');
+			}
+		}
+		if ($names) {
+			error_log('ensurePoolFilesSchema: nothing deleted, pool_files has duplicate filenames and DELETE ' . implode(', ', $names)
+				. ' could change other data; merge the duplicates by hand, then the next login adds the unique filename index');
+			throw new EnsurePoolFilesSchemaUnknown('DELETE triggers on pool_files');
+		}
+	}
+}
+
 if (!function_exists('ensurePoolFilesGuardInboundReferences')) {
 	/**
 	 * Stops the duplicate collapse when there is something to delete and other tables may refer to pool_files with
@@ -253,6 +300,8 @@ if (!function_exists('ensurePoolFilesGuardInboundReferences')) {
 		if (!db_fetch_array(ensurePoolFilesSelect("SELECT filename FROM pool_files WHERE filename IS NOT NULL GROUP BY filename HAVING COUNT(*) > 1 LIMIT 1", __LINE__))) {
 			return; // nothing to delete, nothing can cascade
 		}
+		// A DELETE trigger (or rule) on pool_files would run for every deleted duplicate and could change other tables.
+		ensurePoolFilesGuardDeleteTriggers($db_type);
 		$names = array();
 		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
 			$rows = null;
