@@ -5,6 +5,7 @@
 // 20261118 CL/MMR SD-815 Codex round 8: a deferrable filename constraint is replaced, and a failed or impossible norm_amount update never marks the backfill done.
 //                 The test's db_modify() acts like the production one for an update file: a failed statement is logged, rolled back to a savepoint and reported as accepted.
 // 20261118 CL/MMR SD-815 Codex round 9: two connections, a pool save committing while the backfill update waits for its row lock is kept (amount and norm_amount together, or the text alone, filled on the next run).
+// 20261118 CL/MMR SD-815 Codex round 10: the test's db_select()/db_modify() rewrite ' like ' to ' ilike ' as the production PostgreSQL branch does, and amount texts with ' like ', quotes and ';' are filled.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -38,6 +39,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $GLOBALS['ensurePoolFilesErrors'] = [];
         if (!function_exists('db_select')) {
             function db_select($sql, $location = '') {
+                $sql = str_replace(' like ', ' ilike ', $sql); // as includes/db_query.php does on PostgreSQL
                 $result = pg_query($GLOBALS['ensurePoolFilesConnection'], $sql);
                 if ($result === false) {
                     throw new RuntimeException(pg_last_error($GLOBALS['ensurePoolFilesConnection']));
@@ -49,6 +51,7 @@ final class EnsurePoolFilesSchemaTest extends TestCase
             }
             function db_modify($sql, $location = '') {
                 $GLOBALS['ensurePoolFilesWrites'][] = $sql;
+                $sql = str_replace(' like ', ' ilike ', $sql); // as includes/db_query.php does on PostgreSQL
                 $connection = $GLOBALS['ensurePoolFilesConnection'];
                 $inTransaction = pg_transaction_status($connection) === PGSQL_TRANSACTION_INTRANS;
                 if ($inTransaction) {
@@ -418,5 +421,36 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame(['amount' => '125,00', 'norm_amount' => '125.000'], $this->oldRow());
         self::assertSame(1, $this->backfillFlags());
         self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+    }
+
+    public function testAmountTextsTheQueryHelperWouldAlterAreFilled(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $texts = ['like.pdf' => 'amount like 99,00', 'quote.pdf' => "it's 5,00", 'semicolon.pdf' => '7,00; kr', 'backslash.pdf' => '8,00 \\'];
+        foreach ($texts as $file => $amount) {
+            $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('$file', '" . pg_escape_string($this->connection, $amount) . "')");
+        }
+        $expected = [];
+        foreach ($texts as $file => $amount) {
+            $expected[$file] = ensurePoolFilesBackfillValue($amount);
+        }
+        self::assertSame('99.000', $expected['like.pdf']);
+
+        self::assertContains('norm_amount_backfill', ensurePoolFilesSchema('postgresql'));
+
+        foreach ($expected as $file => $value) {
+            $stored = pg_fetch_result($this->sql("SELECT norm_amount FROM pool_files WHERE filename = '$file'"), 0, 0);
+            self::assertSame($value, $stored, $file);
+        }
+        self::assertSame(1, $this->backfillFlags());
+        foreach ($GLOBALS['ensurePoolFilesWrites'] as $sql) {
+            foreach ($texts as $amount) {
+                self::assertStringNotContainsString($amount, $sql, 'the amount text is never put into the SQL');
+            }
+        }
+        self::assertSame([], $GLOBALS['ensurePoolFilesErrors']);
+        $GLOBALS['ensurePoolFilesWrites'] = [];
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+        self::assertSame([], $GLOBALS['ensurePoolFilesWrites']);
     }
 }

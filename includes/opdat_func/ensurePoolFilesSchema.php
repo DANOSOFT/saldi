@@ -29,6 +29,7 @@
 // 20261118 CL/MMR SD-815 Codex round 8: a deferrable unique constraint on filename (ON CONFLICT cannot use it) is replaced by an immediate unique index.
 //                 The backfill flag is set only when a re-read finds no row left to fill (db_modify() reports a failed write from an update file as accepted), and an amount numeric(15,3) cannot hold stays NULL like an unparseable one.
 // 20261118 CL/MMR SD-815 Codex round 9: a backfill update only writes while norm_amount is still NULL and amount is still the text it was computed from, so a pool save that commits meanwhile is never overwritten.
+// 20261118 CL/MMR SD-815 Codex round 10: the text is compared by the md5 the database computes, never put into the SQL (db_modify() turns ' like ' into ' ilike ' inside literals, and injecttjek() reads quotes and ';').
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -82,18 +83,19 @@ if (!function_exists('ensurePoolFilesBackfillValue')) {
 
 if (!function_exists('ensurePoolFilesBackfillPending')) {
 	/**
-	 * Rows whose norm_amount is still empty although their amount text gives one: id => the amount text read and
-	 * the SQL value it gives.
+	 * Rows whose norm_amount is still empty although their amount text gives one: id => the md5 of the amount text,
+	 * computed by the database (32 hex digits, so it is safe in SQL whatever the text holds), and the SQL value.
 	 *
-	 * @return array<int, array{amount: string, value: string}>
+	 * @return array<int, array{amountMd5: string, value: string}>
 	 */
 	function ensurePoolFilesBackfillPending(): array {
 		$pending = array();
-		$q = db_select("SELECT id, amount FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __FILE__ . " linje " . __LINE__);
+		$q = db_select("SELECT id, amount, md5(amount) AS amount_md5 FROM pool_files WHERE norm_amount IS NULL AND amount IS NOT NULL AND amount != ''", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$value = ensurePoolFilesBackfillValue($r['amount']);
-			if ($value !== null) {
-				$pending[(int)$r['id']] = array('amount' => (string)$r['amount'], 'value' => $value);
+			$md5 = strtolower((string)($r['amount_md5'] ?? ''));
+			if ($value !== null && preg_match('/^[0-9a-f]{32}$/', $md5)) {
+				$pending[(int)$r['id']] = array('amountMd5' => $md5, 'value' => $value);
 			}
 		}
 		return $pending;
@@ -233,8 +235,9 @@ if (!function_exists('ensurePoolFilesSchema')) {
 				foreach (ensurePoolFilesBackfillPending() as $id => $row) {
 					// Only while the row is as it was read: a pool save (poolMetadata.php writes amount and norm_amount
 					// together) that commits while this waits for the row lock is re-checked by the WHERE and kept.
+					// The text is matched by its md5 and never written into the SQL.
 					db_modify("UPDATE pool_files SET norm_amount = " . $row['value'] . " WHERE id = " . (int)$id
-						. " AND norm_amount IS NULL AND amount = '" . db_escape_string($row['amount']) . "'", __FILE__ . " linje " . __LINE__);
+						. " AND norm_amount IS NULL AND md5(amount) = '" . $row['amountMd5'] . "'", __FILE__ . " linje " . __LINE__);
 				}
 				// db_modify() reports a failed write from an update file as accepted, so read back: the flag only when no
 				// row is left to fill. Otherwise no flag, and the next login tries the rest again.
