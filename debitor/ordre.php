@@ -196,6 +196,7 @@
 // 20261118 CL/MMR SST-1013 The credit-limit queries escape the order currency and the post date, and cast the account id.
 //                 A rate of 0 is handled like a missing rate, so it no longer stops the page with a division by zero.
 //                 A post without a date is handled like a missing rate too, instead of comparing with an empty date.
+//                 A post amount or rate that is not a number (NULL, NaN) counts as 0 and 100, so the sum cannot stop the page.
 @session_start();
 $s_id = session_id();
 
@@ -6585,8 +6586,11 @@ function ordreside($id, $regnskab)
 				$tilgode = 0;
 				while ($r = db_fetch_array($q)) {
 					if (!$r['valuta']) $r['valuta'] = $baseCurrency;
-					if (!$r['valutakurs']) $r['valutakurs'] = 100;
-					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
+					// NULL or a value that is not a number (e.g. PostgreSQL NaN) cannot be calculated with: the amount counts as 0, the rate as 100
+					$postAmount = is_numeric($r['amount']) ? (float)$r['amount'] : 0;
+					$postRate = is_numeric($r['valutakurs']) ? (float)$r['valutakurs'] : 0;
+					if (!$postRate) $postRate = 100;
+					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $postAmount * $postRate / 100;
 					elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
 						$r3 = false; // a post without a date has no rate to look up
 						if ($r['transdate']) {
@@ -6594,7 +6598,7 @@ function ordreside($id, $regnskab)
 						}
 						$rateKurs = ($r3 && is_numeric($r3['kurs'])) ? (float)$r3['kurs'] : 0;
 						if ($rateKurs > 0) { // a rate of 0 or no rate is handled as no rate
-							$opp_amount = $r['amount'] * 100 / $rateKurs;
+							$opp_amount = $postAmount * 100 / $rateKurs;
 						} else {
 							$opp_amount = 0; // no rate: the post cannot be converted, and the previous post's amount must not be counted again
 							if ($valuta) {
@@ -6603,9 +6607,9 @@ function ordreside($id, $regnskab)
 							}
 						}
 					} elseif ($valuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $valuta) {
-						$tmp = $r['amount'] * $r['valutakurs'] / 100; // the post in the base currency
+						$tmp = $postAmount * $postRate / 100; // the post in the base currency
 						$opp_amount = ($valutakurs) ? $tmp * 100 / $valutakurs : $tmp; // and in the order's currency
-					} else $opp_amount = $r['amount'];
+					} else $opp_amount = $postAmount;
 					$tilgode = $tilgode + $opp_amount;
 				}
 				if ($kreditmax < $ialt + $tilgode) {
