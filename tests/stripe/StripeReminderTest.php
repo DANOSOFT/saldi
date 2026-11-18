@@ -1,9 +1,10 @@
 <?php
 // 20261109 CL/ASR Link reminders (Linkrykker): which reminders become link reminders, registration, renteloven § 9 b, the reminder fee and interest on the next invoice (and when they are waived), the reminder mail and its send path with classic fallback, the dunning hold for card-on-file invoices and closing paid reminders.
 // 20261109 CL/ASR Review fixes: paid and out-of-year reminders are not escalated, a shared fee/interest item, the earlier classic fee as a bank row (D1), the first mailed_at kept (D2), the PDF treatment (D3), staff texts in the database's encoding (D4), no fee on cash/card sales, the current lines and the order's project, the hold only while the job collects, booked drafts kept, "Frafald" with its token.
-
+//
 // 20261111 CDX/ASR Cover link PDF deadlines and preserve classic and collection-warning text.
 // 20261116 CDX/ASR Multi-invoice buttons name one invoice and skip below-minimum invoices while retaining their balance and view link.
+// 20261118 CDX/ASR Verify that customer mails greet the recipient company rather than a contact person.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
@@ -525,7 +526,7 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         $this->assertSame("Rykker: Faktura $nr fra {$inv['brand']} er ikke betalt", $mail['subject']);
         $plain = self::plain($mail['html']);
         $this->assertStringContainsStringIgnoringCase("1. rykker · faktura $nr", $plain);
-        foreach (['Vi mangler din betaling', 'Hej Anne,',
+        foreach (['Vi mangler din betaling', 'Hej Stripe test debtor,',
             "Vi har endnu ikke modtaget betalingen af faktura $nr, som forfaldt den 16.01.2026. Måske er den bare gledet forbi – du kan betale den med kort lige her.",
             'Slå automatisk betaling til – og spar rykkergebyret på 100,00 kr.',
             'Betaler du med knappen nedenfor og gemmer kortet, fjerner vi rykkergebyret.',

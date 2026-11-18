@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeInvoice.php --- 2026.11.16
+// --- includes/stripeIncludes/stripeInvoice.php --- 2026.11.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20261022 CL/LH S5 customer texts: decline codes in Danish, first-name greeting, last-attempt text, pre-charge notice mail for enrolled debtors.
 // 20261022 CDX/LH Match consent to the configured charge date and refuse notices for invoices the job cannot collect.
 // 20261022 CDX/LH Reconcile caller changes before collection, block debtor credits and remove the unavailable Saldi menu hint.
+// 20261118 CDX/ASR Address customer mails to the debtor's company, including existing first-name template placeholders.
 
 include_once(__DIR__ . '/../std_func.php');
 include_once(__DIR__ . '/stripeMailRecipients.php');
@@ -200,7 +201,7 @@ if (!function_exists('stripe_txt')) {
 			'alert_declines_subject'  => 'Stripe: automatisk træk afvist 3 gange - faktura %nr',
 			'alert_declines_body'     => "Kunde: %kunde (konto %konto)\nFaktura: %nr\nSidste fejl fra Stripe: %code\nDer trækkes ikke automatisk igen. Fakturaen følger den almindelige rykkervej.",
 			// mails
-			'mail_greeting'     => 'Hej %fornavn,',
+			'mail_greeting'     => 'Hej %firmanavn,',
 			'mail_greeting_anon'=> 'Hej,',
 			'mail_label_invoice'=> 'Faktura %nr',
 			'mail_h_new'        => 'Din faktura er klar',
@@ -329,10 +330,10 @@ if (!function_exists('stripe_decline_text')) {
 		$code = strtolower(trim((string)$code));
 		return stripe_txt('decline_' . (isset($map[$code]) ? $map[$code] : 'generic'));
 	}
-	/** @return string "Hej Anna," from the contact person's first name, otherwise "Hej,". */
+	/** @return string Greeting using the recipient company's full name, or plain "Hej," when missing. */
 	function stripe_mail_greeting($inv) {
-		$name = trim((string)($inv['fornavn'] ?? ''));
-		return $name !== '' ? stripe_txt('mail_greeting', array('fornavn' => $name)) : stripe_txt('mail_greeting_anon');
+		$name = trim((string)($inv['recipient_company'] ?? ''));
+		return $name !== '' ? stripe_txt('mail_greeting', array('firmanavn' => $name)) : stripe_txt('mail_greeting_anon');
 	}
 	/** @return string "kontakt os på <invoicing company's e-mail>", or "kontakt os" without one. */
 	function stripe_contact_phrase($inv) {
@@ -549,7 +550,7 @@ if (!function_exists('stripe_invoice_load')) {
 	 *   total_ore: int, due: string, currency: string,
 	 *   lines: array<int, array{varenr: string, tekst: string, antal: float, pris: float, rabat: float, sum: float, is_text: bool}>,
 	 *   firma: array<string, mixed>, brand: string, debtor: array<string, mixed>,
-	 *   email: string, fornavn: string, no_card: bool, enrolled: bool, recurring: bool,
+	 *   email: string, recipient_company: string, no_card: bool, enrolled: bool, recurring: bool,
 	 *   paid: array|null, pending: array|null, failed: array|null, payments: array,
 	 *   paid_bank: bool, open_count: int, open_rest_ore: int, fully_open: bool,
 	 *   reminder: array{rykker_id: int, level: int, mailed_at: string, fee_ore: int, interest_ore: int, fee_mode: string, status: string}|null,
@@ -582,10 +583,8 @@ if (!function_exists('stripe_invoice_load')) {
 		if (stripos($inv['brand'], 'saldi') !== false || stripos($inv['brand'], 'danosoft') !== false) $inv['brand'] = 'Saldi';
 		$inv['debtor'] = (int)$o['konto_id'] ? (db_fetch_array(stripe_payment_select("select id, kontonr, firmanavn, kontakt, email, stripe_fravalg, stripe, stripe_customer_id, stripe_pm_id, stripe_date, pbs_nr, udskriv_til from adresser where id = " . (int)$o['konto_id'], __FILE__ . " linje " . __LINE__)) ?: array()) : array();
 		$inv['email'] = trim((string)$o['email']) ?: trim((string)($inv['debtor']['email'] ?? ''));
-		// Greet the contact person by first name; a contact field holding the company name is not a person.
-		$kontakt = trim((string)$o['kontakt']) ?: trim((string)($inv['debtor']['kontakt'] ?? ''));
-		if (strcasecmp($kontakt, trim((string)$o['firmanavn'])) === 0) $kontakt = '';
-		$inv['fornavn'] = trim((string)explode(' ', $kontakt)[0]);
+		// The debtor's current company receives the mail; contact names may be out of date.
+		$inv['recipient_company'] = trim((string)($inv['debtor']['firmanavn'] ?? '')) ?: trim((string)$o['firmanavn']);
 		$inv['no_card'] = stripe_bool($inv['debtor']['stripe_fravalg'] ?? '') || (($inv['debtor']['stripe_fravalg'] ?? '') === 'on');
 		$inv['enrolled'] = (($inv['debtor']['stripe'] ?? '') === 'on') && !empty($inv['debtor']['stripe_pm_id']);
 		$inv['recurring'] = trim((string)$o['nextfakt']) !== '' && $o['art'] === 'DO' && !$inv['enrolled'];
@@ -1202,11 +1201,15 @@ if (!function_exists('stripe_mail_layout')) {
 		$body = stripe_invoice_link_text();
 		if ($body === '') {
 			$body = stripe_mail_greeting($inv) . "\n\n" . stripe_txt('mail_body_new') . (!$inv['enrolled'] && stripe_invoice_save_allowed($inv) ? stripe_txt('mail_body_new_rec') : '');   // 20261027 CL/ASR every invoice offers automatic payment
-		} elseif ($inv['fornavn'] !== '') {
-			$body = str_replace(array('[Fornavn]', '[fornavn]', '$fornavn'), $inv['fornavn'], $body);
 		} else {
-			// "Hej [Fornavn], ..." becomes "Hej, ..." without a contact name.
-			$body = preg_replace('/\s*(\[Fornavn\]|\[fornavn\]|\$fornavn)/', '', $body);
+			// Existing first-name placeholders also resolve to the company, without rewriting saved templates.
+			$tokens = array('[Virksomhedsnavn]', '[virksomhedsnavn]', '[Firmanavn]', '[firmanavn]', '$firmanavn', '[Fornavn]', '[fornavn]', '$fornavn');
+			if ($inv['recipient_company'] !== '') {
+				$body = str_replace($tokens, $inv['recipient_company'], $body);
+			} else {
+				$pattern = implode('|', array_map(function ($token) { return preg_quote($token, '/'); }, $tokens));
+				$body = preg_replace('/\s*(' . $pattern . ')/', '', $body);
+			}
 		}
 		$rows = array(array(stripe_txt('amount_lbl'), stripe_fmt_kr($inv['total_ore']) . ' kr.'), array(stripe_txt('due_date'), stripe_fmt_date($inv['due'])));
 		$note = stripe_txt('mail_note_new', array('url' => '<a href="' . stripe_h($url) . '" style="color:#183d78">' . stripe_h($url) . '</a>'));
