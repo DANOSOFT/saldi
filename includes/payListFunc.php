@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/payListFunc.php --- Patch 4.0.5 --- 2022.01.31 ---
+// --- includes/payListFunc.php --- ver 5.1.1 --- 2026.11.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,25 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 //
 // 20220131 Moved functions from debitor/betalinger.php
 // 20231213 MSC - Implementing new design
+// 20261118 CL/MMR SST-1036: «Se / gem betalingsfil» links carry a digest of the file's content (payFileHref()).
+//                 The file name never changes, so the browser could show a cached older bank file after a new one was made.
+
+/**
+ * Href for the «Se / gem betalingsfil» link. The bank file always gets the same name, so the link carries a digest of
+ * the file's content; without it the browser may show a cached older file after a new one has been written.
+ *
+ * @param string $filnavn Path of the bank file that was just written and closed
+ * @return string The path with "?v=<content digest>"
+ */
+function payFileHref($filnavn) {
+	$digest = is_file($filnavn) ? md5_file($filnavn) : false;
+	return $filnavn . '?v=' . ($digest ? substr($digest, 0, 12) : time());
+}
 
 function betalingskontrol($erh,$fra_kto,$egen_ref,$til_kto,$kort_ref,$modt_navn,$belob,$valuta,$betalingsdato) {
 	global $myCtry;
@@ -151,7 +165,7 @@ function udskriv_nordea($db_id,$bruger_id,$liste_id) {
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 
 }
 function udskriv_danskebank($db_id,$bruger_id,$liste_id) {
@@ -191,7 +205,7 @@ function udskriv_danskebank($db_id,$bruger_id,$liste_id) {
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 
 }
 function udskriv_bankdata($db_id,$bruger_id,$liste_id){
@@ -361,7 +375,7 @@ function udskriv_bankdata($db_id,$bruger_id,$liste_id){
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 }
 function udskriv_bec($db_id,$bruger_id,$liste_id){
 	$filnavn="../temp/$db_id"."$bruger_id".".txt";
@@ -400,7 +414,7 @@ function udskriv_bec($db_id,$bruger_id,$liste_id){
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 }
 function udskriv_sdc($db_id,$bruger_id,$liste_id){
 	$filnavn="../temp/$db_id"."$bruger_id".".txt";
@@ -425,7 +439,7 @@ function udskriv_sdc($db_id,$bruger_id,$liste_id){
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 }
 function udskriv_xml($db_id,$bruger_id,$liste_id){
 
@@ -668,7 +682,7 @@ function udskriv_xml($db_id,$bruger_id,$liste_id){
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 }
 function alignAccounts($db_id,$bruger_id,$liste_id) {
 	global $regnaar;
