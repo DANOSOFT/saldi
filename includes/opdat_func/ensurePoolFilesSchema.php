@@ -55,6 +55,7 @@
 // 20261118 CL/MMR SD-815 Codex round 27: and only when the prefix is shorter than filename's declared width (varchar(255): left(filename, 255) covers every name and is a plain lookup index, kept).
 // 20261118 CL/MMR SD-815 Codex round 28: the width is read through a domain to its base type (only varchar/char with a length, or unbounded text/varchar, are understood; anything else is kept), and the prefix must be at least 1 (left(filename, 0) is a one-row rule).
 // 20261118 CL/MMR SD-815 Codex round 29: on PostgreSQL no expression index is dropped any more. Whether one is an obsolete prefix depends on more than the catalogue can say for sure (CHECK constraints, domains, the function, the width), so a unique expression index on filename alone is kept and named in the log for review whenever the repair runs; the full unique index is still added. The MySQL/MariaDB prefix repair (sub_part) is unchanged.
+// 20261118 CL/MMR SD-815 Codex round 30: a unique filename key with INCLUDE columns counts (indnkeyatts, not indnatts), and the new index's name is chosen from the free ones before anything is created or deleted.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -130,6 +131,30 @@ if (!function_exists('ensurePoolFilesInTransaction')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesPostgresIndexName')) {
+	/**
+	 * A name for the new unique filename index that no relation in the current schema has yet (index names share the
+	 * namespace with tables): pool_files_filename_uidx, then _full_uidx, _uidx2, _uidx3.
+	 *
+	 * @return string
+	 * @throws EnsurePoolFilesSchemaUnknown When the names cannot be read or none is free.
+	 */
+	function ensurePoolFilesPostgresIndexName(): string {
+		$taken = array();
+		$q = ensurePoolFilesSelect("SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = current_schema()
+			AND c.relname IN ('pool_files_filename_uidx', 'pool_files_filename_full_uidx', 'pool_files_filename_uidx2', 'pool_files_filename_uidx3')", __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$taken[(string)$r['relname']] = true;
+		}
+		foreach (array('pool_files_filename_uidx', 'pool_files_filename_full_uidx', 'pool_files_filename_uidx2', 'pool_files_filename_uidx3') as $name) {
+			if (!isset($taken[$name])) {
+				return $name;
+			}
+		}
+		throw new EnsurePoolFilesSchemaUnknown('no free name for the pool_files unique filename index');
+	}
+}
+
 if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 	/**
 	 * Gives pool_files a unique index on filename alone on PostgreSQL, all or nothing: deferrable constraints on
@@ -155,9 +180,7 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 			// An immediate one may already exist next to a dropped deferrable one; then nothing more is needed. The usual
 			// name may belong to an index that does not count (a partial one); then use another.
 			if (!ensurePoolFilesSchemaState($db_type)['fullFilename']) {
-				$taken = db_fetch_array(ensurePoolFilesSelect("SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'pool_files_filename_uidx' AND n.nspname = current_schema()", __LINE__));
-				$name = $taken ? 'pool_files_filename_full_uidx' : 'pool_files_filename_uidx';
-				db_modify("CREATE UNIQUE INDEX $name ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+				db_modify("CREATE UNIQUE INDEX " . ensurePoolFilesPostgresIndexName() . " ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
 			}
 			$ok = ensurePoolFilesSchemaState($db_type)['uniqueFilename'];
 		} catch (EnsurePoolFilesSchemaUnknown $e) {
@@ -456,7 +479,7 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 			// poolUploadEnsureSchema() has the constraint pool_files_filename_key), as in opdat_5.0.php - but only one
 			// ON CONFLICT (filename) can use: valid, no WHERE predicate, no expression, not behind a deferrable constraint.
 			$unique = "SELECT i.indexrelid FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_namespace n ON n.oid = t.relnamespace
-				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND i.indisunique AND i.indisvalid AND i.indnatts = 1
+				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND i.indisunique AND i.indisvalid AND i.indnkeyatts = 1
 				AND i.indpred IS NULL AND i.indexprs IS NULL
 				AND i.indkey[0] = (SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename')
 				AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = i.indexrelid AND c.condeferrable)";

@@ -20,6 +20,7 @@
 // 20261118 CL/MMR SD-815 Codex round 27: a lookup index on left(filename, 255) of a varchar(255) filename covers every name and is kept, with and without a repair.
 // 20261118 CL/MMR SD-815 Codex round 28: left(filename, 255) on a domain over varchar(255) is kept, and a left(filename, 0) one-row rule is kept and still holds.
 // 20261118 CL/MMR SD-815 Codex round 29: PostgreSQL never drops an expression index (tests that expected left(filename, 7) to be replaced now expect it kept and named for review); lookups on CHECK-limited text and domains are kept.
+// 20261118 CL/MMR SD-815 Codex round 30: a unique filename key with INCLUDE (id) counts, so nothing is added and the backfill runs; with both usual names taken the new index gets pool_files_filename_uidx2.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -886,5 +887,41 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_left_lookup'")), 'kept');
         $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('f', 64));
         self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')));
+    }
+
+    public function testAUniqueFilenameKeyWithAnIncludeColumnCounts(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename) INCLUDE (id)');
+        $this->sql('CREATE INDEX pool_files_filename_full_uidx ON pool_files (subject)'); // the fallback name, taken by something else
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('old.pdf', '99,00')");
+
+        $done = ensurePoolFilesSchema('postgresql');
+
+        self::assertNotContains('unique_filename', $done, 'the covering key is the filename key');
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame('99.000', pg_fetch_result($this->sql("SELECT norm_amount FROM pool_files WHERE filename = 'old.pdf'"), 0, 0));
+        self::assertSame(1, $this->backfillFlags());
+        self::assertSame(['pool_files_filename_full_uidx', 'pool_files_filename_uidx'], pg_fetch_all_columns($this->sql(
+            "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexname LIKE 'pool\\_files\\_filename%' ORDER BY 1")), 'both kept, nothing added');
+        $this->poolInsert('old.pdf', '99,00', str_repeat('a', 64));
+        self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'old.pdf'"), 0, 0), 'ON CONFLICT (filename) uses the covering key');
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+    }
+
+    public function testBothUsualIndexNamesTakenGetsTheNextFreeName(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE INDEX pool_files_filename_uidx ON pool_files (subject)');
+        $this->sql('CREATE INDEX pool_files_filename_full_uidx ON pool_files (account)');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('old.pdf', '99,00')");
+
+        $done = ensurePoolFilesSchema('postgresql');
+
+        self::assertContains('unique_filename', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_filename_uidx2' AND indexdef ILIKE '%UNIQUE%(filename)%'")));
+        self::assertSame(2, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname IN ('pool_files_filename_uidx', 'pool_files_filename_full_uidx')")), 'the others kept');
+        self::assertSame('99.000', pg_fetch_result($this->sql("SELECT norm_amount FROM pool_files WHERE filename = 'old.pdf'"), 0, 0));
     }
 }
