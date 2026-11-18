@@ -60,6 +60,10 @@ $allowed = [
 	'EnsurePoolFilesSchemaMysqlTest::testADeleteTriggerStopsTheCollapseStrict',
 	'EnsurePoolFilesSchemaMysqlTest::testADeleteTriggerStopsTheCollapseReportingOff',
 	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesWithoutTheTriggerPrivilegeAreNotDeleted',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporaryPoolFilesStopsTheRunStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporaryPoolFilesStopsTheRunReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsStopsTheRunStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsStopsTheRunReportingOff',
 ];
 
 $file = $argv[1] ?? '';

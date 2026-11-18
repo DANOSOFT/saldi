@@ -27,6 +27,7 @@
 // 20261118 CL/MMR SD-815 Codex round 43: a table inheriting from pool_files (older duplicate and a DELETE trigger there) keeps every row anywhere, no unique index, no flag, named in the log; a unique index on pool_files alone does not count while a table inherits from it.
 // 20261118 CL/MMR SD-815 Codex round 44: in autocommit and in a caller's transaction, a temporary pool_files shadowing an indexed one changes nothing and writes no flag (the next run without it fills the permanent row), and a partly migrated table with an inheriting one keeps both tables' columns as they were.
 // 20261118 CL/MMR SD-815 Codex round 45: a partly migrated UNLOGGED pool_files with duplicates in current_schema() is repaired and backfilled like a logged one and stays unlogged (autocommit and a caller's transaction).
+// 20261118 CL/MMR SD-815 Codex round 46: a temporary settings (empty, or holding the flag) neither receives nor hides the backfill flag: the permanent row is filled and the flag is written to current_schema()'s settings, the temporary one untouched (autocommit and a caller's transaction).
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -1182,5 +1183,60 @@ final class EnsurePoolFilesSchemaTest extends TestCase
     {
         $this->anUnloggedPoolFiles(false);
     }
-}
 
+    private function aTemporarySettings(bool $autocommit, bool $withTheFlag): void
+    {
+        if ($autocommit) {
+            $this->autocommitSchema();
+        }
+        // Every column and both indexes; one row still waits for its norm_amount, and no flag in the regnskab's settings.
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        self::assertContains('norm_amount_backfill', ensurePoolFilesSchema('postgresql'));
+        $this->sql("DELETE FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'");
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '125,00')");
+        $this->sql('CREATE TEMPORARY TABLE settings (LIKE settings INCLUDING ALL)');
+        if ($withTheFlag) {
+            $this->sql("INSERT INTO pg_temp.settings (var_name, var_grp, var_value) VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes')");
+        }
+
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame('125.000', pg_fetch_result($this->sql("SELECT norm_amount FROM {$this->schema()}.pool_files WHERE id = 1"), 0, 0));
+        self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM {$this->schema()}.settings WHERE var_grp = 'system' AND var_name = 'pool_files_norm_amount_backfilled'"), 0, 0), 'the flag in the regnskab\'s settings');
+        self::assertSame($withTheFlag ? '1' : '0', pg_fetch_result($this->sql('SELECT count(*) FROM pg_temp.settings'), 0, 0), 'the temporary settings untouched');
+        self::assertSame([], ensurePoolFilesSchema('postgresql'), 'the next login has nothing to do');
+        self::assertSame($autocommit ? PGSQL_TRANSACTION_IDLE : PGSQL_TRANSACTION_INTRANS, pg_transaction_status($this->connection));
+    }
+
+    public function testAnEmptyTemporarySettingsDoesNotReceiveTheFlagInAutocommit(): void
+    {
+        $this->aTemporarySettings(true, false);
+    }
+
+    public function testAnEmptyTemporarySettingsDoesNotReceiveTheFlagInACallersTransaction(): void
+    {
+        $this->aTemporarySettings(false, false);
+    }
+
+    public function testATemporarySettingsWithTheFlagDoesNotHideTheBackfillInAutocommit(): void
+    {
+        $this->aTemporarySettings(true, true);
+    }
+
+    public function testATemporarySettingsWithTheFlagDoesNotHideTheBackfillInACallersTransaction(): void
+    {
+        $this->aTemporarySettings(false, true);
+    }
+
+    public function testWithoutASettingsTableNothingChanges(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('DROP TABLE settings');
+        $before = $this->columns();
+
+        self::assertSame([], ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame($before, $this->columns(), 'no column added');
+        self::assertStringContainsString('no settings table in current_schema()', (string) file_get_contents($this->log));
+    }
+}

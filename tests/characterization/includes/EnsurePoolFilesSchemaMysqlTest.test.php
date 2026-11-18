@@ -23,6 +23,7 @@
 // 20261118 CL/MMR SD-815 Codex round 40: a non-ASCII parent database name with latin1 results (the name comes back as '?') and a cascading child elsewhere keeps every row; the session setting is left as it was.
 // 20261118 CL/MMR SD-815 Codex round 41: with sql_mode ANSI_QUOTES (SHOW CREATE TABLE prints "pool_files") the repair completes and the mode is left as it was, in both mysqli modes.
 // 20261118 CL/MMR SD-815 Codex round 42: a DELETE trigger on pool_files and duplicates keeps every row (both mysqli modes); a user without the TRIGGER privilege waits with duplicates.
+// 20261118 CL/MMR SD-815 Codex round 46: a TEMPORARY pool_files or settings of the session stops the run before any change (both mysqli modes); without it the next run completes.
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -992,5 +993,68 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
         self::assertStringContainsString('TRIGGER privilege', (string) file_get_contents($this->log));
         mysqli_close($limited);
+    }
+
+    /** Every column, both indexes and one row still waiting for its norm_amount; no flag. */
+    private function onlyTheBackfillMissing(): void
+    {
+        $this->allLaterColumns();
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)');
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '125,00')");
+    }
+
+    /** The regnskab's own row and flag, read on another session (this one sees its temporary table instead). */
+    private function permanent(string $sql): ?string
+    {
+        if ($this->other === null) {
+            $this->other = $this->connect();
+            mysqli_select_db($this->other, $this->database);
+        }
+        $row = mysqli_fetch_row(mysqli_query($this->other, $sql));
+        return $row === null ? null : ($row[0] === null ? null : (string) $row[0]);
+    }
+
+    private function aTemporaryTable(string $table, int $reportMode): void
+    {
+        $this->onlyTheBackfillMissing();
+        // MariaDB refuses CREATE TEMPORARY TABLE t LIKE t; the same definition instead.
+        $create = (string) mysqli_fetch_row($this->sql("SHOW CREATE TABLE $table"))[1];
+        $this->sql((string) preg_replace('/^CREATE TABLE/', 'CREATE TEMPORARY TABLE', $create));
+        self::assertStringStartsWith('CREATE TEMPORARY TABLE', (string) mysqli_fetch_row($this->sql("SHOW CREATE TABLE $table"))[1]);
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertSame([], $done);
+        self::assertNull($this->permanent('SELECT norm_amount FROM pool_files WHERE id = 1'), 'the row is left for the next run');
+        self::assertSame('0', $this->permanent("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertSame('0', $this->one("SELECT count(*) FROM $table"), 'the temporary table untouched');
+        self::assertStringContainsString("a temporary $table of this session shadows", (string) file_get_contents($this->log));
+
+        $this->sql("DROP TEMPORARY TABLE $table");
+        self::assertSame(['norm_amount_backfill'], ensurePoolFilesSchema('mysqli'));
+        self::assertSame('125.000', $this->one('SELECT norm_amount FROM pool_files WHERE id = 1'));
+        self::assertSame('1', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+    }
+
+    public function testATemporaryPoolFilesStopsTheRunStrict(): void
+    {
+        $this->aTemporaryTable('pool_files', MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testATemporaryPoolFilesStopsTheRunReportingOff(): void
+    {
+        $this->aTemporaryTable('pool_files', MYSQLI_REPORT_OFF);
+    }
+
+    public function testATemporarySettingsStopsTheRunStrict(): void
+    {
+        $this->aTemporaryTable('settings', MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testATemporarySettingsStopsTheRunReportingOff(): void
+    {
+        $this->aTemporaryTable('settings', MYSQLI_REPORT_OFF);
     }
 }

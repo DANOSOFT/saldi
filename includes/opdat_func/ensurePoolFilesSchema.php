@@ -71,6 +71,8 @@
 // 20261118 CL/MMR SD-815 Codex round 43: on PostgreSQL the repair first checks the exact table its statements use ('pool_files'::regclass): it must be the one in current_schema() that the state reads, and no table may inherit from it (or be a partition of it) - a unique index on pool_files does not cover their rows and a DELETE through pool_files also deletes there and fires their triggers; then nothing is changed and the log names them.
 // 20261118 CL/MMR SD-815 Codex round 44: on PostgreSQL that check runs before any change of every run (also a run that only fills norm_amount), and pool_files must be the permanent table (a temporary pool_files shadows it in search_path); when columns are missing, the check and the ALTER TABLEs run in one transaction under SHARE ROW EXCLUSIVE, so no table can start to inherit in between.
 // 20261118 CL/MMR SD-815 Codex round 45: only a temporary pool_files counts as a shadow; an UNLOGGED pool_files in current_schema() is the regnskab's own table and is repaired like a logged one (and stays unlogged); the log names which case stopped the run.
+// 20261118 CL/MMR SD-815 Codex round 46: on PostgreSQL the backfill flag is read and written in current_schema()'s settings by its qualified name, so a temporary settings of the session can neither hide nor receive it; without a settings table there the run stops before any change.
+//                 MySQL/MariaDB: a TEMPORARY pool_files or settings of the session (it shadows the table of the same name) stops the run before any change, as SHOW CREATE TABLE shows.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -99,9 +101,41 @@ if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	}
 }
 
-if (!defined('ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY')) {
-	// The flag opdat_5.0.php sets after its norm_amount backfill; a regnskab that ran it is done.
-	define('ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY', "SELECT var_value FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled' AND var_grp = 'system'");
+if (!function_exists('ensurePoolFilesSettingsTable')) {
+	/**
+	 * The settings table that holds the backfill flag, as SQL. PostgreSQL: current_schema()'s own settings, qualified,
+	 * so a temporary settings of this session (pg_temp comes first in search_path) neither hides nor receives the flag.
+	 * MySQL/MariaDB: settings.
+	 *
+	 * @param string $db_type
+	 * @return string
+	 * @throws EnsurePoolFilesSchemaUnknown When the read failed, or there is no settings table in current_schema(); logged.
+	 */
+	function ensurePoolFilesSettingsTable(string $db_type): string {
+		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
+			return 'settings';
+		}
+		$r = db_fetch_array(ensurePoolFilesSelect("SELECT quote_ident(n.nspname) || '.settings' AS name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+			WHERE c.relname = 'settings' AND n.nspname = current_schema() AND c.relkind IN ('r', 'p', 'v', 'f')", __LINE__));
+		if (!$r || (string)($r['name'] ?? '') === '') {
+			error_log('ensurePoolFilesSchema: nothing changed, there is no settings table in current_schema() for the norm_amount backfill flag');
+			throw new EnsurePoolFilesSchemaUnknown('no settings table in current_schema()');
+		}
+		return (string)$r['name'];
+	}
+}
+
+if (!function_exists('ensurePoolFilesBackfillFlagQuery')) {
+	/**
+	 * The flag opdat_5.0.php sets after its norm_amount backfill; a regnskab that ran it is done.
+	 *
+	 * @param string $db_type
+	 * @return string
+	 * @throws EnsurePoolFilesSchemaUnknown See ensurePoolFilesSettingsTable().
+	 */
+	function ensurePoolFilesBackfillFlagQuery(string $db_type): string {
+		return "SELECT var_value FROM " . ensurePoolFilesSettingsTable($db_type) . " WHERE var_name = 'pool_files_norm_amount_backfilled' AND var_grp = 'system'";
+	}
 }
 
 if (!class_exists('EnsurePoolFilesSchemaUnknown', false)) {
@@ -216,6 +250,37 @@ if (!function_exists('ensurePoolFilesMysqlRows')) {
 			$rows[] = $row;
 		}
 		return $rows;
+	}
+}
+
+if (!function_exists('ensurePoolFilesGuardMysqlTemporary')) {
+	/**
+	 * MySQL/MariaDB: a TEMPORARY table of this session shadows the table of the same name for every statement, also a
+	 * qualified one, so the run would change it and write the flag in the wrong place. SHOW CREATE TABLE shows the table
+	 * a statement would use; for a temporary one it says CREATE TEMPORARY TABLE. Checked for pool_files and settings
+	 * before any change.
+	 *
+	 * @return void
+	 * @throws EnsurePoolFilesSchemaUnknown When one is temporary or cannot be read; logged.
+	 */
+	function ensurePoolFilesGuardMysqlTemporary(): void {
+		foreach (array('pool_files', 'settings') as $table) {
+			$rows = ensurePoolFilesMysqlRows("SHOW CREATE TABLE `$table`");
+			$create = '';
+			foreach ($rows[0] ?? array() as $key => $value) {
+				if (strcasecmp((string)$key, 'Create Table') === 0) {
+					$create = (string)$value;
+				}
+			}
+			if ($create === '') {
+				error_log("ensurePoolFilesSchema: nothing changed, SHOW CREATE TABLE $table cannot be read; the next login tries again");
+				throw new EnsurePoolFilesSchemaUnknown("$table cannot be read");
+			}
+			if (preg_match('/^CREATE\s+TEMPORARY\s+TABLE\b/i', $create)) {
+				error_log("ensurePoolFilesSchema: nothing changed, a temporary $table of this session shadows the table of this database; the next login tries again");
+				throw new EnsurePoolFilesSchemaUnknown("a temporary $table shadows the table of this database");
+			}
+		}
 	}
 }
 
@@ -886,7 +951,7 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 			'otherFilenameExpressions' => $otherNames,
 			'inheritingTables' => $inheritingNames,
 			'normAmountIndex' => in_array('norm_amount', $missing, true) ? false : (bool)db_fetch_array(ensurePoolFilesSelect($normIndex, __LINE__)),
-			'normAmountBackfilled' => (bool)db_fetch_array(ensurePoolFilesSelect(ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY, __LINE__)),
+			'normAmountBackfilled' => (bool)db_fetch_array(ensurePoolFilesSelect(ensurePoolFilesBackfillFlagQuery($db_type), __LINE__)),
 		);
 	}
 }
@@ -983,6 +1048,7 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 			}
 			$types = ensurePoolFilesSchemaColumns();
 			if ($mysql) {
+				ensurePoolFilesGuardMysqlTemporary();
 				foreach ($state['columns'] as $column) {
 					db_modify("ALTER TABLE pool_files ADD COLUMN $column " . $types[$column], __FILE__ . " linje " . __LINE__);
 				}
@@ -1056,10 +1122,10 @@ if (!function_exists('ensurePoolFilesSchemaRun')) {
 					return $done;
 				}
 				// (A failed pending read throws EnsurePoolFilesSchemaUnknown, so reaching here means: really nothing left.)
-				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description, user_id) VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes', 'One-time backfill of pool_files.norm_amount from the legacy amount text column', 0)", __FILE__ . " linje " . __LINE__);
+				db_modify("INSERT INTO " . ensurePoolFilesSettingsTable($db_type) . " (var_name, var_grp, var_value, var_description, user_id) VALUES ('pool_files_norm_amount_backfilled', 'system', 'yes', 'One-time backfill of pool_files.norm_amount from the legacy amount text column', 0)", __FILE__ . " linje " . __LINE__);
 				// Read back: db_modify() can report a failed INSERT as accepted. On PostgreSQL a failed INSERT also aborts
 				// the transaction, so this read fails and the caller's savepoint is rolled back (ensurePoolFilesSchema()).
-				if (!db_fetch_array(ensurePoolFilesSelect(ENSURE_POOL_FILES_BACKFILL_FLAG_QUERY, __LINE__))) {
+				if (!db_fetch_array(ensurePoolFilesSelect(ensurePoolFilesBackfillFlagQuery($db_type), __LINE__))) {
 					throw new EnsurePoolFilesSchemaUnknown('pool_files norm_amount backfill flag not written');
 				}
 				$done[] = 'norm_amount_backfill';
