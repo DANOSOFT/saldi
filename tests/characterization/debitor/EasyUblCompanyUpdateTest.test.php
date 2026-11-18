@@ -20,11 +20,20 @@ use PHPUnit\Framework\TestCase;
 // 20261111 CL/MJ SST-865 The refusal log leaves out the contact and bank details (CodeRabbit).
 // 20261118 CL/MMR SST-1003 The other error logs (failed call, NemHandel creation) leave out the contact and bank details too.
 // 20261118 CL/MMR SST-1007 An answer that is not 2xx counts as a failed update.
+// 20261118 CL/MMR SST-1003 Nested contact and bank details and a bare text answer are kept out of the logs too (Codex).
 final class EasyUblCompanyUpdateTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
 
     private string $dir = '';
+
+    /** The log helpers (easyUblLogSafe() and friends) are defined once from api.php, as the page does. */
+    protected function setUp(): void
+    {
+        if (!function_exists('easyUblLogSafe')) {
+            eval($this->lift('function createCompany(', '    /**' . "\n" . '     * The contact and bank values', '    // Update company data at EasyUBL'));
+        }
+    }
 
     protected function tearDown(): void
     {
@@ -315,6 +324,49 @@ final class EasyUblCompanyUpdateTest extends TestCase
 
         self::assertCount(1, $logs);
         self::assertStringContainsString('"title":"Bad Request"', $logs[0], "EasyUBL's answer is in the file");
+        $this->assertNoPrivateDetails($logs[0]);
+    }
+
+    /** A company object nested in the answer, as EasyUBL returns it, with the same contact and bank details. */
+    private const NESTED = array('company' => array('id' => 'c-1', 'name' => 'Testfirma ApS',
+        'defaultContact' => array('email' => 'bogholder@testfirma.example', 'sms' => '+4512345678'),
+        'payment' => array('bankAccount' => '1234-0012345678')));
+
+    public function testNestedDetailsInA401AnswerAreKeptOutOfTheLog(): void
+    {
+        $out = $this->runUpdateBranches(401, self::NESTED);
+
+        self::assertFalse($out['result']['success']);
+        self::assertCount(1, $out['logs']);
+        self::assertStringContainsString('"name":"Testfirma ApS"', $out['logs'][0], 'the rest of the answer is still there');
+        $this->assertNoPrivateDetails($out['logs'][0]);
+    }
+
+    public function testNestedDetailsInAnErrorAnswerAreKeptOutOfTheLog(): void
+    {
+        $out = $this->runUpdateBranches(500, array('error' => 'Internal error', 'echo' => self::NESTED));
+
+        self::assertFalse($out['result']['success']);
+        self::assertStringContainsString('"error":"Internal error"', $out['logs'][0]);
+        $this->assertNoPrivateDetails($out['logs'][0]);
+    }
+
+    public function testATextAnswerThatEchoesTheDetailsIsMaskedInTheLog(): void
+    {
+        $out = $this->runUpdateBranches(401, 'Unauthorized for bogholder@testfirma.example (+4512345678), account 1234-0012345678, other@example.org');
+
+        self::assertFalse($out['result']['success']);
+        self::assertStringContainsString('Unauthorized for', $out['logs'][0], 'the text is still there');
+        self::assertStringNotContainsString('other@example.org', $out['logs'][0], 'any e-mail address is masked');
+        $this->assertNoPrivateDetails($out['logs'][0]);
+    }
+
+    public function testNestedDetailsInARefusedNemHandelCreationAreKeptOutOfTheLog(): void
+    {
+        $logs = $this->runNemHandelBranches(400, array('companyID' => '00000000-0000-0000-0000-000000000000') + self::NESTED);
+
+        self::assertCount(1, $logs);
+        self::assertStringContainsString('"name":"Testfirma ApS"', $logs[0]);
         $this->assertNoPrivateDetails($logs[0]);
     }
 }
