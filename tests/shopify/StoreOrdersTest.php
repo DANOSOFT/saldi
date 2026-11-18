@@ -67,16 +67,16 @@ final class StoreOrdersTest extends TestCase
 		$choice = fn(string $type, string $navn, ?string $value = null): array => ['lev_type' => $type, 'lev_valg' => $navn, 'shopify_vaerdi' => $value];
 		return [
 			'taget med' => [[], ['fulfillmentStatus' => 'FULFILLED'], ['customAttributes', 'shippingAddress', 'note']],
-			'afhentning' => [$choice('afhentning', 'Afhentning i butik'), ['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'Afhentning i butik']]],
+			'afhentning' => [$choice('afhentning', 'Afhentning i butik'), ['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'Afhentning i butik'], ['key' => 'Leveringstype', 'value' => 'afhentning']]],
 				['fulfillmentStatus', 'shippingAddress', 'note']],
 			'levering with a date' => [$choice('levering', 'Levering', 'EasyRoutes') + ['oensket_levdato' => '2026-11-20'],
-				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'EasyRoutes'], ['key' => 'Leveringsdato', 'value' => '2026-11-20']]],
+				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'EasyRoutes'], ['key' => 'Leveringstype', 'value' => 'levering'], ['key' => 'Delivery Date', 'value' => '2026-11-20']]],
 				['fulfillmentStatus', 'note']],
 			'levering by Danske Fragtmænd' => [$choice('levering', 'Fragtmand', 'Danske Fragtmænd') + ['oensket_levdato' => '2026-11-21'],
-				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'Danske Fragtmænd'], ['key' => 'Leveringsdato', 'value' => '2026-11-21']]],
+				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'Danske Fragtmænd'], ['key' => 'Leveringstype', 'value' => 'levering'], ['key' => 'Delivery Date', 'value' => '2026-11-21']]],
 				['fulfillmentStatus', 'note']],
 			'levering without a date' => [$choice('levering', 'Levering', 'EasyRoutes'),
-				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'EasyRoutes']], 'note' => 'Leveringsdato aftales med kunden'],
+				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'EasyRoutes'], ['key' => 'Leveringstype', 'value' => 'levering']], 'note' => 'Leveringsdato aftales med kunden'],
 				['fulfillmentStatus']],
 		];
 	}

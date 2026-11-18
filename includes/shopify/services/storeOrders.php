@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/storeOrders.php --- ver 5.1.0 --- 2026.11.12
+// --- includes/shopify/services/storeOrders.php --- ver 5.1.0 --- 2026.11.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // SHOPIFY_STORE_ORDER_SETTLE after it. The POS only queues; nothing here can fail a checkout.
 //
 // 20261112 CL/SS SD-804: created (WP13-2).
+// 20261118 CL/SS SD-804: the date key is Delivery Date, and pickup and delivery orders carry Leveringstype (DTAILS).
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -41,9 +42,10 @@ const SHOPIFY_STORE_ORDER_SETTLE = 600;
 const SHOPIFY_STORE_ORDER_CUSTOMER_WAIT = 3600;
 /** Days back the hourly recovery looks for posted sales that were never queued. */
 const SHOPIFY_STORE_ORDER_RECOVER_DAYS = 7;
-// The keys DTAILS reads (defaults until DTAILS confirms them, Aa4).
+// The keys DTAILS reads (confirmed by DTAILS 2026-11-18). The type (afhentning or levering) keeps their rule working when a choice is renamed.
 const SHOPIFY_STORE_ORDER_ATTR_METHOD = 'Leveringsmaade';
-const SHOPIFY_STORE_ORDER_ATTR_DATE = 'Leveringsdato';
+const SHOPIFY_STORE_ORDER_ATTR_TYPE = 'Leveringstype';
+const SHOPIFY_STORE_ORDER_ATTR_DATE = 'Delivery Date';
 const SHOPIFY_STORE_ORDER_DATE_FORMAT = 'Y-m-d';
 const SHOPIFY_STORE_ORDER_UNDATED_NOTE = 'Leveringsdato aftales med kunden';
 const SHOPIFY_STORE_ORDER_LINE_LAGER = 'Lager';
@@ -403,7 +405,10 @@ function shopify_store_orders_build_payload(array $snap, array $customer, array 
 		$order['fulfillmentStatus'] = 'FULFILLED';
 	} else {
 		$method = trim((string)($o['shopify_vaerdi'] ?? '')) ?: (trim((string)($o['lev_valg'] ?? '')) ?: trim((string)$o['leveringsmaade']));
-		$order['customAttributes'] = array(array('key' => SHOPIFY_STORE_ORDER_ATTR_METHOD, 'value' => $method !== '' ? $method : $mode));
+		$order['customAttributes'] = array(
+			array('key' => SHOPIFY_STORE_ORDER_ATTR_METHOD, 'value' => $method !== '' ? $method : $mode),
+			array('key' => SHOPIFY_STORE_ORDER_ATTR_TYPE, 'value' => $mode),
+		);
 	}
 	if ($mode === 'levering') {
 		$order['shippingAddress'] = shopify_store_orders_address($o, $phone);
