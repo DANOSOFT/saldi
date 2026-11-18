@@ -6,6 +6,8 @@
 // 20261118 CL/MMR SD-815 Codex round 15: inside a caller's transaction nothing runs (the caller can still roll back its own work), and an existing non-unique index named pool_files_filename_uidx does not stop the repair.
 // 20261118 CL/MMR SD-815 Codex round 16: an old ROW_FORMAT=COMPACT utf8mb4 pool_files that cannot hold the index keeps both rows and logs why; after ROW_FORMAT=DYNAMIC the retry completes.
 // 20261118 CL/MMR SD-815 Codex round 17: a permanent table called pool_files_uidx_probe, with a row, survives both a deferred and a successful repair (the probe is a temporary table).
+// 20261118 CL/MMR SD-815 Codex round 18: a database user with only SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX and LOCK TABLES (no CREATE TEMPORARY TABLES) gets the repair;
+//                 a user without CREATE keeps both rows and the log names the missing privilege, not the row format.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -64,8 +66,29 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         $this->sql('CREATE TABLE pool_files (id INT AUTO_INCREMENT NOT NULL, filename varchar(255), subject text, account varchar(50), amount varchar(50), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, invoice_number varchar(100), description text, currency varchar(10), content_sha256 char(64), PRIMARY KEY (id))');
     }
 
+    /** @var list<string> */
+    private array $users = [];
+
+    /** A database user of this test with exactly $grants on the test database; the helper then runs as that user. */
+    private function runAs(string $grants): \mysqli
+    {
+        $user = 'pool_mig_' . bin2hex(random_bytes(4));
+        $pass = bin2hex(random_bytes(12));
+        $this->sql("CREATE USER '$user'@'localhost' IDENTIFIED BY '$pass'");
+        $this->users[] = $user;
+        $this->sql("GRANT $grants ON {$this->database}.* TO '$user'@'localhost'");
+        $limited = mysqli_connect('localhost', $user, $pass, $this->database, 0, (string) getenv('SALDI_CHAR_MYSQL_SOCKET'));
+        $GLOBALS['ensurePoolFilesMysql'] = $limited;
+        return $limited;
+    }
+
     protected function tearDown(): void
     {
+        if ($this->connection !== null) {
+            foreach ($this->users as $user) {
+                mysqli_query($this->connection, "DROP USER IF EXISTS '$user'@'localhost'");
+            }
+        }
         if ($this->other !== null) {
             try {
                 mysqli_query($this->other, 'UNLOCK TABLES');
@@ -234,9 +257,10 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
 
         self::assertNotContains('unique_filename', $done);
         self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
-        self::assertStringContainsString('cannot hold a unique index on filename', (string) file_get_contents($this->log));
+        self::assertStringContainsString('cannot hold a unique index on the whole filename', (string) file_get_contents($this->log));
         $this->assertPermanentTableKept();
         self::assertSame('0', $this->one("SELECT count(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name LIKE 'pool\\_files\\_uidx\\_probe\\_%'"), 'no trial copy left as a table');
+        self::assertStringContainsString('ROW_FORMAT=DYNAMIC', (string) file_get_contents($this->log), 'the log names the row format');
         self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
         self::assertNull($this->one("SELECT IS_USED_LOCK(CONCAT('saldi:pool_files_schema:', MD5(DATABASE())))"));
         self::assertNotContains('unique_filename', ensurePoolFilesSchema('mysqli'), 'a retry on the same table defers again');
@@ -251,5 +275,41 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '3,00') ON DUPLICATE KEY UPDATE id = id");
         self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
         self::assertSame([], ensurePoolFilesSchema('mysqli'));
+    }
+
+    public function testTheGrantsThatWereEnoughBeforeAreStillEnough(): void
+    {
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES');
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        self::assertContains('unique_filename', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
+        self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
+        self::assertSame('0', $this->one("SELECT count(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name LIKE 'pool\\_files\\_uidx\\_probe\\_%'"), 'the trial copy is dropped');
+        mysqli_close($limited);
+    }
+
+    public function testAMissingPrivilegeIsLoggedAsSuchAndDeletesNothing(): void
+    {
+        // Every later column already there, so the first statement that needs CREATE is the trial copy.
+        foreach (['norm_amount numeric(15,3)', 'manually_edited boolean NOT NULL DEFAULT false', 'source_sha256 char(64)', 'vendor_name text', 'vendor_cvr varchar(20)',
+            'vendor_iban varchar(40)', 'vendor_konto_id integer', 'vendor_score numeric(4,3)', 'vendor_match varchar(10)'] as $column) {
+            $this->sql("ALTER TABLE pool_files ADD COLUMN $column");
+        }
+        $this->sql('CREATE INDEX idx_pool_files_norm_amount ON pool_files (norm_amount)');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, DROP, ALTER, INDEX, LOCK TABLES'); // no CREATE
+
+        $done = ensurePoolFilesSchema('mysqli'); // must not throw
+
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
+        $log = (string) file_get_contents($this->log);
+        self::assertStringContainsString('lacks a privilege', $log);
+        self::assertStringNotContainsString('ROW_FORMAT', $log, 'not mistaken for a row-format problem');
+        mysqli_close($limited);
     }
 }

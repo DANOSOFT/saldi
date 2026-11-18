@@ -40,6 +40,8 @@
 //                 The unique index gets a name no index has yet (an existing non-unique pool_files_filename_uidx made CREATE fail after the duplicate collapse); the name is chosen before anything is deleted.
 // 20261118 CL/MMR SD-815 Codex round 16: on MySQL/MariaDB the unique index is first tried on an empty copy of pool_files (CREATE TABLE ... LIKE, same row format and character set); if the table cannot hold it (e.g. ROW_FORMAT=COMPACT with utf8mb4) nothing is deleted and the reason is logged.
 // 20261118 CL/MMR SD-815 Codex round 17: the copy is a TEMPORARY table with a random name, read with SHOW INDEX and removed with DROP TEMPORARY TABLE, so no permanent table can ever be dropped.
+// 20261118 CL/MMR SD-815 Codex round 18: the copy is an ordinary table again (CREATE TEMPORARY TABLES is a privilege the migration did not need before), with a random name, created without IF NOT EXISTS and dropped only when this run created it.
+//                 The log tells a missing privilege from an index that does not fit the table.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -215,49 +217,66 @@ if (!function_exists('ensurePoolFilesMysqlIndexName')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesMysqlProbeReason')) {
+	/**
+	 * What a failed probe statement means, for the log: a missing privilege, or an index the table cannot hold.
+	 *
+	 * @param mysqli_sql_exception $e
+	 * @return string
+	 */
+	function ensurePoolFilesMysqlProbeReason(mysqli_sql_exception $e): string {
+		$code = (int)$e->getCode();
+		if (in_array($code, array(1044, 1045, 1142, 1143, 1227), true)) {
+			return 'the database user lacks a privilege the repair needs (CREATE, INDEX and DROP on the tenant database): ' . $e->getMessage();
+		}
+		if (in_array($code, array(1071, 1709), true)) {
+			return 'pool_files cannot hold a unique index on the whole filename (e.g. ALTER TABLE pool_files ROW_FORMAT=DYNAMIC is needed first): ' . $e->getMessage();
+		}
+		return 'the trial index failed: ' . $e->getMessage();
+	}
+}
+
 if (!function_exists('ensurePoolFilesMysqlProbeUniqueIndex')) {
 	/**
-	 * Tries the unique filename index on an empty temporary copy of pool_files (CREATE TEMPORARY TABLE ... LIKE keeps
-	 * the row format, the character set and the column definitions), so a table that cannot hold it - e.g. an old
-	 * ROW_FORMAT=COMPACT table in utf8mb4, where varchar(255) needs 1020 bytes and COMPACT allows 767 - is found before
-	 * any duplicate is deleted. Only that temporary copy is ever dropped.
+	 * Tries the unique filename index on an empty copy of pool_files (CREATE TABLE ... LIKE keeps the row format, the
+	 * character set and the column definitions), so a table that cannot hold it - e.g. an old ROW_FORMAT=COMPACT table
+	 * in utf8mb4, where varchar(255) needs 1020 bytes and COMPACT allows 767 - is found before any duplicate is deleted.
+	 * The copy is an ordinary table (the privileges the repair already needs: CREATE, INDEX, DROP) with a random name,
+	 * created without IF NOT EXISTS, so it is always this run's own; it is dropped only when this run created it, and
+	 * no other table is ever dropped.
 	 *
 	 * @return void
-	 * @throws EnsurePoolFilesSchemaUnknown When the index does not fit; the reason is logged.
+	 * @throws EnsurePoolFilesSchemaUnknown When the index cannot be tried or does not fit; the reason is logged.
 	 */
 	function ensurePoolFilesMysqlProbeUniqueIndex(): void {
-		// A temporary table of this connection with a random name: DROP TEMPORARY TABLE can only ever remove that one,
-		// never a permanent table, whatever it is called.
 		$probe = 'pool_files_uidx_probe_' . bin2hex(random_bytes(6));
 		$created = false;
 		try {
-			db_modify("CREATE TEMPORARY TABLE $probe LIKE pool_files", __FILE__ . " linje " . __LINE__);
-			$created = true;
-			db_modify("CREATE UNIQUE INDEX {$probe}_filename ON $probe (filename)", __FILE__ . " linje " . __LINE__);
-			// Read back on the copy itself (information_schema does not list temporary tables); without exception
-			// reporting a failed CREATE only returns false.
-			$fits = false;
-			$q = ensurePoolFilesSelect("SHOW INDEX FROM $probe", __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$key = (string)($r['Key_name'] ?? $r['key_name'] ?? '');
-				if ($key === $probe . '_filename' && (int)($r['Non_unique'] ?? $r['non_unique'] ?? 1) === 0) {
-					$fits = true;
-				}
+			// The name must be free before: then a table of that name afterwards is this run's own.
+			if (db_fetch_array(ensurePoolFilesSelect("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$probe'", __LINE__))) {
+				throw new EnsurePoolFilesSchemaUnknown('pool_files trial copy name taken');
 			}
-			if (!$fits) {
-				error_log('ensurePoolFilesSchema: pool_files cannot hold a unique index on filename, nothing deleted (the trial index on an empty copy was not created)');
+			db_modify("CREATE TABLE $probe LIKE pool_files", __FILE__ . " linje " . __LINE__);
+			$created = (bool)db_fetch_array(ensurePoolFilesSelect("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '$probe'", __LINE__));
+			if (!$created) {
+				error_log('ensurePoolFilesSchema: nothing deleted, the trial copy of pool_files could not be created');
+				throw new EnsurePoolFilesSchemaUnknown('pool_files trial copy not created');
+			}
+			db_modify("CREATE UNIQUE INDEX {$probe}_filename ON $probe (filename)", __FILE__ . " linje " . __LINE__);
+			// Read back: without exception reporting a failed CREATE only returns false.
+			if (!db_fetch_array(ensurePoolFilesSelect("SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = '$probe' AND index_name = '{$probe}_filename' AND non_unique = 0", __LINE__))) {
+				error_log('ensurePoolFilesSchema: nothing deleted, the trial unique index on an empty copy of pool_files was not created');
 				throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index does not fit');
 			}
 		} catch (mysqli_sql_exception $e) {
-			error_log('ensurePoolFilesSchema: pool_files cannot hold a unique index on filename, nothing deleted: ' . $e->getMessage()
-				. ' (e.g. ALTER TABLE pool_files ROW_FORMAT=DYNAMIC is needed first)');
-			throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index does not fit', 0, $e);
+			error_log('ensurePoolFilesSchema: nothing deleted, ' . ensurePoolFilesMysqlProbeReason($e));
+			throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index cannot be tried or does not fit', 0, $e);
 		} finally {
 			if ($created) {
 				try {
-					db_modify("DROP TEMPORARY TABLE IF EXISTS $probe", __FILE__ . " linje " . __LINE__);
+					db_modify("DROP TABLE $probe", __FILE__ . " linje " . __LINE__);
 				} catch (mysqli_sql_exception $e) {
-					error_log('ensurePoolFilesSchema: could not drop ' . $probe . ' (it ends with the connection): ' . $e->getMessage());
+					error_log('ensurePoolFilesSchema: could not drop the trial copy ' . $probe . ': ' . $e->getMessage());
 				}
 			}
 		}
