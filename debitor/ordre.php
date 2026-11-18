@@ -196,7 +196,9 @@
 //                 The delivery postcode is escaped once where it is read, and the delivery-address save no longer escapes lev_* twice.
 //                 $notes is escaped when it is read from the form (the same change as SST-1026), and the update no longer escapes it a second time.
 //                 In that order update (Gem) the form values that came in raw are escaped or cast as in the insert.
-//                 An email typed in the phone field and the stored debitoripad values are escaped like the form values they replace.
+//                 An email typed in the phone field and the stored debitoripad values in the Gem block are escaped like the form values they replace.
+//                 In the print/send handler phone and email stay raw through the 15-character limit and are escaped once in its update.
+//                 The insert that creates an order from the account card escapes or casts its raw values the same way.
 @session_start();
 $s_id = session_id();
 
@@ -1001,22 +1003,19 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$sum = if_isset($_POST, NULL, 'sum');
 
 	$phone = trim($_POST['phone']);
-	$phone = str_replace(' ', '', $phone);
-	$phone = db_escape_string($phone);
+	$phone = str_replace(' ', '', $phone); # 20261118 SST-1031 escaped once in the update below, after the length limit
 
 	$email = trim($_POST['email']);
 	$email = str_replace(' ', '', $email);
-	$email = db_escape_string($email);
 	if (substr($email, 0, 11) == "debitoripad") {
 		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='" . (int)if_isset($_GET, 0, 'id') . "'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
-		# 20261118 SST-1031 escaped like the form values they replace
-		$email = db_escape_string($r["email"]);
-		$phone = db_escape_string($r["phone"]);
-		$firmanavn = db_escape_string($r["firmanavn"]);
-		$addr1 = db_escape_string($r["addr1"]);
-		$postnr = db_escape_string($r["postnr"]);
-		$bynavn = db_escape_string($r["bynavn"]);
+		$email = $r["email"];
+		$phone = $r["phone"];
+		$firmanavn = $r["firmanavn"];
+		$addr1 = $r["addr1"];
+		$postnr = $r["postnr"];
+		$bynavn = $r["bynavn"];
 	}
 
 	if (strpos($phone, '@') && !$email) {
@@ -1070,7 +1069,7 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	if (strlen((string)$mail_fakt) > 2)  $mail_fakt  = substr((string)$mail_fakt, 0, 2);
 	if (strlen((string)$mail_bilag) > 2) $mail_bilag = substr((string)$mail_bilag, 0, 2);
 	$mail_bilag = db_escape_string($mail_bilag); // SD-639: raw request input, was reaching the UPDATE below unescaped - escaped AFTER the clamp above so a truncation can never land mid-escape-sequence
-	$qtxt = "update ordrer set sprog = '$formularsprog', email='$email',mail_fakt='$mail_fakt',phone='$phone',pbs='$pbs',";
+	$qtxt = "update ordrer set sprog = '$formularsprog', email='" . db_escape_string((string) $email) . "',mail_fakt='$mail_fakt',phone='" . db_escape_string((string) $phone) . "',pbs='$pbs',";
 	$qtxt .= "udskriv_til='$udskriv_til',  mail_bilag='$mail_bilag',ean='$ean' where id='$id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($genfakt && $genfakt != '-') db_modify("update ordrer set nextfakt='" . usdate($genfakt) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
@@ -1809,7 +1808,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$r_div2 = db_fetch_array(db_select("select box5 from grupper WHERE art = 'DIV' and kodenr='2'", __FILE__ . " linje " . __LINE__));
 				if ($r_div2['box5'] === "on") {
 					$phone = $kontonr;
-					db_modify("update ordrer set phone = '$phone' where id = '$id'", __FILE__ . " linje " . __LINE__); #20210506
+					db_modify("update ordrer set phone = '" . db_escape_string((string) $phone) . "' where id = '$id'", __FILE__ . " linje " . __LINE__); #20210506
 				}
 			}
 			$email = db_escape_string($row['email']);
@@ -1888,9 +1887,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		$qtxt .= ") VALUES (";
 		$qtxt .= "'$ordrenr', '$konto_id', '$kontonr', '$kundeordnr', '$firmanavn', '$addr1', '$addr2', '$postnr', ";
 		$qtxt .= "'$bynavn', '$land', '$kontakt', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr', ";
-		$qtxt .= "'$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '$betalingsdage', '$betalingsbet', ";
-		$qtxt .= "'$cvrnr', '$ean', '$institution', '$email', '$mail_fakt', '$phone', '$notes', '$art', '$ordredate', ";
-		$qtxt .= "'$momssats', $status, '" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
+		$qtxt .= "'$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '" . (int) $betalingsdage . "', '" . db_escape_string((string) $betalingsbet) . "', ";
+		$qtxt .= "'$cvrnr', '$ean', '$institution', '$email', '" . db_escape_string((string) $mail_fakt) . "', '" . db_escape_string((string) $phone) . "', '$notes', '" . db_escape_string((string) $art) . "', '$ordredate', ";
+		$qtxt .= "'" . (float) $momssats . "', " . (int) $status . ", '" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "', '" . db_escape_string((string) $lev_adr) . "', '" . db_escape_string((string) $valuta) . "', '" . db_escape_string((string) $masterprojekt) . "', '" . db_escape_string((string) $formularsprog) . "', '" . db_escape_string((string) $pbs) . "', '$afd', ";
 		$qtxt .= "'0', '$felt_1', '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
