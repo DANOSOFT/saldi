@@ -17,6 +17,7 @@
 // 20261118 CL/MMR SD-815 Codex round 24: a unique index on the constant lower('filename') is kept and still allows one row; an odd column name ("scratch(") does not stop the left(filename, 7) repair.
 // 20261118 CL/MMR SD-815 Codex round 25: unique indexes on reverse(filename) and on a CASE rule over filename are kept (and the rule still holds); the log names them for review.
 // 20261118 CL/MMR SD-815 Codex round 26: with a tenant's own substr() earlier in search_path, the index on it is kept and the real pg_catalog.substr prefix index is replaced.
+// 20261118 CL/MMR SD-815 Codex round 27: a lookup index on left(filename, 255) of a varchar(255) filename covers every name and is kept, with and without a repair.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -808,5 +809,33 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('d', 64));
         self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')), 'a second, different name registers');
         self::assertSame([], ensurePoolFilesSchema('postgresql'));
+    }
+
+    public function testAFullWidthLeftIndexIsKept(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES); // filename varchar(255), as in production
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)');
+        $this->sql('CREATE UNIQUE INDEX pool_files_left_lookup ON pool_files (left(filename, 255))');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00'), ('invoice-b.pdf', '1,00')");
+
+        self::assertNotContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_left_lookup'")), 'kept');
+    }
+
+    public function testAFullWidthLeftIndexIsKeptWhenTheRepairRuns(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE UNIQUE INDEX pool_files_left_lookup ON pool_files (left(filename, 255))');
+        $this->sql('CREATE UNIQUE INDEX pool_files_short_prefix ON pool_files (left(filename, 7))');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('invoice-a.pdf', '1,00')");
+
+        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        $indexes = pg_fetch_all_columns($this->sql("SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files'"));
+        self::assertContains('pool_files_left_lookup', $indexes, 'the full-width lookup is kept');
+        self::assertNotContains('pool_files_short_prefix', $indexes, 'the short prefix is replaced');
+        $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('e', 64));
+        self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')));
     }
 }
