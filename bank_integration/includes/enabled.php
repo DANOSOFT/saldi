@@ -6,7 +6,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/enabled.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- bank_integration/includes/enabled.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,27 +31,30 @@
 // 20261006 CL/LH Aiia removed: bankIntegrationAvailable() = Enable Banking configured on the server, bankIntegrationEnabled() = available, tenant schema ready and switched on for the company.
 // 20261116 CL/LH bankIntegrationEnabled() checks the company switch before the schema, so a company without the feed costs one settings query (cached per request).
 // 20261117 CL/LH bankIntegrationEnabled() caches per company, since the notification digest switches companies in one process.
+// 20261118 CL/LH bankIntegrationAvailable() caches per company too: a pilot allowlist can open the feature for some companies only.
 
 require_once __DIR__ . '/ebAccess.php';
 
 if (!function_exists('bankIntegrationEnabled')) {
 	/**
 	 * Whether the Enable Banking application is configured on this server (app id, redirect URL and a
-	 * readable key outside the installation). Decides whether the settings section is offered at all.
+	 * readable key outside the installation), and the current company is not left out by a pilot allowlist.
+	 * Decides whether the settings section is offered at all.
 	 * Requires includes/connect.php to be loaded by the caller.
 	 *
 	 * @return bool
 	 */
 	function bankIntegrationAvailable(): bool {
-		static $available = null;
-		if ($available === null) {
+		static $available = array();
+		$company = (string)($GLOBALS['db'] ?? '');
+		if (!array_key_exists($company, $available)) {
 			try {
-				$available = ebFeatureAvailable();
+				$available[$company] = ebFeatureAvailable();
 			} catch (Throwable $e) {
-				$available = false;
+				$available[$company] = false;
 			}
 		}
-		return $available;
+		return $available[$company];
 	}
 
 	/**

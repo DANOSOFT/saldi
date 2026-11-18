@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebConfig.php --- ver 5.1.1 --- 2026-10-06 ---
+// --- bank_integration/includes/ebConfig.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,9 +25,11 @@
 // ----------------------------------------------------------------------
 //
 // 20261006 CDX/LH Created Enable Banking ebConfig backend service.
+// 20261118 CL/LH Optional company allowlist ($enableBankingCompanies / SALDI_ENABLEBANKING_COMPANIES): while set, only the listed company databases see the feature.
+//                A live install can then be opened for one company first.
 
 /**
- * @return array{app_id:string, key_path:string, redirect_url:string, environment:string, configured:bool, problem:string}
+ * @return array{app_id:string, key_path:string, redirect_url:string, environment:string, companies:list<string>, configured:bool, problem:string}
  */
 function ebConfig(): array
 {
@@ -39,6 +41,10 @@ function ebConfig(): array
         $config[$field] = $value !== '' ? $value : trim((string)($GLOBALS[$global] ?? ''));
     }
     $config['environment'] = strtoupper($config['environment'] ?: 'SANDBOX');
+    // Pilot allowlist of company databases ("saldi_1091, saldi_7"); empty means every company on the install.
+    $companies = trim((string)getenv('SALDI_ENABLEBANKING_COMPANIES'));
+    $companies = $companies !== '' ? $companies : (string)($GLOBALS['enableBankingCompanies'] ?? '');
+    $config['companies'] = array_values(array_filter(array_map('trim', preg_split('/[\s,]+/', $companies)), 'strlen'));
     $problem = '';
     $keyPath = realpath($config['key_path']);
     $root = realpath(dirname(__DIR__, 2));
@@ -58,8 +64,9 @@ function ebConfig(): array
     return $config;
 }
 
-/** @return bool Whether server-side provider configuration is available. */
+/** @return bool Whether server-side provider configuration is available to the current company ($GLOBALS['db']). */
 function ebFeatureAvailable(): bool
 {
-    return ebConfig()['configured'];
+    $config = ebConfig();
+    return $config['configured'] && ($config['companies'] === [] || in_array((string)($GLOBALS['db'] ?? ''), $config['companies'], true));
 }
