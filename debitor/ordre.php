@@ -191,9 +191,10 @@
 // 20261118 CL/MMR SST-1031 An original quote (OT) on a case no longer shows the general "Kopier" button, only the case copy "Kopiér".
 //                 The general copy made a new OT on the same case with quote number 0 and no timestamp.
 //                 A new order on a case now gets datotid (creation time), and datotid is escaped in the insert.
-//                 The other values in that insert are escaped or cast; city names from bynavn() and the account-card
-//                 cvrnr, email, ean and institution are escaped where they are read, like the form values.
+//                 The other values in that insert are escaped or cast.
+//                 City names from bynavn() and the account-card cvrnr, email, ean and institution are escaped where they are read, like the form values.
 //                 The delivery postcode is escaped once where it is read, and the delivery-address save no longer escapes lev_* twice.
+//                 $notes is escaped when it is read from the form (the same change as SST-1026), and the update no longer escapes it a second time.
 @session_start();
 $s_id = session_id();
 
@@ -969,7 +970,7 @@ if ($id && $status < 3 && isset($_GET['vare_id'])) {
 }
 if (isset($_POST['orderNoteText']) && $id) {
 	$orderNoteText = $_POST['orderNoteText'];
-	$notes = $orderNoteText;
+	$notes = db_escape_string($orderNoteText);
 	$qtxt = "update ordrer set notes='" . db_escape_string($orderNoteText) . "' where id=$id";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } elseif ($id) {
@@ -2493,7 +2494,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
 				$qtxt .= "betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',cvrnr='$cvrnr',momssats='$momssats',";
 				$qtxt .= "procenttillag='$procenttillag',ean='$ean',institution='$institution',email='$email',mail_fakt='$mail_fakt',";
-				$qtxt .= "phone='$phone',udskriv_til='$udskriv_til',notes='" . db_escape_string($notes) . "', ";
+				$qtxt .= "phone='$phone',udskriv_til='$udskriv_til',notes='$notes', ";
 				$qtxt .= "ordredate='$ordredate',status='$status',ref='" . db_escape_string((string) $ref) . "',";
 				$qtxt .= "fakturanr='$fakturanr',lev_adr='$lev_adr',performed_by='" . db_escape_string((string) $performed_by) . "',tidspkt='$tidspkt',projekt='$projekt[0]',";
 				$qtxt .= "sprog='$formularsprog',pbs='$pbs',afd='$afd',restordre='$restordre',mail_subj='$mail_subj',mail_text='$mail_text' $tmp ";
