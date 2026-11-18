@@ -45,6 +45,10 @@ $allowed = [
 	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesReferencedByACascadingForeignKeyAreNotDeletedStrict',
 	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesReferencedByACascadingForeignKeyAreNotDeletedReportingOff',
 	'EnsurePoolFilesSchemaMysqlTest::testAReferencedTableWithoutDuplicatesIsRepaired',
+	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesWithoutTheProcessPrivilegeAreNotDeleted',
+	'EnsurePoolFilesSchemaMysqlTest::testAChildInAnotherDatabaseKeepsEveryRowStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAChildInAnotherDatabaseKeepsEveryRowReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAChildInAnotherDatabaseKeepsEveryRowForAParentOnlyUser',
 ];
 
 $file = $argv[1] ?? '';

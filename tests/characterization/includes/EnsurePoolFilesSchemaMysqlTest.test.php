@@ -18,6 +18,7 @@
 // 20261118 CL/MMR SD-815 Codex round 35: another connection partitioning pool_files by HASH(id) after the trial and before the lock: both rows kept, nothing reported; the partitioned table defers at the trial; after REMOVE PARTITIONING the retry completes (both mysqli modes).
 // 20261118 CL/MMR SD-815 Codex round 36: a table with an outgoing foreign key, and a session with sql_quote_show_create=0, are repaired (FK and setting kept) in both mysqli modes.
 // 20261118 CL/MMR SD-815 Codex round 37: an ON DELETE CASCADE reference from another table and duplicate filenames: nothing deleted anywhere, no flag; without duplicates the repair runs (both mysqli modes).
+// 20261118 CL/MMR SD-815 Codex round 38: a cascading reference from another database (as root, and as a user with rights on this database only) keeps every row; duplicates without the PROCESS privilege wait; the round-18 grants still repair a table without duplicates.
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -128,6 +129,20 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     /** @var list<string> */
     private array $users = [];
 
+    /** @var list<string> */
+    private array $otherDatabases = [];
+
+    /** Another database with a table whose rows refer to pool_files here, ON DELETE CASCADE. */
+    private function childInAnotherDatabase(): string
+    {
+        $other = $this->database . '_child';
+        $this->sql("CREATE DATABASE $other");
+        $this->otherDatabases[] = $other;
+        $this->sql("CREATE TABLE $other.pool_linked_document (id INT NOT NULL PRIMARY KEY, pool_id INT NOT NULL,
+            CONSTRAINT linked_pool_fk FOREIGN KEY (pool_id) REFERENCES {$this->database}.pool_files (id) ON DELETE CASCADE) ENGINE=InnoDB");
+        return $other;
+    }
+
     /** A database user of this test with exactly $grants on the test database; the helper then runs as that user. */
     private function runAs(string $grants): \mysqli
     {
@@ -145,6 +160,9 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     protected function tearDown(): void
     {
         if ($this->connection !== null) {
+            foreach ($this->otherDatabases as $other) {
+                mysqli_query($this->connection, "DROP DATABASE IF EXISTS $other");
+            }
             foreach ($this->users as $user) {
                 mysqli_query($this->connection, "DROP USER IF EXISTS '$user'@'localhost'");
             }
@@ -342,15 +360,15 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
 
     public function testTheGrantsThatWereEnoughBeforeAreStillEnough(): void
     {
-        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        // Without duplicates: with duplicates the collapse also needs PROCESS (round 38, see the test below).
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('b.pdf', '99,00')");
         $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES');
 
         $done = ensurePoolFilesSchema('mysqli');
 
         self::assertContains('unique_filename', $done);
         self::assertContains('norm_amount_backfill', $done);
-        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
-        self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'b.pdf'"));
         self::assertSame('0', $this->one("SELECT count(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name LIKE 'pool\\_files\\_uidx\\_probe\\_%'"), 'the trial copy is dropped');
         mysqli_close($limited);
     }
@@ -737,5 +755,56 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testAReferencedTableWithoutDuplicatesIsRepaired(): void
     {
         $this->aCascadingReference(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT, false);
+    }
+
+    public function testDuplicatesWithoutTheProcessPrivilegeAreNotDeleted(): void
+    {
+        $this->allLaterColumns();
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $limited = $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES');
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
+        self::assertStringContainsString('PROCESS privilege', (string) file_get_contents($this->log));
+        mysqli_close($limited);
+    }
+
+    private function aChildInAnotherDatabase(int $reportMode, bool $limitedUser): void
+    {
+        $this->allLaterColumns();
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '1,00'), (2, 'a.pdf', '99,00')");
+        $other = $this->childInAnotherDatabase();
+        $this->sql("INSERT INTO $other.pool_linked_document VALUES (10, 1), (11, 2)");
+        $limited = $limitedUser ? $this->runAs('SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX, LOCK TABLES') : null;
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'both parent rows kept');
+        self::assertSame('2', $this->one("SELECT count(*) FROM $other.pool_linked_document"), 'both child rows in the other database kept');
+        self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertStringContainsString($limitedUser ? 'PROCESS privilege' : 'pool_linked_document', (string) file_get_contents($this->log));
+        if ($limited !== null) {
+            mysqli_close($limited);
+        }
+    }
+
+    public function testAChildInAnotherDatabaseKeepsEveryRowStrict(): void
+    {
+        $this->aChildInAnotherDatabase(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT, false);
+    }
+
+    public function testAChildInAnotherDatabaseKeepsEveryRowReportingOff(): void
+    {
+        $this->aChildInAnotherDatabase(MYSQLI_REPORT_OFF, false);
+    }
+
+    public function testAChildInAnotherDatabaseKeepsEveryRowForAParentOnlyUser(): void
+    {
+        $this->aChildInAnotherDatabase(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT, true);
     }
 }

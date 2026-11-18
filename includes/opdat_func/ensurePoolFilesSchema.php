@@ -63,6 +63,7 @@
 // 20261118 CL/MMR SD-815 Codex round 35: the definition is now the table's whole SHOW CREATE TABLE (AUTO_INCREMENT left out), so partitioning and every other option count too: taken before the trial copy, the copy must match it, and under the lock pool_files must still match it before anything is deleted.
 // 20261118 CL/MMR SD-815 Codex round 36: the trial copy is compared without FOREIGN KEY lines (CREATE TABLE ... LIKE does not copy them), pool_files before the trial and under the lock still in full; only the name in the CREATE TABLE header is normalised, quoted or not (sql_quote_show_create=0).
 // 20261118 CL/MMR SD-815 Codex round 37: when other tables refer to pool_files with foreign keys and there are duplicate filenames, nothing is deleted (a cascade would delete their rows too); the constraints are named in the log for a person. Checked under the lock that keeps the decision valid.
+// 20261118 CL/MMR SD-815 Codex round 38: on MySQL/MariaDB the references are read from InnoDB's own list (INNODB_SYS_FOREIGN, MySQL 8: INNODB_FOREIGN), which also shows other databases' tables; when it cannot be read (no PROCESS privilege) and there are duplicates, nothing is deleted. Duplicates are looked for first.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -182,37 +183,81 @@ if (!function_exists('ensurePoolFilesPostgresIndexName')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesMysqlRows')) {
+	/**
+	 * The rows of a read on the tenant's mysqli connection, or null when it fails - quietly, without db_select()'s error
+	 * box and mail, for reads that may be refused (a privilege) or not exist on this server (a table of another version).
+	 *
+	 * @param string $sql A fixed statement.
+	 * @return list<array<string, mixed>>|null
+	 */
+	function ensurePoolFilesMysqlRows(string $sql): ?array {
+		$connection = $GLOBALS['connection'] ?? null;
+		if (!($connection instanceof \mysqli)) {
+			return null;
+		}
+		try {
+			$result = mysqli_query($connection, $sql);
+		} catch (mysqli_sql_exception $e) {
+			return null;
+		}
+		if (!($result instanceof \mysqli_result)) {
+			return null;
+		}
+		$rows = array();
+		while ($row = mysqli_fetch_assoc($result)) {
+			$rows[] = $row;
+		}
+		return $rows;
+	}
+}
+
 if (!function_exists('ensurePoolFilesGuardInboundReferences')) {
 	/**
-	 * Stops the duplicate collapse when other tables refer to pool_files with foreign keys and there is something to
-	 * delete: a cascade would delete their rows as well (SET NULL would change them, RESTRICT would refuse), so a person
-	 * has to merge those duplicates. Called while the lock that keeps the answer valid is held (PostgreSQL: SHARE ROW
-	 * EXCLUSIVE on pool_files in the repair's transaction; MySQL: LOCK TABLES pool_files WRITE).
+	 * Stops the duplicate collapse when there is something to delete and other tables may refer to pool_files with
+	 * foreign keys: a cascade would delete their rows as well (SET NULL would change them, RESTRICT would refuse), so a
+	 * person has to merge those duplicates. Called while the lock that keeps the answer valid is held (PostgreSQL:
+	 * SHARE ROW EXCLUSIVE on pool_files in the repair's transaction; MySQL: LOCK TABLES pool_files WRITE).
+	 * PostgreSQL: pg_constraint (all schemas). MySQL/MariaDB: InnoDB's own foreign-key list, which also shows tables in
+	 * other databases (information_schema.referential_constraints only shows what this user may see); it needs the
+	 * PROCESS privilege, and when it cannot be read the collapse waits.
 	 *
 	 * @param string $db_type
 	 * @return void
-	 * @throws EnsurePoolFilesSchemaUnknown When there are both; the constraints are named in the log.
+	 * @throws EnsurePoolFilesSchemaUnknown When duplicates exist and references exist or cannot be ruled out; logged.
 	 */
 	function ensurePoolFilesGuardInboundReferences(string $db_type): void {
-		$mysql = in_array($db_type, array('mysql', 'mysqli'), true);
-		if ($mysql) {
-			$references = "SELECT CONCAT(table_name, '.', constraint_name) AS reference FROM information_schema.referential_constraints
-				WHERE constraint_schema = DATABASE() AND referenced_table_name = 'pool_files'";
-		} else {
-			$references = "SELECT c.conrelid::regclass::text || '.' || c.conname AS reference FROM pg_constraint c
-				JOIN pg_class t ON t.oid = c.confrelid JOIN pg_namespace n ON n.oid = t.relnamespace
-				WHERE c.contype = 'f' AND t.relname = 'pool_files' AND n.nspname = current_schema()";
+		if (!db_fetch_array(ensurePoolFilesSelect("SELECT filename FROM pool_files GROUP BY filename HAVING COUNT(*) > 1 LIMIT 1", __LINE__))) {
+			return; // nothing to delete, nothing can cascade
 		}
 		$names = array();
-		$q = ensurePoolFilesSelect($references, __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$names[] = (string)($r['reference'] ?? $r['REFERENCE'] ?? '');
+		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
+			$rows = null;
+			foreach (array('INNODB_SYS_FOREIGN', 'INNODB_FOREIGN') as $list) {
+				$rows = ensurePoolFilesMysqlRows("SELECT ID AS id, FOR_NAME AS child FROM information_schema.$list WHERE LOWER(REF_NAME) = LOWER(CONCAT(DATABASE(), '/pool_files'))");
+				if ($rows !== null) {
+					break;
+				}
+			}
+			if ($rows === null) {
+				error_log('ensurePoolFilesSchema: nothing deleted, pool_files has duplicate filenames and the foreign keys that may refer to it cannot be read'
+					. ' (information_schema.INNODB_SYS_FOREIGN / INNODB_FOREIGN need the PROCESS privilege); grant it or merge the duplicates by hand');
+				throw new EnsurePoolFilesSchemaUnknown('references to pool_files cannot be ruled out');
+			}
+			foreach ($rows as $r) {
+				$names[] = (string)($r['child'] ?? '') . ' (' . (string)($r['id'] ?? '') . ')';
+			}
+		} else {
+			$q = ensurePoolFilesSelect("SELECT cn.nspname || '.' || ct.relname || '.' || c.conname AS reference FROM pg_constraint c
+				JOIN pg_class t ON t.oid = c.confrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+				JOIN pg_class ct ON ct.oid = c.conrelid JOIN pg_namespace cn ON cn.oid = ct.relnamespace
+				WHERE c.contype = 'f' AND t.relname = 'pool_files' AND n.nspname = current_schema()", __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$names[] = (string)($r['reference'] ?? '');
+			}
 		}
 		if (!$names) {
 			return;
-		}
-		if (!db_fetch_array(ensurePoolFilesSelect("SELECT filename FROM pool_files GROUP BY filename HAVING COUNT(*) > 1 LIMIT 1", __LINE__))) {
-			return; // nothing to delete, nothing can cascade
 		}
 		error_log('ensurePoolFilesSchema: nothing deleted, pool_files has duplicate filenames and other tables refer to it (' . implode(', ', $names)
 			. '); merge the duplicates by hand, then the next login adds the unique filename index');
