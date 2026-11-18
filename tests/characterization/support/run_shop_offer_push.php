@@ -25,6 +25,7 @@
 //                Single-writer rebuild: the reconciler's tick, a committed sale, holding a lock, and api/rest_api.php.
 //                Re-send rebuild: holding a table lock, and a POST body for api/rest_api.php.
 // 20261118 CL/LH CodeRabbit review of #1157: the table lock's marker appears only once the lock is held.
+// 20261118 CL/LH CodeRabbit review of 63cf3d3f2: a tick reports the transport it used (shopOfferTransport()).
 if ($argc < 3) {
 	fwrite(STDERR, "usage: php run_shop_offer_push.php <tenant_db> <scenario> <args...>\n");
 	exit(2);
@@ -58,6 +59,7 @@ if ($scenario === 'tick') {
 	if (isset($argv[4])) $options['budget'] = (float)$argv[4];
 	if (isset($argv[5])) $options['maxItems'] = (int)$argv[5];
 	$out = shopOfferReconcileTick($options);
+	$out['transport'] = shopOfferTransport(); // the transport the tick used, for the tests that run each one
 } elseif ($scenario === 'sync_price') {
 	$out = array('result' => sync_shop_price((int)$argv[3]));
 } elseif ($scenario === 'sync_vare') {
