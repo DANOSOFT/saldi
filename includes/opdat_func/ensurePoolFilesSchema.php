@@ -38,6 +38,7 @@
 //                 On MySQL/MariaDB the duplicate collapse and the unique index run under LOCK TABLES pool_files WRITE: if the table lock cannot be had nothing is deleted, and once it is held the index cannot be blocked by another session.
 // 20261118 CL/MMR SD-815 Codex round 15: on MySQL/MariaDB the run does nothing while the connection is inside a transaction (DDL and LOCK TABLES would commit the caller's work); a later login does it.
 //                 The unique index gets a name no index has yet (an existing non-unique pool_files_filename_uidx made CREATE fail after the duplicate collapse); the name is chosen before anything is deleted.
+// 20261118 CL/MMR SD-815 Codex round 16: on MySQL/MariaDB the unique index is first tried on an empty copy of pool_files (CREATE TABLE ... LIKE, same row format and character set); if the table cannot hold it (e.g. ROW_FORMAT=COMPACT with utf8mb4) nothing is deleted and the reason is logged.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -213,6 +214,41 @@ if (!function_exists('ensurePoolFilesMysqlIndexName')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesMysqlProbeUniqueIndex')) {
+	/**
+	 * Tries the unique filename index on an empty copy of pool_files (CREATE TABLE ... LIKE keeps the row format, the
+	 * character set and the column definitions), so a table that cannot hold it - e.g. an old ROW_FORMAT=COMPACT table
+	 * in utf8mb4, where varchar(255) needs 1020 bytes and COMPACT allows 767 - is found before any duplicate is deleted.
+	 * The copy is always dropped.
+	 *
+	 * @return void
+	 * @throws EnsurePoolFilesSchemaUnknown When the index does not fit; the reason is logged.
+	 */
+	function ensurePoolFilesMysqlProbeUniqueIndex(): void {
+		$probe = 'pool_files_uidx_probe';
+		db_modify("DROP TABLE IF EXISTS $probe", __FILE__ . " linje " . __LINE__);
+		try {
+			db_modify("CREATE TABLE $probe LIKE pool_files", __FILE__ . " linje " . __LINE__);
+			db_modify("CREATE UNIQUE INDEX {$probe}_filename ON $probe (filename)", __FILE__ . " linje " . __LINE__);
+			// Read back: without exception reporting a failed CREATE only returns false.
+			if (!db_fetch_array(ensurePoolFilesSelect("SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = '$probe' AND index_name = '{$probe}_filename' AND non_unique = 0", __LINE__))) {
+				error_log('ensurePoolFilesSchema: pool_files cannot hold a unique index on filename, nothing deleted (the trial index on an empty copy was not created)');
+				throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index does not fit');
+			}
+		} catch (mysqli_sql_exception $e) {
+			error_log('ensurePoolFilesSchema: pool_files cannot hold a unique index on filename, nothing deleted: ' . $e->getMessage()
+				. ' (e.g. ALTER TABLE pool_files ROW_FORMAT=DYNAMIC is needed first)');
+			throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index does not fit', 0, $e);
+		} finally {
+			try {
+				db_modify("DROP TABLE IF EXISTS $probe", __FILE__ . " linje " . __LINE__);
+			} catch (mysqli_sql_exception $e) {
+				error_log('ensurePoolFilesSchema: could not drop ' . $probe . ': ' . $e->getMessage());
+			}
+		}
+	}
+}
+
 if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 	/**
 	 * Gives pool_files a unique index on filename on MySQL/MariaDB. DDL commits at once there, so the duplicate collapse
@@ -227,6 +263,7 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 	 */
 	function ensurePoolFilesUniqueRepairMysql(string $db_type): void {
 		$name = ensurePoolFilesMysqlIndexName(); // before anything is deleted
+		ensurePoolFilesMysqlProbeUniqueIndex();   // likewise: the table must be able to hold the index
 		db_modify("LOCK TABLES pool_files WRITE, pool_files AS a WRITE, pool_files AS b READ", __FILE__ . " linje " . __LINE__);
 		try {
 			db_modify("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id", __FILE__ . " linje " . __LINE__);

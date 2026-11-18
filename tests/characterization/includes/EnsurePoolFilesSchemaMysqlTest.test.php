@@ -4,6 +4,7 @@
 //                 Needs the mysqli extension and SALDI_CHAR_MYSQL_SOCKET (a disposable server, user root without password unless SALDI_CHAR_MYSQL_USER/PASS); skipped otherwise.
 // 20261118 CL/MMR SD-815 Codex round 14: when the unique-index repair cannot get the table (another session's open transaction has read pool_files), no duplicate row is deleted; the retry keeps the newest row.
 // 20261118 CL/MMR SD-815 Codex round 15: inside a caller's transaction nothing runs (the caller can still roll back its own work), and an existing non-unique index named pool_files_filename_uidx does not stop the repair.
+// 20261118 CL/MMR SD-815 Codex round 16: an old ROW_FORMAT=COMPACT utf8mb4 pool_files that cannot hold the index keeps both rows and logs why; after ROW_FORMAT=DYNAMIC the retry completes.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -198,6 +199,37 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         self::assertContains('unique_filename', $done);
         self::assertSame('2,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
         self::assertSame('0', $this->one("SELECT non_unique FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND index_name = 'pool_files_filename_full_uidx'"), 'the new unique index');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '3,00') ON DUPLICATE KEY UPDATE id = id");
+        self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
+        self::assertSame([], ensurePoolFilesSchema('mysqli'));
+    }
+
+    public function testATableThatCannotHoldTheIndexKeepsItsRows(): void
+    {
+        $this->sql('DROP TABLE pool_files');
+        $this->sql('CREATE TABLE pool_files (id INT AUTO_INCREMENT NOT NULL, filename varchar(255), subject text, account varchar(50), amount varchar(50),
+            norm_amount numeric(15,3), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, invoice_number varchar(100), description text,
+            manually_edited boolean NOT NULL DEFAULT false, currency varchar(10), content_sha256 char(64), source_sha256 char(64), vendor_name text,
+            vendor_cvr varchar(20), vendor_iban varchar(40), vendor_konto_id integer, vendor_score numeric(4,3), vendor_match varchar(10),
+            PRIMARY KEY (id), INDEX idx_pool_files_norm_amount (norm_amount)) ENGINE=InnoDB ROW_FORMAT=COMPACT DEFAULT CHARSET=utf8mb4');
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+
+        $done = ensurePoolFilesSchema('mysqli'); // must not throw
+
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
+        self::assertStringContainsString('cannot hold a unique index on filename', (string) file_get_contents($this->log));
+        self::assertSame('0', $this->one("SELECT count(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'pool_files_uidx_probe'"), 'the trial copy is gone');
+        self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+        self::assertNull($this->one("SELECT IS_USED_LOCK(CONCAT('saldi:pool_files_schema:', MD5(DATABASE())))"));
+        self::assertNotContains('unique_filename', ensurePoolFilesSchema('mysqli'), 'a retry on the same table defers again');
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
+
+        $this->sql('ALTER TABLE pool_files ROW_FORMAT=DYNAMIC'); // the prerequisite the log names
+        $done = ensurePoolFilesSchema('mysqli');
+        self::assertContains('unique_filename', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept and filled');
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '3,00') ON DUPLICATE KEY UPDATE id = id");
         self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
         self::assertSame([], ensurePoolFilesSchema('mysqli'));
