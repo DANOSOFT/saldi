@@ -49,6 +49,7 @@
 // 20261118 CL/MMR SD-815 Codex round 22: a unique index on only part of filename (a MySQL prefix like filename(7), a PostgreSQL expression such as left(filename, 7)) does not count and is removed once the full unique index is there, in the same locked step / transaction.
 //                 Such an index refused a second, different file whose name shares the part.
 // 20261118 CL/MMR SD-815 Codex round 23: on PostgreSQL only an index whose single key expression uses filename and no other column, without a predicate or included columns, counts as such; any other unique index (e.g. on lower(subject) WHERE filename IS NOT NULL) is never dropped.
+// 20261118 CL/MMR SD-815 Codex round 24: «uses filename and no other column» is read from the catalogue's column dependencies (pg_depend), not from the expression's text, so a literal 'filename' or an odd column name cannot mislead it.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -468,16 +469,19 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 				AND c.conkey[1] = (SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename')";
 			// A unique index on an expression of filename alone (left(filename, 7), lower(filename) ...) refuses names the
 			// full index allows; it is not an index ON CONFLICT (filename) can use either. Only an index that is surely
-			// that counts: one key, an expression (indkey 0) whose text (pg_get_expr of the key expressions, not the index
-			// name or a WHERE predicate) names filename and no other column of the table, no predicate, no INCLUDE columns.
-			// Every other unique index is a rule of its own and is left alone.
+			// that counts: one key, an expression (indkey 0), no predicate, no INCLUDE columns, and - from the catalogue,
+			// not from the expression's text - a column dependency on filename and on no other column (pg_depend records
+			// one per column the expression reads; a constant such as lower('filename') has none). Every other unique
+			// index is a rule of its own and is left alone.
+			$filenameAttnum = "(SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename' AND NOT attisdropped)";
+			$columnDependency = "SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_class'::regclass AND d.objid = i.indexrelid
+					AND d.refclassid = 'pg_class'::regclass AND d.refobjid = t.oid AND d.refobjsubid > 0";
 			$restrictive = "SELECT ci.relname AS index_name FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_class ci ON ci.oid = i.indexrelid
 				JOIN pg_namespace n ON n.oid = t.relnamespace
 				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND i.indisunique
 				AND i.indnatts = 1 AND i.indnkeyatts = 1 AND i.indkey[0] = 0 AND i.indexprs IS NOT NULL AND i.indpred IS NULL
-				AND pg_get_expr(i.indexprs, i.indrelid) ~* '\\mfilename\\M'
-				AND NOT EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = t.oid AND a.attnum > 0 AND NOT a.attisdropped
-					AND a.attname <> 'filename' AND pg_get_expr(i.indexprs, i.indrelid) ~* ('\\m' || a.attname || '\\M'))";
+				AND EXISTS ($columnDependency AND d.refobjsubid = $filenameAttnum)
+				AND NOT EXISTS ($columnDependency AND d.refobjsubid <> $filenameAttnum)";
 			$normIndex = "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
 		}
 		$deferrableNames = array();
