@@ -564,13 +564,13 @@ final class PosSaleHeaderTest extends TestCase
         self::assertMatchesRegularExpression(
             "/'pos\.tills\.brand' => array\(.*?'storage' => array\('grupper', 'POS', 4, 'box1', 'raw',[^)]*'fiscal' => true, 'join' => \"\\\\t\", 'list' => true\)/s",
             $definitions, 'the field has to write the row pos_sale_brands() reads: POS kodenr 4 box1, a tab list per fiscal year');
-        self::assertMatchesRegularExpression("/'pos\.tills\.brand' => array\(.*?'options_from' => 'pos_sale_brands'/s", $definitions,
+        self::assertMatchesRegularExpression("/'pos\.tills\.brand' => array\(.*?'options_from' => 'pos_form_variants'/s", $definitions,
             'without the variant list the field would offer no brands at all');
         self::assertMatchesRegularExpression("/'pos\.tills\.brand' => array\(.*?'validate' => array\('in_options', 7202\)/s", $definitions,
             'a brand with no form variant has to be refused, not stored or silently cleared');
 
         $components = file_get_contents(dirname(__DIR__, 3) . '/includes/settings/components.php');
-        self::assertMatchesRegularExpression("/\\\$from === 'pos_sale_brands'.*?posSaleSettings\.php.*?pos_sale_brand_variants\(\)/s", $components,
+        self::assertMatchesRegularExpression("/\\\$from === 'pos_form_variants'.*?posSaleSettings\.php.*?pos_sale_brand_variants\(\).*?strpbrk\(\\\$variant, \"\\\\t\\\\r\\\\n\"\) === false/s", $components,
             'the options are the form variants, from the same function SD-758 used');
         self::assertMatchesRegularExpression("/'in_options'\) \{\s*\/\/[^\n]*\n\s*\\\$error = \(int\) \\\$def\['validate'\]\[1\];/", $components,
             'a value the list does not offer is refused with the rule\'s text');

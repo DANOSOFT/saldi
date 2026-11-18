@@ -47,7 +47,7 @@
 // 20261103 CL/ASR QA: a reader (no write) keeps navigation links (another settings page, an export, external documentation such as the data processing agreement); only links to pages that change data are disabled.
 // 20261104 CL/ASR Final QA: a setting marked 'empty_is_default' also shows its default when its stored value is empty (Landekonfiguration: an empty adresser.land is Danmark), so the field is not blank and saving the page does not change it.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261118 CL/MJ SD-830 options_from 'pos_sale_brands' (the form variants, from pos_sale_brand_variants()); a select with validate 'in_options' refuses a value its list does not offer instead of resetting it to the default.
+// 20261118 CL/MJ SD-830 options_from 'pos_form_variants' (the form variants, from pos_sale_brand_variants()); a select with validate 'in_options' refuses a value its list does not offer instead of resetting it to the default; a variant holding a tab or line break is left out, since it would break the tab separated list.
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
 include_once(__DIR__ . '/virtualStorage.php');
@@ -494,11 +494,14 @@ function st_options(array $def): array
 				$code = trim((string) $r['kode']) . trim((string) $r['kodenr']);
 				$cache[$from][$code] = $code . ' ' . trim((string) $r['beskrivelse']);
 			}
-		} elseif ($from === 'pos_sale_brands') {
+		} elseif ($from === 'pos_form_variants') {
 			// SD-830: the brands a till can sell under are the form variants, as SD-758's field on the retired PoS-valg page offered them.
 			include_once(__DIR__ . '/../../systemdata/diverseIncludes/posSaleSettings.php');
 			foreach (pos_sale_brand_variants() as $variant) {
-				$cache[$from][$variant] = $variant;
+				// The brands are stored as a tab separated list, so a variant holding a tab or line break would shift every later till.
+				if (strpbrk($variant, "\t\r\n") === false) {
+					$cache[$from][$variant] = $variant;
+				}
 			}
 		} elseif ($from === 'form_backgrounds') {
 			// G7.1: the form backgrounds a user can print with, as the old employee card listed them (formularer.sprog).

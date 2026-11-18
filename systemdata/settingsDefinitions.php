@@ -1010,7 +1010,7 @@ if (!function_exists('getSettingsSections')) {
 				'options_from' => 'vat_sales', 'options_literal' => true, 'storage' => array('grupper', 'POS', 1, 'box7', 'raw', 'row_name' => 'POS_valg', 'fiscal' => true, 'join' => "\t", 'list' => true), 'legacy' => $pos),
 			// SD-830: the brand a till sells under (SD-758), in the row posSaleSettings.php owns and pos_terminal_sale_defaults() reads.
 			'pos.tills.brand' => array('sub' => 'tills', 'type' => 'select', 'label' => 7200, 'help' => 7201, 'per' => 'till', 'group_label' => array(6302, ''), 'default' => '',
-				'options_from' => 'pos_sale_brands', 'options_literal' => true, 'validate' => array('in_options', 7202),
+				'options_from' => 'pos_form_variants', 'options_literal' => true, 'validate' => array('in_options', 7202),
 				'storage' => array('grupper', 'POS', 4, 'box1', 'raw', 'row_name' => 'POS salgsopsaetning', 'fiscal' => true, 'join' => "\t", 'list' => true), 'legacy' => $pos,
 				'keywords' => array('brand', 'formularvariant', 'form variant')),
 			'pos.tills.post_each_sale' => array('sub' => 'tills', 'type' => 'bool', 'label' => 6292, 'help' => 1728, 'per' => 'till', 'group_label' => array(6302, ''), 'default' => false,
