@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/accounts.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/accounts.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20261028 CDX/LH Handle connection disconnection and remove first-batch mapping approval.
 // 20261028 CL/LH Bank connection panel with Afbryd per connection (also when every account is unsupported), the waiting count in the confirm and the unconfirmed-revoke warning; texts for manual picking.
 // 20261116 CL/LH Texts through findtekst() (bank.accounts.*); the pull model's wording (a kassekladde, not the bank journal).
+// 20261118 CL/LH Forbind igen / Forny adgang posts as the whole window (target _top): the bank login cannot be shown in Saldi's frame.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -325,7 +326,7 @@ if ($unavailable !== null) {
 			print "<p class='eb-muted'>" . ebHT(findtekst('bank.accounts.disconnected_note|Forbindelsen er afbrudt. Bogførte og importerede posteringer er bevaret. Hentede posteringer, der ikke er lagt i en kassekladde, kan stadig bruges.', ebLang())) . "</p>";
 			print "<div class='eb-actions'><a class='eb-btn secondary' href='feed.php?account=$id'>" . ebHT(findtekst('bank.feed.title|Bankposteringer', ebLang())) . "</a>";
 			if ($canManage && !empty($bankConnection)) {
-				print ebPostButton('connect.php', array('purpose' => 'reconnect', 'connection' => (int)$bankConnection['id']), ebT(findtekst('bank.feed.reconnect|Forbind igen', ebLang())), 'secondary');
+				print ebPostButton('connect.php', array('purpose' => 'reconnect', 'connection' => (int)$bankConnection['id']), ebT(findtekst('bank.feed.reconnect|Forbind igen', ebLang())), 'secondary', '', '_top');
 			}
 			print "</div>";
 		} else {

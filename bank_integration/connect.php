@@ -31,6 +31,7 @@
 // 20261028 CL/LH Singular/plural for active connections and an en dash in the read-only note.
 // 20261116 CL/LH Texts through findtekst() (bank.connect.*); the lines go into a kassekladde from its Bankforbindelse button.
 // 20261118 CL/LH The privacy policy link opens the published PDF (saldi.dk/assets/dokumenter/privatlivspolitik.pdf); saldi.dk/privatlivspolitik is a 404.
+// 20261118 CL/LH The bank choice posts as the whole window (target _top), since banks refuse to be shown in Saldi's frame; errors return into the frame layout (ebShellRedirect()).
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -98,13 +99,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$purpose       = (($_POST['purpose'] ?? '') === 'reconnect') ? 'reconnect' : 'connect';
 	$returnAccount = (int)($_POST['return_account'] ?? 0);
 	$errorTarget   = $returnAccount > 0 ? 'feed.php?account=' . $returnAccount : 'connect.php';
+	// The form posts as the whole window (target _top), so every way back goes through the frame layout.
 	if ($unavailable !== null) {
 		ebFlash('error', $unavailable);
-		ebRedirect($errorTarget);
+		ebShellRedirect($errorTarget);
 	}
 	if (!$canManage) {
 		ebFlash('error', ebT(findtekst('bank.connect.no_right|Du har ikke adgang til at oprette eller forny bankforbindelser. Det kræver adgang til Indstillinger.', ebLang())));
-		ebRedirect($errorTarget);
+		ebShellRedirect($errorTarget);
 	}
 	session_write_close();
 	try {
@@ -115,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			$bankConnection   = ebIndexById(ebListConnections())[$connectionId] ?? null;
 			if (!$bankConnection) {
 				ebFlash('error', ebT(findtekst('bank.connect.gone|Bankforbindelsen findes ikke længere. Opret en ny forbindelse.', ebLang())));
-				ebRedirect($errorTarget);
+				ebShellRedirect($errorTarget);
 			}
 			// The bank is taken from the stored connection, never from the form.
 			$aspspName = (string)($bankConnection['aspsp_name'] ?? '');
@@ -134,14 +136,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			}
 			if (!$chosen) {
 				ebFlash('error', ebT(findtekst('bank.connect.choose_bank|Vælg en bank og kontotype fra listen.', ebLang())));
-				ebRedirect('connect.php');
+				ebShellRedirect('connect.php');
 			}
 			$country = $chosen['country'];
 		}
 		$url = ebStartAuthorization($client, $aspspName, $country, $psuType, $purpose, $connectionId, (int)$bruger_id, (string)$brugernavn);
 		if (!preg_match('#^https://#i', $url)) {
 			ebFlash('error', ebT(findtekst('bank.connect.bad_url|Banken returnerede ikke en gyldig login-adresse. Prøv igen senere.', ebLang())));
-			ebRedirect($errorTarget);
+			ebShellRedirect($errorTarget);
 		}
 		while (ob_get_level() > 0) {
 			ob_end_clean();
@@ -150,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		exit;
 	} catch (Throwable $e) {
 		ebFlash('error', ebErrorMessage($e, 'authorization'));
-		ebRedirect($errorTarget);
+		ebShellRedirect($errorTarget);
 	}
 }
 
@@ -217,7 +219,7 @@ if ($unavailable !== null) {
 			}
 			print "</td><td class='nowrap'>";
 			foreach ($bank['psu_types'] as $type) {
-				print "<form method='post' action='connect.php' class='eb-inline'>" . ebCsrfField();
+				print "<form method='post' action='connect.php' class='eb-inline' target='_top'>" . ebCsrfField();
 				print "<input type='hidden' name='purpose' value='connect'>";
 				print "<input type='hidden' name='aspsp' value='" . ebH($bank['name']) . "'>";
 				print "<input type='hidden' name='psu_type' value='" . ebH($type) . "'>";

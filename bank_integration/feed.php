@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/feed.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- bank_integration/feed.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,7 @@
 //                No automatic import switch, bank journal or deferral texts; texts through findtekst() (bank.feed.*).
 // 20261116 CL/LH The actor is the unescaped user name, so a name with an apostrophe matches its own journal lock.
 // 20261117 CL/LH The "Godkend ændring" button sends a hash of the change shown, so a newer change from the bank is never approved unseen.
+// 20261118 CL/LH Forbind igen / Forny adgang posts as the whole window (target _top): the bank login cannot be shown in Saldi's frame.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -606,7 +607,7 @@ if ($unavailable !== null) {
 		if ($canManage && $connectionId > 0 && $state !== 'unsupported') {
 			$renewLabel = $state === 'disconnected' ? ebT(findtekst('bank.feed.reconnect|Forbind igen', ebLang())) : ebT(findtekst('bank.feed.renew|Forny adgang', ebLang()));
 			print ebPostButton('connect.php', array('purpose' => 'reconnect', 'connection' => $connectionId, 'return_account' => $accountId), $renewLabel,
-				($status['expired'] || $actionRequired || $state === 'disconnected') ? '' : 'secondary');
+				($status['expired'] || $actionRequired || $state === 'disconnected') ? '' : 'secondary', '', '_top');
 		}
 		if ($canManage && $state === 'active') {
 			print ebPostButton(ebFeedUrl(), array('action' => 'pause'), ebT(findtekst('bank.feed.pause|Sæt på pause', ebLang())), 'secondary',
