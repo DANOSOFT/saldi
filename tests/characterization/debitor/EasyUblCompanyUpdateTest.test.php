@@ -21,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 // 20261118 CL/MMR SST-1003 The other error logs (failed call, NemHandel creation) leave out the contact and bank details too.
 // 20261118 CL/MMR SST-1007 An answer that is not 2xx counts as a failed update.
 // 20261118 CL/MMR SST-1003 Nested contact and bank details and a bare text answer are kept out of the logs too (Codex).
+// 20261118 CL/MMR SST-1003 Only EasyUBL's error fields are logged: numeric echoes, e-mail keys and short values (Codex).
 final class EasyUblCompanyUpdateTest extends TestCase
 {
     private const API = __DIR__ . '/../../../debitor/api.php';
@@ -194,13 +195,14 @@ final class EasyUblCompanyUpdateTest extends TestCase
     /** Sent data and an answer that both carry the contact and bank details. */
     private const DATA = array('name' => 'Testfirma ApS', 'cvr' => 'DK12345674', 'registerAsRecipient' => true,
         'defaultContact' => array('email' => 'bogholder@testfirma.example', 'sms' => '+4512345678'),
-        'payment' => array('bankAccount' => '1234-0012345678'));
+        'payment' => array('bankAccount' => '1234-0012345678', 'bankRegNo' => '12'));
 
     private function assertNoPrivateDetails(string $log): void
     {
         self::assertStringNotContainsString('bogholder@testfirma.example', $log, 'no contact e-mail: temp/ is under the web root');
         self::assertStringNotContainsString('+4512345678', $log, 'no phone number');
         self::assertStringNotContainsString('1234-0012345678', $log, 'no bank account');
+        self::assertStringNotContainsString('12340012345678', $log, 'no bank account as a number');
         self::assertStringContainsString('"registerAsRecipient":true', $log, 'what was sent is still there');
     }
 
@@ -219,7 +221,7 @@ final class EasyUblCompanyUpdateTest extends TestCase
      *
      * @return array{result: mixed, logs: list<string>}
      */
-    private function runUpdateBranches(int $httpCode, mixed $response): array
+    private function runUpdateBranches(int $httpCode, mixed $response, array $data = self::DATA): array
     {
         $branch = $this->lift(
             'function updateCompany()',
@@ -232,7 +234,6 @@ final class EasyUblCompanyUpdateTest extends TestCase
         try {
             $db = 'sst865';
             $ch = curl_init();
-            $data = self::DATA;
             $result = (function () use ($branch, $db, $ch, $httpCode, $data, $response) {
                 return eval($branch);
             })();
@@ -338,7 +339,8 @@ final class EasyUblCompanyUpdateTest extends TestCase
 
         self::assertFalse($out['result']['success']);
         self::assertCount(1, $out['logs']);
-        self::assertStringContainsString('"name":"Testfirma ApS"', $out['logs'][0], 'the rest of the answer is still there');
+        self::assertStringContainsString('"status code":401', $out['logs'][0]);
+        self::assertStringContainsString('"otherFields":1', $out['logs'][0], 'the company object is left out, only counted');
         $this->assertNoPrivateDetails($out['logs'][0]);
     }
 
@@ -366,7 +368,40 @@ final class EasyUblCompanyUpdateTest extends TestCase
         $logs = $this->runNemHandelBranches(400, array('companyID' => '00000000-0000-0000-0000-000000000000') + self::NESTED);
 
         self::assertCount(1, $logs);
-        self::assertStringContainsString('"name":"Testfirma ApS"', $logs[0]);
+        self::assertStringContainsString('"companyID":"00000000-0000-0000-0000-000000000000"', $logs[0], 'the error field is kept');
         $this->assertNoPrivateDetails($logs[0]);
+    }
+
+    public function testANumericEchoOfTheBankAccountIsKeptOutOfTheLog(): void
+    {
+        $data = self::DATA;
+        $data['payment']['bankAccount'] = '12340012345678';
+        $logs = array();
+        foreach (array(array('accountNumber' => 12340012345678, 'title' => 'Bad'), array('code' => 12340012345678, 'title' => 'Bad')) as $answer) {
+            $out = $this->runUpdateBranches(400, $answer, $data);
+            $logs[] = $out['logs'][0];
+            $this->tearDown();
+        }
+
+        foreach ($logs as $log) {
+            self::assertStringContainsString('"title":"Bad"', $log);
+            self::assertStringNotContainsString('12340012345678', $log, 'neither in an unknown field nor in a kept one');
+        }
+    }
+
+    public function testAnEMailUsedAsAKeyIsKeptOutOfTheLog(): void
+    {
+        $out = $this->runUpdateBranches(422, array('title' => 'Validation', 'errors' => array('bogholder@testfirma.example' => array('already used'))));
+
+        self::assertStringContainsString('"errors":"[1 entries]"', $out['logs'][0], 'a map in an error field is logged by its size');
+        $this->assertNoPrivateDetails($out['logs'][0]);
+    }
+
+    public function testAShortPrivateValueIsMaskedButOtherShortTextIsNot(): void
+    {
+        $out = $this->runUpdateBranches(400, array('code' => '12', 'message' => 'Reg. 12 refused, 120 entries, a12b'));
+
+        self::assertStringContainsString('"code":"[removed]"', $out['logs'][0], 'the exact value is masked');
+        self::assertStringContainsString('Reg. 12 refused, 120 entries, a12b', $out['logs'][0], 'a value under 3 characters is not masked inside other text');
     }
 }
