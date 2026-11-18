@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../../includes/opdat_func/formularFaxToMobile.php';
 // 20261111 CL/MMR SST-898 (review) Own labels that end in Fax/FAX/Telefax/Faks ("Support Fax:") keep their text: only a whole standard label is replaced.
 // 20261113 CL/MMR SST-898 (review 2) The Danish and Norwegian label is "Mobilnr." on the forms and in texts 378, 50 and 5230 (debitor card); "Fax.:" gives no double dot.
 // 20261118 CL/MMR SST-898 (review 4) The old default texts are listed in formular_fax_to_mobile_stale_tekster() and deleted by formularFaxToMobileTekster(); the database behaviour is in FormularFaxToMobileLoginTest.
+// 20261118 CL/MMR SST-898 (review 9) A text that is not valid UTF-8 is returned unchanged; formular_fax_to_mobile_recode() converts to and from the connection's encoding and leaves a text it cannot convert exactly.
 final class FormularFaxToMobileTest extends TestCase
 {
     /** @return array<string, array{string, string, string}> text, sprog, expected */
@@ -85,6 +86,23 @@ final class FormularFaxToMobileTest extends TestCase
         $lines = file(__DIR__ . '/../../../importfiler/tekster.csv', FILE_IGNORE_NEW_LINES);
         $found = array_values(array_filter((array)$lines, fn ($l) => strncmp((string)$l, $id . "\t", strlen($id) + 1) === 0));
         self::assertSame([$id . "\t" . $da . "\t" . $en . "\t" . $no], $found, "tekster.csv line $id");
+    }
+
+    public function testATextThatIsNotUtf8IsReturnedUnchanged(): void
+    {
+        $latin9 = "Fax: \$egen_fax; \xC6r\xF8";
+        self::assertSame($latin9, formular_fax_to_mobile_text($latin9, 'Dansk'));
+    }
+
+    public function testRecodeOnALatin9Connection(): void
+    {
+        $latin9 = (string)mb_convert_encoding('Fax: $egen_fax; Señor', 'ISO-8859-15', 'UTF-8');
+        self::assertSame(mb_convert_encoding('Móvil: $egen_mobile; Señor', 'ISO-8859-15', 'UTF-8'), formular_fax_to_mobile_recode($latin9, 'Spansk', 'ISO-8859-15'));
+        self::assertSame('Mobilnr.: $egen_mobile', formular_fax_to_mobile_recode('Fax: $egen_fax', 'Dansk', 'UTF-8'));
+        self::assertNull(formular_fax_to_mobile_recode('Tlf: $egen_tlf', 'Dansk', 'UTF-8'), 'nothing to change');
+        self::assertNull(formular_fax_to_mobile_recode("Fax: \$egen_fax \xC6", 'Dansk', null), 'unknown encoding and not UTF-8');
+        self::assertNull(formular_fax_to_mobile_recode("Fax: \$egen_fax \xC6", 'Dansk', 'UTF-8'), 'invalid UTF-8');
+        self::assertNull(formular_fax_to_mobile_recode('Fax: $egen_fax', 'Spansk', 'ASCII'), '"Móvil" has no ASCII form');
     }
 
     public function testTheUpdateStepRunsAtLogin(): void

@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../../includes/std_func.php';
 // 20261118 CL/MMR SST-898 (review 7) A form saved by another session between the migration's read and its write is kept; the next login migrates it if it still holds a fax variable.
 // 20261118 CL/MMR SST-898 (review 8) With the real includes/db_query.php wrappers: a form with " like " in its prose is migrated with the prose intact, and a form
 //                 saved by another session while the migration waits for its row lock is kept, also when the saved text differs from the read one only by "like"/"ilike".
+// 20261118 CL/MMR SST-898 (review 9) On a LATIN9 connection accented forms (Danish, English, Spanish with the new "Móvil") are stored exactly; a second run changes nothing.
 final class FormularFaxToMobileLoginTest extends TestCase
 {
     private ?TestDatabase $database = null;
@@ -160,6 +161,27 @@ final class FormularFaxToMobileLoginTest extends TestCase
         self::assertSame([['English', 'Mobile: $egen_mobile; Customers ilike this wording'], ['Dansk', 'Mobilnr.: $egen_mobile']], $this->forms());
     }
 
+    public function testTheRealWrapperOnALatin9ConnectionKeepsAccentedText(): void
+    {
+        $this->createForms([
+            ['English', 'Fax: $egen_fax; Customers like Ærø'],
+            ['Spansk', 'Fax: $egen_fax; Señor García'],
+            ['Dansk', 'Telefax: $egen_fax * Åbent 8-16 €'],
+            ['Dansk', 'Fax: $egen_fax'],
+        ]);
+        self::assertSame(['forms' => 4, 'texts' => 0], $this->productionLogin('LATIN9'));
+        self::assertSame([
+            ['English', 'Mobile: $egen_mobile; Customers like Ærø'],
+            ['Spansk', 'Móvil: $egen_mobile; Señor García'],
+            ['Dansk', 'Mobilnr.: $egen_mobile * Åbent 8-16 €'],
+            ['Dansk', 'Mobilnr.: $egen_mobile'],
+        ], $this->forms());
+        $before = CharacterizationEnv::rows($this->db, 'SELECT id, xmin::text AS xmin FROM formularer ORDER BY id');
+        self::assertSame(['forms' => 0, 'texts' => 0], $this->productionLogin('LATIN9'));
+        self::assertSame(['forms' => 0, 'texts' => 0], $this->productionLogin());
+        self::assertSame($before, CharacterizationEnv::rows($this->db, 'SELECT id, xmin::text AS xmin FROM formularer ORDER BY id'));
+    }
+
     /** @param list<array{string, string}> $rows sprog, beskrivelse */
     private function createForms(array $rows = [['Dansk', 'Fax: $egen_fax']]): void
     {
@@ -204,10 +226,14 @@ final class FormularFaxToMobileLoginTest extends TestCase
         return $json;
     }
 
-    /** One login with the real includes/db_query.php wrappers. @return array{forms: int, texts: int} */
-    private function productionLogin(): array
+    /** One login with the real includes/db_query.php wrappers, optionally with a client encoding. @return array{forms: int, texts: int} */
+    private function productionLogin(string $clientEncoding = ''): array
     {
-        $res = CharacterizationEnv::runChild(__DIR__ . '/support/run_formular_fax_to_mobile.php', [$this->database->name(), 'production']);
+        $args = [$this->database->name(), 'production'];
+        if ($clientEncoding !== '') {
+            $args[] = $clientEncoding;
+        }
+        $res = CharacterizationEnv::runChild(__DIR__ . '/support/run_formular_fax_to_mobile.php', $args);
         return $this->runnerResult($res['stdout'], $res['stderr']);
     }
 

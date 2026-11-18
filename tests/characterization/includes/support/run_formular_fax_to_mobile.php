@@ -5,14 +5,15 @@
 // own PostgreSQL session, with the real includes/std_func.php loaded, as index/login.php and debitor/pos_ordre.php
 // load it before betweenUpdates.php.
 //
-// Usage: php run_formular_fax_to_mobile.php <db> [stub [<text saved by another session>] | production]
+// Usage: php run_formular_fax_to_mobile.php <db> [stub [<text saved by another session>] | production [<client encoding>]]
 //   stub (default) - runs the SST-898 lines of includes/betweenUpdates.php as they stand, with db_select(),
 //                    db_fetch_array(), db_modify() and db_escape_string() defined here; every write is recorded.
 //                    With a text, another session (its own connection) saves it into the form row just before the
 //                    first UPDATE of formularer is sent, and the runner calls formularFaxToMobile() itself for its count.
 //   production     - the real includes/db_query.php wrappers (PostgreSQL, with their " like " to " ilike " rewrite),
 //                    run from a temporary directory with temp/<db>; calls formularFaxToMobile() and
-//                    formularFaxToMobileTekster() and reports their counts.
+//                    formularFaxToMobileTekster() and reports their counts. With an encoding (e.g. LATIN9) the
+//                    connection uses it as client encoding, as db_connect() does for an account whose $db_encode is not UTF8.
 // Prints a single JSON object on the last line of stdout: {"writes": [...], "forms": n, "texts": n} (the keys of the
 // mode) or {"error": "..."}.
 //
@@ -22,9 +23,10 @@
 // 20261118 CL/MMR SST-898 (review 6) std_func.php is loaded with a __DIR__ path.
 // 20261118 CL/MMR SST-898 (review 7) Optional save by another session between the migration's read and its write.
 // 20261118 CL/MMR SST-898 (review 8) Production mode with the real includes/db_query.php wrappers.
+// 20261118 CL/MMR SST-898 (review 9) Production mode takes a client encoding.
 
 if ($argc < 2) {
-    fwrite(STDERR, "usage: php run_formular_fax_to_mobile.php <db> [stub [<text>] | production]\n");
+    fwrite(STDERR, "usage: php run_formular_fax_to_mobile.php <db> [stub [<text>] | production [<encoding>]]\n");
     exit(2);
 }
 $mode = $argc > 2 ? $argv[2] : 'stub';
@@ -47,7 +49,8 @@ if ($conn === false) {
 }
 
 $writes = [];
-$raceText = $argc > 3 ? $argv[3] : null;
+$raceText = $mode === 'stub' && $argc > 3 ? $argv[3] : null;
+$clientEncoding = $mode === 'production' && $argc > 3 ? $argv[3] : null;
 
 if ($mode === 'stub') {
     function db_select($qtext, $spor) {
@@ -100,6 +103,9 @@ try {
         $brugernavn = 'sst898_runner';
         $s_id = '';
         $connection = $conn;
+        if ($clientEncoding !== null && pg_set_client_encoding($connection, $clientEncoding) !== 0) {
+            throw new RuntimeException("could not set client encoding $clientEncoding");
+        }
         require_once __DIR__ . '/../../../../includes/opdat_func/formularFaxToMobile.php';
         $out['forms'] = formularFaxToMobile();
         $out['texts'] = formularFaxToMobileTekster();
