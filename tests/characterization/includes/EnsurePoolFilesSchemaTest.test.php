@@ -22,6 +22,7 @@
 // 20261118 CL/MMR SD-815 Codex round 29: PostgreSQL never drops an expression index (tests that expected left(filename, 7) to be replaced now expect it kept and named for review); lookups on CHECK-limited text and domains are kept.
 // 20261118 CL/MMR SD-815 Codex round 30: a unique filename key with INCLUDE (id) counts, so nothing is added and the backfill runs; with both usual names taken the new index gets pool_files_filename_uidx2.
 // 20261118 CL/MMR SD-815 Codex round 31: with the four usual names taken (three indexes and a table with a row) the new index is pool_files_filename_uidx4; a stopped run is logged with its reason.
+// 20261118 CL/MMR SD-815 Codex round 37: an ON DELETE CASCADE reference from another table and duplicate filenames: nothing deleted anywhere, no flag, the constraint named in the log; without duplicates the repair runs.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -948,5 +949,35 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'old.pdf'"), 0, 0), 'ON CONFLICT (filename) works');
         self::assertSame('99.000', pg_fetch_result($this->sql("SELECT norm_amount FROM pool_files WHERE filename = 'old.pdf'"), 0, 0));
         self::assertSame(1, $this->backfillFlags());
+    }
+
+    public function testDuplicatesReferencedByACascadingForeignKeyAreNotDeleted(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE TABLE pool_linked_document (id integer PRIMARY KEY, pool_id integer REFERENCES pool_files (id) ON DELETE CASCADE)');
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '1,00'), (2, 'a.pdf', '99,00')");
+        $this->sql('INSERT INTO pool_linked_document VALUES (10, 1), (11, 2)');
+
+        $done = ensurePoolFilesSchema('postgresql');
+
+        self::assertNotContains('unique_filename', $done);
+        self::assertSame('2', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 0, 0), 'both duplicates kept');
+        self::assertSame(['10', '11'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_linked_document ORDER BY id')), 'no linked row deleted');
+        self::assertSame(0, $this->backfillFlags());
+        self::assertStringContainsString('pool_linked_document', (string) file_get_contents($this->log), 'the reference is named');
+    }
+
+    public function testAReferencedTableWithoutDuplicatesIsRepaired(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE TABLE pool_linked_document (id integer PRIMARY KEY, pool_id integer REFERENCES pool_files (id) ON DELETE CASCADE)');
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '1,00'), (2, 'b.pdf', '99,00')");
+        $this->sql('INSERT INTO pool_linked_document VALUES (10, 1), (11, 2)');
+
+        $done = ensurePoolFilesSchema('postgresql');
+
+        self::assertContains('unique_filename', $done);
+        self::assertContains('norm_amount_backfill', $done);
+        self::assertSame(['10', '11'], pg_fetch_all_columns($this->sql('SELECT id FROM pool_linked_document ORDER BY id')));
     }
 }

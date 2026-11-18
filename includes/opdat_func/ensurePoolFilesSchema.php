@@ -62,6 +62,7 @@
 // 20261118 CL/MMR SD-815 Codex round 34: that definition also covers every index of the table (name, columns, prefix, uniqueness), read on the copy before the trial index, so an index another session adds between the trial and the lock (e.g. taking MariaDB's last of 64 key slots) stops the run before anything is deleted.
 // 20261118 CL/MMR SD-815 Codex round 35: the definition is now the table's whole SHOW CREATE TABLE (AUTO_INCREMENT left out), so partitioning and every other option count too: taken before the trial copy, the copy must match it, and under the lock pool_files must still match it before anything is deleted.
 // 20261118 CL/MMR SD-815 Codex round 36: the trial copy is compared without FOREIGN KEY lines (CREATE TABLE ... LIKE does not copy them), pool_files before the trial and under the lock still in full; only the name in the CREATE TABLE header is normalised, quoted or not (sql_quote_show_create=0).
+// 20261118 CL/MMR SD-815 Codex round 37: when other tables refer to pool_files with foreign keys and there are duplicate filenames, nothing is deleted (a cascade would delete their rows too); the constraints are named in the log for a person. Checked under the lock that keeps the decision valid.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -181,6 +182,44 @@ if (!function_exists('ensurePoolFilesPostgresIndexName')) {
 	}
 }
 
+if (!function_exists('ensurePoolFilesGuardInboundReferences')) {
+	/**
+	 * Stops the duplicate collapse when other tables refer to pool_files with foreign keys and there is something to
+	 * delete: a cascade would delete their rows as well (SET NULL would change them, RESTRICT would refuse), so a person
+	 * has to merge those duplicates. Called while the lock that keeps the answer valid is held (PostgreSQL: SHARE ROW
+	 * EXCLUSIVE on pool_files in the repair's transaction; MySQL: LOCK TABLES pool_files WRITE).
+	 *
+	 * @param string $db_type
+	 * @return void
+	 * @throws EnsurePoolFilesSchemaUnknown When there are both; the constraints are named in the log.
+	 */
+	function ensurePoolFilesGuardInboundReferences(string $db_type): void {
+		$mysql = in_array($db_type, array('mysql', 'mysqli'), true);
+		if ($mysql) {
+			$references = "SELECT CONCAT(table_name, '.', constraint_name) AS reference FROM information_schema.referential_constraints
+				WHERE constraint_schema = DATABASE() AND referenced_table_name = 'pool_files'";
+		} else {
+			$references = "SELECT c.conrelid::regclass::text || '.' || c.conname AS reference FROM pg_constraint c
+				JOIN pg_class t ON t.oid = c.confrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+				WHERE c.contype = 'f' AND t.relname = 'pool_files' AND n.nspname = current_schema()";
+		}
+		$names = array();
+		$q = ensurePoolFilesSelect($references, __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$names[] = (string)($r['reference'] ?? $r['REFERENCE'] ?? '');
+		}
+		if (!$names) {
+			return;
+		}
+		if (!db_fetch_array(ensurePoolFilesSelect("SELECT filename FROM pool_files GROUP BY filename HAVING COUNT(*) > 1 LIMIT 1", __LINE__))) {
+			return; // nothing to delete, nothing can cascade
+		}
+		error_log('ensurePoolFilesSchema: nothing deleted, pool_files has duplicate filenames and other tables refer to it (' . implode(', ', $names)
+			. '); merge the duplicates by hand, then the next login adds the unique filename index');
+		throw new EnsurePoolFilesSchemaUnknown('duplicate pool_files rows are referenced by other tables');
+	}
+}
+
 if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 	/**
 	 * Gives pool_files a unique index on filename alone on PostgreSQL, all or nothing: deferrable constraints on
@@ -199,6 +238,9 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 		db_modify($nested ? 'SAVEPOINT pool_files_unique' : 'BEGIN', __FILE__ . " linje " . __LINE__);
 		$ok = false;
 		try {
+			// No new reference or write while this decides and deletes; held until the transaction ends.
+			db_modify("LOCK TABLE pool_files IN SHARE ROW EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+			ensurePoolFilesGuardInboundReferences($db_type);
 			foreach ($deferrable as $constraint) {
 				db_modify('ALTER TABLE pool_files DROP CONSTRAINT "' . str_replace('"', '""', $constraint) . '"', __FILE__ . " linje " . __LINE__);
 			}
@@ -491,6 +533,7 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 				error_log('ensurePoolFilesSchema: nothing deleted, pool_files changed between the trial and the table lock');
 				throw new EnsurePoolFilesSchemaUnknown('pool_files definition changed after the trial');
 			}
+			ensurePoolFilesGuardInboundReferences($db_type);
 			$before = ensurePoolFilesMysqlIndexState();
 			$name = ensurePoolFilesFreeIndexName($before['taken']);
 			if (!ensurePoolFilesMysqlExec("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id")) {

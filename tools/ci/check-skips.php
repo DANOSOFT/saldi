@@ -42,6 +42,9 @@ $allowed = [
 	'EnsurePoolFilesSchemaMysqlTest::testAStableTableWithAForeignKeyIsRepairedReportingOff',
 	'EnsurePoolFilesSchemaMysqlTest::testUnquotedShowCreateIsRepairedStrict',
 	'EnsurePoolFilesSchemaMysqlTest::testUnquotedShowCreateIsRepairedReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesReferencedByACascadingForeignKeyAreNotDeletedStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesReferencedByACascadingForeignKeyAreNotDeletedReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAReferencedTableWithoutDuplicatesIsRepaired',
 ];
 
 $file = $argv[1] ?? '';

@@ -17,6 +17,7 @@
 // 20261118 CL/MMR SD-815 Codex round 34: with 63 keys, another connection taking the 64th key slot after the trial and before the lock: both rows and its key kept, nothing reported; after a slot is free the retry completes (both mysqli modes).
 // 20261118 CL/MMR SD-815 Codex round 35: another connection partitioning pool_files by HASH(id) after the trial and before the lock: both rows kept, nothing reported; the partitioned table defers at the trial; after REMOVE PARTITIONING the retry completes (both mysqli modes).
 // 20261118 CL/MMR SD-815 Codex round 36: a table with an outgoing foreign key, and a session with sql_quote_show_create=0, are repaired (FK and setting kept) in both mysqli modes.
+// 20261118 CL/MMR SD-815 Codex round 37: an ON DELETE CASCADE reference from another table and duplicate filenames: nothing deleted anywhere, no flag; without duplicates the repair runs (both mysqli modes).
 // 20261118 CL/MMR SD-815 tearDown() calls no mysqli function where the extension is missing (the CI container), and every test is on the tools/ci/check-skips.php allowlist.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -696,5 +697,45 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     public function testUnquotedShowCreateIsRepairedReportingOff(): void
     {
         $this->unquotedShowCreateIsRepaired(MYSQLI_REPORT_OFF);
+    }
+
+    private function aCascadingReference(int $reportMode, bool $duplicates): void
+    {
+        $this->allLaterColumns();
+        $this->sql('CREATE TABLE pool_linked_document (id INT NOT NULL PRIMARY KEY, pool_id INT NOT NULL,
+            CONSTRAINT pool_linked_document_fk FOREIGN KEY (pool_id) REFERENCES pool_files (id) ON DELETE CASCADE) ENGINE=InnoDB');
+        $second = $duplicates ? 'a.pdf' : 'b.pdf';
+        $this->sql("INSERT INTO pool_files (id, filename, amount) VALUES (1, 'a.pdf', '1,00'), (2, '$second', '99,00')");
+        $this->sql('INSERT INTO pool_linked_document VALUES (10, 1), (11, 2)');
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertSame('2', $this->one('SELECT count(*) FROM pool_linked_document'), 'no linked row deleted');
+        if ($duplicates) {
+            self::assertNotContains('unique_filename', $done);
+            self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'both duplicates kept');
+            self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
+            self::assertStringContainsString('pool_linked_document', (string) file_get_contents($this->log), 'the reference is named');
+        } else {
+            self::assertContains('unique_filename', $done);
+            self::assertContains('norm_amount_backfill', $done);
+        }
+    }
+
+    public function testDuplicatesReferencedByACascadingForeignKeyAreNotDeletedStrict(): void
+    {
+        $this->aCascadingReference(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT, true);
+    }
+
+    public function testDuplicatesReferencedByACascadingForeignKeyAreNotDeletedReportingOff(): void
+    {
+        $this->aCascadingReference(MYSQLI_REPORT_OFF, true);
+    }
+
+    public function testAReferencedTableWithoutDuplicatesIsRepaired(): void
+    {
+        $this->aCascadingReference(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT, false);
     }
 }
