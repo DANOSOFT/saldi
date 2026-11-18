@@ -775,7 +775,13 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 				'" . db_escape_string($description) . "'" . $syncContentHashSql . "
 			)$onConflictClause";
 			// SST-930: only a row this insert added is a new arrival; the conflict clause makes it a no-op when another writer was first
-			if (poolFolderSyncInsert($qtxt)) poolFolderSyncNoteAdded($file);
+			$inserted = poolFolderSyncInsert($qtxt);
+			if ($inserted === null) {
+				// The folder is not stored as seen, so the next load reads it again and retries this file; the rows added before it stay listed
+				docPoolLog("syncPuljeFilesToDatabase: inserting the row for $file failed, the folder is read again on the next load");
+				return;
+			}
+			if ($inserted) poolFolderSyncNoteAdded($file);
 		}
 	}
 	// Rows an upload's extraction created have no content hash; a batch of them gets it here (MB-42, SD-727)
@@ -944,11 +950,12 @@ function poolFolderSync($docFolder, $db) {
  * Runs the full sync's INSERT into pool_files and tells whether this statement added the row (SST-930).
  * Its conflict clause makes it a no-op when another writer gave the file its row first, and only the statement's own
  * result tells the two apart: RETURNING on PostgreSQL, the affected rows on MySQL (0 for ON DUPLICATE KEY UPDATE id = id).
- * On PostgreSQL the statement goes through db_select() to get its RETURNING row, so it is written to the modify log here,
- * as db_modify() writes its statements.
+ * On PostgreSQL the statement goes through db_select() to get its RETURNING row. db_select() reports a failure (error log,
+ * mail, error box) and goes on, where db_modify() stops the request, so a failure is returned for the caller to stop on.
+ * The statement and a failure are written to the modify log here, as db_modify() writes them.
  *
  * @param string $qtxt The INSERT, ending in its ON CONFLICT / ON DUPLICATE KEY clause.
- * @return bool True when this statement inserted the row.
+ * @return bool|null True when this statement inserted the row, false for the conflict no-op, null when the statement failed.
  */
 function poolFolderSyncInsert($qtxt) {
 	global $brugernavn, $db, $db_skriv_id, $db_type, $sqdb;
@@ -957,15 +964,23 @@ function poolFolderSyncInsert($qtxt) {
 		return mysqli_affected_rows(db_query_connection(false)) === 1;
 	}
 	$spor = __FILE__ . " line " . __LINE__;
-	$inserted = (bool)db_fetch_array(db_select("$qtxt RETURNING filename", $spor));
+	$result = db_select("$qtxt RETURNING filename", $spor);
 	$tenant = trim((string)$db);
+	$log = get_relative() . "temp/$tenant/.ht_modify.log";
 	if ($db_skriv_id > 1 && $tenant != $sqdb) {
-		db_log_append(get_relative() . "temp/$tenant/.ht_modify.log", [
+		db_log_append($log, [
 			"-- " . $brugernavn . " " . date("Y-m-d H:i:s") . ": " . $spor . ": " . $db_skriv_id . "\n",
 			$qtxt . ";\n",
 		]);
 	}
-	return $inserted;
+	if ($result === false) {
+		db_log_append($log, [
+			"-- " . $brugernavn . " " . date("Y-m-d H:i:s") . ": " . $spor . "\n",
+			"-- Fejl!! " . $qtxt . " | " . pg_last_error(db_query_connection(false)) . ";\n",
+		]);
+		return null;
+	}
+	return (bool)db_fetch_array($result);
 }
 
 /**
