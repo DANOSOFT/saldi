@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.1 --- 2026.11.12---
+// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.1 --- 2026.11.17---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261112 CL/SS MB-49 afslut(): a card payment of 0 on a 0-kr sale is refused before anything is written.
 //                A posting error from settlePOS.php is rolled back and returned, instead of printing the receipt as if the sale was settled.
+// 20261117 CL/SS MB-49 afslut(): an exchange whose lines cancel out (+100 and -100) is not refused; its lines still post.
 
 /**
  * True for a print server on the shop's own network: a private or reserved IP (10/8,
@@ -117,7 +118,10 @@ print "\n<!-- Function afslut (start)-->\n";
 	if ($id && $betaling && !$indbetaling && !afrund($modtaget, 2) && !afrund($modtaget2, 2) &&!in_array(strtolower($betaling), array('kontant', 'konto', 'cash', 'cash on amount'))) {
 		$r = db_fetch_array(db_select("select sum, moms from ordrer where id = '" . (int)$id . "'", __FILE__ . " linje " . __LINE__));
 		$paid = db_fetch_array(db_select("select sum(amount) as paid from pos_betalinger where ordre_id = '" . (int)$id . "' and betalingstype != '!'", __FILE__ . " linje " . __LINE__));
-		if ($r && !afrund((float)$r['sum'] + (float)$r['moms'], 2) && !afrund((float)$paid['paid'], 2)) {
+		$qtxt = "select coalesce(sum(abs(case when rabatart = 'amount' then antal * (pris - coalesce(rabat, 0)) ";
+		$qtxt .= "else antal * pris * (100 - coalesce(rabat, 0)) / 100 end)), 0) as lines from ordrelinjer where ordre_id = '" . (int)$id . "'";
+		$lines = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($r && !afrund((float)$r['sum'] + (float)$r['moms'], 2) && !afrund((float)$paid['paid'], 2) && !afrund((float)$lines['lines'], 2)) {
 			return sprintf(findtekst('pos.payment.card_amount_missing|Indtast beløbet, før du betaler med %s. En betaling på 0 kr. kan ikke bogføres.', $sprog_id), $betaling);
 		}
 	}

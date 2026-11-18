@@ -11,6 +11,7 @@
 //
 // History:
 // 20261112 CL/SS MB-49: created.
+// 20261117 CL/SS MB-49: the order lines' total ('lines' in the case) answers afslut()'s line query.
 
 $case = json_decode($argv[1], true, 512, JSON_THROW_ON_ERROR);
 chdir($argv[2] . '/debitor');
@@ -56,6 +57,9 @@ function db_select($sql, ...$args) {
 	}
 	if (str_contains($sql, 'from pos_betalinger')) {
 		return new ArrayIterator([]);
+	}
+	if (str_contains($sql, 'as lines from ordrelinjer')) {
+		return new ArrayIterator([['lines' => $case['lines'] ?? 0]]);
 	}
 	if (str_contains($sql, 'select box3,box4,box5,box6')) {
 		return new ArrayIterator([['box3' => 'printer.example', 'box4' => '', 'box5' => '', 'box6' => '']]);

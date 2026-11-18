@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-16 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -170,6 +170,8 @@
 //                A card name without a card account on a 0-kr sale (cash withdrawal) wrote no rows, so the cash count couldn't see the sale.
 // 20261116 CL/SS MB-49 bogfor_nu(): the nothing-posted check counts the rows this posting wrote on the till.
 //                Day-end posting writes several sales' rows with ordre_id 0, and it is no longer refused.
+// 20261117 CL/SS MB-49 bogfor_nu(): the nothing-posted check counts the rows this call inserted, not rows read back from transaktioner.
+//                Rows another checkout commits on the same till meanwhile can no longer hide a sale that posted nothing.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2809,9 +2811,7 @@ function bogfor_nu($id, $kilde) {
 		print "<BODY onLoad=\"javascript:alert('$tekst')\">";
 		return ($tekst);
 	}
-	if ($art == 'PO') {
-		$rowsBefore = (int)db_fetch_array(db_select("select coalesce(max(id), 0) as id from transaktioner", __FILE__ . " linje " . __LINE__))['id'];
-	}
+	$postedRows = 0;
 	$hmlog = fopen("../temp/$db/hmlog.log", "a");
 	if (is_numeric($id))
 		$id *= 1;
@@ -2985,6 +2985,7 @@ function bogfor_nu($id, $kilde) {
 						$qtxt .= "'$projekt[0]','$ansat','$reportNumber','$kasse','$cardVat',";
 						(is_numeric($id)) ? $qtxt .= "'$fakturanr','$id')" : $qtxt .= "'0','0')";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$postedRows++;
 						$qtxt = "update kontoplan set saldo=saldo+'$debet' where kontonr='$kontonr' and regnskabsaar='$regnaar'";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					}
@@ -2995,6 +2996,7 @@ function bogfor_nu($id, $kilde) {
 						$qtxt .= "'$projekt[0]','$ansat','$reportNumber','$kasse','0',";
 						(is_numeric($id)) ? $qtxt .= "'$fakturanr','$id')" : $qtxt .= "'0','0')";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$postedRows++;
 						$qtxt = "update kontoplan set saldo=saldo+'$cardVat' where kontonr='$cardVatAccount' and regnskabsaar='$regnaar'";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					}
@@ -3030,6 +3032,7 @@ function bogfor_nu($id, $kilde) {
 		fwrite($hmlog, __LINE__ . "  $qtxt\n");
 		fclose($hmlog);
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		$postedRows++;
 		$tmp = $debet - $kredit;
 		$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$kontonr' and regnskabsaar='$regnaar'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -3167,6 +3170,7 @@ function bogfor_nu($id, $kilde) {
 						$qtxt .= "'$logtime','$projekt[$p]','$ansat','0','$kasse',$vat)";
 					}
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					$postedRows++;
 					$tmp = $debet - $kredit;
 					$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$bogf_konto[$y]' and regnskabsaar='$regnaar'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -3218,6 +3222,7 @@ function bogfor_nu($id, $kilde) {
 						if ($vat_account[$y] == '1')
 							exit;
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$postedRows++;
 						$tmp = $debet - $kredit;
 						$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$vat_account[$y]' and regnskabsaar='$regnaar'";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -3294,6 +3299,7 @@ function bogfor_nu($id, $kilde) {
 					$qtxt.="('0', '$transdate', '$beskrivelse', '$vatAccount[$v]', '0', '$debet', '$kredit', '0', '$afd', '$logdate', '$logtime', '$projekt[0]', '$ansat', '0','$kasse')";
 				}
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				$postedRows++;
 				$tmp=$debet-$kredit;
 				$qtxt="update kontoplan set saldo=saldo+'$tmp' where kontonr='$vatAccount[$v]' and regnskabsaar='$regnaar'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -3329,6 +3335,7 @@ function bogfor_nu($id, $kilde) {
 										$qtxt="insert into transaktioner (bilag, transdate, beskrivelse, kontonr, faktura, debet, kredit, kladde_id, afd, logdate, logtime, projekt, ansat, ordre_id,kasse_nr) values ('0', '$transdate', '$beskrivelse', '$box1', '0', '$debet', '$kredit', '0', '$afd', '$logdate', '$logtime', '$projekt[0]', '$ansat', '0','$kasse')";
 									}
 									db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+									$postedRows++;
 									$tmp=$debet-$kredit;
 									$qtxt="update kontoplan set saldo=saldo+'$tmp' where kontonr='$box1' and regnskabsaar='$regnaar'";
 									db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -3350,9 +3357,7 @@ function bogfor_nu($id, $kilde) {
 				$unpostedCard = $betaling[$b];
 			}
 		}
-		$qtxt = "select count(*) as n from transaktioner where id > '" . (int)$rowsBefore . "' and kasse_nr = '" . (int)$kasse . "'";
-		$written = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if (afrund($cardTotal, 2) && !(int)$written['n']) {
+		if (afrund($cardTotal, 2) && !$postedRows) {
 			if ($unpostedCard) {
 				$txt = findtekst('pos.posting.card_account_missing|Betalingen med %s kan ikke bogføres, da %s ikke har en konto under kortbetalinger. Salget er ikke afsluttet.', $sprog_id);
 				return sprintf($txt, $unpostedCard, $unpostedCard);

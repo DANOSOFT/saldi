@@ -7,6 +7,7 @@ use PHPUnit\Framework\TestCase;
 // 20261112 CL/SS MB-49 The POS checkout (afslut()) must not finish a sale its posting refused, and must not take a card payment of 0 on a 0-kr sale.
 //                The real afslut() runs in a child process (support/run_afslut_posting_error.php) with the database, settlement and receipt boundaries stood in for.
 //                It needs no database, so it also runs in CI.
+// 20261117 CL/SS MB-49: an exchange whose lines cancel out is not refused.
 final class PosCheckoutPostingErrorTest extends TestCase
 {
     private static string $fixture;
@@ -76,6 +77,16 @@ final class PosCheckoutPostingErrorTest extends TestCase
             self::assertNull($result['returned'], "$label must not be refused");
             self::assertSame(['voucher', 'settled', 'commit'], array_slice($result['events'], 0, 3), "$label must settle and commit");
         }
+    }
+
+    /**
+     * An exchange whose lines cancel out (+100 and -100 on different accounts) totals 0, but its lines still post, so a card payment of 0 is not refused.
+     */
+    public function testAnExchangeWhoseLinesCancelOutIsNotRefused(): void
+    {
+        $result = self::checkout(['payment' => 'Dankort', 'received' => 0, 'sum' => 0, 'lines' => 200]);
+        self::assertNull($result['returned'], 'an exchange must not be refused');
+        self::assertSame(['voucher', 'settled', 'commit'], array_slice($result['events'], 0, 3));
     }
 
     /**

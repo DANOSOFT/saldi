@@ -11,6 +11,7 @@ require_once __DIR__ . '/../support/CharacterizationEnv.php';
 //                A card payment that posts nothing (a card name without a card account) used to leave the sale at status 4 with no rows,
 //                invisible to the cash count. It is now refused and rolled back.
 // 20261116 CL/SS MB-49: card sales the day-end count posts together write their rows with ordre_id 0, and are posted, not refused.
+// 20261117 CL/SS MB-49: a row another checkout commits on the same till during the posting does not hide a sale that posted nothing.
 final class PosCardPostingCharacterizationTest extends TestCase
 {
     private const CASH_ACCOUNT = 58200;
@@ -178,5 +179,80 @@ final class PosCardPostingCharacterizationTest extends TestCase
         self::assertSame(4, $result['status']);
         self::assertContains([self::CARD_ACCOUNT, 250.0, 0.0], $result['rows']);
         self::assertSame(array_sum(array_column($result['rows'], 1)), array_sum(array_column($result['rows'], 2)), 'debit and credit balance');
+    }
+
+    /**
+     * Another checkout on the same till commits a row while this sale is being posted. That row is not this sale's posting,
+     * so a card payment that posted nothing is still refused.
+     */
+    public function testARowAnotherCheckoutCommitsOnTheTillMeanwhileDoesNotHideASaleThatPostedNothing(): void
+    {
+        $t = self::$tenant;
+        $lock = 4911;
+        $id = self::sale(0, 'Visa', 400);
+        // Holds the posting at bogfor_nu()'s "update ordrelinjer set projekt='' where projekt is NULL", which runs after it starts and before its check.
+        pg_query($t, 'CREATE FUNCTION mb49_hold() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+            IF current_query() LIKE $q$update ordrelinjer set projekt=\'\' where projekt is NULL%$q$ THEN PERFORM pg_advisory_xact_lock(' . $lock . '); END IF;
+            RETURN NULL; END $$');
+        pg_query($t, 'CREATE TRIGGER mb49_hold BEFORE UPDATE ON ordrelinjer FOR EACH STATEMENT EXECUTE FUNCTION mb49_hold()');
+        pg_query($t, "SELECT pg_advisory_lock($lock)");
+        $child = null;
+        try {
+            $child = self::startPost($id);
+            $waiting = false;
+            for ($i = 0; $i < 300 && !$waiting; $i++) {
+                usleep(100000);
+                $waiting = (bool)CharacterizationEnv::one($t, "SELECT 1 AS w FROM pg_locks WHERE locktype = 'advisory' AND objid = $lock AND NOT granted");
+            }
+            self::assertTrue($waiting, 'the posting never reached the held step');
+            $other = @pg_query_params($t, "INSERT INTO transaktioner (bilag, transdate, beskrivelse, kontonr, debet, kredit, kladde_id, afd, logdate, logtime, ordre_id, kasse_nr)
+                VALUES (0, $1, 'Other checkout', $2, 50, 0, 0, 0, $1, '12:00', 0, 1)", [date('Y-m-d'), self::CASH_ACCOUNT]);
+            self::assertNotFalse($other, pg_last_error($t));
+        } finally {
+            pg_query($t, "SELECT pg_advisory_unlock($lock)");
+            $result = $child ? self::finishPost($child) : null;
+            pg_query($t, 'DROP TRIGGER mb49_hold ON ordrelinjer');
+            pg_query($t, 'DROP FUNCTION mb49_hold()');
+            pg_query($t, "DELETE FROM transaktioner WHERE beskrivelse = 'Other checkout'");
+        }
+        self::assertStringContainsString('Betalingen med Visa kan ikke bogføres', $result['bogfor']);
+        self::assertNotSame(4, $result['status'], 'a sale with nothing posted must not get status 4');
+        self::assertSame([], $result['rows']);
+    }
+
+    /**
+     * Starts posting a sale in a child process without waiting for it.
+     *
+     * @return array{proc: resource, out: resource, err: resource}
+     */
+    private static function startPost(int $id): array
+    {
+        $err = tmpfile();
+        $cmd = [PHP_BINARY, __DIR__ . '/../support/run_pos_card_posting.php', CharacterizationEnv::testDb(), (string)$id];
+        $proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => $err], $pipes);
+        self::assertIsResource($proc, 'could not start child php');
+        fclose($pipes[0]);
+        return ['proc' => $proc, 'out' => $pipes[1], 'err' => $err];
+    }
+
+    /**
+     * Waits for a child started by startPost() and returns its result like post().
+     *
+     * @param array{proc: resource, out: resource, err: resource} $child
+     * @return array{bogfor: string, status: int, rows: list<array{0:int, 1:float, 2:float}>}
+     */
+    private static function finishPost(array $child): array
+    {
+        $stdout = (string)stream_get_contents($child['out']);
+        fclose($child['out']);
+        proc_close($child['proc']);
+        rewind($child['err']);
+        $stderr = (string)stream_get_contents($child['err']);
+        fclose($child['err']);
+        $lines = array_values(array_filter(explode("\n", trim($stdout))));
+        $json = $lines ? json_decode((string)end($lines), true) : null;
+        self::assertIsArray($json, "runner output: $stdout $stderr");
+        $json['rows'] = array_map(static fn(array $row): array => [(int)$row[0], (float)$row[1], (float)$row[2]], $json['rows']);
+        return $json;
     }
 }
