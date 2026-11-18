@@ -13,6 +13,7 @@
 // 20261118 CL/MMR SD-815 Codex round 20: an ALTER TABLE that times out (db_modify() only logs it) is not reported as an added column, and the run stops without a flag.
 // 20261118 CL/MMR SD-815 Codex round 21: a rejected backfill-flag INSERT is not reported, in autocommit and inside a caller's transaction (which can still commit its own row); the retry writes one flag.
 // 20261118 CL/MMR SD-815 Codex round 22: a unique index on left(filename, 7) is replaced by the full one, so two different names sharing the prefix both register.
+// 20261118 CL/MMR SD-815 Codex round 23: a unique index on lower(subject) WHERE filename IS NOT NULL is not touched and still enforces its rule, with and without a repair.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -681,5 +682,45 @@ final class EnsurePoolFilesSchemaTest extends TestCase
         $this->poolInsert('invoice-b.pdf', '1,00', str_repeat('b', 64));
         self::assertSame(['invoice-a.pdf', 'invoice-b.pdf'], pg_fetch_all_columns($this->sql('SELECT filename FROM pool_files ORDER BY filename')));
         self::assertSame([], ensurePoolFilesSchema('postgresql'));
+    }
+
+    /** A row the subject rule refuses: a new filename with an existing subject in other case. */
+    private function subjectRuleRefuses(string $savepoint): bool
+    {
+        $result = @pg_query($this->connection, "SAVEPOINT $savepoint; INSERT INTO pool_files (filename, subject) VALUES ('other-$savepoint.pdf', 'FAKTURA 1')");
+        if ($result === false) {
+            $this->sql("ROLLBACK TO SAVEPOINT $savepoint");
+            return true;
+        }
+        return false;
+    }
+
+    public function testAnUnrelatedUniqueIndexWithFilenameInItsPredicateIsKept(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)');
+        $this->sql('CREATE UNIQUE INDEX pool_files_subject_key ON pool_files (lower(subject)) WHERE filename IS NOT NULL');
+        $this->sql("INSERT INTO pool_files (filename, subject, amount) VALUES ('a.pdf', 'Faktura 1', '1,00')");
+        self::assertTrue($this->subjectRuleRefuses('before'));
+
+        self::assertNotContains('unique_filename', ensurePoolFilesSchema('postgresql'), 'nothing to repair: the full index is there');
+
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_subject_key'")), 'kept');
+        self::assertTrue($this->subjectRuleRefuses('after'), 'its rule still holds');
+    }
+
+    public function testAnUnrelatedUniqueIndexIsKeptWhenTheRepairRuns(): void
+    {
+        $this->sql(self::OLD_OPRET_POOL_FILES);
+        $this->sql('CREATE UNIQUE INDEX pool_files_subject_key ON pool_files (lower(subject)) WHERE filename IS NOT NULL');
+        $this->sql("INSERT INTO pool_files (filename, subject, amount) VALUES ('a.pdf', 'Faktura 1', '1,00')");
+
+        self::assertContains('unique_filename', ensurePoolFilesSchema('postgresql'));
+
+        self::assertSame(1, pg_num_rows($this->sql("SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = 'pool_files_subject_key'")), 'kept');
+        self::assertTrue($this->subjectRuleRefuses('after_repair'), 'its rule still holds');
+        $this->poolInsert('b.pdf', '2,00', str_repeat('c', 64));
+        $this->poolInsert('b.pdf', '2,00', str_repeat('c', 64));
+        self::assertSame('1', pg_fetch_result($this->sql("SELECT count(*) FROM pool_files WHERE filename = 'b.pdf'"), 0, 0));
     }
 }

@@ -48,6 +48,7 @@
 // 20261118 CL/MMR SD-815 Codex round 21: the backfill flag is reported only when it is read back; a failed flag INSERT stops the run (inside a caller's PostgreSQL transaction through the savepoint rollback, so the caller can still commit its own work).
 // 20261118 CL/MMR SD-815 Codex round 22: a unique index on only part of filename (a MySQL prefix like filename(7), a PostgreSQL expression such as left(filename, 7)) does not count and is removed once the full unique index is there, in the same locked step / transaction.
 //                 Such an index refused a second, different file whose name shares the part.
+// 20261118 CL/MMR SD-815 Codex round 23: on PostgreSQL only an index whose single key expression uses filename and no other column, without a predicate or included columns, counts as such; any other unique index (e.g. on lower(subject) WHERE filename IS NOT NULL) is never dropped.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -132,7 +133,9 @@ if (!function_exists('ensurePoolFilesUniqueRepairPostgres')) {
 	 * fails too and everything is rolled back: no row is deleted and nothing is reported.
 	 *
 	 * @param string       $db_type
-	 * @param list<string> $deferrable ensurePoolFilesSchemaState()['deferrableFilename'].
+	 * @param list<string> $deferrable  ensurePoolFilesSchemaState()['deferrableFilename'].
+	 * @param list<string> $restrictive ensurePoolFilesSchemaState()['restrictiveFilename']: unique indexes on a part of
+	 *                                  filename alone, dropped once the full index is in place.
 	 * @return void
 	 * @throws EnsurePoolFilesSchemaUnknown When the repair was rolled back.
 	 */
@@ -463,12 +466,18 @@ if (!function_exists('ensurePoolFilesSchemaState')) {
 				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND c.contype IN ('u', 'x') AND c.condeferrable
 				AND array_length(c.conkey, 1) = 1
 				AND c.conkey[1] = (SELECT attnum FROM pg_attribute WHERE attrelid = t.oid AND attname = 'filename')";
-			// A unique index on an expression of filename (left(filename, 7), lower(filename) ...) refuses names the full
-			// index allows; it is not an index ON CONFLICT (filename) can use either.
+			// A unique index on an expression of filename alone (left(filename, 7), lower(filename) ...) refuses names the
+			// full index allows; it is not an index ON CONFLICT (filename) can use either. Only an index that is surely
+			// that counts: one key, an expression (indkey 0) whose text (pg_get_expr of the key expressions, not the index
+			// name or a WHERE predicate) names filename and no other column of the table, no predicate, no INCLUDE columns.
+			// Every other unique index is a rule of its own and is left alone.
 			$restrictive = "SELECT ci.relname AS index_name FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_class ci ON ci.oid = i.indexrelid
 				JOIN pg_namespace n ON n.oid = t.relnamespace
-				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND i.indisunique AND i.indexprs IS NOT NULL
-				AND pg_get_indexdef(i.indexrelid) ~* '\\mfilename\\M'";
+				WHERE t.relname = 'pool_files' AND n.nspname = current_schema() AND i.indisunique
+				AND i.indnatts = 1 AND i.indnkeyatts = 1 AND i.indkey[0] = 0 AND i.indexprs IS NOT NULL AND i.indpred IS NULL
+				AND pg_get_expr(i.indexprs, i.indrelid) ~* '\\mfilename\\M'
+				AND NOT EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = t.oid AND a.attnum > 0 AND NOT a.attisdropped
+					AND a.attname <> 'filename' AND pg_get_expr(i.indexprs, i.indrelid) ~* ('\\m' || a.attname || '\\M'))";
 			$normIndex = "SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'pool_files' AND indexname = 'idx_pool_files_norm_amount'";
 		}
 		$deferrableNames = array();
