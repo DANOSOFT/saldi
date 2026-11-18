@@ -72,6 +72,8 @@
 // 20261118 CDX/NTR Normalize LIKE outside literals, quoted identifiers and comments in both query paths.
 // 20261118 CDX/NTR Explain dollar-quote and SQL identifier matching in the LIKE normalizer.
 // 20261118 CDX/NTR Preserve escape-string continuations and normalize LIKE after qualified AS columns.
+// 20261118 CDX/NTR Optionally report affected write rows while preserving legacy status returns.
+// 20261118 CDX/NTR Track expression operands so LIKE function calls retain their original names.
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -284,6 +286,7 @@ if (!function_exists('db_normalize_like_operators')) {
 		$length = strlen($sql);
 		$result = '';
 		$previousToken = null;
+		$expectOperand = true;
 		for ($offset = 0; $offset < $length;) {
 			$start = $offset;
 			$char = $sql[$offset];
@@ -328,30 +331,46 @@ if (!function_exists('db_normalize_like_operators')) {
 					}
 				}
 				$previousToken = 'quoted';
+				$expectOperand = false;
 			// Match a dollar-quote opener ($$ or $tag$) at this offset; \G prevents matching later text.
 			} elseif ($char === '$' && preg_match('/\G\$(?:[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)?\$/', $sql, $match, 0, $offset)) {
 				$delimiter = $match[0];
 				$end = strpos($sql, $delimiter, $offset + strlen($delimiter));
 				$offset = $end === false ? $length : $end + strlen($delimiter);
 				$previousToken = 'quoted';
+				$expectOperand = false;
 			// Match a whole SQL word/identifier here, allowing non-ASCII bytes and internal $ signs.
 			} elseif (preg_match('/\G[a-zA-Z_\x80-\xff][a-zA-Z0-9_$\x80-\xff]*/', $sql, $match, 0, $offset)) {
 				$word = $match[0];
-				// Keep table-definition copying, qualified names and AS aliases intact.
-				$isOperator = !in_array(strtolower((string)$previousToken), ['', '(', ',', '.', 'as'], true);
+				$keyword = strtolower($word);
+				$qualified = $previousToken === '.';
+				// Infix LIKE needs a completed left operand; a function name starts an operand instead.
+				$isOperator = !$expectOperand && !$qualified;
 				if ($word === 'like' && $start > 0 && $sql[$start - 1] === ' ' && $start + 4 < $length && $sql[$start + 4] === ' ' && $isOperator) {
 					$result .= 'ilike';
 					$offset += strlen($word);
 					$previousToken = $word;
+					$expectOperand = true;
 					continue;
 				}
 				$offset += strlen($word);
 				// A word after a dot is a column identifier, even when its spelling is the AS keyword.
-				$previousToken = $previousToken === '.' ? 'qualified identifier' : $word;
+				if ($qualified) {
+					$expectOperand = false;
+				} elseif ($keyword !== 'not') {
+					// Clause boundaries introduce expressions; expression operators introduce their right operand.
+					// NOT preserves the state for both unary NOT like(...) and infix value NOT LIKE pattern.
+					$expectOperand = in_array($keyword, ['select', 'where', 'having', 'on', 'returning', 'when', 'then', 'else', 'case', 'and', 'or', 'as', 'values', 'distinct', 'all', 'limit', 'offset', 'from', 'join', 'into', 'using', 'union', 'intersect', 'except', 'lateral'], true)
+						|| ($keyword === 'by' && in_array(strtolower((string)$previousToken), ['order', 'group', 'partition'], true))
+						|| (!$expectOperand && in_array($keyword, ['like', 'ilike', 'similar', 'between', 'in', 'is', 'escape', 'collate', 'overlaps', 'to'], true));
+				}
+				$previousToken = $qualified ? 'qualified identifier' : $word;
 			} else {
 				$offset++;
 				if (!ctype_space($char)) {
 					$previousToken = $char;
+					// Numbers and closing delimiters complete operands; punctuation operators and openings need one.
+					$expectOperand = !ctype_digit($char) && $char !== ')' && $char !== ']';
 				}
 			}
 			$result .= substr($sql, $start, $offset - $start);
@@ -367,9 +386,10 @@ if (!function_exists('db_modify')) {
 	 * @param string $spor Caller context recorded in error logs.
 	 * @param bool $global Whether to use the master connection.
 	 * @param array|null $params Bound values: use $1, $2, ... on PostgreSQL and ? on MySQL/MariaDB.
-	 * @return string Tab-separated status code and message.
+	 * @param bool $returnAffectedRows Return the driver's affected-row count on success instead of the legacy status.
+	 * @return int|string Affected rows when requested; otherwise the tab-separated status code and message.
 	 */
-	function db_modify($qtext, $spor, $global = false, ?array $params = null) {
+	function db_modify($qtext, $spor, $global = false, ?array $params = null, bool $returnAffectedRows = false) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_skriv_id,$db_type;
@@ -402,6 +422,12 @@ if (!function_exists('db_modify')) {
 				: pg_query_params($use_connection, $qtext, $params);
 		}
 		#20190704 END
+		$affectedRows = null;
+		if ($returnAffectedRows && $db_query) {
+			$affectedRows = ($db_type === 'mysql' || $db_type === 'mysqli')
+				? mysqli_affected_rows($use_connection)
+				: pg_affected_rows($db_query);
+		}
 		
 		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1 && $db != $sqdb) {
@@ -469,6 +495,9 @@ if (!function_exists('db_modify')) {
 				if ($shown === 'nosession') alert("$alerttekst"); // CLI, cron, API: as before
 				exit;
 			}
+		}
+		if ($returnAffectedRows && $db_query) {
+			return $affectedRows;
 		}
 		return ('0'.chr(9).'query accepted');
 	}

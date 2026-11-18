@@ -3,6 +3,7 @@
 // 20261118 CDX/NTR Cover CSRF rejection, bound saves, plain comparisons and LATIN9 lookup characters.
 // 20261118 CDX/NTR Exercise shared LIKE normalization in both query entry points.
 // 20261118 CDX/NTR Cover response status, lossless validation, SQL continuations and fresh driver captures.
+// 20261118 CDX/NTR Cover account binding, malformed submissions, deleted templates and leading blank lines.
 
 namespace OrderTextReviewFixture {
     final class Saved extends \RuntimeException {}
@@ -14,6 +15,10 @@ namespace OrderTextReviewFixture {
     function findtekst_utf8($key, $language = null) { return explode('|', $key, 2)[1] ?? $key; }
     function fixtureOnline() {
         $GLOBALS['orderTextReviewOutputStarted'] = true;
+        if (isset($_POST['thisDb']) && $_POST['thisDb'] !== $GLOBALS['db']) {
+            // The real online.php clears request data after detecting an account switch.
+            $_POST = $_GET = null;
+        }
         print '<!-- online output -->';
     }
     function headers_sent() { return $GLOBALS['orderTextReviewOutputStarted']; }
@@ -26,7 +31,10 @@ namespace OrderTextReviewFixture {
         $text = $GLOBALS['orderTextReviewStored'];
         if (str_contains($query, 'from ordrer')) return ['sag_id' => 3, 'konto_id' => 4, 'nr' => $text];
         if (str_contains($query, 'from sager')) return array_fill_keys(['sagsnr', 'beskrivelse', 'udf_addr1', 'udf_postnr', 'udf_bynavn'], $text);
-        if (str_contains($query, 'from ordretekster')) return ['tekst' => $text];
+        if (str_contains($query, 'from ordretekster')) {
+            if (!$GLOBALS['orderTextReviewTemplateExists']) return false;
+            return str_starts_with($query, 'select id ') ? ['id' => 9] : ['tekst' => $text];
+        }
         throw new \RuntimeException('Unexpected fixture query');
     }
     function get_relative() { return ''; }
@@ -38,6 +46,14 @@ namespace OrderTextReviewFixture {
     function pg_parameter_status($connection, $name) { return $GLOBALS['orderTextReviewStandardStrings'] ?? 'on'; }
     function pg_last_error($connection) { return ''; }
     function mysqli_error($connection) { return ''; }
+    function pg_affected_rows($result) {
+        $GLOBALS['orderTextReviewCountDriver'] = __FUNCTION__;
+        return $GLOBALS['orderTextReviewAffectedRows'];
+    }
+    function mysqli_affected_rows($connection) {
+        $GLOBALS['orderTextReviewCountDriver'] = __FUNCTION__;
+        return $GLOBALS['orderTextReviewAffectedRows'];
+    }
     function injecttjek($sql) { return $sql; }
     function db_query_connection($global) { return null; }
     function audit_log($action, $details) {}
@@ -105,12 +121,16 @@ namespace {
             }
             $GLOBALS['db'] = '';
             $GLOBALS['db_skriv_id'] = 0;
+            $GLOBALS['orderTextReviewTemplateExists'] = true;
+            $GLOBALS['orderTextReviewAffectedRows'] = 1;
             $_SESSION = ['csrf_token' => 'fixture-csrf-token'];
         }
 
         protected function tearDown(): void
         {
-            unset($GLOBALS['orderTextReviewStored'], $GLOBALS['orderTextReviewSql'], $GLOBALS['orderTextReviewParams'], $GLOBALS['orderTextReviewStandardStrings'], $GLOBALS['orderTextReviewDriverFunction'], $GLOBALS['orderTextReviewOutputStarted'], $GLOBALS['orderTextReviewHttpStatus']);
+            foreach (array_keys($GLOBALS) as $name) {
+                if (str_starts_with($name, 'orderTextReview')) unset($GLOBALS[$name]);
+            }
             foreach ($this->globals as $name => [$existed, $value]) {
                 if ($existed) $GLOBALS[$name] = $value;
                 else unset($GLOBALS[$name]);
@@ -123,16 +143,18 @@ namespace {
             return ['UTF8' => ['UTF8', self::TEXT], 'LATIN9' => ['LATIN9', self::LATIN9_TEXT]];
         }
 
-        private function editor(string $encoding, string $stored, ?string $posted = null, ?string $token = 'fixture-csrf-token', string $driver = 'postgres'): string
+        private function editor(string $encoding, string $stored, ?string $posted = null, ?string $token = 'fixture-csrf-token', string $driver = 'postgres', ?array $postOverride = null, string $activeAccount = 'fixture_a'): string
         {
             $GLOBALS['orderTextReviewStored'] = $stored;
             $GLOBALS['db_type'] = $driver;
             $GLOBALS['connection'] = null;
+            $GLOBALS['db'] = $activeAccount;
             $_GET = ['id' => 7, 'tekst_id' => 9];
-            $_POST = $posted === null ? [] : ['opdater' => 'Gem', 'ordretekst' => $posted];
+            $_POST = $posted === null ? [] : ['opdater' => 'Gem', 'ordretekst' => $posted, 'thisDb' => $activeAccount];
             if ($token !== null) {
                 $_POST['csrf_token'] = $token;
             }
+            if ($postOverride !== null) $_POST = $postOverride;
             $_SERVER['REQUEST_METHOD'] = $posted === null ? 'GET' : 'POST';
             unset($_SERVER['HTTP_X_CSRF_TOKEN']);
             $GLOBALS['orderTextReviewOutputStarted'] = false;
@@ -140,6 +162,7 @@ namespace {
             $db_encode = $encoding;
             $db_type = $driver;
             $sprog_id = 1;
+            $db = $activeAccount;
             $source = file_get_contents(__DIR__ . '/../../../debitor/ret_tekst_ordre.php');
             // Model online.php starting output so CSRF status checks must precede that include.
             $source = str_replace('include(__DIR__ . "/../includes/online.php");', 'fixtureOnline();', $source);
@@ -150,7 +173,7 @@ namespace {
             try {
                 eval('namespace OrderTextReviewFixture;' . substr($source, 5));
             } catch (\OrderTextReviewFixture\Saved $saved) {
-                // The controller has printed the return-to-order redirect and completed its save.
+                // The controller has completed a redirect or rejected the submitted request.
             } catch (\OrderTextReviewFixture\Denied $denied) {
                 // The real CSRF validator rejected the request before saving.
             } finally {
@@ -200,6 +223,98 @@ namespace {
             self::assertArrayHasKey('csrf_token', $_SESSION);
             self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $_SESSION['csrf_token']);
             self::assertStringContainsString('name="csrf_token" value="' . $_SESSION['csrf_token'] . '"', $html);
+            self::assertStringContainsString('name="thisDb" value="fixture_a"', $html);
+        }
+
+        /** @return array<string, array{array<string, mixed>}> */
+        public static function malformedSubmissions(): array
+        {
+            $base = ['opdater' => 'Gem', 'csrf_token' => 'fixture-csrf-token', 'thisDb' => 'fixture_a'];
+            return [
+                'missing text' => [$base],
+                'array text' => [$base + ['ordretekst' => ['wrong']]],
+                'null text' => [$base + ['ordretekst' => null]],
+                'numeric text' => [$base + ['ordretekst' => 123]],
+                'missing account' => [['opdater' => 'Gem', 'csrf_token' => 'fixture-csrf-token', 'ordretekst' => 'changed']],
+                'array account' => [array_replace($base, ['ordretekst' => 'changed', 'thisDb' => ['wrong']])],
+                'empty account' => [array_replace($base, ['ordretekst' => 'changed', 'thisDb' => ''])],
+            ];
+        }
+
+        #[DataProvider('malformedSubmissions')]
+        public function testMalformedSubmissionCannotOverwriteText(array $post): void
+        {
+            $html = $this->editor('UTF8', self::TEXT, '', postOverride: $post);
+            self::assertSame(400, $GLOBALS['orderTextReviewHttpStatus']);
+            self::assertArrayNotHasKey('orderTextReviewSql', $GLOBALS);
+            self::assertStringNotContainsString('URL=ordre.php', $html);
+        }
+
+        public function testExplicitEmptyStringCanClearTheTemplate(): void
+        {
+            $html = $this->editor('UTF8', self::TEXT, '');
+            self::assertSame(['', 9], $GLOBALS['orderTextReviewParams']);
+            self::assertStringContainsString('URL=ordre.php', $html);
+        }
+
+        public function testAccountSwitchCannotOverwriteAnotherAccountsTemplate(): void
+        {
+            $post = ['opdater' => 'Gem', 'csrf_token' => 'fixture-csrf-token', 'thisDb' => 'fixture_a', 'ordretekst' => 'From account A'];
+            $html = $this->editor('UTF8', self::TEXT, 'From account A', postOverride: $post, activeAccount: 'fixture_b');
+            self::assertArrayNotHasKey('orderTextReviewSql', $GLOBALS);
+            self::assertStringContainsString('role="alert"', $html);
+            self::assertStringNotContainsString('<form', $html);
+            self::assertStringNotContainsString('URL=ordre.php', $html);
+        }
+
+        public function testMatchingAccountWithoutUnderscoreCanSave(): void
+        {
+            $html = $this->editor('UTF8', self::TEXT, 'same account', activeAccount: 'fixture');
+            self::assertSame(['same account', 9], $GLOBALS['orderTextReviewParams']);
+            self::assertStringContainsString('URL=ordre.php', $html);
+        }
+
+        /** @return array<string, array{string}> */
+        public static function leadingBlankLines(): array
+        {
+            return ['one blank line' => ["\nÆble"], 'two blank lines' => ["\n\nÆble"]];
+        }
+
+        #[DataProvider('leadingBlankLines')]
+        public function testTextareaPreservesLeadingBlankLines(string $stored): void
+        {
+            $html = $this->editor('UTF8', $stored);
+            self::assertSame(1, preg_match('~<textarea\b[^>]*>(.*?)</textarea>~s', $html, $match));
+            // HTML ignores exactly one LF directly after the textarea start tag.
+            $value = str_starts_with($match[1], "\n") ? substr($match[1], 1) : $match[1];
+            self::assertSame($stored, html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        }
+
+        /** @return array<string, array{string}> */
+        public static function drivers(): array
+        {
+            return ['postgres' => ['postgres'], 'mysqli' => ['mysqli'], 'mysql' => ['mysql']];
+        }
+
+        #[DataProvider('drivers')]
+        public function testDeletedTemplateRetainsSubmittedText(string $driver): void
+        {
+            $GLOBALS['orderTextReviewTemplateExists'] = false;
+            $GLOBALS['orderTextReviewAffectedRows'] = 0;
+            $html = $this->editor('UTF8', self::TEXT, 'Unsaved work', driver: $driver);
+            self::assertStringNotContainsString('URL=ordre.php', $html);
+            self::assertStringContainsString('role="alert"', $html);
+            self::assertStringContainsString('Unsaved work</textarea>', $html);
+            self::assertStringContainsString('Teksten findes ikke længere.', $html);
+        }
+
+        #[DataProvider('drivers')]
+        public function testSameValueSaveStillSucceeds(string $driver): void
+        {
+            $GLOBALS['orderTextReviewAffectedRows'] = $driver === 'postgres' ? 1 : 0;
+            $html = $this->editor('UTF8', self::TEXT, self::TEXT, driver: $driver);
+            self::assertStringContainsString('URL=ordre.php', $html);
+            self::assertStringNotContainsString('role="alert"', $html);
         }
 
         public function testMissingAndMismatchedCsrfTokensCannotSave(): void
@@ -255,8 +370,19 @@ namespace {
                 self::assertSame('OrderTextReviewFixture\\' . ($driver === 'postgres' ? 'pg_query' : 'mysqli_query'), $GLOBALS['orderTextReviewDriverFunction']);
                 self::assertSame($driver === 'postgres' ? str_replace(' like ', ' ilike ', $sql) : $sql, $GLOBALS['orderTextReviewSql']);
                 self::assertArrayNotHasKey('orderTextReviewParams', $GLOBALS);
+                self::assertArrayNotHasKey('orderTextReviewCountDriver', $GLOBALS);
                 self::assertSame("0\tquery accepted", $result);
             }
+        }
+
+        #[DataProvider('drivers')]
+        public function testWriteCanReportAffectedRows(string $driver): void
+        {
+            $GLOBALS['db_type'] = $driver;
+            $GLOBALS['orderTextReviewAffectedRows'] = 3;
+            $count = \OrderTextReviewFixture\db_modify("update ordretekster set tekst = 'text'", __FILE__, false, null, true);
+            self::assertSame(3, $count);
+            self::assertSame('OrderTextReviewFixture\\' . ($driver === 'postgres' ? 'pg_affected_rows' : 'mysqli_affected_rows'), $GLOBALS['orderTextReviewCountDriver']);
         }
 
         /** @return array<string, array{0: string, 1: string, 2?: bool}> */
@@ -270,6 +396,15 @@ namespace {
                 'select literal' => ["select 'I like this' as tekst where 'a' like 'A'", "select 'I like this' as tekst where 'a' ilike 'A'"],
                 'doubled quotes' => ["select 'It''s like this' like '%like%'", "select 'It''s like this' ilike '%like%'"],
                 'escape string' => ["select E'It\\'s like this' like '%like%'", "select E'It\\'s like this' ilike '%like%'"],
+                'LIKE function' => ["select like ('a'::text, 'A'::text)", "select like ('a'::text, 'A'::text)"],
+                'LIKE function in WHERE' => ["select 1 where like ('a', 'A')", "select 1 where like ('a', 'A')"],
+                'LIKE function after AND' => ["select 1 where true and like ('a', 'A')", "select 1 where true and like ('a', 'A')"],
+                'LIKE function in assignment' => ["update t set b = like ('a', 'A')", "update t set b = like ('a', 'A')"],
+                'LIKE function as argument' => ["select coalesce( like ('a', 'A'), false)", "select coalesce( like ('a', 'A'), false)"],
+                'LIKE function after NOT' => ["select not like ('a', 'A')", "select not like ('a', 'A')"],
+                'qualified LIKE function' => ["select pg_catalog. like ('a', 'A')", "select pg_catalog. like ('a', 'A')"],
+                'infix LIKE with parentheses' => ["select 'a' like ('A')", "select 'a' ilike ('A')"],
+                'infix NOT LIKE with parentheses' => ["select 'a' not like ('A')", "select 'a' not ilike ('A')"],
                 'escape string continuation' => ["select E'Prefix '\n'It\\'s like this' like 'prefix%'", "select E'Prefix '\n'It\\'s like this' ilike 'prefix%'"],
                 'escape string continuation with comment' => ["select E'Prefix ' -- like comment\r\n'It\\'s like this' like 'prefix%'", "select E'Prefix ' -- like comment\r\n'It\\'s like this' ilike 'prefix%'"],
                 'qualified AS column' => ['select t.as like \'A\' from (select \'a\'::text as "as") t', 'select t.as ilike \'A\' from (select \'a\'::text as "as") t'],

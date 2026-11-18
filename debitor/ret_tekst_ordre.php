@@ -34,6 +34,7 @@
 // 20261118 CL/LH File header kept contiguous: the blank line before the description is a comment line.
 // 20261118 CDX/NTR Require the session CSRF token and bind text values when saving.
 // 20261118 CDX/NTR Validate CSRF before output and retain text that the account cannot store losslessly.
+// 20261118 CDX/NTR Bind saves to their account, validate form fields and preserve deleted-template edits and leading blank lines.
 //
 // Edits one standard order text (ordretekster) from the text lookup on a case order.
 
@@ -51,10 +52,17 @@ $s_id = session_id();
 $id = (int)($_GET['id'] ?? 0);
 $tekst_id = (int)($_GET['tekst_id'] ?? 0);
 $saveRequested = isset($_POST['opdater']) && $tekst_id;
+$postedText = $_POST['ordretekst'] ?? null;
+$postedAccount = $_POST['thisDb'] ?? null;
 if ($saveRequested) {
 	// online.php prints styles, so reject invalid tokens before loading it or any other page output.
 	require_once __DIR__ . '/../includes/permissions.php';
 	perm_require_post_csrf(false);
+	if (!is_string($postedText) || !is_string($postedAccount) || $postedAccount === '') {
+		http_response_code(400);
+		print '<p>400</p>';
+		exit();
+	}
 }
 
 // online.php reads these: $modulnr for the rights check, $bg/$header so it prints no page head of its own.
@@ -79,16 +87,30 @@ include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
 require_once __DIR__ . '/../includes/orderFuncIncludes/standardOrderText.php';
 
+if ($saveRequested && $postedAccount !== $db) {
+	// online.php may already have cleared POST; compare the captured account and never render a form for the new account.
+	$accountError = findtekst_utf8('order_text.account_changed|Regnskabet er skiftet. Åbn teksten igen fra det ønskede regnskab.', $sprog_id);
+	print '<p role="alert">' . orderTextEditorHtml($accountError, 'UTF8') . '</p>';
+	exit();
+}
+
 $submittedText = null;
 $saveError = '';
 if ($saveRequested) {
-	$submittedText = (string)ifset($_POST, 'ordretekst', '');
-	if (saveStandardOrderText($tekst_id, $submittedText, $db_encode, $db_type)) {
+	$submittedText = $postedText;
+	$saveErrorCode = saveStandardOrderText($tekst_id, $submittedText, $db_encode, $db_type);
+	if ($saveErrorCode === null) {
 		// online.php has printed its button style block by now, so a location header would be too late.
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id&amp;ret_tekst=$id\">\n";
 		exit();
 	}
-	$saveError = findtekst_utf8('order_text.unsupported_characters|Teksten indeholder tegn, som regnskabet ikke kan gemme. Ret teksten, og prøv igen.', $sprog_id);
+	if ($saveErrorCode === 'not_found') {
+		$saveError = findtekst_utf8('order_text.not_found|Teksten findes ikke længere. Dine ændringer er ikke gemt. Kopiér teksten, før du forlader siden.', $sprog_id);
+	} elseif ($saveErrorCode === 'save_failed') {
+		$saveError = findtekst_utf8('order_text.save_failed|Teksten kunne ikke gemmes. Dine ændringer vises stadig nedenfor.', $sprog_id);
+	} else {
+		$saveError = findtekst_utf8('order_text.unsupported_characters|Teksten indeholder tegn, som regnskabet ikke kan gemme. Ret teksten, og prøv igen.', $sprog_id);
+	}
 }
 
 if (empty($_SESSION['csrf_token'])) {
@@ -131,10 +153,11 @@ print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\
 print "<tbody><tr><td valign=\"top\" align=\"center\">\n";
 print "<form name=\"ordre\" action=\"ret_tekst_ordre.php?id=$id&amp;tekst_id=$tekst_id\" method=\"post\">\n";
 print '<input type="hidden" name="csrf_token" value="' . orderTextEditorHtml((string)$_SESSION['csrf_token'], 'UTF8') . '">' . "\n";
+print '<input type="hidden" name="thisDb" value="' . orderTextEditorHtml($db, 'UTF8') . '">' . "\n";
 print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" >\n";
 print "<tbody>\n";
 print "<tr>\n";
-print "<td valign=\"top\"><span style=\"display:block;margin-top:3px;\">Ret tekst</span></td><td><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"ordretekst\" rows=\"2\" cols=\"10\" style=\"height:16px;width:800px;\">$ordretekstHtml</textarea></td>\n";
+print "<td valign=\"top\"><span style=\"display:block;margin-top:3px;\">Ret tekst</span></td><td><textarea class=\"textAreaSager autosize kontrolskema_font\" name=\"ordretekst\" rows=\"2\" cols=\"10\" style=\"height:16px;width:800px;\">\n$ordretekstHtml</textarea></td>\n";
 print "<td valign=\"bottom\"><input type=\"submit\" class=\"button gray medium\" value=\"Gem/Opdater\" name=\"opdater\"></td>\n";
 print "</tr>\n";
 print "</tbody></table></form></td></tr></tbody></table>\n";

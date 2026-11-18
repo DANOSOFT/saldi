@@ -3,6 +3,7 @@
 // 20261117 CDX/NTR Limit lookup formatting to attribute-free bold and italic tags.
 // 20261118 CDX/NTR Bind saved text and preserve comparisons and LATIN9 glyphs in the lookup.
 // 20261118 CDX/NTR Reject lossy text saves and preserve incomplete markup as lookup text.
+// 20261118 CDX/NTR Report missing templates separately and accept unchanged MySQL saves.
 
 /**
  * Escape database text for the UTF-8 order-text editor.
@@ -24,26 +25,43 @@ function orderTextEditorHtml(string $text, string $dbEncoding): string
  * @param string $text UTF-8 submitted text.
  * @param string $dbEncoding UTF8 or LATIN9.
  * @param string $dbType Database driver, used to select its parameter placeholders.
- * @return bool False for invalid UTF-8 or text the database encoding cannot represent; true after saving.
+ * @return 'unsupported_characters'|'not_found'|'save_failed'|null Error code, or null after a successful save.
  */
-function saveStandardOrderText(int $textId, string $text, string $dbEncoding, string $dbType): bool
+function saveStandardOrderText(int $textId, string $text, string $dbEncoding, string $dbType): ?string
 {
     if (!mb_check_encoding($text, 'UTF-8')) {
-        return false;
+        return 'unsupported_characters';
     }
     $text = str_replace("\0", '', $text);
     if ($dbEncoding !== 'UTF8') {
         $encoded = mb_convert_encoding($text, 'ISO-8859-15', 'UTF-8');
         if (mb_convert_encoding($encoded, 'UTF-8', 'ISO-8859-15') !== $text) {
-            return false;
+            return 'unsupported_characters';
         }
         $text = $encoded;
     }
-    $sql = ($dbType === 'mysql' || $dbType === 'mysqli')
+    $mysql = $dbType === 'mysql' || $dbType === 'mysqli';
+    $sql = $mysql
         ? 'update ordretekster set tekst = ? where id = ?'
         : 'update ordretekster set tekst = $1 where id = $2';
-    db_modify($sql, __FILE__ . " linje " . __LINE__, false, [$text, $textId]);
-    return true;
+    $affectedRows = db_modify($sql, __FILE__ . " linje " . __LINE__, false, [$text, $textId], true);
+    if (!is_int($affectedRows) || $affectedRows < 0) {
+        return 'save_failed';
+    }
+    if ($affectedRows > 0) {
+        return null;
+    }
+    // MySQL reports changed rows, so zero can also mean that an existing template already had this text.
+    if ($mysql) {
+        $result = db_select("select id from ordretekster where id = '$textId'", __FILE__ . " linje " . __LINE__);
+        if ($result === false) {
+            return 'save_failed';
+        }
+        if (db_fetch_array($result)) {
+            return null;
+        }
+    }
+    return 'not_found';
 }
 
 /**
