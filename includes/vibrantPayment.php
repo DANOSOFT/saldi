@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/vibrantPayment.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- includes/vibrantPayment.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 // 20261110 CL/MMR SST-841 CodeRabbit (PR #969): rental_payment_ready() only counts the columns of rentalperiod in the active schema (current_schema()).
 // 20261111 CL/MMR SST-841 Codex final re-test (PR #969): the booking DELETE also runs through booking_query_quiet(); a failure rolls back and answers pending.
 // 20261111 CL/MMR SST-841 Codex round 19 (PR #969): a list or object as id or status counts as missing, so no PHP warning breaks the JSON answer.
+// 20261118 CL/MMR SST-841 Codex round 22: update_booking_payment() reads the request id and status once through ifset() (std_func.php).
 //
 
 if (!function_exists('booking_query_quiet')) {
@@ -210,8 +211,10 @@ function update_booking_payment($db, $data, $invoice) {
 	// The body is JSON from a public page, so id and status can be lists or objects. Only a scalar counts; anything
 	// else is treated as missing (id 0, no status), which avoids PHP's "Array to string conversion" warning in the
 	// JSON answer and an array id silently becoming booking 1.
-	$bookingId = is_scalar($data['id'] ?? null) ? (int)$data['id'] : 0;
-	$status = is_scalar($data['status'] ?? null) ? (string)$data['status'] : '';
+	$rawId = ifset($data, 'id');
+	$rawStatus = ifset($data, 'status');
+	$bookingId = is_scalar($rawId) ? (int)$rawId : 0;
+	$status = is_scalar($rawStatus) ? (string)$rawStatus : '';
 	if (!rental_payment_ready($db)) {
 		return array('status' => 'not_ready');
 	}

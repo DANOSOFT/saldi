@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
  * 20261110 CL/MMR rental_payment_ready() looks at the active schema only (CodeRabbit on PR #969).
  * 20261111 CL/MMR A failed booking DELETE answers pending without output (Codex final re-test on PR #969).
  * 20261111 CL/MMR Uses the harness' owned SQL fixture database (TestDatabase::sqlFixture()) instead of SALDI_CHAR_PG_DSN.
+ * 20261118 CL/MMR Codex round 22: loads the real std_func.php, as update_booking_payment() now uses ifset().
  */
 #[RunTestsInSeparateProcesses]
 final class bookingPaymentDbErrors extends TestCase
@@ -51,6 +52,8 @@ final class bookingPaymentDbErrors extends TestCase
         // The real alert() prints a script element; the same output here shows when db_select()'s error path is taken.
         eval('function alert($msg) { echo "<script type=\'text/javascript\'>alert(\'$msg\');</script>"; }');
         require_once __DIR__ . '/../../includes/db_query.php';
+        // update_booking_payment() reads the request through ifset(); the real helper, not a stub
+        require_once __DIR__ . '/../../includes/std_func.php';
         require_once __DIR__ . '/../../includes/vibrantPayment.php';
         ini_set('error_log', $this->work . '/php.log');
 

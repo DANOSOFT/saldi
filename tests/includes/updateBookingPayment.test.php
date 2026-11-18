@@ -18,6 +18,7 @@ use PHPUnit\Framework\TestCase;
  * 20261103 CL/MMR Created (SST-841, review by sawaneh1 on PR #969).
  * 20261104 CL/MMR CodeRabbit (PR #969): deleting the booking and its order is one transaction; transaktion() is recorded too.
  * 20261111 CL/MMR Codex round 19 (PR #969): a list or object as status or id gives no PHP warning.
+ * 20261118 CL/MMR Codex round 22 (PR #969): loads the real std_func.php, as update_booking_payment() now uses ifset().
  */
 #[RunTestsInSeparateProcesses]
 final class updateBookingPayment extends TestCase
@@ -58,6 +59,8 @@ final class updateBookingPayment extends TestCase
             }
             function vibrant_payment_state($apiKey, $paymentId) { $GLOBALS["__vibrantCalls"]++; return $GLOBALS["__vibrant"]; }
         ');
+        // update_booking_payment() reads the request through ifset(); the real helper, not a stub
+        require_once __DIR__ . '/../../includes/std_func.php';
         require_once __DIR__ . '/../../includes/vibrantPayment.php';
         ini_set('error_log', sys_get_temp_dir() . '/updateBookingPayment-' . getmypid() . '.log');
     }

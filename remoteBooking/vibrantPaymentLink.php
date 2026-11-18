@@ -7,7 +7,9 @@
 //                 No link is handed out for a booking cancelled meanwhile.
 //                 SALDI_VIBRANT_API_BASE may point the call at a local mock in tests.
 // 20261103 CL/MMR SST-841 Review (PR #969): the always-true check before handing out the stored binding is gone.
+// 20261118 CL/MMR SST-841 Codex round 22: the not-ready and no-longer-open answers read the booking id through ifset(); std_func.php is loaded for it.
 require_once __DIR__ . "/../includes/connect.php";
+include_once(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
 include_once(__DIR__ . "/../includes/vibrantPayment.php");
 $customerData = json_decode(file_get_contents("php://input"), true);
@@ -16,7 +18,7 @@ $db = public_tenant_db($customerData["db"] ?? '');
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 if (!rental_payment_ready($db)) {
     // the payment columns come with the login update; never alter the schema from this public page
-    echo json_encode(["error" => "Booking payments need the latest Saldi update: log in to Saldi once", "id" => $customerData["id"] ?? null]);
+    echo json_encode(["error" => "Booking payments need the latest Saldi update: log in to Saldi once", "id" => ifset($customerData, "id")]);
     exit;
 }
 
@@ -75,7 +77,7 @@ if (is_string($paymentIntentId) && $paymentIntentId !== '' && is_string($betalin
 	$bound = db_fetch_array(db_select("SELECT payment_id, payment_url, expiry_time FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__));
 	if (!$bound || !$bound["expiry_time"] || (string)$bound["payment_id"] === '') {
 		// the booking was cancelled or closed while the link was made: hand out no payable link
-		echo json_encode(["error" => "Booking is no longer open", "id" => $customerData["id"]]);
+		echo json_encode(["error" => "Booking is no longer open", "id" => ifset($customerData, "id")]);
 		exit;
 	}
 	// Hand out the binding the booking actually has: ours, or a concurrent call's that was bound first, never a link

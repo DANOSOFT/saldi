@@ -56,6 +56,7 @@
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
 // 20261118 CL/MMR SST-841 (master merge): the rentalperiod payment-column block is the last entry again, after the roles/settings migrations master's 5.1.1 work placed after the backfill continuation.
+// 20261118 CL/MMR SST-841 Codex round 22: the MySQL lock result of the rentalperiod block is read through ifset().
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -477,7 +478,7 @@ if (isset($db) && is_string($db) && $db !== '') {
 		} elseif ($rentalMissing) {
 			$rentalLock = "CONCAT('saldi:rental_payment:', MD5(DATABASE()))";
 			$rentalLocked = db_fetch_array(db_select("SELECT GET_LOCK($rentalLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
-			if ((int)($rentalLocked['acquired'] ?? 0) === 1) {
+			if ((int)ifset($rentalLocked, 'acquired', 0) === 1) {
 				try {
 					// Another login may have added them while this one waited for the lock.
 					$rentalColumns = array();
