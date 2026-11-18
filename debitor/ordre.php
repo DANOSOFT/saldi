@@ -976,8 +976,17 @@ if ($id && $status < 3 && isset($_GET['vare_id'])) {
 }
 # 20261118 SST-1031 a general copy of an original quote (OT) on a case, e.g. from an order form opened before
 # the button was hidden, goes to the case copy instead; checked on the stored order before anything is written
-if (isset($_POST['copy']) && $_POST['copy']) {
-	$copySourceId = (int)(if_isset($_POST, 0, 'id') ?: $id);
+# Same precedence as the b_submit dispatch below: the copy button, or a posted b_submit with "Kopi" when no other named button is set.
+$copyRequested = !empty($_POST['copy']);
+if (!$copyRequested) {
+	$namedAction = false;
+	foreach (array('credit', 'delete', 'doInvoice', 'deliver', 'receive', 'lookUp', 'print', 'save', 'send') as $actionKey) {
+		if (!empty($_POST[$actionKey])) $namedAction = true;
+	}
+	$copyRequested = !$namedAction && strstr((string) ifset($_POST, 'b_submit', ''), 'Kopi');
+}
+if ($copyRequested) {
+	$copySourceId = (int)(ifset($_POST, 'id', 0) ?: $id);
 	$r = $copySourceId ? db_fetch_array(db_select("select art, sag_id, konto_id from ordrer where id = '$copySourceId'", __FILE__ . " linje " . __LINE__)) : NULL;
 	if ($r && $r['art'] == 'OT' && (int)$r['sag_id']) {
 		$copyCaseId = (int)$r['sag_id'];
