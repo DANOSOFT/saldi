@@ -61,7 +61,7 @@
 // 20261116 CL/MMR SST-1010 The stock log takes the unescaped name online.php now provides, so no second lookup can fail.
 //                 Where that name is missing and the online row cannot be read either, no stock log line is written and the reason is logged.
 // 20261118 CL/MMR SST-1033 A receipt of a stock item in a batch-controlled group stays on its own lot.
-//                          It no longer covers negative rest on other lots (holes, other purchase orders), which left the lot short and stopped the next delivery.
+//                 It no longer covers negative rest on other lots (holes, other purchase orders), which left the lot short and stopped the next delivery.
 /**
  * Injected by ../includes/online.php, included below (unescaped user name of this session; set since #1033,
  * absent on older code, where the stock log reads the name from the online row instead):
