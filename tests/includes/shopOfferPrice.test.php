@@ -274,6 +274,50 @@ final class shopOfferPrice extends TestCase
 		$this->assertArrayNotHasKey('gaveUp', $entry);
 	}
 
+	public function testAnInFlightMarkerIsOpenForTLatePlusTwoMinutesThenExpires(): void
+	{
+		$markers = ['a' => ['path' => 'card', 'startedAt' => self::T], 'b' => ['path' => 'bulk', 'startedAt' => self::T + 100]];
+		$this->assertSame(['openUntil' => self::T + 820, 'expired' => [], 'keep' => $markers], shopOfferInflightCheck($markers, self::T + 719));
+		$check = shopOfferInflightCheck($markers, self::T + 720);
+		$this->assertSame([self::T + 820, ['card'], ['b' => $markers['b']]], [$check['openUntil'], $check['expired'], $check['keep']],
+			'the card\'s marker expired 720 s after its claim, the bulk sync\'s is still open');
+		$this->assertSame(['openUntil' => 0, 'expired' => ['unreadable markers'], 'keep' => []], shopOfferInflightCheck(false, self::T),
+			'markers that cannot be read count as expired: an event');
+		$this->assertSame(0, shopOfferInflightCheck([], self::T)['openUntil']);
+	}
+
+	public function testAnOpenMarkerKeepsTheItemTracked(): void
+	{
+		$day = 86400;
+		$done = self::state(self::NORMAL, self::T, self::T + $day);
+		$at = self::T + $day + 700;
+		$this->assertTrue(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, $at)['untrack'], 'without a marker: untracked');
+		$this->assertFalse(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, $at, $at + 1)['untrack'], 'a marker open a second longer: not');
+		$this->assertTrue(shopOfferPlanItem($done, self::SHOPS, self::NORMAL, false, $at, $at)['untrack'], 'a marker that expires now: untracked');
+	}
+
+	public function testOfferFieldsAreAPriceOfferRunningOrToCome(): void
+	{
+		$now = strtotime('2026-11-20 12:00:00');
+		$offer = ['specialtype' => 'price', 'special_price' => '79.2', 'special_to_date' => '2026-11-30'];
+		$this->assertTrue(shopOfferHasOfferFields($offer, $now));
+		$this->assertTrue(shopOfferHasOfferFields(['special_to_date' => '2026-11-19'] + $offer, $now), 'ended yesterday: still selected, as the tick selects');
+		$this->assertFalse(shopOfferHasOfferFields(['special_to_date' => '2026-11-18'] + $offer, $now));
+		$this->assertFalse(shopOfferHasOfferFields(['special_price' => '0'] + $offer, $now));
+		$this->assertFalse(shopOfferHasOfferFields(['specialtype' => 'percent'] + $offer, $now));
+		$this->assertFalse(shopOfferHasOfferFields(['salgspris' => '639.2'], $now));
+	}
+
+	public function testAClaimIsSentAsItIsWithinTwoMinutes(): void
+	{
+		$claim = ['path' => 'card', 'vare_id' => 7, 'item' => [], 'endpoints' => [0 => 'a'], 'pairs' => [0 => self::OFFER], 'token' => 't',
+			'offer' => false, 'claimedAt' => 1000.0];
+		$this->assertSame($claim, shopOfferForeignReady($claim, 1119.9));
+		$this->assertNull(shopOfferForeignReady(null, 5000.0));
+		// older: recorded and taken again; with no offer state on this account (the unit tests have none) that is today's prices
+		$this->assertNull(shopOfferForeignReady($claim, 1120.0));
+	}
+
 	public function testUntrackingWaitsForTheLastDispatchPlusTLatePlusAMargin(): void
 	{
 		$day = 86400;

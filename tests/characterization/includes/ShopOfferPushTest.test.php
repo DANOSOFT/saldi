@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\DataProvider;
+
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
 /**
@@ -28,6 +30,9 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
  * 20261117 CL/LH Re-send rebuild after the third: requests that arrive late, a killed tick, a held table lock.
  * 20261118 CL/LH Codex verification 4: a bulk sync held back past untracking, a refusing shop that recovers days later, and the
  *                send time recorded when a request left.
+ * 20261118 CL/LH Codex verification 5: the stall matrix (every path that sends an item's prices, held at every point between its
+ *                first read and its call, while the offer is cancelled and the item is repaired and untracked), and the in-flight
+ *                marker of a path that died.
  */
 final class ShopOfferPushTest extends CharacterizationTestCase
 {
@@ -174,28 +179,32 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		return $out;
 	}
 
-	/** @param list<string> $args @return array{0: resource, 1: string, 2: string} The runner started in the background; finish it with finish(). */
-	private static function start(array $args, array $phpOptions = []): array
+	/**
+	 * @param list<string> $args
+	 * @param string|null $stall For the stall tests: SALDI_SHOP_OFFER_STALL for the child (shopOfferTestPause()).
+	 * @return array{0: resource, 1: string, 2: string} The runner started in the background; finish it with finish().
+	 */
+	private static function start(array $args, array $phpOptions = [], ?string $stall = null): array
 	{
-		$out = (string)tempnam(sys_get_temp_dir(), 'offerrun');
-		$err = (string)tempnam(sys_get_temp_dir(), 'offerrun');
-		self::$files[] = $out;
-		self::$files[] = $err;
 		$cmd = array_merge([PHP_BINARY], $phpOptions, [__DIR__ . '/../support/run_shop_offer_push.php', CharacterizationEnv::testDb()], $args);
-		$proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['file', $out, 'w'], 2 => ['file', $err, 'w']], $pipes);
-		fclose($pipes[0]);
-		return [$proc, $out, $err];
+		return self::spawn($cmd, $stall);
 	}
 
 	/** @param list<string> $args @return array{0: resource, 1: string, 2: string} Another support script started in the background. */
-	private static function startScript(string $script, array $args): array
+	private static function startScript(string $script, array $args, ?string $stall = null): array
+	{
+		return self::spawn(array_merge([PHP_BINARY, __DIR__ . '/../support/' . $script], $args), $stall);
+	}
+
+	/** @param list<string> $cmd @return array{0: resource, 1: string, 2: string} */
+	private static function spawn(array $cmd, ?string $stall): array
 	{
 		$out = (string)tempnam(sys_get_temp_dir(), 'offerrun');
 		$err = (string)tempnam(sys_get_temp_dir(), 'offerrun');
 		self::$files[] = $out;
 		self::$files[] = $err;
-		$cmd = array_merge([PHP_BINARY, __DIR__ . '/../support/' . $script], $args);
-		$proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['file', $out, 'w'], 2 => ['file', $err, 'w']], $pipes);
+		$env = $stall === null ? null : array_merge(getenv(), ['SALDI_SHOP_OFFER_STALL' => $stall]);
+		$proc = proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['file', $out, 'w'], 2 => ['file', $err, 'w']], $pipes, null, $env);
 		fclose($pipes[0]);
 		return [$proc, $out, $err];
 	}
@@ -462,6 +471,7 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		self::assertFileDoesNotExist(self::$tempDir . "/shopoffer/item-$id.json", 'no state for an item without an offer');
 		self::assertSame([], glob(self::$tempDir . '/shopoffer/uncertain-*'));
 		self::clearLog();
+		self::assertFileDoesNotExist(self::$tempDir . "/shopoffer/inflight-$id.json", 'and no in-flight marker');
 		$out = self::tick();
 		self::assertSame([], self::priceCalls(), 'and the tick sends it nothing');
 		self::assertSame([0, 0], [$out['tracked'], $out['due']]);
@@ -957,5 +967,186 @@ final class ShopOfferPushTest extends CharacterizationTestCase
 		} finally {
 			self::rows("UPDATE grupper SET box4 = $1, box5 = $2, box6 = $3 WHERE art = 'API'", [$endpoints['box4'], $endpoints['box5'], $endpoints['box6']]);
 		}
+	}
+
+	// ------------------------------------------------------------------ the stall matrix (Codex v5)
+
+	/** @return array<string, array{0: string, 1: string}> Every path that sends an item's prices × every point between its first read and its call. */
+	public static function stallCells(): array
+	{
+		$cells = [];
+		foreach (['card', 'stock', 'document', 'bulk', 'tick'] as $path) {
+			foreach (['queried', 'locked', 'marked', 'send'] as $point) {
+				$cells["$path / $point"] = [$path, $point];
+			}
+		}
+		return $cells;
+	}
+
+	/**
+	 * A path held at a point between its first read and its call (shopOfferTestPause()), while the offer is cancelled and the
+	 * reconciler, on its test clock, restores the normal prices, runs the tail and untracks the item where nothing stops it; then
+	 * the path goes on and sends, and the reconciler goes on. Every shop must hold the desired prices within T_late plus the next
+	 * re-send after the release (the ticks at +0, 2, 5 and 15 minutes), and at the end; no tick may untrack the item while an
+	 * in-flight marker of it is open. The clock starts two days back, so a marker written now is open while the tail runs.
+	 * With SHOP_OFFER_MATRIX_LOG set, each cell appends what it saw there (one JSON line), for the evidence.
+	 */
+	#[DataProvider('stallCells')]
+	public function testStallMatrix(string $path, string $point): void
+	{
+		$name = 'SM' . strtoupper(substr($path, 0, 3) . substr($point, 0, 3));
+		$t0 = time() - 2 * 86400;
+		$offer = ['price' => 79.2, 'from' => date('Y-m-d', $t0 - 86400), 'to' => date('Y-m-d', time() + 3 * 86400)];
+		$cell = function (int $id) use ($path, $point, $name, $t0): void {
+			self::stallCell($path, $point, $id, $name, $t0);
+		};
+		if ($path === 'bulk') {
+			self::withBulkSyncOf($name, $offer, $cell);
+		} else {
+			$cell(self::item($name, $offer));
+		}
+	}
+
+	private static function stallCell(string $path, string $point, int $id, string $name, int $t0): void
+	{
+		self::tick($t0);
+		self::assertShopsHold($name, '79.200 / 799.00', 'the offer is in every shop');
+		$prefix = sys_get_temp_dir() . '/shopoffer-stall-' . bin2hex(random_bytes(4));
+		self::$files[] = "$prefix.held";
+		self::$files[] = "$prefix.go";
+		$stall = "$path:$point:" . ($path === 'tick' && $point === 'queried' ? 0 : $id) . ":$prefix";
+		if ($path === 'tick') {
+			self::rows("UPDATE varer SET special_price = 99.2 WHERE id = $1", [$id]); // what the held tick will send
+			$run = self::start(['tick', (string)($t0 + 5), '10'], [], $stall);
+		} elseif ($path === 'bulk') {
+			$run = self::startScript('run_sync_all_products_page.php', [self::sessionId()], $stall);
+		} else {
+			$args = ['card' => ['sync_price', (string)$id], 'stock' => ['sync_vare', (string)$id, '1', 'stock'], 'document' => ['sale', (string)$id, '1']][$path];
+			$run = self::start($args, [], $stall);
+		}
+		for ($i = 0; $i < 600 && !is_file("$prefix.held"); $i++) {
+			usleep(50000);
+		}
+		self::assertFileExists("$prefix.held", "the $path is held at '$point'");
+		self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]); // cancelled: the normal prices are desired
+		$row = ['path' => $path, 'point' => $point, 'openWhenUntracked' => []];
+		$watch = function (int $clock) use ($id, &$row): void {
+			self::tick($clock);
+			if (self::openMarkerWhenUntracked($id, $clock)) $row['openWhenUntracked'][] = $clock;
+		};
+
+		// held: the restoration, the tail, and on until the item is untracked (where nothing stops that) or two days past now
+		$clock = $t0 + 10;
+		foreach ([0, 120, 300, 900, 3600, 21600, 43200, 64800, 86400, 86400 + 700] as $offset) {
+			$watch($clock + $offset);
+		}
+		$c = $clock + 86400 + 700;
+		while (self::tracked($id) && $c < time() + 2 * 86400) {
+			$c += 21600;
+			$watch($c);
+		}
+		$row['untrackedWhileHeld'] = !self::tracked($id);
+		$row['shopsWhileHeld'] = self::remote($name);
+
+		// released: the path sends what it chose before or after the hold
+		self::clearLog();
+		touch("$prefix.go");
+		if ($path === 'bulk') {
+			proc_close($run[0]);
+			for ($i = 0; $i < 100 && count(self::priceCalls($name, null)) < 6; $i++) {
+				usleep(50000);
+			}
+		} else {
+			self::finish($run);
+		}
+		$row['sentAfterRelease'] = array_values(array_unique(array_map(fn($call) => $call['salesPrice'] . ' / ' . $call['retailPrice'], self::priceCalls($name, null))));
+		$row['shopsAfterRelease'] = self::remote($name);
+
+		// the bound: T_late plus the next re-send after the release
+		$after = $c + 60;
+		foreach ([0, 120, 300, 900] as $offset) {
+			$watch($after + $offset);
+		}
+		$row['shopsWithinBound'] = self::remote($name);
+		$end = $after + 900;
+		for ($i = 0; $i < 12 && self::tracked($id); $i++) {
+			$end += 21600;
+			$watch($end);
+		}
+		$row['untrackedAtEnd'] = !self::tracked($id);
+		$row['markerLeft'] = is_file(self::$tempDir . "/shopoffer/inflight-$id.json");
+		$row['shopsAtEnd'] = self::remote($name);
+		$row['pass'] = $row['shopsWithinBound'] === self::REMOTE_NORMAL && $row['shopsAtEnd'] === self::REMOTE_NORMAL
+			&& $row['untrackedAtEnd'] && !$row['markerLeft'] && !$row['openWhenUntracked'];
+		if (($log = getenv('SHOP_OFFER_MATRIX_LOG')) !== false && $log !== '') {
+			file_put_contents($log, json_encode($row, JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND);
+		}
+
+		self::assertSame([], $row['openWhenUntracked'], 'no tick untracked the item while an in-flight marker of it was open');
+		self::assertSame(self::REMOTE_NORMAL, $row['shopsWithinBound'], 'every shop on the desired prices within T_late plus the next re-send after the release');
+		self::assertSame(self::REMOTE_NORMAL, $row['shopsAtEnd'], 'and at the end');
+		self::assertTrue($row['untrackedAtEnd'], 'untracked at the end');
+		self::assertFalse($row['markerLeft'], 'with no marker left');
+	}
+
+	private static function tracked(int $id): bool
+	{
+		return is_file(self::$tempDir . "/shopoffer/item-$id.json");
+	}
+
+	/** Whether the item is untracked while an in-flight marker of it is open at the tick's clock (T_late plus 2 minutes). */
+	private static function openMarkerWhenUntracked(int $id, int $clock): bool
+	{
+		if (self::tracked($id)) {
+			return false;
+		}
+		foreach ((array)json_decode((string)@file_get_contents(self::$tempDir . "/shopoffer/inflight-$id.json"), true) as $marker) {
+			if ((int)($marker['startedAt'] ?? 0) + 720 > $clock) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public function testAnOpenMarkerKeepsTheItemTrackedAndAnExpiredOneIsAnEvent(): void
+	{
+		$t0 = time() - 2 * 86400;
+		$id = self::item('SPDIED', ['price' => 79.2, 'from' => date('Y-m-d', $t0 - 86400), 'to' => date('Y-m-d', time() + 3 * 86400)]);
+		self::tick($t0);
+		self::rows("UPDATE varer SET specialtype = NULL, special_price = 0 WHERE id = $1", [$id]);
+		foreach ([10, 130, 310, 910, 3610, 21610, 43210, 64810, 86410] as $offset) {
+			self::tick($t0 + $offset);
+		}
+		self::assertShopsHold('SPDIED', self::NORMAL);
+		// a card save claims the item, writes its marker and dies before it sends
+		$prefix = sys_get_temp_dir() . '/shopoffer-stall-' . bin2hex(random_bytes(4));
+		self::$files[] = "$prefix.held";
+		$run = self::start(['sync_price', (string)$id], [], "card:marked:$id:$prefix");
+		for ($i = 0; $i < 600 && !is_file("$prefix.held"); $i++) {
+			usleep(50000);
+		}
+		$claimed = time();
+		proc_terminate($run[0], 9);
+		proc_close($run[0]);
+		self::assertFileExists(self::$tempDir . "/shopoffer/inflight-$id.json", 'its marker stays');
+		$markers = json_decode((string)file_get_contents(self::$tempDir . "/shopoffer/inflight-$id.json"), true);
+		self::assertCount(1, $markers, 'one marker');
+		$marker = array_values($markers)[0];
+		self::assertSame('card', $marker['path']);
+		self::assertEqualsWithDelta($claimed, $marker['startedAt'], 2);
+		self::clearLog();
+		self::assertSame(0, self::tick($t0 + 86400 + 800)['untracked'], 'the tail is done, but the marker is open: not untracked');
+		self::assertSame(0, self::tick($marker['startedAt'] + 719)['untracked'], 'still open a second before T_late plus 2 minutes');
+		self::assertTrue(self::tracked($id));
+		self::assertSame([], self::priceCalls(), 'nothing owed meanwhile');
+		$out = self::tick($marker['startedAt'] + 720);
+		self::assertGreaterThanOrEqual(1, $out['events'], 'expired: an event');
+		self::assertSame(self::NORMAL_ALL, self::pricesSent('SPDIED'), 'the item is sent again before it can be untracked');
+		self::assertFileDoesNotExist(self::$tempDir . "/shopoffer/inflight-$id.json", 'the expired marker goes');
+		self::assertStringContainsString('a send by another path was not recorded in time (card)', (string)self::runner(['state', (string)$id])['state']['event']);
+		self::tick($marker['startedAt'] + 720 + 86400 + 700); // the last of the tail, caught up
+		self::tick($marker['startedAt'] + 720 + 86400 + 1400);
+		self::assertFalse(self::tracked($id), 'then, 24 hours on, untracked');
+		self::assertShopsHold('SPDIED', self::NORMAL);
 	}
 }

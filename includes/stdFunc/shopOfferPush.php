@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/shopOfferPush.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- includes/stdFunc/shopOfferPush.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,9 @@
 //                Codex verification 4: every path looks the pair up at the moment it sends (shopOfferForeignAtSend() for document sends, the bulk sync re-reads the item), so no send carries a pair read earlier; a bulk sync's sends are events for the items they touch.
 //                A refusing shop is never given up: it gets the current pair again on the schedule and at its back-off, at most 3 hours after each refusal, logged each time, for as long as it refuses; a refusal applies nothing, so it is no event for the other shops.
 //                leftAt is when a request actually left, on the tick's clock; an item is untracked only once its last request left more than T_late plus a minute (more than a tick's budget) ago.
+// 20261118 CL/LH Codex verification 5: one protocol for every send of an item's prices by another path (item card, stock sync, document sync, bulk sync): its queries first, then a short critical section under the item's lock (shopOfferForeignClaim(): read the state, choose each shop's pair, write an in-flight marker), the call at once (shopOfferForeignReady() takes a claim older than 2 minutes again), then an event (shopOfferForeignDone()).
+//                The reconciler never untracks an item while one of its markers is younger than T_late plus 2 minutes; an expired marker is an event. No query runs between a path's state read and its call (the VAT lookup no longer runs there at all).
+//                shopOfferTestPause() is inert outside the stall tests, which hold each path at every point between its first read and its call.
 
 if (!defined('SHOP_OFFER_ALERT_REFUSALS')) {
 	define('SHOP_OFFER_ALERT_REFUSALS', 8);    // refusals of one price pair after which a shop counts as stuck (still retried)
@@ -45,6 +48,9 @@ if (!defined('SHOP_OFFER_ALERT_REFUSALS')) {
 	define('SHOP_OFFER_DB_LOCK_SECONDS', 5);   // most a tick waits for a database lock
 	define('SHOP_OFFER_LOCK_WAIT', 0.2);       // most a sender waits for an item's state lock
 	define('SHOP_OFFER_LOCK_STRIPES', 64);     // item locks: one file per stripe, not per item
+}
+if (!defined('SHOP_OFFER_FOREIGN_MARGIN')) {
+	define('SHOP_OFFER_FOREIGN_MARGIN', 120);  // another path sends within this of its claim (else it claims again); a marker lives T_late plus this
 }
 
 if (!function_exists('shopOfferPushDir')) {
@@ -270,10 +276,10 @@ if (!function_exists('shopOfferBackoff')) {
 
 if (!function_exists('shopOfferForeignParams')) {
 	/**
-	 * A call's parameters with the pair shopOfferForeignBegin() gave the shop in $slot, if any.
+	 * A call's parameters with the pair shopOfferForeignClaim() gave the shop in $slot, if any.
 	 *
 	 * @param array<string, mixed> $params With salesPrice and retailPrice.
-	 * @param array|null $handle From shopOfferForeignBegin().
+	 * @param array|null $handle From shopOfferForeignClaim().
 	 * @param int|string $slot
 	 * @return array<string, mixed>
 	 */
@@ -292,7 +298,7 @@ if (!function_exists('shopOfferForeignGroups')) {
 	 * Splits one send to several shops into sends with the same parameters, as shopOfferForeignParams() gives each shop.
 	 *
 	 * @param array<int|string, string> $targets Slot => endpoint.
-	 * @param array|null $handle From shopOfferForeignBegin().
+	 * @param array|null $handle From shopOfferForeignClaim().
 	 * @param array<string, mixed> $params
 	 * @return list<array{targets: array<int|string, string>, params: array<string, mixed>}>
 	 */
@@ -413,10 +419,11 @@ if (!function_exists('shopOfferPlanItem')) {
 	 *         refusing: shops that refused the current pair SHOP_OFFER_ALERT_REFUSALS times or more (still retried);
 	 *         untrack: 24 hours have passed since the last event with no offer, every re-send is done, no request of the
 	 *         reconciler can still arrive (its last dispatch is older than T_late plus SHOP_OFFER_DISPATCH_MARGIN), and every shop
-	 *         last accepted the current pair. A shop whose last answer was not an acceptance is retried at its back-off for as
-	 *         long as that lasts, after the schedule has run out too.
+	 *         last accepted the current pair, and no in-flight marker of another path is open ($openUntil). A shop whose last
+	 *         answer was not an acceptance is retried at its back-off for as long as that lasts, after the schedule has run out too.
+	 * @param int $openUntil When the item's youngest in-flight marker of another path expires (shopOfferInflightCheck()); 0: none.
 	 */
-	function shopOfferPlanItem(array $state, array $shops, array $desired, $offerActive, $now) {
+	function shopOfferPlanItem(array $state, array $shops, array $desired, $offerActive, $now, $openUntil = 0) {
 		$now = (int)$now;
 		if (!isset($state['desired']) || !shopOfferPairSame($state['desired'], $desired)) {
 			shopOfferEvent($state, $now, isset($state['desired']) ? 'the prices changed' : 'tracked');
@@ -425,7 +432,7 @@ if (!function_exists('shopOfferPlanItem')) {
 		$state['offer'] = (bool)$offerActive;
 		$anchor = (int)$state['anchor'];
 		$out = array('state' => $state, 'send' => array(), 'next' => null, 'fresh' => false, 'urgent' => false, 'refusing' => array(), 'untrack' => false);
-		$quiet = !$offerActive && $now >= $anchor + SHOP_OFFER_QUIET_SECONDS && empty($state['intent']);
+		$quiet = !$offerActive && $now >= $anchor + SHOP_OFFER_QUIET_SECONDS && empty($state['intent']) && (int)$openUntil <= $now;
 		$out['state']['shops'] = array();
 		foreach ($shops as $key => $endpoint) {
 			$entry = shopOfferShopEntry($state, $key);
@@ -602,89 +609,252 @@ if (!function_exists('shopOfferPushEndpoints')) {
 	}
 }
 
-// ------------------------------------------------------------------ the other paths: item card, stock sync, bulk sync
+// ------------------------------------------------------------------ the other paths: item card, stock sync, document sync, bulk sync
+//
+// Every send of an item's prices by a path other than the reconciler follows one protocol:
+//   1. slow work first: the path's queries and its payload, before anything below (no query from here to the HTTP call);
+//   2. shopOfferForeignClaim(), a short critical section under the item's lock: read the state, choose each shop's pair (the
+//      pair the shop last accepted when the item is tracked, today's prices when not), write an in-flight marker
+//      {path, startedAt}, release the lock;
+//   3. shopOfferForeignReady() right before the HTTP call (a claim older than SHOP_OFFER_FOREIGN_MARGIN is taken again), then
+//      the call at once;
+//   4. shopOfferForeignDone() after the send, whatever its outcome: an event for the item when it is tracked, has a price offer
+//      running or to come, or a marker was written; the marker goes.
+// The reconciler never untracks an item while one of its markers is younger than T_late plus SHOP_OFFER_FOREIGN_MARGIN; an
+// older marker has expired, which is an event (the item is sent again before it can be untracked), so a path that dies
+// between its claim and its record leaves a re-send behind, not a gap.
 
-if (!function_exists('shopOfferForeignBegin')) {
+if (!function_exists('shopOfferHasOfferFields')) {
 	/**
-	 * Called by a path other than the reconciler just before it sends an item's prices (update_price, or update_stock, which
-	 * carries them too) to some shops.
+	 * Whether an item has a price offer that runs or is still to come, by the columns the reconciler selects items by.
 	 *
-	 * Null, at the cost of a file check, when the item is not tracked or the reconciler has never run on this account: the
-	 * path sends today's prices. (When such an item gets an offer, the reconciler finds it and that is an event, so a send of
-	 * today's prices still under way is overwritten.) For a tracked item the path is to send each shop the pair that shop
-	 * last accepted from the reconciler (today's prices to a shop that never accepted one), so it starts no price of its own.
-	 * When that pair is not the item's current pair, the send is marked as an event (foreign.staleAt), so the reconciler
-	 * sends the current pair after it. If the mark cannot be written, the path falls back to today's prices, leaves a
-	 * lock-free note (uncertain-<id>) that is an event too, and logs it.
-	 *
-	 * Call it right before the request goes out, never earlier: the pairs it gives are the ones to send now.
+	 * @param array<string, mixed> $item varer row with specialtype, special_price and special_to_date.
+	 * @param int $now
+	 * @return bool
+	 */
+	function shopOfferHasOfferFields(array $item, $now) {
+		return (string)($item['specialtype'] ?? '') === 'price' && (float)($item['special_price'] ?? 0) != 0
+			&& (string)($item['special_to_date'] ?? '') >= date('Y-m-d', strtotime('yesterday', (int)$now));
+	}
+}
+
+if (!function_exists('shopOfferInflightRead')) {
+	/**
+	 * An item's in-flight markers: sends of other paths between their claim and their record.
 	 *
 	 * @param int $vareId
-	 * @param array<string, mixed> $item varer row with salgspris, retail_price and the offer columns (shopOfferColumns()).
-	 * @param array<int|string, string> $endpoints Slot => endpoint the path sends to.
-	 * @param int|null $now
-	 * @param bool $markEvent Mark the send as an event even when it carries the current pair (the bulk sync, whose
-	 *                        fire-and-forget calls may still be on their way when the reconciler would otherwise untrack).
-	 * @return array{vare_id: int, pairs: array<int|string, array|null>, fallback: bool}|null
+	 * @return array<string, array{path: string, startedAt: int, pid: int}>|false Empty when there are none; false when the file
+	 *                                                                             cannot be read as markers.
 	 */
-	function shopOfferForeignBegin($vareId, array $item, array $endpoints, $now = null, $markEvent = false) {
-		$now = $now === null ? time() : (int)$now;
-		$vareId = (int)$vareId;
+	function shopOfferInflightRead($vareId) {
 		$dir = shopOfferPushDir(false);
-		if ($dir === '' || !$endpoints || !is_file($dir . 'item-' . $vareId . '.json')) {
-			return null;
+		$path = $dir === '' ? '' : $dir . 'inflight-' . (int)$vareId . '.json';
+		if ($path === '' || !is_file($path)) {
+			return array();
 		}
-		$state = shopOfferStateRead($vareId);
-		$desired = shopOfferPair(shopPricesForItem($item, $now));
-		$today = array('sales' => isset($item['salgspris']) ? (string)$item['salgspris'] : null,
-			'retail' => isset($item['retail_price']) ? (string)$item['retail_price'] : null);
-		$pairs = array();
-		$stale = !is_array($state);
-		foreach ($endpoints as $slot => $endpoint) {
-			$pairs[$slot] = is_array($state) ? shopOfferShopEntry($state, shopOfferShopKey($endpoint))['confirmed'] : null;
-			if (!shopOfferPairSame($pairs[$slot] ?? $today, $desired)) {
-				$stale = true;
+		$raw = @file_get_contents($path);
+		$data = is_string($raw) ? json_decode($raw, true) : null;
+		return is_array($data) ? $data : false;
+	}
+}
+
+if (!function_exists('shopOfferInflightWrite')) {
+	/**
+	 * Writes an item's in-flight markers (the file goes when there are none). Under the item's lock only.
+	 *
+	 * @param int $vareId
+	 * @param array<string, array> $markers
+	 * @return bool
+	 */
+	function shopOfferInflightWrite($vareId, array $markers) {
+		$dir = shopOfferPushDir(false);
+		if ($dir === '') {
+			return false;
+		}
+		$path = $dir . 'inflight-' . (int)$vareId . '.json';
+		if (!$markers) {
+			return !is_file($path) || @unlink($path);
+		}
+		$json = json_encode($markers, JSON_UNESCAPED_SLASHES);
+		return $json !== false && shopOfferWriteFile($path, $json);
+	}
+}
+
+if (!function_exists('shopOfferInflightCheck')) {
+	/**
+	 * Splits an item's markers into open ones (younger than T_late plus SHOP_OFFER_FOREIGN_MARGIN: the item is not untracked
+	 * until openUntil) and expired ones (an event; they are dropped).
+	 *
+	 * @param array|false $markers From shopOfferInflightRead().
+	 * @param int $now
+	 * @return array{openUntil: int, expired: list<string>, keep: array<string, array>} expired: the paths of the expired markers.
+	 */
+	function shopOfferInflightCheck($markers, $now) {
+		$out = array('openUntil' => 0, 'expired' => array(), 'keep' => array());
+		if (!is_array($markers)) {
+			$out['expired'][] = 'unreadable markers';
+			return $out;
+		}
+		foreach ($markers as $token => $marker) {
+			$until = (int)($marker['startedAt'] ?? 0) + SHOP_OFFER_LATE_SECONDS + SHOP_OFFER_FOREIGN_MARGIN;
+			if ($until > (int)$now) {
+				$out['keep'][$token] = $marker;
+				$out['openUntil'] = max($out['openUntil'], $until);
+			} else {
+				$out['expired'][] = (string)($marker['path'] ?? '?');
 			}
 		}
-		if (!$stale && !$markEvent) {
-			return array('vare_id' => $vareId, 'pairs' => $pairs, 'fallback' => false);
+		return $out;
+	}
+}
+
+if (!function_exists('shopOfferForeignClaim')) {
+	/**
+	 * Step 2 of the protocol above: the critical section of a send of an item's prices by a path other than the reconciler.
+	 * Call it after the path's queries, right before the send. No query runs in it.
+	 *
+	 * Null when the account has no offer state (the reconciler has never run, or no webshop): the path sends today's prices
+	 * and there is nothing to record. An item that is not tracked and has no price offer running or to come costs one file
+	 * check and keeps today's prices, without lock or marker. Otherwise, under the item's lock: each shop's pair (the pair it
+	 * last accepted when the item is tracked, else today's prices) and an in-flight marker. If the lock or the marker fails,
+	 * the path sends today's prices and leaves a lock-free note (uncertain-<id>), which is an event, before it sends.
+	 *
+	 * @param string $path 'card', 'stock', 'document' or 'bulk'.
+	 * @param int $vareId
+	 * @param array<string, mixed> $item varer row read before: salgspris, retail_price and the offer columns (shopOfferColumns()).
+	 * @param array<int|string, string> $endpoints Slot => endpoint the send goes to.
+	 * @return array{path: string, vare_id: int, item: array, endpoints: array, pairs: array<int|string, array|null>, token: string|null, offer: bool, claimedAt: float}|null
+	 */
+	function shopOfferForeignClaim($path, $vareId, array $item, array $endpoints) {
+		$vareId = (int)$vareId;
+		$dir = shopOfferPushDir(false);
+		if ($dir === '' || !$endpoints) {
+			return null;
 		}
-		list($locked, $written) = shopOfferWithItemLock($vareId, function () use ($vareId, $now) {
+		$handle = array('path' => (string)$path, 'vare_id' => $vareId, 'item' => $item, 'endpoints' => $endpoints, 'pairs' => array(),
+			'token' => null, 'offer' => shopOfferHasOfferFields($item, time()), 'claimedAt' => microtime(true));
+		if (!$handle['offer'] && !is_file($dir . 'item-' . $vareId . '.json')) {
+			return $handle; // today's prices; after the send only a look whether the item got tracked meanwhile
+		}
+		$token = getmypid() . '-' . bin2hex(random_bytes(6));
+		list($locked, $pairs) = shopOfferWithItemLock($vareId, function () use ($vareId, $endpoints, $token, $path) {
+			$state = shopOfferStateRead($vareId);
+			shopOfferTestPause($path, 'locked', $vareId);
+			$pairs = array();
+			foreach ($endpoints as $slot => $endpoint) {
+				$pairs[$slot] = is_array($state) ? shopOfferShopEntry($state, shopOfferShopKey($endpoint))['confirmed'] : null;
+			}
+			$markers = shopOfferInflightRead($vareId);
+			if (!is_array($markers)) {
+				return false;
+			}
+			$markers[$token] = array('path' => (string)$path, 'startedAt' => time(), 'pid' => (int)getmypid());
+			return shopOfferInflightWrite($vareId, $markers) ? $pairs : false;
+		});
+		if (!$locked || $pairs === false) {
+			$noted = @touch($dir . 'uncertain-' . $vareId);
+			shopOfferLogLoud('STATE NOT WRITABLE: a send of item vare_id ' . $vareId . ' by the ' . $path . ' could not be marked ('
+				. ($locked ? 'marker not written' : 'lock busy') . '); it carries today\'s prices'
+				. ($noted ? ' and left a note for the reconciler' : ', and the note for the reconciler failed too'));
+			return $handle;
+		}
+		$handle['pairs'] = $pairs;
+		$handle['token'] = $token;
+		shopOfferTestPause($path, 'marked', $vareId);
+		return $handle;
+	}
+}
+
+if (!function_exists('shopOfferForeignReady')) {
+	/**
+	 * Step 3: right before the HTTP call. A claim older than SHOP_OFFER_FOREIGN_MARGIN (the path stalled after it) is
+	 * recorded and taken again, so a send leaves within the margin of its claim's state read and marker.
+	 *
+	 * @param array|null $handle From shopOfferForeignClaim().
+	 * @param float|null $at microtime(true); for tests.
+	 * @return array|null The handle to send with.
+	 */
+	function shopOfferForeignReady($handle, $at = null) {
+		if (!is_array($handle) || ($at ?? microtime(true)) - $handle['claimedAt'] < SHOP_OFFER_FOREIGN_MARGIN) {
+			return $handle;
+		}
+		shopOfferForeignDone($handle);
+		return shopOfferForeignClaim($handle['path'], $handle['vare_id'], $handle['item'], $handle['endpoints']);
+	}
+}
+
+if (!function_exists('shopOfferForeignDone')) {
+	/**
+	 * Step 4: after the send, whatever its outcome. An event for the item (foreign.staleAt; the reconciler sends the current
+	 * pair after it and keeps the item tracked for 24 hours) when a marker was written, the item is tracked now, or it has a
+	 * price offer running or to come; the marker goes. If the lock is busy or the state cannot be written, a lock-free note
+	 * (uncertain-<id>) is the event, and the marker is left to expire, which is an event too.
+	 *
+	 * @param array|null $handle From shopOfferForeignClaim() / shopOfferForeignReady().
+	 * @return void
+	 */
+	function shopOfferForeignDone($handle) {
+		if (!is_array($handle)) {
+			return;
+		}
+		$vareId = (int)$handle['vare_id'];
+		$dir = shopOfferPushDir(false);
+		if ($dir === '' || ($handle['token'] === null && !$handle['offer'] && !is_file($dir . 'item-' . $vareId . '.json'))) {
+			return; // an item nobody tracks and without an offer: nothing to record
+		}
+		$now = time();
+		$token = $handle['token'];
+		list($locked, $written) = shopOfferWithItemLock($vareId, function () use ($vareId, $now, $token) {
 			$state = shopOfferStateRead($vareId);
 			if (!is_array($state)) {
 				$state = array('shops' => array(), 'reset' => true);
 			}
 			$state['foreign']['staleAt'] = max((int)($state['foreign']['staleAt'] ?? 0), $now);
-			return shopOfferStateWrite($vareId, $state);
+			if (!shopOfferStateWrite($vareId, $state)) {
+				return false;
+			}
+			$markers = $token === null ? array() : shopOfferInflightRead($vareId);
+			if (is_array($markers) && isset($markers[$token])) {
+				unset($markers[$token]);
+				shopOfferInflightWrite($vareId, $markers);
+			}
+			return true;
 		});
 		if (!$locked || !$written) {
 			$noted = @touch($dir . 'uncertain-' . $vareId);
-			shopOfferLogLoud('STATE NOT WRITABLE: a send of item vare_id ' . $vareId . ' could not be marked (' . ($locked ? 'write failed' : 'lock busy')
-				. '); it carries the normal prices' . ($noted ? '' : ', and the note for the reconciler failed too'));
-			return array('vare_id' => $vareId, 'pairs' => array(), 'fallback' => true);
+			shopOfferLogLoud('STATE NOT WRITABLE: the send of item vare_id ' . $vareId . ' by the ' . $handle['path'] . ' could not be recorded ('
+				. ($locked ? 'write failed' : 'lock busy') . '); ' . ($noted ? 'a note for the reconciler was left' : 'the note failed too; its marker expires and is an event then'));
 		}
-		return array('vare_id' => $vareId, 'pairs' => $pairs, 'fallback' => false);
 	}
 }
 
-if (!function_exists('shopOfferForeignAtSend')) {
+if (!function_exists('shopOfferTestPause')) {
 	/**
-	 * shopOfferForeignBegin() for a send prepared earlier and sent now (a document's collected calls): the pairs are looked up
-	 * at the moment of sending. Null, at the cost of a file check, for an item the reconciler does not track (the prepared
-	 * call then keeps today's prices); for a tracked item it reads the item again (one query) for today's and the current pair.
+	 * A pause for the stall tests only (ShopOfferPushTest::testStallMatrix()); inert unless the environment variable
+	 * SALDI_SHOP_OFFER_STALL is "<path>:<point>:<vare_id, 0 for any>:<file prefix>". Then, the first time that path reaches that
+	 * point for that item, it creates <prefix>.held and waits for <prefix>.go (at most 10 minutes).
 	 *
+	 * @param string $path 'card', 'stock', 'document', 'bulk' or 'tick'.
+	 * @param string $point 'queried', 'locked', 'marked' or 'send'.
 	 * @param int $vareId
-	 * @param array<int|string, string> $endpoints Slot => endpoint the call goes to.
-	 * @param bool $markEvent As shopOfferForeignBegin().
-	 * @return array{vare_id: int, pairs: array<int|string, array|null>, fallback: bool}|null
+	 * @return void
 	 */
-	function shopOfferForeignAtSend($vareId, array $endpoints, $markEvent = false) {
-		$dir = shopOfferPushDir(false);
-		if ($dir === '' || !$endpoints || !is_file($dir . 'item-' . (int)$vareId . '.json')) {
-			return null;
+	function shopOfferTestPause($path, $point, $vareId = 0) {
+		static $fired = false;
+		$spec = getenv('SALDI_SHOP_OFFER_STALL');
+		if ($fired || $spec === false || $spec === '') {
+			return;
 		}
-		$row = db_fetch_array(db_select("select salgspris, retail_price, " . shopOfferColumns() . " from varer where id = '" . (int)$vareId . "'", __FILE__ . " linje " . __LINE__));
-		return $row ? shopOfferForeignBegin($vareId, $row, $endpoints, null, $markEvent) : null;
+		$parts = explode(':', $spec, 4);
+		if (count($parts) !== 4 || $parts[0] !== (string)$path || $parts[1] !== (string)$point
+			|| ((int)$parts[2] && (int)$vareId && (int)$parts[2] !== (int)$vareId)) {
+			return;
+		}
+		$fired = true;
+		@touch($parts[3] . '.held');
+		for ($i = 0; $i < 12000 && !is_file($parts[3] . '.go'); $i++) {
+			usleep(50000);
+		}
 	}
 }
 
@@ -762,19 +932,21 @@ if (!function_exists('shopOfferReconcileRun')) {
 		$maxItems = isset($options['maxItems']) ? (int)$options['maxItems'] : PHP_INT_MAX;
 
 		// What is tracked, what another path noted without its lock, and temporary files a killed writer left.
-		$tracked = $notes = array();
+		$tracked = $notes = $inflight = array();
 		foreach ((array)@scandir($dir) as $name) {
 			if (preg_match('/^item-([0-9]+)\.json$/D', (string)$name, $m)) {
 				$tracked[(int)$m[1]] = true;
 			} elseif (preg_match('/^uncertain-([0-9]+)$/D', (string)$name, $m)) {
 				$notes[(int)$m[1]] = true;
+			} elseif (preg_match('/^inflight-([0-9]+)\.json$/D', (string)$name, $m)) {
+				$inflight[(int)$m[1]] = true;
 			} elseif (substr((string)$name, -4) === '.new' && (int)@filemtime($dir . $name) < $now - 3600) {
 				@unlink($dir . $name);
 			}
 		}
 		$result['tracked'] = count($tracked);
 		$since = date('Y-m-d', strtotime('yesterday', $now));
-		$known = array_keys($tracked + $notes);
+		$known = array_keys($tracked + $notes + $inflight);
 		$qtxt = "select id, varenr, varenr_alias, kostpris, salgspris, retail_price, m_type, m_rabat, colli_webfragt, stregkode, " . shopOfferColumns();
 		$qtxt .= " from varer where (specialtype = 'price' and special_price <> 0 and special_to_date >= '$since')";
 		if ($known) $qtxt .= " or id in (" . implode(',', array_map('intval', $known)) . ")";
@@ -784,10 +956,12 @@ if (!function_exists('shopOfferReconcileRun')) {
 		while ($row = db_fetch_array($q)) {
 			$items[(int)$row['id']] = $row;
 		}
+		shopOfferTestPause('tick', 'queried', 0);
 		foreach ($known as $id) {
 			if (!isset($items[$id])) { // the item is gone
 				shopOfferWithItemLock($id, function () use ($id, $dir) {
 					shopOfferStateWrite($id, null);
+					shopOfferInflightWrite($id, array());
 					@unlink($dir . 'uncertain-' . $id);
 				});
 			}
@@ -804,21 +978,22 @@ if (!function_exists('shopOfferReconcileRun')) {
 			}
 			$state = isset($tracked[$id]) ? shopOfferStateRead($id) : null;
 			$prices = shopPricesForItem($item, $now);
-			if ($state === null && !$prices['offer'] && !isset($notes[$id])) {
+			if ($state === null && !$prices['offer'] && !isset($notes[$id]) && !isset($inflight[$id])) {
 				continue; // not tracked and no offer now: today's prices, nothing owed
 			}
 			$preview = is_array($state) ? $state : array('shops' => array());
-			if ($state === false || isset($notes[$id]) || !empty($preview['intent'])
+			$markers = isset($inflight[$id]) ? shopOfferInflightCheck(shopOfferInflightRead($id), $now) : array('openUntil' => 0, 'expired' => array());
+			if ($state === false || isset($notes[$id]) || !empty($preview['intent']) || $markers['expired']
 				|| (int)($preview['foreign']['staleAt'] ?? 0) > (int)($preview['foreign']['absorbed'] ?? 0)) {
 				shopOfferEvent($preview, $now, 'pending');
 			}
-			$plan = shopOfferPlanItem($preview, $shops, shopOfferPair($prices), $prices['offer'], $now);
+			$plan = shopOfferPlanItem($preview, $shops, shopOfferPair($prices), $prices['offer'], $now, $markers['openUntil']);
 			$result['stuck'] += count($plan['refusing']);
 			if ($plan['send']) {
 				if ($plan['fresh']) $fresh[$id] = $plan['next'];
 				elseif ($plan['urgent']) $urgent[$id] = $plan['next'];
 				else $routine[$id] = $plan['next'];
-			} elseif ($plan['untrack'] || $state === false || isset($notes[$id]) || (is_array($state) && $plan['state']['anchor'] !== ($state['anchor'] ?? null))) {
+			} elseif ($plan['untrack'] || $state === false || isset($notes[$id]) || $markers['expired'] || (is_array($state) && $plan['state']['anchor'] !== ($state['anchor'] ?? null))) {
 				$tidy[$id] = $id; // record an event or stop tracking: no call
 			}
 		}
@@ -903,8 +1078,10 @@ if (!function_exists('shopOfferReconcileItem')) {
 
 		list($locked, $intent) = shopOfferWithItemLock($id, function () use ($id, $shops, $now, $prices, $desired, $note, $dead) {
 			$read = shopOfferStateRead($id);
+			shopOfferTestPause('tick', 'locked', $id);
 			$noteAt = @filemtime($note);
-			if ($read === null && !$prices['offer'] && $noteAt === false) {
+			$inflight = shopOfferInflightRead($id);
+			if ($read === null && !$prices['offer'] && $noteAt === false && $inflight === array()) {
 				return array('idle' => true);
 			}
 			$state = is_array($read) ? $read : array('shops' => array());
@@ -913,7 +1090,13 @@ if (!function_exists('shopOfferReconcileItem')) {
 				shopOfferEvent($state, $now, 'the state could not be read');
 			}
 			shopOfferAbsorbEvents($state, $now, $noteAt);
-			$plan = shopOfferPlanItem($state, $shops, $desired, $prices['offer'], $now);
+			// another path's sends: an open marker keeps the item tracked; an expired one is an event and goes
+			$markers = shopOfferInflightCheck($inflight, $now);
+			if ($markers['expired']) {
+				shopOfferEvent($state, $now, 'a send by another path was not recorded in time (' . implode(', ', $markers['expired']) . ')');
+				if (!shopOfferInflightWrite($id, $markers['keep'])) return array('stateError' => true);
+			}
+			$plan = shopOfferPlanItem($state, $shops, $desired, $prices['offer'], $now, $markers['openUntil']);
 			$state = $plan['state'];
 			unset($state['reset']);
 			$newEvents = (int)($state['events'] ?? 0) - $events;
@@ -955,6 +1138,7 @@ if (!function_exists('shopOfferReconcileItem')) {
 			if (!empty($intent['untracked'])) $result['untracked']++;
 			return false;
 		}
+		shopOfferTestPause('tick', 'marked', $id);
 		$shopId = 0;
 		if ($b = db_fetch_array(shopOfferBoundedQuery("select shop_id from shop_varer where saldi_id = '" . (int)$id . "'"))) {
 			$shopId = $b['shop_id'];
@@ -963,6 +1147,7 @@ if (!function_exists('shopOfferReconcileItem')) {
 		foreach ($intent['send'] as $key => $yes) {
 			$targets[$key] = $shops[$key];
 		}
+		shopOfferTestPause('tick', 'send', $id);
 		$answers = shopOfferSend($targets, shopPriceParams($item, $prices, $shopId), min($deadline, microtime(true) + SHOP_OFFER_CALL_SECONDS),
 			$log, "shop offer tick vare_id " . (int)$id);
 		foreach ($answers as $key => $answer) {

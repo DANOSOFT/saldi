@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -128,6 +128,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261117 CL/LH Havemøbelland Black Week: sync_shop_price() and sync_shop_vare() send an item the offer reconciler tracks (stdFunc/shopOfferPush.php) each shop the price pair that shop last accepted from it, looked up right before each call (a call collected for a document when the document sends it), so a card save or a sale starts no price of its own; other items keep today's prices.
 //                When that pair is not the item's current one, the send is marked as an event, and the reconciler, run only by an authorised scheduled call, sends the current pair after it.
+// 20261118 CL/LH Every send of an item's prices follows the protocol of stdFunc/shopOfferPush.php: the queries first, then the critical section (shopOfferForeignClaim()) right before each call, the call at once, then the record (shopOfferForeignDone()); no query runs between the state read and the call.
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
@@ -2067,13 +2068,17 @@ if(!function_exists("sync_shop_price")){
 			'webFragt'     => $webFragt,
 			'barcode'      => $stregkode,
 		);
+		shopOfferTestPause('card', 'queried', $vare_id);
 		foreach (array($api_fil, $api_fil2, $api_fil3) as $slot => $endpoint) {
 		  if (!$endpoint) {
 			continue;
 		  }
-		  # 20261117 a tracked item gets the pair this shop last accepted from the offer reconciler, looked up right before the call; null: today's prices
-		  $offer = shopOfferForeignBegin($vare_id, $r, array($slot => $endpoint));
-		  $res = shopApiRequest($endpoint, shopOfferForeignParams($params, $offer, $slot), $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
+		  # 20261118 the protocol of stdFunc/shopOfferPush.php: the critical section right before the call, the call at once, then the
+		  # record. A tracked item gets the pair this shop last accepted from the offer reconciler; otherwise today's prices.
+		  $claim = shopOfferForeignReady(shopOfferForeignClaim('card', $vare_id, $r, array($slot => $endpoint)));
+		  shopOfferTestPause('card', 'send', $vare_id);
+		  $res = shopApiRequest($endpoint, shopOfferForeignParams($params, $claim, $slot), $log, array('context' => "sync_shop_price update_price vare_id $vare_id"));
+		  shopOfferForeignDone($claim);
 		  if (!$res['ok']) {
 			$failed++;
 		  }
@@ -2163,12 +2168,12 @@ if (!function_exists('sync_shop_vare')) {
 		// A shop that could not be reached, or that was never called because the budget ran out,
 		// leaves the item on the queue so the next request delivers it. A shop that answered and
 		// refused the item is not queued: the figure is not what it objects to.
-		$send = function (array $targets, array $params, $context, $queueId, $queueVariant, $itemLabel)
+		$send = function (array $targets, array $params, $context, $queueId, $queueVariant, $itemLabel, $offerItem = null)
 			use ($log, $userAgent, $lager, $mode, &$failed) {
 			if (!$targets) {
 				return;
 			}
-			if (shopSyncCollect($targets, $params, $context, $queueId, $queueVariant, $lager, $mode, $itemLabel, $userAgent)) {
+			if (shopSyncCollect($targets, $params, $context, $queueId, $queueVariant, $lager, $mode, $itemLabel, $userAgent, $offerItem)) {
 				return;
 			}
 			$results = shopApiRequestParallel($targets, $params, $log, array('context' => $context, 'userAgent' => $userAgent));
@@ -2185,16 +2190,23 @@ if (!function_exists('sync_shop_vare')) {
 				}
 			}
 		};
-		// 20261117 a send that carries the item's prices (update_price, update_stock): a tracked item gets, per shop, the pair
-		// that shop last accepted from the offer reconciler (stdFunc/shopOfferPush.php), looked up right before the call, so this
-		// send starts no price of its own; a call collected for the document is looked up when the document sends it
+		// 20261118 a send that carries the item's prices (update_price, update_stock) follows the protocol of
+		// stdFunc/shopOfferPush.php: the critical section right before the call (a tracked item gets, per shop, the pair that shop
+		// last accepted from the offer reconciler; otherwise today's prices), the call at once, then the record. A call collected
+		// for the document goes through it when the document sends it (stdFunc/shopSyncDocument.php).
 		$priceRow = null;
 		$sendPrices = function (array $targets, array $params, $context, $itemLabel) use ($send, $vare_id, &$priceRow) {
 			$collector = &shopSyncDocumentState();
-			$offer = ($priceRow && empty($collector['collecting'])) ? shopOfferForeignBegin($vare_id, $priceRow, $targets) : null;
-			foreach (shopOfferForeignGroups($targets, $offer, $params) as $group) {
+			if (!empty($collector['collecting'])) {
+				$send($targets, $params, $context, $vare_id, 0, $itemLabel, $priceRow);
+				return;
+			}
+			$claim = $priceRow ? shopOfferForeignReady(shopOfferForeignClaim('stock', $vare_id, $priceRow, $targets)) : null;
+			shopOfferTestPause('stock', 'send', $vare_id);
+			foreach (shopOfferForeignGroups($targets, $claim, $params) as $group) {
 				$send($group['targets'], $group['params'], $context, $vare_id, 0, $itemLabel);
 			}
+			shopOfferForeignDone($claim);
 		};
 		if ($variant_id) {
 			$variantItemNo = '';
@@ -2268,6 +2280,7 @@ if (!function_exists('sync_shop_vare')) {
 			$qtxt = "SELECT varenr, varenr_alias, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode, " . shopOfferColumns() . " FROM varer WHERE varer.id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$priceRow = $r;
+				shopOfferTestPause('stock', 'queried', $vare_id);
 				$salesPrice = $r['salgspris'];
 				$discountType = $r['m_type'];
 				$discount = $r['m_rabat'];
