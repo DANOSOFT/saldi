@@ -45,6 +45,8 @@
 // 20261118 CL/LH UI pass: Sæt på pause / Genoptag and Fjern bankforbindelse (with the waiting count) are checked on the accounts page.
 //                The support code sits in a title attribute, dates are dd-mm-åååå text fields, the journal button is named Bankposteringer, and the expired notice replaces the removed "Næste hentning" row.
 // 20261118 CL/LH The journal's bank status: accounts named ledger-first in the tooltip, the short label ("2 nye", "ajour", "hentning forsinket", "forny adgang", "fejl") and the link to the feed on the account.
+// 20261118 CL/LH CodeRabbit: a manual fetch reports its own new_count and the cooldown reason (not for a held lease); action required reads "forny adgang" and the link opens the most urgent account.
+//                Switching the company on says "henter igen" only with an account in use, and survives a failing lookup; disconnect also clears last_error.
 
 use PHPUnit\Framework\TestCase;
 
@@ -874,10 +876,25 @@ final class EnableBankingBackendTest extends TestCase
         $due = date('Y-m-d H:i:s', time() + 5000);
         ebUpdate('bank_accounts', $this->accountId, ['next_fetch_at' => $due]);
         $client = $this->client([$this->step($this->page())]);
-        $this->assertSame('ok', ebSyncAccount($this->accountId, 'manual', [], $client)['status']);
+        $first = ebSyncAccount($this->accountId, 'manual', [], $client);
+        $this->assertSame('ok', $first['status']);
+        // "Hentet kl. HH:MM - 2 nye posteringer" counts the run's own new lines (bank_sync_runs.new_count).
+        $this->assertSame(2, $first['new_count']);
+        $this->assertSame('2', (string)ebRow('SELECT new_count FROM bank_sync_runs WHERE id=' . (int)$first['run_id'])['new_count']);
         $this->assertSame($due, ebRow('SELECT next_fetch_at FROM bank_accounts WHERE id=' . $this->accountId)['next_fetch_at']);
-        $this->assertSame(['status' => 'skipped', 'run_id' => 0, 'message' => 'En hentning er allerede i gang eller er netop udført.'], ebSyncAccount($this->accountId, 'manual', [], $client));
+        $lastManual = ebRow('SELECT last_manual_at FROM bank_accounts WHERE id=' . $this->accountId)['last_manual_at'];
+        $this->assertSame(['status' => 'skipped', 'run_id' => 0, 'message' => 'En hentning er allerede i gang eller er netop udført.',
+            'reason' => 'cooldown', 'last_manual_at' => $lastManual], ebSyncAccount($this->accountId, 'manual', [], $client));
         $this->assertCount(1, ebRows('SELECT id FROM bank_sync_runs'));
+        // A fetch already running (held lease) is not the cooldown, even right after a manual fetch: the feed keeps the run's message.
+        ebUpdate('bank_accounts', $this->accountId, ['lease_owner' => 'other-process', 'lease_until' => date('Y-m-d H:i:s', time() + 600)]);
+        $held = ebSyncAccount($this->accountId, 'manual', [], $client);
+        $this->assertSame('skipped', $held['status']);
+        $this->assertArrayNotHasKey('reason', $held);
+        // Once the limit has passed, the same lines again are no new lines.
+        ebUpdate('bank_accounts', $this->accountId, ['lease_owner' => null, 'lease_until' => null, 'last_manual_at' => date('Y-m-d H:i:s', time() - 600)]);
+        $again = ebSyncAccount($this->accountId, 'manual', [], $this->client([$this->step($this->page())]));
+        $this->assertSame(['ok', 0], [$again['status'], $again['new_count']]);
     }
 
     /** @return void */
@@ -1700,6 +1717,39 @@ final class EnableBankingBackendTest extends TestCase
     }
 
     /** @return void */
+    public function test_switching_the_company_on_says_fetching_resumes_only_for_an_account_in_use(): void
+    {
+        require_once __DIR__ . '/../../../systemdata/diverseIncludes/bank_integration.php';
+        $resumes = 'Bankforbindelse er slået til. Saldi henter igen fra de forbundne bankkonti.';
+        $plain = 'Bankforbindelse er slået til.';
+        $this->assertSame($resumes, bankIntegrationEnabledMessage());
+        // A connected bank whose accounts are all paused or not in use: nothing resumes, and no new connection is needed.
+        ebSetPaused($this->accountId, true, 'chartest');
+        $this->assertSame($plain, bankIntegrationEnabledMessage());
+        ebUpdate('bank_accounts', $this->accountId, ['state' => 'new']);
+        $this->assertSame($plain, bankIntegrationEnabledMessage());
+        ebUpdate('bank_accounts', $this->accountId, ['state' => 'active']);
+        ebUpdate('bank_connections', $this->connectionId, ['status' => 'disconnected']);
+        $this->assertSame('Bankforbindelse er slået til. Forbind en bank for at komme i gang.', bankIntegrationEnabledMessage());
+        // The switch is already committed when the message is built; a failing lookup gives the neutral message, not an error.
+        ebUpdate('bank_connections', $this->connectionId, ['status' => 'active']);
+        ebWrite('ALTER TABLE bank_accounts RENAME TO bank_accounts_eb_hidden');
+        $failed = [];
+        // The failing query's own pg_query() warning is the point of this step; record it instead of reporting it.
+        set_error_handler(static function (int $no, string $text) use (&$failed): bool {
+            $failed[] = $text;
+            return true;
+        }, E_WARNING);
+        try {
+            $this->assertSame($plain, bankIntegrationEnabledMessage());
+        } finally {
+            restore_error_handler();
+            ebWrite('ALTER TABLE bank_accounts_eb_hidden RENAME TO bank_accounts');
+        }
+        $this->assertStringContainsString('bank_accounts', implode(' ', $failed));
+    }
+
+    /** @return void */
     public function test_empty_fetch_stays_active_and_writes_no_journal(): void
     {
         $this->assertSame('ok', ebSyncAccount($this->accountId, 'schedule', [], $this->client([$this->step(['transactions' => []])]))['status']);
@@ -1974,7 +2024,7 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertSame('disconnected', ebAccountStatus($this->accountId)['state']);
         $this->assertNull(ebAccountStatus($this->accountId)['next_fetch_at']);
         // The old fetch error promised an automatic retry that no longer happens.
-        $this->assertNull(ebRow('SELECT last_error_code FROM bank_accounts WHERE id=' . $this->accountId)['last_error_code']);
+        $this->assertSame(['last_error_code' => null, 'last_error' => null], ebRow('SELECT last_error_code, last_error FROM bank_accounts WHERE id=' . $this->accountId));
         $this->assertCount(0, ebRows('SELECT id FROM bank_account_sessions WHERE active=1'));
         $this->assertCount(1, ebRows('SELECT id FROM kassekladde'));
         ebUpdate('bank_connections', $this->connectionId, ['valid_until' => null, 'session_enc' => '']);
@@ -2380,6 +2430,33 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertNotContains($reason, $indicator['reasons']);
         ebUpdate('bank_accounts', $this->accountId, ['state' => 'new']);
         $this->assertNotContains($reason, $this->indicator()['reasons']);
+    }
+
+    /** @return void */
+    public function test_indicator_says_renew_after_action_required_and_links_the_most_urgent_account(): void
+    {
+        ebUpdate('bank_connections', $this->connectionId, ['valid_until' => date('Y-m-d H:i:s', time() + 90 * 86400)]);
+        $run = ebSyncAccount($this->accountId, 'schedule', [], $this->client([$this->step(['error' => 'ASPSP_PSU_ACTION_REQUIRED'], 403)]));
+        $this->assertSame('failed', $run['status']);
+        // The run is stored as failed, but the user has to act at the bank: "forny adgang", not "fejl".
+        $indicator = $this->indicator();
+        $this->assertSame([3, 'forny adgang'], [$indicator['level'], $indicator['label']]);
+        ebWrite('DELETE FROM bank_sync_runs');
+        ebUpdate('bank_accounts', $this->accountId, ['last_error_code' => null, 'last_error' => null]);
+        // The first account's access runs out soon (amber); a later account's access has expired (red): the link opens the later one.
+        ebUpdate('bank_connections', $this->connectionId, ['valid_until' => date('Y-m-d H:i:s', time() + 10 * 86400)]);
+        $this->assertSame('../bank_integration/feed.php?account=' . $this->accountId, $this->indicator()['href']);
+        $expired = ebInsert('bank_connections', ['provider' => 'enablebanking', 'environment' => 'SANDBOX',
+            'aspsp_name' => 'Fixture Bank', 'aspsp_country' => 'DK', 'psu_type' => 'business', 'session_enc' => oauthEncrypt(bin2hex(random_bytes(16))),
+            'session_hash' => hash('sha256', random_bytes(16)), 'status' => 'active', 'valid_until' => date('Y-m-d H:i:s', time() - 3600),
+            'created_by' => 'chartest', 'created_at' => ebNow(), 'updated_at' => ebNow()]);
+        $urgent = $this->account($expired, 'urgent-expired');
+        $tied = $this->account($expired, 'urgent-expired-later');
+        $indicator = $this->indicator();
+        $this->assertSame([3, 'forny adgang'], [$indicator['level'], $indicator['label']]);
+        // Two expired accounts: the first one.
+        $this->assertSame('../bank_integration/feed.php?account=' . $urgent, $indicator['href']);
+        $this->assertNotSame($urgent, $tied);
     }
 
     /** @return void */

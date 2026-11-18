@@ -41,6 +41,7 @@
 // 20261118 CL/LH The coloured dot is a short text link, "Bank: 186 nye", "Bank: ajour" or "Bank: forny adgang", amber or red when something needs the user (ebStatusLabel()).
 //                The link opens the feed on the account that needs the user most, for the journal on screen; with unsaved changes in the journal it goes through the Bankposteringer button, which saves first.
 //                Accounts are named ledger-first in the tooltip (ebAccountLabel()).
+// 20261118 CL/LH CodeRabbit: an action-required run (stored as failed) shows "forny adgang", not "fejl"; the link opens the account behind the most urgent problem shown (renew, error, late, renew soon), the first one on a tie.
 
 include_once __DIR__ . '/enabled.php';
 
@@ -77,6 +78,7 @@ if (!function_exists('ebStatusIndicator')) {
 		$seen = array('renew' => false, 'error' => false, 'late' => false, 'renew_soon' => false, 'review' => 0,
 			'rate_limited' => false, 'unused' => 0, 'paused' => false, 'waiting' => 0);
 		$problemAccount = 0;
+		$problemRank = 0;
 		$waitingAccount = 0;
 		$mostWaiting = 0;
 		foreach ($accounts as $account) {
@@ -84,25 +86,29 @@ if (!function_exists('ebStatusIndicator')) {
 			$name = ebStatusAccountName($account, $connection);
 			$status = ebNormalizeStatus(ebAccountStatus((int)$account['id']), $account, $connection);
 			$failed = in_array($status['last_run_status'], array('failed', 'partial'), true);
-			$problem = true;
+			// How urgent this account's problem is, in ebStatusLabel()'s order: 4 renew, 3 error, 2 late, 1 renew soon, 0 none.
+			$rank = 0;
 			if ($status['expired']) {
 				$level = 3;
 				$seen['renew'] = true;
+				$rank = 4;
 				$result['reasons'][] = "$name: " . ebErrorText($status['last_error_code'], 'consent');
+			} elseif ($status['last_error_code'] === 'ASPSP_PSU_ACTION_REQUIRED') {
+				// Before the failed-run branch: an action-required run is stored as failed, and the label must say forny adgang.
+				$level = 3;
+				$seen['renew'] = true;
+				$rank = 4;
+				$result['reasons'][] = "$name: " . ebErrorText($status['last_error_code'], 'action_required');
 			} elseif ($failed || $status['connection_status'] === 'error') {
 				$level = 3;
 				$seen['error'] = true;
+				$rank = 3;
 				$result['reasons'][] = "$name: " . ebErrorText($status['last_error_code'], null);
-			} elseif ($status['last_error_code'] === 'ASPSP_PSU_ACTION_REQUIRED') {
-				$level = 3;
-				$seen['renew'] = true;
-				$result['reasons'][] = "$name: " . ebErrorText($status['last_error_code'], 'action_required');
 			} else {
-				$problem = false;
 				if ($status['days_left'] !== null && $status['days_left'] <= 14) {
 					$level = max($level, 2);
 					$seen['renew_soon'] = true;
-					$problem = true;
+					$rank = 1;
 					$result['reasons'][] = "$name: " . ebConsentText($status);
 				}
 				if ($status['state'] === 'new') {
@@ -144,15 +150,17 @@ if (!function_exists('ebStatusIndicator')) {
 				if ($fetchOverdue && $status['stale_hours'] !== null && $status['stale_hours'] > 13) {
 					$level = max($level, $status['stale_hours'] > 30 ? 3 : 2);
 					$seen['late'] = true;
-					$problem = true;
+					$rank = max($rank, 2);
 					$result['reasons'][] = "$name: " . sprintf(ebT(findtekst('bank.status.stale|Ingen hentning i %s timer', ebLang())), $status['stale_hours']);
 				}
 				if ($fetchOverdue) {
 					$overdue = true;
 				}
 			}
-			if ($problem && !$problemAccount && $status['state'] !== 'new') {
+			// The link opens the account behind the most urgent problem shown; the first one on a tie.
+			if ($rank > $problemRank && $status['state'] !== 'new') {
 				$problemAccount = (int)$account['id'];
+				$problemRank = $rank;
 			}
 			if ($status['last_error_code'] !== '') {
 				$result['reasons'][] = sprintf(ebT(findtekst('bank.error.code|Kode: %s', ebLang())), strtoupper($status['last_error_code']));

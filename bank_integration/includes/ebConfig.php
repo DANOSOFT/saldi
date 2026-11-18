@@ -27,6 +27,7 @@
 // 20261006 CDX/LH Created Enable Banking ebConfig backend service.
 // 20261118 CL/LH Optional company allowlist ($enableBankingCompanies / SALDI_ENABLEBANKING_COMPANIES): while set, only the listed company databases see the feature.
 //                A live install can then be opened for one company first.
+// 20261118 CL/LH An allowlist of only separators (", ,") is a configuration problem instead of opening the feature to every company.
 
 /**
  * @return array{app_id:string, key_path:string, redirect_url:string, environment:string, companies:list<string>, configured:bool, problem:string}
@@ -43,7 +44,7 @@ function ebConfig(): array
     $config['environment'] = strtoupper($config['environment'] ?: 'SANDBOX');
     // Pilot allowlist of company databases ("saldi_1091, saldi_7"); empty means every company on the install.
     $companies = trim((string)getenv('SALDI_ENABLEBANKING_COMPANIES'));
-    $companies = $companies !== '' ? $companies : (string)($GLOBALS['enableBankingCompanies'] ?? '');
+    $companies = $companies !== '' ? $companies : trim((string)($GLOBALS['enableBankingCompanies'] ?? ''));
     $config['companies'] = array_values(array_filter(array_map('trim', preg_split('/[\s,]+/', $companies)), 'strlen'));
     $problem = '';
     $keyPath = realpath($config['key_path']);
@@ -58,6 +59,9 @@ function ebConfig(): array
         $problem = 'Enable Banking nøglefil skal ligge uden for Saldi-installationen.';
     } elseif (!in_array($config['environment'], ['SANDBOX', 'PRODUCTION'], true)) {
         $problem = 'Enable Banking miljø er ugyldigt.';
+    } elseif ($companies !== '' && $config['companies'] === []) {
+        // A list of only separators (", ,") must not open the feature to every company.
+        $problem = 'Enable Banking firmalisten indeholder ingen regnskaber.';
     }
     $config['configured'] = $problem === '';
     $config['problem'] = $problem;
