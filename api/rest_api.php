@@ -112,6 +112,7 @@
 //                A scheduler calls it every 2 minutes with the account's API key; it is checked by access_check() like every shop call, and a tick that finds another one running answers "busy" at once.
 //                access_check() also takes the key from a POST body (before the query string), so a caller can keep it out of URLs, which web servers log, and out of command lines.
 // 20261118 CL/LH CodeRabbit review of #1158: shop_offer_tick runs only for an account (a <master>_<n> database), which access_check() lets in by its API key and IP list; a master account, which it lets in from Danosoft's address without a key, is refused.
+// 20261118 CL/LH CodeRabbit review of 4cd96c7d2: access_check() refuses a key that is not a string (a form array) before comparing it, instead of casting it with a warning; a malformed POST key is not replaced by the query key.
 date_default_timezone_set('Europe/Copenhagen');
 
 include("../includes/connect.php");
@@ -1242,7 +1243,7 @@ function access_check(){
 		if (strpos($r['box2'],',')) $ip_list=explode(',',trim($r['box2']));
 		else $ip_list[0]=trim($r['box2']);
 		$suppliedKey = isset($_POST['key']) ? $_POST['key'] : (isset($_GET['key']) ? $_GET['key'] : ''); # 20261117 a POST body keeps the key out of URLs
-		if (!$api_key || !hash_equals($api_key,(string) $suppliedKey)) {
+		if (!$api_key || !is_string($suppliedKey) || !hash_equals($api_key, $suppliedKey)) { # 20261118 a key that is not a string (key[]=) is refused, without a cast
 			$log=fopen("../temp/$db/rest_api.log","a");
 			fwrite($log,__line__." Access denied (key)\n");
 			return "Access denied (key)";

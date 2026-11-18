@@ -45,6 +45,7 @@
 //                A shop whose sends of a pair failed SHOP_OFFER_ALERT_REFUSALS times since its last acceptance counts as stuck too (reporting only), so a shop that is down for long or answers what the tick cannot judge raises the same alarm as one that refuses.
 //                CodeRabbit review of 63cf3d3f2: the tick's choice of transport has one owner (shopOfferTransport()), which the tests read to know which transport each leg ran.
 // 20261118 CL/LH Codex verification 10: every transport asks for the answer unencoded and decodes nothing (libcurl's decoding passed the partial body of a cut gzip stream as complete); an answer with a Content-Encoding other than identity is a transport failure on all three (shopOfferAnswer()). A shop counts as stuck once per item, whatever its reasons (shopOfferStuckShop()).
+// 20261118 CL/LH CodeRabbit review of 4cd96c7d2 and Codex verification 11: one header parser for all three transports (shopOfferContentCodings(): the final response's block, every Content-Encoding field, obsolete line folding), the shell reading curl's header file (-D); identity is accepted, every other declared coding fails. The shop's encoding is shown printable and short in the error, and the state and marker files are written even with invalid UTF-8 in them.
 
 if (!defined('SHOP_OFFER_ALERT_REFUSALS')) {
 	define('SHOP_OFFER_ALERT_REFUSALS', 8);    // refusals, or transport failures, of one price pair after which a shop counts as stuck (still retried)
@@ -238,7 +239,7 @@ if (!function_exists('shopOfferStateWrite')) {
 			return !is_file($path) || @unlink($path);
 		}
 		$state['vare_id'] = (int)$vareId;
-		$json = json_encode($state, JSON_UNESCAPED_SLASHES);
+		$json = json_encode($state, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE); // a shop's bytes in an error can never stop a write
 		return $json !== false && shopOfferWriteFile($path, $json);
 	}
 }
@@ -800,7 +801,7 @@ if (!function_exists('shopOfferInflightWrite')) {
 		if (!$markers) {
 			return !is_file($path) || @unlink($path);
 		}
-		$json = json_encode($markers, JSON_UNESCAPED_SLASHES);
+		$json = json_encode($markers, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
 		return $json !== false && shopOfferWriteFile($path, $json);
 	}
 }
@@ -1105,7 +1106,7 @@ if (!function_exists('shopOfferTestPause')) {
 	 * becomes this path's clock from then on (shopOfferForeignNow()), so the hold lasts as long as the test's clock says.
 	 *
 	 * @param string $path 'card', 'stock', 'document', 'bulk' or 'tick'.
-	 * @param string $point 'queried', 'locked', 'marked' or 'send'.
+	 * @param string $point 'queried', 'locked', 'marked' or 'send'; the bulk page also has 'listed', before it reads the item.
 	 * @param int $vareId
 	 * @return void
 	 */
@@ -1701,30 +1702,76 @@ if (!function_exists('shopOfferSend')) {
 	}
 }
 
+if (!function_exists('shopOfferContentCodings')) {
+	/**
+	 * The content codings of an HTTP answer, from its header lines as received, for every tick transport (curl's header
+	 * callback, the shell's -D file): the last response's block only (after redirects), every Content-Encoding field of it,
+	 * repeated ones included, with obsolete line folding (a line that starts with a space or tab continues the field before
+	 * it), split into its comma-separated coding tokens, lower case.
+	 *
+	 * @param string $headers Header lines, CRLF or LF, of one or more responses.
+	 * @return list<string>|null The coding tokens ([] when there are none); null when the lines hold no response.
+	 */
+	function shopOfferContentCodings($headers) {
+		$fields = null;
+		foreach (preg_split('/\r?\n/', (string)$headers) as $line) {
+			if (strncasecmp($line, 'HTTP/', 5) === 0) {
+				$fields = array(); // a new response: only the last one counts
+			} elseif ($fields === null || $line === '') {
+				continue;
+			} elseif ($line[0] === ' ' || $line[0] === "\t") {
+				if ($fields) {
+					$fields[count($fields) - 1] .= ' ' . trim($line); // obsolete line folding: more of the field before
+				}
+			} else {
+				$fields[] = $line;
+			}
+		}
+		if ($fields === null) {
+			return null;
+		}
+		$codings = array();
+		foreach ($fields as $field) {
+			if (strncasecmp($field, 'Content-Encoding:', 17) === 0) {
+				foreach (preg_split('/[\s,]+/', strtolower(trim(substr($field, 17))), -1, PREG_SPLIT_NO_EMPTY) as $token) {
+					$codings[] = $token;
+				}
+			}
+		}
+		return $codings;
+	}
+}
+
 if (!function_exists('shopOfferAnswer')) {
 	/**
 	 * The one rule by which the tick turns a shop's HTTP exchange into an answer for the judge (shopApiOutcome()), on every one
-	 * of its transports (shopOfferCurlOne(), shopOfferCurlMulti(), shopOfferShellOne()): a pair is confirmed only on positive
-	 * evidence that the tick holds the complete, unencoded answer. Anything else is a transport failure, retried by the usual
-	 * rules and never an acceptance or a refusal: the transfer failed ($failure), the answer carries a content encoding (every
-	 * transport asks for it unencoded, and the tick decodes nothing: a decoder that stops short of the end yields a partial
-	 * answer that would pass), more arrived than the tick keeps ($cut), what arrived could not be read back whole ($unread), or
-	 * the body is still compressed (gzip without Content-Encoding). shopOfferSend() judges only answers made here ('checked').
+	 * of its transports (shopOfferCurlOne(), shopOfferCurlMulti(), shopOfferShellOne()). An answer is judged only when the
+	 * transport reports the transfer complete, every content coding of the final response is "identity" (or there is none:
+	 * every transport asks for the answer unencoded and decodes nothing), the answer fits in what the tick keeps, and what
+	 * arrived was read back whole; anything else is a transport failure, retried by the usual rules and never an acceptance
+	 * or a refusal. A body that still starts as gzip is not judged either. This does not prove the answer's content: a body
+	 * compressed without saying so in another format, or a shell answer file replaced by one of the same length, would still
+	 * be judged (residuals R10-F3, R10-F2). shopOfferSend() judges only answers made here ('checked').
 	 *
 	 * @param int $httpCode 0: no answer.
 	 * @param string|false|null $body What the transport holds of the answer.
 	 * @param string $failure Why the transfer failed; '' when the transport reports it complete.
 	 * @param bool $cut More of the answer arrived than SHOP_OFFER_BODY_BYTES.
 	 * @param string $unread Why the answer could not be read back whole; '' when it was.
-	 * @param string $encoding The final response's Content-Encoding, lower case; '' when it had none.
+	 * @param list<string>|null $codings The final response's content codings (shopOfferContentCodings()); null: not known.
 	 * @return array{httpCode: int, body: string, error: string, transient: bool, unreachable: bool, checked: bool}
 	 */
-	function shopOfferAnswer($httpCode, $body, $failure = '', $cut = false, $unread = '', $encoding = '') {
+	function shopOfferAnswer($httpCode, $body, $failure = '', $cut = false, $unread = '', $codings = array()) {
 		$httpCode = (int)$httpCode;
 		$body = is_string($body) ? $body : '';
 		$error = (string)$failure;
-		if ($error === '' && $encoding !== '' && $encoding !== 'identity') {
-			$error = 'answer encoded (' . $encoding . ') although it was asked unencoded, so not judged (a transport failure)';
+		if ($error === '' && $codings === null) {
+			$error = 'the answer\'s headers could not be read, so not judged (a transport failure)';
+		}
+		if ($error === '' && array_diff((array)$codings, array('identity'))) {
+			// the shop's header values, printable and short: they are stored in the item's state and logged
+			$shown = substr((string)preg_replace('/[^\x20-\x7e]/', '?', implode(', ', (array)$codings)), 0, 40);
+			$error = 'answer encoded (' . $shown . ') although it was asked unencoded, so not judged (a transport failure)';
 		}
 		if ($error === '' && $unread !== '') {
 			$error = 'answer could not be read: ' . $unread;
@@ -1749,33 +1796,28 @@ if (!function_exists('shopOfferAnswer')) {
 if (!function_exists('shopOfferCurlHandle')) {
 	/**
 	 * A curl handle for a shop call, set up as shopApiCurlCall() sets it up but with millisecond timeouts. It asks for the
-	 * answer unencoded (Accept-Encoding: identity) and decodes nothing; the final response's Content-Encoding is kept in
-	 * $encoding, and shopOfferAnswer() judges an encoded answer a transport failure. The answer is kept in $body as it arrives,
-	 * at most SHOP_OFFER_BODY_BYTES of it, so no answer can use the tick's memory up; the rest is read and dropped, and $cut
-	 * says so (shopOfferAnswer() makes that a transport failure too).
+	 * answer unencoded (Accept-Encoding: identity) and decodes nothing; the header lines of every response, redirects included,
+	 * are kept in $headers for shopOfferContentCodings(), and shopOfferAnswer() judges an encoded answer a transport failure.
+	 * The answer is kept in $body as it arrives, at most SHOP_OFFER_BODY_BYTES of it, so no answer can use the tick's memory
+	 * up; the rest is read and dropped, and $cut says so (shopOfferAnswer() makes that a transport failure too).
 	 *
 	 * @param string $url
 	 * @param float $seconds Time the call may take.
 	 * @param string $body Receives the start of the answer.
 	 * @param bool $cut Set when more of the answer arrived than $body keeps.
-	 * @param string $encoding Receives the final response's Content-Encoding, lower case ('' when it has none).
+	 * @param string $headers Receives the header lines as received (libcurl bounds their size).
 	 * @return resource|CurlHandle|false
 	 */
-	function shopOfferCurlHandle($url, $seconds, &$body, &$cut, &$encoding) {
+	function shopOfferCurlHandle($url, $seconds, &$body, &$cut, &$headers) {
 		$body = '';
 		$cut = false;
-		$encoding = '';
+		$headers = '';
 		$ch = curl_init($url);
 		if ($ch === false) return false;
 		$ms = max(1, (int)floor($seconds * 1000));
 		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept-Encoding: identity'));
-		curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($handle, $line) use (&$encoding) {
-			if (strncasecmp($line, 'HTTP/', 5) === 0) {
-				$encoding = ''; // a new response, after a redirect: only the final one's headers count
-			} elseif (strncasecmp($line, 'Content-Encoding:', 17) === 0) {
-				$value = strtolower(trim(substr($line, 17)));
-				$encoding = $encoding === '' ? $value : $encoding . ', ' . $value;
-			}
+		curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($handle, $line) use (&$headers) {
+			$headers .= $line; // judged after the transfer by shopOfferContentCodings(), as the shell's -D file is
 			return strlen($line);
 		});
 		curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($handle, $chunk) use (&$body, &$cut) {
@@ -1811,15 +1853,16 @@ if (!function_exists('shopOfferCurlOne')) {
 	 * @return array{httpCode: int, body: string, error: string, transient: bool, unreachable: bool, checked: bool}
 	 */
 	function shopOfferCurlOne($url, $seconds) {
-		$body = $encoding = '';
+		$body = $headers = '';
 		$cut = false;
-		$ch = shopOfferCurlHandle($url, $seconds, $body, $cut, $encoding);
+		$ch = shopOfferCurlHandle($url, $seconds, $body, $cut, $headers);
 		if ($ch === false) {
 			return shopOfferAnswer(0, '', 'curl_init failed');
 		}
 		curl_exec($ch);
 		$errno = curl_errno($ch);
-		$answer = shopOfferAnswer(curl_getinfo($ch, CURLINFO_HTTP_CODE), $body, $errno ? 'curl error ' . $errno . ': ' . curl_error($ch) : '', $cut, '', $encoding);
+		$answer = shopOfferAnswer(curl_getinfo($ch, CURLINFO_HTTP_CODE), $body, $errno ? 'curl error ' . $errno . ': ' . curl_error($ch) : '', $cut, '',
+			shopOfferContentCodings($headers));
 		curl_close($ch);
 		return $answer;
 	}
@@ -1839,12 +1882,12 @@ if (!function_exists('shopOfferCurlMulti')) {
 			return array();
 		}
 		$multi = curl_multi_init();
-		$handles = $bodies = $cuts = $encodings = $completed = array();
+		$handles = $bodies = $cuts = $headers = $completed = array();
 		$dispatchedAt = microtime(true);
 		foreach ($urls as $key => $url) {
-			$bodies[$key] = $encodings[$key] = '';
+			$bodies[$key] = $headers[$key] = '';
 			$cuts[$key] = false;
-			$ch = shopOfferCurlHandle($url, $left, $bodies[$key], $cuts[$key], $encodings[$key]);
+			$ch = shopOfferCurlHandle($url, $left, $bodies[$key], $cuts[$key], $headers[$key]);
 			if ($ch !== false) {
 				curl_multi_add_handle($multi, $ch);
 				$handles[$key] = $ch;
@@ -1874,7 +1917,8 @@ if (!function_exists('shopOfferCurlMulti')) {
 			// transport failure, as in shopApiCurlMultiCall()
 			if (isset($completed[$key])) {
 				$errno = $completed[$key];
-				$answers[$key] = shopOfferAnswer(curl_getinfo($ch, CURLINFO_HTTP_CODE), $bodies[$key], $errno ? 'curl error ' . $errno . ': ' . curl_strerror($errno) : '', $cuts[$key], '', $encodings[$key]);
+				$answers[$key] = shopOfferAnswer(curl_getinfo($ch, CURLINFO_HTTP_CODE), $bodies[$key], $errno ? 'curl error ' . $errno . ': ' . curl_strerror($errno) : '',
+					$cuts[$key], '', shopOfferContentCodings($headers[$key]));
 			} else {
 				$answers[$key] = shopOfferAnswer(0, '', 'no answer before the offer push deadline');
 			}
@@ -1895,8 +1939,11 @@ if (!function_exists('shopOfferShellOne')) {
 	 * transfer complete, the file must be there and readable, it must hold exactly what curl says it received (size_download,
 	 * the witness that the file was not lost or shortened afterwards), and what is read back must be all of it up to
 	 * SHOP_OFFER_BODY_BYTES (a larger file is cut). The call asks for the answer unencoded (Accept-Encoding: identity), because
-	 * curl's witness counts the bytes on the wire: an answer curl decoded could not be checked against it. An answer that comes
-	 * encoded anyway is not judged (shopOfferAnswer(), as on the extension).
+	 * curl's witness counts the bytes on the wire: an answer curl decoded could not be checked against it. The header lines go
+	 * to a second temporary file (-D, every response's block) and through the parser the extension uses
+	 * (shopOfferContentCodings()), so an answer that comes encoded anyway is not judged on either transport; a header file that
+	 * is missing, unreadable, too long or holds no response is a transport failure. -D and size_download are old curl options:
+	 * any curl command line does.
 	 *
 	 * @param string $url
 	 * @param float $seconds
@@ -1907,7 +1954,11 @@ if (!function_exists('shopOfferShellOne')) {
 			return shopOfferAnswer(0, '', 'no http client available (ext-curl and shell_exec both missing)');
 		}
 		$bodyFile = tempnam(sys_get_temp_dir(), 'shopoffer');
-		if ($bodyFile === false) {
+		$headerFile = $bodyFile === false ? false : tempnam(sys_get_temp_dir(), 'shopofferh');
+		if ($bodyFile === false || $headerFile === false) {
+			if ($bodyFile !== false) {
+				@unlink($bodyFile);
+			}
 			return shopOfferAnswer(0, '', 'could not create temporary file');
 		}
 		$seconds = max(0.1, (float)$seconds);
@@ -1916,14 +1967,20 @@ if (!function_exists('shopOfferShellOne')) {
 			. ' --max-time ' . sprintf('%.3F', $seconds)
 			. ' -A ' . escapeshellarg('Saldi shop sync')
 			. ' -H ' . escapeshellarg('Accept-Encoding: identity')
+			. ' -D ' . escapeshellarg($headerFile)
 			. ' -o ' . escapeshellarg($bodyFile)
-			. ' -w ' . escapeshellarg("\nSALDI_HTTP:%{http_code}\nSALDI_SIZE:%{size_download}\nSALDI_ENC:%header{content-encoding}\n")
+			. ' -w ' . escapeshellarg("\nSALDI_HTTP:%{http_code}\nSALDI_SIZE:%{size_download}\n")
 			. ' ' . escapeshellarg($url) . ' 2>&1; shop_curl_status=$?; printf "\nSALDI_EXIT:%s\n" "$shop_curl_status"';
 		$out = trim((string)shell_exec($cmd));
 		$httpCode = preg_match('/SALDI_HTTP:(\d{3})/', $out, $m) ? (int)$m[1] : 0;
 		$exitCode = preg_match('/(?:^|\n)SALDI_EXIT:(\d+)$/D', $out, $m) ? (int)$m[1] : -1;
 		$received = preg_match('/(?:^|\n)SALDI_SIZE:(\d+)(?:\n|$)/', $out, $m) ? (int)$m[1] : -1;
-		$encoding = preg_match('/(?:^|\n)SALDI_ENC:([^\n]*)(?:\n|$)/', $out, $m) ? strtolower(trim($m[1])) : null;
+		// the header lines, read whole or not at all: null codings (not known) is a transport failure in shopOfferAnswer()
+		clearstatcache(true, $headerFile);
+		$headerSize = @filesize($headerFile);
+		$headers = ($headerSize === false || $headerSize > SHOP_OFFER_BODY_BYTES) ? false : @file_get_contents($headerFile);
+		@unlink($headerFile);
+		$codings = ($headers === false || strlen($headers) !== $headerSize) ? null : shopOfferContentCodings($headers);
 		clearstatcache(true, $bodyFile);
 		$size = @filesize($bodyFile);
 		$data = $size === false ? false : @file_get_contents($bodyFile, false, null, 0, SHOP_OFFER_BODY_BYTES);
@@ -1931,8 +1988,6 @@ if (!function_exists('shopOfferShellOne')) {
 		$failure = $unread = '';
 		if ($exitCode !== 0 || !$httpCode) {
 			$failure = 'curl command failed (exit ' . $exitCode . ')';
-		} elseif ($encoding === null || strpos($encoding, '%') !== false) {
-			$failure = 'curl did not report the answer\'s encoding (curl 7.84 or later is needed)';
 		} elseif ($size === false) {
 			$unread = 'no answer file';
 		} elseif ($data === false) {
@@ -1942,7 +1997,7 @@ if (!function_exists('shopOfferShellOne')) {
 		} elseif (strlen($data) !== min($size, SHOP_OFFER_BODY_BYTES)) {
 			$unread = 'read ' . strlen($data) . ' of ' . min($size, SHOP_OFFER_BODY_BYTES) . ' bytes';
 		}
-		return shopOfferAnswer($httpCode, $data === false ? '' : $data, $failure, $size !== false && $size > SHOP_OFFER_BODY_BYTES, $unread, (string)$encoding);
+		return shopOfferAnswer($httpCode, $data === false ? '' : $data, $failure, $size !== false && $size > SHOP_OFFER_BODY_BYTES, $unread, $codings);
 	}
 }
 
