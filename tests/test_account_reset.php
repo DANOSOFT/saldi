@@ -99,21 +99,17 @@ echo "OK: MySQL/MariaDB reset refused before any statement is issued.\n";
 // SST-1016: the reset's session update on a real PostgreSQL online table (a TEMP table, gone with the connection).
 // Three staff and two customer sessions (Mit salg 3024, booking) on the reset account, plus another account's rows;
 // with 4 users allowed, the next login must still fit after the reset.
-if (!extension_loaded('pgsql') || !getenv('SALDI_CHAR_PGHOST') || !getenv('SALDI_CHAR_PGUSER')) {
-	echo "SKIP: reset session update on PostgreSQL (needs the pgsql extension and SALDI_CHAR_PGHOST/PGUSER).\n";
+require_once(__DIR__ . '/characterization/support/database/TestDatabase.php');
+$pgUnavailable = TestDatabase::unavailableReason();
+if ($pgUnavailable !== null) {
+	echo "SKIP: reset session update on PostgreSQL (" . $pgUnavailable . ").\n";
 } else {
-	$parts = array();
-	foreach (array('host', 'port', 'user', 'password', 'dbname') as $key) {
-		$env = array('password' => 'PASS', 'dbname' => 'DATABASE');
-		$value = getenv('SALDI_CHAR_PG' . ($env[$key] ?? strtoupper($key)));
-		if ($value !== false && $value !== '') {
-			$parts[] = $key . "='" . str_replace(array('\\', "'"), array('\\\\', "\\'"), $value) . "'";
-		}
-	}
-	$pg = pg_connect(implode(' ', $parts), PGSQL_CONNECT_FORCE_NEW);
-	resetCheck($pg !== false, 'PostgreSQL connection for the reset session check');
-	pg_query($pg, "CREATE TEMP TABLE online (session_id varchar(32), brugernavn text, db text, rettigheder text, regnskabsaar integer, revisor boolean)");
-	pg_query($pg, "INSERT INTO online VALUES
+	// The configured test master database (SALDI_CHAR_MASTER_DB), as the characterization tests use it; only a TEMP table is written.
+	$pg = TestDatabase::connect(TestDatabase::masterDb());
+	resetCheck(pg_query($pg, "CREATE TEMP TABLE online (session_id varchar(32), brugernavn text, db text, rettigheder text, regnskabsaar integer, revisor boolean)") !== false, 'TEMP online table');
+	// The unqualified name must resolve to the TEMP table, never to a real online table in that database.
+	resetCheck(pg_fetch_result(pg_query($pg, "SELECT n.nspname LIKE 'pg_temp%' FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = 'online'::regclass"), 0, 0) === 't', 'online must be the TEMP table');
+	$seeded = pg_query($pg, "INSERT INTO online VALUES
 		('s1', 'tom1', 'sst1016_1', '0000011001000000', 10, null),
 		('s2', 'tom2', 'sst1016_1', '1111111111111111', 10, false),
 		('s3', 'tom3', 'sst1016_1', '0', 10, false),
@@ -121,6 +117,7 @@ if (!extension_loaded('pgsql') || !getenv('SALDI_CHAR_PGHOST') || !getenv('SALDI
 		('s5', 'booking', 'sst1016_1', '0', 0, false),
 		('s6', 'anna', 'other_7', '1111111111111111', 5, false),
 		('s7', '4711', 'other_7', '0', 0, false)");
+	resetCheck($seeded !== false, 'Seed rows in the TEMP online table');
 	resetAccountSessionYear('sst1016_1');
 	resetCheck(pg_query($pg, $GLOBALS['resetSessionTestCall'][0]) !== false, 'The reset session update must run on PostgreSQL');
 	$rows = array();
