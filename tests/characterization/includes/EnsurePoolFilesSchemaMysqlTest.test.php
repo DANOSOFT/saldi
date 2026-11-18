@@ -8,6 +8,8 @@
 // 20261118 CL/MMR SD-815 Codex round 17: a permanent table called pool_files_uidx_probe, with a row, survives both a deferred and a successful repair (the probe is a temporary table).
 // 20261118 CL/MMR SD-815 Codex round 18: a database user with only SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX and LOCK TABLES (no CREATE TEMPORARY TABLES) gets the repair.
 //                 A user without CREATE keeps both rows and the log names the missing privilege, not the row format.
+// 20261118 CL/MMR SD-815 Codex round 19: with mysqli reporting off, a table another connection made under the probe's name before the probe's CREATE survives with its row.
+//                 $GLOBALS['connection'] is the test's mysqli connection, as in production.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -44,6 +46,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         mysqli_query($this->connection, "CREATE DATABASE {$this->database} CHARACTER SET utf8mb4");
         mysqli_select_db($this->connection, $this->database);
         $GLOBALS['ensurePoolFilesMysql'] = $this->connection;
+        $GLOBALS['connection'] = $this->connection; // ensurePoolFilesMysqlExec() runs on it, as on db_query_connection()'s
         if (!function_exists('db_select')) {
             // As includes/db_query.php's mysqli branch: mysqli_query() straight through, so a failure throws.
             function db_select($sql, $location = '') {
@@ -58,6 +61,12 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
             }
             function db_escape_string($value) {
                 return mysqli_real_escape_string($GLOBALS['ensurePoolFilesMysql'], (string) $value);
+            }
+        }
+        if ($this->name() === 'testATableAnotherConnectionCreatedUnderTheProbeNameSurvivesWithReportingOff' && !function_exists('ensurePoolFilesMysqlProbeName')) {
+            // The probe's name, fixed so the test can make the rival table first (each test runs in its own process).
+            function ensurePoolFilesMysqlProbeName(): string {
+                return 'pool_files_uidx_probe_rival';
             }
         }
         require_once __DIR__ . '/../../../includes/opdat_func/ensurePoolFilesSchema.php';
@@ -79,6 +88,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         $this->sql("GRANT $grants ON {$this->database}.* TO '$user'@'localhost'");
         $limited = mysqli_connect('localhost', $user, $pass, $this->database, 0, (string) getenv('SALDI_CHAR_MYSQL_SOCKET'));
         $GLOBALS['ensurePoolFilesMysql'] = $limited;
+        $GLOBALS['connection'] = $limited;
         return $limited;
     }
 
@@ -100,7 +110,8 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
             mysqli_query($this->connection, "DROP DATABASE IF EXISTS {$this->database}");
             mysqli_close($this->connection);
         }
-        unset($GLOBALS['ensurePoolFilesMysql']);
+        unset($GLOBALS['ensurePoolFilesMysql'], $GLOBALS['connection']);
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
         if ($this->log !== '' && is_file($this->log)) {
             unlink($this->log);
         }
@@ -311,5 +322,26 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         self::assertStringContainsString('lacks a privilege', $log);
         self::assertStringNotContainsString('ROW_FORMAT', $log, 'not mistaken for a row-format problem');
         mysqli_close($limited);
+    }
+
+    public function testATableAnotherConnectionCreatedUnderTheProbeNameSurvivesWithReportingOff(): void
+    {
+        // setUp() fixed the probe's name for this test (ensurePoolFilesMysqlProbeName()); another connection has
+        // just made a permanent table of that name, with a row - the state the probe's CREATE meets in the race.
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $this->other = $this->connect();
+        mysqli_select_db($this->other, $this->database);
+        mysqli_query($this->other, 'CREATE TABLE pool_files_uidx_probe_rival (id INT PRIMARY KEY, note varchar(20))');
+        mysqli_query($this->other, "INSERT INTO pool_files_uidx_probe_rival VALUES (1, 'sentinel')");
+        mysqli_report(MYSQLI_REPORT_OFF); // the mode where a failed CREATE only returns false
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertNotContains('unique_filename', $done, 'deferred');
+        self::assertSame('sentinel', $this->one('SELECT note FROM pool_files_uidx_probe_rival WHERE id = 1'), 'the other connection\'s table and row survive');
+        self::assertSame('0', $this->one("SELECT count(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files_uidx_probe_rival' AND index_name = 'pool_files_uidx_probe_rival_filename'"), 'no index was added to it');
+        self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
+        self::assertStringContainsString('already exists', (string) file_get_contents($this->log));
     }
 }
