@@ -5,6 +5,7 @@
 // 20261118 CL/MMR SD-815 Codex round 14: when the unique-index repair cannot get the table (another session's open transaction has read pool_files), no duplicate row is deleted; the retry keeps the newest row.
 // 20261118 CL/MMR SD-815 Codex round 15: inside a caller's transaction nothing runs (the caller can still roll back its own work), and an existing non-unique index named pool_files_filename_uidx does not stop the repair.
 // 20261118 CL/MMR SD-815 Codex round 16: an old ROW_FORMAT=COMPACT utf8mb4 pool_files that cannot hold the index keeps both rows and logs why; after ROW_FORMAT=DYNAMIC the retry completes.
+// 20261118 CL/MMR SD-815 Codex round 17: a permanent table called pool_files_uidx_probe, with a row, survives both a deferred and a successful repair (the probe is a temporary table).
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -85,6 +86,18 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
     private function sql(string $sql): \mysqli_result|bool
     {
         return mysqli_query($this->connection, $sql);
+    }
+
+    /** A permanent table with the name the round-16 probe used, holding a sentinel row. */
+    private function permanentTableWithTheProbeName(): void
+    {
+        $this->sql('CREATE TABLE pool_files_uidx_probe (id INT PRIMARY KEY, note varchar(20))');
+        $this->sql("INSERT INTO pool_files_uidx_probe VALUES (1, 'sentinel')");
+    }
+
+    private function assertPermanentTableKept(): void
+    {
+        self::assertSame('sentinel', $this->one('SELECT note FROM pool_files_uidx_probe WHERE id = 1'), 'a permanent table is never dropped');
     }
 
     private function one(string $sql): ?string
@@ -191,6 +204,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
 
     public function testAnExistingNonUniqueIndexWithTheUsualNameIsNoObstacle(): void
     {
+        $this->permanentTableWithTheProbeName();
         $this->sql('CREATE INDEX pool_files_filename_uidx ON pool_files (filename)');
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '2,00')");
 
@@ -199,6 +213,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         self::assertContains('unique_filename', $done);
         self::assertSame('2,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
         self::assertSame('0', $this->one("SELECT non_unique FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND index_name = 'pool_files_filename_full_uidx'"), 'the new unique index');
+        $this->assertPermanentTableKept();
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '3,00') ON DUPLICATE KEY UPDATE id = id");
         self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
         self::assertSame([], ensurePoolFilesSchema('mysqli'));
@@ -213,13 +228,15 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
             vendor_cvr varchar(20), vendor_iban varchar(40), vendor_konto_id integer, vendor_score numeric(4,3), vendor_match varchar(10),
             PRIMARY KEY (id), INDEX idx_pool_files_norm_amount (norm_amount)) ENGINE=InnoDB ROW_FORMAT=COMPACT DEFAULT CHARSET=utf8mb4');
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $this->permanentTableWithTheProbeName();
 
         $done = ensurePoolFilesSchema('mysqli'); // must not throw
 
         self::assertNotContains('unique_filename', $done);
         self::assertSame('2', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"), 'nothing deleted');
         self::assertStringContainsString('cannot hold a unique index on filename', (string) file_get_contents($this->log));
-        self::assertSame('0', $this->one("SELECT count(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'pool_files_uidx_probe'"), 'the trial copy is gone');
+        $this->assertPermanentTableKept();
+        self::assertSame('0', $this->one("SELECT count(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name LIKE 'pool\\_files\\_uidx\\_probe\\_%'"), 'no trial copy left as a table');
         self::assertSame('0', $this->one("SELECT count(*) FROM settings WHERE var_name = 'pool_files_norm_amount_backfilled'"));
         self::assertNull($this->one("SELECT IS_USED_LOCK(CONCAT('saldi:pool_files_schema:', MD5(DATABASE())))"));
         self::assertNotContains('unique_filename', ensurePoolFilesSchema('mysqli'), 'a retry on the same table defers again');
@@ -228,6 +245,7 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         $this->sql('ALTER TABLE pool_files ROW_FORMAT=DYNAMIC'); // the prerequisite the log names
         $done = ensurePoolFilesSchema('mysqli');
         self::assertContains('unique_filename', $done);
+        $this->assertPermanentTableKept();
         self::assertContains('norm_amount_backfill', $done);
         self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept and filled');
         $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '3,00') ON DUPLICATE KEY UPDATE id = id");
