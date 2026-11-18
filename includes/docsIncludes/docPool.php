@@ -229,6 +229,7 @@
 //                 "Opdatér alle" and the new reading share poolReadDocuments().
 //                 Only a row the sync's own insert added (poolFolderSyncInsert()) and that is still unread is listed.
 //                 A reading that finds only a fakturanr. is now saved too.
+//                 "Opdatér alle" and the reading of new arrivals skip a document the other is reading or has read, so it is read once.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -4829,14 +4830,24 @@ window.poolReadProgressHtml = function(processed, total) {
 	return '<svg class="icon-svg icon-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg> <span style="font-size: 12px;">' + processed + '/' + total + '</span>';
 };
 
+// SST-930: "Opdatér alle" and the reading of new arrivals can run at the same time. A document one of them is reading, or
+// has read and saved, is skipped by the other, so it is read once. A document whose reading failed can be tried again.
+window.poolReadBusy = new Set();
+window.poolReadDone = new Set();
+
 // Reads the documents with AI scan and saves what was read, four at a time. The save is not marked as made by hand,
 // so a field the user corrected by hand is kept (SST-777). Used by "Opdatér alle" and, for documents that came by mail,
-// when the pool is opened (SST-930). onProgress(processed) is called after each document.
+// when the pool is opened (SST-930). onProgress(processed, total) is called first and after each document.
+// Returns how many were saved and failed, and the total: the documents it read, without those skipped as above.
 window.poolReadDocuments = async function(files, onProgress) {
-	const queue = files.slice();
+	const queue = files.filter(function(file) { return !poolReadBusy.has(file) && !poolReadDone.has(file); });
+	queue.forEach(function(file) { poolReadBusy.add(file); });
+	const total = queue.length;
 	let processed = 0;
 	let successful = 0;
 	let failed = 0;
+
+	if (onProgress) onProgress(0, total);
 
 	const THREADS = 4;
 	const promises = Array.from({length: THREADS}, async () => { 
@@ -4884,6 +4895,7 @@ window.poolReadDocuments = async function(files, onProgress) {
 						const saveResult = await saveResponse.json();
 						if (saveResult.success) {
 							successful++;
+							poolReadDone.add(poolFile);
 						} else {
 							failed++;
 							console.error('Failed to save data for ' + poolFile + ': ' + (saveResult.error || 'Unknown error'));
@@ -4900,16 +4912,28 @@ window.poolReadDocuments = async function(files, onProgress) {
 				failed++;
 				console.error('Error processing ' + poolFile + ': ' + error.message);
 			}
+			poolReadBusy.delete(poolFile);
 			processed++;
-			if (onProgress) onProgress(processed);
+			if (onProgress) onProgress(processed, total);
 		}
 	});
 	await Promise.all(promises);
-	return { successful: successful, failed: failed };
+	return { successful: successful, failed: failed, total: total };
 };
 
 // Extract invoice data from ALL pool files
 window.extractAllPoolFiles = async function() {
+	const btn = document.getElementById('extractAllBtn');
+	const originalContent = btn.innerHTML;
+	const restoreButton = function() {
+		btn.innerHTML = originalContent;
+		btn.disabled = false;
+		btn.style.opacity = '1';
+	};
+	// Busy from the click (SST-930): the reading of new arrivals that may start while the list is fetched leaves the button alone
+	btn.disabled = true;
+	btn.style.opacity = '0.7';
+
 	// Every document in the list, not only the loaded pages (SD-719); archived documents are not extracted (SD-717).
 	// Only the ones not read yet: no snapshot, no amount and not corrected by hand (poolListData() unscanned=1)
 	let activeDocs = [];
@@ -4922,48 +4946,39 @@ window.extractAllPoolFiles = async function() {
 		if (!listData || !Array.isArray(listData.files)) {
 			throw new Error();
 		}
-		activeDocs = listData.files.map(function(name) { return { filename: name }; });
+		activeDocs = listData.files;
 	} catch (e) {
+		restoreButton();
 		alert({$poolListErrorJs});
 		return;
 	}
-	if (activeDocs.length === 0) {
+
+	// A document the reading of new arrivals has read or is reading is left to it (SST-930)
+	const counts = await poolReadDocuments(activeDocs, function(processed, total) {
+		btn.innerHTML = poolReadProgressHtml(processed, total);
+	});
+	// The reading of new arrivals is finished first, so the reload below can't cut it off
+	while (window.poolArrivalRead) {
+		await window.poolArrivalRead;
+	}
+	restoreButton();
+	if (counts.total === 0) {
 		alert('{$txt41}');
 		return;
 	}
 
-	const btn = document.getElementById('extractAllBtn');
-	const originalContent = btn.innerHTML;
-	const total = activeDocs.length;
-
-	// Disable button and show progress
-	btn.disabled = true;
-	btn.style.opacity = '0.7';
-	btn.innerHTML = poolReadProgressHtml(0, total);
-
-	const counts = await poolReadDocuments(activeDocs.map(function(doc) { return doc.filename; }), function(processed) {
-		btn.innerHTML = poolReadProgressHtml(processed, total);
-	});
-	const successful = counts.successful;
-	const failed = counts.failed;
-
-	// Restore button
-	btn.innerHTML = originalContent;
-	btn.disabled = false;
-	btn.style.opacity = '1';
-
 	// Show summary
 	let message = '{$txt42}!';
-	message += '{$txt43}: ' + total + ' {$txt53}';
-	message += '{$txt44}: ' + successful;
-	if (failed > 0) {
-		message += '{$txt45}: ' + failed;
+	message += '{$txt43}: ' + counts.total + ' {$txt53}';
+	message += '{$txt44}: ' + counts.successful;
+	if (counts.failed > 0) {
+		message += '{$txt45}: ' + counts.failed;
 	}
 
 	alert(message);
 
 	// Reload the page to show updated data
-	if (successful > 0) {
+	if (counts.successful > 0) {
 		savePoolListView();
 		window.location.reload();
 	}
@@ -5248,20 +5263,29 @@ window.saveRowData = function(input) {
         // With "AI scan" on it is read now, once, as an upload is; the list is fetched again to show what was read.
         const added = Array.isArray(result.added) ? result.added : [];
         const btn = document.getElementById('extractAllBtn');
-        if (!added.length || !isAutoExtractEnabled() || !btn || btn.disabled) return;
+        if (!added.length || !isAutoExtractEnabled() || !btn) return;
+        // The button shows the progress unless "Opdatér alle" holds it. The reading runs either way and skips what that is reading;
+        // "Opdatér alle" waits for it (window.poolArrivalRead) before it reloads the page.
+        const ownsButton = !btn.disabled;
         const originalContent = btn.innerHTML;
-        btn.disabled = true;
-        btn.style.opacity = '0.7';
-        btn.innerHTML = poolReadProgressHtml(0, added.length);
+        if (ownsButton) {
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+        }
+        const reading = poolReadDocuments(added, ownsButton ? function (processed, total) {
+            btn.innerHTML = poolReadProgressHtml(processed, total);
+        } : null);
+        window.poolArrivalRead = reading;
         let counts;
         try {
-            counts = await poolReadDocuments(added, function (processed) {
-                btn.innerHTML = poolReadProgressHtml(processed, added.length);
-            });
+            counts = await reading;
         } finally {
-            btn.innerHTML = originalContent;
-            btn.disabled = false;
-            btn.style.opacity = '1';
+            if (window.poolArrivalRead === reading) window.poolArrivalRead = null;
+            if (ownsButton) {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
         }
         if (counts.successful > 0) return fetchFiles();
     }).catch(function () { /* the next page load checks the folder again */ }).then(function () {
