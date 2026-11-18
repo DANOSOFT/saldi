@@ -227,6 +227,7 @@
 //                 Before, it stayed unread until the user clicked "Opdatér alle" or the scan icon.
 //                 The folder sync lists the documents it gave a row (poolFolderSyncAdded()), and the page reads those once, only with "AI scan" on.
 //                 "Opdatér alle" and the new reading share poolReadDocuments().
+//                 Only a row the sync itself added and that is still unread is listed. A reading that finds only a fakturanr. is now saved too.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -772,8 +773,11 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 				'" . db_escape_string($invoiceNumber) . "',
 				'" . db_escape_string($description) . "'" . $syncContentHashSql . "
 			)$onConflictClause";
+			// SST-930: the conflict clause makes the insert a no-op when another request gave the file its row meanwhile;
+			// only a row this insert added is noted as a new arrival
+			$rowBefore = db_fetch_array(db_select("SELECT id FROM pool_files WHERE filename = '" . db_escape_string($file) . "'", __FILE__ . " line " . __LINE__));
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
-			poolFolderSyncNoteAdded($file);
+			if (!$rowBefore) poolFolderSyncNoteAdded($file);
 		}
 	}
 	// Rows an upload's extraction created have no content hash; a batch of them gets it here (MB-42, SD-727)
@@ -910,8 +914,7 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 		$contentHashColumn = ($contentHash) ? ', content_sha256' : '';
 		$contentHashSql = ($contentHash) ? ", '" . db_escape_string($contentHash) . "'" : '';
 		$query = "INSERT INTO pool_files (filename, file_date" . $contentHashColumn . ") VALUES ('" . db_escape_string($file) . "', '" . db_escape_string($fileDate) . "'" . $contentHashSql . ")";
-		db_modify($query, __FILE__ . " line " . __LINE__);
-		poolFolderSyncNoteAdded($file);
+		if (substr((string)db_modify($query, __FILE__ . " line " . __LINE__), 0, 1) === '0') poolFolderSyncNoteAdded($file);
 	}
 	// Only now is the folder as seen: every file listed has its row
 	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
@@ -952,14 +955,29 @@ function poolFolderSyncNoteAdded($filename) {
 
 /**
  * The documents the last poolFolderSync() gave a row (SST-930), for the page to read with AI scan.
+ * Only those still unread, as "Opdatér alle" counts them (poolListData()): no snapshot, no amount, not corrected by hand.
  * A name that is not valid UTF-8 is left out: it can't be sent in the JSON answer, and the document stays for "Opdatér alle".
  *
  * @return string[] File names in the pool folder.
  */
 function poolFolderSyncAdded() {
-	$names = array_map('strval', array_keys($GLOBALS['poolFolderSyncAdded'] ?? array()));
-	return array_values(array_filter($names, function ($name) {
+	$names = array_values(array_filter(array_map('strval', array_keys($GLOBALS['poolFolderSyncAdded'] ?? array())), function ($name) {
 		return preg_match('//u', $name) === 1;
+	}));
+	if (!$names) {
+		return array();
+	}
+	$inClause = implode(',', array_map(function ($name) { return "'" . db_escape_string($name) . "'"; }, $names));
+	$captureSelect = poolCaptureReady() ? ", captured" : "";
+	$unread = array();
+	$result = db_select("SELECT filename, amount, manually_edited$captureSelect FROM pool_files WHERE filename IN ($inClause)", __FILE__ . " line " . __LINE__);
+	while ($row = db_fetch_array($result)) {
+		if (empty($row['captured']) && trim((string)$row['amount']) === '' && !poolMetadataIsManual($row)) {
+			$unread[$row['filename']] = true;
+		}
+	}
+	return array_values(array_filter($names, function ($name) use ($unread) {
+		return isset($unread[$name]);
 	}));
 }
 
@@ -4802,7 +4820,8 @@ window.poolReadDocuments = async function(files, onProgress) {
 					
 					// Only save if we got some data. amount uses a null/undefined check (not
 					// truthiness) so an explicit 0 still counts as extracted data (CodeRabbit).
-					if ((extracted.amount !== null && extracted.amount !== undefined) || extracted.date || extracted.vendor) {
+					// A fakturanr. alone is data too: the reading is already stored, so "Opdatér alle" would not try it again (SST-930)
+					if ((extracted.amount !== null && extracted.amount !== undefined) || extracted.date || extracted.vendor || extracted.invoiceNumber) {
 						// Save the extracted data to the .info file
 						const saveData = new FormData();
 						saveData.append('action', 'save');
