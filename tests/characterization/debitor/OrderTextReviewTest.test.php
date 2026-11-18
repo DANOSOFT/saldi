@@ -1,8 +1,11 @@
 <?php
 // 20261117 CDX/NTR Cover Danish order-text display/save and safe formatting in the real page paths.
+// 20261118 CDX/NTR Cover CSRF rejection, bound saves, plain comparisons and LATIN9 lookup characters.
+// 20261118 CDX/NTR Exercise shared LIKE normalization in both query entry points.
 
 namespace OrderTextReviewFixture {
     final class Saved extends \RuntimeException {}
+    final class Denied extends \RuntimeException {}
 
     function session_start() { return true; }
     function ifset($row, $key, $default = null) { return $row[$key] ?? $default; }
@@ -15,14 +18,35 @@ namespace OrderTextReviewFixture {
         if (str_contains($query, 'from ordretekster')) return ['tekst' => $text];
         throw new \RuntimeException('Unexpected fixture query');
     }
-    function db_modify($sql, $where) { $GLOBALS['orderTextReviewSql'] = $sql; }
-    // Native-driver adapter: the production db_escape_string() still performs its real recoding.
+    function get_relative() { return ''; }
+    function file_exists($path) { return true; }
+    function function_exists($name) { return \function_exists(__NAMESPACE__ . '\\' . $name) || \function_exists($name); }
+    function alert($message) { throw new \RuntimeException($message); }
+    function db_log_append($path, $lines) { return true; }
+    function db_normalize_like_operators($sql, $standardStrings = true) { return \db_normalize_like_operators($sql, $standardStrings); }
+    function pg_parameter_status($connection, $name) { return $GLOBALS['orderTextReviewStandardStrings'] ?? 'on'; }
+    function pg_last_error($connection) { return ''; }
+    function mysqli_error($connection) { return ''; }
+    function injecttjek($sql) { return $sql; }
+    function db_query_connection($global) { return null; }
+    function audit_log($action, $details) {}
+    function pg_query($connection, $sql) { $GLOBALS['orderTextReviewSql'] = $sql; return true; }
+    function pg_query_params($connection, $sql, $params) {
+        $GLOBALS['orderTextReviewSql'] = $sql;
+        $GLOBALS['orderTextReviewParams'] = $params;
+        return true;
+    }
+    function mysqli_query($connection, $sql) { return pg_query($connection, $sql); }
+    function mysqli_execute_query($connection, $sql, $params) { return pg_query_params($connection, $sql, $params); }
+    // Keep the old escape adapter so these regressions also reproduce failures on the original save path.
     function pg_escape_string($connection, $text) { return str_replace("'", "''", $text); }
 }
 
 namespace {
     use PHPUnit\Framework\Attributes\DataProvider;
     use PHPUnit\Framework\TestCase;
+
+    require_once __DIR__ . '/../../../includes/db_query.php';
 
     final class OrderTextReviewTest extends TestCase
     {
@@ -40,6 +64,20 @@ namespace {
             $escape = preg_replace('/^if[^\n]*\{\s*/', '', $escape);
             $escape = preg_replace('/}\s*$/', '', $escape);
             eval('namespace OrderTextReviewFixture;' . $escape);
+            $start = strpos($source, "\tfunction db_modify(");
+            $end = strpos($source, "if (!function_exists('db_select'))", $start);
+            $modify = preg_replace('/}\s*$/', '', substr($source, $start, $end - $start));
+            eval('namespace OrderTextReviewFixture;' . $modify);
+            $start = strpos($source, "\tfunction db_select(");
+            $end = strpos($source, "if (!function_exists('db_catalog_setval'))", $start);
+            $select = preg_replace('/}\s*$/', '', substr($source, $start, $end - $start));
+            $select = str_replace('function db_select(', 'function selectQuery(', $select);
+            eval('namespace OrderTextReviewFixture;' . $select);
+            $permissions = file_get_contents(__DIR__ . '/../../../includes/permissions.php');
+            $start = strpos($permissions, 'function perm_require_post_csrf(');
+            $end = strpos($permissions, "\n/**", $start);
+            $csrf = str_replace('exit;', 'throw new \\OrderTextReviewFixture\\Denied();', substr($permissions, $start, $end - $start));
+            eval('namespace OrderTextReviewFixture;' . $csrf);
             $helper = __DIR__ . '/../../../includes/orderFuncIncludes/standardOrderText.php';
             if (is_file($helper)) {
                 eval('namespace OrderTextReviewFixture;' . substr(file_get_contents($helper), 5));
@@ -48,14 +86,17 @@ namespace {
 
         protected function setUp(): void
         {
-            foreach (['db_type', 'connection', '_GET', '_POST'] as $name) {
+            foreach (['db_type', 'connection', 'db', 'db_skriv_id', '_GET', '_POST', '_SESSION', '_SERVER'] as $name) {
                 $this->globals[$name] = [array_key_exists($name, $GLOBALS), $GLOBALS[$name] ?? null];
             }
+            $GLOBALS['db'] = '';
+            $GLOBALS['db_skriv_id'] = 0;
+            $_SESSION = ['csrf_token' => 'fixture-csrf-token'];
         }
 
         protected function tearDown(): void
         {
-            unset($GLOBALS['orderTextReviewStored'], $GLOBALS['orderTextReviewSql']);
+            unset($GLOBALS['orderTextReviewStored'], $GLOBALS['orderTextReviewSql'], $GLOBALS['orderTextReviewParams'], $GLOBALS['orderTextReviewStandardStrings']);
             foreach ($this->globals as $name => [$existed, $value]) {
                 if ($existed) $GLOBALS[$name] = $value;
                 else unset($GLOBALS[$name]);
@@ -68,14 +109,19 @@ namespace {
             return ['UTF8' => ['UTF8', self::TEXT], 'LATIN9' => ['LATIN9', self::LATIN9_TEXT]];
         }
 
-        private function editor(string $encoding, string $stored, ?string $posted = null): string
+        private function editor(string $encoding, string $stored, ?string $posted = null, ?string $token = 'fixture-csrf-token', string $driver = 'postgres'): string
         {
             $GLOBALS['orderTextReviewStored'] = $stored;
-            $GLOBALS['db_type'] = 'postgres';
+            $GLOBALS['db_type'] = $driver;
             $GLOBALS['connection'] = null;
             $_GET = ['id' => 7, 'tekst_id' => 9];
             $_POST = $posted === null ? [] : ['opdater' => 'Gem', 'ordretekst' => $posted];
+            if ($token !== null) {
+                $_POST['csrf_token'] = $token;
+            }
+            $_SERVER['REQUEST_METHOD'] = $posted === null ? 'GET' : 'POST';
             $db_encode = $encoding;
+            $db_type = $driver;
             $source = file_get_contents(__DIR__ . '/../../../debitor/ret_tekst_ordre.php');
             // Isolate the real controller and view from session/database/header bootstrapping.
             $source = preg_replace('/^\s*(?:include|require)(?:_once)?\b[^\n]*;/m', '', $source);
@@ -85,6 +131,8 @@ namespace {
                 eval('namespace OrderTextReviewFixture;' . substr($source, 5));
             } catch (\OrderTextReviewFixture\Saved $saved) {
                 // The controller has printed the return-to-order redirect and completed its save.
+            } catch (\OrderTextReviewFixture\Denied $denied) {
+                // The real CSRF validator rejected the request before saving.
             } finally {
                 $html = ob_get_clean();
             }
@@ -100,13 +148,106 @@ namespace {
             self::assertTrue(mb_check_encoding($html, 'UTF-8'));
         }
 
-        #[DataProvider('encodings')]
-        public function testSavePreservesDatabaseBytesAndEscapesQuotes(string $encoding, string $stored): void
+        /** @return array<string, array{string, string, string}> */
+        public static function saveCases(): array
         {
-            $html = $this->editor($encoding, $stored, self::TEXT);
-            $expected = "update ordretekster set tekst='" . str_replace("'", "''", $stored) . "' where id = '9'";
+            $cases = [];
+            foreach (['postgres', 'mysqli', 'mysql'] as $driver) {
+                foreach (self::encodings() as $encoding => [$encoding, $stored]) {
+                    $cases[$driver . '-' . $encoding] = [$driver, $encoding, $stored];
+                }
+            }
+            return $cases;
+        }
+
+        #[DataProvider('saveCases')]
+        public function testSavePreservesDatabaseBytesAndTextLiterals(string $driver, string $encoding, string $stored): void
+        {
+            $literal = " I like this; I ilike that; 'quoted' \\ path";
+            $html = $this->editor($encoding, $stored, self::TEXT . $literal, 'fixture-csrf-token', $driver);
+            $expected = $driver === 'postgres' ? 'update ordretekster set tekst = $1 where id = $2' : 'update ordretekster set tekst = ? where id = ?';
             self::assertSame($expected, $GLOBALS['orderTextReviewSql']);
+            self::assertSame([$stored . $literal, 9], $GLOBALS['orderTextReviewParams']);
             self::assertStringContainsString('URL=ordre.php?id=7&amp;ret_tekst=7', $html);
+        }
+
+        public function testEditorGeneratesAndRendersSessionToken(): void
+        {
+            $_SESSION = [];
+            $html = $this->editor('UTF8', self::TEXT);
+            self::assertArrayHasKey('csrf_token', $_SESSION);
+            self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $_SESSION['csrf_token']);
+            self::assertStringContainsString('name="csrf_token" value="' . $_SESSION['csrf_token'] . '"', $html);
+        }
+
+        public function testMissingAndMismatchedCsrfTokensCannotSave(): void
+        {
+            foreach ([null, 'wrong-token'] as $token) {
+                $html = $this->editor('UTF8', self::TEXT, 'Overwritten', $token);
+                self::assertStringContainsString('403', $html);
+                self::assertArrayNotHasKey('orderTextReviewSql', $GLOBALS);
+                self::assertStringNotContainsString('URL=ordre.php', $html);
+            }
+        }
+
+        public function testLegacyQueriesStillUseTheirExistingDriverPaths(): void
+        {
+            $sql = "update ordretekster set tekst = 'text' where tekst like 'match'";
+            foreach (['postgres', 'mysqli', 'mysql'] as $driver) {
+                $GLOBALS['db_type'] = $driver;
+                $result = \OrderTextReviewFixture\db_modify($sql, __FILE__);
+                self::assertSame($driver === 'postgres' ? str_replace(' like ', ' ilike ', $sql) : $sql, $GLOBALS['orderTextReviewSql']);
+                self::assertArrayNotHasKey('orderTextReviewParams', $GLOBALS);
+                self::assertSame("0\tquery accepted", $result);
+            }
+        }
+
+        /** @return array<string, array{0: string, 1: string, 2?: bool}> */
+        public static function sqlNormalizationCases(): array
+        {
+            return [
+                'stored text' => [
+                    "update ordretekster set tekst='I like this' where tekst like '%like%'",
+                    "update ordretekster set tekst='I like this' where tekst ilike '%like%'",
+                ],
+                'select literal' => ["select 'I like this' as tekst where 'a' like 'A'", "select 'I like this' as tekst where 'a' ilike 'A'"],
+                'doubled quotes' => ["select 'It''s like this' like '%like%'", "select 'It''s like this' ilike '%like%'"],
+                'escape string' => ["select E'It\\'s like this' like '%like%'", "select E'It\\'s like this' ilike '%like%'"],
+                'standard backslash' => ["select 'path\\' like 'path%'", "select 'path\\' ilike 'path%'"],
+                'legacy backslash escape' => ["select 'It\\'s like this' like '%like%'", "select 'It\\'s like this' ilike '%like%'", false],
+                'legacy escaped backslash' => ["select 'path\\\\' like 'path%'", "select 'path\\\\' ilike 'path%'", false],
+                'quoted identifiers' => ['select "a like b", "a"" like b" from t where "a like b" like \'x\'', 'select "a like b", "a"" like b" from t where "a like b" ilike \'x\''],
+                'dollar string' => ['select $$I like this$$ like \'x\'', 'select $$I like this$$ ilike \'x\''],
+                'tagged string' => ['select $body$I like $$ this$body$ like \'x\'', 'select $body$I like $$ this$body$ ilike \'x\''],
+                'case sensitive dollar tag' => ['select $tag$I like $TAG$ this$tag$ like \'x\'', 'select $tag$I like $TAG$ this$tag$ ilike \'x\''],
+                'line comments' => ["select a -- like this\r\nfrom t where a like 'x' -- like that", "select a -- like this\r\nfrom t where a ilike 'x' -- like that"],
+                'nested comments' => ["select /* outer like /* inner like */ still like */ a like 'x'", "select /* outer like /* inner like */ still like */ a ilike 'x'"],
+                'existing case and whitespace behavior' => ["select a\tLIKE\n'x', b LiKe('y'), c not like 'z'", "select a\tLIKE\n'x', b LiKe('y'), c not ilike 'z'"],
+                'identifier boundaries' => ['select alike, like_suffix, x$like from t where alike like \'x\'', 'select alike, like_suffix, x$like from t where alike ilike \'x\''],
+                'table definition copy' => ['create table copy (like original including all, note text)', 'create table copy (like original including all, note text)'],
+                'table definition copy after column' => ['create table copy (note text, like original including all)', 'create table copy (note text, like original including all)'],
+                'qualified identifier and alias' => ['select t. like as like from t where t.name like \'x\'', 'select t. like as like from t where t.name ilike \'x\''],
+                'UTF8 bytes' => ["select 'Æble øl å € I like this' like '%ø%'", "select 'Æble øl å € I like this' ilike '%ø%'"],
+                'LATIN9 bytes' => ["select '\xC6ble \xF8l \xE5 \xA4 I like this' like '%\xF8%'", "select '\xC6ble \xF8l \xE5 \xA4 I like this' ilike '%\xF8%'"],
+                'already normalized' => ["select a ilike 'x'", "select a ilike 'x'"],
+                'unfinished literal' => ["select 'I like this", "select 'I like this"],
+                'unfinished comment' => ['select 1 /* like /* like */ like', 'select 1 /* like /* like */ like'],
+                'unfinished dollar string' => ['select $body$I like this', 'select $body$I like this'],
+            ];
+        }
+
+        #[DataProvider('sqlNormalizationCases')]
+        public function testQueryPathsNormalizeOnlySqlTokens(string $sql, string $expected, bool $standardStrings = true): void
+        {
+            $GLOBALS['orderTextReviewStandardStrings'] = $standardStrings ? 'on' : 'off';
+            foreach (['postgres', 'mysqli', 'mysql'] as $driver) {
+                $GLOBALS['db_type'] = $driver;
+                foreach (['db_modify', 'selectQuery'] as $function) {
+                    $call = 'OrderTextReviewFixture\\' . $function;
+                    $call($sql, __FILE__);
+                    self::assertSame($driver === 'postgres' ? $expected : $sql, $GLOBALS['orderTextReviewSql'], $driver . ' ' . $function);
+                }
+            }
         }
 
         private function lookup(string $text, string $encoding = 'UTF8'): string
@@ -149,11 +290,27 @@ namespace {
         }
 
         #[DataProvider('encodings')]
-        public function testLookupPreservesItsExistingDocumentEncoding(string $encoding, string $stored): void
+        public function testLookupDisplaysDatabaseCharactersInItsDocumentEncoding(string $encoding, string $stored): void
         {
             $html = $this->lookup($stored, $encoding);
-            $expected = $encoding === 'UTF8' ? "Æble øl å € ' fed" : "\xC6ble \xF8l \xE5 \xA4 ' fed";
-            self::assertSame($expected, trim(htmlspecialchars_decode(strip_tags($html), ENT_QUOTES)));
+            if ($encoding !== 'UTF8') {
+                $html = mb_convert_encoding($html, 'UTF-8', 'ISO-8859-1');
+            }
+            self::assertSame("Æble øl å € ' fed", trim(html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        }
+
+        public function testLookupPreservesPlainComparisons(): void
+        {
+            $html = $this->lookup('Tolerance <5 mm; < 6 mm; <=7 mm; 9 > 8 <b>bold</b>');
+            self::assertStringContainsString('Tolerance &lt;5 mm; &lt; 6 mm; &lt;=7 mm; 9 &gt; 8 <b>bold</b>', $html);
+        }
+
+        public function testLookupPreservesAllLatin9ReplacementCharacters(): void
+        {
+            $text = '€ Š š Ž ž Œ œ Ÿ';
+            $html = $this->lookup(mb_convert_encoding($text, 'ISO-8859-15', 'UTF-8'), 'LATIN9');
+            $utf8 = mb_convert_encoding($html, 'UTF-8', 'ISO-8859-1');
+            self::assertSame($text, trim(html_entity_decode(strip_tags($utf8), ENT_QUOTES | ENT_HTML5, 'UTF-8')));
         }
     }
 }

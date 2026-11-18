@@ -32,6 +32,7 @@
 //                The sager header and menu variables are set, so the page renders without undefined-variable warnings.
 // 20261117 CDX/NTR Render database text as UTF-8 and preserve LATIN9 when saving form submissions.
 // 20261118 CL/LH File header kept contiguous: the blank line before the description is a comment line.
+// 20261118 CDX/NTR Require the session CSRF token and bind text values when saving.
 //
 // Edits one standard order text (ordretekster) from the text lookup on a case order.
 
@@ -40,6 +41,7 @@
  * @var string $db
  * @var string $brugernavn
  * @var string $db_encode   from includes/connect.php: 'UTF8' or 'LATIN9'
+ * @var string $db_type     from includes/connect.php: database driver
  */
 @session_start();
 $s_id = session_id();
@@ -70,11 +72,16 @@ $id       = (int)ifset($_GET, 'id', 0);
 $tekst_id = (int)ifset($_GET, 'tekst_id', 0);
 
 if (isset($_POST['opdater']) && $tekst_id) {
+	perm_require_post_csrf(false);
 	$ordretekst = (string)ifset($_POST, 'ordretekst', '');
-	saveStandardOrderText($tekst_id, $ordretekst, $db_encode);
+	saveStandardOrderText($tekst_id, $ordretekst, $db_encode, $db_type);
 	// online.php has printed its button style block by now, so a location header would be too late.
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id&amp;ret_tekst=$id\">\n";
 	exit();
+}
+
+if (empty($_SESSION['csrf_token'])) {
+	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 $r = db_fetch_array(db_select("select sag_id, konto_id, nr from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
@@ -108,6 +115,7 @@ print "<div class=\"maincontentLargeHolder\">\n";
 print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\">\n";
 print "<tbody><tr><td valign=\"top\" align=\"center\">\n";
 print "<form name=\"ordre\" action=\"ret_tekst_ordre.php?id=$id&amp;tekst_id=$tekst_id\" method=\"post\">\n";
+print '<input type="hidden" name="csrf_token" value="' . orderTextEditorHtml((string)$_SESSION['csrf_token'], 'UTF8') . '">' . "\n";
 print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" >\n";
 print "<tbody>\n";
 print "<tr>\n";
