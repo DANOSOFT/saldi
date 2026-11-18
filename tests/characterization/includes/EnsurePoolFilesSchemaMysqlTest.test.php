@@ -12,6 +12,7 @@
 //                 $GLOBALS['connection'] is the test's mysqli connection, as in production.
 // 20261118 CL/MMR SD-815 Codex round 20: with mysqli reporting off, a repair whose LOCK TABLES times out deletes nothing and writes no flag; after the other session ends the retry completes.
 // 20261118 CL/MMR SD-815 Codex round 22: a unique prefix index on filename(7) is replaced by the full one, so two different names sharing the prefix both register; a full index alone is left as it is.
+// 20261118 CL/MMR SD-815 Codex round 32: another connection creating an index named pool_files_filename_uidx just before the table lock: kept, the repair uses a free name, in both mysqli reporting modes.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -63,6 +64,17 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
             }
             function db_escape_string($value) {
                 return mysqli_real_escape_string($GLOBALS['ensurePoolFilesMysql'], (string) $value);
+            }
+        }
+        if (str_starts_with($this->name(), 'testAnIndexTakingTheNameBeforeTheLock') && !function_exists('ensurePoolFilesMysqlProbeName')) {
+            // Runs right before the table lock (the probe comes first): the other connection takes the usual index name there.
+            function ensurePoolFilesMysqlProbeName(): string {
+                $rival = $GLOBALS['ensurePoolFilesRivalDdl'] ?? null;
+                unset($GLOBALS['ensurePoolFilesRivalDdl']);
+                if ($rival !== null) {
+                    $rival();
+                }
+                return 'pool_files_uidx_probe_' . bin2hex(random_bytes(6));
             }
         }
         if ($this->name() === 'testATableAnotherConnectionCreatedUnderTheProbeNameSurvivesWithReportingOff' && !function_exists('ensurePoolFilesMysqlProbeName')) {
@@ -430,5 +442,39 @@ final class EnsurePoolFilesSchemaMysqlTest extends TestCase
         self::assertNotContains('unique_filename', $done);
         self::assertSame('existing_filename', $this->one("SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND column_name = 'filename' AND non_unique = 0"));
         self::assertSame('2', $this->one('SELECT count(*) FROM pool_files'));
+    }
+
+    private function anIndexTakingTheNameBeforeTheLock(int $reportMode): void
+    {
+        $this->allLaterColumns();
+        $this->sql("INSERT INTO pool_files (filename, amount) VALUES ('a.pdf', '1,00'), ('a.pdf', '99,00')");
+        $this->other = $this->connect();
+        mysqli_select_db($this->other, $this->database);
+        $other = $this->other;
+        $GLOBALS['ensurePoolFilesRivalDdl'] = static function () use ($other): void {
+            mysqli_query($other, 'CREATE INDEX pool_files_filename_uidx ON pool_files (subject)');
+        };
+        mysqli_report($reportMode);
+
+        $done = ensurePoolFilesSchema('mysqli');
+
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        self::assertSame('1', $this->one("SELECT count(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND index_name = 'pool_files_filename_uidx' AND column_name = 'subject'"), 'the other connection\'s index is kept');
+        self::assertContains('unique_filename', $done, 'the repair used a free name');
+        self::assertSame('0', $this->one("SELECT non_unique FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files' AND index_name = 'pool_files_filename_full_uidx'"));
+        self::assertSame('99,00', $this->one("SELECT amount FROM pool_files WHERE filename = 'a.pdf'"), 'the newest row is kept');
+        self::assertSame('99.000', $this->one("SELECT norm_amount FROM pool_files WHERE filename = 'a.pdf'"));
+        $this->poolInsert('a.pdf');
+        self::assertSame('1', $this->one("SELECT count(*) FROM pool_files WHERE filename = 'a.pdf'"));
+    }
+
+    public function testAnIndexTakingTheNameBeforeTheLockStrict(): void
+    {
+        $this->anIndexTakingTheNameBeforeTheLock(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    }
+
+    public function testAnIndexTakingTheNameBeforeTheLockReportingOff(): void
+    {
+        $this->anIndexTakingTheNameBeforeTheLock(MYSQLI_REPORT_OFF);
     }
 }

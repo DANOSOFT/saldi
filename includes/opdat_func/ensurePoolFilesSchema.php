@@ -57,6 +57,7 @@
 // 20261118 CL/MMR SD-815 Codex round 29: on PostgreSQL no expression index is dropped any more. Whether one is an obsolete prefix depends on more than the catalogue can say for sure (CHECK constraints, domains, the function, the width), so a unique expression index on filename alone is kept and named in the log for review whenever the repair runs; the full unique index is still added. The MySQL/MariaDB prefix repair (sub_part) is unchanged.
 // 20261118 CL/MMR SD-815 Codex round 30: a unique filename key with INCLUDE columns counts (indnkeyatts, not indnatts), and the new index's name is chosen from the free ones before anything is created or deleted.
 // 20261118 CL/MMR SD-815 Codex round 31: the name search goes on past the four usual names (…_uidx4 … _uidx99, then a random suffix), on both databases, and every stop of the run is logged with its reason.
+// 20261118 CL/MMR SD-815 Codex round 32: on MySQL/MariaDB the index name and the filename index state are read under LOCK TABLES (information_schema only), right before the duplicate collapse, so another connection's index of that name cannot make CREATE fail after rows were deleted.
 
 if (!function_exists('ensurePoolFilesSchemaColumns')) {
 	/**
@@ -252,21 +253,38 @@ if (!function_exists('ensurePoolFilesMysqlInTransaction')) {
 	}
 }
 
-if (!function_exists('ensurePoolFilesMysqlIndexName')) {
+if (!function_exists('ensurePoolFilesMysqlIndexState')) {
 	/**
-	 * A name for the new unique filename index that no index on pool_files has yet (an existing index of that name,
-	 * e.g. a non-unique one, would make CREATE fail after the duplicates were collapsed).
+	 * The indexes of pool_files on MySQL/MariaDB, from information_schema alone (it may be read under LOCK TABLES, where
+	 * other tables such as settings may not): whether a full one-column unique filename index exists, the one-column
+	 * unique prefix (sub_part) indexes on filename, and every index name (lower case) for choosing a free one.
 	 *
-	 * @return string
-	 * @throws EnsurePoolFilesSchemaUnknown When the names cannot be read.
+	 * @return array{full: bool, restrictive: list<string>, taken: array<string, true>}
+	 * @throws EnsurePoolFilesSchemaUnknown When the read failed.
 	 */
-	function ensurePoolFilesMysqlIndexName(): string {
-		$taken = array();
-		$q = ensurePoolFilesSelect("SELECT DISTINCT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files'", __LINE__);
+	function ensurePoolFilesMysqlIndexState(): array {
+		$columns = array();
+		$q = ensurePoolFilesSelect("SELECT index_name, non_unique, column_name, sub_part FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'pool_files'", __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$taken[strtolower((string)($r['index_name'] ?? $r['INDEX_NAME'] ?? ''))] = true;
+			$index = (string)($r['index_name'] ?? $r['INDEX_NAME'] ?? '');
+			$columns[$index][] = array(
+				'unique' => (int)($r['non_unique'] ?? $r['NON_UNIQUE'] ?? 1) === 0,
+				'column' => strtolower((string)($r['column_name'] ?? $r['COLUMN_NAME'] ?? '')),
+				'prefix' => ($r['sub_part'] ?? $r['SUB_PART'] ?? null) !== null,
+			);
 		}
-		return ensurePoolFilesFreeIndexName($taken);
+		$state = array('full' => false, 'restrictive' => array(), 'taken' => array());
+		foreach ($columns as $index => $parts) {
+			$state['taken'][strtolower($index)] = true;
+			if (count($parts) === 1 && $parts[0]['unique'] && $parts[0]['column'] === 'filename') {
+				if ($parts[0]['prefix']) {
+					$state['restrictive'][] = $index;
+				} else {
+					$state['full'] = true;
+				}
+			}
+		}
+		return $state;
 	}
 }
 
@@ -387,9 +405,7 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 	 * @throws EnsurePoolFilesSchemaUnknown When the index is not there afterwards.
 	 */
 	function ensurePoolFilesUniqueRepairMysql(string $db_type): void {
-		$before = ensurePoolFilesSchemaState($db_type);
-		$name = ensurePoolFilesMysqlIndexName(); // before anything is deleted
-		ensurePoolFilesMysqlProbeUniqueIndex();   // likewise: the table must be able to hold the index
+		ensurePoolFilesMysqlProbeUniqueIndex(); // before anything is deleted: the table must be able to hold the index
 		// Every statement's own result is checked (ensurePoolFilesMysqlExec()): db_modify() can report a failed one as
 		// accepted when mysqli does not throw, and nothing may be deleted without the table lock.
 		$locked = ensurePoolFilesMysqlExec("LOCK TABLES pool_files WRITE, pool_files AS a WRITE, pool_files AS b READ");
@@ -398,14 +414,18 @@ if (!function_exists('ensurePoolFilesUniqueRepairMysql')) {
 			throw new EnsurePoolFilesSchemaUnknown('pool_files table lock not acquired');
 		}
 		try {
+			// Under the lock, before anything is deleted: no other session can add or drop an index on pool_files now,
+			// so the name chosen here stays free and the state read here is the one the statements below act on.
+			$before = ensurePoolFilesMysqlIndexState();
+			$name = ensurePoolFilesFreeIndexName($before['taken']);
 			if (!ensurePoolFilesMysqlExec("DELETE a FROM pool_files a JOIN pool_files b ON a.filename = b.filename AND a.id < b.id")) {
 				throw new EnsurePoolFilesSchemaUnknown('pool_files duplicate collapse failed');
 			}
-			if (empty($before['fullFilename']) && !ensurePoolFilesMysqlExec("CREATE UNIQUE INDEX $name ON pool_files (filename)")) {
+			if (!$before['full'] && !ensurePoolFilesMysqlExec("CREATE UNIQUE INDEX $name ON pool_files (filename)")) {
 				throw new EnsurePoolFilesSchemaUnknown('pool_files unique filename index not created');
 			}
 			// Only after the full index is in place: the prefix indexes on filename go.
-			foreach ($before['restrictiveFilename'] ?? array() as $index) {
+			foreach ($before['restrictive'] as $index) {
 				if (!ensurePoolFilesMysqlExec('ALTER TABLE pool_files DROP INDEX `' . str_replace('`', '``', $index) . '`')) {
 					throw new EnsurePoolFilesSchemaUnknown('pool_files prefix index on filename not dropped');
 				}
