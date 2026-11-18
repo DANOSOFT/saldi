@@ -6,7 +6,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/auth_check_icon.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/includes/auth_check_icon.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 // 20261116 CL/LH Shown to users who switched on "Vis bankstatus i kassekladden" (Personlige indstillinger), as the old icon was.
 // 20261116 CL/LH The personal setting is read first, so a user without the icon costs one query and no bank schema checks.
 //                Texts through findtekst() (bank.status.*).
+// 20261118 CL/LH Live port: the switch for the icon is in the Bankforbindelse section (live has no Personlige indstillinger).
 
 include_once __DIR__ . '/enabled.php';
 
@@ -141,7 +142,7 @@ if (!function_exists('ebStatusIndicator')) {
 	}
 
 	/**
-	 * The icon is a personal choice (Indstillinger » Personlige indstillinger » Vis bankstatus i kassekladden,
+	 * The icon is a personal choice (Indstillinger » Diverse » Bankforbindelse » Vis bankstatus i kassekladden,
 	 * settings 'bank_integration'/'show_status' of the user), off until the user switches it on.
 	 *
 	 * @return bool

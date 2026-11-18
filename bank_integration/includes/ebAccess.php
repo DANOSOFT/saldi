@@ -37,6 +37,7 @@
 // 20261116 CL/LH ebUnavailableReason() checks the company switch before the schema.
 // 20261118 CL/LH Live port: rights from the brugere.rettigheder string (Indstillinger position 1, Kassekladde position 2), as includes/online.php checks them on live.
 // 20261118 CL/LH ebPostButton() takes a target; ebShellRedirect() returns from the bank login (run as the whole window) into index/main.php's content frame.
+// 20261118 CL/LH Live port: the company-off message names live's menu path (Indstillinger > Diverse > Bankforbindelse, text bank.unavailable.company_diverse).
 
 require_once __DIR__ . '/ebConfig.php';
 require_once __DIR__ . '/ebSchema.php';
@@ -420,7 +421,7 @@ if (!function_exists('ebH')) {
 			return ebT(findtekst('bank.unavailable.server|Bankforbindelse er ikke sat op på denne Saldi-server. Kontakt Saldi-support, hvis du vil bruge den.', ebLang()));
 		}
 		if ($requireCompany && !ebCompanyEnabled()) {
-			return ebT(findtekst('bank.unavailable.company|Bankforbindelse er ikke slået til for dette regnskab. Den slås til under Indstillinger > Bogføring & bank > Bankforbindelse.', ebLang()));
+			return ebT(findtekst('bank.unavailable.company_diverse|Bankforbindelse er ikke slået til for dette regnskab. Den slås til under Indstillinger > Diverse > Bankforbindelse.', ebLang()));
 		}
 		if (!ebSchemaReady()) {
 			return ebT(findtekst('bank.unavailable.schema|Bankforbindelse er ikke klar i dette regnskab endnu. Log ud og ind igen, eller kontakt Saldi-support.', ebLang()));
