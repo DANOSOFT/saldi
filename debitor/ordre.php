@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-12 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -172,6 +172,8 @@
 //                read the offset before the call, so it warned when there was no konto_id or no adresser row.
 // 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
+// 20261004 SS Danske Fragtmænd settings are read from their own group DFM as well as the old GLS group (settings redesign B-D5).
+// 20261103 CL/ASR QA round 2: GET links that create an order (konto_id or funktion opret_ordre without an id) or move an order to another customer (konto_id with fokus) need write.
 // 20261104 CL/MMR SST-918 The product note (note_on_orderline) is looked up by the matched item's id, so a variant picked in the quick search or typed as its barcode gets its parent's note (CodeRabbit on PR #979).
 // 20261105 CL/MMR SD-807 The order page shows Digitalt, the payment terms (Forud, Efterkrav, Netto, Lb. md., Konto), Nt/Bt and DB/DG (also in the line tooltips) in the user's language.
 //                 The selected Udskriv til and Betaling values are translated too, and their options post the stored Danish value through a value attribute.
@@ -182,12 +184,15 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261111 CL/MJ SST-1002 With Brug samlet pris, a line of a set item that is not a set (saet 0, e.g. a variant) gets a position number.
+//                Without one, the next Gem posted an empty position and stopped with a TypeError.
+// 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
 // 20261112 CL/MMR SST-1013 Credit limit: an open post in a third currency is converted with its own rate and the order's rate.
 //                 It multiplied by the currency code, which stopped the page with a TypeError on PHP 8.
 //                 The rate lookup for a base-currency post gets the debug argument db_select() requires (ArgumentCountError on PHP 8).
 //                 Without a rate the alert now has its text, and the previous post's amount is no longer counted again.
 //                 The alert text and invoice number are encoded with jsString() for the onload attribute.
-
 @session_start();
 $s_id = session_id();
 
@@ -215,6 +220,13 @@ $sletslut = $sletstart = 0;
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
 $modulnr = 5;
+// GET links that change data need write: konto_id without an order id (or funktion opret_ordre / opret_ordre_kopi) creates an
+// order, and konto_id with fokus (the account lookup) moves an existing order to that customer.
+$ordreGetId = !empty($_GET['id']) || !empty($_GET['ordre_id']);
+if ((!$ordreGetId && (!empty($_GET['konto_id']) || in_array((string) (isset($_GET['funktion']) ? $_GET['funktion'] : ''), array('opret_ordre', 'opret_ordre_kopi'), true)))
+	|| ($ordreGetId && !empty($_GET['konto_id']) && !empty($_GET['fokus']))) {
+	$permission_level = 'write';
+}
 
 $css = "../css/standard.css";
 #$css="../css/ordre.css";
@@ -1334,7 +1346,7 @@ if ($b_submit) {
 			$r = db_fetch_array(db_select("select * from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
 
 			$qtxt = "insert into ordrer (konto_id,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,kontakt_tlf,email,mail_fakt,phone,udskriv_til,kundeordnr,";
-			$qtxt .= "lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,lev_kontakt,lev_email,lev_land,ean,institution,betalingsbet,betalingsdage,kontonr,cvrnr,art,";
+			$qtxt .= "lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,lev_kontakt,ean,institution,betalingsbet,betalingsdage,kontonr,cvrnr,art,";
 			$qtxt .= "valuta,valutakurs,sprog,projekt,ordredate,";
 			if ($r['levdate']) $qtxt .= "levdate,";
 			if ($r['fakturadate']) $qtxt .= "fakturadate,";
@@ -1355,7 +1367,7 @@ if ($b_submit) {
 			$qtxt .= "'" . db_escape_string($r['kundeordnr']) . "','" . db_escape_string($r['lev_navn']) . "','" . db_escape_string($r['lev_addr1']) . "',";
 			$qtxt .= "'" . db_escape_string($r['lev_addr2']) . "','" . db_escape_string($r['lev_postnr']) . "','" . db_escape_string($r['lev_bynavn']) . "',";
 			$qtxt .= "'" . db_escape_string($r['lev_land']) . "','" . db_escape_string($r['lev_email']) . "',";
-			$qtxt .= "'" . db_escape_string($r['lev_kontakt']) . "','" . db_escape_string($r['lev_email']) . "','" . db_escape_string($r['lev_land']) . "',";
+			$qtxt .= "'" . db_escape_string($r['lev_kontakt']) . "',";
 			$qtxt .= "'" . db_escape_string($r['ean']) . "','" . db_escape_string($r['institution']) . "',";
 			$qtxt .= "'" . db_escape_string($r['betalingsbet']) . "','" . db_escape_string($r['betalingsdage']) . "','" . db_escape_string($r['kontonr']) . "',";
 			$qtxt .= "'" . db_escape_string($r['cvrnr']) . "','OT','" . db_escape_string($r['valuta']) . "',";
@@ -3553,7 +3565,7 @@ function ordreside($id, $regnskab)
 		if (isset($_REQUEST['gls_go'])) {  // BZ
 			db_modify("update ordrer set gls_label = true where id = '$id'", __FILE__ . " linje " . __LINE__);
 			$tGrossWeight = $_POST['tGrossWeight'] * 1;
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if ($r['var_name'] == 'gls_id')   $gls_id   = $r['var_value'];
@@ -3572,7 +3584,7 @@ function ordreside($id, $regnskab)
 			$dfm_pickup_addr = $dfm_pickup_name1 = $dfm_pickup_name2 = NULL;
 			$dfm_pickup_street1 = $dfm_pickup_street2 = $dfm_pickup_town = $dfm_pickup_zipcode = NULL;
 			
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if (!isset($r['var_name'])) continue;
@@ -6620,7 +6632,7 @@ function ordreside($id, $regnskab)
 	# Malene, dette er enden
 
 	# ADD LINK TO GLS!! 
-	$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+	$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ($r['var_name'] == 'gls_id')    $gls_id    = $r['var_value'];
@@ -6728,7 +6740,7 @@ function ordreside($id, $regnskab)
 			print "<tr><td align=\"center\">\n";
 			print "<p style='font-weight:bold; font-size: 16px; text-align: center;'>" . findtekst('1057|Danske Fragtmænd', $sprog_id) . "</p><!--Danske Fragtmænd--><br />\n";
 
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if ($r['var_name'] == 'dfm_gooddes') $form_gooddes = $r['var_value'];
@@ -6968,7 +6980,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	$dkantal = $dkpris = $dkprocent = $dkrabat = $tidl_lev = 0;
 	# if (!$x) $x--; #20160915
 	if ($folgevare) $flgv = $folgevare;
-	if (!$samlevare || !$brugsamletpris) $ny_pos++; #20150317 
+	if (!$samlevare || !$brugsamletpris || !$saet) $ny_pos++; #20150317 #20261111 SST-1002
 	#lse cho "$beskrivelse $pris<br>";
 	#  if (!$ny_pos) $ny_pos=1;
 	if ($readonly) $readonly = "readonly=\"readonly\"";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- includes/formfunk.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -92,12 +92,14 @@
 // 20261103 LOE SST-908 kontoprint(): kilde=openpost prints the open posts only, and its
 //                opening balance and running balance then cover those posts only. A NULL
 //                udlignet counts as open, as it does in the ledger.
+// 20261103 CL/ASR The form editor's print-language lock is read from the settings table through fe_printlang_get() in includes/formEditorState.php instead of a JSON file under logolib.
 // 20261103 CL/SZ SD-797 With set prices shown, a felt_4 that is no number (text or empty) stopped the print with a TypeError.
 //                It now counts as 0, so felt_3 and felt_4 print blank as for 0.
-
+// 20261112 CL/MMR SST-1015 Removed the PBS debug logging that wrote the order's e-mail to temp/<db>/pbs_email_debug.log.
+//
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 require_once __DIR__ . '/formFuncIncludes/htmlStyle.php';
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
@@ -1267,43 +1269,19 @@ if (!function_exists('formularprint')) {
 
 				// Check if PBS is set and setting is enabled to automatically send email
 				$pbs = trim($row['pbs']);
-				$debug_file = "../temp/$db/pbs_email_debug.log";
-				$debug_msg = "\n" . date("Y-m-d H:i:s") . " - formfunk.php PBS Email Debug for order ID: $ordre_id[$o]\n";
-				$debug_msg .= "PBS value: " . var_export($pbs, true) . "\n";
-				$debug_msg .= "udskriv_til: " . var_export($udskriv_til, true) . "\n";
-				$debug_msg .= "udskriv_alle_til: " . var_export($udskriv_alle_til, true) . "\n";
 
 				if ($pbs && ($pbs == 'BS' || $pbs == 'FI' || strstr($row['udskriv_til'], 'PBS'))) {
-					$debug_msg .= "PBS condition met\n";
 					$qtxt_setting = "select var_value from settings where var_name = 'pbs_auto_email' and var_grp = 'invoice_settings'";
 					$r_setting = db_fetch_array(db_select($qtxt_setting, __FILE__ . " linje " . __LINE__));
-					$debug_msg .= "Setting query: $qtxt_setting\n";
-					$debug_msg .= "Setting result: " . var_export($r_setting, true) . "\n";
-					$debug_msg .= "Order email: " . var_export($row['email'], true) . "\n";
-					$debug_msg .= "Status: " . var_export($status, true) . "\n";
-					$debug_msg .= "Art: " . var_export($art, true) . "\n";
 
 					if ($r_setting && $r_setting['var_value'] == 'on' && $row['email'] && $status >= 3 && $art == 'DO') {
-						$debug_msg .= "All conditions met - setting mail_fakt to 'on'\n";
 						// Automatically set mail_fakt to send email
 						$mail_fakt = 'on';
 						if (!$udskriv_alle_til && $udskriv_til != 'email') {
-							$debug_msg .= "Changing udskriv_til from '$udskriv_til' to 'email'\n";
 							$udskriv_til = 'email';
 						}
-						$debug_msg .= "Final mail_fakt: " . var_export($mail_fakt, true) . "\n";
-						$debug_msg .= "Final udskriv_til: " . var_export($udskriv_til, true) . "\n";
-					} else {
-						$debug_msg .= "Conditions NOT met:\n";
-						$debug_msg .= "  - Setting enabled: " . ($r_setting && $r_setting['var_value'] == 'on' ? 'YES' : 'NO') . "\n";
-						$debug_msg .= "  - Has email: " . ($row['email'] ? 'YES (' . $row['email'] . ')' : 'NO') . "\n";
-						$debug_msg .= "  - Status >= 3: " . ($status >= 3 ? 'YES (' . $status . ')' : 'NO (' . $status . ')') . "\n";
-						$debug_msg .= "  - Art == DO: " . ($art == 'DO' ? 'YES (' . $art . ')' : 'NO (' . $art . ')') . "\n";
 					}
-				} else {
-					$debug_msg .= "PBS condition NOT met\n";
 				}
-				file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 				if ($udskriv_til == 'ingen') { #20170501
 					return 'OK';
 					exit;
@@ -1346,15 +1324,13 @@ if (!function_exists('formularprint')) {
 				// Per-form print-language lock (set in the visual form editor):
 				// force the whole print into one language regardless of the
 				// customer's language. No lock file => behaviour unchanged.
-				$fe_lock = "../logolib/$db_id/fe_printlang_$formular.json";
-				if (@file_exists($fe_lock)) {
-					$fe_pl = @json_decode(@file_get_contents($fe_lock), true);
-					if (is_array($fe_pl) && !empty($fe_pl['sprog'])) {
-						// value is interpolated into SQL below; restrict to a safe
-						// charset in case the lock file was tampered with on disk.
-						$fe_lang = preg_replace('/[^\p{L}\p{N} ._\-]/u', '', (string) $fe_pl['sprog']);
-						if ($fe_lang !== '') $formularsprog = strtolower($fe_lang);
-					}
+				// 20261005 Sawaneh G6.1 (FE3): the lock lives in the settings table (a lock file from before is moved there).
+				include_once(__DIR__ . '/formEditorState.php');
+				$fe_pl_sprog = fe_printlang_get($db_id, (int) $formular);
+				if ($fe_pl_sprog !== '') {
+					// value is interpolated into SQL below; restrict to a safe charset.
+					$fe_lang = preg_replace('/[^\p{L}\p{N} ._\-]/u', '', $fe_pl_sprog);
+					if ($fe_lang !== '') $formularsprog = strtolower($fe_lang);
 				}
 				if (($formular == 4) || ($formular == 5)) {
 					if (!$fakturanr) { #20130508

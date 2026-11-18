@@ -6,6 +6,7 @@
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 // 20261111 CDX/NTR Restore retention environment even when database cleanup fails.
 // 20261111 CDX/NTR Verify a failed ownership record leaves no retained routing account.
+// 20261113 CDX/NTR Require registry last-activity values to use the Unix seconds expected by admin pages.
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -223,6 +224,9 @@ final class TestDatabaseLifecycleTest extends TestCase
             pg_close($connection);
             $master = TestDatabase::connect(TestDatabase::masterDb());
             self::assertSame('1', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM online WHERE session_id=$1 AND db=$2', [$database->sessionId(), $database->name()]), 0, 0));
+            $lastActivity = pg_fetch_result(TestDatabase::query($master, 'SELECT sidst FROM regnskab WHERE db=$1', [$database->name()]), 0, 0);
+            self::assertMatchesRegularExpression('/^[0-9]+$/', $lastActivity);
+            self::assertSame(date('d-m-Y'), date('d-m-Y', $lastActivity));
             $database->release();
             if (!TestDatabase::keep()) {
                 self::assertSame('0', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM regnskab WHERE db=$1', [$database->name()]), 0, 0));
