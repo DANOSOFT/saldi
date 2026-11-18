@@ -211,24 +211,24 @@ function udskriv_bankdata($db_id,$bruger_id,$liste_id){
 	$filnavn="../temp/$db_id"."$bruger_id".".txt";
 	$fp=fopen("$filnavn","w");
 #		if (substr($r['bet_type'], 0, 3)=="ERH") {
-		$linje='"';
-		$linje.="IB000000000000";
-		$linje.='","';
-		$linje.=date("Ymd");
-		$linje.='","';
-		$tmp='';
-		while (strlen($tmp)<90)$tmp.=' '; #felt3
-		$linje.=$tmp;		
-		$linje.='","';
-		$tmp='';
-		for ($i=0;$i<3;$i++){
-			while (strlen($tmp)<255)$tmp.=' '; #felt4-6
-			$linje.=$tmp;		
-			if ($i<2) $linje.='","';
-		}
-		$linje.='"';
-		$linje.="\r\n";
-		fwrite($fp,$linje);
+	$linje='"';
+	$linje.="IB000000000000";
+	$linje.='","';
+	$linje.=date("Ymd");
+	$linje.='","';
+	$tmp='';
+	while (strlen($tmp)<90)$tmp.=' '; #felt3
+	$linje.=$tmp;
+	$linje.='","';
+	$tmp='';
+	for ($i=0;$i<3;$i++){
+		while (strlen($tmp)<255)$tmp.=' '; #felt4-6
+		$linje.=$tmp;
+		if ($i<2) $linje.='","';
+	}
+	$linje.='"';
+	$linje.="\r\n";
+	fwrite($fp,$linje);
 #	}
 	$x=0;
 	$sum=0;
@@ -339,33 +339,33 @@ function udskriv_bankdata($db_id,$bruger_id,$liste_id){
 		fwrite($fp,$linje);
 	}	
 #	if (substr($r['bet_type'], 0, 3)=="ERH") {
-		$linje='"';
-		$linje.="IB999999999999";
-		$linje.='","';
-		$linje.=date("Ymd");
-		$linje.='","';
-		$tmp=$x;
-		while (strlen($tmp)<6)$tmp='0'.$tmp; #felt3
-		$linje.=$tmp;		
-		$linje.='","';
-		$tmp=$sum;
-		while (strlen($tmp)<13)$tmp='0'.$tmp; #felt4
+	$linje='"';
+	$linje.="IB999999999999";
+	$linje.='","';
+	$linje.=date("Ymd");
+	$linje.='","';
+	$tmp=$x;
+	while (strlen($tmp)<6)$tmp='0'.$tmp; #felt3
+	$linje.=$tmp;
+	$linje.='","';
+	$tmp=$sum;
+	while (strlen($tmp)<13)$tmp='0'.$tmp; #felt4
+	$linje.=$tmp;
+	$linje.="+";
+	$linje.='","';
+	$tmp='';
+	while (strlen($tmp)<64)$tmp.=' '; #felt4
+	$linje.=$tmp;
+	$linje.='","';
+	$tmp='';
+	for ($i=0;$i<3;$i++){
+		while (strlen($tmp)<255)$tmp.=' '; #felt4
 		$linje.=$tmp;
-		$linje.="+";
-		$linje.='","';
-		$tmp='';
-		while (strlen($tmp)<64)$tmp.=' '; #felt4
-		$linje.=$tmp;		
-		$linje.='","';
-		$tmp='';
-		for ($i=0;$i<3;$i++){
-			while (strlen($tmp)<255)$tmp.=' '; #felt4
-			$linje.=$tmp;		
-			if ($i<2) $linje.='","';
-		}
-		$linje.='"';
-		$linje.="\r\n";
-		fwrite($fp,$linje);
+		if ($i<2) $linje.='","';
+	}
+	$linje.='"';
+	$linje.="\r\n";
+	fwrite($fp,$linje);
 #	}
 	fclose($fp);
 	print "<tr><td colspan=3 height=200 widht=100%><br></td></tr>\n";
@@ -548,8 +548,8 @@ function udskriv_xml($db_id,$bruger_id,$liste_id){
 	$xmltxt.= "                <Cd>CUST</Cd>\r\n";
 	$xmltxt.= "              </SchmeNm>\r\n";
 	$xmltxt.= "            </Othr>\r\n";
- 	$xmltxt.= "            <Othr>\r\n";
- 	$xmltxt.= "              <Id>PROVISJON</Id>\r\n";
+	$xmltxt.= "            <Othr>\r\n";
+	$xmltxt.= "              <Id>PROVISJON</Id>\r\n";
 	$xmltxt.= "              <SchmeNm>\r\n";
 	$xmltxt.= "                <Cd>BANK</Cd>\r\n";
 	$xmltxt.= "              </SchmeNm>\r\n";
