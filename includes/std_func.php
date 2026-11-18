@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,27 +86,34 @@
 //                     literal "dummyvalue" Shoptech sends for empty address fields (JOB-115)
 // 20260914 CL/NTR barcode(): no horizontal padding in the SVG so the bars span the full 285 px
 //                  (vertical padding kept at 2 px) as we want to control padding in the print.
+// 20260916 SS includes/permissions.php (roles, require_permission, audit_log) loaded here so every page has it.
 // 20260924 Sawaneh SST-757: Added active_fiscal_years() and newest_active_fiscal_year(), the dashboard's fiscal-year lookup.
 //                  Reused by the empty-regnskabsaar fallbacks in online.php, sager/ansatte.php and betweenUpdates.php.
 //                  The not-deleted test is now NULL-safe on every backend, so MySQL no longer drops open years with an empty box10.
 // 20260924 LOE SD-657 hide_revenue(): keep turnover from users without the Indstillinger right.
+// 20260930 SS check_permissions() shared here (was three copies); read access ('2') counts (roles spec §4.4).
+// 20261001 SS update_settings_value() treats NULL and 0 (user, till, group) as the same key, as the unique index on settings does; a concurrent insert of the same key is dropped (ON CONFLICT DO NOTHING).
 // 20261002 CL/NTR Include stdFunc/findTxtUtf8.php (findtekst_utf8()).
+// 20261005 SS stdFunc/pageChrome.php: page_breadcrumb() / page_help() for the shell's breadcrumb and Assist menu.
 // 20261006 CL/NTR Docblocks of ifset()/if_isset(): plain-variable checks should use $var ?? $default (undefined variable still warns).
 // 20261007 NTR Added global function to get_settings_value and update_settings_value.
 // 20261007 MJ SST-830 barcode(): ask the SVG renderer to fill the box the label template
 //                  gives the image, the way the PNG it replaced did. Templates set both
 //                  width and height on $img, where the SVG default keeps its own ~9:1
 //                  proportions, so the code printed about half as tall.
+// 20261008 SS vat_registration() and vat_period_range(): vat.registered / vat.period (settings decision 19).
 // 20261009 CL/NTR barcode(): use ctype_digit() instead of is_numeric() so only a pure
 //                  13-digit string is treated as an EAN-13 candidate (is_numeric also
 //                  accepted decimals, signs and scientific notation).
+// 20261009 SS saldi_setcookie(): SameSite=Lax, Secure on https, HttpOnly unless JS reads it (settings redesign 4e, R11/C25).
+// 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
+//                deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
+// 20261031 CL/ASR update_settings_value(): the text arguments are escaped by the caller again, as on master; master's callers pass db_escape_string()ed values, which the redesign's own escaping escaped a second time.
 // 20261016 CL/MJ SST-876 sync_shop_vare(): a variant now publishes this warehouse's figure as stock and the sum of every warehouse as totalStock, like the non-variant branch and lager/shopStockIncludes/sync.php already did. It used to send whichever single lagerstatus row came back first and no total at all.
 //                The fiscal_year in the stock-keeping lookup is cast, the dead is_integer() shop_id branch is gone, and shopSyncFailed() lets callers tell a real failure from an account with no webshop. shopSyncAlert() carries the one sentence the three user-facing call sites share.
 // 20261022 CL/MJ SST-876 sync_shop_vare() takes a mode: 'stock' sends only the stock calls, which is all a receipt, a sale or a regulation changes, so eight calls per item become three. Every send goes to all three shops in one round, and a parent set is sent once per request rather than once per line that belongs to it. shopSyncMark()/shopSyncFlush() let a document send each item once with its final figure; shopSyncDrainQueue() delivers what an earlier request could not, reading the figures again rather than trusting a queued one; shopSyncFailedItems() and shopSyncAlertFailedItems() carry the item numbers to whichever page has a user to tell after it has committed.
 // 20261023 CDX/MJ SST-876 Batch document lines before sets, bound backlog work, and report only the document items.
 // 20261026 CDX/MJ SST-876 Share parent-set payload construction with queue recovery, including non-stock-managed sets.
-// 20261023 CL/LH MB-94 active_fiscal_years(): a year counts as deleted whenever box10 is set, not only when it is 'on'.
-//                  deleteFiscalYear.php writes a date('U') timestamp there, which the old box10 <> 'on' test let through.
 // 20261027 CDX/MJ SST-876 Skip queue filesystem work without a webshop and defer backlog processing until transactions have committed.
 // 20261027 CDX/MJ SST-876 Defer document sends until the outer transaction completes and send them before old backlog in the post-commit drain.
 // 20261028 CDX/MJ SST-876 Log marker persistence failures and prioritize new updates over exhausted retries.
@@ -118,7 +125,7 @@
 // 20261104 LOE SST-940 Include datotidTilTekst() for the datotid columns the Dagbog and the check sheets format.
 // 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
 //                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
@@ -126,7 +133,9 @@ include(__DIR__ . '/stdFunc/usDecimal.php');
 include(__DIR__ . '/stdFunc/dkAmountValid.php');
 include(__DIR__ . '/stdFunc/dimensionSqlFragment.php');
 include(__DIR__ . '/stdFunc/navStack.php');
+include_once(__DIR__ . '/stdFunc/pageChrome.php');
 include(__DIR__ . '/stdFunc/fefo.php');
+include_once(__DIR__ . '/permissions.php');
 include(__DIR__ . '/stdFunc/shopApiRequest.php');
 include(__DIR__ . '/stdFunc/shopSyncQueue.php');
 require_once(__DIR__ . '/stdFunc/shopSyncDocument.php');
@@ -212,6 +221,8 @@ if (!function_exists('get_relative')) {
         return $relativePath;
     }
 }
+
+include_once(__DIR__ . '/stdFunc/cookie.php');
 
 if (!function_exists('ifset')) {
     function ifset($arrayOrVar, $key = null, $default = null) {
@@ -3535,6 +3546,9 @@ if(!function_exists('get_settings_value')){
 	 */
 	function get_settings_value($var_name, $var_grp, $default, $user=NULL, $kasse=NULL, $global = false) {
 
+		// 20260929 Sawaneh Settings redesign §7.2: keys that are read but not yet in the registry are noted.
+		if (function_exists('settings_registry_note')) settings_registry_note($var_grp, $var_name);
+
 		$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
 
 		if ($user !== NULL) $qtxt = $qtxt." AND user_id=$user";
@@ -3609,6 +3623,10 @@ if (!function_exists('is_input_too_long')) {
 
 if(!function_exists('update_settings_value')){
         function update_settings_value($var_name, $var_grp, $var_value, $var_description, $user=NULL, $posid=NULL, $global = false) {
+                // 20261031 CL/ASR Name, group, value and description go into the SQL as given, as on master: the caller
+                // escapes them (db_escape_string()). User and till ids are cast here.
+                if ($user !== NULL) $user = (int) $user;
+                if ($posid !== NULL) $posid = (int) $posid;
 		/**
 		 * Updates or inserts a settings value in the database.
 		 *
@@ -3625,16 +3643,17 @@ if(!function_exists('update_settings_value')){
 		 * @return void
 		 */
                 # Expect a posted ID
-                $qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
-                if ($user !== NULL)  $qtxt .= " AND user_id=$user";
-				if ($posid !== NULL) $qtxt .= " AND pos_id=$posid";
+                # NULL and 0 (and NULL and '' for the group) are the same key, as in the unique index on settings.
+                $qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND coalesce(var_grp, '') = '$var_grp'";
+                if ($user !== NULL)  $qtxt .= " AND coalesce(user_id, 0)=$user";
+				if ($posid !== NULL) $qtxt .= " AND coalesce(pos_id, 0)=$posid";
                 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, $global));
 				
                 # If the row already exsists
                 if ($r) {
-                        $qtxt = "UPDATE settings SET var_value='$var_value' WHERE var_name='$var_name' AND var_grp = '$var_grp'";
-                        if ($user !== NULL)  $qtxt .= " AND user_id=$user";
-                        if ($posid !== NULL) $qtxt .= " AND pos_id=$posid";
+                        $qtxt = "UPDATE settings SET var_value='$var_value' WHERE var_name='$var_name' AND coalesce(var_grp, '') = '$var_grp'";
+                        if ($user !== NULL)  $qtxt .= " AND coalesce(user_id, 0)=$user";
+                        if ($posid !== NULL) $qtxt .= " AND coalesce(pos_id, 0)=$posid";
                         db_modify($qtxt, __FILE__ . " linje " . __LINE__, $global);
                 # If the row needs to be created in the database
                 } else {
@@ -3646,6 +3665,9 @@ if(!function_exists('update_settings_value')){
                         if ($user !== NULL)  $qtxt .= ", $user";
                         if ($posid !== NULL) $qtxt .= ", $posid";
                         $qtxt = $qtxt.")";
+                        # Two requests saving the same new key at once: the second is dropped instead of failing.
+                        global $db_type;
+                        if ($db_type != 'mysql' && $db_type != 'mysqli') $qtxt .= " ON CONFLICT DO NOTHING";
 
                         db_modify($qtxt, __FILE__ . " linje " . __LINE__, $global);
                 }
@@ -3758,6 +3780,23 @@ if (!function_exists('send_sms')) {
 		}
 
 		curl_close($ch);
+	}
+}
+
+if (!function_exists('check_permissions')) {
+	/**
+	 * True when the user can at least read one of the old rights positions ('1' write, '2' read).
+	 * One shared copy for the menu, the dashboard and the fiscal-year page (roles spec §4.4).
+	 */
+	function check_permissions($permarr)
+	{
+		global $rettigheder;
+		foreach ((array) $permarr as $pos) {
+			if (substr((string) $rettigheder, (int) $pos, 1) >= '1') {
+				return true;
+			}
+		}
+		return false;
 	}
 }
 
@@ -3958,5 +3997,54 @@ if (!function_exists('moms_periode_luk_ensure_schema')) {
 
         return $status;
     }
+}
+
+if (!function_exists('vat_registration')) {
+	/**
+	 * The company's VAT registration (settings vat.registered / vat.period, var_grp 'vat', company scope): registered
+	 * unless set to off; period 'month', 'quarter' or 'halfyear' (quarter by default).
+	 *
+	 * @return array{registered: bool, period: string}
+	 */
+	function vat_registration() {
+		$out = array('registered' => true, 'period' => 'quarter');
+		$q = db_select("select var_name, var_value from settings where var_grp = 'vat' and var_name in ('vat_registered', 'vat_period') and (user_id is null or user_id = 0) order by id", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$v = trim((string) $r['var_value']);
+			if ($r['var_name'] === 'vat_registered') {
+				$out['registered'] = ($v !== 'off');
+			} else {
+				$legacy = array('M' => 'month', 'K' => 'quarter', 'H' => 'halfyear');
+				$v = isset($legacy[$v]) ? $legacy[$v] : $v;
+				if (in_array($v, array('month', 'quarter', 'halfyear'), true)) {
+					$out['period'] = $v;
+				}
+			}
+		}
+		return $out;
+	}
+}
+
+if (!function_exists('vat_period_range')) {
+	/**
+	 * The calendar VAT period holding $date ('Y-m-d'), or with $previous the one before it.
+	 *
+	 * @return array{0: string, 1: string} first and last day
+	 */
+	function vat_period_range($period, $date, $previous = false) {
+		$months = $period === 'month' ? 1 : ($period === 'halfyear' ? 6 : 3);
+		$y = (int) substr($date, 0, 4);
+		$m = (int) substr($date, 5, 2);
+		$start = $m - (($m - 1) % $months);
+		if ($previous) {
+			$start -= $months;
+			if ($start < 1) {
+				$start += 12;
+				$y--;
+			}
+		}
+		$from = sprintf('%04d-%02d-01', $y, $start);
+		return array($from, date('Y-m-t', strtotime($from . ' +' . ($months - 1) . ' months')));
+	}
 }
 ?>

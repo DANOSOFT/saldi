@@ -5,6 +5,7 @@
     $header = "nix";
     $bg = "nix";
     include("../includes/connect.php");
+    $permission_key = 'debitor.konti';
     include("../includes/online.php");
     if(isset($_POST["submit"])){
     $target_dir = "uploads/";
