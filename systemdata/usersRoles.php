@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRoles.php --- lap 5.0.0 --- 2026.09.16 ---
+// ---- systemdata/usersRoles.php --- ver 5.0.0 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260916 Sawaneh "Brugere & roller" (spec R8): user list with search, user card with role,
 //                  role list + matrix editor, bulk role assignment, migration suggestions and
 //                  the audit log. Replaces brugere.php (and brugereRevisor.php). Controller here,
 //                  view in usersRolesIncludes/view.php. Post/Redirect/Get throughout.
+// 20261116 CDX/ASR Preserve built-in role protections with both system and is_built_in database columns.
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -491,7 +492,7 @@ function ur_save_role(array $post): string
 	}
 	$navnSql = db_escape_string($navn);
 	$beskSql = db_escape_string(mb_substr($beskrivelse, 0, 500));
-	$existing = ($id > 0) ? db_fetch_array(db_select("select role_key, navn, beskrivelse, system from roles where id = $id", __FILE__ . " linje " . __LINE__)) : null;
+	$existing = ($id > 0) ? db_fetch_array(db_select("select role_key, navn, beskrivelse, " . perm_role_system_column() . " as system from roles where id = $id", __FILE__ . " linje " . __LINE__)) : null;
 	// The Administrator role always keeps users and roles, so nobody can lock the company out (Adam 2026-10-01).
 	if ($existing && $existing['role_key'] === 'administrator') {
 		foreach (UR_ADMIN_LOCKED as $lockedKey) {
@@ -507,7 +508,7 @@ function ur_save_role(array $post): string
 		$beskSql = db_escape_string((string) $existing['beskrivelse']);
 	}
 	if ($id === 0) {
-		db_modify("insert into roles (role_key, navn, beskrivelse, system) values (null, '$navnSql', '$beskSql', false)", __FILE__ . " linje " . __LINE__);
+		db_modify("insert into roles (role_key, navn, beskrivelse, " . perm_role_system_column() . ") values (null, '$navnSql', '$beskSql', false)", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select id from roles where navn = '$navnSql' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
 		$id = (int) $r['id'];
 		audit_log('role.created', $navn, 'rolle', (string) $id);
@@ -524,7 +525,7 @@ function ur_delete_role(int $id, int $moveTo = 0, int $selfId = 0): string
 	if ($id <= 0) {
 		return 'tab=roles';
 	}
-	$r = db_fetch_array(db_select("select navn, system from roles where id = $id", __FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select navn, " . perm_role_system_column() . " as system from roles where id = $id", __FILE__ . " linje " . __LINE__));
 	if (!$r || $r['system'] === 't' || $r['system'] === true || $r['system'] === '1' || $r['system'] === 1 || !perm_within_own(perm_levels_from_role($id))) {
 		return 'tab=roles';
 	}
@@ -588,7 +589,7 @@ function ur_copy_role(int $id): string
 	$navn = findtekst('5587|Kopi af', (int) $sprog_id) . ' ' . perm_role_name($source, (int) $sprog_id);
 	$navnSql = db_escape_string(mb_substr($navn, 0, 80));
 	$beskSql = db_escape_string($source['beskrivelse']);
-	db_modify("insert into roles (role_key, navn, beskrivelse, system) values (null, '$navnSql', '$beskSql', false)", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into roles (role_key, navn, beskrivelse, " . perm_role_system_column() . ") values (null, '$navnSql', '$beskSql', false)", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array(db_select("select id from roles where navn = '$navnSql' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
 	$newId = (int) $r['id'];
 	perm_save_role_levels($newId, perm_levels_from_role($id));

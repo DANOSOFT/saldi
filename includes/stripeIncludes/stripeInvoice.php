@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeInvoice.php --- 2026.11.09
+// --- includes/stripeIncludes/stripeInvoice.php --- 2026.11.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20261022 CL/LH S5 customer texts: decline codes in Danish, first-name greeting, last-attempt text, pre-charge notice mail for enrolled debtors.
 // 20261022 CDX/LH Match consent to the configured charge date and refuse notices for invoices the job cannot collect.
 // 20261022 CDX/LH Reconcile caller changes before collection, block debtor credits and remove the unavailable Saldi menu hint.
+// 20261118 CDX/ASR Address customer mails to the debtor's company, including existing first-name template placeholders.
 
 include_once(__DIR__ . '/../std_func.php');
 include_once(__DIR__ . '/stripeMailRecipients.php');
@@ -72,6 +73,9 @@ if (is_file(__DIR__ . '/stripeReminder.php')) include_once(__DIR__ . '/stripeRem
 // 20261109 CL/ASR Review fixes: interest is named as interest, never as part of "rykkergebyret" (stripe_reminder_fee_words()); the page note sums every carried fee still to come and tells an enrolled customer too; after a reminder that was not a link reminder the overdue lead no longer promises to avoid one.
 //                 Texts for the earlier classic level's fee in the reminder mail and for the invoice link of a row that cannot be paid by card.
 // 20261111 CL/ASR Review round 2: text mail_rem_row_prior_fee_interest for an earlier level's open item that includes interest.
+// 20261116 CDX/ASR Explain unavailable card links, route amounts below the DKK card minimum to bank transfer, and identify the invoice opened by a multi-invoice reminder.
+// 20261116 CDX/ASR Use the primary invoice recipient for Stripe customer creation while retaining Saldi's full recipient list.
+// 20261116 CDX/ASR Use the supplied dark Saldi logo and matching blue-purple gradient in invoice and reminder mails.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -161,6 +165,9 @@ if (!function_exists('stripe_txt')) {
 			'pay_in_progress'   => 'En betaling er allerede i gang. Vent et øjeblik, og opdater siden.',
 			'pay_not_due'       => 'Beløbet trækkes automatisk på forfaldsdatoen. Indtil da kan du ikke betale med det gemte kort.',
 			'pay_start_failed'  => 'Betalingen kunne ikke startes. Prøv igen om lidt.',
+			'pay_card_unavailable' => 'Den gemte korttilknytning kan ikke bruges. Kontakt os for at få den rettet, eller betal via bankoverførsel.',
+			'pay_amount_too_small' => 'Kortbetaling kræver mindst 2,50 kr. Betal denne faktura via bankoverførsel.',
+			'h_below_minimum'   => 'Betal via bankoverførsel',
 			'pay_failed'        => 'Betalingen kunne ikke gennemføres. Prøv igen.',
 			'network_error'     => 'Noget gik galt. Tjek din internetforbindelse, og prøv igen.',
 			'bad_request'       => 'Siden er ikke længere gyldig. Genindlæs siden, og prøv igen.',
@@ -194,7 +201,7 @@ if (!function_exists('stripe_txt')) {
 			'alert_declines_subject'  => 'Stripe: automatisk træk afvist 3 gange - faktura %nr',
 			'alert_declines_body'     => "Kunde: %kunde (konto %konto)\nFaktura: %nr\nSidste fejl fra Stripe: %code\nDer trækkes ikke automatisk igen. Fakturaen følger den almindelige rykkervej.",
 			// mails
-			'mail_greeting'     => 'Hej %fornavn,',
+			'mail_greeting'     => 'Hej %firmanavn,',
 			'mail_greeting_anon'=> 'Hej,',
 			'mail_label_invoice'=> 'Faktura %nr',
 			'mail_h_new'        => 'Din faktura er klar',
@@ -241,7 +248,8 @@ if (!function_exists('stripe_txt')) {
 			'mail_h_rem'                => 'Vi mangler din betaling',
 			'mail_h_rem_again'          => 'Vi mangler stadig din betaling',
 			'mail_body_rem'             => 'Vi har endnu ikke modtaget betalingen af faktura %nr, som forfaldt den %date. Måske er den bare gledet forbi – du kan betale den med kort lige her.',
-			'mail_body_rem_multi'       => 'Vi har endnu ikke modtaget betalingen af disse fakturaer. Du kan betale dem med kort lige her – start med den ældste.',
+			'mail_body_rem_multi'       => 'Vi har endnu ikke modtaget betalingen af disse fakturaer. Fakturaerne betales én ad gangen via deres egne links nedenfor.',
+			'mail_rem_button_invoice'   => 'Den store knap åbner faktura %nr på %amount. Brug linkene ud for de øvrige fakturaer til at betale resten.',
 			'mail_body_rem_bank'        => 'Vi har endnu ikke modtaget betalingen af faktura %nr, som forfaldt den %date. Måske er den bare gledet forbi – du kan betale den med bankoverførsel.',
 			'mail_body_rem_bank_multi'  => 'Vi har endnu ikke modtaget betalingen af disse fakturaer. Du kan betale dem med bankoverførsel.',
 			'mail_body_rem_failed'      => 'Vi har forsøgt at trække betalingen af faktura %nr på dit gemte kort, men det lykkedes ikke. Betal den nu med et andet kort – så gemmer vi også det nye kort til dine næste fakturaer.',
@@ -270,6 +278,9 @@ if (!function_exists('stripe_txt')) {
 			'mail_btn_rem_failed'       => 'Opdater kort og betal',
 			'mail_btn_rem_action'       => 'Godkend betalingen',
 			'mail_btn_rem_view'         => 'Se fakturaen',
+			'mail_btn_rem_invoice'      => 'Betal faktura %nr · %amount',
+			'mail_btn_rem_invoice_action' => 'Godkend faktura %nr · %amount',
+			'mail_btn_rem_invoice_view' => 'Se faktura %nr',
 			'mail_rem_bank_box'         => 'Reg. %reg · konto %konto · reference %nr',
 			'mail_rem_bank_box_multi'   => 'Reg. %reg · konto %konto · fakturanummeret som reference',
 			'mail_rem_note_once'        => 'Vil du kun betale denne faktura, kan du vælge det på siden.',
@@ -277,7 +288,6 @@ if (!function_exists('stripe_txt')) {
 			'mail_rem_note_end'         => 'Har du betalt inden for de seneste dage, kan du se bort fra denne rykker. Rykkeren er vedhæftet som PDF.',
 			'mail_rem_note_contact'     => 'Spørgsmål? Skriv til %email.',
 			'mail_rem_note_contact_plain' => 'Spørgsmål? Kontakt os.',
-			'mail_rem_note_multi'       => 'Når automatisk betaling er slået til, betaler du de øvrige fakturaer med ét klik med dit gemte kort.',
 			// 20261109 CL/ASR payment page after a reminder (api/stripe/faktura.php)
 			'lead_reminded'             => 'Vi sendte dig en rykker den %date. Betal fakturaen nu, så undgår du flere rykkere.',
 			'lead_reminded_classic'     => 'Vi har sendt dig en rykker. Betal fakturaen nu, så undgår du flere rykkere.',
@@ -320,10 +330,10 @@ if (!function_exists('stripe_decline_text')) {
 		$code = strtolower(trim((string)$code));
 		return stripe_txt('decline_' . (isset($map[$code]) ? $map[$code] : 'generic'));
 	}
-	/** @return string "Hej Anna," from the contact person's first name, otherwise "Hej,". */
+	/** @return string Greeting using the recipient company's full name, or plain "Hej," when missing. */
 	function stripe_mail_greeting($inv) {
-		$name = trim((string)($inv['fornavn'] ?? ''));
-		return $name !== '' ? stripe_txt('mail_greeting', array('fornavn' => $name)) : stripe_txt('mail_greeting_anon');
+		$name = trim((string)($inv['recipient_company'] ?? ''));
+		return $name !== '' ? stripe_txt('mail_greeting', array('firmanavn' => $name)) : stripe_txt('mail_greeting_anon');
 	}
 	/** @return string "kontakt os på <invoicing company's e-mail>", or "kontakt os" without one. */
 	function stripe_contact_phrase($inv) {
@@ -540,7 +550,7 @@ if (!function_exists('stripe_invoice_load')) {
 	 *   total_ore: int, due: string, currency: string,
 	 *   lines: array<int, array{varenr: string, tekst: string, antal: float, pris: float, rabat: float, sum: float, is_text: bool}>,
 	 *   firma: array<string, mixed>, brand: string, debtor: array<string, mixed>,
-	 *   email: string, fornavn: string, no_card: bool, enrolled: bool, recurring: bool,
+	 *   email: string, recipient_company: string, no_card: bool, enrolled: bool, recurring: bool,
 	 *   paid: array|null, pending: array|null, failed: array|null, payments: array,
 	 *   paid_bank: bool, open_count: int, open_rest_ore: int, fully_open: bool,
 	 *   reminder: array{rykker_id: int, level: int, mailed_at: string, fee_ore: int, interest_ore: int, fee_mode: string, status: string}|null,
@@ -573,10 +583,8 @@ if (!function_exists('stripe_invoice_load')) {
 		if (stripos($inv['brand'], 'saldi') !== false || stripos($inv['brand'], 'danosoft') !== false) $inv['brand'] = 'Saldi';
 		$inv['debtor'] = (int)$o['konto_id'] ? (db_fetch_array(stripe_payment_select("select id, kontonr, firmanavn, kontakt, email, stripe_fravalg, stripe, stripe_customer_id, stripe_pm_id, stripe_date, pbs_nr, udskriv_til from adresser where id = " . (int)$o['konto_id'], __FILE__ . " linje " . __LINE__)) ?: array()) : array();
 		$inv['email'] = trim((string)$o['email']) ?: trim((string)($inv['debtor']['email'] ?? ''));
-		// Greet the contact person by first name; a contact field holding the company name is not a person.
-		$kontakt = trim((string)$o['kontakt']) ?: trim((string)($inv['debtor']['kontakt'] ?? ''));
-		if (strcasecmp($kontakt, trim((string)$o['firmanavn'])) === 0) $kontakt = '';
-		$inv['fornavn'] = trim((string)explode(' ', $kontakt)[0]);
+		// The debtor's current company receives the mail; contact names may be out of date.
+		$inv['recipient_company'] = trim((string)($inv['debtor']['firmanavn'] ?? '')) ?: trim((string)$o['firmanavn']);
 		$inv['no_card'] = stripe_bool($inv['debtor']['stripe_fravalg'] ?? '') || (($inv['debtor']['stripe_fravalg'] ?? '') === 'on');
 		$inv['enrolled'] = (($inv['debtor']['stripe'] ?? '') === 'on') && !empty($inv['debtor']['stripe_pm_id']);
 		$inv['recurring'] = trim((string)$o['nextfakt']) !== '' && $o['art'] === 'DO' && !$inv['enrolled'];
@@ -635,6 +643,7 @@ if (!function_exists('stripe_invoice_load')) {
 		}
 		if (!stripe_invoice_collectable($inv) || empty($inv['fully_open'])) return 'manual';
 		if ($inv['no_card'] || !stripe_feature_on('invoice_payments') || stripe_setting('enabled', 'off') !== 'on') return 'nocard';
+		if (stripe_invoice_below_card_minimum($inv)) return 'below_minimum';
 		if ($inv['failed']) return 'failed';
 		if (stripe_feature_on('enrolment') && $inv['enrolled'] && trim((string)$inv['o']['udskriv_til']) === 'Stripe') return 'enrolled'; // only Stripe invoices are charged by the job
 		if ($inv['due'] && $inv['due'] < ($today ?? stripe_today())) return 'overdue';
@@ -651,6 +660,16 @@ if (!function_exists('stripe_invoice_load')) {
 		$state = stripe_invoice_state($inv);
 		return stripe_setting('enabled', 'off') === 'on' && stripe_feature_on('invoice_payments')
 			&& in_array($state, array('open', 'open_recurring', 'overdue', 'failed', 'enrolled'));
+	}
+	/**
+	 * This invoice integration collects DKK only; Stripe's DKK minimum is 2.50 kr.
+	 * https://docs.stripe.com/currencies#minimum-and-maximum-charge-amounts
+	 *
+	 * @param array $inv Loaded invoice.
+	 * @return bool Whether its positive amount is too small for a new card payment.
+	 */
+	function stripe_invoice_below_card_minimum($inv) {
+		return $inv['currency'] === 'DKK' && $inv['total_ore'] > 0 && $inv['total_ore'] < 250;
 	}
 	/** @return bool Saved-card payment may start only on or after the invoice due date. */
 	function stripe_invoice_pay_now_allowed($inv, $today = null) {
@@ -800,6 +819,12 @@ if (!function_exists('stripe_invoice_overdue_lead')) {
 
 // ---------------------------------------------------------------- Stripe customer for a debtor
 if (!function_exists('stripe_customer_for_debtor')) {
+	/**
+	 * Resolve the debtor's Stripe customer, using the invoice's primary recipient when creating one.
+	 *
+	 * @param array{debtor: array<string, mixed>, email: string} $inv Loaded invoice.
+	 * @return string Customer id, or an empty string when creation fails.
+	 */
 	function stripe_customer_for_debtor($inv) {
 		global $db;
 		$d = $inv['debtor'];
@@ -809,8 +834,9 @@ if (!function_exists('stripe_customer_for_debtor')) {
 		$r = db_fetch_array(stripe_payment_select("select stripe_customer_id from stripe_customers where konto_id = " . (int)$d['id'] . " order by $customerOrder limit 1"));
 		$cus = $r ? (string)$r['stripe_customer_id'] : '';
 		if ($cus === '') {
+			$recipients = stripe_mail_recipients($inv['email']);
 			$resp = stripeHttpRequest('POST', '/v1/customers', array(
-				'name' => (string)$d['firmanavn'], 'email' => $inv['email'],
+				'name' => (string)$d['firmanavn'], 'email' => $recipients ? $recipients[0] : $inv['email'],
 				'metadata' => array('saldi_konto_id' => (int)$d['id'], 'saldi_kontonr' => (string)$d['kontonr'], 'saldi_db' => (string)$db)),
 				array('idempotency_key' => 'cus:' . $db . ':' . (int)$d['id']));
 			if (!$resp['ok']) { stripe_log('customer create failed: ' . $resp['error']); return ''; }
@@ -828,7 +854,7 @@ if (!function_exists('stripe_payment_create')) {
 	 * Serialize collection per invoice across page, manual, auto and backup callers.
 	 * Re-read invoice/open items under the lock; never trust a caller's stale page state.
 	 *
-	 * @return array{ok: bool, error?: string, state?: string, client_secret?: string, pi?: string, status?: string, error_code?: string}
+	 * @return array{ok: bool, error?: string, state?: string, client_secret?: string, pi?: string, status?: string, error_code?: string, error_param?: string}
 	 */
 	function stripe_payment_create($inv, $source = 'page', $saveCard = false, $confirmPm = '') {
 		$ordreId = (int)$inv['id'];
@@ -838,6 +864,7 @@ if (!function_exists('stripe_payment_create')) {
 			$locked = true;
 			$inv = stripe_invoice_load($ordreId);
 			if (!$inv || !stripe_invoice_collectable($inv)) return array('ok' => false, 'error' => 'not_collectable');
+			if ($inv['state'] === 'below_minimum') return array('ok' => false, 'error' => 'amount_too_small');
 			if (!stripe_feature_on('enrolment') && ($confirmPm !== '' || in_array($source, array('auto', 'backup', 'manual'), true))) {
 				return array('ok' => false, 'error' => 'enrolment_disabled');
 			}
@@ -863,12 +890,36 @@ if (!function_exists('stripe_payment_create')) {
 	/**
 	 * Create one reconciled attempt; called only while holding the invoice lock.
 	 *
-	 * @return array{ok: bool, client_secret?: string, pi?: string, status?: string, error?: string, error_code?: string}
+	 * @return array{ok: bool, client_secret?: string, pi?: string, status?: string, error?: string, error_code?: string, error_param?: string}
 	 */
 	function stripe_payment_create_attempt($inv, $source, $saveCard, $confirmPm) {
 		$saveCard = $saveCard && stripe_invoice_save_allowed($inv);
 		$request = stripe_attempt_prepare($inv, $source, $saveCard, $confirmPm);
 		return stripe_attempt_send($inv, $request);
+	}
+	/**
+	 * Explain a failed payment start without exposing provider details or changing a card agreement.
+	 *
+	 * @param array $result Failed collection or resume result.
+	 * @return array{status: int, code: string, message: string} Public HTTP error response.
+	 */
+	function stripe_payment_failure_response(array $result): array {
+		$reason = (string)($result['error'] ?? '');
+		$code = (string)($result['error_code'] ?? $reason);
+		if (in_array($reason, array('not_payable', 'not_collectable', 'already_paid', 'in_progress'), true)) {
+			$key = $reason === 'in_progress' ? 'pay_in_progress' : ($reason === 'already_paid' ? 'already_paid' : 'lead_manual');
+			return array('status' => 409, 'code' => $reason, 'message' => stripe_txt($key));
+		}
+		if (($result['kind'] ?? '') === 'decline') {
+			return array('status' => 402, 'code' => 'declined', 'message' => stripe_decline_text($reason));
+		}
+		if ($code === 'amount_too_small') {
+			return array('status' => 409, 'code' => $code, 'message' => stripe_txt('pay_amount_too_small'));
+		}
+		if ($code === 'resource_missing' && in_array(($result['error_param'] ?? ''), array('customer', 'payment_method'), true)) {
+			return array('status' => 409, 'code' => 'card_unavailable', 'message' => stripe_txt('pay_card_unavailable'));
+		}
+		return array('status' => 502, 'code' => $code ?: 'stripe', 'message' => stripe_txt('pay_start_failed'));
 	}
 	function stripe_payment_record($inv, $pi, $source, $saveCard, $attempt) {
 		$piId = db_escape_string((string)$pi['id']);
@@ -1099,7 +1150,7 @@ if (!function_exists('stripe_mail_layout')) {
 		// 20261025 CL/ASR Saldi's own invoices show the Saldi logo (public image, alt text when images are blocked)
 		$base = rtrim((string)stripe_setting('public_base_url'), '/');
 		$brandHtml = ($inv['brand'] === 'Saldi' && $base !== '')
-			? '<img src="' . stripe_h($base . '/img/SaldiMainLogo.png') . '" width="128" alt="Saldi" style="display:block;width:128px;height:auto;border:0">'
+			? '<img src="' . stripe_h($base . '/img/saldi-moerk-logo-lys-baggrund.png') . '" width="128" alt="Saldi" style="display:block;width:128px;height:auto;border:0">'
 			: stripe_h($inv['brand']);
 		$h .= '<div style="font-size:26px;font-weight:700;letter-spacing:-.02em;margin-bottom:32px">' . $brandHtml . '</div>';
 		$h .= '<div style="font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#9a5b1a;margin-bottom:12px">' . stripe_h($label) . '</div>';
@@ -1115,7 +1166,7 @@ if (!function_exists('stripe_mail_layout')) {
 			$h .= '</table>';
 		}
 		if ($listHtml !== '') $h .= $listHtml;
-		if ($btnText && $btnUrl) $h .= '<a href="' . stripe_h($btnUrl) . '" style="display:block;text-align:center;color:#fff;text-decoration:none;font-weight:700;font-size:18px;padding:18px;border-radius:12px;background:#1b68bd;background-image:linear-gradient(90deg,#1b68bd,#8b33d4)">' . stripe_h($btnText) . '</a>';
+		if ($btnText && $btnUrl) $h .= '<a href="' . stripe_h($btnUrl) . '" style="display:block;text-align:center;color:#fff;text-decoration:none;font-weight:700;font-size:18px;padding:18px;border-radius:12px;background:#183d78;background-image:linear-gradient(90deg,#183d78,#29295c 50%,#4c1d86)">' . stripe_h($btnText) . '</a>';
 		if ($btn2Text && $btn2Url) $h .= '<a href="' . stripe_h($btn2Url) . '" style="display:block;text-align:center;color:#111318;text-decoration:none;font-weight:600;font-size:16px;padding:14px;border-radius:12px;border:1px solid #e6e2da;margin-top:12px">' . stripe_h($btn2Text) . '</a>';
 		if ($noteHtml) $h .= '<p style="margin:26px 0 0;color:#4b5563;font-size:15px">' . $noteHtml . '</p>';
 		$h .= '</div><p style="max-width:600px;margin:24px auto 0;color:#6b7280;font-size:13px">' . $footer . '</p></body></html>';
@@ -1150,14 +1201,18 @@ if (!function_exists('stripe_mail_layout')) {
 		$body = stripe_invoice_link_text();
 		if ($body === '') {
 			$body = stripe_mail_greeting($inv) . "\n\n" . stripe_txt('mail_body_new') . (!$inv['enrolled'] && stripe_invoice_save_allowed($inv) ? stripe_txt('mail_body_new_rec') : '');   // 20261027 CL/ASR every invoice offers automatic payment
-		} elseif ($inv['fornavn'] !== '') {
-			$body = str_replace(array('[Fornavn]', '[fornavn]', '$fornavn'), $inv['fornavn'], $body);
 		} else {
-			// "Hej [Fornavn], ..." becomes "Hej, ..." without a contact name.
-			$body = preg_replace('/\s*(\[Fornavn\]|\[fornavn\]|\$fornavn)/', '', $body);
+			// Existing first-name placeholders also resolve to the company, without rewriting saved templates.
+			$tokens = array('[Virksomhedsnavn]', '[virksomhedsnavn]', '[Firmanavn]', '[firmanavn]', '$firmanavn', '[Fornavn]', '[fornavn]', '$fornavn');
+			if ($inv['recipient_company'] !== '') {
+				$body = str_replace($tokens, $inv['recipient_company'], $body);
+			} else {
+				$pattern = implode('|', array_map(function ($token) { return preg_quote($token, '/'); }, $tokens));
+				$body = preg_replace('/\s*(' . $pattern . ')/', '', $body);
+			}
 		}
 		$rows = array(array(stripe_txt('amount_lbl'), stripe_fmt_kr($inv['total_ore']) . ' kr.'), array(stripe_txt('due_date'), stripe_fmt_date($inv['due'])));
-		$note = stripe_txt('mail_note_new', array('url' => '<a href="' . stripe_h($url) . '" style="color:#1b68bd">' . stripe_h($url) . '</a>'));
+		$note = stripe_txt('mail_note_new', array('url' => '<a href="' . stripe_h($url) . '" style="color:#183d78">' . stripe_h($url) . '</a>'));
 		$html = stripe_mail_layout($inv, stripe_txt('mail_label_invoice', array('nr' => $inv['nr'])), $h1, $body, null, $rows, stripe_txt('mail_btn_new'), $url, '', '', $note);
 		$text = stripe_mail_text_version($h1, $body, $rows, stripe_txt('mail_btn_new'), $url, strip_tags(stripe_txt('mail_note_new', array('url' => $url))));
 		$ok = stripe_mail_send($inv['email'], stripe_txt('mail_subj_new', array('nr' => $inv['nr'], 'brand' => $inv['brand'])), $html, $text);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/stripe_invoice_pdf.php --- 2026.10.22
+// --- tools/stripe_invoice_pdf.php --- 2026.11.17
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,9 @@
 // path on success. Exit code 0 = ok, 1 = usage, 2 = render failed.
 // 20261022 CDX/LH Use Europe/Copenhagen consistently for invoice and rendering dates.
 // 20261022 CDX/LH Render under one invoice lock in a private disposable workspace and publish the opaque PDF atomically.
+// 20261117 CDX/ASR Discover the installed pdftk when the ledger has no explicit tool setting, preserving invoice logos.
+// 20261117 CDX/ASR Read installation PDF tool settings before switching from the master database to the ledger.
+// 20261117 CDX/ASR Withdraw the invoice-logo rendering change and restore the previous behavior.
 
 date_default_timezone_set('Europe/Copenhagen');
 

@@ -1,5 +1,5 @@
 <?php
-// --------includes/openpost.php ----- ver 5.0.0 ---- 2026.11.09 ---------------------------
+// --------includes/openpost.php ----- ver 5.0.0 ---- 2026.11.16 ---------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,6 +27,8 @@
 //                 bogfor_nu() no longer ends a query with ';', which injecttjek() took for SQL injection, so "Ryk alle" could not post a reminder.
 //                 bogfor_rykker() selects pris and bogfor_nu() initialises $afd (PHP warnings).
 // 20261109 CL/ASR Review fixes: bogfor_rykker() refreshes a carried fee from the reminder's lines before it moves it to "Bogførte rykkere", and posts nothing for a reminder dated outside the active fiscal year (as includes/rapportfunc.php).
+// 20261116 CDX/ASR Include the rendered ledger in report forms to prevent cross-company reminder creation.
+
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $art) {
 	?>
 	<script LANGUAGE="JavaScript">
@@ -205,6 +207,7 @@ function saldiToggleRykker(sectionId, frameId, url) {
 			if ($taeller==3) $betalt="and betalt = 'on'";
 			else $betalt="and betalt != 'on'";
 			print "<form name=$formnavn action=rapport.php method=post>";
+			print "<input type='hidden' name='thisDb' value='" . htmlspecialchars((string)($GLOBALS['db'] ?? ''), ENT_QUOTES, 'UTF-8') . "'>";
 
 			if (is_numeric($konto_fra) && is_numeric($konto_til)) {
 				$tekst = "select * from ordrer where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art LIKE 'R%' $betalt and status $status order by ".nr_cast('kontonr')."";
@@ -400,6 +403,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 
 	#$regnslut = "2005-05-04";
 	print "<form name=aabenpost action=rapport.php method=post>";
+	print "<input type='hidden' name='thisDb' value='" . htmlspecialchars((string)($GLOBALS['db'] ?? ''), ENT_QUOTES, 'UTF-8') . "'>";
 	print "<tr><td colspan=10><hr></td></tr>\n";
 
 	$x=0;

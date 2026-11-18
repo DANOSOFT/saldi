@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reminderLegal.php --- ver 5.0.0 --- 2026.11.09 ---
+// --- includes/reminderLegal.php --- ver 5.0.0 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,20 @@
 //                 Also the shared reading of a reminder's lines: its fee/interest lines (GEBYR items of formular level+5) and the newest invoice it reminds of.
 // 20261109 CL/ASR Review fixes: a fee item that is also the interest item counts only its last line as fee (the others are interest); the fee of an earlier level of the same chain is recognised (reminder_prior_fee_level()); which reminded invoices are paid (reminder_invoice_payment()); the active fiscal year (reminder_in_active_year()).
 //                 reminder_txt() returns its Danish fallback in the database's encoding, like findtekst().
+
+// 20261116 CDX/ASR Bind reminder creation to the report's ledger, including popup requests.
+
+/**
+ * Whether the report and the current session refer to the same ledger.
+ * Missing context is refused so a stale report cannot create reminders in another company.
+ *
+ * @param mixed $requested Ledger carried by the report form or popup URL.
+ * @param string $current Authenticated session ledger.
+ * @return bool
+ */
+function reminder_request_ledger_matches($requested, string $current): bool {
+	return is_string($requested) && $requested !== '' && $current !== '' && hash_equals($current, $requested);
+}
 
 /**
  * Staff text through findtekst() with the Danish wording as fallback, so a text that is not in tekster.csv

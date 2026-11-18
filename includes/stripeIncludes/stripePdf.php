@@ -1,6 +1,7 @@
 <?php
 // 20261022 CDX/LH Private invoice artifacts, isolated renderer workspaces and atomic cache publication.
 // 20261025 CL/ASR Page images of the invoice PDF for the payment page (stripe_invoice_page_images).
+// 20261117 CDX/ASR Resolve the installed PDF background tool when an old ledger has no pdftk setting.
 
 require_once __DIR__ . '/stripeSettings.php';
 
@@ -214,6 +215,27 @@ function stripe_invoice_pdf_php() {
 		if ($dir !== '' && substr($dir, 0, 1) === '/' && is_file($dir . '/php') && is_executable($dir . '/php')) return $dir . '/php';
 	}
 	return '';
+}
+
+/**
+ * Resolve the background compositor. An explicit administrator setting takes precedence; old ledgers may have none.
+ * @param array<int, string>|null $candidates Absolute fallback paths, injectable for tests.
+ * @return string Configured command or an installed executable; empty when unavailable.
+ */
+function stripe_invoice_pdf_pdftk($candidates = null) {
+    $row = db_fetch_array(db_select("select var_value from settings where var_name = 'pdftk' order by id limit 1", __FILE__ . ' line ' . __LINE__));
+    $configured = trim((string)($row['var_value'] ?? ''));
+    if ($configured !== '') return $configured;
+    if ($candidates === null) {
+        $candidates = array('/usr/bin/pdftk', '/usr/local/bin/pdftk');
+        foreach (explode(PATH_SEPARATOR, (string)getenv('PATH')) as $dir) {
+            if ($dir !== '' && substr($dir, 0, 1) === '/') $candidates[] = rtrim($dir, '/') . '/pdftk';
+        }
+    }
+    foreach ($candidates as $candidate) {
+        if (substr((string)$candidate, 0, 1) === '/' && is_file($candidate) && is_executable($candidate)) return $candidate;
+    }
+    return '';
 }
 
 /** @return string Cached or freshly rendered private PDF; empty on failure. */

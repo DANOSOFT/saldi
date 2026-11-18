@@ -4,6 +4,7 @@
 // 20261027 CL/ASR Automatic payment is offered on every customer invoice, not only on recurring ones: the consent covers
 //                 the customer's next invoices, and a one-off invoice (e.g. the one carrying the manual-payment fee) must
 //                 let the customer turn it on and avoid the fee.
+// 20261116 CDX/ASR Preserve Stripe's missing-resource parameter so the payment page can explain an unusable customer or card.
 
 /** @return string Copenhagen calendar date, with an explicit process clock for CLI/tests. */
 function stripe_today() {
@@ -181,7 +182,7 @@ function stripe_attempt_record($inv, $request, $pi) {
  * Execute/recover a reservation. Never re-POST an ambiguous create after Stripe may prune its key.
  * Technical responses retain the same reservation; terminal cancellation gets a new reservation.
  *
- * @return array{ok: bool, status?: string, pi?: string, client_secret?: string, setup_future_usage?: string|null, error?: string, error_code?: string, kind?: string}
+ * @return array{ok: bool, status?: string, pi?: string, client_secret?: string, setup_future_usage?: string|null, error?: string, error_code?: string, error_param?: string, kind?: string}
  */
 function stripe_attempt_send($inv, $request) {
 	$params = json_decode($request['params'], true);
@@ -207,7 +208,8 @@ function stripe_attempt_send($inv, $request) {
 			$http = (int)($response['status'] ?? 0);
 			$retryStatus = $http === 429 ? 'retryable' : (($http === 0 || ($http >= 500 && $http < 600)) ? 'technical' : 'rejected');
 			stripe_payment_modify("update stripe_collection_attempts set status = '$retryStatus' where id = $id");
-			return array('ok' => false, 'error' => $response['error'] ?: 'stripe', 'error_code' => $response['error_code'] ?? '', 'kind' => 'technical');
+			return array('ok' => false, 'error' => $response['error'] ?: 'stripe', 'error_code' => $response['error_code'] ?? '',
+				'error_param' => (string)($response['body']['error']['param'] ?? ''), 'kind' => 'technical');
 		}
 	}
 	if (!is_array($pi) || empty($pi['id'])) throw new RuntimeException('Stripe response lacks intent');

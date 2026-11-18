@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- ver 5.0.0 --- 2026-11-09 ---
+// --- includes/rapportfunc.php --- ver 5.0.0 --- 2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -97,6 +97,7 @@
 //                 bogfor_nu() writes projekt '' on the fee open item (NULL never matched a payment in finans/bogfor.php).
 // 20261109 CL/ASR Review fixes: bogfor_rykker() refreshes a carried fee from the reminder's lines before it moves it to "Bogførte rykkere"; the link reminder marker is escaped in the page's charset.
 //                 bogfor_rykker() selects pris and bogfor_nu() initialises $afd and no longer reads an unset $refnr (PHP warnings), as includes/openpost.php.
+// 20261116 CDX/ASR Include the rendered ledger in report forms to prevent cross-company reminder creation.
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
@@ -329,6 +330,7 @@ a:link{text-decoration:none;}</style>\n";
 					if ($taeller == 4) $betalt = "and betalt = 'on'";
 					else $betalt = "and betalt != 'on'";
 					print "<form name=$formnavn action=rapport.php method=post>";
+					print "<input type='hidden' name='thisDb' value='" . htmlspecialchars((string)($GLOBALS['db'] ?? ''), ENT_QUOTES, 'UTF-8') . "'>";
 
 					if (is_numeric($konto_fra) && is_numeric($konto_til)) {
 						$qtxt = "select * from ordrer where " . nr_cast('kontonr') . ">='$konto_fra' and " . nr_cast('kontonr') . "<='$konto_til' and art LIKE 'R%' $betalt $inkasso and status $status order by " . nr_cast('kontonr') . "";
