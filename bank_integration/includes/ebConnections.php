@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebConnections.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- bank_integration/includes/ebConnections.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,8 @@
 // 20261117 CL/LH A consent that cannot be stored is closed at the bank again; overlap hints use the accounting date (date_override first).
 //                Messages through findtekst() (bank.* keys).
 // 20261117 CL/LH The bank session's encryption and the old-connection lookup run inside the cleanup try, so a missing key file also closes the consent at the bank (Saul's review).
+// 20261118 CL/LH Renewal no longer closes the replaced consent at the bank: in Enable Banking's Nordea sandbox that also broke the new consent (every fetch ASPSP_ERROR). The old consent runs out by itself.
+// 20261118 CL/LH Disconnecting an account (Afbryd, or left out of a renewal) clears its old fetch error, which promised an automatic retry.
 
 require_once __DIR__ . '/ebSync.php';
 
@@ -119,7 +121,6 @@ function ebCompleteAuthorization(EnableBankingClient $c, array $stateRow, string
     $stored = false;
     try {
         $encrypted = oauthEncrypt($session['session_id']);
-        $old = $stateRow['connection_id'] ? ebRow('SELECT * FROM bank_connections WHERE id=' . (int)$stateRow['connection_id']) : null;
         $newId = ebNamedLock('connections', function () use ($stateRow, $session, $encrypted, $username, &$stored): int {
             $id = ebAtomic(function () use ($stateRow, $session, $encrypted, $username): int {
                 $id = ebInsert('bank_connections', ['provider' => 'enablebanking', 'environment' => $stateRow['environment'],
@@ -228,7 +229,7 @@ function ebCompleteAuthorization(EnableBankingClient $c, array $stateRow, string
                     $oldId = (int)$stateRow['connection_id'];
                     ebUpdate('bank_connections', $oldId, ['status' => 'replaced', 'updated_at' => ebNow()]);
                     // Accounts absent from the renewed consent can no longer fetch on the replaced session.
-                    ebWrite("UPDATE bank_accounts SET state='disconnected', next_fetch_at=NULL, lease_owner=NULL, lease_until=NULL WHERE connection_id=" . $oldId);
+                    ebWrite("UPDATE bank_accounts SET state='disconnected', next_fetch_at=NULL, lease_owner=NULL, lease_until=NULL, last_error_code=NULL, last_error=NULL WHERE connection_id=" . $oldId);
                     ebWrite('UPDATE bank_account_sessions SET active=0 WHERE connection_id=' . $oldId);
                 }
                 ebAudit($username, $stateRow['purpose'] === 'reconnect' ? 'reconnected' : 'connected', null, $id);
@@ -249,9 +250,9 @@ function ebCompleteAuthorization(EnableBankingClient $c, array $stateRow, string
         }
         throw $e;
     }
-    if ($old) {
-        ebCloseProviderSession($old, $c);
-    }
+    // A renewal leaves the replaced consent open at the bank until it runs out. Closing it (DELETE /sessions)
+    // also broke the new consent in Enable Banking's Nordea sandbox: the session stayed AUTHORIZED, but
+    // every fetch answered ASPSP_ERROR. Afbryd (ebDisconnect) still closes the current consent.
     return $newId;
 }
 
@@ -301,7 +302,8 @@ function ebDisconnect(int $connectionId, string $username, ?EnableBankingClient 
         }
         ebUpdate('bank_connections', $connectionId, ['status' => 'disconnected', 'disconnected_at' => ebNow(),
             'disconnected_by' => $username, 'updated_at' => ebNow()]);
-        ebWrite("UPDATE bank_accounts SET state='disconnected', next_fetch_at=NULL, lease_owner=NULL, lease_until=NULL WHERE connection_id=" . (int)$connectionId);
+        // A disconnected account no longer fetches, so an old fetch error ("Saldi prøver igen automatisk") would mislead.
+        ebWrite("UPDATE bank_accounts SET state='disconnected', next_fetch_at=NULL, lease_owner=NULL, lease_until=NULL, last_error_code=NULL, last_error=NULL WHERE connection_id=" . (int)$connectionId);
         ebWrite('UPDATE bank_account_sessions SET active=0 WHERE connection_id=' . (int)$connectionId);
         ebAudit($username, 'disconnected', null, $connectionId);
         return $row;
