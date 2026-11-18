@@ -12,6 +12,7 @@
 // 20260904 CL/NTR created.
 // 20260928 CL/NTR Account names come from RestApiEnv::accountOpen()/accountClosed()
 //                 (per-process suffix) instead of the removed constants.
+// 20261111 CDX/NTR Give each REST class its own fresh database.
 
 use PHPUnit\Framework\TestCase;
 
@@ -28,7 +29,7 @@ final class AuthRefreshEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     public static function tearDownAfterClass(): void

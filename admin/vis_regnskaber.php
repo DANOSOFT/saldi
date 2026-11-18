@@ -1,8 +1,5 @@
 <?php
-@session_start();
-$s_id=session_id();
-
-// --- admin/vis_regnskaber.php --- ver 5.0.0 --- 2026.09.28 ---
+// --- admin/vis_regnskaber.php --- ver 5.1.1 --- 2026.11.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +33,16 @@ $s_id=session_id();
 //                  sorting by it was a fatal error. It now comes from license_features (feature_key
 //                  'booking', see license_manager.php) via a left join, and the sort/sort2 params are
 //                  whitelisted before they reach ORDER BY.
+// 20261113 CDX/NTR Format last activity safely in normal and edit views when registry rows contain date strings.
+// 20261117 CDX/NTR Show the Admin Panel link only to master users with admin rights.
+
+/**
+ * Injected by ../includes/online.php, included below:
+ * @var string $brugernavn_raw
+ */
+
+@session_start();
+$s_id=session_id();
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -43,6 +50,8 @@ $title="vis regnskaber";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require_once __DIR__ . '/../includes/stdFunc/lastActivityDate.php';
+require_once __DIR__ . '/../includes/stdFunc/masterAdminRight.php';
 include("../includes/topline_settings.php");
 
 $saldiregnskab = NULL;
@@ -108,7 +117,7 @@ $vr_topStyle = "background-color:#2563eb;color:#ffffff;border:0;padding:2px 6px;
 $vr_btnStyle = "background-color:#1d4ed8;color:#ffffff;border:0;border-radius:5px;";
 $vr_topBund  = "style=\"background-color:#2563eb;color:#ffffff;padding:2px 6px;text-decoration:none;\" align=\"center\"";
 $r_ap = db_fetch_array(db_select("select var_value from settings where var_name='useAdminPanel'", __FILE__ . " linje " . __LINE__));
-$showAdminPanel = ($r_ap && $r_ap['var_value']) ? true : false;
+$showAdminPanel = ($r_ap && $r_ap['var_value']) && masterUserHasAdminRights($brugernavn_raw);
 
 // Warn before opening a regnskab, but only on the master install at ssl3.saldi.dk.
 // The click is intercepted by vrWarnOpen() (printed below), which fetches the regnskab's
@@ -381,7 +390,7 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 			print "<td><input type=text size=\"5\" style=\"text-align:right\" name=\"brugerantal[$x]\" value=\"$brugerantal[$x]\"></td>";
 			print "<td><input type=text size=\"5\" style=\"text-align:right\" name=\"posteringer[$x]\" value=\"$posteringer[$x]\"</td>";
 			print "<td align='right'>$posteret[$x]</td>";
-			print "<td align='right'>".date("d-m-Y",$sidst[$x])."</td>";
+			print "<td align='right'>".lastActivityDate($sidst[$x])."</td>";
 			if ($booking[$x]) $booking[$x]="checked";
 			print "<td><input type='checkbox' name='booking[$x]' $booking[$x] disabled title='license_manager.php'></td>";
 			print "<td align='left'>$email[$x]<br></td>";
@@ -405,7 +414,7 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 					print "<td>$brugerantal[$x]<br></td>";
 					print "<td>$posteringer[$x]<br></td>";
 					print "<td align='right'>$posteret[$x]<br></td>";
-					print "<td align='right'>".date("d-m-Y",$sidst[$x])."<br></td>";
+					print "<td align='right'>".lastActivityDate($sidst[$x])."<br></td>";
 					print "<td align='center'>$booking[$x]<br></td>";
 					print "<td align='left'>$email[$x]<br></td>";
 					print "<td align='center'>$lukket[$x]<br></td>";

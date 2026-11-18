@@ -1228,8 +1228,10 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     const closedDates = []
 
     const getClosedDates = await getClosedDays()
-    if(getClosedDates.success != false){
-        closedDates.push(GetClosedDates.map(date => new Date(date.date * 1000).getFullYear() + "-" + ("0" + (new Date(date.date * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(date.date * 1000).getDate()).slice(-2)))
+    // SST-997: the answer is a list only when there are closed days (otherwise {success:false}); spread the
+    // dates into closedDates, so includes() below finds them (it was GetClosedDates, undefined, pushed as one list)
+    if(Array.isArray(getClosedDates)){
+        closedDates.push(...getClosedDates.map(date => new Date(date.date * 1000).getFullYear() + "-" + ("0" + (new Date(date.date * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(date.date * 1000).getDate()).slice(-2)))
     }
     // Constructing data for the table
     const initialTable = () => {

@@ -8,6 +8,7 @@
 //
 // History:
 // 20260904 CL/NTR created.
+// 20261111 CDX/NTR Give each REST class its own fresh database.
 
 use PHPUnit\Framework\TestCase;
 
@@ -23,7 +24,7 @@ final class AccountsEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     public static function tearDownAfterClass(): void
