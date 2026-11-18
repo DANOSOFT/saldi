@@ -199,6 +199,7 @@
 //                 An email typed in the phone field and the stored debitoripad values in the Gem block are escaped like the form values they replace.
 //                 In the print/send handler phone and email stay raw through the 15-character limit and are escaped once in its update.
 //                 That update also escapes pbs and mail_fakt (they can come from the account card) after their 2-character clamp.
+//                 A general copy posted for an OT on a case (e.g. from a page opened before the update) is sent to the case copy, nothing is written.
 //                 The insert that creates an order from the account card escapes or casts its raw values the same way.
 @session_start();
 $s_id = session_id();
@@ -971,6 +972,18 @@ if ($id && $status < 3 && isset($_GET['vare_id'])) {
 				gendan_saet($id);
 			}
 		}
+	}
+}
+# 20261118 SST-1031 a general copy of an original quote (OT) on a case, e.g. from an order form opened before
+# the button was hidden, goes to the case copy instead; checked on the stored order before anything is written
+if (isset($_POST['copy']) && $_POST['copy']) {
+	$copySourceId = (int)(if_isset($_POST, 0, 'id') ?: $id);
+	$r = $copySourceId ? db_fetch_array(db_select("select art, sag_id, konto_id from ordrer where id = '$copySourceId'", __FILE__ . " linje " . __LINE__)) : NULL;
+	if ($r && $r['art'] == 'OT' && (int)$r['sag_id']) {
+		$copyCaseId = (int)$r['sag_id'];
+		$copyAccountId = (int)$r['konto_id'];
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/sager.php?funktion=kopi_ordre&amp;sag_id=$copyCaseId&amp;konto_id=$copyAccountId&amp;ordre_id=$copySourceId&amp;returside=ordre\">\n";
+		exit;
 	}
 }
 if (isset($_POST['orderNoteText']) && $id) {
