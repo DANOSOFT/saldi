@@ -276,10 +276,7 @@
             html += '</tr></thead><tbody>';
 
             results.forEach(item => {
-                const id = item.id || item.kontonr || item.code;
-                const val = item.varenr || item.kontonr || item.code || item.initials;
-
-                html += `<tr class="autocomplete-item" data-id="${id}" data-value="${val}">`;
+                html += '<tr class="autocomplete-item">';
 
                 if (type === 'item') {
                     html += `<td class="code-cell">${escapeHtml(item.varenr)}</td>`;
@@ -321,9 +318,12 @@
 
         // Event listeners for results
         dropdown.querySelectorAll('.autocomplete-item').forEach((item, index) => {
-            // SST-1041 The supplier number is set on the element, not written into the HTML: escapeHtml() leaves a double
-            // quote as it is, which would cut the number short and add attributes to the row.
-            item.dataset.levVarenr = (results[index] && results[index].lev_varenr) || '';
+            // SST-1041 The row's id, value and supplier number are set on the element, not written into the HTML: a double
+            // quote in an item or supplier number would cut the value short and add attributes to the row.
+            const result = results[index] || {};
+            item.dataset.id = String(result.id || result.kontonr || result.code);
+            item.dataset.value = String(result.varenr || result.kontonr || result.code || result.initials);
+            item.dataset.levVarenr = result.lev_varenr || '';
             item.addEventListener('mouseenter', function () {
                 dropdown.querySelectorAll('.autocomplete-item').forEach(i => i.classList.remove('selected'));
                 this.classList.add('selected');
