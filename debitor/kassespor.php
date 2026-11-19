@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- debitor/kassespor.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,8 @@
 // 20261117 CL/MMR SST-1017: BA leaves out the cost of a set head line when sets are on, as the order does.
 //                 The set's cost was counted twice (head line plus parts), so BA was too low.
 //                 udskriv(): sort limited to known columns, table name and other SQL values escaped or cast (NULL as '').
+// 20261119 CL/MMR SST-1017: A set head is matched exactly as in PHP (NULL, '' or '0' is not a set), also on MySQL with a PAD SPACE collation.
+//                 BA of a credit note is shown, as on the order page.
 
 ob_start();
 @session_start();
@@ -546,7 +548,9 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	$total_gross_profit = 0;
 	// With sets on, a set head line (samlevare) carries the cost of the whole set while its parts are on
 	// the order with their own cost, so its cost is left out, as debitor/ordre.php does for the order's DB/DG.
-	$line_cost = ($vis_saet) ? "(CASE WHEN COALESCE(samlevare, '') IN ('', '0') THEN kostpris ELSE 0 END)" : 'kostpris';
+	// ordre.php tests the value in PHP (!$samlevare), so only NULL, '' and '0' are not a set head. The lengths keep
+	// the match exact on MySQL, where a PAD SPACE collation treats ' ' as '' and '0 ' as '0'.
+	$line_cost = ($vis_saet) ? "(CASE WHEN samlevare IS NULL OR CHAR_LENGTH(samlevare) = 0 OR (CHAR_LENGTH(samlevare) = 1 AND samlevare = '0') THEN kostpris ELSE 0 END)" : 'kostpris';
 
 	$linjebg=NULL;
 	$y=0;
@@ -788,8 +792,9 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						}
 						// Round to whole øre first: an exchange order can leave a sub-øre remainder
 						// (e.g. 0.00084) that is not a real net sale and would explode the percentage.
+						// A credit note has negative net sales and a negative DB; the order page shows its DG too.
 						$net_sales = afrund($q_dg['total_sales'] - $q_dg['discount'], 2);
-						if ($net_sales > 0) {
+						if ($net_sales != 0) {
 							$dg_percent = ($q_dg['dg'] / $net_sales) * 100;
 						} else {
 							$dg_percent = 0;

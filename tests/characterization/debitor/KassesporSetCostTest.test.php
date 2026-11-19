@@ -10,6 +10,8 @@
 // History:
 // 20261117 CL/MMR SST-1017 Created.
 // 20261117 CL/MMR SST-1017 The database part skips when the master-only TestDatabase helper is missing (live).
+// 20261119 CL/MMR SST-1017 Review: set head matched exactly as PHP does, on PostgreSQL and on MySQL/MariaDB with a PAD SPACE collation.
+//                 The MySQL test runs when SALDI_TEST_MYSQL_SOCKET is set. BA of a credit note is shown as on the order page.
 
 declare(strict_types=1);
 
@@ -42,14 +44,18 @@ final class KassesporSetCostTest extends TestCase
         pg_query($this->connection, 'DROP TABLE IF EXISTS pg_temp.ordrelinjer');
         pg_query($this->connection, 'CREATE TEMP TABLE ordrelinjer (id SERIAL PRIMARY KEY, ordre_id INTEGER, antal NUMERIC(15,3),
             pris NUMERIC(15,3), rabat NUMERIC(15,5), rabatart TEXT, kostpris NUMERIC(15,3), samlevare TEXT)');
-        // Order 1: a set (head line plus two parts) and an ordinary line. Order 2: no set.
+        // Order 1: a set (head line plus two parts) and an ordinary line. Order 2: no set. Order 3: order 1 credited.
         pg_query($this->connection, "INSERT INTO ordrelinjer (ordre_id, antal, pris, rabat, rabatart, kostpris, samlevare) VALUES
             (1, 1, 0, 0, '', 300, 'on'),
             (1, 1, 400, 10, '', 100, ''),
             (1, 2, 150, 0, NULL, 50, NULL),
             (1, 1, 100, 5, 'amount', 40, '0'),
             (2, 2, 100, 0, '', 30, ''),
-            (2, 1, 50, 10, '', 20, NULL)");
+            (2, 1, 50, 10, '', 20, NULL),
+            (3, -1, 0, 0, '', 300, 'on'),
+            (3, -1, 400, 10, '', 100, ''),
+            (3, -2, 150, 0, NULL, 50, NULL),
+            (3, -1, 100, 5, 'amount', 40, '0')");
         return $this->connection;
     }
 
@@ -57,6 +63,7 @@ final class KassesporSetCostTest extends TestCase
     {
         if (isset($this->connection)) {
             pg_query($this->connection, 'DROP TABLE IF EXISTS pg_temp.ordrelinjer');
+            pg_query($this->connection, 'DROP TABLE IF EXISTS pg_temp.set_values');
         }
     }
 
@@ -98,6 +105,76 @@ final class KassesporSetCostTest extends TestCase
         self::assertEqualsWithDelta(80.0, (float)$on['kostpris'], 0.0001);
         self::assertEqualsWithDelta(165.0, (float)$on['dg'], 0.0001);
         self::assertSame($off, $on);
+    }
+
+    /** A credit note of a set order gets the same BA as the sale, as the order page shows it (DB * 100 / sum). */
+    public function testACreditNoteShowsTheSameBaAsTheSale(): void
+    {
+        $sale = $this->margin(1, 1);
+        $credit = $this->margin(3, 1);
+        self::assertEqualsWithDelta(-515.0, (float)$credit['dg'], 0.0001);
+        self::assertEqualsWithDelta(68.21, round(self::baPercent($sale), 2), 0.0001);
+        self::assertEqualsWithDelta(68.21, round(self::baPercent($credit), 2), 0.0001);
+    }
+
+    /** SST-835 still holds: net sales that round to 0 (an exchange order's sub-øre remainder) give 0 %, not a huge figure. */
+    public function testNetSalesThatRoundToZeroGiveZeroBa(): void
+    {
+        self::assertSame(0.0, (float)self::baPercent(['total_sales' => '0.00084', 'discount' => '0', 'dg' => '-12.5']));
+        self::assertSame(0.0, (float)self::baPercent(['total_sales' => '0', 'discount' => '0', 'dg' => '0']));
+    }
+
+    /** ordre.php decides in PHP (!$samlevare); the page's SQL must leave out exactly the same lines' cost. */
+    public function testSetHeadIsMatchedAsPhpDoesOnPostgres(): void
+    {
+        $connection = $this->database();
+        pg_query($connection, 'DROP TABLE IF EXISTS pg_temp.set_values');
+        pg_query($connection, 'CREATE TEMP TABLE set_values (n INTEGER, samlevare VARCHAR(2), kostpris NUMERIC(15,3))');
+        foreach (self::SET_VALUES as $n => $value) {
+            pg_query_params($connection, 'INSERT INTO set_values VALUES ($1, $2, 10)', [$n, $value]);
+        }
+        $result = pg_query($connection, 'SELECT n, ' . self::lineCost(1) . ' AS cost FROM set_values ORDER BY n');
+        self::assertNotFalse($result, pg_last_error($connection));
+        $costs = array_column(pg_fetch_all($result), 'cost', 'n');
+        self::assertSetCostsMatchPhp($costs);
+    }
+
+    /**
+     * MySQL/MariaDB with a PAD SPACE collation (utf8mb4_general_ci) compare ' ' equal to '' and '0 ' equal to '0';
+     * the page must still treat those as a set head, as PHP does. Needs a MySQL/MariaDB server: CI has none, so
+     * this test is on the skip allowlist in tools/ci/check-skips.php and runs where SALDI_TEST_MYSQL_SOCKET is set.
+     */
+    public function testSetHeadIsMatchedAsPhpDoesOnMysqlPadSpace(): void
+    {
+        $socket = getenv('SALDI_TEST_MYSQL_SOCKET');
+        if (!extension_loaded('mysqli') || $socket === false || $socket === '') {
+            self::markTestSkipped('needs the mysqli extension and SALDI_TEST_MYSQL_SOCKET (a MySQL/MariaDB test server)');
+        }
+        $user = getenv('SALDI_TEST_MYSQL_USER') ?: 'root';
+        $password = getenv('SALDI_TEST_MYSQL_PASS') ?: '';
+        $db = new mysqli('localhost', $user, $password, '', 0, $socket);
+        $schema = 'saldi_kassespor_test_' . getmypid();
+        $db->query("CREATE DATABASE $schema");
+        try {
+            $db->select_db($schema);
+            $db->query('CREATE TEMPORARY TABLE set_values (n INT, samlevare VARCHAR(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci, kostpris DECIMAL(15,3))');
+            $insert = $db->prepare('INSERT INTO set_values VALUES (?, ?, 10)');
+            foreach (self::SET_VALUES as $n => $value) {
+                $insert->bind_param('is', $n, $value);
+                $insert->execute();
+            }
+            // The collation really pads: ' ' (key 4) compares equal to ''.
+            self::assertSame('1', (string)$db->query("SELECT COUNT(*) FROM set_values WHERE samlevare = '' AND n = 4")->fetch_row()[0]);
+            $costs = [];
+            $result = $db->query('SELECT n, ' . self::lineCost(1) . ' AS cost FROM set_values ORDER BY n');
+            while ($row = $result->fetch_assoc()) {
+                $costs[$row['n']] = $row['cost'];
+            }
+        } finally {
+            $db->query("DROP DATABASE $schema");
+            $db->close();
+        }
+        self::assertSetCostsMatchPhp($costs);
     }
 
     /** udskriv() puts $sort into ORDER BY, so only a known column, optionally followed by desc, gets through. */
@@ -147,6 +224,28 @@ final class KassesporSetCostTest extends TestCase
         }
     }
 
+    /** samlevare values: unset or falsy in PHP (cost counts) and truthy in PHP (a set head, cost left out). */
+    private const SET_VALUES = [0 => null, 1 => '', 2 => '0', 3 => 'on', 4 => ' ', 5 => '0 ', 6 => '1', 7 => '00', 8 => '  '];
+
+    /** @param array<int|string, string|null> $costs cost per SET_VALUES key as returned by the database */
+    private static function assertSetCostsMatchPhp(array $costs): void
+    {
+        self::assertCount(count(self::SET_VALUES), $costs);
+        foreach (self::SET_VALUES as $n => $value) {
+            $expected = !$value ? 10.0 : 0.0;
+            self::assertEqualsWithDelta($expected, (float)$costs[$n], 0.0001, 'samlevare ' . var_export($value, true));
+        }
+    }
+
+    /** The page's $line_cost expression for the given $vis_saet. */
+    private static function lineCost(?int $vis_saet): string
+    {
+        $line_cost = null;
+        eval(self::line((string)file_get_contents(self::KASSESPOR), '$line_cost = '));
+        self::assertIsString($line_cost);
+        return $line_cost;
+    }
+
     /**
      * Runs the page's per-order BA query for one order.
      *
@@ -154,9 +253,7 @@ final class KassesporSetCostTest extends TestCase
      */
     private function margin(int $orderId, ?int $vis_saet): array
     {
-        $line_cost = null;
-        eval(self::line((string)file_get_contents(self::KASSESPOR), '$line_cost = '));
-        self::assertIsString($line_cost);
+        $line_cost = self::lineCost($vis_saet);
 
         $id = [$orderId];
         $x = 0;
@@ -169,11 +266,16 @@ final class KassesporSetCostTest extends TestCase
         return $row;
     }
 
-    /** The page's rule: BA is DB over net sales rounded to øre, 0 when net sales are not positive. */
+    /** The page's own BA rule, lifted from udskriv(): DB over net sales rounded to øre (afrund as round here). */
     private static function baPercent(array $row): float
     {
-        $net = round((float)$row['total_sales'] - (float)$row['discount'], 2);
-        return $net > 0 ? (float)$row['dg'] / $net * 100 : 0.0;
+        $src = (string)file_get_contents(self::KASSESPOR);
+        self::assertSame(1, preg_match('/\t\$net_sales = afrund\(.*?\$dg_percent = 0;\s*\}/s', $src, $m), 'BA rule not found in udskriv()');
+        $afrund = static fn ($tal, $decimaler): float => round((float)$tal, (int)$decimaler);
+        $q_dg = $row;
+        $dg_percent = null;
+        eval(str_replace('afrund(', '$afrund(', $m[0]));
+        return (float)$dg_percent;
     }
 
     /** @return array{0: string, 1: string} the list query and the per-order query, as PHP string bodies */
