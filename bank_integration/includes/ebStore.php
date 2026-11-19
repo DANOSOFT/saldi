@@ -118,12 +118,20 @@ function ebPersistTransactionsChecked(int $accountId, array $normalizedWithRef, 
                 }
                 foreach ($groups as $fingerprint => $occurrences) {
                     $prefix = 'f:' . $fingerprint . ':';
-                    $stored = ebRows('SELECT id FROM bank_transactions WHERE account_id=' . (int)$accountId
+                    $stored = ebRows('SELECT id, dedup_key, balance_after FROM bank_transactions WHERE account_id=' . (int)$accountId
                         . ' AND dedup_key LIKE ' . ebSql($prefix . '%') . ' FOR UPDATE');
                     $m = count($stored);
                     $n = count($occurrences);
                     ebWrite('UPDATE bank_transactions SET last_seen_at=' . ebSql(ebNow())
                         . ' WHERE account_id=' . (int)$accountId . ' AND dedup_key LIKE ' . ebSql($prefix . '%'));
+                    // Occurrence k of the window was stored as <prefix>k, so it refreshes that row's balance.
+                    foreach ($stored as $row) {
+                        $k = (int)substr($row['dedup_key'], strlen($prefix));
+                        $balance = $occurrences[$k - 1]['balance_after'] ?? null;
+                        if ($balance !== null && $row['balance_after'] === null) {
+                            ebUpdate('bank_transactions', (int)$row['id'], ['balance_after' => $balance]);
+                        }
+                    }
                     for ($k = $m + 1; $k <= $n; $k++) {
                         ebStoreNew($account, $occurrences[$k - 1], $prefix . $k, $runId, $m > 0, $counts);
                     }
