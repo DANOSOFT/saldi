@@ -2815,6 +2815,11 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertSame('Leverandør Køb', $text('Leverandør', ['Køb']));
         $this->assertSame('Leverandør Kodetekst', $text('Leverandør', []));
         $this->assertSame('Leverandør', $text('Leverandør', ['leverandør']));
+        // Only whole words: the name inside an identifier stays, and so does a number inside a longer one in the name.
+        $this->assertSame('ABC Invoice XABC123', $text('ABC', ['Invoice XABC123']));
+        $this->assertSame('ABC ABC123 paid', $text('ABC', ['ABC123 paid']));
+        $this->assertSame('Invoice 1234567 123', $text('Invoice 1234567', ['123']));
+        $this->assertSame('Parla 1289114 Meddelnr. 0207', $text('Parla  1289114', ['Parla  1289114Parla1289114', 'Parla  1289114     Meddelnr. 0207']));
         $line = $this->nordeaLine('x', '-1.00', 'A', [], '-12.50');
         $this->assertSame('-12.50', ebNormalizeTransaction($line)['balance_after']);
         $line['balance_after_transaction']['currency'] = 'XXX';
@@ -2849,6 +2854,22 @@ final class EnableBankingBackendTest extends TestCase
         $this->importPending();
         $this->assertSame(['Uden saldo Kodetekst', 'Køge Kodetekst', 'Overførsel Kodetekst', 'Helsinge Kodetekst', 'Thrusty Kodetekst', 'Frokost Kodetekst', 'UnivAdv Kodetekst', 'ANIMA Kodetekst'],
             array_column(ebRows('SELECT beskrivelse FROM kassekladde ORDER BY id'), 'beskrivelse'));
+    }
+
+    /** @return void */
+    public function test_a_line_without_reference_gets_its_balance_on_a_later_fetch(): void
+    {
+        $yesterday = date('Y-m-d', strtotime(ebToday() . ' -1 day'));
+        $line = $this->nordeaLine('x', '-5.00', 'Gebyr', ['Gebyr'], null);
+        unset($line['entry_reference']);
+        $line['booking_date'] = $line['value_date'] = $yesterday;
+        $this->persist([$line]);
+        $this->assertNull(ebRow('SELECT balance_after FROM bank_transactions')['balance_after']);
+        $line['balance_after_transaction'] = ['currency' => 'XXX', 'amount' => '95.00'];
+        $this->assertSame(0, $this->persist([$line])['new']);
+        $row = ebRow('SELECT balance_after, day_position FROM bank_transactions');
+        $this->assertSame('95.000', $row['balance_after']);
+        $this->assertSame('1', (string)$row['day_position']);
     }
 
     /** @return void */
