@@ -4,6 +4,7 @@
 // Codex round 1 found that the first ranking, (lev_varenr = 'X') desc, put a supplier row with lev_varenr NULL first, because PostgreSQL sorts NULL first in descending order.
 // A supplier can also have several numbers for one item, so the picked row's number and price must reach the line, not another row of the same supplier.
 // vare_lev and adresser are built in a private schema on the shared SQL fixture database, with the column types they have in a customer database.
+// 20261119 CL/MMR SST-1041 Codex round 2: a stored number with spaces around it is compared trimmed, as the search list shows it.
 namespace CreditorOrderItemPickSqlFixture {
 
     final class Rec
@@ -141,6 +142,26 @@ namespace Saldi\Tests\CreditorOrderItemPickSql {
             self::assertSame(2225, $got['konto_id'], 'the supplier with lev_varenr NULL was ranked first');
             self::assertSame('Bartelse', $got['lev_varenr']);
             self::assertSame(1000.0, $got['pris']);
+        }
+
+        /** Codex round 2: the search list shows the number trimmed, so a stored ' Bartelse ' must still be the picked row. */
+        public function testAPaddedStoredNumberStillWinsOverALowerPositionSupplier(): void
+        {
+            $this->suppliers(array(array(1, 788, null, 2175.0), array(2, 2225, ' Bartelse ', 1000.0)));
+            $got = $this->pick('Bartelse');
+            self::assertSame(2225, $got['konto_id'], 'the padded number lost to supplier no. 1');
+            self::assertSame('Bartelse', $got['lev_varenr'], 'the line should carry the number as the list showed it');
+            self::assertSame(1000.0, $got['pris']);
+            self::assertTrue($got['picked']);
+        }
+
+        /** PHP trim() also removes tabs and line breaks, so the SQL side must too. */
+        public function testANumberWithATabAndALineBreakAroundItStillWins(): void
+        {
+            $this->suppliers(array(array(1, 788, 'CU-1', 2175.0), array(2, 2225, "\tBartelse\r\n", 1000.0)));
+            $got = $this->pick('Bartelse');
+            self::assertSame(2225, $got['konto_id']);
+            self::assertSame('Bartelse', $got['lev_varenr']);
         }
 
         public function testAnEmptyNumberOnAnotherSupplierDoesNotWin(): void

@@ -24,7 +24,7 @@ namespace CreditorOrderItemPickFixture {
         Rec::$queries[] = (string)$qtxt;
         $rows = Rec::$suppliers;
         $wanted = null;
-        if (preg_match("/case when vare_lev\\.lev_varenr = '((?:[^']|'')*)' then 0 else 1 end/", (string)$qtxt, $m)) {
+        if (preg_match("/case when btrim\\(vare_lev\\.lev_varenr, [^)]*\\) = '((?:[^']|'')*)' then 0 else 1 end/", (string)$qtxt, $m)) {
             $wanted = str_replace("''", "'", $m[1]);
         }
         usort($rows, function ($a, $b) use ($wanted) {
@@ -178,7 +178,7 @@ namespace Saldi\Tests\CreditorOrderItemPick {
         {
             Rec::$suppliers = self::twoSuppliers();
             $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'lev_varenr' => "O'Brien"));
-            self::assertStringContainsString("case when vare_lev.lev_varenr = 'O''Brien' then 0 else 1 end", Rec::$queries[0]);
+            self::assertStringContainsString(") = 'O''Brien' then 0 else 1 end", Rec::$queries[0]);
         }
 
         public function testTheItemIdIsCastToAnInteger(): void

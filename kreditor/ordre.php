@@ -324,13 +324,14 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		$qtxt = "select vare_lev.lev_id, vare_lev.lev_varenr, vare_lev.kostpris from vare_lev, adresser";
 		$qtxt.= " where vare_lev.vare_id = '" . (int) $vare_id[0] . "' and adresser.id = vare_lev.lev_id order by ";
 		if ($pickedLevVarenr !== '') {
-			$qtxt.= "case when vare_lev.lev_varenr = '" . db_escape_string($pickedLevVarenr) . "' then 0 else 1 end, ";
+			// The search list shows the number with PHP trim() (debitor/itemSearch.php), so it is compared the same way here.
+			$qtxt.= "case when btrim(vare_lev.lev_varenr, E' \\t\\n\\r\\x0B') = '" . db_escape_string($pickedLevVarenr) . "' then 0 else 1 end, ";
 		}
 		$qtxt.= "vare_lev.posnr limit 1";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$konto_id = (int) $r['lev_id'];
 			if ($pickedLevVarenr !== '' && trim((string) $r['lev_varenr']) === $pickedLevVarenr) {
-				$lev_varenr[0] = $r['lev_varenr'];
+				$lev_varenr[0] = $pickedLevVarenr;
 				if ((float) $r['kostpris']) $pris[0] = $r['kostpris'];
 				$pickedLevRow = true;
 			}
