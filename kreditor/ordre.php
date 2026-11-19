@@ -105,6 +105,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261119 CL/MMR SST-1041 On a new order without a supplier, an item picked in the search list gets the item's supplier no. 1, as item number + Enter does.
 //                 A pick from the Lev. varenr. search takes that supplier row, with its number and price. An item with no supplier shows a message on both paths.
+//                 Review (CodeRabbit): the pick sends the supplier row id (vare_lev.id), and a vare_id without an order id needs write permission.
 @session_start();
 $s_id=session_id();
 
@@ -134,7 +135,8 @@ $title="Kreditorordre";
 $css="../css/standard.css";
 $modulnr=7;
 // A konto_id without an order id creates a purchase order from a GET link, so it needs write.
-if ((empty($_GET['id']) || $_GET['id'] === 'null') && !empty($_GET['konto_id'])) {
+// SST-1041 So does a vare_id without an order id: the item's supplier is looked up and the order created.
+if ((empty($_GET['id']) || $_GET['id'] === 'null') && (!empty($_GET['konto_id']) || !empty($_GET['vare_id']))) {
 	$permission_level = 'write';
 }
 
@@ -318,24 +320,23 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 	}
 	if (!$id && !$konto_id) {
 		// SST-1041 An item picked in the search list on a new order without a supplier gets the item's supplier no. 1,
-		// as typing the item number and pressing Enter does. A pick from the Lev. varenr. search takes the supplier row
-		// with that number, and its number and price, since one supplier can have several numbers for the item.
-		$pickedLevVarenr = trim((string) ifset($_GET, 'lev_varenr', ''));
-		$qtxt = "select vare_lev.lev_id, vare_lev.lev_varenr, vare_lev.kostpris from vare_lev, adresser";
+		// as typing the item number and pressing Enter does. A pick from the Lev. varenr. search sends the supplier row
+		// (vare_lev.id) that was picked; it is used, with its number and price, when it belongs to this item.
+		$pickedLevRowId = (int) ifset($_GET, 'vare_lev_id', 0);
+		$qtxt = "select vare_lev.id, vare_lev.lev_id, vare_lev.lev_varenr, vare_lev.kostpris from vare_lev, adresser";
 		$qtxt.= " where vare_lev.vare_id = '" . (int) $vare_id[0] . "' and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
 		$supplierRows = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		$firstSupplier = $pickedSupplier = null;
 		while ($supplierRow = db_fetch_array($supplierRows)) {
 			if ($firstSupplier === null) $firstSupplier = $supplierRow;
-			// The search list shows the number with PHP trim() (debitor/itemSearch.php), so it is compared the same way.
-			if ($pickedLevVarenr !== '' && trim((string) $supplierRow['lev_varenr']) === $pickedLevVarenr) {
+			if ($pickedLevRowId && (int) $supplierRow['id'] === $pickedLevRowId) {
 				$pickedSupplier = $supplierRow;
 				break;
 			}
 		}
 		if ($pickedSupplier) {
 			$konto_id = (int) $pickedSupplier['lev_id'];
-			$lev_varenr[0] = $pickedLevVarenr;
+			$lev_varenr[0] = trim((string) $pickedSupplier['lev_varenr']);
 			if ((float) $pickedSupplier['kostpris']) $pris[0] = $pickedSupplier['kostpris'];
 			$pickedLevRow = true;
 		} elseif ($firstSupplier) {

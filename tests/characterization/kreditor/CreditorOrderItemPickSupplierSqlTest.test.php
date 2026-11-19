@@ -1,11 +1,9 @@
 <?php
 // 20261119 CL/MMR SST-1041 Runs the search-list supplier lookup of kreditor/ordre.php against real PostgreSQL tables.
 //
-// Codex round 1 found that a SQL ranking, (lev_varenr = 'X') desc, put a supplier row with lev_varenr NULL first, because PostgreSQL sorts NULL first in descending order.
-// The row is now chosen in PHP: the first row whose trimmed number equals the picked one, else supplier no. 1.
-// A supplier can also have several numbers for one item, so the picked row's number and price must reach the line, not another row of the same supplier.
+// A Lev. varenr. pick sends the supplier row it came from (vare_lev.id). The row is used, with its own supplier, number and price, only when it belongs to the picked item.
+// Two rows can share a number (no unique constraint on vare_lev), a competitor can have lev_varenr NULL, and one supplier can have several numbers for the item.
 // vare_lev and adresser are built in a private schema on the shared SQL fixture database, with the column types they have in a customer database.
-// 20261119 CL/MMR SST-1041 Codex round 2: a stored number with spaces around it is compared trimmed, as the search list shows it.
 namespace CreditorOrderItemPickSqlFixture {
 
     final class Rec
@@ -28,11 +26,6 @@ namespace CreditorOrderItemPickSqlFixture {
     function db_fetch_array($result)
     {
         return pg_fetch_assoc($result);
-    }
-
-    function db_escape_string($value)
-    {
-        return pg_escape_string(Rec::$connection, (string)$value);
     }
 
     function transaktion($what)
@@ -94,23 +87,27 @@ namespace Saldi\Tests\CreditorOrderItemPickSql {
         }
 
         /**
-         * @param array<int, array{0: int, 1: int, 2: string|null, 3: float}> $rows posnr, lev_id, lev_varenr, kostpris for item 618192
+         * @param array<int, array{0: int, 1: int, 2: string|null, 3: float, 4?: int}> $rows posnr, lev_id, lev_varenr, kostpris, vare_id (default 618192)
+         * @return array<int, int> The new vare_lev ids, in the order given.
          */
-        private function suppliers(array $rows): void
+        private function suppliers(array $rows): array
         {
+            $ids = array();
             foreach ($rows as $row) {
-                pg_query_params(Rec::$connection,
-                    'INSERT INTO vare_lev (posnr, lev_id, vare_id, lev_varenr, kostpris) VALUES ($1, $2, 618192, $3, $4)',
-                    array($row[0], $row[1], $row[2], $row[3]));
+                $result = pg_query_params(Rec::$connection,
+                    'INSERT INTO vare_lev (posnr, lev_id, vare_id, lev_varenr, kostpris) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+                    array($row[0], $row[1], $row[4] ?? 618192, $row[2], $row[3]));
+                $ids[] = (int)pg_fetch_result($result, 0, 0);
             }
+            return $ids;
         }
 
         /**
          * Runs the new block of the GET vare_id branch with the real queries.
          *
-         * @return array{konto_id: mixed, lev_varenr: mixed, pris: mixed, picked: bool}
+         * @return array{konto_id: mixed, lev_varenr: mixed, pris: float, picked: bool}
          */
-        private function pick(string $levVarenr, $itemCost = 800.0): array
+        private function pick(int $vareLevId, $itemCost = 800.0): array
         {
             $src = file_get_contents(self::ORDRE);
             self::assertNotFalse($src);
@@ -119,11 +116,11 @@ namespace Saldi\Tests\CreditorOrderItemPickSql {
             $end = strpos($src, 'if ((!$pris[0] || !$lev_varenr[0]) && $vare_id[0] && $konto_id', $at);
             self::assertNotFalse($end);
             $block = substr($src, $at, $end - $at);
-            foreach (array('db_select', 'db_fetch_array', 'db_escape_string', 'transaktion', 'noSupplierForItemAlert', 'ifset') as $fn) {
+            foreach (array('db_select', 'db_fetch_array', 'transaktion', 'noSupplierForItemAlert', 'ifset') as $fn) {
                 $block = preg_replace('/(?<![\w\\\\>$])' . $fn . '\(/', '\\' . self::FIXTURE . '\\' . $fn . '(', $block);
             }
             $block = str_replace('exit;', 'return true;', $block);
-            $_GET = $levVarenr === '' ? array('id' => '', 'vare_id' => '618192') : array('id' => '', 'vare_id' => '618192', 'lev_varenr' => $levVarenr);
+            $_GET = $vareLevId ? array('id' => '', 'vare_id' => '618192', 'vare_lev_id' => (string)$vareLevId) : array('id' => '', 'vare_id' => '618192');
             $id = 0;
             $konto_id = null;
             $vare_id = array(0 => '618192');
@@ -136,92 +133,89 @@ namespace Saldi\Tests\CreditorOrderItemPickSql {
             return array('konto_id' => $konto_id, 'lev_varenr' => $lev_varenr[0], 'pris' => (float)$pris[0], 'picked' => !empty($pickedLevRow));
         }
 
-        public function testANullNumberOnAnotherSupplierDoesNotWin(): void
+        /** CodeRabbit: two suppliers with the same number; picking the second row must give the second supplier and price. */
+        public function testTheSecondOfTwoRowsWithTheSameNumberIsTheOneUsed(): void
         {
-            $this->suppliers(array(array(1, 788, null, 2175.0), array(2, 2225, 'Bartelse', 1000.0)));
-            $got = $this->pick('Bartelse');
-            self::assertSame(2225, $got['konto_id'], 'the supplier with lev_varenr NULL was ranked first');
-            self::assertSame('Bartelse', $got['lev_varenr']);
-            self::assertSame(1000.0, $got['pris']);
-        }
-
-        /** Codex round 2: the search list shows the number trimmed, so a stored ' Bartelse ' must still be the picked row. */
-        public function testAPaddedStoredNumberStillWinsOverALowerPositionSupplier(): void
-        {
-            $this->suppliers(array(array(1, 788, null, 2175.0), array(2, 2225, ' Bartelse ', 1000.0)));
-            $got = $this->pick('Bartelse');
-            self::assertSame(2225, $got['konto_id'], 'the padded number lost to supplier no. 1');
-            self::assertSame('Bartelse', $got['lev_varenr'], 'the line should carry the number as the list showed it');
+            $ids = $this->suppliers(array(array(1, 788, 'SAME-1', 2175.0), array(2, 2225, 'SAME-1', 1000.0)));
+            $got = $this->pick($ids[1]);
+            self::assertSame(2225, $got['konto_id'], 'the first row with the same number was used instead of the picked one');
+            self::assertSame('SAME-1', $got['lev_varenr']);
             self::assertSame(1000.0, $got['pris']);
             self::assertTrue($got['picked']);
         }
 
-        /** PHP trim() also removes tabs and line breaks, so the SQL side must too. */
-        public function testANumberWithATabAndALineBreakAroundItStillWins(): void
+        public function testANullNumberOnAnotherSupplierDoesNotMatter(): void
         {
-            $this->suppliers(array(array(1, 788, 'CU-1', 2175.0), array(2, 2225, "\tBartelse\r\n", 1000.0)));
-            $got = $this->pick('Bartelse');
+            $ids = $this->suppliers(array(array(1, 788, null, 2175.0), array(2, 2225, 'Bartelse', 1000.0)));
+            $got = $this->pick($ids[1]);
             self::assertSame(2225, $got['konto_id']);
             self::assertSame('Bartelse', $got['lev_varenr']);
-        }
-
-        public function testAnEmptyNumberOnAnotherSupplierDoesNotWin(): void
-        {
-            $this->suppliers(array(array(1, 788, '', 2175.0), array(2, 2225, 'Bartelse', 1000.0)));
-            self::assertSame(2225, $this->pick('Bartelse')['konto_id']);
+            self::assertSame(1000.0, $got['pris']);
         }
 
         public function testThePickedNumberAndPriceAreKeptWhenOneSupplierHasSeveralNumbers(): void
         {
-            $this->suppliers(array(array(1, 57, 'A-100', 10.0), array(2, 57, 'B-200', 20.0)));
-            $got = $this->pick('B-200');
+            $ids = $this->suppliers(array(array(1, 57, 'A-100', 10.0), array(2, 57, 'B-200', 20.0)));
+            $got = $this->pick($ids[1]);
             self::assertSame(57, $got['konto_id']);
             self::assertSame('B-200', $got['lev_varenr'], 'another number of the same supplier reached the line');
             self::assertSame(20.0, $got['pris']);
             self::assertTrue($got['picked'], 'the later lookup by item and supplier would overwrite the picked row');
         }
 
+        /** The list shows the number trimmed (debitor/itemSearch.php), and the line gets it the same way. */
+        public function testAStoredNumberWithSpacesIsCarriedTrimmed(): void
+        {
+            $ids = $this->suppliers(array(array(1, 788, null, 2175.0), array(2, 2225, " \tBartelse\r\n", 1000.0)));
+            $got = $this->pick($ids[1]);
+            self::assertSame(2225, $got['konto_id']);
+            self::assertSame('Bartelse', $got['lev_varenr']);
+        }
+
         public function testAZeroPriceOnThePickedRowKeepsTheItemCost(): void
         {
-            $this->suppliers(array(array(1, 2225, 'Bartelse', 0.0)));
-            $got = $this->pick('Bartelse', 800.0);
+            $ids = $this->suppliers(array(array(1, 2225, 'Bartelse', 0.0)));
+            $got = $this->pick($ids[0], 800.0);
             self::assertSame('Bartelse', $got['lev_varenr']);
             self::assertSame(800.0, $got['pris']);
         }
 
-        public function testWithoutANumberSupplierNumberOneIsUsedAndTheLineIsLeftToTheUsualLookup(): void
+        public function testWithoutARowSupplierNumberOneIsUsedAndTheLineIsLeftToTheUsualLookup(): void
         {
             $this->suppliers(array(array(2, 2225, 'Bartelse', 1000.0), array(1, 788, null, 2175.0)));
-            $got = $this->pick('');
+            $got = $this->pick(0);
             self::assertSame(788, $got['konto_id']);
             self::assertSame('', $got['lev_varenr']);
             self::assertSame(800.0, $got['pris']);
             self::assertFalse($got['picked']);
         }
 
-        public function testAnUnknownNumberFallsBackToSupplierNumberOne(): void
+        public function testARowOfAnotherItemIsIgnored(): void
+        {
+            $ids = $this->suppliers(array(array(1, 788, 'CU-1', 636.8), array(1, 2225, 'OTHER', 5.0, 999)));
+            $got = $this->pick($ids[1]);
+            self::assertSame(788, $got['konto_id'], 'a vare_lev row of another item was accepted');
+            self::assertFalse($got['picked']);
+        }
+
+        public function testAnUnknownRowFallsBackToSupplierNumberOne(): void
         {
             $this->suppliers(array(array(1, 788, 'CU-1', 636.8), array(2, 2225, 'Bartelse', 1000.0)));
-            $got = $this->pick('NOT-THERE');
+            $got = $this->pick(987654);
             self::assertSame(788, $got['konto_id']);
             self::assertFalse($got['picked']);
         }
 
-        public function testAnApostropheInTheNumberIsEscaped(): void
-        {
-            $this->suppliers(array(array(1, 788, 'CU-1', 636.8), array(2, 2225, "O'Brien", 1000.0)));
-            self::assertSame(2225, $this->pick("O'Brien")['konto_id']);
-        }
-
         public function testASupplierRowWithoutAnAccountIsNotUsed(): void
         {
-            $this->suppliers(array(array(1, 999, 'GONE', 1.0), array(2, 2225, 'Bartelse', 1000.0)));
-            self::assertSame(2225, $this->pick('')['konto_id']);
+            $ids = $this->suppliers(array(array(1, 999, 'GONE', 1.0), array(2, 2225, 'Bartelse', 1000.0)));
+            self::assertSame(2225, $this->pick(0)['konto_id']);
+            self::assertSame(2225, $this->pick($ids[0])['konto_id'], 'a picked row whose supplier account is gone was used');
         }
 
         public function testNoSupplierRowsGivesTheMessage(): void
         {
-            $got = $this->pick('');
+            $got = $this->pick(0);
             self::assertNull($got['konto_id']);
             self::assertSame(array('transaktion:rollback', 'alert:618192'), Rec::$calls);
         }

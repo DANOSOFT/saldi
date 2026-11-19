@@ -5,13 +5,14 @@
 // Typing the item number and pressing Enter has always used the item's supplier no. 1, so the pick now does the same.
 // A pick from the Lev. varenr. search prefers the supplier of that number. An item with no supplier shows a message on both paths.
 // kreditor/ordre.php prints on include, so the blocks are lifted from the source and run against recorded stubs.
-// 20261119 CL/MMR SST-1041 Codex rounds 1-2: a Lev. varenr. pick carries that row's number and price. The row is chosen in PHP with trim(), as the search list shows it (see the Sql test).
+// 20261119 CL/MMR SST-1041 Codex rounds 1-2: a Lev. varenr. pick carries that row's number and price (see the Sql test).
 // 20261119 CL/MMR SST-1041 Codex round 6: the Enter-path message shows the typed number, not the SQL-escaped one.
+// 20261119 CL/MMR SST-1041 Review (CodeRabbit): the pick sends the supplier row id (vare_lev_id), not the number.
 namespace CreditorOrderItemPickFixture {
 
     final class Rec
     {
-        /** @var array<int, array{lev_id: int, posnr: int, lev_varenr: string, kostpris: string}> Supplier rows for the picked item. */
+        /** @var array<int, array{id: string, lev_id: int, posnr: int, lev_varenr: string, kostpris: string}> Supplier rows for the picked item. */
         public static array $suppliers = array();
         /** @var array<int, string> */
         public static array $queries = array();
@@ -24,14 +25,7 @@ namespace CreditorOrderItemPickFixture {
     {
         Rec::$queries[] = (string)$qtxt;
         $rows = Rec::$suppliers;
-        $wanted = null;
-        if (preg_match("/case when btrim\\(vare_lev\\.lev_varenr, [^)]*\\) = '((?:[^']|'')*)' then 0 else 1 end/", (string)$qtxt, $m)) {
-            $wanted = str_replace("''", "'", $m[1]);
-        }
-        usort($rows, function ($a, $b) use ($wanted) {
-            if ($wanted !== null && ($a['lev_varenr'] === $wanted) !== ($b['lev_varenr'] === $wanted)) {
-                return $a['lev_varenr'] === $wanted ? -1 : 1;
-            }
+        usort($rows, function ($a, $b) {
             return $a['posnr'] <=> $b['posnr'];
         });
         if (strpos((string)$qtxt, 'limit 1') !== false) {
@@ -138,8 +132,8 @@ namespace Saldi\Tests\CreditorOrderItemPick {
         private static function twoSuppliers(): array
         {
             return array(
-                array('lev_id' => 77, 'posnr' => 2, 'lev_varenr' => 'OTHER-1', 'kostpris' => '120.000'),
-                array('lev_id' => 57, 'posnr' => 1, 'lev_varenr' => '37761', 'kostpris' => '100.000'),
+                array('id' => '861', 'lev_id' => 77, 'posnr' => 2, 'lev_varenr' => 'OTHER-1', 'kostpris' => '120.000'),
+                array('id' => '860', 'lev_id' => 57, 'posnr' => 1, 'lev_varenr' => '37761', 'kostpris' => '100.000'),
             );
         }
 
@@ -157,29 +151,30 @@ namespace Saldi\Tests\CreditorOrderItemPick {
             self::assertStringContainsString('order by vare_lev.posnr', Rec::$queries[0]);
         }
 
-        public function testALevVarenrPickPrefersTheSupplierOfThatNumber(): void
+        public function testALevVarenrPickTakesThePickedSupplierRow(): void
         {
             Rec::$suppliers = self::twoSuppliers();
-            $got = $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'lev_varenr' => 'OTHER-1'));
-            self::assertSame(77, $got['konto_id'], 'the supplier whose Lev. varenr. was found was not used');
+            $got = $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'vare_lev_id' => '861'));
+            self::assertSame(77, $got['konto_id'], 'the picked supplier row was not used');
             self::assertSame('OTHER-1', $got['lev_varenr']);
             self::assertSame('120.000', $got['pris']);
             self::assertTrue($got['picked']);
         }
 
-        public function testAnUnknownLevVarenrFallsBackToSupplierNumberOne(): void
+        public function testAnUnknownSupplierRowFallsBackToSupplierNumberOne(): void
         {
             Rec::$suppliers = self::twoSuppliers();
-            $got = $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'lev_varenr' => 'NOT-THERE'));
+            $got = $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'vare_lev_id' => '999'));
             self::assertSame(57, $got['konto_id']);
             self::assertFalse($got['picked']);
         }
 
-        public function testTheLevVarenrIsNotPutInTheQuery(): void
+        public function testTheSupplierRowIdIsCastAndNotPutInTheQuery(): void
         {
             Rec::$suppliers = self::twoSuppliers();
-            $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'lev_varenr' => "O'Brien"));
-            self::assertStringNotContainsString("Brien", Rec::$queries[0], 'the picked number is compared in PHP, not put in the SQL');
+            $got = $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'vare_lev_id' => "861' or '1'='1"));
+            self::assertStringNotContainsString("or '1'", Rec::$queries[0]);
+            self::assertSame(77, $got['konto_id'], '(int) of the value is the row id');
         }
 
         public function testTheItemIdIsCastToAnInteger(): void
