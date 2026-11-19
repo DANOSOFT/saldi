@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/betalinger.php --- ver 5.1.0 --- 2026.10.30 ---
+// --- debitor/betalinger.php --- ver 5.1.1 --- 2026.11.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,8 @@
 // 20231213 MSC - Implementing new design
 // 20261030 CL/MMR SST-920: Removed the «Udlign konti» format from the bank format list.
 //                 It called udlignKonti(), which does not exist, so «Udskriv og luk» ended on a blank page after the list was already locked as sent.
+// 20261118 CL/MMR SST-925: «Opdater datoer» now loads the list with a GET instead of location.reload().
+//                 After «Gem» or «Slet røde» the reload resent that POST, and the old payment dates were saved back.
 
 $dan_liste = $gem = $listenote = $slet_ugyldige = $udskriv = NULL;
 
@@ -736,7 +738,8 @@ function updateAllDatesFromPopup() {
                     if (response.success) {
                         alert('Succes! ' + response.updated + ' betalingsdatoer er opdateret.');
                         closeDatePopup();
-                        location.reload();
+                        // Load the list with a GET. location.reload() would resend a previous «Gem» POST and write the old dates back.
+                        location.replace('betalinger.php?liste_id=" . (int)$liste_id . "');
                     } else {
                         alert('Fejl: ' + response.message);
                     }
