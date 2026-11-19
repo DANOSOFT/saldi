@@ -322,19 +322,24 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		// with that number, and its number and price, since one supplier can have several numbers for the item.
 		$pickedLevVarenr = trim((string) ifset($_GET, 'lev_varenr', ''));
 		$qtxt = "select vare_lev.lev_id, vare_lev.lev_varenr, vare_lev.kostpris from vare_lev, adresser";
-		$qtxt.= " where vare_lev.vare_id = '" . (int) $vare_id[0] . "' and adresser.id = vare_lev.lev_id order by ";
-		if ($pickedLevVarenr !== '') {
-			// The search list shows the number with PHP trim() (debitor/itemSearch.php), so it is compared the same way here.
-			$qtxt.= "case when btrim(vare_lev.lev_varenr, E' \\t\\n\\r\\x0B') = '" . db_escape_string($pickedLevVarenr) . "' then 0 else 1 end, ";
-		}
-		$qtxt.= "vare_lev.posnr limit 1";
-		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$konto_id = (int) $r['lev_id'];
-			if ($pickedLevVarenr !== '' && trim((string) $r['lev_varenr']) === $pickedLevVarenr) {
-				$lev_varenr[0] = $pickedLevVarenr;
-				if ((float) $r['kostpris']) $pris[0] = $r['kostpris'];
-				$pickedLevRow = true;
+		$qtxt.= " where vare_lev.vare_id = '" . (int) $vare_id[0] . "' and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
+		$supplierRows = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		$firstSupplier = $pickedSupplier = null;
+		while ($supplierRow = db_fetch_array($supplierRows)) {
+			if ($firstSupplier === null) $firstSupplier = $supplierRow;
+			// The search list shows the number with PHP trim() (debitor/itemSearch.php), so it is compared the same way.
+			if ($pickedLevVarenr !== '' && trim((string) $supplierRow['lev_varenr']) === $pickedLevVarenr) {
+				$pickedSupplier = $supplierRow;
+				break;
 			}
+		}
+		if ($pickedSupplier) {
+			$konto_id = (int) $pickedSupplier['lev_id'];
+			$lev_varenr[0] = $pickedLevVarenr;
+			if ((float) $pickedSupplier['kostpris']) $pris[0] = $pickedSupplier['kostpris'];
+			$pickedLevRow = true;
+		} elseif ($firstSupplier) {
+			$konto_id = (int) $firstSupplier['lev_id'];
 		} else {
 			transaktion("rollback");
 			noSupplierForItemAlert($varenr[0] ?? '');

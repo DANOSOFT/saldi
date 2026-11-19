@@ -1,7 +1,8 @@
 <?php
 // 20261119 CL/MMR SST-1041 Runs the search-list supplier lookup of kreditor/ordre.php against real PostgreSQL tables.
 //
-// Codex round 1 found that the first ranking, (lev_varenr = 'X') desc, put a supplier row with lev_varenr NULL first, because PostgreSQL sorts NULL first in descending order.
+// Codex round 1 found that a SQL ranking, (lev_varenr = 'X') desc, put a supplier row with lev_varenr NULL first, because PostgreSQL sorts NULL first in descending order.
+// The row is now chosen in PHP: the first row whose trimmed number equals the picked one, else supplier no. 1.
 // A supplier can also have several numbers for one item, so the picked row's number and price must reach the line, not another row of the same supplier.
 // vare_lev and adresser are built in a private schema on the shared SQL fixture database, with the column types they have in a customer database.
 // 20261119 CL/MMR SST-1041 Codex round 2: a stored number with spaces around it is compared trimmed, as the search list shows it.

@@ -5,7 +5,7 @@
 // Typing the item number and pressing Enter has always used the item's supplier no. 1, so the pick now does the same.
 // A pick from the Lev. varenr. search prefers the supplier of that number. An item with no supplier shows a message on both paths.
 // kreditor/ordre.php prints on include, so the blocks are lifted from the source and run against recorded stubs.
-// 20261119 CL/MMR SST-1041 Codex round 1: a Lev. varenr. pick carries that row's number and price; the ranking is a CASE (see the Sql test for NULL numbers).
+// 20261119 CL/MMR SST-1041 Codex rounds 1-2: a Lev. varenr. pick carries that row's number and price. The row is chosen in PHP with trim(), as the search list shows it (see the Sql test).
 namespace CreditorOrderItemPickFixture {
 
     final class Rec
@@ -153,7 +153,7 @@ namespace Saldi\Tests\CreditorOrderItemPick {
             self::assertSame(array(), Rec::$calls);
             self::assertStringContainsString("vare_lev.vare_id = '887'", Rec::$queries[0]);
             self::assertStringContainsString('adresser.id = vare_lev.lev_id', Rec::$queries[0], 'a supplier row without an account must not be used, as on the Enter path');
-            self::assertStringContainsString('order by vare_lev.posnr limit 1', Rec::$queries[0]);
+            self::assertStringContainsString('order by vare_lev.posnr', Rec::$queries[0]);
         }
 
         public function testALevVarenrPickPrefersTheSupplierOfThatNumber(): void
@@ -174,11 +174,11 @@ namespace Saldi\Tests\CreditorOrderItemPick {
             self::assertFalse($got['picked']);
         }
 
-        public function testTheLevVarenrIsEscapedInTheQuery(): void
+        public function testTheLevVarenrIsNotPutInTheQuery(): void
         {
             Rec::$suppliers = self::twoSuppliers();
             $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'lev_varenr' => "O'Brien"));
-            self::assertStringContainsString(") = 'O''Brien' then 0 else 1 end", Rec::$queries[0]);
+            self::assertStringNotContainsString("Brien", Rec::$queries[0], 'the picked number is compared in PHP, not put in the SQL');
         }
 
         public function testTheItemIdIsCastToAnInteger(): void
