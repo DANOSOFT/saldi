@@ -30,9 +30,11 @@
 //                content changed but whose diff shows no line counts every line as changed.
 // 20261109 CL/LH Context lines that git adds despite -U0 (diff.interHunkContext, GIT_DIFF_OPTS) move both line
 //                counts; diffs run with --inter-hunk-context=0 and without GIT_DIFF_OPTS or GIT_EXTERNAL_DIFF.
+// 20261119 CL/LH A symlink in the working tree is read as its link text, as git stores it, never followed;
+//                removedLines() hands --station the removed lines in their base file.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, existsSync } from "node:fs";
+import { lstatSync, readFileSync, readlinkSync } from "node:fs";
 import { LINE_END, fileLines, lineText } from "./doors.mjs";
 
 /**
@@ -260,6 +262,21 @@ export function filesOfDiff(text, names, read) {
 }
 
 /**
+ * A working-tree file as git would store it: a symlink's link text (never followed, so a link to a directory or to
+ * nothing still reads), null for a missing path or a directory (a gitlink, an untracked repository).
+ */
+function readWorkingFile(path) {
+  let stat;
+  try {
+    stat = lstatSync(path);
+  } catch {
+    return null;
+  }
+  if (stat.isSymbolicLink()) return readlinkSync(path, "utf8");
+  return stat.isDirectory() ? null : readFileSync(path, "utf8");
+}
+
+/**
  * Build the change set the checks run against.
  *
  * @param {{base: string, head?: string}} options  base: the branch the change goes into;
@@ -280,7 +297,7 @@ export function buildChangeset({ base, head }) {
   const baseCache = new Map();
   const readHead = (path) => {
     if (!headCache.has(path)) {
-      headCache.set(path, head ? show(head, path) : existsSync(path) ? readFileSync(path, "utf8") : null);
+      headCache.set(path, head ? show(head, path) : readWorkingFile(path));
     }
     return headCache.get(path);
   };
@@ -297,7 +314,8 @@ export function buildChangeset({ base, head }) {
   if (!head) {
     const untracked = git(["ls-files", "--others", "--exclude-standard", "-z"]).split("\0").filter(Boolean);
     for (const path of untracked) {
-      const content = readFileSync(path, "utf8");
+      const content = readWorkingFile(path);
+      if (content === null) continue;
       const binary = content.includes("\0");
       const added = new Map();
       // A NUL byte marks it binary for the style checks; the door markers still read every line of it.
@@ -335,6 +353,10 @@ export function buildChangeset({ base, head }) {
     markerLines(path) {
       return markerLinesOf(files.get(path), readHead(path));
     },
+    /** The file's removed lines as markerHits reads them, in the file they were removed from (removedLinesOf). */
+    removedLines(path) {
+      return removedLinesOf(files.get(path), readBase(path));
+    },
     /**
      * Whether the file as the change leaves it differs from the file at commit `rev` (as `git diff rev head -- path`
      * shows a content change; a file absent from both is the same), or null when `rev` names no commit here.
@@ -351,7 +373,18 @@ export function buildChangeset({ base, head }) {
       const then = blob(`${rev}:${path}`);
       if (head) return then !== blob(`${head}:${path}`);
       // The working tree: the blob git would store for the file, through the repository's filters.
-      return then !== (existsSync(path) ? git(["hash-object", "--", path]).trim() : null);
+      // A symlink is its link text, unfiltered (hash-object on the path would follow it); a directory is no blob.
+      let stat = null;
+      try {
+        stat = lstatSync(path);
+      } catch {
+        // Gone: no blob.
+      }
+      if (!stat || stat.isDirectory()) return then !== null;
+      if (stat.isSymbolicLink()) {
+        return then !== git(["hash-object", "--no-filters", "--stdin"], { input: readlinkSync(path), stdio: ["pipe", "pipe", "pipe"] }).trim();
+      }
+      return then !== git(["hash-object", "--", path]).trim();
     },
     /** The file as it was before the change, or null when the change adds it. */
     readBase,

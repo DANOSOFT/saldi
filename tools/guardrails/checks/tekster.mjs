@@ -26,6 +26,7 @@
 // 20261029 CDX/NTR Check keyed TSV ordering when either adjacent row was added.
 // 20261103 CL/LH Keys only: refuse a new numeric id in tekster.csv.
 // 20261109 CL/LH The rewording and keyed-TSV messages point at descriptive keys or deleteStaleTekst(), not at new ids.
+// 20261119 CL/LH A repeated row is deleted, not given a key; a findtekst() id missing from tekster.csv is checked or restored.
 
 import { splitLines } from "../lib/changeset.mjs";
 
@@ -47,7 +48,7 @@ function rows(content) {
     if (text === "") return;
     const fields = text.split("\t");
     const row = { line: index + 1, text, fields };
-    if (byId.has(fields[0])) duplicates.push({ ...row, first: byId.get(fields[0]).line });
+    if (byId.has(fields[0])) duplicates.push({ ...row, first: byId.get(fields[0]).line, repeat: byId.get(fields[0]).text === text });
     else byId.set(fields[0], row);
   });
   return { byId, duplicates };
@@ -101,7 +102,9 @@ function checkCsv(ctx, file, findings) {
     findings.push({
       path: CSV,
       line: dup.line,
-      message: `id ${dup.fields[0]} is already used on line ${dup.first}. Another branch took it first; give this text a descriptive key in ${KEYED_TSV} instead.`,
+      message: dup.repeat
+        ? `id ${dup.fields[0]} repeats line ${dup.first} word for word; delete this line.`
+        : `id ${dup.fields[0]} is already used on line ${dup.first}. Another branch took it first; give this text a descriptive key in ${KEYED_TSV} instead.`,
     });
   }
 
@@ -239,7 +242,9 @@ function checkFallbacks(ctx, findings) {
           findings.push({
             path: file.path,
             line,
-            message: `findtekst('${id}|...'): id ${id} is not in ${CSV}, and the file takes no new ids; use a descriptive key from ${KEYED_TSV}.`,
+            message:
+              `findtekst('${id}|...'): id ${id} is not in ${CSV}. Check the id for a typo, or restore its row if a change removed it; ` +
+              `a new text takes a descriptive key from ${KEYED_TSV}, as ${CSV} takes no new ids.`,
           });
           continue;
         }

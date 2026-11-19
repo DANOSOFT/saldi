@@ -15,10 +15,12 @@
 // 20261109 CL/LH A flag followed by another flag has no value; unrelated histories are a refusal; a tierless plate
 //                takes its station's tier.
 // 20261109 CL/LH A change to the guardrails workflow or the door map goes to Gartneren, where Nicolai is at the pass.
+// 20261119 CL/LH --station routes a removed marker line as the door cross-check does; a symlink is read, not followed;
+//                a candidate path may hold a space; --paths is read from the caller's directory.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -4141,4 +4143,71 @@ test("without --json a developer gets the same answer as text", () => {
   assert.match(result.stdout, /^station: +Envejsdørene, party 1b Betaling og afsendelse \(rule 1\)$/m);
   assert.match(result.stdout, /^human at the pass: Nicolai, second Saul \(forslag\)$/m);
   assert.match(result.stdout, /^ {2}- payments: Test mode only/m);
+});
+
+/** A scratch repository with `base` committed, then `change(dir, git)` run on its working tree; --station's report. */
+function stationInScratch(base, change, { args = [], cwd = "" } = {}) {
+  const dir = mkdtempSync(join(tmpdir(), "guardrails-scratch-"));
+  const git = (...gitArgs) => spawnSync("git", ["-c", "user.name=guardrails-test", "-c", "user.email=guardrails-test@example.invalid", "-c", "commit.gpgsign=false", ...gitArgs], { cwd: dir, encoding: "utf8" });
+  try {
+    assert.equal(git("init", "-q").status, 0);
+    for (const [path, text] of Object.entries(base)) {
+      mkdirSync(dirname(join(dir, path)), { recursive: true });
+      writeFileSync(join(dir, path), text);
+    }
+    assert.equal(git("add", "-A").status, 0);
+    assert.equal(git("commit", "-q", "--allow-empty", "--no-verify", "-m", "base").status, 0);
+    const input = change(dir, git);
+    const result = spawnSync(process.execPath, [CHECK, "--station", "--json", "--base", "HEAD", ...args], { cwd: join(dir, cwd), input, encoding: "utf8", timeout: 30000 });
+    return { status: result.status, stderr: result.stderr, report: result.stdout ? JSON.parse(result.stdout) : null };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("production wiring, check.mjs --station: a removed marker line is read in its base file and routes the change, as the door cross-check does; the same line removed as a comment does not", () => {
+  // Built at run time, so this file holds no marker for the door map to find.
+  const statement = ["TRUN", "CATE ordrer"].join("");
+  const asCode = `<?php\n$a = 1;\ndb_modify("${statement}");\n$b = 2;\n`;
+  const asComment = `<?php\n$a = 1;\n// db_modify("${statement}");\n$b = 2;\n`;
+  const removeLine3 = (dir) => writeFileSync(join(dir, "finans/cleanup.php"), "<?php\n$a = 1;\n$b = 2;\n");
+  const code = stationInScratch({ "finans/cleanup.php": asCode }, removeLine3);
+  assert.equal(code.status, 0, code.stderr);
+  assert.deepEqual([code.report.rule, code.report.party, code.report.doorRows.map((match) => match.row)], [1, "1d", ["destructive"]]);
+  assert.deepEqual(code.report.markersHit, [{ kind: "marker", row: "destructive", path: "finans/cleanup.php", line: 3, marker: "TRUNCATE", removed: true }]);
+  assert.ok(sources(code.report).includes("destructive"), "the row's proof joins the plate");
+  const comment = stationInScratch({ "finans/cleanup.php": asComment }, removeLine3);
+  assert.equal(comment.status, 0, comment.stderr);
+  assert.deepEqual(comment.report.markersHit, []);
+  assert.ok(!comment.report.doorRows.some((match) => match.row === "destructive"));
+  const text = formatStation(code.report);
+  assert.match(text, /finans\/cleanup\.php:3 \(removed\) "TRUNCATE"/);
+});
+
+test("production wiring, check.mjs --station: a symlink is read as its link text, staged or untracked, also where it points at a directory or at nothing", () => {
+  for (const stage of [true, false]) {
+    const { status, stderr, report } = stationInScratch({ "lib/a.php": "<?php\n" }, (dir, git) => {
+      symlinkSync("lib", join(dir, "to-dir"));
+      symlinkSync("no-such-file", join(dir, "dangling"));
+      if (stage) assert.equal(git("add", "-A").status, 0);
+    });
+    assert.equal(status, 0, stderr);
+    assert.deepEqual(report.changedPaths, ["dangling", "to-dir"], `staged: ${stage}`);
+  }
+});
+
+test("a candidate path may hold a space inside it; leading, trailing and other whitespace is still refused", () => {
+  assert.equal(canonicalPath("remoteBooking/index copy.js"), "remoteBooking/index copy.js");
+  assert.deepEqual(paths("remoteBooking/index copy.js").changedPaths, ["remoteBooking/index copy.js"]);
+  for (const bad of [" a.php", "a.php ", "a\tb.php", "a\u00a0b.php", "a\u2028b.php"]) assert.equal(canonicalPath(bad), null, JSON.stringify(bad));
+});
+
+test("--paths names a file from the caller's directory, not the repository root", () => {
+  const { status, stderr, report } = stationInScratch(
+    { "sub/keep.txt": "x\n" },
+    (dir) => writeFileSync(join(dir, "sub/list.txt"), "finans/bogfor.php\n"),
+    { args: ["--paths", "list.txt"], cwd: "sub" },
+  );
+  assert.equal(status, 0, stderr);
+  assert.deepEqual(report.changedPaths, ["finans/bogfor.php"]);
 });

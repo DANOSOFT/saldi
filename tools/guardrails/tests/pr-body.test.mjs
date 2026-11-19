@@ -20,6 +20,7 @@
 //                file; the hunk's eof mark where the head file is not known.
 // 20261109 CL/LH Paths git quotes in a diff header are read exactly; a header that cannot be read reads the file whole.
 // 20261109 CL/LH A change's .gitattributes (binary, -diff, a text conversion driver) hides none of its lines.
+// 20261119 CL/LH --station routes a removed DROP DATABASE as the door cross-check claims it.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -587,7 +588,7 @@ test("where the file as the change leaves it cannot be read, a last line's eof m
   assert.deepEqual(run({ line: 1, text: line }), []);
 });
 
-test("a removed line is read in the base version of its file: a commented-out DROP DATABASE taken out claims no file; the same statement taken out as code claims it", () => {
+test("a removed line is read in the base version of its file: a commented-out DROP DATABASE taken out claims no file; the same statement taken out as code claims it, and --station routes it the same", () => {
   for (const [path, base, head] of [
     ["finans/report.js", `run();\n// ${DROP}\n`, "run();\n"],
     ["finans/report.php", `<?php\n$x = 1;\n// ${DROP}\n`, "<?php\n$x = 1;\n"],
@@ -599,7 +600,7 @@ test("a removed line is read in the base version of its file: a commented-out DR
     ["finans/report.js", `run();\n${DROP};\n`, "run();\n"],
     ["finans/report.php", `<?php\n$x = 1;\n${DROP};\n`, "<?php\n$x = 1;\n"],
   ]) {
-    assert.deepEqual(bothWays([[path, base, head]], { commit: true }), { station: [], claimed: [path], status: 1 }, `${path}: ${JSON.stringify(base)}`);
+    assert.deepEqual(bothWays([[path, base, head]], { commit: true }), { station: [`${path}:destructive`], claimed: [path], status: 1 }, `${path}: ${JSON.stringify(base)}`);
   }
 });
 

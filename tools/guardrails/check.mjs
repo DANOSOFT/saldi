@@ -56,8 +56,11 @@
 // 20261109 CL/LH A flag followed by another flag has no value; --flag=value. --station refuses a change it cannot build.
 // 20261109 CL/LH A file whose diff header git could not be read for is read whole, and check.mjs says so; a path with a
 //                quote, a backslash or a control character is printed quoted.
+// 20261119 CL/LH --pr-body, --pr-edits and --paths files are read from the caller's directory, not the repository root.
+// 20261119 CL/LH --station reads removed lines in their base file, as the door cross-check does.
 
 import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { buildChangeset, git, revExists, splitLines } from "./lib/changeset.mjs";
 import { findException } from "./lib/exceptions.mjs";
 
@@ -90,6 +93,14 @@ async function loadChecks() {
       .sort()
       .map(async (name) => (await import(`./checks/${name}`)).default),
   );
+}
+
+/** The directory check.mjs was started in, before it moves to the repository root. */
+const CALLER_DIR = process.cwd();
+
+/** A file named on the command line ("-" is stdin), read from the caller's directory. */
+function readInput(name) {
+  return readFileSync(name === "-" ? 0 : resolve(CALLER_DIR, name), "utf8");
 }
 
 class UsageError extends Error {}
@@ -212,7 +223,7 @@ async function station(args) {
   if (args.paths !== null) {
     let text;
     try {
-      text = readFileSync(args.paths === "-" ? 0 : args.paths, "utf8");
+      text = readInput(args.paths);
     } catch (error) {
       return fail("bad-argument", `--paths ${args.paths} cannot be read: ${error.code ?? error.message}`);
     }
@@ -236,10 +247,12 @@ async function station(args) {
     return fail("no-change", `no change between ${args.base} and ${args.head ?? "the working tree"}: ${changeFailure(error)}`);
   }
   const lines = new Map(changeset.files.map((file) => [file.path, changeset.markerLines(file.path)]));
-  // One request to PHP for every PHP file of the change.
-  doors.prefetchPhp([...lines].filter(([path]) => !changeset.isVendored(path)));
+  // Removed lines too, in the file they were removed from, as the door cross-check reads them (pr-body.mjs).
+  const removed = new Map(changeset.files.map((file) => [file.path, changeset.removedLines(file.path)]));
+  // One request to PHP for every PHP file of the change, both sides.
+  doors.prefetchPhp([...lines, ...removed].filter(([path]) => !changeset.isVendored(path)));
   const input = { mode: "diff", base: args.base, baseSha, head: args.head ?? null, headSha };
-  print(routing.stationReport({ input, paths: changeset.files.map((file) => file.path), lines, isVendored: changeset.isVendored }));
+  print(routing.stationReport({ input, paths: changeset.files.map((file) => file.path), lines, removed, isVendored: changeset.isVendored }));
   for (const note of [await phpNote(), unreadableNote(changeset)]) {
     if (note) (args.json ? process.stderr : process.stdout).write(`${note}\n`);
   }
@@ -282,11 +295,11 @@ async function main() {
 
   if (args.prBody) {
     if (!prBody) throw new Error("no pr-body check in tools/guardrails/checks/");
-    const body = readFileSync(args.prBody === "-" ? 0 : args.prBody, "utf8");
+    const body = readInput(args.prBody);
     let ctx = { today };
     if (args.prEdits !== null) {
       try {
-        ctx.edits = JSON.parse(readFileSync(args.prEdits, "utf8"));
+        ctx.edits = JSON.parse(readInput(args.prEdits));
       } catch (error) {
         ctx.edits = { error: `--pr-edits ${args.prEdits} cannot be read (${error.code ?? error.message.split("\n")[0]})` };
       }

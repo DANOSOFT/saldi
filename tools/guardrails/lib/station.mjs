@@ -25,6 +25,8 @@
 // 20261107 CL/LH markerHits may be handed the unchanged lines below a run, and an entry marked cut.
 // 20261109 CL/LH oneWayRowsOf() reads removed lines too.
 // 20261109 CL/LH A plate no match gives a tier takes its station's.
+// 20261119 CL/LH stationReport reads removed lines in their base file for the rows the door cross-check holds them
+//                against (a hit marked removed); a candidate path may hold a space.
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -64,10 +66,11 @@ function matcher(pattern) {
 /**
  * A candidate path as the repository path it names (`./finans/bogfor.php` and `finans//bogfor.php`
  * are `finans/bogfor.php`), or null when it is not one: absolute, outside the repository after
- * `..`, empty, too long, or with whitespace, a backslash or a control character in it.
+ * `..`, empty, too long, starting or ending with a space, or with other whitespace (a space inside is a name's own,
+ * `index copy.js`), a backslash or a control character in it.
  */
 export function canonicalPath(raw) {
-  if (typeof raw !== "string" || raw.length === 0 || raw.length > 400 || raw.startsWith("/") || /[\s\\\0-\x1f\x7f]/.test(raw)) return null;
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > 400 || raw.startsWith("/") || raw.trim() !== raw || /[^\S ]|[\\\0-\x1f\x7f]/.test(raw)) return null;
   const path = posix.normalize(raw);
   if (path === "." || path === "./" || path === ".." || path.startsWith("../")) return null;
   return path;
@@ -244,9 +247,11 @@ export function doorMapHash() {
  * The station report (`saldi.station.v1`) for a set of changed paths.
  *
  * @param {{input: object, paths: string[], lines?: Map<string, {line: number, text: string}[]>,
- *   isVendored?: (path: string) => boolean}} change  `lines`: the added lines per path (diff mode only)
+ *   removed?: Map<string, {line: number|null, text: string}[]>, isVendored?: (path: string) => boolean}} change
+ *   `lines`: the added lines per path; `removed`: the removed lines per path, each read in the file it was removed from
+ *   and numbered as the base numbers it (changeset removedLinesOf), its hits marked removed (diff mode only)
  */
-export function stationReport({ input, paths, lines = new Map(), isVendored = () => false }) {
+export function stationReport({ input, paths, lines = new Map(), removed = new Map(), isVendored = () => false }) {
   const changedPaths = [...new Set(paths)].sort(compare);
   const doorHits = new Map();
   const careHits = new Map();
@@ -265,18 +270,31 @@ export function stationReport({ input, paths, lines = new Map(), isVendored = ()
       if (pattern) add(careHits, row.id, { kind: "path", path, pattern });
     }
     if (isGatePath(path)) gatePaths.push(path);
-    for (const { row, marker, line } of markerHits(path, lines.get(path) ?? [], isVendored)) {
-      add(doorHits, row, { kind: "marker", path, line, marker });
-      markersHit.push({ kind: "marker", row, path, line, marker });
-      markerRows.add(row);
+    // A removed line counts for the rows the door cross-check holds it against (pr-body.mjs), so the two agree; a
+    // crossCheck: false row (secrets: taking a password out leaks nothing) reads added lines only.
+    const sides = [[lines.get(path) ?? [], {}], [removed.get(path) ?? [], { removed: true }]];
+    for (const [entries, side] of sides) {
+      for (const { row, marker, line } of markerHits(path, entries, isVendored)) {
+        if (side.removed && ROWS.get(row).crossCheck === false) continue;
+        add(doorHits, row, { kind: "marker", path, line, marker, ...side });
+        markersHit.push({ kind: "marker", row, path, line, marker, ...side });
+        markerRows.add(row);
+      }
     }
   }
 
   const markerIndex = (row, marker) => ROWS.get(row).markers.findIndex((m) => m.marker === marker);
+  // An added line before a removed one of the same number, so the same change prints the same report.
+  const side = (hit) => (hit.removed ? 1 : 0);
   const byHit = (row) => (a, b) =>
-    compare(a.path, b.path) || (a.line ?? 0) - (b.line ?? 0) || (a.kind === "marker" && b.kind === "marker" ? markerIndex(row, a.marker) - markerIndex(row, b.marker) : 0);
+    compare(a.path, b.path) || (a.line ?? 0) - (b.line ?? 0) || side(a) - side(b) ||
+    (a.kind === "marker" && b.kind === "marker" ? markerIndex(row, a.marker) - markerIndex(row, b.marker) : 0);
   const rowOrder = (id) => doors.ONE_WAY_ROWS.findIndex((row) => row.id === id);
-  markersHit.sort((a, b) => compare(a.path, b.path) || a.line - b.line || rowOrder(a.row) - rowOrder(b.row) || markerIndex(a.row, a.marker) - markerIndex(b.row, b.marker));
+  markersHit.sort(
+    (a, b) =>
+      compare(a.path, b.path) || (a.line ?? 0) - (b.line ?? 0) || side(a) - side(b) || rowOrder(a.row) - rowOrder(b.row) ||
+      markerIndex(a.row, a.marker) - markerIndex(b.row, b.marker),
+  );
 
   const doorRows = doors.ONE_WAY_ROWS.filter((row) => doorHits.has(row.id)).map((row) => ({
     row: row.id,
@@ -388,7 +406,7 @@ export function formatStation(report) {
       ? `paths from stdin against ${report.input.base}`
       : `${report.input.base}..${report.input.head ?? "working tree"}`;
   const label = (source) => (source.kind === "row" ? source.row : doors.STATIONS[source.station].name + (source.party ? ` ${source.party}` : ""));
-  const hit = (h) => (h.kind === "path" ? `${h.path} (${h.pattern})` : `${h.path}:${h.line} "${h.marker}"`);
+  const hit = (h) => (h.kind === "path" ? `${h.path} (${h.pattern})` : `${h.path}:${h.line ?? "?"}${h.removed ? " (removed)" : ""} "${h.marker}"`);
   const out = [
     `station:           ${owner.name}${party} (rule ${report.rule})`,
     `door floor:        ${report.doorFloor}${report.doorFloor === "none-detected" ? " (the map is a floor: no match is not two-way)" : ""}`,

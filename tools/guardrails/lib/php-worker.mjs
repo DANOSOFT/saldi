@@ -5,11 +5,13 @@
 // request to it as one line and hands the answer back through the request's port, then wakes the
 // waiting thread (Atomics.notify on the request's flag). Requests are answered in order. Once PHP
 // has exited or failed, every later request gets the reason. The process id goes into the shared
-// slot lib/php.mjs gave (workerData.pid), so lib/php.mjs can stop PHP while it waits.
+// slot lib/php.mjs gave (workerData.pid), so lib/php.mjs can stop PHP while it waits; the slot is
+// cleared as soon as PHP has exited and been reaped, before its id can go to another process.
 //
 // History:
 // 20261106 CL/LH Created.
 // 20261109 CL/LH The PHP process id is shared with lib/php.mjs.
+// 20261119 CL/LH The shared process id is cleared when PHP exits, so a reused id is never signalled.
 
 import { spawn } from "node:child_process";
 import { parentPort, workerData } from "node:worker_threads";
@@ -54,6 +56,8 @@ child.stderr.on("data", (chunk) => {
 child.stdin.on("error", (error) => fail(`PHP's input closed (${error.code ?? error.message})`));
 child.on("error", (error) => fail(`${command} could not start (${error.code ?? error.message})`));
 child.on("exit", (code, signal) => {
+  // Node reaps PHP just before this runs: from here its id may name another process.
+  if (workerData.pid) Atomics.store(workerData.pid, 0, 0);
   // Built without a template inside a template's interpolation, so this file stays in doors.mjs's plain subset.
   const why = signal ?? "code " + code;
   const last = stderr.trim() ? ": " + stderr.trim().split("\n").pop() : "";

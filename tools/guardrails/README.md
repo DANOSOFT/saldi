@@ -43,6 +43,9 @@ It prints the station, the party, the human at the pass, the taster tier, the
 minimum proof, and every row, marker and gate path that matched. The first
 path rule that matches owns the change (one-way row, Fællesgryden's care row,
 gate path, anything else); every match adds its proof and its tier.
+A removed line is read in the file it was removed from, as the door
+cross-check in `--pr-body` reads it, and its hit is marked `removed`; the
+`secrets` row, which the cross-check leaves out, reads added lines only.
 Each proof names the end-to-end run it asks for (`e2e`, strictest first: `pr`,
 `pr-or-flow`, `flow`, `where-available`, `none`; the row fields in
 `lib/doors.mjs` say what each means).
@@ -55,7 +58,9 @@ no value (`--base --json` is a bad argument); give a value that starts with
 tier is null, alone) takes its station's own tier. `--paths` reads
 candidate paths, one per line, instead of a diff, so markers do not count.
 Each is matched as the repository path it names (`./finans/bogfor.php` is
-`finans/bogfor.php`); a path that leaves the repository is refused.
+`finans/bogfor.php`, and a space inside a name is the name's own); a path that
+leaves the repository is refused. A file named by `--paths`, `--pr-body` or
+`--pr-edits` is read from the directory `check.mjs` was started in.
 Run the rules of the branch you are judged against, not your own: a change
 must not loosen the map it is routed by.
 

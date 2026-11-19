@@ -23,6 +23,8 @@
 // History:
 // 20261106 CL/LH Created.
 // 20261109 CL/LH PHP 8.2 only; a failed or timed-out tokenizer's process and container are stopped.
+// 20261119 CL/LH PHP's warnings go to stderr, so its output holds only the JSON answers; a PHP that has exited is
+//                not signalled (its process id may name another process by then).
 
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -72,7 +74,7 @@ function start() {
   const command = phpCommand(undefined, { exact: true, name });
   owned = { container: command[0] === "docker" ? name : null, pid: new Int32Array(new SharedArrayBuffer(4)) };
   worker = new Worker(new URL("./php-worker.mjs", import.meta.url), {
-    workerData: { command, args: ["-d", "memory_limit=-1", "-d", "short_open_tag=0", "-r", PROGRAM], pid: owned.pid },
+    workerData: { command, args: ["-d", "memory_limit=-1", "-d", "short_open_tag=0", "-d", "display_errors=stderr", "-r", PROGRAM], pid: owned.pid },
   });
   worker.unref();
   worker.on("error", (error) => {
@@ -90,7 +92,8 @@ function stop() {
   const { container, pid } = owned;
   owned = null;
   if (container) spawnSync("docker", ["rm", "--force", container], { stdio: "ignore", timeout: 30_000 });
-  const id = Atomics.load(pid, 0);
+  // Read after the container is gone, as late as it can be: the worker clears the slot once PHP has exited.
+  const id = Atomics.exchange(pid, 0, 0);
   if (id > 0) {
     try {
       process.kill(id, "SIGKILL");

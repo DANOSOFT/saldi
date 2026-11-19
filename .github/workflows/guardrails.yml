@@ -143,6 +143,12 @@ jobs:
         # log says so.
         run: |
           if [[ "$HEAD_REF" == sync/* ]]; then change=(--text-only); else change=(--base "$BASE_SHA" --head "$HEAD_SHA"); fi
+          # Without the base commit the base's checker cannot be read, and the
+          # PR's own checker must not stand in for it.
+          if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "::error::the base revision $BASE_SHA is missing from the checkout, so its door policy cannot judge this description"
+            exit 1
+          fi
           if git cat-file -e "$BASE_SHA:tools/guardrails/lib/doors.mjs" 2>/dev/null; then
             policy="$RUNNER_TEMP/guardrails-policy"
             mkdir -p "$policy"

@@ -13,6 +13,7 @@
 // History:
 // 20261106 CL/LH Created.
 // 20261109 CL/LH PHP 8.2 only; a timed-out tokenizer's process and container are stopped.
+// 20261119 CL/LH A PHP warning (an octal escape past \377) goes to stderr, not into the answer.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -494,4 +495,13 @@ test("a tokenizer that gives no answer in time is stopped: the PHP 8.2 process o
     rmSync(localDir, { recursive: true, force: true });
     rmSync(dockerDir, { recursive: true, force: true });
   }
+});
+
+test("a text PHP warns about (an octal escape past \\377) is still tokenized: the warning goes to stderr, not into the answer", () => {
+  const text = '<?php $a = "\\400"; // a comment\n';
+  const [tokens] = tokenize([text]);
+  assert.ok(Array.isArray(tokens), "PHP answered with tokens");
+  assert.equal(tokens.reduce((sum, [, length]) => sum + length, 0), text.length);
+  assert.ok(tokens.some(([name]) => name === "T_COMMENT"));
+  assert.equal(phpFailure(), null);
 });

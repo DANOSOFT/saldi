@@ -7,6 +7,8 @@
 // History:
 // 20261103 CL/LH Created.
 // 20261109 CL/LH A moved row is an added line, as git's diff shows it; the remediation messages name no new id.
+// 20261119 CL/LH The two historical commits are skipped in a clone without them (CI fetches the whole history);
+//                a repeated row and a findtekst() id missing from tekster.csv get their own remedies.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -17,6 +19,12 @@ const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const CHECK = fileURLToPath(new URL("../check.mjs", import.meta.url));
 const CSV = "importfiler/tekster.csv";
 const KEYED = "importfiler/tekster_keyed.tsv";
+
+/** Why the commit or its parent cannot be judged here (a shallow clone), or false; CI checks out the whole history. */
+function missing(sha) {
+  const found = [sha, `${sha}^`].every((rev) => spawnSync("git", ["cat-file", "-e", `${rev}^{commit}`], { cwd: ROOT }).status === 0);
+  return found ? false : `${sha} or its parent is not in this clone (git fetch --unshallow)`;
+}
 
 function judge(sha) {
   const result = spawnSync(process.execPath, [CHECK, "--base", `${sha}^`, "--head", sha, "--only", "tekster"], {
@@ -48,11 +56,11 @@ function context(files) {
 
 const ROWS = "100\tGem\tSave\tLagre\n101\tLuk\tClose\tLukk\n";
 
-test("#942 600411b0 fails: it adds ids 7650 and 7651", () => {
+test("#942 600411b0 fails: it adds ids 7650 and 7651", { skip: missing("600411b0") }, () => {
   assert.deepEqual(judge("600411b0"), { status: 1, ids: ["7650", "7651"] });
 });
 
-test("#831 56f0e16f fails: it adds ids 5440 and 5441", () => {
+test("#831 56f0e16f fails: it adds ids 5440 and 5441", { skip: missing("56f0e16f") }, () => {
   assert.deepEqual(judge("56f0e16f"), { status: 1, ids: ["5440", "5441"] });
 });
 
@@ -97,4 +105,20 @@ test("the remediation messages point at a descriptive key or deleteStaleTekst(),
   assert.equal(keyReworded.length, 1);
   assert.match(keyReworded[0].message, /a new descriptive key, or add deleteStaleTekst\('a\.save', <old text or texts>\)/);
   for (const finding of [...reworded, ...numericKey, ...keyReworded]) assert.doesNotMatch(finding.message, /new id\b(?!s)|numeric ids belong/);
+});
+
+test("a repeated row is deleted; a row that reuses an id with other text takes a key", () => {
+  const repeated = tekster.run(context({ [CSV]: { before: ROWS, after: `${ROWS}100\tGem\tSave\tLagre\n` } }));
+  assert.equal(repeated.length, 1);
+  assert.match(repeated[0].message, /id 100 repeats line 1 word for word; delete this line/);
+  const reused = tekster.run(context({ [CSV]: { before: ROWS, after: `${ROWS}100\tÅbn\tOpen\tÅpne\n` } }));
+  assert.ok(reused.some((finding) => /id 100 is already used on line 1\..*descriptive key/.test(finding.message)));
+});
+
+test("a findtekst() id missing from tekster.csv is checked or restored before a key is suggested", () => {
+  const ctx = context({ [CSV]: { before: ROWS, after: ROWS } });
+  ctx.files.push({ path: "a.php", status: "M", added: new Map([[3, "echo findtekst('999|Gem');"]]), hunks: [] });
+  const findings = tekster.run(ctx);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].message, /id 999 is not in importfiler\/tekster\.csv\. Check the id for a typo, or restore its row/);
 });
