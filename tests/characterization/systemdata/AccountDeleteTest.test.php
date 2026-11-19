@@ -66,7 +66,7 @@ final class AccountDeleteTest extends TestCase
 				}
 				return (object) ["rows" => []];
 			}
-			function db_fetch_array($r) { return array_shift($r->rows) ?? false; }
+			function db_fetch_array($r) { return is_object($r) ? (array_shift($r->rows) ?? false) : false; }
 			function db_modify($q, $where = "") {
 				$GLOBALS["__modify"][] = $q;
 				if (preg_match("/delete from kontoplan where id = (-?[0-9]+) and regnskabsaar = \'([0-9]+)\'/", $q, $m) && ($GLOBALS["__accountYears"][(int) $m[1]] ?? 1) === (int) $m[2]) unset($GLOBALS["__accounts"][(int) $m[1]]);
