@@ -104,7 +104,7 @@
 //                 In the edited POST block the three-argument if_isset() lookups are now ifset() with the same keys and defaults, and ordreside() includes its order parts with __DIR__.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261119 CL/MMR SST-1041 On a new order without a supplier, an item picked in the search list gets the item's supplier no. 1, as item number + Enter does.
-//                 A pick from the Lev. varenr. search prefers the supplier of that number. An item with no supplier shows a message on both paths.
+//                 A pick from the Lev. varenr. search takes that supplier row, with its number and price. An item with no supplier shows a message on both paths.
 @session_start();
 $s_id=session_id();
 
