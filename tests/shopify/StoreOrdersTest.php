@@ -31,7 +31,7 @@ final class StoreOrdersTest extends TestCase
 				'email' => 'k@example.dk', 'phone' => '12345678', 'land' => 'Danmark', 'kontakt' => 'Hans Jensen', 'firmanavn' => 'Hans Jensen',
 				'addr1' => 'Havevej 1', 'addr2' => '', 'postnr' => '2000', 'bynavn' => 'Frederiksberg',
 				'lev_navn' => '', 'lev_kontakt' => '', 'lev_addr1' => '', 'lev_addr2' => '', 'lev_postnr' => '', 'lev_bynavn' => '', 'lev_land' => '',
-				'lev_type' => null, 'lev_valg' => null, 'shopify_vaerdi' => null, 'leveringsmaade' => '', 'oensket_levdato' => null],
+				'lev_type' => null, 'lev_valg' => null, 'shopify_vaerdi' => null, 'leveringsmaade' => '', 'oensket_levdato' => null, 'levdato_ymd' => null],
 			'lines' => $lines ?? [self::line()],
 			'payments' => $payments ?? [['betalingstype' => 'Dankort', 'amount' => 125, 'valutakurs' => 100]],
 			'links' => self::LINKS,
@@ -69,10 +69,10 @@ final class StoreOrdersTest extends TestCase
 			'taget med' => [[], ['fulfillmentStatus' => 'FULFILLED'], ['customAttributes', 'shippingAddress', 'note']],
 			'afhentning' => [$choice('afhentning', 'Afhentning i butik'), ['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'Afhentning i butik'], ['key' => 'Leveringstype', 'value' => 'afhentning']]],
 				['fulfillmentStatus', 'shippingAddress', 'note']],
-			'levering with a date' => [$choice('levering', 'Levering', 'EasyRoutes') + ['oensket_levdato' => '2026-11-20'],
+			'levering with a date' => [$choice('levering', 'Levering', 'EasyRoutes') + ['oensket_levdato' => '2026-11-20', 'levdato_ymd' => '2026-11-20'],
 				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'EasyRoutes'], ['key' => 'Leveringstype', 'value' => 'levering'], ['key' => 'Delivery Date', 'value' => '2026-11-20']]],
 				['fulfillmentStatus', 'note']],
-			'levering by Danske Fragtmænd' => [$choice('levering', 'Fragtmand', 'Danske Fragtmænd') + ['oensket_levdato' => '2026-11-21'],
+			'levering by Danske Fragtmænd' => [$choice('levering', 'Fragtmand', 'Danske Fragtmænd') + ['oensket_levdato' => '2026-11-21', 'levdato_ymd' => '2026-11-21'],
 				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'Danske Fragtmænd'], ['key' => 'Leveringstype', 'value' => 'levering'], ['key' => 'Delivery Date', 'value' => '2026-11-21']]],
 				['fulfillmentStatus', 'note']],
 			'levering without a date' => [$choice('levering', 'Levering', 'EasyRoutes'),
@@ -106,10 +106,31 @@ final class StoreOrdersTest extends TestCase
 		}
 	}
 
+	/**
+	 * Saldi reads the date back from the field it writes: a store order's Additional details, as the
+	 * order webhook delivers them (note_attributes, name/value), give statusIn.php the same date, and
+	 * an undated delivery gives none (the note says the date is agreed with the customer).
+	 */
+	public function testTheDeliveryDateIsReadFromTheFieldTheStoreOrderWrites(): void
+	{
+		require_once __DIR__ . '/../../includes/shopify/services/statusIn.php';
+		$asWebhook = fn(array $o): array => ['note_attributes' => array_map(fn(array $a): array => ['name' => $a['key'], 'value' => $a['value']], $o['customAttributes'] ?? [])];
+		$levering = ['lev_type' => 'levering', 'lev_valg' => 'Levering', 'shopify_vaerdi' => 'EasyRoutes'];
+
+		$dated = self::payload(self::snap($levering + ['oensket_levdato' => '2026-11-20', 'levdato_ymd' => '2026-11-20']))['order'];
+		$undated = self::payload(self::snap($levering))['order'];
+
+		$this->assertSame('Delivery Date', SHOPIFY_EASYROUTES_DATE_ATTRIBUTE, 'web orders are read from the key DTAILS confirmed 2026-11-18');
+		$this->assertSame(SHOPIFY_STORE_ORDER_ATTR_DATE, SHOPIFY_EASYROUTES_DATE_ATTRIBUTE, 'one field for store orders and web orders');
+		$this->assertSame('2026-11-20', shopify_status_easyroutes_date($asWebhook($dated)));
+		$this->assertNull(shopify_status_easyroutes_date($asWebhook($undated)));
+		$this->assertSame('Leveringsdato aftales med kunden', $undated['note']);
+	}
+
 	public function testADeliveryGoesToItsDeliveryAddressWhenItHasOne(): void
 	{
 		$o = self::payload(self::snap(['lev_type' => 'levering', 'lev_navn' => 'Sommerhus', 'lev_kontakt' => 'Grete Hansen', 'lev_addr1' => 'Strandvej 9',
-			'lev_postnr' => '3000', 'lev_bynavn' => 'Helsingør', 'lev_land' => 'DK', 'oensket_levdato' => '2026-11-20']))['order'];
+			'lev_postnr' => '3000', 'lev_bynavn' => 'Helsingør', 'lev_land' => 'DK', 'oensket_levdato' => '2026-11-20', 'levdato_ymd' => '2026-11-20']))['order'];
 
 		$this->assertSame(['firstName' => 'Grete', 'lastName' => 'Hansen', 'company' => 'Sommerhus', 'address1' => 'Strandvej 9', 'zip' => '3000', 'city' => 'Helsingør',
 			'phone' => '+4512345678', 'countryCode' => 'DK'], $o['shippingAddress']);

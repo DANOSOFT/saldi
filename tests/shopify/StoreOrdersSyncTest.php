@@ -243,4 +243,34 @@ final class StoreOrdersSyncTest extends TestCase
         $this->assertFalse($r['orders']['hml'][0]['fulfilled'], 'a delivery is not fulfilled at once');
         $this->assertSame([], $this->sql("SELECT ordre_id FROM shopify_order_links WHERE ordre_id IN ($1, $2, $3)", [$before, $anonymous, $payment]));
     }
+
+    /**
+     * A delivery's date reaches the shop as Delivery Date in YYYY-MM-DD under any DateStyle, and an undated delivery
+     * gets the note instead. 3 April under 'SQL, DMY' prints 03/04/2026, which a loose parse reads as 4 March.
+     */
+    public function testADeliveryDateGoesAsDeliveryDateInIsoFormatWhateverTheDateStyle(): void
+    {
+        $this->sql('ALTER DATABASE ' . pg_escape_identifier($this->conn, self::$db) . " SET datestyle = 'SQL, DMY'");
+        try {
+            $choice = (int)$this->sql("INSERT INTO pos_leveringsvalg (navn, type, shopify_vaerdi) VALUES ('Levering', 'levering', 'EasyRoutes') RETURNING id")[0]['id'];
+            $dated = $this->sale(0, '2026-11-12', '13:00', $choice);
+            $this->sql("UPDATE ordrer SET oensket_levdato = '2026-04-03' WHERE id = $1", [$dated]);
+            $undated = $this->sale(0, '2026-11-12', '13:05', $choice);
+
+            $r = $this->steps(['job', 'hml', $dated], ['job', 'hml', $undated]);
+        } finally {
+            $this->sql('ALTER DATABASE ' . pg_escape_identifier($this->conn, self::$db) . ' RESET datestyle');
+        }
+        $orders = $r['orders']['hml'];
+        $this->assertCount(2, $orders);
+        $byTag = [];
+        foreach ($orders as $o) {
+            $byTag[in_array("saldi-po-" . self::$db . "-$dated", $o['tags'], true) ? 'dated' : 'undated'] = $o;
+        }
+        $this->assertSame([['key' => 'Leveringsmaade', 'value' => 'EasyRoutes'], ['key' => 'Leveringstype', 'value' => 'levering'], ['key' => 'Delivery Date', 'value' => '2026-04-03']],
+            $byTag['dated']['attributes']);
+        $this->assertNull($byTag['dated']['note']);
+        $this->assertSame([['key' => 'Leveringsmaade', 'value' => 'EasyRoutes'], ['key' => 'Leveringstype', 'value' => 'levering']], $byTag['undated']['attributes']);
+        $this->assertSame('Leveringsdato aftales med kunden', $byTag['undated']['note']);
+    }
 }
