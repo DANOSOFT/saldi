@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-13 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -167,6 +167,8 @@
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
+
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 
@@ -4805,6 +4807,8 @@ if (!function_exists('vareopslag')) {
 ######################################################################################################################################
 function tekstopslag($sort, $id)
 {
+	require_once __DIR__ . '/orderFuncIncludes/standardOrderText.php';
+	global $db_encode;
 	global $bgcolor;
 	global $bgcolor5;
 	global $db, $db_skriv_id;
@@ -4815,8 +4819,9 @@ function tekstopslag($sort, $id)
 
 	$linjebg = NULL;
 
-	if (!isset($fokus))
+	if (!isset($fokus)) {
 		$fokus = null;
+	}
 
 	sidehoved($id, "ordre.php", "", $fokus, findtekst(1092, $sprog_id) . " $id - Vareopslag");
 	//print "<td width=100% align=\"center\">\n";
@@ -4849,7 +4854,7 @@ function tekstopslag($sort, $id)
 		print "	<input type=\"checkbox\" title=\"Afkryds ved insættelse af flere tekster\" name=\"linjetekster[]\" value=\"$r[id]\">";
 		print "</td>";
 		print "<td align=\"left\" title=\"" . findtekst(491, $sprog_id) . "\" style=\"width:800px;\">";
-		print "	<!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_id=$r[id]\">" . nl2br($r['tekst']) . "</a>";
+		print "	<!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_id=$r[id]\">" . nl2br(orderTextLookupHtml((string) $r['tekst'], $db_encode)) . "</a>";
 		print "</td>\n";
 		print "<td title=\"Ret tekst\" align=\"right\">";
 		print "	<span style=\"width:16px; display:block;\"><a href=\"ret_tekst_ordre.php?id=$id&amp;tekst_id=$r[id]\">";
@@ -4858,10 +4863,11 @@ function tekstopslag($sort, $id)
 		print "</td>\n";
 		print "<td title=\"" . findtekst(492, $sprog_id) . "\" align=\"left\"><!--tekst 492-->";
 		print "<a href=\"ordre.php?id=$id&amp;tekst_id=$r[id]&amp;slet_tekst=$r[id]\" onclick=\"return confirm('" . findtekst(493, $sprog_id) . "')\"><!--Tekst 493-->";
-		if ($sag_id)
+		if ($sag_id) {
 			print "<span style=\"width:16px; display:block;\"><span class=\"xmark\"></span></a></td>\n"; #20170601 indsat 'if ($sag_id)'
-		else
+		} else {
 			print "<!--Tekst 493--><img src=\"../img/x_mark.png\"></a></td>\n";
+		}
 		print "</tr>\n";
 	}
 	print "</tbody>\n";
