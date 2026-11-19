@@ -219,13 +219,15 @@ final class StoreOrdersSyncTest extends TestCase
     {
         $debtor = $this->debtor('SD804G', 'g@example.dk');
         $choice = (int)$this->sql("INSERT INTO pos_leveringsvalg (navn, type, shopify_vaerdi) VALUES ('Levering', 'levering', 'EasyRoutes') RETURNING id")[0]['id'];
+        // the scan looks back SHOPIFY_STORE_ORDER_RECOVER_DAYS (7) from now(), so its sales are dated from the run's own day
+        $day = date('Y-m-d', strtotime('-1 day'));
         $before = $this->sale($debtor, '2026-11-10', '07:59');
         $anonymous = $this->sale(0);
-        $delivery = $this->sale(0, '2026-11-12', '11:00', $choice);
-        $old = $this->sale($debtor, '2026-11-01');
-        $sale = $this->sale($debtor, '2026-11-12', '12:00');
+        $delivery = $this->sale(0, $day, '11:00', $choice);
+        $old = $this->sale($debtor, date('Y-m-d', strtotime('-8 days')));
+        $sale = $this->sale($debtor, $day, '12:00');
         // an account payment: a POS order with no lines
-        $payment = $this->sale($debtor, '2026-11-12', '12:05');
+        $payment = $this->sale($debtor, $day, '12:05');
         $this->sql('DELETE FROM ordrelinjer WHERE ordre_id = $1', [$payment]);
         $this->sql('UPDATE ordrer SET moms = 0 WHERE id = $1', [$payment]);
 
