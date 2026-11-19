@@ -740,12 +740,12 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 					if (!isset($ordre_id[$y-1]) || $ordre_id[$y]!=$ordre_id[$y-1]) {
 						print "<td align=right>".dkdecimal($retur,2)."<br></td>\n";
 						$retursum+=$retur;
-
+	
 						$q_dg = db_fetch_array(db_select("
 						SELECT
 						COALESCE(SUM(pris * antal), 0) AS total_sales,
 						COALESCE(SUM(
-							CASE
+							CASE 
 							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
 							ELSE (pris * rabat / 100) * antal
 							END
@@ -753,8 +753,8 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						COALESCE(SUM($line_cost * antal), 0) AS kostpris,
 						COALESCE(SUM(
 							(
-							pris -
-							CASE
+							pris - 
+							CASE 
 								WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
 								ELSE (pris * rabat / 100)
 							END
@@ -765,9 +765,9 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						WHERE ordre_id = '{$id[$x]}'
 						", __FILE__ . ' linje ' . __LINE__));
 
-						$discount_val = $q_dg['discount'];
+						$discount_val = $q_dg['discount'];	
 						$gross_profit_val = $q_dg['dg'];
-
+						
 						if ($rabat_varenr && $vis_saet) {
 							$q_rabat = db_fetch_array(db_select(
 								"SELECT lev_varenr FROM ordrelinjer WHERE ordre_id = '{$id[$x]}' AND TRIM(UPPER(varenr)) = TRIM(UPPER('" . db_escape_string((string)$rabat_varenr) . "')) AND rabat != 0 ORDER BY id ASC LIMIT 1",
