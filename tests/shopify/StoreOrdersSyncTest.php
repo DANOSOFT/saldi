@@ -222,7 +222,7 @@ final class StoreOrdersSyncTest extends TestCase
         // the scan looks back SHOPIFY_STORE_ORDER_RECOVER_DAYS (7) from now(), so its sales are dated from the run's own day
         $day = date('Y-m-d', strtotime('-1 day'));
         $before = $this->sale($debtor, '2026-11-10', '07:59');
-        $anonymous = $this->sale(0);
+        $anonymous = $this->sale(0, $day);
         $delivery = $this->sale(0, $day, '11:00', $choice);
         $old = $this->sale($debtor, date('Y-m-d', strtotime('-8 days')));
         $sale = $this->sale($debtor, $day, '12:00');
