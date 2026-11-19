@@ -1,5 +1,5 @@
 <?php
-// --- admin/vis_regnskaber.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- admin/vis_regnskaber.php --- ver 5.1.1 --- 2026.11.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -52,6 +52,12 @@
 // 20261113 CL/ASR Same fix for the new layout: vr_ts() turns regnskab.sidst into Unix seconds (legacy rows hold a calendar date) before vr_rel() and the date tooltip use it.
 // 20261113 CL/ASR Ids, the posting limit, hints and closed rows use --text-2 instead of --text-3, so they are readable in the light theme.
 //                 The off switch and the closed-status dot use --text-3 instead of --text-4. The design-system token values are unchanged.
+// 20261117 CDX/NTR Show the Admin Panel link only to master users with admin rights.
+
+/**
+ * Injected by ../includes/online.php, included below:
+ * @var string $brugernavn_raw
+ */
 
 @session_start();
 $s_id=session_id();
@@ -63,6 +69,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 require_once __DIR__ . '/../includes/stdFunc/lastActivityDate.php';
+require_once __DIR__ . '/../includes/stdFunc/masterAdminRight.php';
 include("../includes/topline_settings.php");
 
 $saldiregnskab = NULL; # Lukkes / Betalt til / Logintekst are kept out of this page (see Admin Panel)
@@ -150,7 +157,7 @@ if (isset($_POST['submit']) && $admin) {
 }
 
 $r_ap = db_fetch_array(db_select("select var_value from settings where var_name='useAdminPanel'", __FILE__ . " linje " . __LINE__));
-$showAdminPanel = ($r_ap && $r_ap['var_value']) ? true : false;
+$showAdminPanel = ($r_ap && $r_ap['var_value']) && masterUserHasAdminRights($brugernavn_raw);
 
 // Warn before opening a regnskab, but only on the master install at ssl3.saldi.dk.
 // The click is intercepted by vrWarnOpen() (printed below), which fetches the regnskab's
