@@ -33,6 +33,7 @@ final class AccountDeleteTest extends TestCase
 		$GLOBALS['__postings'] = $postings;
 		$GLOBALS['__year'] = $year;
 		$GLOBALS['__modify'] = [];
+		$GLOBALS['__failPostings'] = $GLOBALS['__failPostings'] ?? false;
 		eval('
 			function db_select($q, $where = "") {
 				if (strpos($q, "art=\'RA\'") !== false) {
@@ -41,6 +42,7 @@ final class AccountDeleteTest extends TestCase
 					return (object) ["rows" => [["box1" => $sm, "box2" => $sy, "box3" => $em, "box4" => $ey]]];
 				}
 				if (preg_match("/from transaktioner where transdate(>=?)\'([0-9-]+)\' and transdate(<=?)\'([0-9-]+)\' and kontonr=\'(-?[0-9]+)\'/", $q, $m)) {
+					if ($GLOBALS["__failPostings"]) return false;
 					$from = strtotime($m[2]); $to = strtotime($m[4]);
 					foreach ($GLOBALS["__postings"][(int) $m[5]] ?? [] as $d) {
 						$t = strtotime($d);
@@ -124,6 +126,17 @@ final class AccountDeleteTest extends TestCase
 		$result = deleteAccountAction(10, 9002, 1);
 		self::assertFalse($result['deleted'], 'a hand-made form with another number cannot delete an account with postings');
 		self::assertSame(9001, $result['refusedKontonr']);
+	}
+
+	public function testAFailedPostingQueryRefusesTheDelete(): void
+	{
+		// db_select() only alerts on a first error and returns false; that must not read as "no postings"
+		$GLOBALS['__failPostings'] = true;
+		self::boot([10 => 9001, 11 => 9002], []);
+		self::assertNull(accountHasPostingsInYear(9001, 1), 'unknown, not "no postings"');
+		$result = deleteAccountAction(10, 9001, 1);
+		self::assertFalse($result['deleted']);
+		self::assertSame([], $GLOBALS['__modify'], 'nothing written');
 	}
 
 	public function testAMissingFiscalYearRefusesTheDelete(): void

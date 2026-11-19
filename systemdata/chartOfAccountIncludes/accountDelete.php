@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/chartOfAccountIncludes/accountDelete.php --- ver 5.1.1 --- 2026-11-12 ---
+// --- systemdata/chartOfAccountIncludes/accountDelete.php --- ver 5.1.1 --- 2026-11-19 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 //                 The year check includes the first and last day of the fiscal year.
 //                 A missing or invalid fiscal year refuses the delete, since the absence of postings cannot be proven.
 //                 An account that belongs to another fiscal year than the selected one is refused as well.
+// 20261119 CL/LH SST-1012 A posting query that fails counts as not proven, so the account is not deleted (db_select() returns false on a first error).
 
 if (!function_exists('fiscalYearBounds')) {
 	/**
@@ -64,7 +65,7 @@ if (!function_exists('accountHasPostingsInYear')) {
 	 *
 	 * @param int $kontonr Account number
 	 * @param int $regnaar Fiscal year (grupper art RA kodenr)
-	 * @return bool|null null when the fiscal year cannot be determined, so the absence of postings is not proven
+	 * @return bool|null null when the fiscal year cannot be determined or the query fails, so the absence of postings is not proven
 	 */
 	function accountHasPostingsInYear($kontonr, $regnaar) {
 		$kontonr = (int)$kontonr;
@@ -74,7 +75,12 @@ if (!function_exists('accountHasPostingsInYear')) {
 		}
 		$qtxt = "select id from transaktioner where transdate>='$bounds[0]' and transdate<='$bounds[1]' ";
 		$qtxt .= "and kontonr='$kontonr'";
-		return (bool)db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		if (!$q) {
+			// db_select() only alerts on the first error and returns false: no rows read is not no postings
+			return null;
+		}
+		return (bool)db_fetch_array($q);
 	}
 }
 
