@@ -2,6 +2,8 @@
 // 20261015 CL/LH SST-842: reject the booking (deletes the order and rentalperiod) when no payment link is returned.
 // 20261111 CL/MMR SST-995: the calendar shows without closed days, and closed days are blocked (map returned nothing).
 //                 A start date whose rental would end on a closed day is refused with a message (no onChange loop).
+// 20261119 CL/MMR SST-999 Review (PR #1097): stop with a message when createBooking refuses the booking.
+//                 No payment link is asked for without a booking (no free item for the period moved by closed days).
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${db}`,{
         method: "GET",
@@ -418,6 +420,12 @@ const calendarView = async (main, product, weeks, price, db) => {
             })
             
             const bookingId = response.id
+            // SST-999: closed days make the rental longer, and the API refuses the booking (no id) when no item
+            // of the product is free for the longer period. Stop here instead of asking for a payment link.
+            if (!bookingId) {
+                alert("Perioden er ikke ledig, når lukkedagene lægges til lejeperioden. Vælg en anden startdato.")
+                return
+            }
             const loading = document.querySelector("#loading")
             loading.style.display = "flex"
             const quickRes = await fetch("vibrantPaymentLink.php", {

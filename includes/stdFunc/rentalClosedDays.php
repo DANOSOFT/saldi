@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/rentalClosedDays.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- includes/stdFunc/rentalClosedDays.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 // 20261111 CL/MMR SST-999 Created. The end of a booking from the public booking page or mysale, moved one day on for every closed day in the period.
 //                 The bookings used strtotime() on rentalclosed.day, which is a unix time, so every closed day read as false and was never counted.
+// 20261119 CL/MMR SST-999 Review (PR #1097): rental_item_is_free() and rental_free_item_for_period() check a moved period against the item's bookings.
+//                 The calendar only checked the period up to the chosen end, and reservations count too.
 
 if (!function_exists('rental_extend_for_closed_days')) {
 	/**
@@ -72,5 +74,58 @@ if (!function_exists('rental_closed_days')) {
 			$days[] = $row["day"];
 		}
 		return $days;
+	}
+}
+
+if (!function_exists('rental_item_is_free')) {
+	/**
+	 * Whether an item has no booking (rentalperiod) and no reservation (rentalreserved) on any day from $from to $to.
+	 *
+	 * Both ends are included, the same rule the booking calendars use (onDayCreate in remoteBooking/index.js and
+	 * mysale/remote.js): a booking that ends on the first day or starts on the last day overlaps. Every booking of
+	 * the item counts, as in the calendar, also one waiting for payment.
+	 *
+	 * @param int|string $itemId rentalitems.id.
+	 * @param int $from First day of the period, unix time.
+	 * @param int $to Last day of the period, unix time.
+	 * @return bool True when nothing on the item overlaps the period.
+	 */
+	function rental_item_is_free($itemId, $from, $to) {
+		$itemId = (int)$itemId;
+		$from = (int)$from;
+		$to = (int)$to;
+		$qtxt = "SELECT id FROM rentalperiod WHERE item_id = $itemId AND rt_from <= $to AND rt_to >= $from LIMIT 1";
+		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) return false;
+		$qtxt = "SELECT id FROM rentalreserved WHERE item_id = $itemId AND rr_from <= $to AND rr_to >= $from LIMIT 1";
+		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) return false;
+		return true;
+	}
+}
+
+if (!function_exists('rental_free_item_for_period')) {
+	/**
+	 * The item to book for a period: the requested item when it is free, otherwise the free item of the same
+	 * product with the lowest id. The calendar also books any item of the product that is free from the start
+	 * date (availableDatesById), so the customer gets the same product.
+	 *
+	 * @param int|string $itemId The item the calendar chose, rentalitems.id.
+	 * @param int $from First day of the period, unix time.
+	 * @param int $to Last day of the period, unix time.
+	 * @return int The rentalitems.id to book, or 0 when no item of the product is free for the whole period.
+	 */
+	function rental_free_item_for_period($itemId, $from, $to) {
+		$itemId = (int)$itemId;
+		if (rental_item_is_free($itemId, $from, $to)) return $itemId;
+		$others = array();
+		$qtxt = "SELECT id FROM rentalitems WHERE product_id = (SELECT product_id FROM rentalitems WHERE id = $itemId) ";
+		$qtxt.= "AND id <> $itemId ORDER BY id";
+		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($row = db_fetch_array($query)) {
+			$others[] = (int)$row["id"];
+		}
+		foreach ($others as $otherId) {
+			if (rental_item_is_free($otherId, $from, $to)) return $otherId;
+		}
+		return 0;
 	}
 }
