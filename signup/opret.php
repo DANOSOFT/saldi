@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- signup/opret.php --- ver 5.1.1 --- 2026-11-18 ---
+// --- signup/opret.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,7 @@
 //                 The per-mailbox mail cap is claimed before the mail is sent.
 // 20261109 CL/PS Refuses (422, errors.email) a mailbox that already has a signup account, or whose trial closed less than cooldown_months ago.
 //                Asked after both signup limits are claimed, so a refused answer also counts against max_signups_per_hour.
+// 20261119 CL/PS The refusal also points bookkeepers and accountants to the bookkeeper scheme (signup_urls()['revisor']).
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");
@@ -126,7 +127,7 @@ if (!signup_claim_event('opret', 5, 3600) || !signup_claim_event('opret_alle', (
 $mailbox = signup_mailbox_rule($d['email']);
 if ($mailbox['decision'] !== 'allowed') {
 	signup_log('signup refused: ' . signup_mailbox_log_text($mailbox));
-	$errors['email'] = signup_mailbox_message($mailbox, signup_setting('support_phone', '46 90 22 08'));
+	$errors['email'] = signup_mailbox_message($mailbox, signup_setting('support_phone', '46 90 22 08'), signup_urls($d['pakke'])['revisor']);
 	if ($json) {
 		signup_json(array('ok' => false, 'errors' => $errors), 422);
 	}

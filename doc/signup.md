@@ -62,7 +62,7 @@ mail transport also reads the docker stack's `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE
 |---|---|---|
 | `base_url` | **required** | Absolute url of this installation, e.g. `https://ssl3.saldi.dk/finans`; the activation links are built from it. Never derived from the request (the Host header is the caller's choice). Without it every endpoint answers "not ready". |
 | `assets_url` | `https://saldi.dk/assets` | Logo and fonts for mails and pages. |
-| `landing_url` | `https://saldi.dk` | The website; `priser_url` and `guide_url` default to `/priser/` and `/vejledninger/` under it. |
+| `landing_url` | `https://saldi.dk` | The website; `priser_url`, `guide_url` and `revisor_url` default to `/priser/`, `/vejledninger/` and `/revisor/` under it. `revisor_url` is the bookkeeper scheme's page, named when a mailbox is refused. |
 | `login_url` | `<base_url>/index/index.php` | Login page. Every package is created on this installation. |
 | `login_url_finans` | `login_url` | Only if Finans should log in somewhere else. |
 | `from_email`, `from_name`, `reply_to`, `bcc` | `noreply@saldi.dk`, `Saldi`, `support_email`, - | Sender; the sender address is still an open decision (plan.md). |
@@ -193,6 +193,12 @@ history and today's date; `signup_mailbox_rule()` reads the history and the sett
   - "Der er allerede en Saldi-konto med denne e-mail. Log ind på den, eller ring på 46 90 22 08, hvis du vil skifte pakke."
   - "Denne e-mail har haft en gratis prøveperiode. Du kan prøve Saldi gratis igen fra den 9. februar 2027. Ring på 46 90 22 08, hvis du vil i gang nu."
 
+  Both end with "Er du bogholder eller revisor? Så får du adgang til dine kunders regnskaber gennem
+  bogholderordningen på saldi.dk/revisor." (`revisor_url`, shown without `https://`, because the website prints the
+  message as plain text). Bookkeepers are why there is no per-mailbox exception: a trial belongs to the customer's
+  own mailbox, so mails, billing and sales reach the business that pays, and a bookkeeper works in the customers'
+  accounts through the free bookkeeper panel instead.
+
   They tell whoever types an address whether it has (had) an account. That is a product decision. The answer comes
   only after both signup limits are claimed, so one client address gets at most 5 answers an hour and the whole
   server at most `max_signups_per_hour` (shared with real signups). Testing many addresses from many client
@@ -245,3 +251,4 @@ tested).
 <!-- 20261102 CL/ASR Ported to master (opret_build_tenant, betweenUpdates.php); package limits, trial closing, billing payload, required base_url, origin check, claimed limits. -->
 <!-- 20261109 CL/PS One e-mail, one account and the waiting period before a new trial (cooldown_months); internal new-customer mail (notify_email). -->
 <!-- 20261109 CL/PS Review: closing date from a customer's deletion, stuck activations, MySQL lock, nytlink, limits before the answer, mail after the response. -->
+<!-- 20261119 CL/PS A refused mailbox is also pointed to the bookkeeper scheme (revisor_url); why bookkeepers get no exception. -->

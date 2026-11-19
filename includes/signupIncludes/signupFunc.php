@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/signupIncludes/signupFunc.php --- ver 5.1.1 --- 2026-11-18 ---
+// --- includes/signupIncludes/signupFunc.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,6 +66,7 @@
 //                Review: a customer's own deletion counts from its logintekst date; an activation older than 30 minutes is no account;
 //                cooldown_months 0 refuses nothing; MySQL serializes the reserve step with GET_LOCK; outside PHP-FPM the page is
 //                sent with its length before the task runs.
+// 20261119 CL/PS signup_mailbox_message() sends bookkeepers and accountants to the bookkeeper scheme (revisor_url, default <landing_url>/revisor/).
 
 /** @var string $sqhost  from includes/connect.php */
 /** @var string $squser  from includes/connect.php */
@@ -142,7 +143,7 @@ if (!function_exists('signup_setting')) {
 	 * Keys and defaults:
 	 *   base_url          absolute url of this installation, e.g. https://ssl3.saldi.dk/finans (REQUIRED)
 	 *   assets_url        where the mail/page images and fonts live (https://saldi.dk/assets)
-	 *   landing_url       the website (https://saldi.dk); priser_url, guide_url derive from it
+	 *   landing_url       the website (https://saldi.dk); priser_url, guide_url, revisor_url derive from it
 	 *   login_url         login page (default <base_url>/index/index.php); every package is created on this installation
 	 *   login_url_finans  optional separate login page for Finans (default: login_url)
 	 *   from_email, from_name, reply_to, bcc, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure
@@ -203,7 +204,7 @@ if (!function_exists('signup_urls')) {
 	 * The links used in mails and pages for one package.
 	 *
 	 * @param string $pakke package key from signup_packages()
-	 * @return array{login: string, priser: string, guide: string, assets: string, landing: string, nytlink: string}
+	 * @return array{login: string, priser: string, guide: string, revisor: string, assets: string, landing: string, nytlink: string}
 	 */
 	function signup_urls($pakke) {
 		$landing = rtrim(signup_setting('landing_url', 'https://saldi.dk'), '/');
@@ -217,6 +218,7 @@ if (!function_exists('signup_urls')) {
 			'login'   => $login,
 			'priser'  => signup_setting('priser_url', $landing . '/priser/'),
 			'guide'   => signup_setting('guide_url', $landing . '/vejledninger/'),
+			'revisor' => signup_setting('revisor_url', $landing . '/revisor/'),
 			'assets'  => rtrim(signup_setting('assets_url', $landing . '/assets'), '/'),
 			'landing' => $landing,
 			'nytlink' => signup_base_url() . '/signup/nytlink.php',
@@ -1202,17 +1204,26 @@ if (!function_exists('signup_mailbox_message')) {
 	 * What the customer is told when signup_mailbox_decision() refuses a mailbox: under the e-mail field of the
 	 * website's form (opret.php, errors.email) and on the activation page.
 	 *
-	 * @param array  $decision from signup_mailbox_decision()
-	 * @param string $phone    the support_phone setting
+	 * Bookkeepers and accountants work in their customers' accounts through the bookkeeper scheme, not through
+	 * trials in their own mailbox, so a refusal also points them there when $revisorUrl is given. The address is
+	 * shown without "https://" and the trailing slash, because the website prints the message as plain text.
+	 *
+	 * @param array  $decision   from signup_mailbox_decision()
+	 * @param string $phone      the support_phone setting
+	 * @param string $revisorUrl the bookkeeper scheme's page (signup_urls()['revisor']); '' leaves the sentence out
 	 * @return string '' when the mailbox is allowed
 	 */
-	function signup_mailbox_message(array $decision, $phone) {
+	function signup_mailbox_message(array $decision, $phone, $revisorUrl = '') {
+		$revisor = trim(preg_replace('#^https?://#i', '', rtrim(trim((string)$revisorUrl), '/')));
+		$bookkeeper = ($revisor !== '')
+			? ' Er du bogholder eller revisor? Så får du adgang til dine kunders regnskaber gennem bogholderordningen på ' . $revisor . '.'
+			: '';
 		if ($decision['decision'] === 'already_has_account') {
-			return 'Der er allerede en Saldi-konto med denne e-mail. Log ind på den, eller ring på ' . $phone . ', hvis du vil skifte pakke.';
+			return 'Der er allerede en Saldi-konto med denne e-mail. Log ind på den, eller ring på ' . $phone . ', hvis du vil skifte pakke.' . $bookkeeper;
 		}
 		if ($decision['decision'] === 'cooldown') {
 			return 'Denne e-mail har haft en gratis prøveperiode. Du kan prøve Saldi gratis igen fra den ' . signup_danish_date($decision['date'])
-				. '. Ring på ' . $phone . ', hvis du vil i gang nu.';
+				. '. Ring på ' . $phone . ', hvis du vil i gang nu.' . $bookkeeper;
 		}
 		return '';
 	}

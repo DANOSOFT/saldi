@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- signup/aktiver.php --- ver 5.1.1 --- 2026-11-18 ---
+// --- signup/aktiver.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20261109 CL/PS A signup whose mailbox already has an account, or had a trial that closed less than cooldown_months ago, gets a page that says so instead of the form.
 //                After an activation the internal new-customer mail goes to notify_email once the page has been sent.
 //                Review: an expired or replaced link of such a mailbox shows the reason too, not "Send et nyt link".
+// 20261119 CL/PS The refusal page also points bookkeepers and accountants to the bookkeeper scheme ($urls['revisor']).
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");
@@ -364,7 +365,7 @@ function signup_activated_page(array $row, array $result, $password, array $urls
  */
 function signup_mailbox_refused_page(array $mailbox, array $urls) {
 	$h = 'signup_h';
-	$message = signup_mailbox_message($mailbox, signup_setting('support_phone', '46 90 22 08'));
+	$message = signup_mailbox_message($mailbox, signup_setting('support_phone', '46 90 22 08'), $urls['revisor']);
 	$login = ($mailbox['decision'] === 'already_has_account') ? '<a class="btn" href="' . $h($urls['login']) . '">Gå til login</a>' : '';
 	$content = signup_icon('warn') . '<h1>Regnskabet kan ikke oprettes</h1>' . '<p class="lead">' . $h($message) . '</p>' . $login . signup_help_line();
 	signup_page('Regnskabet kan ikke oprettes', $content, '', 409);

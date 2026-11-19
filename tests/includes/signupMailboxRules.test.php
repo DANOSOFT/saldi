@@ -292,6 +292,18 @@ final class signupMailboxRules extends TestCase
         self::assertSame('', signup_mailbox_message(['decision' => 'allowed', 'date' => ''], '46 90 22 08'));
     }
 
+    public function testARefusalPointsBookkeepersToTheBookkeeperScheme(): void
+    {
+        $line = ' Er du bogholder eller revisor? Så får du adgang til dine kunders regnskaber gennem bogholderordningen på saldi.dk/revisor.';
+        self::assertSame(
+            'Der er allerede en Saldi-konto med denne e-mail. Log ind på den, eller ring på 46 90 22 08, hvis du vil skifte pakke.' . $line,
+            signup_mailbox_message(['decision' => 'already_has_account', 'date' => ''], '46 90 22 08', 'https://saldi.dk/revisor/')
+        );
+        self::assertStringEndsWith($line, signup_mailbox_message(['decision' => 'cooldown', 'date' => '2027-02-09'], '46 90 22 08', 'https://saldi.dk/revisor/'));
+        self::assertStringEndsWith('bogholderordningen på test.saldi.dk/revisor.', signup_mailbox_message(['decision' => 'cooldown', 'date' => '2027-02-09'], '46 90 22 08', ' http://test.saldi.dk/revisor '));
+        self::assertSame('', signup_mailbox_message(['decision' => 'allowed', 'date' => ''], '46 90 22 08', 'https://saldi.dk/revisor/'));
+    }
+
     public function testTheLogTextNamesTheAccountButNotTheAddress(): void
     {
         self::assertSame('cooldown until 2027-02-09 (regnskab 42, signup 7)', signup_mailbox_log_text(['decision' => 'cooldown', 'date' => '2027-02-09', 'regnskab_id' => 42, 'signup_id' => 7]));
