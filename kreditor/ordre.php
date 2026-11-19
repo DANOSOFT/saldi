@@ -318,14 +318,22 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 	}
 	if (!$id && !$konto_id) {
 		// SST-1041 An item picked in the search list on a new order without a supplier gets the item's supplier no. 1,
-		// as typing the item number and pressing Enter does. A pick from the Lev. varenr. search prefers that number's supplier.
-		$pickedLevVarenr = db_escape_string(trim((string) ifset($_GET, 'lev_varenr', '')));
-		$qtxt = "select vare_lev.lev_id from vare_lev, adresser where vare_lev.vare_id = '" . (int) $vare_id[0] . "'";
-		$qtxt.= " and adresser.id = vare_lev.lev_id order by ";
-		if ($pickedLevVarenr !== '') $qtxt.= "(vare_lev.lev_varenr = '$pickedLevVarenr') desc, ";
+		// as typing the item number and pressing Enter does. A pick from the Lev. varenr. search takes the supplier row
+		// with that number, and its number and price, since one supplier can have several numbers for the item.
+		$pickedLevVarenr = trim((string) ifset($_GET, 'lev_varenr', ''));
+		$qtxt = "select vare_lev.lev_id, vare_lev.lev_varenr, vare_lev.kostpris from vare_lev, adresser";
+		$qtxt.= " where vare_lev.vare_id = '" . (int) $vare_id[0] . "' and adresser.id = vare_lev.lev_id order by ";
+		if ($pickedLevVarenr !== '') {
+			$qtxt.= "case when vare_lev.lev_varenr = '" . db_escape_string($pickedLevVarenr) . "' then 0 else 1 end, ";
+		}
 		$qtxt.= "vare_lev.posnr limit 1";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$konto_id = (int) $r['lev_id'];
+			if ($pickedLevVarenr !== '' && trim((string) $r['lev_varenr']) === $pickedLevVarenr) {
+				$lev_varenr[0] = $r['lev_varenr'];
+				if ((float) $r['kostpris']) $pris[0] = $r['kostpris'];
+				$pickedLevRow = true;
+			}
 		} else {
 			transaktion("rollback");
 			noSupplierForItemAlert($varenr[0] ?? '');
@@ -333,7 +341,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 			exit;
 		}
 	}
-	if ((!$pris[0] || !$lev_varenr[0]) && $vare_id[0] && $konto_id) {
+	if ((!$pris[0] || !$lev_varenr[0]) && $vare_id[0] && $konto_id && empty($pickedLevRow)) {
 		$qtxt = "select * from vare_lev where vare_id = '$vare_id[0]' and lev_id = '$konto_id'";
 		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
@@ -730,12 +738,11 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$varenr[0]=strtoupper($varenr[0]);
 			$qtxt = "SELECT variant_type,vare_id FROM variant_varer WHERE upper(variant_stregkode) = '$varenr[0]'";
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$vare_id[0]=$r['vare_id'];
-			$variant_type[0]=$r['variant_type'];
-		} else $variant_type[0]='';
-		if ($variant_type[0] && $vare_id[0]) $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where varer.id = '$vare_id[0]' and vare_lev.vare_id = '$vare_id[0]' and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
-		else $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where (upper(varer.varenr) = '$varenr[0]' or upper(varer.stregkode) = '$varenr[0]') and vare_lev.vare_id = varer.id and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
-
+				$vare_id[0]=$r['vare_id'];
+				$variant_type[0]=$r['variant_type'];
+			} else $variant_type[0]='';
+			if ($variant_type[0] && $vare_id[0]) $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where varer.id = '$vare_id[0]' and vare_lev.vare_id = '$vare_id[0]' and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
+			else $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where (upper(varer.varenr) = '$varenr[0]' or upper(varer.stregkode) = '$varenr[0]') and vare_lev.vare_id = varer.id and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
 			$r=db_fetch_array(db_select($string,__FILE__ . " linje " . __LINE__));
 			$konto_id  = ifset($r, 'konto_id', 0);
 			$firmanavn = ifset($r, 'firmanavn', '');

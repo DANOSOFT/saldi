@@ -5,11 +5,12 @@
 // Typing the item number and pressing Enter has always used the item's supplier no. 1, so the pick now does the same.
 // A pick from the Lev. varenr. search prefers the supplier of that number. An item with no supplier shows a message on both paths.
 // kreditor/ordre.php prints on include, so the blocks are lifted from the source and run against recorded stubs.
+// 20261119 CL/MMR SST-1041 Codex round 1: a Lev. varenr. pick carries that row's number and price; the ranking is a CASE (see the Sql test for NULL numbers).
 namespace CreditorOrderItemPickFixture {
 
     final class Rec
     {
-        /** @var array<int, array{lev_id: int, posnr: int, lev_varenr: string}> Supplier rows for the picked item. */
+        /** @var array<int, array{lev_id: int, posnr: int, lev_varenr: string, kostpris: string}> Supplier rows for the picked item. */
         public static array $suppliers = array();
         /** @var array<int, string> */
         public static array $queries = array();
@@ -23,7 +24,7 @@ namespace CreditorOrderItemPickFixture {
         Rec::$queries[] = (string)$qtxt;
         $rows = Rec::$suppliers;
         $wanted = null;
-        if (preg_match("/\\(vare_lev\\.lev_varenr = '((?:[^']|'')*)'\\) desc/", (string)$qtxt, $m)) {
+        if (preg_match("/case when vare_lev\\.lev_varenr = '((?:[^']|'')*)' then 0 else 1 end/", (string)$qtxt, $m)) {
             $wanted = str_replace("''", "'", $m[1]);
         }
         usort($rows, function ($a, $b) use ($wanted) {
@@ -113,28 +114,31 @@ namespace Saldi\Tests\CreditorOrderItemPick {
          * Runs the GET vare_id branch's new supplier lookup.
          *
          * @param array<string, string> $get The query string.
-         * @return array{konto_id: mixed, exited: bool, output: string}
+         * @return array{konto_id: mixed, exited: bool, output: string, lev_varenr: mixed, pris: mixed, picked: bool}
          */
         private function pick(int $id, $kontoId, array $get, string $itemNo = '112AHN'): array
         {
-            $block = self::slice("if (!\$id && !\$konto_id) {\n\t\t// SST-1041", 'if ((!$pris[0] || !$lev_varenr[0]) && $vare_id[0] && $konto_id) {');
+            $block = self::slice("if (!\$id && !\$konto_id) {\n\t\t// SST-1041", 'if ((!$pris[0] || !$lev_varenr[0]) && $vare_id[0] && $konto_id');
             $block = str_replace('exit;', 'return true;', $block);
             $_GET = $get;
             $vare_id = array(0 => $get['vare_id']);
             $varenr = array(0 => $itemNo);
+            $pris = array(0 => 105.0);
+            $lev_varenr = array(0 => '');
             $konto_id = $kontoId;
             ob_start();
             $exited = (bool)eval($block);
             $output = (string)ob_get_clean();
-            return array('konto_id' => $konto_id, 'exited' => $exited, 'output' => $output);
+            return array('konto_id' => $konto_id, 'exited' => $exited, 'output' => $output,
+                'lev_varenr' => $lev_varenr[0], 'pris' => $pris[0], 'picked' => !empty($pickedLevRow));
         }
 
         /** 112AHN at Harald Nyborg (posnr 1) and a second supplier (posnr 2). */
         private static function twoSuppliers(): array
         {
             return array(
-                array('lev_id' => 77, 'posnr' => 2, 'lev_varenr' => 'OTHER-1'),
-                array('lev_id' => 57, 'posnr' => 1, 'lev_varenr' => '37761'),
+                array('lev_id' => 77, 'posnr' => 2, 'lev_varenr' => 'OTHER-1', 'kostpris' => '120.000'),
+                array('lev_id' => 57, 'posnr' => 1, 'lev_varenr' => '37761', 'kostpris' => '100.000'),
             );
         }
 
@@ -143,6 +147,8 @@ namespace Saldi\Tests\CreditorOrderItemPick {
             Rec::$suppliers = self::twoSuppliers();
             $got = $this->pick(0, null, array('id' => '', 'vare_id' => '887'));
             self::assertSame(57, $got['konto_id'], 'the order did not get the item\'s supplier no. 1');
+            self::assertFalse($got['picked'], 'without a Lev. varenr. the line is left to the usual supplier lookup');
+            self::assertSame(105.0, $got['pris']);
             self::assertFalse($got['exited']);
             self::assertSame(array(), Rec::$calls);
             self::assertStringContainsString("vare_lev.vare_id = '887'", Rec::$queries[0]);
@@ -155,6 +161,9 @@ namespace Saldi\Tests\CreditorOrderItemPick {
             Rec::$suppliers = self::twoSuppliers();
             $got = $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'lev_varenr' => 'OTHER-1'));
             self::assertSame(77, $got['konto_id'], 'the supplier whose Lev. varenr. was found was not used');
+            self::assertSame('OTHER-1', $got['lev_varenr']);
+            self::assertSame('120.000', $got['pris']);
+            self::assertTrue($got['picked']);
         }
 
         public function testAnUnknownLevVarenrFallsBackToSupplierNumberOne(): void
@@ -162,13 +171,14 @@ namespace Saldi\Tests\CreditorOrderItemPick {
             Rec::$suppliers = self::twoSuppliers();
             $got = $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'lev_varenr' => 'NOT-THERE'));
             self::assertSame(57, $got['konto_id']);
+            self::assertFalse($got['picked']);
         }
 
         public function testTheLevVarenrIsEscapedInTheQuery(): void
         {
             Rec::$suppliers = self::twoSuppliers();
             $this->pick(0, null, array('id' => '', 'vare_id' => '887', 'lev_varenr' => "O'Brien"));
-            self::assertStringContainsString("(vare_lev.lev_varenr = 'O''Brien') desc", Rec::$queries[0]);
+            self::assertStringContainsString("case when vare_lev.lev_varenr = 'O''Brien' then 0 else 1 end", Rec::$queries[0]);
         }
 
         public function testTheItemIdIsCastToAnInteger(): void
