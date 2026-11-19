@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/bogfor.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- kreditor/bogfor.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,13 +42,17 @@
 // 20260304 PHR Costprice is from now only updated on positive qty og price.
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
 // 20260908 CDX/LH Lock creditor orders before posting and update split purchase batches once (SST-765).
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261113 CDX/NTR Delegate supplier ledger posting to its dedicated module (SD-599).
+// 20261119 CDX/NTR Merge master while retaining supplier posting initialization and permission checks.
 
 @session_start();
 $s_id=session_id();
 require_once __DIR__ . '/../includes/purchaseInvoicePosting.php';
 
 include("../includes/connect.php");
+$permission_key = 'kreditor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

@@ -13,13 +13,30 @@
 // 20261030 LOE MB-62: moved here from tests/test_readonly_menu.php, where phpunit.xml never ran it.
 //              The file name carries the class name, or PHPUnit 11 looks for a class called "readonlyMenu".
 //              Without the matching name it reports "Class readonlyMenu cannot be found".
-
+//
+// 20261113 CDX/NTR Exercise the centralized permission helper for full, read-only and refused access.
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/readonlyMenuChecks.php';
 
 final class ReadonlyMenuTest extends TestCase
 {
+    public function testSharedPermissionsAcceptReadOnlyAndFullAccessAndRefuseNoAccess(): void
+    {
+        require_once __DIR__ . '/../../includes/std_func.php';
+        $previous = $GLOBALS['rettigheder'] ?? null;
+        try {
+            foreach (['0' => false, '1' => true, '2' => true] as $right => $expected) {
+                $GLOBALS['rettigheder'] = str_repeat('0', 9) . $right;
+                self::assertSame($expected, check_permissions([9]));
+                self::assertFalse(check_permissions([0, 1]));
+            }
+        } finally {
+            $GLOBALS['rettigheder'] = $previous;
+        }
+    }
+
     public function testTheMenusOfferItemsToAReadOnlyUser(): void
     {
         list($checks, $failures) = readonly_menu_checks();
