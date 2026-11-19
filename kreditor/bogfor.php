@@ -45,11 +45,13 @@
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261113 CDX/NTR Delegate supplier ledger posting to its dedicated module (SD-599).
+// 20261113 CDX/NTR Select the supplier posting adapter at the ledger hand-off.
 // 20261119 CDX/NTR Merge master while retaining supplier posting initialization and permission checks.
+// 20261119 CDX/NTR Merge the refreshed supplier posting base while preserving the adapter hand-off.
 
 @session_start();
 $s_id=session_id();
-require_once __DIR__ . '/../includes/purchaseInvoicePosting.php';
+require_once __DIR__ . '/../includes/invoicePosting.php';
 
 include("../includes/connect.php");
 $permission_key = 'kreditor.ordre';
@@ -315,9 +317,11 @@ if (!$row['levdate']){
 }
 print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 
-/** @see post_purchase_invoice() */
+/** @see SaldiInvoicePosting */
 function bogfor($id) {
-	post_purchase_invoice($id);
+	$invoiceId = (int)$id;
+	$row = db_fetch_array(db_select("select art from ordrer where id='$invoiceId'", __FILE__ . ' linje ' . __LINE__));
+	invoice_posting_for_type($row['art'] ?? 'KO')->post($id, 'supplier');
 }
 
 ?>

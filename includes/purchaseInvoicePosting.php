@@ -24,6 +24,9 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // -------------------------------------------------------------------------
 // 20261113 CDX/NTR Extract supplier invoice posting from kreditor/bogfor.php (SD-599).
+// 20261113 CDX/NTR Select supplier invoice and credit-note descriptions through posting adapters.
+
+require_once __DIR__ . '/invoicePosting.php';
 
 /**
  * Post an eligible supplier invoice or credit note using the caller's transaction.
@@ -93,8 +96,9 @@ function post_purchase_invoice($id) {
 		$box1=substr(trim($r['box1']),0,1);
 		if ($box1 && ($box1!='E' || $box1!='Y')) $sum=$sum+$moms;	#moms tillaegges summen der ikke er eu moms.
 ########### OPENPOST	->
-		if (substr($art,1,1)=='K') $beskrivelse ="Lev. kn.nr: ".$fakturanr.", modt. nr ".$modtagelse;
-		else $beskrivelse ="Lev. fakt.nr:".$fakturanr.", modt.nr: ".$modtagelse;
+		$posting = invoice_posting_for_type($art);
+		$receivable = $posting->prepareReceivable(['invoiceNumber' => $fakturanr, 'receiptNumber' => $modtagelse]);
+		$beskrivelse = $receivable['description'];
 		db_modify("insert into openpost (konto_id, konto_nr, faktnr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr, valuta, valutakurs,projekt) values ('$konto_id', '$lev_kontonr', '$fakturanr', $sum*-1, '$beskrivelse', '0', '$transdate', '0', '$id', '$valuta', '$valutakurs','$projekt[0]')",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select max(id) as id from openpost where konto_id = '$konto_id' and faktnr = '$fakturanr' and refnr='$id'",__FILE__ . " linje " . __LINE__));
 		$openpost_id=$r['id'];

@@ -1,4 +1,5 @@
 <?php
+// 20261113 CDX/NTR Load and invoke the invoice posting adapter without the order function library (SD-599).
 /**
  * Invoices Endpoints
  * 
@@ -21,7 +22,7 @@ require_once __DIR__ . '/../../../../core/logging.php';
 include_once __DIR__ . '/../../../../../includes/db_query.php';
 include_once __DIR__ . '/../../../../../includes/connect.php';
 include_once __DIR__ . '/../../../../../includes/std_func.php';
-include_once __DIR__ . '/../../../../../includes/ordrefunc.php';
+require_once __DIR__ . '/../../../../../includes/invoicePosting.php';
 
 class InvoicesEndpoint extends BaseEndpoint
 {
@@ -188,7 +189,7 @@ class InvoicesEndpoint extends BaseEndpoint
             return;
         }
         
-        $svar = bogfor_nu($id, 'webservice');
+        $svar = invoice_posting_for_type('DO')->post($id, 'webservice');
         if ($svar != "OK") {
             $this->sendResponse(false, null, $svar, 400);
             return;
