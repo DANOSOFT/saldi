@@ -2819,6 +2819,8 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertSame('ABC Invoice XABC123', $text('ABC', ['Invoice XABC123']));
         $this->assertSame('ABC ABC123 paid', $text('ABC', ['ABC123 paid']));
         $this->assertSame('Acme Invoice AcmeID123', $text('Acme', ['Invoice AcmeID123']));
+        $this->assertSame('Acme Invoice AcmeOrder123', $text('Acme', ['Invoice AcmeOrder123']));
+        $this->assertSame('Overførsel Saldi / Danosoft ApS', $text('Overførsel', ['OverførselSaldi / Danosoft ApS']));
         $this->assertSame('Shop 12 Shop 12AB34', $text('Shop 12', ['Shop 12AB34']));
         $this->assertSame('Invoice 1234567 123', $text('Invoice 1234567', ['123']));
         $this->assertSame('Parla 1289114 Meddelnr. 0207', $text('Parla  1289114', ['Parla  1289114Parla1289114', 'Parla  1289114     Meddelnr. 0207']));
