@@ -1,5 +1,5 @@
 <?php
-// --- admin/bogholder_godkend.php --- ver 5.1.1 --- 2026.11.09 ---
+// --- admin/bogholder_godkend.php --- ver 5.1.1 --- 2026.11.19 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New.
@@ -14,6 +14,7 @@
 //                 A group's access request says that another firm that pays for the account keeps paying, and the approved page says when the payment is not changed.
 //                 A payer proposal that no longer applies, because the firm has lost its link or no longer pays, shows why it was closed.
 //                 An employee who joins a group by invitation is reported to Saldi (addendum K3).
+// 20261119 CL/ASR The MySQL/MariaDB notice asks partner_panel_supported() (partnerPanelSchema.php), as operator_panel_supported() is gone with #785's MySQL/MariaDB support.
 include("../includes/connect.php");
 if (!function_exists('db_select')) include("../includes/db_query.php");
 include("../includes/std_func.php");
@@ -21,7 +22,7 @@ include("../includes/partnerScope.php");
 include("../includes/partnerPanel.php");
 $brugernavn = 'gæst'; $sprog_id = 1;
 bp_tables_ensure();
-if (!bp_ready()) { print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto\">".(operator_panel_supported() ? "<h1 style=\"font-size:20px\">Saldi er lige blevet opdateret</h1><p>Prøv linket igen om et øjeblik.</p>" : "<h1 style=\"font-size:20px\">Linket kan ikke bruges her</h1><p>Bogholderpanelet findes ikke på denne Saldi-installation. Kontakt den, der sendte dig linket.</p>")."</body></html>"; exit; } # 20261029 CL/ASR tables not created yet; 20261109 CL/ASR never on a MySQL/MariaDB master (partner_panel_ready())
+if (!bp_ready()) { print "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Saldi</title></head><body style=\"font-family:system-ui,sans-serif;max-width:560px;margin:80px auto\">".(partner_panel_supported() ? "<h1 style=\"font-size:20px\">Saldi er lige blevet opdateret</h1><p>Prøv linket igen om et øjeblik.</p>" : "<h1 style=\"font-size:20px\">Linket kan ikke bruges her</h1><p>Bogholderpanelet findes ikke på denne Saldi-installation. Kontakt den, der sendte dig linket.</p>")."</body></html>"; exit; } # 20261029 CL/ASR tables not created yet; 20261109 CL/ASR never on a MySQL/MariaDB master (partner_panel_ready())
 $t = preg_replace('/[^a-f0-9]/', '', (string)if_isset($_REQUEST, '', 't'));
 $kind = ''; $row = null;
 if (strlen($t) == 48) {

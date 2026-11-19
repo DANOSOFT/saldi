@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 5.0.0 --- 2026.03.20 ---
+// --- finans/bankimport.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20200820 PHR Added recognition of outgoing payments from Cultura Sparebank, Norway 20200820
 // 20211107 PHR Added recognition of customer account # when importing bank 20201107
 // 20210328 PHR Added recognition of payment ID from Jyske Bank 21210328
@@ -45,9 +45,15 @@
 // 20251106 PHR Corrected date error
 // 20260311 PHR Corrected decimal error
 // 20260320 PHR	Removed 'This didn't work'
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
-
+// 20261106 CL/MMR SST-962 The column choices are remembered for every column and per number of columns, not only for the first 8 columns.
+//                 A freshly uploaded file shows all its columns at once (bank_import_columns_for_upload()), and the choices are saved before the page prints (bank_import_save_columns()).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/MMR SST-962 Review (CodeRabbit): the preview posts the splitter it was made with (previewSplitter), and the choices are saved for that preview (bank_import_columns_for_post()).
+//                 «Vis» with a new splitter saves nothing and shows the choices saved for the new number of columns.
+//                 vis_data() splits each line with bank_import_split_line() (its own loop, moved unchanged), so the saved choices count the columns the preview shows.
 ini_set("auto_detect_line_endings", true);
 
 @session_start();
@@ -57,14 +63,16 @@ $bankName = NULL;
 
 $title="Bankimport";
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
 include_once(__DIR__ . '/../includes/stdFunc/bankImportEncoding.php');
+include_once(__DIR__ . '/../includes/stdFunc/bankImportColumns.php');
 
 global $menu;
 
-$uploadErr = $vend = NULL;
+$uploadErr = $vend = $previewSplitter = NULL;
 $feltnavn = array();
 if(($_GET)||($_POST)) {
 	if ($_GET) {
@@ -76,6 +84,7 @@ if(($_GET)||($_POST)) {
 		$kladde_id   = if_isset($_POST['kladde_id'],0);
 		$filnavn     = if_isset($_POST['filnavn'],NULL);
 		$splitter    = if_isset($_POST['splitter'],NULL);
+		$previewSplitter = ifset($_POST, 'previewSplitter', null); // SST-962: the splitter the shown preview was made with
 		$feltnavn    = if_isset($_POST['feltnavn'],array());
 		$feltantal   = if_isset($_POST['feltantal'],0);
 		$kontonr     = if_isset($_POST['kontonr'],0);
@@ -86,6 +95,11 @@ if(($_GET)||($_POST)) {
 		$afd         = if_isset($_POST['afd'],NULL);
 		$vend        = if_isset($_POST['vend'],NULL);
 		if ($vend) $vend='checked';
+	}
+	// SST-962: remember the column choices of "Vis" and "Hent" for the shown preview's number of columns, before anything is printed.
+	// "Vis" with a new splitter saves nothing and shows the choices saved for the new number of columns.
+	if ((!empty($show) || !empty($import)) && $feltnavn) {
+		$feltnavn = bank_import_columns_for_post($bruger_id, $filnavn, $charset, $feltnavn, $splitter, $previewSplitter, !empty($show));
 	}
 
 	if ($menu=='T') {
@@ -152,6 +166,7 @@ if(($_GET)||($_POST)) {
 				db_modify ("insert into grupper (beskrivelse,art,kode,kodenr) values ('Bankimport','KASKL','3','$bruger_id')",__FILE__ . " linje " . __LINE__);
 			}
 			if (!$feltantal) $feltantal=1;	
+			$feltnavn = bank_import_columns_for_upload($bruger_id, $filnavn, $charset, $feltnavn); // SST-962
 			vis_data($kladde_id,$filnavn,'',$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$currencyCode,$afd);
 		} else {
 #cho findtekst(1370, $sprog_id)." >$uploadErr<<br>";
@@ -293,27 +308,10 @@ if ($line !== false) {
 			$y++;
 			$ny_linje[$y]='';
 			$linje=trim($linje);
-			$anftegn=0;
-				$felt=array();
-				$z=0;
-				for ($x=0; $x<strlen($linje);$x++) {
-				if ($x==0 && substr($linje,$x,1)=='"') {
-					$z++; $anftegn=1; $felt[$z]='';
-				} elseif ($x==0) {
-					$z++; $felt[$z]=substr($linje,$x,1);
-				} elseif (substr($linje,$x,1)=='"' && substr($linje,$x-1,1)==$splittegn && !$anftegn) {
-					$z++; $anftegn=1; $felt[$z]='';
-				} elseif (substr($linje,$x,1)=='"' && (substr($linje,$x+1,1)==$splittegn || $x==strlen($linje)-1)) {
-					$anftegn=0;
-					if (substr($linje,$x+2,1)=='"') $x++;
-#					if ($x==strlen($linje)) $z--;
-				}	elseif (!$anftegn && substr($linje,$x,1)==$splittegn) {
-					$z++; $felt[$z]='';
-					if (substr($linje,$x+1,1)=='"') $x++;
-				} else {
-					$felt[$z]=$felt[$z].substr($linje,$x,1);
-				} 
-			}
+			// SST-962: the split moved unchanged to bank_import_split_line(), so the saved column choices count the columns shown here
+			$felt=bank_import_split_line($linje, $splittegn);
+			$z=count($felt);
+			$x=strlen($linje);
 			if ($z>$feltantal) $feltantal=$z-1;
 			if (!isset($felt[$x])) $felt[$x] = NULL;
 			for ($x=1; $x<=$z; $x++) {
@@ -377,6 +375,7 @@ print "&nbsp;<span title='".findtekst(1395, $sprog_id)."'>".findtekst(1396, $spr
 print "&nbsp;<span title='".findtekst(1398, $sprog_id)."'>".findtekst(1397, $sprog_id)."<input type=text size=8 name=gebyrkonto value=$gebyrkonto></span>&nbsp;";
 print "<input type=\"hidden\" name=\"filnavn\" value=$filnavn>";
 print "<input type=\"hidden\" name=\"feltantal\" value=$feltantal>";
+print "<input type=\"hidden\" name=\"previewSplitter\" value=\"".htmlspecialchars((string)$splitter, ENT_QUOTES)."\">"; // SST-962
 print "<input type=\"hidden\" name=\"kladde_id\" value=$kladde_id>";
 print "&nbsp; <input type=\"submit\" name=\"show\" value=\"".findtekst(1133, $sprog_id)."\" />";
 $alertj=findtekst(1399, $sprog_id); $alertk=findtekst(1400, $sprog_id); $alertl=findtekst(1401, $sprog_id);

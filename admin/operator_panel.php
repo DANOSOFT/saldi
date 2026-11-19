@@ -5,7 +5,7 @@ ob_start();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/operator_panel.php --- ver 5.1.1 --- 2026-11-09 ---
+// --- admin/operator_panel.php --- ver 5.1.1 --- 2026-11-16 ---
 // 20261012 CL/ASR Operator copy of admin/admin_panel.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE
@@ -44,6 +44,12 @@ ob_start();
 //                 Enter in the note field submits nothing, as the form's first submit button is a disabled, hidden one; a decision always needs a click.
 //                 A cancellation or archiving from a firm whose link has ended stays on the list only when the firm ended that link itself; Saldi's unlink, move and firm closure still close the firm's requests.
 //                 Such a row says that the firm no longer has access to the account and whether the firm is closed in Saldi, and asks Saldi to confirm the request with the customer before carrying it out.
+// 20261116 CL/ASR Unlinking a bookkeeper on the customer card also takes the account out of the adgang_til list of the partner's users (partner_revoke_legacy()), so «… har ikke længere adgang» holds for the account list and aaben_regnskab.php too (review #785).
+//                 A user who still reaches every account through admin or '*' is named in the message.
+//                 The Betalinger tab finds the billing customer by an exact match (bill_key(), bill_fetch()).
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). The numeric sort columns cast through CAST(… AS SIGNED) there, the search uses like (ilike on PostgreSQL through db_select()), and boolean columns are read through op_bool().
+//                 The Brugere tab writes twofactor as true/false, which MySQL/MariaDB accepts for its tinyint column, and the ledger's database is selected after db_connect() (op_connect_ledger()).
+//                 The legacy licence flags are only read and written where the install has a license_features table.
 
 @session_start();
 $s_id = session_id();
@@ -98,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     // --- License bulk update ---
-    if ($action === 'bulk_update') {
+    if ($action === 'bulk_update' && op_table_exists('license_features')) { # legacy flags: not every install has the table
         $regnskab_id = (int)$_POST['regnskab_id'];
 
         foreach ($available_features as $feature_key => $feature_name) {
@@ -145,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Handle AJAX License toggle
-if (isset($_GET['ajax_license_toggle']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if (isset($_GET['ajax_license_toggle']) && $_SERVER['REQUEST_METHOD'] === 'POST' && op_table_exists('license_features')) {
     while (ob_get_level()) { ob_end_clean(); }
     header('Content-Type: application/json');
     $input = json_decode(file_get_contents('php://input'), true);
@@ -211,7 +217,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         exit;
     }
     $client_db = $reg_row['db'];
-    $client_conn = @db_connect($sqhost, $squser, $sqpass, $client_db, __FILE__ . " linje " . __LINE__);
+    $client_conn = op_connect_ledger($client_db, __FILE__ . " linje " . __LINE__);
     if (!$client_conn) {
         echo json_encode(['error' => 'Kunne ikke forbinde til klient-database: ' . $client_db]);
         exit;
@@ -225,7 +231,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
         $q = db_select("SELECT id, brugernavn, rettigheder, ansat_id, ip_address, tlf, email, twofactor".($hasRev ? ", revisor" : "")." FROM brugere ORDER BY brugernavn", __FILE__ . " linje " . __LINE__);
         while ($r = db_fetch_array($q)) {
             $r['twofactor'] = ($r['twofactor'] === 't' || $r['twofactor'] === true || $r['twofactor'] === '1') ? true : false;
-            $r['revisor'] = $hasRev && ($r['revisor'] === 't' || $r['revisor'] === true); # counted apart, as on the tab
+            $r['revisor'] = $hasRev && op_bool($r['revisor']); # counted apart, as on the tab
             $users[] = $r;
         }
         // Reconnect master
@@ -267,8 +273,7 @@ if (isset($_GET['ajax_users']) && isset($_GET['regnskab_id'])) {
             $sets[] = "tlf='" . db_escape_string(trim($input['tlf'])) . "'";
         }
         if (isset($input['twofactor'])) {
-            $tf = $input['twofactor'] ? 't' : 'f';
-            $sets[] = "twofactor='$tf'";
+            $sets[] = 'twofactor=' . ($input['twofactor'] ? 'true' : 'false'); # a boolean literal both databases take (MySQL/MariaDB refuses 't'/'f' in a tinyint)
         }
         if (isset($input['ip_address'])) {
             $sets[] = "ip_address='" . db_escape_string(trim($input['ip_address'])) . "'";
@@ -376,7 +381,7 @@ if ($filter_regnskab) {
 		} elseif ($_POST['vr_action'] == 'unlink') {
 			$lid = (int)if_isset($_POST, 0, 'link_id');
 			$l = db_fetch_array(db_select("select rp.*, p.name from regnskab_partners rp join partners p on p.id = rp.partner_id where rp.id = '$lid' and rp.regnskab_id = '$rid' and rp.until is null", __FILE__ . " linje " . __LINE__));
-			if ($l) { db_modify("update regnskab_partners set until = now() where id = '$lid'", __FILE__ . " linje " . __LINE__); partner_log('partner.link_removed', $rid, (int)$l['partner_id'], $l['name']); $notes[] = $l['name'].' '.vr_t('har ikke længere adgang','no longer has access'); }
+			if ($l) { db_modify("update regnskab_partners set until = now() where id = '$lid'", __FILE__ . " linje " . __LINE__); partner_log('partner.link_removed', $rid, (int)$l['partner_id'], $l['name']); $kept = partner_revoke_legacy((int)$l['partner_id'], array($rid)); $notes[] = $l['name'].' '.vr_t('har ikke længere adgang','no longer has access').partner_kept_note($kept); }
 		} elseif ($_POST['vr_action'] == 'req_settle' && bp_ready()) { # 20261109 CL/ASR a request from the accountant panel is closed here (review #960)
 			$done = (if_isset($_POST, '', 'decision') == 'done'); $e = bp_request_settle((int)if_isset($_POST, 0, 'request_id'), $rid, $done, trim((string)if_isset($_POST, '', 'note')), 'Saldi ('.$vr_me['brugernavn'].')');
 			$notes[] = $e ?: ($done ? vr_t('Anmodningen er markeret som håndteret. Firmaet kan se det i sin log.','The request is marked as handled. The firm can see it in its log.') : vr_t('Anmodningen er afvist. Firmaet kan se det i sin log.','The request is rejected. The firm can see it in its log.'));
@@ -387,7 +392,7 @@ if ($filter_regnskab) {
 	// live data from the customer database
 	$live = array('ok' => false, 'cvr' => '', 'firma' => '', 'users' => 0, 'trans12' => null, 'last' => null, 'items' => null, 'online' => 0);
 	$time_limit = time() - 1200; $qr = db_fetch_array(db_select("SELECT COUNT(DISTINCT session_id) as cnt FROM online WHERE db = '".db_escape_string($reg['db'])."' AND logtime >= '$time_limit'", __FILE__ . " linje " . __LINE__)); $live['online'] = (int)$qr['cnt'];
-	if ($reg['db'] && $reg['db'] != $sqdb && db_exists($reg['db']) && @db_connect($sqhost, $squser, $sqpass, $reg['db'], __FILE__ . " linje " . __LINE__)) {
+	if ($reg['db'] && $reg['db'] != $sqdb && db_exists($reg['db']) && op_connect_ledger($reg['db'], __FILE__ . " linje " . __LINE__)) {
 		$live['ok'] = true;
 		if ($r = db_fetch_array(db_select("select firmanavn, cvrnr from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__))) { $live['firma'] = $r['firmanavn']; $live['cvr'] = str_replace(' ', '', preg_replace('/^DK\s*/i', '', trim((string)$r['cvrnr']))); }
 		if (tbl_exists('brugere')) { $cols = array(); $q = db_select("select column_name from information_schema.columns where table_name = 'brugere'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $cols[] = $r['column_name']; $r = db_fetch_array(db_select("select count(*) as n from brugere".(in_array('revisor', $cols) ? " where revisor is not true" : ""), __FILE__ . " linje " . __LINE__)); $live['users'] = (int)$r['n']; }
@@ -403,7 +408,7 @@ if ($filter_regnskab) {
 
 	$lcs = lc_state($rid, $reg); $lead = '<span class="vr-st"><span class="vr-dot '.($lcs['state'] == 'active' ? 'vr-ok' : ($lcs['state'] == 'suspended' ? 'vr-warn' : 'vr-off')).'"></span>'.($lcs['state'] == 'active' ? vr_t('Aktiv','Active') : ($lcs['state'] == 'suspended' ? vr_t('Suspenderet','Suspended') : findtekst('387|Lukket', $sprog_id))).'</span> · '.vr_h($reg['db']).' · ID '.$rid.' · '.($ent['plan'] ? vr_h($ent['plan']['name']) : vr_t('ingen pakke','no plan')).($links ? ' · '.vr_t('Bogholder','Accountant').': '.implode(', ', array_map(fn($l) => vr_h($l['name']), $links)) : ($home ? ' · '.vr_t('partnerens eget regnskab','the partner\'s own account') : ' · '.vr_t('direkte kunde','direct customer')));
 	if ($trl = tr_card_lead($rid, $reg)) $lead .= ' · '.$trl;
-	$spa = sp_list($rid, 0, true); if ($spa) { $spi = count(array_filter($spa, fn($x) => $x['important'] === 't' || $x['important'] === true)); $lead .= ' · <a href="operator_panel.php?regnskab_id='.$rid.'&tab=abonnement#special" style="color:'.($spi ? 'var(--warn-ink)' : 'inherit').'">'.count($spa).' '.(count($spa) == 1 ? vr_t('specialtilpasning','customization') : vr_t('specialtilpasninger','customizations')).'</a>'; } # 20261012 CL/ASR
+	$spa = sp_list($rid, 0, true); if ($spa) { $spi = count(array_filter($spa, fn($x) => op_bool($x['important']))); $lead .= ' · <a href="operator_panel.php?regnskab_id='.$rid.'&tab=abonnement#special" style="color:'.($spi ? 'var(--warn-ink)' : 'inherit').'">'.count($spa).' '.(count($spa) == 1 ? vr_t('specialtilpasning','customization') : vr_t('specialtilpasninger','customizations')).'</a>'; } # 20261012 CL/ASR
 	vr_open(array(array('Administrationspanel', 'operator_panel.php'), array(vr_t('Regnskaber','Accounts'), 'operator_panel.php'), $reg['regnskab']), $reg['regnskab'], $lead, "<a class=\"vr-btn vr-primary\" href=\"aaben_regnskab.php?db_id=$rid\"".vr_warn_attr().">".vr_t('Åbn regnskab','Open account')."</a>", $home ? strtolower(vr_kind($home['kind'])) : '');
 	vr_note($notes, vr_flash_kind());
 	$tu = fn($t) => "operator_panel.php?regnskab_id=$rid&tab=$t";
@@ -453,8 +458,8 @@ if ($filter_regnskab) {
 		print "<section class=\"vr-sect\"><h2>".vr_t('Kundens brugere','Customer users')." <small id=\"usersCnt\">".($live['ok'] ? $live['users'].' '.vr_t('aktive','active') : '')."</small></h2><div id=\"usersFlash\"></div><div class=\"vr-card\"><div class=\"vr-bar\"><label class=\"vr-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/></svg><input type=\"search\" id=\"uq\" placeholder=\"".vr_t('Søg bruger','Search user')."\" oninput=\"filterUsers(this.value)\"></label><span class=\"vr-hint\">".vr_t('Klik på en bruger for at rette adgangskode, e-mail, telefon, IP og 2FA','Click a user to edit password, e-mail, phone, IP and 2FA')."</span></div><div id=\"usersBox\"><div class=\"vr-empty\"><span>".vr_t('Henter brugere…','Loading users…')."</span></div></div><div class=\"vr-foot\" style=\"display:block\"><b style=\"font-weight:600;display:block;margin-bottom:8px\">".vr_t('Opret bruger i regnskabet','Create user in the account')."</b><div class=\"vr-inline\"><input class=\"vr-inp\" id=\"nuName\" placeholder=\"".vr_t('Brugernavn','Username')."\" style=\"width:170px\"><input class=\"vr-inp\" id=\"nuPw\" type=\"password\" placeholder=\"".vr_t('Adgangskode (min. 6)','Password (min. 6)')."\" style=\"width:170px\"><input class=\"vr-inp\" id=\"nuMail\" type=\"email\" placeholder=\"E-mail\" style=\"width:210px\"><select class=\"vr-sel\" id=\"nuRole\"><option value=\"all\">".vr_t('Alle rettigheder','All rights')."</option><option value=\"readonly\">".vr_t('Kun læsning','Read only')."</option></select><button type=\"button\" class=\"vr-btn vr-primary\" onclick=\"createUser()\">".vr_t('Opret','Create')."</button><span class=\"vr-mut2\" style=\"font-size:12px\">".vr_t('Roller pr. modul kommer med roller etape 2.','Per-module roles come with roles stage 2.')."</span></div></div></div></section>\n";
 	} elseif ($tab == 'betalinger') {
 		$cfg = bill_get($rid);
-		$search = $cfg['billing_kontonr'] ?: ($live['cvr'] ? $live['cvr'] : $reg['regnskab']);
-		$data = bill_fetch($search); bill_cache_store($rid, $data, $cfg, $search); $cfg = bill_get($rid);
+		list($search, $by) = bill_key($cfg['billing_kontonr'], $live['cvr'], $reg['regnskab']);
+		$data = bill_fetch($search, $by); bill_cache_store($rid, $data, $cfg, $search); $cfg = bill_get($rid);
 		bill_render($rid, $reg, $ent, $live, $data, $cfg);
 	} elseif ($tab == 'indstillinger') {
 		$bt = $reg['betalt_til'] && $reg['betalt_til'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['betalt_til'])) : ''; $lk = $reg['lukkes'] && $reg['lukkes'] != '2099-12-31' ? date('Y-m-d', strtotime($reg['lukkes'])) : '';
@@ -465,10 +470,13 @@ if ($filter_regnskab) {
 		print "<label>".vr_t('Betalt til','Paid until')."<input class=\"vr-inp\" type=\"date\" name=\"betalt_til\" value=\"$bt\"></label><label>".vr_t('Logintekst (vises ved login)','Login text')."<input class=\"vr-inp\" name=\"logintekst\" value=\"".vr_h($reg['logintekst'])."\"></label>";
 		print ($isClosed ? "<input type=\"hidden\" name=\"lukket\" value=\"on\">" : "")."<input type=\"hidden\" name=\"lukkes\" value=\"$lk\"><input type=\"hidden\" name=\"lukkes_kommentar\" value=\"".vr_h($reg['lukkes_kommentar'] ?? '')."\">"; # lifecycle is managed in the section above
 		print "<div><button type=\"submit\" class=\"vr-btn vr-primary\">".findtekst('3|Gem', $sprog_id)."</button></div></form></div></section>";
+		if (op_table_exists('license_features')) { # legacy flags: not every install has the table
 		$lic = array(); $q = db_select("SELECT feature_key, enabled, expires_at FROM license_features WHERE regnskab_id = $rid", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $lic[$r['feature_key']] = $r;
 		print "<section class=\"vr-sect\"><h2>".vr_t('Licenser (gamle flag)','Licences (legacy flags)')."</h2><div class=\"vr-card\"><form method=\"post\" action=\"operator_panel.php?regnskab_id=$rid&tab=indstillinger\" class=\"vr-form\"><input type=\"hidden\" name=\"action\" value=\"bulk_update\"><input type=\"hidden\" name=\"regnskab_id\" value=\"$rid\"><p class=\"vr-sub\">".vr_t('De tre flag, koden stadig læser (license_features). Afløses af Abonnement, når pakkelaget håndhæver.','The three flags the code still reads (license_features). Replaced by Subscription once the entitlement layer enforces.')."</p>";
-		foreach ($available_features as $k => $n) { $on = !isset($lic[$k]) || ($lic[$k]['enabled'] === 't' || $lic[$k]['enabled'] === true); print "<div class=\"vr-inline\"><label class=\"vr-chk\" style=\"min-width:220px\"><input type=\"checkbox\" name=\"feature_$k\"".($on ? " checked" : "")."> ".vr_h($n)."</label><input class=\"vr-inp\" type=\"date\" name=\"expires_$k\" value=\"".(isset($lic[$k]) && $lic[$k]['expires_at'] ? date('Y-m-d', strtotime($lic[$k]['expires_at'])) : '')."\" title=\"".vr_t('Udløber','Expires')."\"></div>"; }
-		print "<div><button type=\"submit\" class=\"vr-btn\">".findtekst('3|Gem', $sprog_id)."</button></div></form></div></section></div>\n";
+		foreach ($available_features as $k => $n) { $on = !isset($lic[$k]) || op_bool($lic[$k]['enabled']); print "<div class=\"vr-inline\"><label class=\"vr-chk\" style=\"min-width:220px\"><input type=\"checkbox\" name=\"feature_$k\"".($on ? " checked" : "")."> ".vr_h($n)."</label><input class=\"vr-inp\" type=\"date\" name=\"expires_$k\" value=\"".(isset($lic[$k]) && $lic[$k]['expires_at'] ? date('Y-m-d', strtotime($lic[$k]['expires_at'])) : '')."\" title=\"".vr_t('Udløber','Expires')."\"></div>"; }
+		print "<div><button type=\"submit\" class=\"vr-btn\">".findtekst('3|Gem', $sprog_id)."</button></div></form></div></section>";
+		}
+		print "</div>\n";
 	} else {
 		print "<section class=\"vr-sect\"><h2>".vr_t('Log','Log')."</h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th>".vr_t('Tidspunkt','Time')."</th><th>".vr_t('Hvem','Who')."</th><th>".vr_t('Hvad','What')."</th><th>".vr_t('Detaljer','Details')."</th></tr></thead><tbody>";
 		$q = db_select("select l.*, b.brugernavn, p.name as pname from partner_log l left join brugere b on b.id = l.actor_bruger_id left join partners p on p.id = l.actor_partner_id where l.regnskab_id = '$rid' order by l.id desc limit 300", __FILE__ . " linje " . __LINE__); $n = 0;
@@ -515,7 +523,8 @@ if (isset($_POST['vr_recalc'])) { # 20261012 CL/ASR "Genberegn tal" (replaces vi
 }
 $sort_col = $_GET['sort'] ?? 'regnskab';
 $sort_dir = strtolower((string)($_GET['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
-$allowed_sorts = array('id' => 'id', 'regnskab' => 'regnskab', 'db' => 'db', 'brugerantal' => "COALESCE(NULLIF(brugerantal::text,''),'0')::integer", 'posteringer' => "COALESCE(NULLIF(posteringer::text,''),'0')::integer", 'posteret' => "COALESCE(NULLIF(posteret::text,''),'0')::integer", 'sidst' => "COALESCE(NULLIF(sidst::text,''),'0')::integer", 'lukket' => 'lukket');
+$vr_int = fn($c) => op_is_mysql() ? "CAST(COALESCE(NULLIF($c,''),'0') AS SIGNED)" : "COALESCE(NULLIF($c::text,''),'0')::integer";
+$allowed_sorts = array('id' => 'id', 'regnskab' => 'regnskab', 'db' => 'db', 'brugerantal' => $vr_int('brugerantal'), 'posteringer' => $vr_int('posteringer'), 'posteret' => $vr_int('posteret'), 'sidst' => $vr_int('sidst'), 'lukket' => 'lukket');
 $order_column = isset($allowed_sorts[$sort_col]) ? $allowed_sorts[$sort_col] : 'regnskab';
 if (!in_array($ltab, array('normale','bogholdere','koncerner','alle','nye','overskredet','egne'), true)) $ltab = 'normale';
 if (in_array($ltab, array('nye','overskredet'), true)) tr_actions($notes);
@@ -523,7 +532,7 @@ vr_prg($notes);
 if ($search !== '') $ltab = 'alle'; # a search looks across every customer
 $lurl = fn($o) => vr_url('operator_panel.php', array_merge(array('ltab' => $ltab, 'search' => $search, 'sort' => $sort_col, 'dir' => $sort_dir, 'showClosed' => $showClosed), $o));
 function ap_th($col, $label, $cls = '') { global $sort_col, $sort_dir, $lurl; $on = ($col === $sort_col); $dir = ($on && $sort_dir === 'asc') ? 'desc' : 'asc'; return "<th".($cls ? " class=\"$cls\"" : "")." aria-sort=\"".($on ? ($sort_dir == 'asc' ? 'ascending' : 'descending') : 'none')."\"><a href=\"".vr_h($lurl(array('sort' => $col, 'dir' => $dir)))."\">".vr_h($label).($on ? ' <span class="vr-ar">'.($sort_dir == 'asc' ? '&#9650;' : '&#9660;').'</span>' : '')."</a></th>"; }
-$rows = array(); $where = "db != '$sqdb'"; if ($search !== '') { $s = db_escape_string($search); $where .= " and (regnskab ilike '%$s%' or db ilike '%$s%' or email ilike '%$s%')"; } if (!$showClosed) $where .= " and coalesce(lukket,'') != 'on'";
+$rows = array(); $where = "db != '$sqdb'"; if ($search !== '') { $s = db_escape_string($search); $where .= " and (regnskab like '%$s%' or db like '%$s%' or email like '%$s%')"; } if (!$showClosed) $where .= " and coalesce(lukket,'') != 'on'";
 $q = db_select("select * from regnskab where $where order by $order_column $sort_dir, id", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $rows[] = $r;
 $links = partner_links_by_ledger(); $partners = partner_all(); $plans = ent_plans_by_ledger();
 $homes = array(); foreach ($partners as $pp) if ($pp['home_regnskab_id']) $homes[(int)$pp['home_regnskab_id']] = $pp;

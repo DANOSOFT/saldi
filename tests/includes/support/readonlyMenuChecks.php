@@ -12,6 +12,7 @@
 // History:
 // 20261030 LOE MB-62: moved out of tests/test_readonly_menu.php, which phpunit.xml never ran.
 // 20261104 LOE MB-62: the card's happy-hour and varenr-alias links are checked too.
+// 20261113 CDX/NTR Follow the shared permission helper and fiscal-year redirect after merging the settings redesign.
 
 /**
  * Strip a piece of PHP down to its code: no block comments, no // comments, no whitespace.
@@ -63,28 +64,17 @@ function readonly_menu_checks(): array
 		return readonly_code_only($m[0]);
 	};
 
-	$rule = "in_array(substr(\$rettigheder, \$item, 1), array('1', '2'), true)";
-
-	# ---- all three copies of check_permissions accept 1 and 2, and agree ------------------------
-	$bodies = array();
-	foreach (array('/index/main.php', '/index/dashboard.php', '/systemdata/regnskabsaar.php') as $path) {
+	# ---- the shared permission helper accepts read-only access in both menus -------------------
+	$shared = $body('/includes/std_func.php');
+	$check($shared !== NULL, 'std_func.php defines the shared check_permissions');
+	foreach (array('/index/main.php', '/index/dashboard.php') as $path) {
 		$src = $source($path);
-		$name = basename($path);
-		$check(strpos($src, $rule) !== false, $name . ' counts read-only (2) as access');
-		$check(preg_match('/return\s*\(?\s*substr\(\$rettigheder,\s*\$item,\s*1\)\s*==\s*"1"/', $src) === 0,
-			$name . ' no longer tests == "1"');
-		$bodies[$name] = $body($path);
-		$check($bodies[$name] !== NULL, $name . ' still defines check_permissions');
-		# The rule has to be what the callback returns and what the function then returns: a rule left in
-		# a comment, or a callback that returns a constant beside it, would pass the text search above.
-		$filter = '/array_filter\(\$permarr,function\(\$item\)use\(\$rettigheder\)\{return'
-			. preg_quote(readonly_code_only($rule), '/') . ';\}\);/';
-		$check($bodies[$name] !== NULL && preg_match($filter, $bodies[$name]) === 1,
-			$name . ' returns the rule from the filter callback');
-		$check($bodies[$name] !== NULL && strpos($bodies[$name], 'return!empty($filtered);') !== false,
-			$name . ' and returns that filter result, not a constant');
+		$check(strpos($src, 'includes/std_func.php') !== false, basename($path) . ' loads the shared permission helper');
+		$check($body($path) === NULL, basename($path) . ' does not redefine the shared permission helper');
 	}
-	$check(count(array_unique($bodies)) === 1, 'the three copies are the same function, so they cannot drift apart');
+	$fiscalYears = $source('/systemdata/regnskabsaar.php');
+	$check(strpos($fiscalYears, 'settingsSection.php?s=company.fiscal_years') !== false,
+		'the old fiscal-year page redirects to its settings section');
 
 	# ---- the classic menu shows Items for 1 and 2, and keeps the stock list for 2 ---------------
 	$menu = $source('/index/menu.php');

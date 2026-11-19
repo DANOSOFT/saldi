@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_forslag.php --- ver 5.1.1 --- 2026.11.09 ---
+// --- admin/inc_forslag.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261011 CL/ASR New. Purchase proposals (tilkøb): the operator (or later a partner) proposes a plan or an add-on; the customer's billing contact gets a one-time link (admin/godkend.php?t=…) and nothing becomes payable until they approve.
@@ -13,6 +13,10 @@
 //                 An on/off add-on the account has only for a limited time (e.g. a trial) can still be proposed for purchase.
 //                 fs_create() refuses an add-on proposal that ent_addon_purchase_error() rejects, i.e. an add-on not on sale for the account's plan or a counted add-on allocated for a limited time, and tells the operator why (review #785).
 // 20261109 CL/ASR The approval link in the mail is built from partner_mail_host() (includes/partnerScope.php), not from SERVER_NAME, which can come from the request's Host header (review #960).
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin).
+//                 fs_decide() claims the proposal with SELECT … FOR UPDATE and an UPDATE in the same transaction instead of UPDATE … RETURNING, which has the same effect on both databases: a second click waits, then finds nothing open.
+//                 On MySQL/MariaDB it takes the add-on lock (ent_addon_lock_name()) around that transaction, so it is held until the commit, as the transaction-scoped lock is on PostgreSQL.
+//                 The column key is quoted through op_key().
 
 if (!function_exists('fs_tables_ensure')) {
 function fs_tables_ensure() {
@@ -29,12 +33,12 @@ function fs_price_text($kind, $key) {
 function fs_create($rid, $kind, $key, $reason, $to, $partner_id = null) {
 	fs_tables_ensure(); $c = ent_catalog();
 	if (!in_array($kind, array('plan','addon'), true) || ($kind == 'plan' && !isset($c['plans'][$key])) || ($kind == 'addon' && !isset($c['addons'][$key]))) return vr_t('Ukendt pakke eller tillæg','Unknown plan or add-on');
-	if (db_fetch_array(db_select("select 1 from partner_proposals where regnskab_id = '".(int)$rid."' and kind = '$kind' and key = '".db_escape_string($key)."' and status = 'open'", __FILE__ . " linje " . __LINE__))) return vr_t('Der er allerede et åbent forslag om det','There is already an open proposal for that');
+	if (db_fetch_array(db_select("select 1 from partner_proposals where regnskab_id = '".(int)$rid."' and kind = '$kind' and ".op_key()." = '".db_escape_string($key)."' and status = 'open'", __FILE__ . " linje " . __LINE__))) return vr_t('Der er allerede et åbent forslag om det','There is already an open proposal for that');
 	if ($kind == 'addon' && !ent_addon_counted($c['addons'][$key]) && db_fetch_array(db_select("select 1 from regnskab_addons where regnskab_id = '".(int)$rid."' and addon_key = '".db_escape_string($key)."' and expires_at is null", __FILE__ . " linje " . __LINE__))) return vr_t('Kunden har allerede tillægget','The customer already has this add-on'); # a time-limited one (trial) may be offered for purchase
 	if ($kind == 'addon' && ($why = ent_addon_purchase_error($rid, $key)) !== '') return $why.' '.vr_t('Forslaget er ikke oprettet.','The proposal was not created.'); # not on sale for the plan, or a counted add-on allocated for a limited time
 	$token = bin2hex(random_bytes(24)); $exp = date('Y-m-d', strtotime('+30 days'));
 	if ((string)$to !== '' && !filter_var($to, FILTER_VALIDATE_EMAIL)) return vr_t('Ugyldig e-mailadresse, forslaget er ikke oprettet','Invalid e-mail address, the proposal was not created').': '.$to; # refused, not blanked: the card would otherwise say "sent"
-	db_modify("insert into partner_proposals (regnskab_id, partner_id, proposed_by, kind, key, reason, token, sent_to, expires_at) values ('".(int)$rid."', ".($partner_id ? "'".(int)$partner_id."'" : 'NULL').", '".db_escape_string(ent_actor())."', '$kind', '".db_escape_string($key)."', '".db_escape_string($reason)."', '$token', '".db_escape_string((string)$to)."', '$exp')", __FILE__ . " linje " . __LINE__);
+	db_modify("insert into partner_proposals (regnskab_id, partner_id, proposed_by, kind, ".op_key().", reason, token, sent_to, expires_at) values ('".(int)$rid."', ".($partner_id ? "'".(int)$partner_id."'" : 'NULL').", '".db_escape_string(ent_actor())."', '$kind', '".db_escape_string($key)."', '".db_escape_string($reason)."', '$token', '".db_escape_string((string)$to)."', '$exp')", __FILE__ . " linje " . __LINE__);
 	partner_log('proposal.created', (int)$rid, $partner_id, "$kind $key – $reason".($to ? " → $to" : ' (ingen e-mail)'));
 	if ($to) {
 		$reg = db_fetch_array(db_select("select regnskab from regnskab where id = '".(int)$rid."'", __FILE__ . " linje " . __LINE__));
@@ -59,15 +63,25 @@ function fs_decide($id, $accept, $by, $rid = 0) { # $rid: the card the decision 
 	fs_tables_ensure();
 	# 20261109 CL/ASR Single use: the update that moves the proposal out of 'open' claims it, and the change is applied in the same
 	#                  transaction. A second click waits for the first, then finds nothing open; an error rolls everything back.
-	transaktion('begin');
-	$p = db_fetch_array(db_select("update partner_proposals set status = '".($accept ? 'accepted' : 'rejected')."', decided_by = '".db_escape_string($by)."', decided_at = now() where id = '".(int)$id."' and status = 'open' and (expires_at is null or expires_at >= current_date)".($rid ? " and regnskab_id = '".(int)$rid."'" : "")." returning *", __FILE__ . " linje " . __LINE__));
-	if (!$p) { transaktion('rollback'); return vr_t('Forslaget er ikke længere åbent – det er allerede afgjort eller udløbet','The proposal is no longer open – it was already decided or has expired'); }
-	$err = '';
-	if ($accept) $err = ($p['kind'] == 'plan') ? ent_set_plan((int)$p['regnskab_id'], $p['key'], date('Y-m-d'), 'Godkendt forslag af '.$by) : ent_accept_addon((int)$p['regnskab_id'], $p['key']);
-	if ($err) { transaktion('rollback'); ent_resolve_flush((int)$p['regnskab_id']); return $err; }
-	partner_log($accept ? 'proposal.accepted' : 'proposal.rejected', (int)$p['regnskab_id'], $p['partner_id'] ? (int)$p['partner_id'] : null, "$p[kind] $p[key] – af $by");
-	transaktion('commit');
-	return '';
+	# 20261116 CL/ASR The claim is SELECT … FOR UPDATE and an UPDATE in the transaction (no UPDATE … RETURNING on MySQL/MariaDB).
+	#                  On MySQL/MariaDB an add-on's lock is taken around the transaction (see ent_addon_locked()).
+	$pre = db_fetch_array(db_select("select regnskab_id, kind, ".op_key()." as k from partner_proposals where id = '".(int)$id."'", __FILE__ . " linje " . __LINE__));
+	$lock = ($pre && $pre['kind'] == 'addon' && op_is_mysql()) ? ent_addon_lock_name((int)$pre['regnskab_id'], $pre['k']) : '';
+	if ($lock !== '' && !op_lock($lock)) return vr_t('Forslaget kunne ikke låses – prøv igen om lidt','The proposal could not be locked – try again shortly');
+	try {
+		transaktion('begin');
+		$p = db_fetch_array(db_select("select * from partner_proposals where id = '".(int)$id."' and status = 'open' and (expires_at is null or expires_at >= current_date)".($rid ? " and regnskab_id = '".(int)$rid."'" : "")." for update", __FILE__ . " linje " . __LINE__));
+		if ($p) db_modify("update partner_proposals set status = '".($accept ? 'accepted' : 'rejected')."', decided_by = '".db_escape_string($by)."', decided_at = now() where id = '".(int)$p['id']."'", __FILE__ . " linje " . __LINE__);
+		if (!$p) { transaktion('rollback'); return vr_t('Forslaget er ikke længere åbent – det er allerede afgjort eller udløbet','The proposal is no longer open – it was already decided or has expired'); }
+		$err = '';
+		if ($accept) $err = ($p['kind'] == 'plan') ? ent_set_plan((int)$p['regnskab_id'], $p['key'], date('Y-m-d'), 'Godkendt forslag af '.$by) : ent_accept_addon((int)$p['regnskab_id'], $p['key']);
+		if ($err) { transaktion('rollback'); ent_resolve_flush((int)$p['regnskab_id']); return $err; }
+		partner_log($accept ? 'proposal.accepted' : 'proposal.rejected', (int)$p['regnskab_id'], $p['partner_id'] ? (int)$p['partner_id'] : null, "$p[kind] $p[key] – af $by");
+		transaktion('commit');
+		return '';
+	} finally {
+		if ($lock !== '') op_unlock($lock);
+	}
 }
 function fs_actions($rid, &$notes, $defaultTo) {
 	if (!isset($_POST['fs_action'])) return;

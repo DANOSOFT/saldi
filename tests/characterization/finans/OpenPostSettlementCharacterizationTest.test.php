@@ -27,6 +27,7 @@
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20261028 CL/LH MB-72: The settlement date is the later of invoice and payment date; an "A;B" payment is stored once.
 //                A short "A;B" payment leaves the invoices and the payment open.
+// 20261111 CDX/NTR Isolate the test class database and session.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -59,7 +60,7 @@ final class OpenPostSettlementCharacterizationTest extends CharacterizationTestC
                 'tekst' => 'faktura ' . $faktura,
             ],
         ], 'invoice ' . $faktura);
-        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::sessionId()]);
     }
 
     /** Post a payment against the debtor: debit a plain bank account, credit the debtor. */
@@ -79,7 +80,7 @@ final class OpenPostSettlementCharacterizationTest extends CharacterizationTestC
                 'tekst' => 'betaling ' . $faktura,
             ],
         ], 'payment ' . $faktura);
-        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::sessionId()]);
     }
 
     /** @return list<array<string,string>> every open-post row for a debtor, oldest first */
@@ -237,7 +238,7 @@ final class OpenPostSettlementCharacterizationTest extends CharacterizationTestC
                 'tekst' => 'gammel faktura',
             ],
         ], 'old invoice');
-        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::sessionId()]);
 
         $this->postPayment($debtor, 500.00, $faktura);
 
@@ -284,7 +285,7 @@ final class OpenPostSettlementCharacterizationTest extends CharacterizationTestC
                 'tekst' => 'betaling ' . $faktura,
             ],
         ], 'payment ' . $faktura);
-        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::sessionId()]);
     }
 
     /**

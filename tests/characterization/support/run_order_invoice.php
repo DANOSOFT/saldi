@@ -29,14 +29,15 @@
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 // 20261028 CL/LH Removed the inline bootstrap that the #815 merge brought back next to the
 //                bootstrap_ordrefunc.php require; it included ordrefunc.php a second time.
+// 20261111 CDX/NTR Require the caller-owned database instead of a fixed fallback.
 
-if ($argc < 3) {
-    fwrite(STDERR, "usage: php run_order_invoice.php <invoice|reinvoice> <ordre_id> [tenant_db]\n");
+if ($argc < 4) {
+    fwrite(STDERR, "usage: php run_order_invoice.php <invoice|reinvoice> <ordre_id> <tenant_db>\n");
     exit(2);
 }
 $scenario = $argv[1];
 $ordreId = (int)$argv[2];
-$tenantDb = $argv[3] ?? 'saldi_chartest';
+$tenantDb = $argv[3];
 
 require __DIR__ . '/bootstrap_ordrefunc.php';
 error_reporting(E_ALL);

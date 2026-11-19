@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_special.php --- ver 5.1.1 --- 2026.10.29 ---
+// --- admin/inc_special.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. Specialtilpasninger: separate notes on custom development made for one customer (a ledger or a self-hosted installation), so support can see at a glance what is special about their system.
@@ -7,6 +7,7 @@
 //                 Shown on the Abonnement tab (full), on Oversigt and in the card header (counts / important items) and as a marker in the ledger list.
 //                 Changes are logged.
 // 20261029 CL/ASR customizations is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). The creation date is CAST(created AS DATE), and important is read through op_bool().
 
 if (!function_exists('sp_tables_ensure')) {
 function sp_tables_ensure() {
@@ -17,7 +18,7 @@ function sp_categories() { return array('funktion' => vr_t('Funktion','Feature')
 function sp_owner_sql($rid, $iid) { return $iid ? "self_hosted_id = '".(int)$iid."'" : "regnskab_id = '".(int)$rid."'"; }
 function sp_list($rid, $iid = 0, $only_active = false) {
 	sp_tables_ensure(); $o = array();
-	$q = db_select("select * from customizations where ".sp_owner_sql($rid, $iid).($only_active ? " and status = 'active'" : "")." order by (status = 'active') desc, important desc, coalesce(delivered, created::date) desc, id desc", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select * from customizations where ".sp_owner_sql($rid, $iid).($only_active ? " and status = 'active'" : "")." order by (status = 'active') desc, important desc, coalesce(delivered, CAST(created AS DATE)) desc, id desc", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) $o[] = $r; return $o;
 }
 function sp_counts_by_ledger() { # regnskab_id => [active, important]
@@ -65,7 +66,7 @@ function sp_render($rid, $iid = 0) {
 	$all = sp_list($rid, $iid); $act = count(array_filter($all, fn($x) => $x['status'] == 'active')); $cats = sp_categories();
 	print "<section class=\"vr-sect\" id=\"special\" style=\"margin-top:22px\"><h2>".vr_t('Specialtilpasninger','Customizations')." <small>$act ".vr_t('aktive','active')." · ".vr_t('udvikling og opsætning lavet specielt til denne kunde','development and setup made specially for this customer')."</small></h2><div class=\"vr-card\">";
 	foreach ($all as $r) {
-		$imp = ($r['important'] === 't' || $r['important'] === true); $ret = ($r['status'] != 'active');
+		$imp = op_bool($r['important']); $ret = ($r['status'] != 'active');
 		print "<div class=\"vr-sp".($ret ? " vr-sp-ret" : "")."\"><div class=\"vr-sp-head\"><div><b>".vr_h($r['title'])."</b> <span class=\"vr-pill\">".vr_h($cats[$r['category']] ?? $r['category'])."</span>".($imp && !$ret ? " <span class=\"vr-st\" style=\"color:var(--warn-ink);margin-left:6px\"><span class=\"vr-dot vr-warn\"></span>".vr_t('Vigtigt for support','Important for support')."</span>" : "").($ret ? " <span class=\"vr-pill\">".vr_t('udfaset','retired')."</span>" : "")."</div>";
 		print "<div class=\"vr-sp-acts\"><details><summary class=\"vr-link\">".vr_t('Ret','Edit')."</summary>"; sp_form($r); print "</details>";
 		print "<form method=\"post\"><input type=\"hidden\" name=\"sp_action\" value=\"".($ret ? 'activate' : 'retire')."\"><input type=\"hidden\" name=\"sp_id\" value=\"".(int)$r['id']."\"><button type=\"submit\" class=\"vr-link\">".($ret ? vr_t('Aktivér','Activate') : vr_t('Udfas','Retire'))."</button></form>";
@@ -79,7 +80,7 @@ function sp_render($rid, $iid = 0) {
 // Compact block for the overview: important active items (or a count), linking to the full list.
 function sp_render_compact($rid, $iid, $href) {
 	$act = sp_list($rid, $iid, true); if (!$act) return;
-	$imp = array_values(array_filter($act, fn($x) => $x['important'] === 't' || $x['important'] === true)); $show = $imp ?: array_slice($act, 0, 3);
+	$imp = array_values(array_filter($act, fn($x) => op_bool($x['important']))); $show = $imp ?: array_slice($act, 0, 3);
 	print "<div class=\"vr-note vr-note-warn\" style=\"margin-bottom:20px\"><div><b>".count($act)." ".(count($act) == 1 ? vr_t('specialtilpasning','customization') : vr_t('specialtilpasninger','customizations'))."</b> – ".vr_t('vær opmærksom ved support','keep in mind for support').": ";
 	print implode(' · ', array_map(fn($x) => vr_h($x['title']), $show)).(count($act) > count($show) ? ' …' : '')." <a href=\"".vr_h($href)."#special\">".vr_t('Se alle','See all')."</a></div></div>";
 }

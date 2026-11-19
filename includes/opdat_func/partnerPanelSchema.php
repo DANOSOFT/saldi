@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func/partnerPanelSchema.php --- ver 5.1.1 --- 2026-11-09 ---
+// --- includes/opdat_func/partnerPanelSchema.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,11 +30,24 @@
 // 20261109 CL/ASR PostgreSQL only (review #960): on a MySQL/MariaDB master partner_panel_schema() returns before any SQL, like the operator panel's step.
 //                 partner_panel_ready() is the check the accountant panel's entry points use: the operator panel is ready and this schema flag is at the current version.
 //                 The information_schema lookups are limited to current_schema().
+// 20261119 CL/ASR New partner_panel_supported(): the operator panel now runs on MySQL/MariaDB too (#785) and dropped operator_panel_supported(),
+//                 so the accountant panel keeps its own PostgreSQL-only gate here; partner_panel_ready(), partner_panel_schema() and admin/bogholder_godkend.php ask it.
 
-include_once(__DIR__ . '/operatorPanelSchema.php'); # operator_panel_supported(), operator_panel_ready()
+include_once(__DIR__ . '/operatorPanelSchema.php'); # operator_panel_ready()
 if (!function_exists('partner_panel_schema')) {
 	define('PARTNER_PANEL_SCHEMA', '1');
 	define('PARTNER_PANEL_SCHEMA_LOCK', 731002); # pg advisory lock key
+
+	/**
+	 * True on a PostgreSQL master. The accountant panel's schema step and pages are PostgreSQL only; the operator
+	 * panel (#785) also runs on MySQL/MariaDB, so operator_panel_ready() alone does not say that this panel can run.
+	 *
+	 * @return bool
+	 */
+	function partner_panel_supported() {
+		global $db_type;
+		return !in_array(strtolower((string)$db_type), array('mysql', 'mysqli'), true);
+	}
 
 	/**
 	 * True when the accountant panel can be used: the operator panel is ready (PostgreSQL master, its tables created) and
@@ -45,7 +58,7 @@ if (!function_exists('partner_panel_schema')) {
 	 */
 	function partner_panel_ready() {
 		static $ready = false; # only a yes is kept: the schema step may set the flag later in the same request
-		if (!$ready && operator_panel_ready()) {
+		if (!$ready && partner_panel_supported() && operator_panel_ready()) {
 			$flag = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'partner_panel_schema'", __FILE__ . " linje " . __LINE__, true));
 			$ready = ($flag && $flag['var_value'] >= PARTNER_PANEL_SCHEMA);
 		}
@@ -58,7 +71,7 @@ if (!function_exists('partner_panel_schema')) {
 	 * @return bool true when the schema was applied in this call, false when it was already current
 	 */
 	function partner_panel_schema() {
-		if (!operator_panel_supported()) return false; # PostgreSQL only (review #960): no lock, no DDL and no flag on MySQL/MariaDB
+		if (!partner_panel_supported()) return false; # PostgreSQL only (review #960): no lock, no DDL and no flag on MySQL/MariaDB
 		$flag = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'partner_panel_schema'", __FILE__ . " linje " . __LINE__, true));
 		if ($flag && $flag['var_value'] >= PARTNER_PANEL_SCHEMA) return false;
 		// the operator panel's tables come first (partners is altered below); with a concurrent login only one applies it

@@ -1,10 +1,14 @@
 <?php
 // 20260908 CDX/LH Guard bounded batch updates and retained outer posting transactions (SST-765).
+// 20261111 CDX/NTR Use an owned SQL-fixture database instead of an externally prepared DSN.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
+
+require_once __DIR__ . '/../support/database/TestDatabase.php';
 
 #[RunTestsInSeparateProcesses]
 #[PreserveGlobalState(false)]
@@ -16,20 +20,12 @@ final class BatchPostingRegressionTest extends TestCase
 
     protected function setUp(): void
     {
-        $dsn = getenv('SALDI_CHAR_PG_DSN');
-        if (!extension_loaded('pgsql') || !$dsn) {
-            self::markTestSkipped('Set SALDI_CHAR_PG_DSN to a disposable PostgreSQL database connection string.');
+        $reason = TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
         }
-        set_error_handler(static function () {
-            throw new RuntimeException('Configured PostgreSQL connection is unavailable.');
-        });
-        try {
-            $this->db = pg_connect($dsn, PGSQL_CONNECT_FORCE_NEW);
-        } catch (Throwable $error) {
-            self::markTestSkipped('Configured PostgreSQL connection is unavailable.');
-        } finally {
-            restore_error_handler();
-        }
+        $database = TestDatabase::sqlFixture(static::class);
+        $this->db = TestDatabase::connect($database->name());
         $this->schema = 'sst765_batch_' . bin2hex(random_bytes(8));
         $this->query('CREATE SCHEMA ' . $this->schema);
         $this->query('SET search_path TO ' . $this->schema);

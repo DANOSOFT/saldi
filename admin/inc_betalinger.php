@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.11 ---
+// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 3 "Betalinger og fakturering" on the customer card.
@@ -12,6 +12,10 @@
 //                 The billing customer number (regnskab_billing.billing_kontonr) is the coupling the customer's own invoice overview (billing overview spec F1) needs: it is stored automatically when the API lookup matches the ledger's CVR, or with one click from the lookup result.
 // 20261029 CL/ASR regnskab_billing and its columns are created by the update chain (operatorPanelSchema.php).
 // 20261111 CL/ASR An invoice date from the billing API that PHP cannot read no longer becomes a 1970 due date and a false "overdue": bill_cache_store() keeps the stored summary and puts the reason in $data['error'] for the page (new bill_date_error(), review #785).
+// 20261113 CL/ASR The invoice tables no longer show an unreadable invoice date as 01-01-1970 and "Forfalden": bill_classify() gives such an invoice no due date, and bill_dmy() shows it as a dash (review #785).
+// 20261116 CL/ASR The billing customer is found by an exact match only, because the API's search is a substring match over name, e-mail, phone, CVR, customer number and contact, and its first hit could be another customer, whose invoices were then shown and cached on this account (review #785).
+//                 bill_key() says what the key is (saved customer number, else CVR, else the account name), and bill_match_customers() keeps the customers whose number, CVR or name equals it; none or several is an error, never a guess.
+//                 All of the customer's invoices are fetched page by page, not only the first 100, and only invoices with that customer number are kept (the endpoint also matches a numeric number against the internal customer id).
 
 if (!function_exists('bill_tables_ensure')) {
 function bill_tables_ensure() {
@@ -85,25 +89,56 @@ function bill_actions($rid, &$notes) {
 	partner_log('billing.updated', (int)$rid, null, "kanal=".($ch ?: 'auto').", kontonr=".$v['billing_kontonr'].", ansvarlig=".$v['payer_name']);
 	$notes[] = vr_t('Faktureringsoplysninger gemt','Billing details saved');
 }
-// Fetch customer + invoices from the billing ledger. $search: billing kontonr if set, else CVR, else name.
-function bill_fetch($search) {
+// The key for the billing ledger and what it is: the saved billing customer number, else the CVR, else the account's name.
+function bill_key($kontonr, $cvr, $name) {
+	$kontonr = trim((string)$kontonr); $cvr = trim((string)$cvr);
+	return $kontonr !== '' ? array($kontonr, 'kontonr') : ($cvr !== '' ? array($cvr, 'cvr') : array(trim((string)$name), 'name'));
+}
+// The customers in $list whose customer number, CVR or name ($by) equals $search: CVR by its digits, a name ignoring case and spacing.
+function bill_match_customers($list, $search, $by) {
+	$norm = function ($v) use ($by) {
+		$v = trim((string)$v);
+		if ($by == 'cvr') return preg_replace('/\D/', '', preg_replace('/^DK/i', '', $v));
+		if ($by == 'name') return mb_strtolower(preg_replace('/\s+/u', ' ', $v), 'UTF-8');
+		return $v;
+	};
+	$want = $norm($search); $field = $by == 'cvr' ? 'cvrnr' : ($by == 'name' ? 'firmanavn' : 'kontonr'); $hits = array();
+	if ($want === '') return $hits;
+	foreach ((array)$list as $c) if (is_array($c) && isset($c['kontonr']) && $norm($c[$field] ?? '') === $want) $hits[] = $c;
+	return $hits;
+}
+// Fetch customer + invoices from the billing ledger. $search and $by come from bill_key().
+function bill_fetch($search, $by = 'kontonr') {
 	if (!function_exists('get_saldi_api_token')) return array('error' => 'API-funktioner mangler');
 	$token = get_saldi_api_token(); if (!$token) return array('error' => vr_t('Kunne ikke logge ind på faktureringsregnskabets API','Could not log in to the billing ledger API'));
-	$customers = fetch_saldi_api('/debitor/customers/index.php', $token, array('search' => $search, 'limit' => 1));
-	if (!is_array($customers) || !count($customers) || !isset($customers[0]['kontonr'])) return array('error' => vr_t('Ingen kunde fundet i faktureringsregnskabet for','No billing customer found for').' "'.$search.'"');
-	$c = $customers[0];
-	$inv = fetch_saldi_api('/debitor/invoices/index.php', $token, array('customer' => $c['kontonr'], 'limit' => 100, 'page' => 1));
-	if (!is_array($inv)) return array('error' => vr_t('Kunne ikke hente fakturaer fra faktureringsregnskabet','Could not fetch invoices from the billing ledger')); # keep the cached summary
+	$hits = array(); # the search is a substring match, so every page is read and only exact matches count
+	for ($off = 0; $off < 5000; $off += 500) {
+		$page = fetch_saldi_api('/debitor/customers/index.php', $token, array('search' => $search, 'limit' => 500, 'offset' => $off));
+		if (!is_array($page)) return array('error' => vr_t('Kunne ikke hente kunder fra faktureringsregnskabet','Could not fetch customers from the billing ledger')); # keep the cached summary
+		$hits = array_merge($hits, bill_match_customers($page, $search, $by));
+		if (count($page) < 500) break;
+	}
+	if (count($hits) > 1) return array('error' => vr_t('Flere kunder i faktureringsregnskabet passer på','Several billing customers match').' "'.$search.'". '.vr_t('Gem kundenummeret under faktureringsoplysninger.','Save the customer number in the billing details.'));
+	if (!$hits) return array('error' => vr_t('Ingen kunde fundet i faktureringsregnskabet for','No billing customer found for').' "'.$search.'"');
+	$c = $hits[0]; $inv = array();
+	for ($p = 1; $p <= 50; $p++) {
+		$batch = fetch_saldi_api('/debitor/invoices/index.php', $token, array('customer' => $c['kontonr'], 'limit' => 100, 'page' => $p));
+		if (!is_array($batch)) return array('error' => vr_t('Kunne ikke hente fakturaer fra faktureringsregnskabet','Could not fetch invoices from the billing ledger')); # keep the cached summary
+		foreach ($batch as $i) if (!isset($i['accountNumber']) || trim((string)$i['accountNumber']) === trim((string)$c['kontonr'])) $inv[] = $i;
+		if (count($batch) < 100) break;
+	}
 	usort($inv, fn($a, $b) => strcmp($b['invoiceDate'] ?? '', $a['invoiceDate'] ?? ''));
 	return array('customer' => $c, 'invoices' => $inv);
 }
+// 20261113 CL/ASR A date from the billing API as d-m-Y, or a dash when it is empty or cannot be read (review #785).
+function bill_dmy($s) { $t = empty($s) ? false : strtotime((string)$s); return $t === false ? '–' : date('d-m-Y', $t); }
 // Classify one invoice: paid | pending | overdue  (+ due date)
 function bill_classify($inv, $defaultDays) {
 	$paid = ($inv['paid'] == '1' || $inv['paid'] === true || $inv['paid'] === 't');
 	$days = isset($inv['paymentInfo']['paymentDays']) && $inv['paymentInfo']['paymentDays'] !== null ? (int)$inv['paymentInfo']['paymentDays'] : (int)$defaultDays;
 	$terms = $inv['paymentInfo']['paymentTerms'] ?? '';
 	$due = null;
-	if (!empty($inv['invoiceDate'])) { $base = strtotime($inv['invoiceDate']); if ($terms == 'Lb. md.' || $terms == 'Lb.md') $base = strtotime(date('Y-m-t', $base)); $due = date('Y-m-d', strtotime("+$days days", $base)); }
+	if (!empty($inv['invoiceDate']) && ($base = strtotime((string)$inv['invoiceDate'])) !== false) { if ($terms == 'Lb. md.' || $terms == 'Lb.md') $base = strtotime(date('Y-m-t', $base)); $due = date('Y-m-d', strtotime("+$days days", $base)); } # 20261113 an unreadable date gives no due date, so it is not 'overdue'
 	$st = $paid ? 'paid' : (($due && $due < date('Y-m-d')) ? 'overdue' : 'pending');
 	return array($st, $due, (float)($inv['economic']['sum'] ?? 0) + (float)($inv['economic']['vat'] ?? 0));
 }
@@ -158,7 +193,7 @@ function bill_render($rid, $reg, $ent, $live, $data, $cfg) {
 	print "<label>".vr_t('Note','Note')."<input class=\"vr-inp\" name=\"note\" value=\"".vr_h($cfg['note'])."\"></label><div><button type=\"submit\" class=\"vr-btn vr-primary\">".findtekst('3|Gem', $sprog_id)."</button></div></form></div></section></div>";
 	// history
 	print "<section class=\"vr-sect\" style=\"margin-top:22px\"><h2>".vr_t('Faktura- og betalingshistorik','Invoice and payment history')." <small>".count($rows)." ".vr_t('fakturaer fra faktureringsregnskabet','invoices from the billing ledger')."</small></h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th>".vr_t('Faktura','Invoice')."</th><th>".vr_t('Dato','Date')."</th><th>".vr_t('Forfald','Due')."</th><th class=\"vr-r\">".vr_t('Beløb inkl. moms','Amount incl. VAT')."</th><th>".vr_t('Betingelser','Terms')."</th><th>".vr_t('Status','Status')."</th></tr></thead><tbody>";
-	foreach ($rows as $n => $r) { list($i, $st, $due, $tot) = $r; print "<tr".($n >= 10 ? " class=\"vr-more\" hidden" : "")." onclick=\"openInvoice(".(int)$i['id'].")\" style=\"cursor:pointer\"><td class=\"vr-nm\"><a>#".vr_h($i['invoiceNo'] ?? $i['orderNo'] ?? '-')."</a></td><td class=\"vr-mut\">".(!empty($i['invoiceDate']) ? date('d-m-Y', strtotime($i['invoiceDate'])) : '–')."</td><td class=\"vr-mut\">".($due ? date('d-m-Y', strtotime($due)) : '–')."</td><td class=\"vr-r vr-num\">".number_format($tot, 2, ',', '.')."</td><td class=\"vr-mut\">".vr_h($i['paymentInfo']['paymentTerms'] ?? '')."</td><td><span class=\"vr-st\"><span class=\"vr-dot ".$stDot[$st]."\"></span>".$stTxt[$st]."</span></td></tr>"; }
+	foreach ($rows as $n => $r) { list($i, $st, $due, $tot) = $r; print "<tr".($n >= 10 ? " class=\"vr-more\" hidden" : "")." onclick=\"openInvoice(".(int)$i['id'].")\" style=\"cursor:pointer\"><td class=\"vr-nm\"><a>#".vr_h($i['invoiceNo'] ?? $i['orderNo'] ?? '-')."</a></td><td class=\"vr-mut\">".bill_dmy($i['invoiceDate'] ?? '')."</td><td class=\"vr-mut\">".bill_dmy($due)."</td><td class=\"vr-r vr-num\">".number_format($tot, 2, ',', '.')."</td><td class=\"vr-mut\">".vr_h($i['paymentInfo']['paymentTerms'] ?? '')."</td><td><span class=\"vr-st\"><span class=\"vr-dot ".$stDot[$st]."\"></span>".$stTxt[$st]."</span></td></tr>"; }
 	if (!$rows) print "<tr><td colspan=\"6\" class=\"vr-mut\" style=\"padding:20px\">".(isset($data['error']) ? vr_h($data['error']) : ($chDet == 'stripe_sub' ? vr_t('Ingen Saldi-fakturaer – kunden betaler via Stripe-abonnement (gammel model) og flyttes til kort på fil ved M1.','No Saldi invoices – the customer pays through a Stripe subscription (old model) and moves to card on file at M1.') : vr_t('Ingen fakturaer','No invoices')))."</td></tr>";
 	print "</tbody></table>".(count($rows) > 10 ? "<div class=\"vr-foot\"><span class=\"vr-grow\"></span><button type=\"button\" class=\"vr-btn vr-quiet\" onclick=\"document.querySelectorAll('tr.vr-more').forEach(function(t){t.hidden=false});this.remove()\">".vr_t('Vis alle','Show all')." (".count($rows).")</button></div>" : "")."</div></section>";
 	print "<div class=\"vr-scrim\" id=\"invScrim\" onclick=\"closeInvoice()\"></div><div class=\"vr-dlg\" id=\"invDlg\" style=\"width:720px;max-width:95vw\"><h3 id=\"invTitle\">…</h3><p id=\"invMeta\"></p><div id=\"invBody\"></div><div class=\"vr-bs\"><button type=\"button\" class=\"vr-btn\" onclick=\"closeInvoice()\">".vr_t('Luk','Close')."</button></div></div>\n";

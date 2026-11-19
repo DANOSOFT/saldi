@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// --- admin/operator_overblik.php --- ver 5.1.1 --- 2026-10-12 ---
+// --- admin/operator_overblik.php --- ver 5.1.1 --- 2026-11-13 ---
 // 20261012 CL/ASR Operator copy of index/admin_menu.php for Saldi staff only (vr_require_operator). The original page is
 //                  unchanged for bookkeepers and everyone else; this copy carries the operator panel's changes.
 // LICENSE
@@ -26,6 +26,7 @@ $s_id=session_id();
 // 20261010 CL/ASR Rendered in the new admin-layer shell (sidebar + topbar, admin/vr_ui.php). Same entries, same
 //                  rights and gating as before ($admin/$oprette/$slette, $revisorregnskab/$forhandlerregnskab,
 //                  settings.useAdminPanel, ROTARY). Partner users land on their own menu.
+// 20261113 CL/ASR The user name is escaped before it reaches SQL (review #785).
 
 $css="../css/standard.css";
 $title="Administration";
@@ -51,7 +52,7 @@ if ($db != $sqdb) {
 	exit;
 }
 
-$q = db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
+$q = db_select("select * from brugere where brugernavn = '".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
 if ($bruger_id=$r['id']) {
 	$rettigheder=$r['rettigheder'];
