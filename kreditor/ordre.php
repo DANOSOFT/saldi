@@ -106,6 +106,7 @@
 // 20261119 CL/MMR SST-1041 On a new order without a supplier, an item picked in the search list gets the item's supplier no. 1, as item number + Enter does.
 //                 A pick from the Lev. varenr. search takes that supplier row, with its number and price. An item with no supplier shows a message on both paths.
 //                 Review (CodeRabbit): the pick sends the supplier row id (vare_lev.id), and a vare_id without an order id needs write permission.
+//                 Codex review round: the write check reads the order id as an integer like the vare_id branch, which refuses an id that is not a whole number.
 @session_start();
 $s_id=session_id();
 
@@ -136,7 +137,9 @@ $css="../css/standard.css";
 $modulnr=7;
 // A konto_id without an order id creates a purchase order from a GET link, so it needs write.
 // SST-1041 So does a vare_id without an order id: the item's supplier is looked up and the order created.
-if ((empty($_GET['id']) || $_GET['id'] === 'null') && (!empty($_GET['konto_id']) || !empty($_GET['vare_id']))) {
+// The order id is read as an integer, as the vare_id branch below reads it, so the check and the creation agree.
+$requestedOrderId = (isset($_GET['id']) && is_scalar($_GET['id'])) ? (int) $_GET['id'] : 0;
+if (!$requestedOrderId && (!empty($_GET['konto_id']) || !empty($_GET['vare_id']))) {
 	$permission_level = 'write';
 }
 
@@ -287,6 +290,12 @@ if ( !empty($kontakt) && $id ) {
 	db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
 }
 if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716 
+	// SST-1041 An order id that is not a whole number (or 'null' for a new order) is refused before anything is written.
+	$rawOrderId = trim((string) $id);
+	if ($rawOrderId !== '' && $rawOrderId !== 'null' && !ctype_digit($rawOrderId)) {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+		exit;
+	}
 	transaktion("begin");
 	$id = (int) $id;
 	$vare_id[0]=db_escape_string($_GET['vare_id']);

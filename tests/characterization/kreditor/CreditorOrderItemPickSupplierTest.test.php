@@ -8,6 +8,7 @@
 // 20261119 CL/MMR SST-1041 Codex rounds 1-2: a Lev. varenr. pick carries that row's number and price (see the Sql test).
 // 20261119 CL/MMR SST-1041 Codex round 6: the Enter-path message shows the typed number, not the SQL-escaped one.
 // 20261119 CL/MMR SST-1041 Review (CodeRabbit): the pick sends the supplier row id (vare_lev_id), not the number.
+// 20261119 CL/MMR SST-1041 Codex review round: the write check and the vare_id branch read the order id the same way; a non-numeric id is refused.
 namespace CreditorOrderItemPickFixture {
 
     final class Rec
@@ -279,6 +280,43 @@ namespace Saldi\Tests\CreditorOrderItemPick {
             self::assertSame('write', $this->declaredLevel(array('konto_id' => '57')), 'the existing supplier-first rule must stay');
             self::assertNull($this->declaredLevel(array('id' => '169791')), 'opening an existing order stays read');
             self::assertNull($this->declaredLevel(array()), 'a blank new order form stays read');
+        }
+
+        /** Codex review round: the check reads the order id as the vare_id branch does, (int), so both agree on «new order». */
+        public function testTheWriteCheckReadsTheOrderIdAsAnInteger(): void
+        {
+            foreach (array('abc', '0', ' 0', 'null', '') as $odd) {
+                self::assertSame('write', $this->declaredLevel(array('id' => $odd, 'vare_id' => '887')), "id '$odd' is a new order for the vare_id branch, so it needs write");
+            }
+            self::assertSame('write', $this->declaredLevel(array('id' => array('1'), 'vare_id' => '887')), 'an array id is no order id');
+            self::assertNull($this->declaredLevel(array('id' => '169791', 'vare_id' => '887')), 'an existing order stays as before');
+        }
+
+        /**
+         * The vare_id branch refuses an order id that is not a whole number, before the transaction starts.
+         *
+         * @return array{refused: bool, output: string}
+         */
+        private function branchStart($id): array
+        {
+            $block = self::slice("\t// SST-1041 An order id that is not a whole number", "\ttransaktion(\"begin\");");
+            $block = str_replace('exit;', 'return true;', $block);
+            ob_start();
+            $refused = (bool) eval($block);
+            $out = (string) ob_get_clean();
+            return array('refused' => $refused, 'output' => $out);
+        }
+
+        public function testAnOrderIdThatIsNotAWholeNumberIsRefusedBeforeAnyWrite(): void
+        {
+            foreach (array('abc', '5abc', '-5', '1e3', '0x10') as $bad) {
+                $got = $this->branchStart($bad);
+                self::assertTrue($got['refused'], "id '$bad' went on to the order creation");
+                self::assertStringContainsString('URL=ordreliste.php', $got['output']);
+            }
+            foreach (array('', 'null', '0', '169791', ' 169791 ', null) as $ok) {
+                self::assertFalse($this->branchStart($ok)['refused'], 'id ' . var_export($ok, true) . ' was refused');
+            }
         }
 
         /** The keyed text is seeded, so translators see it. */
