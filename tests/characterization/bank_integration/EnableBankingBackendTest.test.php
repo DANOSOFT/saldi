@@ -1050,6 +1050,33 @@ final class EnableBankingBackendTest extends TestCase
             'identification_hashes' => array_merge([$primary], $secondary), 'currency' => $currency];
     }
 
+    /** @return string An identification hash in Enable Banking's form: base64 JSON field paths, a dot, a value. */
+    private function ebHash(array $paths, string $value): string
+    {
+        return base64_encode((string)json_encode($paths)) . '.' . base64_encode(hash('sha256', $value, true));
+    }
+
+    /** @return void */
+    public function test_a_second_account_sharing_the_agreement_id_never_takes_over_the_first(): void
+    {
+        // Nordea: both accounts of one agreement share the "other" identifier; their IBANs differ.
+        $iban = [['account', 'account_id', 'iban']];
+        $other = [['aspsp_name'], ['aspsp_country'], ['account', 'account_id', 'other', 'identification']];
+        $main = ['uid' => 'uid-main'] + $this->resource($this->ebHash($iban, 'DK16...2604'), [$this->ebHash($other, 'agreement-7')]);
+        $lunch = ['uid' => 'uid-lunch'] + $this->resource($this->ebHash($iban, 'DK89...5951'), [$this->ebHash($other, 'agreement-7')]);
+        $first = $this->authorizeAccounts([$main]);
+        $mainId = (int)ebListAccounts($first)[0]['id'];
+        // A later consent shares only the second account: it gets its own row, the first keeps its own.
+        $second = $this->authorizeAccounts([$lunch]);
+        $lunchId = (int)ebListAccounts($second)[0]['id'];
+        $this->assertNotSame($mainId, $lunchId);
+        $this->assertSame($main['identification_hash'], ebRow('SELECT identification_hash FROM bank_accounts WHERE id=' . $mainId)['identification_hash']);
+        // A new IBAN with no IBAN stored on the account still matches through the shared identifier, as before.
+        $this->assertFalse(ebIdentityConflicts([$this->ebHash($iban, 'new'), $this->ebHash($other, 'x')], $this->accountId));
+        $this->assertTrue(ebIdentityConflicts($lunch['identification_hashes'], $mainId));
+        $this->assertSame('', ebHashKind('owner-name'));
+    }
+
     /** @return void */
     public function test_same_session_shared_secondary_never_merges_or_becomes_an_alias(): void
     {
