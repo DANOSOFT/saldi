@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tests/characterization/bank_integration/EnableBankingBackendTest.test.php --- ver 5.1.1 --- 2026-11-18 ---
+// --- tests/characterization/bank_integration/EnableBankingBackendTest.test.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,7 @@
 //                The support code sits in a title attribute, dates are dd-mm-åååå text fields, the journal button is named Bankposteringer, and the expired notice replaces the removed "Næste hentning" row.
 // 20261118 CL/LH The journal's bank status: accounts named ledger-first in the tooltip, the short label ("2 nye", "ajour", "hentning forsinket", "forny adgang", "fejl") and the link to the feed on the account.
 // 20261118 CL/LH CodeRabbit: a manual fetch reports its own new_count and the cooldown reason (not for a held lease); action required reads "forny adgang" and the link opens the most urgent account.
+// 20261119 CL/LH Marian's Nordea test: the payee name shows once in the text, and each day is listed and picked in the bank's own order from its balances.
 //                Switching the company on says "henter igen" only with an account in use, and survives a failing lookup; disconnect also clears last_error.
 
 use PHPUnit\Framework\TestCase;
@@ -1781,9 +1782,10 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertSame($replacement, $mysql['counterparty']);
         $this->assertSame($replacement, $mysql['entry_reference']);
         $this->assertSame($replacement, $mysql['bank_reference']);
-        $this->assertSame($replacement . ' �', $mysql['description']);
+        // The payment text only repeats a character of the name, so the name shows once.
+        $this->assertSame($replacement, $mysql['description']);
         $this->assertSame($text, $postgres['counterparty']);
-        $this->assertSame($text . ' 😀', $postgres['description']);
+        $this->assertSame($text, $postgres['description']);
         $this->assertSame(ebFingerprint($mysql), ebFingerprint($again));
         $this->assertSame(ebPayloadHash($mysql), ebPayloadHash($again));
         $this->assertNotSame(ebFingerprint($postgres), ebFingerprint($mysql));
@@ -2769,5 +2771,100 @@ final class EnableBankingBackendTest extends TestCase
             pg_query($admin, "DROP DATABASE IF EXISTS $name");
             pg_close($admin);
         }
+    }
+
+    /**
+     * Nordea sends a debit with creditor name and payment text, sometimes repeating each other.
+     * @param list<string> $remittance
+     * @return array<string,mixed>
+     */
+    private function nordeaLine(string $ref, string $amount, string $name, array $remittance, ?string $balance, string $reference = ''): array
+    {
+        $line = ['entry_reference' => $ref, 'booking_date' => ebToday(), 'value_date' => ebToday(), 'status' => 'BOOK',
+            'credit_debit_indicator' => str_starts_with($amount, '-') ? 'DBIT' : 'CRDT',
+            'transaction_amount' => ['currency' => 'DKK', 'amount' => ltrim($amount, '-')],
+            (str_starts_with($amount, '-') ? 'creditor' : 'debtor') => ['name' => $name], 'remittance_information' => $remittance,
+            'bank_transaction_code' => ['description' => 'Kodetekst']];
+        if ($balance !== null) {
+            $line['balance_after_transaction'] = ['currency' => 'DKK', 'amount' => $balance];
+        }
+        if ($reference !== '') {
+            $line['reference_number'] = $reference;
+        }
+        return $line;
+    }
+
+    /** @return void */
+    public function test_payee_name_shows_once_and_the_reference_is_not_repeated_in_the_text(): void
+    {
+        $text = fn(string $name, array $remittance, string $reference = ''): string
+            => ebNormalizeTransaction($this->nordeaLine('x', '-1.00', $name, $remittance, null, $reference))['description'];
+        $this->assertSame('Thrusty 105023 Bgs', $text('Thrusty 105023', ['Bgs Thrusty 105023']));
+        $this->assertSame('Business debit køb, . SIMPLY.COM Den 30.10', $text('Business debit køb, . SIMPLY.COM   Den 30.10', ['Business debit køb, . SIMPLY.COM   Den 30.10']));
+        $this->assertSame('Til Frokostkonto Dan Fra DANOSOFT APS Bgs', $text('Til Frokostkonto Dan', ['Fra DANOSOFT APS', 'Bgs Til Frokostkonto Dan']));
+        $this->assertSame('Mobilepay Netto Reference 206', $text('Mobilepay Netto Reference 206', ['SCTI2TX1893514235', '', 'Mobilepay Netto Reference 206'], 'SCTI2TX1893514235'));
+        $this->assertSame('Straksoverførsel Per Danosoft Aconto', $text('Straksoverførsel Per', ['SCTI2TX1894122619', 'Danosoft Aconto', 'Straksoverførsel Per'], 'SCTI2TX1894122619'));
+        $this->assertSame('Køge Kommune Ref.: 2630 Meddelnr. 0200', $text('Køge Kommune', ['Køge KommuneRef.: 2630', 'Køge Kommune Meddelnr. 0200']));
+        // A shorter text inside the name adds nothing; an unrelated text is kept; only a missing text falls back to the code text.
+        $this->assertSame('Business debit køb EUR 197,53 ANTHROPIC', $text('Business debit køb EUR 197,53 ANTHROPIC', ['ANTHROPIC']));
+        $this->assertSame('Leverandør Køb', $text('Leverandør', ['Køb']));
+        $this->assertSame('Leverandør Kodetekst', $text('Leverandør', []));
+        $this->assertSame('Leverandør', $text('Leverandør', ['leverandør']));
+        $line = $this->nordeaLine('x', '-1.00', 'A', [], '-12.50');
+        $this->assertSame('-12.50', ebNormalizeTransaction($line)['balance_after']);
+        foreach ([['amount' => '1,5'], ['amount' => '1', 'currency' => 'EUR'], ['currency' => 'DKK']] as $balance) {
+            $line['balance_after_transaction'] = $balance;
+            $this->assertNull(ebNormalizeTransaction($line)['balance_after']);
+        }
+    }
+
+    /** @return void */
+    public function test_each_day_is_listed_and_picked_in_the_banks_order_from_its_balances(): void
+    {
+        // Nordea's netbank, newest first: UnivAdv, Frokost, Thrusty, Helsinge, Overførsel, Køge. The API sends the instant
+        // transfer (Overførsel) after the others, so the order it arrives in is not the bank's order.
+        $this->persist([
+            $this->nordeaLine('univ', '-20000.00', 'UnivAdv', [], '303717.50'),
+            $this->nordeaLine('frokost', '-1000.00', 'Frokost', [], '323717.50'),
+            $this->nordeaLine('thrusty', '-4077.50', 'Thrusty', [], '324717.50'),
+            $this->nordeaLine('helsinge', '-660.00', 'Helsinge', [], '328795.00'),
+            $this->nordeaLine('koege', '15968.68', 'Køge', [], '327970.00'),
+            $this->nordeaLine('nobalance', '-1.00', 'Uden saldo', [], null),
+            $this->nordeaLine('overf', '1485.00', 'Overførsel', [], '329455.00'),
+        ]);
+        $names = fn(): array => array_column(ebListTransactions($this->accountId, 'pending'), 'counterparty');
+        $this->assertSame(['UnivAdv', 'Frokost', 'Thrusty', 'Helsinge', 'Overførsel', 'Køge', 'Uden saldo'], $names());
+        // A later fetch adds the day's newest line; it goes on top, and the day's lines keep their places.
+        $this->persist([$this->nordeaLine('anima', '-150.00', 'ANIMA', [], '303567.50'),
+            $this->nordeaLine('univ', '-20000.00', 'UnivAdv', [], '303717.50')]);
+        $this->assertSame(['ANIMA', 'UnivAdv', 'Frokost', 'Thrusty', 'Helsinge', 'Overførsel', 'Køge', 'Uden saldo'], $names());
+        // Picked into a journal, the day reads oldest first, as on a bank statement.
+        $this->importPending();
+        $this->assertSame(['Uden saldo Kodetekst', 'Køge Kodetekst', 'Overførsel Kodetekst', 'Helsinge Kodetekst', 'Thrusty Kodetekst', 'Frokost Kodetekst', 'UnivAdv Kodetekst', 'ANIMA Kodetekst'],
+            array_column(ebRows('SELECT beskrivelse FROM kassekladde ORDER BY id'), 'beskrivelse'));
+    }
+
+    /** @return void */
+    public function test_chain_order_survives_a_gap_a_tie_and_a_zero_amount(): void
+    {
+        $row = static fn(int $id, string $amount, ?string $balance): array => ['id' => $id, 'amount' => $amount, 'balance_after' => $balance];
+        // Newest first the bank sends 1, 2, (3 missing), 4, 5: two chains, taken in the order the bank sent their newest line.
+        $this->assertSame([1 => 1, 2 => 2, 4 => 3, 5 => 4],
+            ebChainOrder([$row(2, '-10', '110'), $row(1, '-10', '100'), $row(5, '-10', '140'), $row(4, '-10', '130')]));
+        // +100 then -100 returns to the same balance; every line still gets one place.
+        $tie = ebChainOrder([$row(1, '100', '200'), $row(2, '-100', '100'), $row(3, '5', '105'), $row(4, '0', '105')]);
+        $this->assertCount(4, $tie);
+        $this->assertEqualsCanonicalizing([1, 2, 3, 4], array_values($tie));
+        $this->assertSame([], ebChainOrder([$row(1, '5', null)]));
+    }
+
+    /** @return void */
+    public function test_columns_added_later_are_added_to_an_existing_table(): void
+    {
+        ebWrite('ALTER TABLE bank_transactions DROP COLUMN day_position');
+        $this->assertFalse(ebSchemaReady());
+        ebEnsureSchema();
+        $this->assertTrue(ebSchemaReady());
+        $this->assertTrue(ebColumnExists('bank_transactions', 'day_position'));
     }
 }

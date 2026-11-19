@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebConnections.php --- ver 5.1.1 --- 2026-11-18 ---
+// --- bank_integration/includes/ebConnections.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20261117 CL/LH The bank session's encryption and the old-connection lookup run inside the cleanup try, so a missing key file also closes the consent at the bank (Saul's review).
 // 20261118 CL/LH Renewal no longer closes the replaced consent at the bank: in Enable Banking's Nordea sandbox that also broke the new consent (every fetch ASPSP_ERROR). The old consent runs out by itself.
 // 20261118 CL/LH Disconnecting an account (Afbryd, or left out of a renewal) clears its old fetch error, which promised an automatic retry.
+// 20261119 CL/LH The feed lists each day in the bank's own order (day_position), then lines without a balance newest stored first, as before.
 
 require_once __DIR__ . '/ebSync.php';
 
@@ -461,7 +462,7 @@ function ebListTransactions(int $accountId, string $reviewState, int $limit = 20
         WHERE t.account_id=' . (int)$accountId . ' AND t.review_state=' . ebSql($reviewState)
         . (ebDate($from) === null ? '' : ' AND COALESCE(t.date_override, t.booking_date)>=' . ebSql($from))
         . (ebDate($to) === null ? '' : ' AND COALESCE(t.date_override, t.booking_date)<=' . ebSql($to))
-        . ' ORDER BY t.booking_date DESC, t.id DESC LIMIT ' . max(1, min(1000, $limit)) . ' OFFSET ' . max(0, $offset));
+        . ' ORDER BY t.booking_date DESC, CASE WHEN t.day_position IS NULL THEN 1 ELSE 0 END, t.day_position, t.id DESC LIMIT ' . max(1, min(1000, $limit)) . ' OFFSET ' . max(0, $offset));
 }
 
 /** @return list<array{kontonr:string, beskrivelse:string}> Eligible financial chart accounts. */

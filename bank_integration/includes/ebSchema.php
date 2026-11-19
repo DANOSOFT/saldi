@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebSchema.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- bank_integration/includes/ebSchema.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // 20261028 CDX/LH Migrate active accounts and install the automatic import date fence.
 // 20261116 CL/LH Pull model: no journal pointer, automatic import or journal line cap; the never-released upgrade steps are gone.
 // 20261116 CL/LH ebEnsureSchema() moved to includes/opdat_func/ebSchemaInstall.php: the tables are created by the update chain only.
+// 20261119 CL/LH bank_transactions.balance_after and day_position (the bank's order within a day), added to tables created before them.
 
 require_once __DIR__ . '/ebDb.php';
 
@@ -64,7 +65,9 @@ function ebSchemaTables(): array
             currency VARCHAR(3), description VARCHAR(255), counterparty VARCHAR(140) NULL, bank_reference VARCHAR(140) NULL,
             status VARCHAR(4) NOT NULL, review_state VARCHAR(20) NOT NULL, review_reason VARCHAR(40) NULL,
             identical_group SMALLINT NOT NULL DEFAULT 0, changed_payload TEXT NULL, link_id INT NULL,
-            first_seen_at $ts NOT NULL, last_seen_at $ts NOT NULL, first_run_id INT NULL",
+            first_seen_at $ts NOT NULL, last_seen_at $ts NOT NULL, first_run_id INT NULL, "
+            . implode(', ', array_map(static fn(string $column, string $type): string => "$column $type",
+                array_keys(ebSchemaAddedColumns()['bank_transactions']), ebSchemaAddedColumns()['bank_transactions'])),
         'bank_import_links' => "id $id, transaction_id INT NOT NULL, account_id INT NOT NULL, kladde_id INT NOT NULL,
             kassekladde_id INT NOT NULL, bilag INT NOT NULL, disposition VARCHAR(20) NOT NULL, created_at $ts NOT NULL,
             created_by VARCHAR(100), disposition_at $ts NULL",
@@ -79,6 +82,19 @@ function ebSchemaTables(): array
             environment VARCHAR(12), purpose VARCHAR(12), connection_id INT NULL, aspsp_name VARCHAR(100),
             aspsp_country VARCHAR(2), psu_type VARCHAR(10), created_at $ts NOT NULL, expires_at $ts NOT NULL, used_at $ts NULL",
     ];
+}
+
+/** @return array<string, array<string, string>> Columns added after the first tables, per table: name => type. */
+function ebSchemaAddedColumns(): array
+{
+    return ['bank_transactions' => ['balance_after' => (ebMysql() ? 'DECIMAL(15,3)' : 'NUMERIC(15,3)') . ' NULL', 'day_position' => 'INT NULL']];
+}
+
+/** @return bool Whether a column exists in the current tenant schema. */
+function ebColumnExists(string $table, string $column): bool
+{
+    return ebRow('SELECT 1 FROM information_schema.columns WHERE table_schema=' . (ebMysql() ? 'DATABASE()' : 'current_schema()')
+        . ' AND table_name=' . ebSql($table) . ' AND column_name=' . ebSql($column)) !== null;
 }
 
 /** @return array<string, array{table:string, columns:string, unique:bool}> Required indexes. */
@@ -117,6 +133,13 @@ function ebSchemaReady(): bool
     foreach (ebSchemaIndexes() as $name => $index) {
         if (!ebIndexExists($name, $index['table'])) {
             return false;
+        }
+    }
+    foreach (ebSchemaAddedColumns() as $table => $columns) {
+        foreach (array_keys($columns) as $column) {
+            if (!ebColumnExists($table, $column)) {
+                return false;
+            }
         }
     }
     return true;
