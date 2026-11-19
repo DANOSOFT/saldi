@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func/ebSchemaInstall.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- includes/opdat_func/ebSchemaInstall.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 //
 // 20261116 CL/LH Created from bank_integration/includes/ebSchema.php: installs the Enable Banking tables and indexes of a tenant, called at the end of includes/betweenUpdates.php (and by the tests), never by a page or the worker.
+// 20261119 CL/LH Adds the columns of ebSchemaAddedColumns() to tables created before them.
 
 require_once __DIR__ . '/../../bank_integration/includes/ebSchema.php';
 
@@ -38,6 +39,13 @@ function ebEnsureSchema(): void
         foreach (ebSchemaTables() as $table => $definition) {
             if (!ebTableExists($table)) {
                 ebWrite('CREATE TABLE IF NOT EXISTS ' . $table . ' (' . $definition . ')' . (ebMysql() ? ' ENGINE=InnoDB' : ''));
+            }
+        }
+        foreach (ebSchemaAddedColumns() as $table => $columns) {
+            foreach ($columns as $column => $type) {
+                if (!ebColumnExists($table, $column)) {
+                    ebWrite('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $type);
+                }
             }
         }
         foreach (ebSchemaIndexes() as $name => $index) {

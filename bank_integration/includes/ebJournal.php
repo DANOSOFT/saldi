@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/includes/ebJournal.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- bank_integration/includes/ebJournal.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 // 20261116 CL/LH Pull model: no bank-owned journals and no automatic delivery. ebImportIntoJournal() puts the lines a user picks into the journal the user works in; lines it cannot take stay under Nye with their reason.
 // 20261116 CL/LH The user name is compared with kladdeliste.hvem as UTF-8 (ebUtf8()), also on an ISO-8859-15 tenant.
 // 20261117 CL/LH accept_change requires the hash of the changed payload the user was shown.
+// 20261119 CL/LH Picked lines go into the journal oldest first within a day, in the bank's order (day_position).
 
 require_once __DIR__ . '/ebSchema.php';
 require_once __DIR__ . '/ebStore.php';
@@ -107,7 +108,7 @@ function ebImportIntoJournal(int $kladdeId, int $accountId, array $ids, string $
                 throw new EbUserError(ebT(findtekst('bank.import.account_unavailable|Bankkontoen kan ikke lægge posteringer i kassekladden.', ebLang())));
             }
             $rows = ebRows('SELECT *, COALESCE(date_override, booking_date) AS accounting_date FROM bank_transactions WHERE account_id='
-                . (int)$accountId . ' AND id IN (' . implode(',', $ids) . ') ORDER BY COALESCE(date_override, booking_date), id FOR UPDATE');
+                . (int)$accountId . ' AND id IN (' . implode(',', $ids) . ') ORDER BY COALESCE(date_override, booking_date), CASE WHEN day_position IS NULL THEN 0 ELSE 1 END, day_position DESC, id FOR UPDATE');
             if (count($rows) !== count($ids)) {
                 throw new EbUserError(ebT(findtekst('bank.import.foreign_ids|Posteringerne tilhører ikke bankkontoen. Intet er lagt ind.', ebLang())));
             }
