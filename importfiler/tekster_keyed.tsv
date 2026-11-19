@@ -1,3 +1,6 @@
+account.delete.refused_other_year	Konto %s hører til et andet regnskabsår og kan ikke slettes herfra	Account %s belongs to another fiscal year and cannot be deleted here	Konto %s tilhører et annet regnskapsår og kan ikke slettes herfra
+account.delete.refused_postings	Konto %s har posteringer i regnskabsåret og kan ikke slettes	Account %s has postings in the fiscal year and cannot be deleted	Konto %s har posteringer i regnskapsåret og kan ikke slettes
+account.delete.refused_year_setup	Regnskabsåret er ikke sat korrekt op, så konto %s kan ikke slettes	The fiscal year is not set up correctly, so account %s cannot be deleted	Regnskapsåret er ikke satt opp riktig, så konto %s kan ikke slettes
 bank.account.missing	Bankkontoen findes ikke.	The bank account does not exist.	Bankkontoen finnes ikke.
 bank.account.missing_here	Bankkontoen findes ikke i dette regnskab.	The bank account does not exist in this company.	Bankkontoen finnes ikke i dette regnskapet.
 bank.account_state.active	Aktiv	Active	Aktiv
