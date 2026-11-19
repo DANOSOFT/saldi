@@ -2786,7 +2786,7 @@ final class EnableBankingBackendTest extends TestCase
             (str_starts_with($amount, '-') ? 'creditor' : 'debtor') => ['name' => $name], 'remittance_information' => $remittance,
             'bank_transaction_code' => ['description' => 'Kodetekst']];
         if ($balance !== null) {
-            $line['balance_after_transaction'] = ['currency' => 'DKK', 'amount' => $balance];
+            $line['balance_after_transaction'] = ['currency' => 'XXX', 'amount' => $balance];
         }
         if ($reference !== '') {
             $line['reference_number'] = $reference;
@@ -2805,12 +2805,19 @@ final class EnableBankingBackendTest extends TestCase
         $this->assertSame('Mobilepay Netto Reference 206', $text('Mobilepay Netto Reference 206', ['SCTI2TX1893514235', '', 'Mobilepay Netto Reference 206'], 'SCTI2TX1893514235'));
         $this->assertSame('Straksoverførsel Per Danosoft Aconto', $text('Straksoverførsel Per', ['SCTI2TX1894122619', 'Danosoft Aconto', 'Straksoverførsel Per'], 'SCTI2TX1894122619'));
         $this->assertSame('Køge Kommune Ref.: 2630 Meddelnr. 0200', $text('Køge Kommune', ['Køge KommuneRef.: 2630', 'Køge Kommune Meddelnr. 0200']));
+        $this->assertSame('Faktura 1289108', $text('Faktura 1289108', ['Faktura 1289108Faktura 1289108', 'Faktura 1289108   Faktura 1289108']));
+        // Nordea wraps a long name with spaces in one copy and not in the other; the payer's text repeats across pieces.
+        $this->assertSame('Fra KLINIK NORDAL fa k 13280 Bgs', $text('Fra KLINIK NORDAL fa           k 13280', ['Fra KLINIK NORDAL fak 13280', 'Bgs Fra KLINIK NORDAL fa           k 13280']));
+        $this->assertSame('Overførsel Saldi / Danosoft ApS', $text('Overførsel', ['OverførselSaldi / Danosoft ApS', 'Overførsel                         Saldi / Danosoft ApS']));
+        $this->assertSame('Overførsel Rotary Danmarks Hjæl pefond', $text('Overførsel Rotary Danmarks Hjæl    pefond', ['SCTI2TX1901685252', 'Rotary Danmarks Hjælpefond', 'Overførsel Rotary Danmarks Hjæl    pefond'], 'SCTI2TX1901685252'));
         // A shorter text inside the name adds nothing; an unrelated text is kept; only a missing text falls back to the code text.
         $this->assertSame('Business debit køb EUR 197,53 ANTHROPIC', $text('Business debit køb EUR 197,53 ANTHROPIC', ['ANTHROPIC']));
         $this->assertSame('Leverandør Køb', $text('Leverandør', ['Køb']));
         $this->assertSame('Leverandør Kodetekst', $text('Leverandør', []));
         $this->assertSame('Leverandør', $text('Leverandør', ['leverandør']));
         $line = $this->nordeaLine('x', '-1.00', 'A', [], '-12.50');
+        $this->assertSame('-12.50', ebNormalizeTransaction($line)['balance_after']);
+        $line['balance_after_transaction']['currency'] = 'XXX';
         $this->assertSame('-12.50', ebNormalizeTransaction($line)['balance_after']);
         foreach ([['amount' => '1,5'], ['amount' => '1', 'currency' => 'EUR'], ['currency' => 'DKK']] as $balance) {
             $line['balance_after_transaction'] = $balance;

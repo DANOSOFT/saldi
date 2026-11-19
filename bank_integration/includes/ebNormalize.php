@@ -28,7 +28,7 @@
 // 20261007 CDX/LH Decoded bank HTML entities before normalization and hashing.
 // 20261007 CDX/LH Reviewed nonzero third decimals and applied explicit accounting date overrides.
 // 20261007 CDX/LH Replaced non-BMP bank text for mysqli before normalization and hashing.
-// 20261119 CL/LH The payee name shows once (Nordea repeats it in the payment text), the reference shown under the line is not repeated in the text, and the bank's balance after the line is kept for the day order.
+// 20261119 CL/LH The payee name shows once (Nordea repeats and wraps it in the payment text; a repeated piece shows once), the reference shown under the line is not repeated in the text, and the bank's balance after the line is kept for the day order.
 
 require_once __DIR__ . '/ebDb.php';
 
@@ -99,7 +99,8 @@ function ebNormalizeTransaction(array $raw): array
     $balanceAmount = is_string($balance['amount'] ?? null) ? trim($balance['amount']) : '';
     $balanceCurrency = strtoupper((string)($balance['currency'] ?? ''));
     $balanceAfter = preg_match('/^-?\d{1,12}(\.\d{1,3})?$/D', $balanceAmount) === 1
-        && ($balanceCurrency === '' || $balanceCurrency === strtoupper((string)($amountResource['currency'] ?? ''))) ? $balanceAmount : null;
+        // Nordea sends the balance with currency XXX (ISO 4217: no currency); another currency is not this account's balance.
+        && in_array($balanceCurrency, ['', 'XXX', strtoupper((string)($amountResource['currency'] ?? ''))], true) ? $balanceAmount : null;
     return ['status' => (string)($raw['status'] ?? ''), 'entry_reference' => $reference === '' ? null : $reference,
         'booking_date' => ebDate($raw['booking_date'] ?? null), 'value_date' => ebDate($raw['value_date'] ?? null),
         'transaction_date' => ebDate($raw['transaction_date'] ?? null), 'amount' => $amount,
@@ -110,26 +111,33 @@ function ebNormalizeTransaction(array $raw): array
 
 /**
  * Payment text without what the line already shows: Nordea repeats the payee name inside it
- * ("Thrusty 105023" + "Bgs Thrusty 105023"), and a piece equal to the bank reference is shown as "Ref." under the line.
+ * ("Thrusty 105023" + "Bgs Thrusty 105023"), wraps long names with spaces ("Hjæl    pefond"), the payer's
+ * text can repeat, and a piece equal to the bank reference is shown as "Ref." under the line.
  * @param array<string> $pieces remittance_information as sent by the bank.
- * @return string Collapsed text, the first copy of the payee name in each piece removed.
+ * @return string Collapsed text without copies of the payee name and without repeated pieces.
  */
 function ebRemittanceText(array $pieces, string $counterparty, string $bankReference): string
 {
-    $party = ebText($counterparty, 140);
-    $out = [];
+    $squash = static fn(string $text): string => mb_strtolower(preg_replace('/\s+/u', '', $text) ?? '', 'UTF-8');
+    $party = $squash($counterparty);
+    // The name matches with its spaces moved or missing.
+    $chars = $party === '' ? [] : (preg_split('//u', preg_replace('/\s+/u', '', $counterparty) ?? '', -1, PREG_SPLIT_NO_EMPTY) ?: []);
+    $pattern = $chars === [] ? null : '/' . implode('\s*', array_map(static fn(string $c): string => preg_quote($c, '/'), $chars)) . '/iu';
+    $out = $seen = [];
     foreach ($pieces as $piece) {
         $piece = ebText($piece, 10000);
         if ($piece === '' || ($bankReference !== '' && $piece === $bankReference)) {
             continue;
         }
-        $at = $party === '' ? false : mb_stripos($piece, $party, 0, 'UTF-8');
-        if ($at !== false) {
-            $piece = ebText(mb_substr($piece, 0, $at, 'UTF-8') . ' ' . mb_substr($piece, $at + mb_strlen($party, 'UTF-8'), null, 'UTF-8'), 10000);
-        } elseif ($party !== '' && mb_stripos($party, $piece, 0, 'UTF-8') !== false) {
-            $piece = '';
+        if ($pattern !== null) {
+            $piece = ebText(preg_replace($pattern, ' ', $piece) ?? $piece, 10000);
+            if ($piece !== '' && str_contains($party, $squash($piece))) {
+                $piece = '';
+            }
         }
-        if ($piece !== '') {
+        $key = $squash($piece);
+        if ($piece !== '' && !isset($seen[$key])) {
+            $seen[$key] = true;
             $out[] = $piece;
         }
     }
