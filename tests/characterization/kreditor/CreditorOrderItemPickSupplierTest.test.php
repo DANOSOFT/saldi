@@ -257,6 +257,30 @@ namespace Saldi\Tests\CreditorOrderItemPick {
             self::assertStringContainsString('Der blev ikke fundet en leverandør til varenummer ' . $escaped . '.', $out);
         }
 
+        /**
+         * Review (CodeRabbit): a vare_id without an order id creates the order, so the page must declare write before online.php.
+         *
+         * @param array<string, string> $get
+         */
+        private function declaredLevel(array $get): ?string
+        {
+            $block = self::slice("// A konto_id without an order id creates a purchase order from a GET link, so it needs write.", "\n\n\$id=\$konto_id=");
+            $_GET = $get;
+            $permission_level = null;
+            eval($block);
+            return $permission_level;
+        }
+
+        public function testANewOrderFromAnItemPickNeedsWrite(): void
+        {
+            self::assertSame('write', $this->declaredLevel(array('id' => '', 'vare_id' => '887')));
+            self::assertSame('write', $this->declaredLevel(array('vare_id' => '887')));
+            self::assertSame('write', $this->declaredLevel(array('id' => 'null', 'vare_id' => '887', 'vare_lev_id' => '861')));
+            self::assertSame('write', $this->declaredLevel(array('konto_id' => '57')), 'the existing supplier-first rule must stay');
+            self::assertNull($this->declaredLevel(array('id' => '169791')), 'opening an existing order stays read');
+            self::assertNull($this->declaredLevel(array()), 'a blank new order form stays read');
+        }
+
         /** The keyed text is seeded, so translators see it. */
         public function testTheTextKeyIsSeeded(): void
         {
