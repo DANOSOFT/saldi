@@ -279,7 +279,7 @@
                 const id = item.id || item.kontonr || item.code;
                 const val = item.varenr || item.kontonr || item.code || item.initials;
 
-                html += `<tr class="autocomplete-item" data-id="${id}" data-value="${val}" data-lev-varenr="${escapeHtml(item.lev_varenr || '')}">`;
+                html += `<tr class="autocomplete-item" data-id="${id}" data-value="${val}">`;
 
                 if (type === 'item') {
                     html += `<td class="code-cell">${escapeHtml(item.varenr)}</td>`;
@@ -321,8 +321,8 @@
 
         // Event listeners for results
         dropdown.querySelectorAll('.autocomplete-item').forEach((item, index) => {
-            // SST-1041 The supplier number is set on the element, not through the HTML: escapeHtml() leaves a double
-            // quote as it is, which would cut the number short inside the attribute.
+            // SST-1041 The supplier number is set on the element, not written into the HTML: escapeHtml() leaves a double
+            // quote as it is, which would cut the number short and add attributes to the row.
             item.dataset.levVarenr = (results[index] && results[index].lev_varenr) || '';
             item.addEventListener('mouseenter', function () {
                 dropdown.querySelectorAll('.autocomplete-item').forEach(i => i.classList.remove('selected'));
