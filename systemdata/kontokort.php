@@ -46,7 +46,7 @@
 //                 An account of another fiscal year than the selected one cannot be deleted from an old link or form.
 // 20261113 CL/LH SST-1012 The refusal alerts for a delete are translated and shown correctly on a LATIN9 regnskab.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261119 CL/LH SST-1012 The account number goes into the refusal text with str_replace(), so an edited translation with two %s or a stray % cannot stop the page.
+// 20261119 CL/LH SST-1012 An edited refusal text with two %s or a stray % no longer stops the page: sprintf() falls back to str_replace().
 @session_start();
 $s_id = session_id();
 $title = "Kontokort";
@@ -369,8 +369,13 @@ if ($deleteResult && $deleteResult['refusedReason'] == 'postings') {
 	$refusedTxt = findtekst('account.delete.refused_year_setup|Regnskabsåret er ikke sat korrekt op, så konto %s kan ikke slettes', $sprog_id);
 }
 if ($refusedTxt) {
-	// str_replace, not sprintf: a translation edited to hold two %s or a stray % would stop the page (ArgumentCountError/ValueError)
-	$refusedJs = jsString(array(str_replace('%s', (string)$deleteResult['refusedKontonr'], $refusedTxt)));
+	// A translation edited to hold two %s or a stray % makes sprintf() throw; then the number goes in with str_replace()
+	try {
+		$refusedMsg = sprintf($refusedTxt, $deleteResult['refusedKontonr']);
+	} catch (ArgumentCountError | ValueError $e) {
+		$refusedMsg = str_replace('%s', (string)$deleteResult['refusedKontonr'], $refusedTxt);
+	}
+	$refusedJs = jsString(array($refusedMsg));
 	print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars($refusedJs, ENT_QUOTES, 'UTF-8') . ")\">";
 }
 
