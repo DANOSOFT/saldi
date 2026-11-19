@@ -72,6 +72,7 @@ if (is_file(__DIR__ . '/stripeReminder.php')) include_once(__DIR__ . '/stripeRem
 // 20261109 CL/ASR Review fixes: interest is named as interest, never as part of "rykkergebyret" (stripe_reminder_fee_words()); the page note sums every carried fee still to come and tells an enrolled customer too; after a reminder that was not a link reminder the overdue lead no longer promises to avoid one.
 //                 Texts for the earlier classic level's fee in the reminder mail and for the invoice link of a row that cannot be paid by card.
 // 20261111 CL/ASR Review round 2: text mail_rem_row_prior_fee_interest for an earlier level's open item that includes interest.
+// 20261119 ASR Envelope sender (Return-Path) of customer mails is the From address, not the company's own e-mail.
 
 // ---------------------------------------------------------------- texts (Danish v1; ids reserved for tekster.csv later)
 // Customer texts use the "du" form and never show Stripe's English codes; bookkeeper alerts keep them.
@@ -1069,7 +1070,9 @@ if (!function_exists('stripe_mail_send')) {
 			$replyTo = trim((string)stripe_setting('contact_email'));
 			if (!filter_var($replyTo, FILTER_VALIDATE_EMAIL)) $replyTo = $snd['from'];
 			if (filter_var($replyTo, FILTER_VALIDATE_EMAIL)) $mail->AddReplyTo($replyTo, $snd['name']);
-			if (filter_var($snd['from'], FILTER_VALIDATE_EMAIL)) $mail->Sender = $snd['from'];
+			// 20261119 ASR envelope sender = the From address: on our own server the company's own address fails SPF
+			// (ssl3 is not allowed to send for e.g. danosoft.dk) and Hotmail puts the mail in spam
+			$mail->Sender = $from;
 			stripe_mail_apply_envelope($mail, $envelope);
 			foreach ($attachments as $attachment) {
 				if (is_array($attachment)) $mail->AddAttachment((string)$attachment['path'], (string)($attachment['name'] ?? ''));
