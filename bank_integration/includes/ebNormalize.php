@@ -28,7 +28,7 @@
 // 20261007 CDX/LH Decoded bank HTML entities before normalization and hashing.
 // 20261007 CDX/LH Reviewed nonzero third decimals and applied explicit accounting date overrides.
 // 20261007 CDX/LH Replaced non-BMP bank text for mysqli before normalization and hashing.
-// 20261119 CL/LH The payee name shows once (Nordea repeats and wraps it in the payment text; a repeated piece shows once), the reference shown under the line is not repeated in the text, and the bank's balance after the line is kept for the day order.
+// 20261119 CL/LH The payee name shows once (Nordea repeats and wraps it in the payment text; only whole words, never inside an identifier; a repeated piece shows once), the reference shown under the line is not repeated in the text, and the bank's balance after the line is kept for the day order.
 
 require_once __DIR__ . '/ebDb.php';
 
@@ -119,19 +119,18 @@ function ebNormalizeTransaction(array $raw): array
 function ebRemittanceText(array $pieces, string $counterparty, string $bankReference): string
 {
     $squash = static fn(string $text): string => mb_strtolower(preg_replace('/\s+/u', '', $text) ?? '', 'UTF-8');
-    $party = $squash($counterparty);
-    // The name matches with its spaces moved or missing.
-    $chars = $party === '' ? [] : (preg_split('//u', preg_replace('/\s+/u', '', $counterparty) ?? '', -1, PREG_SPLIT_NO_EMPTY) ?: []);
-    $pattern = $chars === [] ? null : '/' . implode('\s*', array_map(static fn(string $c): string => preg_quote($c, '/'), $chars)) . '/iu';
+    $party = ebText($counterparty, 140);
     $out = $seen = [];
     foreach ($pieces as $piece) {
         $piece = ebText($piece, 10000);
         if ($piece === '' || ($bankReference !== '' && $piece === $bankReference)) {
             continue;
         }
-        if ($pattern !== null) {
-            $piece = ebText(preg_replace($pattern, ' ', $piece) ?? $piece, 10000);
-            if ($piece !== '' && str_contains($party, $squash($piece))) {
+        if ($party !== '') {
+            while (($at = ebFindWords($piece, $party)) !== null) {
+                $piece = ebText(substr($piece, 0, $at[0]) . ' ' . substr($piece, $at[0] + $at[1]), 10000);
+            }
+            if ($piece !== '' && ebFindWords($party, $piece) !== null) {
                 $piece = '';
             }
         }
@@ -145,7 +144,36 @@ function ebRemittanceText(array $pieces, string $counterparty, string $bankRefer
 }
 
 /**
+ * Finds $words in $text as whole words, with its spaces moved or missing (Nordea's line wraps), case-insensitive.
+ * It may end where Nordea glues the next field on ("KommuneRef.", "1289108Faktura"), never inside an
+ * identifier: "ABC" is not found in "XABC123".
+ * @return ?array{0:int, 1:int} Byte offset and byte length of the first match.
+ */
+function ebFindWords(string $text, string $words): ?array
+{
+    $chars = preg_split('//u', preg_replace('/\s+/u', '', $words) ?? '', -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    if ($chars === [] || !preg_match_all('/' . implode('\s*', array_map(static fn(string $c): string => preg_quote($c, '/'), $chars)) . '/iu',
+        $text, $matches, PREG_OFFSET_CAPTURE)) {
+        return null;
+    }
+    $word = static fn(string $c): bool => preg_match('/^[\p{L}\p{N}]$/u', $c) === 1;
+    foreach ($matches[0] as [$found, $offset]) {
+        $before = mb_substr(substr($text, 0, $offset), -1, 1, 'UTF-8');
+        $after = mb_substr(substr($text, $offset + strlen($found)), 0, 1, 'UTF-8');
+        $last = mb_substr($found, -1, 1, 'UTF-8');
+        $glued = (preg_match('/^\p{N}$/u', $last) && preg_match('/^\p{L}$/u', $after))
+            || (preg_match('/^\p{Ll}$/u', $last) && preg_match('/^\p{Lu}$/u', $after));
+        if (($before === '' || !$word($before)) && ($after === '' || !$word($after) || $glued)) {
+            return [$offset, strlen($found)];
+        }
+    }
+    return null;
+}
+
+/**
  * @param array{booking_date:?string, amount:string, currency:string, description:string, counterparty:?string, value_date:?string, ...} $n
+ * After release, a change to these inputs (the description rule included) needs a migration of the stored
+ * no-reference dedup keys (f:<fingerprint>:<n>), or a re-fetch stores those lines a second time.
  * @return string SHA-256 occurrence identity.
  */
 function ebFingerprint(array $n): string
