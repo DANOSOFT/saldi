@@ -59,7 +59,6 @@
 //                 The set's cost was counted twice (head line plus parts), so BA was too low.
 //                 udskriv(): sort limited to known columns, table name and other SQL values escaped or cast (NULL as '').
 // 20261119 CL/MMR SST-1017: A set head is matched exactly as in PHP (NULL, '' or '0' is not a set), also on MySQL with a PAD SPACE collation.
-//                 BA of a credit note is shown, as on the order page.
 
 ob_start();
 @session_start();
@@ -792,9 +791,8 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						}
 						// Round to whole øre first: an exchange order can leave a sub-øre remainder
 						// (e.g. 0.00084) that is not a real net sale and would explode the percentage.
-						// A credit note has negative net sales and a negative DB; the order page shows its DG too.
 						$net_sales = afrund($q_dg['total_sales'] - $q_dg['discount'], 2);
-						if ($net_sales != 0) {
+						if ($net_sales > 0) {
 							$dg_percent = ($q_dg['dg'] / $net_sales) * 100;
 						} else {
 							$dg_percent = 0;

@@ -11,7 +11,7 @@
 // 20261117 CL/MMR SST-1017 Created.
 // 20261117 CL/MMR SST-1017 The database part skips when the master-only TestDatabase helper is missing (live).
 // 20261119 CL/MMR SST-1017 Review: set head matched exactly as PHP does, on PostgreSQL and on MySQL/MariaDB with a PAD SPACE collation.
-//                 The MySQL test runs when SALDI_TEST_MYSQL_SOCKET is set. BA of a credit note is shown as on the order page.
+//                 The MySQL test runs when SALDI_TEST_MYSQL_SOCKET is set. Negative net sales keep 0 % BA, with and without sets.
 
 declare(strict_types=1);
 
@@ -44,7 +44,7 @@ final class KassesporSetCostTest extends TestCase
         pg_query($this->connection, 'DROP TABLE IF EXISTS pg_temp.ordrelinjer');
         pg_query($this->connection, 'CREATE TEMP TABLE ordrelinjer (id SERIAL PRIMARY KEY, ordre_id INTEGER, antal NUMERIC(15,3),
             pris NUMERIC(15,3), rabat NUMERIC(15,5), rabatart TEXT, kostpris NUMERIC(15,3), samlevare TEXT)');
-        // Order 1: a set (head line plus two parts) and an ordinary line. Order 2: no set. Order 3: order 1 credited.
+        // Order 1: a set (head line plus two parts) and an ordinary line. Order 2: no set. Orders 3 and 4: orders 1 and 2 credited.
         pg_query($this->connection, "INSERT INTO ordrelinjer (ordre_id, antal, pris, rabat, rabatart, kostpris, samlevare) VALUES
             (1, 1, 0, 0, '', 300, 'on'),
             (1, 1, 400, 10, '', 100, ''),
@@ -55,7 +55,9 @@ final class KassesporSetCostTest extends TestCase
             (3, -1, 0, 0, '', 300, 'on'),
             (3, -1, 400, 10, '', 100, ''),
             (3, -2, 150, 0, NULL, 50, NULL),
-            (3, -1, 100, 5, 'amount', 40, '0')");
+            (3, -1, 100, 5, 'amount', 40, '0'),
+            (4, -2, 100, 0, '', 30, ''),
+            (4, -1, 50, 10, '', 20, NULL)");
         return $this->connection;
     }
 
@@ -107,14 +109,21 @@ final class KassesporSetCostTest extends TestCase
         self::assertSame($off, $on);
     }
 
-    /** A credit note of a set order gets the same BA as the sale, as the order page shows it (DB * 100 / sum). */
-    public function testACreditNoteShowsTheSameBaAsTheSale(): void
+    /**
+     * SST-1017's acceptance criteria keep 0 % BA when net sales are zero or negative. A credit note still gets the
+     * set-cost correction in its DB, but BA stays 0 %, with a set and without, sets on and off.
+     */
+    public function testNegativeNetSalesStillShowZeroBa(): void
     {
-        $sale = $this->margin(1, 1);
-        $credit = $this->margin(3, 1);
-        self::assertEqualsWithDelta(-515.0, (float)$credit['dg'], 0.0001);
-        self::assertEqualsWithDelta(68.21, round(self::baPercent($sale), 2), 0.0001);
-        self::assertEqualsWithDelta(68.21, round(self::baPercent($credit), 2), 0.0001);
+        $creditedSet = $this->margin(3, 1);
+        self::assertEqualsWithDelta(-515.0, (float)$creditedSet['dg'], 0.0001);
+        self::assertSame(0.0, self::baPercent($creditedSet));
+        self::assertSame(0.0, self::baPercent($this->margin(3, null)));
+        $creditedPlain = $this->margin(4, 1);
+        self::assertEqualsWithDelta(-165.0, (float)$creditedPlain['dg'], 0.0001);
+        self::assertSame(0.0, self::baPercent($creditedPlain));
+        self::assertSame(0.0, self::baPercent($this->margin(4, null)));
+        self::assertEqualsWithDelta(68.21, round(self::baPercent($this->margin(1, 1)), 2), 0.0001);
     }
 
     /** SST-835 still holds: net sales that round to 0 (an exchange order's sub-øre remainder) give 0 %, not a huge figure. */
