@@ -33,6 +33,7 @@
 //                  sorting by it was a fatal error. It now comes from license_features (feature_key
 //                  'booking', see license_manager.php) via a left join, and the sort/sort2 params are
 //                  whitelisted before they reach ORDER BY.
+// 20261109 CL/ASR Partner users are sent to the accountant panel only when it is ready (partner_panel_ready(): PostgreSQL master, both panels' tables created); otherwise they keep this page (review #960).
 // 20261113 CDX/NTR Format last activity safely in normal and edit views when registry rows contain date strings.
 // 20261117 CDX/NTR Show the Admin Panel link only to master users with admin rights.
 
@@ -52,6 +53,10 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 require_once __DIR__ . '/../includes/stdFunc/lastActivityDate.php';
 require_once __DIR__ . '/../includes/stdFunc/masterAdminRight.php';
+// 20261012 CL/ASR Users who belong to a bookkeeper, auditor or group (partner_users) have their own customer list in the accountant panel; everyone else keeps this page unchanged.
+include("../includes/partnerScope.php"); partner_tables_ensure();
+include_once(__DIR__ . "/../includes/opdat_func/partnerPanelSchema.php"); # partner_panel_ready() (20261109 CL/ASR)
+if (partner_current_user()['partner'] && partner_panel_ready()) { print "<meta http-equiv=\"refresh\" content=\"0;URL=../admin/bogholder_panel.php\">"; exit; }
 include("../includes/topline_settings.php");
 
 $saldiregnskab = NULL;

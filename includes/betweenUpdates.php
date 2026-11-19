@@ -49,6 +49,7 @@
 //                 OrderLineDeliveredBackfillTest runs the file from MB-73 to the end with stubbed database functions.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
 // 20261111 CL/ASR SD-731: the operator panel's master-database tables (includes/opdat_func/operatorPanelSchema.php), last in the file.
+// 20261111 CL/ASR SD-816: the accountant panel's master-database tables (includes/opdat_func/partnerPanelSchema.php), right after the operator panel's.
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
@@ -449,6 +450,14 @@ migrateTillAccounts($db_type);
 if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
 	include_once(__DIR__ . '/opdat_func/operatorPanelSchema.php');
 	operator_panel_schema();
+}
+
+// 20261111 CL/ASR SD-816 accountant panel (admin/bogholder_*.php): its tables live in the master database next to the operator
+// panel's (above, which must run first). partner_panel_schema() uses the master connection and runs once per master,
+// only in a real login and only on PostgreSQL.
+if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
+	include_once(__DIR__ . '/opdat_func/partnerPanelSchema.php');
+	partner_panel_schema();
 }
 
 ?>
