@@ -389,7 +389,10 @@
                 const idInput = document.querySelector('input[name="id"]');
                 if (idInput) orderId = idInput.value;
             }
-            window.location.href = `ordre.php?id=${orderId}&vare_id=${id}`;
+            let url = `ordre.php?id=${orderId}&vare_id=${id}`;
+            // SST-1041 On a new order without a supplier, ordre.php picks the supplier whose Lev. varenr. was found.
+            if (type === 'lev_item' && selected.dataset.levVarenr) url += '&lev_varenr=' + encodeURIComponent(selected.dataset.levVarenr);
+            window.location.href = url;
         } else if (type === 'customer') {
             const urlParams = new URLSearchParams(window.location.search);
             const orderId = urlParams.get('id');

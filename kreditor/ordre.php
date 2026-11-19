@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -103,6 +103,8 @@
 //                 ordreside() reads ordrer.sprog, so the language select and the mail texts on the order show it.
 //                 In the edited POST block the three-argument if_isset() lookups are now ifset() with the same keys and defaults, and ordreside() includes its order parts with __DIR__.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261119 CL/MMR SST-1041 On a new order without a supplier, an item picked in the search list gets the item's supplier no. 1, as item number + Enter does.
+//                 A pick from the Lev. varenr. search prefers the supplier of that number. An item with no supplier shows a message on both paths.
 @session_start();
 $s_id=session_id();
 
@@ -313,6 +315,23 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		if (!$enhed[0])       $enhed[0]       = $row['enhed'];
 		if (!$pris[0])        $pris[0]        = $row['kostpris'];
 		if (!$rabat)         $rabat           = $row['rabat'];
+	}
+	if (!$id && !$konto_id) {
+		// SST-1041 An item picked in the search list on a new order without a supplier gets the item's supplier no. 1,
+		// as typing the item number and pressing Enter does. A pick from the Lev. varenr. search prefers that number's supplier.
+		$pickedLevVarenr = db_escape_string(trim((string) ifset($_GET, 'lev_varenr', '')));
+		$qtxt = "select vare_lev.lev_id from vare_lev, adresser where vare_lev.vare_id = '" . (int) $vare_id[0] . "'";
+		$qtxt.= " and adresser.id = vare_lev.lev_id order by ";
+		if ($pickedLevVarenr !== '') $qtxt.= "(vare_lev.lev_varenr = '$pickedLevVarenr') desc, ";
+		$qtxt.= "vare_lev.posnr limit 1";
+		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			$konto_id = (int) $r['lev_id'];
+		} else {
+			transaktion("rollback");
+			noSupplierForItemAlert($varenr[0] ?? '');
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php\">";
+			exit;
+		}
 	}
 	if ((!$pris[0] || !$lev_varenr[0]) && $vare_id[0] && $konto_id) {
 		$qtxt = "select * from vare_lev where vare_id = '$vare_id[0]' and lev_id = '$konto_id'";
@@ -718,8 +737,9 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		else $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where (upper(varer.varenr) = '$varenr[0]' or upper(varer.stregkode) = '$varenr[0]') and vare_lev.vare_id = varer.id and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
 
 			$r=db_fetch_array(db_select($string,__FILE__ . " linje " . __LINE__));
-			$konto_id=$r['konto_id'];
-			$firmanavn=$r['firmanavn'];
+			$konto_id  = ifset($r, 'konto_id', 0);
+			$firmanavn = ifset($r, 'firmanavn', '');
+			if (!$konto_id) noSupplierForItemAlert($varenr[0]); # SST-1041
 			include_once(__DIR__ . '/orderIncludes/insertAccount.php');
 			$id = insertAccount($id, $konto_id, false);
 		}
@@ -1889,6 +1909,19 @@ function find_vare_id ($varenr) {
 	}	else return (0);
 }
 ######################################################################################################################################
+/**
+ * Tell the user that a new order without a supplier cannot take this item, because no supplier was found for it.
+ *
+ * @param string $itemNo The item number the user typed or picked.
+ * @return void Prints a script that shows the message.
+ */
+function noSupplierForItemAlert($itemNo) {
+	global $sprog_id;
+	$txt = findtekst('creditor.order.no_supplier_for_item|Der blev ikke fundet en leverandør til varenummer %s. Vælg leverandøren under Kontonr. først.', $sprog_id);
+	$msg = json_encode(sprintf($txt, $itemNo), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+	print "<script type=\"text/javascript\">alert($msg);</script>";
+}
+######################################################################################################################################
 function samlevare($id,$art,$v_id,$leveres) {
 	global $lager;
 	if ($art=='KO') {
@@ -1964,7 +1997,7 @@ if ($menu=='T') {
 
 <?php if (get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id) === "on") { ?>
 <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
-<script src="../javascript/kreditorOrdreAutocomplete.js"></script>
+<script src="../javascript/kreditorOrdreAutocomplete.js?v=<?php print @filemtime(__DIR__ . '/../javascript/kreditorOrdreAutocomplete.js') ?: time(); ?>"></script>
 <?php } ?>
 
 <style>
