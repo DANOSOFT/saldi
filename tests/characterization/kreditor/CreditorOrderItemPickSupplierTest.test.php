@@ -293,29 +293,56 @@ namespace Saldi\Tests\CreditorOrderItemPick {
         }
 
         /**
-         * The vare_id branch refuses an order id that is not a whole number, before the transaction starts.
+         * The order-id check for an item pick, which runs before the contact update and the item branch.
          *
-         * @return array{refused: bool, output: string}
+         * @return array{refused: bool, output: string, warnings: array<int, string>}
          */
         private function branchStart($id): array
         {
-            $block = self::slice("\t// SST-1041 An order id that is not a whole number", "\ttransaktion(\"begin\");");
+            $block = self::slice("// SST-1041 An item pick (vare_id) with an order id that is not a whole number", "if (if_isset(\$_POST, NULL, 'copy'))");
             $block = str_replace('exit;', 'return true;', $block);
+            $_GET = array('vare_id' => '887');
+            $warnings = array();
+            set_error_handler(function ($no, $msg) use (&$warnings) {
+                $warnings[] = $msg;
+                return true;
+            });
             ob_start();
-            $refused = (bool) eval($block);
-            $out = (string) ob_get_clean();
-            return array('refused' => $refused, 'output' => $out);
+            try {
+                $refused = (bool) eval($block);
+            } finally {
+                $out = (string) ob_get_clean();
+                restore_error_handler();
+            }
+            return array('refused' => $refused, 'output' => $out, 'warnings' => $warnings);
+        }
+
+        /** The check must sit before every write on the path: the contact update comes right after it. */
+        public function testTheOrderIdCheckComesBeforeTheContactUpdateAndTheItemBranch(): void
+        {
+            $src = (string) file_get_contents(__DIR__ . '/../../../kreditor/ordre.php');
+            $check = strpos($src, '// SST-1041 An item pick (vare_id) with an order id that is not a whole number');
+            $contact = strpos($src, 'if ( !empty($kontakt) && $id ) {');
+            $branch = strpos($src, "if(isset(\$_GET['vare_id']) && \$_GET['vare_id']) {");
+            self::assertNotFalse($check);
+            self::assertNotFalse($contact);
+            self::assertNotFalse($branch);
+            self::assertLessThan($contact, $check);
+            self::assertLessThan($branch, $contact);
         }
 
         public function testAnOrderIdThatIsNotAWholeNumberIsRefusedBeforeAnyWrite(): void
         {
-            foreach (array('abc', '5abc', '-5', '1e3', '0x10') as $bad) {
+            foreach (array('abc', '5abc', '-5', '1e3', '0x10', array('1'), array()) as $bad) {
                 $got = $this->branchStart($bad);
-                self::assertTrue($got['refused'], "id '$bad' went on to the order creation");
+                self::assertTrue($got['refused'], 'id ' . var_export($bad, true) . ' went on to the order creation');
                 self::assertStringContainsString('URL=ordreliste.php', $got['output']);
+                self::assertSame(array(), $got['warnings'], 'id ' . var_export($bad, true) . ' raised a PHP warning');
             }
             foreach (array('', 'null', '0', '169791', ' 169791 ', null) as $ok) {
-                self::assertFalse($this->branchStart($ok)['refused'], 'id ' . var_export($ok, true) . ' was refused');
+                $got = $this->branchStart($ok);
+                self::assertFalse($got['refused'], 'id ' . var_export($ok, true) . ' was refused');
+                self::assertSame(array(), $got['warnings']);
             }
         }
 

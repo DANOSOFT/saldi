@@ -106,7 +106,8 @@
 // 20261119 CL/MMR SST-1041 On a new order without a supplier, an item picked in the search list gets the item's supplier no. 1, as item number + Enter does.
 //                 A pick from the Lev. varenr. search takes that supplier row, with its number and price. An item with no supplier shows a message on both paths.
 //                 Review (CodeRabbit): the pick sends the supplier row id (vare_lev.id), and a vare_id without an order id needs write permission.
-//                 Codex review round: the write check reads the order id as an integer like the vare_id branch, which refuses an id that is not a whole number.
+//                 Codex review round: the write check reads the order id as an integer like the vare_id branch. An item pick with an id that is not a whole number
+//                 (or not a string) is refused before the contact update and the item branch.
 @session_start();
 $s_id=session_id();
 
@@ -206,6 +207,15 @@ $sort = if_isset($_GET, NULL, 'sort');
 $fokus = if_isset($_GET, NULL, 'fokus');
 $submit = if_isset($_GET, NULL, 'funktion');
 $kontakt = if_isset($_GET, NULL, 'kontakt');
+// SST-1041 An item pick (vare_id) with an order id that is not a whole number (or '' / 'null' for a new order) is
+// refused here, before the contact update and the item branch below write anything.
+if (!empty($_GET['vare_id'])) {
+	$rawOrderId = ($id === NULL || is_scalar($id)) ? trim((string) $id) : NULL;
+	if ($rawOrderId === NULL || ($rawOrderId !== '' && $rawOrderId !== 'null' && !ctype_digit($rawOrderId))) {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+		exit;
+	}
+}
 
 
 if (if_isset($_POST, NULL, 'copy'))        $submit = 'copy';
@@ -290,12 +300,6 @@ if ( !empty($kontakt) && $id ) {
 	db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
 }
 if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716 
-	// SST-1041 An order id that is not a whole number (or 'null' for a new order) is refused before anything is written.
-	$rawOrderId = trim((string) $id);
-	if ($rawOrderId !== '' && $rawOrderId !== 'null' && !ctype_digit($rawOrderId)) {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
-		exit;
-	}
 	transaktion("begin");
 	$id = (int) $id;
 	$vare_id[0]=db_escape_string($_GET['vare_id']);
