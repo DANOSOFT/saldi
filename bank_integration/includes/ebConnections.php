@@ -41,6 +41,7 @@
 // 20261118 CL/LH Renewal no longer closes the replaced consent at the bank: in Enable Banking's Nordea sandbox that also broke the new consent (every fetch ASPSP_ERROR). The old consent runs out by itself.
 // 20261118 CL/LH Disconnecting an account (Afbryd, or left out of a renewal) clears its old fetch error, which promised an automatic retry.
 // 20261119 CL/LH The feed lists each day in the bank's own order (day_position), then lines without a balance newest stored first, as before.
+// 20261119 CL/LH A secondary identity no longer joins two accounts whose account numbers differ: Nordea gives both accounts of one agreement the same "other" identifier, and a consent sharing only the second account took over the first account's row.
 
 require_once __DIR__ . '/ebSync.php';
 
@@ -165,6 +166,7 @@ function ebCompleteAuthorization(EnableBankingClient $c, array $stateRow, string
                         continue;
                     }
                     $hashes = array_values(array_unique(array_merge([$resource['identification_hash']], $resource['identification_hashes'] ?? [])));
+                    $allHashes = $hashes;
                     $hashes = array_values(array_filter($hashes, static fn(string $hash): bool => $hashCounts[$hash] === 1 && !isset($ambiguous[$hash])));
                     $primary = $resource['identification_hash'];
                     $currency = strtoupper($resource['currency']);
@@ -180,7 +182,8 @@ function ebCompleteAuthorization(EnableBankingClient $c, array $stateRow, string
                             $values = implode(',', array_map('ebSql', $secondary));
                             $matches = ebRows('SELECT DISTINCT a.* FROM bank_accounts a LEFT JOIN bank_account_aliases h ON h.account_id=a.id'
                                 . ' WHERE a.identification_hash IN (' . $values . ') OR h.identification_hash IN (' . $values . ')');
-                            if (count($matches) === 1 && $matches[0]['currency'] === $currency) {
+                            if (count($matches) === 1 && $matches[0]['currency'] === $currency
+                                && !ebIdentityConflicts($allHashes, (int)$matches[0]['id'])) {
                                 $account = $matches[0];
                             }
                         }
@@ -509,4 +512,43 @@ function ebAccountStatus(int $accountId): array
         'stale_hours' => $account['last_fetch_at'] === null ? null : max(0, (int)floor((time() - strtotime($account['last_fetch_at'])) / 3600)),
         'queued' => $counts['pending'], 'last_run_status' => $run['status'] ?? null, 'last_error' => $account['last_error'],
         'next_fetch_at' => $account['next_fetch_at']];
+}
+
+/**
+ * @return string The identifier fields an Enable Banking identification hash covers, as JSON
+ * ("<base64 JSON field paths>.<hash>", e.g. [["account","account_id","iban"]]); "" when it cannot be read.
+ */
+function ebHashKind(string $hash): string
+{
+    $dot = strpos($hash, '.');
+    $paths = $dot === false ? null : json_decode((string)base64_decode(substr($hash, 0, $dot), true), true);
+    return is_array($paths) && $paths !== [] ? (string)json_encode($paths) : '';
+}
+
+/**
+ * Whether a bank account resource and a stored account carry the same kind of identifier (an IBAN, say) with
+ * different values. Then they are different accounts, whatever other identifier they share.
+ * @param list<string> $resourceHashes
+ */
+function ebIdentityConflicts(array $resourceHashes, int $accountId): bool
+{
+    $stored = array_column(ebRows('SELECT identification_hash FROM bank_accounts WHERE id=' . (int)$accountId
+        . ' UNION SELECT identification_hash FROM bank_account_aliases WHERE account_id=' . (int)$accountId), 'identification_hash');
+    $byKind = static function (array $hashes): array {
+        $out = [];
+        foreach ($hashes as $hash) {
+            $kind = ebHashKind((string)$hash);
+            if ($kind !== '') {
+                $out[$kind][] = (string)$hash;
+            }
+        }
+        return $out;
+    };
+    $theirs = $byKind($stored);
+    foreach ($byKind($resourceHashes) as $kind => $mine) {
+        if (isset($theirs[$kind]) && array_intersect($mine, $theirs[$kind]) === []) {
+            return true;
+        }
+    }
+    return false;
 }
