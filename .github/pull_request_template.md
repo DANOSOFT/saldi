@@ -1,3 +1,11 @@
+## Merge Danger
+<!-- Required: the Guardrails check fails without it. The door map is tools/guardrails/lib/doors.mjs;
+`node tools/guardrails/check.mjs --station` shows the station and door for your branch. -->
+**Door:** one-way | two-way  <!-- one-way: a revert does not take back what it leaves (rows, a number, a schema change, money, a mail, deleted data) -->
+**Blast Radius:** <!-- one page, one feature, every tenant ... -->
+**Undo:** <!-- revert, or revert plus the data fix -->
+**After merge:** none  <!-- or each step someone must take after the merge or the deploy, and who -->
+
 ## What are the changes about?
 Provide a brief explanation of the changes you have made
 

@@ -5,8 +5,11 @@ stored in the `tekster` table. Historically each text was identified by a numeri
 `tekst_id`. A `tekst_key` column now holds a descriptive string key, and
 `findtekst()` resolves either one.
 
-**For new texts, prefer a string key over a numeric id.** Numeric ids are opaque
-(`findtekst(917, …)` tells you nothing) and force you to hunt for a free integer.
+**New texts take a string key, never a new numeric id.** Numeric ids are opaque
+(`findtekst(917, …)` tells you nothing) and two open branches take the same next
+free integer, so `importfiler/tekster.csv` takes no new ids (the `tekster`
+guardrail refuses them). New wording for an existing id takes a key too, or a
+`deleteStaleTekst()` purge of the cached rows.
 
 ## Key format
 

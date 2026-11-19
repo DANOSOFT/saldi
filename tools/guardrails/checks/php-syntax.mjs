@@ -11,6 +11,7 @@
 // History:
 // 20261027 CL/LH Created.
 // 20261101 CL/MJ phpCommand() is exported for file-version: Docker gets -i so a caller can pipe stdin, and no mount without a dir.
+// 20261109 CL/LH phpCommand() can refuse a PHP on PATH that is not 8.2 (exact) and name the Docker container it runs.
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
@@ -27,13 +28,19 @@ for ($i = 0; $i < (int) $argv[1]; $i++) {
 }
 `;
 
-export function phpCommand(dir) {
+/**
+ * The command that runs PHP 8.2: `php` from PATH when it is 8.2, else Docker. Where neither is there, a PHP of another
+ * version on PATH, with a warning, unless `exact` refuses it (throws). `name` names the Docker container, so a caller
+ * can stop it.
+ */
+export function phpCommand(dir, { exact = false, name = null } = {}) {
   const local = spawnSync("php", ["-r", "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;"], { encoding: "utf8" });
   if (local.status === 0 && local.stdout.trim() === "8.2") return ["php"];
   const image = process.env.GUARDRAILS_PHP_IMAGE ?? "php:8.2-cli";
   const docker = spawnSync("docker", ["version", "--format", "{{.Server.Version}}"], { encoding: "utf8" });
-  if (docker.status === 0) return ["docker", "run", "--rm", "-i", ...(dir ? ["-v", `${dir}:${dir}:ro`] : []), image, "php"];
+  if (docker.status === 0) return ["docker", "run", "--rm", "-i", ...(name ? ["--name", name] : []), ...(dir ? ["-v", `${dir}:${dir}:ro`] : []), image, "php"];
   if (local.status === 0) {
+    if (exact) throw new Error(`PHP ${local.stdout.trim()} on PATH is not 8.2, and Docker is not available for ${image}`);
     console.warn(`php-syntax: using PHP ${local.stdout.trim()} from PATH; production runs 8.2, so 8.3+ syntax slips through`);
     return ["php"];
   }
