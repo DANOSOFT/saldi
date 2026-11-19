@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankReconcile.php --- patch 5.0.0 --- 2026.06.24 ---
+// --- finans/bankReconcile.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20240213	PHR Copied from bankimport.php
 // 20240403 PHR Added instruction text
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
@@ -33,7 +33,8 @@
 // 20260916 CDX/LH Confine bank uploads to the tenant and retain all numeric CSV formats and rows.
 // 20261006 CL/LH SST-838: vis_data() and bankReconcileFileLines() decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ini_set("auto_detect_line_endings", true);
 
 @session_start();
@@ -43,6 +44,7 @@ $bankName = NULL;
 
 $title = "BankAfstemning";
 include("../includes/connect.php");
+$permission_key = 'finans.kassekladde';
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
