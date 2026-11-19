@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/kontokort.php -----ver 5.1.1 ----2026-11-13------
+// --- systemdata/kontokort.php -----ver 5.1.1 ----2026-11-19------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,7 @@
 //                 An account of another fiscal year than the selected one cannot be deleted from an old link or form.
 // 20261113 CL/LH SST-1012 The refusal alerts for a delete are translated and shown correctly on a LATIN9 regnskab.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261119 CL/LH SST-1012 The account number goes into the refusal text with str_replace(), so an edited translation with two %s or a stray % cannot stop the page.
 @session_start();
 $s_id = session_id();
 $title = "Kontokort";
@@ -368,7 +369,8 @@ if ($deleteResult && $deleteResult['refusedReason'] == 'postings') {
 	$refusedTxt = findtekst('account.delete.refused_year_setup|Regnskabsåret er ikke sat korrekt op, så konto %s kan ikke slettes', $sprog_id);
 }
 if ($refusedTxt) {
-	$refusedJs = jsString(array(sprintf($refusedTxt, $deleteResult['refusedKontonr'])));
+	// str_replace, not sprintf: a translation edited to hold two %s or a stray % would stop the page (ArgumentCountError/ValueError)
+	$refusedJs = jsString(array(str_replace('%s', (string)$deleteResult['refusedKontonr'], $refusedTxt)));
 	print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars($refusedJs, ENT_QUOTES, 'UTF-8') . ")\">";
 }
 
