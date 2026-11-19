@@ -3,6 +3,7 @@
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
+    $permission_key = 'any';
     include("../includes/online.php");
     $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);

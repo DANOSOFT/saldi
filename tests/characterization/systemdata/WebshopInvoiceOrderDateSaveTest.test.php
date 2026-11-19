@@ -8,6 +8,8 @@ use PHPUnit\Framework\TestCase;
 // 20261029 CL/MMR SST-911 Created. save_webshop_invoice_order_date() (systemdata/diverseIncludes/webshopInvoiceOrderDate.php) saves "Fakturér webshopordrer med ordredato" when Ordrerelaterede valg is posted.
 //                 An unticked checkbox is not posted, so the hidden webshopInvoiceOrderDateShown field decides whether the form had the checkbox at all.
 //                 update_settings_value() is stubbed.
+// 20261031 CL/ASR The diverse.php order test no longer anchors on "if ($menu == 'T') {", which the settings redesign removed.
+//                 It finds the call itself (not the history line that names it) and checks that it runs after the CSRF check and before the posted sections are saved.
 #[RunTestsInSeparateProcesses]
 final class WebshopInvoiceOrderDateSaveTest extends TestCase
 {
@@ -65,13 +67,16 @@ final class WebshopInvoiceOrderDateSaveTest extends TestCase
         self::assertSame([], $GLOBALS['__saved']);
     }
 
-    public function testDiverseCallsTheHandlerBeforeAnyOutput(): void
+    public function testDiverseCallsTheHandlerAfterTheCsrfCheckAndBeforeTheSaves(): void
     {
         $src = (string)file_get_contents(__DIR__ . '/../../../systemdata/diverse.php');
-        $call = strpos($src, 'save_webshop_invoice_order_date(');
+        $call = strpos($src, "\nsave_webshop_invoice_order_date(");
         self::assertNotFalse($call, 'diverse.php no longer calls save_webshop_invoice_order_date()');
-        $firstPrint = strpos($src, "\nif (\$menu == 'T') {");
-        self::assertNotFalse($firstPrint, 'the first output block of diverse.php moved');
-        self::assertLessThan($firstPrint, $call, 'the setting must be saved before diverse.php prints anything');
+        $csrfCheck = strpos($src, "!hash_equals((string) \$_SESSION['csrf_token'], (string) \$_POST['csrf_token'])");
+        self::assertNotFalse($csrfCheck, 'the CSRF check of diverse.php moved');
+        self::assertLessThan($call, $csrfCheck, 'the setting must only be saved after the CSRF check');
+        $saves = strpos($src, "\nif (\$_POST && \$_SERVER['REQUEST_METHOD'] == \"POST\") {");
+        self::assertNotFalse($saves, 'the block that saves the posted sections of diverse.php moved');
+        self::assertLessThan($saves, $call, 'the setting must be saved before the posted sections are saved and the page is printed');
     }
 }

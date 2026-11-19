@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
         msmtp \
         msmtp-mta \
         wget \
-    && docker-php-ext-install pgsql pdo_pgsql curl \
+    && docker-php-ext-install pgsql pdo_pgsql ftp curl \
     && rm -rf /var/lib/apt/lists/*
 
 # msmtp config is generated at container startup from env vars (see docker-entrypoint.sh)

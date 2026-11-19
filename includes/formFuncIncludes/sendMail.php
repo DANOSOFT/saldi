@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/formFuncIncludes/sendMail.php --- ver 5.1.1 --- 2026-11-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20260603 CL/PHR Bilagsvedhæftning opdateret: tjekker nu documents-tabellen
 //                  (source=debitorOrdrer) før fallback til gammelt bilag-system
@@ -34,6 +34,9 @@
 //                  recipient escaped before output.
 // 20260909 Sawaneh SST-759: Rejected recipient feedback names the offending character
 //                  and offers the ASCII suggestion via emailLookalike.php.
+// 20261112 CL/MMR SST-1015 Removed the sender-check debug logging (temp/<db>/pbs_email_debug.log and DEBUG lines in error_log); the send block is left to PR #804.
+// 20261111 CL/LH An order mail attaches every document on the order (documents table, or the old bilag_<id> files), not only the first.
+//                Ported from PHR's change on the Stillads install (5 Aug 2026).
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
@@ -107,21 +110,18 @@ print "<!--function send_mails start-->";
 		}
 	}
 	
-	error_log("DEBUG: formularsprog='$formularsprog', lang_id='$lang_id'");
 	
 	# Load sender email for this language
 	$lang_sender_email = NULL;
 	$qtxt = "select var_value from settings where var_name = 'sender_email' and var_grp = 'email_settings' and group_id = '$lang_id'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$lang_sender_email = $r['var_value'];
-	error_log("DEBUG: Found lang_sender_email='$lang_sender_email' for lang_id='$lang_id'");
 	
 	# Load sender name for this language
 	$lang_sender_name = NULL;
 	$qtxt = "select var_value from settings where var_name = 'sender_name' and var_grp = 'email_settings' and group_id = '$lang_id'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$lang_sender_name = $r['var_value'];
-	error_log("DEBUG: Found lang_sender_name='$lang_sender_name' for lang_id='$lang_id'");
 	if (strpos($mailtext,'$firmanavn')) {
 		$qtxt = "select firmanavn from ordrer where id = '$ordre_id'";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -151,45 +151,21 @@ print "<!--function send_mails start-->";
 	$afsendermail=$row['email'];
 	$afsendernavn=$row['firmanavn'];
 	
-	// Debug logging
-	$debug_file = "../temp/$db/pbs_email_debug.log";
-	$debug_msg = "\n" . date("Y-m-d H:i:s") . " - sendMail.php: Checking sender information\n";
-	$debug_msg .= "Database query result:\n";
-	$debug_msg .= "  email: " . var_export($row['email'], true) . "\n";
-	$debug_msg .= "  firmanavn: " . var_export($row['firmanavn'], true) . "\n";
-	$debug_msg .= "Initial afsendermail: " . var_export($afsendermail, true) . "\n";
-	$debug_msg .= "Initial afsendernavn: " . var_export($afsendernavn, true) . "\n";
 	
 	# Use language-specific sender email if available, otherwise use default
 	if ($lang_sender_email && trim($lang_sender_email) != '') {
 		$afsendermail = $lang_sender_email;
-		$debug_msg .= "Using language-specific email: '$afsendermail'\n";
-		error_log("DEBUG: Using language-specific email: '$afsendermail'");
-	} else {
-		$debug_msg .= "Using default email: '$afsendermail' (lang_sender_email was empty or null)\n";
-		error_log("DEBUG: Using default email: '$afsendermail' (lang_sender_email was empty or null)");
 	}
 	
 	# Use language-specific sender name if available, otherwise use default
 	if ($lang_sender_name && trim($lang_sender_name) != '') {
 		$afsendernavn = $lang_sender_name;
-		$debug_msg .= "Using language-specific sender name: '$afsendernavn'\n";
-		error_log("DEBUG: Using language-specific sender name: '$afsendernavn'");
-	} else {
-		$debug_msg .= "Using default sender name: '$afsendernavn' (lang_sender_name was empty or null)\n";
-		error_log("DEBUG: Using default sender name: '$afsendernavn' (lang_sender_name was empty or null)");
 	}
 	
 	$afsendermail=str_replace(",",";",$afsendermail);
 	$afsendermails=explode(";",$afsendermail);
 	$from=$afsendermails[0];
 	
-	$debug_msg .= "After processing:\n";
-	$debug_msg .= "  afsendermail (raw): " . var_export($afsendermail, true) . "\n";
-	$debug_msg .= "  afsendermails array: " . var_export($afsendermails, true) . "\n";
-	$debug_msg .= "  afsendermails[0]: " . var_export($afsendermails[0], true) . "\n";
-	$debug_msg .= "  afsendernavn: " . var_export($afsendernavn, true) . "\n";
-	$debug_msg .= "  from: " . var_export($from, true) . "\n";
 	
 	($row['felt_1'])?$smtp=$row['felt_1']:$smtp='localhost';
 	($row['felt_2'])?$smtp_user=$row['felt_2']:$smtp_user=NULL;
@@ -201,24 +177,17 @@ print "<!--function send_mails start-->";
 		$brugermail=$r['email'];
 	}
 	
-	$debug_msg .= "Validation check:\n";
-	$debug_msg .= "  !afsendermails[0]: " . var_export(!$afsendermails[0], true) . "\n";
-	$debug_msg .= "  !afsendernavn: " . var_export(!$afsendernavn, true) . "\n";
-	$debug_msg .= "  Condition result (!afsendermails[0] || !afsendernavn): " . var_export((!$afsendermails[0] || !$afsendernavn), true) . "\n";
 	
 	if (!$afsendermails[0] || !$afsendernavn) {
-		$debug_msg .= "ERROR: Missing sender information - email or company name is empty!\n";
-		file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 		if (!$webservice) {
 			print "<BODY onLoad=\"javascript:alert('Firmanavn eller e-mail for afsender ikke udfyldt.\\nSe (Indstillinger -> stamdata).\\nMail ikke afsendt!')\">";
 		}
 		return("Missing sender mail");
 	}
 	
-	$debug_msg .= "Sender information OK - proceeding with email\n";
-	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 	$fakturanavn=basename($filnavn);
-	
+	$documentAttachments = array();
+
 	if ($ordre_id) {
 		// Nyt documents-system (source=debitorOrdrer)
 		$sth_path = dirname(dirname(dirname(__FILE__)));
@@ -228,30 +197,32 @@ print "<!--function send_mails start-->";
 		elseif  (file_exists("$sth_path/bilag"))     $newDocFolder = "$sth_path/bilag";
 
 		if ($newDocFolder) {
-			$qtxt = "SELECT filename, filepath FROM documents WHERE source = 'debitorOrdrer' AND source_id = '$ordre_id' ORDER BY id LIMIT 1";
-			if ($docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			// Every document on the order is attached, not only the first.
+			$qtxt = "SELECT filename, filepath FROM documents WHERE source = 'debitorOrdrer' AND source_id = '" . (int)$ordre_id . "' ORDER BY id";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			while ($docRow = db_fetch_array($q)) {
 				$srcFile = $newDocFolder . '/' . $db . '/' . ltrim($docRow['filepath'], '/') . '/' . $docRow['filename'];
 				if (file_exists($srcFile)) {
-					$mailbilag = $docRow['filename'];
-					$til = "../temp/$db/$mailbilag";
-					system("cp '" . str_replace("'", "'\\''", $srcFile) . "' '$til'\n");
+					$documentAttachments[] = array('path' => $srcFile, 'name' => $docRow['filename']);
 				}
 			}
 		}
 
-		// Fallback: gammelt bilag-system (bilag/{db}/bilag/ordrer/bilag_{id}[_*])
-		if (!$mailbilag) {
+		// Fallback: gammelt bilag-system (bilag/{db}/bilag/ordrer/bilag_{id}[_*]), every file of the order.
+		if (!$documentAttachments) {
 			$r = db_fetch_array(db_select("select * from grupper where art='bilag'", __FILE__ . " linje " . __LINE__));
 			if ($box6 = $r['box6']) {
 				$oldFiles = glob("../bilag/$db/bilag/ordrer/bilag_{$ordre_id}") ?: array();
 				$oldFiles = array_merge($oldFiles, glob("../bilag/$db/bilag/ordrer/bilag_{$ordre_id}_*") ?: array());
-				if ($oldFiles) {
-					$fra = $oldFiles[0];
-					$mailbilag = basename($fra);
-					$til = "../temp/$db/$mailbilag";
-					system("cp '$fra' '$til'\n");
+				// The order's dokument field lists the original file names, '|'-separated, in the order the files were stored.
+				$legacyDocumentNames = array_values(array_filter(array_map('trim', explode('|', (string)$mailbilag))));
+				foreach ($oldFiles as $index => $oldFile) {
+					$documentAttachments[] = array(
+						'path' => $oldFile,
+						'name' => isset($legacyDocumentNames[$index]) ? basename($legacyDocumentNames[$index]) : basename($oldFile),
+					);
 				}
-			} else {
+			} elseif (!$mailbilag) {
 				$r2 = db_fetch_array(db_select("select * from grupper where art='FTP'", __FILE__ . " linje " . __LINE__));
 				$box1 = $r2['box1']; $box2 = $r2['box2']; $box3 = $r2['box3']; $mappe = $r2['box4'];
 				$ftpfilnavn = "bilag_" . $ordre_id;
@@ -261,6 +232,7 @@ print "<!--function send_mails start-->";
 				system($kommando);
 			}
 		}
+		if ($documentAttachments) $mailbilag = NULL;
 	}
 	
 	if (strpos($subjekt,'$')!== false) {
@@ -400,6 +372,9 @@ print "<!--function send_mails start-->";
 	$mail->WordWrap = 50;  // set word wrap
 #	$mail->AddAttachment("$mappe/mailtext.html");
 	$mail->AddAttachment("$filnavn","$fakturanavn","base64","application/pdf");      // attachment
+	foreach ($documentAttachments as $documentAttachment) {
+		$mail->AddAttachment($documentAttachment['path'], $documentAttachment['name']);
+	}
 	if ($mailbilag) $mail->AddAttachment("../temp/$db/$mailbilag","$mailbilag","base64","application/pdf");      // attachment
 	if ($mail_bilag) $mail->AddAttachment("../logolib/$db_id/$bilag.pdf","$bilagnavn.pdf"); // kun hvis checkbox er 'on'.
 	#	$mail->AddAttachment("/tmp/image.jpg", "new.jpg");
