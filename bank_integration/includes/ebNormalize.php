@@ -145,15 +145,16 @@ function ebRemittanceText(array $pieces, string $counterparty, string $bankRefer
 
 /**
  * Finds $words in $text as whole words, with its spaces moved or missing (Nordea's line wraps), case-insensitive.
- * It may end where Nordea glues the next field on, which then starts with a capitalised word ("KommuneRef.",
- * "1289108Faktura", "OverførselSaldi"), never inside an identifier: "ABC" is not found in "XABC123", nor "Acme" in "AcmeID123".
+ * It may end where Nordea glues the next field on: a whole capitalised word ("KommuneRef.", "1289108Faktura ",
+ * "OverførselSaldi ") or the name again ("Parla 1289114Parla1289114"). Never inside an identifier: "ABC" is not
+ * found in "XABC123", nor "Acme" in "AcmeID123" or "AcmeOrder123".
  * @return ?array{0:int, 1:int} Byte offset and byte length of the first match.
  */
 function ebFindWords(string $text, string $words): ?array
 {
     $chars = preg_split('//u', preg_replace('/\s+/u', '', $words) ?? '', -1, PREG_SPLIT_NO_EMPTY) ?: [];
-    if ($chars === [] || !preg_match_all('/' . implode('\s*', array_map(static fn(string $c): string => preg_quote($c, '/'), $chars)) . '/iu',
-        $text, $matches, PREG_OFFSET_CAPTURE)) {
+    $body = implode('\s*', array_map(static fn(string $c): string => preg_quote($c, '/'), $chars));
+    if ($chars === [] || !preg_match_all('/' . $body . '/iu', $text, $matches, PREG_OFFSET_CAPTURE)) {
         return null;
     }
     $word = static fn(string $c): bool => preg_match('/^[\p{L}\p{N}]$/u', $c) === 1;
@@ -162,7 +163,8 @@ function ebFindWords(string $text, string $words): ?array
         $rest = substr($text, $offset + strlen($found));
         $after = mb_substr($rest, 0, 1, 'UTF-8');
         $last = mb_substr($found, -1, 1, 'UTF-8');
-        $glued = preg_match('/^[\p{N}\p{Ll}]$/u', $last) === 1 && preg_match('/^\p{Lu}\p{Ll}/u', $rest) === 1;
+        $glued = preg_match('/^[\p{N}\p{Ll}]$/u', $last) === 1
+            && (preg_match('/^\p{Lu}\p{Ll}+(?![\p{L}\p{N}])/u', $rest) === 1 || preg_match('/^' . $body . '/iu', $rest) === 1);
         if (($before === '' || !$word($before)) && ($after === '' || !$word($after) || $glued)) {
             return [$offset, strlen($found)];
         }
