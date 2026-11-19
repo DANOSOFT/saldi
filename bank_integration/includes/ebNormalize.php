@@ -145,8 +145,8 @@ function ebRemittanceText(array $pieces, string $counterparty, string $bankRefer
 
 /**
  * Finds $words in $text as whole words, with its spaces moved or missing (Nordea's line wraps), case-insensitive.
- * It may end where Nordea glues the next field on ("KommuneRef.", "1289108Faktura"), never inside an
- * identifier: "ABC" is not found in "XABC123".
+ * It may end where Nordea glues the next field on, which then starts with a capitalised word ("KommuneRef.",
+ * "1289108Faktura", "OverførselSaldi"), never inside an identifier: "ABC" is not found in "XABC123", nor "Acme" in "AcmeID123".
  * @return ?array{0:int, 1:int} Byte offset and byte length of the first match.
  */
 function ebFindWords(string $text, string $words): ?array
@@ -159,10 +159,10 @@ function ebFindWords(string $text, string $words): ?array
     $word = static fn(string $c): bool => preg_match('/^[\p{L}\p{N}]$/u', $c) === 1;
     foreach ($matches[0] as [$found, $offset]) {
         $before = mb_substr(substr($text, 0, $offset), -1, 1, 'UTF-8');
-        $after = mb_substr(substr($text, $offset + strlen($found)), 0, 1, 'UTF-8');
+        $rest = substr($text, $offset + strlen($found));
+        $after = mb_substr($rest, 0, 1, 'UTF-8');
         $last = mb_substr($found, -1, 1, 'UTF-8');
-        $glued = (preg_match('/^\p{N}$/u', $last) && preg_match('/^\p{L}$/u', $after))
-            || (preg_match('/^\p{Ll}$/u', $last) && preg_match('/^\p{Lu}$/u', $after));
+        $glued = preg_match('/^[\p{N}\p{Ll}]$/u', $last) === 1 && preg_match('/^\p{Lu}\p{Ll}/u', $rest) === 1;
         if (($before === '' || !$word($before)) && ($after === '' || !$word($after) || $glued)) {
             return [$offset, strlen($found)];
         }
