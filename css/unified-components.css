@@ -2,6 +2,27 @@
  * Unified Components Design System
  * Harmonized styling for Grid (datagrid) and DocPool components
  * Extends docpool-variables.css with shared component styles
+ * 20261101 CL/ASR The settings components (.st-*) at the bottom follow prototype D on the kit's tokens (css/saldi-kit.css).
+ * 20261101 CL/ASR Settings hub "C - Fold ud": the left menu of the settings pages as the hub group's sub-groups (.st-menu, no zebra in
+ *                 navigation) and the Tilbage button above the title (.sk-back, also in the frame of the old pages without the kit).
+ * 20261101 CL/ASR Review: the left menu's narrow-screen rules (static, one row) come after its base rules, so they take effect.
+ * 20261102 CL/ASR The standard layout of every settings page (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026): the page's
+ *                 buttons right of the title (.st-phead-acts) and the content column (.st-frame-main) beside the left menu. Linked as ?v=20261102.
+ * 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: one item, one list, one card): a direct sub-group's heading in the left menu is a link
+ *                 (.st-menu-head), marked like a row; the employee drawer embedded in the person card (.st-embed: the drawer fills the
+ *                 iframe, without its own head, scrim or shadow). Linked as ?v=20261102b.
+ * 20261103 CL/ASR The direct sub-group heading (.st-menu-head) is gone again (owner, 3 Nov 2026: a heading is never a link in Indstillinger);
+ *                 its rules are removed. No new ?v=: a cached copy only has rules that match nothing now.
+ * 20261108 CL/ASR The ground of the settings pages is Saldi's classic page colour #eeeef0 (.st-page, html:has(.st-page), body:has(.st-page); owner, 8 Nov 2026).
+ *                 The cards, menu, fields and save bar stay white on it, and the Stamdata embed (.st-embed) stays white.
+ *                 The save bar is closed all round and the '?' by the page title (.st-qhelp) keeps a white fill, so neither looks cut off or faded on the ground.
+ *                 Linked as ?v=20261108.
+ * 20261109 CL/ASR A clear edge on every settings module (owner, 9 Nov 2026, variant B): the outer frame is --st-edge with a soft shadow
+ *                 (--st-lift) and the line under a title band --st-edge-head, from css/saldi-theme.css (--edge/--lift/--edge-head).
+ *                 Lines inside a card stay --st-border. The notices on the ground (.st-flash/.st-toast, .st-errors, .st-errorlist,
+ *                 .st-confirm) get the frame, not the shadow; inside the drawer and the white Stamdata embed they keep the hairline.
+ *                 Not re-versioned: these pages are not live yet.
+ * 20261112 CL/ASR A module's corner is --st-r-mod, 6 px (theme --r-mod; owner, 12 Nov 2026). Fields, buttons and popovers keep --st-r (4 px).
  */
 
 /* ============================================
@@ -684,3 +705,646 @@ button.btn-primary:hover {
   }
 }
 
+
+/* ============================================
+   SETTINGS COMPONENTS (.st-*)
+   20260929 Sawaneh Settings redesign phase 4a (spec §8.1-8.7, §8.10-8.12).
+   20261002 Sawaneh Hand-over 2 Oct (spec §8.0, prototype_indstillinger_v4.html): a heading above each
+            card, a setting is a row (label and help left, control right), plain vertical tab list,
+            status as a dot plus text, no hover lift, save bar only while something is unsaved.
+            Colours and font are the tokens of the approved design system; the primary button keeps
+            the user's own button colour (--st-accent from st_accent_style()).
+   20261101 CL/ASR Prototype D ("Som ordrelisten", as index/dashboard.php and css/saldi-kit.css): white page with the
+            dashboard's padding, flat panels (1 px border, 4 px corners, no shadow), the heading of a card is its grey
+            28 px header band (bold 12 px Inter), the section menu as the kit's .sk-nav, 28 px controls, the kit's switch
+            and buttons (one navy primary that the user colour on submit buttons cannot repaint), 24 px zebra rows in
+            tables and lists, status as dot + text, a sticky save bar, drawer, dialog and toast as the kit's floating
+            layers. Colours are the kit's tokens (--sk-*: light and dark follow css/saldi-theme.css on the pages that
+            load the kit and carry the root class sk) with the light values as fallback for the pages that do not
+            (top.php, labels.php, settingsMoved.php, importer_varianter.php). Class names are unchanged and the classes
+            those pages share keep their selector weight, so javascript/settings*.js and the pages' own CSS keep working.
+   20261108 CL/ASR The page ground is Saldi's classic page colour (--st-page = the kit's --sk-bg / --page, #eeeef0), not white;
+            the cards, menu, fields and save bar stay white on it (owner, 8 Nov 2026). The Stamdata embed stays white, as
+            the person card around it. The save bar is closed at the bottom too (border and corners all round), so at the end of
+            the form it does not look cut off on the ground; the '?' by the page title keeps a white fill, as Tilbage.
+   20261109 CL/ASR Every module on the ground (card, section head and note, row-table head, left menu, tab menu, save bar) has the
+            frame --st-edge and the shadow --st-lift, the line under a title band is --st-edge-head (owner, 9 Nov 2026).
+            A stack (section head, note, card) carries the shadow on every piece: the next piece covers the one above.
+            The left menu's title band has the --st-edge-head line; notices get the frame only, and keep the hairline inside a module.
+   20261112 CL/ASR A module and a notice on the ground have the corner --st-r-mod, 6 px (owner, 12 Nov 2026). Fields and buttons keep --st-r.
+   One set of components for every generated settings section. No page-specific CSS.
+   ============================================ */
+
+.st-page {
+  --st-surface: var(--sk-surface, var(--surface, #ffffff));
+  --st-surface-2: var(--sk-surface-2, var(--surface-2, #f7f9fc));
+  --st-page: var(--sk-bg, var(--page, #eeeef0));
+  --st-border: var(--sk-border, var(--border, #e4e8ef));
+  --st-edge: var(--sk-edge, var(--edge, #cdd4df));
+  --st-edge-head: var(--sk-edge-head, var(--edge-head, #dce2ea));
+  --st-lift: var(--sk-lift, var(--lift, 0 1px 2px rgba(11, 26, 58, .08), 0 4px 12px rgba(11, 26, 58, .06)));
+  --st-grid: var(--st-border);
+  --st-text: var(--sk-text, var(--text, #0b1a3a));
+  --st-text-2: var(--sk-text-2, var(--text-2, #5b6b85));
+  --st-text-3: var(--sk-text-3, var(--text-3, #8a97ad));
+  --st-text-4: var(--st-text-3);
+  --st-link: var(--sk-link, var(--link, #1b68bd));
+  --st-good: var(--sk-good, var(--good, #15803d));
+  --st-bad: var(--sk-bad, var(--bad, #c2410c));
+  --st-bad-bg: var(--sk-bad-bg, var(--bad-bg, #fdecec));
+  --st-bad-line: color-mix(in srgb, var(--st-bad) 40%, var(--st-surface));
+  --st-warn: var(--sk-warn, #d9822b);
+  --st-warn-ink: var(--sk-warn-ink, #a15c07);
+  --st-info: var(--sk-info, #4fa0ee);
+  --st-field: var(--sk-border-field, #c6d2e4);
+  --st-field-hover: var(--sk-border-field-hover, #a9b8cf);
+  --st-hover: var(--sk-hover, #eef2f8);
+  --st-row-hover: var(--sk-row-hover, #f5f9fe);
+  --st-row-sel: var(--sk-row-sel, #eaf3fd);
+  --st-switch-off: var(--sk-switch-off, #c9d3e2);
+  --st-on: var(--sk-on, var(--st-text));
+  --st-mark: var(--sk-mark, #4fa0ee);
+  --st-focus: var(--sk-focus, #4fa0ee);
+  --st-ring: var(--sk-focus-ring, 0 0 0 2px rgba(79, 160, 238, .45));
+  --st-primary: var(--sk-primary, #114691);
+  --st-primary-hover: var(--sk-primary-hover, color-mix(in srgb, #114691 94%, #000));
+  --st-primary-text: var(--sk-primary-text, #ffffff);
+  --st-scrim: var(--sk-scrim, rgba(11, 26, 58, .24));
+  --st-toast-bg: var(--sk-toast-bg, #0b1a3a);
+  --st-toast-text: var(--sk-toast-text, #ffffff);
+  --st-shadow: none;
+  --st-shadow-win: var(--sk-shadow-win, 0 2px 4px rgba(11, 26, 58, .06), 0 12px 28px rgba(11, 26, 58, .11));
+  --st-font: var(--sk-font, var(--font-ui, Inter, "Segoe UI", system-ui, sans-serif));
+  --st-font-display: var(--sk-font-display, var(--font-display, "Saldi Grotesk", Inter, system-ui, sans-serif));
+  --st-fs: .8125rem;
+  --st-fs-s: .75rem;
+  --st-fs-xs: .6875rem;
+  --st-fs-title: 1.125rem;
+  --st-row-h: 1.5rem;
+  --st-band-h: 1.75rem;
+  --st-ctl-h: 1.75rem;
+  --st-ctl-h-sm: 1.5rem;
+  --st-r: 4px;
+  --st-r-mod: var(--sk-r-mod, var(--r-mod, 6px));
+  --st-r-win: 8px;
+  --st-pad: 12px;
+  --st-menu-w: 14rem;
+  --st-gap: 16px;
+  --st-t: 140ms;
+  --st-ease: cubic-bezier(.4, 0, .2, 1);
+  --st-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%235b6b85' d='M16.293 9.293 12 13.586 7.707 9.293l-1.414 1.414L12 16.414l5.707-5.707z'/%3E%3C/svg%3E");
+  --st-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='m10 15.586-3.293-3.293-1.414 1.414L10 18.414l9.707-9.707-1.414-1.414z'/%3E%3C/svg%3E");
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  margin: 0;
+  padding: 16px 28px 96px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--st-gap);
+  background: var(--st-page);
+  color: var(--st-text);
+  font: 400 var(--st-fs)/1.4 var(--st-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+html:has(.st-page), body:has(.st-page) { margin: 0; background: var(--page, #eeeef0) !important; }
+.st-page *, .st-page *::before, .st-page *::after { box-sizing: border-box; }
+.st-page [hidden] { display: none !important; }
+.st-page :focus-visible { outline: 2px solid var(--st-focus); outline-offset: 1px; }
+.st-page kbd { display: inline-block; min-width: 1.125rem; padding: 0 4px; border: 1px solid var(--st-border); border-bottom-width: 2px; border-radius: 3px; background: var(--st-surface-2); color: var(--st-text-2); font: 500 var(--st-fs-xs)/1rem var(--st-font); text-align: center; white-space: nowrap; }
+/* the page, its notices and the columns stop at 90rem on very wide screens (left-aligned, as the dashboard's blocks) */
+.st-phead, .st-notes, .st-layout { width: 100%; max-width: 90rem; }
+
+.st-skip { position: absolute; left: -9999px; top: 0; }
+.st-skip:focus { left: 16px; top: 8px; z-index: 50; background: var(--st-surface); padding: 6px 10px; border: 1px solid var(--st-border); border-radius: var(--st-r); }
+
+/* page head: title (Saldi Grotesk 18/600) with the "?" and the lead under it; actions (add, year) on the right */
+.st-phead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.st-phead > div:first-child { flex: 1 1 20rem; min-width: 0; max-width: 46rem; display: flex; flex-direction: column; gap: 2px; }
+.st-phead > :not(:first-child) { margin-left: auto; }
+.st-phead h1 { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 var(--st-fs-title)/1.3 var(--st-font-display); letter-spacing: -.005em; color: var(--st-text); }
+.st-lead { margin: 0; max-width: 46rem; font-size: var(--st-fs); line-height: 1.45; color: var(--st-text-2); }
+.st-search { flex: 0 1 20rem; height: var(--st-ctl-h); display: flex; align-items: center; gap: 6px; padding: 0 8px; background: var(--st-surface); border: 1px solid var(--st-field); border-radius: var(--st-r); box-shadow: none; color: var(--st-text-3); transition: border-color var(--st-t), box-shadow var(--st-t); }
+.st-search:hover { border-color: var(--st-field-hover); }
+.st-search:focus-within { border-color: var(--st-focus); box-shadow: var(--st-ring); }
+.st-search i { font-size: 16px; }
+.st-search input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; font: inherit; font-size: var(--st-fs); color: var(--st-text); outline: none !important; }
+
+/* status dot (6 px, as the kit's .sk-dot) */
+.st-dotw { width: 6px; height: 6px; border-radius: 50%; flex: none; display: inline-block; background: var(--st-text-3); }
+.st-dot-warn { background: var(--st-warn); }
+.st-dot-err { background: var(--st-bad); }
+.st-dot-ok { background: var(--st-good); }
+.st-dot-acc { background: var(--st-info); }
+
+/* notices above the form: the kit's .sk-note, a box with the module frame (no shadow) and a coloured left edge */
+.st-notes { display: flex; flex-direction: column; gap: 8px; }
+.st-flash, .st-toast { --st-tone: var(--st-info); display: flex; align-items: center; gap: 8px 10px; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-tone); border-radius: var(--st-r-mod); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.45; color: var(--st-text); }
+.st-flash > span { flex: 1 1 auto; min-width: 0; }
+.st-flash > i.bx { flex: none; font-size: 16px; color: var(--st-tone); }
+.st-flash-ok { --st-tone: var(--st-good); }
+.st-flash-err { --st-tone: var(--st-bad); }
+.st-flash-warn { --st-tone: var(--st-warn); }
+.st-flash-info { --st-tone: var(--st-text-3); color: var(--st-text-2); }
+.st-toast { --st-tone: var(--st-info); color: var(--st-text-2); }
+.st-toast span { flex: 1; }
+.st-toast a { color: var(--st-link); font-weight: 500; text-decoration: none; }
+.st-page .st-toast-close { flex: none; width: var(--st-ctl-h-sm); height: var(--st-ctl-h-sm); display: inline-grid; place-items: center; margin: -2px -6px -2px 0; padding: 0; border: 0; border-radius: var(--st-r); background: none; color: var(--st-text-2); font-size: 16px; line-height: 1; cursor: pointer; }
+.st-page .st-toast-close:hover { background: var(--st-hover); color: var(--st-text); }
+
+/* section menu · form · history: 13rem | content | 17rem, 16 px apart */
+.st-layout { display: grid; grid-template-columns: var(--st-menu-w) minmax(0, 1fr) 17rem; gap: var(--st-gap); align-items: start; }
+.st-tabs { min-width: 0; }
+.st-tabs > ul { list-style: none; margin: 0; padding: 4px 0; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r-mod); box-shadow: var(--st-lift); }
+.st-tabs-select { display: none; }
+.st-page .st-tabs a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--st-ctl-h); padding: 4px var(--st-pad); border-radius: 0; font-size: var(--st-fs); line-height: 1.3; color: var(--st-text-2); text-decoration: none; transition: background-color var(--st-t), color var(--st-t); }
+.st-page .st-tabs a:hover { color: var(--st-text); background: var(--st-surface-2); text-decoration: none; }
+.st-page .st-tabs a.on { color: var(--st-text); font-weight: 600; background: var(--st-row-sel); box-shadow: inset 2px 0 0 var(--st-mark); }
+.st-tabs a > span { min-width: 0; }
+.st-tabs a > i.bx { flex: none; font-size: 16px; color: var(--st-text-3); }
+.st-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--st-warn); flex-shrink: 0; }
+/* the frame of the old pages (top.php) has the settings search above the menu (the field itself: css/settingsSearch.css) */
+.st-tabs .settings-search-wrapper { margin: 0 !important; padding: 0; }
+
+.st-form { display: flex; flex-direction: column; gap: var(--st-gap); min-width: 0; }
+.st-sect { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+/* the heading above a card is the card's grey header band; a help line under it is the panel note */
+.st-sect > h2, .st-hist > h2 { display: flex; align-items: center; gap: 12px; min-height: var(--st-band-h); margin: 0; padding: 0 var(--st-pad); background: var(--st-surface-2); border: 1px solid var(--st-edge); border-bottom-color: var(--st-edge-head); border-radius: var(--st-r-mod) var(--st-r-mod) 0 0; box-shadow: var(--st-lift); font: 700 var(--st-fs-s)/1.2 var(--st-font); letter-spacing: 0; color: var(--st-text); }
+.st-sect > p { margin: 0; max-width: none; padding: 8px var(--st-pad); background: var(--st-surface); border: 1px solid var(--st-edge); border-bottom-color: var(--st-edge-head); border-top: 0; box-shadow: var(--st-lift); font-size: var(--st-fs-s); line-height: 1.45; color: var(--st-text-2); }
+.st-sect > h2 + .st-card, .st-sect > p + .st-card, .st-hist > h2 + .st-card { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+.st-sect > :is(h2, .st-rhead):not(:first-child) { margin-top: var(--st-gap); }
+.st-card { min-width: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r-mod); box-shadow: var(--st-lift); }
+.st-card > :first-child { border-top-left-radius: calc(var(--st-r-mod) - 1px); border-top-right-radius: calc(var(--st-r-mod) - 1px); }
+.st-card > :last-child { border-bottom-left-radius: calc(var(--st-r-mod) - 1px); border-bottom-right-radius: calc(var(--st-r-mod) - 1px); }
+.st-sect > h2 + .st-card > :first-child, .st-sect > p + .st-card > :first-child, .st-hist > h2 + .st-card > :first-child, .st-rhead + .st-card > :first-child { border-top-left-radius: 0; border-top-right-radius: 0; }
+
+/* a setting is a row: label and help left, control right, 8/12 px padding, a hairline between rows */
+.st-field, .st-action { display: flex; align-items: flex-start; gap: 8px 24px; padding: 8px var(--st-pad); scroll-margin-top: 80px; transition: background-color .5s; }
+.st-card > :where(.st-field, .st-action):not([hidden]) ~ :where(.st-field, .st-action) { border-top: 1px solid var(--st-grid); }
+.st-tx { flex: 1 1 0%; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.st-labelrow { display: inline-flex; align-items: center; gap: 6px; padding-top: calc((var(--st-ctl-h) - 1.25rem) / 2); }
+.st-label { font-size: var(--st-fs); font-weight: 500; line-height: 1.25rem; color: var(--st-text); }
+.st-field > .st-tx > .st-label:first-child { padding-top: calc((var(--st-ctl-h) - 1.25rem) / 2); }
+.st-help { font-size: var(--st-fs-s); line-height: 1.4; color: var(--st-text-2); }
+.st-default { color: var(--st-text-3); }
+.st-chg { width: 6px; height: 6px; border-radius: 50%; background: var(--st-warn); display: none; flex: none; }
+.st-changed .st-chg { display: inline-block; }
+.st-page .st-copy { width: 18px; height: 18px; display: inline-grid; place-items: center; flex: none; margin: 0; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--st-text-3); font-size: 14px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity var(--st-t); }
+.st-field:hover .st-copy, .st-field:focus-within .st-copy { opacity: 1; }
+.st-page .st-copy:hover { color: var(--st-link); background: var(--st-hover); }
+.st-page .st-reset { height: auto; margin: 0 0 0 4px; padding: 0; border: 0; background: none; white-space: nowrap; font: inherit; font-size: var(--st-fs-s); color: var(--st-link); cursor: pointer; opacity: 0; transition: opacity var(--st-t); }
+.st-field:hover .st-reset, .st-field:focus-within .st-reset { opacity: 1; }
+.st-reset:hover { text-decoration: underline; text-underline-offset: 2px; }
+.st-ctl { flex: none; max-width: 100%; min-height: var(--st-ctl-h); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; padding-top: 0; }
+.st-dep { padding-left: 32px; background: var(--st-surface-2); }
+.st-mine { box-shadow: inset 3px 0 0 var(--st-warn); }
+.st-highlight { background: rgba(79, 160, 238, .12); }
+
+/* the kit's switch: 28 × 16, 12 px knob, off grey, on the text colour (blue in dark) */
+.st-page .st-switch { -webkit-appearance: none; appearance: none; position: relative; display: inline-block; flex: none; width: 28px; height: 16px; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 8px; background: var(--st-switch-off); vertical-align: middle; cursor: pointer; transition: background-color var(--st-t); }
+.st-switch span { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #ffffff; box-shadow: none; transition: transform var(--st-t) var(--st-ease); }
+.st-page .st-switch[aria-checked="true"] { background: var(--st-on); }
+.st-switch[aria-checked="true"] span { transform: translateX(12px); }
+.st-switch:disabled { opacity: .45; cursor: not-allowed; }
+.st-page .st-switch:focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
+
+/* fields: 28 px, field border, 4 px corners, blue focus ring; read-only grey without a border */
+.st-input { width: 15rem; max-width: 100%; height: var(--st-ctl-h); margin: 0; padding: 0 8px; vertical-align: middle; border: 1px solid var(--st-field); border-radius: var(--st-r); background-color: var(--st-surface); color: var(--st-text); font: 400 var(--st-fs)/1.2 var(--st-font); box-shadow: none; outline: none; transition: border-color var(--st-t), box-shadow var(--st-t); }
+/* the kit's base rule (.sk input { font: inherit }) is heavier than one class; the size and colour of a field stay */
+.sk .st-input { font-size: var(--st-fs); font-weight: 400; color: var(--st-text); }
+.st-input:hover { border-color: var(--st-field-hover); }
+.st-input:focus { border-color: var(--st-focus); box-shadow: var(--st-ring); outline: none; }
+.st-input::placeholder { color: var(--st-text-3); opacity: 1; }
+.st-input-short { width: 6rem; text-align: right; font-variant-numeric: tabular-nums; }
+.st-color { display: inline-flex; align-items: center; gap: 6px; }
+.st-color .st-input-short { width: 7rem; text-align: left; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.st-swatch { width: var(--st-ctl-h); height: var(--st-ctl-h); padding: 2px; border: 1px solid var(--st-field); border-radius: var(--st-r); background: var(--st-surface); cursor: pointer; }
+select.st-input { -webkit-appearance: none; appearance: none; padding-right: 24px; text-align: left; cursor: pointer; background-image: var(--st-chevron); background-repeat: no-repeat; background-position: right 4px center; background-size: 16px 16px; }
+.st-select { width: auto; min-width: 8rem; }
+.st-input[readonly], .st-input:disabled { background-color: var(--st-surface-2); border-color: transparent; color: var(--st-text-2); }
+.sk .st-input[readonly], .sk .st-input:disabled { color: var(--st-text-2); }
+.st-input[readonly]:focus { border-color: var(--st-field); box-shadow: none; }
+.st-input:disabled { cursor: not-allowed; }
+.st-unit { font-size: var(--st-fs); color: var(--st-text-2); white-space: nowrap; }
+.st-lookup { position: relative; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.st-look { position: relative; display: inline-flex; max-width: 100%; }
+.st-look .st-input { padding-right: 28px; }
+.st-look i { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 16px; line-height: 1; color: var(--st-text-3); pointer-events: none; }
+.st-resolved { font-size: var(--st-fs-s); color: var(--st-text-2); }
+.st-resolved:empty { display: none; }
+/* the kit's popover: hairline, 4 px corners, the floating shadow, 28 px options */
+.st-lookup-list { position: absolute; top: calc(var(--st-ctl-h) + 4px); right: 0; z-index: 30; min-width: max(100%, 18rem); max-height: 20rem; overflow-y: auto; margin: 0; padding: 4px 0; list-style: none; text-align: left; background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-r); box-shadow: var(--st-shadow-win); }
+.st-lookup-list li { display: flex; align-items: center; min-height: var(--st-ctl-h); padding: 4px var(--st-pad); font-size: var(--st-fs); color: var(--st-text); cursor: pointer; }
+.st-lookup-list li[role="option"]:hover { background: var(--st-surface-2); }
+.st-lookup-list li.on { background: var(--st-row-sel); }
+.st-lookup-none { color: var(--st-text-2); cursor: default; }
+
+.st-textarea { width: 100%; min-width: 20rem; height: auto; min-height: 6rem; padding: 6px 8px; line-height: 1.4; resize: vertical; font: inherit; font-size: var(--st-fs); }
+.sk .st-textarea { line-height: 1.4; }
+.st-type-textarea { flex-wrap: wrap; }
+.st-type-textarea .st-tx { flex-basis: 100%; }
+.st-type-textarea .st-ctl { flex-basis: 100%; }
+.st-type-matrix { flex-wrap: wrap; }
+.st-type-matrix .st-tx, .st-type-matrix .st-ctl { flex-basis: 100%; }
+.st-type-matrix .st-ctl { justify-content: flex-start; }
+/* 20261016 Sawaneh The discount matrix scrolls inside its card instead of widening the page. */
+.st-type-matrix, .st-type-matrix .st-ctl { min-width: 0; max-width: 100%; }
+/* the frame hugs the table, so its border and the grey header band end together (a full-width frame left an empty strip) */
+.st-matrix-wrap { width: fit-content; max-width: 100%; overflow-x: auto; border: 1px solid var(--st-border); border-radius: var(--st-r); }
+.st-matrix { border-collapse: separate; border-spacing: 0; font-size: var(--st-fs); font-variant-numeric: tabular-nums; }
+.st-matrix th, .st-matrix td { height: var(--st-ctl-h); padding: 0 4px; border-bottom: 1px solid var(--st-border); text-align: left; white-space: nowrap; vertical-align: middle; }
+.st-matrix thead th { height: var(--st-row-h); padding: 0 8px; background: var(--st-surface-2); font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
+.st-matrix tbody th { padding: 0 8px; font-weight: 500; }
+.st-matrix tbody tr:last-child > * { border-bottom: 0; }
+.st-matrix tbody tr:where(:nth-child(even)) > * { background: var(--st-surface-2); }
+.st-matrix .st-mcell { width: 4.5rem; height: calc(var(--st-ctl-h) - 4px); text-align: right; }
+.st-matrix .st-mtype { width: 5.5rem; height: calc(var(--st-ctl-h) - 4px); }
+.st-label-suffix { font-weight: 400; color: var(--st-text-2); }
+/* a heading inside a card ("Rykker 1"), as the kit's .sk-form-sub */
+.st-grouphead { display: flex; align-items: center; gap: 8px; min-height: var(--st-band-h); padding: 4px var(--st-pad) 0; border-top: 1px solid var(--st-grid); font: 600 var(--st-fs-s)/1.2 var(--st-font); text-transform: none; letter-spacing: 0; color: var(--st-text-2); }
+/* 20261101 CL/ASR also when hidden inputs come first (labels.php), so the card's top edge is not a double line */
+.st-card > .st-grouphead:is(:first-child, :first-of-type) { border-top: 0; }
+.st-card > .st-grouphead + .st-field { border-top: 0; }
+.st-invalid .st-input { border-color: var(--st-bad); }
+.st-error, .st-locked { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: var(--st-fs-s); }
+.st-error { color: var(--st-bad); font-weight: 500; }
+.st-locked { color: var(--st-text-2); }
+.st-errorlist { margin: 0; list-style: none; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-bad); border-radius: var(--st-r-mod); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
+.st-errorlist a { color: var(--st-bad); }
+
+/* actions and the danger zone (only the band title is red, as the kit's .sk-panel-danger) */
+.st-action { align-items: center; }
+.st-sect-danger > h2 { color: var(--st-bad); }
+.st-card-danger { border-color: var(--st-edge); }
+
+/* buttons: the kit's - 28 px, white with the field border, one filled navy primary. The colours sit in variables and are
+   forced on button/input elements, so the rule in includes/online.php that paints every submit button in the user's
+   colour (!important) cannot repaint them. */
+.st-page .st-btn { --st-btn-bg: var(--st-surface); --st-btn-bd: var(--st-field); --st-btn-fg: var(--st-text); height: var(--st-ctl-h); display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin: 0; padding: 0 10px; vertical-align: middle; border: 1px solid var(--st-btn-bd); border-radius: var(--st-r); background: var(--st-btn-bg); color: var(--st-btn-fg); box-shadow: none; font: 500 var(--st-fs)/1 var(--st-font); white-space: nowrap; text-decoration: none; cursor: pointer; user-select: none; transition: background-color var(--st-t), border-color var(--st-t), color var(--st-t); }
+.st-page .st-btn:hover:not(:disabled) { --st-btn-bg: var(--st-surface-2); --st-btn-bd: var(--st-field-hover); text-decoration: none; }
+.st-page .st-btn > i.bx { font-size: 16px; line-height: 1; }
+.st-page .st-btn-primary { --st-btn-bg: var(--st-primary); --st-btn-bd: var(--st-primary); --st-btn-fg: var(--st-primary-text); font-weight: 600; }
+.st-page .st-btn-primary:hover:not(:disabled) { --st-btn-bg: var(--st-primary-hover); --st-btn-bd: var(--st-primary-hover); filter: none; }
+.st-page .st-btn-quiet, .st-page .st-btn-ghost { --st-btn-bg: transparent; --st-btn-bd: transparent; --st-btn-fg: var(--st-text-2); }
+.st-page .st-btn-quiet:hover:not(:disabled), .st-page .st-btn-ghost:hover:not(:disabled) { --st-btn-bg: var(--st-hover); --st-btn-bd: transparent; --st-btn-fg: var(--st-text); }
+.st-page .st-btn-danger { --st-btn-fg: var(--st-bad); }
+.st-page .st-btn-danger:hover:not(:disabled) { --st-btn-bg: var(--st-bad-bg); --st-btn-bd: var(--st-bad-line); }
+.st-page .st-btn-danger-solid, .st-page .st-btn-danger-solid:hover:not(:disabled) { --st-btn-bg: var(--st-bad); --st-btn-bd: var(--st-bad); --st-btn-fg: #ffffff; }
+.st-page .st-btn:disabled, .st-page .st-btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.st-impact { display: block; margin-top: 2px; font-size: var(--st-fs-s); font-weight: 600; color: var(--st-bad); }
+.st-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: var(--st-fs); color: var(--st-link); text-decoration: none; }
+.st-back:hover { text-decoration: underline; }
+.st-page .st-tl { --st-btn-bg: transparent; --st-btn-bd: transparent; --st-btn-fg: var(--st-link); display: inline; height: auto; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; font: inherit; color: var(--st-btn-fg); text-decoration: none; cursor: pointer; }
+.st-page .st-tl:hover { text-decoration: underline; text-underline-offset: 2px; }
+.st-page :is(button, input)[type]:is(.st-btn, .st-tl) { background: var(--st-btn-bg) !important; border-color: var(--st-btn-bd) !important; color: var(--st-btn-fg) !important; }
+.st-page :is(button, input)[type].st-tl { border-width: 0 !important; }
+
+/* 20261005 Sawaneh Settings 4c row editor (spec §8.2, mock-up 04) */
+/* Row editors need the width: the change history goes below the tables instead of beside them. */
+.st-page-rows .st-layout { grid-template-columns: var(--st-menu-w) minmax(0, 1fr); }
+.st-page-rows .st-hist { grid-column: 2; max-width: 40rem; }
+.st-rc-text .st-rin { min-width: 10rem; }
+.st-rc-select .st-rin { min-width: 7rem; }
+/* a table's heading block is the top of its panel: the grey band, the help line and the parent picker */
+.st-rhead { margin: 0; background: var(--st-surface); border: 1px solid var(--st-edge); border-bottom: 0; border-radius: var(--st-r-mod) var(--st-r-mod) 0 0; box-shadow: var(--st-lift); }
+.st-rhead h2 { display: flex; align-items: center; min-height: var(--st-band-h); margin: 0; padding: 0 var(--st-pad); background: var(--st-surface-2); border-radius: calc(var(--st-r-mod) - 1px) calc(var(--st-r-mod) - 1px) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
+.st-rhelp { margin: 0; max-width: none; padding: 8px var(--st-pad); border-top: 1px solid var(--st-edge-head); font-size: var(--st-fs-s); line-height: 1.45; color: var(--st-text-2); }
+.st-rhead + .st-card { border-top-color: var(--st-edge-head); border-top-left-radius: 0; border-top-right-radius: 0; }
+/* with a parent picker under the help line the line above the table is inside the module, and a picker right under the band
+   draws the line under the title band */
+.st-rhead:has(> .st-rfilter) + .st-card { border-top-color: var(--st-border); }
+.st-rhead > h2 + .st-rfilter { border-top-color: var(--st-edge-head); }
+.st-rows { padding: 0; overflow-x: auto; }
+/* an input table as the kit's: grey bold 24 px header, 28 px rows, zebra, fields without a border until hover */
+.st-rt { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--st-fs); font-variant-numeric: tabular-nums; }
+.st-rt th { height: var(--st-row-h); padding: 0 9px; background: var(--st-surface-2); border-bottom: 1px solid var(--st-border); font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); text-align: left; white-space: nowrap; vertical-align: middle; }
+/* header text lines up with the text in the cells' fields (2 px cell + 1 px border + 6 px field padding) */
+.st-rt th:first-child { padding-left: var(--st-pad); }
+.st-rt td:first-child { padding-left: calc(var(--st-pad) - 7px); }
+.st-rt td { height: var(--st-ctl-h); padding: 0 2px; background: var(--st-surface); border-bottom: 1px solid var(--st-border); vertical-align: middle; transition: background-color 120ms; }
+.st-rt tbody tr:where(:nth-child(even of :not(.st-row-inactive))) > td { background: var(--st-surface-2); }
+.st-rt tbody tr:last-child > td, .st-rows:not(.st-show-inactive) .st-rt tbody tr:nth-last-child(1 of :not(.st-row-inactive)) > td { border-bottom: 0; }
+.st-rin { width: 100%; min-width: 4.5rem; height: calc(var(--st-ctl-h) - 2px); margin: 0; padding: 0 6px; border: 1px solid transparent; border-radius: var(--st-r); background-color: transparent; color: var(--st-text); font: inherit; font-size: var(--st-fs); transition: border-color var(--st-t), box-shadow var(--st-t); }
+select.st-rin { -webkit-appearance: none; appearance: none; padding-right: 22px; cursor: pointer; background-image: var(--st-chevron); background-repeat: no-repeat; background-position: right 3px center; background-size: 16px 16px; }
+.st-rin-num { font-variant-numeric: tabular-nums; max-width: 7.5rem; }
+.st-rc-code .st-rin { max-width: 5.5rem; }
+.st-rin:hover { border-color: var(--st-field); }
+.st-rin:focus { outline: none; border-color: var(--st-focus); background-color: var(--st-surface); box-shadow: var(--st-ring); }
+.st-rin[readonly] { color: var(--st-text-2); }
+.st-rin[readonly]:hover { border-color: transparent; }
+.st-rc.st-changed .st-rin, .st-rc.st-changed .st-rcheck { background-color: rgba(217, 130, 43, .12); }
+.st-rc-err .st-rin { border-color: var(--st-bad); }
+.st-rc-derived span { display: block; padding: 0 7px; font-size: var(--st-fs); color: var(--st-text-2); }
+/* checkboxes as the kit's .sk-check: 14 px, field border, filled with the switch colour and a white tick */
+.st-page :is(.st-rcheck, .st-rtoggle input, .st-create-check input, .st-dialog-opts input)[type="checkbox"] { -webkit-appearance: none; appearance: none; flex: none; width: 14px; height: 14px; vertical-align: middle; border: 1px solid var(--st-field); border-radius: 3px; background: var(--st-surface) center / 12px 12px no-repeat; cursor: pointer; transition: background-color var(--st-t), border-color var(--st-t); }
+.st-page :is(.st-rtoggle input, .st-create-check input, .st-dialog-opts input)[type="checkbox"] { margin: 0; }
+.st-rcheck { margin: 0 8px; }
+.st-page :is(.st-rcheck, .st-rtoggle input, .st-create-check input, .st-dialog-opts input)[type="checkbox"]:hover { border-color: var(--st-field-hover); }
+.st-page :is(.st-rcheck, .st-rtoggle input, .st-create-check input, .st-dialog-opts input)[type="checkbox"]:checked { background-color: var(--st-on); background-image: var(--st-check); border-color: var(--st-on); }
+.st-page :is(.st-rcheck, .st-rtoggle input, .st-create-check input, .st-dialog-opts input)[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
+.st-page :is(.st-rcheck, .st-rtoggle input, .st-create-check input, .st-dialog-opts input)[type="checkbox"]:focus-visible { border-color: var(--st-focus); box-shadow: var(--st-ring); outline: none; }
+.st-rt tbody tr.st-new > td { background: var(--st-row-sel); }
+/* the fields of a new row show their border, so it is clear where to type */
+.st-rt tr.st-new .st-rin:not([readonly]) { border-color: var(--st-field); background-color: var(--st-surface); }
+.st-rt tbody tr:hover > td { background: var(--st-row-hover); }
+.st-rt tr.st-row-inactive { display: none; }
+.st-rows.st-show-inactive tr.st-row-inactive { display: table-row; }
+.st-rt tr.st-row-inactive .st-rin { color: var(--st-text-3); text-decoration: line-through; }
+.st-ra { width: 1%; white-space: nowrap; text-align: right; padding-right: 8px !important; }
+/* row actions: 24 px ghost icon buttons, text actions as quiet links */
+.st-page .st-ricon { width: var(--st-ctl-h-sm); height: var(--st-ctl-h-sm); display: inline-grid; place-items: center; margin: 0; padding: 0; vertical-align: middle; border: 0; border-radius: var(--st-r); background: none; color: var(--st-text-2); font-size: 16px; line-height: 1; cursor: pointer; transition: background-color var(--st-t), color var(--st-t); }
+.st-page .st-ricon:hover { background: var(--st-hover); color: var(--st-text); text-decoration: none; }
+.st-page .st-ricon-del:hover { color: var(--st-bad); }
+.st-rfoot { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; min-height: calc(var(--st-band-h) + 8px); padding: 4px var(--st-pad); border-top: 1px solid var(--st-border); font-size: var(--st-fs-s); color: var(--st-text-2); }
+.st-page .st-rfoot .st-btn { height: var(--st-ctl-h-sm); padding: 0 8px; font-size: var(--st-fs-s); }
+.st-page .st-rfoot .st-btn > i.bx { font-size: 14px; }
+.st-rempty { padding: 24px 16px; text-align: center; font-size: var(--st-fs); color: var(--st-text-2); }
+.st-rempty b { display: block; margin-bottom: 2px; font-weight: 600; color: var(--st-text); }
+.st-rseed { display: inline-flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+.st-rtoggle { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; cursor: pointer; }
+.st-inline { display: inline; }
+.st-scope { display: flex; align-items: center; gap: 8px; font-size: var(--st-fs-s); color: var(--st-text-2); }
+.st-errors { margin: 0; padding: 7px var(--st-pad); border: 1px solid var(--st-edge); border-left: 3px solid var(--st-bad); border-radius: var(--st-r-mod); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
+.st-errors ul { margin: 4px 0 0; padding-left: 18px; }
+.st-errors a { color: var(--st-bad); }
+
+/* shown only while something is unsaved: the kit's sticky foot bar at the bottom of the form */
+.st-page .st-savebar { position: sticky; bottom: 0; z-index: 20; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r-mod); box-shadow: var(--st-lift); }
+.st-savebar-in { min-height: 2.875rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 0; padding: 8px var(--st-pad); }
+.st-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs); font-weight: 500; color: var(--st-text); }
+.st-savebar-btns { display: inline-flex; align-items: center; gap: 8px; }
+
+/* change history as its own column: a panel with a band, title over change over who/when, zebra */
+.st-hist { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.st-h { display: flex; flex-direction: column; gap: 1px; padding: 6px var(--st-pad); }
+.st-h + .st-h { border-top: 1px solid var(--st-grid); }
+.st-card > .st-h:nth-child(even of .st-h) { background: var(--st-surface-2); }
+.st-page .st-h-field { font-size: var(--st-fs); font-weight: 500; color: var(--st-text); text-decoration: none; }
+.st-page a.st-h-field:hover { color: var(--st-link); text-decoration: underline; text-underline-offset: 2px; }
+.st-h-ch { font-size: var(--st-fs-s); color: var(--st-text-2); overflow-wrap: anywhere; }
+.st-h-ch s { color: var(--st-text-3); }
+.st-h-m { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--st-fs-s); color: var(--st-text-3); }
+.st-h-empty { margin: 0; padding: 24px 16px; text-align: center; font-size: var(--st-fs); color: var(--st-text-2); }
+.st-h-foot { min-height: var(--st-band-h); display: flex; align-items: center; padding: 2px var(--st-pad); border-top: 1px solid var(--st-border); font-size: var(--st-fs-s); }
+.st-h-empty + .st-h-foot { border-top: 1px solid var(--st-border); }
+
+/* dialog and toast: the kit's floating layers (8 px corners and the only shadows on the page) */
+@keyframes st-in { from { opacity: 0; } to { opacity: 1; } }
+.st-backdrop { position: fixed; inset: 0; z-index: 50; background: var(--st-scrim); animation: st-in var(--st-t) var(--st-ease); }
+.st-dialog { position: fixed; z-index: 51; top: 18vh; left: 50%; transform: translateX(-50%); width: min(27.5rem, calc(100vw - 32px)); max-height: 76vh; overflow: auto; padding: 16px; border: 1px solid var(--st-border); border-radius: var(--st-r-win); background: var(--st-surface); box-shadow: var(--st-shadow-win); color: var(--st-text); animation: st-in var(--st-t) var(--st-ease); }
+.st-dialog h3 { margin: 0 0 6px; font: 600 .9375rem/1.3 var(--st-font-display); color: var(--st-text); }
+.st-dialog p { margin: 0; font-size: var(--st-fs); line-height: 1.5; color: var(--st-text-2); }
+.st-dialog-btns { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.st-dialog-opts { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 0; }
+.st-dialog-opts label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs); color: var(--st-text); cursor: pointer; }
+.st-snack { position: fixed; z-index: 60; left: 50%; bottom: 64px; transform: translateX(-50%); max-width: min(36rem, calc(100vw - 32px)); min-height: 2rem; display: inline-flex; align-items: center; padding: 6px 12px; border-radius: var(--st-r); background: var(--st-toast-bg); color: var(--st-toast-text); box-shadow: var(--st-shadow-win); font-size: var(--st-fs); animation: st-in var(--st-t) var(--st-ease); }
+
+/* "Hvor er de gamle menupunkter?": the kit's table (grey bold header band, zebra) */
+.st-moved { overflow: hidden; }
+.st-moved table { width: 100%; border-collapse: collapse; font-size: var(--st-fs); }
+.st-moved th { height: var(--st-row-h); padding: 0 var(--st-pad); text-align: left; background: var(--st-surface-2); border-bottom: 1px solid var(--st-border); font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
+.st-moved td { padding: 4px var(--st-pad); border-top: 1px solid var(--st-border); vertical-align: top; line-height: 1.4; }
+.st-moved tbody tr:first-child td { border-top: 0; }
+.st-moved tbody tr:nth-child(even) td { background: var(--st-surface-2); }
+.st-moved td:first-child { color: var(--st-text-2); width: 42%; }
+.st-moved td a { color: var(--st-text); text-decoration: none; font-weight: 500; }
+.st-moved td a:hover { color: var(--st-link); }
+.st-moved ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.st-tag { display: inline-flex; align-items: center; height: 1.125rem; margin-left: 6px; padding: 0 6px; vertical-align: middle; border: 1px solid var(--st-border); border-radius: 3px; background: var(--st-surface-2); color: var(--st-text-2); font: 500 var(--st-fs-xs)/1 var(--st-font); white-space: nowrap; }
+.st-tag-personal { color: var(--st-warn-ink); }
+
+@media screen and (max-width: 1200px) {
+  .st-layout { grid-template-columns: var(--st-menu-w) minmax(0, 1fr); }
+  .st-hist { grid-column: 2; }
+}
+@media screen and (max-width: 900px) {
+  .st-layout { grid-template-columns: minmax(0, 1fr); gap: var(--st-gap); }
+  .st-hist { grid-column: 1; }
+  .st-tabs > ul, .st-menu-panel { display: none; }
+  .st-tabs-select { display: block; width: 100%; height: var(--st-ctl-h); padding: 0 24px 0 8px; border: 1px solid var(--st-field); border-radius: var(--st-r); background: var(--st-surface) var(--st-chevron) no-repeat right 4px center / 16px 16px; color: var(--st-text); font: inherit; -webkit-appearance: none; appearance: none; }
+}
+@media screen and (max-width: 780px) {
+  .st-page { padding: 12px 16px 96px; }
+  .st-field, .st-action { flex-wrap: wrap; gap: 6px 16px; }
+  .st-field:not(.st-type-bool) .st-tx, .st-action .st-tx { flex-basis: 100%; }
+  .st-field:not(.st-type-bool) .st-ctl, .st-action .st-ctl { justify-content: flex-start; }
+  .st-dep { padding-left: 24px; }
+  .st-lookup { align-items: flex-start; }
+  .st-lookup-list { right: auto; left: 0; min-width: 16rem; }
+  .st-input, .st-page .st-btn { height: 2rem; }
+  .st-page .st-switch::after { content: ''; position: absolute; inset: -8px -6px; }
+  .st-page .st-copy, .st-page .st-reset { opacity: 1; }
+  .st-savebar kbd { display: none; }
+}
+
+/* ---- a list section (integrations, employees): 24 px zebra rows with a drawer per item (hand-over 2 Oct, mock-ups 07/08) */
+.st-layout-list { grid-template-columns: var(--st-menu-w) minmax(0, 1fr); }
+.st-list { display: flex; flex-direction: column; gap: var(--st-gap); min-width: 0; }
+.st-tabs-sep { height: 1px; margin: 4px 0; background: var(--st-border); }
+.st-tabs-sub { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; position: static; }
+.st-tabs .st-tabs-sub { position: static; margin: 0; padding: 0 0 4px; background: none; border: 0; border-radius: 0; }
+.st-tabs-sub a { min-height: var(--st-row-h); font-size: var(--st-fs-s); color: var(--st-text-2); }
+.st-page .st-tabs .st-tabs-sub a { min-height: var(--st-row-h); padding: 2px var(--st-pad) 2px 24px; font-size: var(--st-fs-s); }
+.st-tabs-sub a.on { box-shadow: none; background: var(--st-surface-2); }
+.st-page .st-tabs .st-tabs-sub a.on { box-shadow: none; background: none; color: var(--st-text); font-weight: 600; }
+.st-irow { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr) auto auto; align-items: center; column-gap: 12px; min-height: 2.5rem; padding: 6px var(--st-pad); }
+.st-irow + .st-irow { border-top: 1px solid var(--st-grid); }
+.st-card > .st-irow:nth-child(even of .st-irow) { background: var(--st-surface-2); }
+.st-ibadge { width: 1.75rem; height: 1.75rem; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--st-r); background: var(--st-surface); border: 1px solid var(--st-border); font: 600 var(--st-fs-xs)/1 var(--st-font); letter-spacing: .02em; color: var(--st-text-2); }
+.st-irow .st-tx { gap: 1px; }
+.st-irow .st-tx b { font-size: var(--st-fs); font-weight: 500; color: var(--st-text); }
+.st-irow .st-tx span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--st-fs-s); color: var(--st-text-2); }
+.st-imeta { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs-s); color: var(--st-text-2); white-space: nowrap; }
+.st-imeta-err { color: var(--st-bad); font-weight: 500; }
+.st-imeta-soon, .st-irow-soon .st-tx b, .st-irow-soon .st-tx span, .st-irow-soon .st-ibadge { color: var(--st-text-3); }
+.st-page .st-irow .st-btn { min-width: 4.5rem; height: var(--st-ctl-h-sm); padding: 0 8px; font-size: var(--st-fs-s); }
+.st-page .st-irow .st-btn-quiet { --st-btn-fg: var(--st-link); }
+.st-ibtn-space { min-width: 4.5rem; }
+.st-list-empty { padding: 24px 16px; }
+
+/* the drawer: the kit's floating panel at the right (8 px inset, 8 px corners), band-like head and a foot with the buttons */
+.st-scrim { position: fixed; inset: 0; z-index: 40; background: var(--st-scrim); animation: st-in var(--st-t) var(--st-ease); }
+.st-drawer { position: fixed; top: 8px; right: 8px; bottom: 8px; z-index: 41; width: min(30rem, calc(100vw - 16px)); display: flex; flex-direction: column; background: var(--st-surface); border: 1px solid var(--st-border); border-radius: var(--st-r-win); box-shadow: var(--st-shadow-win); color: var(--st-text); animation: st-in var(--st-t) var(--st-ease); }
+.st-dform { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.st-dhead { flex: none; display: flex; align-items: center; gap: 8px; min-height: 2.5rem; padding: 6px 8px 6px 16px; border-bottom: 1px solid var(--st-border); }
+.st-dhead > div { flex: 1 1 auto; min-width: 0; }
+.st-dhead h2 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 .875rem/1.25 var(--st-font-display); letter-spacing: 0; color: var(--st-text); }
+.st-dhead p { margin: 1px 0 0; font-size: var(--st-fs-s); line-height: 1.4; color: var(--st-text-2); }
+.st-dhead .st-iconbtn { margin: 0 0 0 auto; }
+.st-page .st-iconbtn { width: var(--st-ctl-h); height: var(--st-ctl-h); min-width: 0; flex: none; display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 0; border: 0; border-radius: var(--st-r); background: none; color: var(--st-text-2); font-size: 18px; line-height: 1; cursor: pointer; }
+.st-page .st-iconbtn:hover { background: var(--st-hover); color: var(--st-text); }
+.st-dbody { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 0 8px; }
+.st-dbody .st-card-flat { border: 0; border-radius: 0; box-shadow: none; }
+.st-dbody .st-field, .st-dbody .st-action { padding: 8px 16px; flex-wrap: wrap; gap: 6px 16px; }
+.st-dbody .st-field .st-tx { flex: 1 1 10rem; }
+.st-dbody .st-field .st-ctl, .st-dbody .st-action .st-ctl { flex: 0 1 auto; max-width: 100%; }
+.st-dbody .st-type-info .st-ctl, .st-dbody .st-type-mini .st-ctl { flex-basis: 100%; justify-content: flex-start; }
+.st-dbody .st-input { width: 13rem; }
+.st-dbody .st-input-short { width: 6rem; }
+.st-dbody .st-dep { padding-left: 32px; }
+.st-dbody .st-errorlist { margin: 12px 16px 0; border-top-color: var(--st-border); border-right-color: var(--st-border); border-bottom-color: var(--st-border); }
+.st-dbody .st-grouphead { padding-left: 16px; padding-right: 16px; }
+.st-dh3 { display: flex; align-items: center; min-height: var(--st-band-h); margin: 8px 0 0; padding: 4px 16px 0; border-top: 1px solid var(--st-border); font: 600 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text-2); }
+.st-dhist { margin: 8px 0 0; border-top: 1px solid var(--st-border); }
+.st-dhist summary { min-height: var(--st-band-h); display: flex; align-items: center; gap: 8px; padding: 4px 16px; font: 600 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text-2); cursor: pointer; list-style: none; }
+.st-dhist summary:hover { color: var(--st-text); }
+.st-dhist summary::-webkit-details-marker { display: none; }
+.st-dhist summary::before { content: ''; width: 6px; height: 6px; margin-left: 2px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform var(--st-t); }
+.st-dhist[open] summary::before { transform: rotate(45deg); }
+.st-dhist .st-h { padding: 6px 16px; }
+.st-dfoot { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-top: 1px solid var(--st-border); }
+.st-dfoot .st-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--st-fs-s); color: var(--st-warn-ink); }
+.st-grow { flex: 1; }
+
+/* a write-only secret: masked, "sat <date>" and Skift reveal an empty field (P8) */
+.st-secret { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; justify-content: flex-end; }
+.st-secret-state { display: inline-flex; align-items: center; gap: 8px; font-size: var(--st-fs-s); color: var(--st-text-2); }
+.st-secret-mask { letter-spacing: 2px; color: var(--st-text-3); }
+.st-info { font-size: var(--st-fs); color: var(--st-text); overflow-wrap: anywhere; }
+.st-mini { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; width: 100%; }
+.st-mini-f { display: flex; align-items: center; gap: 8px; font-size: var(--st-fs); color: var(--st-text-2); }
+.st-mini-f span { min-width: 6rem; text-align: right; }
+.st-mini > .st-info { align-self: flex-start; color: var(--st-text-2); }
+.st-info-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.st-info-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.st-info-list a { color: var(--st-link); text-decoration: none; font-weight: 500; }
+.st-muted { color: var(--st-text-3); }
+.st-flash-key { align-items: flex-start; }
+.st-flash-key code { padding: 1px 6px; border: 1px solid var(--st-border); border-radius: 3px; background: var(--st-surface-2); font: var(--st-fs-s) ui-monospace, SFMono-Regular, Menlo, monospace; user-select: all; overflow-wrap: anywhere; }
+
+@media screen and (max-width: 900px) {
+  .st-layout-list { grid-template-columns: minmax(0, 1fr); }
+}
+@media screen and (max-width: 780px) {
+  .st-irow { grid-template-columns: 1.75rem minmax(0, 1fr) auto; row-gap: 4px; }
+  .st-irow .st-imeta { grid-column: 2; grid-row: 2; white-space: normal; }
+  .st-drawer { top: 0; right: 0; bottom: 0; width: 100vw; border-radius: 0; }
+  .st-dbody .st-input { width: 100%; }
+  .st-secret { justify-content: flex-start; }
+  .st-mini { align-items: stretch; }
+  .st-mini-f { flex-direction: column; align-items: stretch; gap: 4px; }
+  .st-mini-f span { text-align: left; }
+}
+
+/* 20261005 Sawaneh Row editors on narrow screens: one column, history below. */
+@media screen and (max-width: 900px) {
+  .st-page-rows .st-layout { grid-template-columns: minmax(0, 1fr); }
+  .st-page-rows .st-hist { grid-column: 1; }
+}
+
+/* 20261005 Sawaneh Danger-zone dialog: the password row (spec §8.3). */
+.st-dialog-pw { display: flex; flex-direction: column; gap: 4px; margin: 12px 0 0; font: 600 var(--st-fs-s)/1.3 var(--st-font); color: var(--st-text-2); }
+.st-dialog-pw[hidden] { display: none; }
+.st-dialog-pw .st-input { width: 100%; }
+
+/* 20261005 Sawaneh 4d fiscal years and currencies: text buttons in the action column, the parent picker above a
+   table, the create card and the confirmation of amounts a save posts (audit V9). */
+.st-page .st-ricon.st-ricon-txt { width: auto; padding: 0 8px; font: 500 var(--st-fs-s)/1 var(--st-font); color: var(--st-link); text-decoration: none; white-space: nowrap; }
+.st-page .st-ricon.st-ricon-txt:hover { color: var(--st-link); text-decoration: underline; text-underline-offset: 2px; }
+.st-page .st-ricon-danger, .st-page .st-ricon.st-ricon-danger:hover { color: var(--st-bad); }
+.st-rhead .st-rfilter { margin: 0; padding: 6px var(--st-pad); border-top: 1px solid var(--st-border); }
+.st-create-grid { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; padding: 10px var(--st-pad) 12px; }
+.st-create-grid label { display: flex; flex-direction: column; gap: 4px; font: 600 var(--st-fs-s)/1.3 var(--st-font); color: var(--st-text-2); }
+.st-create-grid .st-create-check { flex-direction: row; align-items: center; gap: 6px; height: var(--st-ctl-h); font: 400 var(--st-fs)/1.3 var(--st-font); color: var(--st-text); }
+.st-create-pair { display: flex; gap: 6px; }
+.st-create-pair .st-input { width: 5.5rem; }
+.st-create-fixed { height: var(--st-ctl-h); display: inline-flex; align-items: center; padding: 0 8px; border-radius: var(--st-r); background: var(--st-surface-2); color: var(--st-text); font: 400 var(--st-fs)/1.2 var(--st-font); font-variant-numeric: tabular-nums; }
+.st-confirm { margin: 0; padding: 7px var(--st-pad) 10px; border: 1px solid var(--st-edge); border-left: 3px solid var(--st-warn); border-radius: var(--st-r-mod); background: var(--st-surface); font-size: var(--st-fs); line-height: 1.5; }
+.st-confirm ul { margin: 6px 0; padding-left: 18px; }
+.st-confirm p { margin: 0 0 10px; color: var(--st-text-2); }
+@media (max-width: 640px) { .st-create-grid label, .st-create-grid .st-input { width: 100%; } }
+.st-rc-col-period span { white-space: nowrap; }
+.st-rfilter select.st-input { width: auto; min-width: 14rem; }
+.st-rfilter select.st-input { text-align: left; }
+.st-input.st-input-date, .st-dbody .st-input.st-input-date { width: 7.5rem; }
+/* the "?" in the page head: a quiet 18 px circle (the kit's help-circle), the section text in the kit's popover */
+.st-page .st-qhelp { flex: none; width: 1.125rem; height: 1.125rem; display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 0; vertical-align: middle; border: 1px solid currentColor; border-radius: 50%; background: var(--st-surface); color: var(--st-text-3); font: 600 .6875rem/1 var(--st-font); text-decoration: none; cursor: pointer; transition: color var(--st-t); }
+.st-page .st-qhelp:hover, .st-page .st-qhelp[aria-expanded="true"] { color: var(--st-link); text-decoration: none; }
+.st-qwrap { position: relative; display: inline-flex; vertical-align: middle; }
+.st-qpop { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: 20rem; max-width: calc(100vw - 32px); padding: 8px var(--st-pad); border: 1px solid var(--st-border); border-radius: var(--st-r); background: var(--st-surface); box-shadow: var(--st-shadow-win); color: var(--st-text); font: 400 var(--st-fs)/1.45 var(--st-font); letter-spacing: 0; }
+.st-qpop[hidden] { display: none; }
+.st-qpop-t { display: block; }
+.st-qpop-guides { display: inline-block; margin-top: 6px; color: var(--st-link); font-weight: 500; }
+@media (max-width: 600px) { .st-qpop { position: fixed; top: auto; left: 16px; right: 16px; width: auto; } }
+.st-more { margin-top: 2px; font-size: var(--st-fs-s); color: var(--st-text-2); }
+.st-more summary { cursor: pointer; color: var(--st-link); }
+.st-more p { margin: 4px 0 0; }
+
+/* ---- 20261101 CL/ASR the left menu of the settings pages (hub "C - Fold ud", owner 1 Nov 2026; settings_menu_html() in
+   includes/settings/listView.php, on the section pages and in the frame of the old pages, systemdata/top.php): a panel with
+   the hub group's name in the grey band, then its sub-groups, each a heading (icon + name) over its rows on a hairline guide
+   under the icon, as the hub's unfolded rows. The current row is on the selection blue with the mark on the guide; a row's
+   second page and a list's own blocks sit indented under it. No zebra in navigation (owner): only hover and the mark. ---- */
+.st-page .st-menu { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; max-height: calc(100vh - 32px); }
+/* the menu spans the rows of the layout, so the history under the form (rows sections, narrower screens) is not pushed down */
+.st-layout > .st-menu { grid-row: span 2; }
+.st-layout:has(> .st-menu) { grid-template-rows: auto 1fr; }
+.st-menu-panel { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: var(--st-surface); border: 1px solid var(--st-edge); border-radius: var(--st-r-mod); box-shadow: var(--st-lift); }
+.st-menu-h { min-height: var(--st-band-h); margin: 0; padding: 7px var(--st-pad) 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--st-surface-2); border-bottom: 1px solid var(--st-edge-head); border-radius: calc(var(--st-r-mod) - 1px) calc(var(--st-r-mod) - 1px) 0 0; font: 700 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text); }
+.st-menu ul { list-style: none; margin: 0; padding: 0; }
+.st-menu-sub { padding: 2px 0 6px; }
+.st-menu-sub + .st-menu-sub { border-top: 1px solid var(--st-border); }
+.st-menu-subh { display: flex; align-items: center; gap: 6px; min-height: 1.75rem; margin: 0; padding: 4px var(--st-pad) 2px; font: 600 var(--st-fs-s)/1.25 var(--st-font); color: var(--st-text-2); }
+.st-menu-subh > i.bx { flex: none; width: 16px; font-size: 16px; line-height: 1; text-align: center; color: var(--st-text-3); }
+.st-menu-sub.is-current .st-menu-subh { color: var(--st-text); }
+.st-menu-sub.is-current .st-menu-subh > i.bx { color: var(--st-text-2); }
+.st-menu-subh > i.st-menu-lock { margin-left: auto; font-size: 14px; }
+.st-menu-sub.is-off .st-menu-subh { color: var(--st-text-3); }
+.st-menu-off { margin: 0; padding: 0 var(--st-pad) 0 34px; font-size: var(--st-fs-s); line-height: 1.35; color: var(--st-text-3); }
+.st-page .st-menu .st-menu-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--st-row-h); padding: 3px var(--st-pad) 3px 34px; border-radius: 0; background: none; box-shadow: none; font: 400 var(--st-fs)/1.3 var(--st-font); color: var(--st-text-2); text-decoration: none; }
+.st-menu-row > span { min-width: 0; }
+.st-menu-row::before { content: ""; position: absolute; top: 0; bottom: 0; left: 19px; width: 1px; background: var(--st-border); }
+.st-page .st-menu .st-menu-row:hover { background: var(--st-row-hover); color: var(--st-text); text-decoration: none; }
+.st-page .st-menu .st-menu-row:is(:hover, .on)::before { left: 18px; width: 3px; border-radius: 2px; background: var(--st-mark); }
+.st-page .st-menu .st-menu-row.on { background: var(--st-row-sel); box-shadow: none; color: var(--st-text); font-weight: 600; }
+.st-page .st-menu .st-menu-row:focus-visible { outline-offset: -2px; }
+.st-menu li.is-current > .st-menu-row:not(.on) { color: var(--st-text); }
+.st-page .st-menu .st-menu-l2 { padding-left: 46px; font-size: var(--st-fs-s); }
+.st-page .st-menu .st-menu-deep .st-menu-l2 { padding-left: 58px; }
+.st-menu .st-dot { margin-left: auto; }
+/* a list's own blocks follow the scroll (javascript/settingsList.js): the block in view is bold, not a second current page */
+.st-page .st-menu .st-menu-anchors .st-menu-row.on { background: none; }
+.st-page .st-menu .st-menu-anchors .st-menu-row.on:not(:hover)::before { left: 19px; width: 1px; border-radius: 0; background: var(--st-border); }
+/* a page that is not on the hub lists the hub's groups: no guide, the mark at the panel's edge */
+.st-page .st-menu .st-menu-flat .st-menu-row { padding-left: var(--st-pad); }
+.st-page .st-menu .st-menu-flat .st-menu-row::before { left: 0; width: 0; }
+.st-page .st-menu .st-menu-flat .st-menu-row:hover::before { left: 0; width: 2px; border-radius: 0; }
+/* back to the hub, under the group */
+.st-page .st-menu .st-menu-all { display: flex; align-items: center; justify-content: flex-start; gap: 6px; min-height: var(--st-band-h); padding: 0 var(--st-pad); border-top: 1px solid var(--st-border); background: none; box-shadow: none; font: 400 var(--st-fs-s)/1.2 var(--st-font); color: var(--st-text-2); text-decoration: none; }
+.st-page .st-menu .st-menu-all:hover { background: none; color: var(--st-link); text-decoration: none; }
+.st-page .st-menu .st-menu-all > i.bx { font-size: 14px; color: inherit; }
+/* narrow screens: the menu is the select above the content (the panel is hidden above); after the rules above, which it overrides */
+@media screen and (max-width: 900px) {
+  .st-page .st-menu { position: static; max-height: none; }
+  .st-layout > .st-menu { grid-row: auto; }
+  .st-layout:has(> .st-menu) { grid-template-rows: none; }
+}
+
+/* ---- 20261101 CL/ASR Tilbage above the title on every settings page (owner, 1 Nov 2026; settings_back_button() in
+   includes/settings/components.php): the kit's small secondary button (.sk-btn.sk-btn-sm) with a left arrow. Written out on
+   the settings tokens as well, because the frame of the old pages (top.php) does not load the kit. ---- */
+.st-page .sk-back { --st-btn-bg: var(--st-surface); --st-btn-bd: var(--st-field); --st-btn-fg: var(--st-text); align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--st-ctl-h-sm); margin: 0 0 6px; padding: 0 8px; vertical-align: middle; border: 1px solid var(--st-btn-bd); border-radius: var(--st-r); background: var(--st-btn-bg); color: var(--st-btn-fg); box-shadow: none; font: 500 var(--st-fs-s)/1 var(--st-font); white-space: nowrap; text-decoration: none; cursor: pointer; user-select: none; transition: background-color var(--st-t), border-color var(--st-t), color var(--st-t); }
+.st-page .sk-back:hover { --st-btn-bg: var(--st-surface-2); --st-btn-bd: var(--st-field-hover); color: var(--st-btn-fg); text-decoration: none; }
+.st-page .sk-back > i.bx { flex: none; width: 14px; height: 14px; font-size: 14px; line-height: 14px; }
+
+/* ---- 20261102 CL/ASR the standard layout of a settings page (settings_layout_open() in includes/settings/layout.php; owner, 2 Nov 2026:
+   every page reached from Indstillinger keeps the left menu): the section pages' head - Tilbage, title, lead, the page's own buttons on
+   the right - and their two columns, the hub group's menu (.st-menu above) and the content column. ---- */
+.st-phead-acts { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.st-frame-main { min-width: 0; }
+/* an old page's own markup (forms and tables): the font of the frame of the old pages (top.php), 4 px corners on its buttons,
+   and a wide editor (Formularer's text lines) scrolls inside the column instead of pushing the page sideways */
+.st-frame-main.st-legacy { overflow-x: auto; font: 14px/1.5 Inter, "Segoe UI", system-ui, sans-serif; }
+.st-frame-main.st-legacy table { max-width: none; }
+.st-frame-main.st-legacy :is(input[type=submit], input[type=button], button) { border-radius: 4px; }
+
+/* ---- 20261102 CL/ASR the employee drawer embedded in the person card of Brugere & ansatte (usersRoles.php, the Stamdata tab; listView.php
+   prints .st-embed): the drawer fills the iframe, its name is in the card's head, and the card's scrim and X close it. ---- */
+html:has(> body .st-embed), html:has(> body .st-embed) > body { height: 100%; margin: 0; overflow: hidden; background: var(--surface, #ffffff) !important; }
+.st-page.st-embed { display: flex; flex-direction: column; height: 100vh; max-width: none; margin: 0; padding: 0; background: var(--st-surface); }
+.st-page.st-embed > .st-notes { flex: none; width: auto; margin: 8px 16px 0; }
+.st-page.st-embed > .st-notes > * { border-top-color: var(--st-border); border-right-color: var(--st-border); border-bottom-color: var(--st-border); }
+.st-page.st-embed > .st-drawer { position: static; flex: 1 1 auto; width: auto; min-height: 0; border: 0; border-radius: 0; box-shadow: none; animation: none; }
+.st-page.st-embed :is(.st-dhead, .st-skip, #st-scrim) { display: none; }

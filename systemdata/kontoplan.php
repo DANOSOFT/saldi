@@ -1,5 +1,5 @@
 <?php
-// -----------systemdata/kontoplan.php-----patch 5.0.0 ----2026-03-05-------
+// -----------systemdata/kontoplan.php-----ver 5.1.1 ----2026-11-13-------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20160116     Tilføjet valuta  
@@ -25,12 +25,21 @@
 // 20220607 MSC Implementing new design
 // 20260204 LOE Updated design with grid design format
 // 20260306 PHR Fixed error in call to dkdecimal
-
+// 20261102 CL/ASR Opened from Indstillinger (settings=1 on the hub row and the settings menu; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) the page shows the standard settings layout (includes/settings/layout.php): Tilbage, the title and Ny above, the Finans group's menu with Kontoplan marked beside the grid, whose own height and scrolling stay.
+//                 Its links to Kontokort and the grid's search and paging forms carry the marker on.
+//                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
+// 20261102 CL/ASR Review: opened from Indstillinger the page keeps 16 px under the grid (not the section pages' 96 px), so only the grid scrolls.
+// 20261109 CL/ASR Opened from Indstillinger the grid has the settings modules' frame and soft shadow (owner, 9 Nov 2026).
+//                 The frame is a ring around the wrapper, so the wrapper keeps its size and place; the table's outer #ddd line is hidden.
+//                 The content column shows overflow, so it does not cut the shadow off.
+// 20261112 CL/ASR Opened from Indstillinger the grid has the settings modules' 6 px corner (--st-r-mod; owner, 12 Nov 2026).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $title="Kontoplan";
 $css="../css/standard.css";
 $modulnr="0";
+$permission_key = 'system.kontoplan'; // 20261019 Sawaneh Review 2 (PR #803): modulnr 0 is no key; the chart of accounts keeps its own
 $linjebg='';
 	
 include("../includes/connect.php");
@@ -39,6 +48,9 @@ include("../includes/std_func.php");
 include("../includes/grid.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
+include_once("../includes/settings/hub.php"); // settings_opened_from_settings()
+$fromSettings = settings_opened_from_settings(); // opened from Indstillinger: the settings layout, else the page as before
+$settingsMarker = $fromSettings ? '&settings=1' : ''; // on the page's own links to Kontokort
 
 $backUrl = isset($_GET['returside'])
 ? $_GET['returside']
@@ -46,7 +58,23 @@ $backUrl = isset($_GET['returside'])
 if ($popup) $returside="../includes/luk.php";
 else $returside=$backUrl;
 
-if ($menu=='T') {
+if ($fromSettings) {
+	// The standard settings layout: breadcrumb Indstillinger / Finans / Kontoplan, Tilbage to the hub, the Finans group's menu.
+	include_once("../includes/settings/layout.php");
+	settings_layout_open(array('actions' => array(array('label' => findtekst('39|Ny', $sprog_id), 'href' => 'kontokort.php?settings=1', 'icon' => 'bx-plus', 'accesskey' => 'N'))));
+	// The layout's stylesheet (css/unified-components.css) also styles the grid, with the variables of css/docpool-variables.css:
+	// without them the search fields under the column heads lose their frame.
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/docpool-variables.css\">\n";
+	// The grid fills the rest of the window and scrolls inside, with its head and paging in view, as on the page from Finans;
+	// a printout leaves out the menu and the head.
+	// The page keeps 16 px under the grid, not the 96 px the section pages keep for their save bar: the page itself does not scroll.
+	print "<style>.st-frame-main #datatable-wrapper-kontoplan { height: calc(100vh - 170px); min-height: 360px; }\n"
+		. ".st-page:has(#datatable-wrapper-kontoplan) { padding-bottom: 16px; }\n"
+		. ".st-page .st-frame-main.st-legacy:has(#datatable-wrapper-kontoplan) { overflow: visible; }\n"
+		. ".st-frame-main #datatable-wrapper-kontoplan { border-radius: var(--st-r-mod, 6px); box-shadow: 0 0 0 1px var(--st-edge, #cdd4df), var(--st-lift, 0 1px 2px rgba(11, 26, 58, .08), 0 4px 12px rgba(11, 26, 58, .06)); }\n"
+		. ".st-frame-main #datatable-kontoplan { border-style: hidden; }\n"
+		. "@media print { .st-page .st-menu, .st-page .st-phead { display: none !important; } .st-page .st-layout-list { display: block; } .st-frame-main #datatable-wrapper-kontoplan { height: auto; } }</style>\n";
+} elseif ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">"; 
@@ -153,8 +181,8 @@ $grid_data = [
 					// Cast integer field to text for ILIKE search
 					return "$field::text ILIKE '%$term%'";
 				},
-			'render' => function($value, $row, $column) {
-				return "<td align='{$column['align']}'><a href='kontokort.php?id={$row['id']}'>{$value}</a></td>";
+			'render' => function($value, $row, $column) use ($settingsMarker) {
+				return "<td align='{$column['align']}'><a href='kontokort.php?id={$row['id']}{$settingsMarker}'>{$value}</a></td>";
 			}
 		],
 		[
@@ -327,7 +355,14 @@ $grid_data = [
 ];
 
 // Create the datagrid
-create_datagrid('kontoplan', $grid_data);
+if ($fromSettings) {
+	// The grid's search and paging forms are GET forms to "" (the query is replaced): they carry the marker on, so the layout stays.
+	ob_start();
+	create_datagrid('kontoplan', $grid_data);
+	print str_replace('<form method="GET" action="">', '<form method="GET" action="">' . settings_marker_input(), ob_get_clean());
+} else {
+	create_datagrid('kontoplan', $grid_data);
+}
 
 // Add custom print button CSS and script
 print <<<PRINTBUTTON
@@ -446,7 +481,9 @@ print <<<PRINTBUTTON
 </script>
 PRINTBUTTON;
 
-if (!$menu == 'T') {
+if ($fromSettings) {
+	settings_layout_close();
+} elseif (!$menu == 'T') {
 	print "</td></tr>";
 	print "</tbody></table>";
 } else {
