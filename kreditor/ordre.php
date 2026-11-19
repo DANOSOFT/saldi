@@ -752,7 +752,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$r=db_fetch_array(db_select($string,__FILE__ . " linje " . __LINE__));
 			$konto_id  = ifset($r, 'konto_id', 0);
 			$firmanavn = ifset($r, 'firmanavn', '');
-			if (!$konto_id) noSupplierForItemAlert($varenr[0]); # SST-1041
+			// SST-1041 $varenr[0] is escaped for SQL here, so the message shows the number as it was typed.
+			if (!$konto_id) noSupplierForItemAlert(strtoupper(trim((string) ifset($_POST, 'vare0', ''))));
 			include_once(__DIR__ . '/orderIncludes/insertAccount.php');
 			$id = insertAccount($id, $konto_id, false);
 		}

@@ -6,6 +6,7 @@
 // A pick from the Lev. varenr. search prefers the supplier of that number. An item with no supplier shows a message on both paths.
 // kreditor/ordre.php prints on include, so the blocks are lifted from the source and run against recorded stubs.
 // 20261119 CL/MMR SST-1041 Codex rounds 1-2: a Lev. varenr. pick carries that row's number and price. The row is chosen in PHP with trim(), as the search list shows it (see the Sql test).
+// 20261119 CL/MMR SST-1041 Codex round 6: the Enter-path message shows the typed number, not the SQL-escaped one.
 namespace CreditorOrderItemPickFixture {
 
     final class Rec
@@ -221,7 +222,8 @@ namespace Saldi\Tests\CreditorOrderItemPick {
         private function enterPath($r): array
         {
             $block = self::slice("\$konto_id  = ifset(\$r, 'konto_id', 0);", "include_once(__DIR__ . '/orderIncludes/insertAccount.php');\n\t\t\t\$id = insertAccount(\$id, \$konto_id, false);");
-            $varenr = array(0 => '9888-EU');
+            $varenr = array(0 => "QA''ITEM");
+            $_POST = array('vare0' => " qa'item ");
             eval($block);
             return array('konto_id' => $konto_id, 'firmanavn' => $firmanavn);
         }
@@ -231,7 +233,7 @@ namespace Saldi\Tests\CreditorOrderItemPick {
             $got = $this->enterPath(false);
             self::assertSame(0, $got['konto_id']);
             self::assertSame('', $got['firmanavn']);
-            self::assertSame(array('alert:9888-EU'), Rec::$calls);
+            self::assertSame(array("alert:QA'ITEM"), Rec::$calls, 'the message must show the typed number, not the SQL-escaped one');
         }
 
         public function testEnterWithASupplierIsUnchanged(): void
