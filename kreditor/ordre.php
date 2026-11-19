@@ -108,6 +108,7 @@
 //                 Review (CodeRabbit): the pick sends the supplier row id (vare_lev.id), and a vare_id without an order id needs write permission.
 //                 Codex review round: the write check reads the order id as an integer like the vare_id branch.
 //                 An item pick with an id that is not a whole number (or not a string) is refused before the contact update and the item branch.
+//                 Review (Saul): a picked supplier row with price 0 gives 0 on the line, like the supplier lookup on the other paths.
 @session_start();
 $s_id=session_id();
 
@@ -350,7 +351,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		if ($pickedSupplier) {
 			$konto_id = (int) $pickedSupplier['lev_id'];
 			$lev_varenr[0] = trim((string) $pickedSupplier['lev_varenr']);
-			if ((float) $pickedSupplier['kostpris']) $pris[0] = $pickedSupplier['kostpris'];
+			$pris[0] = $pickedSupplier['kostpris']; // as the supplier lookup below does, a price of 0 included
 			$pickedLevRow = true;
 		} elseif ($firstSupplier) {
 			$konto_id = (int) $firstSupplier['lev_id'];

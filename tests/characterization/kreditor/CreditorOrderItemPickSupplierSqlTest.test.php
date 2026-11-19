@@ -4,6 +4,7 @@
 // A Lev. varenr. pick sends the supplier row it came from (vare_lev.id). The row is used, with its own supplier, number and price, only when it belongs to the picked item.
 // Two rows can share a number (no unique constraint on vare_lev), a competitor can have lev_varenr NULL, and one supplier can have several numbers for the item.
 // vare_lev and adresser are built in a private schema on the shared SQL fixture database, with the column types they have in a customer database.
+// 20261119 CL/MMR SST-1041 Review (Saul): a picked row with price 0 gives 0, as the supplier lookup on the other paths does.
 namespace CreditorOrderItemPickSqlFixture {
 
     final class Rec
@@ -172,12 +173,14 @@ namespace Saldi\Tests\CreditorOrderItemPickSql {
             self::assertSame('Bartelse', $got['lev_varenr']);
         }
 
-        public function testAZeroPriceOnThePickedRowKeepsTheItemCost(): void
+        /** Review (Saul): the supplier lookup on the other paths takes a price of 0 as it is, so the picked row does too. */
+        public function testAZeroPriceOnThePickedRowIsUsed(): void
         {
             $ids = $this->suppliers(array(array(1, 2225, 'Bartelse', 0.0)));
             $got = $this->pick($ids[0], 800.0);
             self::assertSame('Bartelse', $got['lev_varenr']);
-            self::assertSame(800.0, $got['pris']);
+            self::assertSame(0.0, $got['pris'], "the item's cost price replaced the supplier's 0");
+            self::assertTrue($got['picked']);
         }
 
         public function testWithoutARowSupplierNumberOneIsUsedAndTheLineIsLeftToTheUsualLookup(): void
