@@ -8,13 +8,74 @@
 // of their tests had been failing unseen. This turns that state into a red job.
 //
 // Usage: php tools/ci/check-skips.php <phpunit --log-junit file>
-
+//
 // Entries are Class::method for one test, or Class for a class skipped as a whole.
 $allowed = [
 	// The container runs as root, and root ignores directory permissions.
 	'FileReservationTest::testReturnsNullForUnwritableDirectory',
 	// Same reason: as root, chmod 0555 does not make the journal folder unwritable (SST-929).
 	'JournalDocumentsDeleteRegressionTest::testDocumentInAFolderThatCanNotBeWrittenKeepsItsRow',
+	// The CI container has no Peppol BIS validator; these run where PEPPOL_BIS_VALIDATOR is set (SD-815).
+	'peppolBisWriter::testValidatorAcceptsEveryGoldenFile',
+	'peppolPipeline::testValidatorAcceptsTheBuilderOutput',
+	// The CI container has PostgreSQL only; this MySQL/MariaDB test runs where SALDI_CHAR_MYSQL_SOCKET is set (SD-815).
+	'EnsurePoolFilesSchemaMysqlTest::testTheSchemaIsFixedAndATimedOutReadEndsTheRunQuietly',
+	'EnsurePoolFilesSchemaMysqlTest::testABlockedIndexRepairDeletesNothing',
+	'EnsurePoolFilesSchemaMysqlTest::testNothingRunsInsideACallersTransaction',
+	'EnsurePoolFilesSchemaMysqlTest::testAnExistingNonUniqueIndexWithTheUsualNameIsNoObstacle',
+	'EnsurePoolFilesSchemaMysqlTest::testATableThatCannotHoldTheIndexKeepsItsRows',
+	'EnsurePoolFilesSchemaMysqlTest::testTheGrantsThatWereEnoughBeforeAreStillEnough',
+	'EnsurePoolFilesSchemaMysqlTest::testAMissingPrivilegeIsLoggedAsSuchAndDeletesNothing',
+	'EnsurePoolFilesSchemaMysqlTest::testATableAnotherConnectionCreatedUnderTheProbeNameSurvivesWithReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testABlockedTableLockDeletesNothingWithReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAPrefixUniqueIndexIsReplacedByTheFullOne',
+	'EnsurePoolFilesSchemaMysqlTest::testAFullUniqueIndexAloneIsLeftAsItIs',
+	'EnsurePoolFilesSchemaMysqlTest::testAnIndexTakingTheNameBeforeTheLockStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAnIndexTakingTheNameBeforeTheLockReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testARowFormatChangeBeforeTheLockStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testARowFormatChangeBeforeTheLockReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testTheLastKeySlotTakenBeforeTheLockStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testTheLastKeySlotTakenBeforeTheLockReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testPartitioningBeforeTheLockStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testPartitioningBeforeTheLockReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAStableTableWithAForeignKeyIsRepairedStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAStableTableWithAForeignKeyIsRepairedReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testUnquotedShowCreateIsRepairedStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testUnquotedShowCreateIsRepairedReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesReferencedByACascadingForeignKeyAreNotDeletedStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesReferencedByACascadingForeignKeyAreNotDeletedReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAReferencedTableWithoutDuplicatesIsRepaired',
+	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesWithoutTheProcessPrivilegeAreNotDeleted',
+	'EnsurePoolFilesSchemaMysqlTest::testAChildInAnotherDatabaseKeepsEveryRowStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAChildInAnotherDatabaseKeepsEveryRowReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAChildInAnotherDatabaseKeepsEveryRowForAParentOnlyUser',
+	'EnsurePoolFilesSchemaMysqlTest::testAHyphenatedParentDatabaseKeepsEveryRowStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAHyphenatedParentDatabaseKeepsEveryRowReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testTwoNullFilenamesAreNoDuplicates',
+	'EnsurePoolFilesSchemaMysqlTest::testAnotherHyphenatedDatabasesOwnReferenceDoesNotBlockTheRepair',
+	'EnsurePoolFilesSchemaMysqlTest::testANonAsciiParentDatabaseWithLatin1ResultsKeepsEveryRowStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testANonAsciiParentDatabaseWithLatin1ResultsKeepsEveryRowReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAnsiQuotesIsRepairedStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAnsiQuotesIsRepairedReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testADeleteTriggerStopsTheCollapseStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testADeleteTriggerStopsTheCollapseReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testDuplicatesWithoutTheTriggerPrivilegeAreNotDeleted',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporaryPoolFilesStopsTheRunStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporaryPoolFilesStopsTheRunReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsStopsTheRunStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsStopsTheRunReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testAnUpdatableSettingsViewTakesTheFlagStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testAnUpdatableSettingsViewTakesTheFlagReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testASettingsTableTakesTheFlagStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testASettingsTableTakesTheFlagReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsHoldingTheFlagStopsWithAReasonStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsHoldingTheFlagStopsWithAReasonReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testASettingsViewWithoutShowViewTakesTheFlagStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testASettingsViewWithoutShowViewTakesTheFlagReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testASettingsViewWithShowViewTakesTheFlagStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testASettingsViewWithShowViewTakesTheFlagReportingOff',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsOverAViewStopsARestrictedAccountStrict',
+	'EnsurePoolFilesSchemaMysqlTest::testATemporarySettingsOverAViewStopsARestrictedAccountReportingOff',
 ];
 
 $file = $argv[1] ?? '';

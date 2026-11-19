@@ -1,0 +1,123 @@
+{
+	"documentType": "creditnote",
+	"id": "1002",
+	"issueDate": "2026-11-09",
+	"dueDate": null,
+	"typeCode": "381",
+	"note": null,
+	"currency": "DKK",
+	"taxCurrency": null,
+	"taxCurrencyTaxAmount": null,
+	"accountingCost": null,
+	"buyerReference": "PO-4711",
+	"orderReference": null,
+	"salesOrderId": null,
+	"billingReferences": [
+		{
+			"id": "1001",
+			"issueDate": "2026-11-09"
+		}
+	],
+	"seller": {
+		"endpoint": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"identifiers": [],
+		"name": null,
+		"registrationName": "Eksempel Sælger ApS",
+		"legalId": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"vatId": "DK11111111",
+		"address": {
+			"street": "Eksempelvej 1",
+			"additionalStreet": null,
+			"city": "Eksempelby",
+			"postalCode": "1234",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": {
+			"name": null,
+			"phone": null,
+			"email": "faktura@example.invalid"
+		}
+	},
+	"buyer": {
+		"endpoint": {
+			"scheme": "0184",
+			"id": "22222222"
+		},
+		"identifiers": [],
+		"name": null,
+		"registrationName": "Eksempel Køber A/S",
+		"legalId": {
+			"scheme": "0184",
+			"id": "22222222"
+		},
+		"vatId": "DK22222222",
+		"address": {
+			"street": "Kundevej 2",
+			"additionalStreet": null,
+			"city": "Kundeby",
+			"postalCode": "5678",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": null
+	},
+	"delivery": {
+		"date": "2026-11-09",
+		"name": null,
+		"address": null
+	},
+	"paymentMeans": [],
+	"paymentTerms": null,
+	"allowanceCharges": [],
+	"taxSubtotals": [
+		{
+			"taxableAmount": 300.0,
+			"taxAmount": 75.0,
+			"category": "S",
+			"percent": 25.0,
+			"exemptionReasonCode": null,
+			"exemptionReason": null
+		}
+	],
+	"taxTotal": 75.0,
+	"totals": {
+		"lineExtension": 300.0,
+		"taxExclusive": 300.0,
+		"taxInclusive": 375.0,
+		"allowanceTotal": null,
+		"chargeTotal": null,
+		"prepaid": null,
+		"roundingAmount": null,
+		"payable": 375.0
+	},
+	"lines": [
+		{
+			"id": "1",
+			"quantity": 2.0,
+			"unitCode": "H87",
+			"lineExtension": 300.0,
+			"note": null,
+			"accountingCost": null,
+			"orderLineReference": null,
+			"allowanceCharges": [],
+			"netPrice": 150.0,
+			"baseQuantity": null,
+			"grossPrice": null,
+			"priceDiscount": null,
+			"itemName": "Eksempelvare",
+			"itemDescription": null,
+			"sellersItemId": "VARE-1",
+			"standardItemId": null,
+			"vatCategory": "S",
+			"vatPercent": 25.0
+		}
+	],
+	"attachments": []
+}

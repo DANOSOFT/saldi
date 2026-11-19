@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.1 ----2026-11-13------------
+// --- systemdata/diverse.php -----ver 5.1.1 ----2026-11-18------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,7 +125,12 @@
 // 20261031 CL/ASR Merge of master into redesign: save_webshop_invoice_order_date() (SST-911) runs after the CSRF check, like every other save on this page.
 // 20261101 CL/ASR Settings hub: div_valg redirects to Indstillinger » Ansatte, where its last field (Tilføj ekstra felter på ansatte, DIV/2 box3) lives now.
 // 20261103 CL/ASR QA: the integration and variant-import sections declare their own key before online.php (settings.integrations, settings.import_export), so a role with only that key is not refused once enforcement is 'deny'. sektion=label and sektion=kreditor_io redirect to Varer » Lager and Import & eksport instead of an empty page.
+// 20261112 CL/MMR SD-815 New sektion einvoice_valg (E-faktura): the regnskab's e-invoice provider, EasyUBL or Semantic (diverseIncludes/einvoiceProvider.php).
+//                 The menu link and the page are shown only when the server enables the choice; the save runs before page output and redirects back.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261118 CL/MMR SD-815 Merge of master's settings redesign: the E-faktura link is an entry of systemdata/settingsRegistry.php (Integrationer, rule einvoiceProviderChoice), as the old menu column is gone.
+//                 einvoiceProviderHandlePost() still runs before page output with its own rights and CSRF check; save_webshop_invoice_order_date() (SST-911) runs only after the page's CSRF check, as on master.
+// 20261118 CL/MMR SD-815 The E-faktura page is read-only for a user the save would refuse (einvoice_provider_can_edit(), the same rule as the save).
 @session_start();
 $s_id = session_id();
 
@@ -165,6 +170,8 @@ if (is_file(__DIR__ . '/../bank_integration/includes/enabled.php')) {
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 include_once(__DIR__ . '/diverseIncludes/webshopInvoiceOrderDate.php');
+include_once(__DIR__ . '/diverseIncludes/einvoiceProvider.php');
+einvoiceProviderHandlePost((string)ifset($_SERVER, 'REQUEST_METHOD', ''), (string)ifset($_GET, 'sektion', ''), $_POST, $rettigheder ?? null, (string)($db ?? '')); #SD-815
 
 $defaultProvision = $sqlstreng = NULL;
 if (!isset($_SESSION['UserName']) && isset($brugernavn)) {
@@ -685,6 +692,9 @@ if ($sektion == "api_valg") api_valg();
 if ($sektion == "stripe_valg") {
 	include_once(__DIR__ . '/diverseIncludes/stripeValg.php');
 	stripeValg();
+}
+if ($sektion == "einvoice_valg") { #SD-815
+	einvoiceProviderPage($sprog_id, (string)$csrf_token, (string)($db ?? ''), einvoice_provider_can_edit($rettigheder ?? null));
 }
 if ($sektion == "labels") labels($valg);
 if ($sektion == "pricelists") {

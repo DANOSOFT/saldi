@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-03 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-18 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -99,6 +99,8 @@
 // 20261102 CL/ASR Review: search shows Ekstra felter under Brugere & ansatte, as Roller and Audit-log ('searchGroup'), not under Organisation.
 // 20261103 CL/ASR The heading is Brugere & roller again with the rows Brugere, Roller, Audit-log and Ekstra felter (owner, 3 Nov 2026): the brugere entry is called Brugere (5549, no 'renamedFrom': Brugere & roller is the heading now, not an old name), and the users group and Ekstra felter's search group are Brugere & roller (5536); the employee section's entry (ansatte, the list of a user without usersRoles.php) is called Brugere too.
 //                 'Brugere & roller' is a keyword of Brugere, so the top-bar search, which does not search headings, still finds the page by its old name.
+// 20261118 CL/MMR SD-815 E-faktura (diverse.php?sektion=einvoice_valg, the regnskab's e-invoice provider) is an entry under Integrationer with the rule einvoiceProviderChoice.
+//                 It is listed only when the server offers the choice (einvoice_provider_choice_visible(), systemdata/diverseIncludes/einvoiceProvider.php), as the old Diverse menu did.
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -178,6 +180,8 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'stripe_valg',           'group' => 'integrations', 'url' => 'diverse.php?sektion=stripe_valg',          'category' => 'integrations', 'visibilityRule' => 'stripeOperator', 'labelDa' => 'Stripe abonnement', 'labelEn' => 'Stripe subscriptions',
 				'keywords' => array('stripe','subscription','subscriptions','abonnement','recurring payment','recurring billing','checkout','webhook','webhook secret','secret key','api key stripe',
 					'kortbetaling','card payment','betalingslink','payment link','tax rate','vat rate id','base url','bogholder email','bookkeeper email','stripe mode','test mode','live mode')),
+			array('key' => 'einvoice_valg',         'group' => 'integrations', 'url' => 'diverse.php?sektion=einvoice_valg',        'category' => 'integrations', 'visibilityRule' => 'einvoiceProviderChoice', 'labelDa' => 'E-faktura', 'labelEn' => 'E-invoicing', 'labelNo' => 'E-faktura',
+				'keywords' => array('e-faktura','e-invoice','e-invoicing','einvoice','peppol','semantic','easyubl','nemhandel','e-faktura udbyder','e-invoice provider','efaktura')),
 			array('key' => 'labels',                'group' => 'items', 'url' => 'labels.php',                              'category' => 'documents', 'textId' => 791,
 				'keywords' => array('label printer template','price tag design','price label','barcode label layout','product label template','sticker template','label size','label width and height','label columns and rows','label font size','label margins','show item number on label','show barcode on label','mærkater','label editor','vareetiket','klistremerker','skriftstørrelse',
 					'dymo','dymo 11354','brother printer','brother 22606','label print html code','product card label html','a4 label sheet','simple labels','label templates')),
@@ -756,6 +760,13 @@ if (!function_exists('getSettingsGroups')) {
 				case 'stripeOperator':
 					// Subscriptions (Stripe) only in the operator ledger (spec G9.6); the page itself still opens by its url.
 					if (!settings_stripe_operator()) {
+						return false;
+					}
+					break;
+				case 'einvoiceProviderChoice':
+					// SD-815: E-faktura only when the server offers the provider choice (Semantic set up and its launch flag on).
+					include_once(__DIR__ . '/diverseIncludes/einvoiceProvider.php');
+					if (!function_exists('einvoice_provider_choice_visible') || !einvoice_provider_choice_visible()) {
 						return false;
 					}
 					break;

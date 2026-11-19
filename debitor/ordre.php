@@ -184,10 +184,13 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
-// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261111 CL/MJ SST-1002 With Brug samlet pris, a line of a set item that is not a set (saet 0, e.g. a variant) gets a position number.
 //                Without one, the next Gem posted an empty position and stopped with a TypeError.
 // 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
+// 20261112 CL/MMR SD-815 A regnskab that sends e-invoices through Semantic (settings provider/einvoice) sees the e-invoice status of an invoice or credit note from the send log, with links to the details and the PDF, in place of Digital Status.
+//                 Its Send with Digitalt opens the e-invoice page directly, which asks itself before a resend, and the first send asks with provider-neutral wording instead of the NemHandel question.
+//                 Every other regnskab keeps today's texts and questions unchanged.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
 @session_start();
@@ -235,6 +238,7 @@ include("../includes/online.php");
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
+include_once(__DIR__ . '/../includes/einvoice/einvoiceStatusView.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -2830,6 +2834,9 @@ if ((strstr($b_submit, "Udskriv")) || (strstr($b_submit, "Send"))) {
 				}
 			}
 		}
+	} elseif ($udskriv_til == "Digitalt" && ($art == "DK" || ($art == "DO" && $status >= 1)) && einvoice_ui_semantic_enabled()) {
+		// SD-815: sent through Semantic; the page it opens asks before a resend (includes/einvoice/einvoiceStatusView.php)
+		print einvoice_send_open_script($id, ($art == "DK") ? 'creditnote' : 'invoice', !einvoice_ui_semantic_registered(), $sprog_id);
 	} elseif ($udskriv_til == "Digitalt" && $status >= 3 && $art == "DO") {
 		$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
 		if (db_num_rows($query) <= 0) {
@@ -4186,7 +4193,16 @@ function ordreside($id, $regnskab)
 		print "<td><b>" . findtekst('886|Lev. dato', $sprog_id) . "</b></td><td>$levdato</td></tr>\n";
 		// print "<td><b>&nbsp;".findtekst('886|Lev. dato', $sprog_id)."</b></td><td>$levdato</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>" . findtekst('1094|Fakturadato', $sprog_id) . "</b></td><td>$fakturadato</td>";
-		if ($digitalStatus != null || $digitalStatus != "") {
+		// SD-815: a Semantic regnskab shows the send log's status; asked only when the order was or is to be sent digitally
+		$einvoiceView = null;
+		if (((string)$digitalStatus !== '' || $udskriv_til == "Digitalt") && einvoice_ui_semantic_enabled()) {
+			$einvoiceRows = einvoice_status_for_orders(array($id));
+			$einvoiceView = einvoice_status_view($einvoiceRows[(int)$id][$art] ?? null, $sprog_id, 200);
+		}
+		if ($einvoiceView !== null) {
+			$einvoiceLabel = htmlspecialchars(einvoice_findtekst('einvoice.status.label|E-faktura', $sprog_id), ENT_QUOTES | ENT_SUBSTITUTE, $charset);
+			print "<td><b>&nbsp;$einvoiceLabel</b></td><td>" . einvoice_status_html($einvoiceView, $sprog_id, $charset) . "</td></tr>\n";
+		} elseif ($digitalStatus != null || $digitalStatus != "") {
 			print "<td><b>&nbsp;Digital Status</b></td><td>$digitalStatus</td></tr>\n";
 		} else {
 			print "</tr>\n";

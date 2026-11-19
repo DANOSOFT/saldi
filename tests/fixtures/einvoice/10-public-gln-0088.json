@@ -1,0 +1,144 @@
+{
+	"documentType": "invoice",
+	"id": "1010",
+	"issueDate": "2026-11-09",
+	"dueDate": "2026-11-23",
+	"typeCode": "380",
+	"note": null,
+	"currency": "DKK",
+	"taxCurrency": null,
+	"taxCurrencyTaxAmount": null,
+	"accountingCost": null,
+	"buyerReference": "1234",
+	"orderReference": "PO-2026-17",
+	"salesOrderId": "510",
+	"billingReferences": [],
+	"seller": {
+		"endpoint": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"identifiers": [],
+		"name": null,
+		"registrationName": "Eksempel Sælger ApS",
+		"legalId": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"vatId": "DK11111111",
+		"address": {
+			"street": "Eksempelvej 1",
+			"additionalStreet": null,
+			"city": "Eksempelby",
+			"postalCode": "1234",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": {
+			"name": null,
+			"phone": null,
+			"email": "faktura@example.invalid"
+		}
+	},
+	"buyer": {
+		"endpoint": {
+			"scheme": "0088",
+			"id": "5799999999994"
+		},
+		"identifiers": [
+			{
+				"scheme": "0088",
+				"id": "5799999999994"
+			}
+		],
+		"name": null,
+		"registrationName": "Eksempel Kommune",
+		"legalId": {
+			"scheme": "0184",
+			"id": "33333333"
+		},
+		"vatId": "DK33333333",
+		"address": {
+			"street": "Rådhusvej 1",
+			"additionalStreet": null,
+			"city": "Eksempelby",
+			"postalCode": "9999",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": {
+			"name": "Hanne Eksempel",
+			"phone": null,
+			"email": "hanne@example.invalid"
+		}
+	},
+	"delivery": {
+		"date": "2026-11-06",
+		"name": "Eksempel Kommune, Materielgården",
+		"address": {
+			"street": "Lagervej 5",
+			"additionalStreet": null,
+			"city": "Eksempelby",
+			"postalCode": "9999",
+			"countrySubentity": null,
+			"country": "DK"
+		}
+	},
+	"paymentMeans": [
+		{
+			"code": "42",
+			"paymentId": "1010",
+			"payeeAccount": {
+				"id": "0001234567",
+				"name": null,
+				"bic": "1234"
+			}
+		}
+	],
+	"paymentTerms": "Netto 14 dage",
+	"allowanceCharges": [],
+	"taxSubtotals": [
+		{
+			"taxableAmount": 300.0,
+			"taxAmount": 75.0,
+			"category": "S",
+			"percent": 25.0,
+			"exemptionReasonCode": null,
+			"exemptionReason": null
+		}
+	],
+	"taxTotal": 75.0,
+	"totals": {
+		"lineExtension": 300.0,
+		"taxExclusive": 300.0,
+		"taxInclusive": 375.0,
+		"allowanceTotal": null,
+		"chargeTotal": null,
+		"prepaid": null,
+		"roundingAmount": null,
+		"payable": 375.0
+	},
+	"lines": [
+		{
+			"id": "1",
+			"quantity": 2.0,
+			"unitCode": "H87",
+			"lineExtension": 300.0,
+			"note": null,
+			"accountingCost": null,
+			"orderLineReference": "1",
+			"allowanceCharges": [],
+			"netPrice": 150.0,
+			"baseQuantity": null,
+			"grossPrice": null,
+			"priceDiscount": null,
+			"itemName": "Eksempelvare",
+			"itemDescription": null,
+			"sellersItemId": "VARE-1",
+			"standardItemId": null,
+			"vatCategory": "S",
+			"vatPercent": 25.0
+		}
+	],
+	"attachments": []
+}

@@ -1,0 +1,143 @@
+{
+	"documentType": "creditnote",
+	"id": "1008",
+	"issueDate": "2026-11-09",
+	"dueDate": null,
+	"typeCode": "381",
+	"note": "Kreditering af returnerede varer",
+	"currency": "DKK",
+	"taxCurrency": null,
+	"taxCurrencyTaxAmount": null,
+	"accountingCost": null,
+	"buyerReference": "PO-4711",
+	"orderReference": null,
+	"salesOrderId": null,
+	"billingReferences": [
+		{
+			"id": "1007",
+			"issueDate": "2026-11-02"
+		}
+	],
+	"seller": {
+		"endpoint": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"identifiers": [],
+		"name": null,
+		"registrationName": "Eksempel Sælger ApS",
+		"legalId": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"vatId": "DK11111111",
+		"address": {
+			"street": "Eksempelvej 1",
+			"additionalStreet": null,
+			"city": "Eksempelby",
+			"postalCode": "1234",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": {
+			"name": null,
+			"phone": null,
+			"email": "faktura@example.invalid"
+		}
+	},
+	"buyer": {
+		"endpoint": {
+			"scheme": "0184",
+			"id": "22222222"
+		},
+		"identifiers": [],
+		"name": null,
+		"registrationName": "Eksempel Køber A/S",
+		"legalId": {
+			"scheme": "0184",
+			"id": "22222222"
+		},
+		"vatId": "DK22222222",
+		"address": {
+			"street": "Kundevej 2",
+			"additionalStreet": null,
+			"city": "Kundeby",
+			"postalCode": "5678",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": null
+	},
+	"delivery": {
+		"date": "2026-11-09",
+		"name": null,
+		"address": null
+	},
+	"paymentMeans": [],
+	"paymentTerms": null,
+	"allowanceCharges": [],
+	"taxSubtotals": [
+		{
+			"taxableAmount": 180.0,
+			"taxAmount": 45.0,
+			"category": "S",
+			"percent": 25.0,
+			"exemptionReasonCode": null,
+			"exemptionReason": null
+		}
+	],
+	"taxTotal": 45.0,
+	"totals": {
+		"lineExtension": 180.0,
+		"taxExclusive": 180.0,
+		"taxInclusive": 225.0,
+		"allowanceTotal": null,
+		"chargeTotal": null,
+		"prepaid": null,
+		"roundingAmount": null,
+		"payable": 225.0
+	},
+	"lines": [
+		{
+			"id": "1",
+			"quantity": 2.0,
+			"unitCode": "H87",
+			"lineExtension": 200.0,
+			"note": null,
+			"accountingCost": null,
+			"orderLineReference": null,
+			"allowanceCharges": [],
+			"netPrice": 100.0,
+			"baseQuantity": null,
+			"grossPrice": null,
+			"priceDiscount": null,
+			"itemName": "Returneret vare",
+			"itemDescription": null,
+			"sellersItemId": "VARE-3",
+			"standardItemId": null,
+			"vatCategory": "S",
+			"vatPercent": 25.0
+		},
+		{
+			"id": "2",
+			"quantity": -1.0,
+			"unitCode": "C62",
+			"lineExtension": -20.0,
+			"note": null,
+			"accountingCost": null,
+			"orderLineReference": null,
+			"allowanceCharges": [],
+			"netPrice": 20.0,
+			"baseQuantity": null,
+			"grossPrice": null,
+			"priceDiscount": null,
+			"itemName": "Rabat",
+			"itemDescription": null,
+			"sellersItemId": "RABAT",
+			"standardItemId": null,
+			"vatCategory": "S",
+			"vatPercent": 25.0
+		}
+	],
+	"attachments": []
+}

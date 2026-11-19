@@ -1,0 +1,128 @@
+{
+	"documentType": "invoice",
+	"id": "1004",
+	"issueDate": "2026-11-09",
+	"dueDate": "2026-11-23",
+	"typeCode": "380",
+	"note": null,
+	"currency": "DKK",
+	"taxCurrency": null,
+	"taxCurrencyTaxAmount": null,
+	"accountingCost": null,
+	"buyerReference": "PO-4711",
+	"orderReference": null,
+	"salesOrderId": null,
+	"billingReferences": [],
+	"seller": {
+		"endpoint": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"identifiers": [],
+		"name": null,
+		"registrationName": "Eksempel Sælger ApS",
+		"legalId": {
+			"scheme": "0184",
+			"id": "11111111"
+		},
+		"vatId": "DK11111111",
+		"address": {
+			"street": "Eksempelvej 1",
+			"additionalStreet": null,
+			"city": "Eksempelby",
+			"postalCode": "1234",
+			"countrySubentity": null,
+			"country": "DK"
+		},
+		"contact": {
+			"name": null,
+			"phone": null,
+			"email": "faktura@example.invalid"
+		}
+	},
+	"buyer": {
+		"endpoint": {
+			"scheme": "0007",
+			"id": "5599999991"
+		},
+		"identifiers": [],
+		"name": null,
+		"registrationName": "Exempel Köpare AB",
+		"legalId": {
+			"scheme": "0007",
+			"id": "5599999991"
+		},
+		"vatId": "SE559999999101",
+		"address": {
+			"street": "Exempelgatan 3",
+			"additionalStreet": null,
+			"city": "Exempelstad",
+			"postalCode": "111 22",
+			"countrySubentity": null,
+			"country": "SE"
+		},
+		"contact": null
+	},
+	"delivery": {
+		"date": "2026-11-09",
+		"name": null,
+		"address": null
+	},
+	"paymentMeans": [
+		{
+			"code": "58",
+			"paymentId": "1004",
+			"payeeAccount": {
+				"id": "DK5000400440116243",
+				"name": null,
+				"bic": "DABADKKK"
+			}
+		}
+	],
+	"paymentTerms": "Netto 14 dage",
+	"allowanceCharges": [],
+	"taxSubtotals": [
+		{
+			"taxableAmount": 1000.0,
+			"taxAmount": 0.0,
+			"category": "AE",
+			"percent": 0.0,
+			"exemptionReasonCode": "VATEX-EU-AE",
+			"exemptionReason": "Reverse charge"
+		}
+	],
+	"taxTotal": 0.0,
+	"totals": {
+		"lineExtension": 1000.0,
+		"taxExclusive": 1000.0,
+		"taxInclusive": 1000.0,
+		"allowanceTotal": null,
+		"chargeTotal": null,
+		"prepaid": null,
+		"roundingAmount": null,
+		"payable": 1000.0
+	},
+	"lines": [
+		{
+			"id": "1",
+			"quantity": 10.0,
+			"unitCode": "HUR",
+			"lineExtension": 1000.0,
+			"note": null,
+			"accountingCost": null,
+			"orderLineReference": null,
+			"allowanceCharges": [],
+			"netPrice": 100.0,
+			"baseQuantity": null,
+			"grossPrice": null,
+			"priceDiscount": null,
+			"itemName": "Konsulentbistand",
+			"itemDescription": null,
+			"sellersItemId": "TIME-1",
+			"standardItemId": null,
+			"vatCategory": "AE",
+			"vatPercent": 0.0
+		}
+	],
+	"attachments": []
+}

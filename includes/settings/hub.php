@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/hub.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/hub.php --- ver 5.1.1 --- 2026.11.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 //                 The 'direct' handling in the model, the menu, settings_hub_path() and the coverage check is gone again.
 // 20261103 CL/ASR QA: in the moved map an old setting whose own page the user cannot open links to its hub row's page when the row opens another way (Ansatte / Diverse valg for a user with Brugere but not Organisation: usersRoles.php).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261118 CL/MMR SD-815 The Integrationer row also maps einvoice_valg (E-faktura, diverse.php), so that page gets the Integrationer menu; the entry itself is offered only when the server offers the e-invoice provider choice (rule einvoiceProviderChoice in settingsRegistry.php).
 if (!function_exists('getSettingsHub')):
 
 /**
@@ -100,7 +101,7 @@ function getSettingsHub(): array
 			)),
 			'integrationer' => array('label' => '7710|Integrationer & fragt', 'icon' => 'bx-plug', 'description' => '7721|Webshop, API, fragt, betaling og afhentning',
 				'status' => array('integrations.connections'), 'rows' => array(
-				array('label' => '5537|Integrationer', 'maps' => array('integrations.connections', 'api_valg', 'barcodescan', 'stripe_valg'),
+				array('label' => '5537|Integrationer', 'maps' => array('integrations.connections', 'api_valg', 'barcodescan', 'stripe_valg', 'einvoice_valg'),
 					'hint' => $h('Webshop, API, fragt (GLS, DFM), e-faktura, MobilePay m.fl. og app', 'Webshop, API, shipping (GLS, DFM), e-invoicing, MobilePay and more, and the app', 'Nettbutikk, API, frakt (GLS, DFM), e-faktura, MobilePay m.fl. og app')),
 				array('label' => '6379|Afhentningsadresser', 'maps' => array('integrations.pickup'),
 					'hint' => $h('Hvor fragtfirmaet henter dine pakker', 'Where the carrier collects your parcels', 'Hvor fraktselskapet henter pakkene dine')),

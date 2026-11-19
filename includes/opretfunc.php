@@ -1,11 +1,10 @@
 <?php
-
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-10 ---
+// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +39,11 @@
 // 20261028 CL/LH MB-73: ordrelinjer.leveret defaults to 0, as includes/betweenUpdates.php sets it on
 //                existing accounts (moved here from admin/opret.php with opret_build_tenant()).
 // 20261110 CDX/NTR Release 5.1.1: create tekst_key and its lookup index for new tenants.
+// 20261109 CL/MMR SD-815 (draft) A new regnskab gets the table einvoice_sendlog (e-documents sent through Semantic), as includes/betweenUpdates.php creates it on existing accounts.
+// 20261112 CL/MMR SD-815 A new regnskab also gets einvoice_incoming and the receiver_* columns of einvoice_sendlog, as includes/betweenUpdates.php adds them.
+// 20261112 CL/MMR SD-815 On MySQL einvoice_sendlog and einvoice_incoming are utf8mb4, as in includes/betweenUpdates.php.
+// 20261118 CL/MMR SD-815 A new regnskab's pool_files gets the current schema (as poolUploadEnsureSchema()): norm_amount, manually_edited, source_sha256, the vendor_* columns, a unique filename and the norm_amount index.
+//                 Without them every write into the Bilagspulje (poolUploadRegisterFile(): norm_amount, ON CONFLICT (filename)) failed in a regnskab created at 5.1, where opdat_5.0.php never runs (Codex SD-815 round 6).
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -619,10 +623,15 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 
 	db_modify("CREATE TABLE stockmovement ($id_column, vareid integer, beholdning integer, PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
 
-	$qtxt = "CREATE TABLE pool_files ($id_column, filename varchar(255), subject text, account varchar(50), ";
-	$qtxt.= "amount varchar(50), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ";
-	$qtxt.= "invoice_number varchar(100), description text, currency varchar(10), content_sha256 char(64), PRIMARY KEY (id))";
+	// SD-815: the schema the pool writers expect (poolUploadEnsureSchema(), includes/opdat_func/ensurePoolFilesSchema.php).
+	$qtxt = "CREATE TABLE pool_files ($id_column, filename varchar(255) NOT NULL, subject text, account varchar(50), ";
+	$qtxt.= "amount varchar(50), norm_amount numeric(15,3), file_date varchar(50), updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ";
+	$qtxt.= "invoice_number varchar(100), description text, manually_edited boolean NOT NULL DEFAULT false, currency varchar(10), ";
+	$qtxt.= "content_sha256 char(64), source_sha256 char(64), vendor_name text, vendor_cvr varchar(20), vendor_iban varchar(40), ";
+	$qtxt.= "vendor_konto_id integer, vendor_score numeric(4,3), vendor_match varchar(10), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE UNIQUE INDEX pool_files_filename_uidx ON pool_files (filename)", __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX idx_pool_files_norm_amount ON pool_files (norm_amount)", __FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE kontakt_emails ($id_column, konto_id integer NOT NULL, email varchar(255) NOT NULL, email_type varchar(50) DEFAULT '', PRIMARY KEY (id))", __FILE__ . " linje " . __LINE__);
 
@@ -636,6 +645,28 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= " PRIMARY KEY (id), FOREIGN KEY (account_id) REFERENCES adresser(id) ON DELETE CASCADE)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	db_modify("CREATE INDEX idx_delivery_addresses_account_id ON delivery_addresses (account_id)", __FILE__ . " linje " . __LINE__);
+
+	// SD-815 (draft): one row per e-document sent through Semantic (includes/einvoice/semanticSendLog.php); the same
+	// structure as the einvoice_sendlog block in includes/betweenUpdates.php.
+	$qtxt = "CREATE TABLE einvoice_sendlog ($id_column, ordre_id INTEGER, art VARCHAR(2), fakturanr VARCHAR(20), provider VARCHAR(20), ";
+	$qtxt.= "network SMALLINT, sender_endpoint_id VARCHAR(64), semantic_doc_id VARCHAR(40), ubl_doc_id VARCHAR(64), status VARCHAR(30), ";
+	$qtxt.= "status_text TEXT, xml " . (($db_type == "mysql" || $db_type == "mysqli") ? "LONGTEXT" : "TEXT") . ", xml_sha256 CHAR(64), db_name VARCHAR(64), ";
+	$qtxt.= "created TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated TIMESTAMP NULL, created_by VARCHAR(80), ";
+	$qtxt.= "receiver_status VARCHAR(10) NULL, receiver_status_text TEXT NULL, receiver_status_date TIMESTAMP NULL, receiver_response_id VARCHAR(40) NULL, PRIMARY KEY (id))";
+	$qtxt.= ($db_type == "mysql" || $db_type == "mysqli") ? " DEFAULT CHARSET=utf8mb4" : "";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX einvoice_sendlog_order_idx ON einvoice_sendlog (ordre_id, art)", __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX einvoice_sendlog_semantic_idx ON einvoice_sendlog (semantic_doc_id)", __FILE__ . " linje " . __LINE__);
+	// SD-815: each incoming e-document handled once (includes/einvoice/semanticIncoming.php); the same structure as the
+	// einvoice_incoming block in includes/betweenUpdates.php.
+	$qtxt = "CREATE TABLE einvoice_incoming ($id_column, semantic_incoming_id VARCHAR(40) NOT NULL, ubl_doc_id VARCHAR(64), document_type VARCHAR(30), ";
+	$qtxt.= "document_number VARCHAR(100), sender_endpoint VARCHAR(100), sender_name VARCHAR(255), status VARCHAR(30), status_text TEXT, ";
+	$qtxt.= "pool_filename VARCHAR(255), sendlog_id INTEGER, claim_token VARCHAR(64), claimed_at TIMESTAMP NULL, attempts INTEGER NOT NULL DEFAULT 0, ";
+	$qtxt.= "received TIMESTAMP NULL, xml " . (($db_type == "mysql" || $db_type == "mysqli") ? "LONGTEXT" : "TEXT") . ", db_name VARCHAR(64), ";
+	$qtxt.= "created TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated TIMESTAMP NULL, PRIMARY KEY (id), ";
+	$qtxt.= "CONSTRAINT einvoice_incoming_semantic_id_key UNIQUE (semantic_incoming_id))";
+	$qtxt.= ($db_type == "mysql" || $db_type == "mysqli") ? " DEFAULT CHARSET=utf8mb4" : "";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	if ($db_type=="mysql" || $db_type=="mysqli") {
 		db_modify("ALTER TABLE adresser ADD modtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", __FILE__ . " linje " . __LINE__);

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>
+  <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
+  <cbc:ID>1015</cbc:ID>
+  <cbc:IssueDate>2026-11-09</cbc:IssueDate>
+  <cbc:DueDate>2026-11-23</cbc:DueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:Note>Tak for handlen!
+Betal til kontoen &lt;nedenfor&gt; &amp; husk fakturanr.</cbc:Note>
+  <cbc:DocumentCurrencyCode>DKK</cbc:DocumentCurrencyCode>
+  <cbc:BuyerReference>Ref: "A&amp;B" &lt;1&gt;</cbc:BuyerReference>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="0184">11111111</cbc:EndpointID>
+      <cac:PostalAddress>
+        <cbc:StreetName>Ærøvej 1, 1. th.</cbc:StreetName>
+        <cbc:CityName>Eksempelby</cbc:CityName>
+        <cbc:PostalZone>1234</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>DK</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>DK11111111</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Søren &amp; Åse's &lt;Test&gt; ApS</cbc:RegistrationName>
+        <cbc:CompanyID schemeID="0184">11111111</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:ElectronicMail>faktura@example.invalid</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="0184">22222222</cbc:EndpointID>
+      <cac:PostalAddress>
+        <cbc:StreetName>Kundevej 2</cbc:StreetName>
+        <cbc:CityName>Kundeby</cbc:CityName>
+        <cbc:PostalZone>5678</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>DK</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>DK22222222</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Køber A/S</cbc:RegistrationName>
+        <cbc:CompanyID schemeID="0184">22222222</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:Delivery>
+    <cbc:ActualDeliveryDate>2026-11-09</cbc:ActualDeliveryDate>
+  </cac:Delivery>
+  <cac:PaymentMeans>
+    <cbc:PaymentMeansCode>31</cbc:PaymentMeansCode>
+    <cbc:PaymentID>1015</cbc:PaymentID>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>DK5000400440116243</cbc:ID>
+      <cac:FinancialInstitutionBranch>
+        <cbc:ID>DABADKKK</cbc:ID>
+      </cac:FinancialInstitutionBranch>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+  <cac:PaymentTerms>
+    <cbc:Note>Netto 14 dage</cbc:Note>
+  </cac:PaymentTerms>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="DKK">75.00</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="DKK">300.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="DKK">75.00</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>25.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="DKK">300.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="DKK">300.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="DKK">375.00</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="DKK">375.00</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="H87">2</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="DKK">300.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Description>Kasse	à 10 stk., "Klasse I" ÆØÅ æøå</cbc:Description>
+      <cbc:Name>Æble &amp; pære &lt;økologisk&gt;</cbc:Name>
+      <cac:SellersItemIdentification>
+        <cbc:ID>VARE-1</cbc:ID>
+      </cac:SellersItemIdentification>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>25.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="DKK">150.00</cbc:PriceAmount>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>
