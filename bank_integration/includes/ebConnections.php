@@ -41,7 +41,7 @@
 // 20261118 CL/LH Renewal no longer closes the replaced consent at the bank: in Enable Banking's Nordea sandbox that also broke the new consent (every fetch ASPSP_ERROR). The old consent runs out by itself.
 // 20261118 CL/LH Disconnecting an account (Afbryd, or left out of a renewal) clears its old fetch error, which promised an automatic retry.
 // 20261119 CL/LH The feed lists each day in the bank's own order (day_position), then lines without a balance newest stored first, as before.
-// 20261119 CL/LH A secondary identity no longer joins two accounts whose account numbers differ: Nordea gives both accounts of one agreement the same "other" identifier, and a consent sharing only the second account took over the first account's row.
+// 20261119 CL/LH A secondary identity no longer joins two accounts whose account numbers differ: Nordea gives both accounts of one agreement the same "other" identifier, and a consent sharing only the second account took over the first account's row. Checked on the primary match too.
 
 require_once __DIR__ . '/ebSync.php';
 
@@ -175,7 +175,7 @@ function ebCompleteAuthorization(EnableBankingClient $c, array $stateRow, string
                         $matches = ebRows('SELECT DISTINCT a.* FROM bank_accounts a LEFT JOIN bank_account_aliases h ON h.account_id=a.id'
                             . ' WHERE a.identification_hash=' . ebSql($primary) . ' OR h.identification_hash=' . ebSql($primary));
                     }
-                    $account = count($matches) === 1 ? $matches[0] : null;
+                    $account = count($matches) === 1 && !ebIdentityConflicts($allHashes, (int)$matches[0]['id']) ? $matches[0] : null;
                     if ($matches === [] && $hashes !== []) {
                         $secondary = array_values(array_diff($hashes, [$primary]));
                         if ($secondary !== []) {
@@ -213,7 +213,8 @@ function ebCompleteAuthorization(EnableBankingClient $c, array $stateRow, string
                     } else {
                         // Non-identifying or already-owned primaries need an independent local identity.
                         $identity = $primary;
-                        if (!in_array($primary, $hashes, true) || ebRow('SELECT id FROM bank_accounts WHERE identification_hash=' . ebSql($primary))) {
+                        if (!in_array($primary, $hashes, true) || ebRow('SELECT id FROM bank_accounts WHERE identification_hash=' . ebSql($primary))
+                            || ebRow('SELECT id FROM bank_account_aliases WHERE identification_hash=' . ebSql($primary))) {
                             $identity = 'local:' . bin2hex(random_bytes(32));
                         }
                         $accountId = ebInsert('bank_accounts', $fields + ['identification_hash' => $identity,

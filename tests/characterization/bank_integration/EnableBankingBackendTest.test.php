@@ -1071,6 +1071,11 @@ final class EnableBankingBackendTest extends TestCase
         $lunchId = (int)ebListAccounts($second)[0]['id'];
         $this->assertNotSame($mainId, $lunchId);
         $this->assertSame($main['identification_hash'], ebRow('SELECT identification_hash FROM bank_accounts WHERE id=' . $mainId)['identification_hash']);
+        // Also when the shared identifier comes as the primary hash: a different IBAN makes it another account.
+        $third = $this->authorizeAccounts([['uid' => 'uid-third'] + $this->resource($this->ebHash($other, 'agreement-7'), [$this->ebHash($iban, 'DK36...1700')])]);
+        $thirdId = (int)ebListAccounts($third)[0]['id'];
+        $this->assertNotContains($thirdId, [$mainId, $lunchId]);
+        $this->assertStringStartsWith('local:', ebRow('SELECT identification_hash FROM bank_accounts WHERE id=' . $thirdId)['identification_hash']);
         // A new IBAN with no IBAN stored on the account still matches through the shared identifier, as before.
         $this->assertFalse(ebIdentityConflicts([$this->ebHash($iban, 'new'), $this->ebHash($other, 'x')], $this->accountId));
         $this->assertTrue(ebIdentityConflicts($lunch['identification_hashes'], $mainId));
