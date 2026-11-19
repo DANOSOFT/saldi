@@ -8,13 +8,18 @@
 // of their tests had been failing unseen. This turns that state into a red job.
 //
 // Usage: php tools/ci/check-skips.php <phpunit --log-junit file>
-
+//
 // Entries are Class::method for one test, or Class for a class skipped as a whole.
 $allowed = [
 	// The container runs as root, and root ignores directory permissions.
 	'FileReservationTest::testReturnsNullForUnwritableDirectory',
 	// Same reason: as root, chmod 0555 does not make the journal folder unwritable (SST-929).
 	'JournalDocumentsDeleteRegressionTest::testDocumentInAFolderThatCanNotBeWrittenKeepsItsRow',
+	// The CI container has PostgreSQL only; this MySQL/MariaDB test runs where SALDI_CHAR_MYSQL_SOCKET is set (SST-898).
+	'FormularFaxToMobileMysqlTest::testTheLoginStep',
+	'FormularFaxToMobileMysqlTest::testAnExistingDatabaseIsLeftIntact',
+	'FormularFaxToMobileMysqlTest::testAFailedSetupRemovesItsDatabase',
+	'FormularFaxToMobileMysqlTest::testANameOutsideTheTestFormatIsRefused',
 ];
 
 $file = $argv[1] ?? '';

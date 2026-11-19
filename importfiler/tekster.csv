@@ -47,7 +47,7 @@
 47	Land	Country	Land
 48	CVR-nr.	VAT no.	MVA-nr.
 49	Tlf.	Phone	Tlf.
-50	Mobil	Mobile	Mobil
+50	Mobilnr.	Mobile	Mobilnr.
 51	Web	Web	Internett
 52	E-mail	Email	E-post
 53	Erh	IsH	Er H
@@ -375,7 +375,7 @@
 375	Rabatgruppe	Discount group	Rabattgruppe
 376	CVR-nr.	VAT no.	MVA-nr.
 377	Telefon	Telephone	Telefon
-378	Mobil	Mobile	Mobil
+378	Mobilnr.	Mobile	Mobilnr.
 379	EAN-nr.	EAN no.	EAN-nr.
 380	Institutionsnr.	Institution no.	Institusjonsnr.
 381	Kreditmax	Max credit	Kreditmax
@@ -5143,7 +5143,7 @@
 5219	fjernes	is removed	fjernes
 5220	E-mailadressen på ordren er rettet til	The e-mail address on the order was changed to	E-postadressen på ordren er rettet til
 5221	Du har ikke rettigheder til at ændre ordrens e-mailadresse	You do not have permission to change the order's e-mail address	Du har ikke rettigheter til å endre ordrens e-postadresse
-5230	Mobilnummer	Mobile number	Mobilnummer
+5230	Mobilnr.	Mobile number	Mobilnr.
 5231	Udført af	Performed by	Utført av
 5232	Serienr.	Serial no.	Serienr.
 5234	Kursregulering bogført i DKK	Rate adjustment posted in DKK	Kursregulering bokført i DKK

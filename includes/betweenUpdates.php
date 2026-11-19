@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,9 +48,11 @@
 // 20261105 CL/ASR The one-time role changes and the till account copy are moved up before master's MB-73 block, so MB-73 and the signup block stay at the end.
 //                 OrderLineDeliveredBackfillTest runs the file from MB-73 to the end with stubbed database functions.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
+// 20261113 CL/MMR SST-898 Forms say "Mobilnr.: $egen_mobile" instead of "Fax: $egen_fax" (formularFaxToMobile()), and the stored old defaults of texts 378, 50 and 5230 are deleted so the new "Mobilnr." is used.
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261118 CL/MMR SST-898 (review 4) The form and text step skips an account without the formularer or tekster table instead of failing, and writes nothing when nothing is left to change (formularFaxToMobileTekster()).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -442,5 +444,16 @@ if (!$sawanehMysql) {
 require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
 migrateTillAccounts($db_type);
 
+// SST-898: SD-532 made the fax field the mobile field (adresser.mobile). The forms still printed "Fax: <mobile number>",
+// and accounts that had texts 378 (Stamdata, kreditor card, jobkort), 50 (form field list) or 5230 (debitor card) stored
+// kept an old default. The field is now "Mobilnr." in Danish and Norwegian (Morten 2026-11-13), so the old defaults
+// "Telefax"/"Fax"/"Faks", the interim "Mobile", the previous "Mobil" and "Mobilnummer" (5230, SD-525) are deleted and
+// findtekst() reads the new default from importfiler/tekster.csv. English keeps "Mobile" / "Mobile number"; only its
+// old "Fax" goes. Both steps only touch what is still old, so they write nothing at a login with nothing left to change;
+// a text a customer has edited (e.g. "Mobiltlf.") is kept. An account without the formularer or tekster table skips
+// that step, and a later login runs it once the table exists.
+require_once __DIR__ . '/opdat_func/formularFaxToMobile.php';
+formularFaxToMobile();
+formularFaxToMobileTekster();
 
 ?>

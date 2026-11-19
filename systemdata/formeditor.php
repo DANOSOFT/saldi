@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- ver 5.1.1 --- 2026-11-12 ---
+// --- systemdata/formeditor.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 //                 The editor keeps its own font; its canvas and side panel are 76 px shorter, so they end inside the window.
 // 20261103 CL/ASR QA round 2: the page needs Dokumenter & e-mail (settings.documents) instead of the general settings fallback, and Gem & aktivér shows a refusal as its message instead of Netværksfejl.
 // 20261112 CL/MMR SD-821: The own bank fields are named "Egen bank reg.nr." and "Egen bank kontonr." so they sit together in the field list.
+// 20261113 CL/MMR SST-898: The own mobile field is called "Egen mobilnr." (Morten 2026-11-13: «Bare "Mobilnr."»), and an English caption shows "Mobilnr." as "Mobile".
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -495,7 +496,7 @@ function fe_var_map() {
 			'eget_land'       => array('Eget land', 'Own country'),
 			'eget_cvrnr'      => array('Eget CVR-nr.', 'Own VAT no.'),
 			'egen_tlf'        => array('Eget tlf.', 'Own phone'),
-			'egen_mobile'     => array('Egen mobil', 'Own mobile'),
+			'egen_mobile'     => array('Egen mobilnr.', 'Own mobile'),
 			'egen_bank_navn'  => array('Eget banknavn', 'Own bank name'),
 			'egen_bank_reg'   => array('Egen bank reg.nr.', 'Own bank reg. no.'),
 			'egen_bank_konto' => array('Egen bank kontonr.', 'Own bank account no.'),
@@ -3118,7 +3119,7 @@ settings_layout_open(array('title' => $title, 'back' => $returside, 'legacy' => 
     ['Bankoverførsel','Bank transfer'], ['Bankkonto','Bank account'], ['Kontonummer','Account number'],
     ['Kontonr','Account no.'], ['Konto','Account'], ['Reg. nr','Reg. no.'], ['Reg.nr','Reg. no.'],
     ['CVR-nr','VAT no.'], ['CVR nr','VAT no'], ['Cvr.nr:','VAT no:'], ['CVR nr:','VAT no:'], ['Cvr.:','VAT:'],
-    ['Telefon:','Phone:'], ['Telefon','Phone'], ['Tlf:','Phone:'], ['Tlf','Phone'], ['Mobil','Mobile'],
+    ['Telefon:','Phone:'], ['Telefon','Phone'], ['Tlf:','Phone:'], ['Tlf','Phone'], ['Mobilnr.','Mobile'], ['Mobil','Mobile'],
     ['Fax:','Fax:'], ['E-mail','Email'], ['Hjemmeside','Website'], ['Adresse','Address'], ['Postnr','Postcode'],
     ['By','City'], ['Land','Country'], ['Danmark','Denmark'],
     ['Leveret','Delivered'], ['Leveres','To be delivered'], ['Levering','Delivery'], ['Restordre','Back order'],
