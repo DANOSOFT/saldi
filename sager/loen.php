@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loen.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- sager/loen.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -115,6 +115,10 @@
 // 20260810 CX/PHR - Corrected quoting in print icon onclick handlers.
 // 20261103 CL/MMR SD-799 The texts of the former employee warning are passed to jquery.loen.js in the user's language.
 // 20261103 CL/MMR SD-799 The date picker, the piecework list toggle, the list paging line and the date clear button follow the user's language.
+// 20261105 CL/MMR SST-943 The print icon is not shown on a wage slip whose save was stopped for a missing date.
+// 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
+// 20261113 CL/MMR SD-824 New route 'overtid': overtime hours and wage expenses per case and month.
+// 20261113 CL/LH SD-824 The overtime page title uses a descriptive text key.
 
 @session_start();
 $s_id = session_id();
@@ -179,9 +183,10 @@ if ($overtid == NULL) {
 	db_modify("update grupper set box8='" . $overtid_50pct . chr(9) . $overtid_100pct . "' where art = 'loen'", __FILE__ . " linje " . __LINE__);
 }
 
-$funktion = if_isset($_GET['funktion']);
-if (!$funktion)
-	$funktion = "loenliste";
+$funktion = $_GET['funktion'] ?? null;
+if (!in_array($funktion, ['loenliste', 'ret_loen', 'loenafregning', 'satser', 'overtid'], true)) {
+	$funktion = 'loenliste';
+}
 $sort = if_isset($_GET['sort']);
 $nysort = if_isset($_GET['nysort']);
 $vis = if_isset($_GET['vis']);
@@ -262,6 +267,10 @@ if ($funktion == 'ret_loen') {
 	include('loenIncludes/rates.php');
 	print "<li><a href='loen.php' title='".findtekst('2787|Lønliste', $sprog_id)."'>".findtekst('2784|Løn', $sprog_id)."</a></li>
 					<li>".findtekst('2782|Satser', $sprog_id)."</li>";
+} elseif ($funktion == 'overtid') {
+	include(__DIR__ . '/loenIncludes/overtid.php');
+	print "<li><a href='loen.php' title='".findtekst('2787|Lønliste', $sprog_id)."'>".findtekst('2784|Løn', $sprog_id)."</a></li>
+					<li>".findtekst('wage.overtime.title|Overtid og løn pr. sag', $sprog_id)."</li>";
 } else {
 	include('loenIncludes/visListe.php');
 	print "
@@ -270,10 +279,12 @@ if ($funktion == 'ret_loen') {
 				<li>Current page</li>-->
 				<li>".findtekst('2784|Løn', $sprog_id)."</li>";
 }
-if ($funktion == 'ret_loen')
+if ($funktion == 'ret_loen' && !loenDatoMangler($_POST)) { # 20261105 SST-943 no print of a stopped save: its amounts are the stored ones
 	print "<li style='float:right;'><a href='#' title='".findtekst('2788|Udskriv skema', $sprog_id)."' onclick=\"printDiv('printableArea'); return false;\" style='background-image: none;'><img src='../img/printIcon2.png' alt='".findtekst('2788|Udskriv skema', $sprog_id)."' class='printIcon' /></a></li>"; #20150623-2
-if ($funktion == 'loenafregning')
+}
+if ($funktion == 'loenafregning') {
 	print "<li style='float:right;'><a href='#' title='".findtekst('2788|Udskriv skema', $sprog_id)."' onclick=\"printDiv('printableArea'); return false;\" style='background-image: none;'><img src='../img/printIcon2.png' alt='".findtekst('2788|Udskriv skema', $sprog_id)."' class='printIcon' /></a></li>";
+}
 print "
 			</ul>
 			</div><!-- end of breadcrumbbar -->

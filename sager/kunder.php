@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/kunder.php --- ver 5.1.0 --- 2026-11-03---
+// --- sager/kunder.php --- ver 5.1.0 --- 2026-11-05---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20260731 Sawaneh Loads cvrapiopslag.js so CVR lookup also works on the customer card under sager
 // 20261103 CL/MMR SD-799 The project status, the "by" label, the search suggestion labels, the list counter and the refused CVR lookup message follow the user's language.
 //                 The contact's Delete button has its own name, so it also deletes when its label is not the Danish "Slet".
+// 20261105 CL/MMR SD-807 The CVR lookup's overwrite question and its two buttons follow the user's language.
 
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id = session_id();
@@ -129,7 +130,10 @@
 			'BLOCKED'        => $cvr_afvist,
 			'BANNED'         => $cvr_afvist,
 			'INVALID_UA'     => $cvr_afvist,
-			'soeger'         => findtekst('3378|Søger...', $sprog_id)
+			'soeger'         => findtekst('3378|Søger...', $sprog_id),
+			'overskriv'      => findtekst('8458|CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?', $sprog_id),
+			'behold'         => findtekst('8459|Nej, behold nuværende', $sprog_id),
+			'opdater'        => findtekst('8460|Ja, opdater', $sprog_id)
 		), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
 		print "<script type=\"text/javascript\">var cvrLookupProxy = 'cvrLookupProxy.php'; var cvrAutoFelter = ['cvrnr']; var cvrTekster = $cvr_tekster;</script>
 		<script type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>";

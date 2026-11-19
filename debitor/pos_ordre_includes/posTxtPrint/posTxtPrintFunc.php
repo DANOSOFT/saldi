@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/posTxtPrint/postTxtPrintFunc.php --- lap 4.1.1 --- 2025.09.26 ---
+// --- debitor/pos_ordre_includes/posTxtPrint/postTxtPrintFunc.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2025 saldi.dk aps
+// Copyright (c) 2019-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20190508 LN Move pos_txt_print function to this seperate file
@@ -28,6 +28,10 @@
 // 20250926 PHR Updated call to function getVatArray
 // 20261023 CL/LH MB-95 pos_txt_print() no longer writes ordrer.afd, so a reprint on another terminal does not move a booked sale's
 //                department. Same hunk as SD-758 on hml/shopify; on master the open sale gets its afd from vis_pos_linjer().
+// 20261116 CL/MMR SST-1019 pos_txt_print() sets $afd again, read-only, for the per-regnskab receipt templates.
+//                 MB-95 had removed it together with the write, so templates that pick the shop header and printer from $afd fell back to the default header.
+//                 The includes inside pos_txt_print() now use __DIR__.
+//                 The SQL in pos_txt_print() escapes the salesperson name and casts the ids, so a name with an apostrophe no longer breaks the print.
 
 include("pos_ordre_includes/posTxtPrint/posTxtFunctions.php"); #20190506
 function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$type = "standard") {
@@ -55,7 +59,7 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 
 	}
 
-   $ToCharset = "cp865";
+	$ToCharset = "cp865";
 	$FromCharset = $charset;
 #	$convert = new ConvertCharset();
 	if($type == "xRapport" || $type == "zRapport") {
@@ -64,17 +68,17 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 		$pfnavn="../temp/".$db."/".$bruger_id.".txt";
 	}
 	$fp=fopen("$pfnavn","w");
-    getAdressVar();
+	getAdressVar();
 
-    $belob = setAmountTxt($country);
-    useCorrectCharset();
+	$belob = setAmountTxt($country);
+	useCorrectCharset();
 
 	$x=0;
 	$betalt=0;
 	$fremmedvaluta=0;
 
-	include("pos_ordre_includes/posTxtPrint/posPayments.php"); #20190507
-	include("pos_ordre_includes/posTxtPrint/ordrerData.php"); #20190506
+	include(__DIR__ . "/posPayments.php"); #20190507
+	include(__DIR__ . "/ordrerData.php"); #20190506
 
 	if (getCountry() == "Norway" && $bruger_id != -1) {
 		$doNotPrint = setReceiptAsCopied($r, $type, $id);
@@ -83,16 +87,16 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	if (!isset($tid) || !$tid) $tid=date("H:i");
 	if (!isset($betaling) || !$betaling) $betaling="Betalt";
 	if ($ref) {
-		if ($r=db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$ref'",__FILE__ . " linje " . __LINE__))) {
+		if ($r=db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '" . db_escape_string($ref) . "'",__FILE__ . " linje " . __LINE__))) {
 			$ansat_id=$r['ansat_id']*1;
-			if ($r=db_fetch_array(db_select("select navn from ansatte where id = '$ansat_id'",__FILE__ . " linje " . __LINE__))) $ref=$r['navn'];
-	  }
+			if ($r=db_fetch_array(db_select("select navn from ansatte where id = '" . (int)$ansat_id . "'",__FILE__ . " linje " . __LINE__))) $ref=$r['navn'];
+		}
 	}
 	if (strpos($betaling,"|")) list($tmp,$betaling)=explode("|",$betaling);
 	if (strpos($betaling2,"|")) list($tmp,$betaling2)=explode("|",$betaling2);
 
 	if ($bordnr || $bordnr=='0') { #20150415
-		$r = db_fetch_array(db_select("select box2,box3,box4,box7,box10 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(db_select("select box2,box3,box4,box7,box10 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '" . (int)$regnaar . "'",__FILE__ . " linje " . __LINE__));
 		($r['box7'])?$bord=explode(chr(9),$r['box7']):$bord=array();
 		if (is_numeric($bordnr)) {
 #			$bordnavn=$bord[$bordnr];
@@ -101,18 +105,30 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	}
 	if (!$bordnr) $bordnr=$_COOKIE['saldi_bordnr'];
 	if (!$kasse) $kasse=find_kasse($kasse);
- 	$kasse=trim($kasse); #20150219
+	$kasse=trim($kasse); #20150219
 	# 20261021 CL/MJ SD-758 The terminal's department used to be written onto the order here, at
 	# print time, which is both too late and too often: an unprinted sale had none, and a reprint
 	# re-applied the printing terminal's department over whatever the sale was created with.
-	# opret_posordre() now sets it once, when the sale is created (saleHeaderFunctions.php).
-	$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+	# 20261116 CL/MMR SST-1019 On master the open sale gets its afd from vis_pos_linjer() on every render
+	# (showPosLinesFunc.php); saleHeaderFunctions.php exists only on hml/shopify.
+	# Per-regnskab receipt templates (debitor/pos_print/pos_print_<db_id>.php, kept only on the server and
+	# included by setTextVar.php inside this function) pick the shop header and printer from $afd, so it is
+	# set here again, read-only: nothing writes ordrer.afd at print time. $kasse is the sale's own register by
+	# now (ordrerData.php takes it from felt_5), so a copy printed on another terminal keeps the header of the
+	# shop that made the sale. Do not remove $afd without checking the server templates.
+	$afd = '';
+	$qtxt = "select box3 from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '" . (int)$regnaar . "'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$departments = explode(chr(9), (string)$r['box3']);
+		$afd = trim((string)ifset($departments, (int)$kasse - 1, ''));
+	}
+	$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '" . (int)$regnaar . "'",__FILE__ . " linje " . __LINE__));
 	$printer_ip=explode(chr(9),$r['box3']);
 	$tmp=$kasse-1;
 	$printserver=$printer_ip[$tmp];
 
 	if (!$printserver)$printserver='localhost';
-	include("pos_ordre_includes/posTxtPrint/getOrdrelinjer.php"); #20190506
+	include(__DIR__ . "/getOrdrelinjer.php"); #20190506
 
 	if (isset($_POST['proforma']) && $_POST['proforma'] == 'Proforma') {
 		proformaCount($x, $dkkpris, $kasse);
@@ -120,7 +136,7 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	$linjeantal = $linecount = $x;
 	if ($rvnr) {
 		$x++;
-		$qtxt = "select * from ordrelinjer where ordre_id = '$id' and varenr = 'R'";
+		$qtxt = "select * from ordrelinjer where ordre_id = '" . (int)$id . "' and varenr = 'R'";
 		if($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)));
 		$antal[$x]="   ";
 		list($pris,$samlet_pris)=explode("|",$r['lev_varenr'],2);
@@ -130,14 +146,14 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 		while(strlen($beskrivelse[$x])<26) $beskrivelse[$x]=$beskrivelse[$x]." ";
 		$linjeantal=$x;
 	}
-	include_once("pos_ordre_includes/boxCountMethods/findBoxSale.php");
+	include_once(__DIR__ . "/../boxCountMethods/findBoxSale.php");
 // fucntions is located in: debitor/pos_ordre_includes/helperMethods/helperFuncII.php
 	$temp = findBoxSale($kasse, 0,'DKK');
 	$omsatning=$temp[1] + $temp[7];
 	$reportArray = setupReport($type, $kasse,$reportNumber); #Make report if that was the case
-  $uniqueShopId = getUniqueBoxId($kasse);
+	$uniqueShopId = getUniqueBoxId($kasse);
 	$vatRate = getVatArray($id);
-	include("pos_ordre_includes/posTxtPrint/setTextVar.php"); #20190507
+	include(__DIR__ . "/setTextVar.php"); #20190507
 }
 
 

@@ -152,7 +152,7 @@ print "<title>".findtekst('2783|Stillads', $sprog_id)."</title>
             </div><!-- end of maincontent -->
 
         </div><!-- end of wrapper -->  
-        <div id=\"footer\"><p>Pluder | Pluder</p></div>
+        <!-- <div id=\"footer\"><p>Pluder | Pluder</p></div> -->
     </body>
 </html>";
 ?>

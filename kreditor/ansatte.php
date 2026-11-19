@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- kreditor/ansatte.php --------ver 5.0.0--- 2026.10.03 -------
+// -------- kreditor/ansatte.php --------ver 5.1.0--- 2026.11.01 -------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 //                so a returside with its own query string (e.g. kassekladde.php?tjek=..&kladde_id=..) survives the round trip.
 // 20261003 CL/SZ SD-698: returside is sanitized like kreditorkort.php (nav_sanitize_returside), so an array no longer
 //                breaks urlencode() and a quote can't escape the hidden returside field.
+// 20261101 CL/SZ MB-129 A contact with an apostrophe in a field can be saved: the fields use db_escape_string instead of addslashes, which Postgres rejects.
 
 @session_start();
 $s_id = session_id();
@@ -58,17 +59,17 @@ if ($_POST) {
 	$submit   = trim($_POST['submit']);
 	$delete   = if_isset($_POST['delete'], NULL);
 	$konto_id = $_POST['konto_id'];
-	$navn     = addslashes(trim($_POST['navn']));
-	$addr1    = addslashes(trim($_POST['addr1']));
-	$addr2    = addslashes(trim($_POST['addr2']));
-	$postnr   = addslashes(trim($_POST['postnr']));
-	$bynavn   = addslashes(trim($_POST['bynavn']));
-	$tlf      = addslashes(trim($_POST['tlf']));
-	$mobile   = addslashes(trim($_POST['mobile']));
-	$mobil    = addslashes(trim($_POST['mobil']));
-	$email    = addslashes(trim($_POST['email']));
-	$cprnr    = addslashes(trim($_POST['cprnr']));
-	$notes    = addslashes(trim($_POST['notes']));
+	$navn     = db_escape_string(trim($_POST['navn']));
+	$addr1    = db_escape_string(trim($_POST['addr1']));
+	$addr2    = db_escape_string(trim($_POST['addr2']));
+	$postnr   = db_escape_string(trim($_POST['postnr']));
+	$bynavn   = db_escape_string(trim($_POST['bynavn']));
+	$tlf      = db_escape_string(trim($_POST['tlf']));
+	$mobile   = db_escape_string(trim($_POST['mobile']));
+	$mobil    = db_escape_string(trim($_POST['mobil']));
+	$email    = db_escape_string(trim($_POST['email']));
+	$cprnr    = db_escape_string(trim($_POST['cprnr']));
+	$notes    = db_escape_string(trim($_POST['notes']));
 	$ordre_id = $_POST['ordre_id'];
 	$returside = nav_sanitize_returside(ifset($_POST, 'returside', ''));
 	$retursideParam = urlencode($returside);

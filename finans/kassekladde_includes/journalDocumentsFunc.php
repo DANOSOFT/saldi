@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/journalDocumentsFunc.php --- ver 5.0.0 --- 2026.10.12 ---
+// --- finans/kassekladde_includes/journalDocumentsFunc.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,17 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/SZ SD-730 Documents for the journal itself (e.g. a bank statement), not for a line: rows in documents with
 //                 source 'kladdeliste' and source_id = kladde_id, files in <docFolder>/<db>/finance/<kladde_id>/journal.
 //                 (CodeRabbit) journalDocumentsType() checks the content; the clip works by keyboard; a document whose file can't be
 //                 removed keeps its row and stops the journal's deletion.
+// 20261103 CL/MMR SST-929 journalDocumentsDelete() only removes a folder when it is empty, so a line's folder left behind by Slet or Flyt til pulje no longer stops the journal's deletion.
+//                 A journal document whose folder can't be written keeps its row and stops the deletion without a warning.
+//                 No @ any more, because the delete in kladdeliste.php turns every warning into an error.
+// 20261104 CL/MMR SST-929 unlink(), scandir() and rmdir() run through journalDocumentsQuietly(), so a warning from them is a failed step (row kept, folder left) and not an ErrorException from the kladdeliste.php handler.
+//                 The warning is still written to the PHP error log, and other error types are passed on (CodeRabbit on PR #1004).
 
 /**
  * The document folder as seen from finans/ (owncloud, bilag or documents, as insertDoc.php picks it).
@@ -114,6 +119,8 @@ function journalDocumentsClip($kladde_id, $sprog_id)
 /**
  * Remove a journal's documents (files, folder and rows). For deleting an empty journal in kladdeliste.php.
  * A row is only removed when its file is gone, so a file that can't be deleted keeps its row.
+ * Folders are only removed when they are empty. A line's folder (finance/<kladde_id>/<line id>) stays behind when the
+ * line's document is deleted or moved to the pool, and it must not stop the journal's deletion.
  *
  * @return bool true when every document was removed; false means the journal must not be deleted.
  */
@@ -123,16 +130,61 @@ function journalDocumentsDelete($db, $kladde_id)
 	$all = true;
 	foreach (journalDocumentsList($kladde_id) as $doc) {
 		$file = $folder . '/' . basename($doc['filename']);
-		if (is_file($file) && !@unlink($file)) {
+		// A file in a folder that can't be written can't be deleted: checked first, so no warning is raised
+		if (is_file($file) && (!is_writable($folder) || !journalDocumentsQuietly(static fn () => unlink($file)))) {
 			$all = false;
 			continue;
 		}
 		db_modify("delete from documents where id = '" . (int)$doc['id'] . "'", __FILE__ . " linje " . __LINE__);
 	}
 	if ($all) {
-		if (is_dir($folder)) @rmdir($folder);
-		// finance/<kladde_id> too, when it's empty (an empty journal has no line folders)
-		if (is_dir(dirname($folder))) @rmdir(dirname($folder));
+		journalDocumentsRemoveEmptyDir($folder);
+		// finance/<kladde_id> too, when nothing else is left in it
+		journalDocumentsRemoveEmptyDir(dirname($folder));
 	}
 	return $all;
+}
+
+/**
+ * Remove $dir when it is an empty folder that may be removed. Anything else is left alone, without a warning.
+ *
+ * @return bool true when the folder was removed.
+ */
+function journalDocumentsRemoveEmptyDir($dir)
+{
+	if (!is_dir($dir) || !is_readable($dir) || !is_writable(dirname($dir))) return false;
+	return journalDocumentsQuietly(static function () use ($dir) {
+		$entries = scandir($dir);
+		if ($entries === false || count($entries) > 2) return false;
+		return rmdir($dir);
+	});
+}
+
+/**
+ * Run a file operation and give its result, with a warning counting as a failure (false) instead of being shown.
+ * The delete in finans/kladdeliste.php turns every warning into an ErrorException, also behind @, so a warning
+ * that slips past the checks (e.g. a file added to the folder between scandir() and rmdir()) would stop the deletion.
+ * Only E_WARNING is caught, and it is written to the PHP error log; any other error type goes to the outer handler.
+ *
+ * @return mixed what $fn returns, or false when it raised a warning.
+ */
+function journalDocumentsQuietly(callable $fn)
+{
+	$warned = false;
+	$outer = null;
+	// A type mask would send the other types to PHP's own handler, not to the outer one, so they are passed on here
+	$outer = set_error_handler(static function ($errno, $errstr, $errfile = '', $errline = 0) use (&$warned, &$outer) {
+		if ($errno !== E_WARNING) {
+			return $outer ? $outer($errno, $errstr, $errfile, $errline) : false;
+		}
+		$warned = true;
+		error_log("journalDocuments: $errstr in $errfile:$errline");
+		return true;
+	});
+	try {
+		$result = $fn();
+	} finally {
+		restore_error_handler();
+	}
+	return $warned ? false : $result;
 }
