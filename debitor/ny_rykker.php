@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ny_rykker.php --- lap 4.1.1 --- 2025.07.31 ---
+// --- debitor/ny_rykker.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2025 Saldi.dk ApS
+// Copyright (c) 2003 - 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20121105 Fejl ved renteberegning af posteringer uden forfaldadato. Søg 20121105 
 // 20140628 Valuta og valutakurs indsættes nu ved oprettelse af ny rykker. Søg 20140628 
@@ -36,6 +36,7 @@
 //                  dagen efter forfald. Fristen regnes nu som dags dato minus ffdage1, som ved ffdage2/3.
 // 20260828 Sawaneh Review: the three cutoffs use calendar-day arithmetic (dunning_cutoff_date) instead of
 //                  date('U') - days*86400, which shifted eligibility by a day around the DST switches.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -43,13 +44,14 @@
 // Rykkergebyr tilføjes som en ordinær ordrelinje.med varenummer for rykkergebyr, og vil derfor blive behandlet som den eneste reelle ordrelinje
 // ved bogføring.
 // Ved generering af rykker "2" medtages evt gebyr fra rykker 1 på samme måden som v. ovenstående. 
-		
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 
 $topniveau=NULL;
 
 include("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include_once("../includes/stdFunc/dunningCutoff.php");

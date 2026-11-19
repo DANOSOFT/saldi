@@ -1,0 +1,94 @@
+/* ---- css/saldi-theme.css --- lap 5.0.0 --- 2026.11.12 ---
+   20261009 Sawaneh Premium light neutrals and 12 px corners (front-page addendum 3 §1/§8), --due-* for the unpaid card (§5.9.3).
+   20261008 Sawaneh The Saldi theme tokens from Adam's prototype_dashboard_tema.html v5 (light, dark, system), and the
+                    shell's colours mapped onto them so the top bar, menus and page follow the user's theme. The user's
+                    own colour still rules the sidebar, buttons and avatar. Pages opt in by using the tokens.
+   20261108 CL/ASR --page in light is Saldi's classic page colour #eeeef0 (the body bgcolor of every classic page, includes/online.php):
+                   the dashboard and the settings pages stand on it, so their white panels, tables and fields stand out from the
+                   ground (owner, 8 Nov 2026; white on white had too little contrast). New pages keep it.
+   20261109 CL/ASR --edge (the outer frame of a module), --edge-head (the line under its title band) and --lift (a soft shadow under it):
+                   the modules on the dashboard and the settings pages get a clear edge on the grey ground (owner, 9 Nov 2026, variant B).
+                   --border stays for the lines inside a module.
+   20261112 CL/ASR --r-mod is the corner of a module on the ground, 6 px (owner, 12 Nov 2026). Fields and buttons keep their 4 px. */
+:root {
+	color-scheme: light;
+	--saldi-blue: #4FA0EE; --saldi-purple-mid: #7A3AD8; --saldi-purple: #8B33D4; --saldi-purple-deep: #6A2AB8; --saldi-amber: #D9822B;
+	--grad-primary: linear-gradient(135deg, var(--saldi-purple-deep), var(--saldi-purple-mid));
+	--text-on-brand: rgba(255,255,255,.88); --text-on-brand-muted: rgba(255,255,255,.78); --border-on-brand: rgba(255,255,255,.32);
+	--border-rule-on-brand: rgba(255,255,255,.28); --tint-ghost-hover: rgba(255,255,255,.08);
+	--page: #eeeef0; --surface: #ffffff; --surface-2: #f7f9fc; --border: #e4e8ef; --grid: #eef1f6; --band: rgba(79,160,238,.06);
+	--text: #0b1a3a; --text-2: #5b6b85; --text-3: #8a97ad; --link: #1b68bd;
+	--good: #15803d; --bad: #c2410c; --good-bg: #e8f6ee; --bad-bg: #fdecec;
+	--s1: var(--saldi-blue); --s2: var(--saldi-purple-mid); --s3: var(--saldi-amber); --s4: #12a5b8; --s5: #d4a017; --s6: #c22c78; --s7: #22a04e;
+	--context: #c3ccdb; --accent: var(--saldi-purple);
+	--due-ok: #4FA0EE; --due-warn: #e0a100; --due-late: #d03b3b;
+	--q0: #f1f5fb; --q1: #dbe8fb; --q2: #b3cff6; --q3: #86b0ee; --q4: #5a91e3; --q5: #3372d3; --q6: #1e56b0; --q7: #123f88;
+	--glow-a: rgba(79,160,238,.16); --glow-b: rgba(139,51,212,.10);
+	--shadow: 0 1px 2px rgba(11,26,58,.05), 0 4px 14px rgba(11,26,58,.06);
+	--shadow-up: 0 2px 4px rgba(11,26,58,.06), 0 12px 28px rgba(11,26,58,.11);
+	--edge: #cdd4df; --edge-head: #dce2ea; --lift: 0 1px 2px rgba(11,26,58,.08), 0 4px 12px rgba(11,26,58,.06);
+	--r-mod: 6px;
+	--tip-bg: #0b1a3a; --tip-text: #ffffff; --tip-muted: rgba(255,255,255,.7);
+	--r: 12px; --e: cubic-bezier(.2,.8,.2,1); --e-io: cubic-bezier(.4,0,.2,1);
+}
+[data-theme="dark"] {
+	color-scheme: dark;
+	--page: #0c1529; --surface: #16223d; --surface-2: #1c2a49; --border: #26365a; --grid: #22304f; --band: rgba(79,160,238,.10);
+	--text: #e8eefc; --text-2: #9aa8c2; --text-3: #6f7f9d; --link: #4FA0EE;
+	--good: #4ade80; --bad: #f87171; --good-bg: rgba(74,222,128,.12); --bad-bg: rgba(248,113,113,.12);
+	--s1: #4596ea; --s2: var(--saldi-purple); --s3: #d47c24; --s4: #1aa3b8; --s5: #b58e00; --s6: #cc3f8f; --s7: #33a85b;
+	--context: #4b5b7a; --accent: #a875ec; --due-ok: #4596ea; --due-warn: #b58e00; --due-late: #e66767;
+	--q0: #1a2748; --q1: #1f3358; --q2: #294a80; --q3: #3563a8; --q4: #4a7fd0; --q5: #6d9df0; --q6: #96bcf8; --q7: #c0d8fc;
+	--glow-a: rgba(79,160,238,.12); --glow-b: rgba(139,51,212,.14);
+	--shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.28);
+	--shadow-up: 0 2px 4px rgba(0,0,0,.35), 0 16px 34px rgba(0,0,0,.42);
+	--edge: #34466c; --edge-head: #2c3d61; --lift: 0 1px 2px rgba(0,0,0,.32), 0 4px 12px rgba(0,0,0,.24);
+	--tip-bg: #e8eefc; --tip-text: #0b1a3a; --tip-muted: rgba(11,26,58,.65);
+}
+@media (prefers-color-scheme: dark) {
+	[data-theme="system"] {
+		color-scheme: dark;
+		--page: #0c1529; --surface: #16223d; --surface-2: #1c2a49; --border: #26365a; --grid: #22304f; --band: rgba(79,160,238,.10);
+		--text: #e8eefc; --text-2: #9aa8c2; --text-3: #6f7f9d; --link: #4FA0EE;
+		--good: #4ade80; --bad: #f87171; --good-bg: rgba(74,222,128,.12); --bad-bg: rgba(248,113,113,.12);
+		--s1: #4596ea; --s2: var(--saldi-purple); --s3: #d47c24; --s4: #1aa3b8; --s5: #b58e00; --s6: #cc3f8f; --s7: #33a85b;
+		--context: #4b5b7a; --accent: #a875ec; --due-ok: #4596ea; --due-warn: #b58e00; --due-late: #e66767;
+		--q0: #1a2748; --q1: #1f3358; --q2: #294a80; --q3: #3563a8; --q4: #4a7fd0; --q5: #6d9df0; --q6: #96bcf8; --q7: #c0d8fc;
+		--glow-a: rgba(79,160,238,.12); --glow-b: rgba(139,51,212,.14);
+		--shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.28);
+		--shadow-up: 0 2px 4px rgba(0,0,0,.35), 0 16px 34px rgba(0,0,0,.42);
+		--edge: #34466c; --edge-head: #2c3d61; --lift: 0 1px 2px rgba(0,0,0,.32), 0 4px 12px rgba(0,0,0,.24);
+		--tip-bg: #e8eefc; --tip-text: #0b1a3a; --tip-muted: rgba(11,26,58,.65);
+	}
+}
+
+/* The shell (index/main.php): its own variables follow the tokens in dark. */
+[data-theme="dark"], [data-theme="system"] {
+	--topbar-bg: var(--surface); --topbar-line: var(--border); --topbar-txt: var(--text); --topbar-txt-2: var(--text-2); --topbar-mut: var(--text-3);
+	--topbar-hover: var(--surface-2); --topbar-accent: var(--link); --topbar-accent-soft: rgba(79,160,238,.16); --topbar-shadow: var(--shadow-up);
+}
+[data-theme="light"], [data-theme="system"] {
+	--topbar-bg: #ffffff; --topbar-line: #e2e6ee; --topbar-txt: #1c2431; --topbar-txt-2: #49546b; --topbar-mut: #68738a; --topbar-hover: #edf0f6;
+	--topbar-accent: #114691; --topbar-accent-soft: #e8f0fe; --topbar-shadow: 0 10px 34px rgba(16, 30, 60, 0.16);
+}
+@media (prefers-color-scheme: dark) {
+	[data-theme="system"] {
+		--topbar-bg: var(--surface); --topbar-line: var(--border); --topbar-txt: var(--text); --topbar-txt-2: var(--text-2); --topbar-mut: var(--text-3);
+		--topbar-hover: var(--surface-2); --topbar-accent: var(--link); --topbar-accent-soft: rgba(79,160,238,.16); --topbar-shadow: var(--shadow-up);
+	}
+}
+/* Notification tints and search highlight in the dark theme. */
+[data-theme="dark"] .topbar-notif-warning { background: rgba(232,160,19,.18); }
+[data-theme="dark"] .topbar-notif-system { background: rgba(224,68,44,.18); }
+[data-theme="dark"] .topbar-notif-news { background: rgba(29,158,87,.18); }
+[data-theme="dark"] .topbar-search-it mark { background: rgba(79,160,238,.35); }
+@media (prefers-color-scheme: dark) {
+	[data-theme="system"] .topbar-notif-warning { background: rgba(232,160,19,.18); }
+	[data-theme="system"] .topbar-notif-system { background: rgba(224,68,44,.18); }
+	[data-theme="system"] .topbar-notif-news { background: rgba(29,158,87,.18); }
+	[data-theme="system"] .topbar-search-it mark { background: rgba(79,160,238,.35); }
+}
+html.saldi-shell[data-theme="dark"] body, html.saldi-shell[data-theme="dark"] .home-section { background: var(--page); color: var(--text); }
+@media (prefers-color-scheme: dark) {
+	html.saldi-shell[data-theme="system"] body, html.saldi-shell[data-theme="system"] .home-section { background: var(--page); color: var(--text); }
+}
