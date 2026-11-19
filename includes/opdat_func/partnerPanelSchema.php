@@ -30,8 +30,8 @@
 // 20261109 CL/ASR PostgreSQL only (review #960): on a MySQL/MariaDB master partner_panel_schema() returns before any SQL, like the operator panel's step.
 //                 partner_panel_ready() is the check the accountant panel's entry points use: the operator panel is ready and this schema flag is at the current version.
 //                 The information_schema lookups are limited to current_schema().
-// 20261119 CL/ASR New partner_panel_supported(): the operator panel now runs on MySQL/MariaDB too (#785) and dropped operator_panel_supported(),
-//                 so the accountant panel keeps its own PostgreSQL-only gate here; partner_panel_ready(), partner_panel_schema() and admin/bogholder_godkend.php ask it.
+// 20261119 CL/ASR New partner_panel_supported(): the accountant panel keeps its own PostgreSQL-only gate, as the operator panel now also runs on MySQL/MariaDB (#785) and operator_panel_supported() is gone.
+//                 partner_panel_ready(), partner_panel_schema() and admin/bogholder_godkend.php ask it.
 
 include_once(__DIR__ . '/operatorPanelSchema.php'); # operator_panel_ready()
 if (!function_exists('partner_panel_schema')) {
