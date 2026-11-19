@@ -196,6 +196,33 @@ final class StoreOrdersSyncTest extends TestCase
         $this->assertCount(1, $r['receipts']['hml'], 'and gets no confirmation');
     }
 
+    public function testTheShopOrderCarriesLeveringstypeFromTheChoiceTypeAndATakenAlongSaleIsDeliveredWithoutDeliveryFields(): void
+    {
+        $debtor = $this->debtor('SD804L', 'l@example.dk');
+        $this->park($debtor);
+        $choice = fn(string $navn, string $type, string $value): int => (int)$this->sql('INSERT INTO pos_leveringsvalg (navn, type, shopify_vaerdi) VALUES ($1, $2, $3) RETURNING id',
+            [$navn, $type, $value])[0]['id'];
+        // the names say the opposite of the types: only the type decides Leveringstype
+        $pickup = $this->sale($debtor, '2026-11-12', '10:30', $choice('Levering fra Helsinge', 'afhentning', 'Hjemlevering'));
+        $delivery = $this->sale($debtor, '2026-11-12', '10:40', $choice('Afhentning hos fragtmand', 'levering', 'EasyRoutes'));
+        $this->sql("UPDATE ordrer SET oensket_levdato = '2026-11-20' WHERE id = $1", [$delivery]);
+        $taken = $this->sale($debtor, '2026-11-12', '10:50', $choice('Kunden tager varen med', 'taget_med', 'Levering'));
+
+        $r = $this->steps(['product', 'hml', 9804, 'SD804-1'], ['job', 'hml', $pickup], ['job', 'hml', $delivery], ['job', 'hml', $taken]);
+
+        $this->assertSame(array_fill(0, 3, ['outcome' => 'done']), array_slice($r['results'], 1));
+        $orders = [];
+        foreach ($r['orders']['hml'] as $o) {
+            $orders[(int)substr(end($o['tags']), strlen('saldi-po-' . self::$db . '-'))] = $o;
+        }
+        $this->assertSame([[['key' => 'Leveringsmaade', 'value' => 'Hjemlevering'], ['key' => 'Leveringstype', 'value' => 'afhentning']], false, false, null],
+            [$orders[$pickup]['attributes'], $orders[$pickup]['fulfilled'], $orders[$pickup]['shipping'], $orders[$pickup]['note']], 'afhentning: no address, not yet handed over');
+        $this->assertSame([[['key' => 'Leveringsmaade', 'value' => 'EasyRoutes'], ['key' => 'Leveringstype', 'value' => 'levering'], ['key' => 'Delivery Date', 'value' => '2026-11-20']], false, true, null],
+            [$orders[$delivery]['attributes'], $orders[$delivery]['fulfilled'], $orders[$delivery]['shipping'], $orders[$delivery]['note']], 'levering: the address and the date');
+        $this->assertSame([[], true, false, null], [$orders[$taken]['attributes'], $orders[$taken]['fulfilled'], $orders[$taken]['shipping'], $orders[$taken]['note']],
+            'taken along: created delivered, with no delivery fields');
+    }
+
     public function testARefusalIsListedAndTheNextRunBuildsTheOrderAgain(): void
     {
         $debtor = $this->debtor('SD804F', 'f@example.dk');

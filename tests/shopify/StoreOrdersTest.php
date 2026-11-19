@@ -78,6 +78,14 @@ final class StoreOrdersTest extends TestCase
 			'levering without a date' => [$choice('levering', 'Levering', 'EasyRoutes'),
 				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'EasyRoutes'], ['key' => 'Leveringstype', 'value' => 'levering']], 'note' => 'Leveringsdato aftales med kunden'],
 				['fulfillmentStatus']],
+			'taget med by its own choice' => [$choice('taget_med', 'Kunden tager varen med', 'Levering'), ['fulfillmentStatus' => 'FULFILLED'], ['customAttributes', 'shippingAddress', 'note']],
+			// Leveringstype follows the choice's type, never its name or Shopify value, so a renamed choice keeps DTAILS' rule working
+			'afhentning under a name that says delivery' => [$choice('afhentning', 'Levering fra Helsinge', 'Hjemlevering'),
+				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'Hjemlevering'], ['key' => 'Leveringstype', 'value' => 'afhentning']]],
+				['fulfillmentStatus', 'shippingAddress', 'note']],
+			'levering under a name that says pickup' => [$choice('levering', 'Afhentning hos fragtmand', 'Afhentning i butik') + ['oensket_levdato' => '2026-11-22', 'levdato_ymd' => '2026-11-22'],
+				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'Afhentning i butik'], ['key' => 'Leveringstype', 'value' => 'levering'], ['key' => 'Delivery Date', 'value' => '2026-11-22']]],
+				['fulfillmentStatus', 'note']],
 		];
 	}
 

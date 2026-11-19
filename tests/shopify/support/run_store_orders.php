@@ -135,7 +135,7 @@ foreach ($state['shops'] as $s) {
         $orders[$s['key']][] = ['gid' => $gid, 'name' => $o['name'], 'tags' => $o['tags'], 'customer' => $o['customer'], 'email' => $o['email'],
             'lines' => array_map(fn(array $l): array => [$l['variant'], $l['title'], $l['quantity'], $l['price']], $o['lines']),
             'paid' => array_sum(array_column($o['transactions'], 'amount')), 'financial' => $o['financial'], 'behaviour' => $o['inventory_behaviour'],
-            'fulfilled' => $o['fulfillments'] !== [], 'attributes' => $o['custom_attributes'], 'note' => $o['note']];
+            'fulfilled' => $o['fulfillments'] !== [], 'attributes' => $o['custom_attributes'], 'shipping' => $o['shipping_address'] !== null, 'note' => $o['note']];
     }
     $receipts[$s['key']] = $s['receipts'];
 }
