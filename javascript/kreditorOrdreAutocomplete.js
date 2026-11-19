@@ -320,7 +320,10 @@
         activeInput = input;
 
         // Event listeners for results
-        dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+        dropdown.querySelectorAll('.autocomplete-item').forEach((item, index) => {
+            // SST-1041 The supplier number is set on the element, not through the HTML: escapeHtml() leaves a double
+            // quote as it is, which would cut the number short inside the attribute.
+            item.dataset.levVarenr = (results[index] && results[index].lev_varenr) || '';
             item.addEventListener('mouseenter', function () {
                 dropdown.querySelectorAll('.autocomplete-item').forEach(i => i.classList.remove('selected'));
                 this.classList.add('selected');
