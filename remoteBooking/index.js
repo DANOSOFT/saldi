@@ -8,6 +8,7 @@
 // 20261120 CL/MMR SST-1000 (review): the free units are stored under the local day, since toISOString gave the UTC day (the day before).
 //                 A start day without a free unit stops with a message instead of a JavaScript error.
 //                 A payment approved too late for a unit that is no longer free, or whose order could not be invoiced, shows a message instead of the order confirmation and mail.
+//                 A booking the server could not save (or any answer that is not a booking) shows its own message; only "unavailable" says the unit is taken.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${encodeURIComponent(db)}`,{
         method: "GET",
@@ -428,10 +429,15 @@ const calendarView = async (main, product, weeks, price, db) => {
                 body: JSON.stringify(data)
             }).then(response => {
                 return response.json()
-            })
+            }).catch(() => null) // SST-1000 (review): an answer that is not JSON is a failure, not a booking
             if (!response || !response.id) {
-                // the server refused the booking: another booking or a reservation took the unit after the page loaded
-                alert("Enheden er desværre ikke længere ledig i den valgte periode. Siden opdateres, så du kan vælge igen.")
+                if (response && response.error === "unavailable") {
+                    // the server refused the booking: another booking or a reservation took the unit after the page loaded
+                    alert("Enheden er desværre ikke længere ledig i den valgte periode. Siden opdateres, så du kan vælge igen.")
+                } else {
+                    // SST-1000 (review): the booking could not be saved (or the server failed): no payment
+                    alert("Bookingen kunne ikke gemmes. Siden opdateres, så du kan prøve igen. Kontakt udlejeren, hvis det sker igen.")
+                }
                 location.reload()
                 return
             }

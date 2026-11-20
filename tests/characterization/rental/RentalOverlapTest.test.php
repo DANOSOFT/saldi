@@ -150,7 +150,8 @@ final class RentalOverlapTest extends TestCase
         }
         foreach (['remoteBooking/index.js', 'mysale/remote.js'] as $file) {
             $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);
-            self::assertMatchesRegularExpression('/if \(!response \|\| !response\.id\) \{[^}]*location\.reload\(\)\s*return/s', $src, $file);
+            self::assertMatchesRegularExpression('/if \(!response \|\| !response\.id\) \{\s*if \(response && response\.error === "unavailable"\) \{.*?\} else \{.*?Bookingen kunne ikke gemmes.*?\}\s*location\.reload\(\)\s*return/s', $src, $file);
+            self::assertSame(2, substr_count($src, '}).catch(() => null) // SST-1000 (review)'), $file . ': both the booking and the approval answer');
         }
     }
 
