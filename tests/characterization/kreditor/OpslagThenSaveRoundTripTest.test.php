@@ -21,6 +21,7 @@
 // History:
 // 20261117 CL/MMR SST-1024 Created for Saul's review: Opslag then Gem/Enter on KO and KK, Antal empty or typed, status 0/1/2, and the typed item.
 //                 Codex round 3: requests are checked for SQL errors and for diagnostics in the ticket's code, and a credit note is linked to a received, posted purchase order (kred_ord_id) as Kreditér makes it.
+// 20261120 CL/MMR SST-1024 Saul's review: a hand-made fokus=anta<n> on a line already on the order renders no antaDefault<n> (ordreside() sets fokus to vare0), so «Modtag» does not follow «Antal» there.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -371,5 +372,22 @@ final class OpslagThenSaveRoundTripTest extends CharacterizationTestCase
         $page = self::page(['id' => $o['order']]);
         self::page([], self::submitOrderForm($page, ['anta1' => '5']));
         $this->assertSame(['antal' => 5.0, 'leveres' => 1.0], self::line($o['order'], $o['first']));
+    }
+
+    /**
+     * Saul's review: a hand-made link with fokus=anta<n> does not put antaDefault<n> on that existing line. ordreside()
+     * sets fokus to vare0 on every order below status 3, so only the Opslag request (openOrder.php) focuses an Antal,
+     * and that is the line it just added. «Modtag» therefore does not follow «Antal» there: Antal 5 → 10 keeps Modtag 5.
+     */
+    public function test_a_hand_made_fokus_on_an_existing_line_posts_no_default(): void
+    {
+        $o = self::orderWithOneLine('KO', 1, 5);
+        $page = self::page(['id' => $o['order'], 'fokus' => 'anta1']);
+        $this->assertSame(['value' => '5', 'placeholder' => ''], self::input($page, 'anta1'), 'the line shows its Antal as usual');
+        $this->assertNull(self::input($page, 'antaDefault1'), 'no default on a line Opslag did not just add');
+
+        $saved = self::page([], self::submitOrderForm($page, ['anta1' => '10']));
+        $this->assertNoQuantityAlert($saved);
+        $this->assertSame(['antal' => 10.0, 'leveres' => 5.0], self::line($o['order'], $o['first']));
     }
 }
