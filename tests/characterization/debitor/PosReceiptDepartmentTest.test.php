@@ -10,6 +10,11 @@
 // Both pieces of code are fragments of functions that cannot run here (pos_txt_print() includes a
 // dozen files and writes under ../temp), so the fragments are lifted from the shipped source and run
 // against sqlite.
+//
+// 20261116 CL/MMR SST-1019 The same block sets $afd again, read-only, because the per-regnskab receipt templates (debitor/pos_print/pos_print_<db_id>.php, only on the server) pick the shop header and the printer from it.
+//                 MB-95 had removed the variable together with the write, and the templates fell back to the default header.
+//                 The tests below pin the value and that it still never writes the order.
+//                 The salesperson lookup in the same function escapes the name, so an apostrophe no longer breaks the print.
 
 namespace Saldi\Tests\PosCallSites;
 
@@ -38,6 +43,8 @@ final class PosReceiptDepartmentTest extends TestCase
 
         $this->db->exec("CREATE TABLE grupper (id INTEGER PRIMARY KEY AUTOINCREMENT, art TEXT, kodenr TEXT,
             box1 TEXT, box2 TEXT, box3 TEXT, box7 TEXT, fiscal_year TEXT)");
+        $this->db->exec("CREATE TABLE brugere (id INTEGER PRIMARY KEY, brugernavn TEXT, ansat_id INTEGER)");
+        $this->db->exec("CREATE TABLE ansatte (id INTEGER PRIMARY KEY, navn TEXT)");
         $this->db->exec("CREATE TABLE ordrer (id INTEGER PRIMARY KEY, afd INTEGER, status INTEGER,
             sum NUMERIC, moms NUMERIC, hvem TEXT, felt_5 TEXT)");
 
@@ -62,12 +69,28 @@ final class PosReceiptDepartmentTest extends TestCase
             'if (!$kasse) $kasse=find_kasse($kasse);',
             "if (!\$printserver)\$printserver='localhost';"
         );
+        $ifset = liftBlock(shipped('includes/std_func.php'), 'function ifset(')
+            . "\n" . liftBlock(shipped('includes/std_func.php'), 'function ifset_resolve_default(');
+        // Only the department lookup itself, for the edge cases: the printer lookup next to it has its own,
+        // older warnings for a register without a printer, which are not what these tests are about.
+        $department = liftBetween(
+            shipped('debitor/pos_ordre_includes/posTxtPrint/posTxtPrintFunc.php'),
+            "\$afd = '';",
+            "ifset(\$departments, (int)\$kasse - 1, ''));\n\t}"
+        );
+        $salesperson = liftBlock(
+            shipped('debitor/pos_ordre_includes/posTxtPrint/posTxtPrintFunc.php'),
+            'if ($ref) {'
+        );
         $render = liftBlock(
             shipped('debitor/pos_ordre_includes/showPosLines/showPosLinesFunc.php'),
             "if ((\$nettosum || \$nettosum == '0') && \$status<3 && \$id) {"
         );
-        eval('namespace ' . __NAMESPACE__ . ';'
+        eval('namespace ' . __NAMESPACE__ . '; ' . $ifset
             . ' function receipt_print_terminal_block($id, $kasse, $regnaar) { ' . $print . "\n return \$printserver; }"
+            . ' function receipt_print_terminal_afd($id, $kasse, $regnaar) { ' . $print . "\n return \$afd; }"
+            . ' function receipt_department_lookup($kasse, $regnaar) { ' . $department . "\n return \$afd; }"
+            . ' function receipt_salesperson($ref) { ' . $salesperson . "\n return \$ref; }"
             . ' function open_sale_render_update($id, $status, $nettosum, $sum, $afd, $kasse, $brugernavn) { '
             . $render . "\n }");
         $lifted = true;
@@ -110,6 +133,82 @@ final class PosReceiptDepartmentTest extends TestCase
     {
         $this->db->exec("UPDATE grupper SET box3 = '10.0.0.1' || char(9) WHERE art = 'POS' AND kodenr = '2'");
         self::assertSame('localhost', receipt_print_terminal_block(self::SALE, '2', self::REGNAAR));
+    }
+
+    // ----------------------------- the department the receipt templates read
+
+    /**
+     * Runs $code with every PHP warning turned into a failure.
+     *
+     * @param callable(): string $code
+     */
+    private static function strict(callable $code): string
+    {
+        set_error_handler(static function (int $no, string $message, string $file, int $line): bool {
+            throw new \ErrorException($message, 0, $no, $file, $line);
+        });
+        try {
+            return $code();
+        } finally {
+            restore_error_handler();
+        }
+    }
+
+    /** The $afd the whole print block leaves for the template. */
+    private function templateAfd(string $kasse): string
+    {
+        return self::strict(fn() => receipt_print_terminal_afd(self::SALE, $kasse, self::REGNAAR));
+    }
+
+    /** The $afd from the department lookup alone. */
+    private function lookupAfd(string $kasse): string
+    {
+        return self::strict(fn() => receipt_department_lookup($kasse, self::REGNAAR));
+    }
+
+    public function testTheTemplatesGetTheDepartmentOfTheSalesRegister(): void
+    {
+        // SST-1019: Phone 2 Fix's template prints the "Phone Expert" header when $afd is '2'.
+        self::assertSame('2', $this->templateAfd('2'));
+        self::assertSame('1', $this->templateAfd(' 1 '), 'the register number is trimmed before it is used');
+    }
+
+    public function testTheDepartmentIsReadOnlyAndNeverWrittenToTheOrder(): void
+    {
+        $this->sale(1, 3);
+
+        self::assertSame('2', $this->templateAfd('2'));
+
+        self::assertSame(1, $this->saleAfd(), 'reading the department for the template moved the sale');
+        foreach ($GLOBALS['posCallSitesSql'] as $sql) {
+            self::assertStringNotContainsStringIgnoringCase('update ordrer', $sql);
+        }
+    }
+
+    public function testAnUnknownRegisterOrMissingSetupGivesAnEmptyDepartment(): void
+    {
+        self::assertSame('', $this->lookupAfd('3'), 'a register beyond the list');
+        self::assertSame('', $this->lookupAfd('0'), 'register 0');
+        self::assertSame('', $this->lookupAfd(''), 'no register');
+
+        $this->db->exec("UPDATE grupper SET box3 = NULL WHERE art = 'POS' AND kodenr = '1'");
+        self::assertSame('', $this->lookupAfd('2'), 'no departments set up');
+
+        $this->db->exec("DELETE FROM grupper WHERE art = 'POS' AND kodenr = '1'");
+        self::assertSame('', $this->lookupAfd('2'), 'no POS row for the year');
+    }
+
+    // ------------------------------------------- the salesperson on the receipt
+
+    public function testASalespersonWithAnApostropheIsLookedUpAndPrinted(): void
+    {
+        $this->db->exec("INSERT INTO ansatte (id, navn) VALUES (5, 'Sean O''Brien')");
+        $this->db->exec("INSERT INTO brugere (id, brugernavn, ansat_id) VALUES (1, 'O''Brien', 5)");
+
+        self::assertSame('Sean O\'Brien', self::strict(fn() => receipt_salesperson("O'Brien")),
+            'the user name with an apostrophe broke the lookup, so the receipt lost the employee name');
+        self::assertSame('kasse2', self::strict(fn() => receipt_salesperson('kasse2')),
+            'a user that is not in brugere keeps its own name');
     }
 
     // ------------------------------------- where an open sale gets its afd
