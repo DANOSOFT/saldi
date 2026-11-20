@@ -5,7 +5,7 @@
 // 20261027 CL/LH MB-79 The confirmation page's in-voucher currency rounding goes on the difference account's row.
 // 20261104 CDX/NTR Verify MB-72 project matching, group dates and complete payments with MB-123 differences and simulation in both equalizers.
 // 20261106 CL/LH MB-123 Pin per-voucher rounding accounts on the confirmation page, per-currency anchors in both equalizers, single-invoice-sized payments and the exit after a refused difference.
-// 20261120 CL/LH MB-123 A foreign-currency line without an exchange rate is refused instead of measured at rate 100, and a legacy '-' currency (includes/ret_valutadiff.php) is read as DKK by the match query and both equalizers.
+// 20261120 CL/LH MB-123 A foreign-currency line without an exchange rate is refused instead of measured at rate 100, the installation's own currency in all its spellings ('-' from includes/ret_valutadiff.php, the base currency order invoices carry) is one currency to the match query and both equalizers, a one-øre difference survives floating point, and a reference given twice settles the one post it names.
 //
 // The functions under test live in finans/bogfor.php, which is a page: including it would run the
 // page. They are lifted out of the shipped file and evaluated into this namespace instead, so the
@@ -43,6 +43,7 @@ final class ExchangeRateSettlementTest extends TestCase
         $GLOBALS['exchangeRateSettlementTransactions'] = [];
         $GLOBALS['regnaar'] = 2026;
         $GLOBALS['kladde_id'] = 4001;
+        unset($GLOBALS['baseCurrency']);
 
         $this->db->exec("CREATE TABLE openpost (id INTEGER PRIMARY KEY AUTOINCREMENT, konto_id INTEGER,
             konto_nr TEXT, faktnr TEXT, amount NUMERIC, refnr INTEGER, beskrivelse TEXT, udlignet TEXT,
@@ -110,7 +111,8 @@ final class ExchangeRateSettlementTest extends TestCase
         self::assertNotFalse($to, 'finans/bogfor.php no longer defines valutaopslag(); the lift has no end anchor');
         self::assertGreaterThan($from, $to, 'valutaopslag() now comes before the settlement functions');
         $lift = substr($src, $from, $to - $from);
-        foreach (['openpostAccountQuery', 'openpostInvoiceList', 'openpostMatchQuery',
+        foreach (['openpostHomeCurrencies', 'openpostCurrencyKey', 'openpostCurrencySql',
+                  'openpostAccountQuery', 'openpostInvoiceList', 'openpostMatchQuery',
                   'openpostMatches', 'openpostOverlay', 'openpostOverlayMatch', 'openpostOverlayRecord',
                   'openpostRateDifferenceAmount', 'openpostRateDifference', 'journalLineOpenpostSides',
                   'journalRateDifferences', 'confirmationRoundingOnListedAccount', 'confirmationRoundingByAccount',
@@ -202,7 +204,8 @@ final class ExchangeRateSettlementTest extends TestCase
     public function testTheMatchQueryRequiresTheSameCurrency(): void
     {
         $qtxt = openpostMatchQuery(29, '', 'F-745', 'EUR', 1000.03, true);
-        self::assertStringContainsString("coalesce(nullif(nullif(valuta,''),'-'),'DKK')='EUR'", $qtxt);
+        self::assertStringContainsString(openpostCurrencySql() . "='EUR'", $qtxt);
+        self::assertSame("(case when valuta is null or valuta in ('','-','DKK') then 'DKK' else valuta end)", openpostCurrencySql());
     }
 
     public function testAnEmptyOrMissingCurrencyOnAStoredRowIsReadAsDkk(): void
@@ -283,6 +286,14 @@ final class ExchangeRateSettlementTest extends TestCase
     public function testADifferenceBelowOneOereIsLeftAlone(): void
     {
         self::assertSame(0.0, openpostRateDifferenceAmount(1.00, 745.2, [self::match(-1.00, 745)], 'EUR'));
+    }
+
+    public function testAOneOereDifferenceIsBookedDespiteFloatingPoint(): void
+    {
+        // EUR 100 at 750 paid at 749,99: 750,00 - 749,99 is 0,00999999999999 in floating point, which fell
+        // under the one-øre threshold, so the group settled and the øre stayed on the control account.
+        self::assertSame(0.01, openpostRateDifferenceAmount(-100.00, 749.99, [self::match(100.00, 750)], 'EUR'));
+        self::assertSame(-0.01, openpostRateDifferenceAmount(100.00, 749.99, [self::match(-100.00, 750)], 'EUR'));
     }
 
     public function testAGroupThatCancelsToAFloatingPointResidueBooksNothing(): void
@@ -551,6 +562,30 @@ final class ExchangeRateSettlementTest extends TestCase
             $equalize = __NAMESPACE__ . '\\' . $name;
             $equalize();
             self::assertSame(['0', '1', '1'], $this->settledFlags(), $name);
+        }
+    }
+
+    public function testTheBaseCurrencyOfAnInstallationIsItsOwnCurrency(): void
+    {
+        // On an installation whose base currency is NOK, order invoices store 'NOK' (includes/ordrefunc.php)
+        // and journal lines without a currency store 'DKK'. Both are the installation's own currency.
+        $GLOBALS['baseCurrency'] = 'NOK';
+        $this->openRow('O-1', 500.00, 'NOK', 100);
+        $qtxt = openpostMatchQuery(29, '', 'O-1', 'DKK', 500.00, true);
+        self::assertNotFalse(db_fetch_array(db_select($qtxt)), 'a base-currency payment finds the order invoice');
+        self::assertFalse(db_fetch_array(db_select(openpostMatchQuery(29, '', 'O-1', 'EUR', 500.00, true))));
+        $this->post('K', '1009', 'O-1', -500.00, 0, 100, '2026-10-05', 3);
+        self::assertSame(['1', '1'], $this->settledFlags(), 'and settles it, as before MB-79');
+
+        foreach (['equalizeMatchingRecords', 'equalizeOrderMatchingRecords'] as $name) {
+            $this->db->exec('DELETE FROM openpost');
+            $this->openRow('O-2', 300.00, 'NOK', 100);
+            $this->openRow('O-2', -300.00, 'DKK', 100);
+            $this->openRow('O-3', 40.00, 'EUR', 745);
+            $this->openRow('O-3', -40.00, 'NOK', 100);
+            $equalize = __NAMESPACE__ . '\\' . $name;
+            $equalize();
+            self::assertSame(['1', '1', '0', '0'], $this->settledFlags(), $name);
         }
     }
 
@@ -824,6 +859,16 @@ final class ExchangeRateSettlementTest extends TestCase
         self::assertSame(['1', '1', '1'], array_map(fn($row) => (string)$row['udlignet'], $rows));
         self::assertSame(-$measured, round((float)$rows[2]['amount'] * (float)$rows[2]['valutakurs'] / 100, 2),
             'and the open-post ledger gets the same difference');
+    }
+
+    public function testAReferenceGivenTwiceSettlesThePostItNamesAndNotAnotherWithTheSameNumber(): void
+    {
+        // Two open posts carry X-1, for 100 and 50. Master settles a 100 payment typed 'X-1;X-1' against the
+        // 100 post; taking the second reference as another post summed 150 and left all three open.
+        $this->post('K', '1009', 'X-1', 100.00, 0, 100, '2026-09-01', 1);
+        $this->post('K', '1009', 'X-1', 50.00, 0, 100, '2026-09-02', 2);
+        $this->post('K', '1009', 'X-1;X-1', -100.00, 0, 100, '2026-09-03', 3);
+        self::assertSame(['1', '0', '1'], $this->settledFlags());
     }
 
     // ------------------------------------------- Simuler: the journal's own lines

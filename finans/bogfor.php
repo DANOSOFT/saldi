@@ -85,7 +85,9 @@
 // 20261104 CDX/NTR Merge MB-72 settlement dates and complete payments with MB-123 exchange differences, simulation and preview.
 // 20261104 CDX/NTR Restore chronological order of the merged history entries.
 // 20261106 CL/LH MB-123 The confirmation page puts each voucher's currency rounding on that voucher's own difference account, as posting books it, instead of the whole journal's rounding on the last currency line's account (confirmationRoundingByAccount()).
-// 20261120 CL/LH MB-123 A foreign-currency line with no exchange rate on its date is refused on the confirmation page and in bogfor() (journalLineRateError()), instead of posted at rate 100, where a settlement booked the whole gap to the invoice's rate as an exchange difference. The match query reads the '-' currency includes/ret_valutadiff.php writes as DKK.
+// 20261120 CL/LH MB-123 A foreign-currency line with no exchange rate on its date is refused on the confirmation page and in bogfor() (journalLineRateError()), instead of posted at rate 100, where a settlement booked the whole gap to the invoice's rate as an exchange difference.
+//                The match reads every spelling of the installation's own currency as one (openpostCurrencyKey()): NULL, '', '-' from includes/ret_valutadiff.php, 'DKK', and the base currency order invoices are stored in, so a NOK installation settles its order invoices from the journal again.
+//                A one-øre difference is no longer lost to floating point, and a reference given twice ('X;X') is one reference, as on master, so it settles the post it names rather than adding another post with the same number.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -1248,6 +1250,46 @@ function openpostCurrencyLetters($valutakode) {
 	return $r ? (string)$r['box1'] : '';
 }
 /**
+ * The ways openpost.valuta spells the installation's own currency: '' (and NULL), '-' from
+ * includes/ret_valutadiff.php, 'DKK', which journal lines without a currency are stored as, and the base
+ * currency (settings baseCurrency) that order invoices are stored in (includes/ordrefunc.php).
+ *
+ * @return array<int,string>
+ */
+function openpostHomeCurrencies() {
+	$home = array('', '-', 'DKK');
+	$base = strtoupper(trim((string)($GLOBALS['baseCurrency'] ?? '')));
+	if ($base !== '' && !in_array($base, $home, true)) {
+		$home[] = $base;
+	}
+	return $home;
+}
+/**
+ * A currency as the settlement rules compare it: the installation's own currency, however it is spelled,
+ * is 'DKK'.
+ *
+ * @param string|null $valuta openpost.valuta, or the letters of a journal line's currency.
+ * @return string
+ */
+function openpostCurrencyKey($valuta) {
+	if ($valuta === NULL || in_array(trim((string)$valuta), openpostHomeCurrencies(), true)) {
+		return 'DKK';
+	}
+	return (string)$valuta;
+}
+/**
+ * openpostCurrencyKey() as SQL on openpost.valuta.
+ *
+ * @return string
+ */
+function openpostCurrencySql() {
+	$home = array();
+	foreach (openpostHomeCurrencies() as $valuta) {
+		$home[] = "'" . db_escape_string($valuta) . "'";
+	}
+	return "(case when valuta is null or valuta in (" . implode(',', $home) . ") then 'DKK' else valuta end)";
+}
+/**
  * The open posts of one debtor or creditor number.
  *
  * @param string|int $debet Debtor/creditor number, spaces already removed by the caller.
@@ -1260,13 +1302,15 @@ function openpostAccountQuery($debet,$art) {
 /**
  * The invoice references one posting settles against. A single posting can carry several, separated
  * by ';' - openpost() then drops the amount window, because no one reference matches the whole figure.
+ * A reference given twice ('X;X') is one reference, as master's openpost() read it: it names one post, so it
+ * keeps the amount window rather than adding another post that happens to carry the same number.
  *
  * @param string $faktura
  * @return array<int,string>
  */
 function openpostInvoiceList($faktura) {
 	if (strpos($faktura,";")) {
-		return explode(';',$faktura);
+		return array_values(array_unique(explode(';',$faktura)));
 	}
 	return array($faktura);
 }
@@ -1299,7 +1343,8 @@ function openpostMatchQuery($konto_id,$projekt,$faktnr,$valuta,$belob,$amountWin
 	// carry the same invoice number and figure. Rows written before openpost.valuta existed have it NULL and
 	// includes/ret_valutadiff.php writes '-', so an empty value and '-' are read as DKK the way
 	// includes/udlign_openpost.php reads them - otherwise an ordinary DKK settlement would stop working.
-	$matchValuta = ($valuta === '' || $valuta === NULL) ? 'DKK' : $valuta;
+	// 20261120 CL/LH MB-123 So is the base currency order invoices are stored in (openpostCurrencyKey()).
+	$matchValuta = openpostCurrencyKey($valuta);
 	$qtxt = "select id,transdate,amount,valutakurs from openpost where konto_id='" . (int)$konto_id . "'";
 	$projekt = openpostProject($projekt);
 	if ($projekt === '') {
@@ -1310,7 +1355,7 @@ function openpostMatchQuery($konto_id,$projekt,$faktnr,$valuta,$belob,$amountWin
 	$qtxt.= " and udlignet!='1'";
 	// $faktnr arrives escaped from bogfor(); escaping it again would double any quote and lose the match.
 	$qtxt.= " and faktnr='$faktnr'";
-	$qtxt.= " and coalesce(nullif(nullif(valuta,''),'-'),'DKK')='" . db_escape_string($matchValuta) . "'";
+	$qtxt.= " and " . openpostCurrencySql() . "='" . db_escape_string($matchValuta) . "'";
 	if ($amountWindow) {
 		$qtxt.= " and amount >= '" . ($belob-0.005) . "' and amount < '" . ($belob+0.005) . "'";
 	}
@@ -1393,12 +1438,12 @@ function openpostOverlay() {
  * @return array|null
  */
 function openpostOverlayMatch($overlay,$konto_id,$projekt,$faktnr,$valuta,$belob,$amountWindow,$taken) {
-	$matchValuta = ($valuta === '' || $valuta === NULL) ? 'DKK' : $valuta;
+	$matchValuta = openpostCurrencyKey($valuta);
 	foreach ($overlay['open'] as $post) {
 		if (in_array($post['id'], $taken, true) || $post['konto_id'] != $konto_id || openpostProject($post['projekt']) !== openpostProject($projekt)) {
 			continue;
 		}
-		if ($post['faktnr'] !== $faktnr || $post['valuta'] !== $matchValuta) {
+		if ($post['faktnr'] !== $faktnr || openpostCurrencyKey($post['valuta']) !== $matchValuta) {
 			continue;
 		}
 		if ($amountWindow && ($post['amount'] < $belob-0.005 || $post['amount'] >= $belob+0.005)) {
@@ -1484,10 +1529,13 @@ function openpostRateDifferenceAmount($amount,$valutakurs,$matches,$valuta) {
 		$dkkdiff += afrund($match['amount']*$matchKurs/100,2);
 		$residual += (float)$match['amount'];
 	}
-	if (!$ratesDiffer || abs($residual) >= 0.005 || abs($dkkdiff) < 0.01) {
+	// 20261120 CL/LH MB-123 Every term is whole øre, so the sum is rounded before it is compared: 750,00 - 749,99
+	// is 0,00999999999999 in floating point and fell under a 0,01 threshold.
+	$dkkdiff = round($dkkdiff,2);
+	if (!$ratesDiffer || abs($residual) >= 0.005 || abs($dkkdiff) < 0.005) {
 		return 0.0;
 	}
-	return afrund($dkkdiff,2);
+	return $dkkdiff;
 }
 /**
  * What openpost() would settle for this journal line, measured without writing anything.
