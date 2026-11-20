@@ -20,6 +20,7 @@
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 // 20261019 CL/LH MB-73: fast invoicing now records leveret; assert it instead of noting it is not stamped.
 // 20261027 CL/LH MB-73 (review): fast invoicing a line still NULL from before the migration keeps its earlier delivery.
+// 20261111 CDX/NTR Isolate the test class database and session.
 
 use PHPUnit\Framework\TestCase;
 
@@ -37,7 +38,7 @@ final class OrderInvoiceCharacterizationTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        CharacterizationEnv::bootstrapTenant();
+        CharacterizationEnv::bootstrapTenant(static::class);
         self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
         $ra = CharacterizationEnv::one(self::$tenant, "SELECT max(kodenr) AS ra FROM grupper WHERE art = 'RA'");
         self::$regnaar = (int)$ra['ra'];

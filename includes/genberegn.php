@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------ver 5.1.0------2026.11.06---
+// ------includes/genberegn.php-------ver 5.1.1------2026.11.13---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,17 +25,20 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20130210 Break ændret til break 1
 // 20181126 - PHR Definition af div. variabler mm.
 // 20190321 PHR Added function equalizeMatchingRecords.
 // 20260210 PHR PHP8
 // 20260907 CDX/PHR Allow recalculation within the caller's tenant transaction and scope primo resets to one year.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261018 SS Review 2 (PR #803): the direct ?regnskabsaar= recompute needs finans.regnskab write instead of 'any'.
 // 20261019 CL/LH MB-72: equalizeMatchingRecords() sets udlign_date to the later of the two transaction dates.
 // 20261027 CL/LH MB-79 equalizeMatchingRecords() only settles two posts in the same currency, and in a foreign currency only at the same rate. It runs after every journal posting and books nothing, so it settled a DKK payment against a EUR invoice with the same number and figure, and a EUR pair booked at different rates, leaving the DKK difference on the control account.
+// 20261103 CL/ASR QA: the online.php include inside genberegn() declares $permission_key 'any' (as orderFuncIncludes/genberegn.php), so bogføring is not logged as unguarded.
 // 20261104 CDX/NTR Preserve settlement dates alongside the MB-123 currency and rate conditions.
 // 20261106 CL/LH MB-123 equalizeMatchingRecords() anchors the first open post of an invoice number per currency, so a USD post is not left without an anchor by an earlier EUR post with the same number.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 
@@ -120,13 +123,17 @@ if (!function_exists('genberegn')) {
 		if ($updateUsage) {
 			include(__DIR__ . '/connect.php');
 			db_modify("update regnskab set posteret='$transantal' where id='" . (int)$db_id . "'", __FILE__ . ' line ' . __LINE__);
+			$permission_key = 'any'; // back to the company database for the caller, whose own page already checked access
 			include(__DIR__ . '/online.php');
 		}
 	}
 } 
 
-if (isset($_GET['regnskabsaar']) && $regnskabsaar=$_GET['regnskabsaar']) {		
+if (isset($_GET['regnskabsaar']) && $regnskabsaar = (int) $_GET['regnskabsaar']) {
+	// Recomputing a whole fiscal year is a write in the ledger: finance write, not every logged-in user.
 	include("../includes/connect.php");
+	$permission_key = 'finans.regnskab';
+	$permission_level = 'write';
 	include("../includes/online.php");
 	print "Genberegner regnskabsaar $regnskabsaar<br>";
 	genberegn($regnskabsaar);

@@ -12,11 +12,12 @@
 //   - the backfill stops after its time budget and the next login carries on from the stored window.
 //
 // Each run is a child process (support/run_leveret_backfill.php), i.e. its own database session, the
-// way two logins are. Runs against a throwaway database SALDI_CHAR_TEST_DB . '_mb73' (default
-// saldi_chartest_mb73) created through SALDI_CHAR_MASTER_DB; skips without pgsql or SALDI_CHAR_PGPASS.
+// way two logins are. Each fixture owns a fresh UUID-named empty database;
+// skips without pgsql or SALDI_CHAR_PGPASS.
 //
 // History:
 // 20261027 CL/LH MB-73 (review): created.
+// 20261111 CDX/NTR Own a unique database per migration fixture with optional retention.
 
 use PHPUnit\Framework\TestCase;
 
@@ -26,6 +27,7 @@ final class OrderLineDeliveredBackfillTest extends TestCase
 {
     /** @var resource|\PgSql\Connection|null */
     private static $master = null;
+    private static ?TestDatabase $database = null;
     /** @var resource|\PgSql\Connection|null */
     private $db = null;
 
@@ -52,16 +54,7 @@ final class OrderLineDeliveredBackfillTest extends TestCase
         if (CharacterizationEnv::pgPass() === '') {
             self::markTestSkipped('SALDI_CHAR_PGPASS is required for database characterization tests');
         }
-        $master = @pg_connect(sprintf(
-            "host='%s' dbname='%s' user='%s' password='%s' connect_timeout=3",
-            addslashes(CharacterizationEnv::pgHost()),
-            addslashes(CharacterizationEnv::masterDb()),
-            addslashes(CharacterizationEnv::pgUser()),
-            addslashes(CharacterizationEnv::pgPass())
-        ), PGSQL_CONNECT_FORCE_NEW);
-        if ($master === false) {
-            self::markTestSkipped('postgres not reachable at host "' . CharacterizationEnv::pgHost() . '"');
-        }
+        $master = CharacterizationEnv::connect(CharacterizationEnv::masterDb());
         self::$master = $master;
     }
 
@@ -77,7 +70,7 @@ final class OrderLineDeliveredBackfillTest extends TestCase
     protected function setUp(): void
     {
         self::dropDatabase();
-        CharacterizationEnv::rows(self::$master, 'CREATE DATABASE ' . pg_escape_identifier(self::$master, self::dbName()));
+        self::$database = TestDatabase::create(static::class, false);
         $this->db = CharacterizationEnv::connect(self::dbName());
         $this->createFixture();
     }
@@ -92,20 +85,17 @@ final class OrderLineDeliveredBackfillTest extends TestCase
 
     private static function dbName(): string
     {
-        $name = CharacterizationEnv::testDb() . '_mb73';
-        if (!preg_match('/^[a-z0-9_]+$/', $name)) {
-            throw new RuntimeException('unsafe database name');
-        }
-        return $name;
+        return self::$database->name();
     }
 
     private static function dropDatabase(): void
     {
-        CharacterizationEnv::rows(self::$master, 'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()', [self::dbName()]);
-        CharacterizationEnv::rows(self::$master, 'DROP DATABASE IF EXISTS ' . pg_escape_identifier(self::$master, self::dbName()));
+        if (self::$database !== null) {
+            self::$database->release();
+            self::$database = null;
+        }
     }
 
-    /** The columns the migration reads, as admin/opret.php creates them before this change (no default). */
     private function createFixture(): void
     {
         CharacterizationEnv::rows($this->db, 'CREATE TABLE settings (id serial PRIMARY KEY, var_name text, var_grp text, var_value text, var_description text)');

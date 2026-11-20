@@ -1,5 +1,5 @@
 # Mechanical review. Each check is a mistake reviewers kept correcting by hand;
-# the rules and what enforces each one are listed in AGENTS.md.
+# the rules and what enforces each one are listed in tools/guardrails/README.md.
 #
 # The same command runs locally before a push:
 #   node tools/guardrails/check.mjs
@@ -9,6 +9,7 @@
 # History:
 # 20261027 CL/LH Created.
 # 20261028 CL/LH Sync PRs (sync/* branches) run only the checks a merge can break.
+# 20261118 CL/LH The description job reads the change too: a UI change needs a screen recording.
 
 name: Guardrails
 
@@ -86,13 +87,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: tools/guardrails
+          # The whole history, as the change job: pr-recording reads which files
+          # the PR changes to know whether it changes what users see.
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Says what changed and how it was verified
-        run: printf '%s' "$PR_BODY" | node tools/guardrails/check.mjs --pr-body -
+      - name: Says what changed, how it was verified, and shows a UI change working
+        run: printf '%s' "$PR_BODY" | node tools/guardrails/check.mjs --pr-body - --base "origin/$BASE_REF" --head "$HEAD_SHA"
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------ver 5.1.0------2026.11.06---
+// ------includes/genberegn.php-------ver 5.1.1------2026.11.13---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,14 +25,16 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20130210 Break ændret til break 1
 // 20181126 - PHR Definition af div. variabler mm.
 // 20190321 PHR Added function equalizeMatchingRecords.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261018 SS Review 2 (PR #803): the direct ?regnskabsaar= recompute needs finans.regnskab write.
 // 20261019 CL/LH MB-72: equalizeMatchingRecords() sets udlign_date to the later of the two transaction dates.
 // 20261104 CDX/NTR Apply the MB-123 currency and rate conditions while preserving MB-72 settlement dates.
 // 20261106 CL/LH MB-123 equalizeMatchingRecords() anchors the first open post of an invoice number per currency, so a USD post is not left without an anchor by an earlier EUR post with the same number.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 
@@ -115,12 +117,16 @@ if (!function_exists('genberegn')) {
 		db_modify("update grupper set box7='$logdate',box8='$logtime' where art='RA' and kodenr='$regnskabsaar'",__FILE__ . " linje " . __LINE__);
 		include("../includes/connect.php");
 		db_modify("update regnskab set  posteret='$transantal' where id='$db_id'",__FILE__ . " linje " . __LINE__);
+		$permission_key = 'any';
 		include("../includes/online.php");
 	}
 } 
 
-if (isset($_GET['regnskabsaar']) && $regnskabsaar=$_GET['regnskabsaar']) {		
+if (isset($_GET['regnskabsaar']) && $regnskabsaar = (int) $_GET['regnskabsaar']) {
+	// Recomputing a whole fiscal year is a write in the ledger: finance write, not every logged-in user.
 	include("../includes/connect.php");
+	$permission_key = 'finans.regnskab';
+	$permission_level = 'write';
 	include("../includes/online.php");
 	print "Genberegner regnskabsaar $regnskabsaar<br>";
 	genberegn($regnskabsaar);

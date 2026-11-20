@@ -1,4 +1,5 @@
 <?php
+// 20261110 CDX/NTR Use one Gantt save callback for valid identifiers and visible failed-save recovery.
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id=session_id();
 	
@@ -202,11 +203,13 @@
 	<script type="text/javascript" src="../javascript/date-da-DK.js"></script>
 	<script type="text/javascript" src="../javascript/jquery-ui-1.8.4.js"></script>
 	<script type="text/javascript" src="../javascript/jquery.ganttView.js?v=20261103"></script>
+	<script type="text/javascript" src="../javascript/saveGanttPlanDates.js?v=20261110"></script>
 	<script type="text/javascript" src="../javascript/jquery.scrollTo.js"></script>
 	<script type="text/javascript" src="../javascript/dragscrollable.js"></script>
 	<script type="text/javascript">
 		$(function () {
 			var ganttData = <?php echo $ganttdata; ?>;
+			var savePlanDates = createGanttPlanDateSaver("ajax_planlaeg_sag.php", <?php echo jsString([findtekst('planning.save_failed|Datoerne kunne ikke gemmes. Planlægningen genindlæses.', $sprog_id)]); ?>);
 			$("#ganttChart").ganttView({ 
 				data: ganttData,
 				monthNames: <?php echo $ganttMonthNames; ?>,
@@ -221,41 +224,8 @@
 						//$("#eventMessage").text(msg);
 						//window.location.href = "sager.php?funktion=vis_sag&sag_id=" + data.id;
 					},
-					onResize: function (data) { 
-						var planfra = data.start.toString("dd-MM-yyyy");
-						var plantil = data.end.toString("dd-MM-yyyy");
-						var id = data.id;
-						var opg_id = data.opg_id;
-						var op = data.op;
-						var dataString = 'planfra='+ planfra + '&plantil=' + plantil + '&id=' + id + '&opg_id=' + opg_id + '&op=' + op; // 
-						$.ajax ({
-							type: "POST",
-							url: "ajax_planlaeg_sag.php",
-							data: dataString,
-							success: function(data) {
-								//alert(data);
-							} 
-						});
-					},
-					onDrag: function (data) { 
-						var planfra = data.start.toString("dd-MM-yyyy");
-						var plantil = data.end.toString("dd-MM-yyyy");
-						var id = data.id;
-						var opg_id = data.opg_id;
-						var op = data.op;
-						var dataString = 'planfra='+ planfra + '&plantil=' + plantil + '&id=' + id + '&opg_id=' + opg_id + '&op=' + op; //  
-						$.ajax ({
-							type: "POST",
-							url: "ajax_planlaeg_sag.php",
-							data: dataString,
-							success: function(data) {
-								//alert(data);
-								//var ganttData=data;
-								//return ganttData;
-								//$("#eventMessage").text(ganttData);
-							} 
-						});
-					}
+					onResize: savePlanDates,
+					onDrag: savePlanDates
 				}
 			});
 			

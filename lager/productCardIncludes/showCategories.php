@@ -15,9 +15,14 @@
         } else $kat_master[$x] = 0;
     }
 
-    for ($x=1;$x<=count($kat_id);$x++) {
-        if ($kat_master[$x] && !in_array($kat_master[$x],$kat_id)) {
-            db_modify("delete from grupper where id = '$kat_id[$x]'",__FILE__ . " linje " . __LINE__);
+    # MB-62 this cleanup deletes category rows, so a read-only user's card view does not run it. An
+    # orphan is not printed either way - the walk below only reaches a category whose parent it has
+    # already used - so skipping the delete here leaves the list this user sees unchanged.
+    if (!$noEdit) {
+        for ($x=1;$x<=count($kat_id);$x++) {
+            if ($kat_master[$x] && !in_array($kat_master[$x],$kat_id)) {
+                db_modify("delete from grupper where id = '$kat_id[$x]'",__FILE__ . " linje " . __LINE__);
+            }
         }
     }
 
@@ -37,9 +42,14 @@ while ($a <= count($kat_id)) {
         }
         print "<tr><td title=\"ID=$kat_id[$a]\">$kat_beskrivelse[$a]</td>\n";
         print "<td title=\"".findtekst(395,$sprog_id)."\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"kat_valg[$a]\" $checked></td>\n";
-        print "<td title=\"".findtekst(396,$sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&rename_category=$kat_id[$a]\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
-        if (in_array($kat_id[$a],$kat_master)) print "<td></td>";
-        else print "<td title=\"".findtekst(397,$sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&delete_category=$kat_id[$a]\" onclick=\"return confirm('Vil du slette denne katagori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
+		# MB-62 a read-only user sees the categories but not the controls that change them
+		if ($noEdit) {
+			print "<td></td><td></td>\n";
+		} else {
+			print "<td title=\"".findtekst(396,$sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&rename_category=$kat_id[$a]\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
+			if (in_array($kat_id[$a],$kat_master)) print "<td></td>";
+			else print "<td title=\"".findtekst(397,$sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&delete_category=$kat_id[$a]\" onclick=\"return confirm('Vil du slette denne katagori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
+		}
         print "</tr>\n";
         print "<input type=\"hidden\" name=\"kat_id[$a]\" value=\"$kat_id[$a]\">\n";
 
@@ -62,9 +72,14 @@ while ($a <= count($kat_id)) {
 #           print "$a | $c | $d | $kat_id[$d] | $kat_beskrivelse[$d] | $kat_master[$d]</td>\n";
             print "$kat_beskrivelse[$d]</td>\n";
             print "<td title=\"".findtekst(395,$sprog_id)."\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"kat_valg[$d]\" $checked></td>\n";
-            print "<td title=\"".findtekst(396,$sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&rename_category=$kat_id[$d]\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
-            if (in_array($kat_id[$d],$kat_master)) print "<td></td>";
-            else print "<td title=\"".findtekst(397,$sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&delete_category=$kat_id[$d]\" onclick=\"return confirm('Vil du slette denne kategori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
+			# MB-62 same for the deeper category level
+			if ($noEdit) {
+				print "<td></td><td></td>\n";
+			} else {
+				print "<td title=\"".findtekst(396,$sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&rename_category=$kat_id[$d]\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
+				if (in_array($kat_id[$d],$kat_master)) print "<td></td>";
+				else print "<td title=\"".findtekst(397,$sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&delete_category=$kat_id[$d]\" onclick=\"return confirm('Vil du slette denne kategori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
+			}
             print "</tr>\n";
             print "<input type=\"hidden\" name=\"kat_id[$d]\" value=\"$kat_id[$d]\">\n";
 

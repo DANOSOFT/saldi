@@ -9,13 +9,9 @@
 // where the stack is not reachable (no pgsql extension, or no postgres host),
 // so `composer test` stays green on a bare checkout.
 //
-// Tenant strategy: each run drops and re-creates a dedicated throwaway
-// tenant database (SALDI_CHAR_TEST_DB, default saldi_chartest) as a clone of
-// an existing installed tenant (SALDI_CHAR_TEMPLATE_DB, default saldi_2),
-// then registers it in the master `regnskab` table and seeds an `online`
-// session row so the legacy page scripts accept a fabricated session id.
-// Nothing in the template tenant or the master registry outside these rows
-// is touched.
+// Each test class now owns a fresh UUID-named tenant installed from repository
+// schema/seed files. SALDI_TEST_KEEP_DATABASES=1 retains its database and routing
+// rows; the helper prints the UUID and name before creation.
 //
 // History:
 // 20260723 CL/LH SD-601: created.
@@ -23,12 +19,18 @@
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 // 20261022 CL/NTR bootstrapTenantOnce() is guarded by $ownsTenant, so a teardown by one suite makes the next one re-clone.
 //                 runChild() collects stderr in a temp file so a chatty child cannot deadlock on a full pipe.
+// 20261111 CDX/NTR Replace the shared template clone with UUID-owned fresh installations.
+
+require_once __DIR__ . '/database/TestDatabase.php';
 
 final class CharacterizationEnv
 {
-    private static bool $ownsTenant = false;
+    private static ?TestDatabase $database = null;
 
-    public const SESSION_ID = 'saldichartestsession000000000001'; // 32 chars, matches online.session_id varchar(32)
+    public static function sessionId(): string
+    {
+        return self::$database->sessionId();
+    }
 
     public static function pgHost(): string
     {
@@ -50,14 +52,12 @@ final class CharacterizationEnv
         return getenv('SALDI_CHAR_MASTER_DB') ?: 'saldi';
     }
 
-    public static function templateDb(): string
-    {
-        return getenv('SALDI_CHAR_TEMPLATE_DB') ?: 'saldi_2';
-    }
-
     public static function testDb(): string
     {
-        return getenv('SALDI_CHAR_TEST_DB') ?: 'saldi_chartest';
+        if (self::$database === null) {
+            throw new RuntimeException('Bootstrap the test group before asking for its database');
+        }
+        return self::$database->name();
     }
 
     public static function repoRoot(): string
@@ -65,54 +65,15 @@ final class CharacterizationEnv
         return dirname(__DIR__, 3);
     }
 
-    /** Returns null when the environment is usable, otherwise a human skip-reason. */
+    /** Only the application master is needed; no installed template tenant. */
     public static function unavailableReason(): ?string
     {
-        if (!extension_loaded('pgsql')) {
-            return 'pgsql extension not loaded (run inside the docker web container)';
-        }
-        self::assertSafeDatabases();
-        if (self::pgPass() === '') {
-            return 'SALDI_CHAR_PGPASS is required for database characterization tests';
-        }
-        $conn = pg_connect(self::connString(self::masterDb()), PGSQL_CONNECT_FORCE_NEW);
-        if ($conn === false) {
-            return 'postgres not reachable at host "' . self::pgHost() . '" (is the docker-compose stack up?)';
-        }
-        $template = self::templateDb();
-        $r = pg_query_params($conn, 'SELECT 1 FROM pg_database WHERE datname = $1', [$template]);
-        $exists = $r !== false && pg_num_rows($r) === 1;
-        pg_close($conn);
-        if (!$exists) {
-            return "template tenant db \"$template\" does not exist (install the app + create a tenant first, see tests/characterization/README.md)";
-        }
-        return null;
+        return TestDatabase::unavailableReason();
     }
 
-    private static function quoteConnectionValue(string $value): string
-    {
-        return "'" . str_replace(["\\", "'"], ["\\\\", "\\'"], $value) . "'";
-    }
-
-    private static function connString(string $db): string
-    {
-        return sprintf(
-            'host=%s dbname=%s user=%s password=%s connect_timeout=3',
-            self::quoteConnectionValue(self::pgHost()),
-            self::quoteConnectionValue($db),
-            self::quoteConnectionValue(self::pgUser()),
-            self::quoteConnectionValue(self::pgPass())
-        );
-    }
-
-    /** @return resource|\PgSql\Connection */
     public static function connect(string $db)
     {
-        $conn = pg_connect(self::connString($db), PGSQL_CONNECT_FORCE_NEW);
-        if ($conn === false) {
-            throw new RuntimeException("could not connect to $db");
-        }
-        return $conn;
+        return TestDatabase::connect($db);
     }
 
     /** Run a query, return all rows as associative arrays. */
@@ -135,103 +96,11 @@ final class CharacterizationEnv
         return $rows[0] ?? null;
     }
 
-    /**
-     * Drop + re-create the throwaway tenant as a clone of the template tenant
-     * and register it in master regnskab/online. Idempotent per test run.
-     */
-    public static function bootstrapTenant(): void
+    /** Every mutating class owns a fresh installation and an independent session. */
+    public static function bootstrapTenant(string $group = 'characterization'): void
     {
-        self::assertSafeDatabases();
-        $master = self::connect(self::masterDb());
-        $test = self::testDb();
-        $template = self::templateDb();
-
-        // Only terminate sessions on the disposable test database; never disconnect template users.
-        foreach ([$test] as $dbName) {
-            pg_query_params(
-                $master,
-                'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()',
-                [$dbName]
-            );
-        }
-        // Identifiers can't be bound parameters; both names come from trusted env/defaults.
-        if (!preg_match('/^[a-z0-9_]+$/', $test) || !preg_match('/^[a-z0-9_]+$/', $template)) {
-            throw new RuntimeException('unsafe database name');
-        }
-        pg_query($master, "DROP DATABASE IF EXISTS $test");
-        $r = pg_query($master, "CREATE DATABASE $test TEMPLATE $template");
-        if ($r === false) {
-            throw new RuntimeException('could not clone template tenant: ' . pg_last_error($master));
-        }
-
-        self::$ownsTenant = true;
-
-        // Register the clone in the master registry (mirrors the template's row shape).
-        pg_query_params($master, 'DELETE FROM regnskab WHERE db = $1', [$test]);
-        pg_query_params(
-            $master,
-            "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version, sidst, brugerantal, posteringer, lukket, administrator)
-             SELECT 'chartest', dbhost, dbuser, $1, version, sidst, brugerantal, 1000000, '', administrator
-             FROM regnskab WHERE db = $2",
-            [$test, $template]
-        );
-
-        // Seed the online-session row the legacy page scripts authenticate by.
-        $tenant = self::connect($test);
-        $ra = self::one($tenant, "SELECT max(kodenr) AS ra FROM grupper WHERE art = 'RA'");
-        $regnaar = (int)($ra['ra'] ?? 1);
-        pg_close($tenant);
-
-        // `rettigheder` is a positional digit string, one character per module
-        // (includes/online.php:331 checks substr($rettigheder, $modulnr, 1)),
-        // so "all permissions" means filling it with 9s. Its width is not the
-        // same everywhere - a fresh install declares varchar(30), older
-        // tenants are wider - and overflowing it makes the INSERT fail
-        // silently, leaving every page-driven test without a session. Take
-        // the width from the column itself.
-        $width = self::one(
-            $master,
-            "SELECT character_maximum_length AS n FROM information_schema.columns
-             WHERE table_name = 'online' AND column_name = 'rettigheder'"
-        );
-        $rettigheder = str_repeat('9', max(1, (int)($width['n'] ?? 30)));
-
-        pg_query_params($master, 'DELETE FROM online WHERE session_id = $1', [self::SESSION_ID]);
-        $r = pg_query_params(
-            $master,
-            'INSERT INTO online (session_id, brugernavn, db, dbuser, rettigheder, regnskabsaar, logtime, revisor, language_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, false, 0)',
-            [self::SESSION_ID, 'chartest', $test, self::pgUser(), $rettigheder, $regnaar, (string)time()]
-        );
-        if ($r === false) {
-            $err = pg_last_error($master);
-            pg_close($master);
-            // Without this row every page-driven test runs without a session
-            // and fails somewhere far away from the cause. Fail here instead.
-            throw new RuntimeException('could not seed the online session row: ' . $err);
-        }
-        pg_close($master);
-    }
-
-    /**
-     * Clone the tenant the first time any suite asks for it, and reuse it for
-     * the rest of the run.
-     *
-     * Re-cloning per test class costs a few seconds each and buys nothing:
-     * fixtures name their rows uniquely (see Fixtures), so suites do not
-     * collide. Set SALDI_CHAR_FRESH_TENANT=1 to force a clone per class when
-     * a suite genuinely needs virgin ledger state.
-     *
-     * Guarded by $ownsTenant rather than a separate flag, so a suite that
-     * calls teardownTenant() (KassekladdePosting, OrderInvoice) makes the next
-     * shared suite clone a new tenant instead of using the dropped one.
-     */
-    public static function bootstrapTenantOnce(): void
-    {
-        if (self::$ownsTenant && !getenv('SALDI_CHAR_FRESH_TENANT')) {
-            return;
-        }
-        self::bootstrapTenant();
+        self::teardownTenant();
+        self::$database = TestDatabase::create($group);
     }
 
     /**
@@ -287,35 +156,11 @@ final class CharacterizationEnv
         return (int)$r['id'];
     }
 
-    public static function assertSafeDatabases(): void
-    {
-        $test = self::testDb();
-        foreach ([$test, self::templateDb(), self::masterDb()] as $name) {
-            if (!preg_match('/^[a-z0-9_]+$/', $name)) {
-                throw new RuntimeException('unsafe database name');
-            }
-        }
-        if ($test === self::templateDb() || $test === self::masterDb()) {
-            throw new RuntimeException('SALDI_CHAR_TEST_DB must differ from template and master databases');
-        }
-    }
-
     public static function teardownTenant(): void
     {
-        if (!self::$ownsTenant) {
-            return;
-        }
-        self::assertSafeDatabases();
-        $master = self::connect(self::masterDb());
-        try {
-            $test = self::testDb();
-            self::rows($master, 'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()', [$test]);
-            self::rows($master, 'DROP DATABASE IF EXISTS ' . pg_escape_identifier($master, $test));
-            self::rows($master, "DELETE FROM online WHERE db = $1 AND session_id = $2", [$test, self::SESSION_ID]);
-            self::rows($master, "DELETE FROM regnskab WHERE db = $1 AND regnskab = 'chartest'", [$test]);
-            self::$ownsTenant = false;
-        } finally {
-            pg_close($master);
+        if (self::$database !== null) {
+            self::$database->release();
+            self::$database = null;
         }
     }
 

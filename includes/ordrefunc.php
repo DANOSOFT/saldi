@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
-
+//
+//
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -147,21 +147,32 @@
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
+// 20261016 CL/MJ SST-876 linjeopdat(): a webshop that refuses the stock update is written to the php error log. Nothing read sync_shop_vare()'s answer before, so a shop could stop taking stock figures for days without a trace.
 // 20261019 CL/LH MB-73: linjeopdat() adds the delivered quantity to coalesce(leveret,0), as NULL+n stayed NULL and fast invoicing and credit notes never recorded it.
 //                opret_ordrelinje() inserts leveret = 0.
 //                krediter_pos() starts the return line at leveret 0, as the sold line's leveret is now recorded and copying it cancelled the return.
 //                Braces added to the brace-less ifs in the edited blocks.
+// 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells the webshops once when every line is posted. An item on two lines was two sends, and a set the lines share was sent once per line: item 13054 is a component in 33 sets, so one order line was 198 webshop calls and the 30 second budget skipped everything after it.
+// 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
+// 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
 // 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery
 //                records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
+// 20261008 SS The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
+// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261029 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
 // 20261101 CL/MJ SST-910 linjeopdat(): a return on an item without batch control goes back into the purchase batches.
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
+// 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/orderFuncIncludes/glsLabel.php';
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -500,6 +511,13 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	#fclose ($fp);
 /* echo "<!--function levering slut-->"; */
 	#xit;
+	# SST-876: every line is marked. With an open transaction, the flush defers these
+	# figures until the owner drains after commit; otherwise it sends the document now.
+	# Failed item numbers belong to the screen caller, never a popup in this shared function.
+	$shopSync = shopSyncFlush(0); # Document only; the transaction owner drains after commit.
+	if (shopSyncFailed($shopSync)) {
+		error_log("saldi: shop stock sync failed on order $id for: " . implode(', ', shopSyncFailedItems()));
+	}
 	return ("OK");
 } #endfunc levering
 
@@ -789,7 +807,11 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			}
 		}
 	}
-	sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
+	# SST-876: the line is marked and nothing is sent yet. levering() sends once when every
+	# line has been posted, so an item on two lines is one send with the figure the document
+	# ended with, and a set shared by several lines is sent once rather than once per line.
+	# Item 13054 is a component in 33 sets: its line alone used to be 198 webshop calls.
+	shopSyncMark($vare_id, $variant_id, $lager, 'stock'); # std_func.
 	// 20261019 CL/LH MB-73 leveret has no default and opret_ordrelinje() never set it, so NULL+$antal stayed
 	// NULL and fast invoicing (which never opens debitor/ordre.php's re-sync) left the delivered quantity unrecorded.
 	// 20261027 CL/LH MB-73 (review): a NULL line starts from $deliveredBefore (read above), not from 0.
@@ -1805,6 +1827,9 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		$svar = $fejl;
 	}
 	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595) - unconditional, covers the committed success path too
+	if (!$callerOwnsTransaction && $svar === 'OK' && !$db_modify_fejl) {
+		shopSyncDrainQueue();
+	}
 	/* echo "<!--function bogfor slut-->"; */
 	return ($svar);
 } #endfunc bogfor
@@ -4362,7 +4387,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				$varerabatgruppe = 0;
 			if (!isset($rabat))
 				$rabat = 0;
-			$qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
+			$qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe' order by case when debitorart='NR' and vareart='NR' then 0 else 1 end, id desc limit 1";
 			if ($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$rabat = $r2['rabat'];
 				$rabatart = $r2['rabatart'];
@@ -6024,123 +6049,6 @@ if (!function_exists('find_nextfakt')) {
 		return ($nextfakt);
 	}
 }# endfunc find_nextfakt							
-
-if (!function_exists('gls_label')) {
-	function gls_label($gls_username, $gls_password, $gls_customerid, $gls_ctId, $ordrenr, $kundeordnr, $firmanavn, $addr1, $postnr, $bynavn, $land, $email, $lev_navn, $lev_addr1, $lev_postnr, $lev_bynavn, $lev_land, $kontakt, $weight)
-	{
-		global $db;
-		$weight = ceil($weight);
-		if ($weight < 1)
-			$weight = 1;
-		if ($land == 'Sweden') {
-			$code = '752';
-		} else if ($land == 'Sverige') {
-			$code = '752';
-		} else if ($land == 'sverige') {
-			$code = '752';
-		} else if ($land == 'Denmark') {
-			$code = '208';
-		} else if ($land == 'Danmark') {
-			$code = '208';
-		} else {
-			$code = '208';
-		}
-		if (!empty($lev_navn)) {
-			$name = $lev_navn;
-			$strrrt1 = $lev_addr1;
-			$city = $lev_bynavn;
-			$zipcode = $lev_postnr;
-		} else {
-			$name = $firmanavn;
-			$strrrt1 = $addr1;
-			$city = $bynavn;
-			$zipcode = $postnr;
-		}
-		$name = html_entity_decode($name, ENT_QUOTES, 'UTF-8');
-		$strrrt1 = html_entity_decode($strrrt1, ENT_QUOTES, 'UTF-8');
-		$zipcode = html_entity_decode($zipcode, ENT_QUOTES, 'UTF-8');
-		$kontakt = html_entity_decode($kontakt, ENT_QUOTES, 'UTF-8');
-		$city = html_entity_decode($city, ENT_QUOTES, 'UTF-8');
-		$ary = [
-			"UserName" => $gls_username,
-			"Password" => $gls_password,
-			"Customerid" => $gls_customerid,
-			"Contactid" => $gls_ctId,
-			"ShipmentDate" => date('Ymd'),
-			"Reference" => $ordrenr,
-			"Addresses" => [
-				"Delivery" => [
-					"Name1" => substr($name, 0, 39),
-					"Street1" => $strrrt1,
-					"CountryNum" => $code,
-					"ZipCode" => $zipcode,
-					"City" => $city,
-					"Contact" => substr($kontakt, 0, 39),
-					"Email" => $email,
-				]
-			],
-			"Parcels" => [
-				[
-					"Weight" => $weight,
-					"Reference" => $kundeordnr,
-				]
-			]
-		];
-		$json = json_encode($ary);
-		file_put_contents("../temp/$db/pdf.json", $json);
-		$service_url = 'http://api.gls.dk/ws/DK/V1/CreateShipment/';
-		// jSON String for request
-		$json_string = $json;
-		// Initializing curl
-		$ch = curl_init($service_url);
-		// Configuring curl options
-		$options = array(
-			CURLOPT_RETURNTRANSFER => true,
-			//CURLOPT_USERPWD => $username . ":" . $password,  // authentication
-			//CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1') ,
-			CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1'),
-			CURLOPT_POSTFIELDS => $json_string
-		);
-
-		// Setting curl options
-		curl_setopt_array($ch, $options);
-
-		// Getting results
-		$result = curl_exec($ch); // Getting jSON result string
-		if (curl_errno($ch)) {
-			// Handle curl error
-			die('Curl error: ' . curl_error($ch));
-		}
-		curl_close($ch);
-
-		file_put_contents("../temp/$db/pdf-res.json", $result);
-		$res = json_decode($result);
-
-		if (!$res || !isset($res->PDF)) {
-			// Handle API error
-			die('Invalid response from GLS API');
-		}
-
-		// Clean all output buffers
-		while (ob_get_level()) {
-			ob_end_clean();
-		}
-
-		// Set headers for PDF download
-		header('Content-Type: application/pdf');
-		header('Content-Disposition: attachment; filename="' . $ordrenr . '.pdf"');
-		header('Content-Length: ' . strlen(base64_decode($res->PDF)));
-		header('Content-Transfer-Encoding: binary');
-		header('Cache-Control: private, no-cache, no-store, must-revalidate');
-		header('Pragma: no-cache');
-		header('Expires: 0');
-
-		// Output PDF content
-		echo base64_decode($res->PDF);
-		exit();
-		/* GLS funktion slut */
-	}
-}
 
 if (!function_exists('registrer_betaling')) {
 	function registrer_betaling($betalings_id, $ordre_id, $betalingstype, $amount, $valuta, $valutakurs, $terminal_ip)

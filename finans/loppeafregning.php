@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/loppeafregning.php --- Patch 4.1.1 --- 2026.07.14 ---
+// --- finans/loppeafregning.php --- ver 5.1.0 --- 2026.11.10 ---
 /// LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2016-2025 saldi.dk ApS
+// Copyright (c) 2016-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 // 20180621 PHR Summer tillægges moms hvis ordrelinjer er momsbelagt. Søg momsfri & momssats
 // 20211020 PHR Comparing $gruppesum[$y] to $totalsum and regulating $gruppesum[$y] if diff less than 0.1 to avoid diff in ledger.
 // 20250530 PHR Fixed an error in extraction the account no. and added % or text
 // 20251119 PHR Changed transdate ($dd) to date of settlement
 // 20260714 CX/PHR Skip items whose account part (from character six) is not numeric
+// 20261109 CL/SS SST-919: Leave out sales already settled at the cash count (ordrer.settletime > 0); query in loppeafregningSalesQuery().
+// 20261110 CL/SS SST-919 review: Leave out only the lines the cash count settles, so a zero-cost line or a line with a NULL value on a settled order stays here.
 
 @session_start();
 $s_id=session_id();
@@ -39,6 +41,33 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
+
+/**
+ * Commission sales to settle in the journal.
+ * Lines the cash count has settled are left out: commission lines with a price and a cost
+ * on orders with ordrer.settletime > 0. Other lines on those orders stay, also when a value is NULL.
+ *
+ * @param string $vareprefix Item number prefix (kb, kn, ...).
+ * @param string $varegruppe Item group, or '' for all.
+ * @param string $fromDate   First invoice date, Y-m-d.
+ * @param string $toDate     Last invoice date, Y-m-d.
+ * @return string SQL selecting varenr, gruppe, pris, antal, momssats, momsfri and kostpris.
+ */
+function loppeafregningSalesQuery($vareprefix, $varegruppe, $fromDate, $toDate) {
+	$qtxt = "select varer.varenr, varer.gruppe, batch_salg.pris, batch_salg.antal, ";
+	$qtxt.= "ordrelinjer.momssats, ordrelinjer.momsfri, ordrelinjer.kostpris ";
+	$qtxt.= "from batch_salg, varer, ordrelinjer, ordrer ";
+	$qtxt.= "where varer.varenr like '" . db_escape_string($vareprefix) . "%' and ordrelinjer.id = batch_salg.linje_id and batch_salg.antal != 0 ";
+	if ($varegruppe) {
+		$qtxt.= "and varer.gruppe = '" . db_escape_string($varegruppe) . "' ";
+	}
+	$qtxt.= "and ordrer.id = ordrelinjer.ordre_id and (ordrer.settletime = '0' or ordrer.settletime is null ";
+	$qtxt.= "or not coalesce(varer.provision > '0' and ordrelinjer.pris != '0' and ordrelinjer.kostpris > '0' ";
+	$qtxt.= "and (ordrelinjer.varenr like 'kn%' or ordrelinjer.varenr like 'kb%'), false)) ";
+	$qtxt.= "and batch_salg.vare_id = varer.id and batch_salg.fakturadate >= '" . db_escape_string($fromDate) . "' ";
+	$qtxt.= "and batch_salg.fakturadate <= '" . db_escape_string($toDate) . "' order by varer.gruppe, varer.varenr, batch_salg.id";
+	return $qtxt;
+}
 
 $kladde_id=if_isset($_GET['kladde_id']);
 #echo "$kladde_id=if_isset($_GET[kladde_id])<br>";	
@@ -62,13 +91,7 @@ while ($r=db_fetch_array($q)) {
 
 #echo "$kladde_id && $modkonto && $fra && $til && $vareprefix && $provision<br>";
 if ($kladde_id && $fra && $til && $vareprefix) {
-	$qtxt = "select varer.varenr, varer.gruppe, batch_salg.pris, batch_salg.antal, ";
-	$qtxt.= "ordrelinjer.momssats, ordrelinjer.momsfri, ordrelinjer.kostpris ";
-	$qtxt.= "from batch_salg,varer,ordrelinjer ";
-	$qtxt.= "where varer.varenr like '".$vareprefix."%' and ordrelinjer.id=batch_salg.linje_id and batch_salg.antal != 0 ";
-	if ($varegruppe) $qtxt.="and varer.gruppe='$varegruppe' "; 
-	$qtxt.="and batch_salg.vare_id=varer.id and batch_salg.fakturadate >='".usdate($fra)."' "; 
-	$qtxt.="and batch_salg.fakturadate <='".usdate($til)."' order by varer.gruppe,varer.varenr,batch_salg.id";
+	$qtxt = loppeafregningSalesQuery($vareprefix, $varegruppe, usdate($fra), usdate($til));
 	$dd=usdate($til);
 	$x=0;
 	$y=0;

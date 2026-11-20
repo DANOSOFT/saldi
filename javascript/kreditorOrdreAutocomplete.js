@@ -276,10 +276,7 @@
             html += '</tr></thead><tbody>';
 
             results.forEach(item => {
-                const id = item.id || item.kontonr || item.code;
-                const val = item.varenr || item.kontonr || item.code || item.initials;
-
-                html += `<tr class="autocomplete-item" data-id="${id}" data-value="${val}" data-lev-varenr="${escapeHtml(item.lev_varenr || '')}">`;
+                html += '<tr class="autocomplete-item">';
 
                 if (type === 'item') {
                     html += `<td class="code-cell">${escapeHtml(item.varenr)}</td>`;
@@ -320,7 +317,13 @@
         activeInput = input;
 
         // Event listeners for results
-        dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+        dropdown.querySelectorAll('.autocomplete-item').forEach((item, index) => {
+            // SST-1041 The row's id, value and supplier row are set on the element, not written into the HTML: a double
+            // quote in an item number would cut the value short and add attributes to the row.
+            const result = results[index] || {};
+            item.dataset.id = String(result.id || result.kontonr || result.code);
+            item.dataset.value = String(result.varenr || result.kontonr || result.code || result.initials);
+            item.dataset.vareLevId = String(result.vare_lev_id || '');
             item.addEventListener('mouseenter', function () {
                 dropdown.querySelectorAll('.autocomplete-item').forEach(i => i.classList.remove('selected'));
                 this.classList.add('selected');
@@ -389,7 +392,10 @@
                 const idInput = document.querySelector('input[name="id"]');
                 if (idInput) orderId = idInput.value;
             }
-            window.location.href = `ordre.php?id=${orderId}&vare_id=${id}`;
+            let url = `ordre.php?id=${orderId}&vare_id=${id}`;
+            // SST-1041 On a new order without a supplier, ordre.php takes the supplier row that was picked in the Lev. varenr. search.
+            if (type === 'lev_item' && selected.dataset.vareLevId) url += '&vare_lev_id=' + encodeURIComponent(selected.dataset.vareLevId);
+            window.location.href = url;
         } else if (type === 'customer') {
             const urlParams = new URLSearchParams(window.location.search);
             const orderId = urlParams.get('id');
