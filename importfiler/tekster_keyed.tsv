@@ -13,6 +13,7 @@ item.import.ambiguous_skipped	Disse varenumre passer på flere varer og er ikke 
 item.import.campaign_only	Kun tilbudspris og tilbudsperiode opdateres. Ukendte varenumre oprettes ikke, og salgspris, kostpris og varegruppe ændres ikke.	Only the offer price and offer period are updated. Unknown item numbers are not created, and sales price, cost price and item group are not changed.	Bare tilbudspris og tilbudsperiode oppdateres. Ukjente varenumre opprettes ikke, og salgspris, kostpris og varegruppe endres ikke.
 item.import.lines_skipped	Disse linjer indeholder fejl og er ikke importeret:	These lines contain errors and were not imported:	Disse linjene inneholder feil og er ikke importert:
 item.import.unknown_skipped	Disse varenumre findes ikke og er ikke oprettet:	These item numbers do not exist and were not created:	Disse varenumrene finnes ikke og er ikke opprettet:
+journal.control_account	Kontrolkonto	Control account	Kontrollkonto
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
 wage.overtime.hours_100	Overtid 100%	Overtime 100%	Overtid 100%
 wage.overtime.hours_50	Overtid 50%	Overtime 50%	Overtid 50%

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/journalDocumentsFunc.php --- ver 5.1.0 --- 2026.11.04 ---
+// --- finans/kassekladde_includes/journalDocumentsFunc.php --- ver 5.1.1 --- 2026.11.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 //                 No @ any more, because the delete in kladdeliste.php turns every warning into an error.
 // 20261104 CL/MMR SST-929 unlink(), scandir() and rmdir() run through journalDocumentsQuietly(), so a warning from them is a failed step (row kept, folder left) and not an ErrorException from the kladdeliste.php handler.
 //                 The warning is still written to the PHP error log, and other error types are passed on (CodeRabbit on PR #1004).
+// 20261120 CL/MMR SST-1039 The clip stands 20px from the Bemærkning field (was 10px), like the other cells on the right of the header row.
 
 /**
  * The document folder as seen from finans/ (owncloud, bilag or documents, as insertDoc.php picks it).
@@ -95,7 +96,7 @@ function journalDocumentsList($kladde_id)
 function journalDocumentsClip($kladde_id, $sprog_id)
 {
 	$kladde_id = (int)$kladde_id;
-	$style = "style='padding-left: 10px; vertical-align: middle;'";
+	$style = "style='padding-left: 20px; vertical-align: middle;'";
 	if (!$kladde_id) {
 		$title = htmlspecialchars(findtekst('5432|Gem kladden, før du vedhæfter dokumenter til den', $sprog_id), ENT_QUOTES);
 		return "<td $style title='$title'><img src='../ikoner/clip.png' style='width:20px;height:20px;opacity:0.4;' alt=''></td>";

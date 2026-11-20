@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/fiscalYearSwitch.php --- ver 5.0.0 --- 2026.10.12 ---
+// --- finans/kassekladde_includes/fiscalYearSwitch.php --- ver 5.1.1 --- 2026.11.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/SZ SD-730 Switch the active fiscal year from the journal header, as the dashboard does, and come back to the same journal.
+// 20261120 CL/MMR SST-1039 The Regnskabsår cell stands 20px from the clip (was 10px), like the other cells on the right of the header row.
 
 /**
  * Switch the active fiscal year when the journal is opened with ?aktiver_regnaar=<kodenr>, then
@@ -77,7 +78,7 @@ function fiscalYearSwitchCell($regnaar, $kladde_id, $bogfort, $sprog_id)
 		$options = "<option value='$regnaar' selected disabled>" . htmlspecialchars($name, ENT_QUOTES) . " (" . findtekst('387|Lukket', $sprog_id) . ")</option>" . $options;
 	}
 	$kladde_id = (int)$kladde_id;
-	$cell = "<td style='padding-left: 10px; white-space: nowrap; vertical-align: middle;'><b>" . findtekst('778|Regnskabsår', $sprog_id) . ":</b> ";
+	$cell = "<td style='padding-left: 20px; white-space: nowrap; vertical-align: middle;'><b>" . findtekst('778|Regnskabsår', $sprog_id) . ":</b> ";
 	$cell .= "<select id='kkRegnaar' class='inputbox' style='vertical-align: middle;' onchange='kkSwitchYear(this)'>$options</select></td>";
 	$cell .= "<script>
 	function kkSwitchYear(s) {
