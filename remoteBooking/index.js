@@ -5,6 +5,9 @@
 // 20261111 CL/MMR SST-992: also read the account from ?id=, the form older «Ekstern booking» links use.
 // 20261111 CL/MMR SST-992 (review): the account comes from index.php (validated), not from the link, and is URL-encoded where it is used.
 // 20261111 CL/MMR SST-1000: stop with a message and reload when createBooking returns no booking id (the unit is no longer free).
+// 20261120 CL/MMR SST-1000 (review): the free units are stored under the local day (toISOString gave the UTC day, the day before),
+//                 and a start day without a free unit stops with a message instead of a JavaScript error.
+//                 A payment approved too late for a unit that is no longer free shows a message instead of the order confirmation and mail.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${encodeURIComponent(db)}`,{
         method: "GET",
@@ -202,6 +205,10 @@ const calendarView = async (main, product, weeks, price, db) => {
         return date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
     }) : []
 
+    // SST-1000 (review): the day a date falls on in the browser, as 'YYYY-MM-DD'. toISOString() gives the UTC day,
+    // which in Denmark is the day before at midnight, so the free units were stored under the day before.
+    const localDay = date => date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
+
     const datePick = flatpickr("#calendar", {
         inline: true, // This makes the calendar always visible
         mode: "range",
@@ -233,7 +240,7 @@ const calendarView = async (main, product, weeks, price, db) => {
                 })
                 // Add this available date to our tracking array
                 if (!isItemReserved) {
-                    availableDatesById.push([itemId, date.toISOString().split('T')[0]])
+                    availableDatesById.push([itemId, localDay(date)])
                 }
                 // If item is not reserved, it's available
                 return !isItemReserved
@@ -356,6 +363,30 @@ const calendarView = async (main, product, weeks, price, db) => {
                 return
             }
 
+            startDate = localDay(startDate)
+            endDate = localDay(endDate)
+
+            const shuffleArray = array => {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    // Store temporarily to avoid TDZ issues
+                    const temp = array[i];
+                    array[i] = array[j];
+                    array[j] = temp;
+                }
+                return array;
+            }
+            // get id from availableDatesById based on startDate
+            const shuffledArray = shuffleArray(availableDatesById)
+            const match = shuffledArray.find(([id, date]) => date === startDate)
+            if (!match) {
+                // SST-1000 (review): no unit is free from the chosen start day, so nothing is sent (not even the customer)
+                alert("Der er ingen ledig enhed fra den valgte startdato. Siden opdateres, så du kan vælge igen.")
+                location.reload()
+                return
+            }
+            const id = match[0]
+
             let data = {
                 "name": name,
                 "email": email,
@@ -377,27 +408,6 @@ const calendarView = async (main, product, weeks, price, db) => {
 
             const custId = res.id
 
-            let offset = startDate.getTimezoneOffset()
-            let localDate = new Date(startDate.getTime() - offset * 60 * 1000)
-            startDate = localDate.toISOString().split('T')[0]
-
-            offset = endDate.getTimezoneOffset()
-            localDate = new Date(endDate.getTime() - offset * 60 * 1000)
-            endDate = localDate.toISOString().split('T')[0]
-
-            const shuffleArray = array => {
-                for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    // Store temporarily to avoid TDZ issues
-                    const temp = array[i];
-                    array[i] = array[j];
-                    array[j] = temp;
-                }
-                return array;
-            }
-            // get id from availableDatesById based on startDate
-            const shuffledArray = shuffleArray(availableDatesById)
-            const id = shuffledArray.find(([id, date]) => date === startDate)[0]
             data = {
                 "product_id": product.id,
                 "start_date": startDate,
@@ -497,6 +507,16 @@ const calendarView = async (main, product, weeks, price, db) => {
                         return response.json()
                     })
                     console.log(res)
+                    if (!res || res.status !== "approved") {
+                        // SST-1000 (review): the payment came back after the booking expired, and the unit is no longer free
+                        main.innerHTML = `
+                            <div class="w-2/3 mx-auto text-white text-center mt-4">
+                                <h3>Bookingen kunne ikke bekræftes</h3>
+                                <p>Enheden er ikke længere ledig i den valgte periode. Kontakt udlejeren om din betaling.</p>
+                            </div>
+                        `
+                        return
+                    }
                     main.innerHTML = `
                         <div class="w-2/3 mx-auto text-white text-center mt-4">
                             <h3>Tak for din bestilling!</h3>

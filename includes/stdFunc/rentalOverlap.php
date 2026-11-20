@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/rentalOverlap.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- includes/stdFunc/rentalOverlap.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,9 @@
 // ----------------------------------------------------------------------
 // 20261111 CL/MMR SST-1000 Created. A booking from the public booking page or mysale is only stored when the unit is free.
 //                 createBooking stored every booking it got, so a unit could be booked twice when two customers booked at once, when the page had been open while someone else booked, or when the page picked a busy unit.
+// 20261120 CL/MMR SST-1000 (review) rental_approve_booking(): a payment that comes back after the booking expired is only approved when the unit is still free
+//                 (Morten 2026-11-20, option A). Before, the approval cleared expiry_time and invoiced, also when another booking had taken the unit
+//                 or the expired booking had been deleted (order 0).
 
 if (!function_exists('rental_booking_day')) {
 	/**
@@ -96,14 +99,16 @@ if (!function_exists('rental_item_busy')) {
 	 * @param int $itemId rentalitems.id of the unit.
 	 * @param int $from First day of the new booking, unix time.
 	 * @param int $to Last day of the new booking, unix time.
+	 * @param int $exceptBookingId rentalperiod.id that is not counted (the booking being approved); 0 counts all.
 	 * @return bool True when at least one booking or reservation blocks the period (see rental_period_blocks()).
 	 */
-	function rental_item_busy($itemId, $from, $to) {
+	function rental_item_busy($itemId, $from, $to, $exceptBookingId = 0) {
 		$itemId = (int)$itemId;
 		$from = (int)$from;
 		$to = (int)$to;
+		$exceptBookingId = (int)$exceptBookingId;
 		list($wideFrom, $wideTo) = rental_search_bounds($from, $to);
-		$query = db_select("SELECT rt_from, rt_to, expiry_time FROM rentalperiod WHERE item_id = $itemId AND rt_from <= $wideTo AND rt_to >= $wideFrom", __FILE__ . " linje " . __LINE__);
+		$query = db_select("SELECT rt_from, rt_to, expiry_time FROM rentalperiod WHERE item_id = $itemId AND rt_from <= $wideTo AND rt_to >= $wideFrom AND id <> $exceptBookingId", __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			if (rental_period_blocks($row["rt_from"], $row["rt_to"], $from, $to, $row["expiry_time"])) return true;
 		}
@@ -146,5 +151,56 @@ if (!function_exists('rental_store_booking')) {
 		$row = db_fetch_array($query);
 		transaktion('commit');
 		return $row ? (int)$row["id"] : 0;
+	}
+}
+
+if (!function_exists('rental_approve_booking')) {
+	/**
+	 * Approve a booking from the public booking page or mysale when its payment has gone through: the booking stops
+	 * waiting for payment (expiry_time is cleared), and the caller invoices the order.
+	 *
+	 * A booking whose payment came back after its expiry_time no longer held the unit, so another booking may have
+	 * taken it. It is approved only when no other booking or reservation blocks its period now (Morten 2026-11-20).
+	 * The unit's rentalitems row is locked as in rental_store_booking(), so a new booking of the unit cannot pass its
+	 * check while the approval decides, and the booking row is locked so the clean-up of expired bookings waits.
+	 *
+	 * @param int $bookingId rentalperiod.id.
+	 * @param int $orderId Set to the booking's order id when the result is 'approved', otherwise 0.
+	 * @param int|null $now Unix time to compare the expiry with; null is time().
+	 * @return string 'approved' (invoice the order), 'already' (approved before; do not invoice again),
+	 *                'missing' (no such booking, or it has no order) or 'unavailable' (expired and the unit is taken).
+	 */
+	function rental_approve_booking($bookingId, &$orderId, $now = null) {
+		$bookingId = (int)$bookingId;
+		$orderId = 0;
+		$row = db_fetch_array(db_select("SELECT item_id FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__));
+		if (!$row) return 'missing';
+		$itemId = (int)$row["item_id"];
+		transaktion('begin');
+		db_select("SELECT id FROM rentalitems WHERE id = $itemId FOR UPDATE", __FILE__ . " linje " . __LINE__);
+		$row = db_fetch_array(db_select("SELECT item_id, rt_from, rt_to, order_id, expiry_time FROM rentalperiod WHERE id = $bookingId FOR UPDATE", __FILE__ . " linje " . __LINE__));
+		if (!$row || (int)$row["item_id"] !== $itemId) {
+			transaktion('rollback');
+			return 'missing';
+		}
+		if ($row["expiry_time"] === null || $row["expiry_time"] === '') {
+			transaktion('rollback');
+			return 'already';
+		}
+		$bookingOrder = (int)$row["order_id"];
+		if ($bookingOrder <= 0 || !db_fetch_array(db_select("SELECT id FROM ordrer WHERE id = $bookingOrder", __FILE__ . " linje " . __LINE__))) {
+			transaktion('rollback');
+			return 'missing';
+		}
+		$expires = strtotime((string)$row["expiry_time"]);
+		if ($expires !== false && $expires <= ($now === null ? time() : (int)$now)
+			&& rental_item_busy($itemId, $row["rt_from"], $row["rt_to"], $bookingId)) {
+			transaktion('rollback');
+			return 'unavailable';
+		}
+		db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+		transaktion('commit');
+		$orderId = $bookingOrder;
+		return 'approved';
 	}
 }

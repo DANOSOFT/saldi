@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- remoteBooking/api.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- remoteBooking/api.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,9 @@
 // 20261111 CL/MMR SST-1000 createBooking stores the booking only when the unit has no other booking or reservation in the period.
 //                 Otherwise it answers 409 and the page tells the customer. A start or end date that is not a 'Y-m-d' calendar date is refused (400).
 //                 The action is now the handler handleCreateBooking().
+// 20261120 CL/MMR SST-1000 (review) updateBooking "approved" goes through rental_approve_booking(): a payment that came back after the
+//                 booking expired is approved only when the unit is still free, otherwise 409 "refused" and no invoice. A booking approved
+//                 before is not invoiced again, and a deleted booking (order 0) is refused instead of invoiced.
 //
 
 
@@ -411,12 +414,18 @@ if(isset($_GET["updateBooking"])){
         echo json_encode(["status" => "deleted"]);
         exit;
     }else{
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
-        db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        fakturer_ordre($orderId, "email", 0);
-        echo json_encode(["status" => "approved"]);
+        // SST-1000 (review): a payment that came back after the booking expired is approved only when the unit is still free
+        $orderId = 0;
+        $approval = rental_approve_booking($bookingId, $orderId);
+        if ($approval === 'approved') {
+            fakturer_ordre($orderId, "email", 0);
+            echo json_encode(["status" => "approved"]);
+        } elseif ($approval === 'already') {
+            echo json_encode(["status" => "approved"]);
+        } else {
+            http_response_code(409);
+            echo json_encode(["status" => "refused", "reason" => $approval]);
+        }
     }
 }
 

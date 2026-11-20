@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../../includes/stdFunc/rentalOverlap.php';
 //                 An unpaid booking whose expiry_time has passed does not block.
 //                 Request days must be 'Y-m-d' calendar dates, and an existing period is compared by the days it falls on.
 //                 The last test checks that both createBooking store through rental_store_booking() and answer 409.
+// 20261120 CL/MMR SST-1000 (review) Both approvals go through rental_approve_booking(), and both pages key the free units by the local day.
 final class RentalOverlapTest extends TestCase
 {
     private const NOW = 1794481200; // 2026-11-12 12:00 Europe/Copenhagen
@@ -148,6 +149,24 @@ final class RentalOverlapTest extends TestCase
         foreach (['remoteBooking/index.js', 'mysale/remote.js'] as $file) {
             $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);
             self::assertMatchesRegularExpression('/if \(!response \|\| !response\.id\) \{[^}]*location\.reload\(\)\s*return/s', $src, $file);
+        }
+    }
+
+    public function testBothApprovalsGoThroughTheCheckAndThePagesUseTheLocalDay(): void
+    {
+        foreach (['remoteBooking/api.php', 'mysale/api.php'] as $file) {
+            $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);
+            self::assertStringContainsString('$approval = rental_approve_booking($bookingId, $orderId);', $src, $file);
+            self::assertStringNotContainsString('UPDATE rentalperiod SET expiry_time = NULL', $src, $file);
+            self::assertMatchesRegularExpression('/if \(\$approval === \'approved\'\) \{\s*fakturer_ordre\(\$orderId, "email", 0\);/', $src, $file);
+            self::assertSame(1, substr_count($src, 'fakturer_ordre($orderId'), $file . ': invoiced only when approved');
+        }
+        foreach (['remoteBooking/index.js', 'mysale/remote.js'] as $file) {
+            $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);
+            self::assertStringContainsString('availableDatesById.push([itemId, localDay(date)])', $src, $file);
+            self::assertStringNotContainsString("availableDatesById.push([itemId, date.toISOString()", $src, $file);
+            self::assertMatchesRegularExpression('/const match = shuffledArray\.find\([^\n]*\n\s*if \(!match\) \{/', $src, $file);
+            self::assertStringContainsString('if (!res || res.status !== "approved") {', $src, $file);
         }
     }
 }
