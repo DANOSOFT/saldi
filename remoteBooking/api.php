@@ -35,6 +35,7 @@
 //                 Otherwise it answers 409 "refused" and nothing is invoiced.
 //                 A booking approved before is not invoiced again, and a deleted booking (order 0) is refused instead of invoiced.
 //                 The action is now the handler handleUpdateBooking().
+//                 createBooking answers HTTP 500 "storage" (no order) when the booking row was not stored.
 //                 It answers "approved" only when the order is invoiced; a failed invoice gives HTTP 500 "failed", and a repeated approval never invoices again.
 //
 
@@ -193,6 +194,12 @@ function handleCreateBooking() {
     }
     // the booking is only stored when the unit is free: the page checked bookings it loaded earlier
     $data["booking_id"] = rental_store_booking($data["item_id"], $data["cust_id"], $from, $to, $expiryTime);
+    if ($data["booking_id"] < 0) {
+        // SST-1000 (review): the booking was not stored (nothing written or the commit was rejected): no order
+        http_response_code(500);
+        echo json_encode(["error" => "storage", "msg" => "Bookingen kunne ikke gemmes"]);
+        exit;
+    }
     if (!$data["booking_id"]) {
         http_response_code(409);
         echo json_encode(["error" => "unavailable", "msg" => "Enheden er ikke ledig i den valgte periode"]);

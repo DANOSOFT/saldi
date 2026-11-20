@@ -134,7 +134,8 @@ if (!function_exists('rental_store_booking')) {
 	 * @param int $from First day, unix time at local midnight.
 	 * @param int $to Last day, unix time at local midnight.
 	 * @param string $expiryTime When the unpaid booking expires, 'Y-m-d H:i:s'.
-	 * @return int The new rentalperiod.id; 0 when the unit is not free in the period or the row was not stored.
+	 * @return int The new rentalperiod.id; 0 when the unit is not free in the period; -1 when the row was not stored
+	 *             (the insert wrote nothing or the commit was rejected).
 	 */
 	function rental_store_booking($itemId, $custId, $from, $to, $expiryTime) {
 		$itemId = (int)$itemId;
@@ -154,13 +155,13 @@ if (!function_exists('rental_store_booking')) {
 		$row = $query ? db_fetch_array($query) : false;
 		if (!$row) {
 			transaktion('rollback');
-			return 0;
+			return -1;
 		}
 		transaktion('commit');
 		// and the row must still be there after the commit (a commit the database rejects leaves nothing)
 		$newId = (int)$row["id"];
 		$query = db_select("SELECT id FROM rentalperiod WHERE id = $newId AND item_id = $itemId AND cust_id = $custId AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
-		return ($query && db_fetch_array($query)) ? $newId : 0;
+		return ($query && db_fetch_array($query)) ? $newId : -1;
 	}
 }
 
