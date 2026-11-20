@@ -55,8 +55,8 @@
 //                  A deleted year is recognised by any marker in box10, the timestamp deleteFiscalYear.php writes as well as the older 'on' (Codex round 17).
 // 20261120 CL/MMR  SST-1005: A waiting year that was deleted before its rebuild no longer swallows the later work lowered into it: the rebuild starts at the first year after it (CodeRabbit).
 //                  A rebuild that a failed statement, a fatal error or a time-out ends before its catch runs is rolled back on shutdown and leaves the 'failed' message (CodeRabbit).
-//                  The year card arms that guard for its whole save, so a failure in its own primo reset leaves the message too, and a nested caller never disarms it (Codex round 22).
-//                  A COMMIT the database refuses is reported like any failed statement, and the guard is only disarmed after a confirmed commit (Codex round 23).
+// 20261120 CL/MMR  SST-1005: The year card arms that guard for its whole save, so a failure in its own primo reset leaves the message too, and a nested caller never disarms it (Codex round 22).
+// 20261120 CL/MMR  SST-1005: A COMMIT the database refuses is reported like any failed statement, and the guard is only disarmed after a confirmed commit (Codex round 23).
 
 /**
  * Whether a fiscal year's grupper art 'RA' box10 marks it as deleted. systemdata/fiscalYearInc/deleteFiscalYear.php
