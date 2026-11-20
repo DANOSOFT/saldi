@@ -11,6 +11,7 @@ node tools/guardrails/check.mjs --base origin/hml/shopify
 node tools/guardrails/check.mjs --only php-syntax,js-syntax
 node tools/guardrails/check.mjs --list
 gh pr view 123 --json body -q .body | node tools/guardrails/check.mjs --pr-body -
+gh pr view 123 --json body -q .body | node tools/guardrails/check.mjs --pr-body - --base origin/master   # with the UI recording check
 ```
 
 CI runs the same command (`.github/workflows/guardrails.yml`). Only what the
@@ -82,6 +83,7 @@ between sections of code.
 | New blank separators may contain indentation; no incidental whitespace-only rewrites, trailing whitespace after content, or file mode changes | guardrails `whitespace` | [feedback_whitespace_and_indentation](../../doc/ai/feedback_whitespace_and_indentation.md) |
 | Keep simple function calls on one line; when a call needs wrapping, put every argument on its own line | review | |
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](../../doc/ai/feedback_pre_pr_test_report.md) |
+| A PR that changes what users see (styles, scripts, markup, texts, PHP that writes markup) has a screen recording of it working in its description, or the line `Ingen UI-ændring: <why>` | guardrails `pr-recording` | |
 | Header-history continuations start a new sentence and align with the description after the date/tag | guardrails `file-history` | [convention_file_history](../../doc/ai/convention_file_history.md) |
 | Bump `ver` on the header line for a behaviour change, not for formatting | guardrails `file-version` | [convention_file_history](../../doc/ai/convention_file_history.md) |
 | Cast or escape every outside value in SQL; HTML/JS output escaped (`jsString()`); `returside` through `nav_sanitize_returside()` | review, CodeRabbit | [convention_sql_escaping](../../doc/ai/convention_sql_escaping.md) |
