@@ -7,8 +7,9 @@
 // ------- lager/emballage.php -------------------------------------------
 // Packaging tax (producentansvar) bill of materials per product card.
 // LICENS - Same as the rest of the project (GPL v2 with restrictions).
-// Copyright (c) 2003-2026 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261104 LOE MB-62 A read-only Items user is refused: this page only saves and deletes packaging.
 
 @session_start();
 $s_id = session_id();
@@ -23,6 +24,16 @@ include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
+
+# MB-62 a read-only Items user may not change a product's packaging: this page only saves and deletes
+if ($rettigheder !== '' && (substr($rettigheder, 9, 1) === '2' || substr($rettigheder, 9, 1) < '1')) {
+	error_log('MB-62: packaging change refused for user ' . $brugernavn . ' (Items right ' . substr($rettigheder, 9, 1) . ')');
+	print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varelisten'";
+	print " href='../index/main.php#/lager/lister/vareliste.php?inframe=1'";
+	print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+		. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+	exit;
+}
 
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 $EN = (isset($sprog_id) && $sprog_id == 2);

@@ -44,6 +44,7 @@
 // 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
 // 20261012 CL/LH SALDI Assist Guide: SALDI_ASSIST_GUIDE loads the v2 widget (help and navigation, no access to the books).
 // 20261028 CL/LH SALDI Assist Guide is the default widget; SALDI_ASSIST_GUIDE=off brings back v1.
+// 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261104 LOE SST-922 The Print button loads a page's autoprint view when the page offers one.
 @session_start();
 $s_id = session_id();
@@ -60,7 +61,7 @@ function check_permissions($permarr)
 {
   global $rettigheder;
   $filtered = array_filter($permarr, function ($item) use ($rettigheder) {
-    return (substr($rettigheder, $item, 1) == "1");
+    return in_array(substr($rettigheder, $item, 1), array('1', '2'), true);
   });
   return !empty($filtered);
 }

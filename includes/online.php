@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.0 --- 2026-11-05---
+// --- includes/online.php --- ver 5.1.0 --- 2026-11-06---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,8 @@
 // 20261102 CL/ASR $regnskab_pakke: the account's package from the self-service signup, used by finans/bogfor.php.
 // 20261105 CL/MMR SD-807 'Session expired' uses the language chosen on the login page (languageId cookie), as there is no online row, and 'Account closed' is translated.
 //                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
+// 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
+//                 Their blocks include std_func.php through __DIR__.
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
@@ -170,7 +172,9 @@ if ($r = db_fetch_array($q)) {
 	}
 }
 if (isset($_POST['thisDb']) && $db && strpos($db,'_') && $db != $_POST['thisDb']) {
-	alert ("Du har skiftet regnskab fra $_POST[thisDb] til $db, handling afbrudt");
+	include_once(__DIR__ . '/std_func.php');
+	$txt = sprintf(findtekst('8463|Du har skiftet regnskab fra %s til %s, handling afbrudt', $sprog_id), $_POST['thisDb'], $db);
+	print "<script type='text/javascript'>alert(" . jsString(array($txt)) . ");</script>";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
 	$_POST = $_GET = NULL;
 }
@@ -180,8 +184,8 @@ if ($sqdb == 'udvikling') $labelprint = 1;
 $kundedisplay = 0;
 
 if ($modulnr && $modulnr < 100 && $db == $sqdb) { #Lukker vinduet hvis revisorbruger er logget af
-	include($relativePath . "includes/std_func.php");
-	$txt = 'Du har logget ud - vinduet lukkes';
+	include(__DIR__ . '/std_func.php');
+	$txt = findtekst('8464|Du har logget ud - vinduet lukkes', $sprog_id);
 	print tekstboks($txt);
 	print "<meta http-equiv=\"refresh\" content=\"4;URL=../includes/luk.php\">";
 	exit;
@@ -368,8 +372,8 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$css = NULL;
 	}
 	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
-		include($relativePath . "includes/std_func.php");
-		$txt = "Du har ikke nogen rettigheder her - din aktivitet er blevet logget";
+		include(__DIR__ . '/std_func.php');
+		$txt = findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id);
 		print tekstboks($txt);
 		exit;
 	}

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/customers.php --- ver 5.1.0 --- 2026.11.01
+// --- includes/shopify/services/customers.php --- ver 5.1.0 --- 2026.11.09
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,11 @@
 // and is never overwritten after that. An older or unchanged event changes nothing.
 //
 // 20261101 CL/SS SD-792: created (WP08-1).
+// 20261108 CL/SS SD-803: an update of an exported debtor's customer leaves its name and contact, unless the address has a company.
+// 20261109 CL/SS SD-803 review: and leaves an email field with several addresses when the customer has the first of them.
+//                Adopting an export whose customer has a phone resolves the export's phone info row.
+// 20261109 CL/SS SD-814: a debtor from Shopify gets a customer type: privat with first and last name, or erhverv with a company.
+//                An exported debtor's update without a company leaves its type and names, as it leaves its name.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -45,7 +50,7 @@ const SHOPIFY_CUSTOMER_TOPICS = array('CUSTOMERS_CREATE', 'CUSTOMERS_UPDATE');
 
 /** Widths of the adresser columns on a fresh install (includes/opretfunc.php). */
 const SHOPIFY_CUSTOMER_WIDTHS = array('firmanavn' => 90, 'kontakt' => 60, 'addr1' => 60, 'addr2' => 60, 'postnr' => 10,
-	'bynavn' => 60, 'land' => 60, 'mobile' => 15);
+	'bynavn' => 60, 'land' => 60, 'mobile' => 15, 'fornavn' => 60, 'efternavn' => 60);
 
 /** adresser.email on a fresh install. A longer email is not stored (a cut one is another address) and is listed. */
 const SHOPIFY_CUSTOMER_EMAIL_WIDTH = 60;
@@ -54,23 +59,33 @@ const SHOPIFY_CUSTOMER_EMAIL_WIDTH = 60;
  * The debtor fields of a Shopify customer (webhook body, REST shape): a company is the name with
  * the person as contact, else the person's name ('' when it has neither, see ensure_customer()).
  * Names and addresses are cut to the column widths.
+ * A person is a private debtor (kontotype privat) with first and last name, which the debtor card
+ * joins into the name when it saves; a company on the address makes a business debtor (erhverv).
+ * kontotype is '' when the customer has neither a name nor a company.
  *
  * @param array<string, mixed> $customer
- * @return array<string, string> firmanavn, kontakt, addr1, addr2, postnr, bynavn, land, email, mobile
+ * @return array<string, string> firmanavn, kontakt, kontotype, fornavn, efternavn, addr1, addr2, postnr, bynavn, land, email, mobile
  */
 function shopify_customer_fields(array $customer): array {
 	$address = shopify_customer_address($customer);
 	$text = fn($v): string => trim(is_scalar($v) ? (string)$v : '');
-	$person = $text($text($customer['first_name'] ?? '') . ' ' . $text($customer['last_name'] ?? ''));
-	if ($person === '') {
-		$person = $text($address['name'] ?? '');
+	$first = $text($customer['first_name'] ?? '');
+	$last = $text($customer['last_name'] ?? '');
+	if ($first === '' && $last === '' && preg_match('/^(.*\S)\s+(\S+)$/u', $text($address['name'] ?? ''), $m)) {
+		list($first, $last) = array($text($m[1]), $m[2]);
+	} elseif ($first === '' && $last === '') {
+		$first = $text($address['name'] ?? '');
 	}
+	$person = $text("$first $last");
 	$company = $text($address['company'] ?? '');
 	$email = $text($customer['email'] ?? '');
 	$mobile = shopify_customer_phone($text($customer['phone'] ?? ''));
 	$fields = array(
 		'firmanavn' => $company !== '' ? $company : $person,
 		'kontakt' => $company !== '' ? $person : '',
+		'kontotype' => $company !== '' ? 'erhverv' : ($person !== '' ? 'privat' : ''),
+		'fornavn' => $company === '' ? $first : '',
+		'efternavn' => $company === '' ? $last : '',
 		'addr1' => $text($address['address1'] ?? ''),
 		'addr2' => $text($address['address2'] ?? ''),
 		'postnr' => $text($address['zip'] ?? ''),
@@ -82,6 +97,12 @@ function shopify_customer_fields(array $customer): array {
 	foreach (SHOPIFY_CUSTOMER_WIDTHS as $column => $width) {
 		$fields[$column] = mb_substr($fields[$column], 0, $width);
 	}
+	if ($fields['kontotype'] === 'privat') {
+		// the name is what the card joins from the cut names, and the joined name fits the name column
+		$fields['fornavn'] = rtrim($fields['fornavn']);
+		$fields['efternavn'] = rtrim(mb_substr($fields['efternavn'], 0, SHOPIFY_CUSTOMER_WIDTHS['firmanavn'] - mb_strlen($fields['fornavn']) - 1));
+		$fields['firmanavn'] = trim($fields['fornavn'] . ' ' . $fields['efternavn']);
+	}
 	return $fields;
 }
 
@@ -89,6 +110,11 @@ function shopify_customer_fields(array $customer): array {
 function shopify_customer_address(array $customer): array {
 	$address = $customer['default_address'] ?? ($customer['addresses'][0] ?? array());
 	return is_array($address) ? $address : array();
+}
+
+/** The addresses of a debtor's email field, which may hold several separated by ; or , (as reminders and invoices split it). */
+function shopify_customer_emails(string $field): array {
+	return array_values(array_filter(array_map('trim', preg_split('/[;,]/', $field)), fn(string $e): bool => $e !== ''));
 }
 
 /** An E.164 phone ('+4512345678') as stored in mobile (15 wide: a 15-digit number loses its +); '' when not E.164. */
@@ -138,7 +164,8 @@ function ensure_customer(int $shopId, array $customer): int {
 
 	$link = shopify_customer_link($shopId, $gid);
 	$older = $link !== null && $updatedAt !== null && $link['source_updated_at'] !== null && $updatedAt < $link['source_updated_at'];
-	$stored = $link === null ? array() : shopify_db_rows("SELECT kontakt FROM adresser WHERE id = $1 AND art = 'D'", array((int)$link['adresser_id']));
+	$stored = $link === null ? array() : shopify_db_rows("SELECT a.kontakt, a.email, EXISTS (SELECT 1 FROM shopify_customer_exports e WHERE e.shop_id = $2 AND e.adresser_id = a.id AND e.state = 'linked') AS exported
+		FROM adresser a WHERE a.id = $1 AND a.art = 'D'", array((int)$link['adresser_id'], $shopId));
 	if ($link !== null && $stored === array()) {
 		// the debtor was deleted in Saldi: the customer gets a new one, and the stored time never goes back
 		if ($older) {
@@ -154,11 +181,26 @@ function ensure_customer(int $shopId, array $customer): int {
 		if ($link['source_hash'] !== $hash) {
 			// an empty value leaves the stored one: a body without protected customer data has no name, email, phone or
 			// address. A contact is Saldi's once set: Shopify fills an empty one, and one that is now the name itself
-			// goes (a company that became a person).
+			// goes (a company that became a person). A debtor Saldi sent out (shopify_customer_exports) carries only
+			// its contact's name in Shopify (the export is linked), so without a company on the address that name is not the debtor's.
 			$write = array_filter($fields, fn(string $v): bool => $v !== '');
+			if (($write['kontotype'] ?? '') === 'privat') {
+				// the card joins them into the name: a last name that is gone in Shopify goes here too
+				$write['fornavn'] = $fields['fornavn'];
+				$write['efternavn'] = $fields['efternavn'];
+			}
 			$contact = (string)$stored[0]['kontakt'];
 			unset($write['kontakt']);
-			if ($contact === '' && $fields['kontakt'] !== '') {
+			$exported = $stored[0]['exported'] === 't';
+			$emails = shopify_customer_emails((string)$stored[0]['email']);
+			if ($exported && isset($write['email']) && count($emails) > 1 && strcasecmp($emails[0], $write['email']) === 0) {
+				// the export sent the first of the debtor's addresses; the others stay
+				unset($write['email']);
+			}
+			if ($exported && trim((string)(shopify_customer_address($customer)['company'] ?? '')) === '') {
+				// and not its type or names either: a company debtor would turn private, and its card would then save the contact as its name
+				unset($write['firmanavn'], $write['kontotype'], $write['fornavn'], $write['efternavn']);
+			} elseif ($contact === '' && $fields['kontakt'] !== '') {
 				$write['kontakt'] = $fields['kontakt'];
 			} elseif (isset($write['firmanavn']) && $fields['kontakt'] === '' && $contact === $write['firmanavn']) {
 				$write['kontakt'] = '';
@@ -212,7 +254,8 @@ function shopify_customer_write(int $shopId, string $gid, int $id, array $fields
 /**
  * The Saldi debtor of an open outbound create (pending or create_started) whose correlation tag
  * the customer carries, that still exists and that no other customer of the shop is linked to;
- * the export becomes linked. Null when there is none.
+ * the export becomes linked, and a customer with a phone resolves the export's phone info row.
+ * Null when there is none.
  */
 function shopify_customer_adopt_export(int $shopId, array $customer): ?int {
 	$tags = array_filter(array_map('trim', explode(',', is_string($customer['tags'] ?? null) ? $customer['tags'] : implode(',', (array)($customer['tags'] ?? array())))));
@@ -234,6 +277,10 @@ function shopify_customer_adopt_export(int $shopId, array $customer): ?int {
 		return null;
 	}
 	shopify_db_rows("UPDATE shopify_customer_exports SET state = 'linked', updated_at = now() WHERE shop_id = $1 AND adresser_id = $2", array($shopId, (int)$rows[0]['adresser_id']));
+	if (trim(is_scalar($customer['phone'] ?? null) ? (string)$customer['phone'] : '') !== '') {
+		// as the export's own link does: a customer with a phone did not go without it
+		shopify_error_resolve_key($shopId, 'customer.phone', 'adresser:' . (int)$rows[0]['adresser_id']);
+	}
 	return (int)$rows[0]['adresser_id'];
 }
 

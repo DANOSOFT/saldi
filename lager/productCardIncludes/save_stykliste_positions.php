@@ -17,6 +17,18 @@ require_once(__dir__ . "/../../includes/connect.php");
 require_once(__dir__ . "/../../includes/online.php");
 require_once(__dir__ . "/../../includes/std_func.php");
 
+# MB-62 (20261027) the page draws the rows for a read-only user, but reordering them is a write: this
+# endpoint answers JSON, so it refuses with 403 instead of the HTML refusal box
+if ($rettigheder !== '' && (substr($rettigheder, 9, 1) === '2' || substr($rettigheder, 9, 1) < '1')) {
+    error_log('MB-62: stykliste position refused for user ' . $brugernavn . ' (Items right ' . substr($rettigheder, 9, 1) . ')');
+    http_response_code(403);
+    # the drag script parses what follows this marker, because online.php prints a style block first,
+    # and it reports the 'error' key, so the refusal reaches the user instead of a parse failure
+    echo "--- DATA BEYOND THIS LINE ---\n"
+        . json_encode(array('success' => false, 'error' => 'No rights to change the bill of materials'));
+    exit;
+}
+
 $response = ['success' => false];
 
 try {

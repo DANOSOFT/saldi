@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php ---ver 5.1.0 ----2026-11-05--------------
+// --- lager/varer.php --- ver 5.1.0 --- 2026-11-05 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -88,6 +88,8 @@
 //             instead of just the last one, and genbestil() now reports success so only a fully
 //             successful submission is remembered.
 // 20261023 CL/LH MB-60: Lager -> Varer also reopens the Styklister tab.
+// 20261030 LOE MB-62 A read-only user is not offered the list's Ny controls.
+//              The two list views and the popup view all print Ny only for a user who may create an item.
 // 20261105 CL/MMR SST-951 A purchase proposal order (genbestil) takes the language (Sprog) of the supplier's creditor group.
 
 @session_start();
@@ -117,6 +119,8 @@ $beskrivelse = $fokus = $linjeantal = $slut = $start = $udvalg = $vis_lev = $vis
 
 include("../includes/connect.php");
 include("../includes/online.php");
+# MB-62 creating an item is a write, so a read-only user is not offered the list's Ny button
+$mb62_readonly = ($rettigheder !== '' && (substr($rettigheder, 9, 1) === '2' || substr($rettigheder, 9, 1) < '1'));
 include("../includes/std_func.php");
 include("productCardIncludes/itemVat.php");
 // 20260925 CL/NTR - genbestil() replay guard (see varerIncludes/genbestilReplay.php); included after
@@ -219,7 +223,9 @@ if (isset($_GET)) {
 	$vis_lev=if_isset($_GET['vis_lev']);
 	$alle_varer=if_isset($_GET['alle_varer']);
 	
-	if (isset($_GET['forslag']) && $_GET['forslag']) {
+	// MB-62 the suggestion screen only leads to "Bestil", which writes purchase-order lines: a
+	// read-only Items user stays on the plain list.
+	if (isset($_GET['forslag']) && $_GET['forslag'] && !$mb62_readonly) {
 		$stock=1;
 		$makeSuggestion=1;
 	} else $makeSuggestion=0;
@@ -262,7 +268,11 @@ if (isset($_POST)) {
 	$lev_kto=trim($lev_kto);
 	$lev_navn=trim($lev_navn);
 
-	if (isset($_POST['genbestil_ant'])) {
+	if (isset($_POST['genbestil_ant']) && $mb62_readonly) {
+		// MB-62 a purchase-order suggestion is a write: the controls are not offered, and a posted
+		// form cannot create the lines either.
+		error_log('MB-62: purchase-order suggestion refused for user ' . $brugernavn . ' (Items right ' . substr($rettigheder, 9, 1) . ')');
+	} elseif (isset($_POST['genbestil_ant'])) {
 		// 20260925 CL/NTR MB-35 follow-up - a double-click on "Opret" (or browser Back + resend)
 		// posts this exact genbestil_ant/gb_id_*/gb_antal_* payload twice. genbestil() itself always
 		// inserts a new ordrelinjer row with no check for one already existing for the item on
@@ -506,7 +516,7 @@ if ($menu=='T') {
 
 	print "<td width='5%'><a href='varevisning.php'>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='$txt3101'>$txt813</button></a></td>";
-	print "<td width='5%'><a href='varekort.php?returside={$listReturnQuery}'>
+	if (!$mb62_readonly) print "<td width='5%'><a href='varekort.php?returside={$listReturnQuery}'>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Opret en ny vare'>Ny</button></a></td>";
 
 	print "</tr>\n";
@@ -530,10 +540,10 @@ if ($menu=='T') {
 	} #else print "<td width=\"80%\" $top_bund> Visning</td>\n";
 	if ($popup) {
 		print "<td width=\"5%\"$top_bund onClick=\"javascript:vare_vis=window.open('varevisning.php','vare_vis','scrollbars=1,resizable=1');vare_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></td>";
-		print "<td width=\"5%\" $top_bund onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:var productWindow=window.open('varekort.php?popup=1&amp;opener=varer.php&amp;returside=../includes/luk.php','varekort','scrollbars=1,resizable=1');if(productWindow){productWindow.focus();}\"><span style=\"text-decoration: underline;\" title='Opret en ny vare'>Ny</a></span></td>";
+		if (!$mb62_readonly) print "<td width=\"5%\" $top_bund onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:var productWindow=window.open('varekort.php?popup=1&amp;opener=varer.php&amp;returside=../includes/luk.php','varekort','scrollbars=1,resizable=1');if(productWindow){productWindow.focus();}\"><span style=\"text-decoration: underline;\" title='Opret en ny vare'>Ny</a></span></td>";
 	} else {
 		print "<td width=\"5%\" $top_bund><a href=\"varevisning.php\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></a></td>";
-		print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside={$listReturnQuery}\"><span title='Opret en ny vare'>Ny</span></a></td>";
+		if (!$mb62_readonly) print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside={$listReturnQuery}\"><span title='Opret en ny vare'>Ny</span></a></td>";
 	}
 	print "</tr>\n";
 	print "</tbody></table>\n";

@@ -22,6 +22,7 @@
 // History:
 // 20261027 CL/SZ Created (SD-778, sub-task of SD-750).
 // 20261028 CL/SZ SD-778 review: per-slot shared URL, invalid URL on a closed slot, busy stock page and cost price.
+// 20261110 CL/SZ Sync of master into hml/shopify: lagerreguler() sends only the stock call (SST-876), so the push is checked on update_stock.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 require_once __DIR__ . '/../support/LegacyShopStub.php';
@@ -284,7 +285,7 @@ final class LegacyShopStockPullSwitchTest extends CharacterizationTestCase
 		$this->assertStringContainsString("Opretter $no, Ny shopvare", $output);
 		$fetch = fn(array $r): bool => isset($r['query']['products_id']) || isset($r['query']['variant']) || str_contains($r['path'], '/files/');
 		$this->assertCount(4, array_filter(self::$shop->waitFor(4, 10.0, 1.0, $fetch), $fetch), 'the fetch from box4 is intake');
-		$push = array_column(array_filter(self::$shop->requests(), fn(array $r): bool => isset($r['query']['update_price']) && ($r['query']['itemNo'] ?? null) === $no), 'path');
+		$push = array_column(array_filter(self::$shop->requests(), fn(array $r): bool => isset($r['query']['update_stock']) && ($r['query']['itemNo'] ?? null) === $no), 'path');
 		sort($push);
 		$this->assertSame(['/b/', '/c/'], $push);
 		$id = self::one('SELECT id FROM varer WHERE varenr = $1', [$no])['id'];

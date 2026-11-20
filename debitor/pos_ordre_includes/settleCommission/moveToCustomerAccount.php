@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -- debitor/pos_ordre_includes/settleCommission/moveToCustomerAccount.php --- patch 4.0.9 -- 2023-11-20 --
+// -- debitor/pos_ordre_includes/settleCommission/moveToCustomerAccount.php --- ver 5.1.0 -- 2026-11-10 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,228 +20,249 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20210410 PHR Addad CreatePayList
 // 20231120	PHR Added checkLineId to avoid same line counnted more than once.
+// 20261109 CL/SS SST-919: Credit each customer (open post + collective account) against the commission account.
+//                Settle only orders that are not settled yet, and create the payment list before its payments.
+//                Refuse a period that is already settled in the journal.
+// 20261109 CL/SS SST-919 review: Lock and recheck the orders before posting, so two cash counts can't settle the same sales.
+//                Refuse a customer whose debtor group has no collective account.
+//                Leave an order out while one of its commission lines has no configured account pair.
+//                Warn how many orders were left out for a missing account pair.
+// 20261110 CL/SS SST-919 review: Link each open post and its payment to one of the customer's settled orders (refnr = ordre_id), so «Fra liste» doesn't pay it again.
+//                Write the open post with an empty faktnr, as the journal does, so the booked payment settles it.
+//                Skip journal posts whose period isn't a date, and use descriptive text keys.
 
-$coAc=$itNo=array();
-/*
-$qtxt = "select var_value from settings where var_name = 'commissionFromDate'";
-$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-$commissionFromDate=$r['var_value'];
-if (!$commissionFromDate) $commissionFromDate='2021-01-01'; 
-*/
-$settletime=date('U');
-if (isset($_POST['commissionFromDate'])) {
-	$commissionFromDate = usdate($_POST['commissionFromDate']);
-	$refFromDate = str_replace('-','',dkdato($commissionFromDate));
+/**
+ * Injected from the local scope of posbogfor() in ../../pos_ordre.php,
+ * which includes this file:
+ * @var int    $kasse
+ * @var int    $reportNumber
+ * @var string $regnaar
+ * @var string $dd
+ * @var string $logtime
+ * @var int    $ansat_id
+ * @var int    $afd
+ * @var string $brugernavn
+ * @var string $createPayList
+ * @var string $commissionAccountNew
+ * @var string $commissionAccountUsed
+ * @var string $customerCommissionAccountNew
+ * @var string $customerCommissionAccountUsed
+ */
+global $sprog_id;
+
+$settletime = date('U');
+$commissionFromDate = usdate($_POST['commissionFromDate'] ?? '');
+$commissionToDate = usdate($_POST['commissionToDate'] ?? '');
+$refFromDate = str_replace('-', '', dkdato($commissionFromDate));
+$refToDate = str_replace('-', '', dkdato($commissionToDate));
+
+$journalSettledTo = '';
+$qtxt = "select distinct beskrivelse from openpost where beskrivelse like 'Afr: %' and kladde_id > '0'";
+$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+	if (!preg_match('/^Afr: \S+ (.+?) - (.+?)(?: \(.*\))?\s*$/', $r['beskrivelse'], $period)) {
+		continue;
+	}
+	$datePattern = '/^(\d{1,2}[-.\/ ]\d{1,2}([-.\/ ]\d{2,4})?|\d{4}|\d{6}|\d{8})$/';
+	if (!preg_match($datePattern, trim($period[1])) || !preg_match($datePattern, trim($period[2]))) {
+		continue;
+	}
+	$journalFrom = usdate($period[1]);
+	$journalTo = usdate($period[2]);
+	if ($journalFrom <= $commissionToDate && $journalTo >= $commissionFromDate && $journalTo > $journalSettledTo) {
+		$journalSettledTo = $journalTo;
+	}
 }
-if (isset($_POST['commissionToDate'])) {
-	$commissionToDate = usdate($_POST['commissionToDate']);
-	$refToDate = str_replace('-','',dkdato($commissionToDate));
+if ($journalSettledTo) {
+	$txt = findtekst('commission.settle.journal_overlap|Kommission er afregnet i kassekladden til og med %s. Vælg en fra-dato efter denne dato. Kommissionen er ikke afregnet.', $sprog_id);
+	alert(sprintf($txt, dkdato($journalSettledTo)));
+	return;
 }
 
-if ($createPayList) {
-	$x = 0;
-	$pList = array();
-	$qtxt = "select id from betalingsliste where bogfort = 'V' order by id";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$pList[$x] == $r['id'];
-		$x++;
-	}
-	$payListId=1;
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "select liste_id from betalinger order by liste_id"; 
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		if ($r['liste_id'] == $payListId || in_array($payListId,$pList)) $payListId++;
-	}
-	$r=db_fetch_array(db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
-	$myBank=$r['bank_konto'];
-	$myReg=$r['bank_reg'];
-	$myName=$r['firmanavn'];
-	$myEan=$r['ean'];
-	$myCtry=$r['land'];
-	(strtolower($myCtry)=='norway')?$myCtry = 'NO':$myCtry = 'DK'; 
-	($myCtry == 'NO')?$myCurrency = 'NOK':$myCurrency = 'DKK'; 
-	while (strlen($myBank)<10) $myBank='0'.$myBank;
-	$myBank = $myReg.$myBank;
-	$payDay = date('U')+60*60*24;
-	$payDay = date('dmY',$payDay); 
-} else $payListId=0;
+$debitAccount = array();
 if ($commissionAccountNew && $customerCommissionAccountNew) {
-	$coAc[0]    = $commissionAccountNew;
-	$cusCoAc[0] = $customerCommissionAccountNew;
-	$itNo[0]    = 'kn%';
-	if ($commissionAccountUsed && $customerCommissionAccountUsed) {
-		$coAc[1]    = $commissionAccountUsed;
-		$cusCoAc[1] = $customerCommissionAccountUsed;
-		$itNo[1]    = 'kb%';
-	}
-} elseif ($commissionAccountUsed && $customerCommissionAccountUsed) {
-	$coAc[0]    = $commissionAccountUsed;
-	$cusCoAc[0] = $customerCommissionAccountUsed;
-	$itNo[0]    = 'kb%';
+	$debitAccount['kn'] = $customerCommissionAccountNew;
+}
+if ($commissionAccountUsed && $customerCommissionAccountUsed) {
+	$debitAccount['kb'] = $customerCommissionAccountUsed;
 }
 
-for ($co=0;$co<count($coAc);$co++) { 
-	$c=0;
-	$cGroup=$itemId=$cItemId=array();
+$orderScope = "(ordrer.art like 'D%' or ordrer.art = 'PO') and ordrer.status >= '3' and ordrer.felt_5 = '$kasse' ";
+$orderScope.= "and ordrer.fakturadate >= '$commissionFromDate' and ordrer.fakturadate <= '$commissionToDate' ";
+$orderScope.= "and (ordrer.settletime = '0' or ordrer.settletime is null) ";
+$orderScope.= "and exists (select 1 from pos_betalinger where pos_betalinger.ordre_id = ordrer.id) ";
 
-	$qtxt = "select moms from kontoplan where kontonr = '$coAc[$co]' and regnskabsaar <= '$regnaar' ";
-	$qtxt.= "order by regnskabsaar desc limit 1";
-	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	if ($toVatCode=substr($r['moms'],1)) {
-		$qtxt = "select box1,box2 from grupper where art = 'SM' and kodenr = '$toVatCode' ";
-		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$toVatAccount = $r['box1']*1;
-		$toVatPercent  = $r['box2']*1;
-	} else $toVatAccount=$toVatPercent=0;
+$commissionLine = array();
+foreach (array('kn', 'kb') as $prefix) {
+	$commissionLine[$prefix] = "select 1 from ordrelinjer other, varer otherItem where other.ordre_id = ordrer.id ";
+	$commissionLine[$prefix].= "and otherItem.id = other.vare_id and otherItem.varenr like '$prefix%' and otherItem.provision > '0' ";
+	$commissionLine[$prefix].= "and other.varenr like '$prefix%' and other.pris != '0' and other.kostpris > '0'";
+}
 
-	$qtxt = "select distinct(gruppe) as cgroup from varer where provision > '0' and varenr like '$itNo[$co]'";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$cGroup[$c]=$r['cgroup'];
-		$c++;
-	}
-	$qtxt = "select distinct(ordrelinjer.vare_id) as vare_id from ordrelinjer,ordrer,pos_betalinger where ";
-	$qtxt.= "(ordrer.art like 'D%' or ordrer.art = 'PO') and ordrer.fakturadate >= '$commissionFromDate' ";
-	$qtxt.= "and ordrer.fakturadate <= '$commissionToDate' "; #and (settletime = '0' or settletime = '$settletime') ";
-	$qtxt.= "and ordrelinjer.varenr like '$itNo[$co]' and ordrelinjer.kostpris > '0' and ordrer.status >= '3' ";
-	$qtxt.= "and ordrelinjer.ordre_id = ordrer.id and pos_betalinger.ordre_id = ordrer.id and ordrer.felt_5 = '$kasse' ";
-	$qtxt.= "order by ordrelinjer.vare_id";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$itemId[$v]=$r['vare_id'];
-		$v++;
-	}
-	
-	for ($c=0;$c<count($cGroup);$c++) {
-		$v=0;
-		$cItemId[$c] = array();
-		$qtxt = "select id, varenr, provision from varer where gruppe = '$cGroup[$c]' and provision > '0' and varenr like '$itNo[$co]'";
-		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		while ($r=db_fetch_array($q)) {
-			if (in_array($r['id'],$itemId)) {
-				$cItemId[$c][$v]=$r['id'];
-				$cItemNo[$c][$v]=$r['varenr'];
-				$v++;
-			}
+$otherCommission = '';
+$deferredOrders = array();
+foreach (array_diff(array('kn', 'kb'), array_keys($debitAccount)) as $missing) {
+	$otherCommission.= "and not exists ($commissionLine[$missing]) ";
+	foreach (array_keys($debitAccount) as $prefix) {
+		$qtxt = "select count(*) as orders from ordrer where $orderScope";
+		$qtxt.= "and exists ($commissionLine[$prefix]) and exists ($commissionLine[$missing])";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($r && (int)$r['orders']) {
+			$deferredOrders[$missing] = (int)$r['orders'];
 		}
 	}
-	$checkLineId = $orderId = array();
-	$i = $oid = 0;
-	for ($c = 0 ; $c < count($cGroup) ; $c++) {
-		$commissionSum=0;
-		for ($v=0;$v<count($cItemId[$c]);$v++) {
-			$commission = 0;
-			$qtxt = "select ordrer.id as orderid,ordrelinjer.pris,ordrelinjer.antal,ordrelinjer.rabat,ordrelinjer.kostpris,";
-			$qtxt.= "ordrelinjer.momssats,ordrelinjer.id as line_id from ordrelinjer,ordrer,pos_betalinger ";
-			$qtxt.= "where (ordrer.art like 'D%' or ordrer.art = 'PO') ";
-			$qtxt.= "and ordrer.fakturadate <= '$commissionToDate' and ordrer.fakturadate >= '$commissionFromDate' ";
-			$qtxt.= "and ordrelinjer.pris != '0' and ordrer.status >= '3' "; #and (settletime = '0' or settletime = '$settletime')
-			$qtxt.= "and ordrelinjer.ordre_id = ordrer.id and pos_betalinger.ordre_id = ordrer.id and ";
-			$qtxt.= "ordrelinjer.vare_id='". $cItemId[$c][$v] ."' and ordrer.felt_5 = '$kasse'";
-			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			while ($r=db_fetch_array($q)) {
-				if ($r['kostpris'] > 0 && !in_array($r['line_id'],$checkLineId)) {
-					if (!in_array($r['orderid'],$orderId)) {
-						$orderId[$oid] = $r['orderid'];
-						$oid++;
-					}
-					$linePrice   = $r['pris']*$r['antal'] - ($r['pris']*$r['antal']*$r['rabat']/100);
-					$linePrice   = afrund($linePrice + ($linePrice * $r['momssats']/100),2);
-					
-					$cost        = $r['kostpris'] * $r['antal'];
-#					$cost        = $cost + ($cost  * $r['momssats']/100);
-					$commission += afrund($cost,2); 
-					$checkLineId[$i] = $r['line_id'];
-					$i++;
-				}
-			}
-			$commissionSum += $commission;
-			if ($commission) {
-				$custNo=substr($cItemNo[$c][$v],5);	
-				$qtxt = "select id,gruppe from adresser where kontonr='$custNo' and art = 'D'"; 
-				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				if (!$custId=$r['id']) {
-					$alerttxt="Konto mangler for varenummer ". $cItemNo[$c][$v] ."!"; 
-					alert($alerttxt);
-					return "$alerttxt"; 
-				}
-				$qtxt = "select box2 from grupper where art = 'DG' and kodenr = '$r[gruppe]'";
-				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$custAccount = $r['box2'];
-				$custAmount  = $commission * -1;
-				if ($moveToCustomerAccount) {
-#					$qtxt = "select id from openpost where konto_id = '$custId' and konto_nr = '$custNo' and faktnr = '0' ";
-#					$qtxt = "and amount = '$custAmount' and beskrivelse = 'Afr: $custNo $moveToCustomerDate - $dd'";
-#					if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					$qtxt = "insert into openpost "; 
-					$qtxt.= "(konto_id,konto_nr,faktnr,amount,beskrivelse,udlignet,transdate,uxtid,kladde_id,refnr,valuta,valutakurs,projekt)";
-					$qtxt.= " values ('$custId','$custNo','0','$custAmount','Afr: $custNo $moveToCustomerDate - $dd','0','$dd','". date ('U'). "',";
-					$qtxt.= "'0','$reportNumber','DKK','100','')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					$debet=$kredit=0;
-					($commission > 0)?$kredit=$commission:$debet=abs($commission);
-					$qtxt="insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
-					$qtxt.="projekt,ansat,ordre_id,kasse_nr,report_number,moms)";
-					$qtxt.=" values ";
-					$qtxt.="('0','$dd','Kommisionsafregning konto $custNo','$custAccount','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
-					$qtxt.="'','$ansat_id','0','0','$reportNumber','0')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-#				}
-				}
-				if ($payListId > 0 && $commission > 0) {
-					$qtxt = "select firmanavn,bank_reg,bank_konto from adresser where kontonr='$custNo' and art = 'D'"; 
-					$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-					$custName = $r['firmanavn'];
-					$custReg = $r['bank_reg'];
-					$custBank = $r['bank_konto'];
-					while (strlen($custBank)<10) $custBank='0'.$custBank; # kontonumre skal vaere paa 10 cifre
-					$custBank = $custReg.$custBank;
-					$myRef="Afr: $custNo $refFromDate - $refToDate";
+}
 
-					$qtxt = "insert into betalinger";
-					$qtxt.= "(bet_type,fra_kto,egen_ref,til_kto,modt_navn,kort_ref,belob, betalingsdato,valuta,bilag_id,ordre_id,liste_id) ";
-					$qtxt.= "values ";
-					$qtxt.= "('ERH356','$myBank','".db_escape_string($myRef)."','".db_escape_string($custBank)."',";
-					$qtxt.= "'".db_escape_string($custName)."','".db_escape_string($myName)."','". dkdecimal($commission) ."','$payDay',"; 
-					$qtxt.="'$myCurrency', '0', '0','$payListId')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				}
-			}
-		}
-		if ($payListId > 0 && $commissionSum > 0) {
-			$listDate = date("Y-m-d");
-			$timeStamp = microtime();
-			$listNote = "Afregning $refFromDate - $refToDate";
-			$qtxt = "select id from betalingsliste where id = $payListId";
-			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$qtxt = "update betalingsliste set listedate = '$listDate', tidspkt = '$timeStamp', listenote = '$listNote', ";
-				$qtxt.= "hvem = '$brugernavn' where id='$payListId'";
-			} else {
-				$qtxt = "insert into betalingsliste(listedate, listenote, oprettet_af, hvem, tidspkt, bogfort) values ";
-				$qtxt.= "('$listDate', '$listNote', '$brugernavn', '$brugernavn', '$timeStamp', '-')";
-			}
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		}
-		if ($commissionSum) {
-			$debet=$kredit=0;
-			($commissionSum > 0)?$debet=$commissionSum:$kredit=abs($commissionSum);
-			$qtxt="insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
-			$qtxt.="projekt,ansat,ordre_id,kasse_nr,report_number,moms)";
-			$qtxt.=" values ";
-			$qtxt.="('0','$dd','Kommisionsafregning','$cusCoAc[$co]','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
-			$qtxt.="'','$ansat_id','0','0','$reportNumber','0')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			for ($oid=0;$oid<count($orderId);$oid++) {
-				$qtxt = "update ordrer set settletime = '$settletime' where id = $orderId[$oid]";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			}
+$customerShare = $customerItemNo = $customerOrders = $accountTotal = $settledOrders = array();
+foreach ($debitAccount as $prefix => $account) {
+	$qtxt = "select ordrelinjer.id as line_id, ordrelinjer.ordre_id, ordrelinjer.antal, ordrelinjer.kostpris, varer.varenr ";
+	$qtxt.= "from ordrelinjer, ordrer, varer where ordrelinjer.ordre_id = ordrer.id and varer.id = ordrelinjer.vare_id ";
+	$qtxt.= "and $orderScope$otherCommission";
+	$qtxt.= "and ordrelinjer.varenr like '$prefix%' and varer.varenr like '$prefix%' and varer.provision > '0' ";
+	$qtxt.= "and ordrelinjer.pris != '0' and ordrelinjer.kostpris > '0' order by varer.varenr, ordrelinjer.id";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$custNo = (string)substr($r['varenr'], 5);
+		$cost = afrund($r['kostpris'] * $r['antal'], 2);
+		$customerShare[$custNo] = ($customerShare[$custNo] ?? 0) + $cost;
+		$customerItemNo[$custNo] = $customerItemNo[$custNo] ?? $r['varenr'];
+		$accountTotal[$account] = ($accountTotal[$account] ?? 0) + $cost;
+		$settledOrders[(int)$r['ordre_id']] = (int)$r['ordre_id'];
+		$customerOrders[$custNo][(int)$r['ordre_id']] = (int)$r['ordre_id'];
+	}
+}
+
+if ($settledOrders) {
+	$qtxt = "select id from ordrer where id in (" . implode(',', $settledOrders) . ") ";
+	$qtxt.= "and (settletime = '0' or settletime is null) for update";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$lockedOrders = 0;
+	while (db_fetch_array($q)) {
+		$lockedOrders++;
+	}
+	if ($lockedOrders != count($settledOrders)) {
+		alert(findtekst('commission.settle.already_settled|Kommissionen er lige blevet afregnet af en anden kasseoptælling. Kommissionen er ikke afregnet igen.', $sprog_id));
+		return;
+	}
+}
+
+$customers = $usedRef = array();
+foreach ($customerShare as $custNo => $amount) {
+	$amount = afrund($amount, 2);
+	if (!$amount) {
+		continue;
+	}
+	$custNo = (string)$custNo;
+	$qtxt = "select id, gruppe, firmanavn, bank_reg, bank_konto from adresser ";
+	$qtxt.= "where kontonr = '" . db_escape_string($custNo) . "' and art = 'D'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if (!$r || !$r['id']) {
+		$txt = findtekst('commission.settle.customer_missing|Konto mangler for varenummer %s. Kommissionen er ikke afregnet.', $sprog_id);
+		alert(sprintf($txt, $customerItemNo[$custNo]));
+		return;
+	}
+	$qtxt = "select box2 from grupper where art = 'DG' and kodenr = '" . db_escape_string($r['gruppe']) . "' ";
+	$qtxt.= "and fiscal_year = '$regnaar'";
+	$g = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if (!$g || !(int)$g['box2']) {
+		$txt = findtekst('commission.settle.group_account_missing|Debitorgruppe %s for konto %s mangler en samlekonto. Kommissionen er ikke afregnet.', $sprog_id);
+		alert(sprintf($txt, $r['gruppe'], $custNo));
+		return;
+	}
+	$orders = $customerOrders[$custNo];
+	krsort($orders);
+	$ref = reset($orders);
+	foreach ($orders as $orderId) {
+		if (!isset($usedRef[$orderId])) {
+			$ref = $orderId;
+			break;
 		}
 	}
+	$usedRef[$ref] = true;
+	$customers[] = array(
+		'id'      => (int)$r['id'],
+		'ref'     => $ref,
+		'no'      => $custNo,
+		'amount'  => $amount,
+		'account' => (int)$g['box2'],
+		'name'    => $r['firmanavn'],
+		'bank'    => $r['bank_reg'] . str_pad($r['bank_konto'], 10, '0', STR_PAD_LEFT),
+	);
+}
+
+$payListId = 0;
+$myBank = $myName = $myCurrency = $payDay = '';
+if ($createPayList && max(array_merge(array(0), array_column($customers, 'amount'))) > 0) {
+	$r = db_fetch_array(db_select("select * from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
+	$myName = $r['firmanavn'];
+	$myCtry = (strtolower($r['land']) == 'norway') ? 'NO' : 'DK';
+	$myCurrency = ($myCtry == 'NO') ? 'NOK' : 'DKK';
+	$myBank = $r['bank_reg'] . str_pad($r['bank_konto'], 10, '0', STR_PAD_LEFT);
+	$payDay = date('dmY', date('U') + 60 * 60 * 24);
+	$listDate = date("Y-m-d");
+	$timeStamp = microtime();
+	$listNote = "Afregning $refFromDate - $refToDate";
+	$qtxt = "insert into betalingsliste(listedate, listenote, oprettet_af, hvem, tidspkt, bogfort) values ";
+	$qtxt.= "('$listDate', '$listNote', '" . db_escape_string($brugernavn) . "', '" . db_escape_string($brugernavn) . "', '$timeStamp', '-')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	$r = db_fetch_array(db_select("select max(id) as id from betalingsliste where tidspkt = '$timeStamp'", __FILE__ . " linje " . __LINE__));
+	$payListId = (int)$r['id'];
+}
+
+$periodText = dkdato($commissionFromDate) . ' - ' . dkdato($commissionToDate);
+foreach ($customers as $customer) {
+	$custNo = db_escape_string($customer['no']);
+	$commission = $customer['amount'];
+	$qtxt = "insert into openpost ";
+	$qtxt.= "(konto_id,konto_nr,faktnr,amount,beskrivelse,udlignet,transdate,uxtid,kladde_id,refnr,valuta,valutakurs,projekt)";
+	$qtxt.= " values ('$customer[id]','$custNo','','" . ($commission * -1) . "','Afr: $custNo $periodText','0','$dd','" . date('U') . "',";
+	$qtxt.= "'0','$customer[ref]','DKK','100','')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	$debet = $kredit = 0;
+	($commission > 0) ? $kredit = $commission : $debet = abs($commission);
+	$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
+	$qtxt.= "projekt,ansat,ordre_id,kasse_nr,report_number,moms)";
+	$qtxt.= " values ";
+	$qtxt.= "('0','$dd','Kommisionsafregning konto $custNo','$customer[account]','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
+	$qtxt.= "'','$ansat_id','0','0','$reportNumber','0')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	if ($payListId && $commission > 0) {
+		$myRef = "Afr: " . $customer['no'] . " $refFromDate - $refToDate";
+		$qtxt = "insert into betalinger";
+		$qtxt.= "(bet_type,fra_kto,egen_ref,til_kto,modt_navn,kort_ref,belob, betalingsdato,valuta,bilag_id,ordre_id,liste_id) ";
+		$qtxt.= "values ";
+		$qtxt.= "('ERH356','" . db_escape_string($myBank) . "','" . db_escape_string($myRef) . "','" . db_escape_string($customer['bank']) . "',";
+		$qtxt.= "'" . db_escape_string($customer['name']) . "','" . db_escape_string($myName) . "','" . dkdecimal($commission) . "','$payDay',";
+		$qtxt.= "'$myCurrency', '0', '$customer[ref]','$payListId')";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+}
+
+foreach ($accountTotal as $account => $commissionSum) {
+	$commissionSum = afrund($commissionSum, 2);
+	if (!$commissionSum) {
+		continue;
+	}
+	$debet = $kredit = 0;
+	($commissionSum > 0) ? $debet = $commissionSum : $kredit = abs($commissionSum);
+	$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
+	$qtxt.= "projekt,ansat,ordre_id,kasse_nr,report_number,moms)";
+	$qtxt.= " values ";
+	$qtxt.= "('0','$dd','Kommisionsafregning','" . db_escape_string($account) . "','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
+	$qtxt.= "'','$ansat_id','0','0','$reportNumber','0')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+if ($settledOrders) {
+	$qtxt = "update ordrer set settletime = '$settletime' where id in (" . implode(',', $settledOrders) . ")";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+foreach ($deferredOrders as $missing => $orders) {
+	$txt = findtekst('commission.settle.orders_deferred|%s ordrer med kommission er ikke afregnet, fordi de også har kommissionsvarer, der begynder med %s, uden opsatte kommissionskonti. Opsæt kontiene og afregn igen.', $sprog_id);
+	alert(sprintf($txt, $orders, $missing));
 }
 ?> 

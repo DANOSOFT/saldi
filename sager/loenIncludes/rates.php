@@ -3,8 +3,14 @@
 function satser() {
 	global $charset;
 	global $db;
+	global $db_encode;
 	$visLønninger='checked';
 	global $sprog_id;
+	# 20261106 SD-813 currency unit after the amounts
+	# 20261107 SD-813 escaped once here, so a custom translation cannot add markup in the eleven places it is printed (Saul, CodeRabbit)
+	# 20261107 SD-813 loen.php skips the charset of online.php ($header 'nix'), so it is taken from the database encoding here (CodeRabbit)
+	$krCharset = $charset ? $charset : (($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1');
+	$krTekst = htmlspecialchars(findtekst('8487|kr.', $sprog_id), ENT_QUOTES, $krCharset);
 	
 	#'plads','skole','sygdom','barn_syg');
 	
@@ -121,31 +127,31 @@ function satser() {
 						print "<div class=\"row\">
 								<div class=\"leftLarge\">".findtekst('3047|Skur - lav sats', $sprog_id)."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"skur1\" value=\"".dkdecimal($skur1,2)."\"> kr.</div>
+								style=\"text-align:right;width:80px\" name=\"skur1\" value=\"".dkdecimal($skur1,2)."\"> $krTekst</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
 								<div class=\"leftLarge\">".findtekst('3048|Skur - høj sats', $sprog_id)."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"skur2\" value=\"".dkdecimal($skur2,2)."\"> kr.</div>
+								style=\"text-align:right;width:80px\" name=\"skur2\" value=\"".dkdecimal($skur2,2)."\"> $krTekst</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
 							   <div class=\"leftLarge\">".findtekst('2806|Sygdom', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>"; #Sygdom, timesats
 						print "<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"sygdom\" value=\"".dkdecimal($sygdom,2)."\"> kr.</div>
+								style=\"text-align:right;width:80px\" name=\"sygdom\" value=\"".dkdecimal($sygdom,2)."\"> $krTekst</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
 							   <div class=\"leftLarge\">".findtekst('2992|Skole', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>"; #Skole, timesats
 						print "<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"skole\" value=\"".dkdecimal($skole,2)."\"> kr.</div>
+								style=\"text-align:right;width:80px\" name=\"skole\" value=\"".dkdecimal($skole,2)."\"> $krTekst</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
 							   <div class=\"leftLarge\">".findtekst('2812|Plads', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>"; #Plads, timesats
 						print "<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"plads\" value=\"".dkdecimal($plads,2)."\"> kr.</div>
+								style=\"text-align:right;width:80px\" name=\"plads\" value=\"".dkdecimal($plads,2)."\"> $krTekst</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
@@ -170,7 +176,7 @@ function satser() {
 						print "<div class=\"row\">
 								<div class=\"leftLarge\" title=\"\">".findtekst('3067|Kilometersats', $sprog_id)."</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"km_sats\" value=\"".dkdecimal($km_sats,2)."\"> kr.</div>
+								style=\"text-align:right;width:80px\" name=\"km_sats\" value=\"".dkdecimal($km_sats,2)."\"> $krTekst</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
@@ -182,19 +188,19 @@ function satser() {
 						print "<div class=\"row\">
 								<div class=\"leftLarge\">".findtekst('3069|Overtidstillæg', $sprog_id)." 50%</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"overtid_50pct\" value=\"".dkdecimal($overtid_50pct,2)."\"> kr.</div>
+								style=\"text-align:right;width:80px\" name=\"overtid_50pct\" value=\"".dkdecimal($overtid_50pct,2)."\"> $krTekst</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
 								<div class=\"leftLarge\">".findtekst('3069|Overtidstillæg', $sprog_id)." 100%</div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"overtid_100pct\" value=\"".dkdecimal($overtid_100pct,2)."\"> kr.</div>
+								style=\"text-align:right;width:80px\" name=\"overtid_100pct\" value=\"".dkdecimal($overtid_100pct,2)."\"> $krTekst</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<div class=\"row\">
 							   <div class=\"leftLarge\">".findtekst('2991|Mentor', $sprog_id).", ".lcfirst(findtekst('3061|Timesats', $sprog_id))."</div>"; #Mentor, timesats
 						print "<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"mentorRate\" value=\"".dkdecimal($mentorRate,2)."\"> kr.</div>
+								style=\"text-align:right;width:80px\" name=\"mentorRate\" value=\"".dkdecimal($mentorRate,2)."\"> $krTekst</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						
@@ -204,7 +210,7 @@ function satser() {
 									<input type=\"text\" class=\"textMediumLarge\" 
 									style=\"text-align:left;width:120px\" name=\"hourDescription[$x]\" value=\"$hourDescription[$x]\"></div>
 									<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-									style=\"text-align:right;width:80px\" name=\"hourValue[$x]\" value=\"".dkdecimal($hourValue[$x],2)."\"> kr.</div>
+									style=\"text-align:right;width:80px\" name=\"hourValue[$x]\" value=\"".dkdecimal($hourValue[$x],2)."\"> $krTekst</div>
 									<div class=\"clear\"></div>
 								</div><!-- end of row -->\n";
 						}
@@ -212,7 +218,7 @@ function satser() {
 								<div class=\"leftLarge\"><input type=\"text\" class=\"textMediumLarge\" 
 								style=\"text-align:left;width:120px\" name=\"hourDescription[$x]\" ></div>
 								<div class=\"rightMediumLarge\"><input type=\"text\" class=\"textMediumLarge\" 
-								style=\"text-align:right;width:80px\" name=\"hourValue[$x]\" > kr.</div>
+								style=\"text-align:right;width:80px\" name=\"hourValue[$x]\" > $krTekst</div>
 								<div class=\"clear\"></div>
 							</div><!-- end of row -->\n";
 						print "<input type=\"hidden\" name=\"gruppe_id\" value='$gruppe_id'>\n";

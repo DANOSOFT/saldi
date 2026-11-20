@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/config.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/shopify/config.php --- ver 5.1.0 --- 2026.11.11
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20261027 Sawaneh SD-736: saving a shop ensures the stock triggers in the same transaction, once the schema is current.
 // 20261101 CL/SS SD-792: shopify_customer_number() allocates under create_debtor()'s lock, from a configurable start.
 // 20261104 CL/SZ SD-756: a shop with stock_publish_enabled needs stock_capture_enabled.
+// 20261111 CL/SZ SD-800: the customer_number_start docblock says it is a floor in the shared debtor-number sequence.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/schema.php';
@@ -261,7 +262,15 @@ function shopify_brand_shop(string $sprog): ?array {
 	return $rows[0] ?? null;
 }
 
-/** Tenant setting (settings group shopify): the lowest debtor number a Shopify customer gets. */
+/**
+ * Tenant setting (settings group shopify): the lowest debtor number a Shopify customer gets.
+ *
+ * A floor in the one debtor-number sequence every creator shares, not a range of its own: the
+ * Debitorkort, the order page and the worker all choose their numbers under the same lock, and a
+ * number a seller gives a debtor at or above the start moves Shopify's next number on.
+ * A start in the 8-digit range gives numbers that look like phone numbers, which HML types as
+ * account numbers, so keep it below that.
+ */
 const SHOPIFY_CUSTOMER_NUMBER_START = 'customer_number_start';
 
 /**

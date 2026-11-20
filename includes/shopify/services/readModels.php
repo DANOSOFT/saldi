@@ -27,6 +27,7 @@
 //
 // 20261103 CL/SS SD-801: created (WP08-2).
 // 20261104 CL/SS SD-801 review 3: the order's read model returns only the status namespace of the link's flags.
+// 20261104 CL/SS SD-744: the order's read model returns the EasyRoutes delivery date.
 
 require_once __DIR__ . '/../db.php';
 
@@ -35,14 +36,14 @@ require_once __DIR__ . '/../db.php';
  * ORDERS_UPDATED, its cancellation, its fulfillments with tracking and its refunds, newest first.
  * Null when the order has no Shopify link.
  *
- * @return array{shop_key: string, order_gid: string|null, order_name: string|null, direction: string, state: string, cancelled_at: string|null,
+ * @return array{shop_key: string, order_gid: string|null, order_name: string|null, direction: string, state: string, cancelled_at: string|null, easyroutes_levdato: string|null,
  *   status: array{financial_status: string|null, fulfillment_status: string|null, updated_at: string|null}|null,
  *   fulfillments: list<array{fulfillment_gid: string, status: string|null, tracking_company: string|null, tracking_number: string|null, tracking_url: string|null, shipped_at: string|null, shipment_status: string|null}>,
  *   refunds: list<array{refund_gid: string, amount: string|null, currency: string|null, state: string, refunded_at: string|null}>}|null
  */
 function shopify_order_read_model(int $ordreId): ?array {
 	$rows = shopify_db_rows(
-		"SELECT l.shop_id, s.shop_key, l.order_gid, l.order_name, l.direction, l.state, l.cancelled_at, l.flags
+		"SELECT l.shop_id, s.shop_key, l.order_gid, l.order_name, l.direction, l.state, l.cancelled_at, l.easyroutes_levdato, l.flags
 		 FROM shopify_order_links l JOIN shopify_shops s ON s.id = l.shop_id WHERE l.ordre_id = $1 ORDER BY l.id LIMIT 1",
 		array($ordreId)
 	);
@@ -70,6 +71,7 @@ function shopify_order_read_model(int $ordreId): ?array {
 	return array(
 		'shop_key' => (string)$link['shop_key'], 'order_gid' => $link['order_gid'], 'order_name' => $link['order_name'],
 		'direction' => (string)$link['direction'], 'state' => (string)$link['state'], 'cancelled_at' => $link['cancelled_at'],
+		'easyroutes_levdato' => $link['easyroutes_levdato'],
 		'status' => is_array($flags['status'] ?? null) ? $flags['status'] : null,
 		'fulfillments' => $fulfillments, 'refunds' => $refunds,
 	);

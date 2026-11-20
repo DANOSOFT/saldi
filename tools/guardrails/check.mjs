@@ -3,7 +3,7 @@
 //
 // Each check turns a mistake reviewers kept correcting into an error that names
 // the file, the line and what to do instead. The table of rules and what
-// enforces each one is in AGENTS.md.
+// enforces each one is in tools/guardrails/README.md.
 //
 //   node tools/guardrails/check.mjs                    # working tree vs origin/master
 //   node tools/guardrails/check.mjs --base origin/hml/shopify

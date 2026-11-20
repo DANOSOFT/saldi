@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 
-// -----------debitor/bogfor.php--------patch 5.0.0----2026.07.06----------
+// -----------debitor/bogfor.php--------ver 5.1.0----2026.10.28----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -30,6 +30,7 @@
 // 2013.05.06 Tilføjet transaktionskontrol.
 // 2015.03.05 Betalinger indsættes nu i POS_betalinger hvis betingelser er opfyldt - søg pos_betalinger
 // 20260706 CX/PHR Rollback transaction before alert/redirect when bogfor() returns an error
+// 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 
 @session_start();
 $s_id=session_id();
@@ -61,6 +62,10 @@ if ($id && $id>0) {
 		exit;
 	} else {
 		transaktion('commit');
+		if (empty($GLOBALS['db_modify_fejl'])) {
+			shopSyncDrainQueue();
+			shopSyncAlertFailedItems();
+		}
 	}
 	if (!$genfakt) {
 		if ($pbs) {

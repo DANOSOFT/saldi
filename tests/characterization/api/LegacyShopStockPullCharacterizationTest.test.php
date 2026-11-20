@@ -22,6 +22,7 @@
 // History:
 // 20261027 CL/SZ Created (SD-778, sub-task of SD-750).
 // 20261028 CL/SZ SD-778 review: the pos8 test moves a tenant item with varenr 'varenr' aside while it runs.
+// 20261110 CL/SZ Sync of master into hml/shopify: lagerreguler() sends only the stock call (SST-876), so the push is checked on update_stock.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 require_once __DIR__ . '/../support/LegacyShopStub.php';
@@ -143,9 +144,9 @@ final class LegacyShopStockPullCharacterizationTest extends CharacterizationTest
 		$this->assertSame([['901', '0', '0']], array_map(fn(array $r): array => [$r['shop_id'], $r['saldi_variant'], $r['shop_variant']], self::rows('SELECT * FROM shop_varer WHERE saldi_id = $1', [$item['id']])));
 		$this->assertCount(1, self::rows('SELECT id FROM lagerstatus WHERE vare_id = $1', [$item['id']]));
 		$this->assertSame(self::fetches('curl'), $this->fetchRequests());
-		// Creating the item goes through lagerreguler(), which sends its price and stock to
-		// every slot (includes/std_func.php sync_shop_vare(), already behind the SD-750 switch).
-		$this->assertSame(['/a/', '/b/', '/c/'], $this->outboundPaths('update_price', $no));
+		// Creating the item goes through lagerreguler(), which sends its stock to every slot
+		// (includes/std_func.php sync_shop_vare(), behind the SD-750 switch; stock only since SST-876).
+		$this->assertSame(['/a/', '/b/', '/c/'], $this->outboundPaths('update_stock', $no));
 		$this->removeItem($no);
 	}
 
