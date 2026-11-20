@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.0 ----2026-10-30------------
+// --- systemdata/diverse.php -----ver 5.1.0 ----2026-11-20------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -118,6 +118,7 @@
 // 20261029 CL/MMR SD-786 Save "Vis besked når kostprisen er anslået" (showCostEstimateNotice) under Ordrerelaterede valg.
 //                 The ordre_valg save moved to saveOrderOptions() in diverseIncludes/saveOrderOptions.php (ifset(), SQL escaped or cast), and its alerts are shown after the save, escaped with jsString().
 // 20261030 CL/MMR SD-786 CodeRabbit (PR #959): the alerts from the ordre_valg save are shown in one alert (orderOptionsAlert()), so none is lost.
+// 20261120 CL/LH K33 posOptions: save the POS delivery choices (pos_save_delivery_choices()) with the brands.
 
 @session_start();
 $s_id = session_id();
@@ -1587,6 +1588,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		# section, so it is saved here; the row itself is owned by diverseIncludes/posSaleSettings.php.
 		include_once(__DIR__ . "/diverseIncludes/posSaleSettings.php");
 		pos_save_sale_settings($_POST, $regnaar);
+		pos_save_delivery_choices($_POST); # 20261120 CL/LH K33
 		$qtxt = "select id from grupper WHERE art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'";
 		if (($id1 == 0) && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))))
 			$id1 = $r['id'];
