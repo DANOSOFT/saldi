@@ -1,7 +1,10 @@
 <?php
 // 20261120 CDX/NTR Exercise the print page's A4 preparation with real PDF conversion and merging.
+// 20261120 CDX/NTR Call the extracted preparation helper without evaluating page source.
 
 use PHPUnit\Framework\TestCase;
+
+require_once __DIR__ . '/../../../includes/stdFunc/preparePrintBackground.php';
 
 final class PrintBackgroundNormalizationTest extends TestCase
 {
@@ -61,28 +64,18 @@ final class PrintBackgroundNormalizationTest extends TestCase
         return $pdf;
     }
 
-    /**
-     * Run the actual preparation block, without the page's session/DB/exit plumbing.
-     * Legacy page tests use this seam because including the page exits the test process.
-     */
+    /** Run the shared helper with PHP warnings promoted to failures. */
     private function prepare(string $background): string
     {
-        $source = file_get_contents(__DIR__ . '/../../../includes/udskriv.php');
-        $start = strpos($source, '// Self-heal non-A4 letterheads.');
-        self::assertNotFalse($start);
-        $end = strpos($source, '$out = "../temp/"', $start);
-        self::assertNotFalse($end);
-        $bg_fil = $background;
         clearstatcache();
         set_error_handler(static function (int $severity, string $message, string $file, int $line): void {
             throw new ErrorException($message, 0, $severity, $file, $line);
         });
         try {
-            eval(substr($source, $start, $end - $start));
+            return preparePrintBackground($background);
         } finally {
             restore_error_handler();
         }
-        return $bg_fil;
     }
 
     public function testOversizedBackgroundBecomesAMergeableA4PdfWithoutChangingTheUpload(): void

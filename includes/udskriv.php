@@ -60,6 +60,7 @@
 // 20261112 CL/MMR SST-1015 Removed the DIAG error_log line written on every print.
 // 20261113 CDX/NTR Keep error reporting and translate the PDF fallback in the page charset.
 // 20261120 CDX/NTR Prepare non-A4 backgrounds as real PDFs and rebuild invalid cached copies.
+// 20261120 CDX/NTR Extract background preparation into a directly testable helper.
 
 @session_start();
 $s_id=session_id();
@@ -306,31 +307,8 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			# error_log("DIAG: pdftk_bin=$pdftk");
 
 			if ($printBatch === null && $pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
-				// Self-heal non-A4 letterheads. Keep the first page as a PDF, without rasterization.
-				if (function_exists('shell_exec')) {
-					$pinf = shell_exec("pdfinfo " . escapeshellarg($bg_fil) . " 2>/dev/null");
-					if ($pinf && strpos($pinf, '(A4)') === false) {
-						$a4c = preg_replace('/\.pdf$/i', '', $bg_fil) . '.a4.pdf';
-						$cachedInfo = is_file($a4c) ? shell_exec('pdfinfo ' . escapeshellarg($a4c) . ' 2>/dev/null') : '';
-						$cacheReady = $cachedInfo && strpos($cachedInfo, '(A4)') !== false && filemtime($a4c) >= filemtime($bg_fil);
-						if (!$cacheReady) {
-							$a4c_tmp = $a4c . '.' . getmypid() . '.new';
-							$normalizationOutput = array();
-							exec('gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sPAPERSIZE=a4 -dFIXEDMEDIA -dPDFFitPage -dFirstPage=1 -dLastPage=1 -sOutputFile=' . escapeshellarg($a4c_tmp) . ' ' . escapeshellarg($bg_fil) . ' 2>&1', $normalizationOutput, $normalizationStatus);
-							if ($normalizationStatus === 0 && is_file($a4c_tmp) && file_get_contents($a4c_tmp, false, null, 0, 5) === '%PDF-') {
-								$cacheReady = rename($a4c_tmp, $a4c);
-							} else {
-								error_log('A4 background conversion failed: ' . implode(' | ', $normalizationOutput));
-							}
-							if (is_file($a4c_tmp)) {
-								unlink($a4c_tmp);
-							}
-						}
-						if ($cacheReady) {
-							$bg_fil = $a4c;
-						}
-					}
-				}
+				require_once __DIR__ . '/stdFunc/preparePrintBackground.php';
+				$bg_fil = preparePrintBackground($bg_fil);
 				$out = "../temp/" . $ps_fil . "x.pdf";
 				system("$pdftk ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
 				error_log("DIAG: pdftk rc=$rc, out_exists=" . (file_exists($out) ? 'YES' : 'NO'));
