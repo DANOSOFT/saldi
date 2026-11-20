@@ -1,5 +1,5 @@
 <?php
-// --- finans/kassekladde_includes/bilagNumber.php --- 20261105 CL/MMR SST-934 ---
+// --- finans/kassekladde_includes/bilagNumber.php --- 20261119 CL/SS SST-895 ---
 //
 // Voucher number (bilag) allocation for the cash journal.
 //
@@ -42,6 +42,8 @@
 //                 The save has always read an empty Bilag field as '0', and since SST-817 a line saved with that '0' is given the journal's next number, so a typed 0 was replaced too.
 //                 A typed 0, and a line already saved under 0, now travel through the save as '00' (bilagFromInput()).
 //                 Only an empty field is numbered (bilagIsUnnumbered()), and the page shows a saved 0 as 0 (bilagFieldValue()).
+// 20261119 CL/SS SST-895 bilagOpenVoucher(): while the journal's highest voucher does not balance, the blank line continues it with the same number and date.
+//                The page did this until 20260903; since then the blank line always got the next number.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -58,6 +60,47 @@ function bilagNextNumberAfter($journal_max, $fiscal_year_max = 0) {
 		return $fiscal_year_max + 1;
 	}
 	return 1;
+}
+
+/**
+ * The voucher the blank line at the end of the journal continues (SST-895).
+ *
+ * While the journal's highest voucher does not balance, the next line belongs to it, so the blank line carries
+ * its number and date. Once it balances, the blank line gets the next number (bilagNextNumberForJournal()).
+ * A line with a debit account adds its amount, a line with a credit account subtracts it, so a line with both
+ * balances itself. A difference that rounds to less than an øre counts as balanced; an øre or more is open,
+ * as it is to the posting (bogfor.php).
+ * The text is not carried: a number with a text is a line the save stores (bilagStagedRowWillBeSaved()),
+ * so an untouched blank line would be saved as a line without accounts.
+ *
+ * @param array<int, array{bilag: int|string, dato: string, debet: mixed, kredit: mixed, belob: float|int|string}> $lines
+ *        The journal's lines in page order, amounts in the base currency.
+ * @return array{bilag: int, dato: string}|null The open voucher, or null when the highest voucher balances or there is none.
+ */
+function bilagOpenVoucher(array $lines) {
+	$highest = 0;
+	foreach ($lines as $line) {
+		$highest = max($highest, (int)$line['bilag']);
+	}
+	if ($highest <= 0) {
+		return null;
+	}
+	$difference = 0;
+	$open = null;
+	foreach ($lines as $line) {
+		if ((int)$line['bilag'] !== $highest) {
+			continue;
+		}
+		$amount = (float)$line['belob'];
+		if ($line['debet']) {
+			$difference += $amount;
+		}
+		if ($line['kredit']) {
+			$difference -= $amount;
+		}
+		$open = array('bilag' => $highest, 'dato' => (string)$line['dato']);
+	}
+	return abs(round($difference, 2)) >= 0.01 ? $open : null;
 }
 
 /**
