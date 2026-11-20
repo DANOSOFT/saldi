@@ -32,6 +32,7 @@
 //                 The reject branch of updateBooking is the named handler rejectBooking().
 // 20261120 CL/MMR SST-996 (review): rejectBooking() stops when the booking lookup fails and deletes the order only for a real order id.
 //                 Its deletes run in one transaction; a failed delete is rolled back and updateBooking answers with an error.
+// 20261120 CL/MMR SST-996 (review): a failed BEGIN or COMMIT also makes updateBooking answer with an error, not "deleted".
 //
 
 
@@ -284,7 +285,7 @@ function bookingNextFreeKontonr() {
  * delete leaves the booking, its order and its lines as they were.
  *
  * @param int $bookingId rentalperiod.id of the booking.
- * @return bool true when the booking is gone (or never existed), false when the lookup or a delete failed.
+ * @return bool true when the booking is gone (or never existed), false when the lookup, a delete, BEGIN or COMMIT failed.
  */
 function rejectBooking($bookingId) {
     global $db_modify_fejl, $webservice;
@@ -295,18 +296,23 @@ function rejectBooking($bookingId) {
     }
     $res = db_fetch_array($query);
     $orderId = $res ? (int)$res["order_id"] : 0;
+    if (transaktion('begin') === false) {
+        transaktion('rollback'); // only to close transaktion()'s nesting count again
+        return false;
+    }
     $prevWebservice = $webservice;
     $webservice = 1; // a failed db_modify() sets $db_modify_fejl and returns, instead of exiting, so it can be rolled back (SD-595)
-    transaktion('begin');
     if ($orderId > 0) { // a booking without an order never touches order id 0 or lines with ordre_id 0
         db_modify("DELETE FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
         db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
     }
     db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-    $failed = $db_modify_fejl;
-    transaktion($failed ? 'rollback' : 'commit');
     $webservice = $prevWebservice;
-    return !$failed;
+    if ($db_modify_fejl) {
+        transaktion('rollback');
+        return false;
+    }
+    return transaktion('commit') !== false; // the database can still refuse the COMMIT (e.g. a deferred constraint): then nothing was deleted
 }
 
 function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
