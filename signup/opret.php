@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- signup/opret.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- signup/opret.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,18 +24,26 @@
 // ----------------------------------------------------------------------
 // The endpoint the website's "Prøv gratis"/price-page form posts to (plan.md, section 1).
 //
-//   POST (form fields or JSON): name, cvr, company, email, phone, pakke, source, website (honeypot)
+//   POST (form fields or JSON): name, cvr, company, email, phone, pakke, source, website (honeypot), and optionally
+//                               where the visit came from: utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+//                               gclid, gbraid, wbraid (only with consent to marketing), referrer (host), landing (path)
 //   -> 200 {ok:true, resend:"<key>", email:"<as typed>"}   the mail is on its way (or the request
 //                                                          was silently dropped: bot / too many)
-//   -> 422 {ok:false, errors:{field: message}}            validation failed
+//   -> 422 {ok:false, errors:{field: message}}            validation failed, or errors.email: the mailbox
+//                                                          already has an account / had a trial too recently
 //   -> 429 {ok:false, errors:{_: message}}                too many signups (this address or the server),
 //                                                          or too many CVR lookups from this address
 //
 // Browsers get the same as an HTML page ("Tjek jeres mail") when they do not ask for JSON, and a
 // GET shows a plain fallback form, so the flow can be exercised without the website. All
 // validation is server side; the CVR number is looked up here, never trusted from the client.
-// The page never reveals whether an e-mail address is already known. The address itself is shown
-// in full: the customer just typed it (masking is for pages reached through a link, see nytlink.php).
+// One e-mail, one account (doc/signup.md): a mailbox that already has a signup account, or whose trial
+// closed less than cooldown_months ago, is refused with a message that says so. That reveals whether an
+// address has (had) an account. It is only answered after both signup limits are claimed: 5 an hour per
+// client address (per /64 for IPv6) and max_signups_per_hour for the whole server, shared with real signups.
+// So testing addresses from many client addresses is slowed down, not prevented. Otherwise the page does not
+// reveal whether an address is known. The address itself is shown in full: the customer just typed it (masking is for
+// pages reached through a link, see nytlink.php).
 //
 // 20261014 CL/PS Created.
 // 20261102 CL/ASR Refuses POSTs from foreign origins.
@@ -43,6 +51,10 @@
 //                 The form's own CVR lookups count against the CVR limit; when it is used up the signup waits instead of skipping the check.
 //                 A c/o address from the CVR register is kept as on a letter: addr1 "c/o <name>", the street in addr2 (as on the kreditor card).
 //                 The per-mailbox mail cap is claimed before the mail is sent.
+// 20261109 CL/PS Refuses (422, errors.email) a mailbox that already has a signup account, or whose trial closed less than cooldown_months ago.
+//                Asked after both signup limits are claimed, so a refused answer also counts against max_signups_per_hour.
+// 20261119 CL/PS The refusal also points bookkeepers and accountants to the bookkeeper scheme (signup_urls()['revisor']).
+// 20261120 CL/PS The signup keeps where it came from (signup_kilde(): utm_*, Google Ads click ids, referrer, landing page).
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");
@@ -111,6 +123,20 @@ if (!signup_claim_event('opret', 5, 3600) || !signup_claim_event('opret_alle', (
 	signup_too_many('Der er oprettet for mange regnskaber den seneste time. Prøv igen senere, eller ring til os.', $json);
 }
 
+// One e-mail, one account across the packages, and a waiting period after a trial (doc/signup.md). Asked after both
+// limits are claimed, since the answer tells whether the address has an account: a refused answer counts against the
+// server ceiling too, so the whole server gives at most max_signups_per_hour of them an hour. aktiver.php asks again
+// before an account is created.
+$mailbox = signup_mailbox_rule($d['email']);
+if ($mailbox['decision'] !== 'allowed') {
+	signup_log('signup refused: ' . signup_mailbox_log_text($mailbox));
+	$errors['email'] = signup_mailbox_message($mailbox, signup_setting('support_phone', '46 90 22 08'), signup_urls($d['pakke'])['revisor']);
+	if ($json) {
+		signup_json(array('ok' => false, 'errors' => $errors), 422);
+	}
+	signup_fallback_form($in, $errors);
+}
+
 // Many mails to one mailbox within a day: answer as if sent, but send nothing (no enumeration). Claimed
 // before sending, per mailbox (signup_email_key: +tags and Gmail dots count as one).
 if (!signup_claim_event('mail', (int)signup_setting('max_mails_per_day', '5'), 86400, $d['email'])) {
@@ -126,6 +152,7 @@ $pending = signup_create_pending(array(
 	'navn' => $d['navn'], 'email' => $d['email'], 'tlf' => $d['tlf'], 'cvrnr' => $d['cvr'],
 	'firmanavn' => $company['firmanavn'], 'addr1' => $company['addr1'], 'addr2' => $company['addr2'], 'postnr' => $company['postnr'], 'bynavn' => $company['bynavn'],
 	'regnskab' => $regnskab, 'pakke' => $d['pakke'], 'source' => $d['source'], 'navn_fra_cvr' => $nameFromCvr ? 1 : 0,
+	'kilde' => signup_kilde($in),
 ));
 $row = db_fetch_array(db_select("SELECT * FROM signup_pending WHERE id = " . (int)$pending['id'], __FILE__ . " linje " . __LINE__, true));
 if (!$row || !signup_send_activation_mail($row, $pending['token'], 'welcome')) {

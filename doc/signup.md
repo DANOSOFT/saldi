@@ -14,17 +14,18 @@ form on saldi.dk  ->  signup/opret.php    pending row + welcome mail with a one-
 
 | File | Role |
 |---|---|
-| `signup/opret.php` | Endpoint for the website's form (JSON or form post). Validates on the server, looks the CVR number up, stores a pending signup and sends the welcome mail. GET shows a plain fallback form. |
-| `signup/aktiver.php` | Activation page (`?t=<token>`): all states from the design, creates the account and posts the customer to `index/login.php`. |
+| `signup/opret.php` | Endpoint for the website's form (JSON or form post). Validates on the server, looks the CVR number up, applies the e-mail rules (below), stores a pending signup and sends the welcome mail. GET shows a plain fallback form. |
+| `signup/aktiver.php` | Activation page (`?t=<token>`): all states from the design, creates the account, posts the customer to `index/login.php` and then sends the internal new-customer mail. |
 | `signup/nytlink.php` | "Få et nyt link" / "Send mailen igen": new token, old one invalidated, same answer whether or not anything was sent. |
 | `signup/tjeknavn.php` | Live account-name availability for the activation page (needs a valid token). |
 | `signup/cvr.php` | Server-side CVR lookup for the website's form (cached, rate limited). |
-| `signup/rydop.php` | Cleanup job (CLI/cron): deletes signups never activated after `cleanup_days`. |
-| `includes/signupIncludes/signupFunc.php` | The library: settings, schema, validation, normalisation, tokens, name check, password rules (incl. Have I Been Pwned), activation, billing order. |
-| `includes/signupIncludes/signupMail.php` | Mail templates (HTML + text) and transport (PHPMailer over SMTP, or sendmail). |
+| `signup/rydop.php` | Cleanup job (CLI/cron): deletes signups never activated after `cleanup_days`, and marks signups stuck in `activating` for an hour as `failed`. |
+| `includes/signupIncludes/signupFunc.php` | The library: settings, schema, validation, normalisation, tokens, name check, password rules (incl. Have I Been Pwned), e-mail rules, activation, billing order. |
+| `includes/signupIncludes/signupMail.php` | Mail templates (HTML + text), the internal new-customer mail, and transport (PHPMailer over SMTP, or sendmail). |
 | `includes/signupIncludes/signupPage.php` | Page frame of the flow's own pages (card layout, CSP nonce). |
 | `includes/opretfunc.php` (existing) | `opret_build_tenant()`: master's tenant database build, shared with `admin/opret.php` and `api/signup_api.php` (via `create_regnskab()`). The signup flow reserves the account name and the `regnskab` row itself (one locked transaction) and then calls only the tenant build. |
 | `tests/includes/signupFunc.test.php` | PHPUnit tests for the pure functions. |
+| `tests/includes/signupMailboxRules.test.php` | PHPUnit tests for the e-mail rules (decision, calendar months, messages) and the new-customer mail. |
 
 ## Database (master)
 
@@ -35,7 +36,7 @@ deploy). Until then every endpoint answers "not ready" (`signup_schema_ready()`)
 - `signup_pending` - one row per submission. Holds only the SHA-256 of the activation token
   (`token_hash`), its expiry, the previous token's hash (so an old link can still ask for a new one)
   and the resend key's hash. `status`: pending, activating, activated, failed (the account build failed three
-  times; the link then asks the customer to call). The `activated` timestamp is set when the account is reserved
+  times, or never finished: `rydop.php`; the link then asks the customer to call). The `activated` timestamp is set when the account is reserved
   (status `activating`) and again when it is ready (status `activated`); a failed build clears it, so it no longer
   counts toward `max_activations_per_day`. At activation the resend key is cleared; the token hash is kept so the link can still say "already
   activated". `rydop.php` removes only signups that were never activated.
@@ -61,7 +62,7 @@ mail transport also reads the docker stack's `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE
 |---|---|---|
 | `base_url` | **required** | Absolute url of this installation, e.g. `https://ssl3.saldi.dk/finans`; the activation links are built from it. Never derived from the request (the Host header is the caller's choice). Without it every endpoint answers "not ready". |
 | `assets_url` | `https://saldi.dk/assets` | Logo and fonts for mails and pages. |
-| `landing_url` | `https://saldi.dk` | The website; `priser_url` and `guide_url` default to `/priser/` and `/vejledninger/` under it. |
+| `landing_url` | `https://saldi.dk` | The website; `priser_url`, `guide_url` and `revisor_url` default to `/priser/`, `/vejledninger/` and `/revisor/` under it. `revisor_url` is the bookkeeper scheme's page, named when a mailbox is refused. |
 | `login_url` | `<base_url>/index/index.php` | Login page. Every package is created on this installation. |
 | `login_url_finans` | `login_url` | Only if Finans should log in somewhere else. |
 | `from_email`, `from_name`, `reply_to`, `bcc` | `noreply@saldi.dk`, `Saldi`, `support_email`, - | Sender; the sender address is still an open decision (plan.md). |
@@ -76,7 +77,9 @@ mail transport also reads the docker stack's `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE
 | `token_days`, `cleanup_days`, `max_mails` | 7, 14, 5 | Link validity, cleanup, activation mails per signup. |
 | `max_mails_per_day` | 5 | Signup and new-link mails per mailbox per day. |
 | `max_signups_per_hour`, `max_activations_per_day` | 60, 30 | Ceilings for the whole server (mail reputation; each account is a database). |
-| `support_phone`, `support_email` | `46 90 22 08`, `info@saldi.dk` | Shown in mails and pages. |
+| `support_phone`, `support_email` | `46 90 22 08`, `info@saldi.dk` | Shown in mails and pages (also in the e-mail rules' messages). |
+| `cooldown_months` | 3 | Calendar months a mailbox waits for a new trial after its last signup account closed (see "One e-mail, one account"). `0` = no wait. |
+| `notify_email` | `info@saldi.dk` | Who gets the internal "Ny kunde i Saldi" mail after each activation. Several addresses separated by commas; `off` sends none. An empty value means the default, as for every setting here (an empty row or variable is read as "not set"). |
 
 ## Mail delivery: set it up through Resend (TODO before go-live)
 
@@ -127,12 +130,127 @@ the same rows and sends a test mail.
 
 `pakke` is `finans`, `professionel` or `business`; `website` is the honeypot and must stay empty.
 Answers: `200 {ok:true, resend, email}` (show "Tjek jeres mail"; post `resend` to `nytlink.php` for
-"Send mailen igen"), `422 {ok:false, errors:{field: message}}`, `429` too many attempts, `403` a foreign
-`Origin`, `503` not ready (schema or `base_url` missing). The CVR lookup for the form is
+"Send mailen igen"), `422 {ok:false, errors:{field: message}}` (also `errors.email` from the e-mail rules
+below), `429` too many attempts, `403` a foreign `Origin`, `503` not ready (schema or `base_url` missing). The CVR lookup for the form is
 `GET signup/cvr.php?q=<number or name>`. Field limits: name 60, e-mail 60 (a longer address is refused, not cut,
 and may not contain `' & " \ ; < >`, which `index/login.php` strips from usernames), company 90; no web addresses in
 name or company. Forms must not put `maxlength="60"` on the e-mail field: the browser would cut the address, and a
 cut address can be somebody else's.
+
+## Kilde: where a signup came from
+
+So trials can be followed to paying customers per channel (Google Ads, LinkedIn, ChatGPT, newsletter ...), the form
+may also send where the visit came from. All fields are optional; `signup_kilde()` drops a value that does not have
+the expected form, and `signup_pending` keeps the rest:
+
+| Field | Column | Kept when |
+|---|---|---|
+| `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` | same names, VARCHAR(100/100/150/150/150) | any text without `< > " \`, within the length |
+| `gclid`, `gbraid`, `wbraid` | same names, VARCHAR(200) | letters, digits and `. _ ~ -` |
+| `referrer` | `referrer`, VARCHAR(100) | a host name only, e.g. `chatgpt.com` |
+| `landing` | `landing`, VARCHAR(200) | a path only, e.g. `/priser/` (no query) |
+
+Consent: the website (saldi.dk, `index.html`) sends Google's click ids only when the customer has consented to
+marketing in its cookie banner, so a stored click id may be uploaded to Google Ads as an offline conversion. The
+campaign parameters, referrer and landing page are sent with every signup. The columns are added by
+`includes/betweenUpdates.php` (20261120, flag `system/signup_kilde_schema`); until then a signup is stored without
+them. The new-customer mail shows them as *Kilde* (campaign, otherwise the referring site, plus "Google Ads-klik"),
+*Landingsside* and *Formular* (the `source` field: which form on the website).
+
+Trials per channel, and which of them are still open (a customer who chose a subscription has had the closing date
+`lukkes` cleared in the admin panel), on the master database:
+
+```sql
+SELECT p.created, p.firmanavn, p.pakke, p.utm_source, p.utm_medium, p.utm_campaign, p.referrer, p.landing,
+       p.gclid <> '' AS google_ads_klik, r.trial_end, r.lukkes, r.lukket
+FROM signup_pending p LEFT JOIN regnskab r ON r.id = p.regnskab_id
+WHERE p.status = 'activated' AND p.created >= '2026-12-01'
+ORDER BY p.created;
+```
+
+## One e-mail, one account
+
+A mailbox (`signup_email_key()`: lower case, without `+tag`, Gmail without dots) gets one free trial account,
+whatever the package (Finans, Professionel, Business). `signup_mailbox_decision()` decides from the mailbox's
+history and today's date; `signup_mailbox_rule()` reads the history and the settings.
+
+- **History**: signups with status `activating` or `activated`, joined to their `regnskab` row, plus `regnskab`
+  rows with a `pakke` (only the flow sets it) whose signup row is gone. Pending and failed signups are not
+  accounts. Accounts set up by hand with the same e-mail do not count.
+- **Already has an account**: while one of those accounts is open, a new signup is refused. A signup in
+  `activating` counts as open for 30 minutes after its build started; after that the build has died without
+  cleaning up (fatal error, time limit, restart) and it is no account. `rydop.php` marks such a signup `failed`
+  after an hour and names it, so staff can remove a half-built `regnskab` row and database. As long as that row
+  exists it counts like any account with a package: delete it rather than close it.
+- **Waiting period**: after the last one closed, the mailbox may sign up again `cooldown_months` (3) calendar
+  months later, on that day itself. Months are counted on the calendar and a day the month does not have becomes
+  its last day: closed 30 November -> again from 28 (29) February; 31 August -> 30 November
+  (`signup_add_months()`; PHP's `+3 months` would give 2 March). `cooldown_months = 0` turns the waiting period
+  off: a closed account then never refuses a signup.
+- **Closing date**: Saldi has no column for when an account was closed (`lukket` is a flag; staff close accounts
+  in `admin/admin_panel.php` and `admin/vis_regnskaber.php`, the customer in Indstillinger via
+  `systemdata/diverse.php`, and `admin/slet_regnskab.php` deletes closed accounts). `signup_account_state()` uses
+  the best date there is:
+  1. Deleted by the customer: `systemdata/diverse.php` sets `lukket` and writes `logintekst` "slettet af <user> den
+     YYYYMMDD H.i". That date is used (or `lukkes`, if that was earlier). If somebody logged in after that date
+     (`regnskab.sidst`), the account was reopened and the text is ignored.
+  2. `regnskab.lukkes` when it is a real date (not empty, not `2099-12-31`). The account closes by itself on that
+     day (`includes/online.php`), and it counts as closed from then even before the next login sets `lukket`.
+     When staff close an account before `lukkes`, Saldi keeps no date of that, so it still counts from `lukkes`,
+     the day the trial would have ended: the wait is then up to `trial_days` + `trial_grace_days` longer than three
+     months from the real closing.
+  3. Closed (`lukket`) without such a date, typically a subscription whose date sales cleared: the later of the last
+     login (`regnskab.sidst`) and the end of the trial plus `trial_grace_days`. If staff closed it long after the
+     last login, the wait is shorter than three months from the real closing.
+  4. The `regnskab` row is gone (deleted): the day the trial would have closed, from `signup_pending.activated`
+     plus today's `trial_days` + `trial_grace_days`. For a trial that was never extended this is on or after the
+     real closing. For an account that was extended or became a subscription the real closing was later, so the
+     wait can be shorter than three months, or over at once: a former subscriber whose account has been deleted
+     can start a new trial straight away (an open question for the product owner).
+  No new column was added for this.
+- **Where it is checked**: `signup/opret.php` answers `422` with `errors.email`, after both signup limits are
+  claimed (5 an hour per client address and `max_signups_per_hour` for the server; a refused signup sends no mail).
+  The activation page checks again before it shows the form, also for an expired or replaced link (so it does not
+  offer "Send et nyt link"), and `signup_activate()` checks a third time while it holds the lock every activation
+  takes (`LOCK TABLE regnskab` on PostgreSQL, `GET_LOCK('saldi:signup_activate')` on MySQL). So two pending signups
+  of one mailbox, say for two packages, cannot both become accounts: the second one sees the first as
+  `activating`/`activated`. If the MySQL lock is not granted within 30 seconds the activation is refused with the
+  ordinary "could not be created, try again" message.
+- **Other pending signups of the mailbox** are left as they are: their link shows "Regnskabet kan ikke oprettes"
+  with the reason (a login button when the mailbox has an account), `nytlink.php` sends no new link for them (the
+  answer is the same as always), and `rydop.php` removes them after `cleanup_days` like any signup that was never
+  activated.
+- **Messages** (with `support_phone`):
+  - "Der er allerede en Saldi-konto med denne e-mail. Log ind på den, eller ring på 46 90 22 08, hvis du vil skifte pakke."
+  - "Denne e-mail har haft en gratis prøveperiode. Du kan prøve Saldi gratis igen fra den 9. februar 2027. Ring på 46 90 22 08, hvis du vil i gang nu."
+
+  Both end with "Er du bogholder eller revisor? Så får du adgang til dine kunders regnskaber gennem
+  bogholderordningen på saldi.dk/revisor." (`revisor_url`, shown without `https://`, because the website prints the
+  message as plain text). Bookkeepers are why there is no per-mailbox exception: a trial belongs to the customer's
+  own mailbox, so mails, billing and sales reach the business that pays, and a bookkeeper works in the customers'
+  accounts through the free bookkeeper panel instead.
+
+  They tell whoever types an address whether it has (had) an account. That is a product decision. The answer comes
+  only after both signup limits are claimed, so one client address gets at most 5 answers an hour and the whole
+  server at most `max_signups_per_hour` (shared with real signups). Testing many addresses from many client
+  addresses is slowed down by that, not prevented. The log line says which account and signup decided
+  (`signup: signup refused: cooldown until 2027-02-09 (regnskab 12, signup 34)`), not the address.
+
+## New-customer mail
+
+When an activation has finished (the account is ready, status `activated`), `signup/aktiver.php` sends a short
+internal mail to `notify_email` (default `info@saldi.dk`; `off` = none): subject "Ny kunde i Saldi: <firma>
+(<pakke>)", with company, CVR number, contact, e-mail, phone, package, account name and id, when it was created,
+the end of the trial, the closing date (`lukkes`), the source and the installation (`base_url`). Text and simple
+HTML, every value escaped; Reply-To is the customer's address, and the `bcc` setting is not used for it. It goes
+out after the "Regnskabet er klar" page has been sent (`signup_after_response()`), so a slow or failing mail does
+not hold up or break the customer's login. Under PHP-FPM the response is finished with `fastcgi_finish_request()`.
+Under mod_php (the repo's Dockerfile) the page is buffered and sent with `Content-Length` and `Connection: close`,
+and Apache's `mod_deflate` is switched off for that response, so the browser has the whole page before the mail
+starts. One case is not covered: with `zlib.output_compression` on, PHP keeps the page until the script ends, so
+the customer waits for the mail (with SMTP at most 15 seconds per recipient). Which SAPI ssl3 uses has not been
+checked. A failure is logged with the `signup:` prefix. The message is built by `signup_notify_message()` (pure,
+tested).
 
 ## Operations
 
@@ -162,3 +280,7 @@ cut address can be somebody else's.
 <!-- 20261014 CL/PS created. -->
 <!-- 20261021 CL/PS Mail delivery through Resend (decision and setup steps). -->
 <!-- 20261102 CL/ASR Ported to master (opret_build_tenant, betweenUpdates.php); package limits, trial closing, billing payload, required base_url, origin check, claimed limits. -->
+<!-- 20261109 CL/PS One e-mail, one account and the waiting period before a new trial (cooldown_months); internal new-customer mail (notify_email). -->
+<!-- 20261109 CL/PS Review: closing date from a customer's deletion, stuck activations, MySQL lock, nytlink, limits before the answer, mail after the response. -->
+<!-- 20261119 CL/PS A refused mailbox is also pointed to the bookkeeper scheme (revisor_url); why bookkeepers get no exception. -->
+<!-- 20261120 CL/PS Kilde: utm_*, Google Ads click ids, referrer and landing page stored with the signup, shown in the new-customer mail. -->

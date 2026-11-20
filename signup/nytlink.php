@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- signup/nytlink.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- signup/nytlink.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20261102 CL/ASR Refuses POSTs from foreign origins.
 //                 At most one new link per signup a minute and the per-mailbox daily mail cap, both claimed before sending.
 //                 A typed e-mail is read in full, not cut to 60.
+// 20261109 CL/PS Sends no new link for a mailbox the e-mail rules refuse (signup_mailbox_rule()); the answer is the same.
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");
@@ -85,9 +86,18 @@ if ($resend !== '') {
 }
 
 $sent = false;
+// No new link for a mailbox the e-mail rules refuse (doc/signup.md, "One e-mail, one account"): its link would only
+// show "Regnskabet kan ikke oprettes". The answer stays the same.
+$refused = '';
+if ($row && signup_may_resend($row)) {
+	$mailbox = signup_mailbox_rule($row['email']);
+	$refused = ($mailbox['decision'] !== 'allowed') ? signup_mailbox_log_text($mailbox) : '';
+}
 // At most one new link per signup a minute (claimed, so parallel requests cannot all pass) and the same daily
 // cap per mailbox as opret.php.
-if ($row && signup_may_resend($row) && signup_claim_event('resend', 1, 60, 'signup' . (int)$row['id'])
+if ($row && $refused !== '') {
+	signup_log('new link for signup ' . (int)$row['id'] . ' not sent: ' . $refused);
+} elseif ($row && signup_may_resend($row) && signup_claim_event('resend', 1, 60, 'signup' . (int)$row['id'])
 	&& signup_claim_event('mail', (int)signup_setting('max_mails_per_day', '5'), 86400, $row['email'])) {
 	$newToken = signup_reissue_token($row);
 	$row = db_fetch_array(db_select("SELECT * FROM signup_pending WHERE id = " . (int)$row['id'], __FILE__ . " linje " . __LINE__, true));
