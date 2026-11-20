@@ -95,6 +95,7 @@ namespace Saldi\Tests\CreditorOrderHeaderApostrophe {
                 self::slice(self::OPEN_ORDER_DATA, "print \"<tr><td>\".findtekst('360|Firmanavn'", 'print "</td></tr></tbody></table></td>";'),
             );
             $sprog_id = 1;
+            // The order Att. (kontakt) input is printed by the same block but is fixed by MB-136 (#1057), not here, so it is not asserted.
             $kontakt = '';
             extract($values);
             ob_start();
