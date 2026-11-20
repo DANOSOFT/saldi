@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.06
+// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.20
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,7 @@
 // 20261106 CL/SZ SD-757 review: the baseline stamps only on Saldi's quantities, the remap's zero call waits for its items' barriers.
 //                The reconcile defers a pair while Shopify has stock committed there.
 //                A set that can't be published no longer keeps the baseline from stamping (Å32, Lui).
+// 20261120 CDX/NTR Materialize the drain batch once so a nested-loop plan cannot delete beyond its limit.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -272,9 +273,11 @@ function shopify_stock_drain_dirty(array $rt, int $limit = 500): array {
 		if ($shops === array()) {
 			return array('drained' => 0, 'queued' => 0);
 		}
+		// Fix the batch before deleting: an IN subquery can be rescanned as rows disappear.
 		$rows = shopify_db_rows(
-			'DELETE FROM shopify_stock_dirty WHERE id IN (SELECT id FROM shopify_stock_dirty ORDER BY id LIMIT $1 FOR UPDATE SKIP LOCKED)
-			 RETURNING id, vare_id',
+			'WITH batch AS MATERIALIZED (SELECT id FROM shopify_stock_dirty ORDER BY id LIMIT $1 FOR UPDATE SKIP LOCKED)
+			 DELETE FROM shopify_stock_dirty USING batch WHERE shopify_stock_dirty.id = batch.id
+			 RETURNING shopify_stock_dirty.id, shopify_stock_dirty.vare_id',
 			array(max(1, $limit))
 		);
 		if ($rows === array()) {

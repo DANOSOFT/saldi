@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-07 ---
+// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -187,6 +187,7 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
+// 20261118 CL/SS SD-833 An invoice can get several credit notes, one draft at a time, never more than it invoiced in all (orderIncludes/creditControls.php). A draft offers dekort and restock per line.
 
 @session_start();
 $s_id = session_id();
@@ -227,6 +228,7 @@ include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
 include_once(__DIR__ . '/orderIncludes/shopifyPanel.php');
+include_once(__DIR__ . '/orderIncludes/creditControls.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -1759,9 +1761,12 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	if (strstr($b_submit, "Kred")) {
 		$art = 'DK';
 		$sourceStatus = $status; 
-		$query = db_select("select id from ordrer where kred_ord_id = $id", __FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query)) {
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$row[id]\">\n";
+		if ($draftId = credit_open_draft((int)$id)) { # SD-833: an invoice can have several credit notes, one draft at a time
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$draftId\">\n";
+			exit;
+		} elseif (!credit_left_on_invoice((int)$id)) {
+			alert(findtekst('8068|Alt på fakturaen er krediteret', $sprog_id));
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">\n";
 			exit;
 		} elseif ($kred_ord_id) {
 			$id = '';
@@ -2634,6 +2639,10 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			log_stock_warning($id, $swVareId, $swNote, $swLinjeId ?: null);
 		}
 	}
+	if ($id && $art == 'DK' && $status < 3) { # SD-833: dekort and restock, within what is left on the invoice
+		$creditAlert = credit_controls_save((int)$id, $_POST, $sprog_id);
+		if ($creditAlert) alert($creditAlert);
+	}
 	transaktion("commit");
 	if ($orderLineSaved) orderLineRememberSave($_SESSION, (int)$id, $orderLineReplayKey);
 }
@@ -2644,9 +2653,12 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 		# We need to do the setup here: set art, kred_ord_id, clear id, reset status.
 		if ($id && $art != 'DK') {
 			$art = 'DK';
-			$query = db_select("select id from ordrer where kred_ord_id = $id", __FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($query)) {
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$row[id]\">\n";
+			if ($draftId = credit_open_draft((int)$id)) { # SD-833: one draft at a time, several credit notes
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$draftId\">\n";
+				exit;
+			} elseif (!credit_left_on_invoice((int)$id)) {
+				alert(findtekst('8068|Alt på fakturaen er krediteret', $sprog_id));
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">\n";
 				exit;
 			} elseif (!$kred_ord_id) {
 				$kred_ord_id = $id;
@@ -2724,6 +2736,14 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 			} # <- 20211129 
 			(strstr($b_submit, 'Kopi')) ? $tmp = $antal[$x] * 1 : $tmp = $antal[$x] * -1;
 			(strstr($b_submit, 'Kred')) ? $tmp2 = $linje_id[$x] : $tmp2 = '0';
+			if (strstr($b_submit, 'Kred') && $kred_ord_id) { # SD-833: a new credit note takes what earlier ones left
+				if (!isset($creditLeft)) $creditLeft = credit_remaining((int)$kred_ord_id, 0, false);
+				if (isset($creditLeft[$linje_id[$x]])) {
+					$lineLeft = $creditLeft[$linje_id[$x]];
+					if (!credit_line_left($lineLeft)) continue;
+					$tmp = -$lineLeft['qty_sign'] * min(abs((float)$antal[$x]), $lineLeft['remaining_antal']);
+				}
+			}
 			if (!$momsfri[$x] && !$varemomssats[$x]) $varemomssats[$x] = $momssats;
 			if ($varemomssats[$x] > $momssats) $varemomssats[$x] = $momssats;
 			if ($momsfri[$x] || $omvbet[$x]) $varemomssats[$x] = 0;
@@ -4706,7 +4726,7 @@ function ordreside($id, $regnskab)
 			print "<td align=\"center\"><input type=\"button\" class=\"button gray medium\" value=\"PBS\" title=\"$title\" ";
 			print "onclick=\"pbs_gensend=window.open('pbs_gensend.php?id=$id','pbs_gensend','$jsvars');pbs_gensend.focus();\"></td>\n";
 		}
-		if (($art != 'DK') && (!$krediteret)) {
+		if ($art != 'DK' && (!$krediteret || credit_open_draft((int)$id) || credit_left_on_invoice((int)$id))) { # SD-833
 			$title = findtekst('1462|Klik her for at oprette en kreditnota, som hel eller delvist krediterer denne faktura. Kreditnotaen oprettes som en kreditnotaordre, som kan redigeres inden bogføring. Eksempelvis hvis kun en enkelt faktureret vare skal krediteres.', $sprog_id);
 			print "<td align=\"center\" title=\"$title\"><input type=\"submit\" class=\"button gray medium\" value=\"" . findtekst('1001|Kredit', $sprog_id) . "\" name=\"b_submit\"></td>\n";
 		}
@@ -6397,6 +6417,7 @@ function ordreside($id, $regnskab)
 			print "</td>\n";
 		}
 		print "</tbody></table></td></tr>\n"; # <- Tabel 4.5.1
+		if ($id && $art == 'DK' && $status < 3) credit_controls_render((int)$id, $sprog_id, $charset); # SD-833
 		if ($fokus != 'dkan' . count($vare_id)) print "<input type=\"hidden\" name=\"fokus\">\n"; #20151019
 		print "<tr><td align=\"center\" colspan=\"12\">\n";
 		print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr>\n"; # Tabel 4.5.2 ->
