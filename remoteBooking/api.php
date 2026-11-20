@@ -34,6 +34,7 @@
 //                 Its deletes run in one transaction; a failed delete is rolled back and updateBooking answers with an error.
 // 20261120 CL/MMR SST-996 (review): a failed BEGIN or COMMIT also makes updateBooking answer with an error, not "deleted".
 // 20261120 CL/MMR SST-996 (review): a failed booking lookup answers with JSON only, without db_select()'s alert script in front.
+// 20261120 CL/MMR SST-996 (review): the booking is read with FOR UPDATE inside the transaction, so an order attached at the same moment is not left behind.
 //
 
 
@@ -291,26 +292,30 @@ function bookingNextFreeKontonr() {
 function rejectBooking($bookingId) {
     global $db_modify_fejl, $webservice;
     $bookingId = (int)$bookingId;
+    if (transaktion('begin') === false) {
+        transaktion('rollback'); // only to close transaktion()'s nesting count again
+        return false;
+    }
     // On a failed SELECT db_select() logs and mails as usual, but it also prints an alert script or error box into this JSON
     // answer, and on a repeated failure it exits. The buffer drops that output; if db_select() exits, the handler turns
-    // what is left into the same JSON error, so index.js can always parse the answer.
+    // what is left into the same JSON error, so index.js can always parse the answer (the open transaction then ends
+    // with the connection, so nothing is deleted).
     $previousCode = http_response_code();
     http_response_code(500); // in effect only if db_select() exits
     ob_start(function () {
         return json_encode(["status" => "error", "message" => "The booking could not be deleted"]);
     });
-    $query = db_select("SELECT order_id FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+    // FOR UPDATE: an order attached to the booking at the same moment (CreateOrder, rental.php) waits until this
+    // rejection is done, so the order id read here is the one deleted below.
+    $query = db_select("SELECT order_id FROM rentalperiod WHERE id = $bookingId FOR UPDATE", __FILE__ . " linje " . __LINE__);
     ob_end_clean();
     http_response_code($previousCode ?: 200);
     if ($query === false) {
+        transaktion('rollback');
         return false; // the lookup failed: delete nothing, or the order and its lines would lose their booking
     }
     $res = db_fetch_array($query);
     $orderId = $res ? (int)$res["order_id"] : 0;
-    if (transaktion('begin') === false) {
-        transaktion('rollback'); // only to close transaktion()'s nesting count again
-        return false;
-    }
     $prevWebservice = $webservice;
     $webservice = 1; // a failed db_modify() sets $db_modify_fejl and returns, instead of exiting, so it can be rolled back (SD-595)
     if ($orderId > 0) { // a booking without an order never touches order id 0 or lines with ordre_id 0
