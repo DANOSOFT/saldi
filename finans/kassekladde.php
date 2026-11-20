@@ -230,6 +230,7 @@
 // 20261120 CL/MMR MB-158 The «funktion» URL parameter only opens the customer and supplier lookups.
 //                 Their files come from a fixed list, so the value never reaches a function call or an include path.
 //                 Any other value together with «sort» reopens the journal as stored, so the line values in that address are not saved.
+//                 The lookups open only with one of their own column names as «sort», which they use in ORDER BY.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -1053,8 +1054,10 @@ if ($_GET) {
 		'debitorLookup'  => 'debitorLookup.php',
 		'creditorLookup' => 'creditorLookup.php',
 	);
+	// The column headers of both lookups; the lookups put «sort» straight into ORDER BY.
+	$lookupSorts = array('kontonr', 'firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'kontakt', 'tlf');
 	if ($sort !== null && $sort !== '' && $funktion !== null && $funktion !== '') {
-		if (!is_string($funktion) || !isset($lookupFiles[$funktion]) || !is_string($sort)) {
+		if (!is_string($funktion) || !isset($lookupFiles[$funktion]) || !in_array($sort, $lookupSorts, true)) {
 			// Any other value, also funktion=openpost from the Åbne poster column links, used to stop here with a fatal error
 			// before the line values in the address could reach the staged line. Show the journal as it is stored instead.
 			print "<meta http-equiv='refresh' content='0;URL=../finans/kassekladde.php?kladde_id=$kladde_id'>";

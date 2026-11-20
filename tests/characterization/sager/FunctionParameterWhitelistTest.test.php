@@ -248,13 +248,47 @@ final class FunctionParameterWhitelistTest extends TestCase
         if (!$sortGiven || !$functionGiven) {
             // Not a lookup request: the page carries on as a normal journal or lookup return, untouched by this check.
             self::assertSame([[], [], false], [$includes, $calls, $stopped]);
-        } elseif ($funktion === 'debitorLookup' && is_string($sort)) {
+        } elseif ($funktion === 'debitorLookup' && $sort === 'firmanavn') {
             self::assertFalse($stopped);
             self::assertCount(1, $calls);
             self::assertSame([$funktion, $sort], [$calls[0][0], $calls[0][1][1]]);
         } else {
             self::assertSame([[], [], true], [$includes, $calls, $stopped]);
         }
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function lookupSorts(): iterable
+    {
+        foreach (array_keys(self::LOOKUPS) as $funktion) {
+            foreach (['kontonr', 'firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'kontakt', 'tlf'] as $sort) {
+                yield "$funktion: $sort" => [$funktion, $sort];
+            }
+        }
+    }
+
+    #[DataProvider('lookupSorts')]
+    public function testEveryLookupColumnHeaderStillOpensTheLookup(string $funktion, string $sort): void
+    {
+        [$includes, $calls, $stopped] = self::dispatchKassekladde($funktion, $sort);
+        self::assertFalse($stopped);
+        self::assertSame([$funktion, $sort], [$calls[0][0], $calls[0][1][1]]);
+    }
+
+    /** @return iterable<string, array{string, mixed}> */
+    public static function unknownLookupSorts(): iterable
+    {
+        foreach (array_keys(self::LOOKUPS) as $funktion) {
+            foreach (['zero' => '0', 'injection' => 'firmanavn; DROP TABLE adresser', 'other column' => 'id', 'wrong case' => 'FIRMANAVN', 'array' => ['firmanavn']] as $name => $sort) {
+                yield "$funktion: $name" => [$funktion, $sort];
+            }
+        }
+    }
+
+    #[DataProvider('unknownLookupSorts')]
+    public function testALookupWithAnUnknownSortReopensTheJournal(string $funktion, mixed $sort): void
+    {
+        self::assertSame([[], [], true], self::dispatchKassekladde($funktion, $sort));
     }
 
     public function testKassekladdeDoesNothingWithoutSort(): void
