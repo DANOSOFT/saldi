@@ -35,8 +35,8 @@
 // 20261120 CL/MMR SST-996 (review): a failed BEGIN or COMMIT also makes updateBooking answer with an error, not "deleted".
 // 20261120 CL/MMR SST-996 (review): a failed booking lookup answers with JSON only, without db_select()'s alert script in front.
 // 20261120 CL/MMR SST-996 (review): the booking is read with FOR UPDATE inside the transaction, so an order attached at the same moment is not left behind.
-// 20261120 CL/MMR SST-996 (review): the whole rejection (BEGIN to COMMIT) runs inside the output buffer, so PHP warnings from a failed DELETE or COMMIT
-//                 no longer come in front of updateBooking's JSON answer.
+// 20261120 CL/MMR SST-996 (review): the whole rejection (BEGIN to COMMIT) runs inside the output buffer.
+//                 PHP warnings from a failed DELETE or COMMIT no longer come in front of updateBooking's JSON answer.
 //
 
 
