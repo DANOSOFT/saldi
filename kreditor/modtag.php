@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/modtag.php --- ver 5.1.1 --- 2026.11.16 ---
+// --- kreditor/modtag.php --- ver 5.1.1 --- 2026.11.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,6 +60,8 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261116 CL/MMR SST-1010 The stock log takes the unescaped name online.php now provides, so no second lookup can fail.
 //                 Where that name is missing and the online row cannot be read either, no stock log line is written and the reason is logged.
+// 20261118 CL/MMR SST-1033 A receipt of a stock item in a batch-controlled group stays on its own lot.
+//                 It no longer covers negative rest on other lots (holes, other purchase orders), which left the lot short and stopped the next delivery.
 /**
  * Injected by ../includes/online.php, included below (unescaped user name of this session; set since #1033,
  * absent on older code, where the stock log reads the name from the online row instead):
@@ -212,6 +214,7 @@ if ($fejl==0) {
 			}
 		}
 	}
+	$lotOwnReceipt = array();
 	# SST-876: collected per item and reported after the commit - a shop that refuses the
 	# update must not undo a receipt that is otherwise correct.
 	for ($x=1; $x<=$linjeantal; $x++) {
@@ -230,6 +233,7 @@ if ($fejl==0) {
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array($q);
 			$box1=trim($r['box1']); $box2=trim($r['box2']); $box3=trim($r['box3']); $box4=trim($r['box4']); $box8=trim($r['box8']); $box9=trim($r['box9']);
+			$lotOwnReceipt[$x] = ($box8 == 'on' && $box9 == 'on');
 			if ($box8!='on') { # Dvs varen er IKKE lagerfoert.
 				if (!$box3) {
 					print "<BODY onLoad=\"javascript:alert('Varenr $varenr[$x] (Pos nr: $posnr[$x]) er ikke tilnykttet nogen varegruppe, modtagelse afbrudt')\">";
@@ -414,9 +418,12 @@ echo "$shopurl<br>";
 				}
 			}
 		} 
-		elseif ($leveres[$x]>0) { #Modtagelse af vare
-		# finder tidligere modtagelser af samme vare på samme linje i samme ordre.
-		$q=db_select("select * from batch_kob where ordre_id='$id' and vare_id='$vare_id[$x]' and linje_id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+		# SST-1033: with batch control (box9) the receipt is its own lot with its own batch number and
+		# expiry date, and reservation() has already given it the units sold before it arrived. Covering an
+		# older lot's negative rest here took units from it that the next delivery then could not find.
+		elseif ($leveres[$x]>0 && empty($lotOwnReceipt[$x])) { #Modtagelse af vare
+			# finder tidligere modtagelser af samme vare på samme linje i samme ordre.
+			$q=db_select("select * from batch_kob where ordre_id='$id' and vare_id='$vare_id[$x]' and linje_id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
 			while ($r=db_fetch_array($q)) { 
 				$rest=$r['rest'];	
 				if ($rest) { #Finder andre linjer i samme ordre med samme vare hvor varen er solgt inden varenodtagelse. 
@@ -443,22 +450,23 @@ echo "$shopurl<br>";
 					$q2=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 					while ($r2=db_fetch_array($q2)) {
 						if ($rest) {
-						if ($r2['rest']+$rest>=0){
-							$ny_rest=0;
-							$ny_antal=abs($r2['rest']);
-							$rest=$r2['rest']+$rest;
-						($r2['kobsdate'])?$kobsdate=$r2['kobsdate']:$kobsdate=$levdate; #20150118
-						db_modify("update batch_kob set kobsdate='$kobsdate',antal='$ny_antal',ordre_id='$id',linje_id='$linje_id[$x]',rest='$ny_rest' where id = $r2[id]",__FILE__ . " linje " . __LINE__);
-						($r['kobsdate'])?$kobsdate=$r['kobsdate']:$kobsdate=$levdate; #20150118
-						db_modify("update batch_kob set kobsdate='$kobsdate',antal=antal-$ny_antal,rest='$rest' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
-						}	
+							if ($r2['rest']+$rest>=0){
+								$ny_rest=0;
+								$ny_antal=abs($r2['rest']);
+								$rest=$r2['rest']+$rest;
+								($r2['kobsdate'])?$kobsdate=$r2['kobsdate']:$kobsdate=$levdate; #20150118
+								db_modify("update batch_kob set kobsdate='$kobsdate',antal='$ny_antal',ordre_id='$id',linje_id='$linje_id[$x]',rest='$ny_rest' where id = $r2[id]",__FILE__ . " linje " . __LINE__);
+								($r['kobsdate'])?$kobsdate=$r['kobsdate']:$kobsdate=$levdate; #20150118
+								db_modify("update batch_kob set kobsdate='$kobsdate',antal=antal-$ny_antal,rest='$rest' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
+							}
 /*
-						else {
-							$ny_rest=$rest+$r2['rest'];
-							$rest=0;
+							else {
+								$ny_rest=$rest+$r2['rest'];
+								$rest=0;
+							}
+*/
 						}
-*/						
-					}}
+					}
 				}
 				if ($rest) {
 					$q2=db_select("select * from batch_kob where ordre_id!='0' and ordre_id!='$id' and vare_id='$vare_id[$x]' and rest<'0' and linje_id!='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
