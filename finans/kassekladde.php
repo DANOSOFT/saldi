@@ -1053,8 +1053,8 @@ if ($_GET) {
 		'debitorLookup'  => 'debitorLookup.php',
 		'creditorLookup' => 'creditorLookup.php',
 	);
-	if ($sort && $funktion !== null && $funktion !== '') {
-		if (!is_string($funktion) || !isset($lookupFiles[$funktion])) {
+	if ($sort !== null && $sort !== '' && $funktion !== null && $funktion !== '') {
+		if (!is_string($funktion) || !isset($lookupFiles[$funktion]) || !is_string($sort)) {
 			// Any other value, also funktion=openpost from the Åbne poster column links, used to stop here with a fatal error
 			// before the line values in the address could reach the staged line. Show the journal as it is stored instead.
 			print "<meta http-equiv='refresh' content='0;URL=../finans/kassekladde.php?kladde_id=$kladde_id'>";

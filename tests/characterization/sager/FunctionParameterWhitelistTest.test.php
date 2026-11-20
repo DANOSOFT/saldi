@@ -227,6 +227,36 @@ final class FunctionParameterWhitelistTest extends TestCase
         self::assertMatchesRegularExpression('/^function ' . preg_quote($funktion, '/') . '\(/m', $source);
     }
 
+    /** @return iterable<string, array{mixed, mixed}> Every pairing of a «sort» and a «funktion» value. */
+    public static function sortAndFunctionPairs(): iterable
+    {
+        $sorts = ['missing' => null, 'empty' => '', 'zero' => '0', 'header' => 'firmanavn', 'array' => ['firmanavn']];
+        $functions = ['missing' => null, 'empty' => '', 'zero' => '0', 'open-item' => 'openpost', 'debitor lookup' => 'debitorLookup'];
+        foreach ($sorts as $sortName => $sort) {
+            foreach ($functions as $functionName => $funktion) {
+                yield "sort $sortName, funktion $functionName" => [$sort, $funktion];
+            }
+        }
+    }
+
+    #[DataProvider('sortAndFunctionPairs')]
+    public function testKassekladdeSortAndFunctionMatrix(mixed $sort, mixed $funktion): void
+    {
+        $sortGiven = $sort !== null && $sort !== '';
+        $functionGiven = $funktion !== null && $funktion !== '';
+        [$includes, $calls, $stopped] = self::dispatchKassekladde($funktion, $sort);
+        if (!$sortGiven || !$functionGiven) {
+            // Not a lookup request: the page carries on as a normal journal or lookup return, untouched by this check.
+            self::assertSame([[], [], false], [$includes, $calls, $stopped]);
+        } elseif ($funktion === 'debitorLookup' && is_string($sort)) {
+            self::assertFalse($stopped);
+            self::assertCount(1, $calls);
+            self::assertSame([$funktion, $sort], [$calls[0][0], $calls[0][1][1]]);
+        } else {
+            self::assertSame([[], [], true], [$includes, $calls, $stopped]);
+        }
+    }
+
     public function testKassekladdeDoesNothingWithoutSort(): void
     {
         self::assertSame([[], [], false], self::dispatchKassekladde('debitorLookup', null));
