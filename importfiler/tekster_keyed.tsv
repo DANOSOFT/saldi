@@ -238,7 +238,9 @@ bank.feed.pause	Sæt på pause	Pause	Sett på pause
 bank.feed.pause_confirm	Sæt hentningen på pause? Saldi henter ikke posteringer fra banken, før du genoptager. Du kan stadig bruge de posteringer, der allerede er hentet.	Pause fetching? Saldi will not fetch entries from the bank until you resume. You can still use the entries already fetched.	Sette hentingen på pause? Saldi henter ikke posteringer fra banken før du gjenopptar. Du kan fortsatt bruke posteringene som allerede er hentet.
 bank.feed.pause_not_allowed	Bankkontoen kan ikke sættes på pause eller genoptages i den nuværende tilstand.	The bank account cannot be paused or resumed in its current state.	Bankkontoen kan ikke settes på pause eller gjenopptas i nåværende tilstand.
 bank.feed.paused	Hentningen er sat på pause.	Fetching has been paused.	Hentingen er satt på pause.
+bank.feed.pick_all	Vælg alle	Select all	Velg alle
 bank.feed.pick_at_least_one	Vælg mindst én postering.	Select at least one entry.	Velg minst én postering.
+bank.feed.pick_none	Fravælg alle	Clear all	Fjern alle valg
 bank.feed.pick_one	Vælg posteringen	Select the entry	Velg posteringen
 bank.feed.picked_count	%s valgt	%s selected	%s valgt
 bank.feed.picked_in	Ind %s	In %s	Inn %s
