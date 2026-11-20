@@ -1060,7 +1060,7 @@ if ($_GET) {
 		if (!is_string($funktion) || !isset($lookupFiles[$funktion]) || !in_array($sort, $lookupSorts, true)) {
 			// Not one of the two lookups with one of their column names: show the journal as it is stored, before the
 			// line values in the address can reach the staged line. (The Åbne poster column links, funktion=openpost,
-			// used to die here with a fatal error; other pairs either did the same or skipped the lookup.)
+			// used to die here with a fatal error.)
 			print "<meta http-equiv='refresh' content='0;URL=../finans/kassekladde.php?kladde_id=$kladde_id'>";
 			exit;
 		}
