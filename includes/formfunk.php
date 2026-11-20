@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- includes/formfunk.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -94,6 +94,9 @@
 //                the documents are returned.
 //                A page-break text with $ordre_creditedinvoice printed the credited invoice's number instead of exiting,
 //                and a credit note without a credited invoice prints it empty instead of failing on the query.
+// 20261102 CL/SZ SD-794: without a valid rebate item (DIV 3 box2 empty, not a number or past int4) the query for its line, which failed, is skipped.
+// 20261102 CL/SZ SD-794: a line without an item skips the trademark lookup, and an empty $regnaar reads as no fiscal year; both queries failed.
+// 20261103 CL/SZ SD-794: the layout fields $ansat_by and $ordre_kundenr read ansatte.bynavn and ordrer.kontonr; their columns don't exist, so they printed blank and the query failed.
 // 20261103 LOE SST-908 kontoprint(): kilde=openpost prints the open posts only, and its
 //                opening balance and running balance then cover those posts only. A NULL
 //                udlignet counts as open, as it does in the ledger.
@@ -102,6 +105,7 @@
 //                The lager name is the current year's LG row, as in kreditor/ordre.php.
 // 20261103 CL/SZ SD-797 With set prices shown, a felt_4 that is no number (text or empty) stopped the print with a TypeError.
 //                It now counts as 0, so felt_3 and felt_4 print blank as for 0.
+// 20261105 CL/SZ SD-794 review: the employee lookups escape the order's ref, and if($ordre_...) reads the same columns as the value.
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
@@ -319,6 +323,9 @@ if (!function_exists('skriv')) {
 									if ($variabel == "tlf") {
 										$variabel = "phone";
 									}
+									if ($variabel == "kundenr") {
+										$variabel = "kontonr";
+									}
 									$qtxt = "select $variabel from ordrer where id=$id";
 								}
 								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -329,8 +336,11 @@ if (!function_exists('skriv')) {
 								$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 								$q2 = db_select("select $db_variabel as $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
 							} elseif ($tabel == "ansat" && $ref) {
+								if ($variabel == "by") {
+									$variabel = "bynavn";
+								}
 								$r2 = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__));
-								$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn = '$ref'", __FILE__ . " linje " . __LINE__);
+								$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn = '" . db_escape_string($ref) . "'", __FILE__ . " linje " . __LINE__);
 							}
 							if ($tabel != "formular") {
 								$r2 = db_fetch_array($q2);
@@ -620,9 +630,11 @@ if (!function_exists('find_form_tekst')) {
 							#						$streng[$y]=substr($streng[$y],0,strlen($streng[$y])-1);
 							list($if_tabel, $if_variabel) = explode("_", $streng[$y], 2); #07.10.2007 -->
 							if (substr($if_tabel, 1) == "ordre") {
-								$qtxt = "select $if_variabel from ordrer where id=$id";
+								// the same column names as the value below reads
+								$if_kolonne = array('rykkerdate' => 'fakturadate', 'tlf' => 'phone', 'kundenr' => 'kontonr')[$if_variabel] ?? $if_variabel;
+								$qtxt = "select $if_kolonne from ordrer where id=$id";
 								$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-								$tmp = $r[$if_variabel];
+								$tmp = $r[$if_kolonne];
 								if (!$tmp) { #Variablen er ikke fundet så der skal ikke udskrives noget.
 									$udskriv = 0;
 									$row['beskrivelse'] = "";
@@ -692,6 +704,8 @@ if (!function_exists('find_form_tekst')) {
 							$variabel = "fakturadate";
 						if ($variabel == "tlf")
 							$variabel = "phone";
+						if ($variabel == "kundenr")
+							$variabel = "kontonr";
 						if ($variabel) {
 							$qtxt = "select $variabel from ordrer where id=$id";
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -731,7 +745,7 @@ if (!function_exists('find_form_tekst')) {
 							$qtxt = "select gruppe from adresser where id='$id'";
 							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$qtxt = "select box3 as valuta from grupper where art='DG' and kodenr='$r2[gruppe]' ";
-							$qtxt .= "and fiscal_year = $regnaar";
+							$qtxt .= "and fiscal_year = " . (int)$regnaar; #20261102 CL/SZ SD-794 REST can run without a fiscal year
 							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 						} else {
 							$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
@@ -743,8 +757,10 @@ if (!function_exists('find_form_tekst')) {
 					} elseif ($tabel == "levering") {
 						$q2 = db_select("select $variabel from batch_salg where ordre_id=$id and lev_nr=$lev_nr", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "ansat") {
+						if ($variabel == "by")
+							$variabel = "bynavn";
 						$r2 = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__));
-						$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn='$ref'", __FILE__ . " linje " . __LINE__);
+						$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn='" . db_escape_string($ref) . "'", __FILE__ . " linje " . __LINE__);
 					} elseif ($formular == 11 && ($tabel == "forfalden" || $tabel == "skyldig")) { #20191107 finder forfalden_sum / skyldig_sum på kontokort
 						$opensum = 0;
 						$dd = date("Y-m-d");
@@ -1182,7 +1198,7 @@ if (!function_exists('formularprint')) {
 			}
 		}
 
-		$qtxt = "select box6,box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+		$qtxt = "select box6,box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '" . (int)$regnaar . "'"; #20261102 CL/SZ SD-794 REST can run without a fiscal year
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$vis_saet = trim($r['box12']);
 		if ($vis_saet)
@@ -1412,7 +1428,7 @@ if (!function_exists('formularprint')) {
 				$r = db_fetch_array(db_SELECT($qtxt, __FILE__ . " linje " . __LINE__));
 				$gruppe = (int) $r['gruppe'];
 				$procenttillag = $r['procenttillag'];
-				$qtxt = "select box8 from grupper where art='DG' and kodenr='$gruppe' and fiscal_year = '$regnaar'";
+				$qtxt = "select box8 from grupper where art='DG' and kodenr='$gruppe' and fiscal_year = '" . (int)$regnaar . "'"; #20261102 CL/SZ SD-794 REST can run without a fiscal year
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$b2b = $r['box8'];
 			}
@@ -1837,7 +1853,7 @@ if (!function_exists('formularprint')) {
 						$beskrivelse[$x] = utf8_iso8859('Eksempel på en linjetekst');
 					}
 				} else {
-					if ($brugsamletpris) {
+					if ($brugsamletpris && ctype_digit((string)$rabatvare_id) && (int)$rabatvare_id <= 2147483647) { #20261102 CL/SZ SD-794 no rebate item: an empty, non-numeric or too large vare_id would fail the query
 						$qtxt = "select varenr from ordrelinjer where ordre_id = $ordre_id[$o] and vare_id='$rabatvare_id'";
 						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						if ($r['varenr']) {
@@ -1940,9 +1956,12 @@ if (!function_exists('formularprint')) {
 									$varemomssats[$x] = $momssats;
 
 								# Get trademark
-								$qtxt_varer = "select * from varer where id = '$vare_id[$x]' limit 1";
-								$r_varer = db_fetch_array(db_select($qtxt_varer, __FILE__ . " linje " . __LINE__));
-								$trademark[$x] = ($r_varer["trademark"]);
+								$trademark[$x] = NULL;
+								if ($vare_id[$x]) { #20261102 CL/SZ SD-794 a line without an item (vare_id NULL from REST) would fail the query
+									$qtxt_varer = "select * from varer where id = '$vare_id[$x]' limit 1";
+									$r_varer = db_fetch_array(db_select($qtxt_varer, __FILE__ . " linje " . __LINE__));
+									$trademark[$x] = ($r_varer["trademark"]);
+								}
 
 								(isset($dkantal[$x]) && strpos($dkantal[$x], ",")) ? list($a, $b) = explode(",", $dkantal[$x]) : $b = 0;
 								#						list($a,$b)=explode(",",$dkantal[$x]);

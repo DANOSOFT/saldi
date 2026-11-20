@@ -33,6 +33,7 @@
 // 20261029 CL/SZ SD-751: a brand without a letterhead of its own renders without one, never on another brand's letterhead.
 // 20261029 CL/SZ SD-751 review: $levNr reaches formularprint()'s global $lev_nr; docblock says which data a stored PDF freezes.
 // 20261030 CL/SZ SD-751 review: the account (db_id) is in the cache key; a brand that isn't a plain file name is refused.
+// 20261102 CL/SZ SD-794: a select that fails during the render means no PDF is published.
 // 20261102 CL/SZ SD-795: a failed read of the order is a render failure, not NO_DOCUMENT.
 
 require_once __DIR__ . '/../stdFunc/renderPrintBatch.php';
@@ -79,7 +80,7 @@ final class DocumentRenderError extends RuntimeException
  */
 function render_document(int $ordreId, int $formular, ?int $levNr = null, array $opts = []): array
 {
-	global $db, $db_id, $exec_path, $lev_nr, $pdftk;
+	global $db, $db_id, $db_select_fejl, $exec_path, $lev_nr, $pdftk;
 
 	if ($formular !== 4 && $formular !== 5) {
 		throw new InvalidArgumentException("render_document renders invoices (4) and credit notes (5), not formular $formular");
@@ -87,6 +88,7 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 	if (!function_exists('db_select') || !is_string($db) || !preg_match('/^[a-z0-9_]+$/', $db)) {
 		throw new DocumentRenderError('no tenant connection');
 	}
+	$db_select_fejl = false;
 	$qtxt = "SELECT art, status, fakturanr, sprog, afd, konto_id, firmanavn, fakturadate, sum, moms FROM ordrer WHERE id = $ordreId";
 	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($query === false) {
@@ -182,6 +184,9 @@ function render_document(int $ordreId, int $formular, ?int $levNr = null, array 
 			$documents = formularprint($ordreId, $formular, $levNr, 'UTF-8', 'PDF', null, $work);
 		} finally {
 			ob_end_clean();
+		}
+		if ($db_select_fejl) { // db_select() only alerted and the print carried on, so this PDF can miss data and is kept for good once published. A lookup that can fail on ordinary data needs its own guard in formfunk.php
+			throw new DocumentRenderError("order $ordreId: a query failed during the print");
 		}
 		if (!is_array($documents) || $documents === array()) {
 			throw new DocumentRenderError("order $ordreId: " . (is_string($documents) ? $documents : 'nothing was printed'));
