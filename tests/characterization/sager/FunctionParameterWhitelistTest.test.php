@@ -133,6 +133,7 @@ final class FunctionParameterWhitelistTest extends TestCase
     {
         yield 'missing' => [null];
         yield 'empty' => [''];
+        yield 'zero' => ['0'];
         yield 'unknown' => ['mb158_missing_function'];
         yield 'existing unrelated function' => [__NAMESPACE__ . '\\unrelated'];
         yield 'PHP builtin' => ['getcwd'];
