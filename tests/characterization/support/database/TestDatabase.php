@@ -6,6 +6,7 @@
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 // 20261111 CDX/NTR Document shared fixture helper contracts at their definitions.
 // 20261111 CDX/NTR Remove the exact routing row if persistent ownership recording fails.
+// 20261113 CDX/NTR Store routing-account activity as Unix seconds, matching login and the admin account list.
 
 require_once __DIR__ . '/RetainedTestDatabases.php';
 
@@ -258,7 +259,7 @@ final class TestDatabase
                 VALUES ($1,$2,$3,$4,$5,$6,100,1000000,$7,'') RETURNING id",
                 [
                     $account, getenv('SALDI_CHAR_PGHOST') ?: 'postgres', getenv('SALDI_CHAR_PGUSER') ?: 'user',
-                    $this->name, $version, date('Y-m-d'), $closed ? 'on' : '',
+                    $this->name, $version, (string) time(), $closed ? 'on' : '',
                 ]
             );
             $id = (int)pg_fetch_result($result, 0, 0);

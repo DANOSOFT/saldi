@@ -1,5 +1,5 @@
 <?php
-// --- lager/varefoto.php --- ver 3.6.1 --- 2016.01.06 ---
+// --- lager/varefoto.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,8 +15,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2015-2023 saldi.dk aps
+// Copyright (c) 2015-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261104 CL/ASR A photo folder that cannot be made shows the error box (includes/errorReport.php) instead of the text with the phone number; it comes again on the item card the refresh leads to.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $modulnr=9;
@@ -97,7 +99,7 @@ function upload_foto($id,$filnavn,$fotonavn){
 	if (!file_exists($docfolder.$db)) {
 	  mkdir ($docfolder.$db,0777);
 	  if (!file_exists($docfolder.$db)) {
-			print tekstboks("Det er sket en fejl, bilag ikke gemt\nRing venligst på 46902208 så problemet kan blive løst");
+			if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . " linje " . __LINE__, "varefoto ikke gemt: mappen $docfolder$db kunne ikke oprettes", '', false, 'app') === 'nosession') print tekstboks("Det er sket en fejl, bilag ikke gemt\nRing venligst på 46902208 så problemet kan blive løst"); #20261104 the error box
 			print "<meta http-equiv=\"refresh\" content=\"3;URL=varekort.php?id=$id\">";
 			exit;
 		}
