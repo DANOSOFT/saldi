@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.1.1 --- 2026-11-20 ---
+// ---------------finans/bogfor.php---------- ver 5.1.1 --- 2026-11-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -88,6 +88,7 @@
 // 20261120 CL/LH MB-123 A foreign-currency line with no exchange rate on its date is refused on the confirmation page and in bogfor() (journalLineRateError()), instead of posted at rate 100, where a settlement booked the whole gap to the invoice's rate as an exchange difference.
 //                The match reads every spelling of the installation's own currency as one (openpostCurrencyKey()): NULL, '', '-' from includes/ret_valutadiff.php, 'DKK', and the base currency order invoices are stored in, so a NOK installation settles its order invoices from the journal again.
 //                A one-øre difference is no longer lost to floating point, a group settled at the lower edge of the half-øre amount window is measured too, and a reference given twice ('X;X') is one reference, as on master, so it settles the post it names rather than adding another post with the same number.
+// 20261121 CL/LH MB-123 A payment for several invoices is matched with its residual rounded to the three decimals openpost holds, as the difference is measured, so floating point does not move either bound of the half-øre window.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -1403,11 +1404,14 @@ function openpostMatches($konto_id,$projekt,$invoices,$valuta,$belob,$overlay=NU
 	}
 	// MB-72: a short or excess payment must leave all named invoices open. Keep this rule in the
 	// shared matcher so posting, Simuler and the confirmation preview consume the same rows.
-	$matchedSum = 0.0;
+	// 20261121 CL/LH MB-123 The residual is rounded to the three decimals openpost.amount holds, as
+	// openpostRateDifferenceAmount() measures it, so floating point does not move either bound of the window.
+	$residual = -(float)$belob;
 	foreach ($matches as $match) {
-		$matchedSum += (float)$match['amount'];
+		$residual += (float)$match['amount'];
 	}
-	if ($matchedSum < $belob-0.005 || $matchedSum >= $belob+0.005) {
+	$residual = round($residual,3);
+	if ($residual < -0.005 || $residual >= 0.005) {
 		return array();
 	}
 	return $matches;

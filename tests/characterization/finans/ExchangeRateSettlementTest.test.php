@@ -6,6 +6,7 @@
 // 20261104 CDX/NTR Verify MB-72 project matching, group dates and complete payments with MB-123 differences and simulation in both equalizers.
 // 20261106 CL/LH MB-123 Pin per-voucher rounding accounts on the confirmation page, per-currency anchors in both equalizers, single-invoice-sized payments and the exit after a refused difference.
 // 20261120 CL/LH MB-123 A foreign-currency line without an exchange rate is refused instead of measured at rate 100, the installation's own currency in all its spellings ('-' from includes/ret_valutadiff.php, the base currency order invoices carry) is one currency to the match query and both equalizers, a one-øre difference survives floating point, and a reference given twice settles the one post it names.
+// 20261121 CL/LH MB-123 A payment for several invoices is matched at both bounds of the amount window despite floating point.
 //
 // The functions under test live in finans/bogfor.php, which is a page: including it would run the
 // page. They are lifted out of the shipped file and evaluated into this namespace instead, so the
@@ -304,6 +305,27 @@ final class ExchangeRateSettlementTest extends TestCase
         self::assertSame(-0.44, openpostRateDifferenceAmount(-40.00, 746, [self::match(39.995, 745)], 'EUR'));
         self::assertSame(0.0, openpostRateDifferenceAmount(-40.00, 746, [self::match(40.005, 745)], 'EUR'),
             'the upper bound is outside the window, so it is a residual');
+    }
+
+    public function testTheMatcherHoldsTheWindowOnAGroupOfInvoicesDespiteFloatingPoint(): void
+    {
+        // EUR 10,000 + 20,002 is 30,002, exactly 0,005 under a 30,007 payment: the lower bound, which the window
+        // includes. Summed in floating point it fell just under 30,007 - 0,005 and the group was left open.
+        $this->post('D', '2200', 'WIN-A', 10.000, self::EUR, 745, '2026-09-01', 1);
+        $this->post('D', '2200', 'WIN-B', 20.002, self::EUR, 745, '2026-09-02', 2);
+        self::assertCount(2, openpostMatches(30, '', ['WIN-A', 'WIN-B'], 'EUR', 30.007), 'the lower bound is in the window');
+        $this->post('D', '2200', 'WIN-A;WIN-B', -30.007, self::EUR, 746, '2026-10-01', 3);
+        self::assertSame(['1', '1', '1', '1'], $this->settledFlags(),
+            'and the payment settles both invoices, together with the difference row it writes');
+
+        // EUR 10,001 + 20,016 is 30,017, exactly 0,005 over a 30,012 payment: the upper bound, which it excludes.
+        // In floating point the sum fell just under 30,012 + 0,005 and the group was settled.
+        $this->db->exec('DELETE FROM openpost');
+        $this->post('D', '2200', 'WIN-C', 10.001, self::EUR, 745, '2026-09-01', 1);
+        $this->post('D', '2200', 'WIN-D', 20.016, self::EUR, 745, '2026-09-02', 2);
+        self::assertSame([], openpostMatches(30, '', ['WIN-C', 'WIN-D'], 'EUR', 30.012), 'the upper bound is outside it');
+        $this->post('D', '2200', 'WIN-C;WIN-D', -30.012, self::EUR, 746, '2026-10-01', 3);
+        self::assertSame(['0', '0', '0'], $this->settledFlags(), 'so the payment leaves both invoices open');
     }
 
     public function testAGroupThatCancelsToAFloatingPointResidueBooksNothing(): void
