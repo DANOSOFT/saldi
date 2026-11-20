@@ -6,9 +6,13 @@ account or introduce a fixed database name. Keep the installed test master for
 HTTP routing. SQL-only groups may explicitly share `sqlFixture()` when every
 table is temporary or inside a private randomized schema.
 
-The helper prints a UUID and generated database name before creation, owns its
-registry/session rows, and only deletes databases it created successfully. Its
-identity must also be captured in individual IDE/JUnit test results.
+The helper owns its registry/session rows and only deletes databases it created
+successfully. It prints the UUID and generated database name before creation
+and captures the identity in individual IDE/JUnit results only when retention
+is enabled (`keep=yes`). Ordinary runs omit these debugging lines; actual errors
+remain visible. Test routing rows use locked, explicitly allocated negative IDs
+so creation, retention and cleanup never advance or reset the normal registry
+sequence or increase the highest positive ID.
 `SALDI_TEST_KEEP_DATABASES=1` retains all groups for inspection; later runs must
 never reuse or automatically delete retained databases. Explicit operator cleanup
 uses `tools/phpunit-databases.php`: listing by default, `--delete` for removal.
