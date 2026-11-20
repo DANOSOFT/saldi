@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowHooks.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/rowHooks.php --- ver 5.1.1 --- 2026.11.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 //
 // 20261016 SS The discount transfer and the old-discount columns live in virtualStorage.php.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261118 CL/MMR SST-1016 «Sæt aktivt for alle» no longer gives the customer sessions from Mit salg, Mine labels, labelprint and booking a fiscal year, so they still do not count as users at login.
 include_once(__DIR__ . '/virtualStorage.php');
 
 // ---------------------------------------------------------------- fiscal years (grupper art RA)
@@ -142,7 +143,10 @@ function settings_fy_switch_year(int $year, bool $everybody): void
 	global $bruger_id, $revisor, $s_id, $db, $db_id, $brugernavn;
 	if ($everybody) {
 		db_modify("update brugere set regnskabsaar = '$year'", __FILE__ . " linje " . __LINE__);
-		db_modify("update online set regnskabsaar = '$year' where db = '" . db_escape_string((string) $db) . "'", __FILE__ . " linje " . __LINE__, true);
+		// SST-1016: the customer sessions from Mit salg, Mine labels, labelprint and booking (rettigheder '0', regnskabsaar 0)
+		// keep year 0, so the login's max users screen still leaves them out.
+		db_modify("update online set regnskabsaar = '$year' where db = '" . db_escape_string((string) $db) . "'"
+			. " and not (COALESCE(rettigheder, '') = '0' and COALESCE(regnskabsaar, -1) = 0)", __FILE__ . " linje " . __LINE__, true);
 		return;
 	}
 	if (empty($revisor) && (int) $bruger_id > 0) {
