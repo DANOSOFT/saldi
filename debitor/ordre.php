@@ -190,6 +190,9 @@
 // 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
+// 20261117 CL/MMR SST-1018 With Brug samlet pris, Kredit gives the new credit note the credited order's payments with the opposite sign before the credit note is created.
+//                 The old sign change came after the credit note was already inserted, so a cash amount stayed positive and the card amount became the total minus it.
+//                 The sign change is credit_note_payment_amount() in orderIncludes/orderPayment.php. The payment check before Fakturér/Kreditér is unchanged.
 @session_start();
 $s_id = session_id();
 
@@ -323,6 +326,7 @@ function bg_display_name($sprog_value) {
 include(__DIR__ . "/../includes/gs1_parser.php");  # Absolute import
 include("../includes/tid2decimal.php");
 include("../includes/stdFunc/getKontaktEmail.php");
+include_once(__DIR__ . '/orderIncludes/orderPayment.php');
 
 
 $title = findtekst('1092|Kundeordre', $sprog_id);
@@ -1764,6 +1768,12 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			$id = '';
 			$status = 0;
 		}
+		# SST-1018 the credit note is inserted further down in this block, so its payments change sign here.
+		if ($vis_saet) {
+			$felt_2 = credit_note_payment_amount($felt_2);
+			$felt_4 = credit_note_payment_amount($felt_4);
+			$creditNotePaymentsTurned = true;
+		}
 	} elseif (strstr($b_submit, "Kopi")) {
 		$gl_id = $id;
 		$id = '';
@@ -2647,9 +2657,9 @@ if ((strstr($b_submit, 'Kopi')) || (strstr($b_submit, 'Kred'))) {
 				$status = 0;
 			}
 		}
-		if ($vis_saet) {
-			$felt_2 *= -1;
-			$felt_4 *= -1;
+		if ($vis_saet && !($creditNotePaymentsTurned ?? false)) { # SST-1018 not twice
+			$felt_2 = credit_note_payment_amount($felt_2);
+			$felt_4 = credit_note_payment_amount($felt_4);
 		}
 	}
 	if ((!$id) && ($konto_id)) {
