@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.1.1 --- 2026-11-13---
+// --- includes/udskriv.php --- ver 5.1.1 --- 2026-11-17---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -57,6 +57,7 @@
 // 20261104 CL/ASR A PDF print that cannot be made shows the error box (includes/errorReport.php) with a report to Saldi instead of "Kontakt support"; Tilbage stays below it.
 // 20261105 CL/MMR SD-807 The PDF error texts and the print choice screen (Luk, Udskriftsvalg) are shown in the user's language.
 //                 The print-batch error is escaped in the page charset.
+// 20261109 CL/SZ MB-137 historik() escapes the order's contact and reference before looking them up in ansatte.
 // 20261112 CL/MMR SST-1015 Removed the DIAG error_log line written on every print.
 // 20261113 CDX/NTR Keep error reporting and translate the PDF fallback in the page charset.
 
@@ -523,8 +524,8 @@ global $exec_path;
 	$r=db_fetch_array(db_select("select * from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));
 	$kundeordnr=$r['kundeordnr'];
 	$konto_id=$r['konto_id'];
-	$kontakt=$r['kontakt'];
-	$ref=$r['ref'];
+	$kontakt=db_escape_string($r['kontakt'] ?? '');
+	$ref=db_escape_string($r['ref'] ?? '');
 	$status=$r['status'];
 	$art=$r['art'];
 
