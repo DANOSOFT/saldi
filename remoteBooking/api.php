@@ -35,6 +35,7 @@
 //                 Otherwise it answers 409 "refused" and nothing is invoiced.
 //                 A booking approved before is not invoiced again, and a deleted booking (order 0) is refused instead of invoiced.
 //                 The action is now the handler handleUpdateBooking().
+//                 It answers "approved" only when the order is invoiced; a failed invoice gives HTTP 500 "failed" and is retried by the next approval.
 //
 
 
@@ -405,7 +406,8 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
  * updateBooking: the booking page reports the payment. "approved" approves the booking through rental_approve_booking()
  * and invoices its order; any other status deletes the booking and its order (payment failed or no payment link).
  *
- * @return void Echoes {"status":"approved"}, {"status":"deleted"} or, with HTTP 409, {"status":"refused","reason":...}.
+ * @return void Echoes {"status":"approved"} (invoiced), {"status":"deleted"}, with HTTP 409 {"status":"refused","reason":...},
+ *              or with HTTP 500 {"status":"failed","reason":"invoice"} when the order could not be invoiced.
  */
 function handleUpdateBooking() {
     $data = json_decode(file_get_contents("php://input"), true);
@@ -421,14 +423,31 @@ function handleUpdateBooking() {
         echo json_encode(["status" => "deleted"]);
         exit;
     }else{
-        // SST-1000 (review): a payment that came back after the booking expired is approved only when the unit is still free
+        // SST-1000 (review): a payment that came back after the booking expired is approved only when the unit is still free.
+        // The answer is "approved" only when the order is invoiced; a failed invoice is retried by the next approval.
+        rental_approval_lock($bookingId);
         $orderId = 0;
         $approval = rental_approve_booking($bookingId, $orderId);
         if ($approval === 'approved') {
-            fakturer_ordre($orderId, "email", 0);
+            try {
+                fakturer_ordre($orderId, "email", 0);
+            } catch (\Throwable $e) {
+                global $db_transaktion_depth;
+                if ($db_transaktion_depth) {
+                    transaktion('rollback');
+                    $db_transaktion_depth = 0;
+                }
+                error_log("SST-1000 updateBooking: invoice of order $orderId failed: " . $e->getMessage());
+            }
+            if (rental_order_invoiced($orderId)) $approval = 'already';
+        }
+        rental_approval_lock($bookingId, false);
+        if ($approval === 'already') {
             echo json_encode(["status" => "approved"]);
-        } elseif ($approval === 'already') {
-            echo json_encode(["status" => "approved"]);
+        } elseif ($approval === 'approved') {
+            // approved, but the order is not invoiced: no confirmation; the next approval tries the invoice again
+            http_response_code(500);
+            echo json_encode(["status" => "failed", "reason" => "invoice"]);
         } else {
             http_response_code(409);
             echo json_encode(["status" => "refused", "reason" => $approval]);

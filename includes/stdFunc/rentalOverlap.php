@@ -26,6 +26,7 @@
 //                 createBooking stored every booking it got, so a unit could be booked twice when two customers booked at once, when the page had been open while someone else booked, or when the page picked a busy unit.
 // 20261120 CL/MMR SST-1000 (review) rental_approve_booking(): a payment that comes back after the booking expired is only approved when the unit is still free (Morten 2026-11-20, option A).
 //                 Before, the approval cleared expiry_time and invoiced, also when another booking had taken the unit or the expired booking had been deleted (order 0).
+//                 An approved booking whose order was not invoiced (the invoice failed) is invoiced again on the next approval, and approvals of one booking run one at a time (rental_approval_lock()).
 
 if (!function_exists('rental_booking_day')) {
 	/**
@@ -166,7 +167,11 @@ if (!function_exists('rental_approve_booking')) {
 	 * @param int $bookingId rentalperiod.id.
 	 * @param int $orderId Set to the booking's order id when the result is 'approved', otherwise 0.
 	 * @param int|null $now Unix time to compare the expiry with; null is time().
-	 * @return string 'approved' (invoice the order), 'already' (approved before; do not invoice again),
+	 * A booking approved before (expiry_time cleared) whose order is not invoiced yet, because the invoice failed, is
+	 * 'approved' again so the caller retries the invoice; the caller holds rental_approval_lock() so two approvals of one
+	 * booking cannot invoice at the same time.
+	 *
+	 * @return string 'approved' (invoice the order), 'already' (approved and invoiced before; do not invoice again),
 	 *                'missing' (no such booking, or it has no order) or 'unavailable' (expired and the unit is taken).
 	 */
 	function rental_approve_booking($bookingId, &$orderId, $now = null) {
@@ -182,14 +187,16 @@ if (!function_exists('rental_approve_booking')) {
 			transaktion('rollback');
 			return 'missing';
 		}
-		if ($row["expiry_time"] === null || $row["expiry_time"] === '') {
-			transaktion('rollback');
-			return 'already';
-		}
 		$bookingOrder = (int)$row["order_id"];
 		if ($bookingOrder <= 0 || !db_fetch_array(db_select("SELECT id FROM ordrer WHERE id = $bookingOrder", __FILE__ . " linje " . __LINE__))) {
 			transaktion('rollback');
 			return 'missing';
+		}
+		if ($row["expiry_time"] === null || $row["expiry_time"] === '') {
+			transaktion('rollback');
+			if (rental_order_invoiced($bookingOrder)) return 'already';
+			$orderId = $bookingOrder;
+			return 'approved';
 		}
 		$expires = strtotime((string)$row["expiry_time"]);
 		if ($expires !== false && $expires <= ($now === null ? time() : (int)$now)
@@ -201,5 +208,43 @@ if (!function_exists('rental_approve_booking')) {
 		transaktion('commit');
 		$orderId = $bookingOrder;
 		return 'approved';
+	}
+}
+
+if (!function_exists('rental_order_invoiced')) {
+	/**
+	 * Whether a booking's order has been invoiced (ordrer.status 3 or higher, as fakturer_ordre() leaves it).
+	 *
+	 * @param int $orderId ordrer.id.
+	 * @return bool True when the order exists and is invoiced.
+	 */
+	function rental_order_invoiced($orderId) {
+		$orderId = (int)$orderId;
+		if ($orderId <= 0) return false;
+		$row = db_fetch_array(db_select("SELECT status FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__));
+		return $row && (int)$row["status"] >= 3;
+	}
+}
+
+if (!function_exists('rental_approval_lock')) {
+	/**
+	 * Hold or release a lock on one booking's approval for the rest of the request, so a second approval of the same
+	 * booking waits until the first has invoiced (or failed) and then sees the result. The lock belongs to the database
+	 * session, so it is also released when the request ends with an error.
+	 *
+	 * @param int $bookingId rentalperiod.id.
+	 * @param bool $hold True to take the lock (waits for another request holding it), false to release it.
+	 * @return void
+	 */
+	function rental_approval_lock($bookingId, $hold = true) {
+		global $db_type;
+		$bookingId = (int)$bookingId;
+		if ($db_type == "mysql" || $db_type == "mysqli") {
+			$qtxt = $hold ? "SELECT GET_LOCK('rental_approval_$bookingId', 60)" : "SELECT RELEASE_LOCK('rental_approval_$bookingId')";
+		} else {
+			// 1000 = SST-1000's lock class, so the key cannot meet another feature's advisory locks
+			$qtxt = $hold ? "SELECT pg_advisory_lock(1000, $bookingId)" : "SELECT pg_advisory_unlock(1000, $bookingId)";
+		}
+		db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }

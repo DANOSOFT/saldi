@@ -7,7 +7,7 @@
 // 20261111 CL/MMR SST-1000: stop with a message and reload when createBooking returns no booking id (the unit is no longer free).
 // 20261120 CL/MMR SST-1000 (review): the free units are stored under the local day, since toISOString gave the UTC day (the day before).
 //                 A start day without a free unit stops with a message instead of a JavaScript error.
-//                 A payment approved too late for a unit that is no longer free shows a message instead of the order confirmation and mail.
+//                 A payment approved too late for a unit that is no longer free, or whose order could not be invoiced, shows a message instead of the order confirmation and mail.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${encodeURIComponent(db)}`,{
         method: "GET",
@@ -505,14 +505,18 @@ const calendarView = async (main, product, weeks, price, db) => {
                         })
                     }).then(response => {
                         return response.json()
-                    })
+                    }).catch(() => null) // SST-1000 (review): an answer that is not JSON (a server error) is not an approval
                     console.log(res)
                     if (!res || res.status !== "approved") {
-                        // SST-1000 (review): the payment came back after the booking expired, and the unit is no longer free
+                        // SST-1000 (review): refused (the payment came back after the booking expired and the unit is taken)
+                        // or the order could not be invoiced: no order confirmation and no mail
+                        const why = res && res.status === "refused"
+                            ? "Enheden er ikke længere ledig i den valgte periode."
+                            : "Bestillingen kunne ikke gøres færdig."
                         main.innerHTML = `
                             <div class="w-2/3 mx-auto text-white text-center mt-4">
                                 <h3>Bookingen kunne ikke bekræftes</h3>
-                                <p>Enheden er ikke længere ledig i den valgte periode. Kontakt udlejeren om din betaling.</p>
+                                <p>${why} Kontakt udlejeren om din betaling.</p>
                             </div>
                         `
                         return

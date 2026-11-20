@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../../includes/stdFunc/rentalOverlap.php';
 //                 Request days must be 'Y-m-d' calendar dates, and an existing period is compared by the days it falls on.
 //                 The last test checks that both createBooking store through rental_store_booking() and answer 409.
 // 20261120 CL/MMR SST-1000 (review) Both approvals go through rental_approve_booking(), and both pages key the free units by the local day.
+//                 An approval answers approved only after the invoice, under the booking's approval lock.
 final class RentalOverlapTest extends TestCase
 {
     private const NOW = 1794481200; // 2026-11-12 12:00 Europe/Copenhagen
@@ -158,7 +159,11 @@ final class RentalOverlapTest extends TestCase
             $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);
             self::assertStringContainsString('$approval = rental_approve_booking($bookingId, $orderId);', $src, $file);
             self::assertStringNotContainsString('UPDATE rentalperiod SET expiry_time = NULL', $src, $file);
-            self::assertMatchesRegularExpression('/if \(\$approval === \'approved\'\) \{\s*fakturer_ordre\(\$orderId, "email", 0\);/', $src, $file);
+            self::assertMatchesRegularExpression('/if \(\$approval === \'approved\'\) \{\s*try \{\s*fakturer_ordre\(\$orderId, "email", 0\);/', $src, $file);
+            self::assertStringContainsString('if (rental_order_invoiced($orderId)) $approval = \'already\';', $src, $file);
+            self::assertStringContainsString('rental_approval_lock($bookingId);', $src, $file);
+            self::assertStringContainsString('rental_approval_lock($bookingId, false);', $src, $file);
+            self::assertStringContainsString('echo json_encode(["status" => "failed", "reason" => "invoice"]);', $src, $file);
             self::assertSame(1, substr_count($src, 'fakturer_ordre($orderId'), $file . ': invoiced only when approved');
             self::assertStringContainsString('function handleUpdateBooking()', $src, $file);
         }
@@ -168,6 +173,7 @@ final class RentalOverlapTest extends TestCase
             self::assertStringNotContainsString("availableDatesById.push([itemId, date.toISOString()", $src, $file);
             self::assertMatchesRegularExpression('/const match = shuffledArray\.find\([^\n]*\n\s*if \(!match\) \{/', $src, $file);
             self::assertStringContainsString('if (!res || res.status !== "approved") {', $src, $file);
+            self::assertStringContainsString('}).catch(() => null) // SST-1000 (review)', $src, $file);
         }
     }
 }
