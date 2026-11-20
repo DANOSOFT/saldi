@@ -13,6 +13,18 @@ item.import.ambiguous_skipped	Disse varenumre passer på flere varer og er ikke 
 item.import.campaign_only	Kun tilbudspris og tilbudsperiode opdateres. Ukendte varenumre oprettes ikke, og salgspris, kostpris og varegruppe ændres ikke.	Only the offer price and offer period are updated. Unknown item numbers are not created, and sales price, cost price and item group are not changed.	Bare tilbudspris og tilbudsperiode oppdateres. Ukjente varenumre opprettes ikke, og salgspris, kostpris og varegruppe endres ikke.
 item.import.lines_skipped	Disse linjer indeholder fejl og er ikke importeret:	These lines contain errors and were not imported:	Disse linjene inneholder feil og er ikke importert:
 item.import.unknown_skipped	Disse varenumre findes ikke og er ikke oprettet:	These item numbers do not exist and were not created:	Disse varenumrene finnes ikke og er ikke opprettet:
+journal.approval.all_visible	Godkend alle viste linjer	Approve all lines shown	Godkjenn alle viste linjer
+journal.approval.changed_before_post	En eller flere godkendelser er fjernet under gemningen. Intet er flyttet. Kontrollér linjerne og godkend dem igen før bogføring.	One or more approvals were removed while saving. Nothing was moved. Review the lines and approve them again before posting.	En eller flere godkjenninger er fjernet under lagringen. Ingenting er flyttet. Kontroller linjene og godkjenn dem igjen før bokføring.
+journal.approval.confirm	bilag flyttes til en ny kladde og bogføres. Resten bliver stående i denne kladde. Fortsæt?	vouchers are moved to a new journal and posted. The rest stays in this journal. Continue?	bilag flyttes til en ny kladd og bokføres. Resten blir stående i denne kladden. Fortsett?
+journal.approval.label	Godkendt	Approved	Godkjent
+journal.approval.lines_in	linjer i	lines in	linjer i
+journal.approval.mixed	Følgende bilag har både godkendte og ikke-godkendte linjer og bliver stående:	The following vouchers have both approved and unapproved lines and stay behind:	Følgende bilag har både godkjente og ikke-godkjente linjer og blir stående:
+journal.approval.none	Ingen linjer er godkendt	No lines are approved	Ingen linjer er godkjent
+journal.approval.post	Bogfør godkendte	Post approved	Bokfør godkjente
+journal.approval.post_failed	Bogføringen af de godkendte linjer blev afbrudt. Intet er flyttet.	Posting of the approved lines was aborted. Nothing was moved.	Bokføringen av de godkjente linjene ble avbrutt. Ingenting er flyttet.
+journal.approval.post_hint	Bogfør kun de linjer, der er markeret som godkendt. De flyttes til en ny kladde, som bogføres; resten bliver stående her.	Post only the lines marked as approved. They are moved to a new journal, which is posted; the rest stays here.	Bokfør bare linjene som er merket som godkjent. De flyttes til en ny kladd, som bokføres; resten blir stående her.
+journal.approval.save_failed	Kunne ikke gemme godkendelsen	Could not save the approval	Kunne ikke lagre godkjenningen
+journal.approval.source_note	godkendte fra kladde	approved from journal	godkjente fra kladd
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
 wage.overtime.hours_100	Overtid 100%	Overtime 100%	Overtid 100%
 wage.overtime.hours_50	Overtid 50%	Overtime 50%	Overtid 50%
