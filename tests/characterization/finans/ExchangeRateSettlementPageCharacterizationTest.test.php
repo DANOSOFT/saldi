@@ -13,6 +13,7 @@
 // 20261120 CL/LH MB-123 Created.
 // 20261121 CL/LH MB-123 Voucher roundings both ways on one difference account are shown as the two movements posting books.
 // 20261121 CL/LH MB-123 The settlement is read from the three settled rows rather than from the absence of open ones.
+// 20261121 CL/LH MB-123 The refusal of a line without a rate is read from the page, not only from the empty ledgers.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -120,10 +121,10 @@ final class ExchangeRateSettlementPageCharacterizationTest extends Characterizat
                 'k_type' => 'F', 'kredit' => self::$bank, 'amount' => 100.00, 'faktura' => $faktura, 'valuta' => self::$usd],
         ], 'MB-123 missing rate');
 
-        // The runner keeps the page's output (SALDI_CHAR_DEBUG prints it); the message is pinned in
-        // ExchangeRateSettlementTest, so this checks what reaches the database.
-        self::post($kladdeId);
+        $page = self::post($kladdeId);
 
+        $this->assertStringContainsString('Ingen valutakurs for USD den ' . date('d-m-Y', strtotime(self::$day1))
+            . ' (bilag: 2). Ingen posteringer er gemt.', $page, 'the page refuses the journal for the missing rate');
         $this->assertSame([], self::ledger($kladdeId), 'nothing reaches the ledger');
         $this->assertSame([], self::rows('SELECT id FROM openpost WHERE konto_id = $1', [$creditor['id']]),
             'nor the open-post ledger');
