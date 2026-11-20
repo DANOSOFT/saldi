@@ -296,6 +296,16 @@ final class ExchangeRateSettlementTest extends TestCase
         self::assertSame(-0.01, openpostRateDifferenceAmount(100.00, 749.99, [self::match(-100.00, 750)], 'EUR'));
     }
 
+    public function testTheMeasurementAcceptsWhatTheAmountWindowSettles(): void
+    {
+        // openpostMatchQuery() matches a counter-amount within [-0,005; +0,005). EUR 39,995 at 745 paid with
+        // EUR 40,00 at 746 settles at the lower bound, so the measurement must book its 0,44 rather than
+        // reject the residual and leave it on the control account.
+        self::assertSame(-0.44, openpostRateDifferenceAmount(-40.00, 746, [self::match(39.995, 745)], 'EUR'));
+        self::assertSame(0.0, openpostRateDifferenceAmount(-40.00, 746, [self::match(40.005, 745)], 'EUR'),
+            'the upper bound is outside the window, so it is a residual');
+    }
+
     public function testAGroupThatCancelsToAFloatingPointResidueBooksNothing(): void
     {
         // Each side is rounded to two decimals before it is summed, so a real difference is always a

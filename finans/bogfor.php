@@ -87,7 +87,7 @@
 // 20261106 CL/LH MB-123 The confirmation page puts each voucher's currency rounding on that voucher's own difference account, as posting books it, instead of the whole journal's rounding on the last currency line's account (confirmationRoundingByAccount()).
 // 20261120 CL/LH MB-123 A foreign-currency line with no exchange rate on its date is refused on the confirmation page and in bogfor() (journalLineRateError()), instead of posted at rate 100, where a settlement booked the whole gap to the invoice's rate as an exchange difference.
 //                The match reads every spelling of the installation's own currency as one (openpostCurrencyKey()): NULL, '', '-' from includes/ret_valutadiff.php, 'DKK', and the base currency order invoices are stored in, so a NOK installation settles its order invoices from the journal again.
-//                A one-øre difference is no longer lost to floating point, and a reference given twice ('X;X') is one reference, as on master, so it settles the post it names rather than adding another post with the same number.
+//                A one-øre difference is no longer lost to floating point, a group settled at the lower edge of the half-øre amount window is measured too, and a reference given twice ('X;X') is one reference, as on master, so it settles the post it names rather than adding another post with the same number.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -1532,7 +1532,11 @@ function openpostRateDifferenceAmount($amount,$valutakurs,$matches,$valuta) {
 	// 20261120 CL/LH MB-123 Every term is whole øre, so the sum is rounded before it is compared: 750,00 - 749,99
 	// is 0,00999999999999 in floating point and fell under a 0,01 threshold.
 	$dkkdiff = round($dkkdiff,2);
-	if (!$ratesDiffer || abs($residual) >= 0.005 || abs($dkkdiff) < 0.005) {
+	// The currency amounts cancel when the match falls in openpostMatchQuery()'s window, [-0,005; +0,005) around
+	// the counter-amount; openpost() settles exactly those, so a group it settles at the lower bound is measured too.
+	// Rounded to the three decimals openpost.amount holds, so floating point does not move the bound.
+	$residual = round($residual,3);
+	if (!$ratesDiffer || $residual < -0.005 || $residual >= 0.005 || abs($dkkdiff) < 0.005) {
 		return 0.0;
 	}
 	return $dkkdiff;
