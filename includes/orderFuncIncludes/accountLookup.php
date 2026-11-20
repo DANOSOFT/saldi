@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//---includes/orderFuncIncludes/accountLookup.php ---patch 5.0.0 ----2026-10-08 ---
+//---includes/orderFuncIncludes/accountLookup.php --- ver 5.1.0 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,8 @@
 //                 o_art=KO along on row select so supplier choice survives
 // 20260901 CL/LH Skip the debtor-creation form for KO (supplier) lookups
 // 20261008 CDX/PHR Include open accounts with a NULL closed flag in order lookups.
+// 20261120 CL/MJ SD-844 K31: at the till, where customers belong to Shopify, the create form posts to debitor/posCreateCustomer.php and the number is assigned there.
+//                The seller stays on the sale instead of landing on the order page, and a resent form creates one customer.
 
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
@@ -321,8 +323,15 @@ HTML;
     $searched_kontonr = $kontonr;
     $user_searched_for_kontonr = ($searched_kontonr > 0);
     
+    // 20261120 CL/MJ SD-844 K31: a POS lookup where customers belong to Shopify creates through posCreateCustomer.php
+    $posShopifyCreate = false;
+    if ($o_art == 'PO') {
+        include_once(__DIR__ . '/../../debitor/pos_ordre_includes/createCustomer.php');
+        $posShopifyCreate = pos_customer_create_shopify_mode();
+    }
+
     // Get next available account number if not provided
-    if (!$kontonr)
+    if (!$kontonr && !$posShopifyCreate)
         $kontonr = get_next_number('adresser', 'D');
 
     // Fetch debtor groups for dropdown
@@ -359,6 +368,15 @@ HTML;
 
     $kontonr_safe = htmlspecialchars($kontonr);
     $defaultPdays_safe = htmlspecialchars($defaultPdays);
+    $createAction = 'ordre.php';
+    $kontonrField = "<input type=\"text\" name=\"kontonr\" value=\"$kontonr_safe\">";
+    $createToken = '';
+    if ($posShopifyCreate) {
+        // the number comes from the shared Shopify allocator when the customer is saved
+        $createAction = 'posCreateCustomer.php';
+        $kontonrField = htmlspecialchars(findtekst('pos.customer.create.number_auto|Kundenummer tildeles automatisk', $sprog_id));
+        $createToken = "<input type=\"hidden\" name=\"pos_create_token\" value=\"" . pos_customer_create_token() . "\">";
+    }
 
     // Labels
     $lbl_create = findtekst('2118|Opret ny kunde', $sprog_id);
@@ -474,12 +492,13 @@ HTML;
 <div class="create-customer-overlay" id="createCustomerForm">
   <span class="close-btn" onclick="toggleCreateForm(false)" title="Close">&times;</span>
   <h3>$lbl_create</h3>
-  <form name="create_debtor" action="ordre.php" method="post" onsubmit="return validateCreateCustomer()">
+  <form name="create_debtor" action="$createAction" method="post" onsubmit="return validateCreateCustomer()">
    <input type="hidden" name="id" value="$id">
+   $createToken
     <table>
       <tr>
         <td></td>
-        <td><input type="text" name="kontonr" value="$kontonr_safe"></td>
+        <td>$kontonrField</td>
       </tr>
       <tr>
         <td>$lbl_name <span style="color:red">*</span></td>

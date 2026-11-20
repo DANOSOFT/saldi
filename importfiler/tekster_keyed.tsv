@@ -7,6 +7,9 @@ common.accept	Acceptér	Accept	Godta
 formular.line.lager	Lager	Warehouse	Lager
 formular.line.lagernavn	Lagernavn	Warehouse name	Lagernavn
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
+pos.customer.create.failed	Kunden kunne ikke oprettes. Prøv igen.	The customer could not be created. Please try again.	Kunden kunne ikke opprettes. Prøv igjen.
+pos.customer.create.incomplete	Kunden blev ikke oprettet: navn og gruppe skal udfyldes.	The customer was not created: name and group are required.	Kunden ble ikke opprettet: navn og gruppe må fylles ut.
+pos.customer.create.number_auto	Kundenummer tildeles automatisk	Customer number is assigned automatically	Kundenummer tildeles automatisk
 pos.delivery.date	Ønsket leveringsdato	Requested delivery date	Ønsket leveringsdato
 pos.delivery.error.choice	Leveringsmåden findes ikke eller er ikke længere aktiv.	The delivery option does not exist or is no longer active.	Leveringsmåten finnes ikke eller er ikke lenger aktiv.
 pos.delivery.error.date	Ønsket leveringsdato skal være en gyldig dato (dd-mm-åååå).	The requested delivery date must be a valid date (dd-mm-yyyy).	Ønsket leveringsdato må være en gyldig dato (dd-mm-åååå).
