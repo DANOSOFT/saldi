@@ -7,6 +7,25 @@ common.accept	Acceptér	Accept	Godta
 formular.line.lager	Lager	Warehouse	Lager
 formular.line.lagernavn	Lagernavn	Warehouse name	Lagernavn
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
+pos.delivery.date	Ønsket leveringsdato	Requested delivery date	Ønsket leveringsdato
+pos.delivery.error.choice	Leveringsmåden findes ikke eller er ikke længere aktiv.	The delivery option does not exist or is no longer active.	Leveringsmåten finnes ikke eller er ikke lenger aktiv.
+pos.delivery.error.date	Ønsket leveringsdato skal være en gyldig dato (dd-mm-åååå).	The requested delivery date must be a valid date (dd-mm-yyyy).	Ønsket leveringsdato må være en gyldig dato (dd-mm-åååå).
+pos.delivery.error.past	Ønsket leveringsdato kan ikke ligge før i dag.	The requested delivery date cannot be before today.	Ønsket leveringsdato kan ikke være før i dag.
+pos.delivery.label	Levering	Delivery	Levering
+pos.delivery.settings.active	Aktiv	Active	Aktiv
+pos.delivery.settings.delete	Slet	Delete	Slett
+pos.delivery.settings.help	Valgene i kassen. Uden valg er et salg "Taget med". En leveringsmåde, der er brugt på en ordre, gemmes som en ny version, når den rettes.	The options in the POS. Without an option a sale is "Taken along". A delivery option used on an order is saved as a new version when it is edited.	Valgene i kassen. Uten valg er et salg "Tatt med". En leveringsmåte som er brukt på en ordre, lagres som en ny versjon når den endres.
+pos.delivery.settings.name	Navn	Name	Navn
+pos.delivery.settings.new	Ny leveringsmåde	New delivery option	Ny leveringsmåte
+pos.delivery.settings.refused	Leveringsmåde ikke gemt (navn og type skal udfyldes)	Delivery option not saved (name and type are required)	Leveringsmåte ikke lagret (navn og type må fylles ut)
+pos.delivery.settings.shopify_value	Leveringsmetode i Shopify	Delivery method in Shopify	Leveringsmetode i Shopify
+pos.delivery.settings.sort	Sortering	Sort order	Sortering
+pos.delivery.settings.tags	Tags (kommasepareret)	Tags (comma separated)	Tagger (kommaseparert)
+pos.delivery.settings.title	Leveringsmåder i kassen	Delivery options in the POS	Leveringsmåter i kassen
+pos.delivery.settings.type	Type	Type	Type
+pos.delivery.type.afhentning	Afhentning	Pickup	Henting
+pos.delivery.type.levering	Levering	Delivery	Levering
+pos.delivery.type.taget_med	Taget med	Taken along	Tatt med
 shopify.admin.error.afd	Vælg en afdeling.	Choose a department.	Velg en avdeling.
 shopify.admin.error.afd_taken	En anden shop bruger allerede denne afdeling.	Another shop already uses this department.	En annen nettbutikk bruker allerede denne avdelingen.
 shopify.admin.error.domain	Domænet skal være en *.myshopify.com-adresse.	The domain must be a *.myshopify.com address.	Domenet må være en *.myshopify.com-adresse.

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- debitor/func/pos_ordre_itemscan.php ---- lap 5.1.0 -- 2026.09.17 --
+// -------- debitor/func/pos_ordre_itemscan.php ---- ver 5.1.0 -- 2026.11.20 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,7 @@
 // 20251007 PHR Now looking for varenr_alias
 // 20260914 CDX/LH Port ssl3 extended mylabel barcodes; keep full IDs in fallback lookup.
 // 20260917 CDX/PHR Normalize zero prices for PHP 8 and set price focus before rendering inputs.
+// 20261120 CL/LH K33/K34 The sale header shows the delivery choice and the wished delivery date (pos_render_sale_delivery_fields()).
 
 function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$rabat_ny,$lager_ny) {
 	print "\n<!-- Function varescan (start)-->\n";
@@ -409,6 +410,8 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref |$tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td></tr>\n";
 		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato, $tidspkt</td></tr>\n";
 	}
+	// 20261120 CL/LH K33/K34 Delivery choice and wished date; prints nothing until a choice is set up.
+	pos_render_sale_delivery_fields((int) $id, (int) $status, $sprog_id);
 	setItemHeaderTxt($lagerantal, $fokus);
 	if ($status < 3) {
 	$qtxt = "select var_value from settings where var_name = 'jump2price'";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/posSaleSettings.php --- ver 5.0.0 ---- 2026-10-26 ----
+// --- systemdata/diverseIncludes/posSaleSettings.php --- ver 5.1.0 ---- 2026-11-20 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,10 @@
 //
 // 20261026 CL/SZ SD-758 Texts moved from 5439-5441 to 7200-7202, because master already uses 5439 (finans/kassekladde.php) and 5440/5441 (finans/bogfor.php).
 //                findtekst() keeps one text per id, so the POS-valg brand heading showed the kassekladde voucher text.
+//
+// 20261120 CL/LH K33 The delivery choices the POS offers (pos_leveringsvalg, Shopify schema v1) are maintained here, below the terminals on POS-valg: name, type (taget med, afhentning, levering), the value and tags the store order is sent to Shopify with, order and active.
+//                A choice an order already uses is never rewritten: a change of name, type, Shopify value or tags deactivates it and adds a new version, and delete only deactivates it.
+//                The section shows only where the Shopify schema is installed, so MySQL installations are untouched.
 //
 // The brand is kept as a tab separated list indexed by terminal number less one, in
 // grupper art='POS' kodenr='4' box1 - the same shape as every other per-terminal POS setting
@@ -221,4 +225,329 @@ function pos_save_sale_settings($post, $regnaar) {
 		}
 		alert($txt . ': ' . implode(', ', $safe));
 	}
+}
+
+/**
+ * Whether this tenant has the delivery choice table and order columns at all. They are part of the
+ * Shopify schema, which is installed on PostgreSQL tenants only; a MySQL tenant answers false
+ * without a query.
+ *
+ * @return bool
+ */
+function pos_delivery_supported() {
+	static $supported = null;
+	if ($supported === null) {
+		// The table and the order columns are part of the Shopify schema manifest.
+		include_once(__DIR__ . '/../../includes/shopify/schema.php');
+		$supported = shopify_schema_ready();
+	}
+	return $supported;
+}
+
+/**
+ * The page charset a string is printed in: ISO-8859-15 on a LATIN9 installation, UTF-8 otherwise.
+ * htmlspecialchars() answers an empty string for text that is not valid in the charset it is told,
+ * so every printed choice name goes through pos_delivery_html().
+ *
+ * @return string
+ */
+function pos_delivery_charset() {
+	global $db_encode;
+	return (isset($db_encode) && $db_encode !== 'UTF8') ? 'ISO-8859-15' : 'UTF-8';
+}
+
+/**
+ * @param mixed $text
+ * @return string
+ */
+function pos_delivery_html($text) {
+	return htmlspecialchars((string) $text, ENT_QUOTES | ENT_SUBSTITUTE, pos_delivery_charset());
+}
+
+/**
+ * A string as an SQL literal. The delivery choices exist on PostgreSQL only (pos_delivery_supported),
+ * so this escapes for that connection's own client encoding. db_escape_string() is not used: it
+ * re-encodes every string that is not valid UTF-8 as if it were Windows-1252, which on a LATIN9
+ * connection turns "Mårum" into "MÃ¥rum".
+ *
+ * @param string|null $text NULL gives the SQL NULL.
+ * @return string
+ */
+function pos_delivery_sql($text) {
+	global $connection;
+	if ($text === null) {
+		return 'NULL';
+	}
+	return "'" . pg_escape_string($connection, str_replace("\0", '', (string) $text)) . "'";
+}
+
+/**
+ * The three kinds of delivery the store-order export knows (K33/K36), with their label.
+ *
+ * @param int $sprog_id
+ * @return array<string,string> type => label
+ */
+function pos_delivery_types($sprog_id) {
+	return array(
+		'taget_med'  => findtekst('pos.delivery.type.taget_med|Taget med', $sprog_id),
+		'afhentning' => findtekst('pos.delivery.type.afhentning|Afhentning', $sprog_id),
+		'levering'   => findtekst('pos.delivery.type.levering|Levering', $sprog_id),
+	);
+}
+
+/**
+ * The delivery choices, in the order the POS offers them.
+ *
+ * @param bool $activeOnly Only the choices a cashier can pick.
+ * @return array<int, array{id: int, navn: string, type: string, shopify_vaerdi: string, tags: string, aktiv: bool, sort: int}>
+ */
+function pos_delivery_choices($activeOnly = true) {
+	if (!pos_delivery_supported()) {
+		return array();
+	}
+	// The tags are read as text rather than as jsonb, so they arrive in the connection's own
+	// encoding, ready to print.
+	$qtxt = "select id, navn, type, coalesce(shopify_vaerdi, '') as shopify_vaerdi, aktiv, sort,";
+	$qtxt.= " array_to_string(array(select jsonb_array_elements_text(tags)), ', ') as tags";
+	$qtxt.= " from pos_leveringsvalg";
+	if ($activeOnly) {
+		$qtxt.= " where aktiv";
+	}
+	$qtxt.= " order by sort, id";
+	$choices = array();
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$choices[] = array(
+			'id' => (int) $r['id'],
+			'navn' => (string) $r['navn'],
+			'type' => (string) $r['type'],
+			'shopify_vaerdi' => (string) $r['shopify_vaerdi'],
+			'tags' => (string) $r['tags'],
+			'aktiv' => in_array($r['aktiv'], array(true, 't', '1', 1), true),
+			'sort' => (int) $r['sort'],
+		);
+	}
+	return $choices;
+}
+
+/**
+ * Whether the POS shows the delivery fields: the schema is there and at least one choice is active.
+ * Without a choice set up, every sale stays "taget med" exactly as before K33.
+ *
+ * @return bool
+ */
+function pos_delivery_enabled() {
+	if (!pos_delivery_supported()) {
+		return false;
+	}
+	$r = db_fetch_array(db_select("select id from pos_leveringsvalg where aktiv limit 1", __FILE__ . " linje " . __LINE__));
+	return (bool) $r;
+}
+
+/**
+ * Tags typed as a comma separated list: trimmed, without empty and repeated tags.
+ *
+ * @param string $typed
+ * @return array<int,string>
+ */
+function pos_delivery_tags_list($typed) {
+	$tags = array();
+	foreach (explode(',', (string) $typed) as $tag) {
+		$tag = trim($tag);
+		if ($tag !== '' && !in_array($tag, $tags, true)) {
+			$tags[] = $tag;
+		}
+	}
+	return $tags;
+}
+
+/**
+ * Tags as the jsonb array pos_leveringsvalg.tags stores. The JSON is kept pure ASCII (non-ASCII
+ * letters as \u escapes), so it reads the same over a LATIN9 and a UTF-8 connection.
+ *
+ * @param array<int,string> $tags From pos_delivery_tags_list(), in the page's charset.
+ * @return string
+ */
+function pos_delivery_tags_json($tags) {
+	$utf8 = array();
+	foreach ($tags as $tag) {
+		$utf8[] = (pos_delivery_charset() === 'UTF-8') ? $tag : mb_convert_encoding($tag, 'UTF-8', 'ISO-8859-15');
+	}
+	return (string) json_encode($utf8);
+}
+
+/**
+ * One posted choice row, cleaned: trimmed text with tabs and line breaks gone, an empty Shopify
+ * value as NULL, and the tags as their JSON.
+ *
+ * @param array $row
+ * @return array{navn: string, type: string, shopify_vaerdi: ?string, tags: string, tags_typed: string, sort: int, aktiv: bool, slet: bool}
+ */
+function pos_delivery_posted_choice($row) {
+	$clean = function ($value) {
+		return trim(str_replace(array(chr(9), chr(10), chr(13)), ' ', (string) $value));
+	};
+	$vaerdi = $clean(ifset($row, 'shopify_vaerdi', ''));
+	$tags = pos_delivery_tags_list($clean(ifset($row, 'tags', '')));
+	return array(
+		'navn' => $clean(ifset($row, 'navn', '')),
+		'type' => $clean(ifset($row, 'type', '')),
+		'shopify_vaerdi' => ($vaerdi === '') ? null : $vaerdi,
+		'tags' => pos_delivery_tags_json($tags),
+		'tags_typed' => implode(', ', $tags),
+		'sort' => (int) ifset($row, 'sort', 0),
+		'aktiv' => (bool) ifset($row, 'aktiv', ''),
+		'slet' => (bool) ifset($row, 'slet', ''),
+	);
+}
+
+/**
+ * Stores the delivery choices from a submitted POS settings form.
+ *
+ * Called from systemdata/diverse.php with the POS-valg POST, next to pos_save_sale_settings(). A
+ * form without the delivery fields leaves the choices alone. A row without a name or with an unknown
+ * type is refused and reported, and the other rows are still saved.
+ *
+ * A choice that an order already points at keeps its meaning: changing its name, type, Shopify
+ * value or tags deactivates it and adds the edited choice as a new row, and deleting it only
+ * deactivates it. Order and active change in place, because they do not change what an order was
+ * sold with. An unused choice is edited or deleted in place.
+ *
+ * @param array $post The submitted form, normally $_POST.
+ * @return void
+ */
+function pos_save_delivery_choices($post) {
+	if (!pos_delivery_supported() || !is_array($post)) {
+		return;
+	}
+	$rows = (isset($post['leveringsvalg']) && is_array($post['leveringsvalg'])) ? $post['leveringsvalg'] : array();
+	$new = (isset($post['leveringsvalg_ny']) && is_array($post['leveringsvalg_ny'])) ? $post['leveringsvalg_ny'] : null;
+	if (!$rows && $new === null) {
+		return;
+	}
+	$sprog_id = isset($GLOBALS['sprog_id']) ? $GLOBALS['sprog_id'] : 1;
+	$types = array_keys(pos_delivery_types($sprog_id));
+	$stored = array();
+	foreach (pos_delivery_choices(false) as $choice) {
+		$stored[$choice['id']] = $choice;
+	}
+	$refused = array();
+	$valid = function ($choice) use ($types, &$refused) {
+		if ($choice['navn'] === '' || !in_array($choice['type'], $types, true)) {
+			$refused[] = ($choice['navn'] === '') ? '-' : $choice['navn'];
+			return false;
+		}
+		return true;
+	};
+	$insert = function ($choice, $aktiv) {
+		$qtxt = "insert into pos_leveringsvalg (navn, type, shopify_vaerdi, tags, aktiv, sort) values (";
+		$qtxt.= pos_delivery_sql($choice['navn']) . ", " . pos_delivery_sql($choice['type']) . ", ";
+		$qtxt.= pos_delivery_sql($choice['shopify_vaerdi']) . ", " . pos_delivery_sql($choice['tags']) . "::jsonb, ";
+		$qtxt.= ($aktiv ? 'true' : 'false') . ", " . (int) $choice['sort'] . ")";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	};
+	foreach ($rows as $id => $row) {
+		$id = (int) $id;
+		if (!isset($stored[$id]) || !is_array($row)) {
+			continue;
+		}
+		$choice = pos_delivery_posted_choice($row);
+		$used = (bool) db_fetch_array(db_select("select id from ordrer where leveringsvalg_id = '$id' limit 1", __FILE__ . " linje " . __LINE__));
+		if ($choice['slet']) {
+			if ($used) {
+				db_modify("update pos_leveringsvalg set aktiv = false where id = '$id'", __FILE__ . " linje " . __LINE__);
+			} else {
+				db_modify("delete from pos_leveringsvalg where id = '$id'", __FILE__ . " linje " . __LINE__);
+			}
+			continue;
+		}
+		if (!$valid($choice)) {
+			continue;
+		}
+		$before = $stored[$id];
+		$meaningChanged = $choice['navn'] !== $before['navn'] || $choice['type'] !== $before['type']
+			|| (string) $choice['shopify_vaerdi'] !== $before['shopify_vaerdi'] || $choice['tags_typed'] !== $before['tags'];
+		if ($meaningChanged && $used) {
+			db_modify("update pos_leveringsvalg set aktiv = false where id = '$id'", __FILE__ . " linje " . __LINE__);
+			$insert($choice, $choice['aktiv']);
+			continue;
+		}
+		$qtxt = "update pos_leveringsvalg set navn = " . pos_delivery_sql($choice['navn']) . ", type = " . pos_delivery_sql($choice['type']) . ", ";
+		$qtxt.= "shopify_vaerdi = " . pos_delivery_sql($choice['shopify_vaerdi']) . ", tags = " . pos_delivery_sql($choice['tags']) . "::jsonb, ";
+		$qtxt.= "aktiv = " . ($choice['aktiv'] ? 'true' : 'false') . ", sort = " . (int) $choice['sort'] . " where id = '$id'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+	if ($new !== null) {
+		$choice = pos_delivery_posted_choice($new);
+		// The empty row for a new choice is posted with every save; only a typed name makes it a choice.
+		if ($choice['navn'] !== '' || $choice['shopify_vaerdi'] !== null) {
+			if ($valid($choice)) {
+				$insert($choice, true);
+			}
+		}
+	}
+	if ($refused) {
+		$txt = findtekst('pos.delivery.settings.refused|Leveringsmåde ikke gemt (navn og type skal udfyldes)', $sprog_id);
+		$safe = array();
+		foreach ($refused as $name) {
+			$safe[] = pos_sale_brand_for_alert($name);
+		}
+		alert($txt . ': ' . implode(', ', $safe));
+	}
+}
+
+/**
+ * The delivery choices section of POS-valg: one row per stored choice and an empty row for a new
+ * one. Prints nothing where the Shopify schema is not installed.
+ *
+ * @param int $sprog_id
+ * @return void
+ */
+function pos_render_delivery_choices_settings($sprog_id) {
+	if (!pos_delivery_supported()) {
+		return;
+	}
+	$types = pos_delivery_types($sprog_id);
+	$h = function ($key) use ($sprog_id) {
+		return pos_delivery_html(findtekst($key, $sprog_id));
+	};
+	$typeSelect = function ($name, $current) use ($types) {
+		$html = "<select class='inputbox' name='$name'>";
+		foreach ($types as $type => $label) {
+			$selected = ($type === $current) ? ' selected' : '';
+			$html.= "<option value='$type'$selected>" . pos_delivery_html($label) . "</option>";
+		}
+		return $html . "</select>";
+	};
+	print "<tr><td><table id='pos-leveringsvalg'><tbody>\n";
+	print "<tr><td colspan='7'><b>" . $h('pos.delivery.settings.title|Leveringsmåder i kassen') . "</b></td></tr>\n";
+	print "<tr><td colspan='7'>" . $h('pos.delivery.settings.help|Valgene i kassen. Uden valg er et salg "Taget med". En leveringsmåde, der er brugt på en ordre, gemmes som en ny version, når den rettes.') . "</td></tr>\n";
+	print "<tr><td>" . $h('pos.delivery.settings.name|Navn') . "</td><td>" . $h('pos.delivery.settings.type|Type') . "</td>";
+	print "<td>" . $h('pos.delivery.settings.shopify_value|Leveringsmetode i Shopify') . "</td>";
+	print "<td>" . $h('pos.delivery.settings.tags|Tags (kommasepareret)') . "</td><td>" . $h('pos.delivery.settings.sort|Sortering') . "</td>";
+	print "<td align='center'>" . $h('pos.delivery.settings.active|Aktiv') . "</td><td align='center'>" . $h('pos.delivery.settings.delete|Slet') . "</td></tr>\n";
+	foreach (pos_delivery_choices(false) as $choice) {
+		$n = "leveringsvalg[" . $choice['id'] . "]";
+		$checked = $choice['aktiv'] ? ' checked' : '';
+		print "<tr>";
+		print "<td><input class='inputbox' type='text' style='width:180px' name='{$n}[navn]' value='" . pos_delivery_html($choice['navn']) . "'></td>";
+		print "<td>" . $typeSelect("{$n}[type]", $choice['type']) . "</td>";
+		print "<td><input class='inputbox' type='text' style='width:160px' name='{$n}[shopify_vaerdi]' value='" . pos_delivery_html($choice['shopify_vaerdi']) . "'></td>";
+		print "<td><input class='inputbox' type='text' style='width:160px' name='{$n}[tags]' value='" . pos_delivery_html($choice['tags']) . "'></td>";
+		print "<td><input class='inputbox' type='text' style='width:40px;text-align:right' name='{$n}[sort]' value='" . (int) $choice['sort'] . "'></td>";
+		print "<td align='center'><input type='checkbox' name='{$n}[aktiv]'$checked></td>";
+		print "<td align='center'><input type='checkbox' name='{$n}[slet]'></td>";
+		print "</tr>\n";
+	}
+	$n = "leveringsvalg_ny";
+	print "<tr>";
+	print "<td><input class='inputbox' type='text' style='width:180px' name='{$n}[navn]' value='' placeholder='" . $h('pos.delivery.settings.new|Ny leveringsmåde') . "'></td>";
+	print "<td>" . $typeSelect("{$n}[type]", 'levering') . "</td>";
+	print "<td><input class='inputbox' type='text' style='width:160px' name='{$n}[shopify_vaerdi]' value=''></td>";
+	print "<td><input class='inputbox' type='text' style='width:160px' name='{$n}[tags]' value=''></td>";
+	print "<td><input class='inputbox' type='text' style='width:40px;text-align:right' name='{$n}[sort]' value=''></td>";
+	print "<td></td><td></td>";
+	print "</tr>\n";
+	print "</tbody></table></td></tr>\n";
+	print "<tr><td><hr></td></tr>\n";
 }

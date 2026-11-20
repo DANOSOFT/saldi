@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.09 ---
+// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -127,6 +127,7 @@
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after the gift-card settlement transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
+// 20261120 CL/LH K33/K34: the sale's delivery choice and wished delivery date are saved from the sale form (pos_save_sale_delivery() in pos_ordre_includes/saleDeliveryFields.php), and Forfra or a reused abandoned sale starts again as "taget med".
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -187,6 +188,7 @@ include("pos_ordre_includes/helperMethods/helperFuncII.php"); #20190219
 # 20261022 CL/MJ SD-758 Reusing an abandoned sale clears the phone number and re-reads the
 #                  terminal's department and brand; see the 48 hour branch further down.
 include_once(__DIR__ . "/pos_ordre_includes/saleHeaderFunctions.php");
+include_once(__DIR__ . "/pos_ordre_includes/saleDeliveryFields.php"); # 20261120 CL/LH K33/K34
 
 include("pos_ordre_includes/posTxtPrint/posTxtPrintFunc.php"); #20190503
 
@@ -554,7 +556,7 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 			$qtxt = "update ordrer set konto_id='0',  kontonr='0',firmanavn='',addr1='',addr2='',postnr='',";
 			$qtxt .= "bynavn='',land='',betalingsdage='0',betalingsbet='Kontant',cvrnr='',ean='',institution='',";
 			$qtxt .= "email='',kontakt='',art='PO',valuta='$baseCurrency',valutakurs='100',kundeordnr='',";
-			$qtxt .= "phone='',afd='$genbrug_afd',sprog='$genbrug_brand',";
+			$qtxt .= "phone='',afd='$genbrug_afd',sprog='$genbrug_brand'" . pos_reset_sale_delivery_sql() . ",";
 			$qtxt .= "ordredate='" . date("Y-m-d") . "',hvem='',ref='',nr=NULL where id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			db_modify("delete from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
@@ -1141,6 +1143,19 @@ if ($vare_id) {
 	$sum = (float)$sum;
 	if ($kundeordnr && $id)
 		db_modify("update ordrer set kundeordnr = '$kundeordnr' where id='$id'", __FILE__ . " linje " . __LINE__);
+	// 20261120 CL/LH K33/K34 The delivery choice and wished date are posted with every submit of the sale
+	// form while the sale header shows them (pos_render_sale_delivery_fields()). A choice picked before
+	// the first item is scanned creates the sale, so it is not lost.
+	if (isset($_POST['leveringsvalg_id']) && is_scalar($_POST['leveringsvalg_id']) && pos_delivery_enabled()) {
+		$posted_valg = (string) $_POST['leveringsvalg_id'];
+		$posted_dato = (isset($_POST['oensket_levdato']) && is_scalar($_POST['oensket_levdato'])) ? (string) $_POST['oensket_levdato'] : '';
+		if (!$id && $posted_valg !== '') {
+			$id = opret_posordre(NULL, $kasse);
+		}
+		if ($id && $leveringsfejl = pos_save_sale_delivery($id, $posted_valg, $posted_dato)) {
+			alert(pos_sale_brand_for_alert($leveringsfejl));
+		}
+	}
 
 	if (strstr($pris_ny, ",")) { #Skaerer orebelob ned til 2 cifre.
 		list($kr, $ore) = explode(",", $pris_ny);
@@ -1304,7 +1319,8 @@ if ($vare_id) {
 			$qtxt = "update ordrer set konto_id='0', kontonr='0',firmanavn='',addr1='',addr2='',postnr='',bynavn='',land='',betalingsdage='0',";
 			$qtxt .= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',art='PO',";
 			$qtxt .= "valuta='$baseCurrency',valutakurs='100',kundeordnr='',ordredate='$dd',hvem='',";
-			$qtxt .= "momssats='$momssats',ref='' where id = '$id'";
+			# 20261120 CL/LH K33/K34 Forfra starts the sale again as "taget med", without a wished date.
+			$qtxt .= "momssats='$momssats',ref=''" . pos_reset_sale_delivery_sql() . " where id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			db_modify("delete from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
 			$varenr_ny = '';
