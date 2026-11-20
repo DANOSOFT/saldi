@@ -228,7 +228,8 @@
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261120 CL/MMR MB-158 The «funktion» URL parameter only opens the customer and supplier lookups.
-//                 Their files come from a fixed list, so the value never reaches a function call or an include path; any other value is ignored.
+//                 Their files come from a fixed list, so the value never reaches a function call or an include path.
+//                 Any other value together with «sort» reopens the journal as stored, so the line values in that address are not saved.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -1052,7 +1053,13 @@ if ($_GET) {
 		'debitorLookup'  => 'debitorLookup.php',
 		'creditorLookup' => 'creditorLookup.php',
 	);
-	if ($sort && is_string($funktion) && isset($lookupFiles[$funktion])) {
+	if ($sort && $funktion) {
+		if (!is_string($funktion) || !isset($lookupFiles[$funktion])) {
+			// Any other value, also funktion=openpost from the Åbne poster column links, used to stop here with a fatal error
+			// before the line values in the address could reach the staged line. Show the journal as it is stored instead.
+			print "<meta http-equiv='refresh' content='0;URL=../finans/kassekladde.php?kladde_id=$kladde_id'>";
+			exit;
+		}
 		if (!function_exists($funktion)) {
 			include_once(__DIR__ . '/kassekladde_includes/' . $lookupFiles[$funktion]);
 		}

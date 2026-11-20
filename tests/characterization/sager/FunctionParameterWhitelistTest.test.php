@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 // 20261120 CL/MMR MB-158 Run the real «funktion» selection and dispatch of sager.php, kontrolskemaer.php and kassekladde.php
 //                 without their database and rendering code: only the view handlers and the include are replaced by recorders.
+//                 An unknown kassekladde value with «sort» stops the page before the staged line is touched (Codex round 3).
 
 /** An existing function that must never be reachable from the address bar. */
 function unrelated(): void
@@ -94,7 +95,7 @@ final class FunctionParameterWhitelistTest extends TestCase
     /**
      * Lifts the kassekladde lookup dispatch; its include and call are recorded instead of run.
      *
-     * @return array{list<string>, list<array{mixed, list<mixed>}>} The includes asked for and the calls made.
+     * @return array{list<string>, list<array{mixed, list<mixed>}>, bool} The includes asked for, the calls made and whether the page stopped.
      */
     private static function dispatchKassekladde(mixed $funktion, mixed $sort): array
     {
@@ -102,6 +103,8 @@ final class FunctionParameterWhitelistTest extends TestCase
         self::assertSame(1, preg_match('/^\t(?:\$lookupFiles = array\(|if \(\(\$sort\) && \(\$funktion\)\) \{).*?^\t\}\n/ms', $source, $block));
         $code = str_replace('include_once(', '\\FunctionParameterWhitelistTest\\record_include(', $block[0], $includes);
         $code = str_replace('$funktion($find,', '\\FunctionParameterWhitelistTest\\record_call($funktion, $find,', $code, $calls);
+        // The page stops with exit; here the stop is returned so the test can see it.
+        $code = str_replace('exit;', "return 'stopped';", $code);
         self::assertSame(1, $includes);
         self::assertSame(1, $calls);
 
@@ -113,8 +116,16 @@ final class FunctionParameterWhitelistTest extends TestCase
         foreach (['id', 'bilag', 'dato', 'beskrivelse', 'd_type', 'debet', 'k_type', 'kredit', 'faktura', 'belob', 'momsfri', 'afd', 'projekt', 'ansat', 'valuta', 'forfaldsdato', 'betal_id', 'lobenr'] as $name) {
             $$name = [0 => ''];
         }
-        eval($code);
-        return [self::$includes, self::$calls];
+        ob_start();
+        try {
+            $stopped = eval($code) === 'stopped';
+        } finally {
+            $output = (string)ob_get_clean();
+        }
+        if ($stopped) {
+            self::assertSame("<meta http-equiv='refresh' content='0;URL=../finans/kassekladde.php?kladde_id=7'>", $output);
+        }
+        return [self::$includes, self::$calls, $stopped];
     }
 
     /** @return iterable<string, array{mixed}> */
@@ -181,7 +192,10 @@ final class FunctionParameterWhitelistTest extends TestCase
     #[DataProvider('invalidKassekladdeValues')]
     public function testKassekladdeIgnoresAnyOtherValue(mixed $value): void
     {
-        self::assertSame([[], []], self::dispatchKassekladde($value, 'firmanavn'));
+        // A value is never included or called. A set value stops before the line values in the address reach the staged
+        // line (it used to stop there with a fatal error); a missing or empty one carries on as before.
+        $stops = $value !== null && $value !== '';
+        self::assertSame([[], [], $stops], self::dispatchKassekladde($value, 'firmanavn'));
     }
 
     /** @return iterable<string, array{string, string}> */
@@ -195,7 +209,8 @@ final class FunctionParameterWhitelistTest extends TestCase
     #[DataProvider('kassekladdeLookups')]
     public function testKassekladdeSortLinksStillOpenTheirLookup(string $funktion, string $file): void
     {
-        [$includes, $calls] = self::dispatchKassekladde($funktion, 'kontonr');
+        [$includes, $calls, $stopped] = self::dispatchKassekladde($funktion, 'kontonr');
+        self::assertFalse($stopped);
         self::assertCount(1, $includes);
         self::assertStringEndsWith('/kassekladde_includes/' . $file, $includes[0]);
         self::assertCount(1, $calls);
@@ -213,7 +228,8 @@ final class FunctionParameterWhitelistTest extends TestCase
 
     public function testKassekladdeDoesNothingWithoutSort(): void
     {
-        self::assertSame([[], []], self::dispatchKassekladde('debitorLookup', null));
+        self::assertSame([[], [], false], self::dispatchKassekladde('debitorLookup', null));
+        self::assertSame([[], [], false], self::dispatchKassekladde('openpost', null));
     }
 
     /** @return list<string> Used only as a callable-array value. */
