@@ -1,6 +1,6 @@
 <?php
-
-// --- debitor/ansatte.php --- ver 5.1.0 --- 2026.11.01----------
+//
+// --- debitor/ansatte.php --- ver 5.1.1 --- 2026.11.19----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,9 @@
 // 20260904 Sawaneh WP-1.1: header Historik/Kontokort icon retursides now target this ansatte page (urlencoded, with konto_id)
 // 20261101 CL/SZ MB-129 A contact with an apostrophe in a field can be saved: the fields use db_escape_string instead of addslashes, which Postgres rejects.
 //                The name is also escaped in the adresser.kontakt updates.
+// 20261119 CL/SZ MB-138 Saving an existing contact keeps its position and the primary contact.
+//                Only a new contact is put first.
+//                A contact without a position goes behind the others unless it is already the primary contact.
 
 @session_start();
 $s_id=session_id();
@@ -142,6 +145,26 @@ if ($_POST){
 
 			##########
 
+			// MB-138: the form sends no posnr, so an edited contact keeps its stored position.
+			// Renumbering below is only for a new contact, which goes first.
+			$keepPrimary = false;
+			if (!$posnr && $id > 0) {
+				$keepPrimary = true;
+				$row = db_fetch_array(db_select("SELECT posnr, navn FROM ansatte WHERE id = '" . (int)$id . "'", __FILE__ . " linje " . __LINE__));
+				$posnr = $row['posnr'] ?? '';
+				if (!$posnr) {
+					// No stored position: it takes position 1 only when that is free and it is the primary contact (or there is none).
+					$maxRow = db_fetch_array(db_select("SELECT coalesce(max(posnr),0) AS maxpos, count(CASE WHEN posnr = 1 THEN 1 END) AS firsts FROM ansatte WHERE konto_id = '" . (int)$konto_id . "'", __FILE__ . " linje " . __LINE__));
+					$adrRow = db_fetch_array(db_select("SELECT kontakt FROM adresser WHERE id = '" . (int)$konto_id . "'", __FILE__ . " linje " . __LINE__));
+					$maxpos = (int)($maxRow['maxpos'] ?? 0);
+					$primary = trim((string)($adrRow['kontakt'] ?? ''));
+					if (!(int)($maxRow['firsts'] ?? 0) && $row && ($primary === '' || trim((string)$row['navn']) === $primary)) {
+						$posnr = 1;
+					} else {
+						$posnr = max($maxpos, 1) + 1;
+					}
+				}
+			}
 			if(!$posnr){
 				//select the last posnr value from ansatte table where konto_id = $konto_id order by id desc limit 1
 				$query = db_select("
@@ -202,8 +225,11 @@ if ($_POST){
 				$navnA = db_escape_string($row['navn'] ?? '');
 
 				//update adresser where id = konto_id and set kontakt to kontakt
-			db_modify("update adresser set kontakt = '$navnA' where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
-			
+				// MB-138: saving an existing contact leaves the primary contact alone when nobody holds position 1.
+			if ($row || !$keepPrimary) {
+				db_modify("update adresser set kontakt = '$navnA' where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
+			}
+
 
 			####
 
