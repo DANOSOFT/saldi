@@ -7208,3 +7208,4 @@
 8488	Vil du slette denne vare og lægge den tilbage på lager?	Do you want to delete this item and return it to stock?	Vil du slette denne varen og legge den tilbake på lager?
 8489	%s er tilknyttet: %s.	%s is linked to: %s.	%s er knyttet til: %s.
 8490	Denne seddel er overført af	This slip has been transferred by	Denne seddelen er overført av
+8511	Lageret på linjen findes ikke længere. Vælg et aktivt lager i feltet Lager på linjen, og prøv igen:	The warehouse on the line no longer exists. Choose an active warehouse in the line's Inventory field and try again:	Lageret på linjen finnes ikke lenger. Velg et aktivt lager i feltet Lager på linjen, og prøv igjen:
