@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,7 +47,8 @@
 // 20261105 CL/MMR SST-951 The order's language (Baggrund, as on a sales order) can be chosen on a saved order when forms exist in more than one language.
 //                 A blank order has no field: the order gets its language from the supplier's group when it is created.
 //                 The mail subject and text placeholders follow the order's language instead of always Dansk.
-
+// 20261120 CL/SZ MB-139 The header fields (address, e-mail, CVR-nr., delivery address and Rekv. nr.) escape their values, so O'Brien Trading shows in full and Gem no longer saves it back as O.
+//
 /*
 $attachId    = null;
 $email       = null;
@@ -74,17 +75,17 @@ if (trim($kontonr)) {
 	print "value='$kontonr' onchange='javascript:docChange = true;'></td></tr>\n";
 }
 print "<tr><td>".findtekst(360,$sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='firmanavn' ";
-print "onfocus='document.forms[0].fokus.value=this.name;' value='$firmanavn' onchange='javascript:docChange = true;'></td></tr>\n";
+print "onfocus='document.forms[0].fokus.value=this.name;' value='" . htmlspecialchars($firmanavn ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst(648,$sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='addr1' ";
-print "onfocus='document.forms[0].fokus.value=this.name;' value='$addr1' onchange='javascript:docChange = true;'></td></tr>\n";
+print "onfocus='document.forms[0].fokus.value=this.name;' value='" . htmlspecialchars($addr1 ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td></td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='addr2' ";
-print "onfocus='document.forms[0].fokus.value=this.name;' value='$addr2' onchange='javascript:docChange = true;'></td></tr>\n";
+print "onfocus='document.forms[0].fokus.value=this.name;' value='" . htmlspecialchars($addr2 ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst(549,$sprog_id)."</td>";
 print "<td><input class='inputbox' type='text' style='width:50px' name='postnr' ";
-print "onfocus='document.forms[0].fokus.value=this.name;' value='$postnr' onchange='javascript:docChange = true;'>";
-print "<input class='inputbox' type='text' style='width:200px' name=bynavn onfocus='document.forms[0].fokus.value=this.name;' value='$bynavn' onchange='javascript:docChange = true;'></td></tr>\n";
+print "onfocus='document.forms[0].fokus.value=this.name;' value='" . htmlspecialchars($postnr ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'>";
+print "<input class='inputbox' type='text' style='width:200px' name=bynavn onfocus='document.forms[0].fokus.value=this.name;' value='" . htmlspecialchars($bynavn ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst(364,$sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='land' ";
-print "value='$land' onchange='javascript:docChange = true;'></td></tr>\n";
+print "value='" . htmlspecialchars($land ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>Att.:</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='kontakt' ";
 print "onfocus='document.forms[0].fokus.value=this.name;' value='$kontakt' onchange='javascript:docChange = true;'></td></tr>\n";
 print "</tbody></table></td>";
@@ -97,7 +98,7 @@ if (!$id) {
 }
 #20221104 BEGIN
 print "<tr><td>".findtekst(402,$sprog_id)."</td>";
-print "<td><input class='inputbox' type='text' style='width:110px;' name='email' value='$email' onchange='javascript:docChange = true;'></td>";
+print "<td><input class='inputbox' type='text' style='width:110px;' name='email' value='" . htmlspecialchars($email ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td>";
 print "<td>".findtekst(2306,$sprog_id)."</td><td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='javascript:docChange = true;'>\n";  #onchange='this.form.submit()'
 print "<option value='PDF' ".((!$email || $udskriv_til=="PDF")?"selected='selected'":"").">PDF</option>\n";
 print "<option value='email' ".(($email && $udskriv_til=="email")?"selected='selected'":"")." title=\"".findtekst(1450, $sprog_id)."\">".findtekst(652, $sprog_id)."</option>\n";
@@ -121,7 +122,7 @@ if ($id && db_fetch_array(db_select("select distinct sprog from formularer where
 }
 
 print "<tr><td>CVR-nr.</td>";
-print "<td><input class='inputbox' type='text' style='width:110px;' name=cvrnr value='$cvrnr' onchange='javascript:docChange = true;'></td>";
+print "<td><input class='inputbox' type='text' style='width:110px;' name=cvrnr value='" . htmlspecialchars($cvrnr ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td>";
 $dkmomssats=dkdecimal($momssats,2);
 print "<td>".findtekst(770,$sprog_id)."</td><td><input class='inputbox' type='text' style='text-align:right;width:110px;' name='momssats' value='$dkmomssats' ";
 print "onchange='javascript:docChange = true;'>%</td></tr>\n";
@@ -280,12 +281,12 @@ print "</tbody></table></td>";
 print "<td align=center><table border = '0' cellpadding= '0' cellspacing= '0'>";
 print "<tr><td colspan='2' ><button type='button' class='button gray medium' style='width:100%; cursor: pointer; $buttonStyle' onclick=\"window.location.href='orderIncludes/dropshipping.php?id=$id'\">".findtekst('554|Leveringsadresse', $sprog_id)."</button></td></tr>\n";
 print "<tr><td colspan='2' align=center><hr></td></tr>\n";
-print "<tr><td>".findtekst('360|Firmanavn', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_navn value='$lev_navn' onchange='javascript:docChange = true;'></td></tr>\n";
-print "<tr><td>".findtekst('648|Adresse', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr1 value='$lev_addr1' onchange='javascript:docChange = true;'></td></tr>\n";
-print "<tr><td></td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr2 value='$lev_addr2' onchange='javascript:docChange = true;'></td></tr>\n";
-print "<tr><td>".findtekst('549|Postnr, by', $sprog_id)."</td><td><input class='inputbox' type='text' size=4 name=lev_postnr value='$lev_postnr' onchange='javascript:docChange = true;'>&nbsp;<input class='inputbox' type='text' size=16 name=lev_bynavn value='$lev_bynavn' onchange='javascript:docChange = true;'></td></tr>\n";
-print "<tr><td>Att.:</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_kontakt value='$lev_kontakt' onchange='javascript:docChange = true;'></td></tr>\n";
-print "<tr><td>".findtekst('2129|Rekv. nr.', $sprog_id).":</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='kundeordnr' value='$kundeordnr' onchange='javascript:docChange = true;'></td></tr>\n"; #20221104
+print "<tr><td>".findtekst('360|Firmanavn', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_navn value='" . htmlspecialchars($lev_navn ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
+print "<tr><td>".findtekst('648|Adresse', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr1 value='" . htmlspecialchars($lev_addr1 ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
+print "<tr><td></td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr2 value='" . htmlspecialchars($lev_addr2 ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
+print "<tr><td>".findtekst('549|Postnr, by', $sprog_id)."</td><td><input class='inputbox' type='text' size=4 name=lev_postnr value='" . htmlspecialchars($lev_postnr ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'>&nbsp;<input class='inputbox' type='text' size=16 name=lev_bynavn value='" . htmlspecialchars($lev_bynavn ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
+print "<tr><td>Att.:</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_kontakt value='" . htmlspecialchars($lev_kontakt ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n";
+print "<tr><td>".findtekst('2129|Rekv. nr.', $sprog_id).":</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name='kundeordnr' value='" . htmlspecialchars($kundeordnr ?? '', ENT_QUOTES, $charset) . "' onchange='javascript:docChange = true;'></td></tr>\n"; #20221104
 print "</td></tr></tbody></table></td>";
 print "</td></tr>";
 
