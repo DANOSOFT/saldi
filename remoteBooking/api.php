@@ -35,6 +35,8 @@
 // 20261120 CL/MMR SST-996 (review): a failed BEGIN or COMMIT also makes updateBooking answer with an error, not "deleted".
 // 20261120 CL/MMR SST-996 (review): a failed booking lookup answers with JSON only, without db_select()'s alert script in front.
 // 20261120 CL/MMR SST-996 (review): the booking is read with FOR UPDATE inside the transaction, so an order attached at the same moment is not left behind.
+// 20261120 CL/MMR SST-996 (review): the whole rejection (BEGIN to COMMIT) runs inside the output buffer, so PHP warnings from a failed DELETE or COMMIT
+//                 no longer come in front of updateBooking's JSON answer.
 //
 
 
@@ -286,30 +288,43 @@ function bookingNextFreeKontonr() {
  * SST-996: the order lines were left behind before. All three deletes run in one transaction, so a failed
  * delete leaves the booking, its order and its lines as they were.
  *
+ * Everything the database layer prints while this runs (db_select()'s alert script or error box, PHP warnings from a
+ * failed query when display_errors is on) is dropped, so updateBooking's answer is always one JSON document that
+ * index.js can parse. Logging and the fejl@ mail are unchanged. If db_select() exits (its repeated-failure branch),
+ * PHP flushes the buffer through the handler, which turns it into the same JSON error under HTTP 500; the open
+ * transaction then ends with the connection, so nothing is deleted.
+ *
  * @param int $bookingId rentalperiod.id of the booking.
  * @return bool true when the booking is gone (or never existed), false when the lookup, a delete, BEGIN or COMMIT failed.
  */
 function rejectBooking($bookingId) {
+    $previousCode = http_response_code();
+    http_response_code(500); // in effect only if something below exits
+    ob_start(function () {
+        return json_encode(["status" => "error", "message" => "The booking could not be deleted"]);
+    });
+    $deleted = rejectBookingTransaction($bookingId);
+    ob_end_clean();
+    http_response_code($previousCode ?: 200);
+    return $deleted;
+}
+
+/**
+ * The transaction behind rejectBooking(); call rejectBooking(), which keeps its output out of the JSON answer.
+ *
+ * @param int $bookingId rentalperiod.id of the booking.
+ * @return bool true when the booking is gone (or never existed), false when the lookup, a delete, BEGIN or COMMIT failed.
+ */
+function rejectBookingTransaction($bookingId) {
     global $db_modify_fejl, $webservice;
     $bookingId = (int)$bookingId;
     if (transaktion('begin') === false) {
         transaktion('rollback'); // only to close transaktion()'s nesting count again
         return false;
     }
-    // On a failed SELECT db_select() logs and mails as usual, but it also prints an alert script or error box into this JSON
-    // answer, and on a repeated failure it exits. The buffer drops that output; if db_select() exits, the handler turns
-    // what is left into the same JSON error, so index.js can always parse the answer (the open transaction then ends
-    // with the connection, so nothing is deleted).
-    $previousCode = http_response_code();
-    http_response_code(500); // in effect only if db_select() exits
-    ob_start(function () {
-        return json_encode(["status" => "error", "message" => "The booking could not be deleted"]);
-    });
     // FOR UPDATE: an order attached to the booking at the same moment (CreateOrder, rental.php) waits until this
     // rejection is done, so the order id read here is the one deleted below.
     $query = db_select("SELECT order_id FROM rentalperiod WHERE id = $bookingId FOR UPDATE", __FILE__ . " linje " . __LINE__);
-    ob_end_clean();
-    http_response_code($previousCode ?: 200);
     if ($query === false) {
         transaktion('rollback');
         return false; // the lookup failed: delete nothing, or the order and its lines would lose their booking
