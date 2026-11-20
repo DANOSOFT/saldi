@@ -164,7 +164,7 @@ final class RentalOverlapTest extends TestCase
             self::assertStringContainsString('if (rental_order_invoiced($orderId)) {', $src, $file);
             self::assertStringNotContainsString('rental_invoice_once', $src, $file);
             self::assertStringNotContainsString('rental_approval_lock', $src, $file);
-            self::assertStringContainsString('echo json_encode(["status" => "failed", "reason" => "invoice"]);', $src, $file);
+            self::assertStringContainsString('echo json_encode(["status" => "failed", "reason" => $approval === \'approved\' ? "invoice" : "not_invoiced"]);', $src, $file);
             self::assertSame(1, substr_count($src, 'fakturer_ordre($orderId'), $file . ': invoiced only in the approving call');
             self::assertStringContainsString('function handleUpdateBooking()', $src, $file);
         }
