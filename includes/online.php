@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.1 --- 2026-11-13---
+// --- includes/online.php --- ver 5.1.1 --- 2026-11-16---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,8 +85,10 @@
 //                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
 // 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
 //                 Their blocks include std_func.php through __DIR__.
+// 20261112 CL/MMR SST-1005 Call refreshFollowingOpeningBalances(), so postings in an earlier fiscal year reach the later years' opening balances.
 // 20261113 CDX/NTR Merge translated session messages with role enforcement and error reporting.
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261116 CL/MMR SST-1005 Merged with the permission gates: refreshFollowingOpeningBalances() now runs after the module gate and perm_enforce_request(), so a refused request writes nothing.
 include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001
@@ -419,6 +421,12 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			!empty($permission_post_read),
 			($modulnr !== NULL && $modulnr !== '') ? (int) $modulnr : null
 		);
+	}
+	// SST-1005: postings that reached an earlier fiscal year are carried into the later years' opening balances
+	// once a session in a later year opens a page that both permission gates above allow. Normally one indexed query; see includes/updateFollowingOpeningBalances.php.
+	if ($db_ver > '3.7.4' && $regnaar && !$webservice && !$nextver && !(isset($css) && strpos($css, 'mysale') !== false)) {
+		include_once(__DIR__ . '/updateFollowingOpeningBalances.php');
+		refreshFollowingOpeningBalances($regnaar);
 	}
 }
 

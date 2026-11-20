@@ -1,9 +1,10 @@
 <?php
-// --- tests/test_following_opening_balances.php --- patch 5.0.1 --- 2026.09.07 ---
+// --- tests/test_following_opening_balances.php --- ver 5.1.1 --- 2026.11.12 ---
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260907 CDX/PHR Verify chained opening balances against isolated PostgreSQL temporary tables.
 // 20260907 CL/NTR  Cover missing status and result destinations in the target year.
+// 20261112 CL/MMR  SST-1005: The missing status account now has a balance, as a zero balance no longer blocks.
 // Run with SALDI_TEST_DSN and libpq credentials (for example PGPASSFILE).
 
 if (PHP_SAPI !== 'cli') exit('CLI only');
@@ -73,7 +74,10 @@ try {
 	db_modify('savepoint missing_status_destination');
 	db_modify("update kontoplan set primo=4444 where regnskabsaar in (10, 11) and kontonr=2000");
 	db_modify("delete from kontoplan where regnskabsaar=10 and kontonr=2500");
-	checkOpening(updateFollowingOpeningBalances(9) === array(), 'Stop when a status account has neither a transfer nor a same-number account in the next year');
+	checkOpening(updateFollowingOpeningBalances(9) === array(10, 11), 'A zero balance needs no account in the next year');
+	db_modify("update kontoplan set primo=4444 where regnskabsaar in (10, 11) and kontonr=2000");
+	db_modify("insert into transaktioner (kontonr,transdate,debet,kredit) values (2500,'2024-03-01',7.5,0),(1000,'2024-03-01',0,7.5)");
+	checkOpening(updateFollowingOpeningBalances(9) === array(), 'Stop when a status account with a balance has neither a transfer nor a same-number account in the next year');
 	checkOpening(accountValue(10, 2000, 'primo') === 4444.0 && accountValue(11, 2000, 'primo') === 4444.0, 'Leave the target year and later years unwritten when a status destination is missing');
 	db_modify('rollback to savepoint missing_status_destination');
 	db_modify('savepoint missing_result_destination');

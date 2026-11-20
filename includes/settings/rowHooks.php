@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowHooks.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/rowHooks.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 //
 // 20261016 SS The discount transfer and the old-discount columns live in virtualStorage.php.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/MMR SST-1005 «Sæt aktivt» and «Sæt alle» on a fiscal year also update the opening balances of that year and every later year, as Gem/opdatér does (as the old year list did).
 include_once(__DIR__ . '/virtualStorage.php');
 
 // ---------------------------------------------------------------- fiscal years (grupper art RA)
@@ -744,6 +745,10 @@ function settings_rows_row_action(string $sectionId, string $tableId, array $t, 
 		SettingsService::auditRow($sectionId, $tableId . '.' . $name, $objekt, '', (string) $k, 'setting.action');
 		$out['flash'] = array('ok', sprintf(st_txt($name === 'fy_activate_all' ? 6574 : 6575), trim((string) $raw['beskrivelse'])));
 		$out['reload_shell'] = true;
+		// SST-1005: as if Gem/opdatér was pressed on this year and every later year. A transfer that cannot be made
+		// is stored and shown above the list (systemdata/settingsSection.php) until a later update gets past it.
+		include_once(__DIR__ . '/../updateFollowingOpeningBalances.php');
+		syncFollowingOpeningBalances($k - 1, $k);
 	} elseif ($name === 'fy_archive') {
 		include_once(__DIR__ . '/../../systemdata/fiscalYearInc/deleteFiscalYear.php');
 		$res = deleteFinancialYear($k);
