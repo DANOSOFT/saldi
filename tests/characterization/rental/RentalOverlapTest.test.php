@@ -14,8 +14,7 @@ require_once __DIR__ . '/../../../includes/stdFunc/rentalOverlap.php';
 //                 Request days must be 'Y-m-d' calendar dates, and an existing period is compared by the days it falls on.
 //                 The last test checks that both createBooking store through rental_store_booking() and answer 409.
 // 20261120 CL/MMR SST-1000 (review) Both approvals go through rental_approve_booking(), and both pages key the free units by the local day.
-//                 An approval answers approved only after the invoice, under the booking's approval lock.
-//                 The lock reports a timeout or error (then the handlers change nothing), and the MySQL lock name includes the tenant database.
+//                 An approval answers approved only after the invoice; rental_invoice_once() invoices once under the booking's row lock and leaves a failed invoice for a retry.
 final class RentalOverlapTest extends TestCase
 {
     private const NOW = 1794481200; // 2026-11-12 12:00 Europe/Copenhagen
@@ -161,13 +160,10 @@ final class RentalOverlapTest extends TestCase
             $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);
             self::assertStringContainsString('$approval = rental_approve_booking($bookingId, $orderId);', $src, $file);
             self::assertStringNotContainsString('UPDATE rentalperiod SET expiry_time = NULL', $src, $file);
-            self::assertMatchesRegularExpression('/if \(\$approval === \'approved\'\) \{\s*try \{\s*fakturer_ordre\(\$orderId, "email", 0\);/', $src, $file);
-            self::assertStringContainsString('if (rental_order_invoiced($orderId)) $approval = \'already\';', $src, $file);
-            self::assertMatchesRegularExpression('/if \(!rental_approval_lock\(\$bookingId\)\) \{[^}]*http_response_code\(503\);[^}]*return;\s*\}\s*try \{\s*\$orderId = 0;\s*\$approval = rental_approve_booking/', $src, $file);
-            self::assertMatchesRegularExpression('/\} finally \{\s*rental_approval_lock\(\$bookingId, false\);\s*\}/', $src, $file);
-            self::assertStringContainsString('rental_approval_lock($bookingId, false);', $src, $file);
+            self::assertStringContainsString('if (rental_invoice_once($bookingId, $orderId, function ($id) { fakturer_ordre($id, "email", 0); })) {', $src, $file);
+            self::assertStringNotContainsString('rental_approval_lock', $src, $file);
             self::assertStringContainsString('echo json_encode(["status" => "failed", "reason" => "invoice"]);', $src, $file);
-            self::assertSame(1, substr_count($src, 'fakturer_ordre($orderId'), $file . ': invoiced only when approved');
+            self::assertSame(1, substr_count($src, 'fakturer_ordre($id, "email", 0)'), $file . ': invoiced only through rental_invoice_once()');
             self::assertStringContainsString('function handleUpdateBooking()', $src, $file);
         }
         foreach (['remoteBooking/index.js', 'mysale/remote.js'] as $file) {
@@ -181,44 +177,47 @@ final class RentalOverlapTest extends TestCase
     }
 
     /**
-     * rental_approval_lock() against a database double: what GET_LOCK / pg_advisory_lock answer decides the result.
+     * rental_invoice_once() against a database double: the order's status before and after the invoice decides.
      *
-     * @return array<string, array{string, string|null, bool}> db type, the "got" value the database answers (null = query failed), expected
+     * @return array<string, array{int, string, int, bool, bool}> status before, what the invoice does, status after,
+     *         invoice called, result
      */
-    public static function lockAnswers(): array
+    public static function invoiceRuns(): array
     {
         return [
-            'mysql lock taken'     => ['mysqli', '1', true],
-            'mysql timeout'        => ['mysqli', '0', false],
-            'mysql error (NULL)'   => ['mysqli', '', false],
-            'mysql query failed'   => ['mysqli', null, false],
-            'pgsql lock taken'     => ['pgsql', '1', true],
-            'pgsql query failed'   => ['pgsql', null, false],
+            'not invoiced, invoice works'      => [1, 'ok', 4, true, true],
+            'already invoiced'                 => [4, 'ok', 4, false, true],
+            'invoice returns an error'         => [1, 'error', 1, true, false],
+            'invoice throws (undefined func)'  => [1, 'throw', 1, true, false],
         ];
     }
 
-    #[DataProvider('lockAnswers')]
+    #[DataProvider('invoiceRuns')]
     #[RunInSeparateProcess]
-    public function testApprovalLockReportsWhetherItGotTheLock(string $dbType, ?string $got, bool $expected): void
+    public function testInvoiceOnceUnderTheRowLock(int $before, string $does, int $after, bool $called, bool $result): void
     {
-        $GLOBALS['db_type'] = $dbType;
-        $GLOBALS['db'] = 'tenant_a';
-        $GLOBALS['sst1000_lock_got'] = $got;
-        $GLOBALS['sst1000_lock_sql'] = [];
-        if (!function_exists('db_select')) {
-            eval('function db_select($q, $w) { $GLOBALS["sst1000_lock_sql"][] = $q; return $GLOBALS["sst1000_lock_got"] === null ? false : "q"; }
-                  function db_fetch_array($q) { return $q ? ["got" => $GLOBALS["sst1000_lock_got"]] : false; }');
-        }
-        self::assertSame($expected, rental_approval_lock(42));
-        $sql = $GLOBALS['sst1000_lock_sql'][0];
-        if ($dbType === 'mysqli') {
-            // the name is per tenant: another database gets another lock for the same booking id
-            self::assertStringContainsString("rental_approval_" . substr(md5('tenant_a'), 0, 12) . "_42", $sql);
-            $GLOBALS['db'] = 'tenant_b';
-            rental_approval_lock(42);
-            self::assertStringNotContainsString(substr(md5('tenant_a'), 0, 12), $GLOBALS['sst1000_lock_sql'][1]);
-        } else {
-            self::assertStringContainsString('pg_advisory_lock(1000, 42)', $sql);
-        }
+        ini_set('error_log', '/dev/null'); // the failed-invoice log line is expected here
+        $GLOBALS['sst1000'] = ['status' => $before, 'sql' => [], 'tx' => []];
+        $GLOBALS['db_transaktion_depth'] = 0;
+        eval('function db_select($q, $w) { $GLOBALS["sst1000"]["sql"][] = $q; return "q"; }
+              function db_fetch_array($q) { return ["status" => $GLOBALS["sst1000"]["status"]]; }
+              function transaktion($t) { $GLOBALS["sst1000"]["tx"][] = $t;
+                  if ($t === "begin") $GLOBALS["db_transaktion_depth"]++; elseif ($GLOBALS["db_transaktion_depth"]) $GLOBALS["db_transaktion_depth"]--; }');
+        $calls = 0;
+        $ok = rental_invoice_once(7, 99, function ($id) use (&$calls, $does, $after) {
+            $calls++;
+            self::assertSame(99, $id);
+            if ($does === 'throw') {
+                transaktion('begin'); // as fakturer_ordre() opens its transaction before levering()
+                throw new Error('Call to undefined function levering()');
+            }
+            transaktion('begin');
+            $GLOBALS['sst1000']['status'] = $after;
+            transaktion($does === 'ok' ? 'commit' : 'rollback');
+        });
+        self::assertSame($result, $ok);
+        self::assertSame($called ? 1 : 0, $calls);
+        self::assertStringContainsString('FROM rentalperiod WHERE id = 7 FOR UPDATE', $GLOBALS['sst1000']['sql'][0]);
+        self::assertSame(0, $GLOBALS['db_transaktion_depth'], 'no transaction left open');
     }
 }

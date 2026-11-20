@@ -26,8 +26,7 @@
 //                 createBooking stored every booking it got, so a unit could be booked twice when two customers booked at once, when the page had been open while someone else booked, or when the page picked a busy unit.
 // 20261120 CL/MMR SST-1000 (review) rental_approve_booking(): a payment that comes back after the booking expired is only approved when the unit is still free (Morten 2026-11-20, option A).
 //                 Before, the approval cleared expiry_time and invoiced, also when another booking had taken the unit or the expired booking had been deleted (order 0).
-//                 An approved booking whose order was not invoiced (the invoice failed) is invoiced again on the next approval, and approvals of one booking run one at a time (rental_approval_lock()).
-//                 rental_approval_lock() reports whether it got the lock, and the MySQL lock name includes the tenant database.
+//                 rental_invoice_once() invoices an approved booking's order once, under the booking's row lock, and a failed invoice is retried by the next approval.
 
 if (!function_exists('rental_booking_day')) {
 	/**
@@ -168,11 +167,10 @@ if (!function_exists('rental_approve_booking')) {
 	 * @param int $bookingId rentalperiod.id.
 	 * @param int $orderId Set to the booking's order id when the result is 'approved', otherwise 0.
 	 * @param int|null $now Unix time to compare the expiry with; null is time().
-	 * A booking approved before (expiry_time cleared) whose order is not invoiced yet, because the invoice failed, is
-	 * 'approved' again so the caller retries the invoice; the caller holds rental_approval_lock() so two approvals of one
-	 * booking cannot invoice at the same time.
+	 * A booking approved before (expiry_time cleared) is 'approved' again; the caller then invoices through
+	 * rental_invoice_once(), which does nothing when the order is already invoiced and retries a failed invoice.
 	 *
-	 * @return string 'approved' (invoice the order), 'already' (approved and invoiced before; do not invoice again),
+	 * @return string 'approved' (approved now or before: invoice through rental_invoice_once()),
 	 *                'missing' (no such booking, or it has no order) or 'unavailable' (expired and the unit is taken).
 	 */
 	function rental_approve_booking($bookingId, &$orderId, $now = null) {
@@ -194,8 +192,8 @@ if (!function_exists('rental_approve_booking')) {
 			return 'missing';
 		}
 		if ($row["expiry_time"] === null || $row["expiry_time"] === '') {
+			// approved before; rental_invoice_once() decides under the booking's row lock whether it still needs the invoice
 			transaktion('rollback');
-			if (rental_order_invoiced($bookingOrder)) return 'already';
 			$orderId = $bookingOrder;
 			return 'approved';
 		}
@@ -227,30 +225,39 @@ if (!function_exists('rental_order_invoiced')) {
 	}
 }
 
-if (!function_exists('rental_approval_lock')) {
+if (!function_exists('rental_invoice_once')) {
 	/**
-	 * Take or release a lock on one booking's approval for the rest of the request, so a second approval of the same
-	 * booking waits until the first has invoiced (or failed) and then sees the result. The lock belongs to the database
-	 * session, so it is also released when the request ends with an error. On PostgreSQL it is an advisory lock (scoped
-	 * to the tenant database); on MySQL/MariaDB a named lock, whose name includes the tenant database because those
-	 * names are server-wide.
+	 * Invoice an approved booking's order once. The booking's rentalperiod row is locked (SELECT ... FOR UPDATE) while
+	 * the order is checked and invoiced, so a second approval of the same booking waits until the first has finished and
+	 * then finds the order invoiced. fakturer_ordre() opens and commits its own transaction inside this one (nested, as
+	 * transaktion() counts it), which also ends the lock; an invoice that fails or throws is rolled back and left for the
+	 * next approval to retry.
 	 *
-	 * @param int $bookingId rentalperiod.id.
-	 * @param bool $hold True to take the lock (waits up to 60 seconds on MySQL, until free on PostgreSQL), false to release it.
-	 * @return bool True when the lock was taken (or released); false on a timeout or a database error.
+	 * @param int $bookingId rentalperiod.id of the approved booking.
+	 * @param int $orderId Its order (from rental_approve_booking()).
+	 * @param callable $invoice Invoices the order: function (int $orderId), e.g. fakturer_ordre($orderId, "email", 0).
+	 * @return bool True when the order is invoiced afterwards (now or before); false when the invoice failed.
 	 */
-	function rental_approval_lock($bookingId, $hold = true) {
-		global $db_type, $db;
+	function rental_invoice_once($bookingId, $orderId, $invoice) {
+		global $db_transaktion_depth;
 		$bookingId = (int)$bookingId;
-		if ($db_type == "mysql" || $db_type == "mysqli") {
-			$name = 'rental_approval_' . substr(md5((string)$db), 0, 12) . '_' . $bookingId;
-			$qtxt = $hold ? "SELECT GET_LOCK('$name', 60) AS got" : "SELECT RELEASE_LOCK('$name') AS got";
-		} else {
-			// 1000 = SST-1000's lock class, so the key cannot meet another feature's advisory locks
-			$qtxt = $hold ? "SELECT 1 AS got FROM (SELECT pg_advisory_lock(1000, $bookingId)) AS l" : "SELECT pg_advisory_unlock(1000, $bookingId) AS got";
+		$orderId = (int)$orderId;
+		transaktion('begin');
+		db_select("SELECT id FROM rentalperiod WHERE id = $bookingId FOR UPDATE", __FILE__ . " linje " . __LINE__);
+		if (rental_order_invoiced($orderId)) {
+			transaktion('rollback');
+			return true;
 		}
-		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		$row = $query ? db_fetch_array($query) : false;
-		return $row && in_array((string)$row["got"], array('1', 't'), true);
+		try {
+			$invoice($orderId);
+		} catch (\Throwable $e) {
+			error_log("SST-1000 rental_invoice_once: invoice of order $orderId failed: " . $e->getMessage());
+		}
+		// still open after an early return or an error inside the invoice: end it (after a commit inside the invoice it is a no-op)
+		if ($db_transaktion_depth) {
+			transaktion('rollback');
+			$db_transaktion_depth = 0;
+		}
+		return rental_order_invoiced($orderId);
 	}
 }
