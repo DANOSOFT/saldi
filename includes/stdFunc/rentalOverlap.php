@@ -28,6 +28,7 @@
 //                 Before, the approval cleared expiry_time and invoiced, also when another booking had taken the unit or the expired booking had been deleted (order 0).
 //                 Only the call that approves a booking invoices it; a booking approved before is reported from its order (rental_order_invoiced()) and never invoiced twice.
 //                 The approval is only reported when its update is read back, approved for the same order, before and after the commit.
+//                 rental_store_booking() returns only the id of the row its own insert stored (the sequence value), never an older booking with the same days.
 
 if (!function_exists('rental_booking_day')) {
 	/**
@@ -148,10 +149,15 @@ if (!function_exists('rental_store_booking')) {
 			return 0;
 		}
 		db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ($itemId, $custId, $from, $to, 0, TO_TIMESTAMP('$expiry', 'YYYY-MM-DD HH24:MI:SS'))", __FILE__ . " linje " . __LINE__);
-		$query = db_select("SELECT id FROM rentalperiod WHERE item_id = $itemId AND cust_id = $custId AND rt_from = $from AND rt_to = $to ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
-		$row = db_fetch_array($query);
+		// only the row this insert stored: the id the insert drew from the sequence, not an older booking with the same days
+		$query = db_select("SELECT id FROM rentalperiod WHERE id = currval(pg_get_serial_sequence('rentalperiod', 'id')) AND item_id = $itemId AND cust_id = $custId AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
+		$row = $query ? db_fetch_array($query) : false;
+		if (!$row) {
+			transaktion('rollback');
+			return 0;
+		}
 		transaktion('commit');
-		return $row ? (int)$row["id"] : 0;
+		return (int)$row["id"];
 	}
 }
 
