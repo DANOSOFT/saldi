@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -227,6 +227,8 @@
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261120 CL/MMR MB-158 The «funktion» URL parameter only opens the customer, supplier and open-item lookups.
+//                 Their files come from a fixed list, so the value never reaches a function call or an include path; any other value is ignored.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -1046,8 +1048,15 @@ if ($_GET) {
 	if (!isset($betal_id[$x]))
 		$betal_id[$x] = '';
 
-	if (($sort) && ($funktion)) {
-		if (!function_exists($funktion)) include_once("kassekladde_includes/$funktion.php");
+	$lookupFiles = array(
+		'debitorLookup'  => 'debitorLookup.php',
+		'creditorLookup' => 'creditorLookup.php',
+		'openpost'       => 'openpost_inc.php',
+	);
+	if ($sort && is_string($funktion) && isset($lookupFiles[$funktion])) {
+		if (!function_exists($funktion)) {
+			include_once(__DIR__ . '/kassekladde_includes/' . $lookupFiles[$funktion]);
+		}
 		$funktion($find, $sort, $fokus, $x, $id[$x], $kladde_id, $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $lobenr[$x]);
 	}
 	$y = 0;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sager.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- sager/sager.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,7 @@
 // 20261103 CL/MMR SD-799 Case and task statuses, "Opgave N", the datepicker and the search dropdown labels follow the user's language.
 //                 The piecework date filter's clear button shows its label again.
 // 20261104 CL/MMR SD-799 The datepicker clear-button text is passed to the script as UTF-8.
+// 20261120 CL/MMR MB-158 «funktion» only selects one of the page's own views; any other value shows the case list.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -72,7 +73,7 @@ $s_id=session_id();
 	include("../includes/std_func.php");
 	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 
-	$funktion = if_isset($_GET['funktion']);
+	$funktion = ifset($_GET, 'funktion', null);
 	$sag_id   = if_isset($_GET['sag_id'],0);
 	$sort     = if_isset($_GET['sort']);
 	$nysort   = if_isset($_GET['nysort']);
@@ -82,8 +83,8 @@ $s_id=session_id();
 	$ordre_id = if_isset($_GET['ordre_id'],0);
 	#cho "returside: $returside";
 		
-	if (!$funktion) {
-		($sag_id)?$funktion='':$funktion='sagsliste';  
+	if (!in_array($funktion, ['sagsliste', 'opret_sag', 'ret_kunde', 'vis_sag', 'ret_opgave', 'ret_sag', 'kontrolskema', 'kopi_ordre', 'sag_kontakt', 'akkordliste', 'ny_kunde'], true)) {
+		$funktion = 'sagsliste';
 	}
 	
 ini_set("display_errors", "0");
