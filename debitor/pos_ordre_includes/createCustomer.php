@@ -100,8 +100,8 @@ function pos_create_customer(array $c, $token) {
 	return shopify_db_transaction(function () use ($fields, $group, $terms, $days, $token) {
 		// the lock first: a second copy of the form waits here until the first has committed its token
 		debtor_number_lock();
-		$seen = shopify_db_rows('SELECT a.id, a.kontonr FROM settings s JOIN adresser a ON a.id = CAST(s.var_value AS integer)
-			WHERE s.var_grp = $1 AND s.var_name = $2 LIMIT 1', array(POS_CUSTOMER_CREATE_GROUP, $token));
+		$seen = shopify_db_rows("SELECT a.id, a.kontonr FROM adresser a WHERE a.id = (SELECT CASE WHEN s.var_value ~ '^[0-9]{1,9}$' THEN CAST(s.var_value AS integer) END
+			FROM settings s WHERE s.var_grp = $1 AND s.var_name = $2 LIMIT 1)", array(POS_CUSTOMER_CREATE_GROUP, $token));
 		if ($seen) {
 			return array('konto_id' => (int) $seen[0]['id'], 'kontonr' => (string) $seen[0]['kontonr'], 'created' => false);
 		}
