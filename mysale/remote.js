@@ -2,6 +2,11 @@
 // 20261015 CL/LH SST-842: reject the booking (deletes the order and rentalperiod) when no payment link is returned.
 // 20261111 CL/MMR SST-995: the calendar shows without closed days, and closed days are blocked (map returned nothing).
 //                 A start date whose rental would end on a closed day is refused with a message (no onChange loop).
+// 20261111 CL/MMR SST-1000: stop with a message and reload when createBooking returns no booking id (the unit is no longer free).
+// 20261120 CL/MMR SST-1000 (review): the free units are stored under the local day, since toISOString gave the UTC day (the day before).
+//                 A start day without a free unit stops with a message instead of a JavaScript error.
+//                 A payment approved too late for a unit that is no longer free, or whose order could not be invoiced, shows a message instead of the order confirmation and mail.
+//                 A booking the server could not save (or any answer that is not a booking) shows its own message; only "unavailable" says the unit is taken.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&db=${db}`,{
         method: "GET",
@@ -190,6 +195,10 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
         return date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
     }) : []
 
+    // SST-1000 (review): the day a date falls on in the browser, as 'YYYY-MM-DD'. toISOString() gives the UTC day,
+    // which in Denmark is the day before at midnight, so the free units were stored under the day before.
+    const localDay = date => date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
+
     const datePick = flatpickr("#calendar", {
         inline: true, // This makes the calendar always visible
         mode: "range",
@@ -221,7 +230,7 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
                 })
                 // Add this available date to our tracking array
                 if (!isItemReserved) {
-                    availableDatesById.push([itemId, date.toISOString().split('T')[0]])
+                    availableDatesById.push([itemId, localDay(date)])
                 }
                 // If item is not reserved, it's available
                 return !isItemReserved
@@ -296,13 +305,8 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
                 return
             }
 
-            let offset = startDate.getTimezoneOffset()
-            let localDate = new Date(startDate.getTime() - offset * 60 * 1000)
-            startDate = localDate.toISOString().split('T')[0]
-
-            offset = endDate.getTimezoneOffset()
-            localDate = new Date(endDate.getTime() - offset * 60 * 1000)
-            endDate = localDate.toISOString().split('T')[0]
+            startDate = localDay(startDate)
+            endDate = localDay(endDate)
 
             const shuffleArray = array => {
                 for (let i = array.length - 1; i > 0; i--) {
@@ -313,7 +317,14 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
             }
             // get id from availableDatesById based on startDate
             const shuffledArray = shuffleArray(availableDatesById);
-            const id = shuffledArray.find(([id, date]) => date === startDate)[0]
+            const match = shuffledArray.find(([id, date]) => date === startDate)
+            if (!match) {
+                // SST-1000 (review): no unit is free from the chosen start day, so nothing is sent
+                alert("Der er ingen ledig enhed fra den valgte startdato. Siden opdateres, så du kan vælge igen.")
+                location.reload()
+                return
+            }
+            const id = match[0]
             
             data = {
                 "product_id": product.id,
@@ -335,8 +346,18 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
                 body: JSON.stringify(data)
             }).then(response => {
                 return response.json()
-            })
-            
+            }).catch(() => null) // SST-1000 (review): an answer that is not JSON is a failure, not a booking
+            if (!response || !response.id) {
+                if (response && response.error === "unavailable") {
+                    // the server refused the booking: another booking or a reservation took the unit after the page loaded
+                    alert("Enheden er desværre ikke længere ledig i den valgte periode. Siden opdateres, så du kan vælge igen.")
+                } else {
+                    // SST-1000 (review): the booking could not be saved (or the server failed): no payment
+                    alert("Bookingen kunne ikke gemmes. Siden opdateres, så du kan prøve igen. Kontakt udlejeren, hvis det sker igen.")
+                }
+                location.reload()
+                return
+            }
             const bookingId = response.id
             const loading = document.querySelector("#loading")
             loading.style.display = "flex"
@@ -407,7 +428,21 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
                         })
                     }).then(response => {
                         return response.json()
-                    })
+                    }).catch(() => null) // SST-1000 (review): an answer that is not JSON (a server error) is not an approval
+                    if (!res || res.status !== "approved") {
+                        // SST-1000 (review): refused (the payment came back after the booking expired and the unit is taken)
+                        // or the order could not be invoiced: no order confirmation and no mail
+                        const why = res && res.status === "refused"
+                            ? "Enheden er ikke længere ledig i den valgte periode."
+                            : "Bestillingen kunne ikke gøres færdig."
+                        main.innerHTML = `
+                            <div class="w-2/3 mx-auto text-white text-center mt-4">
+                                <h3>Bookingen kunne ikke bekræftes</h3>
+                                <p>${why} Kontakt udlejeren om din betaling.</p>
+                            </div>
+                        `
+                        return
+                    }
                     main.innerHTML = `
                         <div class="w-2/3 mx-auto text-white text-center mt-4">
                             <h3>Tak for din bestilling!</h3>
