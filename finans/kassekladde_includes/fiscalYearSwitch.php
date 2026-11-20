@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/fiscalYearSwitch.php --- ver 5.1.1 --- 2026-11-20 ---
+// --- finans/kassekladde_includes/fiscalYearSwitch.php --- ver 5.1.1 --- 2026.11.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
