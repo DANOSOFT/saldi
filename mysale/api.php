@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- mysale/api.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,8 @@
 //                 rentalclosed.day is a unix time, and strtotime() on it gave false, so no closed day was ever counted.
 // 20261119 CL/MMR SST-999 Review (PR #1097): when closed days move the end, the moved period is checked against the item's bookings.
 //                 Another free item of the product is booked, or the booking is refused with 409 and nothing is stored.
+// 20261120 CL/MMR SST-999 Codex round 7: the check and the insert run under one row lock on the product's items (rental_insert_booking()), and the booking id comes from the INSERT.
+//                 A start or end date that cannot be read is refused with 400 instead of an SQL error.
 
 $header = "nix";
 $bg = "nix";
@@ -165,24 +167,26 @@ if(isset($_GET["createBooking"])){
     // make timestamp to unix timestamp
     $from = strtotime($data["start_date"]);
     $to = strtotime($data["end_date"]);
+    if ($from === false || $to === false) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
     $expiryTime = time() + 240;
     $expiryTime = date('Y-m-d H:i:s', $expiryTime);
     // if there is closed dates between the selected dates extend the end date by the number of days closed
     $calendarTo = $to;
     $to = rental_extend_for_closed_days($from, $to, rental_closed_days());
-    // SST-999: the calendar only checked the item up to the chosen end. A moved end must be free too, so another
-    // free item of the product is booked, or the booking is refused (409) before anything is stored.
-    if ($to !== $calendarTo) {
-        $data["item_id"] = rental_free_item_for_period($data["item_id"], $from, $to);
-        if ($data["item_id"] <= 0) {
-            http_response_code(409);
-            echo json_encode(["error" => "No item is free for the period"]);
-            exit;
-        }
+    // SST-999: the calendar only checked the item up to the chosen end. A moved end must be free too: the check and the
+    // insert run under one lock, another free item of the product is booked, or the booking is refused (409) and nothing is stored.
+    $booking = rental_insert_booking($data["item_id"], $data["cust_id"], $from, $to, $expiryTime, $to !== $calendarTo);
+    if ($booking === null) {
+        http_response_code(409);
+        echo json_encode(["error" => "No item is free for the period"]);
+        exit;
     }
-    db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ($data[item_id], $data[cust_id], $from, $to, 0, TO_TIMESTAMP('$expiryTime', 'YYYY-MM-DD HH24:MI:SS'))", __FILE__ . " linje " . __LINE__);
-    $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $data[item_id] AND cust_id = $data[cust_id] AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
-    $data["booking_id"] = db_fetch_array($query)["id"];
+    $data["item_id"] = $booking["item_id"];
+    $data["booking_id"] = $booking["booking_id"];
     if($data["unit"] == "Dag"){
         $data["days"] = $data["weeks"];
     }else{

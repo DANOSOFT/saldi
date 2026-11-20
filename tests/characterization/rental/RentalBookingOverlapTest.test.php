@@ -10,6 +10,8 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 //                 The calendar checks an item only up to the chosen end. When closed days move the end, the moved period
 //                 must not overlap another booking or reservation of the item: another free item of the product is booked,
 //                 or the booking is refused with 409 and nothing is stored.
+// 20261120 CL/MMR SST-999 Codex round 7: a booking committed while the request waits for the lock is seen (two requests at the
+//                 same time, also for the other item of the product), and the reply and the order use the id of the row the request inserted.
 final class RentalBookingOverlapTest extends CharacterizationTestCase
 {
     private static int $itemA;
@@ -193,5 +195,151 @@ final class RentalBookingOverlapTest extends CharacterizationTestCase
             [['item_id' => (string)self::$itemA, 'rt_from' => '2030-12-20', 'rt_to' => '2030-12-27']],
             self::newBookings()
         );
+    }
+
+    /**
+     * Two requests at the same time. The other request is played by a second connection that does what
+     * rental_insert_booking() does: it locks the rentalitems rows of the product (as SST-1000 locks the booked item),
+     * has inserted its booking and not committed yet, as a concurrent createBooking would between its check and its
+     * commit. The request must wait for it, see its booking after the commit, and be refused. Without the lock it does
+     * not wait, does not see the uncommitted row, and stores an overlapping booking.
+     */
+    #[DataProvider('apis')]
+    public function testABookingCommittedWhileTheRequestWaitsIsSeen(string $api): void
+    {
+        self::closeDay('2030-12-24');
+
+        $res = $this->createBookingWhileAnotherRequestHolds($api, [[self::$itemA, '2030-12-28', '2031-01-04']]);
+
+        self::assertSame(409, $res['status'], $res['body']);
+        self::assertSame([], self::newBookings());
+        self::assertSame(0, self::orderLines());
+    }
+
+    /**
+     * The other item of the product follows the same rule: item A is booked from 28 Dec, and the other request has
+     * taken item B for the same extended period but not committed yet. The request must wait, see item B taken too,
+     * and be refused, not book item B a second time.
+     */
+    #[DataProvider('apis')]
+    public function testTheOtherItemTakenWhileTheRequestWaitsIsSeen(string $api): void
+    {
+        self::useItemB();
+        self::bookItem(self::$itemA, '2030-12-28', '2031-01-04');
+        self::closeDay('2030-12-24');
+
+        $res = $this->createBookingWhileAnotherRequestHolds($api, [[self::$itemB, '2030-12-20', '2030-12-28']]);
+
+        self::assertSame(409, $res['status'], $res['body']);
+        self::assertSame(
+            [['item_id' => (string)self::$itemB, 'rt_from' => '2030-12-20', 'rt_to' => '2030-12-28']],
+            self::newBookings(),
+            'only the other request\'s booking of item B is stored'
+        );
+        self::assertSame(0, self::orderLines());
+    }
+
+    /**
+     * Book item A as createBooking() does while a second connection holds the product's rentalitems rows and has
+     * inserted $rows (item, from, to) without committing. Commits once the request waits for a lock (or after 20 s).
+     * @param list<array{int, string, string}> $rows
+     * @return array{status: int, body: string}
+     */
+    private function createBookingWhileAnotherRequestHolds(string $api, array $rows): array
+    {
+        $other = CharacterizationEnv::connect(CharacterizationEnv::testDb());
+        try {
+            pg_query($other, 'BEGIN');
+            pg_query_params(
+                $other,
+                'SELECT id FROM rentalitems WHERE id = $1 OR product_id = (SELECT product_id FROM rentalitems WHERE id = $1) ORDER BY id FOR UPDATE',
+                [self::$itemA]
+            );
+            foreach ($rows as [$item, $from, $to]) {
+                pg_query_params(
+                    $other,
+                    'INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id) VALUES ($1, $2, $3, $4, 0)',
+                    [$item, self::$customer, self::day($from), self::day($to)]
+                );
+            }
+            $child = $this->startBooking($api);
+            $waited = false;
+            $deadline = microtime(true) + 20;
+            while (microtime(true) < $deadline && proc_get_status($child['process'])['running']) {
+                $waiting = self::one(
+                    "SELECT count(*) AS n FROM pg_stat_activity WHERE datname = $1 AND wait_event_type = 'Lock'",
+                    [CharacterizationEnv::testDb()]
+                );
+                if ((int)$waiting['n'] > 0) {
+                    $waited = true;
+                    break;
+                }
+                usleep(50000);
+            }
+            pg_query($other, 'COMMIT');
+            $res = $this->finishBooking($child);
+        } finally {
+            pg_close($other);
+        }
+        self::assertTrue($waited, 'the request must wait for the other request to commit');
+        return $res;
+    }
+
+    /**
+     * The reply and the order use the row the request inserted, also when another row has the same item, customer and
+     * dates (the period without closed days is not checked, as before). The old SELECT by those fields found the older row.
+     */
+    #[DataProvider('apis')]
+    public function testReplyAndOrderUseTheInsertedBooking(string $api): void
+    {
+        self::bookItem(self::$itemA, '2030-12-20', '2030-12-27');
+        $older = (int)self::one('SELECT max(id) AS id FROM rentalperiod')['id'];
+
+        $res = $this->createBooking($api);
+
+        self::assertSame(200, $res['status'], $res['body']);
+        $newest = self::one('SELECT id, order_id FROM rentalperiod WHERE id > $1 ORDER BY id', [$older]);
+        self::assertNotNull($newest, 'the request must store a booking');
+        self::assertSame((int)$newest['id'], (int)json_decode($res['body'], true)['id']);
+        self::assertGreaterThan(0, (int)$newest['order_id'], 'the order is linked to the inserted booking');
+        self::assertSame('0', self::one('SELECT order_id FROM rentalperiod WHERE id = $1', [$older])['order_id']);
+    }
+
+    /**
+     * Start the child runner without waiting for it.
+     * @return array{process: resource, stdout: resource, stderr: resource}
+     */
+    private function startBooking(string $api): array
+    {
+        $body = json_encode([
+            'item_id' => self::$itemA, 'cust_id' => self::$customer, 'weeks' => 1, 'unit' => 'Uge', 'sku' => self::$sku,
+            'start_date' => '2030-12-20', 'end_date' => '2030-12-27', 'price' => 80, 'product_id' => 0,
+        ]);
+        $process = proc_open(
+            [PHP_BINARY, __DIR__ . '/../support/run_booking_api.php', $api, CharacterizationEnv::testDb(), $body],
+            [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes
+        );
+        self::assertIsResource($process);
+        return ['process' => $process, 'stdout' => $pipes[1], 'stderr' => $pipes[2]];
+    }
+
+    /**
+     * Wait for the child runner and read its JSON line.
+     * @param array{process: resource, stdout: resource, stderr: resource} $child
+     * @return array{status: int, body: string}
+     */
+    private function finishBooking(array $child): array
+    {
+        $stdout = (string)stream_get_contents($child['stdout']);
+        $stderr = (string)stream_get_contents($child['stderr']);
+        fclose($child['stdout']);
+        fclose($child['stderr']);
+        proc_close($child['process']);
+        $lines = array_values(array_filter(explode("\n", trim($stdout))));
+        $json = $lines !== [] ? json_decode(end($lines), true) : null;
+        self::assertIsArray($json, "stdout: $stdout\nstderr: $stderr");
+        self::assertStringNotContainsString('Fatal error', $stdout . $stderr);
+        return $json;
     }
 }
