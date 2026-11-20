@@ -21,6 +21,7 @@
 //                 The first year after a year deleted with a timestamp or 'on' keeps its opening balances and carries them on (Codex round 17).
 // 20261120 CL/MMR SST-1005 A waiting year that is deleted before its rebuild does not swallow later work (CodeRabbit on PR #1109).
 //                 A rebuild that the production db_modify() ends with exit is rolled back and leaves the 'failed' message (CodeRabbit on PR #1109).
+//                 The year card's save keeps that message whether its own primo reset or the carry-forward fails, and a nested caller never disarms its guard (Codex round 22).
 
 declare(strict_types=1);
 
@@ -1665,6 +1666,80 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertNull(updateOpeningBalancesAfterYearSave(10));
             $this->sql('COMMIT');
             self::assertSame(1125.0, $this->primo(10, 2000));
+            self::assertNull(followingOpeningBalanceStop());
+        } finally {
+            $this->dropPrivateSchema($schema);
+            if (is_dir($scratch)) {
+                exec('rm -rf ' . escapeshellarg($scratch));
+            }
+        }
+    }
+
+    public function testANestedCallerKeepsTheGuardItDidNotArm(): void
+    {
+        self::assertTrue(followingOpeningBalanceFailureGuard(9, 9), 'The card arms it.');
+        self::assertFalse(followingOpeningBalanceFailureGuard(5, 5), 'A nested caller does not.');
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(10));
+        $this->sql('COMMIT');
+        self::assertSame(['sourceYear' => 9, 'checkedFrom' => 9], $GLOBALS['followingOpeningBalanceFailure'], 'Still the card\'s guard after the carry-forward.');
+        followingOpeningBalanceFailureGuard(null);
+        self::assertNull($GLOBALS['followingOpeningBalanceFailure']);
+        self::assertTrue(followingOpeningBalanceFailureGuard(9, 9), 'Armed again by the next save.');
+        followingOpeningBalanceFailureGuard(null);
+    }
+
+    /**
+     * @return array<string, array{0: int, 1: string}> The year whose primo the database refuses, and where that happens.
+     */
+    public static function cardFailures(): array
+    {
+        return [
+            'the card\'s own primo reset' => [10, 'reset'],
+            'the carry-forward into the next year' => [11, 'carry'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('cardFailures')]
+    public function testACardSaveThatTheProductionErrorPathEndsLeavesTheFailedMessage(int $refusedYear, string $where): void
+    {
+        if (!function_exists('proc_open')) {
+            self::markTestSkipped('proc_open is not available');
+        }
+        $schema = 'sst1005_card_' . $where . '_' . getmypid();
+        $other = $this->privateSchema($schema);
+        pg_close($other);
+        $scratch = sys_get_temp_dir() . '/sst1005card' . $where . getmypid();
+        try {
+            $before = [$this->yearState(10), $this->yearState(11)];
+            $this->sql("CREATE FUNCTION $schema.sst1005_refuse() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'test: the database refused the update'; END \$\$");
+            $this->sql("CREATE TRIGGER sst1005_refuse BEFORE UPDATE OF primo ON $schema.kontoplan FOR EACH ROW WHEN (NEW.regnskabsaar = $refusedYear) EXECUTE FUNCTION $schema.sst1005_refuse()");
+
+            mkdir($scratch . '/temp/sst1005', 0777, true);
+            $child = proc_open(
+                [PHP_BINARY, __DIR__ . '/support/followingOpeningBalances/productionExit.php', TestDatabase::sqlFixture(static::class)->name(), $schema, $scratch, 'card'],
+                [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+                $pipes
+            );
+            self::assertIsResource($child);
+            $output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            proc_close($child);
+            self::assertStringContainsString('test: the database refused the update', $output);
+            self::assertStringNotContainsString('not-ended', $output, 'db_modify() ended the request, as in production.');
+            self::assertStringContainsString('shutdown-done', $output, $output);
+
+            self::assertSame($this->stop(['failed' => true]), followingOpeningBalanceStop(), "The failed message is stored when $where fails.");
+            self::assertSame($before, [$this->yearState(10), $this->yearState(11)], 'Nothing of the card\'s save is kept.');
+            self::assertSame('2024/25', pg_fetch_assoc($this->sql("SELECT beskrivelse FROM grupper WHERE art = 'RA' AND kodenr = 10"))['beskrivelse']);
+
+            // Once the database accepts it again, Gem/opdatér on year 10 saves and clears the message.
+            $this->sql("DROP TRIGGER sst1005_refuse ON $schema.kontoplan");
+            $this->sql('BEGIN');
+            self::assertNull(updateOpeningBalancesAfterYearSave(10));
+            $this->sql('COMMIT');
+            self::assertSame(1120.0, $this->primo(10, 2000));
             self::assertNull(followingOpeningBalanceStop());
         } finally {
             $this->dropPrivateSchema($schema);

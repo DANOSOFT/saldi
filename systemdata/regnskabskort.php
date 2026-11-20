@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-16 --
+// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-20 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261116 CL/MMR SST-1005 Merged with the settings redesign: the «Overfør til» loop of year 1 and a year after a deleted year keeps the F4 fix (.=, cast values) and only runs when the form posted saldo.
 //                 A year after a deleted year shows its opening balance read-only again (fiscalYearInc/yearX1.php), so its Debet/Kredit save is gone; the later years are still carried from it.
+// 20261120 CL/MMR SST-1005 A failed statement during the save, also in the card's own primo reset, leaves the message that asks for Gem/opdatér again (Codex round 22).
 @session_start();
 $s_id=session_id();
 
@@ -160,6 +161,9 @@ if ($_POST) {
 		// holds its own year while it waits for a journal posting in the year before. Then this year's opening
 		// balances before the save, kept if the transfer into the year cannot be made.
 		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+		// A failed statement anywhere in this save ends the request (db_modify() exits) and rolls all of it back; the
+		// guard then stores the message that tells the user to press Gem/opdatér again (Codex round 22).
+		$openingGuard = followingOpeningBalanceFailureGuard($kodenr - 1, $kodenr - 1);
 		followingOpeningBalanceSaveLastYearChoices($kodenr, $kontonr, $overfor_til, $kontoantal);
 		$primoBeforeSave = followingOpeningBalancePrimo($kodenr, true);
 		($id == 0)?$nn=2:$nn=1;
@@ -288,6 +292,7 @@ if ($_POST) {
 		// SST-1005: as if Gem/opdatér was pressed on this year and every later year.
 		$openingStop = updateOpeningBalancesAfterYearSave($kodenr, $primoBeforeSave);
 		transaktion("commit");
+		if ($openingGuard) followingOpeningBalanceFailureGuard(null);
 		if ($openingStop) {
 			print followingOpeningBalanceAlertScript($openingStop, $sprog_id);
 		}

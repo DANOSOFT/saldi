@@ -55,6 +55,7 @@
 //                  A deleted year is recognised by any marker in box10, the timestamp deleteFiscalYear.php writes as well as the older 'on' (Codex round 17).
 // 20261120 CL/MMR  SST-1005: A waiting year that was deleted before its rebuild no longer swallows the later work lowered into it: the rebuild starts at the first year after it (CodeRabbit).
 //                  A rebuild that a failed statement, a fatal error or a time-out ends before its catch runs is rolled back on shutdown and leaves the 'failed' message (CodeRabbit).
+//                  The year card arms that guard for its whole save, so a failure in its own primo reset leaves the message too, and a nested caller never disarms it (Codex round 22).
 
 /**
  * Whether a fiscal year's grupper art 'RA' box10 marks it as deleted. systemdata/fiscalYearInc/deleteFiscalYear.php
@@ -707,7 +708,7 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	$stop = null;
 	// The rebuild runs in a page request: a failed statement there ends the request (db_modify() shows the error box and
 	// exits), so the catch below never runs. The guard then rolls back and stores the same message on shutdown.
-	followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
+	$guarded = followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
 	transaktion('begin');
 	try {
 		if ($year > 0) {
@@ -722,12 +723,12 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		$stop = followingOpeningBalanceStopShape($fromYear, $fromYear + 1);
 		$stop['failed'] = true;
 		saveFollowingOpeningBalanceStop($stop, $checkedFrom);
-		followingOpeningBalanceFailureGuard(null);
+		if ($guarded) followingOpeningBalanceFailureGuard(null);
 		return $stop;
 	}
 	saveFollowingOpeningBalanceStop($stop, $checkedFrom);
 	transaktion('commit');
-	followingOpeningBalanceFailureGuard(null);
+	if ($guarded) followingOpeningBalanceFailureGuard(null);
 	return $stop;
 }
 
@@ -738,22 +739,30 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
  * year taken before it was lost without a message (CodeRabbit on PR #1109). A fatal error or a time-out ends the
  * request the same way. While armed, followingOpeningBalanceFailureOnShutdown() rolls back what is still open and
  * stores the 'failed' message the catch would have stored, so the user is told to retry with Gem/opdatér.
+ * The year card arms it right after its transaction begins, because its own writes (the primo reset) can fail
+ * before updateOpeningBalancesAfterYearSave() is reached, and disarms it after its commit (Codex round 22). A guard
+ * that is already armed is kept as it is: a nested caller gets false and must not disarm it.
  *
  * @param int|null $sourceYear The year the rebuild carries from, or null to disarm.
  * @param int $checkedFrom The year the caller checks from (see saveFollowingOpeningBalanceStop()).
- * @return void
+ * @return bool True when this call armed the guard (the caller disarms it), false when it was armed already or on
+ *   disarming.
  */
 function followingOpeningBalanceFailureGuard($sourceYear, $checkedFrom = 0) {
 	static $registered = false;
 	if ($sourceYear === null) {
 		$GLOBALS['followingOpeningBalanceFailure'] = null;
-		return;
+		return false;
+	}
+	if (!empty($GLOBALS['followingOpeningBalanceFailure'])) {
+		return false;
 	}
 	$GLOBALS['followingOpeningBalanceFailure'] = array('sourceYear' => (int)$sourceYear, 'checkedFrom' => (int)$checkedFrom);
 	if (!$registered) {
 		$registered = true;
 		register_shutdown_function('followingOpeningBalanceFailureOnShutdown');
 	}
+	return true;
 }
 
 /**
@@ -830,8 +839,9 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	$stop = null;
 	$fromYear = $year - 1;
 	$checkedFrom = $fromYear;
-	// A failed statement ends the request before the catch below (see followingOpeningBalanceFailureGuard()).
-	followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
+	// A failed statement ends the request before the catch below (see followingOpeningBalanceFailureGuard()). The year
+	// card has armed it already for its whole save; then it stays the card's.
+	$guarded = followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
 	try {
 		carryFollowingOpeningBalances($year, $fromYear, $stop);
 	} catch (Throwable $e) {
@@ -852,7 +862,7 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	if ($ownTransaction) {
 		transaktion('commit');
 	}
-	followingOpeningBalanceFailureGuard(null);
+	if ($guarded) followingOpeningBalanceFailureGuard(null);
 	return $stop;
 }
 
