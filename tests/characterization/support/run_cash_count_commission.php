@@ -6,6 +6,7 @@
 //                The cash count commission settlement must post both sides, settle each sale once and build its own payment list.
 //                It runs the real include against an isolated schema in the database named by SALDI_COMMISSION_DSN (set by the test).
 //                It prints one "PASS: <label>" per check, and "FAIL: <label>" plus exit 1 on the first failure.
+// 20261120 CDX/NTR Isolate today's date-parsing cases from earlier dated sales and journal settlements.
 
 error_reporting(E_ALL);
 set_error_handler(function($severity, $message, $file, $line) {
@@ -257,6 +258,10 @@ try {
 		&& $journal[1]['varenr'] === 'kb1001002' && $journal[1]['pris'] == 40 && $journal[1]['kostpris'] == 0
 		&& $journal[2]['varenr'] === 'kb1001004' && $journal[2]['kostpris'] == 15,
 		'The journal settlement leaves out only the lines settled at the cash count');
+
+	// usdate() falls back to today for invalid text, so these cases must use today.
+	// Start with fresh sales and journal posts so earlier dated fixtures cannot overlap.
+	pg_query($connection, 'TRUNCATE ordrer, ordrelinjer, pos_betalinger, openpost');
 
 	// A hand-made journal post whose period isn't a date.
 	$alerts = array();
