@@ -9,6 +9,8 @@ table is temporary or inside a private randomized schema.
 The helper prints a UUID and generated database name before creation, owns its
 registry/session rows, and only deletes databases it created successfully. Its
 identity must also be captured in individual IDE/JUnit test results.
+The generated name keeps a tenant's shape, `<master>_<regnskab id>` (`t` + 22 hex + `_1`):
+`api/rest_api.php` takes a name without the underscore for the master database (MB-154).
 `SALDI_TEST_KEEP_DATABASES=1` retains all groups for inspection; later runs must
 never reuse or automatically delete retained databases. Explicit operator cleanup
 uses `tools/phpunit-databases.php`: listing by default, `--delete` for removal.
