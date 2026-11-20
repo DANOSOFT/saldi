@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../../includes/stdFunc/rentalOverlap.php';
@@ -14,7 +13,7 @@ require_once __DIR__ . '/../../../includes/stdFunc/rentalOverlap.php';
 //                 Request days must be 'Y-m-d' calendar dates, and an existing period is compared by the days it falls on.
 //                 The last test checks that both createBooking store through rental_store_booking() and answer 409.
 // 20261120 CL/MMR SST-1000 (review) Both approvals go through rental_approve_booking(), and both pages key the free units by the local day.
-//                 An approval answers approved only after the invoice; rental_invoice_once() invoices once under the booking's row lock and leaves a failed invoice for a retry.
+//                 An approval answers approved only when the order is invoiced, and only the call that approves the booking invoices it.
 final class RentalOverlapTest extends TestCase
 {
     private const NOW = 1794481200; // 2026-11-12 12:00 Europe/Copenhagen
@@ -160,10 +159,13 @@ final class RentalOverlapTest extends TestCase
             $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);
             self::assertStringContainsString('$approval = rental_approve_booking($bookingId, $orderId);', $src, $file);
             self::assertStringNotContainsString('UPDATE rentalperiod SET expiry_time = NULL', $src, $file);
-            self::assertStringContainsString('if (rental_invoice_once($bookingId, $orderId, function ($id) { fakturer_ordre($id, "email", 0); })) {', $src, $file);
+            self::assertMatchesRegularExpression('/if \(\$approval === \'approved\'\) \{\s*try \{\s*fakturer_ordre\(\$orderId, "email", 0\);/', $src, $file);
+            self::assertStringContainsString("if (\$approval === 'approved' || \$approval === 'already') {", $src, $file);
+            self::assertStringContainsString('if (rental_order_invoiced($orderId)) {', $src, $file);
+            self::assertStringNotContainsString('rental_invoice_once', $src, $file);
             self::assertStringNotContainsString('rental_approval_lock', $src, $file);
             self::assertStringContainsString('echo json_encode(["status" => "failed", "reason" => "invoice"]);', $src, $file);
-            self::assertSame(1, substr_count($src, 'fakturer_ordre($id, "email", 0)'), $file . ': invoiced only through rental_invoice_once()');
+            self::assertSame(1, substr_count($src, 'fakturer_ordre($orderId'), $file . ': invoiced only in the approving call');
             self::assertStringContainsString('function handleUpdateBooking()', $src, $file);
         }
         foreach (['remoteBooking/index.js', 'mysale/remote.js'] as $file) {
@@ -174,50 +176,5 @@ final class RentalOverlapTest extends TestCase
             self::assertStringContainsString('if (!res || res.status !== "approved") {', $src, $file);
             self::assertStringContainsString('}).catch(() => null) // SST-1000 (review)', $src, $file);
         }
-    }
-
-    /**
-     * rental_invoice_once() against a database double: the order's status before and after the invoice decides.
-     *
-     * @return array<string, array{int, string, int, bool, bool}> status before, what the invoice does, status after,
-     *         invoice called, result
-     */
-    public static function invoiceRuns(): array
-    {
-        return [
-            'not invoiced, invoice works'      => [1, 'ok', 4, true, true],
-            'already invoiced'                 => [4, 'ok', 4, false, true],
-            'invoice returns an error'         => [1, 'error', 1, true, false],
-            'invoice throws (undefined func)'  => [1, 'throw', 1, true, false],
-        ];
-    }
-
-    #[DataProvider('invoiceRuns')]
-    #[RunInSeparateProcess]
-    public function testInvoiceOnceUnderTheRowLock(int $before, string $does, int $after, bool $called, bool $result): void
-    {
-        ini_set('error_log', '/dev/null'); // the failed-invoice log line is expected here
-        $GLOBALS['sst1000'] = ['status' => $before, 'sql' => [], 'tx' => []];
-        $GLOBALS['db_transaktion_depth'] = 0;
-        eval('function db_select($q, $w) { $GLOBALS["sst1000"]["sql"][] = $q; return "q"; }
-              function db_fetch_array($q) { return ["status" => $GLOBALS["sst1000"]["status"]]; }
-              function transaktion($t) { $GLOBALS["sst1000"]["tx"][] = $t;
-                  if ($t === "begin") $GLOBALS["db_transaktion_depth"]++; elseif ($GLOBALS["db_transaktion_depth"]) $GLOBALS["db_transaktion_depth"]--; }');
-        $calls = 0;
-        $ok = rental_invoice_once(7, 99, function ($id) use (&$calls, $does, $after) {
-            $calls++;
-            self::assertSame(99, $id);
-            if ($does === 'throw') {
-                transaktion('begin'); // as fakturer_ordre() opens its transaction before levering()
-                throw new Error('Call to undefined function levering()');
-            }
-            transaktion('begin');
-            $GLOBALS['sst1000']['status'] = $after;
-            transaktion($does === 'ok' ? 'commit' : 'rollback');
-        });
-        self::assertSame($result, $ok);
-        self::assertSame($called ? 1 : 0, $calls);
-        self::assertStringContainsString('FROM rentalperiod WHERE id = 7 FOR UPDATE', $GLOBALS['sst1000']['sql'][0]);
-        self::assertSame(0, $GLOBALS['db_transaktion_depth'], 'no transaction left open');
     }
 }

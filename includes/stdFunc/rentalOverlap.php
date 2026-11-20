@@ -26,7 +26,7 @@
 //                 createBooking stored every booking it got, so a unit could be booked twice when two customers booked at once, when the page had been open while someone else booked, or when the page picked a busy unit.
 // 20261120 CL/MMR SST-1000 (review) rental_approve_booking(): a payment that comes back after the booking expired is only approved when the unit is still free (Morten 2026-11-20, option A).
 //                 Before, the approval cleared expiry_time and invoiced, also when another booking had taken the unit or the expired booking had been deleted (order 0).
-//                 rental_invoice_once() invoices an approved booking's order once, under the booking's row lock, and a failed invoice is retried by the next approval.
+//                 Only the call that approves a booking invoices it; a booking approved before is reported from its order (rental_order_invoiced()) and never invoiced twice.
 
 if (!function_exists('rental_booking_day')) {
 	/**
@@ -165,12 +165,13 @@ if (!function_exists('rental_approve_booking')) {
 	 * check while the approval decides, and the booking row is locked so the clean-up of expired bookings waits.
 	 *
 	 * @param int $bookingId rentalperiod.id.
-	 * @param int $orderId Set to the booking's order id when the result is 'approved', otherwise 0.
 	 * @param int|null $now Unix time to compare the expiry with; null is time().
-	 * A booking approved before (expiry_time cleared) is 'approved' again; the caller then invoices through
-	 * rental_invoice_once(), which does nothing when the order is already invoiced and retries a failed invoice.
+	 * Only the call that approves the booking gets 'approved' and invoices. A booking approved before (expiry_time
+	 * cleared, also by a parallel call that got the locks first) gives 'already', and its order is not invoiced again;
+	 * the caller tells from the order (rental_order_invoiced()) whether that approval is complete.
 	 *
-	 * @return string 'approved' (approved now or before: invoice through rental_invoice_once()),
+	 * @param int $orderId Set to the booking's order id for 'approved' and 'already', otherwise 0.
+	 * @return string 'approved' (approved now: invoice the order), 'already' (approved before: do not invoice),
 	 *                'missing' (no such booking, or it has no order) or 'unavailable' (expired and the unit is taken).
 	 */
 	function rental_approve_booking($bookingId, &$orderId, $now = null) {
@@ -192,10 +193,10 @@ if (!function_exists('rental_approve_booking')) {
 			return 'missing';
 		}
 		if ($row["expiry_time"] === null || $row["expiry_time"] === '') {
-			// approved before; rental_invoice_once() decides under the booking's row lock whether it still needs the invoice
+			// approved before (by an earlier or a parallel call): only the call that approved it invoices
 			transaktion('rollback');
 			$orderId = $bookingOrder;
-			return 'approved';
+			return 'already';
 		}
 		$expires = strtotime((string)$row["expiry_time"]);
 		if ($expires !== false && $expires <= ($now === null ? time() : (int)$now)
@@ -222,42 +223,5 @@ if (!function_exists('rental_order_invoiced')) {
 		if ($orderId <= 0) return false;
 		$row = db_fetch_array(db_select("SELECT status FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__));
 		return $row && (int)$row["status"] >= 3;
-	}
-}
-
-if (!function_exists('rental_invoice_once')) {
-	/**
-	 * Invoice an approved booking's order once. The booking's rentalperiod row is locked (SELECT ... FOR UPDATE) while
-	 * the order is checked and invoiced, so a second approval of the same booking waits until the first has finished and
-	 * then finds the order invoiced. fakturer_ordre() opens and commits its own transaction inside this one (nested, as
-	 * transaktion() counts it), which also ends the lock; an invoice that fails or throws is rolled back and left for the
-	 * next approval to retry.
-	 *
-	 * @param int $bookingId rentalperiod.id of the approved booking.
-	 * @param int $orderId Its order (from rental_approve_booking()).
-	 * @param callable $invoice Invoices the order: function (int $orderId), e.g. fakturer_ordre($orderId, "email", 0).
-	 * @return bool True when the order is invoiced afterwards (now or before); false when the invoice failed.
-	 */
-	function rental_invoice_once($bookingId, $orderId, $invoice) {
-		global $db_transaktion_depth;
-		$bookingId = (int)$bookingId;
-		$orderId = (int)$orderId;
-		transaktion('begin');
-		db_select("SELECT id FROM rentalperiod WHERE id = $bookingId FOR UPDATE", __FILE__ . " linje " . __LINE__);
-		if (rental_order_invoiced($orderId)) {
-			transaktion('rollback');
-			return true;
-		}
-		try {
-			$invoice($orderId);
-		} catch (\Throwable $e) {
-			error_log("SST-1000 rental_invoice_once: invoice of order $orderId failed: " . $e->getMessage());
-		}
-		// still open after an early return or an error inside the invoice: end it (after a commit inside the invoice it is a no-op)
-		if ($db_transaktion_depth) {
-			transaktion('rollback');
-			$db_transaktion_depth = 0;
-		}
-		return rental_order_invoiced($orderId);
 	}
 }

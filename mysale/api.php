@@ -38,7 +38,7 @@
 //                 Otherwise it answers 409 "refused" and nothing is invoiced.
 //                 A booking approved before is not invoiced again, and a deleted booking (order 0) is refused instead of invoiced.
 //                 The action is now the handler handleUpdateBooking().
-//                 It answers "approved" only when the order is invoiced; a failed invoice gives HTTP 500 "failed" and is retried by the next approval.
+//                 It answers "approved" only when the order is invoiced; a failed invoice gives HTTP 500 "failed", and a repeated approval never invoices again.
 //
 
 $header = "nix";
@@ -235,14 +235,27 @@ function handleUpdateBooking() {
         exit;
     }else{
         // SST-1000 (review): a payment that came back after the booking expired is approved only when the unit is still free.
-        // The answer is "approved" only when the order is invoiced; a failed invoice is retried by the next approval.
+        // The answer is "approved" only when the order is invoiced; only the call that approves the booking invoices it.
         $orderId = 0;
         $approval = rental_approve_booking($bookingId, $orderId);
         if ($approval === 'approved') {
-            if (rental_invoice_once($bookingId, $orderId, function ($id) { fakturer_ordre($id, "email", 0); })) {
+            try {
+                fakturer_ordre($orderId, "email", 0);
+            } catch (\Throwable $e) {
+                global $db_transaktion_depth;
+                if ($db_transaktion_depth) {
+                    transaktion('rollback');
+                    $db_transaktion_depth = 0;
+                }
+                error_log("SST-1000 updateBooking: invoice of order $orderId failed: " . $e->getMessage());
+            }
+        }
+        if ($approval === 'approved' || $approval === 'already') {
+            // the booking is approved (now or before); it is only invoiced by the call that approved it
+            if (rental_order_invoiced($orderId)) {
                 echo json_encode(["status" => "approved"]);
             } else {
-                // approved, but the order is not invoiced: no confirmation; the next approval tries the invoice again
+                // approved, but the order is not invoiced: no confirmation; the order is invoiced by hand
                 http_response_code(500);
                 echo json_encode(["status" => "failed", "reason" => "invoice"]);
             }
