@@ -12,7 +12,10 @@
 // 20261023 CL/SZ Duplicate-order branches, @idempotent(key:) document, request id and redacted bodies in the log.
 // 20261026 CL/SZ A body that can't be JSON-encoded is reported as redact_error; error-log lines keep their
 //                metadata with an invalid byte (#862 review).
+// 20261120 CL/SS SD-832: an explicit null redactor logs no bodies once logging.php is loaded.
+//                The missing-token test runs in its own process, so a shopify_secret() loaded by another test can't answer it.
 
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../includes/shopify/client.php';
@@ -472,6 +475,19 @@ final class ClientRetryTest extends TestCase
 		$this->assertNull($fake->logs[0]['response_b64']);
 	}
 
+	#[RunInSeparateProcess]
+	public function test_an_explicit_null_redactor_logs_no_bodies_once_shopify_redact_is_loaded(): void
+	{
+		require_once __DIR__ . '/../../includes/shopify/logging.php';
+		$fake = new FakeShopify([FakeShopify::ok(['shop' => ['name' => 'HML']])]);
+
+		shopify_graphql(FakeShopify::shop(), 'shop', self::SHOP_QUERY, [], $fake->opts(['redact' => null]));
+
+		$this->assertTrue(function_exists('shopify_redact'));
+		$this->assertNull($fake->logs[0]['request_b64']);
+		$this->assertNull($fake->logs[0]['response_b64']);
+	}
+
 	public function test_the_default_log_line_never_carries_bodies(): void
 	{
 		$file = tempnam(sys_get_temp_dir(), 'shopify-log');
@@ -840,6 +856,7 @@ final class ClientRetryTest extends TestCase
 		$this->assertStringNotContainsString(FakeShopify::TOKEN, json_encode($fake->logs));
 	}
 
+	#[RunInSeparateProcess]
 	public function test_missing_token_and_foreign_domain_fail_before_any_request(): void
 	{
 		$fake = new FakeShopify([]);
