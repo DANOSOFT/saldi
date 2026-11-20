@@ -12,6 +12,7 @@
 // History:
 // 20261120 CL/LH MB-123 Created.
 // 20261121 CL/LH MB-123 Voucher roundings both ways on one difference account are shown as the two movements posting books.
+// 20261121 CL/LH MB-123 The settlement is read from the three settled rows rather than from the absence of open ones.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -96,8 +97,12 @@ final class ExchangeRateSettlementPageCharacterizationTest extends Characterizat
         $this->assertCount(1, $diff, 'one row on the difference account');
         $this->assertEqualsWithDelta(1.00, (float)$diff[0]['debet'] + (float)$diff[0]['kredit'], 0.005,
             'EUR 100 booked at 745 and paid at 746 leaves 1,00 DKK');
-        $open = self::rows("SELECT udlignet FROM openpost WHERE konto_id = $1 AND udlignet != '1'", [$creditor['id']]);
-        $this->assertSame([], $open, 'the invoice, the payment and the difference row are settled');
+        $posts = self::rows('SELECT udlignet, udlign_id FROM openpost WHERE konto_id = $1 ORDER BY id', [$creditor['id']]);
+        $this->assertCount(3, $posts, 'the invoice, the payment and the difference row are on the open-post ledger');
+        $this->assertSame(['1', '1', '1'], array_map(fn($r) => trim((string)$r['udlignet']), $posts), 'and all settled');
+        $this->assertGreaterThan(0, (int)$posts[0]['udlign_id']);
+        $this->assertSame(array_fill(0, 3, (int)$posts[0]['udlign_id']), array_map(fn($r) => (int)$r['udlign_id'], $posts),
+            'together, as one settlement');
         $kladde = self::one('SELECT bogfort FROM kladdeliste WHERE id = $1', [$kladdeId]);
         $this->assertSame('V', trim((string)$kladde['bogfort']));
     }
