@@ -4,6 +4,8 @@
 // Expects $title (string) to be set by the caller before include.
 // Outputs <!DOCTYPE html> … <body> and leaves the document open.
 // The caller is responsible for rendering .topline and .content-noside.
+// 20261028 CL/LH Sticky action bar and narrow checkbox column for the bank feed pick list; secondary and danger buttons win over the global !important submit style that includes/online.php prints.
+// 20261118 CL/LH UI pass: 13px body text like the rest of Saldi, the feed's summary line, a pick bar that stays visible with a border, picked rows highlighted, notices with a button, collapsible account settings (details) on the accounts page.
 
 $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 ?>
@@ -84,6 +86,127 @@ $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" vie
             border-radius: 10px;
             border: 1px solid #ddd;
             padding: 15px;
+            font-size: 13px;
+        }
+
+        /* ── Bank feed pages (connect, accounts, feed) ───────────── */
+        .eb-back { min-width: 90px; }
+        .eb-panel {
+            background: #fff;
+            border: 1px solid #e3e6ee;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+        }
+        .eb-panel h2 { font-size: 15px; margin: 0 0 8px 0; }
+        .eb-panel p { margin: 4px 0 8px 0; font-size: 13px; }
+        .eb-panel p.eb-muted { font-size: 12px; }
+        .eb-panel h2 .eb-badge { font-weight: 400; vertical-align: 1px; }
+        .eb-link { color: <?= $buttonColor ?? '#114691' ?>; text-decoration: none; font-size: 13px; white-space: nowrap; }
+        .eb-link:hover { text-decoration: underline; }
+        /* Feed: one summary line per account. */
+        .eb-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; padding: 8px 16px; }
+        .eb-summary-name { font-size: 14px; }
+        .eb-summary-bank { color: #555; }
+        .eb-summary-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+        .eb-summary-meta .eb-muted { font-size: 13px; }
+        .eb-list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; margin-bottom: 8px; }
+        .eb-list-head p { margin: 0; }
+        .eb-form-row.eb-filter { align-items: center; gap: 6px 10px; margin: 0; }
+        .eb-form-row.eb-filter label { flex-direction: row; align-items: center; gap: 6px; }
+        .eb-filter input[type=text] { width: 7.5em; }
+        .eb-muted { color: #666; font-size: 12px; }
+        .eb-grid { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; font-size: 13px; }
+        .eb-grid dt { color: #555; }
+        .eb-grid dd { margin: 0; }
+        .eb-flash { border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; font-size: 13px; }
+        .eb-flash-ok { background: #e6f4ea; border: 1px solid #9cd3ad; }
+        .eb-flash-info { background: #e8effa; border: 1px solid #a8bfe6; }
+        .eb-flash-warn { background: #fff6dd; border: 1px solid #e8cf7a; }
+        .eb-flash-error { background: #fde8e6; border: 1px solid #eba59c; }
+        .eb-flash-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .eb-flash[title] { cursor: help; }
+        .eb-badge { display: inline-block; border-radius: 10px; padding: 1px 8px; font-size: 12px; white-space: nowrap; }
+        .eb-badge.ok { background: #e6f4ea; color: #1a6b3a; }
+        .eb-badge.warn { background: #fff3cd; color: #7a5a00; }
+        .eb-badge.bad { background: #fde8e6; color: #9b2a1c; }
+        .eb-badge.muted { background: #eceef2; color: #555; }
+        .eb-btn {
+            background: <?= $buttonColor ?? '#114691' ?>;
+            color: <?= $buttonTxtColor ?? '#ffffff' ?>;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            padding: 4px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        .eb-btn:hover { opacity: .85; }
+        .eb-btn.secondary { background: #fff; color: #1a1a2e; border-color: #c4c8d2; }
+        .eb-btn.danger { background: #fff; color: #9b2a1c; border-color: #e0a59c; }
+        .eb-btn.small { padding: 1px 8px; font-size: 12px; }
+        /* includes/online.php prints button[type=submit] { background: ... !important }. */
+        button.eb-btn.secondary[type=submit] { background: #fff !important; color: #1a1a2e !important; border-color: #c4c8d2 !important; }
+        button.eb-btn.danger[type=submit] { background: #fff !important; color: #9b2a1c !important; border-color: #e0a59c !important; }
+        .eb-btn[disabled] { opacity: .45; cursor: default; }
+        .eb-inline { display: inline; margin: 0; }
+        .eb-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+        .eb-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+        .eb-tabs a {
+            padding: 4px 10px;
+            border-radius: 5px 5px 0 0;
+            border: 1px solid #c4c8d2;
+            border-bottom: none;
+            background: #f4f5f8;
+            color: #1a1a2e;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .eb-tabs a.active { background: #fff; font-weight: 600; }
+        table.eb-table { border-collapse: collapse; width: 100%; background: #fff; font-size: 13px; }
+        table.eb-table th {
+            background-color: rgba(17,70,145,0.09);
+            text-align: left;
+            font-weight: 600;
+            padding: 5px 8px;
+            white-space: nowrap;
+        }
+        table.eb-table td { padding: 4px 8px; border-top: 1px solid #eceef2; vertical-align: top; }
+        table.eb-table tbody tr:hover td { background-color: #f7f9fc; }
+        table.eb-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        table.eb-table .nowrap { white-space: nowrap; }
+        .eb-amount-neg { color: #9b2a1c; }
+        .eb-hint { display: block; color: #7a5a00; font-size: 12px; }
+        .eb-sub { display: block; color: #666; font-size: 12px; }
+        .eb-form-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; }
+        .eb-form-row label { display: flex; flex-direction: column; font-size: 12px; color: #555; gap: 2px; }
+        .eb-pickbar { position: sticky; top: 0; z-index: 2; background: #fff; margin: 0; padding: 6px 0; border-bottom: 1px solid #e3e6ee; }
+        .eb-pick-count { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-left: 6px; font-variant-numeric: tabular-nums; }
+        table.eb-table .eb-check { width: 1%; padding-right: 0; }
+        table.eb-table td label { cursor: pointer; }
+        table.eb-pick-table tbody tr { cursor: pointer; }
+        table.eb-table tbody tr.eb-picked td { background-color: #e8effa; }
+        table.eb-table th.num { text-align: right; }
+        table.eb-table td.num, table.eb-table th.num { width: 1%; min-width: 80px; }
+        /* Accounts page: one block per bank connection, one line per account. */
+        .eb-conn-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
+        .eb-conn-head h2 { margin: 0; }
+        .eb-conn-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+        .eb-account { border-top: 1px solid #eceef2; padding: 8px 0 6px 0; }
+        .eb-account:first-of-type { margin-top: 8px; }
+        .eb-account.eb-highlight { background: #f4f7fc; box-shadow: -16px 0 0 #f4f7fc, 16px 0 0 #f4f7fc; }
+        .eb-account-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
+        .eb-account-name { font-size: 13px; }
+        .eb-account-sub { color: #666; font-size: 12px; }
+        .eb-account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+        .eb-account details { margin-top: 4px; }
+        .eb-account details > summary { cursor: pointer; color: <?= $buttonColor ?? '#114691' ?>; font-size: 13px; display: inline-block; }
+        .eb-account details > summary:hover { text-decoration: underline; }
+        .eb-account details[open] > summary { margin-bottom: 6px; }
+        .eb-form-row input[type=text], .eb-form-row input[type=date], .eb-form-row select {
+            font-size: 13px; padding: 3px 6px; border: 1px solid #c4c8d2; border-radius: 4px;
         }
     </style>
 </head>

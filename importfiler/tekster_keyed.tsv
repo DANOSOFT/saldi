@@ -1,6 +1,393 @@
 account.delete.refused_other_year	Konto %s hører til et andet regnskabsår og kan ikke slettes herfra	Account %s belongs to another fiscal year and cannot be deleted here	Konto %s tilhører et annet regnskapsår og kan ikke slettes herfra
 account.delete.refused_postings	Konto %s har posteringer i regnskabsåret og kan ikke slettes	Account %s has postings in the fiscal year and cannot be deleted	Konto %s har posteringer i regnskapsåret og kan ikke slettes
 account.delete.refused_year_setup	Regnskabsåret er ikke sat korrekt op, så konto %s kan ikke slettes	The fiscal year is not set up correctly, so account %s cannot be deleted	Regnskapsåret er ikke satt opp riktig, så konto %s kan ikke slettes
+bank.account.missing	Bankkontoen findes ikke.	The bank account does not exist.	Bankkontoen finnes ikke.
+bank.account.missing_here	Bankkontoen findes ikke i dette regnskab.	The bank account does not exist in this company.	Bankkontoen finnes ikke i dette regnskapet.
+bank.account_state.active	Aktiv	Active	Aktiv
+bank.account_state.disconnected	Afbrudt	Disconnected	Frakoblet
+bank.account_state.new	Mangler opsætning	Needs setup	Mangler oppsett
+bank.account_state.paused	Sat på pause	Paused	Satt på pause
+bank.account_state.removed	Fjernet	Removed	Fjernet
+bank.account_state.unsupported	Ikke understøttet - kun DKK	Not supported - DKK only	Ikke støttet - bare DKK
+bank.account_state.unused	Ikke i brug	Not in use	Ikke i bruk
+bank.accounts.account	Konto	Account	Konto
+bank.accounts.ask_settings	Opsætningen kan ændres af en bruger med adgang til Indstillinger.	The setup can be changed by a user with access to Settings.	Oppsettet kan endres av en bruker med tilgang til Innstillinger.
+bank.accounts.base_currency	Bankimport kræver, at regnskabets basisvaluta er DKK.	Bank import requires the company's base currency to be DKK.	Bankimport krever at regnskapets basisvaluta er DKK.
+bank.accounts.changes_note	Ændringer gælder posteringer, der lægges i en kassekladde fremover. Linjer, der allerede er lagt i en kassekladde, ændres ikke.	Changes apply to entries added to a cash journal from now on. Lines already added to a cash journal are not changed.	Endringer gjelder posteringer som legges i en kassekladd fremover. Linjer som allerede er lagt i en kassekladd, endres ikke.
+bank.accounts.choose_ledger	Vælg den konto i kontoplanen, som bankkontoen skal bogføres på.	Choose the account in the chart of accounts that the bank account is posted to.	Velg kontoen i kontoplanen som bankkontoen skal bokføres på.
+bank.accounts.choose_ledger_option	Vælg konto	Choose account	Velg konto
+bank.accounts.col_access_until	Adgang til	Access until	Tilgang til
+bank.accounts.col_status	Status	Status	Status
+bank.accounts.connections	Bankforbindelser	Bank connections	Bankforbindelser
+bank.accounts.currency	Valuta	Currency	Valuta
+bank.accounts.disconnected	Bankforbindelsen er afbrudt. Importerede og bogførte posteringer er bevaret.	The bank connection has been disconnected. Imported and posted entries are kept.	Bankforbindelsen er koblet fra. Importerte og bokførte posteringer er beholdt.
+bank.accounts.disconnected_note	Forbindelsen er afbrudt. Bogførte og importerede posteringer er bevaret. Hentede posteringer, der ikke er lagt i en kassekladde, kan stadig bruges.	The connection has been disconnected. Posted and imported entries are kept. Fetched entries that have not been added to a cash journal can still be used.	Forbindelsen er koblet fra. Bokførte og importerte posteringer er beholdt. Hentede posteringer som ikke er lagt i en kassekladd, kan fortsatt brukes.
+bank.accounts.edit	Ret	Edit	Endre
+bank.accounts.fetch_from	Hent posteringer fra	Fetch entries from	Hent posteringer fra
+bank.accounts.from_bank	Konti fra %s	Accounts from %s	Kontoer fra %s
+bank.accounts.intro	For hver bankkonto vælger du den konto i kontoplanen, posteringerne skal bogføres på (bankkontoen), og datoen, hentningen skal starte fra. Posteringer før startdatoen hentes ikke til en kassekladde.	For each bank account, choose the account in the chart of accounts that the entries are posted to (the bank account) and the date to start fetching from. Entries before the start date are not fetched into a cash journal.	For hver bankkonto velger du kontoen i kontoplanen som posteringene skal bokføres på (bankkontoen), og datoen hentingen skal starte fra. Posteringer før startdatoen hentes ikke til en kassekladd.
+bank.accounts.intro_pick	Hentede posteringer vises under Bankposteringer. Du lægger dem i en kassekladde fra kassekladden med knappen Bankforbindelse.	Fetched entries are shown under Bank entries. You add them to a cash journal from the cash journal with the Bank connection button.	Hentede posteringer vises under Bankposteringer. Du legger dem i en kassekladd fra kassekladden med knappen Bankforbindelse.
+bank.accounts.intro_pick_postings	Du lægger posteringerne i en kassekladde med knappen Bankposteringer i kassekladden.	You add the entries to a cash journal with the Bank entries button in the cash journal.	Du legger posteringene i en kassekladd med knappen Bankposteringer i kassekladden.
+bank.accounts.intro_short	Vælg for hver bankkonto, hvilken konto i kontoplanen posteringerne bogføres på, og fra hvilken dato de hentes.	For each bank account, choose the account in the chart of accounts the entries are posted to, and the date they are fetched from.	Velg for hver bankkonto hvilken konto i kontoplanen posteringene bokføres på, og fra hvilken dato de hentes.
+bank.accounts.invalid_start	Startdatoen skal være en gyldig dato, som ikke ligger ude i fremtiden.	The start date must be a valid date that is not in the future.	Startdatoen må være en gyldig dato som ikke ligger frem i tid.
+bank.accounts.invalid_start_date	Startdatoen skal være en gyldig dato, skrevet som dd-mm-åååå, og den må ikke ligge i fremtiden. Intet er gemt.	The start date must be a valid date written as dd-mm-yyyy, and it must not be in the future. Nothing was saved.	Startdatoen må være en gyldig dato skrevet som dd-mm-åååå, og den kan ikke ligge frem i tid. Ingenting er lagret.
+bank.accounts.ledger_closed	Vælg en åben finanskonto i det aktuelle regnskabsår.	Choose an open general ledger account in the current financial year.	Velg en åpen finanskonto i gjeldende regnskapsår.
+bank.accounts.ledger_label	Bogføres på konto	Post to account	Bokføres på konto
+bank.accounts.linked	Tilknyttede bankkonti	Linked bank accounts	Tilknyttede bankkontoer
+bank.accounts.no_ledgers	Der er ingen drifts- eller statuskonti i kontoplanen for det aktuelle regnskabsår at vælge imellem.	There are no income statement or balance sheet accounts in the chart of accounts for the current financial year to choose from.	Det er ingen drifts- eller balansekontoer i kontoplanen for gjeldende regnskapsår å velge mellom.
+bank.accounts.no_right	Du har ikke adgang til at sætte bankkonti op. Det kræver adgang til Indstillinger.	You do not have access to set up bank accounts. This requires access to Settings.	Du har ikke tilgang til å sette opp bankkontoer. Det krever tilgang til Innstillinger.
+bank.accounts.none	Der er ingen bankkonti endnu.	There are no bank accounts yet.	Det er ingen bankkontoer ennå.
+bank.accounts.not_mappable	Bankkontoen kan ikke tilknyttes. Kun DKK understøttes.	The bank account cannot be linked. Only DKK is supported.	Bankkontoen kan ikke tilknyttes. Bare DKK støttes.
+bank.accounts.other_accounts	Andre bankkonti	Other bank accounts	Andre bankkontoer
+bank.accounts.remove	Fjern bankforbindelse	Remove bank connection	Fjern bankforbindelse
+bank.accounts.remove_confirm	Vil du fjerne forbindelsen til %s? Der hentes ikke flere posteringer. Allerede hentede og bogførte posteringer bevares.	Remove the connection to %s? No more entries will be fetched. Entries already fetched and posted are kept.	Vil du fjerne forbindelsen til %s? Det hentes ikke flere posteringer. Posteringer som allerede er hentet og bokført, beholdes.
+bank.accounts.remove_waiting	%s venter stadig på at blive lagt i en kassekladde. Du kan stadig vælge dem under Bankposteringer, når forbindelsen er fjernet.	%s are still waiting to be added to a cash journal. You can still pick them under Bank entries after the connection is removed.	%s venter fortsatt på å bli lagt i en kassekladd. Du kan fortsatt velge dem under Bankposteringer når forbindelsen er fjernet.
+bank.accounts.removed	Forbindelsen til %s er fjernet. Allerede hentede og bogførte posteringer er bevaret.	The connection to %s has been removed. Entries already fetched and posted are kept.	Forbindelsen til %s er fjernet. Posteringer som allerede er hentet og bokført, er beholdt.
+bank.accounts.removed_line	Fjernet. Allerede hentede posteringer kan stadig bruges.	Removed. Entries already fetched can still be used.	Fjernet. Posteringer som allerede er hentet, kan fortsatt brukes.
+bank.accounts.resumed_blocked	Hentningen er genoptaget, men Saldi kan ikke hente fra banken, før adgangen er fornyet eller fejlen er løst.	Fetching has resumed, but Saldi cannot fetch from the bank until access is renewed or the error is solved.	Hentingen er gjenopptatt, men Saldi kan ikke hente fra banken før tilgangen er fornyet eller feilen er løst.
+bank.accounts.save	Gem ændringer	Save changes	Lagre endringer
+bank.accounts.save_first	Gem og hent første posteringer	Save and fetch first entries	Lagre og hent første posteringer
+bank.accounts.saved	Indstillingerne er gemt. Linjer, der allerede er lagt i en kassekladde, ændres ikke.	The settings have been saved. Lines already added to a cash journal are not changed.	Innstillingene er lagret. Linjer som allerede er lagt i en kassekladd, endres ikke.
+bank.accounts.search_ledger	Søg i kontoplanen	Search the chart of accounts	Søk i kontoplanen
+bank.accounts.search_placeholder	Nummer eller navn	Number or name	Nummer eller navn
+bank.accounts.show_all	Vis alle konti	Show all accounts	Vis alle kontoer
+bank.accounts.start_date	Startdato	Start date	Startdato
+bank.accounts.start_from	Startdato %s	Start date %s	Startdato %s
+bank.accounts.start_invalid	Startdatoen skal være en gyldig dato og må ikke ligge i fremtiden.	The start date must be a valid date and must not be in the future.	Startdatoen må være en gyldig dato og kan ikke ligge frem i tid.
+bank.accounts.take_into_use	Vælg bogføringskonto for at tage den i brug	Choose a ledger account to start using it	Velg bokføringskonto for å ta den i bruk
+bank.accounts.tip_start	Tip: Vælg startdatoen lige efter den sidste dag, du allerede har bogført fra kontoudtog eller CSV-import, så samme postering ikke kommer med to gange.	Tip: Choose the start date just after the last day you have already posted from bank statements or CSV import, so the same entry is not included twice.	Tips: Velg startdatoen rett etter den siste dagen du allerede har bokført fra kontoutskrift eller CSV-import, slik at samme postering ikke kommer med to ganger.
+bank.accounts.title	Bankforbindelse - bankkonti	Bank connection - bank accounts	Bankforbindelse - bankkontoer
+bank.accounts.unsupported	Saldi kan kun importere konti i danske kroner. Kontoen er forbundet, men dens posteringer kan ikke lægges i en kassekladde.	Saldi can only import accounts in Danish kroner. The account is connected, but its entries cannot be added to a cash journal.	Saldi kan bare importere kontoer i danske kroner. Kontoen er tilkoblet, men posteringene kan ikke legges i en kassekladd.
+bank.auth.bad_identity	Bankens kontoidentifikation er ugyldig.	The bank's account identification is invalid.	Bankens kontoidentifikasjon er ugyldig.
+bank.auth.expired	Godkendelsen er udløbet. Start igen.	The authorization has expired. Start again.	Godkjenningen er utløpt. Start på nytt.
+bank.auth.not_validated	Godkendelsen skal valideres først.	The authorization must be validated first.	Godkjenningen må valideres først.
+bank.auth.other_company	Godkendelsen findes ikke i dette regnskab. Start igen fra det rigtige regnskab.	The authorization does not exist in this company. Start again from the right company.	Godkjenningen finnes ikke i dette regnskapet. Start på nytt fra riktig regnskap.
+bank.auth.other_user	Godkendelsen tilhører en anden bruger.	The authorization belongs to another user.	Godkjenningen tilhører en annen bruker.
+bank.auth.used	Godkendelsen er allerede brugt. Start en ny forbindelse.	The authorization has already been used. Start a new connection.	Godkjenningen er allerede brukt. Start en ny forbindelse.
+bank.callback.cancelled	Godkendelsen blev annulleret i banken. Der er ikke oprettet nogen forbindelse.	The authorization was cancelled at the bank. No connection has been created.	Godkjenningen ble avbrutt i banken. Det er ikke opprettet noen forbindelse.
+bank.callback.connected	Forbindelsen til %s er oprettet. Vælg bogføringskonto og startdato for hver bankkonto nedenfor.	The connection to %s has been created. Choose a posting account and start date for each bank account below.	Forbindelsen til %s er opprettet. Velg bokføringskonto og startdato for hver bankkonto nedenfor.
+bank.callback.failed	Forbindelsen blev ikke oprettet	The connection was not created	Forbindelsen ble ikke opprettet
+bank.callback.incomplete	Linket fra banken er ufuldstændigt. Start forbindelsen forfra.	The link from the bank is incomplete. Start the connection again.	Lenken fra banken er ufullstendig. Start tilkoblingen på nytt.
+bank.callback.renewed	Adgangen til %s er fornyet. Hentningen fortsætter, hvor den slap.	Access to %s has been renewed. Fetching continues where it left off.	Tilgangen til %s er fornyet. Hentingen fortsetter der den slapp.
+bank.callback.to_settings	Til indstillinger	To settings	Til innstillinger
+bank.connect.access_too_short	Bankens adgangsperiode er for kort.	The bank's access period is too short.	Bankens tilgangsperiode er for kort.
+bank.connect.active_many	Du har allerede %s aktive forbindelser.	You already have %s active connections.	Du har allerede %s aktive forbindelser.
+bank.connect.active_one	Du har allerede 1 aktiv forbindelse.	You already have 1 active connection.	Du har allerede 1 aktiv forbindelse.
+bank.connect.after	Bagefter vælger du, hvilken konto i kontoplanen hver bankkonto skal bogføres på, og fra hvilken dato posteringerne skal hentes. Du lægger de hentede posteringer i en kassekladde fra kassekladden med knappen Bankforbindelse. Kun konti i danske kroner (DKK) kan importeres.	Afterwards, you choose which account in the chart of accounts each bank account is posted to, and from which date entries are fetched. You add the fetched entries to a cash journal from the cash journal with the Bank connection button. Only accounts in Danish kroner (DKK) can be imported.	Etterpå velger du hvilken konto i kontoplanen hver bankkonto skal bokføres på, og fra hvilken dato posteringene skal hentes. Du legger de hentede posteringene i en kassekladd fra kassekladden med knappen Bankforbindelse. Bare kontoer i danske kroner (DKK) kan importeres.
+bank.connect.after_postings	Bagefter vælger du bogføringskonto og startdato for hver bankkonto, og i kassekladden lægger du posteringerne ind med knappen Bankposteringer. Kun konti i danske kroner (DKK) kan bruges.	Afterwards, you choose a ledger account and start date for each bank account, and in the cash journal you add the entries with the Bank entries button. Only accounts in Danish kroner (DKK) can be used.	Etterpå velger du bokføringskonto og startdato for hver bankkonto, og i kassekladden legger du inn posteringene med knappen Bankposteringer. Bare kontoer i danske kroner (DKK) kan brukes.
+bank.connect.bad_url	Banken returnerede ikke en gyldig login-adresse. Prøv igen senere.	The bank did not return a valid login address. Try again later.	Banken returnerte ikke en gyldig innloggingsadresse. Prøv igjen senere.
+bank.connect.bank_unavailable	Den valgte bank eller kundetype er ikke tilgængelig.	The selected bank or customer type is not available.	Den valgte banken eller kundetypen er ikke tilgjengelig.
+bank.connect.beta_title	Banken er ny hos udbyderen og kan opføre sig ustabilt	The bank is new with the provider and may be unstable	Banken er ny hos leverandøren og kan være ustabil
+bank.connect.business	Erhverv	Business	Bedrift
+bank.connect.choose_bank	Vælg en bank og kontotype fra listen.	Choose a bank and account type from the list.	Velg en bank og kontotype fra listen.
+bank.connect.connect_as	Forbind som	Connect as	Koble til som
+bank.connect.gone	Bankforbindelsen findes ikke længere. Opret en ny forbindelse.	The bank connection no longer exists. Create a new connection.	Bankforbindelsen finnes ikke lenger. Opprett en ny forbindelse.
+bank.connect.heading	Forbind en bankkonto	Connect a bank account	Koble til en bankkonto
+bank.connect.intro	Vælg din bank. Du sendes videre til bankens eget login, hvor du giver Saldi læseadgang til dine konti. Saldi kan kun læse posteringer – der kan ikke flyttes penge.	Choose your bank. You are sent on to the bank's own login, where you give Saldi read access to your accounts. Saldi can only read entries – no money can be moved.	Velg banken din. Du sendes videre til bankens egen innlogging, der du gir Saldi lesetilgang til kontoene dine. Saldi kan bare lese posteringer – det kan ikke flyttes penger.
+bank.connect.list_failed	Banklisten kunne ikke hentes:	The list of banks could not be fetched:	Banklisten kunne ikke hentes:
+bank.connect.no_banks	Der er ingen banker at vælge imellem lige nu. Prøv igen senere.	There are no banks to choose from right now. Try again later.	Det er ingen banker å velge mellom akkurat nå. Prøv igjen senere.
+bank.connect.no_right	Du har ikke adgang til at oprette eller forny bankforbindelser. Det kræver adgang til Indstillinger.	You do not have access to create or renew bank connections. This requires access to Settings.	Du har ikke tilgang til å opprette eller fornye bankforbindelser. Det krever tilgang til Innstillinger.
+bank.connect.not_enabled	Bankforbindelsen er ikke aktiveret.	The bank connection is not enabled.	Bankforbindelsen er ikke aktivert.
+bank.connect.personal	Privat	Personal	Privat
+bank.connect.privacy	Læs mere i Saldis privatlivspolitik	Read more in Saldi's privacy policy	Les mer i Saldis personvernerklæring
+bank.connect.provider	Forbindelsen går gennem Enable Banking Oy, som er en godkendt udbyder af kontooplysninger. Enable Banking henter på Saldis vegne posteringer fra de konti, du giver adgang til i banken, og kan kun læse dem.	The connection goes through Enable Banking Oy, an authorized account information service provider. On Saldi's behalf, Enable Banking fetches entries from the accounts you give access to at the bank, and can only read them.	Forbindelsen går gjennom Enable Banking Oy, som er en godkjent leverandør av kontoinformasjon. Enable Banking henter på Saldis vegne posteringer fra kontoene du gir tilgang til i banken, og kan bare lese dem.
+bank.connect.provider_short	Forbindelsen går gennem Enable Banking Oy, en godkendt udbyder af kontooplysninger, som henter posteringerne på Saldis vegne og kun kan læse dem.	The connection goes through Enable Banking Oy, an authorized account information service provider, which fetches the entries on Saldi's behalf and can only read them.	Forbindelsen går gjennom Enable Banking Oy, en godkjent leverandør av kontoinformasjon, som henter posteringene på Saldis vegne og bare kan lese dem.
+bank.connect.psu_hint	Vælg Erhverv for virksomhedens konti (netbank erhverv) og Privat for en privat netbank.	Choose Business for the company's accounts (business online banking) and Personal for a personal online bank.	Velg Bedrift for virksomhetens kontoer (nettbank bedrift) og Privat for en privat nettbank.
+bank.connect.sandbox_note	Forbindelser her bruger bankernes testdata, ikke rigtige konti.	Connections here use the banks' test data, not real accounts.	Forbindelser her bruker bankenes testdata, ikke ekte kontoer.
+bank.connect.search	Søg efter bank	Search for bank	Søk etter bank
+bank.connect.search_placeholder	Fx Danske Bank	E.g. Danske Bank	F.eks. Danske Bank
+bank.connect.see_accounts	Se tilknyttede konti	See linked accounts	Se tilknyttede kontoer
+bank.connect.title	Bankforbindelse - vælg bank	Bank connection - choose bank	Bankforbindelse - velg bank
+bank.connect.try_again	Prøv igen	Try again	Prøv igjen
+bank.connection.expires_at_latest	Adgangen udløber senest %s.	Access expires no later than %s.	Tilgangen utløper senest %s.
+bank.connection.missing	Bankforbindelsen findes ikke i dette regnskab.	The bank connection does not exist in this company.	Bankforbindelsen finnes ikke i dette regnskapet.
+bank.connection.revoke_unconfirmed	Banken bekræftede ikke afbrydelsen.	The bank did not confirm the disconnection.	Banken bekreftet ikke frakoblingen.
+bank.connection_status.active	Aktiv	Active	Aktiv
+bank.connection_status.disconnected	Afbrudt	Disconnected	Frakoblet
+bank.connection_status.error	Fejl	Error	Feil
+bank.connection_status.expired	Adgangen er udløbet	Access has expired	Tilgangen er utløpt
+bank.connection_status.removed	Fjernet	Removed	Fjernet
+bank.connection_status.replaced	Erstattet af ny forbindelse	Replaced by a new connection	Erstattet av ny forbindelse
+bank.connection_status.revoked	Adgangen er tilbagekaldt	Access has been revoked	Tilgangen er tilbakekalt
+bank.consent.days	Adgangen udløber om %s dage	Access expires in %s days	Tilgangen utløper om %s dager
+bank.consent.expired	Adgangen til banken er udløbet	Access to the bank has expired	Tilgangen til banken er utløpt
+bank.consent.today	Adgangen udløber i dag	Access expires today	Tilgangen utløper i dag
+bank.consent.tomorrow	Adgangen udløber i morgen	Access expires tomorrow	Tilgangen utløper i morgen
+bank.consent.unknown	Ukendt udløb	Unknown expiry	Ukjent utløp
+bank.coverage.disconnected	Forbindelsen er nu afbrudt	The connection is now disconnected	Forbindelsen er nå koblet fra
+bank.coverage.duplicates	Linjer i CSV-filen inden for denne periode kan give dobbeltposteringer af bankposteringer, der allerede er hentet.	Lines in the CSV file within this period may duplicate bank entries that have already been fetched.	Linjer i CSV-filen innenfor denne perioden kan gi dobbeltposteringer av bankposteringer som allerede er hentet.
+bank.coverage.fetched	Konto %s hentes via bankforbindelsen (%s) fra %s til %s	Account %s is fetched via the bank connection (%s) from %s to %s	Konto %s hentes via bankforbindelsen (%s) fra %s til %s
+bank.coverage.not_fetched	Konto %s hentes via bankforbindelsen (%s) fra %s (endnu ikke hentet)	Account %s is fetched via the bank connection (%s) from %s (not fetched yet)	Konto %s hentes via bankforbindelsen (%s) fra %s (ikke hentet ennå)
+bank.error.action_required	Banken kræver, at du logger ind igen. Forny adgangen.	The bank requires you to log in again. Renew access.	Banken krever at du logger inn på nytt. Forny tilgangen.
+bank.error.authorization	Banken kunne ikke åbnes. Kontakt Saldi-support.	The bank could not be opened. Contact Saldi support.	Banken kunne ikke åpnes. Kontakt Saldi-support.
+bank.error.code	Kode: %s	Code: %s	Kode: %s
+bank.error.consent	Adgangen til banken er udløbet eller tilbagekaldt. Forny adgangen.	Access to the bank has expired or been revoked. Renew access.	Tilgangen til banken er utløpt eller tilbakekalt. Forny tilgangen.
+bank.error.csrf	Regnskabet er skiftet, eller siden er udløbet. Handlingen blev ikke udført. Genindlæs siden i det rigtige regnskab og prøv igen.	The company has been switched, or the page has expired. The action was not carried out. Reload the page in the right company and try again.	Regnskapet er byttet, eller siden er utløpt. Handlingen ble ikke utført. Last inn siden på nytt i riktig regnskap og prøv igjen.
+bank.error.other	Bankhentningen kunne ikke gennemføres. Prøv igen senere, eller kontakt Saldi-support.	The bank fetch could not be completed. Try again later, or contact Saldi support.	Bankhentingen kunne ikke gjennomføres. Prøv igjen senere, eller kontakt Saldi-support.
+bank.error.period	Banken udleverer ikke posteringer så langt tilbage. Vælg en senere startdato under Indstillinger.	The bank does not provide entries that far back. Choose a later start date under Settings.	Banken utleverer ikke posteringer så langt tilbake. Velg en senere startdato under Innstillinger.
+bank.error.rate_limit	Banken har midlertidigt begrænset antallet af opslag. Saldi prøver igen automatisk.	The bank has temporarily limited the number of requests. Saldi will try again automatically.	Banken har midlertidig begrenset antall forespørsler. Saldi prøver igjen automatisk.
+bank.error.transient	Banken svarede ikke. Saldi prøver igen automatisk.	The bank did not respond. Saldi will try again automatically.	Banken svarte ikke. Saldi prøver igjen automatisk.
+bank.error.unexpected	Der opstod en uventet fejl. Prøv igen, og kontakt Saldi-support hvis det fortsætter (reference %s).	An unexpected error occurred. Try again, and contact Saldi support if it continues (reference %s).	Det oppstod en uventet feil. Prøv igjen, og kontakt Saldi-support hvis det fortsetter (referanse %s).
+bank.feed.accept_change	Godkend ændring	Accept change	Godkjenn endring
+bank.feed.access	Adgang	Access	Tilgang
+bank.feed.account_disconnected	Forbindelsen er afbrudt. Der hentes ikke flere posteringer. Importerede og bogførte posteringer er bevaret.	The connection has been disconnected. No more entries are fetched. Imported and posted entries are kept.	Forbindelsen er koblet fra. Det hentes ikke flere posteringer. Importerte og bokførte posteringer er beholdt.
+bank.feed.account_new	Kontoen mangler opsætning: vælg bogføringskonto og startdato, før der hentes posteringer.	The account needs setting up: choose a posting account and start date before entries are fetched.	Kontoen mangler oppsett: velg bokføringskonto og startdato før posteringer hentes.
+bank.feed.account_paused	Hentningen er sat på pause. Saldi henter ikke nye posteringer fra banken, før den genoptages. Du kan stadig bruge de posteringer, der allerede er hentet.	Fetching is paused. Saldi does not fetch new entries from the bank until it is resumed. You can still use the entries already fetched.	Hentingen er satt på pause. Saldi henter ikke nye posteringer fra banken før den gjenopptas. Du kan fortsatt bruke posteringene som allerede er hentet.
+bank.feed.account_removed	Bankforbindelsen er fjernet. Der hentes ikke flere posteringer, og allerede hentede og bogførte posteringer er bevaret.	The bank connection has been removed. No more entries are fetched, and entries already fetched and posted are kept.	Bankforbindelsen er fjernet. Det hentes ikke flere posteringer, og posteringer som allerede er hentet og bokført, er beholdt.
+bank.feed.account_unsupported	Kontoen er i %s. Saldi kan kun lægge posteringer fra konti i danske kroner (DKK) i kassekladden.	The account is in %s. Saldi can only add entries from accounts in Danish kroner (DKK) to the cash journal.	Kontoen er i %s. Saldi kan bare legge posteringer fra kontoer i danske kroner (DKK) i kassekladden.
+bank.feed.account_unused	Bankkontoen er ikke i brug. Vælg en bogføringskonto for at tage den i brug.	The bank account is not in use. Choose a ledger account to start using it.	Bankkontoen er ikke i bruk. Velg en bokføringskonto for å ta den i bruk.
+bank.feed.action_required	Banken kræver, at adgangen godkendes igen, før der kan hentes flere posteringer. Brug Forny adgang.	The bank requires access to be approved again before more entries can be fetched. Use Renew access.	Banken krever at tilgangen godkjennes på nytt før flere posteringer kan hentes. Bruk Forny tilgang.
+bank.feed.action_required_renew	Banken kræver, at adgangen godkendes igen, før der kan hentes flere posteringer.	The bank requires access to be approved again before more entries can be fetched.	Banken krever at tilgangen godkjennes på nytt før flere posteringer kan hentes.
+bank.feed.all_dates	Vis alle datoer	Show all dates	Vis alle datoer
+bank.feed.ask_settings_user	Bed en bruger med adgang til Indstillinger om det.	Ask a user with access to Settings to do it.	Be en bruker med tilgang til Innstillinger om det.
+bank.feed.ask_to_connect	Bed en bruger med adgang til Indstillinger om at forbinde banken.	Ask a user with access to Settings to connect the bank.	Be en bruker med tilgang til Innstillinger om å koble til banken.
+bank.feed.back	Tilbage	Back	Tilbake
+bank.feed.back_to_journal	Tilbage til kladde %s	Back to journal %s	Tilbake til kladd %s
+bank.feed.bad_date	%s er ikke en gyldig dato. Skriv datoen som dd-mm-åååå, fx 01-10-2026.	%s is not a valid date. Write the date as dd-mm-yyyy, e.g. 01-10-2026.	%s er ikke en gyldig dato. Skriv datoen som dd-mm-åååå, f.eks. 01-10-2026.
+bank.feed.bank	Bank	Bank	Bank
+bank.feed.bank_account	Bankkonto	Bank account	Bankkonto
+bank.feed.bank_now_shows	Banken viser nu: %s	The bank now shows: %s	Banken viser nå: %s
+bank.feed.base_currency	Bankimport kræver, at regnskabets basisvaluta er DKK. Posteringerne kan ikke lægges i kassekladden.	Bank import requires the company's base currency to be DKK. The entries cannot be added to the cash journal.	Bankimport krever at regnskapets basisvaluta er DKK. Posteringene kan ikke legges i kassekladden.
+bank.feed.choose_account	Vælg en bankkonto.	Choose a bank account.	Velg en bankkonto.
+bank.feed.choose_account_above	Vælg en bankkonto ovenfor.	Choose a bank account above.	Velg en bankkonto ovenfor.
+bank.feed.choose_ledger_link	Vælg bogføringskonto	Choose ledger account	Velg bokføringskonto
+bank.feed.col_amount	Beløb	Amount	Beløp
+bank.feed.col_date	Dato	Date	Dato
+bank.feed.col_in	Ind	In	Inn
+bank.feed.col_journal	Kassekladde	Cash journal	Kassekladd
+bank.feed.col_out	Ud	Out	Ut
+bank.feed.col_reason	Årsag	Reason	Årsak
+bank.feed.col_text	Tekst	Text	Tekst
+bank.feed.connect_bank	Forbind en bank	Connect a bank	Koble til en bank
+bank.feed.consent_expired	Adgangen til banken er udløbet. Saldi henter ikke flere posteringer, før adgangen er fornyet.	Access to the bank has expired. Saldi will not fetch more entries until access is renewed.	Tilgangen til banken er utløpt. Saldi henter ikke flere posteringer før tilgangen er fornyet.
+bank.feed.count_many	%s posteringer	%s entries	%s posteringer
+bank.feed.count_one	1 postering	1 entry	1 postering
+bank.feed.date_placeholder	dd-mm-åååå	dd-mm-yyyy	dd-mm-åååå
+bank.feed.disconnect	Afbryd	Disconnect	Koble fra
+bank.feed.disconnect_confirm	Afbryd forbindelsen til %s? Alle konti fra denne bankforbindelse stopper med at hente posteringer. Importerede og bogførte posteringer bevares.	Disconnect %s? All accounts from this bank connection stop fetching entries. Imported and posted entries are kept.	Koble fra %s? Alle kontoer fra denne bankforbindelsen slutter å hente posteringer. Importerte og bokførte posteringer beholdes.
+bank.feed.disconnect_waiting	%s venter stadig på at blive lagt i en kassekladde. Du kan fortsat vælge dem her, efter forbindelsen er afbrudt.	Still waiting to be added to a cash journal: %s. You can still select them here after disconnecting.	%s venter fortsatt på å bli lagt i en kassekladd. Du kan fortsatt velge dem her etter at forbindelsen er koblet fra.
+bank.feed.disconnected	Forbindelsen til %s er afbrudt. Importerede og bogførte posteringer er bevaret.	The connection to %s has been disconnected. Imported and posted entries are kept.	Forbindelsen til %s er koblet fra. Importerte og bokførte posteringer er beholdt.
+bank.feed.fetch_failed	Hentningen fejlede. Prøv igen senere.	Fetching failed. Try again later.	Hentingen feilet. Prøv igjen senere.
+bank.feed.fetch_failed_reason	Hentningen fejlede: %s	Fetching failed: %s	Hentingen feilet: %s
+bank.feed.fetch_now	Hent nu	Fetch now	Hent nå
+bank.feed.fetch_schedule	Saldi henter nye posteringer fra banken op til fire gange i døgnet. Hent nu kan bruges én gang hvert 5. minut.	Saldi fetches new entries from the bank up to four times a day. Fetch now can be used once every 5 minutes.	Saldi henter nye posteringer fra banken opptil fire ganger i døgnet. Hent nå kan brukes én gang hvert 5. minutt.
+bank.feed.fetch_wait	Der blev hentet kl. %s. Du kan hente igen kl. %s.	Entries were fetched at %s. You can fetch again at %s.	Det ble hentet kl. %s. Du kan hente igjen kl. %s.
+bank.feed.fetched	Hentet fra banken.	Fetched from the bank.	Hentet fra banken.
+bank.feed.fetched_at	Hentet kl. %s - %s	Fetched at %s - %s	Hentet kl. %s - %s
+bank.feed.fetched_from	hentes fra %s	fetched from %s	hentes fra %s
+bank.feed.fetched_pick	Vælg under Nye, hvilke posteringer der skal i kassekladden.	Under New, choose which entries go into the cash journal.	Velg under Nye hvilke posteringer som skal i kassekladden.
+bank.feed.from_date	Fra dato	From date	Fra dato
+bank.feed.go_journals	Gå til kassekladder	Go to cash journals	Gå til kassekladder
+bank.feed.hint_open_journal	Posteringerne lægges i den kassekladde, du arbejder i: åbn kassekladden, og klik Bankforbindelse.	Entries are added to the cash journal you are working in: open the cash journal and click Bank connection.	Posteringene legges i kassekladden du arbeider i: åpne kassekladden og klikk Bankforbindelse.
+bank.feed.hint_open_journal_postings	Posteringerne lægges i den kassekladde, du arbejder i: åbn kassekladden, og klik Bankposteringer.	Entries are added to the cash journal you are working in: open the cash journal and click Bank entries.	Posteringene legges i kassekladden du arbeider i: åpne kassekladden og klikk Bankposteringer.
+bank.feed.identical	Der findes en ens postering samme dag - begge er hentet fra banken.	An identical entry exists on the same day - both were fetched from the bank.	Det finnes en lik postering samme dag - begge er hentet fra banken.
+bank.feed.ignored	%s er sprunget over. De kan gendannes under Sprunget over.	Skipped %s. You can restore them under Skipped.	%s er hoppet over. De kan gjenopprettes under Hoppet over.
+bank.feed.import_into	Læg valgte i kladde %s	Add selected to journal %s	Legg valgte i kladd %s
+bank.feed.import_skipped	%s kunne ikke lægges i kassekladden og ligger stadig under Nye, hvor årsagen står.	Could not add %s to the cash journal. They are still under New, where the reason is shown.	%s kunne ikke legges i kassekladden og ligger fortsatt under Nye, der årsaken står.
+bank.feed.imported_into	%s er lagt i kassekladde %s.	Added %s to cash journal %s.	%s er lagt i kassekladd %s.
+bank.feed.intro_ignored	Posteringer, der er sprunget over. De lægges ikke i en kassekladde, medmindre du gendanner dem.	Entries that have been skipped. They are not added to a cash journal unless you restore them.	Posteringer som er hoppet over. De legges ikke i en kassekladd med mindre du gjenoppretter dem.
+bank.feed.intro_ignored_short	Posteringer, der er sprunget over - gendan dem, der alligevel skal i en kassekladde.	Skipped entries - restore the ones that should go into a cash journal after all.	Posteringer som er hoppet over - gjenopprett dem som likevel skal i en kassekladd.
+bank.feed.intro_imported	Posteringer, der er lagt i en kassekladde. Modkonto og bilag udfyldes i kassekladden.	Entries that have been added to a cash journal. Contra account and vouchers are filled in in the cash journal.	Posteringer som er lagt i en kassekladd. Motkonto og bilag fylles ut i kassekladden.
+bank.feed.intro_imported_short	Posteringer, der er lagt i en kassekladde.	Entries that have been added to a cash journal.	Posteringer som er lagt i en kassekladd.
+bank.feed.intro_pending	Nye posteringer fra banken. Er en postering allerede bogført på anden måde, fx fra kontoudtog, så sæt flueben og vælg Spring valgte over.	New entries from the bank. If an entry has already been posted another way, e.g. from a bank statement, tick it and choose Skip selected.	Nye posteringer fra banken. Er en postering allerede bokført på annen måte, f.eks. fra kontoutskrift, setter du hake og velger Hopp over valgte.
+bank.feed.intro_pending_journal	Sæt flueben ved de posteringer, der skal i kassekladde %s, og vælg Læg valgte i kladde %s. Er en postering allerede bogført på anden måde, fx fra kontoudtog, så vælg Spring valgte over.	Tick the entries that should go into cash journal %s, and choose Add selected to journal %s. If an entry has already been posted another way, e.g. from a bank statement, choose Skip selected.	Sett hake ved posteringene som skal i kassekladd %s, og velg Legg valgte i kladd %s. Er en postering allerede bokført på annen måte, f.eks. fra kontoutskrift, velger du Hopp over valgte.
+bank.feed.intro_pending_read	Nye posteringer fra banken, som endnu ikke er lagt i en kassekladde.	New entries from the bank that have not yet been added to a cash journal.	Nye posteringer fra banken som ennå ikke er lagt i en kassekladd.
+bank.feed.intro_pick	Nye posteringer fra banken - spring over dem, der allerede er bogført.	New entries from the bank - skip the ones that are already posted.	Nye posteringer fra banken - hopp over dem som allerede er bokført.
+bank.feed.intro_pick_journal	Sæt flueben ved posteringerne til kassekladde %s, og spring over dem, der allerede er bogført.	Tick the entries for cash journal %s, and skip the ones that are already posted.	Sett hake ved posteringene til kassekladd %s, og hopp over dem som allerede er bokført.
+bank.feed.intro_pre_cutover	Posteringer fra før startdatoen. De lægges ikke i en kassekladde.	Entries from before the start date. They are not added to a cash journal.	Posteringer fra før startdatoen. De legges ikke i en kassekladd.
+bank.feed.intro_pre_cutover_short	Posteringer fra før startdatoen, som ikke lægges i en kassekladde.	Entries from before the start date, which are not added to a cash journal.	Posteringer fra før startdatoen, som ikke legges i en kassekladd.
+bank.feed.intro_review	Posteringer, du skal tage stilling til, før de kan lægges i en kassekladde.	Entries you need to decide on before they can be added to a cash journal.	Posteringer du må ta stilling til før de kan legges i en kassekladd.
+bank.feed.journal_n	Kassekladde %s	Cash journal %s	Kassekladd %s
+bank.feed.journal_unavailable	Kassekladde %s findes ikke eller er bogført, så der kan ikke lægges posteringer i den.	Cash journal %s does not exist or has been posted, so no entries can be added to it.	Kassekladd %s finnes ikke eller er bokført, så det kan ikke legges posteringer i den.
+bank.feed.last_attempt	seneste forsøg: %s	last attempt: %s	siste forsøk: %s
+bank.feed.last_error	Seneste fejl	Last error	Siste feil
+bank.feed.last_fetch	Seneste hentning	Last fetch	Siste henting
+bank.feed.last_fetched	Senest hentet %s	Last fetched %s	Sist hentet %s
+bank.feed.last_import	Seneste import til kassekladde	Last import to cash journal	Siste import til kassekladd
+bank.feed.ledger	Bogføres på	Posted to	Bokføres på
+bank.feed.ledger_n	Konto %s	Account %s	Konto %s
+bank.feed.line_deleted	Linjen er slettet i kassekladden	The line has been deleted in the cash journal	Linjen er slettet i kassekladden
+bank.feed.manage	Administrér	Manage	Administrer
+bank.feed.move_duplicate_confirm	Flyt posteringen til Nye, selv om en ens postering allerede findes?	Move the entry to New, even though an identical entry already exists?	Flytte posteringen til Nye, selv om en lik postering allerede finnes?
+bank.feed.move_to_new	Flyt til Nye	Move to New	Flytt til Nye
+bank.feed.never_fetched	Endnu ikke hentet	Not fetched yet	Ikke hentet ennå
+bank.feed.never_imported	Endnu ingen	None yet	Ingen ennå
+bank.feed.new_many	%s nye posteringer	%s new entries	%s nye posteringer
+bank.feed.new_none	ingen nye posteringer	no new entries	ingen nye posteringer
+bank.feed.new_one	1 ny postering	1 new entry	1 ny postering
+bank.feed.next_fetch	Næste hentning	Next fetch	Neste henting
+bank.feed.next_none	Ikke planlagt	Not scheduled	Ikke planlagt
+bank.feed.next_page	Næste side	Next page	Neste side
+bank.feed.next_stopped	Stoppet - adgangen skal fornys	Stopped - access must be renewed	Stoppet - tilgangen må fornyes
+bank.feed.no_connection	Kontoen har ingen aktiv bankforbindelse.	The account has no active bank connection.	Kontoen har ingen aktiv bankforbindelse.
+bank.feed.no_date	Mangler dato	Missing date	Mangler dato
+bank.feed.no_manage_right	Du har ikke adgang til at ændre bankforbindelsen. Det kræver adgang til Indstillinger.	You do not have access to change the bank connection. This requires access to Settings.	Du har ikke tilgang til å endre bankforbindelsen. Det krever tilgang til Innstillinger.
+bank.feed.no_text	(ingen tekst fra banken)	(no text from the bank)	(ingen tekst fra banken)
+bank.feed.no_view_right	Du har ikke adgang til bankposteringer. Det kræver adgang til Kassekladde.	You do not have access to bank entries. This requires access to Cash journal.	Du har ikke tilgang til bankposteringer. Det krever tilgang til Kassekladd.
+bank.feed.none_here	Ingen posteringer her.	No entries here.	Ingen posteringer her.
+bank.feed.none_in_period	Der er ingen posteringer i den valgte periode.	There are no entries in the selected period.	Det er ingen posteringer i den valgte perioden.
+bank.feed.none_in_use	Ingen bankkonti er i brug endnu. Vælg en bogføringskonto til bankkontoen for at tage den i brug.	No bank account is in use yet. Choose a ledger account for the bank account to start using it.	Ingen bankkontoer er i bruk ennå. Velg en bokføringskonto for bankkontoen for å ta den i bruk.
+bank.feed.none_new	Der er ingen nye posteringer lige nu.	There are no new entries right now.	Det er ingen nye posteringer akkurat nå.
+bank.feed.none_text	Når en bankkonto er forbundet, henter Saldi kontoens posteringer fra banken flere gange i døgnet. Du vælger selv, hvilke posteringer der skal lægges i kassekladden, hvor du udfylder modkonto og vedhæfter bilag.	When a bank account is connected, Saldi fetches the account's entries from the bank several times a day. You choose which entries are added to the cash journal, where you fill in the contra account and attach vouchers.	Når en bankkonto er tilkoblet, henter Saldi kontoens posteringer fra banken flere ganger i døgnet. Du velger selv hvilke posteringer som skal legges i kassekladden, der du fyller ut motkonto og legger ved bilag.
+bank.feed.none_title	Ingen bankforbindelse endnu	No bank connection yet	Ingen bankforbindelse ennå
+bank.feed.not_imported_reason	Ikke lagt i kassekladden: %s	Not added to the cash journal: %s	Ikke lagt i kassekladden: %s
+bank.feed.nothing_imported	Ingen posteringer er lagt i kassekladden.	No entries were added to the cash journal.	Ingen posteringer er lagt i kassekladden.
+bank.feed.nothing_yet	Der er endnu ikke hentet nogen posteringer for kontoen.	No entries have been fetched for the account yet.	Det er ikke hentet noen posteringer for kontoen ennå.
+bank.feed.nothing_yet_hint	Brug Hent nu, eller vent på næste automatiske hentning. Bagefter vælger du under Nye, hvilke posteringer der skal i kassekladden.	Use Fetch now, or wait for the next automatic fetch. Then, under New, choose which entries go into the cash journal.	Bruk Hent nå, eller vent på neste automatiske henting. Etterpå velger du under Nye hvilke posteringer som skal i kassekladden.
+bank.feed.open_journal_first	Åbn den kassekladde, posteringerne skal i, og klik Bankforbindelse.	Open the cash journal the entries should go into, and click Bank connection.	Åpne kassekladden posteringene skal i, og klikk Bankforbindelse.
+bank.feed.open_journal_first_postings	Åbn den kassekladde, posteringerne skal i, og klik Bankposteringer.	Open the cash journal the entries should go into, and click Bank entries.	Åpne kassekladden posteringene skal i, og klikk Bankposteringer.
+bank.feed.overlap_hint	Der findes allerede en linje med samme dato og beløb på bankkontoen. Kontrollér, om posteringen er bogført.	A line with the same date and amount already exists on the bank account. Check whether the entry has been posted.	Det finnes allerede en linje med samme dato og beløp på bankkontoen. Kontroller om posteringen er bokført.
+bank.feed.pause	Sæt på pause	Pause	Sett på pause
+bank.feed.pause_confirm	Sæt hentningen på pause? Saldi henter ikke posteringer fra banken, før du genoptager. Du kan stadig bruge de posteringer, der allerede er hentet.	Pause fetching? Saldi will not fetch entries from the bank until you resume. You can still use the entries already fetched.	Sette hentingen på pause? Saldi henter ikke posteringer fra banken før du gjenopptar. Du kan fortsatt bruke posteringene som allerede er hentet.
+bank.feed.pause_not_allowed	Bankkontoen kan ikke sættes på pause eller genoptages i den nuværende tilstand.	The bank account cannot be paused or resumed in its current state.	Bankkontoen kan ikke settes på pause eller gjenopptas i nåværende tilstand.
+bank.feed.paused	Hentningen er sat på pause.	Fetching has been paused.	Hentingen er satt på pause.
+bank.feed.pick_all	Vælg alle	Select all	Velg alle
+bank.feed.pick_at_least_one	Vælg mindst én postering.	Select at least one entry.	Velg minst én postering.
+bank.feed.pick_none	Fravælg alle	Clear all	Fjern alle valg
+bank.feed.pick_one	Vælg posteringen	Select the entry	Velg posteringen
+bank.feed.picked_count	%s valgt	%s selected	%s valgt
+bank.feed.picked_in	Ind %s	In %s	Inn %s
+bank.feed.picked_many	%s posteringer valgt	%s entries selected	%s posteringer valgt
+bank.feed.picked_one	1 postering valgt	1 entry selected	1 postering valgt
+bank.feed.picked_out	Ud %s	Out %s	Ut %s
+bank.feed.posted	Bogført	Posted	Bokført
+bank.feed.previous_page	Forrige side	Previous page	Forrige side
+bank.feed.rate_limited	Banken begrænser antallet af automatiske hentninger. Saldi prøver igen ved næste planlagte hentning.	The bank limits the number of automatic fetches. Saldi will try again at the next scheduled fetch.	Banken begrenser antall automatiske hentinger. Saldi prøver igjen ved neste planlagte henting.
+bank.feed.read_only	Du har kun læseadgang til kassekladden og kan ikke ændre bankposteringer.	You only have read access to the cash journal and cannot change bank entries.	Du har bare lesetilgang til kassekladden og kan ikke endre bankposteringer.
+bank.feed.reconnect	Forbind igen	Reconnect	Koble til igjen
+bank.feed.reference	Ref. %s	Ref. %s	Ref. %s
+bank.feed.reimport	Flyt til Nye igen	Move to New again	Flytt til Nye igjen
+bank.feed.reimport_confirm	Linjen er slettet i kassekladden. Skal posteringen ligge under Nye igen, så den kan lægges i en kassekladde?	The line has been deleted in the cash journal. Should the entry go back under New so it can be added to a cash journal?	Linjen er slettet i kassekladden. Skal posteringen ligge under Nye igjen, slik at den kan legges i en kassekladd?
+bank.feed.renew	Forny adgang	Renew access	Forny tilgang
+bank.feed.renew_first	Adgangen skal fornys først	Access must be renewed first	Tilgangen må fornyes først
+bank.feed.renew_in_time	Forny adgangen i god tid, så hentningen ikke stopper.	Renew access in good time so fetching does not stop.	Forny tilgangen i god tid, slik at hentingen ikke stopper.
+bank.feed.replaced	Erstattet af en ny import	Replaced by a new import	Erstattet av en ny import
+bank.feed.restore	Gendan	Restore	Gjenopprett
+bank.feed.resume	Genoptag	Resume	Gjenoppta
+bank.feed.resumed	Hentningen er genoptaget. Saldi henter fra banken ved næste kørsel.	Fetching has been resumed. Saldi fetches from the bank at the next run.	Hentingen er gjenopptatt. Saldi henter fra banken ved neste kjøring.
+bank.feed.resumed_blocked	Hentningen er genoptaget, men Saldi kan ikke hente fra banken, før fejlen herunder er løst.	Fetching has been resumed, but Saldi cannot fetch from the bank until the error below is resolved.	Hentingen er gjenopptatt, men Saldi kan ikke hente fra banken før feilen nedenfor er løst.
+bank.feed.select_all	Vælg alle på siden	Select all on the page	Velg alle på siden
+bank.feed.settings	Indstillinger	Settings	Innstillinger
+bank.feed.setup_account	Sæt kontoen op	Set up the account	Sett opp kontoen
+bank.feed.show	Vis	Show	Vis
+bank.feed.skip	Spring over	Skip	Hopp over
+bank.feed.skip_confirm	Spring de valgte posteringer over? De lægges ikke i en kassekladde. Du kan gendanne dem under Sprunget over.	Skip the selected entries? They will not be added to a cash journal. You can restore them under Skipped.	Hoppe over de valgte posteringene? De legges ikke i en kassekladd. Du kan gjenopprette dem under Hoppet over.
+bank.feed.skip_selected	Spring valgte over	Skip selected	Hopp over valgte
+bank.feed.status_failed	Status for kontoen kunne ikke hentes.	The status of the account could not be fetched.	Status for kontoen kunne ikke hentes.
+bank.feed.still_pick	Du kan stadig lægge de hentede posteringer under Nye i en kassekladde.	You can still add the fetched entries under New to a cash journal.	Du kan fortsatt legge de hentede posteringene under Nye i en kassekladd.
+bank.feed.the_bank	banken	the bank	banken
+bank.feed.title	Bankposteringer	Bank entries	Bankposteringer
+bank.feed.to_date	Til dato	To date	Til dato
+bank.feed.unknown_action	Ukendt handling.	Unknown action.	Ukjent handling.
+bank.feed.unknown_filter	Ukendt filter.	Unknown filter.	Ukjent filter.
+bank.feed.use_value_date	Brug valørdato %s	Use value date %s	Bruk valuteringsdato %s
+bank.feed.value_date	valørdato	value date	valuteringsdato
+bank.feed.value_date_chosen	valørdato valgt	value date chosen	valuteringsdato valgt
+bank.feed.voucher_n	, bilag %s	, voucher %s	, bilag %s
+bank.fetch.busy	En hentning er allerede i gang eller er netop udført.	A fetch is already in progress or has just been done.	En henting pågår allerede eller er nettopp utført.
+bank.fetch.lease_lost	Bankforbindelsen blev ændret under hentningen.	The bank connection was changed during the fetch.	Bankforbindelsen ble endret under hentingen.
+bank.fetch.not_ready	Bankkontoen er ikke klar til hentning.	The bank account is not ready for fetching.	Bankkontoen er ikke klar for henting.
+bank.fetch.start_in_future	Startdatoen ligger i fremtiden.	The start date is in the future.	Startdatoen ligger frem i tid.
+bank.format.datetime	%s kl. %s	%s at %s	%s kl. %s
+bank.import.account_unavailable	Bankkontoen kan ikke lægge posteringer i kassekladden.	The bank account cannot add entries to the cash journal.	Bankkontoen kan ikke legge posteringer i kassekladden.
+bank.import.foreign_ids	Posteringerne tilhører ikke bankkontoen. Intet er lagt ind.	The entries do not belong to the bank account. Nothing has been added.	Posteringene tilhører ikke bankkontoen. Ingenting er lagt inn.
+bank.import.journal_locked	Kassekladden er åben hos %s. Intet er lagt ind. Prøv igen, når kladden er lukket.	The cash journal is open by %s. Nothing has been added. Try again when the journal is closed.	Kassekladden er åpen hos %s. Ingenting er lagt inn. Prøv igjen når kladden er lukket.
+bank.import.journal_missing	Kassekladden findes ikke. Intet er lagt ind.	The cash journal does not exist. Nothing has been added.	Kassekladden finnes ikke. Ingenting er lagt inn.
+bank.import.journal_posted	Kassekladden er bogført eller simuleret. Intet er lagt ind.	The cash journal has been posted or simulated. Nothing has been added.	Kassekladden er bokført eller simulert. Ingenting er lagt inn.
+bank.import.line_text	Bankpostering	Bank entry	Bankpostering
+bank.journal.button	Bankforbindelse	Bank connection	Bankforbindelse
+bank.journal.button_postings	Bankposteringer	Bank entries	Bankposteringer
+bank.journal.button_title	Gemmer kladden og åbner bankposteringerne, hvor du vælger, hvilke der skal i kladden	Saves the journal and opens the bank entries, where you choose which ones go into the journal	Lagrer kladden og åpner bankposteringene, der du velger hvilke som skal i kladden
+bank.journal.fill_contra	Udfyld modkonto i de gule felter.	Fill in the contra account in the yellow fields.	Fyll ut motkonto i de gule feltene.
+bank.pick.cannot_skip	En af de valgte posteringer kan ikke springes over. Genindlæs siden.	One of the selected entries cannot be skipped. Reload the page.	En av de valgte posteringene kan ikke hoppes over. Last inn siden på nytt.
+bank.pick.count_limit	Vælg mellem 1 og 200 posteringer ad gangen.	Select between 1 and 200 entries at a time.	Velg mellom 1 og 200 posteringer om gangen.
+bank.pick.foreign_ids	Posteringerne tilhører ikke bankkontoen.	The entries do not belong to the bank account.	Posteringene tilhører ikke bankkontoen.
+bank.pick.invalid_ids	Vælg gyldige posteringer.	Select valid entries.	Velg gyldige posteringer.
+bank.pick.max_200	Vælg højst 200 posteringer ad gangen.	Select no more than 200 entries at a time.	Velg maks 200 posteringer om gangen.
+bank.reason.after_review	Kontrollér, at posteringen ikke allerede er bogført, før du lægger den i kassekladden	Check that the entry has not already been posted before you add it to the cash journal	Kontroller at posteringen ikke allerede er bokført før du legger den i kassekladden
+bank.reason.bad_amount	Banken har sendt et ugyldigt beløb	The bank has sent an invalid amount	Banken har sendt et ugyldig beløp
+bank.reason.base_currency	Regnskabets basisvaluta skal være DKK før bankimport	The company's base currency must be DKK before bank import	Regnskapets basisvaluta må være DKK før bankimport
+bank.reason.changed_after_import	Banken har ændret posteringen efter import	The bank has changed the entry after import	Banken har endret posteringen etter import
+bank.reason.closed_period	Momsperioden for datoen er lukket	The VAT period for the date is closed	Mva-perioden for datoen er lukket
+bank.reason.missing_date	Banken har ikke sendt en bogføringsdato	The bank has not sent a posting date	Banken har ikke sendt en bokføringsdato
+bank.reason.no_ledger_account	Bogføringskontoen findes ikke eller er lukket i kontoplanen for året	The posting account does not exist or is closed in the chart of accounts for the year	Bokføringskontoen finnes ikke eller er lukket i kontoplanen for året
+bank.reason.not_pending	Posteringen ligger ikke længere under Nye	The entry is no longer under New	Posteringen ligger ikke lenger under Nye
+bank.reason.outside_fiscal_year	Datoen ligger uden for det regnskabsår, du arbejder i	The date is outside the financial year you are working in	Datoen ligger utenfor regnskapsåret du arbeider i
+bank.reason.possible_duplicate	Mulig dublet - en ens postering findes allerede	Possible duplicate - an identical entry already exists	Mulig duplikat - en lik postering finnes allerede
+bank.reason.unsupported_currency	Valutaen understøttes ikke - kun DKK	The currency is not supported - DKK only	Valutaen støttes ikke - bare DKK
+bank.run_status.consent_expired	Adgangen er udløbet	Access has expired	Tilgangen er utløpt
+bank.run_status.failed	Fejlede	Failed	Feilet
+bank.run_status.ok	Gennemført	Completed	Fullført
+bank.run_status.partial	Delvist gennemført	Partly completed	Delvis fullført
+bank.run_status.rate_limited	Banken begrænser hentninger	The bank is limiting fetches	Banken begrenser hentinger
+bank.run_status.running	I gang	In progress	Pågår
+bank.run_status.skipped	Sprunget over - en hentning kører allerede	Skipped - a fetch is already running	Hoppet over - en henting kjører allerede
+bank.settings.accounts	Bankkonti	Bank accounts	Bankkontoer
+bank.settings.add_connection	Tilføj bankforbindelse	Add bank connection	Legg til bankforbindelse
+bank.settings.col_accounts	Konti	Accounts	Kontoer
+bank.settings.col_connection	Forbindelse	Connection	Forbindelse
+bank.settings.disabled	Bankforbindelse er slået fra. Der hentes ikke flere posteringer, men forbindelser og data er bevaret.	Bank connection is disabled. No more entries are fetched, but connections and data are kept.	Bankforbindelse er slått av. Det hentes ikke flere posteringer, men forbindelser og data er beholdt.
+bank.settings.enabled	Bankforbindelse er slået til. Forbind en bank for at komme i gang.	Bank connection is enabled. Connect a bank to get started.	Bankforbindelse er slått på. Koble til en bank for å komme i gang.
+bank.settings.enabled_connected	Bankforbindelse er slået til. Saldi henter igen fra de forbundne bankkonti.	The bank connection is switched on. Saldi fetches again from the connected bank accounts.	Bankforbindelse er slått på. Saldi henter igjen fra de tilkoblede bankkontoene.
+bank.settings.enabled_plain	Bankforbindelse er slået til.	The bank connection is switched on.	Bankforbindelse er slått på.
+bank.settings.heading	Bankforbindelse (Enable Banking)	Bank connection (Enable Banking)	Bankforbindelse (Enable Banking)
+bank.settings.intro	Med bankforbindelse henter Saldi automatisk posteringerne fra virksomhedens bankkonti. I kassekladden vælger du med knappen Bankforbindelse, hvilke posteringer der lægges i kladden som ikke-bogførte linjer. Du udfylder modkonto, vedhæfter bilag og bogfører som altid. Saldi kan kun læse posteringer - der kan ikke flyttes penge.	With bank connection, Saldi automatically fetches the entries from the company's bank accounts. In the cash journal, you use the Bank connection button to choose which entries are added to the journal as unposted lines. You fill in the contra account, attach vouchers and post as usual. Saldi can only read entries - no money can be moved.	Med bankforbindelse henter Saldi automatisk posteringene fra virksomhetens bankkontoer. I kassekladden velger du med knappen Bankforbindelse hvilke posteringer som legges i kladden som ikke-bokførte linjer. Du fyller ut motkonto, legger ved bilag og bokfører som vanlig. Saldi kan bare lese posteringer - det kan ikke flyttes penger.
+bank.settings.intro_provider	Med bankforbindelse henter Saldi automatisk posteringerne fra virksomhedens bankkonti gennem Enable Banking. I kassekladden vælger du med knappen Bankposteringer, hvilke posteringer der lægges i kladden som ikke-bogførte linjer. Du udfylder modkonto, vedhæfter bilag og bogfører som altid. Saldi kan kun læse posteringer - der kan ikke flyttes penge.	With bank connection, Saldi automatically fetches the entries from the company's bank accounts through Enable Banking. In the cash journal, you use the Bank entries button to choose which entries are added to the journal as unposted lines. You fill in the contra account, attach vouchers and post as usual. Saldi can only read entries - no money can be moved.	Med bankforbindelse henter Saldi automatisk posteringene fra virksomhetens bankkontoer gjennom Enable Banking. I kassekladden velger du med knappen Bankposteringer hvilke posteringer som legges i kladden som ikke-bokførte linjer. Du fyller ut motkonto, legger ved bilag og bokfører som vanlig. Saldi kan bare lese posteringer - det kan ikke flyttes penger.
+bank.settings.manage_only	Kun brugere med fuld adgang til Indstillinger kan ændre bankforbindelsen.	Only users with full access to Settings can change the bank connection.	Bare brukere med full tilgang til Innstillinger kan endre bankforbindelsen.
+bank.settings.menu	Bankforbindelse	Bank connection	Bankforbindelse
+bank.settings.no_connections	Der er ingen bankforbindelser endnu.	There are no bank connections yet.	Det er ingen bankforbindelser ennå.
+bank.settings.no_right	Du har ikke adgang til at ændre indstillingen. Det kræver adgang til Indstillinger.	You do not have access to change the setting. This requires access to Settings.	Du har ikke tilgang til å endre innstillingen. Det krever tilgang til Innstillinger.
+bank.settings.not_set_up	Ikke sat op	Not set up	Ikke satt opp
+bank.settings.personal	privat	personal	privat
+bank.settings.production	Produktion	Production	Produksjon
+bank.settings.ready	Klar	Ready	Klar
+bank.settings.sandbox	Testmiljø (sandbox)	Test environment (sandbox)	Testmiljø (sandbox)
+bank.settings.save	Gem	Save	Lagre
+bank.settings.saved	Indstillingen er gemt.	The setting has been saved.	Innstillingen er lagret.
+bank.settings.server	Server:	Server:	Server:
+bank.settings.set_up	Sæt op	Set up	Sett opp
+bank.settings.take_into_use	Tag i brug	Take into use	Ta i bruk
+bank.settings.toggle	Aktiver bankforbindelse (Enable Banking)	Enable bank connection (Enable Banking)	Aktiver bankforbindelse (Enable Banking)
+bank.settings.toggle_plain	Aktiver bankforbindelse	Enable bank connection	Aktiver bankforbindelse
+bank.status.attention	Bankforbindelse kræver opmærksomhed	Bank connection needs attention	Bankforbindelse krever oppmerksomhet
+bank.status.error	Bankforbindelse: fejl	Bank connection: error	Bankforbindelse: feil
+bank.status.label	Bank:	Bank:	Bank:
+bank.status.new_many	%s nye bankposteringer	%s new bank entries	%s nye bankposteringer
+bank.status.new_one	1 ny bankpostering	1 new bank entry	1 ny bankpostering
+bank.status.ok	Bankforbindelse: alt er i orden	Bank connection: all is well	Bankforbindelse: alt er i orden
+bank.status.oldest	(ældste %s)	(oldest %s)	(eldste %s)
+bank.status.paused	Automatisk hentning er sat på pause	Automatic fetching is paused	Automatisk henting er satt på pause
+bank.status.review_many	%s posteringer til gennemsyn	%s entries to review	%s posteringer til gjennomgang
+bank.status.review_one	1 postering til gennemsyn	1 entry to review	1 postering til gjennomgang
+bank.status.short_error	fejl	error	feil
+bank.status.short_late	hentning forsinket	fetch delayed	henting forsinket
+bank.status.short_new_many	%s nye	%s new	%s nye
+bank.status.short_new_one	1 ny	1 new	1 ny
+bank.status.short_ok	ajour	up to date	à jour
+bank.status.short_paused	sat på pause	paused	satt på pause
+bank.status.short_renew	forny adgang	renew access	forny tilgang
+bank.status.short_review	%s til gennemsyn	%s to review	%s til gjennomgang
+bank.status.short_unused_many	%s konti ikke i brug	%s accounts not in use	%s kontoer ikke i bruk
+bank.status.short_unused_one	1 konto ikke i brug	1 account not in use	1 konto ikke i bruk
+bank.status.stale	Ingen hentning i %s timer	No fetch in %s hours	Ingen henting på %s timer
+bank.status.worker_down	Den automatiske hentning kører ikke. Kontakt Saldi-support.	Automatic fetching is not running. Contact Saldi support.	Den automatiske hentingen kjører ikke. Kontakt Saldi-support.
+bank.tab.ignored	Sprunget over	Skipped	Hoppet over
+bank.tab.imported	Importeret	Imported	Importert
+bank.tab.pending	Nye	New	Nye
+bank.tab.pre_cutover	Før startdato	Before start date	Før startdato
+bank.tab.review	Til gennemsyn	To review	Til gjennomgang
+bank.tx.change_changed_again	Banken har ændret posteringen igen. Se den nye ændring, før du godkender.	The bank has changed the entry again. Review the new change before you approve it.	Banken har endret posteringen igjen. Se den nye endringen før du godkjenner.
+bank.tx.foreign	Posteringen tilhører ikke bankkontoen.	The entry does not belong to the bank account.	Posteringen tilhører ikke bankkontoen.
+bank.tx.missing	Posteringen findes ikke i dette regnskab.	The entry does not exist in this company.	Posteringen finnes ikke i dette regnskapet.
+bank.tx.not_allowed	Handlingen er ikke tilladt for denne postering.	The action is not allowed for this entry.	Handlingen er ikke tillatt for denne posteringen.
+bank.tx.now_ignored	Posteringen er sprunget over. Den kan gendannes under Sprunget over.	The entry has been skipped. It can be restored under Skipped.	Posteringen er hoppet over. Den kan gjenopprettes under Hoppet over.
+bank.tx.now_pending	Posteringen ligger nu under Nye, hvor du kan lægge den i kassekladden.	The entry is now under New, where you can add it to the cash journal.	Posteringen ligger nå under Nye, der du kan legge den i kassekladden.
+bank.tx.now_pre_cutover	Posteringen ligger nu under Før startdato.	The entry is now under Before start date.	Posteringen ligger nå under Før startdato.
+bank.tx.now_review	Posteringen ligger nu under Til gennemsyn.	The entry is now under To review.	Posteringen ligger nå under Til gjennomgang.
+bank.tx.updated	Posteringen er opdateret.	The entry has been updated.	Posteringen er oppdatert.
+bank.unavailable.company	Bankforbindelse er ikke slået til for dette regnskab. Den slås til under Indstillinger > Bogføring & bank > Bankforbindelse.	Bank connection is not enabled for this company. It is enabled under Settings > Bookkeeping & bank > Bank connection.	Bankforbindelse er ikke slått på for dette regnskapet. Den slås på under Innstillinger > Bokføring og bank > Bankforbindelse.
+bank.unavailable.schema	Bankforbindelse er ikke klar i dette regnskab endnu. Log ud og ind igen, eller kontakt Saldi-support.	Bank connection is not ready for this company yet. Log out and in again, or contact Saldi support.	Bankforbindelse er ikke klar i dette regnskapet ennå. Logg ut og inn igjen, eller kontakt Saldi-support.
+bank.unavailable.server	Bankforbindelse er ikke sat op på denne Saldi-server. Kontakt Saldi-support, hvis du vil bruge den.	Bank connection is not set up on this Saldi server. Contact Saldi support if you want to use it.	Bankforbindelse er ikke satt opp på denne Saldi-serveren. Kontakt Saldi-support hvis du vil bruke den.
 commission.settle.already_settled	Kommissionen er lige blevet afregnet af en anden kasseoptælling. Kommissionen er ikke afregnet igen.	The commission has just been settled by another cash count. It was not settled again.	Kommisjonen er nettopp gjort opp av en annen kasseopptelling. Den er ikke gjort opp igjen.
 commission.settle.customer_missing	Konto mangler for varenummer %s. Kommissionen er ikke afregnet.	Account missing for item number %s. The commission was not settled.	Konto mangler for varenummer %s. Kommisjonen er ikke gjort opp.
 commission.settle.group_account_missing	Debitorgruppe %s for konto %s mangler en samlekonto. Kommissionen er ikke afregnet.	Customer group %s for account %s has no collective account. The commission was not settled.	Debitorgruppe %s for konto %s mangler en samlekonto. Kommisjonen er ikke gjort opp.

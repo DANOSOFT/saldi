@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/notifications.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/notifications.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 //                 A user without them has a stored item removed, and the bell list and the daily summary hide the item from them as well.
 // 20261104 CL/ASR Final QA: when no fiscal year covers today (the last one has ended), the warning asks for the next year to be created (fiscal:none, texts 7852 and 7851) instead of asking for a year to be activated, which stays for a year that covers today but is not open.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/LH The bank notice reads the Enable Banking connections (access expired or revoked) instead of the removed Aiia login, which made every user of a company with the bank feed on see "forbindelsen er udløbet". It links to the bank feed.
 /**
  * @return array<string, string> type -> label text id
  */
@@ -293,8 +294,8 @@ function notif_source_batches(int $brugerId, string $rettigheder, int $sprogId):
 }
 
 /**
- * Bank integration: the connection state lives in the session (OAuth login expiry),
- * so this is per user and only meaningful where the integration is enabled.
+ * Bank feed (Enable Banking): a notice while the bank access of a fetching account has expired or been revoked,
+ * the same rule as the status icon (ebNormalizeStatus()). Company-wide, so every user gets it.
  */
 function notif_source_bank(int $brugerId, int $sprogId): void
 {
@@ -304,32 +305,30 @@ function notif_source_bank(int $brugerId, int $sprogId): void
 	}
 	include_once($enabledFile);
 	if (!function_exists('bankIntegrationEnabled') || !bankIntegrationEnabled()) {
+		db_modify("delete from notifications where source_key = 'bank:expired' and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
 		return;
 	}
-	$oauth = (PHP_SAPI !== 'cli' && isset($_SESSION['OAuth'])) ? $_SESSION['OAuth'] : null;
-	if (empty($oauth)) {
-		// A fresh session (or the daily summary) has the connection only in storage, as bank_integration/includes/auth_check.php
-		// restores it: read it from there before calling it expired. oauthSessionLoad() reads the user in the global $bruger_id.
-		$oauth = null;
-		$crypt = __DIR__ . '/../bank_integration/includes/crypt.php';
-		$persist = __DIR__ . '/../bank_integration/includes/persist.php';
-		if ((int) $GLOBALS['bruger_id'] === $brugerId && file_exists($crypt) && file_exists($persist)) {
-			include_once($crypt);
-			include_once($persist);
-			$encrypted = oauthSessionLoad();
-			$json = $encrypted !== null ? oauthDecrypt($encrypted) : null;
-			$oauth = $json !== null ? json_decode($json, true) : null;
+	$expired = false;
+	try {
+		$connections = ebIndexById(ebListConnections());
+		foreach (ebListAccounts() as $account) {
+			if (!in_array((string) $account['state'], array('new', 'active', 'paused'), true) || empty($account['connection_id'])) {
+				continue;
+			}
+			$connection = $connections[(int) $account['connection_id']] ?? array();
+			if (ebNormalizeStatus(array('valid_until' => $connection['valid_until'] ?? null), $account, $connection)['expired']) {
+				$expired = true;
+				break;
+			}
 		}
-	}
-	$expired = ($oauth === null || $oauth === false);
-	if (!$expired && isset($oauth['login']['expires'])) {
-		$expired = (strtotime((string) $oauth['login']['expires']) <= time());
+	} catch (Throwable $e) {
+		return; // The bank state is not readable now; the notification stays as it is.
 	}
 	if (!$expired) {
 		db_modify("delete from notifications where source_key = 'bank:expired' and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
 		return;
 	}
-	notif_upsert('bank:expired', $brugerId, 'system', findtekst('5632|Bankintegration: forbindelsen er udløbet', $sprogId), findtekst('5633|Forny forbindelsen til banken, før nye posteringer kan hentes', $sprogId), '/finans/kladdeliste.php', date('Y-m-d', strtotime('+1 day')));
+	notif_upsert('bank:expired', $brugerId, 'system', findtekst('5632|Bankintegration: forbindelsen er udløbet', $sprogId), findtekst('5633|Forny forbindelsen til banken, før nye posteringer kan hentes', $sprogId), '/bank_integration/feed.php', date('Y-m-d', strtotime('+1 day')));
 }
 
 /**

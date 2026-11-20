@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-03 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-16 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -99,6 +99,7 @@
 // 20261102 CL/ASR Review: search shows Ekstra felter under Brugere & ansatte, as Roller and Audit-log ('searchGroup'), not under Organisation.
 // 20261103 CL/ASR The heading is Brugere & roller again with the rows Brugere, Roller, Audit-log and Ekstra felter (owner, 3 Nov 2026): the brugere entry is called Brugere (5549, no 'renamedFrom': Brugere & roller is the heading now, not an old name), and the users group and Ekstra felter's search group are Brugere & roller (5536); the employee section's entry (ansatte, the list of a user without usersRoles.php) is called Brugere too.
 //                 'Brugere & roller' is a keyword of Brugere, so the top-bar search, which does not search headings, still finds the page by its old name.
+// 20261116 CL/LH Bankforbindelse is Enable Banking: offered once the server is configured (bankIntegrationAvailable()), since the section is where a company switches it on; search words follow the new page.
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -197,7 +198,8 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'cash_journal',          'group' => 'finance', 'url' => 'settingsSection.php?s=finance.cash_journal', 'section' => 'finance.cash_journal', 'category' => 'finance', 'textId' => 5983,
 				'keywords' => array('rounding difference account','penny difference','cash rounding','rounding account','øredifferencer','øreforskjeller', 'payment terms','credit terms','payment due days','default payment days','invoice due date settings','betalingsfrist','betalingsdato', 'payment lists','betalingslister','different dates same voucher','forskellige datoer','bilagsnummer')),
 			array('key' => 'bank_integration',      'group' => 'finance', 'url' => 'diverse.php?sektion=bank_integration',     'category' => 'integrations', 'visibilityRule' => 'bankFeature', 'textId' => 6141, 'renamedFrom' => array('da' => 'Bank Integration', 'en' => 'Bank integration', 'no' => 'Bankintegrasjon'),
-				'keywords' => array('bank integration', 'bankintegration', 'bankintegrasjon', 'bank feed','bank transaction import','bank statement import','show bank status','show status kassekladde','default date range bank import','date method','last quarter','this quarter','bank connection status')),
+				'keywords' => array('bank integration', 'bankintegration', 'bankintegrasjon', 'enable banking', 'bank feed', 'bank transaction import', 'bank statement import', 'bank connection status',
+					'connect bank account', 'open banking', 'psd2', 'renew bank access', 'bank account ledger mapping', 'bankforbindelse', 'bankkonto', 'forny adgang')),
 			array('key' => 'barcodescan',           'group' => 'integrations', 'url' => 'settingsSection.php?s=integrations.connections&item=app', 'section' => 'integrations.connections', 'category' => 'pos', 'labelDa' => 'App Barcode', 'labelEn' => 'Barcode scanning app', 'labelNo' => 'App-strekkode',
 				'keywords' => array('qr code login','app login','mobile app authentication','one time access qr','saldi app login','scan to login')),
 			array('key' => 'sprog',                 'group' => 'company', 'url' => 'settingsSection.php?s=company.localisation', 'section' => 'company.localisation', 'category' => 'company', 'textId' => 7736,
@@ -311,17 +313,17 @@ if (!function_exists('settings_context_links')) {
 
 if (!function_exists('settings_feature_enabled')) {
 	/**
-	 * Features that stay hidden until they are live in the installation (spec G2.7): the bank integration is on
-	 * when its API credentials exist (bank_integration/includes/enabled.php).
+	 * Features that stay hidden until they are live in the installation (spec G2.7): the bank feed is on
+	 * when Enable Banking is configured on the server (bankIntegrationAvailable() in bank_integration/includes/enabled.php).
 	 */
 	function settings_feature_enabled(string $feature): bool
 	{
 		if ($feature === 'bank') {
 			$file = __DIR__ . '/../bank_integration/includes/enabled.php';
-			if (!function_exists('bankIntegrationEnabled') && is_file($file)) {
+			if (!function_exists('bankIntegrationAvailable') && is_file($file)) {
 				include_once($file);
 			}
-			return function_exists('bankIntegrationEnabled') && bankIntegrationEnabled();
+			return function_exists('bankIntegrationAvailable') && bankIntegrationAvailable();
 		}
 		return false;
 	}

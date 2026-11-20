@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.1.0 --- 2026-11-02 ---
+// ---------------finans/bogfor.php---------- ver 5.1.1 --- 2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -77,6 +77,7 @@
 // 20261028 CL/LH MB-72: openpost() settles a payment naming several invoices ("A;B") only when they and the payment
 //                net to zero, and writes the payment row once instead of once per settled invoice.
 // 20261102 CL/ASR The old "+1000 postings for kr. 30,-" offer is not shown to accounts with a package from the self-service signup.
+// 20261116 CL/LH bogfor() locks the journal header (SELECT ... FOR UPDATE) before it reads the lines and refuses a journal that is posted by then, so an Enable Banking import (ebImportIntoJournal(), same lock) cannot add lines to a journal while it is posted or simulated.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -755,6 +756,11 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 	if (!isset ($momsart)) $momsart = NULL;
 
 	($simuler)?$tabel='simulering':$tabel='transaktioner';
+	// The caller's transaction holds the header from here: a bank import takes the same lock before it adds lines.
+	$r = db_fetch_array(db_select("select bogfort from kladdeliste where id = " . (int)$kladde_id . " for update", __FILE__ . " linje " . __LINE__));
+	if (!$r || $r['bogfort'] == 'V') {
+		return("Kladden er allerede bogført");
+	}
 	
 	$r=db_fetch_array(db_select("select max(id) as id from transaktioner where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__));
 	if ($r['id']) {

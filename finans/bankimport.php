@@ -54,6 +54,7 @@
 // 20261116 CL/MMR SST-962 Review (CodeRabbit): the preview posts the splitter it was made with (previewSplitter), and the choices are saved for that preview (bank_import_columns_for_post()).
 //                 «Vis» with a new splitter saves nothing and shows the choices saved for the new number of columns.
 //                 vis_data() splits each line with bank_import_split_line() (its own loop, moved unchanged), so the saved choices count the columns the preview shows.
+// 20261116 CL/LH Informational notice when the chosen bank posting account is also fed by the Enable Banking bank feed: shows the covered period and warns that overlapping CSV lines may duplicate feed lines.
 ini_set("auto_detect_line_endings", true);
 
 @session_start();
@@ -69,6 +70,7 @@ include("../includes/settings.php");
 include("../includes/std_func.php");
 include_once(__DIR__ . '/../includes/stdFunc/bankImportEncoding.php');
 include_once(__DIR__ . '/../includes/stdFunc/bankImportColumns.php');
+require_once __DIR__ . '/../bank_integration/includes/ebCoverage.php';
 
 global $menu;
 
@@ -388,6 +390,7 @@ elseif (!$splitter) alert("$alertm");
 elseif (!$kontonr)  alert("$alertn");
 
 elseif (($kladde_id)&&($filnavn)&&($splitter)&&($kontonr)) print "&nbsp; <input type=\"submit\" name=\"import\" value=\"$import\" /></td></tr>";
+if ($kontonr && ($coverageNotice = ebFeedCoverageNotice((int)$kontonr))) print "<tr><td colspan=$cols>$coverageNotice</td></tr>\n";
 print "<tr><td colspan=$cols><hr></td></tr>\n";
 #if ((!$splitter)||($splitter=='Semikolon')) {$splitter=';';}
 #elseif ($splitter=='Komma') {$splitter=',';}
