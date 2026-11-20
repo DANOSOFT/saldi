@@ -87,6 +87,9 @@
 //                 Their blocks include std_func.php through __DIR__.
 // 20261113 CDX/NTR Merge translated session messages with role enforcement and error reporting.
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261112 LOE SST-967 An empty rights string is no rights; the sag workflow and the Mit Salg label page are the exceptions, and every order or history row a request names is bound to what the gate proved.
+//              The label page's Mit Salg proof is that the account has no brugere row.
+// 20261113 LOE SST-967 The module refusal is #1033's perm_refuse(), and an admitted case or Mit Salg page reaches the role gate as 'any'.
 include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001
@@ -159,6 +162,9 @@ if (!isset($webservice)) $webservice = NULL;
 $ip = $_SERVER['REMOTE_ADDR'];
 $ip              = substr($ip, 0, 10);
 $sag_rettigheder = NULL;
+# SST-967 the rights the session row itself carries, before the brugere lookup below replaces
+# $rettigheder. A Mit Salg session has no brugere row, so this is where its placeholder '0' survives.
+$online_rights = NULL;
 $unixtime        = date("U");
 
 $qtxt = "select * from online where session_id = '$s_id' order by logtime desc limit 1";
@@ -170,6 +176,7 @@ if ($r = db_fetch_array($q)) {
 	$brugernavn = db_escape_string($r['brugernavn']);
 	$brugernavn_raw = (string) $r['brugernavn']; // unescaped, for values that are escaped again later (audit_log)
 	$rettigheder = $r['rettigheder'];
+	$online_rights = $r['rettigheder'];
 	$superUserPermission = $rettigheder;
 	$revisor = $r['revisor'];
 	$logtime = $r['logtime'];
@@ -341,6 +348,145 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	}
 	if (!$sprog_id)
 		$sprog_id = 1;
+
+	# SST-967 the module gate. It is computed here, before the user-settings block below, because a session
+	# with no brugere row leaves $bruger_id empty and would otherwise skip the gate altogether - the Mit Salg
+	# sessions are exactly that shape, and one of them could open any module page, including the stock-move
+	# page. Three terms decide it:
+	# - an empty rights string is NO rights. It used to switch the whole condition off, because the first
+	#   term asked whether the string was truthy, and a user whose string is empty could open every page that
+	#   sets $modulnr by typing its address;
+	# - a page that belongs to the sag workflow runs on the craft right instead, once it has proven its
+	#   request. The page declares $sag_workflow_page, and the proof runs here because this is the first
+	#   point where the tenant database is open:
+	#     'sag'      - an offer or an order for a case: the case must exist, an order decides its own case,
+	#                  and the customer comes from the case, never from the request;
+	#     'customer' - a customer's history, reached from a case: the customer must have a case;
+	# - lager/labelprint.php is the one module page a Mit Salg session needs. It declares $mysale_label_page,
+	#   and the proof is that the account has no brugere row - which is what makes it a shop account rather
+	#   than a user - on a session inside a tenant, with the placeholder rights, and not the booking account.
+	# SST-967 the case that admitted this page, for the page to check the orders it loads or saves. It stays
+	# 0 for every other page and every other user, which is what keeps the finance lane untouched.
+	$sag_workflow_case_id = 0;
+	$sag_workflow_allowed = false;
+	# Whether the module right is what would have to admit this page; the exception may only narrow the page
+	# for a user who does not hold it (a user with the Ordre right keeps the page's own behaviour).
+	$no_module_right = ($modulnr) && (substr((string)$rettigheder, (int)$modulnr, 1) < '1');
+	if (!empty($sag_workflow_page) && substr((string)$sag_rettigheder, 2, 1)) {
+		$wf_konto = (int) ($sag_workflow_konto ?? 0);
+		if ($sag_workflow_page === 'sag') {
+			$wf_sag = (int) ($sag_workflow_sag ?? 0);
+			$wf_order = (int) ($sag_workflow_order ?? 0);
+			$wf_selectors = array();
+			# Every order the request names has to be of that case, not only the one that decided it: the page
+			# takes its id from id or ordre_id, on the GET and on the POST, and any of them can reach a write -
+			# a valid id= on the address with a different id on the POST body was a way past the case.
+			foreach (array(array($_GET, 'id'), array($_POST, 'id'), array($_GET, 'ordre_id'), array($_POST, 'ordre_id')) as $wf_source) {
+				if (isset($wf_source[0][$wf_source[1]]) && is_numeric($wf_source[0][$wf_source[1]]) && (int) $wf_source[0][$wf_source[1]] > 0) {
+					$wf_selectors[(int) $wf_source[0][$wf_source[1]]] = true;
+				}
+			}
+			# kundeordnr is not an id, so the order it selects is looked up here.
+			if (!empty($_GET['kundeordnr'])) {
+				$wf_row = db_fetch_array(db_select("select max(id) as id from ordrer where kundeordnr = '" . db_escape_string($_GET['kundeordnr']) . "'", __FILE__ . " linje " . __LINE__));
+				if ($wf_row && $wf_row['id']) {
+					$wf_selectors[(int) $wf_row['id']] = true;
+				}
+			}
+			$wf_order_konto = 0;
+			if ($wf_order) {
+				$wf_row = db_fetch_array(db_select("select sag_id, konto_id from ordrer where id = '$wf_order'", __FILE__ . " linje " . __LINE__));
+				$wf_order_sag = $wf_row ? (int) $wf_row['sag_id'] : 0;
+				$wf_order_konto = $wf_row ? (int) $wf_row['konto_id'] : 0;
+				$wf_sag = (!$wf_order_sag || ($wf_sag && $wf_sag !== $wf_order_sag)) ? 0 : $wf_order_sag;
+			}
+			if ($wf_sag) {
+				$wf_row = db_fetch_array(db_select("select konto_id from sager where id = '$wf_sag'", __FILE__ . " linje " . __LINE__));
+				$wf_customer = $wf_row ? (int) $wf_row['konto_id'] : 0;
+				# Both relationships have to hold: the order is in the case, and it belongs to the case's
+				# customer. An order moved to another customer would otherwise borrow the case.
+				if ($wf_order && (!$wf_order_konto || $wf_order_konto !== $wf_customer)) {
+					$wf_customer = 0;
+				}
+				foreach (array_keys($wf_selectors) as $wf_selector) {
+					if ($wf_selector === $wf_order) {
+						continue;
+					}
+					# The same both relationships as the order that decided the case: in the case, and on the
+					# case's customer. A second order of the same case but another customer must not borrow it.
+					$wf_row = db_fetch_array(db_select("select sag_id, konto_id from ordrer where id = '$wf_selector'", __FILE__ . " linje " . __LINE__));
+					if (!$wf_row || (int) $wf_row['sag_id'] !== $wf_sag || (int) $wf_row['konto_id'] !== $wf_customer) {
+						$wf_customer = 0;
+						break;
+					}
+				}
+				if ($wf_customer && (!$wf_konto || $wf_konto === $wf_customer)) {
+					$sag_workflow_allowed = true;
+					if ($no_module_right) {
+						$sag_workflow_case_id = $wf_sag;
+					}
+					# The order belongs to the case's customer, whatever the address tried to pass in. This is
+					# pinned only when the exception is what admits the page, so a user with the module right
+					# keeps the page's own behaviour. The POST matters as much as the GET - debitor/ordre.php
+					# saves with $_POST['konto_id'] - or a craft user could book the order on another customer
+					# while the case in the URL keeps the page open.
+					# Pin the customer only while the page is about to CREATE an order: once an order id is in the
+					# request the order already owns its customer, and setting $_GET['konto_id'] would make
+					# debitor/ordre.php take its "skift kontonr" branch and rewrite that order's customer.
+					if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
+						if (!$wf_order) {
+							$_GET['konto_id'] = $wf_customer;
+						}
+						$_POST['konto_id'] = $wf_customer;
+					}
+				}
+			}
+		} elseif ($sag_workflow_page === 'customer' && $wf_konto) {
+			$wf_row = db_fetch_array(db_select("select id from sager where konto_id = '$wf_konto' limit 1", __FILE__ . " linje " . __LINE__));
+			$sag_workflow_allowed = (bool) $wf_row;
+			# The pinning and the row check belong to the exception: a user who holds the module right keeps the
+			# page's own behaviour, as on the order page.
+			if ($sag_workflow_allowed && substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
+				# The save path files the note and the contact dates on the customer in $_POST['id'] - not only
+				# on $_POST['konto_id'] - and the delete path names the history row by its id, so both have to
+				# be the customer this request proved, or the page could write on another customer's history.
+				# The row can be named on the GET (the delete link) or on the POST body (the save form), and a
+				# value that is not a row of this customer is refused either way.
+				foreach (array(array($_GET, 'historik_id'), array($_POST, 'historik_id')) as $wf_source) {
+					if (!isset($wf_source[0][$wf_source[1]]) || trim((string) $wf_source[0][$wf_source[1]]) === '') {
+						continue;
+					}
+					$wf_hist_id = (int) $wf_source[0][$wf_source[1]];
+					$wf_row = $wf_hist_id > 0 ? db_fetch_array(db_select("select id from historik where id = '$wf_hist_id' and konto_id = '$wf_konto' limit 1", __FILE__ . " linje " . __LINE__)) : false;
+					if (!$wf_row) {
+						$sag_workflow_allowed = false;
+						break;
+					}
+				}
+				if ($sag_workflow_allowed) {
+					$_POST['konto_id'] = $wf_konto;
+					$_POST['id'] = $wf_konto;
+				}
+			}
+		}
+		unset($wf_row, $wf_sag, $wf_order, $wf_order_sag, $wf_order_konto, $wf_customer, $wf_selectors, $wf_source, $wf_selector, $wf_hist_id);
+	}
+	unset($wf_konto);
+	$mysale_label_ok = false;
+	if (!empty($mysale_label_page) && (string)$online_rights === '0' && $brugernavn !== 'booking'
+			&& isset($db) && $db !== '' && $db !== $sqdb) {
+		$mysale_row = db_fetch_array(db_select("select id from brugere where brugernavn = '$brugernavn' limit 1", __FILE__ . " linje " . __LINE__));
+		$mysale_label_ok = !$mysale_row;
+		unset($mysale_row);
+	}
+	$no_module_right = ($modulnr) && (substr((string)$rettigheder, (int)$modulnr, 1) < '1');
+	if ($no_module_right && !$sag_workflow_allowed && !$mysale_label_ok) { #20190529
+		# #1033's shared refusal: HTTP 403, the audit entry, JSON to scripts and one text for both gates. The
+		# exceptions above are what keeps an admitted case or Mit Salg page out of it.
+		include_once(__DIR__ . '/std_func.php');
+		include_once(__DIR__ . '/permissions.php');
+		perm_refuse('modulnr ' . (int) $modulnr, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
+	}
 	if (!strpos($css, 'mysale') && $bruger_id) {
 		$jsvars = "statusbar=0,menubar=0,titlebar=0,toolbar=0,scrollbars=1,resizable=1,dependent=1";
 		$qtxt = "select box1,box2,box3,box4,box5 from grupper where art = 'USET' and kodenr = '$bruger_id'";
@@ -363,6 +509,8 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		// (popup=1 on the URL), not when the user merely prefers popups — the preference
 		// made the nav stack permanently empty for those users, and genuine popups
 		// opened by others polluted the opener's stack.
+		# SST-967 a page this user may not see never reaches this point: the gate above has already
+		# refused it, so the stack only has to skip this request when it is a popup window.
 		nav_push(null, !empty($_GET['popup']) || !empty($_POST['popup']));
 		if ($db_ver > '3.7.4') {
 			// The personal colour choice is gone: everyone gets the standard colours (stored rows are left alone).
@@ -400,21 +548,20 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$bg = 'nix';
 		$css = NULL;
 	}
-	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
-		// One refusal for both gates (20261103): the text 5548, HTTP 403, JSON to scripts and a way back to Oversigt; logged as before.
-		include_once(__DIR__ . "/std_func.php");
-		include_once(__DIR__ . "/permissions.php");
-		perm_refuse('modulnr ' . (int) $modulnr, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
-	}
 	// 20260916 Phase 3 gate (spec R4). Pages declare $permission_key ('any' = every logged-in
 	// user), optionally $permission_level = 'write' and $permission_post_read = true (POST is a
 	// filter, not a write). Undeclared pages fall back to $modulnr. Until the company switches
 	// enforcement to 'deny', this only records what would have been refused in audit_log.
 	// The helpers (perm_require_post_csrf, audit_log) are available on every page; the gate itself runs as before.
+	// SST-967 only a request the exception actually admitted reaches the role model as 'any' - the key for every
+	// logged-in user - because the exception replaces the module right, not the login or the role. A user who
+	// holds the module right keeps the key its page declared, so #1033's gate decides that request as on master,
+	// even when the page proved a case. $no_module_right is what makes the exception the reason the page opened.
+	$sst967_admitted = ($no_module_right && $sag_workflow_allowed) || $mysale_label_ok;
 	include_once(__DIR__ . "/permissions.php");
 	if (!$webservice && !$nextver) {
 		perm_enforce_request(
-			isset($permission_key) ? (string) $permission_key : null,
+			$sst967_admitted ? 'any' : (isset($permission_key) ? (string) $permission_key : null),
 			isset($permission_level) ? (string) $permission_level : 'read',
 			!empty($permission_post_read),
 			($modulnr !== NULL && $modulnr !== '') ? (int) $modulnr : null

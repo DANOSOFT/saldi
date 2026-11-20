@@ -1,5 +1,5 @@
 <?php
-// --- debitor/historikkort.php --- ver 5.1.0 --- 2026-11-01 ---
+// --- debitor/historikkort.php --- ver 5.1.1 --- 2026-11-13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20251121 LOE - Modified icons to SVG format and buttons to fit the new design
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20261101 CL/SZ MB-129 Saving a note no longer fails when a contact has an apostrophe in the name: the posted names are escaped before the lookup.
+// 20261112 LOE SST-967 The history opens on the craft right for a customer with a case, and every id and row it uses is read as a number and scoped to that customer.
 
 @session_start();
 $s_id = session_id();
@@ -51,6 +52,14 @@ $title = "Historik";
 $css = "../css/standard.css";
 
 include("../includes/connect.php");
+
+# SST-967 a case's attachment folder links here to the customer's history, so this page may run on the
+# craft right ($sag_rettigheder[2]) for a customer the company has a case for. It only declares that and
+# hands online.php the id to check; any other customer keeps the module gate. std_func.php is included
+# after online.php on this page, so the reads use ?? rather than ifset().
+$sag_workflow_page = 'customer';
+$sag_workflow_konto = (int) ($_GET['konto_id'] ?? ($_GET['id'] ?? 0));
+
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
@@ -96,13 +105,15 @@ if (!isset($vis_bilag)) $vis_bilag = NULL;
 
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
+# SST-967 every id this page takes from the request is read as a number: the gate proved an integer customer,
+# so the page has to use the same integer - the history queries compare konto_id with it directly.
 $id = (int)$_GET['id'];
-if ($_GET['konto_id']) $id = $_GET['konto_id'];
-if (isset($_GET['historik_id'])) $historik_id = $_GET['historik_id'];
+if (!empty($_GET['konto_id'])) $id = (int)$_GET['konto_id'];
+if (isset($_GET['historik_id'])) $historik_id = (int)$_GET['historik_id'];
 $handling = $_GET['handling'];
 
 if ($handling == 'slet') {
-	db_modify("delete from historik where id = $historik_id", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from historik where id = $historik_id and konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 	$historik_id = '';
 }
 if (isset($_GET['returside'])) {
@@ -124,6 +135,15 @@ function processContactForm($post) {
     // Sanitize and validate inputs
     $sanitizedInputs = sanitizeFormInputs($post);
 
+    // A posted history row that is not this customer's is refused before anything is written, so a rejected
+    // submission cannot leave a persisted change behind (the creation date used to be updated first).
+    if (!empty($sanitizedInputs['historik_id'])) {
+        $owned = db_fetch_array(db_select("SELECT id FROM historik WHERE id = {$sanitizedInputs['historik_id']} AND konto_id = {$sanitizedInputs['id']}", __FILE__ . " linje " . __LINE__));
+        if (!$owned) {
+            return false;
+        }
+    }
+
 	updateOprettet($post["id"], $post["oprettet"]);
 
     // Only proceed if there's a note or future contact
@@ -144,6 +164,10 @@ function processContactForm($post) {
         $sanitizedInputs, 
         $employeeIds
     );
+    // A posted row that is not this customer's is refused, not silently reported as saved.
+    if (!empty($sanitizedInputs['historik_id']) && !$historikId) {
+        return false;
+    }
 
     // Update address record
     updateAddressRecord(
@@ -156,9 +180,9 @@ function processContactForm($post) {
 
 function sanitizeFormInputs($post) {
     return [
-        'id' => $post['id'],
-        'egen_id' => $post['egen_id'],
-        'historik_id' => $post['historik_id'] ?? null,
+        'id' => (int)($post['id'] ?? 0),
+        'egen_id' => (int)($post['egen_id'] ?? 0),
+        'historik_id' => (int)($post['historik_id'] ?? 0),
         'ansat' => db_escape_string($post['ansat'] ?? ''),
         'kontakt' => db_escape_string($post['kontakt'] ?? ''),
         'kontaktet' => !empty($post['kontaktet']) 
@@ -190,17 +214,22 @@ function fetchEmployeeIds($egen_id, $id, $ansat, $kontakt) {
 function processHistorikRecord($inputs, $employeeIds) {
     $notedate = date("Y-m-d");
     
-    // Update existing record
+    // Update existing record, but only a row of this customer: a rejected selection returns 0 so the caller
+    // cannot go on to touch that row through the id.
     if (!empty($inputs['historik_id'])) {
+        $owned = db_fetch_array(db_select("SELECT id FROM historik WHERE id = {$inputs['historik_id']} AND konto_id = {$inputs['id']}", __FILE__ . " linje " . __LINE__));
+        if (!$owned) {
+            return 0;
+        }
         db_modify("UPDATE historik 
             SET kontakt_id = {$employeeIds['kontakt_id']}, 
                 ansat_id = {$employeeIds['ansat_id']}, 
                 notat = '{$inputs['note']}', 
                 kontaktet = '{$inputs['kontaktet']}' 
-            WHERE id = {$inputs['historik_id']}", 
+            WHERE id = {$inputs['historik_id']} AND konto_id = {$inputs['id']}",
             __FILE__ . " linje " . __LINE__
         );
-        return $inputs['historik_id'];
+        return (int)$inputs['historik_id'];
     }
     
     // Insert new record
@@ -231,8 +260,10 @@ function processHistorikRecord($inputs, $employeeIds) {
 }
 
 function updateOprettet($id, $oprettet) {
+	$id = (int)$id;
 	if (isset($oprettet)) {
       if (!$oprettet) $oprettet = date('Y-m-d');
+      $oprettet = db_escape_string($oprettet);
       db_modify("UPDATE adresser
             SET oprettet = '{$oprettet}' 
             WHERE id = {$id}", 
@@ -255,7 +286,7 @@ function updateAddressRecord($inputs, $historikId) {
         if ($historikId) {
             db_modify("UPDATE historik 
                 SET kontaktes = '{$inputs['kontaktes']}' 
-                WHERE id = $historikId", 
+                WHERE id = $historikId AND konto_id = {$inputs['id']}",
                 __FILE__ . " linje " . __LINE__
             );
         }
@@ -431,7 +462,8 @@ print "</tbody></table></td></tr>"; #tabel3a slut;
 print "<tr><td $hrtd colspan=6><hr class='hrtd'></td></tr>";
 print "<tr><td $width><table border=0 width=100%><tbody>"; #tabel3b start;
 if ($historik_id) {
-	$r = db_fetch_array(db_select("select * from historik where id = '$historik_id'", __FILE__ . " linje " . __LINE__));
+	# SST-967 the row the form is filled from has to be a row of this customer, not just an id.
+	$r = db_fetch_array(db_select("select * from historik where id = '$historik_id' and konto_id = '$id'", __FILE__ . " linje " . __LINE__));
 	$notat = ($r['notat']);
 	$kontaktet = dkdato($r['kontaktet']);
 	if ($r['kontaktes']) $kontaktes = dkdato($r['kontaktes']);

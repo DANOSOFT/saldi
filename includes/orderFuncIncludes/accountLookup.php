@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//---includes/orderFuncIncludes/accountLookup.php ---ver 5.1.1 ----2026-11-13 ---
+//---includes/orderFuncIncludes/accountLookup.php ---ver 5.1.1 ----2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,8 +31,17 @@
 // 20261008 CDX/PHR Include open accounts with a NULL closed flag in order lookups.
 // 20261019 SS Review 2 (PR #803): inactive debtor groups left out of the new-customer group dropdown.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 LOE SST-967 kontoopslag() is refused for a page the case exception admitted, so a case order cannot open the customer grid.
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
+	# SST-967 a page the case exception admits is admitted for one case's order, not for the customer register.
+	# The grid below lists every customer with address, contact and phone, so the lookup is refused instead;
+	# the order's own customer is the case's customer and is already on the page.
+	if (!empty($GLOBALS['sag_workflow_case_id'])) {
+		include_once(__DIR__ . '/../../std_func.php');
+		include_once(__DIR__ . '/../../permissions.php');
+		perm_refuse('kontoopslag for case ' . (int) $GLOBALS['sag_workflow_case_id'], isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
+	}
     $art = ($o_art == 'KO') ? 'K' : 'D';
     // Store original kontonr before casting (to check if user searched for something)
     $original_kontonr = $kontonr;
