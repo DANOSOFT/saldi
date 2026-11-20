@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -111,6 +111,12 @@
 // 20261117 CL/MMR SST-1024 After «Opslag» an empty «Antal» keeps the quantity the page showed (antaDefault<n>, new function opslagLineQuantities()), and «Modtag» follows «Antal» until the user changes it (Saul's review).
 //                 Gem or Enter used to post Antal 0 with Modtag 1, which cleared the line to 0 / 0, and Antal 5 kept Modtag 1.
 //                 The posted Antal is read with ifset(), so a credit note without the empty line 0 raises no undefined-key warning (Codex round 3).
+// 20261119 CL/MMR SST-1041 On a new order without a supplier, an item picked in the search list gets the item's supplier no. 1, as item number + Enter does.
+//                 A pick from the Lev. varenr. search takes that supplier row, with its number and price. An item with no supplier shows a message on both paths.
+//                 Review (CodeRabbit): the pick sends the supplier row id (vare_lev.id), and a vare_id without an order id needs write permission.
+//                 Codex review round: the write check reads the order id as an integer like the vare_id branch.
+//                 An item pick with an id that is not a whole number (or not a string) is refused before the contact update and the item branch.
+//                 Review (Saul): a picked supplier row with price 0 gives 0 on the line, like the supplier lookup on the other paths.
 @session_start();
 $s_id=session_id();
 
@@ -140,7 +146,10 @@ $title="Kreditorordre";
 $css="../css/standard.css";
 $modulnr=7;
 // A konto_id without an order id creates a purchase order from a GET link, so it needs write.
-if ((empty($_GET['id']) || $_GET['id'] === 'null') && !empty($_GET['konto_id'])) {
+// SST-1041 So does a vare_id without an order id: the item's supplier is looked up and the order created.
+// The order id is read as an integer, as the vare_id branch below reads it, so the check and the creation agree.
+$requestedOrderId = (isset($_GET['id']) && is_scalar($_GET['id'])) ? (int) $_GET['id'] : 0;
+if (!$requestedOrderId && (!empty($_GET['konto_id']) || !empty($_GET['vare_id']))) {
 	$permission_level = 'write';
 }
 
@@ -207,6 +216,15 @@ $sort = if_isset($_GET, NULL, 'sort');
 $fokus = if_isset($_GET, NULL, 'fokus');
 $submit = if_isset($_GET, NULL, 'funktion');
 $kontakt = if_isset($_GET, NULL, 'kontakt');
+// SST-1041 An item pick (vare_id) with an order id that is not a whole number (or '' / 'null' for a new order) is
+// refused here, before the contact update and the item branch below write anything.
+if (!empty($_GET['vare_id'])) {
+	$rawOrderId = ($id === NULL || is_scalar($id)) ? trim((string) $id) : NULL;
+	if ($rawOrderId === NULL || ($rawOrderId !== '' && $rawOrderId !== 'null' && !ctype_digit($rawOrderId))) {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+		exit;
+	}
+}
 
 
 if (if_isset($_POST, NULL, 'copy'))        $submit = 'copy';
@@ -324,7 +342,37 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		if (!$pris[0])        $pris[0]        = $row['kostpris'];
 		if (!$rabat)         $rabat           = $row['rabat'];
 	}
-	if ((!$pris[0] || !$lev_varenr[0]) && $vare_id[0] && $konto_id) {
+	if (!$id && !$konto_id) {
+		// SST-1041 An item picked in the search list on a new order without a supplier gets the item's supplier no. 1,
+		// as typing the item number and pressing Enter does. A pick from the Lev. varenr. search sends the supplier row
+		// (vare_lev.id) that was picked; it is used, with its number and price, when it belongs to this item.
+		$pickedLevRowId = (int) ifset($_GET, 'vare_lev_id', 0);
+		$qtxt = "select vare_lev.id, vare_lev.lev_id, vare_lev.lev_varenr, vare_lev.kostpris from vare_lev, adresser";
+		$qtxt.= " where vare_lev.vare_id = '" . (int) $vare_id[0] . "' and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
+		$supplierRows = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		$firstSupplier = $pickedSupplier = null;
+		while ($supplierRow = db_fetch_array($supplierRows)) {
+			if ($firstSupplier === null) $firstSupplier = $supplierRow;
+			if ($pickedLevRowId && (int) $supplierRow['id'] === $pickedLevRowId) {
+				$pickedSupplier = $supplierRow;
+				break;
+			}
+		}
+		if ($pickedSupplier) {
+			$konto_id = (int) $pickedSupplier['lev_id'];
+			$lev_varenr[0] = trim((string) $pickedSupplier['lev_varenr']);
+			$pris[0] = $pickedSupplier['kostpris']; // as the supplier lookup below does, a price of 0 included
+			$pickedLevRow = true;
+		} elseif ($firstSupplier) {
+			$konto_id = (int) $firstSupplier['lev_id'];
+		} else {
+			transaktion("rollback");
+			noSupplierForItemAlert($varenr[0] ?? '');
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php\">";
+			exit;
+		}
+	}
+	if ((!$pris[0] || !$lev_varenr[0]) && $vare_id[0] && $konto_id && empty($pickedLevRow)) {
 		$qtxt = "select * from vare_lev where vare_id = '$vare_id[0]' and lev_id = '$konto_id'";
 		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
@@ -724,15 +772,16 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$varenr[0]=strtoupper($varenr[0]);
 			$qtxt = "SELECT variant_type,vare_id FROM variant_varer WHERE upper(variant_stregkode) = '$varenr[0]'";
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$vare_id[0]=$r['vare_id'];
-			$variant_type[0]=$r['variant_type'];
-		} else $variant_type[0]='';
-		if ($variant_type[0] && $vare_id[0]) $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where varer.id = '$vare_id[0]' and vare_lev.vare_id = '$vare_id[0]' and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
-		else $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where (upper(varer.varenr) = '$varenr[0]' or upper(varer.stregkode) = '$varenr[0]') and vare_lev.vare_id = varer.id and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
-
+				$vare_id[0]=$r['vare_id'];
+				$variant_type[0]=$r['variant_type'];
+			} else $variant_type[0]='';
+			if ($variant_type[0] && $vare_id[0]) $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where varer.id = '$vare_id[0]' and vare_lev.vare_id = '$vare_id[0]' and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
+			else $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where (upper(varer.varenr) = '$varenr[0]' or upper(varer.stregkode) = '$varenr[0]') and vare_lev.vare_id = varer.id and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
 			$r=db_fetch_array(db_select($string,__FILE__ . " linje " . __LINE__));
-			$konto_id=$r['konto_id'];
-			$firmanavn=$r['firmanavn'];
+			$konto_id  = ifset($r, 'konto_id', 0);
+			$firmanavn = ifset($r, 'firmanavn', '');
+			// SST-1041 $varenr[0] is escaped for SQL here, so the message shows the number as it was typed.
+			if (!$konto_id) noSupplierForItemAlert(strtoupper(trim((string) ifset($_POST, 'vare0', ''))));
 			include_once(__DIR__ . '/orderIncludes/insertAccount.php');
 			$id = insertAccount($id, $konto_id, false);
 		}
@@ -1958,6 +2007,19 @@ function opslagLineQuantities($anta, $leve, $antaDefault) {
 	return array($anta, $leve);
 }
 ######################################################################################################################################
+/**
+ * Tell the user that a new order without a supplier cannot take this item, because no supplier was found for it.
+ *
+ * @param string $itemNo The item number the user typed or picked.
+ * @return void Prints a script that shows the message.
+ */
+function noSupplierForItemAlert($itemNo) {
+	global $sprog_id;
+	$txt = findtekst('creditor.order.no_supplier_for_item|Der blev ikke fundet en leverandør til varenummer %s. Vælg leverandøren under Kontonr. først.', $sprog_id);
+	$msg = json_encode(sprintf($txt, $itemNo), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+	print "<script type=\"text/javascript\">alert($msg);</script>";
+}
+######################################################################################################################################
 function samlevare($id,$art,$v_id,$leveres) {
 	global $lager;
 	if ($art=='KO') {
@@ -2033,7 +2095,7 @@ if ($menu=='T') {
 
 <?php if (get_settings_value("ordreAutocomplete", "ordre", "on", $bruger_id) === "on") { ?>
 <link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
-<script src="../javascript/kreditorOrdreAutocomplete.js"></script>
+<script src="../javascript/kreditorOrdreAutocomplete.js?v=<?php print @filemtime(__DIR__ . '/../javascript/kreditorOrdreAutocomplete.js') ?: time(); ?>"></script>
 <?php } ?>
 
 <style>
