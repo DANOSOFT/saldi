@@ -22,6 +22,7 @@
 // 20261117 CL/MMR SST-1024 Created for Saul's review: Opslag then Gem/Enter on KO and KK, Antal empty or typed, status 0/1/2, and the typed item.
 //                 Codex round 3: requests are checked for SQL errors and for diagnostics in the ticket's code, and a credit note is linked to a received, posted purchase order (kred_ord_id) as Kreditér makes it.
 // 20261120 CL/MMR SST-1024 Saul's review: a hand-made fokus=anta<n> on a line already on the order renders no antaDefault<n> (ordreside() sets fokus to vare0), so «Modtag» does not follow «Antal» there.
+//                 CodeRabbit's review: a draft approved with «Godkend» in the same save that adds a typed item gives the new line leveres = antal.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -372,6 +373,29 @@ final class OpslagThenSaveRoundTripTest extends CharacterizationTestCase
         $page = self::page(['id' => $o['order']]);
         self::page([], self::submitOrderForm($page, ['anta1' => '5']));
         $this->assertSame(['antal' => 5.0, 'leveres' => 1.0], self::line($o['order'], $o['first']));
+    }
+
+    /**
+     * CodeRabbit's review: a draft, an item typed on the empty line with Antal 3 and «Godkend» ticked, all in one save.
+     * The order is approved, the new line is ready to receive in full (3 / 3) like the line approval filled in, and the
+     * next «Gem» keeps it.
+     */
+    public function test_an_item_added_in_the_same_save_as_godkend_is_ready_to_receive(): void
+    {
+        $o = self::orderWithOneLine('KO', 0);
+        $page = self::page(['id' => $o['order']]);
+        $this->assertNotNull(self::input($page, 'godkend'), 'precondition: a draft offers «Godkend»');
+        $this->assertNull(self::input($page, 'leve1'), 'precondition: a draft shows no «Modtag»');
+
+        $page = self::page([], self::submitOrderForm($page, ['vare0' => $o['added']['varenr'], 'anta0' => '3', 'godkend' => 'on']));
+        $this->assertSame('1', (string)self::one('SELECT status FROM ordrer WHERE id = $1', [$o['order']])['status'], 'the order is approved');
+        $this->assertSame(['antal' => 3.0, 'leveres' => 3.0], self::line($o['order'], $o['added']));
+        $this->assertSame(['antal' => 1.0, 'leveres' => 1.0], self::line($o['order'], $o['first']), 'approval filled in the line already on the order');
+        $this->assertSame('3', self::input($page, 'leve2')['value'] ?? null, '«Modtag» shows 3');
+
+        $saved = self::page([], self::submitOrderForm($page));
+        $this->assertNoQuantityAlert($saved);
+        $this->assertSame(['antal' => 3.0, 'leveres' => 3.0], self::line($o['order'], $o['added']));
     }
 
     /**
