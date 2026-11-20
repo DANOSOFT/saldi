@@ -20,16 +20,20 @@ final class PosDeliveryWiringTest extends TestCase
         $page = self::source('debitor/pos_ordre.php');
         self::assertStringContainsString('include_once(__DIR__ . "/pos_ordre_includes/saleDeliveryFields.php");', $page);
         self::assertMatchesRegularExpression('/pos_save_sale_delivery\(\$id, \$posted_valg, \$posted_dato\)/', $page);
+        // A deactivated last choice must not strand a sale that already has it.
+        self::assertStringContainsString("is_scalar(\$_POST['leveringsvalg_id']) && pos_delivery_supported()", $page);
     }
 
     public function testEveryPathThatStartsASaleAgainClearsTheFields(): void
     {
         $page = self::source('debitor/pos_ordre.php');
-        // The 48 hour reuse of an abandoned sale and Forfra both rewrite the header of an existing row.
-        self::assertSame(2, substr_count($page, 'pos_reset_sale_delivery_sql()'),
-            'the reused abandoned sale and Forfra both clear the delivery choice and wished date');
+        // The 48 hour reuse of an abandoned sale, Forfra and a table emptied by a move all leave a row
+        // that the next customer's sale is built on.
+        self::assertSame(3, substr_count($page, 'pos_reset_sale_delivery_sql()'),
+            'the reused abandoned sale, Forfra and an emptied table all clear the delivery choice and wished date');
         self::assertStringContainsString("sprog='\$genbrug_brand'\" . pos_reset_sale_delivery_sql()", $page);
         self::assertStringContainsString("ref=''\" . pos_reset_sale_delivery_sql() . \" where id = '\$id'", $page);
+        self::assertStringContainsString("hvem=''\" . pos_reset_sale_delivery_sql() . \" where id='\$id'", $page);
     }
 
     public function testTheSaleHeaderShowsTheFields(): void

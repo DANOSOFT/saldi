@@ -11,6 +11,7 @@ pos.delivery.date	Ønsket leveringsdato	Requested delivery date	Ønsket levering
 pos.delivery.error.choice	Leveringsmåden findes ikke eller er ikke længere aktiv.	The delivery option does not exist or is no longer active.	Leveringsmåten finnes ikke eller er ikke lenger aktiv.
 pos.delivery.error.date	Ønsket leveringsdato skal være en gyldig dato (dd-mm-åååå).	The requested delivery date must be a valid date (dd-mm-yyyy).	Ønsket leveringsdato må være en gyldig dato (dd-mm-åååå).
 pos.delivery.error.past	Ønsket leveringsdato kan ikke ligge før i dag.	The requested delivery date cannot be before today.	Ønsket leveringsdato kan ikke være før i dag.
+pos.delivery.error.save	Leveringsmåden kunne ikke gemmes. Prøv igen.	The delivery option could not be saved. Try again.	Leveringsmåten kunne ikke lagres. Prøv igjen.
 pos.delivery.label	Levering	Delivery	Levering
 pos.delivery.settings.active	Aktiv	Active	Aktiv
 pos.delivery.settings.delete	Slet	Delete	Slett

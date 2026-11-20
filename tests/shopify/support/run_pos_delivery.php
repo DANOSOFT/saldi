@@ -21,6 +21,8 @@
 //   ["sale_save", orderId, valg, dato]        pos_save_sale_delivery(); returns the refusal or null
 //   ["render_sale", orderId, status]          pos_render_sale_delivery_fields() output
 //   ["reset_sql"]                             pos_reset_sale_delivery_sql()
+//   ["save_choices_utf8", {post}]             as save_choices, but posted as UTF-8 also on LATIN9 (a top-menu page)
+//   ["attaches", valg]                        pos_delivery_choice_attaches()
 //
 // History:
 // 20261120 CL/LH K33/K34: created.
@@ -108,6 +110,13 @@ foreach ($steps as $step) {
         case 'save_choices':
             pos_save_delivery_choices($in($step[0]));
             $r = null;
+            break;
+        case 'save_choices_utf8':
+            pos_save_delivery_choices($step[0]);
+            $r = null;
+            break;
+        case 'attaches':
+            $r = pos_delivery_choice_attaches($step[0]);
             break;
         case 'render_settings':
             ob_start();

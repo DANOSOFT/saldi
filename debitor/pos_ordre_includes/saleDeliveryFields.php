@@ -85,11 +85,15 @@ function pos_delivery_parse_date($typed) {
 /**
  * Stores the delivery choice and wished date the cashier set on an open sale.
  *
- * An empty choice is "taget med" and clears both. A choice has to be active - or be the one the
- * sale already has, which the field posts back on every scan even after it was deactivated. A
- * taget med choice never keeps a date. The date is optional for afhentning and levering (a delivery
- * without a date goes to Shopify with "Leveringsdato aftales med kunden", K36), but when given it
- * has to be a real date, today or later. A refused input changes nothing on the sale.
+ * An empty choice, and any choice of type taget med, is "taget med": both fields are cleared, since
+ * the store-order export treats a sale without a choice as taken along. A choice has to be active -
+ * or be the one the sale already has, which the field posts back with every submit even after it
+ * was deactivated. The date is optional for afhentning and levering (a delivery without a date goes
+ * to Shopify with "Leveringsdato aftales med kunden", K36), but when given it has to be a real date,
+ * today or later. A refused input changes nothing on the sale.
+ *
+ * The choice row is read with a share lock in the same transaction as the order update, so
+ * pos_save_delivery_choices() cannot rewrite or delete it between the check and the attach.
  *
  * @param int    $orderId
  * @param string $valg    The posted pos_leveringsvalg id, '' for taget med.
@@ -104,36 +108,63 @@ function pos_save_sale_delivery($orderId, $valg, $dato) {
 	}
 	$orderId = (int) $orderId;
 	$valg = trim((string) $valg);
-	if ($valg === '') {
-		$qtxt = "update ordrer set leveringsvalg_id = NULL, leveringsmaade = NULL, oensket_levdato = NULL where id = '$orderId'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		return null;
-	}
-	$valgId = ctype_digit($valg) ? (int) $valg : 0;
-	$choice = null;
-	if ($valgId > 0) {
-		$qtxt = "select id, navn, type, aktiv from pos_leveringsvalg where id = '$valgId'";
-		$choice = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	}
-	$active = $choice && in_array($choice['aktiv'], array(true, 't', '1', 1), true);
-	if (!$choice || (!$active && $valgId !== $sale['valg_id'])) {
+	$valgId = ($valg !== '' && ctype_digit($valg)) ? (int) $valg : 0;
+	if ($valg !== '' && $valgId < 1) {
 		return findtekst('pos.delivery.error.choice|Leveringsmåden findes ikke eller er ikke længere aktiv.', $sprog_id);
 	}
-	$date = null;
 	$dato = trim((string) $dato);
-	if ($choice['type'] !== 'taget_med' && $dato !== '') {
+	$date = null;
+	if ($dato !== '') {
 		$date = pos_delivery_parse_date($dato);
 		if ($date === null) {
-			return findtekst('pos.delivery.error.date|Ønsket leveringsdato skal være en gyldig dato (dd-mm-åååå).', $sprog_id);
-		}
-		if ($date < date('Y-m-d')) {
-			return findtekst('pos.delivery.error.past|Ønsket leveringsdato kan ikke ligge før i dag.', $sprog_id);
+			$error = findtekst('pos.delivery.error.date|Ønsket leveringsdato skal være en gyldig dato (dd-mm-åååå).', $sprog_id);
+		} elseif ($date < date('Y-m-d')) {
+			$error = findtekst('pos.delivery.error.past|Ønsket leveringsdato kan ikke ligge før i dag.', $sprog_id);
 		}
 	}
-	$qtxt = "update ordrer set leveringsvalg_id = '$valgId', leveringsmaade = " . pos_delivery_sql($choice['navn']) . ",";
-	$qtxt.= " oensket_levdato = " . ($date === null ? 'NULL' : "'$date'") . " where id = '$orderId'";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	return null;
+	$refusal = null;
+	$ok = pos_delivery_try(function () use ($orderId, $valgId, $sale, $date, &$error, &$refusal, $sprog_id) {
+		$choice = null;
+		if ($valgId) {
+			$rows = shopify_db_rows('SELECT id, navn, type, aktiv FROM pos_leveringsvalg WHERE id = $1 FOR SHARE', array($valgId));
+			$choice = $rows ? $rows[0] : null;
+			if (!$choice || ($choice['aktiv'] !== 't' && $valgId !== $sale['valg_id'])) {
+				$refusal = findtekst('pos.delivery.error.choice|Leveringsmåden findes ikke eller er ikke længere aktiv.', $sprog_id);
+				return;
+			}
+		}
+		if (!$choice || $choice['type'] === 'taget_med') {
+			// Taken along never keeps a date, so a date typed before switching back is not an error.
+			shopify_db_rows("UPDATE ordrer SET leveringsvalg_id = NULL, leveringsmaade = NULL, oensket_levdato = NULL WHERE id = $1 AND art = 'PO' AND status < 3", array($orderId));
+			return;
+		}
+		if (isset($error)) {
+			$refusal = $error;
+			return;
+		}
+		shopify_db_rows("UPDATE ordrer SET leveringsvalg_id = $2, leveringsmaade = $3, oensket_levdato = $4 WHERE id = $1 AND art = 'PO' AND status < 3",
+			array($orderId, $valgId, $choice['navn'], $date));
+	});
+	if (!$ok) {
+		return findtekst('pos.delivery.error.save|Leveringsmåden kunne ikke gemmes. Prøv igen.', $sprog_id);
+	}
+	return $refusal;
+}
+
+/**
+ * Whether a posted choice attaches a delivery to the sale: an active (or the sale's own) choice of
+ * type afhentning or levering. A taget med choice and the empty choice attach nothing.
+ *
+ * @param string $valg The posted pos_leveringsvalg id.
+ * @return bool
+ */
+function pos_delivery_choice_attaches($valg) {
+	$valg = trim((string) $valg);
+	if (!pos_delivery_supported() || $valg === '' || !ctype_digit($valg)) {
+		return false;
+	}
+	$rows = shopify_db_rows('SELECT type FROM pos_leveringsvalg WHERE id = $1', array((int) $valg));
+	return $rows && $rows[0]['type'] !== 'taget_med';
 }
 
 /**
@@ -149,9 +180,11 @@ function pos_reset_sale_delivery_sql() {
 /**
  * The delivery row in the sale header (debitor/func/pos_ordre_itemscan.php).
  *
- * An open sale gets the list of active choices, which submits the sale form when it changes, and,
- * for afhentning and levering, the wished date. A posted sale shows its choice and date as text.
- * Nothing is printed until a delivery choice has been set up.
+ * An open sale gets the list of active choices and the wished date. Neither submits the sale form
+ * on its own: they are posted with the cashier's next action (a scan, Enter, a payment button), so
+ * picking a delivery never confirms an item that is waiting for its quantity. The date field is
+ * hidden while a taget med choice is selected. A posted sale shows its choice and date as text.
+ * Nothing is printed until a delivery choice has been set up, unless the sale already has one.
  *
  * @param int $orderId 0 while the sale has no row yet.
  * @param int $status
@@ -175,15 +208,15 @@ function pos_render_sale_delivery_fields($orderId, $status, $sprog_id) {
 		}
 		return;
 	}
-	if (!pos_delivery_enabled()) {
+	$current = $sale ? $sale['valg_id'] : null;
+	// A sale that already has a choice keeps its field after the last choice was deactivated, so
+	// the cashier can still change its date or set it back to taget med.
+	if (!$current && !pos_delivery_enabled()) {
 		return;
 	}
-	$current = $sale ? $sale['valg_id'] : null;
 	$choices = pos_delivery_choices(true);
-	$hasTakenAlong = false;
 	$currentListed = false;
 	foreach ($choices as $choice) {
-		$hasTakenAlong = $hasTakenAlong || $choice['type'] === 'taget_med';
 		$currentListed = $currentListed || $choice['id'] === $current;
 	}
 	// A choice deactivated after it was picked stays on the sale until the cashier changes it.
@@ -191,16 +224,23 @@ function pos_render_sale_delivery_fields($orderId, $status, $sprog_id) {
 		array_unshift($choices, array('id' => $current, 'navn' => $sale['navn'], 'type' => $sale['type']));
 	}
 	$type = $sale ? $sale['type'] : 'taget_med';
+	$types = pos_delivery_types($sprog_id);
 	print "<tr><td colspan='6'><span class='pos-levering'>$label: ";
-	print "<select class='inputbox' name='leveringsvalg_id' onchange='this.form.submit()'>";
+	$toggle = "var d=document.getElementById(\"pos-levdato\");if(d){d.style.display=this.options[this.selectedIndex].getAttribute(\"data-type\")===\"taget_med\"?\"none\":\"\";}";
+	print "<select class='inputbox' name='leveringsvalg_id' onchange='$toggle'>";
+	// No stored choice is "taget med". Without a taget med choice set up, an empty option stands for
+	// it; otherwise the first taget med choice is shown selected. Either way pos_save_sale_delivery()
+	// stores a taget med pick as no choice, so nothing is attached until the cashier picks a delivery.
+	$hasTakenAlong = false;
+	foreach ($choices as $choice) {
+		$hasTakenAlong = $hasTakenAlong || $choice['type'] === 'taget_med';
+	}
 	if (!$hasTakenAlong) {
 		$selected = $current ? '' : ' selected';
-		$types = pos_delivery_types($sprog_id);
 		print "<option value='' data-type='taget_med'$selected>" . pos_delivery_html($types['taget_med']) . "</option>";
 	}
 	$selectedOne = (bool) $current || !$hasTakenAlong;
 	foreach ($choices as $choice) {
-		// With no choice stored, the first taget med choice stands for the default.
 		$isSelected = $current ? $choice['id'] === $current : (!$selectedOne && $choice['type'] === 'taget_med');
 		$selectedOne = $selectedOne || $isSelected;
 		$selected = $isSelected ? ' selected' : '';
@@ -208,14 +248,10 @@ function pos_render_sale_delivery_fields($orderId, $status, $sprog_id) {
 		print pos_delivery_html($choice['navn']) . "</option>";
 	}
 	print "</select></span>";
-	if ($type !== 'taget_med') {
-		$value = ($sale && $sale['dato']) ? $sale['dato'] : '';
-		$min = date('Y-m-d');
-		// Typing a year fires change on every digit; only a date from today on submits the form,
-		// and Enter in the field submits it as any other field does.
-		print " &nbsp; <span class='pos-levdato'>$dateLabel: ";
-		print "<input class='inputbox' type='date' name='oensket_levdato' value='$value' min='$min'";
-		print " onchange='if (this.value && this.value >= this.min) this.form.submit()'></span>";
-	}
+	$value = ($sale && $sale['dato']) ? $sale['dato'] : '';
+	$min = date('Y-m-d');
+	$hidden = ($type === 'taget_med') ? " style='display:none'" : '';
+	print "<span id='pos-levdato' class='pos-levdato'$hidden> &nbsp; $dateLabel: ";
+	print "<input class='inputbox' type='date' name='oensket_levdato' value='$value' min='$min'></span>";
 	print "</td></tr>\n";
 }

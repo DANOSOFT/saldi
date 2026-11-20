@@ -263,7 +263,8 @@ final class PosDeliveryChoicesTest extends TestCase
         $taget = $this->choice('Taget med', 'taget_med');
         $order = $this->sale(0, $levering, $this->future());
         $this->steps([['sale_save', $order, (string)$taget, $this->future()]]);
-        self::assertSame(['leveringsvalg_id' => (string)$taget, 'leveringsmaade' => 'Taget med', 'oensket_levdato' => null], $this->order($order));
+        self::assertSame(['leveringsvalg_id' => null, 'leveringsmaade' => null, 'oensket_levdato' => null], $this->order($order),
+            'a taget med choice is stored as no choice, which the store-order export reads as taken along');
     }
 
     public function testNoChoiceMeansTakenAlong(): void
@@ -347,13 +348,65 @@ final class PosDeliveryChoicesTest extends TestCase
             'with a taken-along choice set up, there is no separate empty option');
     }
 
-    public function testATakenAlongSaleHasNoDateField(): void
+    public function testATakenAlongSaleHidesTheDateField(): void
     {
         $this->choice('Levering', 'levering');
         $html = $this->steps([['render_sale', $this->sale(), 0]])[0]['result'];
         self::assertStringContainsString("<option value='' data-type='taget_med' selected>Taget med</option>", $html,
             'without a taken-along choice the default is offered as "Taget med"');
-        self::assertStringNotContainsString("name='oensket_levdato'", $html);
+        self::assertStringContainsString("<span id='pos-levdato' class='pos-levdato' style='display:none'>", $html,
+            'the date is there for when the cashier picks a delivery, hidden while the sale is taken along');
+    }
+
+    public function testTheFieldsNeverSubmitTheSaleFormOnTheirOwn(): void
+    {
+        // The sale form also carries an item waiting for its quantity; submitting it on a change of
+        // delivery would add that item. The fields are posted with the cashier's next action instead.
+        $valg = $this->choice('Levering', 'levering');
+        $html = $this->steps([['render_sale', $this->sale(0, $valg, $this->future()), 0]])[0]['result'];
+        self::assertStringNotContainsString('submit(', $html);
+    }
+
+    public function testATakenAlongPickNeitherAttachesNorCreatesASale(): void
+    {
+        $taget = $this->choice('Taget med', 'taget_med');
+        $levering = $this->choice('Levering', 'levering');
+        $r = $this->steps([['attaches', (string)$taget], ['attaches', ''], ['attaches', (string)$levering], ['attaches', 'x']]);
+        self::assertSame([false, false, true, false], array_column($r, 'result'));
+    }
+
+    public function testASaleKeepsItsFieldAfterTheLastChoiceIsDeactivated(): void
+    {
+        $valg = $this->choice('Levering', 'levering');
+        $order = $this->sale(0, $valg);
+        $this->sql('UPDATE pos_leveringsvalg SET aktiv = false');
+        $date = $this->future(5);
+        $r = $this->steps([['enabled'], ['render_sale', $order, 0], ['sale_save', $order, (string)$valg, $date]]);
+        self::assertFalse($r[0]['result']);
+        self::assertStringContainsString("value='$valg' data-type='levering' selected>Levering</option>", $r[1]['result']);
+        self::assertNull($r[2]['result']);
+        self::assertSame($date, $this->order($order)['oensket_levdato']);
+        $this->steps([['sale_save', $order, '', '']]);
+        self::assertNull($this->order($order)['leveringsvalg_id'], 'and can set it back to taget med');
+    }
+
+    public function testValuesAreStoredExactlyAsTyped(): void
+    {
+        // db_modify() rewrites " like " to " ilike " anywhere in a statement, also inside a value.
+        $this->steps([['save_choices', ['leveringsvalg_ny' => ['navn' => "Send it like O'Brien", 'type' => 'levering',
+            'shopify_vaerdi' => 'ship like usual', 'tags' => 'like, "x"']]]]);
+        self::assertSame([['navn' => "Send it like O'Brien", 'shopify_vaerdi' => 'ship like usual', 'tags' => '["like", "\\"x\\""]']],
+            $this->sql('SELECT navn, shopify_vaerdi, tags::text AS tags FROM pos_leveringsvalg'));
+    }
+
+    public function testAnOutOfRangeSortNeverLeavesAUsedChoiceDeactivatedWithoutItsNewVersion(): void
+    {
+        $id = $this->choice('Levering', 'levering', 'EasyRoutes');
+        $this->sale(3, $id);
+        $this->steps([['save_choices', ['leveringsvalg' => [$id => ['navn' => 'Levering', 'type' => 'levering',
+            'shopify_vaerdi' => 'Danske Fragtmænd', 'sort' => '99999999999', 'aktiv' => 'on']]]]]);
+        self::assertSame([['shopify_vaerdi' => 'EasyRoutes', 'aktiv' => 'f'], ['shopify_vaerdi' => 'Danske Fragtmænd', 'aktiv' => 't']],
+            $this->sql('SELECT shopify_vaerdi, aktiv FROM pos_leveringsvalg ORDER BY id'));
     }
 
     public function testAPostedSaleShowsItsDeliveryAsText(): void
@@ -371,6 +424,15 @@ final class PosDeliveryChoicesTest extends TestCase
     }
 
     // ------------------------------------------------------------------ LATIN9
+
+    public function testALatin9InstallationTakesAUtf8PostFromATopMenuPage(): void
+    {
+        // The top-menu pages declare UTF-8 also on a LATIN9 installation, so the form arrives as UTF-8.
+        $this->steps([['save_choices_utf8', ['leveringsvalg_ny' => ['navn' => 'Afhentning i Hørsholm', 'type' => 'afhentning',
+            'shopify_vaerdi' => 'Mårum', 'tags' => 'særlig']]]], 'LATIN9');
+        self::assertSame([['navn' => 'Afhentning i Hørsholm', 'shopify_vaerdi' => 'Mårum', 'tags' => '["særlig"]']],
+            $this->sql('SELECT navn, shopify_vaerdi, tags::text AS tags FROM pos_leveringsvalg'));
+    }
 
     public function testALatin9InstallationStoresAndShowsDanishNames(): void
     {

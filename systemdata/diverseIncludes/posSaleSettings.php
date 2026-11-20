@@ -240,6 +240,11 @@ function pos_delivery_supported() {
 		// The table and the order columns are part of the Shopify schema manifest.
 		include_once(__DIR__ . '/../../includes/shopify/schema.php');
 		$supported = shopify_schema_ready();
+		if ($supported) {
+			// Bound parameters for every write: db_modify() turns " like " into " ilike " even inside
+			// a quoted value, so a Shopify value such as "ship like usual" would be stored changed.
+			include_once(__DIR__ . '/../../includes/shopify/db.php');
+		}
 	}
 	return $supported;
 }
@@ -265,20 +270,21 @@ function pos_delivery_html($text) {
 }
 
 /**
- * A string as an SQL literal. The delivery choices exist on PostgreSQL only (pos_delivery_supported),
- * so this escapes for that connection's own client encoding. db_escape_string() is not used: it
- * re-encodes every string that is not valid UTF-8 as if it were Windows-1252, which on a LATIN9
- * connection turns "Mårum" into "MÃ¥rum".
+ * A posted string in the connection's encoding. A LATIN9 installation prints most pages in
+ * ISO-8859-1, but the top-menu pages declare UTF-8, so the same form can arrive in either. Text
+ * that is valid UTF-8 and not plain ASCII is taken as UTF-8 and converted to ISO-8859-15; anything
+ * else is already in the connection's encoding. On a UTF-8 installation the text is left as it is.
  *
- * @param string|null $text NULL gives the SQL NULL.
+ * @param mixed $text
  * @return string
  */
-function pos_delivery_sql($text) {
-	global $connection;
-	if ($text === null) {
-		return 'NULL';
+function pos_delivery_input($text) {
+	global $db_encode;
+	$text = str_replace("\0", '', (string) $text);
+	if (isset($db_encode) && $db_encode !== 'UTF8' && preg_match('/[\x80-\xff]/', $text) && mb_check_encoding($text, 'UTF-8')) {
+		$text = mb_convert_encoding($text, 'ISO-8859-15', 'UTF-8');
 	}
-	return "'" . pg_escape_string($connection, str_replace("\0", '', (string) $text)) . "'";
+	return $text;
 }
 
 /**
@@ -365,13 +371,13 @@ function pos_delivery_tags_list($typed) {
  * Tags as the jsonb array pos_leveringsvalg.tags stores. The JSON is kept pure ASCII (non-ASCII
  * letters as \u escapes), so it reads the same over a LATIN9 and a UTF-8 connection.
  *
- * @param array<int,string> $tags From pos_delivery_tags_list(), in the page's charset.
+ * @param array<int,string> $tags From pos_delivery_tags_list(), in the connection's encoding.
  * @return string
  */
 function pos_delivery_tags_json($tags) {
 	$utf8 = array();
 	foreach ($tags as $tag) {
-		$utf8[] = (pos_delivery_charset() === 'UTF-8') ? $tag : mb_convert_encoding($tag, 'UTF-8', 'ISO-8859-15');
+		$utf8[] = mb_check_encoding($tag, 'UTF-8') ? $tag : mb_convert_encoding($tag, 'UTF-8', 'ISO-8859-15');
 	}
 	return (string) json_encode($utf8);
 }
@@ -385,8 +391,9 @@ function pos_delivery_tags_json($tags) {
  */
 function pos_delivery_posted_choice($row) {
 	$clean = function ($value) {
-		return trim(str_replace(array(chr(9), chr(10), chr(13)), ' ', (string) $value));
+		return trim(str_replace(array(chr(9), chr(10), chr(13)), ' ', pos_delivery_input(is_scalar($value) ? $value : '')));
 	};
+	$sort = (int) ifset($row, 'sort', 0);
 	$vaerdi = $clean(ifset($row, 'shopify_vaerdi', ''));
 	$tags = pos_delivery_tags_list($clean(ifset($row, 'tags', '')));
 	return array(
@@ -395,10 +402,28 @@ function pos_delivery_posted_choice($row) {
 		'shopify_vaerdi' => ($vaerdi === '') ? null : $vaerdi,
 		'tags' => pos_delivery_tags_json($tags),
 		'tags_typed' => implode(', ', $tags),
-		'sort' => (int) ifset($row, 'sort', 0),
+		// pos_leveringsvalg.sort is an integer column; a larger number would fail the insert.
+		'sort' => max(-2147483648, min(2147483647, $sort)),
 		'aktiv' => (bool) ifset($row, 'aktiv', ''),
 		'slet' => (bool) ifset($row, 'slet', ''),
 	);
+}
+
+/**
+ * Runs $op in one transaction (shopify_db_transaction()). A failed statement rolls the work back and
+ * is logged; the page carries on and reports what was not saved instead of ending in a fatal error.
+ *
+ * @param callable $op
+ * @return bool Whether the work was committed.
+ */
+function pos_delivery_try($op) {
+	try {
+		shopify_db_transaction($op);
+		return true;
+	} catch (Throwable $e) {
+		error_log('K33 delivery choice not saved: ' . $e->getMessage());
+		return false;
+	}
 }
 
 /**
@@ -412,6 +437,11 @@ function pos_delivery_posted_choice($row) {
  * value or tags deactivates it and adds the edited choice as a new row, and deleting it only
  * deactivates it. Order and active change in place, because they do not change what an order was
  * sold with. An unused choice is edited or deleted in place.
+ *
+ * Each row is changed in one transaction that holds the row lock while it checks whether an order
+ * uses it. pos_save_sale_delivery() takes a share lock on the same row before attaching it, so a
+ * choice cannot be rewritten or deleted between the check and the change, and a version's
+ * deactivation and its replacement are committed together.
  *
  * @param array $post The submitted form, normally $_POST.
  * @return void
@@ -427,10 +457,6 @@ function pos_save_delivery_choices($post) {
 	}
 	$sprog_id = isset($GLOBALS['sprog_id']) ? $GLOBALS['sprog_id'] : 1;
 	$types = array_keys(pos_delivery_types($sprog_id));
-	$stored = array();
-	foreach (pos_delivery_choices(false) as $choice) {
-		$stored[$choice['id']] = $choice;
-	}
 	$refused = array();
 	$valid = function ($choice) use ($types, &$refused) {
 		if ($choice['navn'] === '' || !in_array($choice['type'], $types, true)) {
@@ -440,59 +466,60 @@ function pos_save_delivery_choices($post) {
 		return true;
 	};
 	$insert = function ($choice, $aktiv) {
-		$qtxt = "insert into pos_leveringsvalg (navn, type, shopify_vaerdi, tags, aktiv, sort) values (";
-		$qtxt.= pos_delivery_sql($choice['navn']) . ", " . pos_delivery_sql($choice['type']) . ", ";
-		$qtxt.= pos_delivery_sql($choice['shopify_vaerdi']) . ", " . pos_delivery_sql($choice['tags']) . "::jsonb, ";
-		$qtxt.= ($aktiv ? 'true' : 'false') . ", " . (int) $choice['sort'] . ")";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		shopify_db_rows('INSERT INTO pos_leveringsvalg (navn, type, shopify_vaerdi, tags, aktiv, sort) VALUES ($1, $2, $3, $4::jsonb, $5, $6)',
+			array($choice['navn'], $choice['type'], $choice['shopify_vaerdi'], $choice['tags'], (bool) $aktiv, $choice['sort']));
 	};
 	foreach ($rows as $id => $row) {
 		$id = (int) $id;
-		if (!isset($stored[$id]) || !is_array($row)) {
+		if ($id < 1 || !is_array($row)) {
 			continue;
 		}
 		$choice = pos_delivery_posted_choice($row);
-		$used = (bool) db_fetch_array(db_select("select id from ordrer where leveringsvalg_id = '$id' limit 1", __FILE__ . " linje " . __LINE__));
-		if ($choice['slet']) {
-			if ($used) {
-				db_modify("update pos_leveringsvalg set aktiv = false where id = '$id'", __FILE__ . " linje " . __LINE__);
-			} else {
-				db_modify("delete from pos_leveringsvalg where id = '$id'", __FILE__ . " linje " . __LINE__);
+		if (!$choice['slet'] && !$valid($choice)) {
+			continue;
+		}
+		$saved = pos_delivery_try(function () use ($id, $choice, $insert) {
+			$qtxt = "SELECT navn, type, coalesce(shopify_vaerdi, '') AS shopify_vaerdi,";
+			$qtxt.= " array_to_string(array(SELECT jsonb_array_elements_text(tags)), ', ') AS tags";
+			$qtxt.= " FROM pos_leveringsvalg WHERE id = $1 FOR UPDATE";
+			$before = shopify_db_rows($qtxt, array($id));
+			if (!$before) {
+				return;
 			}
-			continue;
+			$before = $before[0];
+			$used = (bool) shopify_db_rows('SELECT 1 FROM ordrer WHERE leveringsvalg_id = $1 LIMIT 1', array($id));
+			if ($choice['slet']) {
+				shopify_db_rows($used ? 'UPDATE pos_leveringsvalg SET aktiv = false WHERE id = $1' : 'DELETE FROM pos_leveringsvalg WHERE id = $1', array($id));
+				return;
+			}
+			$meaningChanged = $choice['navn'] !== $before['navn'] || $choice['type'] !== $before['type']
+				|| (string) $choice['shopify_vaerdi'] !== $before['shopify_vaerdi'] || $choice['tags_typed'] !== $before['tags'];
+			if ($meaningChanged && $used) {
+				shopify_db_rows('UPDATE pos_leveringsvalg SET aktiv = false WHERE id = $1', array($id));
+				$insert($choice, $choice['aktiv']);
+				return;
+			}
+			shopify_db_rows('UPDATE pos_leveringsvalg SET navn = $2, type = $3, shopify_vaerdi = $4, tags = $5::jsonb, aktiv = $6, sort = $7 WHERE id = $1',
+				array($id, $choice['navn'], $choice['type'], $choice['shopify_vaerdi'], $choice['tags'], $choice['aktiv'], $choice['sort']));
+		});
+		if (!$saved) {
+			$refused[] = $choice['navn'];
 		}
-		if (!$valid($choice)) {
-			continue;
-		}
-		$before = $stored[$id];
-		$meaningChanged = $choice['navn'] !== $before['navn'] || $choice['type'] !== $before['type']
-			|| (string) $choice['shopify_vaerdi'] !== $before['shopify_vaerdi'] || $choice['tags_typed'] !== $before['tags'];
-		if ($meaningChanged && $used) {
-			db_modify("update pos_leveringsvalg set aktiv = false where id = '$id'", __FILE__ . " linje " . __LINE__);
-			$insert($choice, $choice['aktiv']);
-			continue;
-		}
-		$qtxt = "update pos_leveringsvalg set navn = " . pos_delivery_sql($choice['navn']) . ", type = " . pos_delivery_sql($choice['type']) . ", ";
-		$qtxt.= "shopify_vaerdi = " . pos_delivery_sql($choice['shopify_vaerdi']) . ", tags = " . pos_delivery_sql($choice['tags']) . "::jsonb, ";
-		$qtxt.= "aktiv = " . ($choice['aktiv'] ? 'true' : 'false') . ", sort = " . (int) $choice['sort'] . " where id = '$id'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 	if ($new !== null) {
 		$choice = pos_delivery_posted_choice($new);
 		// The empty row for a new choice is posted with every save; only a typed name makes it a choice.
 		if ($choice['navn'] !== '' || $choice['shopify_vaerdi'] !== null) {
-			if ($valid($choice)) {
-				$insert($choice, true);
+			if ($valid($choice) && !pos_delivery_try(function () use ($choice, $insert) { $insert($choice, true); })) {
+				$refused[] = $choice['navn'];
 			}
 		}
 	}
 	if ($refused) {
 		$txt = findtekst('pos.delivery.settings.refused|Leveringsmåde ikke gemt (navn og type skal udfyldes)', $sprog_id);
-		$safe = array();
-		foreach ($refused as $name) {
-			$safe[] = pos_sale_brand_for_alert($name);
-		}
-		alert($txt . ': ' . implode(', ', $safe));
+		// includes/std_func.php's alert() puts the message raw into a javascript string, and the
+		// prefix is a translation an installation can change, so the whole message is escaped.
+		alert(pos_sale_brand_for_alert($txt . ': ' . implode(', ', $refused)));
 	}
 }
 
