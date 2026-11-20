@@ -33,6 +33,7 @@
 // 20261120 CL/MMR SST-996 (review): rejectBooking() stops when the booking lookup fails and deletes the order only for a real order id.
 //                 Its deletes run in one transaction; a failed delete is rolled back and updateBooking answers with an error.
 // 20261120 CL/MMR SST-996 (review): a failed BEGIN or COMMIT also makes updateBooking answer with an error, not "deleted".
+// 20261120 CL/MMR SST-996 (review): a failed booking lookup answers with JSON only, without db_select()'s alert script in front.
 //
 
 
@@ -290,7 +291,17 @@ function bookingNextFreeKontonr() {
 function rejectBooking($bookingId) {
     global $db_modify_fejl, $webservice;
     $bookingId = (int)$bookingId;
+    // On a failed SELECT db_select() logs and mails as usual, but it also prints an alert script or error box into this JSON
+    // answer, and on a repeated failure it exits. The buffer drops that output; if db_select() exits, the handler turns
+    // what is left into the same JSON error, so index.js can always parse the answer.
+    $previousCode = http_response_code();
+    http_response_code(500); // in effect only if db_select() exits
+    ob_start(function () {
+        return json_encode(["status" => "error", "message" => "The booking could not be deleted"]);
+    });
     $query = db_select("SELECT order_id FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+    ob_end_clean();
+    http_response_code($previousCode ?: 200);
     if ($query === false) {
         return false; // the lookup failed: delete nothing, or the order and its lines would lose their booking
     }
