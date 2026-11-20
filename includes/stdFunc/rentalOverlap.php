@@ -27,6 +27,7 @@
 // 20261120 CL/MMR SST-1000 (review) rental_approve_booking(): a payment that comes back after the booking expired is only approved when the unit is still free (Morten 2026-11-20, option A).
 //                 Before, the approval cleared expiry_time and invoiced, also when another booking had taken the unit or the expired booking had been deleted (order 0).
 //                 An approved booking whose order was not invoiced (the invoice failed) is invoiced again on the next approval, and approvals of one booking run one at a time (rental_approval_lock()).
+//                 rental_approval_lock() reports whether it got the lock, and the MySQL lock name includes the tenant database.
 
 if (!function_exists('rental_booking_day')) {
 	/**
@@ -228,23 +229,28 @@ if (!function_exists('rental_order_invoiced')) {
 
 if (!function_exists('rental_approval_lock')) {
 	/**
-	 * Hold or release a lock on one booking's approval for the rest of the request, so a second approval of the same
+	 * Take or release a lock on one booking's approval for the rest of the request, so a second approval of the same
 	 * booking waits until the first has invoiced (or failed) and then sees the result. The lock belongs to the database
-	 * session, so it is also released when the request ends with an error.
+	 * session, so it is also released when the request ends with an error. On PostgreSQL it is an advisory lock (scoped
+	 * to the tenant database); on MySQL/MariaDB a named lock, whose name includes the tenant database because those
+	 * names are server-wide.
 	 *
 	 * @param int $bookingId rentalperiod.id.
-	 * @param bool $hold True to take the lock (waits for another request holding it), false to release it.
-	 * @return void
+	 * @param bool $hold True to take the lock (waits up to 60 seconds on MySQL, until free on PostgreSQL), false to release it.
+	 * @return bool True when the lock was taken (or released); false on a timeout or a database error.
 	 */
 	function rental_approval_lock($bookingId, $hold = true) {
-		global $db_type;
+		global $db_type, $db;
 		$bookingId = (int)$bookingId;
 		if ($db_type == "mysql" || $db_type == "mysqli") {
-			$qtxt = $hold ? "SELECT GET_LOCK('rental_approval_$bookingId', 60)" : "SELECT RELEASE_LOCK('rental_approval_$bookingId')";
+			$name = 'rental_approval_' . substr(md5((string)$db), 0, 12) . '_' . $bookingId;
+			$qtxt = $hold ? "SELECT GET_LOCK('$name', 60) AS got" : "SELECT RELEASE_LOCK('$name') AS got";
 		} else {
 			// 1000 = SST-1000's lock class, so the key cannot meet another feature's advisory locks
-			$qtxt = $hold ? "SELECT pg_advisory_lock(1000, $bookingId)" : "SELECT pg_advisory_unlock(1000, $bookingId)";
+			$qtxt = $hold ? "SELECT 1 AS got FROM (SELECT pg_advisory_lock(1000, $bookingId)) AS l" : "SELECT pg_advisory_unlock(1000, $bookingId) AS got";
 		}
-		db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$row = $query ? db_fetch_array($query) : false;
+		return $row && in_array((string)$row["got"], array('1', 't'), true);
 	}
 }

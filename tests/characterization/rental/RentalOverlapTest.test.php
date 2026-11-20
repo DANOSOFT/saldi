@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../../includes/stdFunc/rentalOverlap.php';
@@ -14,6 +15,7 @@ require_once __DIR__ . '/../../../includes/stdFunc/rentalOverlap.php';
 //                 The last test checks that both createBooking store through rental_store_booking() and answer 409.
 // 20261120 CL/MMR SST-1000 (review) Both approvals go through rental_approve_booking(), and both pages key the free units by the local day.
 //                 An approval answers approved only after the invoice, under the booking's approval lock.
+//                 The lock reports a timeout or error (then the handlers change nothing), and the MySQL lock name includes the tenant database.
 final class RentalOverlapTest extends TestCase
 {
     private const NOW = 1794481200; // 2026-11-12 12:00 Europe/Copenhagen
@@ -161,7 +163,8 @@ final class RentalOverlapTest extends TestCase
             self::assertStringNotContainsString('UPDATE rentalperiod SET expiry_time = NULL', $src, $file);
             self::assertMatchesRegularExpression('/if \(\$approval === \'approved\'\) \{\s*try \{\s*fakturer_ordre\(\$orderId, "email", 0\);/', $src, $file);
             self::assertStringContainsString('if (rental_order_invoiced($orderId)) $approval = \'already\';', $src, $file);
-            self::assertStringContainsString('rental_approval_lock($bookingId);', $src, $file);
+            self::assertMatchesRegularExpression('/if \(!rental_approval_lock\(\$bookingId\)\) \{[^}]*http_response_code\(503\);[^}]*return;\s*\}\s*try \{\s*\$orderId = 0;\s*\$approval = rental_approve_booking/', $src, $file);
+            self::assertMatchesRegularExpression('/\} finally \{\s*rental_approval_lock\(\$bookingId, false\);\s*\}/', $src, $file);
             self::assertStringContainsString('rental_approval_lock($bookingId, false);', $src, $file);
             self::assertStringContainsString('echo json_encode(["status" => "failed", "reason" => "invoice"]);', $src, $file);
             self::assertSame(1, substr_count($src, 'fakturer_ordre($orderId'), $file . ': invoiced only when approved');
@@ -174,6 +177,48 @@ final class RentalOverlapTest extends TestCase
             self::assertMatchesRegularExpression('/const match = shuffledArray\.find\([^\n]*\n\s*if \(!match\) \{/', $src, $file);
             self::assertStringContainsString('if (!res || res.status !== "approved") {', $src, $file);
             self::assertStringContainsString('}).catch(() => null) // SST-1000 (review)', $src, $file);
+        }
+    }
+
+    /**
+     * rental_approval_lock() against a database double: what GET_LOCK / pg_advisory_lock answer decides the result.
+     *
+     * @return array<string, array{string, string|null, bool}> db type, the "got" value the database answers (null = query failed), expected
+     */
+    public static function lockAnswers(): array
+    {
+        return [
+            'mysql lock taken'     => ['mysqli', '1', true],
+            'mysql timeout'        => ['mysqli', '0', false],
+            'mysql error (NULL)'   => ['mysqli', '', false],
+            'mysql query failed'   => ['mysqli', null, false],
+            'pgsql lock taken'     => ['pgsql', '1', true],
+            'pgsql query failed'   => ['pgsql', null, false],
+        ];
+    }
+
+    #[DataProvider('lockAnswers')]
+    #[RunInSeparateProcess]
+    public function testApprovalLockReportsWhetherItGotTheLock(string $dbType, ?string $got, bool $expected): void
+    {
+        $GLOBALS['db_type'] = $dbType;
+        $GLOBALS['db'] = 'tenant_a';
+        $GLOBALS['sst1000_lock_got'] = $got;
+        $GLOBALS['sst1000_lock_sql'] = [];
+        if (!function_exists('db_select')) {
+            eval('function db_select($q, $w) { $GLOBALS["sst1000_lock_sql"][] = $q; return $GLOBALS["sst1000_lock_got"] === null ? false : "q"; }
+                  function db_fetch_array($q) { return $q ? ["got" => $GLOBALS["sst1000_lock_got"]] : false; }');
+        }
+        self::assertSame($expected, rental_approval_lock(42));
+        $sql = $GLOBALS['sst1000_lock_sql'][0];
+        if ($dbType === 'mysqli') {
+            // the name is per tenant: another database gets another lock for the same booking id
+            self::assertStringContainsString("rental_approval_" . substr(md5('tenant_a'), 0, 12) . "_42", $sql);
+            $GLOBALS['db'] = 'tenant_b';
+            rental_approval_lock(42);
+            self::assertStringNotContainsString(substr(md5('tenant_a'), 0, 12), $GLOBALS['sst1000_lock_sql'][1]);
+        } else {
+            self::assertStringContainsString('pg_advisory_lock(1000, 42)', $sql);
         }
     }
 }
