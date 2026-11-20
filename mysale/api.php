@@ -218,7 +218,8 @@ if(isset($_GET["createBooking"])){
  * and invoices its order; any other status deletes the booking and its order (payment failed or no payment link).
  *
  * @return void Echoes {"status":"approved"} (invoiced), {"status":"deleted"}, with HTTP 409 {"status":"refused","reason":...},
- *              or with HTTP 500 {"status":"failed","reason":"invoice"|"not_invoiced"} when the order is not invoiced.
+ *              or with HTTP 500 {"status":"failed","reason":"invoice"|"not_invoiced"|"approval"} when the order is not invoiced
+ *              or the approval could not be written.
  */
 function handleUpdateBooking() {
     $data = json_decode(file_get_contents("php://input"), true);
@@ -260,6 +261,10 @@ function handleUpdateBooking() {
                 http_response_code(500);
                 echo json_encode(["status" => "failed", "reason" => $approval === 'approved' ? "invoice" : "not_invoiced"]);
             }
+        } elseif ($approval === 'error') {
+            // the approval could not be written: nothing invoiced, no confirmation
+            http_response_code(500);
+            echo json_encode(["status" => "failed", "reason" => "approval"]);
         } else {
             http_response_code(409);
             echo json_encode(["status" => "refused", "reason" => $approval]);

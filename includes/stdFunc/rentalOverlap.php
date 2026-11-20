@@ -27,6 +27,7 @@
 // 20261120 CL/MMR SST-1000 (review) rental_approve_booking(): a payment that comes back after the booking expired is only approved when the unit is still free (Morten 2026-11-20, option A).
 //                 Before, the approval cleared expiry_time and invoiced, also when another booking had taken the unit or the expired booking had been deleted (order 0).
 //                 Only the call that approves a booking invoices it; a booking approved before is reported from its order (rental_order_invoiced()) and never invoiced twice.
+//                 The approval is only reported when its update is read back, approved for the same order, before and after the commit.
 
 if (!function_exists('rental_booking_day')) {
 	/**
@@ -172,7 +173,8 @@ if (!function_exists('rental_approve_booking')) {
 	 *
 	 * @param int $orderId Set to the booking's order id for 'approved' and 'already', otherwise 0.
 	 * @return string 'approved' (approved now: invoice the order), 'already' (approved before: do not invoice),
-	 *                'missing' (no such booking, or it has no order) or 'unavailable' (expired and the unit is taken).
+	 *                'missing' (no such booking, or it has no order), 'unavailable' (expired and the unit is taken)
+	 *                or 'error' (the approval was not written or not committed; nothing to invoice).
 	 */
 	function rental_approve_booking($bookingId, &$orderId, $now = null) {
 		$bookingId = (int)$bookingId;
@@ -204,8 +206,17 @@ if (!function_exists('rental_approve_booking')) {
 			transaktion('rollback');
 			return 'unavailable';
 		}
-		db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+		db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId AND order_id = $bookingOrder", __FILE__ . " linje " . __LINE__);
+		// the claim to invoice needs the transition itself: the locked row must now be approved for this order
+		$check = db_fetch_array(db_select("SELECT expiry_time, order_id FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__));
+		if (!$check || ($check["expiry_time"] !== null && $check["expiry_time"] !== '') || (int)$check["order_id"] !== $bookingOrder) {
+			transaktion('rollback');
+			return 'error';
+		}
 		transaktion('commit');
+		// and it must be committed
+		$check = db_fetch_array(db_select("SELECT expiry_time FROM rentalperiod WHERE id = $bookingId AND order_id = $bookingOrder", __FILE__ . " linje " . __LINE__));
+		if (!$check || ($check["expiry_time"] !== null && $check["expiry_time"] !== '')) return 'error';
 		$orderId = $bookingOrder;
 		return 'approved';
 	}

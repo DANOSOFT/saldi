@@ -163,11 +163,15 @@ final class RentalOverlapTest extends TestCase
             self::assertStringContainsString("if (\$approval === 'approved' || \$approval === 'already') {", $src, $file);
             self::assertStringContainsString('if (rental_order_invoiced($orderId)) {', $src, $file);
             self::assertStringNotContainsString('rental_invoice_once', $src, $file);
+            self::assertStringContainsString('echo json_encode(["status" => "failed", "reason" => "approval"]);', $src, $file);
             self::assertStringNotContainsString('rental_approval_lock', $src, $file);
             self::assertStringContainsString('echo json_encode(["status" => "failed", "reason" => $approval === \'approved\' ? "invoice" : "not_invoiced"]);', $src, $file);
             self::assertSame(1, substr_count($src, 'fakturer_ordre($orderId'), $file . ': invoiced only in the approving call');
             self::assertStringContainsString('function handleUpdateBooking()', $src, $file);
         }
+        $helper = (string)file_get_contents(__DIR__ . '/../../../includes/stdFunc/rentalOverlap.php');
+        self::assertStringContainsString('UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId AND order_id = $bookingOrder', $helper);
+        self::assertSame(2, substr_count($helper, "return 'error';"), 'the approval is read back before and after the commit');
         foreach (['remoteBooking/index.js', 'mysale/remote.js'] as $file) {
             $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);
             self::assertStringContainsString('availableDatesById.push([itemId, localDay(date)])', $src, $file);
