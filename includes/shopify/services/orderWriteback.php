@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderWriteback.php --- ver 5.1.0 --- 2026.11.12
+// --- includes/shopify/services/orderWriteback.php --- ver 5.1.0 --- 2026.11.20
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,7 @@
 // 20261112 CL/MJ SD-759 (review): a waiting stage, or one of a shop whose orders flow is off, yields instead of failing; a recorded note op is not appended again.
 //                Two split sets of the same bundle keep apart (saet_id), and antal is a number in saet_fordeling.
 // 20261112 CL/MJ SD-759 (CodeRabbit): the invoice link's token is sent to Shopify but kept out of the call log.
+// 20261120 CL/SS SD-832: an explicit 'redact' => null stays null, so the invoice link adds no redactor of its own.
 
 require_once __DIR__ . '/../noteAppend.php';
 require_once __DIR__ . '/../links.php';
@@ -224,7 +225,7 @@ function shopify_set_metafields(array $shop, array $metafields, array $rt = arra
 			$tokens[] = $m[1];
 		}
 	}
-	$inner = $opts['redact'] ?? (function_exists('shopify_redact') ? 'shopify_redact' : null);
+	$inner = array_key_exists('redact', $opts) ? $opts['redact'] : (function_exists('shopify_redact') ? 'shopify_redact' : null);
 	if ($tokens && $inner !== null) {
 		$opts['redact'] = fn(mixed $body, array $secrets = array()): mixed => $inner($body, array_merge($secrets, $tokens));
 	}

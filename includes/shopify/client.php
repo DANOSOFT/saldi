@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/client.php --- ver 5.0.0 --- 2026-10-28 ---
+// --- includes/shopify/client.php --- ver 5.1.0 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,6 +39,7 @@
 // 20261026 CL/SZ Retry-After and X-Request-Id come from the final response only; an interim
 //                "100 Continue" block no longer carries over (SD-747, #862 CodeRabbit).
 // 20261028 Sawaneh SD-738: the attempt entry carries the requested and actual cost and the restore rate for the call log.
+// 20261120 CL/SS SD-832: an explicit 'redact' => null means no redactor, also once shopify_redact() is loaded.
 
 const SHOPIFY_API_VERSION = '2026-07';
 const SHOPIFY_MAX_RETRIES = 3;
@@ -107,8 +108,8 @@ const SHOPIFY_BULK_POLL_QUERY = 'query bulkOperation($id: ID!) {
  *   clock?: callable,      Test seam, returns unix time as float.
  *   sleep?: callable,      Test seam, takes seconds as float.
  *   log?: callable,        Receives one array per attempt; default shopify_client_log().
- *   redact?: callable,     Redacts the logged bodies, called with the body and the secrets to strip;
- *                          default WP02's shopify_redact once it exists. Without one, no bodies are logged.
+ *   redact?: callable|null, Redacts the logged bodies, called with the body and the secrets to strip;
+ *                          default WP02's shopify_redact once it exists. Null, or no redactor, logs no bodies.
  * } $opts
  * @return array{
  *   ok: bool,                True when Shopify returned data without errors (or reconcile found it applied).
@@ -152,7 +153,7 @@ function shopify_graphql(array $shop, string $op, string $query, array $vars, ar
 	$clock = $opts['clock'] ?? fn() => microtime(true);
 	$sleep = $opts['sleep'] ?? fn(float $s) => usleep((int) round($s * 1e6));
 	$log = $opts['log'] ?? null;
-	$redact = $opts['redact'] ?? (function_exists('shopify_redact') ? 'shopify_redact' : null);
+	$redact = array_key_exists('redact', $opts) ? $opts['redact'] : (function_exists('shopify_redact') ? 'shopify_redact' : null);
 	$correlation = $opts['correlation'] ?? [];
 	$deadline = (float) ($opts['deadline'] ?? $clock() + SHOPIFY_DEFAULT_BUDGET);
 	$shopKey = (string) ($shop['shop_key'] ?? $shop['domain'] ?? '');
