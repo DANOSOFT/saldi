@@ -174,6 +174,7 @@ final class RentalOverlapTest extends TestCase
         self::assertSame(2, substr_count($helper, "return 'error';"), 'the approval is read back before and after the commit');
         self::assertStringContainsString("WHERE id = currval(pg_get_serial_sequence('rentalperiod', 'id'))", $helper);
         self::assertStringNotContainsString('ORDER BY id DESC LIMIT 1', $helper);
+        self::assertStringContainsString('return ($query && db_fetch_array($query)) ? $newId : 0;', $helper);
         foreach (['remoteBooking/index.js', 'mysale/remote.js'] as $file) {
             $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);
             self::assertStringContainsString('availableDatesById.push([itemId, localDay(date)])', $src, $file);

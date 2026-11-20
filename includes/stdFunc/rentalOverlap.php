@@ -28,7 +28,7 @@
 //                 Before, the approval cleared expiry_time and invoiced, also when another booking had taken the unit or the expired booking had been deleted (order 0).
 //                 Only the call that approves a booking invoices it; a booking approved before is reported from its order (rental_order_invoiced()) and never invoiced twice.
 //                 The approval is only reported when its update is read back, approved for the same order, before and after the commit.
-//                 rental_store_booking() returns only the id of the row its own insert stored (the sequence value), never an older booking with the same days.
+//                 rental_store_booking() returns only the id of the row its own insert stored (the sequence value), never an older booking with the same days, and only when that row is there after the commit.
 
 if (!function_exists('rental_booking_day')) {
 	/**
@@ -157,7 +157,10 @@ if (!function_exists('rental_store_booking')) {
 			return 0;
 		}
 		transaktion('commit');
-		return (int)$row["id"];
+		// and the row must still be there after the commit (a commit the database rejects leaves nothing)
+		$newId = (int)$row["id"];
+		$query = db_select("SELECT id FROM rentalperiod WHERE id = $newId AND item_id = $itemId AND cust_id = $custId AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
+		return ($query && db_fetch_array($query)) ? $newId : 0;
 	}
 }
 
