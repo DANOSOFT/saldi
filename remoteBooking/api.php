@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- remoteBooking/api.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- remoteBooking/api.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,8 @@
 //                 The next free number comes from bookingNextFreeKontonr(), which only reads four-digit numeric kontonr.
 // 20261111 CL/MMR SST-996 A rejected booking also deletes its order lines, not only the order and the booking.
 //                 The reject branch of updateBooking is the named handler rejectBooking().
+// 20261120 CL/MMR SST-996 (review): rejectBooking() stops when the booking lookup fails and deletes the order only for a real order id.
+//                 Its deletes run in one transaction; a failed delete is rolled back and updateBooking answers with an error.
 //
 
 
@@ -278,21 +280,33 @@ function bookingNextFreeKontonr() {
 
 /**
  * Removes a booking that was not approved (no payment): its order lines, its order and the booking itself.
- * SST-996: the order lines were left behind before.
+ * SST-996: the order lines were left behind before. All three deletes run in one transaction, so a failed
+ * delete leaves the booking, its order and its lines as they were.
  *
  * @param int $bookingId rentalperiod.id of the booking.
- * @return void
+ * @return bool true when the booking is gone (or never existed), false when the lookup or a delete failed.
  */
 function rejectBooking($bookingId) {
+    global $db_modify_fejl, $webservice;
     $bookingId = (int)$bookingId;
-    $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT order_id FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+    if ($query === false) {
+        return false; // the lookup failed: delete nothing, or the order and its lines would lose their booking
+    }
     $res = db_fetch_array($query);
     $orderId = $res ? (int)$res["order_id"] : 0;
-    if ($orderId > 0) {
+    $prevWebservice = $webservice;
+    $webservice = 1; // a failed db_modify() sets $db_modify_fejl and returns, instead of exiting, so it can be rolled back (SD-595)
+    transaktion('begin');
+    if ($orderId > 0) { // a booking without an order never touches order id 0 or lines with ordre_id 0
         db_modify("DELETE FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
+        db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
     }
-    db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
     db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+    $failed = $db_modify_fejl;
+    transaktion($failed ? 'rollback' : 'commit');
+    $webservice = $prevWebservice;
+    return !$failed;
 }
 
 function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
@@ -401,7 +415,11 @@ if(isset($_GET["updateBooking"])){
     $status = ifset($data, "status", "");
     $bookingId = (int)ifset($data, "id", 0);
     if($status != "approved"){
-        rejectBooking($bookingId);
+        if (!rejectBooking($bookingId)) {
+            http_response_code(500);
+            echo json_encode(["status" => "error", "message" => "The booking could not be deleted"]);
+            exit;
+        }
         echo json_encode(["status" => "deleted"]);
         exit;
     }else{
