@@ -9,6 +9,7 @@
 // 20261113 CDX/NTR Require registry last-activity values to use the Unix seconds expected by admin pages.
 // 20261120 CDX/NTR Check database identity output only appears when retention is enabled.
 // 20261120 CDX/NTR Require routing-account creation and cleanup to leave normal IDs untouched.
+// 20261120 CDX/NTR Keep the simple child-process helper call on one line.
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -59,10 +60,7 @@ final class TestDatabaseLifecycleTest extends TestCase
             if (str_starts_with($filter, 'TestDatabaseOutputFixture::')) {
                 $arguments[] = __DIR__ . '/database/TestDatabaseOutputFixture.php';
             }
-            $result = CharacterizationEnv::runChild(
-                $root . '/vendor/bin/phpunit',
-                $arguments
-            );
+            $result = CharacterizationEnv::runChild($root . '/vendor/bin/phpunit', $arguments);
             self::assertSame(0, $result['exit'], $result['stdout'] . $result['stderr']);
             $xml = simplexml_load_file($report);
             self::assertNotFalse($xml);
