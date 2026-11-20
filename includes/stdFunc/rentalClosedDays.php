@@ -28,6 +28,8 @@
 //                 The calendar only checked the period up to the chosen end, and reservations count too.
 // 20261120 CL/MMR SST-999 Codex round 7: rental_insert_booking() locks the product's rentalitems rows, then checks and inserts in one transaction.
 //                 Two requests at the same time can no longer both find the item free, and the booking id comes from the INSERT.
+// 20261120 CL/MMR SST-999 Codex round 8: rental_insert_booking() always checks the requested item under the lock, also when the dates did not move.
+//                 Only a booking whose end moved may use another free item of the product; otherwise a busy item refuses the booking.
 
 if (!function_exists('rental_extend_for_closed_days')) {
 	/**
@@ -140,19 +142,22 @@ if (!function_exists('rental_insert_booking')) {
 	 * (SELECT ... FOR UPDATE, in id order), the same row lock SST-1000 (PR #1099) takes on the booked item. A second
 	 * request for an item of the product waits until the first commits and then sees its booking, so two requests
 	 * cannot both find the same item free. Reads are not blocked, and the lock is released before the order is made.
+	 * The requested item is always checked (rental_item_is_free()): a booking stored by another request after the
+	 * page loaded refuses it, also when this request's dates did not move.
 	 *
 	 * @param int|string $itemId The item the calendar chose, rentalitems.id.
 	 * @param int|string $custId adresser.id of the customer.
 	 * @param int $from First day of the booking, unix time.
 	 * @param int $to Last day of the booking, unix time.
 	 * @param string $expiryTime When an unpaid booking expires, 'Y-m-d H:i:s'.
-	 * @param bool $checkFree Whether the period must be checked with rental_free_item_for_period() (true when
-	 *                        closed days moved the end past the period the calendar checked).
+	 * @param bool $mayUseOtherItem Whether another free item of the product may be booked when the requested one is
+	 *                              not free (true when closed days moved the end past the period the calendar checked,
+	 *                              see rental_free_item_for_period()). False: the booking is refused.
 	 * @return array{item_id: int, booking_id: int}|null The booked item and the id of the rentalperiod row this call
-	 *                                                   inserted, or null when no item of the product is free or the
-	 *                                                   row was not stored (nothing is stored).
+	 *                                                   inserted, or null when no item may be booked or the row was
+	 *                                                   not stored (nothing is stored).
 	 */
-	function rental_insert_booking($itemId, $custId, $from, $to, $expiryTime, $checkFree) {
+	function rental_insert_booking($itemId, $custId, $from, $to, $expiryTime, $mayUseOtherItem) {
 		$itemId = (int)$itemId;
 		$custId = (int)$custId;
 		$from = (int)$from;
@@ -162,8 +167,8 @@ if (!function_exists('rental_insert_booking')) {
 		$qtxt = "SELECT id FROM rentalitems WHERE id = $itemId ";
 		$qtxt.= "OR product_id = (SELECT product_id FROM rentalitems WHERE id = $itemId) ORDER BY id FOR UPDATE";
 		db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		if ($checkFree) {
-			$itemId = rental_free_item_for_period($itemId, $from, $to);
+		if (!rental_item_is_free($itemId, $from, $to)) {
+			$itemId = $mayUseOtherItem ? rental_free_item_for_period($itemId, $from, $to) : 0;
 			if ($itemId <= 0) {
 				transaktion('rollback');
 				return null;

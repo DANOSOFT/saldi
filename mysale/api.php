@@ -37,6 +37,8 @@
 //                 Another free item of the product is booked, or the booking is refused with 409 and nothing is stored.
 // 20261120 CL/MMR SST-999 Codex round 7: the check and the insert run under one row lock on the product's items (rental_insert_booking()), and the booking id comes from the INSERT.
 //                 A start or end date that cannot be read is refused with 400 instead of an SQL error.
+// 20261120 CL/MMR SST-999 Codex round 8: the requested item is always checked under the lock; only a booking whose end moved may use another item.
+//                 CreateOrder() takes the order number and inserts the order in one transaction, and the order id comes from the INSERT.
 
 $header = "nix";
 $bg = "nix";
@@ -177,8 +179,9 @@ if(isset($_GET["createBooking"])){
     // if there is closed dates between the selected dates extend the end date by the number of days closed
     $calendarTo = $to;
     $to = rental_extend_for_closed_days($from, $to, rental_closed_days());
-    // SST-999: the calendar only checked the item up to the chosen end. A moved end must be free too: the check and the
-    // insert run under one lock, another free item of the product is booked, or the booking is refused (409) and nothing is stored.
+    // SST-999: the item is checked and the booking stored under one lock, so a booking made after the page loaded is seen.
+    // The calendar only checked up to the chosen end: when closed days moved the end, another free item of the product
+    // may be booked. Otherwise a busy item refuses the booking (409) and nothing is stored.
     $booking = rental_insert_booking($data["item_id"], $data["cust_id"], $from, $to, $expiryTime, $to !== $calendarTo);
     if ($booking === null) {
         http_response_code(409);
@@ -872,14 +875,25 @@ function CreateOrder($data){
         $esc[$key] = db_escape_string((string)$customer[$key]);
     }
     $date = date("Y-m-d");
-    $ordrenr = get_next_order_number('DO');
+    // SST-999: the order number and the order are made in one transaction, so a booking at the same moment can't get the
+    // same number, and the order id comes from the INSERT (a SELECT by ordrenr found the other booking's order).
+    transaktion('begin');
+    $ordrenr = get_next_order_number('DO', false);
     if($invoiceDate){
-        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+        $query = db_select("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms) RETURNING id", __FILE__ . " linje " . __LINE__);
     }else{
-        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+        $query = db_select("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms) RETURNING id", __FILE__ . " linje " . __LINE__);
     }
-    $query = db_select("SELECT id FROM ordrer WHERE ordrenr = $ordrenr AND art LIKE 'D%'", __FILE__ . " linje " . __LINE__);
-    $order_id = db_fetch_array($query)["id"];
+    $row = $query ? db_fetch_array($query) : false;
+    $order_id = $row ? (int)$row["id"] : 0;
+    if ($order_id <= 0) {
+        // db_modify() stopped here when the INSERT failed; db_select() only alerts, so stop the same way
+        transaktion('rollback');
+        http_response_code(500);
+        echo json_encode(["error" => "The order could not be created"]);
+        exit;
+    }
+    transaktion('commit');
     opret_ordrelinje($order_id, $product["product_id"], $product["product_number"], $paidWeeks, $product["description"], $basePrice, $discount, '100', 'D', '', '1', '', '', '', $rabatart, '0', '', '', '', '', __LINE__);
     db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 2, 0, 0, 0, $order_id, '" . db_escape_string("Stand: " . $product["name"]) . "')", __FILE__ . " linje " . __LINE__);
     db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 3, 0, 0, 0, $order_id, 'Udlejning: Fra $data[fromDate] til $data[toDate]')", __FILE__ . " linje " . __LINE__);
