@@ -56,6 +56,7 @@
 // 20261120 CL/MMR  SST-1005: A waiting year that was deleted before its rebuild no longer swallows the later work lowered into it: the rebuild starts at the first year after it (CodeRabbit).
 //                  A rebuild that a failed statement, a fatal error or a time-out ends before its catch runs is rolled back on shutdown and leaves the 'failed' message (CodeRabbit).
 //                  The year card arms that guard for its whole save, so a failure in its own primo reset leaves the message too, and a nested caller never disarms it (Codex round 22).
+//                  A COMMIT the database refuses is reported like any failed statement, and the guard is only disarmed after a confirmed commit (Codex round 23).
 
 /**
  * Whether a fiscal year's grupper art 'RA' box10 marks it as deleted. systemdata/fiscalYearInc/deleteFiscalYear.php
@@ -727,9 +728,28 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		return $stop;
 	}
 	saveFollowingOpeningBalanceStop($stop, $checkedFrom);
-	transaktion('commit');
-	if ($guarded) followingOpeningBalanceFailureGuard(null);
+	if (followingOpeningBalanceCommit() && $guarded) followingOpeningBalanceFailureGuard(null);
 	return $stop;
+}
+
+/**
+ * Commit the transaction a rebuild or the year card began, and say whether it was committed. transaktion()
+ * (includes/db_query.php) does not report a COMMIT that the database refuses (a deferred constraint or trigger, a
+ * serialization failure), and the transaction is then rolled back. Sent through db_modify() instead, a refused COMMIT
+ * is reported like any failed statement: in a page request the error box and exit, after which the guard that is
+ * still armed stores the 'failed' message on shutdown (Codex round 23). As a webservice db_modify() returns the error
+ * instead; then this returns false and the caller leaves the guard armed, so the message is stored when the request
+ * ends. The nesting count transaktion() keeps is lowered as transaktion('commit') does.
+ *
+ * @return bool True when the transaction was committed.
+ */
+function followingOpeningBalanceCommit() {
+	global $db_transaktion_depth;
+	$result = db_modify('commit', __FILE__ . ' line ' . __LINE__);
+	if ($db_transaktion_depth) {
+		$db_transaktion_depth--;
+	}
+	return !(is_string($result) && substr($result, 0, 1) === '1');
 }
 
 /**
@@ -859,10 +879,8 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	}
 	db_modify('release savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
 	saveFollowingOpeningBalanceStop($stop, $checkedFrom);
-	if ($ownTransaction) {
-		transaktion('commit');
-	}
-	if ($guarded) followingOpeningBalanceFailureGuard(null);
+	$committed = $ownTransaction ? followingOpeningBalanceCommit() : true;
+	if ($guarded && $committed) followingOpeningBalanceFailureGuard(null);
 	return $stop;
 }
 

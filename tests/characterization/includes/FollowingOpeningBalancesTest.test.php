@@ -22,6 +22,7 @@
 // 20261120 CL/MMR SST-1005 A waiting year that is deleted before its rebuild does not swallow later work (CodeRabbit on PR #1109).
 //                 A rebuild that the production db_modify() ends with exit is rolled back and leaves the 'failed' message (CodeRabbit on PR #1109).
 //                 The year card's save keeps that message whether its own primo reset or the carry-forward fails, and a nested caller never disarms its guard (Codex round 22).
+//                 A COMMIT the database refuses leaves it too, for the card and for the page check (Codex round 23).
 
 declare(strict_types=1);
 
@@ -1622,12 +1623,34 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertStringEndsWith('|0', $this->syncState());
     }
 
-    public function testARebuildThatTheProductionErrorPathEndsLeavesTheFailedMessage(): void
+    /**
+     * Make the database refuse UPDATE OF primo in one year: at once, or only at COMMIT (a deferred constraint trigger).
+     */
+    private function refuseUpdates(string $schema, int $year, bool $atCommit): void
+    {
+        $this->sql("CREATE FUNCTION $schema.sst1005_refuse() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'test: the database refused the update'; END \$\$");
+        if ($atCommit) {
+            $this->sql("CREATE CONSTRAINT TRIGGER sst1005_refuse AFTER UPDATE OF primo ON $schema.kontoplan DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (NEW.regnskabsaar = $year) EXECUTE FUNCTION $schema.sst1005_refuse()");
+        } else {
+            $this->sql("CREATE TRIGGER sst1005_refuse BEFORE UPDATE OF primo ON $schema.kontoplan FOR EACH ROW WHEN (NEW.regnskabsaar = $year) EXECUTE FUNCTION $schema.sst1005_refuse()");
+        }
+    }
+
+    /**
+     * @return array<string, array{0: bool}> Whether the database refuses the rebuild's write only at COMMIT.
+     */
+    public static function pageFailures(): array
+    {
+        return ['a failed statement' => [false], 'a refused commit (a deferred trigger)' => [true]];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('pageFailures')]
+    public function testARebuildThatTheProductionErrorPathEndsLeavesTheFailedMessage(bool $atCommit): void
     {
         if (!function_exists('proc_open')) {
             self::markTestSkipped('proc_open is not available');
         }
-        $schema = 'sst1005_exit_' . getmypid();
+        $schema = 'sst1005_exit_' . ($atCommit ? 'commit_' : '') . getmypid();
         $other = $this->privateSchema($schema);
         pg_close($other);
         $scratch = sys_get_temp_dir() . '/sst1005exit' . getmypid();
@@ -1636,9 +1659,8 @@ final class FollowingOpeningBalancesTest extends TestCase
             $this->postInYear9(2000, 5);
             self::assertNull(checkFollowingOpeningBalances(9));
             self::assertStringEndsWith('|9', $this->syncState());
-            // The database refuses the first opening balance the rebuild writes into year 10.
-            $this->sql("CREATE FUNCTION $schema.sst1005_refuse() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'test: the database refused the update'; END \$\$");
-            $this->sql("CREATE TRIGGER sst1005_refuse BEFORE UPDATE OF primo ON $schema.kontoplan FOR EACH ROW WHEN (NEW.regnskabsaar = 10) EXECUTE FUNCTION $schema.sst1005_refuse()");
+            // The database refuses the opening balances the rebuild writes into year 10, at once or at COMMIT.
+            $this->refuseUpdates($schema, 10, $atCommit);
 
             // A session in year 10 opens a page in a process of its own with the production db_modify(), which exits.
             mkdir($scratch . '/temp/sst1005', 0777, true);
@@ -1697,6 +1719,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         return [
             'the card\'s own primo reset' => [10, 'reset'],
             'the carry-forward into the next year' => [11, 'carry'],
+            'the commit (a deferred trigger)' => [10, 'commit'],
         ];
     }
 
@@ -1712,8 +1735,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         $scratch = sys_get_temp_dir() . '/sst1005card' . $where . getmypid();
         try {
             $before = [$this->yearState(10), $this->yearState(11)];
-            $this->sql("CREATE FUNCTION $schema.sst1005_refuse() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'test: the database refused the update'; END \$\$");
-            $this->sql("CREATE TRIGGER sst1005_refuse BEFORE UPDATE OF primo ON $schema.kontoplan FOR EACH ROW WHEN (NEW.regnskabsaar = $refusedYear) EXECUTE FUNCTION $schema.sst1005_refuse()");
+            $this->refuseUpdates($schema, $refusedYear, $where === 'commit');
 
             mkdir($scratch . '/temp/sst1005', 0777, true);
             $child = proc_open(

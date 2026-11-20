@@ -52,6 +52,7 @@
 // 20261116 CL/MMR SST-1005 Merged with the settings redesign: the «Overfør til» loop of year 1 and a year after a deleted year keeps the F4 fix (.=, cast values) and only runs when the form posted saldo.
 //                 A year after a deleted year shows its opening balance read-only again (fiscalYearInc/yearX1.php), so its Debet/Kredit save is gone; the later years are still carried from it.
 // 20261120 CL/MMR SST-1005 A failed statement during the save, also in the card's own primo reset, leaves the message that asks for Gem/opdatér again (Codex round 22).
+//                 A COMMIT the database refuses does so too (Codex round 23).
 @session_start();
 $s_id=session_id();
 
@@ -291,8 +292,8 @@ if ($_POST) {
 		}
 		// SST-1005: as if Gem/opdatér was pressed on this year and every later year.
 		$openingStop = updateOpeningBalancesAfterYearSave($kodenr, $primoBeforeSave);
-		transaktion("commit");
-		if ($openingGuard) followingOpeningBalanceFailureGuard(null);
+		// A refused COMMIT ends the request like a failed statement; the guard is only disarmed once it is committed.
+		if (followingOpeningBalanceCommit() && $openingGuard) followingOpeningBalanceFailureGuard(null);
 		if ($openingStop) {
 			print followingOpeningBalanceAlertScript($openingStop, $sprog_id);
 		}

@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // 20261120 CL/MMR SST-1005 Run the automatic rebuild with the production includes/db_query.php, whose db_modify() ends the request with exit on a failed statement instead of throwing (CodeRabbit on PR #1109).
 //                 Mode 'card' runs the year card's save order for year 10: begin, the guard, its own writes, then the carry-forward (Codex round 22).
+//                 The card commits through followingOpeningBalanceCommit(), as systemdata/regnskabskort.php does (Codex round 23).
 //
 // Started by FollowingOpeningBalancesTest::testARebuildThatTheProductionErrorPathEndsLeavesTheFailedMessage() as a
 // process of its own, because exit would end the test. Arguments: the test database, the schema holding its tables and
@@ -52,8 +53,7 @@ if ($mode === 'card') {
 	db_modify("update grupper set beskrivelse = 'saved by the card' where art = 'RA' and kodenr = '10'", __FILE__ . ' line ' . __LINE__);
 	db_modify("update kontoplan set primo = '0' where regnskabsaar = '10'", __FILE__ . ' line ' . __LINE__);
 	updateOpeningBalancesAfterYearSave(10, $primoBeforeSave);
-	transaktion('commit');
-	if ($guard) followingOpeningBalanceFailureGuard(null);
+	if (followingOpeningBalanceCommit() && $guard) followingOpeningBalanceFailureGuard(null);
 } else {
 	checkFollowingOpeningBalances(10);
 }
