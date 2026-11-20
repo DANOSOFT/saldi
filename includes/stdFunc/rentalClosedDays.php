@@ -30,6 +30,8 @@
 //                 Two requests at the same time can no longer both find the item free, and the booking id comes from the INSERT.
 // 20261120 CL/MMR SST-999 Codex round 8: rental_insert_booking() always checks the requested item under the lock, also when the dates did not move.
 //                 Only a booking whose end moved may use another free item of the product; otherwise a busy item refuses the booking.
+// 20261120 CL/MMR SST-999 Codex round 9: rental_insert_booking() runs in the caller's transaction, which also makes the order and then commits.
+//                 A booking whose order could not be made is no longer left behind, blocking the item.
 
 if (!function_exists('rental_extend_for_closed_days')) {
 	/**
@@ -136,14 +138,15 @@ if (!function_exists('rental_free_item_for_period')) {
 
 if (!function_exists('rental_insert_booking')) {
 	/**
-	 * Store a booking from the public booking page or mysale (rentalperiod, order_id 0, waiting for payment).
+	 * Store a booking from the public booking page or mysale (rentalperiod, order_id 0, waiting for payment), inside
+	 * the caller's open transaction. The caller makes the order in the same transaction and commits, so a booking is
+	 * only ever stored together with its order; a failure or an exit before the commit stores neither.
 	 *
-	 * The check and the insert run in one transaction that first locks the rentalitems rows of the item's product
-	 * (SELECT ... FOR UPDATE, in id order), the same row lock SST-1000 (PR #1099) takes on the booked item. A second
-	 * request for an item of the product waits until the first commits and then sees its booking, so two requests
-	 * cannot both find the same item free. Reads are not blocked, and the lock is released before the order is made.
-	 * The requested item is always checked (rental_item_is_free()): a booking stored by another request after the
-	 * page loaded refuses it, also when this request's dates did not move.
+	 * It first locks the rentalitems rows of the item's product (SELECT ... FOR UPDATE, in id order), the same row lock
+	 * SST-1000 (PR #1099) takes on the booked item, and holds it until the caller commits. A second request for an item
+	 * of the product waits until then and sees the first booking, so two requests cannot both find the same item free.
+	 * Reads are not blocked. The requested item is always checked (rental_item_is_free()): a booking stored by another
+	 * request after the page loaded refuses it, also when this request's dates did not move.
 	 *
 	 * @param int|string $itemId The item the calendar chose, rentalitems.id.
 	 * @param int|string $custId adresser.id of the customer.
@@ -155,7 +158,7 @@ if (!function_exists('rental_insert_booking')) {
 	 *                              see rental_free_item_for_period()). False: the booking is refused.
 	 * @return array{item_id: int, booking_id: int}|null The booked item and the id of the rentalperiod row this call
 	 *                                                   inserted, or null when no item may be booked or the row was
-	 *                                                   not stored (nothing is stored).
+	 *                                                   not stored (the caller rolls back).
 	 */
 	function rental_insert_booking($itemId, $custId, $from, $to, $expiryTime, $mayUseOtherItem) {
 		$itemId = (int)$itemId;
@@ -163,25 +166,18 @@ if (!function_exists('rental_insert_booking')) {
 		$from = (int)$from;
 		$to = (int)$to;
 		$expiryTime = db_escape_string((string)$expiryTime);
-		transaktion('begin');
 		$qtxt = "SELECT id FROM rentalitems WHERE id = $itemId ";
 		$qtxt.= "OR product_id = (SELECT product_id FROM rentalitems WHERE id = $itemId) ORDER BY id FOR UPDATE";
 		db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		if (!rental_item_is_free($itemId, $from, $to)) {
 			$itemId = $mayUseOtherItem ? rental_free_item_for_period($itemId, $from, $to) : 0;
-			if ($itemId <= 0) {
-				transaktion('rollback');
-				return null;
-			}
+			if ($itemId <= 0) return null;
 		}
 		$qtxt = "INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ";
 		$qtxt.= "($itemId, $custId, $from, $to, 0, TO_TIMESTAMP('$expiryTime', 'YYYY-MM-DD HH24:MI:SS')) RETURNING id";
-		$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if (!$row || !(int)$row['id']) {
-			transaktion('rollback');
-			return null;
-		}
-		transaktion('commit');
+		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$row = $query ? db_fetch_array($query) : false;
+		if (!$row || !(int)$row['id']) return null;
 		return array('item_id' => $itemId, 'booking_id' => (int)$row['id']);
 	}
 }

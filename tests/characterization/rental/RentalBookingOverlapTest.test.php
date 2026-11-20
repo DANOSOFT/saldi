@@ -14,6 +14,7 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 //                 same time, also for the other item of the product), and the reply and the order use the id of the row the request inserted.
 // 20261120 CL/MMR SST-999 Codex round 8: a request whose dates did not move is checked too (also while an extended booking holds the lock),
 //                 and each booking gets its own row and its own order.
+// 20261120 CL/MMR SST-999 Codex round 9: a booking whose order could not be stored leaves nothing behind, and the retry books the item.
 final class RentalBookingOverlapTest extends CharacterizationTestCase
 {
     private static int $itemA;
@@ -371,6 +372,34 @@ final class RentalBookingOverlapTest extends CharacterizationTestCase
     }
 
     /**
+     * The booking and its order are stored together. While new orders can't be stored (a CHECK constraint stands in
+     * for a failing order INSERT), a request answers 500 and leaves no booking. Once orders can be stored again, the
+     * same request books the item (before, the booking left without an order blocked it with 409).
+     */
+    #[DataProvider('apis')]
+    public function testAFailedOrderLeavesNoBookingAndTheRetryWorks(string $api): void
+    {
+        self::rows('ALTER TABLE ordrer ADD CONSTRAINT sst999_no_new_order CHECK (ordrenr < 0) NOT VALID');
+        try {
+            $failed = $this->finishBooking($this->startBooking($api));
+        } finally {
+            self::rows('ALTER TABLE ordrer DROP CONSTRAINT IF EXISTS sst999_no_new_order');
+        }
+
+        self::assertSame(500, $failed['status'], $failed['body']);
+        self::assertSame([], self::newBookings(), 'a booking whose order failed must not be stored');
+        self::assertSame(0, self::orderLines());
+
+        $retry = $this->createBooking($api);
+
+        self::assertSame(200, $retry['status'], $retry['body']);
+        $row = self::one('SELECT id, order_id FROM rentalperiod WHERE rt_from = $1', [self::day('2030-12-20')]);
+        self::assertNotNull($row);
+        self::assertSame((int)$row['id'], (int)json_decode($retry['body'], true)['id']);
+        self::assertGreaterThan(0, (int)$row['order_id']);
+    }
+
+    /**
      * Start the child runner without waiting for it.
      * @param array<string, mixed> $override
      * @return array{process: resource, stdout: resource, stderr: resource}
@@ -378,7 +407,8 @@ final class RentalBookingOverlapTest extends CharacterizationTestCase
     private function startBooking(string $api, array $override = []): array
     {
         $process = proc_open(
-            [PHP_BINARY, __DIR__ . '/../support/run_booking_api.php', $api, CharacterizationEnv::testDb(), self::bookingBody($override)],
+            // sendmail_path: a failing statement makes db_select()/db_modify() mail the error; nothing may be sent from a test
+            [PHP_BINARY, '-d', 'sendmail_path=/bin/true', __DIR__ . '/../support/run_booking_api.php', $api, CharacterizationEnv::testDb(), self::bookingBody($override)],
             [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes
         );
