@@ -2,6 +2,7 @@
 // 20261021 CL/MJ MB-79 Run the open-post settlement queries against an isolated in-memory database.
 // 20261027 CL/LH MB-79 Stubs for findtekst() and postingLineAmounts(), which the confirmation page's lookups call.
 // 20261106 CL/LH MB-123 afrund() applies production's rounding correction.
+// 20261121 CL/LH MB-123 transaktion() begins, commits and rolls back on the database, so a rollback can be seen.
 
 namespace Saldi\Tests\ExchangeRateSettlement;
 
@@ -51,6 +52,17 @@ function dkdecimal($tal, $decimaler = null) {
 
 function transaktion($action) {
     $GLOBALS['exchangeRateSettlementTransactions'][] = $action;
+    $db = $GLOBALS['exchangeRateSettlementDb'] ?? null;
+    if (!$db instanceof PDO) {
+        return;
+    }
+    if ($action === 'begin' && !$db->inTransaction()) {
+        $db->beginTransaction();
+    } elseif ($action === 'commit' && $db->inTransaction()) {
+        $db->commit();
+    } elseif ($action === 'rollback' && $db->inTransaction()) {
+        $db->rollBack();
+    }
 }
 
 // 20261027 CL/LH MB-79 rateDifferenceAccountError() names the account through findtekst(); the stub returns

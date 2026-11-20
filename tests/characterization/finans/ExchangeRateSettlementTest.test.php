@@ -8,6 +8,7 @@
 // 20261120 CL/LH MB-123 A foreign-currency line without an exchange rate is refused instead of measured at rate 100, the installation's own currency in all its spellings ('-' from includes/ret_valutadiff.php, the base currency order invoices carry) is one currency to the match query and both equalizers, a one-øre difference survives floating point, and a reference given twice settles the one post it names.
 // 20261121 CL/LH MB-123 A payment for several invoices is matched at both bounds of the amount window despite floating point.
 // 20261121 CL/LH MB-123 Roundings both ways on one difference account are shown as the two movements posting books.
+// 20261121 CL/LH MB-123 A refused difference runs in a child process, so the rollback and the end of the request are observed rather than read from the source.
 //
 // The functions under test live in finans/bogfor.php, which is a page: including it would run the
 // page. They are lifted out of the shipped file and evaluated into this namespace instead, so the
@@ -695,16 +696,37 @@ final class ExchangeRateSettlementTest extends TestCase
 
     public function testADifferenceWithNowhereToGoIsRefusedRatherThanPostedToNothing(): void
     {
-        // bookRateDifference() ends the request, so this reads the shipped guard rather than running it.
-        $src = self::liftedSource();
-        $from = strpos($src, 'function bookRateDifference(');
-        $insert = strpos($src, 'insert into $tabel', $from);
-        self::assertNotFalse($insert, 'bookRateDifference() no longer inserts into $tabel');
-        $guard = substr($src, $from, $insert - $from);
-        self::assertMatchesRegularExpression('/\$accountError\s*=\s*rateDifferenceAccountError\(\$diffkonto/', $guard,
+        // bookRateDifference() ends the request, so it runs in a child process against a copy of this database.
+        $dir = sys_get_temp_dir() . '/mb123-refused-' . getmypid() . '-' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        $database = $dir . '/settlement.sqlite';
+        $lift = $dir . '/lift.php';
+        try {
+            $this->db->exec("VACUUM INTO '" . str_replace("'", "''", $database) . "'");
+            file_put_contents($lift, '<?php namespace ' . __NAMESPACE__ . '; ' . self::liftedSource());
+            $process = proc_open([PHP_BINARY, __DIR__ . '/support/run_refused_rate_difference.php', $database, $lift],
+                [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+            self::assertIsResource($process);
+            $stdout = stream_get_contents($pipes[1]);
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $exit = proc_close($process);
+        } finally {
+            @unlink($database);
+            @unlink($lift);
+            @rmdir($dir);
+        }
+        $lines = array_values(array_filter(explode("\n", trim($stdout))));
+        $result = json_decode((string)end($lines), true);
+
+        self::assertSame(0, $exit, "the child failed.\nstdout: $stdout\nstderr: $stderr");
+        self::assertIsArray($result, "the child printed no result.\nstdout: $stdout\nstderr: $stderr");
+        self::assertStringContainsString('Difference konto 999999 eksisterer ikke (bilag: 2)', $stdout,
             'a missing or unknown currency difference account would be posted to');
-        self::assertMatchesRegularExpression("/transaktion\\('rollback'\\);.*?\\bexit;/s", $guard,
-            'and the journal would be left half posted, or posting would carry on after the rollback');
+        self::assertStringNotContainsString('CONTINUED', $stdout, 'posting would carry on after the rollback');
+        self::assertSame(['begin', 'rollback'], $result['transactions'], 'the journal would not be rolled back');
+        self::assertSame(0, $result['rows'], 'and the row written before the difference would stay in the ledger');
     }
 
     public function testADifferenceAccountMustBeSetUpAndExistInTheFiscalYear(): void
