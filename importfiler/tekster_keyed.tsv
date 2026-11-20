@@ -7,6 +7,7 @@ common.accept	Acceptér	Accept	Godta
 formular.line.lager	Lager	Warehouse	Lager
 formular.line.lagernavn	Lagernavn	Warehouse name	Lagernavn
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
+pos.delivery.contact_missing	Afhentning og levering kræver kundens e-mail eller telefonnummer.	Pickup and delivery need the customer's email or phone number.	Henting og levering krever kundens e-post eller telefonnummer.
 pos.delivery.date	Ønsket leveringsdato	Requested delivery date	Ønsket leveringsdato
 pos.delivery.error.choice	Leveringsmåden findes ikke eller er ikke længere aktiv.	The delivery option does not exist or is no longer active.	Leveringsmåten finnes ikke eller er ikke lenger aktiv.
 pos.delivery.error.date	Ønsket leveringsdato skal være en gyldig dato (dd-mm-åååå).	The requested delivery date must be a valid date (dd-mm-yyyy).	Ønsket leveringsdato må være en gyldig dato (dd-mm-åååå).
