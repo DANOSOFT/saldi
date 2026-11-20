@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.1.0 --- 2026-11-06 ---
+// ---------------finans/bogfor.php---------- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,7 @@
 // 20261104 CDX/NTR Merge MB-72 settlement dates and complete payments with MB-123 exchange differences, simulation and preview.
 // 20261104 CDX/NTR Restore chronological order of the merged history entries.
 // 20261106 CL/LH MB-123 The confirmation page puts each voucher's currency rounding on that voucher's own difference account, as posting books it, instead of the whole journal's rounding on the last currency line's account (confirmationRoundingByAccount()).
+// 20261120 CL/LH MB-123 A foreign-currency line with no exchange rate on its date is refused on the confirmation page and in bogfor() (journalLineRateError()), instead of posted at rate 100, where a settlement booked the whole gap to the invoice's rate as an exchange difference. The match query reads the '-' currency includes/ret_valutadiff.php writes as DKK.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -343,6 +344,10 @@ if ($kladde_id) {
 				$valutaposter++;
 				list($dkkamount[$posteringer],$diffkonto,$valutakurs)=valutaopslag($amount[$posteringer],$row['valuta'],$row['transdate']);
 				$voucherDiffkonto[$y]=$diffkonto;
+				$rateError=journalLineRateError($row,$valutakurs);
+				if ($rateError) {
+					$fejltext="OBS: " . htmlspecialchars($rateError, ENT_QUOTES, $charset);
+				}
 #				if ($row['debet']) $valutadiff=$valutadiff+$dkkamount[$posteringer];
 #				if ($row['kredit']) $valutadiff=$valutadiff-$dkkamount[$posteringer];
 #				$valutadiff=round($valutadiff+0.0001,3);
@@ -856,6 +861,13 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			$projekt[$y]=$row['projekt'];
 			$valuta[$y]=$row['valuta']*1;
 			$ordre_id[$y]=$row['ordre_id']*1;
+			// 20261120 CL/LH MB-123 Rate 100 is for DKK. A currency line without a rate would post its currency
+			// amount as DKK, and a settlement would book the gap to the invoice's rate as an exchange difference.
+			// The caller rolls back what earlier lines wrote and shows the message, as for the other refusals.
+			$rateError=journalLineRateError($row,$line['valutakurs']);
+			if ($rateError) {
+				return "$rateError. Ingen posteringer er gemt.";
+			}
 			if (!isset ($valutakurs[$y])) $valutakurs[$y] = NULL;
 			if (!$valutakurs[$y]) $valutakurs[$y]=100;
 			$transdate[$y]=$row['transdate'];
@@ -1285,8 +1297,8 @@ function openpostProject($projekt) {
 function openpostMatchQuery($konto_id,$projekt,$faktnr,$valuta,$belob,$amountWindow,$excludeIds=array()) {
 	// MB-79 Without the currency condition a DKK payment settles a foreign-currency post that happens to
 	// carry the same invoice number and figure. Rows written before openpost.valuta existed have it NULL and
-	// includes/ret_valutadiff.php writes '-', so an empty value is read as DKK the way
-	// includes/udlign_openpost.php reads it - otherwise an ordinary DKK settlement would stop working.
+	// includes/ret_valutadiff.php writes '-', so an empty value and '-' are read as DKK the way
+	// includes/udlign_openpost.php reads them - otherwise an ordinary DKK settlement would stop working.
 	$matchValuta = ($valuta === '' || $valuta === NULL) ? 'DKK' : $valuta;
 	$qtxt = "select id,transdate,amount,valutakurs from openpost where konto_id='" . (int)$konto_id . "'";
 	$projekt = openpostProject($projekt);
@@ -1298,7 +1310,7 @@ function openpostMatchQuery($konto_id,$projekt,$faktnr,$valuta,$belob,$amountWin
 	$qtxt.= " and udlignet!='1'";
 	// $faktnr arrives escaped from bogfor(); escaping it again would double any quote and lose the match.
 	$qtxt.= " and faktnr='$faktnr'";
-	$qtxt.= " and coalesce(nullif(valuta,''),'DKK')='" . db_escape_string($matchValuta) . "'";
+	$qtxt.= " and coalesce(nullif(nullif(valuta,''),'-'),'DKK')='" . db_escape_string($matchValuta) . "'";
 	if ($amountWindow) {
 		$qtxt.= " and amount >= '" . ($belob-0.005) . "' and amount < '" . ($belob+0.005) . "'";
 	}
@@ -1575,6 +1587,10 @@ function journalRateDifferences($kladde_id) {
 		ob_start();
 		$line = postingLineAmounts($row, true);
 		ob_end_clean();
+		// The page refuses a line without a rate, so measuring it at rate 100 would only show a false difference.
+		if (journalLineRateError($row,$line['valutakurs'])) {
+			continue;
+		}
 		$valutakurs = $line['valutakurs'] ? $line['valutakurs'] : 100;
 		foreach (journalLineOpenpostSides($row,$line) as $side) {
 			$kursdiff = openpostRateDifference($side['art'], $side['konto'], db_escape_string($row['faktura']), $side['amount'], $row['valuta']*1, $valutakurs, $row['projekt'], $overlay);
@@ -1733,6 +1749,26 @@ function rateDifferenceAccountError($diffkonto,$bilag) {
 		return str_replace('<variable>', (string)$diffkonto, $txt) . " (bilag: $bilag)";
 	}
 	return '';
+}
+/**
+ * Why a journal line in a foreign currency cannot be posted for want of an exchange rate, or '' when it can.
+ * valutaopslag() only alerts when the currency has no rate on the line's date and leaves the amount in the
+ * currency; posted at rate 100, a settlement would book the gap to the invoice's rate as an exchange difference.
+ *
+ * @param array      $row        A kassekladde row: valuta (currency code), amount, debet, kredit, transdate, bilag.
+ * @param float|null $valutakurs The rate valutaopslag() found for it, NULL or 0 when there is none.
+ * @return string                The message, or '' for a DKK line, a line with a rate or a line that posts nothing.
+ */
+function journalLineRateError($row,$valutakurs) {
+	if (!$row['valuta'] || !(float)$row['amount'] || (!$row['debet'] && !$row['kredit']) || (float)$valutakurs) {
+		return '';
+	}
+	$valuta = openpostCurrencyLetters($row['valuta']);
+	if ($valuta === '') {
+		$valuta = 'valuta ' . (int)$row['valuta'];
+	}
+	$dato = date('d-m-Y', strtotime((string)$row['transdate']));
+	return "Ingen valutakurs for $valuta den $dato (bilag: " . (string)$row['bilag'] . ")";
 }
 /**
  * Books a DKK exchange difference from an automatic settlement: the currency's difference account

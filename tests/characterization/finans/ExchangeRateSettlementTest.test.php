@@ -5,6 +5,7 @@
 // 20261027 CL/LH MB-79 The confirmation page's in-voucher currency rounding goes on the difference account's row.
 // 20261104 CDX/NTR Verify MB-72 project matching, group dates and complete payments with MB-123 differences and simulation in both equalizers.
 // 20261106 CL/LH MB-123 Pin per-voucher rounding accounts on the confirmation page, per-currency anchors in both equalizers, single-invoice-sized payments and the exit after a refused difference.
+// 20261120 CL/LH MB-123 A foreign-currency line without an exchange rate is refused instead of measured at rate 100, and a legacy '-' currency (includes/ret_valutadiff.php) is read as DKK by the match query and both equalizers.
 //
 // The functions under test live in finans/bogfor.php, which is a page: including it would run the
 // page. They are lifted out of the shipped file and evaluated into this namespace instead, so the
@@ -113,7 +114,7 @@ final class ExchangeRateSettlementTest extends TestCase
                   'openpostMatches', 'openpostOverlay', 'openpostOverlayMatch', 'openpostOverlayRecord',
                   'openpostRateDifferenceAmount', 'openpostRateDifference', 'journalLineOpenpostSides',
                   'journalRateDifferences', 'confirmationRoundingOnListedAccount', 'confirmationRoundingByAccount',
-                  'rateDifferenceText',
+                  'rateDifferenceText', 'journalLineRateError',
                   'rateDifferenceOpenpostAmount', 'rateDifferenceAccounts', 'rateDifferenceAccountError',
                   'bookRateDifference', 'openpost'] as $needed) {
             self::assertStringContainsString('function ' . $needed . '(', $lift,
@@ -201,17 +202,23 @@ final class ExchangeRateSettlementTest extends TestCase
     public function testTheMatchQueryRequiresTheSameCurrency(): void
     {
         $qtxt = openpostMatchQuery(29, '', 'F-745', 'EUR', 1000.03, true);
-        self::assertStringContainsString("coalesce(nullif(valuta,''),'DKK')='EUR'", $qtxt);
+        self::assertStringContainsString("coalesce(nullif(nullif(valuta,''),'-'),'DKK')='EUR'", $qtxt);
     }
 
     public function testAnEmptyOrMissingCurrencyOnAStoredRowIsReadAsDkk(): void
     {
         // Rows written before openpost.valuta existed have it NULL, and includes/ret_valutadiff.php
-        // writes '-'. A DKK settlement has to keep working against them.
-        $qtxt = openpostMatchQuery(29, '', 'F-745', 'DKK', 1000.03, true);
-        self::assertStringContainsString("coalesce(nullif(valuta,''),'DKK')='DKK'", $qtxt);
-        $qtxt = openpostMatchQuery(29, '', 'F-745', '', 1000.03, true);
-        self::assertStringContainsString("coalesce(nullif(valuta,''),'DKK')='DKK'", $qtxt);
+        // writes '-'. A DKK settlement has to keep working against them, and a currency one must not.
+        foreach (['NULL' => null, 'empty' => '', 'dash' => '-'] as $label => $stored) {
+            $this->db->exec('DELETE FROM openpost');
+            $this->openRow('F-745', -1000.03, $stored, null);
+            foreach (['DKK', ''] as $valuta) {
+                $qtxt = openpostMatchQuery(29, '', 'F-745', $valuta, -1000.03, true);
+                self::assertNotFalse(db_fetch_array(db_select($qtxt)), "a $label currency is DKK to a '$valuta' posting");
+            }
+            $qtxt = openpostMatchQuery(29, '', 'F-745', 'EUR', -1000.03, true);
+            self::assertFalse(db_fetch_array(db_select($qtxt)), "a $label currency is not EUR");
+        }
     }
 
     public function testTheAmountWindowAppliesOnlyToASingleInvoiceReference(): void
@@ -544,6 +551,23 @@ final class ExchangeRateSettlementTest extends TestCase
             $equalize = __NAMESPACE__ . '\\' . $name;
             $equalize();
             self::assertSame(['0', '1', '1'], $this->settledFlags(), $name);
+        }
+    }
+
+    public function testBothEqualizersReadALegacyDashCurrencyAsDkk(): void
+    {
+        // includes/ret_valutadiff.php writes '-'; reopened, such a row settled against a DKK row before MB-79.
+        foreach (['equalizeMatchingRecords', 'equalizeOrderMatchingRecords'] as $name) {
+            $this->db->exec('DELETE FROM openpost');
+            $this->openRow('F-961', 125.50, '-', 0);
+            $this->openRow('F-961', -125.50, 'DKK', 100);
+            $this->openRow('F-962', 80.00, 'DKK', 100);
+            $this->openRow('F-962', -80.00, '-', 0);
+            $this->openRow('F-963', 40.00, 'EUR', 745);
+            $this->openRow('F-963', -40.00, '-', 0);
+            $equalize = __NAMESPACE__ . '\\' . $name;
+            $equalize();
+            self::assertSame(['1', '1', '1', '1', '0', '0'], $this->settledFlags(), $name);
         }
     }
 
@@ -891,6 +915,49 @@ final class ExchangeRateSettlementTest extends TestCase
         self::assertSame('7960', $differences[1]['debetkonto']);
         self::assertSame(10.0, $differences[1]['belob']);
         self::assertSame($before, $this->openposts(), 'and working it out wrote nothing');
+    }
+
+    public function testAForeignCurrencyLineWithoutARateIsRefused(): void
+    {
+        // valutaopslag() only alerts when the currency has no rate on the line's date. bogfor() then posted the
+        // line at rate 100, and a settlement measured the whole gap to the invoice's rate as a difference.
+        $line = ['bilag' => '12', 'transdate' => '2026-08-15', 'valuta' => (string)self::EUR, 'amount' => '1000.03',
+            'debet' => '1009', 'kredit' => '58000'];
+        self::assertSame('Ingen valutakurs for EUR den 15-08-2026 (bilag: 12)', journalLineRateError($line, null));
+        self::assertSame('Ingen valutakurs for EUR den 15-08-2026 (bilag: 12)', journalLineRateError($line, 0.0));
+        self::assertSame('', journalLineRateError($line, 745.0), 'a line with a rate posts');
+        self::assertSame('', journalLineRateError(['valuta' => '0'] + $line, null), 'a DKK line needs no rate');
+        self::assertSame('', journalLineRateError(['amount' => '0'] + $line, null), 'an empty line posts nothing');
+        self::assertSame('', journalLineRateError(['debet' => '0', 'kredit' => '0'] + $line, null),
+            'a line without accounts is refused elsewhere');
+        self::assertSame('Ingen valutakurs for valuta 9 den 15-08-2026 (bilag: 12)',
+            journalLineRateError(['valuta' => '9'] + $line, null), 'a code with no currency group is named by its code');
+    }
+
+    public function testTheConfirmationPageMeasuresNoDifferenceFromAMissingRate(): void
+    {
+        // Creditor 1009's invoice F-966 is booked at 745. Its payment is dated before the first EUR rate, so
+        // the page used rate 100 and showed a 6.450,22 loss that posting would then have booked.
+        $this->post('K', '1009', 'F-966', -1000.03, self::EUR, 745, '2026-09-01', 1);
+        $this->journalRow(12, '2026-08-15', 'K', '1009', 'F', '58000', 'F-966', 1000.03, self::EUR);
+        self::assertSame([], journalRateDifferences(4100));
+    }
+
+    public function testPostingAndTheConfirmationPageRefuseALineWithoutARate(): void
+    {
+        // bogfor() is the page's posting step, so this reads the shipped page rather than running it. Its caller
+        // rolls back and shows the message bogfor() returns; the page test runs it on PostgreSQL.
+        $src = file_get_contents(self::bogforPath());
+        $from = strpos($src, 'function bogfor(');
+        $measure = strpos($src, 'openpostRateDifference(', $from);
+        self::assertNotFalse($measure, 'bogfor() no longer measures exchange differences');
+        $body = substr($src, $from, $measure - $from);
+        self::assertMatchesRegularExpression(
+            '/\$rateError=journalLineRateError\(\$row,\$line\[\'valutakurs\'\]\);\s*if \(\$rateError\) \{\s*return /', $body,
+            'bogfor() would post a currency line without a rate at rate 100');
+        $page = substr($src, 0, $from);
+        self::assertMatchesRegularExpression('/\\$fejltext\s*=\s*"OBS: "\s*\.\s*htmlspecialchars\(\\$rateError/', $page,
+            'the confirmation page would offer Simuler and Bogfør for it');
     }
 
     public function testTheConfirmationPageShowsTheCurrencyRoundingOnTheDifferenceAccountsOwnRow(): void

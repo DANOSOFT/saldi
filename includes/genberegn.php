@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------includes/genberegn.php-------ver 5.1.1------2026.11.13---
+// ------includes/genberegn.php-------ver 5.1.1------2026.11.20---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -39,6 +39,7 @@
 // 20261104 CDX/NTR Preserve settlement dates alongside the MB-123 currency and rate conditions.
 // 20261106 CL/LH MB-123 equalizeMatchingRecords() anchors the first open post of an invoice number per currency, so a USD post is not left without an anchor by an earlier EUR post with the same number.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261120 CL/LH MB-123 equalizeMatchingRecords() reads the '-' currency includes/ret_valutadiff.php writes as DKK, as before MB-79.
 @session_start();
 $s_id=session_id();
 
@@ -140,6 +141,13 @@ if (isset($_GET['regnskabsaar']) && $regnskabsaar = (int) $_GET['regnskabsaar'])
 }
 
 if (!function_exists('equalizeMatchingRecords')) {
+/**
+ * Settles open posts that cancel each other out on the same account: the same invoice number, the opposite
+ * amount and the same currency (empty and '-' are DKK), and in a foreign currency the same rate.
+ * Runs after every posting and books nothing.
+ *
+ * @return void
+ */
 function equalizeMatchingRecords () {
 // This function matches open records and equalize those that match accountId, invoicenumber and amount.
 // 20261027 CL/LH MB-79 ... and currency, and in a foreign currency also rate. Settling here books nothing, so a pair
@@ -162,7 +170,8 @@ function equalizeMatchingRecords () {
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		$anchored=array();
 		while ($r = db_fetch_array($q)) {
-			$postValuta[$x][$y]=trim((string)$r['valuta']) === '' ? 'DKK' : $r['valuta'];
+			// 20261120 CL/LH MB-123 includes/ret_valutadiff.php writes '-', which is DKK as an empty value is.
+			$postValuta[$x][$y]=in_array(trim((string)$r['valuta']), array('', '-'), true) ? 'DKK' : $r['valuta'];
 			$postKurs[$x][$y]=(float)$r['valutakurs'];
 			// The first open post of each invoice number in each currency anchors that currency's settlement.
 			$anchor=$r['faktnr'] . "\t" . $postValuta[$x][$y];
@@ -184,7 +193,7 @@ function equalizeMatchingRecords () {
 			$negAmount=$amount[$x][$y]*-1;
 			$qtxt = "select id,transdate from openpost where konto_id='$konto_id[$x]' and udlignet='0' and faktnr='".db_escape_string($faktnr[$x][$y])."'";
 			$qtxt.= "and  amount= '$negAmount'";
-			$qtxt.= " and coalesce(nullif(valuta,''),'DKK')='" . db_escape_string($postValuta[$x][$y]) . "'";
+			$qtxt.= " and coalesce(nullif(nullif(valuta,''),'-'),'DKK')='" . db_escape_string($postValuta[$x][$y]) . "'";
 			if ($postValuta[$x][$y] != 'DKK' && $postKurs[$x][$y]) {
 				$qtxt.= " and (coalesce(valutakurs,0)=0 or valutakurs='" . $postKurs[$x][$y] . "')";
 			}
