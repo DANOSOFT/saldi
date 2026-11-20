@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- remoteBooking/api.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- remoteBooking/api.php --- ver 5.1.1 --- 2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261111 CL/MMR SST-993 createCust no longer fails when an account number is not a number.
 //                 The next free number comes from bookingNextFreeKontonr(), which only reads four-digit numeric kontonr.
+// 20261116 CL/MMR SD-831 A customer created here with the account number of the last kommission item or higher gets the next block of kommission items (includes/commissionItemSeries.php).
 //
 
 
@@ -231,6 +232,8 @@ if(isset($_GET["createCust"])){
     db_modify("INSERT INTO adresser (firmanavn, addr1, postnr, bynavn, tlf, email, kontonr, gruppe, mysale, art, oprettet, betalingsbet) VALUES ('$cust[name]', '$cust[addr]', '$cust[zip]', '$cust[city]', '$cust[tlf]', '$cust[email]', '" . (int)$data["cust_nr"] . "', 1, 'on', 'D', '$date', 'Netto')", __FILE__ . " linje " . __LINE__);
     $query = db_select("SELECT id FROM adresser ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
     $id = db_fetch_array($query)["id"];
+    include_once(__DIR__ . "/../includes/commissionItemSeries.php");
+    commissionItemSeriesEnsure((int)$data["cust_nr"]);
 
     $url = $_SERVER['REQUEST_URI'];
     $pathSegments = array_filter(explode('/', $url));
