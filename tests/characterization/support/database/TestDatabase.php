@@ -7,6 +7,8 @@
 // 20261111 CDX/NTR Document shared fixture helper contracts at their definitions.
 // 20261111 CDX/NTR Remove the exact routing row if persistent ownership recording fails.
 // 20261113 CDX/NTR Store routing-account activity as Unix seconds, matching login and the admin account list.
+// 20261120 CDX/NTR Print database identities only when retaining fixtures for debugging.
+// 20261120 CDX/NTR Allocate negative routing IDs under a lock without advancing the normal sequence.
 
 require_once __DIR__ . '/RetainedTestDatabases.php';
 
@@ -39,7 +41,9 @@ final class TestDatabase
         // regnskab.db is varchar(25). Keep 96 identifier bits within that limit.
         $this->name = 't' . substr($hex, 0, 24);
         self::$groups[$group] = $this;
-        echo "\n" . $this->description();
+        if (self::keep()) {
+            echo "\n" . $this->description();
+        }
     }
 
     /**
@@ -98,13 +102,13 @@ final class TestDatabase
     }
 
     /**
-     * Repeat the class's identity inside PHPUnit's per-test output capture.
+     * Repeat a retained class's identity inside PHPUnit's per-test output capture.
      * @param string $group Test class registered during fixture creation or sharing.
      * @return void
      */
     public static function reportGroup(string $group): void
     {
-        if (isset(self::$groups[$group])) {
+        if (self::keep() && isset(self::$groups[$group])) {
             echo self::$groups[$group]->description();
         }
     }
@@ -239,9 +243,11 @@ final class TestDatabase
 
     /**
      * Register a generated tenant for HTTP routing and remember the exact cleanup row.
+     * Negative IDs leave the normal sequence and positive MAX(id) unchanged, even
+     * for retained fixtures. The transaction lock serializes competing inserts.
      * @param string $account Account name routed to this owned database.
      * @param bool $closed Whether the routing account should reject ordinary logins.
-     * @return int Inserted regnskab row ID.
+     * @return int Inserted negative regnskab row ID.
      */
     public function registerAccount(string $account, bool $closed = false): int
     {
@@ -252,17 +258,21 @@ final class TestDatabase
         try {
             $version = '';
             require __DIR__ . '/../../../../includes/version.php';
+            self::query($master, 'BEGIN');
+            self::query($master, 'LOCK TABLE regnskab IN SHARE ROW EXCLUSIVE MODE');
             $result = self::query(
                 $master,
                 "INSERT INTO regnskab
-                (regnskab, dbhost, dbuser, db, version, sidst, brugerantal, posteringer, lukket, administrator)
-                VALUES ($1,$2,$3,$4,$5,$6,100,1000000,$7,'') RETURNING id",
+                (id, regnskab, dbhost, dbuser, db, version, sidst, brugerantal, posteringer, lukket, administrator)
+                SELECT LEAST(COALESCE(MIN(id),0),0)-1,$1,$2,$3,$4,$5,$6,100,1000000,$7,''
+                FROM regnskab RETURNING id",
                 [
                     $account, getenv('SALDI_CHAR_PGHOST') ?: 'postgres', getenv('SALDI_CHAR_PGUSER') ?: 'user',
                     $this->name, $version, (string) time(), $closed ? 'on' : '',
                 ]
             );
             $id = (int)pg_fetch_result($result, 0, 0);
+            self::query($master, 'COMMIT');
             $this->registryIds[] = $id;
             try {
                 RetainedTestDatabases::recordAccount($this, $id);
