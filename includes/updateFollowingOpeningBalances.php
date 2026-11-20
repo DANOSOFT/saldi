@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/updateFollowingOpeningBalances.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- includes/updateFollowingOpeningBalances.php --- ver 5.1.1 --- 2026.11.20 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -53,6 +53,8 @@
 //                  A request that finds the row created meanwhile always writes it, also with the same year, so it holds the row until it commits (Codex round 15).
 //                  The fingerprint is taken per account, so a late posting and a deleted one that cancel out in the year's totals are still found (Codex round 16).
 //                  A deleted year is recognised by any marker in box10, the timestamp deleteFiscalYear.php writes as well as the older 'on' (Codex round 17).
+// 20261120 CL/MMR  SST-1005: A waiting year that was deleted before its rebuild no longer swallows the later work lowered into it: the rebuild starts at the first year after it (CodeRabbit).
+//                  A rebuild that a failed statement, a fatal error or a time-out ends before its catch runs is rolled back on shutdown and leaves the 'failed' message (CodeRabbit).
 
 /**
  * Whether a fiscal year's grupper art 'RA' box10 marks it as deleted. systemdata/fiscalYearInc/deleteFiscalYear.php
@@ -579,7 +581,33 @@ function checkFollowingOpeningBalances($activeYear) {
 	if (!$pending || $activeYear <= $pending) {
 		return null;
 	}
+	// A waiting year that was deleted meanwhile has nothing left to carry; the rebuild starts at the first year after it,
+	// and only once a session is in a year later than that one.
+	if ($activeYear <= followingOpeningBalanceFirstLiveYear($pending)) {
+		return null;
+	}
 	return syncFollowingOpeningBalances($pending);
+}
+
+/**
+ * The first fiscal year from $year on that exists and is not deleted. Years are deleted oldest first
+ * (systemdata/fiscalYearInc/deleteFiscalYear.php), and the first year after a deleted year keeps opening balances of its
+ * own, so a rebuild asked to start at a deleted or missing year starts there instead. Without it the rebuild stopped at
+ * the deleted year at once, while the waiting year it took also stood for later work the check had lowered into it, so
+ * the years after it stayed behind and nothing was left waiting (CodeRabbit on PR #1109).
+ *
+ * @param int $year Fiscal year (grupper art 'RA' kodenr).
+ * @return int That year, or the first live year after it, or $year when there is none.
+ */
+function followingOpeningBalanceFirstLiveYear($year) {
+	$year = (int)$year;
+	$q = db_select("select kodenr, box10 from grupper where art = 'RA' and kodenr >= '$year' order by kodenr", __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		if (!followingOpeningBalanceYearDeleted($row['box10'])) {
+			return (int)$row['kodenr'];
+		}
+	}
+	return $year;
 }
 
 /**
@@ -674,7 +702,12 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		$fromYear = $fromYear > 0 ? min($fromYear, $pending) : $pending;
 	}
 	$checkedFrom = $fromYear;
+	// A deleted year cannot be carried from; the first year after it carries its own opening balances on.
+	$fromYear = followingOpeningBalanceFirstLiveYear($fromYear);
 	$stop = null;
+	// The rebuild runs in a page request: a failed statement there ends the request (db_modify() shows the error box and
+	// exits), so the catch below never runs. The guard then rolls back and stores the same message on shutdown.
+	followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
 	transaktion('begin');
 	try {
 		if ($year > 0) {
@@ -689,11 +722,69 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		$stop = followingOpeningBalanceStopShape($fromYear, $fromYear + 1);
 		$stop['failed'] = true;
 		saveFollowingOpeningBalanceStop($stop, $checkedFrom);
+		followingOpeningBalanceFailureGuard(null);
 		return $stop;
 	}
 	saveFollowingOpeningBalanceStop($stop, $checkedFrom);
 	transaktion('commit');
+	followingOpeningBalanceFailureGuard(null);
 	return $stop;
+}
+
+/**
+ * Arm or disarm the guard for a rebuild that a page request may end before it finishes. In a browser request
+ * db_modify() (includes/db_query.php) does not throw on a failed statement: it shows the error box and calls exit, so
+ * a catch around the rebuild never runs, the connection is closed with the transaction rolled back, and the waiting
+ * year taken before it was lost without a message (CodeRabbit on PR #1109). A fatal error or a time-out ends the
+ * request the same way. While armed, followingOpeningBalanceFailureOnShutdown() rolls back what is still open and
+ * stores the 'failed' message the catch would have stored, so the user is told to retry with Gem/opdatér.
+ *
+ * @param int|null $sourceYear The year the rebuild carries from, or null to disarm.
+ * @param int $checkedFrom The year the caller checks from (see saveFollowingOpeningBalanceStop()).
+ * @return void
+ */
+function followingOpeningBalanceFailureGuard($sourceYear, $checkedFrom = 0) {
+	static $registered = false;
+	if ($sourceYear === null) {
+		$GLOBALS['followingOpeningBalanceFailure'] = null;
+		return;
+	}
+	$GLOBALS['followingOpeningBalanceFailure'] = array('sourceYear' => (int)$sourceYear, 'checkedFrom' => (int)$checkedFrom);
+	if (!$registered) {
+		$registered = true;
+		register_shutdown_function('followingOpeningBalanceFailureOnShutdown');
+	}
+}
+
+/**
+ * Shutdown function of followingOpeningBalanceFailureGuard(): when the request ended while a rebuild was armed, roll
+ * back whatever is still open (the rebuild, and for the year card the card's own save, which db_modify() abandoned
+ * too) and store the 'failed' message. Statements here run as for a webservice, so a second failure returns instead of
+ * drawing another error box; it is only logged.
+ *
+ * @return void
+ */
+function followingOpeningBalanceFailureOnShutdown() {
+	$guard = isset($GLOBALS['followingOpeningBalanceFailure']) ? $GLOBALS['followingOpeningBalanceFailure'] : null;
+	$GLOBALS['followingOpeningBalanceFailure'] = null;
+	if (!$guard) {
+		return;
+	}
+	$webservice = isset($GLOBALS['webservice']) ? $GLOBALS['webservice'] : null;
+	$GLOBALS['webservice'] = true;
+	try {
+		for ($i = 0; $i < 10 && followingOpeningBalancesInTransaction(); $i++) {
+			transaktion('rollback');
+		}
+		error_log('SST-1005: opening balances after fiscal year ' . $guard['sourceYear'] . ' not updated: the request ended during the rebuild and it was rolled back');
+		$stop = followingOpeningBalanceStopShape($guard['sourceYear'], $guard['sourceYear'] + 1);
+		$stop['failed'] = true;
+		saveFollowingOpeningBalanceStop($stop, $guard['checkedFrom']);
+	} catch (Throwable $e) {
+		error_log('SST-1005: the message for an interrupted rebuild could not be stored: ' . $e->getMessage());
+	} finally {
+		$GLOBALS['webservice'] = $webservice;
+	}
 }
 
 /**
@@ -739,6 +830,8 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	$stop = null;
 	$fromYear = $year - 1;
 	$checkedFrom = $fromYear;
+	// A failed statement ends the request before the catch below (see followingOpeningBalanceFailureGuard()).
+	followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
 	try {
 		carryFollowingOpeningBalances($year, $fromYear, $stop);
 	} catch (Throwable $e) {
@@ -759,6 +852,7 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	if ($ownTransaction) {
 		transaktion('commit');
 	}
+	followingOpeningBalanceFailureGuard(null);
 	return $stop;
 }
 

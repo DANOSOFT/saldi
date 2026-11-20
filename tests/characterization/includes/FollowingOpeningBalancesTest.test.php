@@ -19,6 +19,8 @@
 //                 A request that finds the row created with the same year holds it until it commits (Codex round 15).
 //                 A late commit and a deletion that cancel out in the year's totals are found by the fingerprint per account (Codex round 16).
 //                 The first year after a year deleted with a timestamp or 'on' keeps its opening balances and carries them on (Codex round 17).
+// 20261120 CL/MMR SST-1005 A waiting year that is deleted before its rebuild does not swallow later work (CodeRabbit on PR #1109).
+//                 A rebuild that the production db_modify() ends with exit is rolled back and leaves the 'failed' message (CodeRabbit on PR #1109).
 
 declare(strict_types=1);
 
@@ -1572,6 +1574,104 @@ final class FollowingOpeningBalancesTest extends TestCase
         $this->sql('COMMIT');
         self::assertSame(1500.0, $this->primo(8, 2000), 'Typed opening balances of a year with no year before it are the save.');
         self::assertSame(2277.0, $this->primo(9, 2000), 'Year 9 follows: 1500 + 777 from 2100.');
+    }
+
+    public function testAWaitingYearThatIsDeletedDoesNotSwallowLaterWork(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        // A year 8 posting leaves year 8 waiting; the session is in year 8, so nothing is rebuilt yet.
+        $this->sql("INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2023-03-01', 3, 0), (1000, '2023-03-01', 0, 3)");
+        self::assertNull(checkFollowingOpeningBalances(8));
+        self::assertStringEndsWith('|8', $this->syncState());
+
+        // Year 8 is deleted as systemdata/fiscalYearInc/deleteFiscalYear.php does it, before anyone rebuilds.
+        $this->sql("DELETE FROM transaktioner WHERE transdate <= '2023-06-30'");
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 8');
+        $this->sql("UPDATE grupper SET box10 = '1763600000' WHERE art = 'RA' AND kodenr = 8");
+
+        // A year 9 posting is found next; the row only lowers, so it still says 8.
+        $this->postInYear9(2000, 5);
+        self::assertNull(checkFollowingOpeningBalances(9));
+        self::assertStringEndsWith('|8', $this->syncState());
+        self::assertSame(777.0, $this->primo(10, 2000), 'A session in year 9 does not rebuild year 9 into year 10.');
+
+        // A session in year 10 rebuilds from year 9, the first year after the deleted one, instead of stopping at year 8.
+        self::assertNull(checkFollowingOpeningBalances(10));
+        self::assertSame(1125.0, $this->primo(10, 2000));
+        self::assertSame(1175.0, $this->primo(11, 2000));
+        self::assertStringEndsWith('|0', $this->syncState());
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    public function testActivatingAYearAfterADeletedWaitingYearRebuildsFromTheFirstLiveYear(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        $this->sql("INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2023-03-01', 3, 0), (1000, '2023-03-01', 0, 3)");
+        self::assertNull(checkFollowingOpeningBalances(8));
+        $this->sql("DELETE FROM transaktioner WHERE transdate <= '2023-06-30'");
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 8');
+        $this->sql("UPDATE grupper SET box10 = 'on' WHERE art = 'RA' AND kodenr = 8");
+        $this->postInYear9(2000, 5);
+        self::assertNull(checkFollowingOpeningBalances(9));
+
+        // «Sæt aktivt» on year 11 asks for year 10, takes waiting year 8 and starts at year 9, so years 10 and 11 follow.
+        self::assertNull(syncFollowingOpeningBalances(10, 11));
+        self::assertSame(1125.0, $this->primo(10, 2000));
+        self::assertSame(1175.0, $this->primo(11, 2000));
+        self::assertStringEndsWith('|0', $this->syncState());
+    }
+
+    public function testARebuildThatTheProductionErrorPathEndsLeavesTheFailedMessage(): void
+    {
+        if (!function_exists('proc_open')) {
+            self::markTestSkipped('proc_open is not available');
+        }
+        $schema = 'sst1005_exit_' . getmypid();
+        $other = $this->privateSchema($schema);
+        pg_close($other);
+        $scratch = sys_get_temp_dir() . '/sst1005exit' . getmypid();
+        try {
+            self::assertNull(checkFollowingOpeningBalances(11));
+            $this->postInYear9(2000, 5);
+            self::assertNull(checkFollowingOpeningBalances(9));
+            self::assertStringEndsWith('|9', $this->syncState());
+            // The database refuses the first opening balance the rebuild writes into year 10.
+            $this->sql("CREATE FUNCTION $schema.sst1005_refuse() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'test: the database refused the update'; END \$\$");
+            $this->sql("CREATE TRIGGER sst1005_refuse BEFORE UPDATE OF primo ON $schema.kontoplan FOR EACH ROW WHEN (NEW.regnskabsaar = 10) EXECUTE FUNCTION $schema.sst1005_refuse()");
+
+            // A session in year 10 opens a page in a process of its own with the production db_modify(), which exits.
+            mkdir($scratch . '/temp/sst1005', 0777, true);
+            $child = proc_open(
+                [PHP_BINARY, __DIR__ . '/support/followingOpeningBalances/productionExit.php', TestDatabase::sqlFixture(static::class)->name(), $schema, $scratch],
+                [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+                $pipes
+            );
+            self::assertIsResource($child);
+            $output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            proc_close($child);
+            self::assertStringContainsString('test: the database refused the update', $output, 'The statement failed in db_modify().');
+            self::assertStringNotContainsString('not-ended', $output, 'db_modify() ended the request, as in production.');
+            self::assertStringContainsString('shutdown-done', $output, $output);
+
+            self::assertSame($this->stop(['failed' => true]), followingOpeningBalanceStop(), 'The failed message is stored, so the user is told to press Gem/opdatér.');
+            self::assertStringEndsWith('|0', $this->syncState(), 'No retry on every page.');
+            self::assertSame(777.0, $this->primo(10, 2000), 'Nothing of the rebuild is kept.');
+
+            // Once the database accepts it again, Gem/opdatér on year 10 retries from year 9 and clears the message.
+            $this->sql("DROP TRIGGER sst1005_refuse ON $schema.kontoplan");
+            $this->sql('BEGIN');
+            self::assertNull(updateOpeningBalancesAfterYearSave(10));
+            $this->sql('COMMIT');
+            self::assertSame(1125.0, $this->primo(10, 2000));
+            self::assertNull(followingOpeningBalanceStop());
+        } finally {
+            $this->dropPrivateSchema($schema);
+            if (is_dir($scratch)) {
+                exec('rm -rf ' . escapeshellarg($scratch));
+            }
+        }
     }
 
     public function testTheMessageNamesTheYearsAndAccounts(): void
