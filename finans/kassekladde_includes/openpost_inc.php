@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/openpost_inc.php --- ver 5.1.1 --- 2026.11.20 ---
+// --- finans/kassekladde_includes/openpost_inc.php --- ver 5.0.0 --- 2026.10.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Danosoft ApS
+// Copyright (c) 2003-2025 saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20220823 PHR Moved $offsetAccount lookup to reduce lookups
 // 20221111 PHR More posts can now be aligned in one step
@@ -38,27 +38,6 @@
 //                 They also carry Forfaldsdato and Betalings-id, which kassekladde.php emptied on the way back (CodeRabbit).
 //                 (CodeRabbit) Indsæt only when the ticked posts belong to one account, and the lookup finds the invoices of a line
 //                 with a;b (split into an IN list, without the amount filter, which no single post of a sum matches).
-// 20261120 CL/MMR MB-158 The column sort comes from openpost_order_by(): only the five header columns are accepted, anything else sorts by account.
-//                 The request value no longer reaches the SQL, and «Navn» sorts by the account name instead of the account number.
-
-if (!function_exists('openpost_order_by')) {
-	/**
-	 * Turns the sort key from a column header into a fixed ORDER BY expression for the openpost queries.
-	 *
-	 * @param mixed $sort The «sort» request value.
-	 * @return string An ORDER BY expression; account number for a missing or unknown key.
-	 */
-	function openpost_order_by($sort) {
-		$orderBy = array(
-			'konto_nr'  => 'konto_nr',
-			'firmanavn' => '(SELECT adresser.firmanavn FROM adresser WHERE adresser.id = openpost.konto_id), konto_nr',
-			'faktnr'    => 'faktnr',
-			'transdate' => 'transdate',
-			'amount'    => 'amount',
-		);
-		return (is_string($sort) && isset($orderBy[$sort])) ? $orderBy[$sort] : $orderBy['konto_nr'];
-	}
-}
 
 function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr){
 # ($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr) {
@@ -152,7 +131,9 @@ print "<center>";
 	print "<td></td><td>$dato</td>";
 	print "<td style = 'text-align:right'><b>$belob</b></td></tr>";
 	print "<tr><td colspan = '5'><hr></td></tr>";
-	$orderBy = openpost_order_by(ifset($_GET, 'sort', null));
+	$sort = $_GET['sort'];
+#	if ($sort=="transdate,bilag") $sort=NULL; # konflikter med sortering fra kassekladde.
+	if (!$sort) {$sort = 'konto_nr';}
 	$x=0;
 	$qtxt="select kontonr, id, firmanavn, art, gruppe from adresser order by firmanavn";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -189,7 +170,8 @@ print "<center>";
 	// With several invoices the line's amount is their sum, so no single post matches it
 	if (count($invoiceList) > 1) $critD = NULL;
 	$criteria = $critA.$critB.$critC.$critD;
-	$qtxt = "select * from openpost $criteria order by $orderBy";
+	if ($sort=="firmanavn") $sort="konto_nr";
+	$qtxt = "select * from openpost $criteria order by $sort";
 	$x = 0;
 	$accountId = array();
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -226,8 +208,9 @@ print "<center>";
 	}
 	if ($ktoId && $x == 0) {
 		$criteria = $critA.$critB.$critC;
+		if ($sort=="firmanavn") $sort="konto_nr";
 		$qtxt = "select id, konto_id, konto_nr, faktnr, transdate, amount,valuta, beskrivelse ";
-		$qtxt.= "from openpost $criteria order by $orderBy";
+		$qtxt.= "from openpost $criteria order by $sort";
 		$x = 0;
 		$accountId = array();
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);

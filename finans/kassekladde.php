@@ -227,7 +227,7 @@
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261120 CL/MMR MB-158 The «funktion» URL parameter only opens the customer, supplier and open-item lookups.
+// 20261120 CL/MMR MB-158 The «funktion» URL parameter only opens the customer and supplier lookups.
 //                 Their files come from a fixed list, so the value never reaches a function call or an include path; any other value is ignored.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -1051,7 +1051,6 @@ if ($_GET) {
 	$lookupFiles = array(
 		'debitorLookup'  => 'debitorLookup.php',
 		'creditorLookup' => 'creditorLookup.php',
-		'openpost'       => 'openpost_inc.php',
 	);
 	if ($sort && is_string($funktion) && isset($lookupFiles[$funktion])) {
 		if (!function_exists($funktion)) {
