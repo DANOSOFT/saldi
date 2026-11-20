@@ -4,6 +4,8 @@
 // 20261027 CDX/MJ SST-876 Assert document stock is deferred until commit rather than published inside the transaction.
 // 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 // 20261110 CL/SZ Sync of master into hml/shopify: shopSyncApiConfigured() reads box4, box5 and box6 (SD-750), so the stub answers that query.
+// 20261110 CL/SZ SD-817 The stub answers the shopify_legacy outbound settings.
+//                A tenant whose slots are all closed queues nothing, and one open slot still queues.
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
 	throw new ErrorException($message, 0, $severity, $file, $line);
@@ -12,6 +14,7 @@ $GLOBALS['configuration'] = false;
 $GLOBALS['configurationReads'] = 0;
 $GLOBALS['queueAccesses'] = 0;
 $GLOBALS['delivered'] = array();
+$GLOBALS['legacySettings'] = array();   // slot => array(var_name => var_value), as settings holds them
 $fixture = sys_get_temp_dir() . '/sst876config-' . bin2hex(random_bytes(8)) . '/';
 mkdir($fixture, 0700, true);
 
@@ -25,6 +28,13 @@ function db_select($sql, $location = '') {
 		$GLOBALS['configurationReads']++;
 		return $GLOBALS['configuration'];
 	}
+	if (preg_match("/from settings where var_grp = 'shopify_legacy:([456])'/", $sql, $m)) {
+		$rows = array();
+		foreach ($GLOBALS['legacySettings'][(int)$m[1]] ?? array() as $name => $value) {
+			$rows[] = array('var_name' => $name, 'var_value' => $value);
+		}
+		return new ArrayIterator($rows);
+	}
 	if (strpos($sql, 'select indgaar_i from styklister') !== false) {
 		return false;
 	}
@@ -32,6 +42,14 @@ function db_select($sql, $location = '') {
 }
 
 function db_fetch_array($row) {
+	if ($row instanceof ArrayIterator) {
+		if (!$row->valid()) {
+			return false;
+		}
+		$current = $row->current();
+		$row->next();
+		return $current;
+	}
 	return $row;
 }
 
@@ -78,6 +96,32 @@ try {
 	check(shopSyncDrainQueue() === 2 && $GLOBALS['delivered'] === array(123, 77), 'After commit the backlog sends successfully');
 	check(!is_file($marker), 'Delivered backlog is removed only after its post-commit send');
 	check($GLOBALS['configurationReads'] === 2, 'A different tenant has an independent cached configuration');
+
+	// SD-817: a tenant that has cut over still has its URLs, but outbound is closed on every slot.
+	$db = 'sd817_all_closed_fixture';
+	$GLOBALS['configuration'] = array('box4' => 'http://shop.test/adapter', 'box5' => 'http://shop5.test/adapter');
+	$GLOBALS['legacySettings'] = array(4 => array('outbound_enabled' => '0'), 5 => array('outbound_enabled' => 'off'));
+	shopSyncQueueAdd(88, 0, 4, 'stock');
+	$closedMarker = $fixture . shopSyncQueueKey(88, 0, 4);
+	$closedOriginal = file_get_contents($closedMarker);
+	$GLOBALS['queueAccesses'] = 0;
+	$GLOBALS['delivered'] = array();
+	for ($id = 1; $id <= 50; $id++) {
+		shopSyncMark($id, 0, 4);
+	}
+	check(shopSyncMarkedCount() === 0, 'With outbound closed on every slot, document lines are not marked or queued');
+	check(shopSyncFlush() === 'no api' && shopSyncDrainQueue() === 0, 'With outbound closed on every slot, flush and drain return immediately');
+	check($GLOBALS['queueAccesses'] === 0 && $GLOBALS['delivered'] === array(), 'With outbound closed on every slot, the queue is not touched and nothing is sent');
+	check(file_get_contents($closedMarker) === $closedOriginal, 'A marker left from before the cutover is not sent while outbound is closed');
+	unlink($closedMarker);
+
+	$db = 'sd817_one_open_fixture';
+	$GLOBALS['configuration'] = array('box4' => 'http://shop.test/adapter', 'box5' => 'http://shop5.test/adapter');
+	$GLOBALS['legacySettings'] = array(4 => array('outbound_enabled' => '0'));   // slot 5 has no row, so it is open
+	shopSyncMark(124, 0, 4);
+	check(shopSyncMarkedCount() === 1, 'One slot still open for outbound keeps queueing');
+	check(shopSyncFlush() === 'OK' && $GLOBALS['delivered'] === array(124), 'One slot still open for outbound sends as before');
+	check($GLOBALS['configurationReads'] === 4, 'Each tenant reads its configuration once per request');
 } finally {
 	foreach (glob($fixture . '*') as $file) {
 		unlink($file);
