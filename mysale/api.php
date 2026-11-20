@@ -34,9 +34,10 @@
 //                 The action is now the handler handleCreateBooking().
 //                 It reads rentalclosed itself as remoteBooking does, since the entry block's query is not in scope there.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261120 CL/MMR SST-1000 (review) updateBooking "approved" goes through rental_approve_booking(): a payment that came back after the
-//                 booking expired is approved only when the unit is still free, otherwise 409 "refused" and no invoice. A booking approved
-//                 before is not invoiced again, and a deleted booking (order 0) is refused instead of invoiced.
+// 20261120 CL/MMR SST-1000 (review) updateBooking "approved" goes through rental_approve_booking(), so a payment that came back after the booking expired is approved only when the unit is still free.
+//                 Otherwise it answers 409 "refused" and nothing is invoiced.
+//                 A booking approved before is not invoiced again, and a deleted booking (order 0) is refused instead of invoiced.
+//                 The action is now the handler handleUpdateBooking().
 //
 
 $header = "nix";
@@ -211,7 +212,13 @@ if(isset($_GET["createBooking"])){
     handleCreateBooking();
 }
 
-if(isset($_GET["updateBooking"])){
+/**
+ * updateBooking: the booking page reports the payment. "approved" approves the booking through rental_approve_booking()
+ * and invoices its order; any other status deletes the booking and its order (payment failed or no payment link).
+ *
+ * @return void Echoes {"status":"approved"}, {"status":"deleted"} or, with HTTP 409, {"status":"refused","reason":...}.
+ */
+function handleUpdateBooking() {
     $data = json_decode(file_get_contents("php://input"), true);
     if (!is_array($data)) $data = array();
     $status = ifset($data, "status", "");
@@ -238,7 +245,10 @@ if(isset($_GET["updateBooking"])){
             echo json_encode(["status" => "refused", "reason" => $approval]);
         }
     }
+}
 
+if(isset($_GET["updateBooking"])){
+    handleUpdateBooking();
 }
 
 if(isset($_GET["getOrder"])){

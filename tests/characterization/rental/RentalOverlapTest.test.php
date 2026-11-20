@@ -160,6 +160,7 @@ final class RentalOverlapTest extends TestCase
             self::assertStringNotContainsString('UPDATE rentalperiod SET expiry_time = NULL', $src, $file);
             self::assertMatchesRegularExpression('/if \(\$approval === \'approved\'\) \{\s*fakturer_ordre\(\$orderId, "email", 0\);/', $src, $file);
             self::assertSame(1, substr_count($src, 'fakturer_ordre($orderId'), $file . ': invoiced only when approved');
+            self::assertStringContainsString('function handleUpdateBooking()', $src, $file);
         }
         foreach (['remoteBooking/index.js', 'mysale/remote.js'] as $file) {
             $src = (string)file_get_contents(__DIR__ . '/../../../' . $file);

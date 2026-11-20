@@ -24,9 +24,8 @@
 // ----------------------------------------------------------------------
 // 20261111 CL/MMR SST-1000 Created. A booking from the public booking page or mysale is only stored when the unit is free.
 //                 createBooking stored every booking it got, so a unit could be booked twice when two customers booked at once, when the page had been open while someone else booked, or when the page picked a busy unit.
-// 20261120 CL/MMR SST-1000 (review) rental_approve_booking(): a payment that comes back after the booking expired is only approved when the unit is still free
-//                 (Morten 2026-11-20, option A). Before, the approval cleared expiry_time and invoiced, also when another booking had taken the unit
-//                 or the expired booking had been deleted (order 0).
+// 20261120 CL/MMR SST-1000 (review) rental_approve_booking(): a payment that comes back after the booking expired is only approved when the unit is still free (Morten 2026-11-20, option A).
+//                 Before, the approval cleared expiry_time and invoiced, also when another booking had taken the unit or the expired booking had been deleted (order 0).
 
 if (!function_exists('rental_booking_day')) {
 	/**

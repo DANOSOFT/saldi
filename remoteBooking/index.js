@@ -5,8 +5,8 @@
 // 20261111 CL/MMR SST-992: also read the account from ?id=, the form older «Ekstern booking» links use.
 // 20261111 CL/MMR SST-992 (review): the account comes from index.php (validated), not from the link, and is URL-encoded where it is used.
 // 20261111 CL/MMR SST-1000: stop with a message and reload when createBooking returns no booking id (the unit is no longer free).
-// 20261120 CL/MMR SST-1000 (review): the free units are stored under the local day (toISOString gave the UTC day, the day before),
-//                 and a start day without a free unit stops with a message instead of a JavaScript error.
+// 20261120 CL/MMR SST-1000 (review): the free units are stored under the local day, since toISOString gave the UTC day (the day before).
+//                 A start day without a free unit stops with a message instead of a JavaScript error.
 //                 A payment approved too late for a unit that is no longer free shows a message instead of the order confirmation and mail.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${encodeURIComponent(db)}`,{

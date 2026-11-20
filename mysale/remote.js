@@ -3,8 +3,8 @@
 // 20261111 CL/MMR SST-995: the calendar shows without closed days, and closed days are blocked (map returned nothing).
 //                 A start date whose rental would end on a closed day is refused with a message (no onChange loop).
 // 20261111 CL/MMR SST-1000: stop with a message and reload when createBooking returns no booking id (the unit is no longer free).
-// 20261120 CL/MMR SST-1000 (review): the free units are stored under the local day (toISOString gave the UTC day, the day before),
-//                 and a start day without a free unit stops with a message instead of a JavaScript error.
+// 20261120 CL/MMR SST-1000 (review): the free units are stored under the local day, since toISOString gave the UTC day (the day before).
+//                 A start day without a free unit stops with a message instead of a JavaScript error.
 //                 A payment approved too late for a unit that is no longer free shows a message instead of the order confirmation and mail.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&db=${db}`,{
