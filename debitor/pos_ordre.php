@@ -130,6 +130,7 @@
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after the gift-card settlement transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
+// 20261112 CL/SS MB-49: The card terminal's return shows afslut()'s error, as the other afslut() callers do.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
@@ -779,7 +780,10 @@ if ($godkendt == 'OK') { # 20131205
 	} else {
 		fwrite($gf, "afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id, __line__)\n");
 		fclose($gf);
-		afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, __LINE__); #20140129 Tilføjet $kortnavn
+		$svar = afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, __LINE__); #20140129 Tilføjet $kortnavn
+		if ($svar) {
+			print "<script>alert(" . json_encode($svar, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
+		}
 	}
 
 	#} elseif ($godkendt) {
