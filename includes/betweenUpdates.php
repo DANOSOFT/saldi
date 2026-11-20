@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 // 20261027 NTR New Release - Moved everything into opdat_5.0.php
 // 20261028 CL/LH MB-72: One-time backfill of openpost.udlign_date for settled groups that have none.
 // 20261028 CDX/NTR Apply the tekst_key schema migration to both tenant and master databases.
+// 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url (the Vibrant payment the server created for a booking).
 // 20261031 CL/ASR The redesign's migrations for the settings system, users and roles, the audit log and the notification center are appended after master's blocks; they were never in opdat_5.0.php. audit_log is created here too, with opdat_5.0.php's schema, before they add columns to it: a company created at 5.1.0 never runs opdat_5.0.php.
 //                 A sentinel comment marks the end of the tekst_key migration, where TekstKeyMigrationTest stops reading.
 // 20261031 CL/ASR Texts 7031 (personal text size) and 7021 (checklists lead) reworded; the cached old wording is removed.
@@ -45,12 +46,17 @@
 //                 Text 7815 (the restore's warning about a backup of another ledger) is reworded; the cached old wording is removed.
 // 20261104 CL/ASR QA round 3: the till account per currency is copied once from the tab list in grupper VK box4 to the settings rows VK/till_account_<currency> per till (includes/opdat_func/migrateTillAccounts.php), so switching the currency on in the till no longer loses it.
 //                 box4 is left as it is, and a till that already has a row for the currency keeps it.
+// 20261104 CL/MMR SST-841 CodeRabbit (PR #969): the rentalperiod table and column lookups only look at the active schema (current_schema() / DATABASE()).
 // 20261105 CL/ASR The one-time role changes and the till account copy are moved up before master's MB-73 block, so MB-73 and the signup block stay at the end.
 //                 OrderLineDeliveredBackfillTest runs the file from MB-73 to the end with stubbed database functions.
+// 20261110 CL/MMR SST-841 CodeRabbit (PR #969): PostgreSQL adds the rentalperiod columns with IF NOT EXISTS, so two first logins at once cannot fail.
+//                 MySQL adds them under a per-database GET_LOCK and reads the columns again while holding it.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261118 CL/MMR SST-841 (master merge): the rentalperiod payment-column block is the last entry again, after the roles/settings migrations master's 5.1.1 work placed after the backfill continuation.
+// 20261118 CL/MMR SST-841 Codex round 22: the MySQL lock result of the rentalperiod block is read through ifset().
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -441,6 +447,55 @@ if (!$sawanehMysql) {
 // findBoxSale() and posbogfor() read the new rows first and the list only while no row is stored.
 require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
 migrateTillAccounts($db_type);
+
+// 20261029 CL/MMR SST-841: rentalperiod.payment_id and payment_url hold the Vibrant payment the server created for
+// a booking, so only that payment can approve it. Only accounts that use the rental module (the table exists) get
+// the columns; the login-free booking pages only check for them (includes/vibrantPayment.php).
+// Both lookups are limited to the active schema, as a rentalperiod table in another schema must not decide it.
+// Two first logins at the same moment can both find them missing: PostgreSQL adds them with IF NOT EXISTS, MySQL
+// (no IF NOT EXISTS) takes a per-database lock and reads the columns again while holding it. A MySQL login that does
+// not get the lock in time leaves the columns to the next login.
+if (isset($db) && is_string($db) && $db !== '') {
+	$rentalMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+	$rentalSchema = $rentalMysql ? "table_schema = DATABASE()" : "table_schema = current_schema()";
+	$rentalTable = db_fetch_array(db_select(
+		"SELECT table_name FROM information_schema.tables WHERE $rentalSchema AND table_name = 'rentalperiod'",
+		__FILE__ . " linje " . __LINE__
+	));
+	if ($rentalTable) {
+		$rentalWanted = array('payment_id' => 'varchar(100)', 'payment_url' => 'varchar(500)');
+		$rentalColumnsQuery = "SELECT column_name FROM information_schema.columns WHERE $rentalSchema AND table_name = 'rentalperiod'";
+		$rentalColumns = array();
+		$q = db_select($rentalColumnsQuery, __FILE__ . " linje " . __LINE__);
+		while ($q && $r = db_fetch_array($q)) {
+			$rentalColumns[] = $r['column_name'];
+		}
+		$rentalMissing = array_diff(array_keys($rentalWanted), $rentalColumns);
+		if ($rentalMissing && !$rentalMysql) {
+			foreach ($rentalMissing as $column) {
+				db_modify("ALTER TABLE rentalperiod ADD COLUMN IF NOT EXISTS $column $rentalWanted[$column]", __FILE__ . " linje " . __LINE__);
+			}
+		} elseif ($rentalMissing) {
+			$rentalLock = "CONCAT('saldi:rental_payment:', MD5(DATABASE()))";
+			$rentalLocked = db_fetch_array(db_select("SELECT GET_LOCK($rentalLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int)ifset($rentalLocked, 'acquired', 0) === 1) {
+				try {
+					// Another login may have added them while this one waited for the lock.
+					$rentalColumns = array();
+					$q = db_select($rentalColumnsQuery, __FILE__ . " linje " . __LINE__);
+					while ($q && $r = db_fetch_array($q)) {
+						$rentalColumns[] = $r['column_name'];
+					}
+					foreach (array_diff(array_keys($rentalWanted), $rentalColumns) as $column) {
+						db_modify("ALTER TABLE rentalperiod ADD COLUMN $column $rentalWanted[$column]", __FILE__ . " linje " . __LINE__);
+					}
+				} finally {
+					db_select("SELECT RELEASE_LOCK($rentalLock)", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		}
+	}
+}
 
 
 ?>
