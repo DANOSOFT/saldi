@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- bank_integration/feed.php --- ver 5.1.1 --- 2026-11-18 ---
+// --- bank_integration/feed.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,7 @@
 //                Ind and Ud columns, a sticky pick bar with count and sums, a click on the row ticks it (shift-click for a range), account tabs only for accounts in use.
 //                Fetch feedback with the time and the number of new lines, the time Hent nu can be used again, support codes in a title attribute; dd-mm-åååå date filter; Tilbage til kladde N.
 // 20261118 CL/LH CodeRabbit: Hent nu counts the new lines from the run itself (new_count), and the "hent igen kl." notice only shows when the 5-minute limit refused the fetch; a running fetch or a lost lease shows the run's own message.
+// 20261120 CL/LH A "Vælg alle" button in the pick bar next to the actions (Adam missed the header checkbox); it turns into "Fravælg alle" when every row is ticked, and says "på siden" when there is more than one page.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -733,6 +734,12 @@ if ($unavailable !== null) {
 					print "<button type='submit' name='action' value='ignore_selected' class='eb-btn secondary' data-confirm='"
 						. ebHT(findtekst('bank.feed.skip_confirm|Spring de valgte posteringer over? De lægges ikke i en kassekladde. Du kan gendanne dem under Sprunget over.', ebLang())) . "'>"
 						. ebHT(findtekst('bank.feed.skip_selected|Spring valgte over', ebLang())) . "</button>";
+					// The header checkbox alone was easy to miss; the button does the same and stays hidden without JavaScript.
+					$pickAllText = $page > 0 || $hasNextPage
+						? findtekst('bank.feed.select_all|Vælg alle på siden', ebLang())
+						: findtekst('bank.feed.pick_all|Vælg alle', ebLang());
+					print "<button type='button' class='eb-btn secondary' id='eb-pick-all-btn' hidden data-clear='"
+						. ebHT(findtekst('bank.feed.pick_none|Fravælg alle', ebLang())) . "'>" . ebHT($pickAllText) . "</button>";
 					print "<span class='eb-pick-count'></span>";
 					print "</div>";
 				}
@@ -819,6 +826,8 @@ if ($unavailable !== null) {
 	}
 	var boxes = Array.prototype.slice.call(form.querySelectorAll("input[name='ids[]']"));
 	var counters = form.querySelectorAll('.eb-pick-count');
+	var allButton = document.getElementById('eb-pick-all-btn');
+	var allButtonText = allButton ? allButton.textContent : '';
 	var last = null;
 	// Amounts in thousandths, as the bank sends them (3 decimals), so the sums never meet float rounding.
 	function thousandths(text) {
@@ -857,6 +866,9 @@ if ($unavailable !== null) {
 		});
 		all.checked = n > 0 && n === boxes.length;
 		all.indeterminate = n > 0 && n < boxes.length;
+		if (allButton) {
+			allButton.textContent = all.checked ? allButton.getAttribute('data-clear') : allButtonText;
+		}
 		var parts = [];
 		if (n > 0) {
 			parts.push(texts.count.replace('%s', n));
@@ -883,12 +895,21 @@ if ($unavailable !== null) {
 		last = i;
 		update();
 	}
-	all.hidden = false;
-	all.addEventListener('change', function () {
-		boxes.forEach(function (b) { b.checked = all.checked; });
+	function setAll(on) {
+		boxes.forEach(function (b) { b.checked = on; });
 		last = null;
 		update();
+	}
+	all.hidden = false;
+	all.addEventListener('change', function () {
+		setAll(all.checked);
 	});
+	if (allButton) {
+		allButton.hidden = false;
+		allButton.addEventListener('click', function () {
+			setAll(!all.checked);
+		});
+	}
 	boxes.forEach(function (b) {
 		b.addEventListener('click', function (e) { pick(b, e.shiftKey); });
 	});
