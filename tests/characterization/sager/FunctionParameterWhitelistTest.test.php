@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 // 20261120 CL/MMR MB-158 Run the real «funktion» selection and dispatch of sager.php, kontrolskemaer.php and kassekladde.php
 //                 without their database and rendering code: only the view handlers and the include are replaced by recorders.
+// 20261120 CL/MMR MB-158 Codex round 1: the reopened «Åbne poster» sort only reaches SQL through openpost_order_by(), and «Navn» sorts by name.
 
 /** An existing function that must never be reachable from the address bar. */
 function unrelated(): void
@@ -208,6 +209,79 @@ final class FunctionParameterWhitelistTest extends TestCase
     {
         $source = self::source('finans/kassekladde_includes/' . $file);
         self::assertMatchesRegularExpression('/^function ' . preg_quote($funktion, '/') . '\(/m', $source);
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function unsupportedOpenPostSorts(): iterable
+    {
+        yield 'missing' => [null];
+        yield 'empty' => [''];
+        yield 'injection' => ["amount; DROP TABLE openpost --"];
+        yield 'subquery' => ['(select 1)'];
+        yield 'journal sort' => ['transdate,bilag'];
+        yield 'wrong case' => ['AMOUNT'];
+        yield 'array' => [['amount']];
+        yield 'integer' => [1];
+    }
+
+    #[DataProvider('unsupportedOpenPostSorts')]
+    public function testOpenPostSortFallsBackToTheAccountNumber(mixed $sort): void
+    {
+        require_once self::ROOT . '/finans/kassekladde_includes/openpost_inc.php';
+        self::assertSame('konto_nr', \openpost_order_by($sort));
+    }
+
+    public function testOpenPostQueriesOnlyUseTheFixedSortExpression(): void
+    {
+        $source = self::source('finans/kassekladde_includes/openpost_inc.php');
+        self::assertSame(1, preg_match_all('/\$_GET\[[\'"]sort[\'"]\]|ifset\(\$_GET, \'sort\'/', $source));
+        self::assertSame(1, preg_match('/^\t\$orderBy = openpost_order_by\(ifset\(\$_GET, \'sort\', null\)\);$/m', $source));
+        self::assertSame(2, preg_match_all('/order by \$orderBy"/', $source));
+        self::assertSame(0, preg_match('/order by \$sort/', $source));
+    }
+
+    /** @return iterable<string, array{string, list<int>}> Header key and the expected openpost id order. */
+    public static function openPostSorts(): iterable
+    {
+        // Rows chosen so every column gives a different order; names run opposite to the account numbers.
+        yield 'Kontonr.' => ['konto_nr', [1, 2, 3]];
+        yield 'Navn' => ['firmanavn', [3, 2, 1]];
+        yield 'Fakturanr.' => ['faktnr', [2, 3, 1]];
+        yield 'Dato' => ['transdate', [3, 1, 2]];
+        yield 'Beløb' => ['amount', [2, 1, 3]];
+    }
+
+    #[DataProvider('openPostSorts')]
+    public function testEveryOpenPostHeaderSortsByItsColumn(string $sort, array $expected): void
+    {
+        $helper = self::ROOT . '/tests/characterization/support/database/TestDatabase.php';
+        if (!is_file($helper)) {
+            // The database test helper is on master but not yet on live; without it the SQL cannot be run here.
+            self::markTestSkipped('tests/characterization/support/database/TestDatabase.php is not available on this branch');
+        }
+        require_once $helper;
+        $reason = \TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
+        }
+        require_once self::ROOT . '/finans/kassekladde_includes/openpost_inc.php';
+        $connection = \TestDatabase::connect(\TestDatabase::sqlFixture(self::class)->name());
+        pg_query($connection, 'DROP TABLE IF EXISTS pg_temp.openpost');
+        pg_query($connection, 'DROP TABLE IF EXISTS pg_temp.adresser');
+        pg_query($connection, 'CREATE TEMP TABLE adresser (id INTEGER PRIMARY KEY, kontonr TEXT, firmanavn TEXT)');
+        pg_query($connection, 'CREATE TEMP TABLE openpost (id INTEGER PRIMARY KEY, konto_id INTEGER, konto_nr TEXT, faktnr TEXT, transdate DATE, amount NUMERIC(15,2))');
+        pg_query($connection, "INSERT INTO adresser VALUES (10, '1001', 'Cirkus'), (20, '1002', 'Bager'), (30, '1003', 'Atelier')");
+        pg_query($connection, "INSERT INTO openpost VALUES
+            (1, 10, '1001', '300', '2026-02-01', 20),
+            (2, 20, '1002', '100', '2026-03-01', 10),
+            (3, 30, '1003', '200', '2026-01-01', 30)");
+        foreach (['select * from openpost', 'select id, konto_id, konto_nr, faktnr, transdate, amount from openpost'] as $select) {
+            $result = pg_query($connection, $select . ' order by ' . \openpost_order_by($sort));
+            self::assertNotFalse($result, pg_last_error($connection));
+            self::assertSame($expected, array_map('intval', pg_fetch_all_columns($result, 0)));
+        }
+        pg_query($connection, 'DROP TABLE pg_temp.openpost');
+        pg_query($connection, 'DROP TABLE pg_temp.adresser');
     }
 
     public function testKassekladdeDoesNothingWithoutSort(): void
