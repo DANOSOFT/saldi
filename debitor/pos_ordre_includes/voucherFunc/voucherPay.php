@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- debitor/pos_ordre_includes/voucherFunc/voucherPay.php --- lap 4.0.5 --- 2022.07.18 ---
+// ---- debitor/pos_ordre_includes/voucherFunc/voucherPay.php --- ver 5.1.0 --- 2026.11.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2021-2022 saldi.dk aps
+// Copyright (c) 2021-2026 Danosoft ApS
 // --------------------------------------------------------------------------
 //
 // 20210111 PHR changed elseif ($betaling == "Gavekort" || $betaling == "Gavekort på beløb") 
 //              to elseif (isset($_POST['giftcardNumber']) && !$_POST['giftcardNumber'])
 // 20220718 PHR Added $indbetaling as payment was not registered when paid to account using voucher
+// 20261120 CL/MJ SD-844 K61: a gift card is not taken for a pickup or delivery sale without the customer's email or phone.
+//                The card number form is not shown and no payment is recorded, so the gift card path in pos_ordre.php cannot settle such a sale either.
+
+include_once(__DIR__ . "/../deliveryContact.php");
 
 if (!function_exists('voucherPay')) {
 function voucherPay($orderId, $betaling, $modtaget) {
@@ -43,6 +47,10 @@ function voucherPay($orderId, $betaling, $modtaget) {
 	}
 	$qtxt = "select var_value from settings where var_name = 'voucherItems' and var_grp = 'Paycards'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $vouchers = explode(chr(9),$r['var_value']);
+	// 20261120 CL/MJ SD-844 K61: the same check as afslut() and delbetal(), for the gift card path that reaches here without them
+	if ($vouchers[$payCardNo] && !$indbetaling && !pos_validate_checkout_sale($orderId)['ok']) {
+		return false;
+	}
 	if ($vouchers[$payCardNo] && !isset($_POST['giftcardNumber'])) {
 		if (!$modtaget && strpos($betaling,'på beløb')) {
 			$qtxt = "select sum (amount*valutakurs/100) as paid from pos_betalinger where ordre_id='$orderId'";

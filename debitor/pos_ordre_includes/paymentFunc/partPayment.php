@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.0 --- 2026.11.20---
+// --- debitor/pos_ordre_includes/paymentFunc/partPayment.php --- ver 5.1.0 --- 2026.11.20---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
