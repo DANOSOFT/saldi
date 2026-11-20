@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/payListFunc.php --- Patch 4.0.5 --- 2022.01.31 ---
+// --- includes/payListFunc.php --- ver 5.1.1 --- 2026.11.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,24 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 //
 // 20220131 Moved functions from debitor/betalinger.php
 // 20231213 MSC - Implementing new design
+// 20261118 CL/MMR SST-1036: «Se / gem betalingsfil» links get a new random token per export (payFileHref()).
+//                 The file name never changes, so the browser could show a cached older bank file after a new one was made.
+
+/**
+ * Href for the «Se / gem betalingsfil» link. The bank file always gets the same name, so each export gets a link with
+ * a new random token. A link is never reused for a later export, so the browser cannot show a cached older file.
+ *
+ * @param string $filnavn Path of the bank file that was just written and closed
+ * @return string The path with "?v=<random token>"
+ */
+function payFileHref($filnavn) {
+	return $filnavn . '?v=' . bin2hex(random_bytes(6));
+}
 
 function betalingskontrol($erh,$fra_kto,$egen_ref,$til_kto,$kort_ref,$modt_navn,$belob,$valuta,$betalingsdato) {
 	global $myCtry;
@@ -109,39 +122,39 @@ function udskriv_nordea($db_id,$bruger_id,$liste_id) {
 	while ($r=db_fetch_array($q)) {
 		#$kort_ref = $r['kort_ref'];
 #		if (substr($r['bet_type'], 0, 3)=="ERH") {
-			$x++;
+		$x++;
 #			if ($betalingsdato<$dd)$betalingsdato=$dd;
-			$linje='"0","45","","","","","","","","","","'; #felt 1-11
-			$linje.=$r['modt_navn']; #felt 12 Modtager
-			$linje.='","","","","","'; # felt 13-16 
-			$linje.=substr($r['til_kto'],0,4); # felt 17 Til-regnr
-			$tmp=substr($r['til_kto'],4,10); # 10 Til-konto-nr
-			while (strlen($tmp)<10)$tmp="0".$tmp;
-			$linje.=$tmp; # felt 17 Til-konto-nr
-			$linje.='","","","","","","';  # felt 18-22
-			$linje.=$r['kort_ref']; # felt 23 meddelelse til kunde  
-			$linje.='","';
-			$linje.=$r['kort_ref']; # felt 24   
-			$linje.='","0","';# felt 25
-			$linje.=$r['kort_ref']; # felt 26   
-			$linje.='","","","","","DKK","","'; # felt 27-32
-			$linje.=usdecimal($r['belob'],2); # felt 33;
-			$linje.='","'; #Felt 33
-			$linje.=str_replace("-","",usdate($r['betalingsdato'])); #Felt 34
-			$linje.='","","","'; #Felt 35-36
-			$linje.=substr($r['fra_kto'],0,4); # Felt 37 Til-regnr
-			$tmp=substr($r['fra_kto'],4,10); # Til-konto-nr
-			while (strlen($tmp)<10)$tmp="0".$tmp;
-			$linje.=$tmp; # Felt 37 Til-konto-nr
-			$linje.='","';
-			$linje.=substr($r['egen_ref'],0,20); #Felt 38 (max 20 tegn)
-			$linje.='","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","';
+		$linje='"0","45","","","","","","","","","","'; #felt 1-11
+		$linje.=$r['modt_navn']; #felt 12 Modtager
+		$linje.='","","","","","'; # felt 13-16
+		$linje.=substr($r['til_kto'],0,4); # felt 17 Til-regnr
+		$tmp=substr($r['til_kto'],4,10); # 10 Til-konto-nr
+		while (strlen($tmp)<10)$tmp="0".$tmp;
+		$linje.=$tmp; # felt 17 Til-konto-nr
+		$linje.='","","","","","","';  # felt 18-22
+		$linje.=$r['kort_ref']; # felt 23 meddelelse til kunde
+		$linje.='","';
+		$linje.=$r['kort_ref']; # felt 24
+		$linje.='","0","';# felt 25
+		$linje.=$r['kort_ref']; # felt 26
+		$linje.='","","","","","DKK","","'; # felt 27-32
+		$linje.=usdecimal($r['belob'],2); # felt 33;
+		$linje.='","'; #Felt 33
+		$linje.=str_replace("-","",usdate($r['betalingsdato'])); #Felt 34
+		$linje.='","","","'; #Felt 35-36
+		$linje.=substr($r['fra_kto'],0,4); # Felt 37 Til-regnr
+		$tmp=substr($r['fra_kto'],4,10); # Til-konto-nr
+		while (strlen($tmp)<10)$tmp="0".$tmp;
+		$linje.=$tmp; # Felt 37 Til-konto-nr
+		$linje.='","';
+		$linje.=substr($r['egen_ref'],0,20); #Felt 38 (max 20 tegn)
+		$linje.='","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","';
 #			$linje.='","","","","","","","","","","","","","","","'; #Felt 39-52
 #			$linje.=$r['kort_ref']; # felt 53 Kort advis
 #			$linje.='","","","","","","","","","","","","","","","","","","","","","","","","","","","0","'; #Felt 54-91
 #			$linje.=$r['kort_ref']; # felt 92 Modtagers identifikation af afsender  
-			$linje.='"';
-			$linje.="\r\n";
+		$linje.='"';
+		$linje.="\r\n";
 		fwrite($fp,$linje);
 	}
 	fclose($fp);
@@ -151,7 +164,7 @@ function udskriv_nordea($db_id,$bruger_id,$liste_id) {
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 
 }
 function udskriv_danskebank($db_id,$bruger_id,$liste_id) {
@@ -167,21 +180,21 @@ function udskriv_danskebank($db_id,$bruger_id,$liste_id) {
 	while ($r=db_fetch_array($q)) {
 		#$kort_ref = $r['kort_ref'];
 #		if (substr($r['bet_type'], 0, 3)=="ERH") {
-			$x++;
+		$x++;
 #			if ($betalingsdato<$dd)$betalingsdato=$dd;
-			$linje='"CMBO",'; #felt 1
-			$linje.='"'.$r['fra_kto'].'",'; # Felt 2 Fra-reg+ktonr
-			$linje.='"'.$r['til_kto'].'",'; # Felt 3 Til-reg+ktonr
-			$linje.='"'.str_replace('.','',$r['belob']).'",'; # felt 4; Beløb
-			if (usdate($r['betalingsdato'])>date('Y-m-d')) $linje.='"'.$r['betalingsdato'].'",'; #Felt 5 Betalingsdato DDMMYYYY
-			else $linje.='"",'; #Felt 5 Betaling snarest
-			$linje.='"DKK",'; # felt 6 Valuta
-			$linje.='"",'; # felt 7 Blank = Standard transfer
-			$linje.='"","","","","","","","","","","","",'; # felt 8-19 Ubrugt
-			$linje.='"'.$r['egen_ref'].'",'; # felt 20 meddelelse til egen kto  
-			$linje.='"",'; # felt 21 Ubrugt
-			$linje.='"'.$r['kort_ref'].'"'; # felt 22 meddelelse til kunde  
-			$linje.="\r\n";
+		$linje='"CMBO",'; #felt 1
+		$linje.='"'.$r['fra_kto'].'",'; # Felt 2 Fra-reg+ktonr
+		$linje.='"'.$r['til_kto'].'",'; # Felt 3 Til-reg+ktonr
+		$linje.='"'.str_replace('.','',$r['belob']).'",'; # felt 4; Beløb
+		if (usdate($r['betalingsdato'])>date('Y-m-d')) $linje.='"'.$r['betalingsdato'].'",'; #Felt 5 Betalingsdato DDMMYYYY
+		else $linje.='"",'; #Felt 5 Betaling snarest
+		$linje.='"DKK",'; # felt 6 Valuta
+		$linje.='"",'; # felt 7 Blank = Standard transfer
+		$linje.='"","","","","","","","","","","","",'; # felt 8-19 Ubrugt
+		$linje.='"'.$r['egen_ref'].'",'; # felt 20 meddelelse til egen kto
+		$linje.='"",'; # felt 21 Ubrugt
+		$linje.='"'.$r['kort_ref'].'"'; # felt 22 meddelelse til kunde
+		$linje.="\r\n";
 		fwrite($fp,$linje);
 	}
 	fclose($fp);
@@ -191,31 +204,31 @@ function udskriv_danskebank($db_id,$bruger_id,$liste_id) {
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 
 }
 function udskriv_bankdata($db_id,$bruger_id,$liste_id){
 	$filnavn="../temp/$db_id"."$bruger_id".".txt";
 	$fp=fopen("$filnavn","w");
 #		if (substr($r['bet_type'], 0, 3)=="ERH") {
-		$linje='"';
-		$linje.="IB000000000000";
-		$linje.='","';
-		$linje.=date("Ymd");
-		$linje.='","';
-		$tmp='';
-		while (strlen($tmp)<90)$tmp.=' '; #felt3
-		$linje.=$tmp;		
-		$linje.='","';
-		$tmp='';
-		for ($i=0;$i<3;$i++){
-			while (strlen($tmp)<255)$tmp.=' '; #felt4-6
-			$linje.=$tmp;		
-			if ($i<2) $linje.='","';
-		}
-		$linje.='"';
-		$linje.="\r\n";
-		fwrite($fp,$linje);
+	$linje='"';
+	$linje.="IB000000000000";
+	$linje.='","';
+	$linje.=date("Ymd");
+	$linje.='","';
+	$tmp='';
+	while (strlen($tmp)<90)$tmp.=' '; #felt3
+	$linje.=$tmp;
+	$linje.='","';
+	$tmp='';
+	for ($i=0;$i<3;$i++){
+		while (strlen($tmp)<255)$tmp.=' '; #felt4-6
+		$linje.=$tmp;
+		if ($i<2) $linje.='","';
+	}
+	$linje.='"';
+	$linje.="\r\n";
+	fwrite($fp,$linje);
 #	}
 	$x=0;
 	$sum=0;
@@ -326,33 +339,33 @@ function udskriv_bankdata($db_id,$bruger_id,$liste_id){
 		fwrite($fp,$linje);
 	}	
 #	if (substr($r['bet_type'], 0, 3)=="ERH") {
-		$linje='"';
-		$linje.="IB999999999999";
-		$linje.='","';
-		$linje.=date("Ymd");
-		$linje.='","';
-		$tmp=$x;
-		while (strlen($tmp)<6)$tmp='0'.$tmp; #felt3
-		$linje.=$tmp;		
-		$linje.='","';
-		$tmp=$sum;
-		while (strlen($tmp)<13)$tmp='0'.$tmp; #felt4
+	$linje='"';
+	$linje.="IB999999999999";
+	$linje.='","';
+	$linje.=date("Ymd");
+	$linje.='","';
+	$tmp=$x;
+	while (strlen($tmp)<6)$tmp='0'.$tmp; #felt3
+	$linje.=$tmp;
+	$linje.='","';
+	$tmp=$sum;
+	while (strlen($tmp)<13)$tmp='0'.$tmp; #felt4
+	$linje.=$tmp;
+	$linje.="+";
+	$linje.='","';
+	$tmp='';
+	while (strlen($tmp)<64)$tmp.=' '; #felt4
+	$linje.=$tmp;
+	$linje.='","';
+	$tmp='';
+	for ($i=0;$i<3;$i++){
+		while (strlen($tmp)<255)$tmp.=' '; #felt4
 		$linje.=$tmp;
-		$linje.="+";
-		$linje.='","';
-		$tmp='';
-		while (strlen($tmp)<64)$tmp.=' '; #felt4
-		$linje.=$tmp;		
-		$linje.='","';
-		$tmp='';
-		for ($i=0;$i<3;$i++){
-			while (strlen($tmp)<255)$tmp.=' '; #felt4
-			$linje.=$tmp;		
-			if ($i<2) $linje.='","';
-		}
-		$linje.='"';
-		$linje.="\r\n";
-		fwrite($fp,$linje);
+		if ($i<2) $linje.='","';
+	}
+	$linje.='"';
+	$linje.="\r\n";
+	fwrite($fp,$linje);
 #	}
 	fclose($fp);
 	print "<tr><td colspan=3 height=200 widht=100%><br></td></tr>\n";
@@ -361,7 +374,7 @@ function udskriv_bankdata($db_id,$bruger_id,$liste_id){
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 }
 function udskriv_bec($db_id,$bruger_id,$liste_id){
 	$filnavn="../temp/$db_id"."$bruger_id".".txt";
@@ -400,7 +413,7 @@ function udskriv_bec($db_id,$bruger_id,$liste_id){
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 }
 function udskriv_sdc($db_id,$bruger_id,$liste_id){
 	$filnavn="../temp/$db_id"."$bruger_id".".txt";
@@ -425,7 +438,7 @@ function udskriv_sdc($db_id,$bruger_id,$liste_id){
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 }
 function udskriv_xml($db_id,$bruger_id,$liste_id){
 
@@ -535,8 +548,8 @@ function udskriv_xml($db_id,$bruger_id,$liste_id){
 	$xmltxt.= "                <Cd>CUST</Cd>\r\n";
 	$xmltxt.= "              </SchmeNm>\r\n";
 	$xmltxt.= "            </Othr>\r\n";
- 	$xmltxt.= "            <Othr>\r\n";
- 	$xmltxt.= "              <Id>PROVISJON</Id>\r\n";
+	$xmltxt.= "            <Othr>\r\n";
+	$xmltxt.= "              <Id>PROVISJON</Id>\r\n";
 	$xmltxt.= "              <SchmeNm>\r\n";
 	$xmltxt.= "                <Cd>BANK</Cd>\r\n";
 	$xmltxt.= "              </SchmeNm>\r\n";
@@ -638,7 +651,7 @@ function udskriv_xml($db_id,$bruger_id,$liste_id){
 		$xmltxt.= "         </Purp>\r\n";
 		$xmltxt.= "       </CdtTrfTxInf>\r\n";
 		$xmltxt.= "    </PmtInf>\r\n";
-	fwrite($fp,$xmltxt);
+		fwrite($fp,$xmltxt);
 	}
 	$xmltxt = "</CstmrCdtTrfInitn>\r\n";
 	$xmltxt.= "</Document>\r\n";
@@ -668,7 +681,7 @@ function udskriv_xml($db_id,$bruger_id,$liste_id){
 #		print $fejl_i_liste;
 #		print "</td><td width='20%'><br /></td></tr>\n";
 #	}
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='" . payFileHref($filnavn) . "'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 }
 function alignAccounts($db_id,$bruger_id,$liste_id) {
 	global $regnaar;
