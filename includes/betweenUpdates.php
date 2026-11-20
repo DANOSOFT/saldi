@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.20
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -51,6 +51,7 @@
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261120 CL/PS Self-service signup: signup_pending gets the source columns (utm_*, gclid, gbraid, wbraid, referrer, landing).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -441,6 +442,46 @@ if (!$sawanehMysql) {
 // findBoxSale() and posbogfor() read the new rows first and the list only while no row is stored.
 require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
 migrateTillAccounts($db_type);
+
+// 20261120 CL/PS Self-service signup: where a signup came from (doc/signup.md, "Kilde"). The website's form sends the
+// visit's campaign parameters (utm_*), Google Ads click ids (gclid/gbraid/wbraid, only with consent to marketing), the
+// referring site and the first page, and signup_pending keeps them, so trials can be followed to paying customers per
+// channel. Master only, from any tenant's login, under the same lock as the 5.1.1 signup block; once done a master
+// settings flag (system/signup_kilde_schema) makes it a single query per login. Until then signup_create_pending()
+// stores a signup without these columns.
+if (isset($GLOBALS['db'], $GLOBALS['sqdb']) && $GLOBALS['db'] !== $GLOBALS['sqdb']) {
+	$signupKildeFlag = "SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'signup_kilde_schema'";
+	if (!db_fetch_array(db_select($signupKildeFlag, __FILE__ . " linje " . __LINE__, true))) {
+		$signupKildeMysql = opdat_is_mysql($db_type);
+		$signupKildeLock = $signupKildeMysql ? "GET_LOCK('saldi:signup_schema', 30)" : "pg_advisory_lock(hashtext('saldi:signup_schema'))";
+		$signupKildeUnlock = $signupKildeMysql ? "RELEASE_LOCK('saldi:signup_schema')" : "pg_advisory_unlock(hashtext('saldi:signup_schema'))";
+		$signupKildeLocked = db_fetch_array(db_select("SELECT $signupKildeLock AS acquired", __FILE__ . " linje " . __LINE__, true));
+		// A MySQL lock timeout skips the block; the next login tries again.
+		if (!$signupKildeMysql || (int) ifset($signupKildeLocked, 'acquired', 0) === 1) {
+			try {
+				// Another login may have finished it while this one waited for the lock, and the table only exists once the 5.1.1 block has run.
+				$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name = 'signup_pending'" . opdat_schema_filter($db_type);
+				if (!db_fetch_array(db_select($signupKildeFlag, __FILE__ . " linje " . __LINE__, true)) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true))) {
+					$signupKildeColumns = array(
+						'utm_source' => 100, 'utm_medium' => 100, 'utm_campaign' => 150, 'utm_term' => 150, 'utm_content' => 150,
+						'gclid' => 200, 'gbraid' => 200, 'wbraid' => 200, 'referrer' => 100, 'landing' => 200,
+					);
+					foreach ($signupKildeColumns as $signupKildeColumn => $signupKildeLength) {
+						$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'signup_pending' AND column_name = '$signupKildeColumn'" . opdat_schema_filter($db_type);
+						if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true))) {
+							db_modify("ALTER TABLE signup_pending ADD COLUMN $signupKildeColumn VARCHAR($signupKildeLength)", __FILE__ . " linje " . __LINE__, true);
+						}
+					}
+					$qtxt = "INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('signup_kilde_schema', 'system', '1', ";
+					$qtxt.= "'Self-service signup: source columns on signup_pending (includes/betweenUpdates.php, 20261120)')";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+				}
+			} finally {
+				db_select("SELECT $signupKildeUnlock", __FILE__ . " linje " . __LINE__, true);
+			}
+		}
+	}
+}
 
 
 ?>

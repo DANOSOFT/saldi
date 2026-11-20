@@ -316,7 +316,8 @@ final class signupMailboxRules extends TestCase
     private static function newCustomer(): array
     {
         $row = ['firmanavn' => 'Nordlys Interiør ApS', 'cvrnr' => '12345678', 'navn' => 'Mette Hansen', 'email' => 'mette@nordlys.dk',
-            'tlf' => '+45 12 34 56 78', 'pakke' => 'business', 'source' => 'prov'];
+            'tlf' => '+45 12 34 56 78', 'pakke' => 'business', 'source' => 'prov', 'utm_source' => 'google', 'utm_medium' => 'cpc', 'utm_campaign' => 'regnskab-dk',
+            'gclid' => 'EAIaIQobChMI', 'landing' => '/priser/'];
         $account = ['regnskab' => 'Nordlys Interiør ApS', 'regnskab_id' => 42, 'trial_end' => '2026-12-09', 'lukkes' => '2026-12-23',
             'activated' => '2026-11-09 14:33:05'];
         return [$row, $account];
@@ -340,7 +341,9 @@ final class signupMailboxRules extends TestCase
             'Oprettet:          9. november 2026 kl. 14.33',
             'Prøveperiode til:  9. december 2026',
             'Lukkes:            23. december 2026',
-            'Kilde:             prov',
+            'Kilde:             google / cpc / regnskab-dk, Google Ads-klik',
+            'Landingsside:      /priser/',
+            'Formular:          prov',
             'Installation:      https://ssl3.saldi.dk/finans',
             'Regnskabet lukker af sig selv den 23. december 2026',
         ] as $line) {
@@ -371,11 +374,13 @@ final class signupMailboxRules extends TestCase
         $row['cvrnr'] = '';
         $row['tlf'] = '';
         $row['source'] = '';
+        unset($row['utm_source'], $row['utm_medium'], $row['utm_campaign'], $row['gclid'], $row['landing']);
         $row['pakke'] = 'finans';
         $m = signup_notify_message($row, $account, 'https://ssl3.saldi.dk/finans');
         self::assertStringContainsString('CVR-nummer:        –', $m['text']);
         self::assertStringContainsString('Telefon:           –', $m['text']);
-        self::assertStringContainsString('Kilde:             –', $m['text']);
+        self::assertStringContainsString('Kilde:             –', $m['text'], 'a signup from before the source columns');
+        self::assertStringContainsString('Formular:          –', $m['text']);
         self::assertSame('Ny kunde i Saldi: Nordlys Interiør ApS (Finans)', $m['subject']);
     }
 

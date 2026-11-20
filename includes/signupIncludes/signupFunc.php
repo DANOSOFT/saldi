@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/signupIncludes/signupFunc.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- includes/signupIncludes/signupFunc.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,6 +67,8 @@
 //                cooldown_months 0 refuses nothing; MySQL serializes the reserve step with GET_LOCK; outside PHP-FPM the page is
 //                sent with its length before the task runs.
 // 20261119 CL/PS signup_mailbox_message() sends bookkeepers and accountants to the bookkeeper scheme (revisor_url, default <landing_url>/revisor/).
+// 20261120 CL/PS Where a signup came from: signup_kilde() cleans the form's utm_*, Google Ads click ids, referrer and landing page, and signup_create_pending() stores them once their columns exist.
+//                signup_kilde_text() sums them up in one line for the new-customer mail.
 
 /** @var string $sqhost  from includes/connect.php */
 /** @var string $squser  from includes/connect.php */
@@ -523,6 +525,78 @@ if (!function_exists('signup_validate_form')) {
 	}
 }
 
+if (!function_exists('signup_kilde_columns')) {
+	/**
+	 * The source columns on signup_pending and their lengths (includes/betweenUpdates.php, 20261120).
+	 *
+	 * @return array<string, int> column => VARCHAR length
+	 */
+	function signup_kilde_columns() {
+		return array(
+			'utm_source' => 100, 'utm_medium' => 100, 'utm_campaign' => 150, 'utm_term' => 150, 'utm_content' => 150,
+			'gclid' => 200, 'gbraid' => 200, 'wbraid' => 200, 'referrer' => 100, 'landing' => 200,
+		);
+	}
+}
+
+if (!function_exists('signup_kilde')) {
+	/**
+	 * Where a signup came from, as the website's form sends it (doc/signup.md, "Kilde"): the visit's campaign
+	 * parameters (utm_*), Google Ads click ids (gclid, gbraid, wbraid; the website sends them only with the customer's
+	 * consent to marketing), the referring site (host only) and the first page of the visit (path only). Anything
+	 * that does not have the expected form is dropped; nothing here is required.
+	 *
+	 * @param array $in raw $_POST (or decoded JSON body)
+	 * @return array<string, string> every key of signup_kilde_columns(), '' when not sent or not valid
+	 */
+	function signup_kilde(array $in) {
+		$out = array();
+		foreach (signup_kilde_columns() as $col => $max) {
+			$value = signup_clean_text(ifset($in, $col, ''), $max + 1);
+			if (mb_strlen($value) > $max) {
+				$value = ''; // a cut click id or path is a wrong one
+			} elseif (in_array($col, array('gclid', 'gbraid', 'wbraid'), true)) {
+				$value = preg_match('/^[A-Za-z0-9._~-]+$/', $value) ? $value : '';
+			} elseif ($col === 'referrer') {
+				$value = strtolower($value);
+				$value = preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/', $value) ? $value : '';
+			} elseif ($col === 'landing') {
+				$value = preg_match('#^/[A-Za-z0-9/._~%-]*$#', $value) ? $value : '';
+			} else {
+				// utm_*: free text chosen by whoever made the link; markup characters have no business there
+				$value = trim(preg_replace('/[<>"\\\\]+/', '', $value));
+			}
+			$out[$col] = $value;
+		}
+		return $out;
+	}
+}
+
+if (!function_exists('signup_kilde_text')) {
+	/**
+	 * One line about where a signup came from, for the new-customer mail: the campaign (utm_source / utm_medium /
+	 * utm_campaign), otherwise the referring site; "Google Ads-klik" is added when a click id came along.
+	 *
+	 * @param array $row signup_pending row (the source columns may be missing on rows from before they existed)
+	 * @return string '' when nothing is known
+	 */
+	function signup_kilde_text(array $row) {
+		$parts = array();
+		foreach (array('utm_source', 'utm_medium', 'utm_campaign') as $col) {
+			$value = trim((string)ifset($row, $col, ''));
+			if ($value !== '') {
+				$parts[] = $value;
+			}
+		}
+		$text = $parts ? implode(' / ', $parts) : trim((string)ifset($row, 'referrer', ''));
+		$click = trim(ifset($row, 'gclid', '') . ifset($row, 'gbraid', '') . ifset($row, 'wbraid', '')) !== '';
+		if ($click) {
+			$text = ($text !== '' ? $text . ', ' : '') . 'Google Ads-klik';
+		}
+		return $text;
+	}
+}
+
 if (!function_exists('signup_normalize_name')) {
 	/**
 	 * Normalises a proposed account name (plan.md, section 3): letters (incl. æøå), digits, space,
@@ -868,7 +942,8 @@ if (!function_exists('signup_create_pending')) {
 	 * Stores a validated form submission and issues its first activation token.
 	 *
 	 * @param array $data array{navn, email, tlf, cvrnr, firmanavn, addr1, addr2, postnr, bynavn,
-	 *                    regnskab, pakke, source, navn_fra_cvr: int 1|0}
+	 *                    regnskab, pakke, source, navn_fra_cvr: int 1|0, kilde?: array<string, string>}
+	 *                    kilde: signup_kilde()'s result; stored once includes/betweenUpdates.php has added its columns
 	 * @return array{id: int, token: string, resend: string} the token and the resend key go to the
 	 *               mail and the "check your inbox" page respectively; only hashes are stored
 	 */
@@ -883,6 +958,13 @@ if (!function_exists('signup_create_pending')) {
 		}
 		$cols[] = 'navn_fra_cvr';
 		$values[] = (int)(bool)ifset($data, 'navn_fra_cvr', 0);
+		$kilde = (array)ifset($data, 'kilde', array());
+		if (array_filter($kilde, 'strlen') && signup_column_exists('signup_pending', 'landing')) {
+			foreach (signup_kilde_columns() as $col => $max) {
+				$cols[] = $col;
+				$values[] = signup_q(mb_substr((string)ifset($kilde, $col, ''), 0, $max));
+			}
+		}
 		$qtxt = "INSERT INTO signup_pending (" . implode(',', $cols) . ", token_hash, token_expires, resend_hash, ip) VALUES ("
 			. implode(',', $values) . ", " . signup_q(signup_token_hash($token)) . ", " . signup_q(date('Y-m-d H:i:s', time() + $days * 86400)) . ", "
 			. signup_q(signup_token_hash($resend)) . ", " . signup_q(signup_client_ip()) . ")";

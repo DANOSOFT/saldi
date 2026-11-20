@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- signup/opret.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- signup/opret.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,9 @@
 // ----------------------------------------------------------------------
 // The endpoint the website's "Prøv gratis"/price-page form posts to (plan.md, section 1).
 //
-//   POST (form fields or JSON): name, cvr, company, email, phone, pakke, source, website (honeypot)
+//   POST (form fields or JSON): name, cvr, company, email, phone, pakke, source, website (honeypot), and optionally
+//                               where the visit came from: utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+//                               gclid, gbraid, wbraid (only with consent to marketing), referrer (host), landing (path)
 //   -> 200 {ok:true, resend:"<key>", email:"<as typed>"}   the mail is on its way (or the request
 //                                                          was silently dropped: bot / too many)
 //   -> 422 {ok:false, errors:{field: message}}            validation failed, or errors.email: the mailbox
@@ -52,6 +54,7 @@
 // 20261109 CL/PS Refuses (422, errors.email) a mailbox that already has a signup account, or whose trial closed less than cooldown_months ago.
 //                Asked after both signup limits are claimed, so a refused answer also counts against max_signups_per_hour.
 // 20261119 CL/PS The refusal also points bookkeepers and accountants to the bookkeeper scheme (signup_urls()['revisor']).
+// 20261120 CL/PS The signup keeps where it came from (signup_kilde(): utm_*, Google Ads click ids, referrer, landing page).
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");
@@ -149,6 +152,7 @@ $pending = signup_create_pending(array(
 	'navn' => $d['navn'], 'email' => $d['email'], 'tlf' => $d['tlf'], 'cvrnr' => $d['cvr'],
 	'firmanavn' => $company['firmanavn'], 'addr1' => $company['addr1'], 'addr2' => $company['addr2'], 'postnr' => $company['postnr'], 'bynavn' => $company['bynavn'],
 	'regnskab' => $regnskab, 'pakke' => $d['pakke'], 'source' => $d['source'], 'navn_fra_cvr' => $nameFromCvr ? 1 : 0,
+	'kilde' => signup_kilde($in),
 ));
 $row = db_fetch_array(db_select("SELECT * FROM signup_pending WHERE id = " . (int)$pending['id'], __FILE__ . " linje " . __LINE__, true));
 if (!$row || !signup_send_activation_mail($row, $pending['token'], 'welcome')) {

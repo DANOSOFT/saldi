@@ -137,6 +137,37 @@ and may not contain `' & " \ ; < >`, which `index/login.php` strips from usernam
 name or company. Forms must not put `maxlength="60"` on the e-mail field: the browser would cut the address, and a
 cut address can be somebody else's.
 
+## Kilde: where a signup came from
+
+So trials can be followed to paying customers per channel (Google Ads, LinkedIn, ChatGPT, newsletter ...), the form
+may also send where the visit came from. All fields are optional; `signup_kilde()` drops a value that does not have
+the expected form, and `signup_pending` keeps the rest:
+
+| Field | Column | Kept when |
+|---|---|---|
+| `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` | same names, VARCHAR(100/100/150/150/150) | any text without `< > " \`, within the length |
+| `gclid`, `gbraid`, `wbraid` | same names, VARCHAR(200) | letters, digits and `. _ ~ -` |
+| `referrer` | `referrer`, VARCHAR(100) | a host name only, e.g. `chatgpt.com` |
+| `landing` | `landing`, VARCHAR(200) | a path only, e.g. `/priser/` (no query) |
+
+Consent: the website (saldi.dk, `index.html`) sends Google's click ids only when the customer has consented to
+marketing in its cookie banner, so a stored click id may be uploaded to Google Ads as an offline conversion. The
+campaign parameters, referrer and landing page are sent with every signup. The columns are added by
+`includes/betweenUpdates.php` (20261120, flag `system/signup_kilde_schema`); until then a signup is stored without
+them. The new-customer mail shows them as *Kilde* (campaign, otherwise the referring site, plus "Google Ads-klik"),
+*Landingsside* and *Formular* (the `source` field: which form on the website).
+
+Trials per channel, and which of them are still open (a customer who chose a subscription has had the closing date
+`lukkes` cleared in the admin panel), on the master database:
+
+```sql
+SELECT p.created, p.firmanavn, p.pakke, p.utm_source, p.utm_medium, p.utm_campaign, p.referrer, p.landing,
+       p.gclid <> '' AS google_ads_klik, r.trial_end, r.lukkes, r.lukket
+FROM signup_pending p LEFT JOIN regnskab r ON r.id = p.regnskab_id
+WHERE p.status = 'activated' AND p.created >= '2026-12-01'
+ORDER BY p.created;
+```
+
 ## One e-mail, one account
 
 A mailbox (`signup_email_key()`: lower case, without `+tag`, Gmail without dots) gets one free trial account,
@@ -252,3 +283,4 @@ tested).
 <!-- 20261109 CL/PS One e-mail, one account and the waiting period before a new trial (cooldown_months); internal new-customer mail (notify_email). -->
 <!-- 20261109 CL/PS Review: closing date from a customer's deletion, stuck activations, MySQL lock, nytlink, limits before the answer, mail after the response. -->
 <!-- 20261119 CL/PS A refused mailbox is also pointed to the bookkeeper scheme (revisor_url); why bookkeepers get no exception. -->
+<!-- 20261120 CL/PS Kilde: utm_*, Google Ads click ids, referrer and landing page stored with the signup, shown in the new-customer mail. -->

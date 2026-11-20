@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/signupIncludes/signupMail.php --- ver 5.1.1 --- 2026-11-18 ---
+// --- includes/signupIncludes/signupMail.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,7 @@
 // 20261109 CL/PS Internal new-customer mail to notify_email after an activation (signup_notify_message(), signup_send_notify_mail()).
 //                signup_send_mail() takes a Reply-To and Bcc for a single mail.
 //                Review: the recipients come from signup_notify_recipients(); the mailto: link encodes the customer's local part.
+// 20261120 CL/PS The new-customer mail says where the signup came from (Kilde, Landingsside), and which form was used (Formular).
 
 if (!function_exists('signup_mail_vars')) {
 	/**
@@ -380,7 +381,8 @@ if (!function_exists('signup_notify_message')) {
 	 * the package and the account, when the trial ends and when the account closes. Every value is escaped in the
 	 * HTML part and kept on one line in the subject and the text part.
 	 *
-	 * @param array  $row     signup_pending row (firmanavn, cvrnr, navn, email, tlf, pakke, source)
+	 * @param array  $row     signup_pending row (firmanavn, cvrnr, navn, email, tlf, pakke, source, and the source
+	 *                        columns of signup_kilde_columns() when they exist)
 	 * @param array  $account signup_activate()'s result (regnskab, regnskab_id, trial_end, lukkes, activated)
 	 * @param string $baseUrl the installation (base_url setting)
 	 * @return array{
@@ -421,7 +423,9 @@ if (!function_exists('signup_notify_message')) {
 			'Oprettet' => $created,
 			'Prøveperiode til' => signup_danish_date(ifset($account, 'trial_end', '')),
 			'Lukkes' => $lukkes,
-			'Kilde' => $line(ifset($row, 'source', '')),
+			'Kilde' => $line(signup_kilde_text($row)),
+			'Landingsside' => $line(ifset($row, 'landing', '')),
+			'Formular' => $line(ifset($row, 'source', '')),
 			'Installation' => $line($baseUrl),
 		);
 		$subject = 'Ny kunde i Saldi: ' . ($firma !== '' ? $firma : $regnskab) . ' (' . $pakkeNavn . ')';
