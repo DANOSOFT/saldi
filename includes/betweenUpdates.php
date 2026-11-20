@@ -48,6 +48,7 @@
 // 20261105 CL/ASR The one-time role changes and the till account copy are moved up before master's MB-73 block, so MB-73 and the signup block stay at the end.
 //                 OrderLineDeliveredBackfillTest runs the file from MB-73 to the end with stubbed database functions.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
+// 20261111 CL/ASR SD-731: the operator panel's master-database tables (includes/opdat_func/operatorPanelSchema.php), last in the file.
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
@@ -442,5 +443,12 @@ if (!$sawanehMysql) {
 require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
 migrateTillAccounts($db_type);
 
+// 20261111 CL/ASR SD-731 operator panel: its tables live in the master database. operator_panel_schema() uses the master
+// connection ($global = true) and runs once per master (settings flag 'operator_panel_schema'); later logins only read the flag.
+// It only runs in a real login, where $db and $sqdb are set (not in a test that evaluates this file), and only on PostgreSQL.
+if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
+	include_once(__DIR__ . '/opdat_func/operatorPanelSchema.php');
+	operator_panel_schema();
+}
 
 ?>

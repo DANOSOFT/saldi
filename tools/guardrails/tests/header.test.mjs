@@ -2,6 +2,7 @@
 // 20261030 CL/MJ Pin that history after a plain /* note inside the header (includes/grid.php) is not flagged.
 // 20261101 CL/MJ Pin that a /*****\ licence banner (includes/barcode.php) is not read as PHPDoc.
 // 20261111 CDX/NTR Require comment-only separators throughout edited file headers.
+// 20261116 CDX/NTR Exempt formatting while retaining history requirements for content changes.
 import test from "node:test";
 import assert from "node:assert/strict";
 import history from "../checks/file-history.mjs";
@@ -20,6 +21,25 @@ function context(before, after, additions = []) {
   };
 }
 const head = '<?php\n// example.php ver 5.1.0 2026-10-29\n// Copyright (c) 2026 Danosoft ApS\n// 20261028 CDX/MJ Existing behavior.\n';
+
+test("indentation and blank separators do not require history or header maintenance", () => {
+  const before = head.replaceAll('2026-10-29', '2025-01-01').replace('2026 Danosoft', '2025 Danosoft')
+    + 'function example() {\n// Keep this explanation.\nreturn ["SQL stays unchanged"];\n}';
+  const after = before.replace('// Keep', '\n    // Keep').replace('return [', '    return [').replace('\n}', '\n\n}');
+  assert.deepEqual(history.run(context(before, after, [6, 7, 8, 9])), []);
+});
+for (const [label, beforeBody, afterBody] of [
+  ['code', 'return 1;', 'return 2;'],
+  ['string whitespace', 'return "a b";', 'return "a  b";'],
+  ['comment text', '// Original explanation.\nreturn 1;', '// Changed explanation.\nreturn 1;'],
+  ['inline HTML whitespace', '?>a b<?php ', '?>a  b<?php '],
+  ['heredoc contents', 'return <<<SQL\na b\nSQL;', 'return <<<SQL\na  b\nSQL;'],
+]) {
+  test(`${label} changes still require history`, () => {
+    const findings = history.run(context(head + beforeBody, head + afterBody, [5]));
+    assert(findings.some(f => f.message.includes('no history line')), JSON.stringify(findings));
+  });
+}
 
 test("history belongs before PHPDoc even when another new header entry is present", () => {
   const after = head + '// 20261029 CDX/MJ First new entry.\n/** Function documentation. */\n// 20261029 CDX/MJ Misplaced entry.\nfunction example() {}';
