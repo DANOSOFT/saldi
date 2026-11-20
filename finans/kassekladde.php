@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -227,6 +227,8 @@
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261119 CL/SS SST-895 While the highest voucher does not balance, the blank line continues it with the same number and date.
+//                It posts no proposal, so the save keeps that number instead of treating it as taken.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -3626,6 +3628,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 	$kontrolmoms = $kontrolsaldo = 0;
 	$kladde_debetsum = $kladde_kreditsum = 0; # samlet debet/kredit (basisvaluta) til balance-status
+	$kk_lines = array(); # SST-895 the lines as shown, for bilagOpenVoucher()
 	include_once("../includes/stdFunc/fiscalYear.php");
 	list($regnstart, $regnslut) = explode(":", fiscalYear($regnaar));
 
@@ -3934,6 +3937,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$kladde_debetsum += isset($dkkamount[$y]) ? (float)$dkkamount[$y] : 0;
 		if ($kredit[$y])
 			$kladde_kreditsum += isset($dkkamount[$y]) ? (float)$dkkamount[$y] : 0;
+		$kk_lines[] = array('bilag' => $bilag[$y], 'dato' => $dato[$y], 'debet' => $debet[$y], 'kredit' => $kredit[$y], 'belob' => $dkkamount[$y] ?? 0);
 	}
 	# Auto-balance forududfyldning af naeste linje fjernet 20260903 - balance-status oeverst erstatter den
 	$amount[$x + 1] = 0;
@@ -4021,6 +4025,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		# SST-934 a 0 typed on this line is kept too
 		$kk_nul_tastet = isset($bilag[$x]) && !bilagIsUnnumbered($bilag[$x]) && (int)$bilag[$x] === 0;
 		if ($kk_nul_tastet) $next = 0;
+		# SST-895 while the highest voucher does not balance, the blank line continues it: same number and date.
+		# It posts no proposal (bilf 0), so the save keeps the number as typed instead of moving it as taken (MB-81).
+		# The text is not copied: a number with a text is a line the save stores, so an untouched blank line would be saved.
+		$kk_proposal = $kk_next_bilag;
+		$kk_typed = isset($bilag[$x]) && ((int)$bilag[$x] > 0 || $kk_nul_tastet);
+		$kk_open_voucher = $kk_typed ? null : bilagOpenVoucher($kk_lines);
+		if ($kk_open_voucher) {
+			$next = $kk_open_voucher['bilag'];
+			$kk_proposal = 0;
+			if ($dato[$x] == '') $dato[$x] = $kk_open_voucher['dato'];
+		}
 		if($dato[$x] == ''){
 			$dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
 		}
@@ -4070,7 +4085,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$kk_next_vaerdi = ((int)$next > 0) ? (int)$next : ($kk_nul_tastet ? '0' : '');
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$kk_next_vaerdi\" onchange='javascript:docChange = true;'>";
-		print "<input type='hidden' name='bilf$x' value='" . (int)$kk_next_bilag . "'></td>\n";
+		print "<input type='hidden' name='bilf$x' value='" . (int)$kk_proposal . "'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
 		name='dato$x' $de_fok value =\"$dato[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;'
