@@ -3,8 +3,8 @@
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
-//
-// --- includes/opdat_4.2.php --- patch 5.0.1 --- 2026-09-08 ---
+// guardrails-allow migrations until 2026-12-31 by LH: MB-85 only removes the unsafe MobilePay webhook blocks from this released update (Lui 2026-11-20)
+// --- includes/opdat_4.2.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,9 @@
 // 20260903 CL/LH Reopened the 4.3.0 step gate ($subNo < '3' instead of '< 1'), which could
 //                never be true because tjek4opdat() always passes $subNo = 2.
 // 20260908 PHR Corrected error in 4.3.0 	$subNo < '1' changed to $subNo < '3'
+// 20261120 CL/MMR MB-85 The 4.2.5 and 4.3.0 steps no longer call MobilePay/Vipps.
+//                 Their webhook blocks took the callback host from the request and deleted every webhook whose url merely contained «webhook_recive.php?db=<db>», so «acme» also removed «acme2»'s webhook.
+//                 Registration is left to the 5.1.0 step (includes/opdat_5.0.php with includes/stdFunc/mobilepayWebhookSync.php), which every upgrade from 4.2 passes through, uses the webhook_base_url setting and deletes only webhooks for exactly this db.
 
 if (!function_exists('opdat_4_2')) {
 function opdat_4_2($majorNo, $subNo, $fixNo){
@@ -642,89 +645,6 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 					$mig_id = $r_migrate['id'];
 					if ($mig_email) {
 						db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$mig_id', '$mig_email', 'hoved')", __FILE__ . " linje " . __LINE__);
-					}
-				}
-			}
-
-			// MobilePay: ensure webhook is registered for the current server
-			$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'client_id'", __FILE__ . " linje " . __LINE__);
-			$mp_client_id = db_fetch_array($q)['var_value'] ?? null;
-			if ($mp_client_id) {
-				$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'client_secret'", __FILE__ . " linje " . __LINE__);
-				$mp_client_secret = db_fetch_array($q)['var_value'];
-				$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'subscriptionKey'", __FILE__ . " linje " . __LINE__);
-				$mp_subscription = db_fetch_array($q)['var_value'];
-				$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'MSN'", __FILE__ . " linje " . __LINE__);
-				$mp_msn = db_fetch_array($q)['var_value'];
-
-				$expected_url = 'https://' . $_SERVER['SERVER_NAME'] . '/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db;
-
-				// Get access token
-				$ch = curl_init('https://api.vipps.no/accesstoken/get');
-				curl_setopt($ch, CURLOPT_POST, 1);
-				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-				curl_setopt($ch, CURLOPT_HTTPHEADER, [
-					'Content-Type: application/json',
-					"Client_id: $mp_client_id",
-					"Client_secret: $mp_client_secret",
-					"Ocp-Apim-Subscription-Key: $mp_subscription",
-					"Merchant-Serial-Number: $mp_msn",
-					'Content-Length: 0'
-				]);
-				$token_resp = json_decode(curl_exec($ch), true);
-				curl_close($ch);
-				$mp_token = $token_resp['access_token'] ?? null;
-
-				if ($mp_token) {
-					$mp_headers = [
-						"Authorization: Bearer $mp_token",
-						"Ocp-Apim-Subscription-Key: $mp_subscription",
-						"Merchant-Serial-Number: $mp_msn",
-						'Content-Type: application/json'
-					];
-
-					// List registered webhooks
-					$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
-					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-					curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-					$webhooks = json_decode(curl_exec($ch), true)['webhooks'] ?? [];
-					curl_close($ch);
-
-					$correct_webhook_exists = false;
-					foreach ($webhooks as $wh) {
-						if ($wh['url'] === $expected_url) {
-							$correct_webhook_exists = true;
-						} else {
-							// Delete webhook pointing to a different URL for this db
-							if (strpos($wh['url'], 'webhook_recive.php?db=' . $db) !== false) {
-								$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks/' . $wh['id']);
-								curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-								curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-								curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-								curl_exec($ch);
-								curl_close($ch);
-							}
-						}
-					}
-
-					if (!$correct_webhook_exists) {
-						// Register webhook with correct URL
-						$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
-						curl_setopt($ch, CURLOPT_POST, true);
-						curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-						curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-						curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-							'url' => $expected_url,
-							'events' => ['epayments.payment.authorized.v1', 'user.checked-in.v1', 'epayments.payment.cancelled.v1', 'epayments.payment.aborted.v1', 'epayments.payment.expired.v1', 'epayments.payment.terminated.v1']
-						]));
-						$reg_resp = json_decode(curl_exec($ch), true);
-						curl_close($ch);
-
-						if (!empty($reg_resp['secret'])) {
-							db_modify("DELETE FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_secret'", __FILE__ . " linje " . __LINE__);
-							$new_secret = db_escape_string($reg_resp['secret']);
-							db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_secret', 'mobilepay', '$new_secret', 'The secret that is generated for the webhook')", __FILE__ . " linje " . __LINE__);
-						}
 					}
 				}
 			}
@@ -1384,89 +1304,6 @@ function opdat_4_2($majorNo, $subNo, $fixNo){
 				db_modify("INSERT INTO kontakt_emails (konto_id, email, email_type) VALUES ('$mig_id', '$mig_email', 'hoved')", __FILE__ . " linje " . __LINE__);
 			}
 			}
-			}
-
-			// MobilePay: ensure webhook is registered for the current server
-			$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'client_id'", __FILE__ . " linje " . __LINE__);
-			$mp_client_id = db_fetch_array($q)['var_value'] ?? null;
-			if ($mp_client_id) {
-				$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'client_secret'", __FILE__ . " linje " . __LINE__);
-				$mp_client_secret = db_fetch_array($q)['var_value'];
-				$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'subscriptionKey'", __FILE__ . " linje " . __LINE__);
-				$mp_subscription = db_fetch_array($q)['var_value'];
-				$q = db_select("SELECT var_value FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'MSN'", __FILE__ . " linje " . __LINE__);
-				$mp_msn = db_fetch_array($q)['var_value'];
-
-				$expected_url = 'https://' . $_SERVER['SERVER_NAME'] . '/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db;
-
-				// Get access token
-				$ch = curl_init('https://api.vipps.no/accesstoken/get');
-				curl_setopt($ch, CURLOPT_POST, 1);
-				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-				curl_setopt($ch, CURLOPT_HTTPHEADER, [
-					'Content-Type: application/json',
-			 "Client_id: $mp_client_id",
-			 "Client_secret: $mp_client_secret",
-			 "Ocp-Apim-Subscription-Key: $mp_subscription",
-			 "Merchant-Serial-Number: $mp_msn",
-			 'Content-Length: 0'
-				]);
-				$token_resp = json_decode(curl_exec($ch), true);
-				curl_close($ch);
-				$mp_token = $token_resp['access_token'] ?? null;
-
-				if ($mp_token) {
-					$mp_headers = [
-						"Authorization: Bearer $mp_token",
-			"Ocp-Apim-Subscription-Key: $mp_subscription",
-			"Merchant-Serial-Number: $mp_msn",
-			'Content-Type: application/json'
-					];
-
-					// List registered webhooks
-					$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
-					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-					curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-					$webhooks = json_decode(curl_exec($ch), true)['webhooks'] ?? [];
-					curl_close($ch);
-
-					$correct_webhook_exists = false;
-					foreach ($webhooks as $wh) {
-						if ($wh['url'] === $expected_url) {
-						$correct_webhook_exists = true;
-						} else {
-						// Delete webhook pointing to a different URL for this db
-						if (strpos($wh['url'], 'webhook_recive.php?db=' . $db) !== false) {
-							$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks/' . $wh['id']);
-							curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-							curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-							curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-							curl_exec($ch);
-							curl_close($ch);
-						}
-						}
-					}
-
-					if (!$correct_webhook_exists) {
-						// Register webhook with correct URL
-						$ch = curl_init('https://api.vipps.no/webhooks/v1/webhooks');
-						curl_setopt($ch, CURLOPT_POST, true);
-						curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-						curl_setopt($ch, CURLOPT_HTTPHEADER, $mp_headers);
-						curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-						'url' => $expected_url,
-						'events' => ['epayments.payment.authorized.v1', 'user.checked-in.v1', 'epayments.payment.cancelled.v1', 'epayments.payment.aborted.v1', 'epayments.payment.expired.v1', 'epayments.payment.terminated.v1']
-						]));
-						$reg_resp = json_decode(curl_exec($ch), true);
-						curl_close($ch);
-
-						if (!empty($reg_resp['secret'])) {
-						db_modify("DELETE FROM settings WHERE var_grp = 'mobilepay' AND var_name = 'webhook_secret'", __FILE__ . " linje " . __LINE__);
-						$new_secret = db_escape_string($reg_resp['secret']);
-						db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('webhook_secret', 'mobilepay', '$new_secret', 'The secret that is generated for the webhook')", __FILE__ . " linje " . __LINE__);
-						}
-					}
-				}
 			}
 
 			$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='rentalsettings' and column_name='toggle_order'";
