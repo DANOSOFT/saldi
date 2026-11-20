@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/orderIncludes/creditControls.php --- ver 5.1.0 --- 2026-11-18 ---
+// --- debitor/orderIncludes/creditControls.php --- ver 5.1.0 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261118 CL/SS SD-833: created. The dekort and restock choices on a credit note draft, under its lines.
+// 20261120 CL/SS SD-833 review: once a line is delivered its choices are locked, as delivery has already moved the stock or not.
 
 include_once(__DIR__ . '/../../includes/orderFuncIncludes/creditService.php');
 
@@ -37,7 +38,7 @@ function credit_controls_save(int $creditId, array $post, $sprog_id): string
 		$lines = credit_note_lines($creditId);
 		foreach (array_keys($post['credit_line']) as $lineId) {
 			$lineId = (int)$lineId;
-			if (!isset($lines[$lineId])) {
+			if (!isset($lines[$lineId]) || (int)$lines[$lineId]['delivered_rows'] > 0) {
 				continue;
 			}
 			$pct = (float)usdecimal((string)($post['credit_dekort'][$lineId] ?? ''));
@@ -83,10 +84,11 @@ function credit_controls_render(int $creditId, $sprog_id, $charset): void
 			$pct = dkdecimal(-credit_line_net($line) * $orig['amount_sign'] * 100 / $orig['amount'], 2);
 		}
 		$checked = (!$dekort && trim((string)($line['retur_lager'] ?? '')) != 'of') ? 'checked' : '';
-		$disabled = $dekort ? 'disabled' : '';
-		print "<tr><td>" . $h($line['varenr']) . "<input type='hidden' name='credit_line[$id]' value='1'></td>";
+		$delivered = (int)$line['delivered_rows'] > 0;
+		$disabled = ($dekort || $delivered) ? 'disabled' : '';
+		print "<tr><td>" . $h($line['varenr']) . ($delivered ? '' : "<input type='hidden' name='credit_line[$id]' value='1'>") . "</td>";
 		print "<td>" . $h($line['beskrivelse']) . "</td>";
-		print "<td align='right' title='$dekortTitle'><input class='inputbox' type='text' style='text-align:right;width:50px' name='credit_dekort[$id]' value='$pct'></td>";
+		print "<td align='right' title='$dekortTitle'><input class='inputbox' type='text' style='text-align:right;width:50px' name='credit_dekort[$id]' value='$pct'" . ($delivered ? ' disabled' : '') . "></td>";
 		print "<td align='center' title='$restockTitle'><input type='checkbox' name='credit_restock[$id]' $checked $disabled></td>";
 		print "<td align='right'>";
 		if ($orig) {

@@ -10,6 +10,7 @@
 //
 // History:
 // 20261118 CL/SS SD-833 Created.
+// 20261120 CL/SS SD-833 review: once a credit line is delivered, its restock and dekort choices are locked.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -206,6 +207,39 @@ final class CreditNotePageTest extends CharacterizationTestCase
         $this->page(['id' => $draft], $fields);
 
         $this->assertSame('of', trim((string)self::itemLines($draft)[0]['retur_lager']));
+    }
+
+    public function test_once_a_credit_line_is_delivered_its_restock_and_dekort_are_locked(): void
+    {
+        foreach (['on' => 'of', 'of' => 'on'] as $before => $after) {
+            $item = self::$fx->item(['beholdning' => 10.0]);
+            $invoice = $this->invoicedChairs($item, 1);
+            $this->pressCredit($invoice['id']);
+            $draft = (int)self::creditNotes($invoice['id'])[0]['id'];
+            $lineId = (int)self::itemLines($draft)[0]['id'];
+            self::rows('UPDATE ordrelinjer SET retur_lager = $1 WHERE id = $2', [$before, $lineId]);
+            self::rows('UPDATE ordrer SET levdate = ordredate WHERE id = $1', [$draft]);
+            $this->runChildJson('run_order_lifecycle.php', ['deliver', $draft, -1, CharacterizationEnv::testDb()]);
+
+            $html = $this->page(['id' => $draft]);
+            $this->assertMatchesRegularExpression('/name=.credit_restock\[' . $lineId . '\][^>]*disabled/', $html, "restock $before: the box is locked");
+            $this->assertMatchesRegularExpression('/name=.credit_dekort\[' . $lineId . '\][^>]*disabled/', $html, "restock $before: the dekort is locked");
+
+            $fields = self::formFields($html);
+            $fields['credit_line'][$lineId] = '1';
+            $fields['credit_dekort'][$lineId] = '10';
+            if ($after === 'on') {
+                $fields['credit_restock'][$lineId] = 'on';
+            } else {
+                unset($fields['credit_restock'][$lineId]);
+            }
+            $fields['save'] = 'Gem';
+            $this->page(['id' => $draft], $fields);
+
+            $line = self::itemLines($draft)[0];
+            $this->assertSame($before, trim((string)$line['retur_lager']), "restock $before: a posted change is ignored after delivery");
+            $this->assertNotSame('dekort', trim((string)$line['kredit_art']), "restock $before: no dekort after delivery");
+        }
     }
 
     public function test_a_new_credit_note_reverses_a_negative_invoice_line_only_once(): void

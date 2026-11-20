@@ -26,6 +26,7 @@
 // 20261118 CL/SS SD-833 Created.
 // 20261118 CL/SS SD-833 Codex review: negative invoice lines count in their own direction, and a capped price never rounds up.
 //                A dekort is always held to the amount left.
+// 20261120 CL/SS SD-833 review: a line whose quantity points the wrong way is held to nothing. The lines tell whether they are delivered.
 
 include_once(__DIR__ . '/stockNeutralLine.php'); # order_line_has_credit_columns()
 
@@ -93,12 +94,13 @@ function credit_line_left(array $line): bool
 	return $line['remaining_antal'] > 0.0005 && ($line['amount'] <= 0.005 || $line['remaining_amount'] > 0.005);
 }
 
-/** A credit note's lines that point at an invoice line, keyed by their own id. */
+/** A credit note's lines that point at an invoice line, keyed by their own id. delivered_rows > 0 once a line is delivered. */
 function credit_note_lines(int $creditId): array
 {
 	$kind = order_line_has_credit_columns() ? ', kredit_art, retur_lager' : '';
 	$lines = array();
-	$qtxt = "select id, kred_linje_id, vare_id, varenr, beskrivelse, antal, pris, rabat, procent$kind from ordrelinjer";
+	$qtxt = "select id, kred_linje_id, vare_id, varenr, beskrivelse, antal, pris, rabat, procent$kind,";
+	$qtxt .= " (select count(*) from batch_salg b where b.linje_id = ordrelinjer.id) as delivered_rows from ordrelinjer";
 	$qtxt .= " where ordre_id = '$creditId' and kred_linje_id > 0 order by posnr, id";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -139,6 +141,7 @@ function credit_apply_line_choice(int $lineId, float $dekortPct, bool $restock):
 /**
  * Lowers a draft credit note's lines to what is left on the invoice after its other credit notes:
  * first the quantity, then the price, so a unit already part credited by a dekort is credited at what is left of it.
+ * A quantity that points the wrong way (it would charge, not credit) is set to 0.
  * The price is cut toward zero, so the stored amount never exceeds what is left.
  * Returns the item numbers of the lines it changed. Locks the invoice row.
  */
@@ -158,7 +161,11 @@ function credit_hold_to_remaining(int $creditId): array
 		$orig = &$left[$origId];
 		$dekort = trim((string)($line['kredit_art'] ?? '')) == 'dekort';
 		$qty = -(float)$line['antal'] * $orig['qty_sign'];
-		if (!$dekort && $qty <= 0) {
+		if (!$dekort && $qty <= 0.0005) {
+			if ($qty < -0.0005) {
+				db_modify("update ordrelinjer set antal = 0 where id = '$id'", __FILE__ . " linje " . __LINE__);
+				$changed[] = $line['varenr'];
+			}
 			unset($orig);
 			continue;
 		}

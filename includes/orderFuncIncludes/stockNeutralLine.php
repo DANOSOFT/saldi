@@ -26,13 +26,14 @@
 // History:
 // 20261118 CL/SS SD-833 Created (SD-746 core edit 4).
 // 20261118 CL/SS SD-833 Codex review: invoicing costs the line nothing and dates its batch with the delivery row.
+// 20261120 CL/SS SD-833 review: the column check looks in the current schema only.
 
 // retur_lager and kredit_art come with the Shopify schema (includes/shopify/schema.php), so other tenants lack them.
 function order_line_has_credit_columns(): bool
 {
 	static $exists = null;
 	if ($exists === null) {
-		$qtxt = "select count(*) as n from information_schema.columns where table_name = 'ordrelinjer'";
+		$qtxt = "select count(*) as n from information_schema.columns where table_schema = current_schema() and table_name = 'ordrelinjer'";
 		$qtxt .= " and column_name in ('retur_lager', 'kredit_art')";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$exists = (int)$r['n'] == 2;

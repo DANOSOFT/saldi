@@ -10,6 +10,7 @@
 //
 // History:
 // 20261118 CL/SS SD-833 Created.
+// 20261120 CL/SS SD-833 review: a credit line whose quantity points the wrong way is held to nothing.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -261,5 +262,18 @@ final class CreditRemainingTest extends CharacterizationTestCase
 
         $this->assertEqualsWithDelta(-10.0, (float)self::lineOf($second['id'])['pris'], 0.001, '10 of the 100 is left');
         $this->assertEqualsWithDelta(0.0, $this->remaining($invoice['id'])[$origLine]['remaining_amount'], 0.001);
+    }
+
+    public function test_a_credit_line_whose_quantity_points_the_wrong_way_is_held_to_nothing(): void
+    {
+        $item = self::$fx->item();
+        $invoice = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 1, 'pris' => 100.00]], ['status' => 3]);
+        $origLine = self::firstLine($invoice['id']);
+        $note = $this->credit($origLine, $item, 1, -200.00, 'antal');
+        $changed = $this->service('hold', [$note['id']])['changed'];
+
+        $this->assertCount(1, $changed, 'the change is reported');
+        $this->assertEqualsWithDelta(0.0, (float)self::lineOf($note['id'])['antal'], 0.001, '+1 x -200 would credit 200 of an invoice of 100');
+        $this->assertEqualsWithDelta(100.0, $this->remaining($invoice['id'])[$origLine]['remaining_amount'], 0.001);
     }
 }
