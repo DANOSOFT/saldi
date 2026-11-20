@@ -23,6 +23,7 @@
 //   ["reset_sql"]                             pos_reset_sale_delivery_sql()
 //   ["save_choices_utf8", {post}]             as save_choices, but posted as UTF-8 also on LATIN9 (a top-menu page)
 //   ["attaches", valg]                        pos_delivery_choice_attaches()
+//   ["menu", "T"]                             sets $menu, as the user's top-menu layout does
 //
 // History:
 // 20261120 CL/LH K33/K34: created.
@@ -88,7 +89,8 @@ $out = function ($v) use ($encode, &$out) {
         return $v;
     }
     if (is_string($v)) {
-        return mb_convert_encoding($v, 'UTF-8', 'ISO-8859-15');
+        // A top-menu page is UTF-8 also on LATIN9; that output is already UTF-8.
+        return mb_check_encoding($v, 'UTF-8') ? $v : mb_convert_encoding($v, 'UTF-8', 'ISO-8859-15');
     }
     if (is_array($v)) {
         return array_map($out, $v);
@@ -113,6 +115,10 @@ foreach ($steps as $step) {
             break;
         case 'save_choices_utf8':
             pos_save_delivery_choices($step[0]);
+            $r = null;
+            break;
+        case 'menu':
+            $GLOBALS['menu'] = $menu = (string)$step[0];
             $r = null;
             break;
         case 'attaches':

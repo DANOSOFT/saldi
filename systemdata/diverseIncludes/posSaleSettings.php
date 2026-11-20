@@ -262,11 +262,38 @@ function pos_delivery_charset() {
 }
 
 /**
- * @param mixed $text
+ * Text from the database or a translation, escaped for HTML.
+ *
+ * On a LATIN9 installation the text is ISO-8859-15, but a page may still be declared UTF-8 (the
+ * top-menu pages are); $utf8Page converts it for such a page, so a name like "Mårum" is not shown
+ * as "M?rum" and then saved back changed with the next unrelated settings save.
+ *
+ * @param mixed     $text
+ * @param bool|null $utf8Page TRUE when the page is UTF-8; NULL for the installation's own charset.
  * @return string
  */
-function pos_delivery_html($text) {
-	return htmlspecialchars((string) $text, ENT_QUOTES | ENT_SUBSTITUTE, pos_delivery_charset());
+function pos_delivery_html($text, $utf8Page = null) {
+	$text = (string) $text;
+	if ($utf8Page === true) {
+		if (!mb_check_encoding($text, 'UTF-8')) {
+			$text = mb_convert_encoding($text, 'UTF-8', 'ISO-8859-15');
+		}
+		return htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	}
+	return htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, pos_delivery_charset());
+}
+
+/**
+ * A fingerprint of a stored choice as the settings form showed it. The form posts it back, and a
+ * row whose fingerprint no longer matches was changed by someone else since the page was opened:
+ * saving it would reactivate a historical version or add a second replacement.
+ *
+ * @param array $choice From pos_delivery_choices(false).
+ * @return string
+ */
+function pos_delivery_revision($choice) {
+	$aktiv = in_array($choice['aktiv'], array(true, 't', '1', 1), true) ? 't' : 'f';
+	return md5(implode(chr(9), array($choice['navn'], $choice['type'], $choice['shopify_vaerdi'], $choice['tags'], $aktiv, (int) $choice['sort'])));
 }
 
 /**
@@ -387,7 +414,7 @@ function pos_delivery_tags_json($tags) {
  * value as NULL, and the tags as their JSON.
  *
  * @param array $row
- * @return array{navn: string, type: string, shopify_vaerdi: ?string, tags: string, tags_typed: string, sort: int, aktiv: bool, slet: bool}
+ * @return array{navn: string, type: string, shopify_vaerdi: ?string, tags: string, tags_typed: string, sort: int, aktiv: bool, slet: bool, revision: string}
  */
 function pos_delivery_posted_choice($row) {
 	$clean = function ($value) {
@@ -406,6 +433,7 @@ function pos_delivery_posted_choice($row) {
 		'sort' => max(-2147483648, min(2147483647, $sort)),
 		'aktiv' => (bool) ifset($row, 'aktiv', ''),
 		'slet' => (bool) ifset($row, 'slet', ''),
+		'revision' => is_scalar(ifset($row, 'rev', '')) ? (string) ifset($row, 'rev', '') : '',
 	);
 }
 
@@ -441,7 +469,8 @@ function pos_delivery_try($op) {
  * Each row is changed in one transaction that holds the row lock while it checks whether an order
  * uses it. pos_save_sale_delivery() takes a share lock on the same row before attaching it, so a
  * choice cannot be rewritten or deleted between the check and the change, and a version's
- * deactivation and its replacement are committed together.
+ * deactivation and its replacement are committed together. Each row carries the revision the form
+ * showed (pos_delivery_revision()); a row changed by someone else since then is not saved.
  *
  * @param array $post The submitted form, normally $_POST.
  * @return void
@@ -458,6 +487,7 @@ function pos_save_delivery_choices($post) {
 	$sprog_id = isset($GLOBALS['sprog_id']) ? $GLOBALS['sprog_id'] : 1;
 	$types = array_keys(pos_delivery_types($sprog_id));
 	$refused = array();
+	$failed = array();
 	$valid = function ($choice) use ($types, &$refused) {
 		if ($choice['navn'] === '' || !in_array($choice['type'], $types, true)) {
 			$refused[] = ($choice['navn'] === '') ? '-' : $choice['navn'];
@@ -479,7 +509,7 @@ function pos_save_delivery_choices($post) {
 			continue;
 		}
 		$saved = pos_delivery_try(function () use ($id, $choice, $insert) {
-			$qtxt = "SELECT navn, type, coalesce(shopify_vaerdi, '') AS shopify_vaerdi,";
+			$qtxt = "SELECT navn, type, coalesce(shopify_vaerdi, '') AS shopify_vaerdi, aktiv, sort,";
 			$qtxt.= " array_to_string(array(SELECT jsonb_array_elements_text(tags)), ', ') AS tags";
 			$qtxt.= " FROM pos_leveringsvalg WHERE id = $1 FOR UPDATE";
 			$before = shopify_db_rows($qtxt, array($id));
@@ -487,6 +517,9 @@ function pos_save_delivery_choices($post) {
 				return;
 			}
 			$before = $before[0];
+			if ($choice['revision'] !== '' && $choice['revision'] !== pos_delivery_revision($before)) {
+				throw new RuntimeException("delivery choice $id was changed by someone else since the page was opened");
+			}
 			$used = (bool) shopify_db_rows('SELECT 1 FROM ordrer WHERE leveringsvalg_id = $1 LIMIT 1', array($id));
 			if ($choice['slet']) {
 				shopify_db_rows($used ? 'UPDATE pos_leveringsvalg SET aktiv = false WHERE id = $1' : 'DELETE FROM pos_leveringsvalg WHERE id = $1', array($id));
@@ -503,7 +536,7 @@ function pos_save_delivery_choices($post) {
 				array($id, $choice['navn'], $choice['type'], $choice['shopify_vaerdi'], $choice['tags'], $choice['aktiv'], $choice['sort']));
 		});
 		if (!$saved) {
-			$refused[] = $choice['navn'];
+			$failed[] = $choice['navn'];
 		}
 	}
 	if ($new !== null) {
@@ -511,7 +544,7 @@ function pos_save_delivery_choices($post) {
 		// The empty row for a new choice is posted with every save; only a typed name makes it a choice.
 		if ($choice['navn'] !== '' || $choice['shopify_vaerdi'] !== null) {
 			if ($valid($choice) && !pos_delivery_try(function () use ($choice, $insert) { $insert($choice, true); })) {
-				$refused[] = $choice['navn'];
+				$failed[] = $choice['navn'];
 			}
 		}
 	}
@@ -520,6 +553,10 @@ function pos_save_delivery_choices($post) {
 		// includes/std_func.php's alert() puts the message raw into a javascript string, and the
 		// prefix is a translation an installation can change, so the whole message is escaped.
 		alert(pos_sale_brand_for_alert($txt . ': ' . implode(', ', $refused)));
+	}
+	if ($failed) {
+		$txt = findtekst('pos.delivery.settings.not_saved|Leveringsmåde ikke gemt, fordi den er ændret af en anden. Genindlæs siden og prøv igen', $sprog_id);
+		alert(pos_sale_brand_for_alert($txt . ': ' . implode(', ', $failed)));
 	}
 }
 
@@ -534,15 +571,19 @@ function pos_render_delivery_choices_settings($sprog_id) {
 	if (!pos_delivery_supported()) {
 		return;
 	}
+	global $db_encode, $menu;
 	$types = pos_delivery_types($sprog_id);
-	$h = function ($key) use ($sprog_id) {
-		return pos_delivery_html(findtekst($key, $sprog_id));
+	// systemdata/diverse.php prints the top-menu layout as UTF-8 (includes/top_header.php), also on a
+	// LATIN9 installation; the stored names are converted for it.
+	$utf8Page = (!isset($db_encode) || $db_encode === 'UTF8' || (isset($menu) && $menu === 'T'));
+	$h = function ($key) use ($sprog_id, $utf8Page) {
+		return pos_delivery_html(findtekst($key, $sprog_id), $utf8Page);
 	};
-	$typeSelect = function ($name, $current) use ($types) {
+	$typeSelect = function ($name, $current) use ($types, $utf8Page) {
 		$html = "<select class='inputbox' name='$name'>";
 		foreach ($types as $type => $label) {
 			$selected = ($type === $current) ? ' selected' : '';
-			$html.= "<option value='$type'$selected>" . pos_delivery_html($label) . "</option>";
+			$html.= "<option value='$type'$selected>" . pos_delivery_html($label, $utf8Page) . "</option>";
 		}
 		return $html . "</select>";
 	};
@@ -557,10 +598,11 @@ function pos_render_delivery_choices_settings($sprog_id) {
 		$n = "leveringsvalg[" . $choice['id'] . "]";
 		$checked = $choice['aktiv'] ? ' checked' : '';
 		print "<tr>";
-		print "<td><input class='inputbox' type='text' style='width:180px' name='{$n}[navn]' value='" . pos_delivery_html($choice['navn']) . "'></td>";
+		print "<td><input type='hidden' name='{$n}[rev]' value='" . pos_delivery_revision($choice) . "'>";
+		print "<input class='inputbox' type='text' style='width:180px' name='{$n}[navn]' value='" . pos_delivery_html($choice['navn'], $utf8Page) . "'></td>";
 		print "<td>" . $typeSelect("{$n}[type]", $choice['type']) . "</td>";
-		print "<td><input class='inputbox' type='text' style='width:160px' name='{$n}[shopify_vaerdi]' value='" . pos_delivery_html($choice['shopify_vaerdi']) . "'></td>";
-		print "<td><input class='inputbox' type='text' style='width:160px' name='{$n}[tags]' value='" . pos_delivery_html($choice['tags']) . "'></td>";
+		print "<td><input class='inputbox' type='text' style='width:160px' name='{$n}[shopify_vaerdi]' value='" . pos_delivery_html($choice['shopify_vaerdi'], $utf8Page) . "'></td>";
+		print "<td><input class='inputbox' type='text' style='width:160px' name='{$n}[tags]' value='" . pos_delivery_html($choice['tags'], $utf8Page) . "'></td>";
 		print "<td><input class='inputbox' type='text' style='width:40px;text-align:right' name='{$n}[sort]' value='" . (int) $choice['sort'] . "'></td>";
 		print "<td align='center'><input type='checkbox' name='{$n}[aktiv]'$checked></td>";
 		print "<td align='center'><input type='checkbox' name='{$n}[slet]'></td>";

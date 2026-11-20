@@ -18,6 +18,7 @@ pos.delivery.settings.delete	Slet	Delete	Slett
 pos.delivery.settings.help	Valgene i kassen. Uden valg er et salg "Taget med". En leveringsmåde, der er brugt på en ordre, gemmes som en ny version, når den rettes.	The options in the POS. Without an option a sale is "Taken along". A delivery option used on an order is saved as a new version when it is edited.	Valgene i kassen. Uten valg er et salg "Tatt med". En leveringsmåte som er brukt på en ordre, lagres som en ny versjon når den endres.
 pos.delivery.settings.name	Navn	Name	Navn
 pos.delivery.settings.new	Ny leveringsmåde	New delivery option	Ny leveringsmåte
+pos.delivery.settings.not_saved	Leveringsmåde ikke gemt, fordi den er ændret af en anden. Genindlæs siden og prøv igen	Delivery option not saved because someone else changed it. Reload the page and try again	Leveringsmåte ikke lagret fordi den er endret av en annen. Last inn siden på nytt og prøv igjen
 pos.delivery.settings.refused	Leveringsmåde ikke gemt (navn og type skal udfyldes)	Delivery option not saved (name and type are required)	Leveringsmåte ikke lagret (navn og type må fylles ut)
 pos.delivery.settings.shopify_value	Leveringsmetode i Shopify	Delivery method in Shopify	Leveringsmetode i Shopify
 pos.delivery.settings.sort	Sortering	Sort order	Sortering

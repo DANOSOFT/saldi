@@ -498,8 +498,10 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 		$qtxt = "select id from ordrer where art='PO' and status < '3' and nr = '$bordnr'";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			db_modify("update ordrelinjer set ordre_id='$r[id]' where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
-			# 20261120 CL/LH K33/K34 The emptied sale is reused for the table's next customer, so it starts as "taget med".
-			db_modify("update ordrer set hvem=''" . pos_reset_sale_delivery_sql() . " where id='$id'", __FILE__ . " linje " . __LINE__);
+			# 20261120 CL/LH K33/K34 The emptied sale is reused for the table's next customer, so it starts as
+			# "taget med" - unless the table was moved onto itself and kept its lines.
+			$tom_reset = ((int) $r['id'] !== (int) $id) ? pos_reset_sale_delivery_sql() : '';
+			db_modify("update ordrer set hvem=''" . $tom_reset . " where id='$id'", __FILE__ . " linje " . __LINE__);
 			$id = $r['id'];
 		} else {
 			db_modify("update ordrer set nr='$bordnr',hvem='$brugernavn' where id='$id'", __FILE__ . " linje " . __LINE__);
@@ -1108,6 +1110,24 @@ if ($vare_id) {
 	$rabat_ny = if_isset($_POST['rabat_ny']);
 	if (!$rabat_ny && $rabat_ny != '0' && if_isset($_POST['rabat_old']))
 		$rabat_ny = $_POST['rabat_old'];
+	// 20261120 CL/LH K33/K34 The delivery choice and wished date are posted with every submit of the sale
+	// form while the sale header shows them (pos_render_sale_delivery_fields(); a change is also saved at
+	// once by pos_ordre_includes/saveDelivery.php). They are saved before any payment is handled, and a
+	// refused delivery stops the payment, so the sale is never paid with delivery details the cashier
+	// did not mean. A delivery picked before the first item is scanned creates the sale; taget med
+	// creates nothing.
+	if (isset($_POST['leveringsvalg_id']) && is_scalar($_POST['leveringsvalg_id']) && pos_delivery_supported()) {
+		$posted_valg = (string) $_POST['leveringsvalg_id'];
+		$posted_dato = (isset($_POST['oensket_levdato']) && is_scalar($_POST['oensket_levdato'])) ? (string) $_POST['oensket_levdato'] : '';
+		if (!$id && pos_delivery_choice_attaches($posted_valg)) {
+			$id = opret_posordre(NULL, $kasse);
+		}
+		if ($id && $leveringsfejl = pos_save_sale_delivery($id, $posted_valg, $posted_dato)) {
+			alert(pos_sale_brand_for_alert($leveringsfejl));
+			$betaling = NULL;
+			$afslut = NULL;
+		}
+	}
 	if (strpos($betaling, 'på beløb') && strlen($varenr_ny) > 1) { #20201029
 		$priceNew = (float) usdecimal($pris_ny);
 		if ($varenr_ny && !$priceNew) {
@@ -1144,19 +1164,6 @@ if ($vare_id) {
 	$sum = (float)$sum;
 	if ($kundeordnr && $id)
 		db_modify("update ordrer set kundeordnr = '$kundeordnr' where id='$id'", __FILE__ . " linje " . __LINE__);
-	// 20261120 CL/LH K33/K34 The delivery choice and wished date are posted with every submit of the sale
-	// form while the sale header shows them (pos_render_sale_delivery_fields()). A delivery picked before
-	// the first item is scanned creates the sale, so it is not lost; taget med creates nothing.
-	if (isset($_POST['leveringsvalg_id']) && is_scalar($_POST['leveringsvalg_id']) && pos_delivery_supported()) {
-		$posted_valg = (string) $_POST['leveringsvalg_id'];
-		$posted_dato = (isset($_POST['oensket_levdato']) && is_scalar($_POST['oensket_levdato'])) ? (string) $_POST['oensket_levdato'] : '';
-		if (!$id && pos_delivery_choice_attaches($posted_valg)) {
-			$id = opret_posordre(NULL, $kasse);
-		}
-		if ($id && $leveringsfejl = pos_save_sale_delivery($id, $posted_valg, $posted_dato)) {
-			alert(pos_sale_brand_for_alert($leveringsfejl));
-		}
-	}
 
 	if (strstr($pris_ny, ",")) { #Skaerer orebelob ned til 2 cifre.
 		list($kr, $ore) = explode(",", $pris_ny);

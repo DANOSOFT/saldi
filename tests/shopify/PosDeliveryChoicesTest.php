@@ -194,6 +194,22 @@ final class PosDeliveryChoicesTest extends TestCase
         self::assertSame([['id' => (string)$id, 'aktiv' => 'f', 'sort' => '5']], $this->sql('SELECT id, aktiv, sort FROM pos_leveringsvalg'));
     }
 
+    public function testARowChangedBySomeoneElseSinceThePageWasOpenedIsNotSaved(): void
+    {
+        $id = $this->choice('Levering', 'levering', 'EasyRoutes');
+        $this->sale(3, $id);
+        $html = $this->steps([['render_settings']])[0]['result'];
+        self::assertSame(1, preg_match("/name='leveringsvalg\\[$id\\]\\[rev\\]' value='([0-9a-f]{32})'/", $html, $m));
+        $form = ['leveringsvalg' => [$id => ['rev' => $m[1], 'navn' => 'Levering', 'type' => 'levering',
+            'shopify_vaerdi' => 'Danske Fragtmænd', 'sort' => '0', 'aktiv' => 'on']]];
+        $this->steps([['save_choices', $form]]);
+        // The same stale form again (a second admin, or a resubmit): the row is now the deactivated old version.
+        $r = $this->steps([['save_choices', $form]]);
+        self::assertCount(1, $r[0]['alerts']);
+        self::assertSame([['shopify_vaerdi' => 'EasyRoutes', 'aktiv' => 'f'], ['shopify_vaerdi' => 'Danske Fragtmænd', 'aktiv' => 't']],
+            $this->sql('SELECT shopify_vaerdi, aktiv FROM pos_leveringsvalg ORDER BY id'), 'no second replacement, and the old version stays inactive');
+    }
+
     public function testDeletingAnUnusedChoiceRemovesIt(): void
     {
         $id = $this->choice('Afhentning', 'afhentning');
@@ -291,6 +307,15 @@ final class PosDeliveryChoicesTest extends TestCase
         self::assertSame($date, $this->order($order)['oensket_levdato']);
     }
 
+    public function testARefusedDateKeepsTheDeliveryThatWasPicked(): void
+    {
+        $valg = $this->choice('Levering', 'levering');
+        $order = $this->sale();
+        self::assertIsString($this->steps([['sale_save', $order, (string)$valg, '2020-01-01']])[0]['result']);
+        self::assertSame(['leveringsvalg_id' => (string)$valg, 'leveringsmaade' => 'Levering', 'oensket_levdato' => null], $this->order($order),
+            'the cashier corrects the date without picking the delivery again');
+    }
+
     public function testTodayIsAValidWishedDate(): void
     {
         $valg = $this->choice('Afhentning', 'afhentning');
@@ -344,8 +369,10 @@ final class PosDeliveryChoicesTest extends TestCase
         self::assertStringContainsString("value='$levering' data-type='levering' selected", $html);
         self::assertStringContainsString("name='oensket_levdato'", $html);
         self::assertStringContainsString("value='$date'", $html);
-        self::assertStringNotContainsString("value=''", substr($html, 0, strpos($html, 'Taget med')),
-            'with a taken-along choice set up, there is no separate empty option');
+        self::assertSame(1, substr_count($html, 'Taget med</option>'), 'with a taken-along choice set up, there is no separate default option');
+        self::assertStringContainsString("<option value='' data-type='taget_med'>Taget med</option>", $html,
+            'a taken-along choice posts the empty value: it is stored as no choice');
+        self::assertStringNotContainsString(' min=', $html, 'a sale reopened after its wished date must still submit');
     }
 
     public function testATakenAlongSaleHidesTheDateField(): void
@@ -356,6 +383,7 @@ final class PosDeliveryChoicesTest extends TestCase
             'without a taken-along choice the default is offered as "Taget med"');
         self::assertStringContainsString("<span id='pos-levdato' class='pos-levdato' style='display:none'>", $html,
             'the date is there for when the cashier picks a delivery, hidden while the sale is taken along');
+        self::assertMatchesRegularExpression("/name='oensket_levdato' value='' disabled/", $html, 'and not posted while hidden');
     }
 
     public function testTheFieldsNeverSubmitTheSaleFormOnTheirOwn(): void
@@ -371,8 +399,13 @@ final class PosDeliveryChoicesTest extends TestCase
     {
         $taget = $this->choice('Taget med', 'taget_med');
         $levering = $this->choice('Levering', 'levering');
-        $r = $this->steps([['attaches', (string)$taget], ['attaches', ''], ['attaches', (string)$levering], ['attaches', 'x']]);
-        self::assertSame([false, false, true, false], array_column($r, 'result'));
+        $inactive = $this->choice('Gammel levering', 'levering', null, 0, false);
+        $r = $this->steps([['attaches', (string)$taget], ['attaches', ''], ['attaches', (string)$levering], ['attaches', 'x'],
+            ['attaches', (string)$inactive], ['attaches', '99999999999999999999']]);
+        self::assertSame([false, false, true, false, false, false], array_column($r, 'result'));
+        $order = $this->sale();
+        self::assertIsString($this->steps([['sale_save', $order, '99999999999999999999', '']])[0]['result'],
+            'an id outside the integer column is refused, not an error');
     }
 
     public function testASaleKeepsItsFieldAfterTheLastChoiceIsDeactivated(): void
@@ -432,6 +465,14 @@ final class PosDeliveryChoicesTest extends TestCase
             'shopify_vaerdi' => 'Mårum', 'tags' => 'særlig']]]], 'LATIN9');
         self::assertSame([['navn' => 'Afhentning i Hørsholm', 'shopify_vaerdi' => 'Mårum', 'tags' => '["særlig"]']],
             $this->sql('SELECT navn, shopify_vaerdi, tags::text AS tags FROM pos_leveringsvalg'));
+    }
+
+    public function testALatin9InstallationShowsDanishNamesOnATopMenuPage(): void
+    {
+        $this->choice('Afhentning i Hørsholm', 'afhentning', 'Mårum');
+        $r = $this->steps([['menu', 'T'], ['render_settings']], 'LATIN9');
+        self::assertStringContainsString("value='Afhentning i Hørsholm'", $r[1]['result']);
+        self::assertStringContainsString("value='Mårum'", $r[1]['result']);
     }
 
     public function testALatin9InstallationStoresAndShowsDanishNames(): void

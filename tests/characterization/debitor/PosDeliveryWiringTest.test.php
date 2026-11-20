@@ -20,6 +20,10 @@ final class PosDeliveryWiringTest extends TestCase
         $page = self::source('debitor/pos_ordre.php');
         self::assertStringContainsString('include_once(__DIR__ . "/pos_ordre_includes/saleDeliveryFields.php");', $page);
         self::assertMatchesRegularExpression('/pos_save_sale_delivery\(\$id, \$posted_valg, \$posted_dato\)/', $page);
+        // Saved before any payment is handled, and a refused delivery stops the payment.
+        $save = strpos($page, 'pos_save_sale_delivery($id, $posted_valg, $posted_dato)');
+        self::assertLessThan(strpos($page, "if (strpos(\$betaling, 'på beløb') && strlen(\$varenr_ny) > 1)"), $save);
+        self::assertMatchesRegularExpression('/alert\(pos_sale_brand_for_alert\(\$leveringsfejl\)\);\s*\$betaling = NULL;\s*\$afslut = NULL;/', $page);
         // A deactivated last choice must not strand a sale that already has it.
         self::assertStringContainsString("is_scalar(\$_POST['leveringsvalg_id']) && pos_delivery_supported()", $page);
     }
@@ -33,7 +37,7 @@ final class PosDeliveryWiringTest extends TestCase
             'the reused abandoned sale, Forfra and an emptied table all clear the delivery choice and wished date');
         self::assertStringContainsString("sprog='\$genbrug_brand'\" . pos_reset_sale_delivery_sql()", $page);
         self::assertStringContainsString("ref=''\" . pos_reset_sale_delivery_sql() . \" where id = '\$id'", $page);
-        self::assertStringContainsString("hvem=''\" . pos_reset_sale_delivery_sql() . \" where id='\$id'", $page);
+        self::assertStringContainsString("\$tom_reset = ((int) \$r['id'] !== (int) \$id) ? pos_reset_sale_delivery_sql() : '';", $page);
     }
 
     public function testTheSaleHeaderShowsTheFields(): void
@@ -47,6 +51,16 @@ final class PosDeliveryWiringTest extends TestCase
         self::assertStringContainsString('pos_render_delivery_choices_settings($sprog_id);',
             self::source('systemdata/diverseIncludes/posOptions.php'));
         self::assertStringContainsString('pos_save_delivery_choices($_POST);', self::source('systemdata/diverse.php'));
+    }
+
+    public function testAChangeIsSavedAtOnceThroughTheDeliveryEndpoint(): void
+    {
+        // The POS product buttons leave the page by a link, which would lose a change not yet posted.
+        $endpoint = self::source('debitor/pos_ordre_includes/saveDelivery.php');
+        self::assertStringContainsString('$answer(pos_save_sale_delivery($orderId, $valg, $dato));', $endpoint);
+        self::assertStringContainsString('$header = "nix";', $endpoint);
+        self::assertStringContainsString("fetch('pos_ordre_includes/saveDelivery.php'",
+            self::source('debitor/pos_ordre_includes/saleDeliveryFields.php'));
     }
 
     public function testTheWishedDateNeverGoesInLevdate(): void
