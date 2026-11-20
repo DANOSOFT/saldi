@@ -15,6 +15,7 @@ require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 // 20261120 CL/MMR SST-999 Codex round 8: a request whose dates did not move is checked too (also while an extended booking holds the lock),
 //                 and each booking gets its own row and its own order.
 // 20261120 CL/MMR SST-999 Codex round 9: a booking whose order could not be stored leaves nothing behind, and the retry books the item.
+// 20261120 CL/MMR SST-999 Codex round 10: the comment names where the child's time zone is set.
 final class RentalBookingOverlapTest extends CharacterizationTestCase
 {
     private static int $itemA;
@@ -26,7 +27,8 @@ final class RentalBookingOverlapTest extends CharacterizationTestCase
     public static function setUpBeforeClass(): void
     {
         parent::setUpBeforeClass();
-        // includes/settings.php sets Europe/Copenhagen in the endpoint, so the day values here use it too.
+        // The endpoint counts local days in Europe/Copenhagen (includes/settings.php; support/run_booking_api.php sets it for
+        // the child), so the day values here use it too.
         self::$tz = date_default_timezone_get();
         date_default_timezone_set('Europe/Copenhagen');
         $product = self::$fx->item(['stocked' => false, 'salgspris' => 100.00]);

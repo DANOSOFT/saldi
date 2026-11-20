@@ -16,6 +16,7 @@
 //
 // History:
 // 20261119 CL/MMR SST-999 Created (review of PR #1097: a period moved by closed days must not overlap another booking).
+// 20261120 CL/MMR SST-999 Codex round 10: sets Europe/Copenhagen before the endpoint is included, so the child counts days as the fixture does.
 
 if ($argc < 4 || !in_array($argv[1], array('remoteBooking', 'mysale'), true)) {
     fwrite(STDERR, "usage: php run_booking_api.php <remoteBooking|mysale> <tenant_db> <json body>\n");
@@ -131,5 +132,8 @@ register_shutdown_function(static function (): void {
     fwrite(STDOUT, "\n" . json_encode(array('status' => http_response_code(), 'body' => trim($body))) . "\n");
 });
 
+// The endpoints' dates are local days: includes/settings.php sets Europe/Copenhagen when connect.php loads it, but a
+// test connect.php may not, and the CLI default is UTC. Set it here, as RentalBookingOverlapTest does for its fixture.
+date_default_timezone_set('Europe/Copenhagen');
 chdir(dirname(__DIR__, 3) . "/$bookingApi"); // ../includes/... must resolve
 require dirname(__DIR__, 3) . "/$bookingApi/api.php";
