@@ -11,6 +11,7 @@
 //
 // History:
 // 20261120 CL/LH MB-123 Created.
+// 20261121 CL/LH MB-123 Voucher roundings both ways on one difference account are shown as the two movements posting books.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -49,9 +50,31 @@ final class ExchangeRateSettlementPageCharacterizationTest extends Characterizat
         return self::rows('SELECT kontonr, debet, kredit FROM transaktioner WHERE kladde_id = $1 ORDER BY id', [$kladdeId]);
     }
 
-    private static function post(int $kladdeId): void
+    /** Posts the journal through the page and returns what the page printed. */
+    private static function post(int $kladdeId, string $mode = 'bogfor'): string
     {
-        self::runChild('run_bogfor_page.php', ['bogfor', $kladdeId, CharacterizationEnv::sessionId()]);
+        return self::runChild('run_bogfor_page.php', [$mode, $kladdeId, CharacterizationEnv::sessionId(), 'output'])['stdout'];
+    }
+
+    /**
+     * The confirmation page's row for an account in the account movements table, as its cells' text: account,
+     * description, balance, debit, credit, new balance. NULL when the page has no row for it.
+     *
+     * @return list<string>|null
+     */
+    private static function accountRow(string $page, int $konto): ?array
+    {
+        if (!preg_match_all('#<tr>(.*?)</tr>#s', $page, $rows)) {
+            return null;
+        }
+        foreach ($rows[1] as $row) {
+            preg_match_all('#<td[^>]*>(.*?)</td>#s', $row, $cells);
+            $cells = array_map(static fn($c) => trim(html_entity_decode(strip_tags($c))), $cells[1]);
+            if (count($cells) === 6 && $cells[0] === (string)$konto) {
+                return $cells;
+            }
+        }
+        return null;
     }
 
     public function test_a_payment_at_another_rate_books_the_difference_and_settles_the_invoice(): void
@@ -101,5 +124,31 @@ final class ExchangeRateSettlementPageCharacterizationTest extends Characterizat
             'nor the open-post ledger');
         $kladde = self::one('SELECT bogfort FROM kladdeliste WHERE id = $1', [$kladdeId]);
         $this->assertNotSame('V', trim((string)$kladde['bogfort']), 'and the journal is not marked posted');
+    }
+
+    public function test_voucher_roundings_both_ways_are_shown_as_the_movements_posting_books(): void
+    {
+        // At 745, EUR 0,50 is 3,73 DKK. Voucher 1 debits EUR 1,00 (7,45) and credits 0,50 twice (7,46), which
+        // leaves 0,01 to debit on the difference account; voucher 2 debits 0,50 four times (14,92) and credits
+        // 2,00 (14,90), 0,02 to credit. Posting books each voucher's rounding as a row of its own, and the
+        // confirmation page used to show only their net, 0,01 credit.
+        $line = fn(int $bilag, string $side, int $konto, float $amount) => ['bilag' => $bilag, 'transdate' => self::$day1,
+            $side === 'd' ? 'debet' : 'kredit' => $konto, 'amount' => $amount, 'valuta' => self::$eur];
+        $kladdeId = self::$fx->kladde([
+            $line(1, 'd', self::$expense, 1.00), $line(1, 'k', self::$bank, 0.50), $line(1, 'k', self::$bank, 0.50),
+            $line(2, 'd', self::$expense, 0.50), $line(2, 'd', self::$expense, 0.50), $line(2, 'd', self::$expense, 0.50),
+            $line(2, 'd', self::$expense, 0.50), $line(2, 'k', self::$bank, 2.00),
+        ], 'MB-123 roundings both ways');
+        // The journal form saves a line's department as 0; the rounding row carries it into an integer column.
+        self::rows('UPDATE kassekladde SET afd = 0 WHERE kladde_id = $1', [$kladdeId]);
+
+        $row = self::accountRow(self::post($kladdeId, 'vis'), self::$diffAccount);
+        $this->assertNotNull($row, 'the confirmation page has a row for the difference account');
+        $this->assertSame(['0,01', '0,02'], [$row[3], $row[4]], 'with the 0,01 debit and the 0,02 credit');
+
+        self::post($kladdeId);
+        $diff = array_values(array_filter(self::ledger($kladdeId), fn($r) => (int)$r['kontonr'] === self::$diffAccount));
+        $this->assertEqualsWithDelta([0.01, 0.02], [self::sumOf($diff, 'debet'), self::sumOf($diff, 'kredit')], 0.0001,
+            'which is what posting books');
     }
 }

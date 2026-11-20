@@ -7,6 +7,7 @@
 // 20261106 CL/LH MB-123 Pin per-voucher rounding accounts on the confirmation page, per-currency anchors in both equalizers, single-invoice-sized payments and the exit after a refused difference.
 // 20261120 CL/LH MB-123 A foreign-currency line without an exchange rate is refused instead of measured at rate 100, the installation's own currency in all its spellings ('-' from includes/ret_valutadiff.php, the base currency order invoices carry) is one currency to the match query and both equalizers, a one-øre difference survives floating point, and a reference given twice settles the one post it names.
 // 20261121 CL/LH MB-123 A payment for several invoices is matched at both bounds of the amount window despite floating point.
+// 20261121 CL/LH MB-123 Roundings both ways on one difference account are shown as the two movements posting books.
 //
 // The functions under test live in finans/bogfor.php, which is a page: including it would run the
 // page. They are lifted out of the shipped file and evaluated into this namespace instead, so the
@@ -1045,37 +1046,55 @@ final class ExchangeRateSettlementTest extends TestCase
         $kontodebet  = [1.50, 1119.45, 0.0];
         $kontokredit = [1119.44, 0.0, 1.50];
 
-        self::assertTrue(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, '7960', 0.01));
+        self::assertTrue(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, '7960',
+            ['debet' => 0.0, 'kredit' => 0.01]));
         self::assertSame([1.50, 1119.45, 0.0], $kontodebet, 'nothing else moves');
         self::assertEqualsWithDelta(1.51, $kontokredit[2], 0.0001, 'the rounding is credited on the 7960 row');
         self::assertSame(1119.44, $kontokredit[0]);
 
-        self::assertTrue(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, 7960, -0.02));
-        self::assertEqualsWithDelta(0.02, $kontodebet[2], 0.0001, 'a negative rounding is debited there');
+        self::assertTrue(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, 7960,
+            ['debet' => 0.02, 'kredit' => 0.0]));
+        self::assertEqualsWithDelta(0.02, $kontodebet[2], 0.0001, 'a debit rounding is debited there');
+
+        self::assertTrue(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, '7960',
+            ['debet' => 0.01, 'kredit' => 0.02]));
+        self::assertEqualsWithDelta(0.03, $kontodebet[2], 0.0001, 'roundings both ways each go in their own column');
+        self::assertEqualsWithDelta(1.53, $kontokredit[2], 0.0001);
 
         $before = [$kontodebet, $kontokredit];
-        self::assertFalse(confirmationRoundingOnListedAccount(['56100', '58000'], $kontodebet, $kontokredit, '7960', 0.01),
-            'without a 7960 row the page prints the rounding on a row of its own, as before');
-        self::assertFalse(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, '', 0.01),
-            'and with no difference account it is left to the page\'s existing error');
+        self::assertFalse(confirmationRoundingOnListedAccount(['56100', '58000'], $kontodebet, $kontokredit, '7960',
+            ['debet' => 0.0, 'kredit' => 0.01]), 'without a 7960 row the page prints the rounding on a row of its own, as before');
+        self::assertFalse(confirmationRoundingOnListedAccount($kontoliste, $kontodebet, $kontokredit, '',
+            ['debet' => 0.0, 'kredit' => 0.01]), 'and with no difference account it is left to the page\'s existing error');
         self::assertSame($before, [$kontodebet, $kontokredit]);
     }
 
     public function testEachVouchersRoundingGoesOnThatVouchersOwnDifferenceAccount(): void
     {
         // Voucher 1 is in EUR with 0,01 rounding, voucher 2 in USD with -0,02. The journal's last currency line is
-        // USD, and the page used to put the whole -0,01 on 7961.
-        self::assertSame([7960 => 0.01, 7961 => -0.02],
+        // USD, and the page used to put the whole -0,01 on 7961. A positive rounding is credited.
+        self::assertSame([7960 => ['debet' => 0.0, 'kredit' => 0.01], 7961 => ['debet' => 0.02, 'kredit' => 0.0]],
             confirmationRoundingByAccount(-0.01, [1 => 0.01, 2 => -0.02], [1 => '7960', 2 => '7961'], '7961'));
-        self::assertSame([7960 => 0.03],
+        self::assertSame([7960 => ['debet' => 0.0, 'kredit' => 0.03]],
             confirmationRoundingByAccount(0.03, [1 => 0.01, 3 => 0.02], [1 => '7960', 3 => '7960'], '7960'),
             'two vouchers on one account add up');
-        self::assertSame([7960 => 0.01, 7961 => 0.02],
+        self::assertSame([7960 => ['debet' => 0.0, 'kredit' => 0.01], 7961 => ['debet' => 0.0, 'kredit' => 0.02]],
             confirmationRoundingByAccount(0.03, [1 => 0.01, 4 => 0.0], [1 => '7960', 4 => '7961'], '7961'),
             'what no voucher accounts for stays on the last currency line\'s account, as before');
-        self::assertSame(['' => 0.01],
+        self::assertSame(['' => ['debet' => 0.0, 'kredit' => 0.01]],
             confirmationRoundingByAccount(0.01, [1 => 0.01], [1 => ''], ''),
             'with no difference account it is left to the page\'s existing error');
         self::assertSame([], confirmationRoundingByAccount(0.0, [1 => 0.0], [1 => '7960'], '7960'));
+    }
+
+    public function testRoundingsBothWaysOnOneAccountAreShownAsPostingBooksThem(): void
+    {
+        // bogfor() books each voucher's rounding as a row of its own, so 0,01 credited for one voucher and 0,02
+        // debited for another are two movements on 7960. Netted to one 0,01 debit, the page showed neither.
+        self::assertSame([7960 => ['debet' => 0.02, 'kredit' => 0.01]],
+            confirmationRoundingByAccount(-0.01, [1 => 0.01, 2 => -0.02], [1 => '7960', 2 => '7960'], '7960'));
+        self::assertSame([7960 => ['debet' => 0.01, 'kredit' => 0.01]],
+            confirmationRoundingByAccount(0.0, [1 => -0.01, 2 => 0.01], [1 => '7960', 2 => '7960'], '7960'),
+            'and two that cancel are still two movements');
     }
 }

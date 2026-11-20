@@ -89,6 +89,7 @@
 //                The match reads every spelling of the installation's own currency as one (openpostCurrencyKey()): NULL, '', '-' from includes/ret_valutadiff.php, 'DKK', and the base currency order invoices are stored in, so a NOK installation settles its order invoices from the journal again.
 //                A one-øre difference is no longer lost to floating point, a group settled at the lower edge of the half-øre amount window is measured too, and a reference given twice ('X;X') is one reference, as on master, so it settles the post it names rather than adding another post with the same number.
 // 20261121 CL/LH MB-123 A payment for several invoices is matched with its residual rounded to the three decimals openpost holds, as the difference is measured, so floating point does not move either bound of the half-øre window.
+// 20261121 CL/LH MB-123 The confirmation page debits and credits each difference account with the vouchers' currency roundings separately, as posting books them, instead of with their net.
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -591,15 +592,10 @@ if ($valutadiff && abs($valutadiff) < $valutaposter/100) {
 foreach ($roundingRows as $konto => $rounding) {
 	$y++;
 	$kontoliste[$y]=$konto;
-	$kontokredit[$y]=0;
-	$kontodebet[$y]=0;
-	if ($rounding > 0) {
-		$k_sum=$k_sum+$rounding;
-		$kontokredit[$y]=$rounding;
-	} else {
-		$d_sum=$d_sum-$rounding;
-		$kontodebet[$y]=$rounding*-1;
-	}
+	$kontodebet[$y]=$rounding['debet'];
+	$kontokredit[$y]=$rounding['kredit'];
+	$d_sum=$d_sum+$rounding['debet'];
+	$k_sum=$k_sum+$rounding['kredit'];
 	$query = db_select("select * from kontoplan where kontonr='" . db_escape_string((string)$konto) . "' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
 		$saldo=$row['saldo'];
@@ -1677,20 +1673,17 @@ function journalRateDifferences($kladde_id) {
  * @param array<int,float>      $kontodebet  Debit per account, changed in place.
  * @param array<int,float>      $kontokredit Credit per account, changed in place.
  * @param string|int|null       $diffkonto   The currency's difference account.
- * @param float                 $valutadiff  The rounding; positive is credited to the difference account.
+ * @param array{debet: float, kredit: float} $rounding The rounding debited and credited to that account.
  * @return bool                              Whether the rounding went on an existing row.
  */
-function confirmationRoundingOnListedAccount($kontoliste,&$kontodebet,&$kontokredit,$diffkonto,$valutadiff) {
-	if (!$valutadiff || !($diffkonto > 0)) {
+function confirmationRoundingOnListedAccount($kontoliste,&$kontodebet,&$kontokredit,$diffkonto,$rounding) {
+	if (!($rounding['debet'] || $rounding['kredit']) || !($diffkonto > 0)) {
 		return false;
 	}
 	foreach ($kontoliste as $i => $konto) {
 		if ($konto == $diffkonto) {
-			if ($valutadiff > 0) {
-				$kontokredit[$i]+=$valutadiff;
-			} else {
-				$kontodebet[$i]-=$valutadiff;
-			}
+			$kontodebet[$i]+=$rounding['debet'];
+			$kontokredit[$i]+=$rounding['kredit'];
 			return true;
 		}
 	}
@@ -1701,31 +1694,37 @@ function confirmationRoundingOnListedAccount($kontoliste,&$kontodebet,&$kontokre
  * bogfor() books each voucher's rounding on that voucher's account. A voucher's share is its DKK imbalance
  * when that is below 0,10, posting's limit. What no voucher accounts for stays on $diffkonto, the account
  * of the journal's last currency line, as before.
+ * 20261121 CL/LH MB-123 Posting books each voucher's rounding as a row of its own, so an account is debited
+ * and credited separately rather than with the net of its vouchers' roundings.
  *
  * @param float                              $valutadiff       The journal's rounding; positive is credited.
  * @param array<int|string,float>            $tjeksum          DKK debit minus credit per voucher.
  * @param array<int|string,string|int|null>  $voucherDiffkonto Difference account of each voucher's last currency line.
  * @param string|int|null                    $diffkonto        Difference account of the journal's last currency line.
- * @return array<int|string,float>                             Rounding per difference account.
+ * @return array<int|string,array{debet: float, kredit: float}> Rounding debited and credited per difference account.
  */
 function confirmationRoundingByAccount($valutadiff,$tjeksum,$voucherDiffkonto,$diffkonto) {
-	$rounding=array();
+	$shares=array();
 	$rest=$valutadiff;
 	foreach ($voucherDiffkonto as $bilag => $konto) {
 		$share=isset($tjeksum[$bilag]) ? afrund($tjeksum[$bilag],3) : 0;
 		if ($share && abs($share) < 0.1 && $konto > 0) {
-			$rounding[$konto]=(isset($rounding[$konto]) ? $rounding[$konto] : 0)+$share;
+			$shares[]=array($konto,$share);
 			$rest-=$share;
 		}
 	}
 	$rest=afrund($rest,3);
 	if ($rest) {
-		$konto=(string)$diffkonto;
-		$rounding[$konto]=(isset($rounding[$konto]) ? $rounding[$konto] : 0)+$rest;
+		$shares[]=array((string)$diffkonto,$rest);
 	}
-	foreach ($rounding as $konto => $amount) {
-		$rounding[$konto]=afrund($amount,3);
-		if (!$rounding[$konto]) unset($rounding[$konto]);
+	$rounding=array();
+	foreach ($shares as list($konto,$share)) {
+		if (!isset($rounding[$konto])) $rounding[$konto]=array('debet'=>0.0,'kredit'=>0.0);
+		$rounding[$konto][$share > 0 ? 'kredit' : 'debet']+=abs($share);
+	}
+	foreach ($rounding as $konto => $amounts) {
+		$rounding[$konto]=array('debet'=>afrund($amounts['debet'],3),'kredit'=>afrund($amounts['kredit'],3));
+		if (!$rounding[$konto]['debet'] && !$rounding[$konto]['kredit']) unset($rounding[$konto]);
 	}
 	return $rounding;
 }
