@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/settlePOS.php --patch 4.0.8 ----2024-05-19----
+// --- debitor/pos_ordre_includes/exitFunc/settlePOS.php --- ver 5.1.0 --- 2026.11.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------------
 //
 // 20190510 LN Get data from grupper depending on the $status
@@ -36,6 +36,7 @@
 //              see also ordrefunc.php & productLines.php  
 // 20240227	PK Altered eventtype from 11999 to 12999
 // 20240519 PHR Corrected error in '$rabatgruppe' update when using percent discount
+// 20261112 CL/SS SD-804 A posted sale is queued for its brand's Shopify shop (store order); a failure there never fails the checkout.
 
 $x = 0;
 if ($status < 3) {
@@ -375,6 +376,12 @@ if ($status < 3) {
 			$svar = bogfor($id, '');
 			if ($svar != 'OK')
 				return ($svar);
+			try {
+				require_once __DIR__ . '/../../../includes/shopify/services/storeOrders.php';
+				shopify_store_orders_enqueue((int)$id, new DateTimeImmutable());
+			} catch (Throwable $e) {
+				error_log('SD-804 store order not queued for ordre ' . (int)$id . ': ' . $e->getMessage());
+			}
 		} else {
 			$svar = bogfor_indbetaling($id, '');
 			if ($svar != 'OK')
