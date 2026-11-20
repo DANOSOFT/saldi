@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/momsangivelse.php --ver 5.1.0 ----2026-11-03----
+// --- finans/rapport_includes/momsangivelse.php --ver 5.1.1 ----2026-11-13----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,11 @@
 // 20260515 PK - Removed csv button as it should not be possible to print csv from here
 // 20261103 LOE SST-936 Use dimensionSqlFragment() for the department, employee and project filters.
 //              The account range is cast as well, and a year that is not a year falls back to the fiscal year.
+// 20261113 CL/ASR The VAT report range is read for the report's fiscal year with vat_report_range() (includes/vatReportRange.php), not from whichever grupper art='MR' row came first.
+//                 Only D and S accounts add to 'Afgiftsbeløb i alt', so a sum account (Z) in the range no longer counts its accounts twice.
+//                 A VAT account's sign is looked up among the VAT groups (SM, KM, EM, YM) of the year the range was read from.
 
+include_once(__DIR__ . "/../../includes/vatReportRange.php");
 
 function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev)
 {
@@ -241,10 +245,11 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 
-	$row = db_fetch_array($query = db_select("select box1, box2 from grupper where art='MR'", __FILE__ . " linje " . __LINE__));
-	if (($row['box1']) && ($row['box2'])) {
-		$konto_fra = $row['box1'];
-		$konto_til = $row['box2'];
+	// The range of the report's own fiscal year (includes/vatReportRange.php); null when it is not set up.
+	$momsRange = vat_report_range((int)$regnaar);
+	if ($momsRange) {
+		$konto_fra = $momsRange['from'];
+		$konto_til = $momsRange['to'];
 
 		$x = 0;
 		$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' " . kontoRangeSqlFragment($konto_fra, $konto_til) . "order by kontonr";
@@ -315,16 +320,22 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 				print "<td>$kontonr[$x] </td>";
 				$tmp = kontobemaerkning($kontobeskrivelse[$x]);
 				print "<td $tmp colspan=3>$kontobeskrivelse[$x] </td>";
-				$qtxt = "select art from grupper where box1='$kontonr[$x]' and art<>'MR'";
+				// The VAT groups of the year the range was read from (the report's year, or the nearest earlier year that has a range).
+				$qtxt = "select art from grupper where box1='$kontonr[$x]' and art in ('SM','KM','EM','YM') and fiscal_year='" . (int)$momsRange['fiscal_year'] . "'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				if (isset($r['art']) && ($r['art'] == 'SM' || $r['art'] == 'YM' || $r['art'] == 'EM')) {
 					print "<td>&nbsp;</td>";
 					$tmp = dkdecimal($aarsum[$x] * -1, 2);
-				} else
+				} else {
 					$tmp = dkdecimal($aarsum[$x], 2);
+				}
 				print "<td align=right>$tmp </td>";
 				print "</tr>\n";
-				$afgiftssum = $afgiftssum + $aarsum[$x];
+				// A sum account (Z) repeats the accounts it sums and a heading carries no amount, so only the
+				// D and S accounts make up the total.
+				if ($kontotype[$x] == 'D' || $kontotype[$x] == 'S') {
+					$afgiftssum = $afgiftssum + $aarsum[$x];
+				}
 			}
 		}
 		$tmp = dkdecimal($afgiftssum * -1, 2);
