@@ -9,6 +9,7 @@
 // 20261121 CL/LH MB-123 A payment for several invoices is matched at both bounds of the amount window despite floating point.
 // 20261121 CL/LH MB-123 Roundings both ways on one difference account are shown as the two movements posting books.
 // 20261121 CL/LH MB-123 A refused difference runs in a child process, so the rollback and the end of the request are observed rather than read from the source.
+// 20261121 CL/LH MB-123 A voucher whose amounts do not balance in their own currency gets no rounding on the page, as in posting.
 //
 // The functions under test live in finans/bogfor.php, which is a page: including it would run the
 // page. They are lifted out of the shipped file and evaluated into this namespace instead, so the
@@ -1096,17 +1097,17 @@ final class ExchangeRateSettlementTest extends TestCase
         // Voucher 1 is in EUR with 0,01 rounding, voucher 2 in USD with -0,02. The journal's last currency line is
         // USD, and the page used to put the whole -0,01 on 7961. A positive rounding is credited.
         self::assertSame([7960 => ['debet' => 0.0, 'kredit' => 0.01], 7961 => ['debet' => 0.02, 'kredit' => 0.0]],
-            confirmationRoundingByAccount(-0.01, [1 => 0.01, 2 => -0.02], [1 => '7960', 2 => '7961'], '7961'));
+            confirmationRoundingByAccount(-0.01, [1 => 0.01, 2 => -0.02], [1 => 0.0, 2 => 0.0], [1 => '7960', 2 => '7961'], '7961'));
         self::assertSame([7960 => ['debet' => 0.0, 'kredit' => 0.03]],
-            confirmationRoundingByAccount(0.03, [1 => 0.01, 3 => 0.02], [1 => '7960', 3 => '7960'], '7960'),
+            confirmationRoundingByAccount(0.03, [1 => 0.01, 3 => 0.02], [1 => 0.0, 3 => 0.0], [1 => '7960', 3 => '7960'], '7960'),
             'two vouchers on one account add up');
         self::assertSame([7960 => ['debet' => 0.0, 'kredit' => 0.01], 7961 => ['debet' => 0.0, 'kredit' => 0.02]],
-            confirmationRoundingByAccount(0.03, [1 => 0.01, 4 => 0.0], [1 => '7960', 4 => '7961'], '7961'),
+            confirmationRoundingByAccount(0.03, [1 => 0.01, 4 => 0.0], [1 => 0.0, 4 => 0.0], [1 => '7960', 4 => '7961'], '7961'),
             'what no voucher accounts for stays on the last currency line\'s account, as before');
         self::assertSame(['' => ['debet' => 0.0, 'kredit' => 0.01]],
-            confirmationRoundingByAccount(0.01, [1 => 0.01], [1 => ''], ''),
+            confirmationRoundingByAccount(0.01, [1 => 0.01], [1 => 0.0], [1 => ''], ''),
             'with no difference account it is left to the page\'s existing error');
-        self::assertSame([], confirmationRoundingByAccount(0.0, [1 => 0.0], [1 => '7960'], '7960'));
+        self::assertSame([], confirmationRoundingByAccount(0.0, [1 => 0.0], [1 => 0.0], [1 => '7960'], '7960'));
     }
 
     public function testRoundingsBothWaysOnOneAccountAreShownAsPostingBooksThem(): void
@@ -1114,9 +1115,19 @@ final class ExchangeRateSettlementTest extends TestCase
         // bogfor() books each voucher's rounding as a row of its own, so 0,01 credited for one voucher and 0,02
         // debited for another are two movements on 7960. Netted to one 0,01 debit, the page showed neither.
         self::assertSame([7960 => ['debet' => 0.02, 'kredit' => 0.01]],
-            confirmationRoundingByAccount(-0.01, [1 => 0.01, 2 => -0.02], [1 => '7960', 2 => '7960'], '7960'));
+            confirmationRoundingByAccount(-0.01, [1 => 0.01, 2 => -0.02], [1 => 0.0, 2 => 0.0], [1 => '7960', 2 => '7960'], '7960'));
         self::assertSame([7960 => ['debet' => 0.01, 'kredit' => 0.01]],
-            confirmationRoundingByAccount(0.0, [1 => -0.01, 2 => 0.01], [1 => '7960', 2 => '7960'], '7960'),
+            confirmationRoundingByAccount(0.0, [1 => -0.01, 2 => 0.01], [1 => 0.0, 2 => 0.0], [1 => '7960', 2 => '7960'], '7960'),
             'and two that cancel are still two movements');
+    }
+
+    public function testAVoucherWhoseAmountsDoNotBalanceInItsCurrencyGetsNoRounding(): void
+    {
+        // bogfor() books a voucher's DKK imbalance as rounding only when its amounts balance in their own
+        // currency. At 745, voucher 2 debits EUR 1,01 and credits 1,00 (0,07 DKK) and voucher 3 the reverse: posting
+        // books neither, only voucher 1's 0,02, and the page showed 0,07 debit and 0,09 credit.
+        self::assertSame([7960 => ['debet' => 0.0, 'kredit' => 0.02]],
+            confirmationRoundingByAccount(0.02, [1 => 0.02, 2 => 0.07, 3 => -0.07], [1 => 0.0, 2 => 0.01, 3 => -0.01],
+                [1 => '7960', 2 => '7960', 3 => '7960'], '7960'));
     }
 }
