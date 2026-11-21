@@ -27,22 +27,41 @@
 // 20261118 CL/SS SD-833 Codex review: negative invoice lines count in their own direction, and a capped price never rounds up.
 //                A dekort is always held to the amount left.
 // 20261120 CL/SS SD-833 review: a line whose quantity points the wrong way is held to nothing. The lines tell whether they are delivered.
+// 20261121 CL/SS SD-833 review: an amount discount counts in kroner, as momsupdat() counts it.
+//                What is left counts only the lines a credit note copies, and a held line delivers no more than it credits.
 
 include_once(__DIR__ . '/stockNeutralLine.php'); # order_line_has_credit_columns()
 
 function credit_line_net(array $line): float
 {
-	$pris = (float)$line['pris'] - (float)$line['pris'] * (float)$line['rabat'] / 100;
+	if (trim((string)($line['rabatart'] ?? '')) == 'amount') {
+		$pris = (float)$line['pris'] - (float)$line['rabat'];
+	} else {
+		$pris = (float)$line['pris'] - (float)$line['pris'] * (float)$line['rabat'] / 100;
+	}
 	if ($line['procent'] !== null && $line['procent'] !== '') {
 		$pris *= (float)$line['procent'] / 100;
 	}
 	return (float)$line['antal'] * $pris;
 }
 
+/** The procenttillæg item's number when the invoice carries a procenttillæg, else ''. */
+function credit_percent_item(int $origId): string
+{
+	$r = db_fetch_array(db_select("select procenttillag from ordrer where id = '$origId'", __FILE__ . " linje " . __LINE__));
+	if (!$r || !(float)$r['procenttillag']) {
+		return '';
+	}
+	$r = db_fetch_array(db_select("select box13 from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__));
+	$parts = explode(chr(9), (string)($r['box13'] ?? ''));
+	return trim($parts[1] ?? '');
+}
+
 /**
  * What is left to credit on each line of an invoice, keyed by the invoice line's id.
  * Quantities count in the direction of the line's quantity and amounts in the direction of its net amount, so a
  * negative line (a return or a discount on the invoice) is credited the other way round, and only once.
+ * Only the lines the Kredit copy in debitor/ordre.php takes count: an item, posnr > 0, not a følgevare, not the procenttillæg.
  * With $lock it locks the invoice row, so call it inside the transaction that writes the credit lines.
  * $exceptCreditId leaves out one credit note's own lines, for checking that note while it is edited.
  */
@@ -52,7 +71,12 @@ function credit_remaining(int $origId, int $exceptCreditId = 0, bool $lock = tru
 		db_select("select id from ordrer where id = '$origId' for update", __FILE__ . " linje " . __LINE__);
 	}
 	$remaining = array();
-	$q = db_select("select id, antal, pris, rabat, procent from ordrelinjer where ordre_id = '$origId' and antal != 0 order by posnr, id", __FILE__ . " linje " . __LINE__);
+	$qtxt = "select id, antal, pris, rabat, rabatart, procent from ordrelinjer where ordre_id = '$origId' and antal != 0";
+	$qtxt .= " and posnr > 0 and vare_id > 0 and coalesce(folgevare, 0) >= 0";
+	if ($percentItem = credit_percent_item($origId)) {
+		$qtxt .= " and varenr != '" . db_escape_string($percentItem) . "'";
+	}
+	$q = db_select("$qtxt order by posnr, id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$net = credit_line_net($r);
 		$remaining[(int)$r['id']] = array(
@@ -66,7 +90,7 @@ function credit_remaining(int $origId, int $exceptCreditId = 0, bool $lock = tru
 	}
 	if ($remaining) {
 		$kind = order_line_has_credit_columns() ? ', ol.kredit_art' : '';
-		$qtxt = "select ol.kred_linje_id, ol.antal, ol.pris, ol.rabat, ol.procent$kind from ordrelinjer ol, ordrer o";
+		$qtxt = "select ol.kred_linje_id, ol.antal, ol.pris, ol.rabat, ol.rabatart, ol.procent$kind from ordrelinjer ol, ordrer o";
 		$qtxt .= " where o.id = ol.ordre_id and o.art = 'DK' and o.id != '$exceptCreditId'";
 		$qtxt .= " and ol.kred_linje_id in (" . implode(',', array_keys($remaining)) . ")";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -99,7 +123,7 @@ function credit_note_lines(int $creditId): array
 {
 	$kind = order_line_has_credit_columns() ? ', kredit_art, retur_lager' : '';
 	$lines = array();
-	$qtxt = "select id, kred_linje_id, vare_id, varenr, beskrivelse, antal, pris, rabat, procent$kind,";
+	$qtxt = "select id, kred_linje_id, vare_id, varenr, beskrivelse, antal, leveres, pris, rabat, rabatart, procent$kind,";
 	$qtxt .= " (select count(*) from batch_salg b where b.linje_id = ordrelinjer.id) as delivered_rows from ordrelinjer";
 	$qtxt .= " where ordre_id = '$creditId' and kred_linje_id > 0 order by posnr, id";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -118,7 +142,7 @@ function credit_apply_line_choice(int $lineId, float $dekortPct, bool $restock):
 	if (!order_line_has_credit_columns()) {
 		return;
 	}
-	$qtxt = "select c.kredit_art, o.antal, o.pris, o.rabat, o.procent from ordrelinjer c, ordrelinjer o";
+	$qtxt = "select c.kredit_art, o.antal, o.pris, o.rabat, o.rabatart, o.procent from ordrelinjer c, ordrelinjer o";
 	$qtxt .= " where c.id = '$lineId' and o.id = c.kred_linje_id";
 	if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		return;
@@ -133,6 +157,7 @@ function credit_apply_line_choice(int $lineId, float $dekortPct, bool $restock):
 		if (trim((string)$r['kredit_art']) == 'dekort') {
 			$procent = ($r['procent'] === null || $r['procent'] === '') ? 'NULL' : (float)$r['procent'];
 			$qtxt .= ", antal = -1, pris = '" . (float)$r['pris'] . "', rabat = '" . (float)$r['rabat'] . "', procent = $procent";
+			$qtxt .= ", rabatart = '" . db_escape_string((string)$r['rabatart']) . "'";
 		}
 	}
 	db_modify("$qtxt where id = '$lineId'", __FILE__ . " linje " . __LINE__);
@@ -142,6 +167,7 @@ function credit_apply_line_choice(int $lineId, float $dekortPct, bool $restock):
  * Lowers a draft credit note's lines to what is left on the invoice after its other credit notes:
  * first the quantity, then the price, so a unit already part credited by a dekort is credited at what is left of it.
  * A quantity that points the wrong way (it would charge, not credit) is set to 0.
+ * What the line is set to deliver (leveres) is held within its quantity, so delivery moves no more stock than it credits.
  * The price is cut toward zero, so the stored amount never exceeds what is left.
  * Returns the item numbers of the lines it changed. Locks the invoice row.
  */
@@ -162,8 +188,10 @@ function credit_hold_to_remaining(int $creditId): array
 		$dekort = trim((string)($line['kredit_art'] ?? '')) == 'dekort';
 		$qty = -(float)$line['antal'] * $orig['qty_sign'];
 		if (!$dekort && $qty <= 0.0005) {
+			if ($qty < -0.0005 || abs((float)$line['leveres']) > 0.0005) {
+				db_modify("update ordrelinjer set antal = 0, leveres = 0 where id = '$id'", __FILE__ . " linje " . __LINE__);
+			}
 			if ($qty < -0.0005) {
-				db_modify("update ordrelinjer set antal = 0 where id = '$id'", __FILE__ . " linje " . __LINE__);
 				$changed[] = $line['varenr'];
 			}
 			unset($orig);
@@ -196,8 +224,16 @@ function credit_hold_to_remaining(int $creditId): array
 		$orig['remaining_amount'] -= $amount;
 		unset($orig);
 		if ($set) {
-			db_modify("update ordrelinjer set " . implode(', ', $set) . " where id = '$id'", __FILE__ . " linje " . __LINE__);
 			$changed[] = $line['varenr'];
+		}
+		$antal = (float)$line['antal'];
+		$leveres = (float)$line['leveres'];
+		$heldLeveres = max(min($leveres, max(0.0, $antal)), min(0.0, $antal));
+		if (abs($heldLeveres - $leveres) > 0.0005) {
+			$set[] = "leveres = '$heldLeveres'";
+		}
+		if ($set) {
+			db_modify("update ordrelinjer set " . implode(', ', $set) . " where id = '$id'", __FILE__ . " linje " . __LINE__);
 		}
 	}
 	return $changed;

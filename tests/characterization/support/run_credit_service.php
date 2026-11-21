@@ -9,11 +9,14 @@
 //   hold <credit_id>                     - credit_hold_to_remaining()
 //   raise_and_hold <credit_id> <qty> <sleep_ms> - as debitor/ordre.php saves a draft: set every credit line to
 //                                          -<qty>, hold the note to what is left, wait, then commit
+//   left <orig_id>                       - credit_left_on_invoice()
+//   hold_and_deliver <credit_id>         - hold the note, then levering() with the leveres the lines carry
 //
 // The LAST argument is the tenant db. Prints a single JSON object on the LAST line of stdout.
 //
 // History:
 // 20261118 CL/SS SD-833 Created.
+// 20261121 CL/SS SD-833 review: scenarios for what is left on an invoice and for a delivery after the hold.
 
 if (PHP_SAPI !== 'cli') {
     exit;
@@ -50,6 +53,13 @@ if ($scenario === 'remaining') {
     db_modify("update ordrelinjer set antal = '" . (-$qty) . "' where ordre_id = '$creditId' and kred_linje_id > 0", __FILE__ . " linje " . __LINE__);
     $out['changed'] = credit_hold_to_remaining($creditId);
     usleep((int)$args[2] * 1000);
+    transaktion('commit');
+} elseif ($scenario === 'left') {
+    $out['left'] = credit_left_on_invoice((int)$args[0]);
+} elseif ($scenario === 'hold_and_deliver') {
+    transaktion('begin');
+    $out['changed'] = credit_hold_to_remaining((int)$args[0]);
+    $out['levering'] = levering((int)$args[0], NULL, NULL);
     transaktion('commit');
 } else {
     ob_end_clean();

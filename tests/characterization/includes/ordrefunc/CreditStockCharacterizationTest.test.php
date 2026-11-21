@@ -12,6 +12,7 @@
 // History:
 // 20261118 CL/SS SD-833 Created.
 // 20261118 CL/SS SD-833 Core edit 4: retur_lager 'of' and a set's master line leave stock alone.
+// 20261121 CL/SS SD-833 review: a credit line held to what is left puts back only that many.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -191,6 +192,27 @@ final class CreditStockCharacterizationTest extends CharacterizationTestCase
 
         $this->assertEqualsWithDelta(9.0, self::stockOf($item), 0.001);
         $this->assertEqualsWithDelta(9.0, self::batchStock($item), 0.001);
+    }
+
+    public function test_a_credit_line_held_to_what_is_left_puts_back_only_that_many(): void
+    {
+        $item = self::$fx->item(['beholdning' => 0.0, 'kostpris' => 50.00]);
+        $purchase = self::$fx->creditorOrder(self::$fx->creditor(), [['item' => $item, 'antal' => 10, 'pris' => 100.00]]);
+        $this->receive($purchase['id'], 10);
+        $sale = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 4]]);
+        $this->deliver($sale['id'], 4);
+        $first = $this->creditNote(self::lineId($sale['id']), $item, 2);
+        $second = $this->creditNote(self::lineId($sale['id']), $item, 4);
+        self::rows("UPDATE ordrelinjer SET retur_lager = 'on', kredit_art = 'antal', leveres = antal WHERE ordre_id IN ($1, $2)", [$first['id'], $second['id']]);
+        self::rows('UPDATE ordrer SET kred_ord_id = $1, status = 1 WHERE id IN ($2, $3)', [$sale['id'], $first['id'], $second['id']]);
+        $this->deliver($first['id'], -2);
+        $this->assertEqualsWithDelta(8.0, self::stockOf($item), 0.001);
+
+        $this->runChildJson('run_credit_service.php', ['hold_and_deliver', $second['id'], CharacterizationEnv::testDb()]);
+
+        $this->assertEqualsWithDelta(-2.0, self::delivered(self::lineId($second['id'])), 0.001, 'the two still sold, not the four asked for');
+        $this->assertEqualsWithDelta(10.0, self::stockOf($item), 0.001);
+        $this->assertEqualsWithDelta(10.0, self::batchStock($item), 0.001);
     }
 
     public function test_without_the_retur_lager_column_a_credit_goes_back_on_stock(): void
