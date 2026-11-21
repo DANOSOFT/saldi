@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/storeOrders.php --- ver 5.1.0 --- 2026.11.18
+// --- includes/shopify/services/storeOrders.php --- ver 5.1.0 --- 2026.11.21
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 //
 // 20261112 CL/SS SD-804: created (WP13-2).
 // 20261118 CL/SS SD-804: the date key is Delivery Date, and pickup and delivery orders carry Leveringstype (DTAILS).
+// 20261121 CL/SS SD-804 review: a pickup carries its date too when the cashier entered one, as the spec says.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -363,8 +364,8 @@ function shopify_store_orders_project_payments(array $snap): array {
 
 /**
  * The orderCreate variables (pure). Every delivery type is paid; one taken along is fulfilled at once,
- * a pickup has no shipping address (so no route), a delivery carries its address and its date, or the
- * fixed note when it has none (K36a). The invoice number goes in a metafield (K54).
+ * a pickup has no shipping address (so no route) and carries its date when one was entered, a delivery
+ * carries its address and its date, or the fixed note when it has none (K36a). The invoice number goes in a metafield (K54).
  *
  * @param array{gid: string|null, contact: bool} $customer contact false: no email or phone go, so Shopify associates no one
  * @param list<array<string, mixed>> $lines shopify_store_orders_project_lines()
@@ -409,12 +410,13 @@ function shopify_store_orders_build_payload(array $snap, array $customer, array 
 			array('key' => SHOPIFY_STORE_ORDER_ATTR_METHOD, 'value' => $method !== '' ? $method : $mode),
 			array('key' => SHOPIFY_STORE_ORDER_ATTR_TYPE, 'value' => $mode),
 		);
+		if (trim((string)$o['oensket_levdato']) !== '') {
+			$order['customAttributes'][] = array('key' => SHOPIFY_STORE_ORDER_ATTR_DATE, 'value' => (new DateTimeImmutable($o['oensket_levdato']))->format(SHOPIFY_STORE_ORDER_DATE_FORMAT));
+		}
 	}
 	if ($mode === 'levering') {
 		$order['shippingAddress'] = shopify_store_orders_address($o, $phone);
-		if (trim((string)$o['oensket_levdato']) !== '') {
-			$order['customAttributes'][] = array('key' => SHOPIFY_STORE_ORDER_ATTR_DATE, 'value' => (new DateTimeImmutable($o['oensket_levdato']))->format(SHOPIFY_STORE_ORDER_DATE_FORMAT));
-		} else {
+		if (trim((string)$o['oensket_levdato']) === '') {
 			$order['note'] = SHOPIFY_STORE_ORDER_UNDATED_NOTE;
 		}
 	}
