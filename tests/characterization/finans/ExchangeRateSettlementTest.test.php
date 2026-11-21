@@ -10,6 +10,7 @@
 // 20261121 CL/LH MB-123 Roundings both ways on one difference account are shown as the two movements posting books.
 // 20261121 CL/LH MB-123 A refused difference runs in a child process, so the rollback and the end of the request are observed rather than read from the source.
 // 20261121 CL/LH MB-123 A voucher whose amounts do not balance in their own currency gets no rounding on the page, as in posting.
+// 20261121 CL/LH MB-123 The refusal's child process builds its own database and writes stderr to a file.
 //
 // The functions under test live in finans/bogfor.php, which is a page: including it would run the
 // page. They are lifted out of the shipped file and evaluated into this namespace instead, so the
@@ -697,26 +698,22 @@ final class ExchangeRateSettlementTest extends TestCase
 
     public function testADifferenceWithNowhereToGoIsRefusedRatherThanPostedToNothing(): void
     {
-        // bookRateDifference() ends the request, so it runs in a child process against a copy of this database.
-        $dir = sys_get_temp_dir() . '/mb123-refused-' . getmypid() . '-' . bin2hex(random_bytes(4));
-        mkdir($dir);
-        $database = $dir . '/settlement.sqlite';
-        $lift = $dir . '/lift.php';
+        // bookRateDifference() ends the request, so it runs in a child process with its own database.
+        $lift = tempnam(sys_get_temp_dir(), 'mb123-lift-');
+        $errors = tempnam(sys_get_temp_dir(), 'mb123-stderr-');
         try {
-            $this->db->exec("VACUUM INTO '" . str_replace("'", "''", $database) . "'");
             file_put_contents($lift, '<?php namespace ' . __NAMESPACE__ . '; ' . self::liftedSource());
-            $process = proc_open([PHP_BINARY, __DIR__ . '/support/run_refused_rate_difference.php', $database, $lift],
-                [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+            // stderr goes to a file, so a child that writes a lot to it cannot block on a full pipe.
+            $process = proc_open([PHP_BINARY, __DIR__ . '/support/run_refused_rate_difference.php', $lift],
+                [1 => ['pipe', 'w'], 2 => ['file', $errors, 'w']], $pipes);
             self::assertIsResource($process);
             $stdout = stream_get_contents($pipes[1]);
-            $stderr = stream_get_contents($pipes[2]);
             fclose($pipes[1]);
-            fclose($pipes[2]);
             $exit = proc_close($process);
+            $stderr = (string)file_get_contents($errors);
         } finally {
-            @unlink($database);
             @unlink($lift);
-            @rmdir($dir);
+            @unlink($errors);
         }
         $lines = array_values(array_filter(explode("\n", trim($stdout))));
         $result = json_decode((string)end($lines), true);

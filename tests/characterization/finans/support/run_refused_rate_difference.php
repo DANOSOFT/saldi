@@ -7,11 +7,11 @@
 // of accounts, and goes on to the next posting step if the call returns. On the way out it prints, as JSON
 // on the last line, the transaction calls made and the rows the ledger holds.
 //
-// argv: 1 = SQLite database file, prepared by the test
-//       2 = PHP file holding the settlement functions lifted from finans/bogfor.php
+// argv: 1 = PHP file holding the settlement functions lifted from finans/bogfor.php
 //
 // History:
 // 20261121 CL/LH MB-123 Created.
+// 20261121 CL/LH MB-123 The child builds its own in-memory database, so the test needs no copy of the parent's.
 
 namespace Saldi\Tests\ExchangeRateSettlement;
 
@@ -20,14 +20,20 @@ use PDO;
 require __DIR__ . '/exchange_rate_settlement_database.php';
 require dirname(__DIR__, 4) . '/includes/stdFunc/jsString.php';
 
-$db = new PDO('sqlite:' . $argv[1]);
+$db = new PDO('sqlite::memory:');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$db->exec("CREATE TABLE transaktioner (id INTEGER PRIMARY KEY AUTOINCREMENT, kontonr TEXT, bilag TEXT, transdate TEXT,
+    logdate TEXT, logtime TEXT, beskrivelse TEXT, debet NUMERIC, kredit NUMERIC, faktura TEXT, kladde_id INTEGER, afd TEXT,
+    ansat TEXT, projekt TEXT, valuta TEXT, valutakurs NUMERIC, ordre_id INTEGER, moms NUMERIC)");
+// 7960 is the only account in the chart, so 999999 has nowhere to go.
+$db->exec("CREATE TABLE kontoplan (id INTEGER PRIMARY KEY AUTOINCREMENT, kontonr TEXT, regnskabsaar INTEGER, kontotype TEXT)");
+$db->exec("INSERT INTO kontoplan (kontonr,regnskabsaar,kontotype) VALUES ('7960',2026,'D')");
 $GLOBALS['exchangeRateSettlementDb'] = $db;
 $GLOBALS['exchangeRateSettlementSql'] = [];
 $GLOBALS['exchangeRateSettlementTransactions'] = [];
 $GLOBALS['regnaar'] = 2026;
 $GLOBALS['db_encode'] = 'UTF8';
-require $argv[2];
+require $argv[1];
 
 register_shutdown_function(static function () use ($db): void {
     echo "\n" . json_encode([
