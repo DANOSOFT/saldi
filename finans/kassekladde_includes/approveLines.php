@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/approveLines.php --- ver 5.1.1 --- 2026-11-05 ---
+// --- finans/kassekladde_includes/approveLines.php --- ver 5.1.1 --- 2026-11-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,9 +25,10 @@
 // 20261019 ASR Delvis bogføring: AJAX-endpoint der sætter/fjerner "Godkendt" på kladdelinjer (kassekladde.godkendt/godkendt_af/godkendt_tid). Kun åbne kladder (bogfort '-'), kun linjer der hører til kladden. Skriver journal.lines_approved/_unapproved i audit_log.
 // 20261023 ASR Review (#817): $modulnr = 2 (finans) as in kassekladde.php, so online.php's module-rights check runs for this endpoint too; with 0 the check is skipped and any logged-in user could approve lines.
 //
-// Request (POST): kladde_id, ids (kommasepareret liste af kassekladde.id), godkendt (1|0)
+// Request (POST): kladde_id, ids (comma-separated), godkendt (1|0), snapshots (JSON id => fingerprint)
 // Response (JSON): {ok, approved, total} eller {ok:false, error}
 // 20261105 CDX/NTR Keep the finance permission check when integrating master.
+// 20261122 CDX/ASR Reject approvals of changed content and serialize with journal saves and posting.
 
 ob_start();
 session_start();
@@ -42,6 +43,8 @@ include(__DIR__ . '/../../includes/connect.php');
 include(__DIR__ . '/../../includes/online.php');
 include_once(__DIR__ . '/../../includes/std_func.php');
 include_once(__DIR__ . '/../../includes/auditLog.php');
+include_once(__DIR__ . '/journalApproval.php');
+include_once(__DIR__ . '/journalSaveLock.php');
 
 ob_end_clean();
 header('Content-Type: application/json; charset=utf-8');
@@ -69,40 +72,14 @@ if (!$kladde_id || !$ids) {
 	exit;
 }
 
-// Only an open journal can have its lines approved; a posted or simulated one is read-only.
-$r = db_fetch_array(db_select("select bogfort from kladdeliste where id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
-if (!$r || $r['bogfort'] != '-') {
-	echo json_encode(array('ok' => false, 'error' => 'Journal is not open'));
+$snapshots = json_decode((string)ifset($_POST, 'snapshots', '{}'), true);
+kkJournalLock($kladde_id);
+$result = kk_set_approval($kladde_id, $ids, (bool)$godkendt, is_array($snapshots) ? $snapshots : array(), (string)$brugernavn);
+kkJournalUnlock();
+if (!$result['ok']) {
+	echo json_encode($result);
 	exit;
 }
-
-// Keep only the ids that belong to this journal, so the audit entry lists what was actually changed.
-$idList = implode(',', $ids);
-$ids = array();
-$q = db_select("select id from kassekladde where kladde_id = '$kladde_id' and id in ($idList)", __FILE__ . " linje " . __LINE__);
-while ($row = db_fetch_array($q)) $ids[] = (int)$row['id'];
-if (!$ids) {
-	$tot = db_fetch_array(db_select("select count(*) as total, sum(case when godkendt = TRUE then 1 else 0 end) as approved from kassekladde where kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
-	echo json_encode(array('ok' => true, 'approved' => (int)($tot['approved'] ?? 0), 'total' => (int)($tot['total'] ?? 0)));
-	exit;
-}
-$idList = implode(',', $ids);
-$brugernavn_sql = db_escape_string((string)$brugernavn);
-if ($godkendt) {
-	$qtxt = "update kassekladde set godkendt = TRUE, godkendt_af = '$brugernavn_sql', godkendt_tid = now() ";
-} else {
-	$qtxt = "update kassekladde set godkendt = FALSE, godkendt_af = NULL, godkendt_tid = NULL ";
-}
-// kladde_id in the WHERE: an id from another journal (or another tab) is never touched.
-$qtxt .= "where kladde_id = '$kladde_id' and id in ($idList)";
-db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-audit_log_write(
-	$godkendt ? 'journal.lines_approved' : 'journal.lines_unapproved',
-	'kladde',
-	(string)$kladde_id,
-	audit_log_details_json(array('after' => array('ids' => $ids, 'godkendt' => (bool)$godkendt)))
-);
 
 $tot = db_fetch_array(db_select("select count(*) as total, sum(case when godkendt = TRUE then 1 else 0 end) as approved from kassekladde where kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__));
 echo json_encode(array('ok' => true, 'approved' => (int)($tot['approved'] ?? 0), 'total' => (int)($tot['total'] ?? 0)));

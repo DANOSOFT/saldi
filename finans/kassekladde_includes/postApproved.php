@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/postApproved.php --- ver 5.1.1 --- 2026-11-05 ---
+// --- finans/kassekladde_includes/postApproved.php --- ver 5.1.1 --- 2026-11-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20261019 ASR Delvis bogføring ("Bogfør godkendte"): de linjer, der er markeret godkendt, flyttes til en ny kladde, som derefter bogføres med den eksisterende motor (bogfor.php røres ikke). De ikke-godkendte linjer bliver stående i den oprindelige kladde, som beholder sit id og navn. Et bilag bogføres helt eller slet ikke: et bilag med både godkendte og ikke-godkendte linjer bliver stående og rapporteres tilbage ('mixed'). Skriver journal.partial_post i audit_log.
 // 20261023 ASR Review (#817): the read, the move and the audit entry run in one transaction with the journal and its lines locked (FOR UPDATE), so an approval changed in another tab meanwhile waits for the move and cannot affect the moved lines; a failed write rolls everything back ('db').
 // 20261105 CDX/NTR Check pre-save approvals under row locks before moving any lines; use tekstKeys.
+// 20261122 CDX/ASR Keep voucher zero together and roll back failed inserts or moves even without the global error flag.
 
 include_once(__DIR__ . '/../../includes/auditLog.php');
 
@@ -59,7 +60,7 @@ function kk_approved_line_ids($kladde_id) {
  *
  * Lines are grouped on their bilag number. A group is approved only when every line in it is approved;
  * a group with both approved and unapproved lines ('mixed') is left in the original journal, because
- * posting half a bilag would unbalance it. Lines without a bilag number are grouped by line.
+ * posting half a bilag would unbalance it. Voucher zero is a group too; only negative legacy numbers are grouped by line.
  *
  * @param int    $kladde_id   The open journal (kladdeliste.bogfort = '-').
  * @param string $brugernavn  The user doing it; recorded as oprettet_af on the new journal.
@@ -88,7 +89,7 @@ function kk_post_approved($kladde_id, $brugernavn, $sprog_id, $expectedApprovedI
 	$approvedIds = array();
 	$q = db_select("select id, bilag, godkendt from kassekladde where kladde_id = '$kladde_id' order by bilag, id for update", __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)) {
-		$key = ((int)$row['bilag'] > 0) ? 'b' . (int)$row['bilag'] : 'l' . (int)$row['id'];
+		$key = ((int)$row['bilag'] >= 0) ? 'b' . (int)$row['bilag'] : 'l' . (int)$row['id'];
 		if (!isset($groups[$key])) $groups[$key] = array('bilag' => (int)$row['bilag'], 'ids' => array(), 'approved' => 0);
 		$groups[$key]['ids'][] = (int)$row['id'];
 		if (kk_godkendt_bool($row['godkendt'])) {
@@ -130,11 +131,16 @@ function kk_post_approved($kladde_id, $brugernavn, $sprog_id, $expectedApprovedI
 	$ny_note_sql = db_escape_string($ny_note);
 	$brugernavn_sql = db_escape_string((string)$brugernavn);
 	$kladdedate = date('Y-m-d');
-	db_modify("insert into kladdeliste (id, kladdenote, kladdedate, bogfort, oprettet_af) values ('$ny_kladde_id', '$ny_note_sql', '$kladdedate', '-', '$brugernavn_sql')", __FILE__ . " linje " . __LINE__);
+	$insertResult = db_modify("insert into kladdeliste (id, kladdenote, kladdedate, bogfort, oprettet_af) values ('$ny_kladde_id', '$ny_note_sql', '$kladdedate', '-', '$brugernavn_sql')", __FILE__ . " linje " . __LINE__);
+	if (strncmp((string)$insertResult, "0\t", 2) !== 0 || !empty($db_modify_fejl)) {
+		transaktion('rollback');
+		$result['error'] = 'db';
+		return $result;
+	}
 	$idList = implode(',', array_map('intval', $moveIds));
 	// kladde_id in the WHERE: a line that another session moved or deleted meanwhile is not taken along.
-	db_modify("update kassekladde set kladde_id = '$ny_kladde_id' where kladde_id = '$kladde_id' and id in ($idList)", __FILE__ . " linje " . __LINE__);
-	if (!empty($db_modify_fejl)) { // a failed insert/update (SD-595 pattern): nothing is moved
+	$moveResult = db_modify("update kassekladde set kladde_id = '$ny_kladde_id' where kladde_id = '$kladde_id' and id in ($idList)", __FILE__ . " linje " . __LINE__);
+	if (strncmp((string)$moveResult, "0\t", 2) !== 0 || !empty($db_modify_fejl)) {
 		transaktion('rollback');
 		$result['error'] = 'db';
 		return $result;

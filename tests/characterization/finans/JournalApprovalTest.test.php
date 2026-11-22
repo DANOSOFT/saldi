@@ -1,6 +1,7 @@
 <?php
 // 20261105 CDX/NTR Cover doc-pool and settlement approval invalidation and partial posting after a normalising save.
 // 20261105 CDX/NTR Document fixture setup, data providers, and approval regression expectations.
+// 20261122 CDX/ASR Cover stale approvals, both save orders, voucher zero and unflagged database failures.
 
 namespace JournalApprovalFixture;
 
@@ -10,6 +11,7 @@ use PHPUnit\Framework\TestCase;
 
 final class JournalApprovalTest extends TestCase {
     private PDO $db;
+    private string $dsn;
 
     /**
      * Create fresh temporary tables and load real helpers without running page request handlers.
@@ -19,6 +21,14 @@ final class JournalApprovalTest extends TestCase {
      */
     protected function setUp(): void {
         $dsn = getenv('SALDI_CHAR_DSN') ?: 'sqlite::memory:';
+        if ($this->name() === 'testConcurrentSaveCannotBeApprovedFromOldSnapshot' && !str_starts_with($dsn, 'pgsql:')) {
+            require_once __DIR__ . '/../support/database/TestDatabase.php';
+            $reason = \TestDatabase::unavailableReason();
+            if ($reason !== null) self::markTestSkipped($reason);
+            $database = \TestDatabase::sqlFixture(self::class);
+            $dsn = 'pgsql:host=' . (getenv('SALDI_CHAR_PGHOST') ?: 'postgres') . ';dbname=' . $database->name();
+        }
+        $this->dsn = $dsn;
         if (str_starts_with($dsn, 'sqlite:') && !in_array('sqlite', PDO::getAvailableDrivers(), true)) {
             self::markTestSkipped('pdo_sqlite or SALDI_CHAR_DSN is required for isolated approval fixtures.');
         }
@@ -27,9 +37,13 @@ final class JournalApprovalTest extends TestCase {
         $GLOBALS['journalApprovalDb'] = $this->db;
         $GLOBALS['db_modify_fejl'] = false;
         $GLOBALS['journalApprovalFailMove'] = false;
+        $GLOBALS['journalApprovalFailWrite'] = '';
+        $GLOBALS['kk_committed'] = 0;
         require_once __DIR__ . '/support/journal_approval_database.php';
         if (!function_exists(__NAMESPACE__ . '\\kk_post_approved')) {
             $root = dirname(__DIR__, 3);
+            $source = file_get_contents($root . '/finans/kassekladde_includes/journalApproval.php');
+            eval('namespace ' . __NAMESPACE__ . '; use RuntimeException; use Throwable; ' . substr($source, 5));
             // The page include performs request I/O. Load only its real shared Save/Attach helper.
             $source = file_get_contents($root . '/includes/docsIncludes/insertDoc.php');
             $start = strpos($source, "if (!function_exists('insertDocUpdateKassekladdeLine')) {");
@@ -45,7 +59,7 @@ final class JournalApprovalTest extends TestCase {
             CREATE TEMP TABLE kassekladde (id INTEGER PRIMARY KEY, kladde_id INTEGER, bilag INTEGER, godkendt BOOLEAN,
                 godkendt_af TEXT, godkendt_tid TIMESTAMP, transdate DATE, forfaldsdate DATE, beskrivelse TEXT,
                 debet NUMERIC(15,0), kredit NUMERIC(15,0), d_type TEXT, k_type TEXT, amount NUMERIC, faktura TEXT, valuta INTEGER,
-                momsfri TEXT, afd INTEGER, medarb INTEGER, projekt TEXT, debetvat TEXT, kreditvat TEXT, valutakurs NUMERIC);
+                momsfri TEXT, afd INTEGER, medarb INTEGER, projekt TEXT, debetvat TEXT, kreditvat TEXT, valutakurs NUMERIC, ansat INTEGER, betal_id TEXT);
             CREATE TEMP TABLE approval_audit (action TEXT, details TEXT);
             CREATE TEMP TABLE adresser (id INTEGER, kontonr TEXT, art TEXT);
             CREATE TEMP TABLE openpost (id INTEGER, konto_id INTEGER, konto_nr TEXT, faktnr TEXT, udlignet TEXT);
@@ -237,14 +251,155 @@ final class JournalApprovalTest extends TestCase {
         self::assertSame(1, (int)$this->row()['kladde_id']);
     }
 
-    /**
-     * Treat each unnumbered line as its own voucher group when selecting approved rows.
-     */
-    public function testZeroVoucherLinesAreIndependentGroups(): void {
+    /** A mixed voucher zero stays intact while an independent approved voucher moves. */
+    public function testMixedZeroVoucherStaysTogether(): void {
         $this->db->exec('UPDATE kassekladde SET bilag=0; UPDATE kassekladde SET godkendt=FALSE WHERE id=11');
+        $this->db->exec("INSERT INTO kassekladde (id,kladde_id,bilag,godkendt) VALUES (12,1,3,TRUE)");
         $result = kk_post_approved(1, 'bookkeeper', 1);
         self::assertSame(1, $result['moved']);
-        self::assertSame([], $result['mixed']);
+        self::assertSame(['0'], $result['mixed']);
+        self::assertSame(1, (int)$this->row(10)['kladde_id']);
+        self::assertSame(1, (int)$this->row(11)['kladde_id']);
+    }
+
+    /** All approved lines numbered zero move as one voucher, including zero-plus-N rows. */
+    public function testFullyApprovedZeroVoucherMovesAsOneGroup(): void {
+        $this->db->exec('UPDATE kassekladde SET bilag=0');
+        $result = kk_post_approved(1, 'bookkeeper', 1);
+        self::assertSame(2, $result['moved']);
+        self::assertSame(1, $result['bilag']);
+    }
+
+    /** @return array<string, array{0: string}> Failed write prefixes that must roll back the move. */
+    public static function failedWrites(): array {
+        return ['new journal' => ['insert into kladdeliste'], 'move' => ['update kassekladde set kladde_id']];
+    }
+
+    /** A returned error must roll back even when db_modify_fejl remains false. */
+    #[DataProvider('failedWrites')]
+    public function testUnflaggedWriteFailureRollsBack(string $prefix): void {
+        $GLOBALS['journalApprovalFailWrite'] = $prefix;
+        $result = kk_post_approved(1, 'bookkeeper', 1);
+        self::assertSame('db', $result['error']);
+        self::assertFalse($GLOBALS['db_modify_fejl']);
+        self::assertSame(2, (int)$this->db->query('SELECT count(*) FROM kladdeliste')->fetchColumn());
+        self::assertSame(1, (int)$this->row()['kladde_id']);
+        self::assertSame(0, (int)$this->db->query('SELECT count(*) FROM approval_audit')->fetchColumn());
+        self::assertFalse($this->db->inTransaction());
+    }
+
+    /** A changed second line rejects the whole batch, without approving the first line. */
+    public function testStaleBatchApprovalWritesNothing(): void {
+        $snapshots = [10 => kk_approval_snapshot($this->row(10)), 11 => kk_approval_snapshot($this->row(11))];
+        $this->db->exec('UPDATE kassekladde SET godkendt=FALSE; UPDATE kassekladde SET amount=999 WHERE id=11');
+        $result = kk_set_approval(1, [10, 11], true, $snapshots, 'reviewer');
+        self::assertSame('changed', $result['error']);
+        self::assertFalse(kk_godkendt_bool($this->row(10)['godkendt']));
+        self::assertFalse(kk_godkendt_bool($this->row(11)['godkendt']));
+        self::assertSame(0, (int)$this->db->query('SELECT count(*) FROM approval_audit')->fetchColumn());
+    }
+
+    /** Missing fingerprints cannot approve; unapproval is always allowed on an open journal. */
+    public function testApprovalNeedsSnapshotButUnapprovalDoesNot(): void {
+        self::assertSame('changed', kk_set_approval(1, [10], true, [], 'reviewer')['error']);
+        self::assertTrue(kk_set_approval(1, [10], false, [], 'reviewer')['ok']);
+        self::assertFalse(kk_godkendt_bool($this->row()['godkendt']));
+        self::assertNull($this->row()['godkendt_af']);
+    }
+
+    /** Approval changes leave the fingerprint valid for later toggles on unchanged content. */
+    public function testTogglesKeepSnapshotAndIgnoreForeignIds(): void {
+        $snapshot = kk_approval_snapshot($this->row());
+        $this->db->exec("INSERT INTO kassekladde (id,kladde_id,bilag,godkendt) VALUES (12,2,1,FALSE)");
+        self::assertTrue(kk_set_approval(1, [10], false, [], 'reviewer')['ok']);
+        $result = kk_set_approval(1, [10, 12], true, [10 => $snapshot], 'another');
+        self::assertSame([10], $result['ids']);
+        self::assertSame($snapshot, kk_approval_snapshot($this->row()));
+        self::assertSame('another', $this->row()['godkendt_af']);
+        self::assertFalse(kk_godkendt_bool($this->row(12)['godkendt']));
+        self::assertSame('not_open', kk_set_approval(2, [12], false, [], 'reviewer')['error']);
+    }
+
+    /** Failed approval writes do not produce successful responses or audit entries. */
+    public function testFailedApprovalRollsBack(): void {
+        $GLOBALS['journalApprovalFailWrite'] = 'update kassekladde set godkendt';
+        self::assertSame('db', kk_set_approval(1, [10], false, [], 'reviewer')['error']);
+        self::assertTrue(kk_godkendt_bool($this->row()['godkendt']));
+        self::assertSame(0, (int)$this->db->query('SELECT count(*) FROM approval_audit')->fetchColumn());
+    }
+
+    /** Execute the real opdater read-and-update block inside its normal transaction boundary. */
+    private function journalSaveAmount(string $newAmount): void {
+        $source = file_get_contents(dirname(__DIR__, 3) . '/finans/kassekladde.php');
+        $start = strpos($source, "\t\t\t\t\t\$kkGodkReset = '';");
+        $end = strpos($source, "\n\t\t\t\t} elseif (", $start);
+        $r = ['id' => 10];
+        $bilag = 1; $transdate = '2026-11-01'; $beskrivelse = 'Bank';
+        $d_type = $k_type = 'F'; $debet = 1610; $kredit = 5800; $faktura = '';
+        $amount = $newAmount; $debetvat = 'K1'; $kreditvat = $momsfri = '';
+        $afd = $projekt = $ansat_id = $valutakode = 0; $forfaldsdate = null; $betal_id = '';
+        $this->db->beginTransaction();
+        eval('namespace ' . __NAMESPACE__ . '; ' . substr($source, $start, $end - $start));
+        $this->db->commit();
+    }
+
+    /** Approval before a changed save is cleared; approval after that save rejects the old view. */
+    public function testBothSaveApprovalOrdersAndUnchangedSave(): void {
+        $snapshot = kk_approval_snapshot($this->row());
+        $this->journalSaveAmount('80');
+        self::assertTrue(kk_godkendt_bool($this->row()['godkendt']));
+        $this->journalSaveAmount('99');
+        self::assertFalse(kk_godkendt_bool($this->row()['godkendt']));
+        self::assertSame('changed', kk_set_approval(1, [10], true, [10 => $snapshot], 'reviewer')['error']);
+        self::assertTrue(kk_set_approval(1, [10], true, [10 => kk_approval_snapshot($this->row())], 'reviewer')['ok']);
+        $this->journalSaveAmount('100');
+        self::assertFalse(kk_godkendt_bool($this->row()['godkendt']));
+    }
+
+    /** A second connection must compare the content after a concurrent save releases its row lock. */
+    public function testConcurrentSaveCannotBeApprovedFromOldSnapshot(): void {
+        if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql') {
+            self::markTestSkipped('PostgreSQL is required to exercise real row locks.');
+        }
+        $schema = 'approval_' . bin2hex(random_bytes(8));
+        $this->db->exec('CREATE SCHEMA ' . $schema);
+        $worker = null;
+        try {
+            foreach (['kladdeliste', 'kassekladde', 'approval_audit'] as $table) {
+                $this->db->exec("CREATE TABLE $schema.$table (LIKE pg_temp.$table INCLUDING ALL)");
+                $this->db->exec("INSERT INTO $schema.$table SELECT * FROM pg_temp.$table");
+            }
+            $this->db->exec("SET search_path TO $schema, pg_temp");
+            $this->db->exec('UPDATE kassekladde SET godkendt=FALSE');
+            $snapshot = kk_approval_snapshot($this->row());
+            $this->db->beginTransaction();
+            $this->db->query('SELECT * FROM kassekladde WHERE id=10 FOR UPDATE')->fetchAll();
+            $worker = proc_open([PHP_BINARY, __DIR__ . '/support/journal_approval_worker.php', $schema, $snapshot],
+                [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, array_merge(getenv(), ['SALDI_CHAR_DSN' => $this->dsn]));
+            self::assertIsResource($worker);
+            $waiting = false;
+            $deadline = microtime(true) + 5;
+            do {
+                $this->db->query('SELECT pg_stat_clear_snapshot()')->fetchAll();
+                $waiting = (bool)$this->db->query("SELECT count(*) FROM pg_stat_activity WHERE application_name=" . $this->db->quote($schema) . " AND wait_event_type='Lock'")->fetchColumn();
+                if (!$waiting) usleep(10000);
+            } while (!$waiting && microtime(true) < $deadline && proc_get_status($worker)['running']);
+            self::assertTrue($waiting, 'The approval must wait for the in-flight save.');
+            $this->db->exec('UPDATE kassekladde SET amount=99 WHERE id=10');
+            $this->db->commit();
+            $out = stream_get_contents($pipes[1]);
+            $err = stream_get_contents($pipes[2]);
+            fclose($pipes[1]); fclose($pipes[2]);
+            self::assertSame(0, proc_close($worker), $err);
+            $worker = null;
+            self::assertSame('changed', json_decode($out, true)['error'], $out);
+            self::assertFalse(kk_godkendt_bool($this->row()['godkendt']));
+        } finally {
+            if ($this->db->inTransaction()) $this->db->rollBack();
+            if (is_resource($worker)) { proc_terminate($worker); proc_close($worker); }
+            $this->db->exec('SET search_path TO public');
+            $this->db->exec('DROP SCHEMA ' . $schema . ' CASCADE');
+        }
     }
 
     /**

@@ -1,6 +1,7 @@
 <?php
 // 20261105 CDX/NTR Isolated SQL adapters for journal approval regression tests.
 // 20261105 CDX/NTR Document SQL adapters and deliberately limited date, translation, and VAT fixtures.
+// 20261122 CDX/ASR Model write errors that do not set the production global failure flag.
 
 namespace JournalApprovalFixture;
 
@@ -47,6 +48,9 @@ function db_modify($sql, $trace) {
     if (!empty($GLOBALS['journalApprovalFailMove']) && str_starts_with($sql, 'update kassekladde set kladde_id')) {
         $GLOBALS['db_modify_fejl'] = true;
         return "1\tfixture failure";
+    }
+    if (!empty($GLOBALS['journalApprovalFailWrite']) && str_starts_with($sql, $GLOBALS['journalApprovalFailWrite'])) {
+        return "1\tfixture failure without global flag";
     }
     $GLOBALS['journalApprovalDb']->exec($sql);
     return "0\tquery accepted";

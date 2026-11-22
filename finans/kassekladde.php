@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -232,6 +232,7 @@
 // 20261105 CDX/NTR Preserve save safeguards on merge and abort partial posting when the save removes approvals; use tekstKeys.
 // 20261105 CDX/NTR Document approval controls, asynchronous saving, and the partial-post confirmation.
 // 20261105 CDX/NTR Reserve the approval column in every supplementary blank row so journal inputs stay aligned.
+// 20261122 CDX/ASR Bind approval to reviewed content, order overlapping saves, and keep voucher zero together.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -239,6 +240,7 @@ require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
 require_once __DIR__ . '/kassekladde_includes/accountCard.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
 require_once __DIR__ . '/kassekladde_includes/journalSaveLock.php';
+require_once __DIR__ . '/kassekladde_includes/journalApproval.php';
 require_once __DIR__ . '/kassekladde_includes/sorting.php';
 
 # A line created during this request is rendered last, whatever the list is sorted by, so the line the
@@ -3514,6 +3516,7 @@ if ($kladde_id) {
 		$x++;
 		$id[$x] = $row['id'];
 		$bilag[$x] = $row['bilag'];
+		$kkApprovalSnapshots[$x] = !$fejl ? kk_approval_snapshot($row) : '';
 		$godkendt[$x] = (isset($row['godkendt']) && ($row['godkendt'] === 't' || $row['godkendt'] === '1' || $row['godkendt'] === 1 || $row['godkendt'] === true)) ? 1 : 0;
 		$forfaldsdato[$x] = NULL;
 		if ($fejl) {
@@ -3809,7 +3812,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!empty($kk_godkendt_col)) {
 			if (isset($id[$y])) {
 				$kkChecked = !empty($godkendt[$y]) ? ' checked' : '';
-				print "<td align='center' class='kk-col-godkendt'><input type='checkbox' class='kk-godkendt' data-line-id='" . (int)$id[$y] . "' data-bilag='" . htmlspecialchars((string)$bilag[$y], ENT_QUOTES, $charset) . "'$kkChecked></td>";
+				print "<td align='center' class='kk-col-godkendt'><input type='checkbox' class='kk-godkendt' data-line-id='" . (int)$id[$y] . "' data-snapshot='" . htmlspecialchars($kkApprovalSnapshots[$y] ?? '', ENT_QUOTES, $charset) . "' data-bilag='" . htmlspecialchars((string)$bilag[$y], ENT_QUOTES, $charset) . "'$kkChecked></td>";
 			} else {
 				print "<td class='kk-col-godkendt'></td>";
 			}
@@ -4954,7 +4957,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					// right before 'Bogfør godkendte') keeps it. Values that are written escaped are compared with the stored
 					// value escaped the same way, so an apostrophe in a text is not a change.
 					$kkGodkReset = '';
-					$kkOld = db_fetch_array(db_select("select godkendt, bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, faktura, amount, debetvat, kreditvat, momsfri, afd, projekt, ansat, valuta, forfaldsdate, betal_id from kassekladde where id = '$r[id]'", __FILE__ . " linje " . __LINE__));
+					$kkOld = db_fetch_array(db_select("select godkendt, bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, faktura, amount, debetvat, kreditvat, momsfri, afd, projekt, ansat, valuta, forfaldsdate, betal_id from kassekladde where id = '$r[id]' for update", __FILE__ . " linje " . __LINE__));
 					if ($kkOld && ($kkOld['godkendt'] === 't' || $kkOld['godkendt'] === '1' || $kkOld['godkendt'] === 1 || $kkOld['godkendt'] === true)) {
 						$kkNew = array( // column => array(value that is written below, how to compare it)
 							'bilag' => array($bilag, 'int'), 'transdate' => array($transdate, 'txt'), 'beskrivelse' => array($beskrivelse, 'esc'),
@@ -5353,44 +5356,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			'linesIn' => findtekst('journal.approval.lines_in|linjer i', $sprog_id),
 			'confirm' => findtekst('journal.approval.confirm|bilag flyttes til en ny kladde og bogføres. Resten bliver stående i denne kladde. Fortsæt?', $sprog_id),
 			'failed'  => findtekst('journal.approval.save_failed|Kunne ikke gemme godkendelsen', $sprog_id),
+			'changed' => findtekst('journal.approval.stale_view|Kladdelinjerne er ændret. Genindlæs kladden og kontrollér dem, før du godkender igen.', $sprog_id),
 			'kladde'  => (int)$kladde_id,
 		), JSON_UNESCAPED_UNICODE);
-		print "<script>
-		(function(){
-			var T=$kkGodkTxt,pending=0; // pending = approval saves still in flight; the server reads godkendt from the database, so 'Bogfør godkendte' waits for them
-			/** @returns {HTMLInputElement[]} Approval checkboxes for stored lines shown in this journal. */
-			function boxes(){return Array.prototype.slice.call(document.querySelectorAll('input.kk-godkendt'));}
-			/** Disable partial posting until every asynchronous approval save has settled. @returns {void} */
-			function postBtn(){var b=document.getElementById('kkPostApproved');if(b)b.disabled=pending>0;}
-			/** Refresh the approved-line counter and select-all state after a toggle or failed save. @returns {void} */
-			function count(){var all=boxes(),n=0;all.forEach(function(b){if(b.checked)n++;});var el=document.getElementById('kk-godkendt-status');if(!el){var bal=document.getElementById('kk-balance-status');if(!bal)return;el=document.createElement('span');el.id='kk-godkendt-status';el.style.cssText='display:inline-block;white-space:nowrap;background:#fff;border:1px solid #ddd;border-radius:4px;padding:2px 10px;font-size:12px;margin-left:4px;';bal.parentNode.insertBefore(el,bal.nextSibling);}el.textContent=T.label+': '+n+' '+T.of+' '+all.length;var m=document.getElementById('kkGodkendtAlle');if(m){m.checked=all.length>0&&n===all.length;m.indeterminate=n>0&&n<all.length;}}
-			/**
-			 * Persist approval changes and restore the previous checkbox state when the request fails.
-			 * @param {string[]} ids Stored line ids belonging to this journal.
-			 * @param {boolean} on Requested approval state.
-			 * @param {function(): void} revert Restore the pre-request selection on failure.
-			 * @returns {void}
-			 */
-			function save(ids,on,revert){var fd=new FormData();fd.append('kladde_id',T.kladde);fd.append('ids',ids.join(','));fd.append('godkendt',on?'1':'0');pending++;postBtn();
-				fetch('kassekladde_includes/approveLines.php',{method:'POST',body:fd,credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){if(!d||!d.ok){throw new Error(d&&d.error?d.error:'');}}).catch(function(){revert();count();alert(T.failed);}).then(function(){pending--;postBtn();});}
-			document.addEventListener('change',function(e){
-				var t=e.target;
-				if(t&&t.id==='kkGodkendtAlle'){var on=t.checked,ids=[],prev=[];boxes().forEach(function(b){prev.push([b,b.checked]);b.checked=on;ids.push(b.getAttribute('data-line-id'));});count();if(ids.length)save(ids,on,function(){prev.forEach(function(p){p[0].checked=p[1];});});return;}
-				if(t&&t.classList.contains('kk-godkendt')){var was=!t.checked;count();save([t.getAttribute('data-line-id')],t.checked,function(){t.checked=was;});}
-			});
-			/**
-			 * Confirm only fully approved voucher groups, using the server's per-line rule for bilag zero.
-			 * @returns {boolean} Whether the form may submit after pending saves and mixed vouchers are checked.
-			 */
-			window.kkConfirmPostApproved=function(){if(pending>0)return false;var all=boxes(),groups={},n=0;all.forEach(function(b){var bl=parseInt(b.getAttribute('data-bilag'),10);var k=bl>0?String(bl):('l'+b.getAttribute('data-line-id'));if(!groups[k])groups[k]={t:0,a:0};groups[k].t++;if(b.checked){groups[k].a++;n++;}}); // bilag 0 = one group per line, as kk_post_approved() does
-				if(!n){alert(T.none);return false;}
-				var mixed=[],bilag=0,lines=0;Object.keys(groups).forEach(function(k){var g=groups[k];if(g.a===g.t){bilag++;lines+=g.t;}else if(g.a>0){mixed.push(k);}});
-				if(!bilag){alert(T.mixed+' '+mixed.join(', '));return false;}
-				var msg=lines+' '+T.linesIn+' '+bilag+' '+T.confirm;if(mixed.length)msg+='\\n\\n'+T.mixed+' '+mixed.join(', ');
-				if(!confirm(msg))return false;docChange=false;return true;};
-			count();postBtn();
-		})();
-		</script>";
+		print "<script src='../javascript/journalApproval.js'></script>";
+		print "<script>saldiJournalApproval($kkGodkTxt);</script>";
 	}
 	print "<script language=\"javascript\">";
 	print "var savedFocus = " . json_encode((string)$fokus) . ";";

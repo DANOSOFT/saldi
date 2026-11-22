@@ -25,6 +25,7 @@ journal.approval.post_failed	Bogføringen af de godkendte linjer blev afbrudt. I
 journal.approval.post_hint	Bogfør kun de linjer, der er markeret som godkendt. De flyttes til en ny kladde, som bogføres; resten bliver stående her.	Post only the lines marked as approved. They are moved to a new journal, which is posted; the rest stays here.	Bokfør bare linjene som er merket som godkjent. De flyttes til en ny kladd, som bokføres; resten blir stående her.
 journal.approval.save_failed	Kunne ikke gemme godkendelsen	Could not save the approval	Kunne ikke lagre godkjenningen
 journal.approval.source_note	godkendte fra kladde	approved from journal	godkjente fra kladd
+journal.approval.stale_view	Kladdelinjerne er ændret. Genindlæs kladden og kontrollér dem, før du godkender igen.	The journal lines have changed. Reload the journal and review them before approving again.	Kladdelinjene er endret. Last inn kladden på nytt og kontroller dem før du godkjenner igjen.
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
 wage.overtime.hours_100	Overtid 100%	Overtime 100%	Overtid 100%
 wage.overtime.hours_50	Overtid 50%	Overtime 50%	Overtid 50%
