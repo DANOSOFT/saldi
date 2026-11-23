@@ -5,11 +5,8 @@ declare(strict_types=1);
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-// 20261111 CL/MMR SST-986 Created. A shop order sent twice at the same moment (MEDshop 2026-11-08/09) got one ordrenr twice, its lines twice on one order and an empty twin,
-//                 or the race check deleted the order that had the lines. insert_shop_order() now holds a per-shop-order lock around insert_shop_order_unlocked(),
-//                 and the order number, the insert and the id lookup run in one transaction. The lock functions are lifted from api/rest_api.php (including the file
-//                 connects to a database) and evaluated in their own namespace with stand-ins for the database calls, so the production db functions a full suite
-//                 has loaded are not involved; the transaction order is asserted on the source.
+// 20261111 CL/MMR SST-986 Created. A shop order sent twice at the same moment (MEDshop 2026-11-08/09) got one ordrenr twice, its lines twice on one order and an empty twin, or the race check deleted the order that had the lines. insert_shop_order() now holds a per-shop-order lock around insert_shop_order_unlocked(), and the order number, the insert and the id lookup run in one transaction.
+//                 The lock functions are lifted from api/rest_api.php (including the file connects to a database) and evaluated in their own namespace with stand-ins for the database calls, so the production db functions a full suite has loaded are not involved; the transaction order is asserted on the source.
 // 20261111 CL/MMR SST-986 (review) A lock that is not taken (NULL, 0, a failed query) refuses the call without entering the creation body; MySQL/MariaDB use a 60-second timeout.
 // 20261111 CL/MMR SST-986 (review 2) Negative ids are locked too, since the creation body accepts them; the last test ties the locked ids to the body's own check.
 final class ShopOrderConcurrencyTest extends TestCase
