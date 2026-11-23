@@ -28,7 +28,7 @@
 // 20261118 CL/SS SD-833 Codex review: invoicing costs the line nothing and dates its batch with the delivery row.
 // 20261120 CL/SS SD-833 review: the column check looks in the current schema only.
 // 20261121 CL/SS SD-833 review: on MySQL/MariaDB the column check looks in the current database.
-
+//
 // retur_lager and kredit_art come with the Shopify schema (includes/shopify/schema.php), so other tenants lack them.
 function order_line_has_credit_columns(): bool
 {
