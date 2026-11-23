@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/coexistence.php --- ver 5.0.0 --- 2026-10-26 ---
+// --- includes/shopify/coexistence.php --- ver 5.1.0 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // counts as on.
 //
 // 20261026 CL/SZ Created (SD-750).
+// 20261123 CL/SZ SD-819 shopify_legacy_open_slots() holds the open-slot rule once, for shopify_legacy_endpoints() and shopSyncApiConfigured().
 
 if (!function_exists('shopify_legacy_enabled')) {
 	/** Whether a legacy flow ('intake' or 'outbound') is open for a slot (4, 5 or 6). */
@@ -44,6 +45,30 @@ if (!function_exists('shopify_legacy_enabled')) {
 	{
 		$value = shopify_legacy_settings($slot)[$flow . '_enabled'] ?? null;
 		return $value === null || !in_array(strtolower(trim($value)), array('0', 'off', 'false', 'nej'), true);
+	}
+}
+
+if (!function_exists('shopify_legacy_open_slots')) {
+	/**
+	 * The URL of every slot (4/5/6) that has one and is open for the flow: the one rule for which
+	 * legacy slots are live. Takes no lock itself. $gate, when given, is asked per slot with a URL
+	 * before its switch is read, and a slot it refuses is left out; shopify_legacy_endpoints()
+	 * takes the slot's shared lock there, so the switch is read only once no cutover is running.
+	 *
+	 * @param (callable(int): bool)|null $gate
+	 * @return array<int, string>
+	 */
+	function shopify_legacy_open_slots(array $ctx, string $flow, ?callable $gate = null): array
+	{
+		$r = db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API'", __FILE__ . " linje " . __LINE__));
+		$open = array();
+		foreach (array(4, 5, 6) as $slot) {
+			$url = trim((string)($r["box$slot"] ?? ''));
+			if ($url !== '' && ($gate === null || $gate($slot)) && shopify_legacy_enabled($ctx, $slot, $flow)) {
+				$open[$slot] = $url;
+			}
+		}
+		return $open;
 	}
 }
 
@@ -60,15 +85,7 @@ if (!function_exists('shopify_legacy_endpoints')) {
 	 */
 	function shopify_legacy_endpoints(array $ctx, string $flow): array
 	{
-		$r = db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API'", __FILE__ . " linje " . __LINE__));
-		$endpoints = array();
-		foreach (array(4, 5, 6) as $slot) {
-			$url = trim((string)($r["box$slot"] ?? ''));
-			if ($url !== '' && shopify_legacy_shared($ctx, $slot) !== false && shopify_legacy_enabled($ctx, $slot, $flow)) {
-				$endpoints[$slot] = $url;
-			}
-		}
-		return $endpoints;
+		return shopify_legacy_open_slots($ctx, $flow, fn(int $slot): bool => shopify_legacy_shared($ctx, $slot) !== false);
 	}
 }
 
