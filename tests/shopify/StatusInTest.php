@@ -9,6 +9,7 @@
 // History:
 // 20261103 CL/SS SD-801: created.
 // 20261104 CL/SS SD-801 review 3: the worker registers the four status handlers.
+// 20261123 CL/LH SD-804 follow-up: a pickup store order's Delivery Date is the cashier's wish, not an EasyRoutes date.
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -19,6 +20,20 @@ final class StatusInTest extends TestCase
 	protected function setUp(): void
 	{
 		require_once __DIR__ . '/../../includes/shopify/services/statusIn.php';
+	}
+
+	public function testAPickupsDeliveryDateIsNotAnEasyRoutesDate(): void
+	{
+		// Saldi sends Delivery Date on pickup store orders too (K36 (2)). EasyRoutes never routes a pickup, so the date
+		// coming back on ORDERS_UPDATED is the cashier's own wish and must not be stored as the EasyRoutes date.
+		$attr = fn(string $name, string $value): array => compact('name', 'value');
+		$pickup = ['note_attributes' => [$attr('Leveringsmaade', 'Afhentning i butik'), $attr('Leveringstype', 'afhentning'), $attr('Delivery Date', '2026-12-02')]];
+		$delivery = ['note_attributes' => [$attr('Leveringsmaade', 'EasyRoutes'), $attr('Leveringstype', 'levering'), $attr('Delivery Date', '2026-12-02')]];
+		$web = ['note_attributes' => [$attr('Delivery Date', '2026-12-03')]];
+		$this->assertNull(shopify_status_easyroutes_date($pickup));
+		$this->assertSame('2026-12-02', shopify_status_easyroutes_date($delivery));
+		$this->assertSame('2026-12-03', shopify_status_easyroutes_date($web), 'a web order has no Leveringstype');
+		$this->assertNull(shopify_status_of($pickup + ['updated_at' => '2026-11-23T10:00:00Z'])['easyroutes_levdato']);
 	}
 
 	public function testARefundIsItsSuccessfulRefundTransactions(): void
