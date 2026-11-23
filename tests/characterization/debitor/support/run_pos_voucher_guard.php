@@ -1,14 +1,21 @@
 <?php
 // Child runner for PosPaymentContactGuardTest: lifts voucherPay() exactly as it ships, with the
 // K61 contact check and its two settings queries stubbed, and reports whether the gift card
-// number form was shown.
+// number form was shown and which alerts the cashier got.
 //
-// usage: php run_pos_voucher_guard.php <betaling> <indbetaling> <ok|refuse>
-// prints JSON: {result, guardCalls, formShown}
+// usage: php run_pos_voucher_guard.php <betaling> <indbetaling> <ok|refuse> [giftcardNumber]
+// prints JSON: {result, guardCalls, formShown, alerts}
 
 require_once __DIR__ . '/pos_lift.php';
 
-[$self, $betaling, $indbetaling, $verdict] = $argv + [null, '', '', 'ok'];
+[$self, $betaling, $indbetaling, $verdict, $giftcardNumber] = $argv + [null, '', '', 'ok', null];
+$GLOBALS['alerts'] = [];
+
+/** includes/std_func.php's alert(), stubbed: records the text instead of printing a script. */
+function alert($text)
+{
+    $GLOBALS['alerts'][] = (string)$text;
+}
 
 $GLOBALS['guardCalls'] = [];
 $GLOBALS['guardVerdict'] = $verdict;
@@ -46,12 +53,15 @@ function db_fetch_array($qtxt)
 register_shutdown_function(static function (): void {
     $printed = (string)ob_get_clean();
     echo json_encode(['result' => $GLOBALS['result'], 'guardCalls' => $GLOBALS['guardCalls'],
-        'formShown' => str_contains($printed, 'giftcardNumber')]);
+        'formShown' => str_contains($printed, 'giftcardNumber'), 'alerts' => $GLOBALS['alerts']]);
 });
 
 pos_lift_into([dirname(__DIR__, 4) . '/debitor/pos_ordre_includes/voucherFunc/voucherPay.php' => ['voucherPay']]);
 
 $_POST = ['betaling' => $betaling, 'modtaget' => '100', 'sum' => '100', 'fokus' => '', 'pre_bordnr' => '', 'momssats' => '25',
     'leveret' => '', 'varenr_ny' => '', 'betvaluta' => 'DKK', 'indbetaling' => $indbetaling];
+if ($giftcardNumber !== null) {
+    $_POST['giftcardNumber'] = $giftcardNumber;
+}
 ob_start();
 $GLOBALS['result'] = voucherPay(42, $betaling, '100');

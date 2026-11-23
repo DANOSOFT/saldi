@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- debitor/pos_ordre_includes/voucherFunc/voucherPay.php --- ver 5.1.0 --- 2026.11.20 ---
+// ---- debitor/pos_ordre_includes/voucherFunc/voucherPay.php --- ver 5.1.0 --- 2026.11.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20220718 PHR Added $indbetaling as payment was not registered when paid to account using voucher
 // 20261120 CL/MJ SD-844 K61: a gift card is not taken for a pickup or delivery sale without the customer's email or phone.
 //                The card number form is not shown and no payment is recorded, so the gift card path in pos_ordre.php cannot settle such a sale either.
+// 20261123 CL/MJ SD-844 K61: the check also runs when a gift card number is posted with another payment type, and the refusal is shown to the cashier.
 
 include_once(__DIR__ . "/../deliveryContact.php");
 
@@ -48,8 +49,12 @@ function voucherPay($orderId, $betaling, $modtaget) {
 	$qtxt = "select var_value from settings where var_name = 'voucherItems' and var_grp = 'Paycards'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $vouchers = explode(chr(9),$r['var_value']);
 	// 20261120 CL/MJ SD-844 K61: the same check as afslut() and delbetal(), for the gift card path that reaches here without them
-	if ($vouchers[$payCardNo] && !$indbetaling && !pos_validate_checkout_sale($orderId)['ok']) {
-		return false;
+	if (($vouchers[$payCardNo] || isset($_POST['giftcardNumber'])) && !$indbetaling) {
+		$check = pos_validate_checkout_sale($orderId);
+		if (!$check['ok']) {
+			alert($check['message']);
+			return false;
+		}
 	}
 	if ($vouchers[$payCardNo] && !isset($_POST['giftcardNumber'])) {
 		if (!$modtaget && strpos($betaling,'på beløb')) {

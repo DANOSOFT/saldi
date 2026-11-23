@@ -67,10 +67,14 @@ final class PosPaymentContactGuardTest extends TestCase
         self::assertNotNull($report['paymentReached']);
     }
 
-    /** @return array{result: mixed, guardCalls: list<int>, formShown: bool} */
-    private function runVoucher(string $betaling, string $indbetaling, string $verdict): array
+    /** @return array{result: mixed, guardCalls: list<int>, formShown: bool, alerts: list<string>} */
+    private function runVoucher(string $betaling, string $indbetaling, string $verdict, ?string $giftcardNumber = null): array
     {
-        $child = CharacterizationEnv::runChild(__DIR__ . '/support/run_pos_voucher_guard.php', [$betaling, $indbetaling, $verdict]);
+        $args = [$betaling, $indbetaling, $verdict];
+        if ($giftcardNumber !== null) {
+            $args[] = $giftcardNumber;
+        }
+        $child = CharacterizationEnv::runChild(__DIR__ . '/support/run_pos_voucher_guard.php', $args);
         self::assertSame('', $child['stderr'], 'the runner wrote to stderr: ' . $child['stderr']);
         $report = json_decode($child['stdout'], true);
         self::assertIsArray($report, 'the runner did not report JSON: ' . $child['stdout']);
@@ -84,6 +88,17 @@ final class PosPaymentContactGuardTest extends TestCase
         self::assertSame([42], $report['guardCalls']);
         self::assertFalse($report['result']);
         self::assertFalse($report['formShown']);
+        self::assertSame(['contact missing'], $report['alerts'], 'the cashier is told why');
+    }
+
+    public function testAGiftCardNumberPostedWithAnotherPaymentTypeIsChecked(): void
+    {
+        // The card number reaches useVoucher() whatever payment type is posted with it.
+        $report = $this->runVoucher('Kontant', '', 'refuse', '11');
+
+        self::assertSame([42], $report['guardCalls']);
+        self::assertFalse($report['result']);
+        self::assertSame(['contact missing'], $report['alerts']);
     }
 
     public function testAnAcceptedSaleGetsTheGiftCardForm(): void
