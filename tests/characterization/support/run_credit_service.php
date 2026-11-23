@@ -4,7 +4,8 @@
 // Child-process runner for includes/orderFuncIncludes/creditService.php (SD-833).
 //
 // Scenarios (argv 1):
-//   remaining <orig_id> <except_credit_id> - credit_remaining() inside a transaction
+//   remaining <orig_id> <except_credit_id> [copied] - credit_remaining() inside a transaction; copied=1 counts only
+//                                          the lines the Kredit copy takes
 //   choice <line_id> <dekort_pct> <restock 0|1> - credit_apply_line_choice()
 //   hold <credit_id>                     - credit_hold_to_remaining()
 //   raise_and_hold <credit_id> <qty> <sleep_ms> - as debitor/ordre.php saves a draft: set every credit line to
@@ -17,6 +18,7 @@
 // History:
 // 20261118 CL/SS SD-833 Created.
 // 20261121 CL/SS SD-833 review: scenarios for what is left on an invoice and for a delivery after the hold.
+// 20261123 CL/SS SD-833 review: remaining can count only the lines the Kredit copy takes.
 
 if (PHP_SAPI !== 'cli') {
     exit;
@@ -36,7 +38,7 @@ require_once __DIR__ . '/../../../includes/orderFuncIncludes/creditService.php';
 $out = ['scenario' => $scenario];
 if ($scenario === 'remaining') {
     transaktion('begin');
-    $out['remaining'] = credit_remaining((int)$args[0], (int)($args[1] ?? 0));
+    $out['remaining'] = credit_remaining((int)$args[0], (int)($args[1] ?? 0), true, (bool)(int)($args[2] ?? 0));
     transaktion('commit');
 } elseif ($scenario === 'choice') {
     transaktion('begin');

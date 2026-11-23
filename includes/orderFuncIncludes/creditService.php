@@ -29,6 +29,7 @@
 // 20261120 CL/SS SD-833 review: a line whose quantity points the wrong way is held to nothing. The lines tell whether they are delivered.
 // 20261121 CL/SS SD-833 review: an amount discount counts in kroner, as momsupdat() counts it.
 //                What is left counts only the lines a credit note copies, and a held line delivers no more than it credits.
+// 20261123 CL/SS SD-833 review: the cap counts every invoice line again, so no line can be credited twice. Only the Kredit button counts just the lines a credit note copies, an item found by its number included.
 
 include_once(__DIR__ . '/stockNeutralLine.php'); # order_line_has_credit_columns()
 
@@ -61,20 +62,25 @@ function credit_percent_item(int $origId): string
  * What is left to credit on each line of an invoice, keyed by the invoice line's id.
  * Quantities count in the direction of the line's quantity and amounts in the direction of its net amount, so a
  * negative line (a return or a discount on the invoice) is credited the other way round, and only once.
- * Only the lines the Kredit copy in debitor/ordre.php takes count: an item, posnr > 0, not a følgevare, not the procenttillæg.
  * With $lock it locks the invoice row, so call it inside the transaction that writes the credit lines.
  * $exceptCreditId leaves out one credit note's own lines, for checking that note while it is edited.
+ * With $copiedOnly only the lines the Kredit copy in debitor/ordre.php takes count: an item (by id, or by an item
+ * number the invoice page finds), posnr > 0, not a følgevare, not the procenttillæg. The cap counts every line.
  */
-function credit_remaining(int $origId, int $exceptCreditId = 0, bool $lock = true): array
+function credit_remaining(int $origId, int $exceptCreditId = 0, bool $lock = true, bool $copiedOnly = false): array
 {
 	if ($lock) {
 		db_select("select id from ordrer where id = '$origId' for update", __FILE__ . " linje " . __LINE__);
 	}
 	$remaining = array();
 	$qtxt = "select id, antal, pris, rabat, rabatart, procent from ordrelinjer where ordre_id = '$origId' and antal != 0";
-	$qtxt .= " and posnr > 0 and vare_id > 0 and coalesce(folgevare, 0) >= 0";
-	if ($percentItem = credit_percent_item($origId)) {
-		$qtxt .= " and varenr != '" . db_escape_string($percentItem) . "'";
+	if ($copiedOnly) {
+		$qtxt .= " and posnr > 0 and coalesce(folgevare, 0) >= 0 and (vare_id > 0 or (coalesce(varenr, '') != ''";
+		$qtxt .= " and exists (select 1 from varer v where v.varenr = ordrelinjer.varenr or v.varenr_alias = ordrelinjer.varenr";
+		$qtxt .= " or v.stregkode = ordrelinjer.varenr)))";
+		if ($percentItem = credit_percent_item($origId)) {
+			$qtxt .= " and varenr != '" . db_escape_string($percentItem) . "'";
+		}
 	}
 	$q = db_select("$qtxt order by posnr, id", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -249,7 +255,7 @@ function credit_open_draft(int $origId): int
 /** True while some line of the invoice that the customer paid for still has something to credit. */
 function credit_left_on_invoice(int $origId): bool
 {
-	foreach (credit_remaining($origId, 0, false) as $line) {
+	foreach (credit_remaining($origId, 0, false, true) as $line) {
 		if ($line['amount_sign'] > 0 && credit_line_left($line)) {
 			return true;
 		}

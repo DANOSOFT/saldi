@@ -13,6 +13,7 @@
 // 20261120 CL/SS SD-833 review: a credit line whose quantity points the wrong way is held to nothing.
 // 20261121 CL/SS SD-833 review: an amount discount counts in kroner, and what is left counts only the lines a credit note carries.
 //                A capped line delivers no more than it credits.
+// 20261123 CL/SS SD-833 review: a line the Kredit button leaves out is still capped, and an item found by its number counts.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -25,9 +26,9 @@ final class CreditRemainingTest extends CharacterizationTestCase
         self::rows('ALTER TABLE ordrelinjer ADD COLUMN IF NOT EXISTS kredit_art varchar(6)');
     }
 
-    private function remaining(int $origId, int $except = 0): array
+    private function remaining(int $origId, int $except = 0, bool $copiedOnly = false): array
     {
-        return $this->runChildJson('run_credit_service.php', ['remaining', $origId, $except, CharacterizationEnv::testDb()])['remaining'];
+        return $this->runChildJson('run_credit_service.php', ['remaining', $origId, $except, (int)$copiedOnly, CharacterizationEnv::testDb()])['remaining'];
     }
 
     private static function firstLine(int $orderId): int
@@ -318,8 +319,9 @@ final class CreditRemainingTest extends CharacterizationTestCase
         $box13 = self::one("SELECT box13 FROM grupper WHERE art = 'DIV' AND kodenr = '3'");
         self::rows("UPDATE grupper SET box13 = $1 WHERE art = 'DIV' AND kodenr = '3'", ['10' . chr(9) . $percentItem['varenr']]);
         try {
-            $remaining = $this->remaining($invoice['id']);
-            $this->assertSame([(int)$ids[0]], array_keys($remaining), 'the følgevare, posnr -1 and procenttillæg lines are left out');
+            $copied = $this->remaining($invoice['id'], 0, true);
+            $this->assertSame([(int)$ids[0]], array_keys($copied), 'the følgevare, posnr -1 and procenttillæg lines are left out');
+            $this->assertCount(4, $this->remaining($invoice['id']), 'the cap still counts every line');
 
             $this->credit((int)$ids[0], $item, -2, 100.00, 'antal');
             $this->assertFalse($this->service('left', [$invoice['id']])['left'], 'nothing is left, so the Kredit button goes');
@@ -346,5 +348,22 @@ final class CreditRemainingTest extends CharacterizationTestCase
 
         $this->service('hold', [$wrongWay['id']]);
         $this->assertEqualsWithDelta(0.0, (float)self::lineOf($wrongWay['id'])['leveres'], 0.001);
+    }
+
+    public function test_a_line_stored_without_an_item_id_still_counts_and_is_capped(): void
+    {
+        $item = self::$fx->item();
+        $invoice = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 2, 'pris' => 100.00]], ['status' => 3]);
+        $origLine = self::firstLine($invoice['id']);
+        self::rows('UPDATE ordrelinjer SET vare_id = 0, varenr = $1 WHERE id = $2', [$item['varenr'], $origLine]);
+        $this->assertTrue($this->service('left', [$invoice['id']])['left'], 'the invoice page finds the item, so Kredit copies the line');
+
+        $first = $this->credit($origLine, $item, -2, 100.00, 'antal');
+        self::rows('UPDATE ordrer SET status = 3 WHERE id = $1', [$first['id']]);
+        $this->assertFalse($this->service('left', [$invoice['id']])['left']);
+
+        $second = $this->credit($origLine, $item, -2, 100.00, 'antal');
+        $this->service('hold', [$second['id']]);
+        $this->assertEqualsWithDelta(0.0, (float)self::lineOf($second['id'])['antal'], 0.001, 'nothing is left, so it cannot be credited twice');
     }
 }
