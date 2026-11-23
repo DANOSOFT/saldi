@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/storeOrders.php --- ver 5.1.0 --- 2026.11.19
+// --- includes/shopify/services/storeOrders.php --- ver 5.1.1 --- 2026.11.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,7 @@
 //
 // 20261112 CL/SS SD-804: created (WP13-2).
 // 20261118 CL/SS SD-804: the date key is Delivery Date, and pickup and delivery orders carry Leveringstype (DTAILS).
-// 20261119 CL/LH SD-804: the delivery date is formatted YYYY-MM-DD by the database, whatever the session's DateStyle.
+// 20261123 CL/LH SD-804: the delivery date is formatted YYYY-MM-DD by the database, whatever the session's DateStyle.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
