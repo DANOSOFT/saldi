@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- signup/aktiver.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- signup/aktiver.php --- ver 5.1.1 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,7 @@
 //                After an activation the internal new-customer mail goes to notify_email once the page has been sent.
 //                Review: an expired or replaced link of such a mailbox shows the reason too, not "Send et nyt link".
 // 20261119 CL/PS The refusal page also points bookkeepers and accountants to the bookkeeper scheme ($urls['revisor']).
+// 20261123 CL/PS After an activation account_activated goes to Google Analytics from the server (signup_track_activation()), with the website's consent.
 
 chdir(__DIR__);
 include(__DIR__ . "/../includes/signupIncludes/signupBootstrap.php");
@@ -157,10 +158,13 @@ if ($method === 'POST') {
 		$result = signup_activate($row, $name, $password);
 		if ($result['ok']) {
 			signup_create_billing_order($row, $result['regnskab'], $result['trial_end']);
-			// "Ny kunde i Saldi" to notify_email, after the page below has gone out: a slow or failing mail must not
+			// "Ny kunde i Saldi" to notify_email, and account_activated to Google Analytics (only with the visitor's
+			// statistics consent from saldi.dk), after the page below has gone out: a slow or failing mail must not
 			// hold up or break the customer's login.
-			signup_after_response(function () use ($row, $result) {
+			$cookies = $_COOKIE;
+			signup_after_response(function () use ($row, $result, $cookies) {
 				signup_send_notify_mail($row, $result);
+				signup_track_activation($row, $cookies);
 			});
 			signup_activated_page($row, $result, $password, $urls);
 		}

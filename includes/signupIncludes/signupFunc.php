@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/signupIncludes/signupFunc.php --- ver 5.1.1 --- 2026-11-20 ---
+// --- includes/signupIncludes/signupFunc.php --- ver 5.1.1 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,6 +69,8 @@
 // 20261119 CL/PS signup_mailbox_message() sends bookkeepers and accountants to the bookkeeper scheme (revisor_url, default <landing_url>/revisor/).
 // 20261120 CL/PS Where a signup came from: signup_kilde() cleans the form's utm_*, Google Ads click ids, referrer and landing page, and signup_create_pending() stores them once their columns exist.
 //                signup_kilde_text() sums them up in one line for the new-customer mail.
+// 20261123 CL/PS signup_track_activation() sends account_activated to GA4 from the server (Measurement Protocol, ga_id + ga_api_secret), only with the
+//                visitor's statistics consent from the website's saldi_consent cookie; the activation page itself loads no tracking script.
 
 /** @var string $sqhost  from includes/connect.php */
 /** @var string $squser  from includes/connect.php */
@@ -159,6 +161,7 @@ if (!function_exists('signup_setting')) {
 	 *   support_phone, support_email
 	 *   cooldown_months (3): how long a mailbox waits for a new trial after its account closed (0 = no wait)
 	 *   notify_email (info@saldi.dk): internal "Ny kunde i Saldi" mail after an activation; comma-separated, 'off' = none
+	 *   ga_id, ga_api_secret ('' = off): GA4 Measurement ID and Measurement Protocol API secret for account_activated
 	 *
 	 * @param string $name    key as listed above
 	 * @param string $default returned when neither the environment nor the table has a value
@@ -1783,6 +1786,126 @@ if (!function_exists('signup_create_billing_order')) {
 			return false;
 		}
 		signup_log("billing order $orderId created for regnskab $regnskab");
+		return true;
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// Measurement (doc/signup.md, "Measurement") - account_activated to Google Analytics, best effort
+// ---------------------------------------------------------------------------------------------
+
+if (!function_exists('signup_consent_cookie')) {
+	/**
+	 * The visitor's cookie choice on the website, from the saldi_consent cookie its consent.js sets on the parent domain
+	 * (domain=saldi.dk, so the browser sends it here too): "<version>.<time in ms>.<statistics 0/1>.<marketing 0/1>".
+	 * Another version, a choice older than 12 months or one from the future counts as no choice.
+	 *
+	 * @param string   $raw the cookie value
+	 * @param int|null $now timestamp (default: now)
+	 * @return array{statistik: bool, marketing: bool}|null null = no valid choice
+	 */
+	function signup_consent_cookie($raw, $now = null) {
+		if (!preg_match('/^1\.(\d{10,14})\.([01])\.([01])\z/', (string)$raw, $m)) {
+			return null;
+		}
+		$now = ($now === null) ? time() : (int)$now;
+		$age = $now - intdiv((int)$m[1], 1000);
+		if ($age < -86400 || $age > 365 * 86400) {
+			return null;
+		}
+		return array('statistik' => ($m[2] === '1'), 'marketing' => ($m[3] === '1'));
+	}
+}
+
+if (!function_exists('signup_ga_ids')) {
+	/**
+	 * Google Analytics' ids for the visitor, from the cookies GA4 sets on the website's parent domain:
+	 * _ga = "GA1.1.<client id>", _ga_<stream> = "GS1.1.<session id>.<n>…" or "GS2.1.s<session id>$o<n>…".
+	 *
+	 * @param array  $cookies $_COOKIE
+	 * @param string $gaId    Measurement ID, e.g. G-XC59W34F3B
+	 * @return array{client_id: string, session_id: string} '' where the cookie is missing or not of that form
+	 */
+	function signup_ga_ids(array $cookies, $gaId) {
+		$client = '';
+		if (preg_match('/^GA\d\.\d+\.(\d{1,20}\.\d{1,20})\z/', (string)ifset($cookies, '_ga', ''), $m)) {
+			$client = $m[1];
+		}
+		$session = '';
+		$stream = (string)ifset($cookies, '_ga_' . preg_replace('/^G-/', '', (string)$gaId), '');
+		if (preg_match('/^GS1\.\d+\.(\d{1,20})\./', $stream, $m) || preg_match('/^GS2\.\d+\.s(\d{1,20})(\$|\z)/', $stream, $m)) {
+			$session = $m[1];
+		}
+		return array('client_id' => $client, 'session_id' => $session);
+	}
+}
+
+if (!function_exists('signup_ga_activation_payload')) {
+	/**
+	 * The GA4 Measurement Protocol body for account_activated, or null when it may not or cannot be sent: the visitor
+	 * has not allowed statistics on the website, or has no GA cookie (e.g. the link was opened in another browser).
+	 * Only the package goes along, never name, e-mail, CVR number or account name. Google Ads may use the event
+	 * (ad_user_data) only with marketing consent.
+	 *
+	 * @param array|null $consent from signup_consent_cookie()
+	 * @param array      $ids     from signup_ga_ids()
+	 * @param string     $pakke   'finans' | 'professionel' | 'business'
+	 * @return array|null
+	 */
+	function signup_ga_activation_payload($consent, array $ids, $pakke) {
+		if (!$consent || !$consent['statistik'] || $ids['client_id'] === '') {
+			return null;
+		}
+		$params = array('pakke' => (string)$pakke, 'engagement_time_msec' => 1);
+		if ($ids['session_id'] !== '') {
+			$params['session_id'] = $ids['session_id'];
+		}
+		$ads = $consent['marketing'] ? 'GRANTED' : 'DENIED';
+		return array(
+			'client_id' => $ids['client_id'],
+			'consent' => array('ad_user_data' => $ads, 'ad_personalization' => $ads),
+			'events' => array(array('name' => 'account_activated', 'params' => $params)),
+		);
+	}
+}
+
+if (!function_exists('signup_track_activation')) {
+	/**
+	 * Sends account_activated for a new account to GA4 (Measurement Protocol, EU endpoint), so the website's signup
+	 * funnel ends at a real account and the event can be a key event / Google Ads conversion. The activation page loads
+	 * no tracking script (it holds the new password); the server does it once the page has gone out. Off until ga_id
+	 * and ga_api_secret are set. Run it through signup_after_response(); a failure is only logged.
+	 *
+	 * @param array $row     signup_pending row
+	 * @param array $cookies $_COOKIE of the activation request
+	 * @return bool sent
+	 */
+	function signup_track_activation(array $row, array $cookies) {
+		$gaId = trim(signup_setting('ga_id', ''));
+		$secret = trim(signup_setting('ga_api_secret', ''));
+		if (!preg_match('/^G-[A-Z0-9]{4,20}$/', $gaId) || $secret === '' || !function_exists('curl_init')) {
+			return false;
+		}
+		$payload = signup_ga_activation_payload(signup_consent_cookie(ifset($cookies, 'saldi_consent', '')), signup_ga_ids($cookies, $gaId), ifset($row, 'pakke', ''));
+		if (!$payload) {
+			return false;
+		}
+		$ch = curl_init('https://region1.google-analytics.com/mp/collect?measurement_id=' . rawurlencode($gaId) . '&api_secret=' . rawurlencode($secret));
+		curl_setopt_array($ch, array(
+			CURLOPT_POST => true,
+			CURLOPT_POSTFIELDS => json_encode($payload),
+			CURLOPT_HTTPHEADER => array('Content-Type: application/json'),
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_TIMEOUT => 5,
+		));
+		curl_exec($ch);
+		$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		$err = curl_error($ch);
+		curl_close($ch);
+		if ($code < 200 || $code >= 300) {
+			signup_log("account_activated to GA4 failed (http $code $err)");
+			return false;
+		}
 		return true;
 	}
 }

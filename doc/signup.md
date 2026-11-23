@@ -80,6 +80,7 @@ mail transport also reads the docker stack's `SMTP_HOST`, `SMTP_PORT`, `SMTP_USE
 | `support_phone`, `support_email` | `46 90 22 08`, `info@saldi.dk` | Shown in mails and pages (also in the e-mail rules' messages). |
 | `cooldown_months` | 3 | Calendar months a mailbox waits for a new trial after its last signup account closed (see "One e-mail, one account"). `0` = no wait. |
 | `notify_email` | `info@saldi.dk` | Who gets the internal "Ny kunde i Saldi" mail after each activation. Several addresses separated by commas; `off` sends none. An empty value means the default, as for every setting here (an empty row or variable is read as "not set"). |
+| `ga_id`, `ga_api_secret` | - | GA4 Measurement ID (e.g. `G-XC59W34F3B`, the website's) and a Measurement Protocol API secret (GA4: Admin → Data streams → the stream → Measurement Protocol API secrets). Both set = `account_activated` is sent after an activation (see "Measurement"); empty = off. |
 
 ## Mail delivery: set it up through Resend (TODO before go-live)
 
@@ -167,6 +168,28 @@ FROM signup_pending p LEFT JOIN regnskab r ON r.id = p.regnskab_id
 WHERE p.status = 'activated' AND p.created >= '2026-12-01'
 ORDER BY p.created;
 ```
+
+## Measurement: account_activated
+
+The website measures the signup up to `signup_mail_sent` (the form was accepted and the mail sent). Whether the
+customer then activates happens here, so after an activation `signup_track_activation()` sends `account_activated`
+with the package to Google Analytics 4 (Measurement Protocol, EU endpoint `region1.google-analytics.com`). It runs in
+`signup_after_response()`, after the page has gone out, and a failure is only logged (`signup:` prefix).
+
+- **No script on the page.** The activation pages load no tracking script: "Regnskabet er klar" holds the new
+  password for the automatic login, and their CSP allows only their own scripts.
+- **Consent from the website.** saldi.dk's `consent.js` keeps the visitor's cookie choice in the cookie
+  `saldi_consent` on `domain=saldi.dk` (`1.<time in ms>.<statistics 0/1>.<marketing 0/1>`, 12 months), so the browser
+  sends it to ssl3.saldi.dk as well. Without statistics consent nothing is sent. Google Ads may use the event
+  (`ad_user_data`, `ad_personalization`) only with marketing consent.
+- **Same visitor.** GA4's own cookies on `.saldi.dk` give the client id (`_ga`) and the session (`_ga_<stream>`), so
+  the event joins the visit that signed up and keeps its source (campaign, Google Ads click). A link opened in
+  another browser has no `_ga` cookie, and nothing is sent.
+- Only the package is sent: never name, e-mail, CVR number or account name.
+
+In GA4, mark `account_activated` as a key event. To optimise Google Ads campaigns on real accounts, import that key
+event into Google Ads (GA4 and Google Ads linked) as the primary conversion, instead of the website's
+`signup_mail_sent`.
 
 ## One e-mail, one account
 
@@ -284,3 +307,4 @@ tested).
 <!-- 20261109 CL/PS Review: closing date from a customer's deletion, stuck activations, MySQL lock, nytlink, limits before the answer, mail after the response. -->
 <!-- 20261119 CL/PS A refused mailbox is also pointed to the bookkeeper scheme (revisor_url); why bookkeepers get no exception. -->
 <!-- 20261120 CL/PS Kilde: utm_*, Google Ads click ids, referrer and landing page stored with the signup, shown in the new-customer mail. -->
+<!-- 20261123 CL/PS Measurement: account_activated to GA4 from the server (ga_id, ga_api_secret), with the website's consent cookie. -->
