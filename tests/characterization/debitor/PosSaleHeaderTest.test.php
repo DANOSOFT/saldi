@@ -8,7 +8,7 @@
 // Everything else runs for real against sqlite. The functions live in files that are include()d
 // into a page, so they are lifted and evaluated into this namespace; eval() does not inherit the
 // caller's namespace, so it is restated.
-// 20261118 CL/MJ SD-830 The brand's wiring test follows the field to the till settings (pos.tills), since master retired the PoS-valg page.
+// 20261123 CL/MJ SD-830 The brand's wiring test follows the field to the till settings (pos.tills), since master retired the PoS-valg page, and is no longer skipped.
 
 namespace Saldi\Tests\PosSaleHeader;
 
