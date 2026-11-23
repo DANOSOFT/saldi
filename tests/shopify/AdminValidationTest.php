@@ -7,6 +7,7 @@
 // History:
 // 20261102 CL/MJ SD-761: created.
 // 20261103 CL/MJ SD-761 review: one shop per legacy slot; a display lager belongs to a sellable lager.
+// 20261123 CL/MJ SD-865: the lager-to-location mapping.
 
 use PHPUnit\Framework\TestCase;
 
@@ -124,5 +125,40 @@ final class AdminValidationTest extends TestCase
         $this->assertSame('&lt;script&gt;alert(&#039;x&#039;)&lt;/script&gt; &amp; &quot;', shopify_admin_h("<script>alert('x')</script> & \""));
         $this->assertSame('', shopify_admin_h(null));
         $this->assertSame('Havemøbelland', shopify_admin_h('Havemøbelland'), 'UTF-8 text is kept, not entity-encoded');
+    }
+
+    private const LOC_A = 'gid://shopify/Location/101';
+    private const LOC_B = 'gid://shopify/Location/102';
+    private const LOC_C = 'gid://shopify/Location/103';
+
+    public function testAnUnmappedLagerGetsAFetchedFreeLocation(): void
+    {
+        $errors = shopify_admin_validate_locations([1 => self::LOC_A, 2 => self::LOC_B, 3 => ''], [], [self::LOC_A, self::LOC_B, self::LOC_C]);
+        $this->assertSame([], $errors);
+    }
+
+    public function testAMappedLagerKeepsItsLocationButCannotMoveHere(): void
+    {
+        $fetched = [self::LOC_A, self::LOC_B];
+        $this->assertSame([], shopify_admin_validate_locations([1 => self::LOC_A], [1 => self::LOC_A], $fetched), 'the same location is no change');
+        $errors = shopify_admin_validate_locations([1 => self::LOC_B], [1 => self::LOC_A], $fetched);
+        $this->assertSame([1], array_keys($errors));
+        $this->assertStringStartsWith('shopify.admin.mapping.error.remap|', $errors[1], 'a move goes through remap, which zeroes the old location first');
+    }
+
+    public function testALocationServesOneLagerOnly(): void
+    {
+        $fetched = [self::LOC_A, self::LOC_B];
+        $taken = shopify_admin_validate_locations([2 => self::LOC_A], [1 => self::LOC_A], $fetched);
+        $this->assertStringStartsWith('shopify.admin.mapping.error.taken|', $taken[2], 'taken by a mapped lager');
+        $twice = shopify_admin_validate_locations([1 => self::LOC_B, 2 => self::LOC_B], [], $fetched);
+        $this->assertSame([2], array_keys($twice), 'two lagre picking the same location in one save');
+    }
+
+    public function testOnlyAFetchedLocationIsAccepted(): void
+    {
+        $errors = shopify_admin_validate_locations([1 => 'gid://shopify/Location/999', 2 => '<script>'], [], [self::LOC_A]);
+        $this->assertSame([1, 2], array_keys($errors));
+        $this->assertStringStartsWith('shopify.admin.mapping.error.unknown|', $errors[1]);
     }
 }

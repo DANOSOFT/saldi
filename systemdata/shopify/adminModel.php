@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/shopify/adminModel.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- systemdata/shopify/adminModel.php --- ver 5.1.0 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // adapter, except shopify_admin_menu_visible(), which the Systemdata menus call on any tenant.
 //
 // 20261102 CL/MJ SD-761: created.
+// 20261123 CL/MJ SD-865: the lager-to-location mapping of a shop.
 
 /**
  * Whether the Systemdata menus show the Shopify entry: only on a PostgreSQL tenant that has a
@@ -95,4 +96,17 @@ function shopify_admin_varenr(?string $vareId): string {
 /** Whether a secret of a shop is stored. The value itself is never read here. */
 function shopify_admin_secret_set(string $shopKey, string $name): bool {
 	return (bool)shopify_db_rows("SELECT 1 FROM settings WHERE var_grp = $1 AND var_name = $2 AND coalesce(var_value, '') <> '' LIMIT 1", array("shopify:$shopKey", $name));
+}
+
+/**
+ * The lager-to-location mapping of a shop.
+ *
+ * @return array<int, string> lager => location GID
+ */
+function shopify_admin_location_map(int $shopId): array {
+	$map = array();
+	foreach (shopify_db_rows('SELECT lager, location_gid FROM shopify_location_map WHERE shop_id = $1 ORDER BY lager', array($shopId)) as $row) {
+		$map[(int)$row['lager']] = (string)$row['location_gid'];
+	}
+	return $map;
 }

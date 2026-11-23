@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/shopify/adminValidation.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- systemdata/shopify/adminValidation.php --- ver 5.1.0 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 //
 // 20261102 CL/MJ SD-761: created.
 // 20261103 CL/MJ SD-761 review: one shop per legacy slot; a display lager belongs to a sellable lager.
+// 20261123 CL/MJ SD-865: the lager-to-location mapping of a shop.
 
 /**
  * Problems with a posted shop, keyed by form field; empty when it can be saved.
@@ -100,6 +101,37 @@ function shopify_admin_validate_lagre(array $roles): array {
 			if (!preg_match('/^[0-9]{1,9}$/', $shows) || ($roles[(int)$shows]['rolle'] ?? '') !== 'saelgbar') {
 				$errors["$lager.udstilling_af"] = 'shopify.admin.error.udstilling_af|Vælg det salgbare lager, udstillingen hører til.';
 			}
+		}
+	}
+	return $errors;
+}
+
+/**
+ * Problems with the posted lager-to-location choices of one shop, keyed by lager; empty when they can
+ * be saved. Only a lager without a location gets one here: moving or removing a mapping has to zero
+ * the old location's stock first (shopify_stock_remap()), which the worker's remap command does. A
+ * location has to be one of the shop's fetched locations and serves one lager only (K04).
+ *
+ * @param array<int, string> $chosen lager => posted location GID, '' for none
+ * @param array<int, string> $mapped lager => the location GID it maps to today
+ * @param list<string> $fetched the GIDs of the shop's fetched locations
+ * @return array<int, string> lager => findtekst token
+ */
+function shopify_admin_validate_locations(array $chosen, array $mapped, array $fetched): array {
+	$errors = array();
+	$taken = array_flip($mapped);
+	foreach ($chosen as $lager => $gid) {
+		if ($gid === '' || ($mapped[$lager] ?? null) === $gid) {
+			continue;
+		}
+		if (isset($mapped[$lager])) {
+			$errors[$lager] = 'shopify.admin.mapping.error.remap|En lokation skiftes med worker-kommandoen remap, så lageret i den gamle lokation nulstilles først.';
+		} elseif (!in_array($gid, $fetched, true)) {
+			$errors[$lager] = 'shopify.admin.mapping.error.unknown|Lokationen findes ikke i shoppen. Hent lokationer igen.';
+		} elseif (isset($taken[$gid])) {
+			$errors[$lager] = 'shopify.admin.mapping.error.taken|Lokationen bruges allerede af et andet lager.';
+		} else {
+			$taken[$gid] = $lager;
 		}
 	}
 	return $errors;
