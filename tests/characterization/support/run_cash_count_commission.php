@@ -6,6 +6,8 @@
 //                The cash count commission settlement must post both sides, settle each sale once and build its own payment list.
 //                It runs the real include against an isolated schema in the database named by SALDI_COMMISSION_DSN (set by the test).
 //                It prints one "PASS: <label>" per check, and "FAIL: <label>" plus exit 1 on the first failure.
+// 20261120 CL/SZ MB-175 The last two checks settle a fixed day instead of today.
+//                On 2026-11-20 today matched the unsettled order 10, so the settlement stopped and the test failed.
 
 error_reporting(E_ALL);
 set_error_handler(function($severity, $message, $file, $line) {
@@ -258,22 +260,27 @@ try {
 		&& $journal[2]['varenr'] === 'kb1001004' && $journal[2]['kostpris'] == 15,
 		'The journal settlement leaves out only the lines settled at the cash count');
 
+	// A fixed day after every fixture order and journal period above; today's date could match one of them.
+	$day = '2026-12-15';
+	$dayDk = '15-12-2026';
+	$daySpaced = '15 12 2026';
+
 	// A hand-made journal post whose period isn't a date.
 	$alerts = array();
 	pg_query($connection, "INSERT INTO openpost (konto_id,konto_nr,amount,beskrivelse,transdate,kladde_id) VALUES (11,'1001',-10,'Afr: 1001 uge 40 - 41','2026-11-08',9)");
-	pg_query($connection, "INSERT INTO ordrer VALUES (13,'PO',3,'1','" . date('Y-m-d') . "',0)");
+	pg_query($connection, "INSERT INTO ordrer VALUES (13,'PO',3,'1','$day',0)");
 	pg_query($connection, "INSERT INTO pos_betalinger VALUES (13,'Kontant')");
 	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (13,1,'kb1001001',1,10,5)");
-	settle(date('d-m-Y'), date('d-m-Y'), 'on', '');
+	settle($dayDk, $dayDk, 'on', '');
 	check(!$alerts && value('SELECT settletime FROM ordrer WHERE id = 13') !== '0', "A journal post whose period isn't a date doesn't block the settlement");
 
 	// A journal settlement typed with spaces in its dates.
-	pg_query($connection, "INSERT INTO openpost (konto_id,konto_nr,amount,beskrivelse,transdate,kladde_id) VALUES (12,'1002',-6,'Afr: 1002 " . date('d m Y') . " - " . date('d m Y') . " (40%)','2026-11-08',10)");
-	pg_query($connection, "INSERT INTO ordrer VALUES (14,'PO',3,'1','" . date('Y-m-d') . "',0)");
+	pg_query($connection, "INSERT INTO openpost (konto_id,konto_nr,amount,beskrivelse,transdate,kladde_id) VALUES (12,'1002',-6,'Afr: 1002 $daySpaced - $daySpaced (40%)','2026-11-08',10)");
+	pg_query($connection, "INSERT INTO ordrer VALUES (14,'PO',3,'1','$day',0)");
 	pg_query($connection, "INSERT INTO pos_betalinger VALUES (14,'Kontant')");
 	pg_query($connection, "INSERT INTO ordrelinjer (ordre_id,vare_id,varenr,antal,pris,kostpris) VALUES (14,2,'kb1001002',1,10,5)");
-	settle(date('d-m-Y'), date('d-m-Y'), 'on', '');
-	check(count($alerts) === 1 && strpos($alerts[0], date('d-m-Y')) !== false && value('SELECT settletime FROM ordrer WHERE id = 14') === '0',
+	settle($dayDk, $dayDk, 'on', '');
+	check(count($alerts) === 1 && strpos($alerts[0], $dayDk) !== false && value('SELECT settletime FROM ordrer WHERE id = 14') === '0',
 		'A journal settlement with spaces in its dates still blocks its period');
 } finally {
 	pg_query($connection, "DROP SCHEMA IF EXISTS $schema CASCADE");
