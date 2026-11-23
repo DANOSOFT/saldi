@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- signup/rydop.php --- ver 5.1.1 --- 2026-11-18 ---
+// --- signup/rydop.php --- ver 5.1.1 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,7 @@
 // 20261014 CL/PS Created.
 // 20261102 CL/ASR Header: activated rows keep their token hash.
 // 20261109 CL/PS Marks signups stuck in 'activating' for more than an hour as 'failed' (the build died), and names them.
+// 20261123 CL/PS Marks only the stuck attempt it read, and says 'marked failed' only when the row reads back as failed.
 
 if (php_sapi_name() !== 'cli') {
 	http_response_code(404);
@@ -55,16 +56,26 @@ $count = function ($qtxt) {
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true));
 	return (int)ifset($r, 'n', 0);
 };
-$q = db_select("SELECT id, regnskab FROM signup_pending WHERE status = 'activating' AND " . $older('activated', 1, 'HOUR'), __FILE__ . " linje " . __LINE__, true);
+$q = db_select("SELECT id, regnskab, activated FROM signup_pending WHERE status = 'activating' AND " . $older('activated', 1, 'HOUR'), __FILE__ . " linje " . __LINE__, true);
 $stuck = array();
 while ($r = db_fetch_array($q)) {
 	$stuck[] = $r;
 }
 foreach ($stuck as $r) {
-	$qtxt = "UPDATE signup_pending SET status = 'failed', fejl = " . signup_q(date('Y-m-d H:i:s') . ' build never finished') . " WHERE id = " . (int)$r['id'] . " AND status = 'activating'";
+	$id = (int)$r['id'];
+	$fejl = date('Y-m-d H:i:s') . ' build never finished';
+	// only the attempt read above: a new attempt on the same signup has a new activated time
+	$qtxt = "UPDATE signup_pending SET status = 'failed', fejl = " . signup_q($fejl) . " WHERE id = $id AND status = 'activating' AND activated = " . signup_q($r['activated']);
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
-	echo date('Y-m-d H:i:s') . " signup " . (int)$r['id'] . " was still being activated after an hour; marked failed. Check regnskab '" . $r['regnskab'] . "' and its database\n";
-	signup_log('signup ' . (int)$r['id'] . ' was still being activated after an hour; marked failed');
+	// db_modify() does not stop on an error in webservice mode and reports no rows changed: read the row back
+	$now = db_fetch_array(db_select("SELECT status, fejl FROM signup_pending WHERE id = $id", __FILE__ . " linje " . __LINE__, true));
+	if (ifset($now, 'status', '') === 'failed' && ifset($now, 'fejl', '') === $fejl) {
+		$msg = "signup $id was still being activated after an hour; marked failed. Check regnskab '" . $r['regnskab'] . "' and its database";
+	} else {
+		$msg = "signup $id was still being activated after an hour, but was not marked failed (status now '" . ifset($now, 'status', 'gone') . "')";
+	}
+	echo date('Y-m-d H:i:s') . " $msg\n";
+	signup_log($msg);
 }
 $pending = $count("SELECT count(*) AS n FROM signup_pending WHERE status IN ('pending','failed') AND " . $older('created', $days, 'DAY'));
 db_modify("DELETE FROM signup_pending WHERE status IN ('pending','failed') AND " . $older('created', $days, 'DAY'), __FILE__ . " linje " . __LINE__, true);

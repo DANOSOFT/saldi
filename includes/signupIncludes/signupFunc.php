@@ -63,14 +63,14 @@
 // 20261109 CL/PS One e-mail, one account: signup_mailbox_rule() refuses a mailbox that already has a signup account, or whose trial closed less than cooldown_months (3) ago.
 //                signup_activate() asks again under its lock and returns error 'mailbox'; its result also carries lukkes and the activation time.
 //                signup_after_response() runs best-effort work (the new-customer mail) after the page has gone to the browser.
-//                Review: a customer's own deletion counts from its logintekst date; an activation older than 30 minutes is no account;
-//                cooldown_months 0 refuses nothing; MySQL serializes the reserve step with GET_LOCK; outside PHP-FPM the page is
-//                sent with its length before the task runs.
+//                Review: a customer's own deletion counts from its logintekst date; an activation older than 30 minutes is no account; cooldown_months 0 refuses nothing.
+//                MySQL serializes the reserve step with GET_LOCK; outside PHP-FPM the page is sent with its length before the task runs.
 // 20261119 CL/PS signup_mailbox_message() sends bookkeepers and accountants to the bookkeeper scheme (revisor_url, default <landing_url>/revisor/).
 // 20261120 CL/PS Where a signup came from: signup_kilde() cleans the form's utm_*, Google Ads click ids, referrer and landing page, and signup_create_pending() stores them once their columns exist.
 //                signup_kilde_text() sums them up in one line for the new-customer mail.
-// 20261123 CL/PS signup_track_activation() sends account_activated to GA4 from the server (Measurement Protocol, ga_id + ga_api_secret), only with the
-//                visitor's statistics consent from the website's saldi_consent cookie; the activation page itself loads no tracking script.
+// 20261123 CL/PS signup_track_activation() sends account_activated to GA4 from the server (Measurement Protocol, ga_id + ga_api_secret), only with the visitor's statistics consent from the website's saldi_consent cookie.
+//                The activation page itself loads no tracking script.
+//                signup_email_sql_match() finds an address whose name is only a +tag (e.g. +trial@firma.dk) among all addresses of its domain.
 
 /** @var string $sqhost  from includes/connect.php */
 /** @var string $squser  from includes/connect.php */
@@ -1345,14 +1345,18 @@ if (!function_exists('signup_email_sql_match')) {
 		$local = ($at === false) ? '' : substr($key, 0, $at);
 		$domain = ($at === false) ? '' : substr($key, $at + 1);
 		// signup_valid_email() allows only these characters in a domain, so it needs no LIKE escaping
-		if ($local === '' || !preg_match('/^[a-z0-9-]+(\.[a-z0-9-]+)+$/', $domain)) {
+		if (!preg_match('/^[a-z0-9-]+(\.[a-z0-9-]+)+$/', $domain)) {
 			return "lower($column) = " . $quote($key);
 		}
-		$len = mb_strlen($local);
-		if ($domain === 'gmail.com') {
-			return "(lower($column) LIKE '%@gmail.com' OR lower($column) LIKE '%@googlemail.com') AND substr(replace(lower($column), '.', ''), 1, $len) = " . $quote($local);
+		$gmail = ($domain === 'gmail.com');
+		$where = $gmail ? "(lower($column) LIKE '%@gmail.com' OR lower($column) LIKE '%@googlemail.com')" : "lower($column) LIKE " . $quote('%@' . $domain);
+		// '+trial@firma.dk' has an empty name ('@firma.dk'): every address of the domain, and the caller's comparison keeps the right ones
+		if ($local === '') {
+			return $where;
 		}
-		return "lower($column) LIKE " . $quote('%@' . $domain) . " AND substr(lower($column), 1, $len) = " . $quote($local);
+		$len = mb_strlen($local);
+		$name = $gmail ? "replace(lower($column), '.', '')" : "lower($column)";
+		return "$where AND substr($name, 1, $len) = " . $quote($local);
 	}
 }
 

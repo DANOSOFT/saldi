@@ -163,7 +163,7 @@ Trials per channel, and which of them are still open (a customer who chose a sub
 
 ```sql
 SELECT p.created, p.firmanavn, p.pakke, p.utm_source, p.utm_medium, p.utm_campaign, p.referrer, p.landing,
-       p.gclid <> '' AS google_ads_klik, r.trial_end, r.lukkes, r.lukket
+       (COALESCE(p.gclid, '') <> '' OR COALESCE(p.gbraid, '') <> '' OR COALESCE(p.wbraid, '') <> '') AS google_ads_klik, r.trial_end, r.lukkes, r.lukket
 FROM signup_pending p LEFT JOIN regnskab r ON r.id = p.regnskab_id
 WHERE p.status = 'activated' AND p.created >= '2026-12-01'
 ORDER BY p.created;
@@ -183,13 +183,19 @@ with the package to Google Analytics 4 (Measurement Protocol, EU endpoint `regio
   sends it to ssl3.saldi.dk as well. Without statistics consent nothing is sent. Google Ads may use the event
   (`ad_user_data`, `ad_personalization`) only with marketing consent.
 - **Same visitor.** GA4's own cookies on `.saldi.dk` give the client id (`_ga`) and the session (`_ga_<stream>`), so
-  the event joins the visit that signed up and keeps its source (campaign, Google Ads click). A link opened in
-  another browser has no `_ga` cookie, and nothing is sent.
+  the event joins the visitor who signed up. A link opened in another browser has no `_ga` cookie, and nothing is
+  sent.
+- **Session source only within 24 hours.** GA4 credits a Measurement Protocol event to the stored session (and its
+  campaign or Google Ads click) only when it arrives within 24 hours of that session's start and its time falls
+  inside the session. A customer who activates later, e.g. two days after signing up, still counts as the same user,
+  but the event may not carry the signup visit's source. The event keeps the real activation time; it is never
+  backdated to fit the session.
 - Only the package is sent: never name, e-mail, CVR number or account name.
 
 In GA4, mark `account_activated` as a key event. To optimise Google Ads campaigns on real accounts, import that key
 event into Google Ads (GA4 and Google Ads linked) as the primary conversion, instead of the website's
-`signup_mail_sent`.
+`signup_mail_sent`. An activation more than 24 hours after the visit may reach Google Ads without its click (see
+above); for those, the stored click id (`gclid`, `gbraid`, `wbraid`) can be uploaded as an offline conversion.
 
 ## One e-mail, one account
 

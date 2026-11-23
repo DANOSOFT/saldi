@@ -258,6 +258,9 @@ final class signupMailboxRules extends TestCase
         self::assertSame("lower(email) LIKE '%@firma.dk' AND substr(lower(email), 1, 5) = 'o''nei'", signup_email_sql_match('email', "o'nei@firma.dk", $quote));
         self::assertSame("lower(email) = 'a@b''c.dk'", signup_email_sql_match('email', "a@b'c.dk", $quote));
         self::assertSame("lower(email) = 'nonsense'", signup_email_sql_match('email', 'nonsense', $quote));
+        // a name that is only a +tag: every address of the domain, so a stored '+trial@firma.dk' is found
+        self::assertSame("lower(email) LIKE '%@firma.dk'", signup_email_sql_match('email', '+trial@firma.dk', $quote));
+        self::assertSame("(lower(email) LIKE '%@gmail.com' OR lower(email) LIKE '%@googlemail.com')", signup_email_sql_match('email', '+x@gmail.com', $quote));
     }
 
     public function testOnlyRowsOfTheSameMailboxCount(): void
