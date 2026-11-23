@@ -109,10 +109,9 @@
 //                 (review 2) Every id the creation body accepts is locked, negative ids included (the body refuses only 0 and non-numbers).
 //                 The order number is taken and the order inserted in one transaction, and the new order's id is read inside it, so two orders no longer share a number or an id.
 //                 Before, both calls passed the duplicate check, got the same ordrenr and the same id, the lines were added twice to one order, and the race check could delete the order that had the lines.
-//
-//
-// ----------------------------------------------------------------------
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
+
+
 date_default_timezone_set('Europe/Copenhagen');
 
 include("../includes/connect.php");
