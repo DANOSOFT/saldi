@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/indkøb.php --- ver 5.1.0 --- 2026.11.03 ---
+// ---- lager/lister/indkøb.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,9 +32,12 @@
 //                  on a created order, and MEDSHOP read that as a failure and ordered again.
 // 20261103 CL/MJ The Indkoebsordre hover box dates its orders by the expected delivery date (ordrer.levdate) instead of the order date, as in ordrestatus.php.
 //                An order without a delivery date is still listed, with a dash for the date.
-
+// 20261103 CL/ASR $modulnr 9 (Lager) declared, so the purchase list follows the stock right; nothing else changed here.
+// 20261103 CL/ASR QA round 2: Bestil checks each answer from orderapi.php, so a refused order shows the refusal and no longer reports Bestillinger oprettet.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
+$modulnr = 9;
 
 $css = "../../css/standard.css?v=20";
 
@@ -139,7 +142,15 @@ $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
         });
 
         try {
-            await Promise.all(promises);
+            const responses = await Promise.all(promises);
+            // A refused or failed order (HTTP 403 with a JSON message, or any other error status) is not a success.
+            const failed = responses.find(r => !r.ok);
+            if (failed) {
+                let message = '';
+                try { message = (await failed.json()).message || ''; } catch (e) {}
+                if (message) alert(message);
+                throw new Error('HTTP ' + failed.status);
+            }
         } catch (error) {
             console.error('Error processing orders:', error);
             throw error;

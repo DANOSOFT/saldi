@@ -22,6 +22,8 @@
 // History:
 // 20261027 CL/LH PR #450: created.
 // 20261030 CDX/NTR Merge layout assertions with the six aging columns, sticky action bar and translated PBS toggle.
+// 20261111 CDX/NTR Isolate the test class database and session.
+// 20261123 CDX/NTR Port the reviewed test fixture repairs to hml/shopify.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -94,7 +96,7 @@ final class OpenPostReportLayoutTest extends CharacterizationTestCase
     {
         $res = self::runChild(
             'run_openpost_report.php',
-            [CharacterizationEnv::SESSION_ID, json_encode(['get' => (object)$get, 'post' => (object)$post])]
+            [CharacterizationEnv::sessionId(), json_encode(['get' => (object)$get, 'post' => (object)$post])]
         );
         return $res['stdout'];
     }

@@ -9,6 +9,8 @@
 //
 // History:
 // 20260904 CL/NTR created.
+// 20261111 CDX/NTR Give each REST class its own fresh database.
+// 20261123 CDX/NTR Port the reviewed test fixture repairs to hml/shopify.
 
 use PHPUnit\Framework\TestCase;
 
@@ -25,7 +27,7 @@ final class OrderLinesEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     public static function tearDownAfterClass(): void

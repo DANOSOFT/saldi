@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
-
+//
+//
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -157,6 +157,8 @@
 // 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
 // 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery
 //                records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
+// 20261008 SS The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
+// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
 // 20261102 CL/SS SD-789 Core edit 3: opret_ordrelinje() $fixed_price stores the price and discount as given: no tier price,
 //                special or offer price, customer or quantity discount. Core edit 2: opret_saet() $lager_plan draws each
 //                component from the lagre the plan gives (validate_saet_lager_plan()). Default callers are unchanged.
@@ -168,9 +170,16 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
+// 20261118 CL/SS SD-833 linjeopdat(): a credit line with retur_lager 'of' and a set's own line are delivered without moving stock.
+//                batch_salg() gives such a line cost 0 and no stock value posting, and its batch the invoice date.
+// 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/orderFuncIncludes/glsLabel.php';
+include_once(__DIR__ . '/orderFuncIncludes/stockNeutralLine.php');
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -612,6 +621,11 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 				if ($r2['id']) db_modify("update serienr set batch_salg_id=$r2[id] where salgslinje_id='$linje_id' and batch_salg_id=0", __FILE__ . " linje " . __LINE__);
 			}
 		}
+	} elseif (order_line_is_stock_neutral((int)$linje_id, $antal)) { # SD-833: no restock, or a set's own line
+		if ($bogf_konto)
+			$box4 = $bogf_konto;
+		db_modify("update ordrelinjer set bogf_konto=$box4 where id='$linje_id'", __FILE__ . " linje " . __LINE__);
+		deliver_stock_neutral_line((int)$id, (int)$linje_id, (int)$vare_id, (int)$variant_id, (int)$lager, $antal, $pris, $lev_nr, $levdate);
 	} else {
 		$r = db_fetch_array(db_select("select fast_db from ordrelinjer where id='$linje_id'", __FILE__ . " linje " . __LINE__));
 		$fast_db = $r['fast_db'];
@@ -2055,6 +2069,10 @@ function batch_salg($id)
 			include("../includes/version.php");
 		$qtxt = "update ordrelinjer set bogf_konto='$bf_kto',momssats='$varemomssats',vat_account='$vatAccount',projekt='$projekt' where id='$ordre_linje_id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		if ($ordre_linje_id && order_line_is_stock_neutral((int)$ordre_linje_id, (float)$antal[$x])) { # SD-833: no stock moved, so no stock cost
+			stock_neutral_line_invoiced((int)$ordre_linje_id, (int)$batch_kob_id[$x], (string)$fakturadate);
+			continue;
+		}
 		if ($fifo && !$box9) {
 			$y = 0;
 			$mangler = $antal[$x];
@@ -4397,7 +4415,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				$varerabatgruppe = 0;
 			if (!isset($rabat))
 				$rabat = 0;
-			$qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe'";
+			$qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe' order by case when debitorart='NR' and vareart='NR' then 0 else 1 end, id desc limit 1";
 			if ($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$rabat = $r2['rabat'];
 				$rabatart = $r2['rabatart'];
@@ -6205,123 +6223,6 @@ if (!function_exists('find_nextfakt')) {
 		return ($nextfakt);
 	}
 }# endfunc find_nextfakt							
-
-if (!function_exists('gls_label')) {
-	function gls_label($gls_username, $gls_password, $gls_customerid, $gls_ctId, $ordrenr, $kundeordnr, $firmanavn, $addr1, $postnr, $bynavn, $land, $email, $lev_navn, $lev_addr1, $lev_postnr, $lev_bynavn, $lev_land, $kontakt, $weight)
-	{
-		global $db;
-		$weight = ceil($weight);
-		if ($weight < 1)
-			$weight = 1;
-		if ($land == 'Sweden') {
-			$code = '752';
-		} else if ($land == 'Sverige') {
-			$code = '752';
-		} else if ($land == 'sverige') {
-			$code = '752';
-		} else if ($land == 'Denmark') {
-			$code = '208';
-		} else if ($land == 'Danmark') {
-			$code = '208';
-		} else {
-			$code = '208';
-		}
-		if (!empty($lev_navn)) {
-			$name = $lev_navn;
-			$strrrt1 = $lev_addr1;
-			$city = $lev_bynavn;
-			$zipcode = $lev_postnr;
-		} else {
-			$name = $firmanavn;
-			$strrrt1 = $addr1;
-			$city = $bynavn;
-			$zipcode = $postnr;
-		}
-		$name = html_entity_decode($name, ENT_QUOTES, 'UTF-8');
-		$strrrt1 = html_entity_decode($strrrt1, ENT_QUOTES, 'UTF-8');
-		$zipcode = html_entity_decode($zipcode, ENT_QUOTES, 'UTF-8');
-		$kontakt = html_entity_decode($kontakt, ENT_QUOTES, 'UTF-8');
-		$city = html_entity_decode($city, ENT_QUOTES, 'UTF-8');
-		$ary = [
-			"UserName" => $gls_username,
-			"Password" => $gls_password,
-			"Customerid" => $gls_customerid,
-			"Contactid" => $gls_ctId,
-			"ShipmentDate" => date('Ymd'),
-			"Reference" => $ordrenr,
-			"Addresses" => [
-				"Delivery" => [
-					"Name1" => substr($name, 0, 39),
-					"Street1" => $strrrt1,
-					"CountryNum" => $code,
-					"ZipCode" => $zipcode,
-					"City" => $city,
-					"Contact" => substr($kontakt, 0, 39),
-					"Email" => $email,
-				]
-			],
-			"Parcels" => [
-				[
-					"Weight" => $weight,
-					"Reference" => $kundeordnr,
-				]
-			]
-		];
-		$json = json_encode($ary);
-		file_put_contents("../temp/$db/pdf.json", $json);
-		$service_url = 'http://api.gls.dk/ws/DK/V1/CreateShipment/';
-		// jSON String for request
-		$json_string = $json;
-		// Initializing curl
-		$ch = curl_init($service_url);
-		// Configuring curl options
-		$options = array(
-			CURLOPT_RETURNTRANSFER => true,
-			//CURLOPT_USERPWD => $username . ":" . $password,  // authentication
-			//CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1') ,
-			CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1'),
-			CURLOPT_POSTFIELDS => $json_string
-		);
-
-		// Setting curl options
-		curl_setopt_array($ch, $options);
-
-		// Getting results
-		$result = curl_exec($ch); // Getting jSON result string
-		if (curl_errno($ch)) {
-			// Handle curl error
-			die('Curl error: ' . curl_error($ch));
-		}
-		curl_close($ch);
-
-		file_put_contents("../temp/$db/pdf-res.json", $result);
-		$res = json_decode($result);
-
-		if (!$res || !isset($res->PDF)) {
-			// Handle API error
-			die('Invalid response from GLS API');
-		}
-
-		// Clean all output buffers
-		while (ob_get_level()) {
-			ob_end_clean();
-		}
-
-		// Set headers for PDF download
-		header('Content-Type: application/pdf');
-		header('Content-Disposition: attachment; filename="' . $ordrenr . '.pdf"');
-		header('Content-Length: ' . strlen(base64_decode($res->PDF)));
-		header('Content-Transfer-Encoding: binary');
-		header('Cache-Control: private, no-cache, no-store, must-revalidate');
-		header('Pragma: no-cache');
-		header('Expires: 0');
-
-		// Output PDF content
-		echo base64_decode($res->PDF);
-		exit();
-		/* GLS funktion slut */
-	}
-}
 
 if (!function_exists('registrer_betaling')) {
 	function registrer_betaling($betalings_id, $ordre_id, $betalingstype, $amount, $valuta, $valutakurs, $terminal_ip)

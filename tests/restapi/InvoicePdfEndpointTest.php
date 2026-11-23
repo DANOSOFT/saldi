@@ -13,6 +13,7 @@
 // 20261102 CL/SZ SD-794: a query failing during the print gives 500 and caches nothing; no fiscal year still renders.
 // 20261102 CL/SZ SD-795: a failed read of the order gives 500, not 404.
 // 20261105 CL/SZ SD-794 review: those two cases skip only when the server can't render a normal invoice, not on their own 500.
+// 20261123 CDX/NTR Use the test class-owned database and session.
 
 use PHPUnit\Framework\TestCase;
 
@@ -31,7 +32,7 @@ final class InvoicePdfEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenantOnce();
+        RestApiEnv::bootstrapTenant(static::class);
         $conn = RestApiEnv::connect(RestApiEnv::testDb());
         $rows = RestApiEnv::rows($conn, "INSERT INTO adresser (kontonr, firmanavn, addr1, postnr, bynavn, email, art, gruppe, betalingsbet, betalingsdage)"
             . " VALUES (91930, 'Pdf Kunde', 'Pdfvej 9', '8000', 'Aarhus', 'pdf@example.invalid', 'D', 1, 'Netto', 8) RETURNING id");

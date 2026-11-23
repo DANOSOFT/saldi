@@ -19,6 +19,7 @@
 // 20261105 CL/SZ SD-756: a pair not stocked is activated before the push, not after a refusal Shopify doesn't give.
 //                An item Shopify refuses to stock is left out with a warning.
 // 20261105 CL/SZ SD-756 review: a stored call and an open barrier, a lost activation, a pair the read misses, an item over one call's size.
+// 20261120 CDX/NTR Materialize the held batch and cover the drain limit after empty-table statistics.
 
 use PHPUnit\Framework\TestCase;
 
@@ -344,12 +345,16 @@ final class StockPushTest extends TestCase
         // a second connection holds the first ten rows mid-drain
         $other = ShopifyEnv::connect(self::$db);
         ShopifyEnv::rows($other, 'BEGIN');
-        $held = ShopifyEnv::rows($other, 'DELETE FROM shopify_stock_dirty WHERE id IN (SELECT id FROM shopify_stock_dirty ORDER BY id LIMIT 10 FOR UPDATE SKIP LOCKED) RETURNING vare_id');
-        $this->assertCount(10, $held);
-        $run = $this->steps(['drain', 500]);
-        $this->assertSame(['drained' => 20, 'queued' => 3], $run['results'][0], 'the held rows are skipped, not waited on');
-        ShopifyEnv::rows($other, 'ROLLBACK');
-        pg_close($other);
+        try {
+            $held = ShopifyEnv::rows($other, 'WITH batch AS MATERIALIZED (SELECT id FROM shopify_stock_dirty ORDER BY id LIMIT 10 FOR UPDATE SKIP LOCKED)
+                DELETE FROM shopify_stock_dirty USING batch WHERE shopify_stock_dirty.id = batch.id RETURNING vare_id');
+            $this->assertCount(10, $held);
+            $run = $this->steps(['drain', 500]);
+            $this->assertSame(['drained' => 20, 'queued' => 3], $run['results'][0], 'the held rows are skipped, not waited on');
+        } finally {
+            ShopifyEnv::rows($other, 'ROLLBACK');
+            pg_close($other);
+        }
 
         $rest = $this->steps(['drain', 500], ['drain', 500], ['push', 'hml']);
         $this->assertSame(['drained' => 10, 'queued' => 3], $rest['results'][0]);
@@ -360,6 +365,36 @@ final class StockPushTest extends TestCase
         $pushed = array_merge(...array_map(fn(array $c): array => $c['variables']['input']['quantities'], self::sets($rest)));
         $this->assertCount(60, $pushed, 'each item once, at both sellable lagre');
         $this->assertCount(60, array_unique(array_map(fn(array $q): string => $q['inventoryItemId'] . $q['locationId'], $pushed)));
+    }
+
+    public function test_a_drain_respects_its_limit_after_empty_table_statistics(): void
+    {
+        $ids = [];
+        for ($i = 1; $i <= 30; $i++) {
+            $ids[] = $this->item("limit$i", [1 => $i]);
+        }
+        $this->steps(...$this->shops($ids, ['hml']));
+
+        // Statistics from an emptied table can select a nested-loop plan that rescans an IN subquery.
+        $this->sql('ALTER TABLE shopify_stock_dirty SET (autovacuum_enabled = false)');
+        try {
+            $this->dirty(array_fill(0, 501, $ids[0]));
+            $this->sql('DELETE FROM shopify_stock_dirty');
+            $this->sql('ANALYZE shopify_stock_dirty');
+            $this->dirty($ids);
+
+            $first = $this->steps(['drain', 10]);
+            $this->assertNoException($first);
+            $this->assertSame(['drained' => 10, 'queued' => 3], $first['results'][0]);
+            $this->assertCount(20, $this->sql('SELECT id FROM shopify_stock_dirty'));
+
+            $rest = $this->steps(['drain', 10], ['drain', 10], ['drain', 10]);
+            $this->assertNoException($rest);
+            $this->assertSame([10, 10, 0], array_column($rest['results'], 'drained'));
+            $this->assertSame([], $this->sql('SELECT id FROM shopify_stock_dirty'));
+        } finally {
+            $this->sql('ALTER TABLE shopify_stock_dirty RESET (autovacuum_enabled)');
+        }
     }
 
     public function test_a_shop_that_captures_without_publishing_keeps_its_marks(): void

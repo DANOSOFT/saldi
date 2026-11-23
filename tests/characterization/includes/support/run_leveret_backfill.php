@@ -7,7 +7,7 @@
 // pg_* wrappers here, defined in this process only.
 //
 // Modes (argv 2):
-//   segment            - eval the MB-73 block of includes/betweenUpdates.php (SET DEFAULT + backfill)
+//   segment            - eval the released MB-73 schema block, then continue the backfill
 //   function <budget> <window>
 //                      - call backfillOrderLineDelivered('postgresql', <budget>, <window>)
 //
@@ -15,6 +15,8 @@
 //
 // History:
 // 20261027 CL/LH MB-73 (review): created.
+// 20261110 CDX/NTR Exercise the released 5.1.1 schema migration and its login-time continuation.
+// 20261113 CDX/NTR Isolate the released continuation from pending roles and settings migrations.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_leveret_backfill.php <db> <segment|function> [budget] [window]\n");
@@ -62,16 +64,22 @@ $repo = dirname(__DIR__, 4);
 $out = ['status' => null];
 try {
     if ($mode === 'segment') {
-        $source = file_get_contents("$repo/includes/betweenUpdates.php");
+        $source = file_get_contents("$repo/includes/opdat_5.1.php");
         $start = strpos($source, '// 20261019 CL/LH MB-73: ordrelinjer.leveret had no default');
-        $end = strrpos($source, '?>');
+        $end = strpos($source, '// 20261102 CL/ASR Self-service signup', (int) $start);
         if ($start === false || $end === false || $end < $start) {
-            throw new RuntimeException('MB-73 block not found in includes/betweenUpdates.php');
+            throw new RuntimeException('MB-73 block not found in includes/opdat_5.1.php');
         }
         $db_type = 'postgresql';
         // eval()'d code has no __DIR__ of its own; point it at includes/
         $segment = str_replace('__DIR__', var_export("$repo/includes", true), substr($source, $start, $end - $start));
         eval($segment);
+        // Run only the released continuation; roles/settings migrations need a full tenant.
+        $continuation = file_get_contents("$repo/includes/betweenUpdates.php");
+        if (!preg_match('~require_once __DIR__ [^;]+/opdat_func/backfillOrderLineDelivered[.]php[^;]*;\s*backfillOrderLineDelivered\([^;]+\);~', $continuation, $match)) {
+            throw new RuntimeException('MB-73 continuation not found in includes/betweenUpdates.php');
+        }
+        eval(str_replace('__DIR__', var_export("$repo/includes", true), $match[0]));
         $out['status'] = 'ran';
     } elseif ($mode === 'function') {
         require_once "$repo/includes/opdat_func/backfillOrderLineDelivered.php";
