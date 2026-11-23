@@ -161,12 +161,13 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
             }
         } finally {
             if ($madeTempDir) {
-                foreach (glob($tempDir . '/*') ?: [] as $file) {
-                    if (is_file($file)) {
-                        unlink($file);
+                // The logs written there include hidden ones (.ht_select.log), so not glob('*').
+                foreach (array_diff(scandir($tempDir) ?: [], ['.', '..']) as $name) {
+                    if (is_file($tempDir . '/' . $name)) {
+                        unlink($tempDir . '/' . $name);
                     }
                 }
-                @rmdir($tempDir);
+                rmdir($tempDir);
             }
         }
     }
