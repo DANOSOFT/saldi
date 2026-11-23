@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/storeOrders.php --- ver 5.1.0 --- 2026.11.18
+// --- includes/shopify/services/storeOrders.php --- ver 5.1.0 --- 2026.11.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 //
 // 20261112 CL/SS SD-804: created (WP13-2).
 // 20261118 CL/SS SD-804: the date key is Delivery Date, and pickup and delivery orders carry Leveringstype (DTAILS).
+// 20261123 LH SD-804: store orders write the web orders' metafield names (saldi.ordre_nr, faktura_nr, faktura_link); fakturanr, kassebon and faktura_url are gone.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -384,13 +385,16 @@ function shopify_store_orders_build_payload(array $snap, array $customer, array 
 		'tags' => array(SHOPIFY_ECHO_TAG, shopify_store_orders_tag($o['db'], $id)),
 		'lineItems' => $lines,
 		'transactions' => $payments,
-		'metafields' => array(
-			array('namespace' => SHOPIFY_STORE_ORDER_METAFIELD_NS, 'key' => 'fakturanr', 'type' => 'single_line_text_field', 'value' => trim((string)$o['fakturanr'])),
-			array('namespace' => SHOPIFY_STORE_ORDER_METAFIELD_NS, 'key' => 'kassebon', 'type' => 'single_line_text_field', 'value' => trim((string)$o['fakturanr'])),
-		),
+		'metafields' => array(),
 	);
+	// The same keys as a web order's write-back (orderWriteback.php: ordre_nr, faktura_nr, faktura_link), so DTAILS reads one set of names.
+	$ordreNr = trim((string)($o['ordrenr'] ?? ''));
+	if ($ordreNr !== '') {
+		$order['metafields'][] = array('namespace' => SHOPIFY_STORE_ORDER_METAFIELD_NS, 'key' => 'ordre_nr', 'type' => 'single_line_text_field', 'value' => $ordreNr);
+	}
+	$order['metafields'][] = array('namespace' => SHOPIFY_STORE_ORDER_METAFIELD_NS, 'key' => 'faktura_nr', 'type' => 'single_line_text_field', 'value' => trim((string)$o['fakturanr']));
 	if ($invoiceUrl !== null) {
-		$order['metafields'][] = array('namespace' => SHOPIFY_STORE_ORDER_METAFIELD_NS, 'key' => 'faktura_url', 'type' => 'url', 'value' => $invoiceUrl);
+		$order['metafields'][] = array('namespace' => SHOPIFY_STORE_ORDER_METAFIELD_NS, 'key' => 'faktura_link', 'type' => 'url', 'value' => $invoiceUrl);
 	}
 	if ($customer['gid'] !== null) {
 		$order['customer'] = array('toAssociate' => array('id' => $customer['gid']));

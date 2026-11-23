@@ -26,7 +26,7 @@ final class StoreOrdersTest extends TestCase
 	private static function snap(array $order = [], ?array $lines = null, ?array $payments = null): array
 	{
 		return [
-			'order' => $order + ['id' => 77, 'db' => 'tenant_1', 'art' => 'PO', 'status' => 3, 'fakturanr' => '5001', 'fakturadate' => '2026-11-12', 'tidspkt' => '10:30',
+			'order' => $order + ['id' => 77, 'db' => 'tenant_1', 'art' => 'PO', 'status' => 3, 'ordrenr' => '4711', 'fakturanr' => '5001', 'fakturadate' => '2026-11-12', 'tidspkt' => '10:30',
 				'sum' => 100, 'moms' => 25, 'momssats' => 25, 'valuta' => 'DKK', 'felt_1' => 'Dankort', 'konto_id' => 5,
 				'email' => 'k@example.dk', 'phone' => '12345678', 'land' => 'Danmark', 'kontakt' => 'Hans Jensen', 'firmanavn' => 'Hans Jensen',
 				'addr1' => 'Havevej 1', 'addr2' => '', 'postnr' => '2000', 'bynavn' => 'Frederiksberg',
@@ -42,6 +42,21 @@ final class StoreOrdersTest extends TestCase
 	private static function shop(array $over = []): array
 	{
 		return $over + ['id' => '1', 'shop_key' => 'hml', 'go_live_at' => '2026-11-10 08:00:00', 'customers_enabled' => 't'];
+	}
+
+	/** Store and web orders share one metafield contract (saldi.ordre_nr, faktura_nr, faktura_link), so DTAILS reads one set of names. */
+	public function testStoreOrdersUseTheWebOrdersMetafieldNames(): void
+	{
+		$snap = self::snap();
+		$o = shopify_store_orders_build_payload($snap, ['gid' => null, 'contact' => true], shopify_store_orders_project_lines($snap, $snap['links']),
+			shopify_store_orders_project_payments($snap), 'https://ssl3.saldi.dk/pos/api/dokument.php?t=abc')['order'];
+		$this->assertSame([
+			['saldi', 'ordre_nr', 'single_line_text_field', '4711'],
+			['saldi', 'faktura_nr', 'single_line_text_field', '5001'],
+			['saldi', 'faktura_link', 'url', 'https://ssl3.saldi.dk/pos/api/dokument.php?t=abc'],
+		], array_map(fn(array $m): array => [$m['namespace'], $m['key'], $m['type'], $m['value']], $o['metafields']));
+		$o = self::payload(self::snap(['ordrenr' => '']))['order'];
+		$this->assertSame(['faktura_nr'], array_column($o['metafields'], 'key'), 'no empty ordre_nr is written');
 	}
 
 	private static function payload(array $snap, array $customer = ['gid' => 'gid://shopify/Customer/9', 'contact' => true]): array
@@ -93,7 +108,7 @@ final class StoreOrdersTest extends TestCase
 		$this->assertSame([['kind' => 'SALE', 'status' => 'SUCCESS', 'gateway' => 'Dankort', 'amountSet' => ['shopMoney' => ['amount' => '125.00', 'currencyCode' => 'DKK']]]], $o['transactions'], 'paid');
 		$this->assertSame(['id' => 'gid://shopify/Customer/9'], $o['customer']['toAssociate']);
 		$this->assertSame(['k@example.dk', '+4512345678'], [$o['email'], $o['phone']]);
-		$this->assertSame([['fakturanr', '5001'], ['kassebon', '5001']], array_map(fn(array $m): array => [$m['key'], $m['value']], $o['metafields']), 'K54');
+		$this->assertSame([['ordre_nr', '4711'], ['faktura_nr', '5001']], array_map(fn(array $m): array => [$m['key'], $m['value']], $o['metafields']), 'K54: the web orders\' names');
 		foreach ($expected as $key => $value) {
 			$this->assertSame($value, $o[$key], $key);
 		}
