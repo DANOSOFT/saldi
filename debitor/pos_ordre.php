@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.20 ---
+// --- debitor/pos_ordre.php --- ver 5.1.0 --- 2026.11.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -128,6 +128,7 @@
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
 // 20261120 CL/LH K33/K34: the sale's delivery choice and wished delivery date are saved from the sale form (pos_save_sale_delivery() in pos_ordre_includes/saleDeliveryFields.php), and Forfra, a reused abandoned sale or a table emptied by a move starts again as "taget med".
+// 20261123 CL/MJ SD-844 K61: Forfra also clears the phone number, so the previous customer's phone can't satisfy the contact rule for pickup or delivery.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1325,7 +1326,7 @@ if ($vare_id) {
 			#$nr*=1;
 			$dd = date("Y-m-d");
 			$qtxt = "update ordrer set konto_id='0', kontonr='0',firmanavn='',addr1='',addr2='',postnr='',bynavn='',land='',betalingsdage='0',";
-			$qtxt .= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',art='PO',";
+			$qtxt .= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',phone='',art='PO',";
 			$qtxt .= "valuta='$baseCurrency',valutakurs='100',kundeordnr='',ordredate='$dd',hvem='',";
 			# 20261120 CL/LH K33/K34 Forfra starts the sale again as "taget med", without a wished date.
 			$qtxt .= "momssats='$momssats',ref=''" . pos_reset_sale_delivery_sql() . " where id = '$id'";

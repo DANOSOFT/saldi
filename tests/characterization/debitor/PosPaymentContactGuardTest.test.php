@@ -109,4 +109,14 @@ final class PosPaymentContactGuardTest extends TestCase
         self::assertSame([], $report['guardCalls']);
         self::assertFalse($report['formShown']);
     }
+
+    public function testForfraClearsThePhoneTheContactRuleReads(): void
+    {
+        // Forfra reuses the sale's row. A phone left from the previous customer would let a pickup
+        // or delivery picked afterwards pass the contact rule without the new customer's contact.
+        $page = (string) file_get_contents(dirname(__DIR__, 3) . '/debitor/pos_ordre.php');
+
+        self::assertStringContainsString("institution='',email='',kontakt='',phone='',art='PO',", $page,
+            'Forfra clears email and phone together');
+    }
 }
