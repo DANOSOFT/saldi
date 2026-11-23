@@ -69,6 +69,11 @@ final class StoreOrdersTest extends TestCase
 			'taget med' => [[], ['fulfillmentStatus' => 'FULFILLED'], ['customAttributes', 'shippingAddress', 'note']],
 			'afhentning' => [$choice('afhentning', 'Afhentning i butik'), ['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'Afhentning i butik'], ['key' => 'Leveringstype', 'value' => 'afhentning']]],
 				['fulfillmentStatus', 'shippingAddress', 'note']],
+			// Kravspec K36 (2): a pickup goes "med leveringsmåde og eventuel dato" (Lui 23/11). Without a date it gets
+			// no date and no note; the "Leveringsdato aftales med kunden" note is for deliveries only.
+			'afhentning with a date' => [$choice('afhentning', 'Afhentning i butik') + ['oensket_levdato' => '2026-12-02'],
+				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'Afhentning i butik'], ['key' => 'Leveringstype', 'value' => 'afhentning'], ['key' => 'Delivery Date', 'value' => '2026-12-02']]],
+				['fulfillmentStatus', 'shippingAddress', 'note']],
 			'levering with a date' => [$choice('levering', 'Levering', 'EasyRoutes') + ['oensket_levdato' => '2026-11-20'],
 				['customAttributes' => [['key' => 'Leveringsmaade', 'value' => 'EasyRoutes'], ['key' => 'Leveringstype', 'value' => 'levering'], ['key' => 'Delivery Date', 'value' => '2026-11-20']]],
 				['fulfillmentStatus', 'note']],
