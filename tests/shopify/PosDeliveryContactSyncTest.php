@@ -65,18 +65,17 @@ final class PosDeliveryContactSyncTest extends TestCase
         return $rows;
     }
 
+    // The rule itself, without the refusal's text: findtekst() needs a database, and in the full
+    // suite the real one may already be loaded by an earlier test, so this file's stub is not used.
     #[DataProvider('truthTable')]
     public function testTheContactRule(string $type, string $email, string $phone, bool $allowed): void
     {
-        $check = pos_validate_delivery_contact($type, $email, $phone);
-
-        self::assertSame($allowed, $check['ok']);
-        self::assertSame($allowed, $check['message'] === '');
+        self::assertSame($allowed, pos_delivery_contact_ok($type, $email, $phone));
     }
 
     public function testBlanksAreNotContactData(): void
     {
-        self::assertFalse(pos_validate_delivery_contact('levering', '  ', "\t")['ok']);
+        self::assertFalse(pos_delivery_contact_ok('levering', '  ', "\t"));
     }
 
     public function testTheMessageCannotBreakTheAlertItIsShownIn(): void

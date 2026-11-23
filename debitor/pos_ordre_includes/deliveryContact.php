@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/deliveryContact.php --- ver 5.1.0 --- 2026.11.20 ---
+// --- debitor/pos_ordre_includes/deliveryContact.php --- ver 5.1.0 --- 2026.11.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,12 +24,26 @@
 // ----------------------------------------------------------------------
 // 20261120 CL/MJ SD-844 K61: a pickup or delivery sale cannot be paid at the till without the customer's email or phone.
 //                The sale's delivery choice (ordrer.leveringsvalg_id -> pos_leveringsvalg.type) decides; no choice is "taget med" and is never checked.
+// 20261123 CL/MJ SD-844 K61: the rule itself is pos_delivery_contact_ok(), with no text and no database.
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
 /**
- * The contact rule for one delivery type (K61, email OR phone): "afhentning" and "levering"
- * need at least one of the two, "taget med" and anything else need neither.
+ * Whether a sale of this delivery type may be paid with this contact data (K61, email OR phone):
+ * "afhentning" and "levering" need at least one of the two, "taget med" and anything else neither.
+ *
+ * @param string $type  pos_leveringsvalg.type, or '' for a sale without a delivery choice.
+ * @param string $email The sale's email.
+ * @param string $phone The sale's phone number.
+ * @return bool
+ */
+function pos_delivery_contact_ok($type, $email, $phone) {
+	return !in_array((string) $type, array('afhentning', 'levering'), true)
+		|| trim((string) $email) !== '' || trim((string) $phone) !== '';
+}
+
+/**
+ * The contact rule for one delivery type (pos_delivery_contact_ok()), with the text for the cashier.
  *
  * @param string $type  pos_leveringsvalg.type, or '' for a sale without a delivery choice.
  * @param string $email The sale's email.
@@ -39,10 +53,7 @@ include_once(__DIR__ . "/../../includes/shopify/schema.php");
 function pos_validate_delivery_contact($type, $email, $phone) {
 	global $sprog_id;
 
-	if (!in_array((string) $type, array('afhentning', 'levering'), true)) {
-		return array('ok' => true, 'message' => '');
-	}
-	if (trim((string) $email) !== '' || trim((string) $phone) !== '') {
+	if (pos_delivery_contact_ok($type, $email, $phone)) {
 		return array('ok' => true, 'message' => '');
 	}
 	$message = findtekst('pos.delivery.contact_missing|Afhentning og levering kræver kundens e-mail eller telefonnummer.', $sprog_id);
