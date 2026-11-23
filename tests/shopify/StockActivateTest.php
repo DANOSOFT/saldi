@@ -10,6 +10,7 @@
 // 20261113 CL/SZ SD-822 Review: running out of time before the start; an unanswered zero call goes again under its key.
 // 20261113 CL/SZ SD-822 Review: the unanswered zero call outlives a failed pass and a dead job, and holds the baseline back.
 //                Another batch's stored call goes first; a dry run leaves it alone.
+// 20261123 CL/SZ SD-826: a failed activation reads its partial result; without one it keeps the one warning.
 
 declare(strict_types=1);
 
@@ -507,8 +508,9 @@ final class StockActivateTest extends TestCase
 
         $failed = $this->activate();
 
-        $this->assertSame('warning', $this->report()['severity']);
-        $this->assertStringStartsWith('The stock activation ended FAILED', $this->report()['message']);
+        // the partial result covers the line Shopify ran; the two it never reached are left for the rerun
+        $this->assertSame(['severity' => 'warning', 'message' => 'The stock activation ended FAILED INTERNAL_SERVER_ERROR. Stocked 1 of 3 pairs at 3 items. It never reached 2 items. Run activate again; the pairs stocked so far are left alone.'], $this->report());
+        $this->assertSame([], $this->itemErrors(), 'an item it never reached gets no warning of its own');
         $this->assertSame(0, $failed['levels']['SD822-A']['Kolding'], 'the line applied before the failure is stocked');
 
         $rerun = $this->activate();
@@ -516,6 +518,39 @@ final class StockActivateTest extends TestCase
         $this->assertSame(['severity' => 'info', 'message' => 'Stocked 2 of 2 pairs at 2 items.'], $this->report());
         $this->assertCount(2, self::calls($rerun['calls'], 'stockSet')[0]['variables']['input']['quantities'], 'only what was left');
         $this->assertSame(0, $rerun['levels']['SD822-C']['Kolding']);
+        $this->assertSame([], glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_shopify_activate*'), 'the job leaves no file');
+    }
+
+    public function test_an_item_refused_before_the_bulk_operation_failed_gets_its_own_warning(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $b = $this->item('B', [1 => 2]);
+        $c = $this->item('C', [1 => 1]);
+        $this->shop([$a, $b, $c]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $b, 2], ['unstock', 'hml', $c, 2],
+            ['refuse_toggle', 'hml', $a], ['fail_bulk', 'hml', 2]);
+
+        $failed = $this->activate();
+
+        $this->assertSame(["item:$a: Shopify refused to stock item $a at its locations: FAILED_TO_STOCK_AT_LOCATION The item could not be stocked at the location."], $this->itemErrors(),
+            'the refusal in the partial result is reported like one in a finished result');
+        $this->assertSame(['severity' => 'warning', 'message' => "The stock activation ended FAILED INTERNAL_SERVER_ERROR. Stocked 1 of 3 pairs at 3 items. Shopify refused 1 item (see their warnings); the baseline won't stamp until they are fixed. It never reached 1 item. Run activate again; the pairs stocked so far are left alone."], $this->report());
+        $this->assertSame(0, $failed['levels']['SD822-B']['Kolding']);
+        $this->assertArrayNotHasKey('Kolding', $failed['levels']['SD822-C'], 'the item it never reached is not stocked');
+        $this->assertSame([], glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_shopify_activate*'), 'the job leaves no file');
+    }
+
+    public function test_a_failed_bulk_operation_without_a_partial_result_keeps_the_one_warning(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $b = $this->item('B', [1 => 2]);
+        $this->shop([$a, $b]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $b, 2], ['fail_bulk', 'hml', 1, false]);
+
+        $this->activate();
+
+        $this->assertSame(['severity' => 'warning', 'message' => 'The stock activation ended FAILED INTERNAL_SERVER_ERROR. Run activate again; the pairs stocked so far are left alone.'], $this->report());
+        $this->assertSame([], $this->itemErrors());
         $this->assertSame([], glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_shopify_activate*'), 'the job leaves no file');
     }
 
