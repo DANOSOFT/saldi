@@ -15,6 +15,7 @@
 // 20261118 CL/MMR SST-1008 Each case gets an unused item group code (Codex).
 // 20261118 CL/MMR SST-1008 In a page the missing purchase account ends the page; a webservice caller gets the message (Codex).
 // 20261123 CL/MMR SST-1008 A sale against a purchase reservation posts the cost lines under the sale line's project (Codex).
+// 20261123 CL/MMR SST-1008 The reservation test makes the tenant temp folder bogfor_nu() logs to; fixture return shape documented (Codex).
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -113,6 +114,18 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
     /**
      * A sale of 4 delivered against an open purchase order (reservation, nothing received yet) whose line already has
      * a used-up batch. The purchase line is on project «BUY» and the sale line on $saleProject.
+     *
+     * @return array{
+     *   0: array{
+     *     id: int,         The item (varer.id); the other keys come from Fixtures::item().
+     *     gruppe: int,     Its own item group (VG kodenr) with batch control.
+     *     stock: string,   The group's stock account (box2).
+     *     purchase: string, The group's purchase account (box3).
+     *   },
+     *   1: array{
+     *     id: int,         The sale order (ordrer.id); the other keys come from Fixtures::order().
+     *   },
+     * }
      */
     private function saleAgainstPurchaseReservation(string $saleProject): array
     {
@@ -137,22 +150,43 @@ final class BatchCostTransferWithoutAutoStockTest extends CharacterizationTestCa
 
     public function test_a_sale_against_a_purchase_reservation_posts_the_cost_under_the_sale_project(): void
     {
-        foreach (['SALE', 'BUY'] as $saleProject) {
-            [$item, $sale] = $this->saleAgainstPurchaseReservation($saleProject);
-
-            $out = $this->runChildJson('run_order_invoice.php', ['invoice', $sale['id'], CharacterizationEnv::testDb()]);
-
-            $this->assertSame('OK', $out['bogfor'], "the invoice is booked (sale project $saleProject)");
-            $rows = self::rows(
-                'SELECT kontonr::text AS konto, debet, kredit, projekt FROM transaktioner WHERE ordre_id = $1 AND kontonr::text IN ($2, $3) ORDER BY kontonr',
-                [$sale['id'], $item['stock'], $item['purchase']]
-            );
-            $this->assertCount(2, $rows, "both cost lines are posted (sale project $saleProject)");
-            $byAccount = array_column($rows, null, 'konto');
-            $this->assertEqualsWithDelta(200.0, (float)$byAccount[$item['stock']]['kredit'], 0.001, 'four at cost 50 leave the stock account');
-            $this->assertEqualsWithDelta(200.0, (float)$byAccount[$item['purchase']]['debet'], 0.001, 'and go to the purchase account');
-            $this->assertSame([$saleProject, $saleProject], array_column($rows, 'projekt'), "under the sale line's project");
+        // bogfor_nu() appends to ../temp/<tenant db>/hmlog.log. A receipt through modtag creates that folder; this
+        // fixture never receives, so the test makes it, and removes it again if it was not there (Codex).
+        $tempDir = dirname(__DIR__, 4) . '/temp/' . CharacterizationEnv::testDb();
+        $madeTempDir = !is_dir($tempDir) && mkdir($tempDir, 0700, true);
+        try {
+            $this->assertDirectoryExists($tempDir, 'the tenant folder bogfor_nu() writes its log to');
+            foreach (['SALE', 'BUY'] as $saleProject) {
+                $this->invoiceAgainstPurchaseReservation($saleProject);
+            }
+        } finally {
+            if ($madeTempDir) {
+                foreach (glob($tempDir . '/*') ?: [] as $file) {
+                    if (is_file($file)) {
+                        unlink($file);
+                    }
+                }
+                @rmdir($tempDir);
+            }
         }
+    }
+
+    private function invoiceAgainstPurchaseReservation(string $saleProject): void
+    {
+        [$item, $sale] = $this->saleAgainstPurchaseReservation($saleProject);
+
+        $out = $this->runChildJson('run_order_invoice.php', ['invoice', $sale['id'], CharacterizationEnv::testDb()]);
+
+        $this->assertSame('OK', $out['bogfor'], "the invoice is booked (sale project $saleProject)");
+        $rows = self::rows(
+            'SELECT kontonr::text AS konto, debet, kredit, projekt FROM transaktioner WHERE ordre_id = $1 AND kontonr::text IN ($2, $3) ORDER BY kontonr',
+            [$sale['id'], $item['stock'], $item['purchase']]
+        );
+        $this->assertCount(2, $rows, "both cost lines are posted (sale project $saleProject)");
+        $byAccount = array_column($rows, null, 'konto');
+        $this->assertEqualsWithDelta(200.0, (float)$byAccount[$item['stock']]['kredit'], 0.001, 'four at cost 50 leave the stock account');
+        $this->assertEqualsWithDelta(200.0, (float)$byAccount[$item['purchase']]['debet'], 0.001, 'and go to the purchase account');
+        $this->assertSame([$saleProject, $saleProject], array_column($rows, 'projekt'), "under the sale line's project");
     }
 
     /** A sale of 4 of an item whose group has no purchase account, and a reader of its stock. */

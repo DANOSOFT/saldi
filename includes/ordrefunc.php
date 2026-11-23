@@ -174,6 +174,7 @@
 // 20261118 CL/MMR SST-1008 In a page that stop rolls back and ends the page, like the database error before, so massefakt.php does not print the order (Codex).
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261123 CL/MMR SST-1008 A sale against a purchase reservation keeps the sale line's project on the cost lines, so they are posted (Codex).
+// 20261123 CL/MMR SST-1008 The reservation's purchase line id is cast in that lookup (Codex).
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2139,7 +2140,7 @@ function batch_salg($id)
 					$res_antal = $res_antal + $row['antal'];
 					$res_linje_id = $row['linje_id'];
 					$lager = $row['lager'];
-					$r1 = db_fetch_array(db_select("select ordre_id, pris, rabat from ordrelinjer where id = '$res_linje_id'", __FILE__ . " linje " . __LINE__));
+					$r1 = db_fetch_array(db_select("select ordre_id, pris, rabat from ordrelinjer where id = '" . (int) $res_linje_id . "'", __FILE__ . " linje " . __LINE__));
 					$kob_ordre_id = $r1['ordre_id'];
 					// The cost lines keep the sale line's project: bogfor_nu() posts posnr -1 lines only for the order's own projects.
 					$r2 = db_fetch_array(db_select("select valutakurs from ordrer where id = '$kob_ordre_id'", __FILE__ . " linje " . __LINE__));
