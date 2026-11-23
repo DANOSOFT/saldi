@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/storeOrders.php --- ver 5.1.0 --- 2026.11.18
+// --- includes/shopify/services/storeOrders.php --- ver 5.1.0 --- 2026.11.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 //
 // 20261112 CL/SS SD-804: created (WP13-2).
 // 20261118 CL/SS SD-804: the date key is Delivery Date, and pickup and delivery orders carry Leveringstype (DTAILS).
+// 20261123 CL/LH SD-804 follow-up: a pickup with a wished date carries Delivery Date too (K36 (2), Lui 23/11); the undated note stays for deliveries.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -410,11 +411,15 @@ function shopify_store_orders_build_payload(array $snap, array $customer, array 
 			array('key' => SHOPIFY_STORE_ORDER_ATTR_TYPE, 'value' => $mode),
 		);
 	}
+	// A pickup and a delivery both carry the wished date when there is one (K34, K36 (2): pickup goes "med
+	// leveringsmåde og eventuel dato"). Only a delivery gets the address, and the note when it has no date.
+	$dated = $mode !== 'taget_med' && trim((string)$o['oensket_levdato']) !== '';
+	if ($dated) {
+		$order['customAttributes'][] = array('key' => SHOPIFY_STORE_ORDER_ATTR_DATE, 'value' => (new DateTimeImmutable($o['oensket_levdato']))->format(SHOPIFY_STORE_ORDER_DATE_FORMAT));
+	}
 	if ($mode === 'levering') {
 		$order['shippingAddress'] = shopify_store_orders_address($o, $phone);
-		if (trim((string)$o['oensket_levdato']) !== '') {
-			$order['customAttributes'][] = array('key' => SHOPIFY_STORE_ORDER_ATTR_DATE, 'value' => (new DateTimeImmutable($o['oensket_levdato']))->format(SHOPIFY_STORE_ORDER_DATE_FORMAT));
-		} else {
+		if (!$dated) {
 			$order['note'] = SHOPIFY_STORE_ORDER_UNDATED_NOTE;
 		}
 	}
