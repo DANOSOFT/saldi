@@ -36,6 +36,7 @@
 //
 // History:
 // 20261026 CL/MJ SD-772: created (M-PREP for S12).
+// 20261113 CL/SS SD-804: an empty settings table, as on a tenant without the Shopify schema; the store-order hook reads it.
 
 $spec = json_decode((string)file_get_contents($argv[1] ?? ''), true);
 if (!is_array($spec)) {
@@ -82,6 +83,8 @@ $db->exec("CREATE TABLE pos_betalinger (id INTEGER PRIMARY KEY AUTOINCREMENT, or
     receipt_id INTEGER)");
 $db->exec("CREATE TABLE pos_events (id INTEGER PRIMARY KEY AUTOINCREMENT, ev_type TEXT,
     ev_time TEXT, cash_register_id TEXT, employee_id TEXT, order_id TEXT, file TEXT, line TEXT)");
+$db->exec("CREATE TABLE settings (id INTEGER PRIMARY KEY AUTOINCREMENT, var_name TEXT, var_grp TEXT,
+    var_value TEXT, var_description TEXT, user_id INTEGER)");
 
 /** Seeds one table from the spec; every column named in a row has to exist. */
 function settle_pos_seed(PDO $db, string $table, array $rows): void

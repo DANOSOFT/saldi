@@ -14,6 +14,7 @@
 //                and leading zeros when matching (#862 review).
 // 20261112 CL/SZ SD-822: the bulk mutation start, the staged target and the upload.
 // 20261112 CL/SZ SD-822 CodeRabbit: the staged target's signature and policy stay out of the log.
+// 20261123 CDX/NTR Cover explicitly disabled body logging for staged uploads.
 
 use PHPUnit\Framework\TestCase;
 
@@ -467,6 +468,20 @@ final class ClientBulkTest extends TestCase
 		$this->assertSame($target, $r['target']);
 		$this->assertSame([['resource' => 'BULK_MUTATION_VARIABLES', 'filename' => 'x.jsonl', 'mimeType' => 'text/jsonl', 'httpMethod' => 'POST']],
 			$fake->calls[0]['body']['variables']['input']);
+	}
+
+	public function test_stage_with_a_null_redactor_logs_no_bodies_when_logging_is_loaded(): void
+	{
+		require_once __DIR__ . '/../../includes/shopify/logging.php';
+		$target = ['url' => 'https://example.invalid/upload', 'parameters' => []];
+		$fake = new FakeShopify([FakeShopify::ok(['stagedUploadsCreate' => ['stagedTargets' => [$target], 'userErrors' => []]])]);
+
+		$result = shopify_bulk_stage(FakeShopify::shop(), 'x.jsonl', $fake->opts(['redact' => null]));
+
+		$this->assertTrue($result['ok']);
+		$this->assertCount(1, $fake->logs);
+		$this->assertNull($fake->logs[0]['request_b64']);
+		$this->assertNull($fake->logs[0]['response_b64']);
 	}
 
 	public function test_stage_logs_the_target_without_its_signature_and_policy(): void
