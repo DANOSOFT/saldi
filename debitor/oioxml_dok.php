@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// ---------debitor/oioxml_dok.php----patch 3.2.5---2012-01-19--
+// ---------debitor/oioxml_dok.php----ver 5.1.1---2026-11-13--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,16 +21,17 @@ $s_id=session_id();
 // En dansk oversaetelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 2026.08.28 CL MB-22: valideringsfejl-mailadresse rettet fra oio@saldi.dk til Support@danosoft.dk
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $css="../css/standard.css";
 
 #$form=array();
 
 include("../includes/connect.php");
+$permission_key = 'debitor.ordre';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/oioxmlfunk.php");

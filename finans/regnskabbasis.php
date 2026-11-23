@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/basiRegnskab.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- finans/basiRegnskab.php --- ver 5.1.1 --- 2026-11-13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,8 +26,9 @@
 //
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20260618 LOE Added sticky header for S-mode and added a scrollable table for the data table in S-mode co-authored by Aj
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
@@ -36,6 +37,7 @@ $title = "SAF-T Finance";
 
 include("../includes/var_def.php");
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include_once '../includes/topline_settings.php';

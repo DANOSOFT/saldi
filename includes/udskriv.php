@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.1.0 --- 2026-11-05---
+// --- includes/udskriv.php --- ver 5.1.1 --- 2026-11-20---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -53,8 +53,14 @@
 // 20261023 CL/LH MB-58: Tilbage after printing from an order returns to that order again, not the order list.
 //                The route now follows where the print started (bulk/list/order) instead of the area file,
 //                which only records the list tab the last order was opened from.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
+// 20261104 CL/ASR A PDF print that cannot be made shows the error box (includes/errorReport.php) with a report to Saldi instead of "Kontakt support"; Tilbage stays below it.
 // 20261105 CL/MMR SD-807 The PDF error texts and the print choice screen (Luk, Udskriftsvalg) are shown in the user's language.
 //                 The print-batch error is escaped in the page charset.
+// 20261112 CL/MMR SST-1015 Removed the DIAG error_log line written on every print.
+// 20261113 CDX/NTR Keep error reporting and translate the PDF fallback in the page charset.
+// 20261120 CDX/NTR Prepare non-A4 backgrounds as real PDFs and rebuild invalid cached copies.
+// 20261120 CDX/NTR Extract background preparation into a directly testable helper.
 
 @session_start();
 $s_id=session_id();
@@ -66,6 +72,7 @@ header('Pragma: no-cache');
 $css="../css/standard.css";		
 		
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 
@@ -90,6 +97,7 @@ $ordreliste    = if_isset($_GET, NULL, 'ordreliste');
 $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
 // 20260812 MJ Begraens til same-origin stier — afviser protokoller (javascript:, http://) og cross-origin URL'er
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261008 CDX/PHR Explain unavailable print files without incorrectly blaming PS2PDF.
 $returside = (function($s) {
     $s = trim((string)$s);
@@ -105,7 +113,6 @@ $returside = (function($s) {
 })($returside);
 $locat      = if_isset($_GET, NULL, 'locat');
 $bulk       = if_isset($_GET, NULL, 'bulk'); # formularprint() was called with id=-1
-error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
 if ($art == 'R' && $id) {
 	$returside = "../debitor/rykker.php?rykker_id=" . (int)$id;
 }
@@ -209,7 +216,7 @@ if ($valg) {
 			);
 		} catch (RuntimeException $error) {
 			fwrite($log, 'Print batch failed: ' . $error->getMessage() . "\n");
-			print '<p>' . htmlspecialchars(findtekst('8446|PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, $charset) . '</p>';
+			if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . ' linje ' . __LINE__, 'Print batch failed: ' . $error->getMessage(), '', false, 'app') === 'nosession') print '<p>' . htmlspecialchars(findtekst('8446|PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, $charset) . '</p>';
 			print '<a href="' . htmlspecialchars($returside ?: '../debitor/ordreliste.php', ENT_QUOTES, 'UTF-8') . '">' . findtekst('30|Tilbage', $sprog_id) . '</a>';
 			exit;
 		}
@@ -300,28 +307,8 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			# error_log("DIAG: pdftk_bin=$pdftk");
 
 			if ($printBatch === null && $pdftk && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
-				// Self-heal non-A4 letterheads. A background that isn't A4 makes pdftk
-				if (function_exists('shell_exec')) {
-					$pinf = @shell_exec("pdfinfo " . escapeshellarg($bg_fil) . " 2>/dev/null");
-					if ($pinf && strpos($pinf, '(A4)') === false) {
-						$a4c = preg_replace('/\.pdf$/i', '', $bg_fil) . '.a4.pdf';
-						if (!file_exists($a4c) || filemtime($a4c) < filemtime($bg_fil)) {
-							$pf = $a4c . '.' . getmypid() . '.tmp';
-							$a4c_tmp = $a4c . '.' . getmypid() . '.new';
-							@shell_exec("pdftoppm -png -r 200 -f 1 -l 1 " . escapeshellarg($bg_fil) . " " . escapeshellarg($pf) . " 2>/dev/null");
-							if (file_exists($pf . '-1.png')) {
-								@shell_exec("convert " . escapeshellarg($pf . '-1.png') . " -resize 1654x2339 -background white -gravity center -extent 1654x2339 -units PixelsPerInch -density 200 " . escapeshellarg($a4c_tmp) . " 2>/dev/null");
-								@unlink($pf . '-1.png');
-								if (file_exists($a4c_tmp) && filesize($a4c_tmp) > 0) {
-									@rename($a4c_tmp, $a4c);
-								} else {
-									@unlink($a4c_tmp);
-								}
-							}
-						}
-						if (file_exists($a4c) && filesize($a4c) > 0) $bg_fil = $a4c;
-					}
-				}
+				require_once __DIR__ . '/stdFunc/preparePrintBackground.php';
+				$bg_fil = preparePrintBackground($bg_fil);
 				$out = "../temp/" . $ps_fil . "x.pdf";
 				system("$pdftk ../temp/$ps_fil.pdf background $bg_fil output $out", $rc);
 				error_log("DIAG: pdftk rc=$rc, out_exists=" . (file_exists($out) ? 'YES' : 'NO'));

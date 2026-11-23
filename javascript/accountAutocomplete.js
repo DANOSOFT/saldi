@@ -42,9 +42,11 @@
 //                  first wrote the side, and drops the VAT lookups the restored account starts. The cursor moves to Fakturanr.
 //                  before the line is put back, so leaving an account field can't look its default code up over the restored one.
 //                  The notice's actions advance searchSeq like a pick (AccountSearchShortTermGateTest's abandon-point rule).
+// 20261027 CL/LH (CodeRabbit) Each VAT lookup gets its own key, so a failed earlier lookup of the same account can't clear the code a newer one set.
 // 20261103 CL/LH SD-796 An invoice pick in another currency than the line (a SEK invoice on a DKK bank line) writes the
 //                  invoice's Beløb and Valuta again, without "Brug fakturaens værdier"; "Fortryd" puts the line's own back.
 //                  In the line's currency a filled Beløb is still kept and offered. An empty Valuta counts as window.saldiBaseCurrency.
+// 20261110 CDX/NTR Document VAT lookup inputs, resolved values and stale-request handling.
 (function () {
     'use strict'; 
 
@@ -81,6 +83,9 @@
     // that comes back carrying an older number is for a value the field no longer holds,
     // so it is dropped rather than painted over the current state.
     let searchSeq = 0;
+    // Numbers every VAT lookup, so each request's key is its own even for the same account:
+    // an answer for an earlier lookup, success or failure, no longer matches and is dropped.
+    let vatLookupSeq = 0;
     let dropdownContainer = null;
     let selectionMade = false;
     let currentPage = 1;
@@ -491,6 +496,18 @@
         vatField.value = normalizedValue;
     }
 
+    /**
+     * Set a journal side's VAT code explicitly or look up its finance account's default.
+     *
+     * Empty/customer/supplier accounts clear VAT and invalidate pending requests.
+     * Each lookup has its own key, including repeat lookups of the same account;
+     * only the current request may write or clear the field when it settles.
+     *
+     * @param {string|number} rowNum Journal row suffix used in field names.
+     * @param {'debet'|'kredit'} side Side whose account and VAT fields are read.
+     * @param {{vatCode?: string}} [options] An own vatCode property bypasses the lookup and invalidates pending requests.
+     * @returns {Promise<string>} Explicit/looked-up code, or empty on missing fields, invalid account or failure; a stale lookup still resolves its code without writing it.
+     */
     function updateVatFieldForRow(rowNum, side, options) {
         const accountPrefix = side === 'debet' ? 'debe' : 'kred';
         const typePrefix = side === 'debet' ? 'd_ty' : 'k_ty';
@@ -519,7 +536,8 @@
             return Promise.resolve(options.vatCode || '');
         }
 
-        const lookupKey = side + ':' + accountNo;
+        vatLookupSeq++;
+        const lookupKey = side + ':' + accountNo + ':' + vatLookupSeq;
         vatField.dataset.lookupKey = lookupKey;
 
         return fetch(getVatBasePath() + '?type=finance&exact=1&search=' + encodeURIComponent(accountNo))

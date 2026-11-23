@@ -2,6 +2,7 @@
 @session_start();
 $s_id=session_id();
 include("../includes/connect.php");
+$permission_key = 'lager.varer';
 include("../includes/online.php");
 
 echo "<h1>Starting Historic Price Update for Samlevare</h1>";

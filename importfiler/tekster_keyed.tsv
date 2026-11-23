@@ -1,11 +1,20 @@
+account.delete.refused_other_year	Konto %s hører til et andet regnskabsår og kan ikke slettes herfra	Account %s belongs to another fiscal year and cannot be deleted here	Konto %s tilhører et annet regnskapsår og kan ikke slettes herfra
+account.delete.refused_postings	Konto %s har posteringer i regnskabsåret og kan ikke slettes	Account %s has postings in the fiscal year and cannot be deleted	Konto %s har posteringer i regnskapsåret og kan ikke slettes
+account.delete.refused_year_setup	Regnskabsåret er ikke sat korrekt op, så konto %s kan ikke slettes	The fiscal year is not set up correctly, so account %s cannot be deleted	Regnskapsåret er ikke satt opp riktig, så konto %s kan ikke slettes
 commission.settle.already_settled	Kommissionen er lige blevet afregnet af en anden kasseoptælling. Kommissionen er ikke afregnet igen.	The commission has just been settled by another cash count. It was not settled again.	Kommisjonen er nettopp gjort opp av en annen kasseopptelling. Den er ikke gjort opp igjen.
 commission.settle.customer_missing	Konto mangler for varenummer %s. Kommissionen er ikke afregnet.	Account missing for item number %s. The commission was not settled.	Konto mangler for varenummer %s. Kommisjonen er ikke gjort opp.
 commission.settle.group_account_missing	Debitorgruppe %s for konto %s mangler en samlekonto. Kommissionen er ikke afregnet.	Customer group %s for account %s has no collective account. The commission was not settled.	Debitorgruppe %s for konto %s mangler en samlekonto. Kommisjonen er ikke gjort opp.
 commission.settle.journal_overlap	Kommission er afregnet i kassekladden til og med %s. Vælg en fra-dato efter denne dato. Kommissionen er ikke afregnet.	Commission has been settled in the cash journal up to and including %s. Choose a start date after that date. The commission was not settled.	Kommisjon er gjort opp i kassekladden til og med %s. Velg en fra-dato etter denne datoen. Kommisjonen er ikke gjort opp.
 commission.settle.orders_deferred	%s ordrer med kommission er ikke afregnet, fordi de også har kommissionsvarer, der begynder med %s, uden opsatte kommissionskonti. Opsæt kontiene og afregn igen.	%s orders with commission were not settled because they also have commission items starting with %s without configured commission accounts. Set up the accounts and settle again.	%s ordrer med kommisjon er ikke gjort opp fordi de også har kommisjonsvarer som begynner med %s, uten oppsatte kommisjonskontoer. Sett opp kontoene og gjør opp på nytt.
 common.accept	Acceptér	Accept	Godta
+creditor.order.no_supplier_for_item	Der blev ikke fundet en leverandør til varenummer %s. Vælg leverandøren under Kontonr. først.	No supplier was found for item number %s. Choose the supplier under Account no. first.	Det ble ikke funnet noen leverandør for varenummer %s. Velg leverandøren under Kontonr. først.
+debtor.card.changed_by_another_user	Kunden er ændret af en anden bruger, efter du åbnede kortet. Dine ændringer er ikke gemt. Kortet viser nu de gemte oplysninger, så indtast dine ændringer igen.	This customer was changed by another user after you opened the card. Your changes were not saved. The card now shows the saved data, so enter your changes again.	Kunden er endret av en annen bruker etter at du åpnet kortet. Endringene dine er ikke lagret. Kortet viser nå de lagrede opplysningene, så skriv inn endringene dine på nytt.
 formular.line.lager	Lager	Warehouse	Lager
 formular.line.lagernavn	Lagernavn	Warehouse name	Lagernavn
+item.import.ambiguous_skipped	Disse varenumre passer på flere varer og er ikke opdateret:	These item numbers match more than one item and were not updated:	Disse varenumrene passer til flere varer og er ikke oppdatert:
+item.import.campaign_only	Kun tilbudspris og tilbudsperiode opdateres. Ukendte varenumre oprettes ikke, og salgspris, kostpris og varegruppe ændres ikke.	Only the offer price and offer period are updated. Unknown item numbers are not created, and sales price, cost price and item group are not changed.	Bare tilbudspris og tilbudsperiode oppdateres. Ukjente varenumre opprettes ikke, og salgspris, kostpris og varegruppe endres ikke.
+item.import.lines_skipped	Disse linjer indeholder fejl og er ikke importeret:	These lines contain errors and were not imported:	Disse linjene inneholder feil og er ikke importert:
+item.import.unknown_skipped	Disse varenumre findes ikke og er ikke oprettet:	These item numbers do not exist and were not created:	Disse varenumrene finnes ikke og er ikke opprettet:
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
 shopify.admin.error.afd	Vælg en afdeling.	Choose a department.	Velg en avdeling.
 shopify.admin.error.afd_taken	En anden shop bruger allerede denne afdeling.	Another shop already uses this department.	En annen nettbutikk bruker allerede denne avdelingen.
@@ -66,3 +75,10 @@ shopify.admin.shop.webhook_secret	Webhook-hemmelighed	Webhook secret	Webhook-hem
 shopify.admin.shops.title	Shopify-shops	Shopify shops	Shopify-nettbutikker
 shopify.admin.tab.lagre	Lagre	Warehouses	Lagre
 shopify.admin.tab.shops	Shops	Shops	Nettbutikker
+wage.overtime.hours_100	Overtid 100%	Overtime 100%	Overtid 100%
+wage.overtime.hours_50	Overtid 50%	Overtime 50%	Overtid 50%
+wage.overtime.no_access	Du har ikke adgang til denne side.	You do not have access to this page.	Du har ikke tilgang til denne siden.
+wage.overtime.no_slips	Ingen godkendte sedler i perioden.	No approved slips in the period.	Ingen godkjente sedler i perioden.
+wage.overtime.note	Kun godkendte sedler tæller med. Overtid er timer med overtidstillæg.	Only approved slips are counted. Overtime is hours with overtime supplement.	Kun godkjente sedler telles med. Overtid er timer med overtidstillegg.
+wage.overtime.title	Overtid og løn pr. sag	Overtime and wages per project	Overtid og lønn per sak
+wage.overtime.total	Overtid i alt	Total overtime	Overtid totalt

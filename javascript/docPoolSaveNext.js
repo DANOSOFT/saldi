@@ -1,4 +1,4 @@
-// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-20 ---
+// --- javascript/docPoolSaveNext.js --- ver 5.1.0 --- 2026-11-10 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: "Gem og næste" in the document pool.
 //                One action saves every row of the bilag (one after another, so new rows don't race), attaches the shown document and opens the next document with its data transferred.
@@ -36,6 +36,9 @@
 //                takes an address with it (F5 would transfer again, and two quick address writes made the menu reload the page over and over).
 // 20261015 CL/SZ SD-720 (CodeRabbit) A split bilag ticks only the rows this save created; a line that was already there keeps the box as the user left it.
 // 20261020 CL/SZ SD-720 (CodeRabbit) An amount with a dot that is not a thousands separator ("12.50", saved as 1250) or a space inside it is not an amount.
+// 20261106 CL/LH SD-722 Before saving, poolCapture.js takes away a Debet the contra account suggestion wrote for the kreditor Kredit held before.
+//                Enter in Kredit saves without a change event, so that Debet was saved against the kreditor typed after it.
+// 20261110 CDX/NTR Document the save-and-next action and its suggestion refresh guard.
 (function () {
     'use strict';
 
@@ -272,12 +275,24 @@
         return typeof window.poolStillListed === 'function' ? window.poolStillListed(file) : Promise.resolve(true);
     }
 
-    /** Saves the bilag, attaches the document and opens the next one (step 1, Enter) or the previous one (step -1, Ctrl+↑). */
+    /**
+     * Start saving editable rows in order, attach the document and open its neighbour.
+     *
+     * Stops before saving when poolCapture.beforeSave() refreshes an outdated
+     * contra-account suggestion, mandatory fields are missing, or split validation refuses.
+     * Reports asynchronous save/attach failures through the existing UI.
+     *
+     * @param {number} step -1 selects the previous document; other values select the next.
+     * @returns {void} Starts asynchronous work without returning its promise.
+     * @see window.poolCapture.beforeSave
+     */
     function saveAndNext(step) {
         var c = cfg();
         if (busy || !c || c.readOnly) return;
         var entries = editableEntries();
         if (!entries.length) return;
+        // SD-722: a Debet the contra account suggestion wrote for another kreditor than Kredit holds now is taken away, and nothing is saved (poolCapture.js)
+        if (window.poolCapture && typeof window.poolCapture.beforeSave === 'function' && window.poolCapture.beforeSave(entries)) return;
         var missing = firstMissing(entries);
         if (missing) {
             missing.focus();

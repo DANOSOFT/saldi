@@ -38,7 +38,7 @@ if ($rettigheder !== '' && (substr($rettigheder, 9, 1) === '2' || substr($rettig
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
 $EN = (isset($sprog_id) && $sprog_id == 2);
 if (!$packagingModuleEnabled) {
-	print "<p style='padding:1em;'>" . ($EN ? "The packaging module is not active. Activate it under Systemdata &rarr; Miscellaneous &rarr; Order-related options." : "Emballagemodulet er ikke aktiveret. Aktivér det under Systemdata &rarr; Diverse &rarr; Ordrerelaterede valg.") . "</p>";
+	print "<p style='padding:1em;'>" . ($EN ? "The packaging module is not active. Activate it under Settings &rarr; Items &amp; stock &rarr; Packaging." : "Emballagemodulet er ikke aktiveret. Aktivér det under Indstillinger &rarr; Varer &amp; lager &rarr; Emballage.") . "</p>";
 	exit;
 }
 ensure_emballage_schema();

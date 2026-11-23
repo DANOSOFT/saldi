@@ -1,6 +1,7 @@
 <?php
 // 20261021 CL/MJ SD-758 Pin the POS sale header: the department and brand a sale is created with,
 // the customer's phone number coming along, and the receipt print no longer rewriting either.
+// 20261123 CL/SZ Sync of master into hml/shopify: the brand-save check is skipped until SD-830.
 //
 // opret_posordre() cannot be called here - it writes a lock file under ../temp, calls
 // hent_shop_ordrer(), prints redirects and exits - so its insert is read from the shipped source.
@@ -555,6 +556,9 @@ final class PosSaleHeaderTest extends TestCase
 
     public function testTheSettingsPageRendersAndSavesTheBrand(): void
     {
+        // 20261123 CL/SZ Master's settings redesign (#1033) retired PoS-valg: diverse.php no longer saves posOptions,
+        // so the brand per till has no settings screen until SD-830. The till still reads the stored brand.
+        self::markTestSkipped('SD-830: the brand per till has no settings screen since #1033 retired PoS-valg');
         $options = file_get_contents(dirname(__DIR__, 3) . '/systemdata/diverseIncludes/posOptions.php');
         self::assertStringContainsString('posSaleSettings.php', $options,
             'posOptions.php has to load the sale settings to render them');

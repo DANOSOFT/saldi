@@ -14,3 +14,11 @@ Any value that traces back to external input (`$_GET`, `$_POST`, `$_REQUEST`, `$
 Concrete example fixed in this codebase: `kreditor/betalinger.php` used to build `... and kladde_id = $_GET[kladde_id] order by forfaldsdate` with the raw GET value. A request like `?kladde_id=0 OR 1=1` produces a query with no semicolon at all — `injecttjek()` never triggers — and silently returns every row instead of just the intended `kladde_id`'s. The fix was `intval($_GET["kladde_id"])` before interpolating it.
 
 **How to apply:** Prospective-only, plus the enclosing-block scope from [Whitespace and indentation](feedback_whitespace_and_indentation.md) / [Include paths](convention_include_paths.md): when writing a new query or editing a function that builds one, check every interpolated variable that isn't a fixed literal — numeric values get `intval()`/`floatval()`, string values get `db_escape_string()` plus quotes. Don't skip this because `injecttjek()` is already called; it catches a different, narrower attack shape.
+
+**Whole-number account identifiers (user feedback, 2026-11-10):** Validate account
+numbers as decimal digits, for example with `ctype_digit((string)$kontonr)` when
+accepting strings or integers. `is_numeric()` also accepts scientific notation
+(`1e10`), fractions and signs, which are not account-number notation. Reject these
+forms before querying rather than casting them into a different account number.
+The database-free `poolCapture` tests cover rejection in both journal-history
+lookups; `JournalHistoryRegressionTest` covers accepted integer/string accounts.
