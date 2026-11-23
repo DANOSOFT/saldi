@@ -45,6 +45,7 @@ const SHOPIFY_STORE_ORDER_CUSTOMER_WAIT = 3600;
 const SHOPIFY_STORE_ORDER_RECOVER_DAYS = 7;
 // The keys DTAILS reads (confirmed by DTAILS 2026-11-18). The type (afhentning or levering) keeps their rule working when a choice is renamed.
 const SHOPIFY_STORE_ORDER_ATTR_METHOD = 'Leveringsmaade';
+/** statusIn.php reads this key (SHOPIFY_STATUS_DELIVERY_TYPE_ATTRIBUTE) to tell a pickup's own date from an EasyRoutes date. */
 const SHOPIFY_STORE_ORDER_ATTR_TYPE = 'Leveringstype';
 const SHOPIFY_STORE_ORDER_ATTR_DATE = 'Delivery Date';
 const SHOPIFY_STORE_ORDER_DATE_FORMAT = 'Y-m-d';

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.18
+// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,7 @@
 // 20261104 CL/SS SD-744: ORDERS_UPDATED stores the delivery date EasyRoutes writes on the order (easyroutes_levdato).
 // 20261105 CL/SS SD-744 review: on a tie on updated_at, a status with the EasyRoutes date wins over one without it.
 // 20261118 CL/SS SD-804: the delivery date's note attribute is Delivery Date, as DTAILS confirmed.
+// 20261123 CL/LH SD-804 follow-up: a pickup store order's Delivery Date is the cashier's wish and is not stored as the EasyRoutes date.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -59,6 +60,8 @@ const SHOPIFY_STATUS_DEFER_HOURS = 48;
 const SHOPIFY_STATUS_DEFER_SECONDS = 300;
 /** The order's note attribute the delivery date is written in (YYYY-MM-DD), as DTAILS confirmed 2026-11-18 (SD-744, Aa4). */
 const SHOPIFY_EASYROUTES_DATE_ATTRIBUTE = 'Delivery Date';
+/** The note attribute a Saldi store order carries its delivery type in (storeOrders.php, SHOPIFY_STORE_ORDER_ATTR_TYPE). */
+const SHOPIFY_STATUS_DELIVERY_TYPE_ATTRIBUTE = 'Leveringstype';
 
 /** The event's order has no Saldi order yet: the job yields and tries again (not a failed attempt). */
 final class ShopifyOrderLinkPending extends RuntimeException
@@ -418,9 +421,16 @@ function shopify_handle_order_updated(array $event): void {
 
 /**
  * The delivery date EasyRoutes wrote on the order: its note attribute SHOPIFY_EASYROUTES_DATE_ATTRIBUTE (the name in any
- * case) as Y-m-d, or null when the order has none or it holds no valid date.
+ * case) as Y-m-d, or null when the order has none or it holds no valid date. A store order for pickup (Leveringstype
+ * afhentning) carries the cashier's wished date under the same key and is never routed by EasyRoutes, so it has none.
  */
 function shopify_status_easyroutes_date(array $body): ?string {
+	foreach ((array)($body['note_attributes'] ?? array()) as $attribute) {
+		if (is_array($attribute) && strcasecmp(trim((string)($attribute['name'] ?? '')), SHOPIFY_STATUS_DELIVERY_TYPE_ATTRIBUTE) === 0
+			&& strcasecmp(trim((string)($attribute['value'] ?? '')), 'afhentning') === 0) {
+			return null;
+		}
+	}
 	foreach ((array)($body['note_attributes'] ?? array()) as $attribute) {
 		if (is_array($attribute) && strcasecmp(trim((string)($attribute['name'] ?? '')), SHOPIFY_EASYROUTES_DATE_ATTRIBUTE) === 0) {
 			$value = trim((string)($attribute['value'] ?? ''));
