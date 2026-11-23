@@ -1,4 +1,13 @@
 <?php
+// 20261112 CL/SS MB-49 POS sales posted per sale by the real bogfor()/bogfor_nu() on a fresh installed tenant.
+//                A 0-kr item paid by card is a cash withdrawal: the card is debited and the cash account credited with the card amount.
+//                A card payment that posts nothing (a card name without a card account) used to leave the sale at status 4 with no rows, invisible to the cash count.
+//                It is now refused and rolled back.
+// 20261116 CL/SS MB-49: card sales the day-end count posts together write their rows with ordre_id 0, and are posted, not refused.
+// 20261117 CL/SS MB-49: a row another checkout commits on the same till during the posting does not hide a sale that posted nothing.
+// 20261118 CL/SS MB-49: an exchange whose lines cancel out posts on both sales accounts; an amount discount counts in kroner in pos_lines_amount().
+// 20261118 CL/SS MB-49: at the day-end count, another sale's rows do not hide a withdrawal that posts nothing; card payments that cancel out within a sale pass.
+//                The trigger is dropped even when the child's result fails its assertion.
 
 declare(strict_types=1);
 
@@ -6,15 +15,6 @@ use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../support/CharacterizationEnv.php';
 
-// 20261112 CL/SS MB-49 POS sales posted per sale by the real bogfor()/bogfor_nu() on a fresh installed tenant.
-//                A 0-kr item paid by card is a cash withdrawal: the card is debited and the cash account credited with the card amount.
-//                A card payment that posts nothing (a card name without a card account) used to leave the sale at status 4 with no rows,
-//                invisible to the cash count. It is now refused and rolled back.
-// 20261116 CL/SS MB-49: card sales the day-end count posts together write their rows with ordre_id 0, and are posted, not refused.
-// 20261117 CL/SS MB-49: a row another checkout commits on the same till during the posting does not hide a sale that posted nothing.
-// 20261118 CL/SS MB-49: an exchange whose lines cancel out posts on both sales accounts; an amount discount counts in kroner in pos_lines_amount().
-// 20261118 CL/SS MB-49: at the day-end count, another sale's rows do not hide a withdrawal that posts nothing; card payments that cancel out within a sale pass.
-//                The trigger is dropped even when the child's result fails its assertion.
 final class PosCardPostingCharacterizationTest extends TestCase
 {
     private const CASH_ACCOUNT = 58200;

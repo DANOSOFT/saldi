@@ -1,13 +1,13 @@
 <?php
+// 20261112 CL/SS MB-49 The POS checkout (afslut()) must not finish a sale its posting refused, and must not take a card payment of 0 on a 0-kr sale.
+//                The real afslut() runs in a child process (support/run_afslut_posting_error.php) with the database, settlement and receipt boundaries stood in for.
+//                It needs no database, so it also runs in CI.
+// 20261117 CL/SS MB-49: an exchange whose lines cancel out is not refused.
 
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 
-// 20261112 CL/SS MB-49 The POS checkout (afslut()) must not finish a sale its posting refused, and must not take a card payment of 0 on a 0-kr sale.
-//                The real afslut() runs in a child process (support/run_afslut_posting_error.php) with the database, settlement and receipt boundaries stood in for.
-//                It needs no database, so it also runs in CI.
-// 20261117 CL/SS MB-49: an exchange whose lines cancel out is not refused.
 final class PosCheckoutPostingErrorTest extends TestCase
 {
     private static string $fixture;
