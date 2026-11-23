@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolCapture.php --- ver 5.0.0 --- 2026-10-21 ---
+// --- includes/docsIncludes/poolCapture.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,8 @@
 // 20261021 CL/SZ SD-722 (CodeRabbit) poolCaptureReportId(): this user's latest report of a document, used by poolCaptureReported() and for a new report's id.
 // 20261023 CL/LH SST-868 poolCaptureRecordAttach() takes the pool file name separately ($poolFilename): an attach whose name was taken
 //                lands under a suffixed name, and the snapshot is still read from the pool row under the old one.
+// 20261026 CL/LH poolCaptureClientTexts(): the texts of the Debet suggestion line and its list of other accounts.
+// 20261110 CDX/NTR Document the client text payload and its count placeholders.
 
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
@@ -745,13 +747,56 @@ if (!function_exists('poolCaptureMailLabels')) {
 }
 
 if (!function_exists('poolCaptureClientTexts')) {
-	/** The texts javascript/poolCapture.js shows. */
+	/**
+	 * Translate the labels, messages and suggestion templates consumed by javascript/poolCapture.js.
+	 *
+	 * Count templates retain $antal and $total for the browser's fill() helper.
+	 *
+	 * @param int $sprog_id Language ID passed to findtekst().
+	 * @return array{
+	 *   read: string, Badge for an extracted value.
+	 *   suggested: string, Badge for a suggested account.
+	 *   use: string, Action to accept a suggestion.
+	 *   reject: string, Action to reject a suggestion.
+	 *   ofTotal: string, Voucher-count template containing $antal and $total.
+	 *   oneOther: string, Label for one alternative account.
+	 *   others: string, Alternative-count template containing $antal.
+	 *   searchOther: string, Action to open the normal account lookup.
+	 *   listHead: string, History-list heading containing $antal.
+	 *   viaCvr: string, Supplier match reason: CVR number.
+	 *   viaBank: string, Supplier match reason: bank account.
+	 *   viaName: string, Supplier match reason: name.
+	 *   report: string, Action to open the capture-error report.
+	 *   notice: string, Explanation of the report sent to support.
+	 *   send: string, Submit-report action.
+	 *   cancel: string, Cancel-report action.
+	 *   thanks: string, Successful-report message.
+	 *   already: string, Previously-reported message.
+	 *   failed: string, Report-failure message.
+	 *   noCapture: string, Message when no extracted values exist.
+	 *   field: string, Field-column heading.
+	 *   now: string, Current-value column heading.
+	 *   comment: string, Report-comment label.
+	 *   labels: array{
+	 *     date: string, Date field label.
+	 *     amount: string, Amount field label.
+	 *     invoiceNumber: string, Invoice-number field label.
+	 *     currency: string, Currency field label.
+	 *     kreditor: string, Supplier field label.
+	 *   }, Labels used to describe captured and current values.
+	 * }
+	 */
 	function poolCaptureClientTexts($sprog_id) {
 		return array(
 			'read' => findtekst('5371|Aflæst', $sprog_id),
 			'suggested' => findtekst('5255|Forslag', $sprog_id),
 			'use' => findtekst('5242|Brug forslag', $sprog_id),
 			'reject' => findtekst('5391|Afvis forslaget', $sprog_id),
+			'ofTotal' => findtekst('7660|$antal af $total bilag', $sprog_id),
+			'oneOther' => findtekst('7661|1 anden', $sprog_id),
+			'others' => findtekst('7662|$antal andre', $sprog_id),
+			'searchOther' => findtekst('7664|Søg anden konto', $sprog_id),
+			'listHead' => findtekst('7665|Sidste $antal bilag fra kreditoren', $sprog_id),
 			'viaCvr' => findtekst('5374|Fundet via CVR-nr.', $sprog_id),
 			'viaBank' => findtekst('5375|Fundet via bankkonto', $sprog_id),
 			'viaName' => findtekst('5376|Fundet via navn', $sprog_id),

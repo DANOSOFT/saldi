@@ -13,7 +13,7 @@ Run everything with `composer test` (PHPUnit discovery via `phpunit.xml`).
 
 ## Database ownership
 
-The characterization and REST API fixtures need an installed **test master**, PostgreSQL `CREATEDB` access, and
+PHPUnit needs an installed **test master**, PostgreSQL `CREATEDB` access, and
 `SALDI_CHAR_PGHOST`, `SALDI_CHAR_PGUSER`, `SALDI_CHAR_PGPASS`, and
 `SALDI_CHAR_MASTER_DB`. It does not need an existing tenant or fixture database.
 PHP must provide `pgsql`, `pdo_pgsql`, and `pdo_sqlite`; SQLite fixtures also run
@@ -36,10 +36,9 @@ test result, so IDE
 helper; old template/database-name overrides are no longer used. Only an
 instance that successfully created a database may remove it. Class teardown
 releases it; shutdown also attempts cleanup after an interrupted test.
-Generated names use a separate UUID namespace (`t_` followed by 23 UUID hex
-digits), keeping them outside the normal `<master>_<number>` namespace and
-within the registry's 25-character limit. The underscore lets the legacy
-webshop API distinguish tenants from master databases. Shopify child runners receive their parent's
+Generated names have a tenant's shape, `t` + 22 UUID hex digits + `_1` (MB-154),
+within the registry's 25-character limit: `api/rest_api.php` takes a name without
+the underscore for the master database. Shopify child runners receive their parent's
 database explicitly and verify its active ownership marker before writing.
 Ordinary runs omit these debugging identity lines. Test routing accounts use
 negative `regnskab.id` values, allocated under a transaction lock, so neither

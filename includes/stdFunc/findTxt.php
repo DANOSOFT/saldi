@@ -1,5 +1,5 @@
 <?php
-
+//
 // 20250130 PHR migrate utf8_en-/decode() to mb_convert_encoding
 // 20250829 PHR Returns textId if table tekster doeesn't exist
 // 20250909 LOE checks first that db functions exist and error log added
@@ -16,6 +16,8 @@
 //                  When an id has only such lines, egne_tekster.csv and tekster.csv are read, as before SST-909.
 // 20261102 CL/MJ The keyed TSV files are found with locateDir(), as tekster.csv already is.
 //                A page two folders deep (systemdata/shopify/) missed them and cached the fallback text for every language.
+// 20261119 CL/LH A key whose row is '-' returns its fallback in the database encoding, as the other paths do.
+//                On a LATIN9 regnskab the UTF-8 fallback came back as is, so findtekst_utf8() and jsString() converted it twice (Ã¥ for å).
 
 if (!function_exists('findtekst_session_var')) {
 	/**
@@ -175,7 +177,9 @@ if (!function_exists('findtekst')) {
 				$qtxt = "select id,tekst from tekster where tekst_key='$keyEsc' and sprog_id='$lang'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					if ($r['tekst'] === '-') {
-						return ($b !== null && $b !== '') ? $b : $textId;
+						// The fallback is UTF-8 source text: return it in the database encoding like the other paths
+						$fallback = ($b !== null && $b !== '') ? $b : $textId;
+						return ($db_encode != 'UTF8') ? mb_convert_encoding($fallback, 'ISO-8859-1', 'UTF-8') : $fallback;
 					}
 					if ($r['tekst'] !== '' && $r['tekst'] !== null && $r['tekst'] !== $textId) {
 						$_SESSION[$sessionVar] = $r['tekst'];

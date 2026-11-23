@@ -1,5 +1,6 @@
 <?php
 // 20261023 CL/LH MB-95 Run lifted POS functions and fragments against an isolated in-memory database.
+// 20261116 CL/MMR SST-1019 Added db_escape_string() for the lifted salesperson lookup.
 //
 // The POS code lives in page scripts and files include()d into a page, so a test cannot include it.
 // Functions and fragments are lifted out of the shipped source and evaluated into this namespace,
@@ -25,6 +26,14 @@ function db_modify($sql, $source = null) {
     $GLOBALS['posCallSitesSql'][] = $sql;
     $GLOBALS['posCallSitesDb']->exec($sql);
     return "0\tquery accepted";
+}
+
+/**
+ * includes/db_query.php db_escape_string() for these fixtures: doubles single quotes, which is what the
+ * Postgres and sqlite string literal needs. 20261116 CL/MMR SST-1019.
+ */
+function db_escape_string($qtext) {
+    return str_replace("'", "''", (string)$qtext);
 }
 
 /** includes/std_func.php afrund(): round with the float cast it got 20260217. */
