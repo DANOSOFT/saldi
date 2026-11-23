@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/stockLog.php---------lap 3.9.4---2020-07-22	-----
+// ----------/lager/stockLog.php---------ver 5.1.1---2026-11-13	-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,14 +20,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2020-2020 saldi.dk aps
+// Copyright (c) 2020-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/std_func.php");
 

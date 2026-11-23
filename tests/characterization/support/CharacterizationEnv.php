@@ -65,7 +65,7 @@ final class CharacterizationEnv
     /** Reject databases that are not active fixtures owned by this test installation. */
     public static function assertOwnedTenant(string $database): void
     {
-        if (!preg_match('/^t_[a-f0-9]{23}$/', $database) || $database === self::masterDb()) {
+        if (!preg_match('/^t[a-f0-9]{22}_1$/', $database) || $database === self::masterDb()) {
             throw new RuntimeException('Legacy test runner requires a generated test tenant');
         }
         $connection = self::connect($database);
@@ -73,7 +73,7 @@ final class CharacterizationEnv
             $table = self::one($connection, "SELECT to_regclass('public.saldi_phpunit_identity') AS name");
             $rows = $table['name'] === null ? [] : self::rows($connection, 'SELECT uuid,master_db,state FROM public.saldi_phpunit_identity');
             if (count($rows) !== 1 || $rows[0]['master_db'] !== self::masterDb() || $rows[0]['state'] !== 'active'
-                || $database !== 't_' . substr(str_replace('-', '', $rows[0]['uuid']), 0, 23)) {
+                || $database !== 't' . substr(str_replace('-', '', $rows[0]['uuid']), 0, 22) . '_1') {
                 throw new RuntimeException('Legacy test runner requires an active owned test tenant');
             }
         } finally {
