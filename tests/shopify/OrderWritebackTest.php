@@ -13,6 +13,7 @@
 // 20261113 CL/MJ SD-759 (review): the token test loads logging.php in its own process, so the rest of the run keeps a client without a redactor.
 // 20261114 CL/MJ SD-760 (CI): orderWriteback.php now loads orderMove.php and with it logging.php.
 //                It is required when the class starts, not while PHPUnit collects the files.
+// 20261120 CL/SS SD-832: an explicit null redactor logs no bodies for the invoice link either.
 
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
@@ -185,6 +186,22 @@ final class OrderWritebackTest extends TestCase
         $request = base64_decode((string)($logged[0]['request_b64'] ?? ''));
         $this->assertStringContainsString('dokument.php?t=[redacted]', $request);
         $this->assertStringNotContainsString($token, $request);
+    }
+
+    #[RunInSeparateProcess]
+    public function testAnExplicitNullRedactorStillLogsNoBodiesForTheInvoiceLink(): void
+    {
+        require_once dirname(__DIR__, 2) . '/includes/shopify/logging.php';
+        $url = 'https://saldi.example/api/dokument.php?t=' . str_repeat('Ab3_-', 8) . 'xyz';
+        $logged = [];
+        $opts = $this->store->opts(['redact' => null, 'log' => function (array $entry) use (&$logged): void { $logged[] = $entry; }]);
+        $context = ['references' => ['ordre_nr' => 4711, 'faktura_nr' => '1042'], 'invoice_url' => $url];
+
+        $result = shopify_writeback_stage($this->store->shopRow($this->domain), $this->order, 'order.references', $context, ['order.tags' => 'done'], ['graphql' => $opts]);
+
+        $this->assertSame('done', $result['status']);
+        $this->assertNull($logged[0]['request_b64']);
+        $this->assertNull($logged[0]['response_b64']);
     }
 
     public function testAMissingValueIsLeftOutRatherThanWrittenEmpty(): void

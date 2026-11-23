@@ -28,6 +28,7 @@
 // daily slots by their Copenhagen date, so a DST change neither skips nor repeats them.
 //
 // 20261026 Sawaneh SD-737: created (WP02-2).
+// 20261112 CL/SS SD-804: store.recover hourly for each shop with store orders.
 // 20261113 CL/MJ SD-760: barrier.sweep every 5 minutes for a shop with orders or stock publishing on.
 
 require_once __DIR__ . '/queue.php';
@@ -43,6 +44,7 @@ const SHOPIFY_SCHEDULE_SLOTS = array(
 	'barrier.sweep' => array('every' => 5, 'flows' => array('orders', 'stock_publish')),
 	'monitor.counterpart' => array('every' => 15, 'flows' => array('orders')),
 	'webhook.health' => array('every' => 60, 'flows' => array('orders', 'customers')),
+	'store.recover' => array('every' => 60, 'flows' => array('store_orders')),
 	'stock.reconcile' => array('daily' => '02:00', 'flows' => array('stock_publish')),
 	'monitor.overview' => array('daily' => '07:00'),
 	'runtime.purge' => array('daily' => '07:15'),

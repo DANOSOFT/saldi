@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.05
+// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.18
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,7 @@
 // 20261104 CL/SS SD-801 review 5: an event comes off status.unlinked only once its write went through.
 // 20261104 CL/SS SD-744: ORDERS_UPDATED stores the delivery date EasyRoutes writes on the order (easyroutes_levdato).
 // 20261105 CL/SS SD-744 review: on a tie on updated_at, a status with the EasyRoutes date wins over one without it.
+// 20261118 CL/SS SD-804: the delivery date's note attribute is Delivery Date, as DTAILS confirmed.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -56,11 +57,8 @@ require_once __DIR__ . '/../coexistence.php';
 /** How long an event waits for its Saldi order, from when it was received, and how often it looks. */
 const SHOPIFY_STATUS_DEFER_HOURS = 48;
 const SHOPIFY_STATUS_DEFER_SECONDS = 300;
-/**
- * The order's note attribute EasyRoutes writes the delivery date it assigned in (YYYY-MM-DD). The plan's default
- * until a real EasyRoutes order shows the key and format (SD-744, DTAILS Aa4); this is the one place to change.
- */
-const SHOPIFY_EASYROUTES_DATE_ATTRIBUTE = 'Leveringsdato';
+/** The order's note attribute the delivery date is written in (YYYY-MM-DD), as DTAILS confirmed 2026-11-18 (SD-744, Aa4). */
+const SHOPIFY_EASYROUTES_DATE_ATTRIBUTE = 'Delivery Date';
 
 /** The event's order has no Saldi order yet: the job yields and tries again (not a failed attempt). */
 final class ShopifyOrderLinkPending extends RuntimeException

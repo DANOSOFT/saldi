@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -168,9 +168,12 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261118 CL/SS SD-833 linjeopdat(): a credit line with retur_lager 'of' and a set's own line are delivered without moving stock.
+//                batch_salg() gives such a line cost 0 and no stock value posting, and its batch the invoice date.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
+include_once(__DIR__ . '/orderFuncIncludes/stockNeutralLine.php');
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -612,6 +615,11 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 				if ($r2['id']) db_modify("update serienr set batch_salg_id=$r2[id] where salgslinje_id='$linje_id' and batch_salg_id=0", __FILE__ . " linje " . __LINE__);
 			}
 		}
+	} elseif (order_line_is_stock_neutral((int)$linje_id, $antal)) { # SD-833: no restock, or a set's own line
+		if ($bogf_konto)
+			$box4 = $bogf_konto;
+		db_modify("update ordrelinjer set bogf_konto=$box4 where id='$linje_id'", __FILE__ . " linje " . __LINE__);
+		deliver_stock_neutral_line((int)$id, (int)$linje_id, (int)$vare_id, (int)$variant_id, (int)$lager, $antal, $pris, $lev_nr, $levdate);
 	} else {
 		$r = db_fetch_array(db_select("select fast_db from ordrelinjer where id='$linje_id'", __FILE__ . " linje " . __LINE__));
 		$fast_db = $r['fast_db'];
@@ -2055,6 +2063,10 @@ function batch_salg($id)
 			include("../includes/version.php");
 		$qtxt = "update ordrelinjer set bogf_konto='$bf_kto',momssats='$varemomssats',vat_account='$vatAccount',projekt='$projekt' where id='$ordre_linje_id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		if ($ordre_linje_id && order_line_is_stock_neutral((int)$ordre_linje_id, (float)$antal[$x])) { # SD-833: no stock moved, so no stock cost
+			stock_neutral_line_invoiced((int)$ordre_linje_id, (int)$batch_kob_id[$x], (string)$fakturadate);
+			continue;
+		}
 		if ($fifo && !$box9) {
 			$y = 0;
 			$mangler = $antal[$x];
