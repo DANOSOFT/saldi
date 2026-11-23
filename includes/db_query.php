@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.1 ----2026-11-13--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-20--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -68,6 +68,8 @@
 //                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
 //                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261120 CL/MMR SST-996 transaktion() returns whether the command succeeded, so a caller can see a failed COMMIT.
+//                 Callers that ignore the return value behave as before.
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -550,6 +552,12 @@ if (!function_exists('db_num_fields')) {
 }
 
 if (!function_exists('transaktion')) {
+	/**
+	 * Runs a transaction command (begin, commit, rollback) on the tenant connection.
+	 *
+	 * @param string $qtext The command.
+	 * @return bool true when the database accepted the command, false when it failed (e.g. a COMMIT a deferred constraint rejects).
+	 */
 	function transaktion($qtext){
 		global $brugernavn;
 		global $db_type;
@@ -575,7 +583,7 @@ if (!function_exists('transaktion')) {
 		} else {
 			$query = pg_query($connection, $qtext);
 		}
-
+		return $query !== false; #20261120 SST-996 a failed COMMIT was invisible to the caller
 	}
 }
 
