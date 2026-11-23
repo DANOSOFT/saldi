@@ -20,6 +20,7 @@
 // 20261105 CL/SZ SD-756: B17 held and B20's item not stocked corrected, from a dev store.
 // 20261105 CL/SZ SD-757: B38, the bulk read of the stock levels.
 // 20261106 CL/SZ SD-757 review: B38 gives committed too when the query asks for it.
+// 20261112 CL/SZ SD-822: B39 bulk mutations with a staged upload, B40 inventoryBulkToggleActivation.
 
 final class FakeShopifyBehaviours
 {
@@ -260,6 +261,18 @@ final class FakeShopifyBehaviours
 			'basis' => 'partly',
 			'source' => self::DOCS . 'mutations/bulkOperationRunQuery (the file and __parentId); the line shapes read from the dev store on 2026-11-05 (SD-757); the moment the data is read and the RUNNING step ASSUMED',
 			'calibrated_by' => 'done for the line shapes on the dev store (SD-757, 2026-11-05): 3001 lines, each level after its item; the moment of the read not checked',
+		],
+		'B39' => [
+			'behaviour' => 'a bulk mutation: stagedUploadsCreate (BULK_MUTATION_VARIABLES, text/jsonl, POST) gives a URL and parameters, the file is POSTed as multipart with the parameters first and the file last, and bulkOperationRunMutation takes the mutation and the key parameter as stagedUploadPath. Its result file has one line per input line with data and __lineNumber, counted from 0. The fake runs every line when it starts, finds the operation RUNNING on the first poll and COMPLETED on the next, and models only inventoryBulkToggleActivation; failBulkAfter() ends it FAILED with no file',
+			'basis' => 'partly',
+			'source' => 'https://shopify.dev/docs/api/usage/bulk-operations/imports (the steps, file last, the key as stagedUploadPath, a result line per input line, FAILED only for critical errors with partialDataUrl); the result line and __lineNumber from 0 read from the dev store on 2026-11-12 (SD-822); when the lines run ASSUMED',
+			'calibrated_by' => 'done on the dev store (SD-822, 2026-11-12): upload 201, operation type MUTATION, COMPLETED, one result line with __lineNumber 0',
+		],
+		'B40' => [
+			'behaviour' => 'inventoryBulkToggleActivation stocks one item at the locations given: a newly stocked pair shows a quantity set while it was not stocked (B20), else 0; a pair already stocked keeps its quantity; no @idempotent is needed, in a call or a bulk mutation. A refusal answers userErrors (FAILED_TO_STOCK_AT_LOCATION and others) and the fake then changes nothing; deactivation is not modelled',
+			'basis' => 'partly',
+			'source' => self::DOCS . 'mutations/inventoryBulkToggleActivation and the 2026-07 schema (arguments and error codes); the hidden quantity shown, the stocked pair kept and no @idempotent read from the dev store on 2026-11-12 (SD-822); the quantity of a new pair without a hidden one and a refusal changing nothing ASSUMED',
+			'calibrated_by' => 'done on the dev store (SD-822, 2026-11-12): a hidden 7 showed as 7, a stocked 5 stayed 5, accepted without @idempotent',
 		],
 	];
 
