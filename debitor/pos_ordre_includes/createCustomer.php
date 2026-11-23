@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/createCustomer.php --- ver 5.1.0 --- 2026.11.20 ---
+// --- debitor/pos_ordre_includes/createCustomer.php --- ver 5.1.0 --- 2026.11.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20261120 CL/MJ SD-844 K31: a new customer created at the till, with no Shopify call.
 //                The number comes from the shared Shopify customer allocator, so it never collides with a customer Shopify creates.
 //                A resent form (a refresh, a double click) gives back the customer it created the first time.
+// 20261123 CL/MJ SD-844 K31: a form token is kept in the session that was given the form, so a form from another site creates nothing.
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
@@ -53,9 +54,28 @@ function pos_customer_create_shopify_mode() {
 	return shopify_shops('customers') !== array();
 }
 
-/** A fresh one-time token for a create form. */
+/** How many create-form tokens a session keeps; the newest ones, as a till has few lookups open at once. */
+const POS_CUSTOMER_CREATE_SESSION_TOKENS = 20;
+
+/** A fresh one-time token for a create form, recorded in the session the form is shown in. */
 function pos_customer_create_token() {
-	return bin2hex(random_bytes(16));
+	$token = bin2hex(random_bytes(16));
+	$tokens = isset($_SESSION['pos_create_tokens']) && is_array($_SESSION['pos_create_tokens']) ? $_SESSION['pos_create_tokens'] : array();
+	$tokens[] = $token;
+	$_SESSION['pos_create_tokens'] = array_slice($tokens, -POS_CUSTOMER_CREATE_SESSION_TOKENS);
+	return $token;
+}
+
+/**
+ * Whether this session was given the token with a create form. A form posted from another site
+ * carries a token it made up, so it creates nothing; the same form sent again still matches.
+ *
+ * @param mixed $token
+ * @return bool
+ */
+function pos_customer_create_token_issued($token) {
+	return is_string($token) && isset($_SESSION['pos_create_tokens']) && is_array($_SESSION['pos_create_tokens'])
+		&& in_array($token, $_SESSION['pos_create_tokens'], true);
 }
 
 /**

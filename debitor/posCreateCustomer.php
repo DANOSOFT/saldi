@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/posCreateCustomer.php --- ver 5.1.0 --- 2026.11.20 ---
+// --- debitor/posCreateCustomer.php --- ver 5.1.0 --- 2026.11.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261120 CL/MJ SD-844 K31: the till's "Opret ny kunde" form posts here when customers belong to Shopify.
 //                The customer is created, and the seller is sent back to the same sale with the customer attached, as when picking one from the list.
+// 20261123 CL/MJ SD-844 K31: a form whose token this session was not given (another site's) creates nothing.
 
 /**
  * Session/account context supplied by includes/online.php.
@@ -56,6 +57,11 @@ if ($id) {
 	}
 }
 
+if (!pos_customer_create_token_issued($_POST['pos_create_token'] ?? null)) {
+	// a form from another site, or from a session that has ended: nothing is created
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=$back\">\n";
+	exit;
+}
 $message = '';
 try {
 	$customer = pos_create_customer($_POST, $_POST['pos_create_token'] ?? '');
