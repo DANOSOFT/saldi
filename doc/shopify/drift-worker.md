@@ -45,7 +45,7 @@ shop's `stock` / `activate` row on the error list: the dry run's count, or how m
 stocked and how many items Shopify refused. Fix the refused items (their `item:<vare_id>`
 warnings) and run it again; it only does what is left. If Shopify's bulk run ends early (FAILED,
 CANCELED or EXPIRED), the row says so: the items it reached are counted and reported as usual
-from Shopify's partial result (SD-826), and the rest are named as never reached. Run it again for
+from Shopify's partial result (SD-826), and the rest are counted as never reached. Run it again for
 those. The rows to look at:
 
     SELECT severity, message, last_at FROM shopify_errors WHERE kind = 'stock' AND (ref = 'activate' OR ref LIKE 'item:%') AND resolved_at IS NULL ORDER BY last_at DESC;

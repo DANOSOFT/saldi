@@ -540,12 +540,39 @@ final class StockActivateTest extends TestCase
         $this->assertSame([], glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_shopify_activate*'), 'the job leaves no file');
     }
 
+    public function test_a_partial_result_that_stops_inside_its_last_line_counts_that_line_as_not_reached(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $b = $this->item('B', [1 => 2]);
+        $c = $this->item('C', [1 => 1]);
+        $this->shop([$a, $b, $c]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $b, 2], ['unstock', 'hml', $c, 2], ['fail_bulk', 'hml', 2, 'cut']);
+
+        $this->activate();
+
+        $this->assertSame(['severity' => 'warning', 'message' => 'The stock activation ended FAILED INTERNAL_SERVER_ERROR. Stocked 1 of 3 pairs at 3 items. It never reached 2 items. Run activate again; the pairs stocked so far are left alone.'], $this->report());
+        $this->assertSame([], $this->itemErrors());
+    }
+
+    public function test_a_partial_result_that_is_gone_keeps_the_one_warning(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $b = $this->item('B', [1 => 2]);
+        $this->shop([$a, $b]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $b, 2], ['fail_bulk', 'hml', 1, 'gone']);
+
+        $this->activate();
+
+        $this->assertSame(['severity' => 'warning', 'message' => 'The stock activation ended FAILED INTERNAL_SERVER_ERROR. Run activate again; the pairs stocked so far are left alone.'], $this->report());
+        $this->assertSame([], glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_shopify_activate*'), 'the job leaves no file');
+    }
+
     public function test_a_failed_bulk_operation_without_a_partial_result_keeps_the_one_warning(): void
     {
         $a = $this->item('A', [1 => 3]);
         $b = $this->item('B', [1 => 2]);
         $this->shop([$a, $b]);
-        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $b, 2], ['fail_bulk', 'hml', 1, false]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $b, 2], ['fail_bulk', 'hml', 1, 'none']);
 
         $this->activate();
 

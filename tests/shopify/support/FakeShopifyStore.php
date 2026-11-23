@@ -215,8 +215,8 @@ final class FakeShopifyStore
 						fwrite($fh, $op['file']);
 						return ['status' => 200, 'errno' => 0];
 					}
-					if (($op['partial_url'] ?? null) === $url) {
-						fwrite($fh, $op['partial']);
+					if (($op['partial_url'] ?? null) === $url && ($op['partial_mode'] ?? '') !== 'gone') {
+						fwrite($fh, $op['partial_mode'] === 'cut' ? substr($op['partial'], 0, -10) : $op['partial']);
 						return ['status' => 200, 'errno' => 0];
 					}
 				}
@@ -250,8 +250,11 @@ final class FakeShopifyStore
 		$this->shop($domain)['refuse_toggle'][$item] = $message;
 	}
 
-	/** The next bulk mutation applies its first $lines lines and then ends FAILED, with their result lines as its partialDataUrl unless $partial is false (B39). */
-	public function failBulkAfter(string $domain, int $lines, bool $partial = true): void
+	/**
+	 * The next bulk mutation applies its first $lines lines and then ends FAILED (B39). Its partialDataUrl: 'whole' serves
+	 * their result lines, 'cut' stops inside the last one, 'gone' answers 404, 'none' gives no partialDataUrl.
+	 */
+	public function failBulkAfter(string $domain, int $lines, string $partial = 'whole'): void
 	{
 		$this->shop($domain)['bulk_fail_after'] = $lines;
 		$this->shop($domain)['bulk_fail_partial'] = $partial;
@@ -1558,7 +1561,7 @@ final class FakeShopifyStore
 		$this->uses('B39');
 		$lines = [];
 		$failAfter = $s['bulk_fail_after'] ?? null;
-		$failPartial = $s['bulk_fail_partial'] ?? true;
+		$failPartial = $s['bulk_fail_partial'] ?? 'whole';
 		unset($s['bulk_fail_after'], $s['bulk_fail_partial']);
 		foreach (explode("\n", trim((string)$s['staged'][$a['stagedUploadPath']])) as $n => $text) {
 			if ($failAfter !== null && $n >= $failAfter) {
@@ -1575,7 +1578,7 @@ final class FakeShopifyStore
 			'url' => 'https://storage.googleapis.com/fake-bulk/' . $this->legacy($gid) . '.jsonl',
 			'file' => $failAfter === null && $lines !== [] ? implode("\n", $lines) . "\n" : '', 'lines' => count($lines), 'items' => count($lines),
 			'partial_url' => 'https://storage.googleapis.com/fake-bulk/' . $this->legacy($gid) . '-partial.jsonl',
-			'partial' => $failAfter !== null && $failPartial && $lines !== [] ? implode("\n", $lines) . "\n" : ''];
+			'partial' => $failAfter !== null && $failPartial !== 'none' && $lines !== [] ? implode("\n", $lines) . "\n" : '', 'partial_mode' => $failPartial];
 		return self::payload(['bulkOperation' => $this->vBulk($domain, $gid)]);
 	}
 

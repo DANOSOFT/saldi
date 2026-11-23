@@ -193,7 +193,7 @@ try {
                     $results[] = 'armed';
                     break;
                 case 'fail_bulk':
-                    $store->failBulkAfter($domain($step[1]), (int)$step[2], (bool)($step[3] ?? true));
+                    $store->failBulkAfter($domain($step[1]), (int)$step[2], (string)($step[3] ?? 'whole'));
                     $results[] = 'armed';
                     break;
                 case 'kill_file':

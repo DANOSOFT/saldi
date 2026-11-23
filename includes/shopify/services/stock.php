@@ -1089,6 +1089,10 @@ function shopify_stock_reconcile_download(array $rt, array $shop, string $op, st
 			return $ended;
 		}
 		$got = shopify_bulk_download($poll['bulk']['partialDataUrl'], $file, ($rt['download'] ?? array()) + array('deadline' => $deadline));
+		if (!$got['ok'] && preg_match('/^http_4\d\d$/', (string)$got['error'])) {
+			// the partial file is gone (an expired link): the run ends as it did without one
+			return $ended;
+		}
 		if (!$got['ok']) {
 			throw new RuntimeException("downloading the partial result of the bulk operation failed: {$got['error']}");
 		}
@@ -1691,7 +1695,7 @@ function shopify_stock_activate_finish(array $shop, array $cp, string $vars, arr
 		$message .= ' Shopify refused ' . shopify_stock_count($refused['items'], 'item') . " (see their warnings); the baseline won't stamp until they are fixed.";
 	}
 	if ($ended !== null) {
-		$message .= ' It never reached ' . shopify_stock_count($unreached, 'item') . '. Run activate again; the pairs stocked so far are left alone.';
+		$message .= ($unreached > 0 ? ' It never reached ' . shopify_stock_count($unreached, 'item') . '.' : '') . ' Run activate again; the pairs stocked so far are left alone.';
 	}
 	shopify_error_open((int)$shop['id'], 'stock', 'activate', $message, $refused['items'] > 0 || $cp['absent'] > 0 || $ended !== null ? 'warning' : 'info');
 	return array('outcome' => 'done', 'pairs' => $stocked, 'refused' => $refused['items']);
@@ -1929,7 +1933,8 @@ function shopify_stock_activate_start(array $rt, array $shop, string $vars, stri
  * Reads the bulk mutation's result: a line per line of the uploaded file (__lineNumber, from 0). An item with
  * userErrors or errors, or with no line, gets a warning and counts as refused; one that shows a quantity other than 0 where it was just
  * stocked gets one too, as nothing should be on sale before the baseline. With $partial (the partial result of an
- * operation that ended early), a line with no answer was never reached: it is counted apart, without a warning.
+ * operation that ended early), a line with no answer was never reached: it is counted apart, without a warning,
+ * and a last line cut off inside the file counts as not reached. A partial file that is gone (4xx) is read as none.
  *
  * @return array{items: int, pairs: int, unreached_items: int, unreached_pairs: int} what Shopify refused, and what it never reached
  */
@@ -1943,8 +1948,12 @@ function shopify_stock_activate_result(array $shop, string $upload, string $resu
 	$items = shopify_stock_activate_items($shop, array_column($sent, 'inventoryItemId'));
 	$refused = array('items' => 0, 'pairs' => 0, 'unreached_items' => 0, 'unreached_pairs' => 0);
 	$answered = array();
-	foreach ($out as $l) {
+	foreach ($out as $at => $l) {
 		$row = json_decode($l, true);
+		if ($partial && !is_array($row) && $at === array_key_last($out)) {
+			// a partial file may stop inside its last line: that line counts as not reached
+			break;
+		}
 		$line = $sent[(int)($row['__lineNumber'] ?? -1)] ?? null;
 		if ($line === null) {
 			throw new RuntimeException('the stock activation result has a line the file has not');
