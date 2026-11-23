@@ -19,6 +19,7 @@
 // 20261103 CL/SZ SD-754: created.
 // 20261103 CL/SZ SD-754: The web order is marked by shopify_order_links, not by ref. Older LG rows per year.
 // 20261104 CL/SZ SD-754: The LG rows use the accounting year the print runner takes as current, added when none covers today.
+// 20261123 CDX/NTR Use the test class-owned database and session.
 
 use PHPUnit\Framework\TestCase;
 
@@ -40,7 +41,7 @@ final class FormularprintLagerFieldsTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        CharacterizationEnv::bootstrapTenant();
+        CharacterizationEnv::bootstrapTenant(static::class);
         self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
         $dg = CharacterizationEnv::one(self::$tenant, "SELECT kodenr FROM grupper WHERE art = 'DG' ORDER BY kodenr LIMIT 1");
         $debtor = CharacterizationEnv::one(

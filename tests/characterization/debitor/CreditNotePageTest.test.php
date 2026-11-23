@@ -12,6 +12,7 @@
 // 20261118 CL/SS SD-833 Created.
 // 20261120 CL/SS SD-833 review: once a credit line is delivered, its restock and dekort choices are locked.
 // 20261121 CL/SS SD-833 review: the alert that a draft was held to what is left is a JavaScript string literal.
+// 20261123 CDX/NTR Use the test class-owned database and session.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -31,7 +32,7 @@ final class CreditNotePageTest extends CharacterizationTestCase
         $req = tempnam($dir, 'ordreq');
         $out = tempnam($dir, 'ordout');
         file_put_contents($req, json_encode(['get' => $get, 'post' => $post]));
-        $res = self::runChild('../support/run_ordre_page.php', [CharacterizationEnv::SESSION_ID, $req, $out]);
+        $res = self::runChild('../support/run_ordre_page.php', [CharacterizationEnv::sessionId(), $req, $out]);
         $html = (string)file_get_contents($out);
         @unlink($req);
         @unlink($out);

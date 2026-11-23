@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/saftCashRegister.php --- patch 4.0.8 --- 2026-06-15 ---
+// --- debitor/saftCashRegister.php --- ver 5.1.1 --- 2026-11-13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20260615 LOE  Fax updated to Mobile
 // 20260709 SZ Added Grid Framework sticky header to SAF-T Cash Register report
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $css = "../css/std.css";
@@ -34,6 +35,7 @@ $css = "../css/std.css";
 $title = "SAF-T Cash Register";
 include("../includes/var_def.php");
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");

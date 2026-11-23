@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------------lager/lagerflyt.php-----------ver 5.1.0-------2026-10-30------
+// ------------------lager/lagerflyt.php-----------ver 5.1.1-------2026-11-13------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,12 +22,14 @@
 //
 // Copyright (c) 2014-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20170425 - total omskrivning
 // 20260526 PHR Fixed bug. In rare cases qty was not removed from the giving stock but just added to the recieving stock
 // 20260603 PHR Fixed: $nyt_antal[$x] → $nyt_antal (array-access på scalar gav kun første ciffer → commit fejlede ved antal ≥ 10)
 // 20260923 CDX/PHR List each transfer destination once across fiscal years.
 // 20261026 LOE MB-65: assign module 9, refuse a read-only stock move and disable the move form.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261104 CL/ASR A failed move between warehouses shows the error box (includes/errorReport.php) with a report to Saldi instead of the alert with the phone number.
 // 20261030 LOE MB-62 a read-only user sees the stock figure but no move form, instead of a disabled one.
 /* 
 Ved flytning af varer fra et lager et andet nedskrives rest for disse i det nødvendige antal batch_kob linjer for 
@@ -35,7 +37,7 @@ det lager der flyttes fra,
 der oprettes et tilsvarende antal batch_salg linjer uden ordre & linje_id og der oprettes en ny linje i batch_kob 
 uden uden ordre & linje_id, med det flyttede antal som antal & rest, snitprisen for de flyttede varer samt nyt lager.
 */ 
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 @session_start();
 $s_id=session_id();
@@ -44,6 +46,7 @@ $css="../css/standard.css";
 
 include("../includes/connect.php");
 $modulnr = 9;
+$permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/std_func.php");
 # MB-65 read-only (2) may look at the move page, but posting a move is a write
@@ -188,7 +191,7 @@ transaktion("begin");
 		}
 	}
 	if ($reg) {
-		alert("Der er sket en fejl ved flytning mellem lagre - Ring til Danosoft på tlf 4690 2208 for opklaring");
+		if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . " linje " . __LINE__, "lagerflyt: $reg kunne ikke registreres (vare_id $vare_id, variant $variant_id, lager $lager -> $nyt_lager, antal $antal)", '', false, 'app') === 'nosession') alert("Der er sket en fejl ved flytning mellem lagre - Ring til Danosoft på tlf 4690 2208 for opklaring");
 	} elseif ($antal > $max_antal) {
 		alert("Du kan maks flytte ". dkdecimal($max_antal) ."");
 	} else {

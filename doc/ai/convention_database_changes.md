@@ -11,22 +11,18 @@ New database structure and content changes for existing regnskaber (schema chang
 
 **Exception — creating a new regnskab:** `admin/opret.php` and `includes/opretfunc.php` are the new-regnskab creation paths; the shared schema builder is `opret_build_tenant()` in `includes/opretfunc.php`. Initial-schema DDL is permitted in both files when defining the initial structure for a newly created regnskab. When a schema change also applies to existing regnskaber, add the corresponding migration at the end of `includes/betweenUpdates.php` as well, so new and existing regnskaber end up with the same structure. This exception is temporary: it will change once structure helper functions replace the current setup. It does not permit schema repair or migrations during ordinary page requests.
 
-**Exception — cutting a new version:** when a new version is released, the accumulated changes in `includes/betweenUpdates.php` are transferred (moved, not left duplicated) into `includes/opdat_<major>.<minor>.php` matching the new version (e.g. version `4.3.0` → `includes/opdat_4.3.php`), and `$version` in `includes/version.php` is bumped to the new version string. `includes/betweenUpdates.php` is then left empty again (header/footer intact) to accumulate changes for the next release.
+**Exception — cutting a new version:** when a new version is released, the accumulated changes in `includes/betweenUpdates.php` are transferred (moved, not left duplicated) into `includes/opdat_<major>.<minor>.php` matching the new version (e.g. version `4.3.0` → `includes/opdat_4.3.php`), and `$version` in `includes/version.php` is bumped to the new version string. `includes/betweenUpdates.php` is then cleared of the released migration body (header/footer intact) to accumulate changes for the next release. Preserve explicitly protected shared helper includes. A time-bounded migration that resumes across logins must keep its continuation outside the one-shot version gate until its own completion flag is set; moving that continuation behind the version gate would stop it after the first login. Check that fresh-install and new-regnskab creation paths already include the released schema, since they start at the new version and skip its upgrade gate.
 
 Only the **body** — the actual statements between the header's closing separator and the trailing `#####`/`?>` — moves. Do NOT copy `betweenUpdates.php`'s ASCII banner, versioning line, LICENSE, or copyright block into the opdat file: the target `opdat_<major>.<minor>.php` already has its own header and its own wrapping function (e.g. `opdat_4_3()`). The `#####` markers inside opdat files are internal step separators, not file footers, so don't carry `betweenUpdates.php`'s trailing `#####`/`?>` over literally either.
 
-The moved statements must be placed inside the `opdat_to(...)` call within that function's body — not appended as loose statements. `opdat_to()` and `opdat_version_string()` live in `includes/opdat_func/opdat_func.php`; see `includes/opdat_4.3.php` for the exact pattern:
+The moved statements must be placed inside the `opdat_to(...)` call within that function's body — not appended as loose statements. `opdat_to()` and `opdat_version_string()` live in `includes/opdat_func/opdat_func.php`; see `includes/opdat_5.1.php` for the current two-argument pattern:
 
 ```php
-if (!function_exists('opdat_4_3')) {
-function opdat_4_3($majorNo, $subNo, $fixNo){
-	global $version;
-	...
+if (!function_exists('opdat_5_1')) {
+function opdat_5_1(){
 	include_once(__DIR__ . "/opdat_func/opdat_func.php");
-
-	$current_version = opdat_version_string($majorNo, $subNo, $fixNo);
-	$nextver = '4.3.0';
-	opdat_to($current_version, $nextver, function () {
+	opdat_to('5.1.1', function () {
+		global $db_type; // Only when the moved statements use this connection setting.
 		// the moved betweenUpdates.php statements go here
 	});
 }}

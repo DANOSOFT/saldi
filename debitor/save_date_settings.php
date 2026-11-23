@@ -1,5 +1,6 @@
 <?php
 // save_date_settings.php 
+// 20261103 CL/ASR QA round 2: open to every logged-in user ('any'): it only reads and writes the user's own date preference in datatables, and the list pages call it in the background for read-only roles too.
 
 if (ob_get_level()) {
     ob_end_clean();
@@ -10,6 +11,7 @@ ob_start();
 $s_id = session_id();
 
 require_once('../includes/connect.php');
+$permission_key = 'any';
 require_once('../includes/online.php');
 
 

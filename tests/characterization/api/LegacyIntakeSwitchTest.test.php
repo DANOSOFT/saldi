@@ -21,6 +21,7 @@
 // History:
 // 20261026 CL/SZ Created (SD-750).
 // 20261028 CL/SZ SD-778 review: accepts any manifest version (#922 moved it to 2).
+// 20261123 CDX/NTR Use the test class-owned database and session.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 require_once __DIR__ . '/../support/LegacyShopStub.php';
@@ -44,9 +45,9 @@ final class LegacyIntakeSwitchTest extends CharacterizationTestCase
 			self::$createdTemp = true;
 		}
 		if (!is_writable($temp)) {
-			self::fail("$temp is not writable by this user; set SALDI_CHAR_TEST_DB to a tenant name without one");
+			self::fail("$temp is not writable by this user; check the runtime directory permissions");
 		}
-		$schema = self::runChild('run_legacy_shop_schema.php', []);
+		$schema = self::runChild('run_legacy_shop_schema.php', [CharacterizationEnv::testDb()]);
 		if (!preg_match('/"version":[1-9]/', $schema['stdout'])) {
 			self::fail("Shopify schema not installed on the clone.\nstdout: {$schema['stdout']}\nstderr: {$schema['stderr']}");
 		}
@@ -146,7 +147,7 @@ final class LegacyIntakeSwitchTest extends CharacterizationTestCase
 	public function testACutoverThatDoesNotCommitIsRolledBackBeforeTheLockIsReleased(): void
 	{
 		foreach (['uncommitted' => 'rolled back', 'throws' => 'settings write failed'] as $mode => $message) {
-			$res = self::runChild('run_legacy_shop_cutover.php', [$mode]);
+			$res = self::runChild('run_legacy_shop_cutover.php', [$mode, CharacterizationEnv::testDb()]);
 			$out = json_decode(trim($res['stdout']), true);
 
 			$this->assertSame('RuntimeException', $out['exception'] ?? null, "$mode: " . $res['stdout'] . $res['stderr']);
@@ -155,7 +156,7 @@ final class LegacyIntakeSwitchTest extends CharacterizationTestCase
 			$this->assertNull(self::one("SELECT var_value FROM settings WHERE var_grp = 'shopify_legacy:5'"), "$mode: the closure never became visible");
 		}
 
-		$res = self::runChild('run_legacy_shop_cutover.php', ['commits']);
+		$res = self::runChild('run_legacy_shop_cutover.php', ['commits', CharacterizationEnv::testDb()]);
 		$this->assertSame(['result' => 'closed', 'idle' => true], json_decode(trim($res['stdout']), true));
 		$this->assertSame('410', (string)$this->restOrder(2)[0], 'a committed closure is what the next request sees');
 	}
@@ -298,7 +299,7 @@ final class LegacyIntakeSwitchTest extends CharacterizationTestCase
 	{
 		$output = (string)tempnam(sys_get_temp_dir(), 'legacy-shop-page');
 		try {
-			$res = self::runChild('run_legacy_shop_page.php', [$page, CharacterizationEnv::SESSION_ID, json_encode(['get' => $get]), $output]);
+			$res = self::runChild('run_legacy_shop_page.php', [$page, CharacterizationEnv::sessionId(), json_encode(['get' => $get]), $output]);
 			preg_match('/CHARTEST_HTTP (\d+)/', $res['stdout'], $m);
 			return ['status' => (int)($m[1] ?? 0), 'output' => (string)file_get_contents($output)];
 		} finally {
