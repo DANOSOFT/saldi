@@ -127,6 +127,7 @@
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after the gift-card settlement transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
+// 20261112 CL/SS SD-804: braces on the voucher branch that includes settlePOS.php (which queues the store order).
 // 20261120 CL/LH K33/K34: the sale's delivery choice and wished delivery date are saved from the sale form (pos_save_sale_delivery() in pos_ordre_includes/saleDeliveryFields.php), and Forfra, a reused abandoned sale or a table emptied by a move starts again as "taget med".
 @session_start();
 $s_id = session_id();
@@ -1779,8 +1780,9 @@ if ($id && $betaling) {
 		$qtxt = "select sum (amount*valutakurs/100) as paid from pos_betalinger where ordre_id='$id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$leftToPay = $sum - $r['paid'];
-		if (afrund($leftToPay, 2) == 0)
+		if (afrund($leftToPay, 2) == 0) {
 			include("../debitor/pos_ordre_includes/exitFunc/settlePOS.php"); #20190510
+		}
 		if ($svar == 'OK') { #20150213
 			transaktion("commit");
 			shopSyncDrainQueue();

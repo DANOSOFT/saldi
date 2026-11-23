@@ -16,6 +16,8 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261111 CDX/NTR Isolate the test class database and session.
+// 20261123 CDX/NTR Port the reviewed test fixture repairs to hml/shopify.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -117,7 +119,7 @@ final class StockMovementCharacterizationTest extends CharacterizationTestCase
             'UPDATE ordrelinjer SET leveres = $1 WHERE ordre_id = $2 AND vare_id > 0',
             [$qty, $orderId]
         );
-        self::runChild('run_modtag_page.php', [$orderId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_modtag_page.php', [$orderId, CharacterizationEnv::sessionId()]);
     }
 
     /**
