@@ -10,6 +10,8 @@
 // 20261120 CDX/NTR Check database identity output only appears when retention is enabled.
 // 20261120 CDX/NTR Require routing-account creation and cleanup to leave normal IDs untouched.
 // 20261120 CDX/NTR Keep the simple child-process helper call on one line.
+// 20261111 CL/SZ MB-154 Test databases are named t + 22 hex + _1, like a <master>_<regnskab id> tenant, so api/rest_api.php does not take them for the master.
+// 20261122 CL/SZ MB-154 The cleanup of retained databases matches the t + 22 hex + _1 name.
 // 20261123 CDX/NTR Port the reviewed test fixture repairs to hml/shopify.
 
 use PHPUnit\Framework\TestCase;
@@ -94,7 +96,7 @@ final class TestDatabaseLifecycleTest extends TestCase
                 return;
             }
             self::assertMatchesRegularExpression(
-                '/UUID=[a-f0-9-]{36} database=t_[a-f0-9]{23}/',
+                '/UUID=[a-f0-9-]{36} database=t[a-f0-9]{22}_1/',
                 $output,
                 'The IDE needs the database identity attached to the individual test result'
             );
@@ -107,7 +109,7 @@ final class TestDatabaseLifecycleTest extends TestCase
         } finally {
             try {
                 // Only databases named by this child process are eligible for cleanup.
-                preg_match_all('/database=(t_[a-f0-9]{23})/', $result['stdout'], $matches);
+                preg_match_all('/database=(t[a-f0-9]{22}_1)/', $result['stdout'], $matches);
                 foreach (array_unique($matches[1]) as $name) {
                     foreach (RetainedTestDatabases::listing($name) as $identity) {
                         RetainedTestDatabases::delete($identity['database']);
@@ -323,7 +325,7 @@ final class TestDatabaseLifecycleTest extends TestCase
             self::assertNotSame($first->name(), $second->name());
             self::assertNotSame($first->sessionId(), $second->sessionId());
             self::assertLessThanOrEqual(25, strlen($first->name()));
-            self::assertMatchesRegularExpression('/^t_[a-f0-9]{23}$/', $first->name());
+            self::assertMatchesRegularExpression('/^t[a-f0-9]{22}_1$/', $first->name());
             self::assertMatchesRegularExpression('/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/', $first->uuid());
             $connection = TestDatabase::connect($second->name());
             TestDatabase::query($connection, 'CREATE TABLE marker (value integer)');

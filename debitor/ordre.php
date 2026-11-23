@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.0 --- 2026-11-18 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -172,9 +172,11 @@
 //                read the offset before the call, so it warned when there was no konto_id or no adresser row.
 // 20261027 CL/MMR SST-902 After Gem the order page computes the moms from the unrounded net, like the invoice (momsupdat() in includes/ordrefunc.php).
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
+// 20261004 SS Danske Fragtmænd settings are read from their own group DFM as well as the old GLS group (settings redesign B-D5).
 // 20261101 CL/SS SD-792 create_debtor throws DebtorNumberTakenException for a taken number; the alert it showed is shown here (core edit 8).
 // 20261103 CL/SZ SD-753 The Lager field on an open order is as wide as the longest lager name, so the name shows in full.
 //                On a closed order the Lager cell has padding, so the name no longer runs into the description.
+// 20261103 CL/ASR QA round 2: GET links that create an order (konto_id or funktion opret_ordre without an id) or move an order to another customer (konto_id with fokus) need write.
 // 20261104 NTR Cap the Lager field width at 20ch and stop checking names once the limit is reached.
 // 20261104 CL/MMR SST-918 The product note (note_on_orderline) is looked up by the matched item's id, so a variant picked in the quick search or typed as its barcode gets its parent's note (CodeRabbit on PR #979).
 // 20261104 CL/SS SD-744: a read-only Shopify panel above the order lines (orderIncludes/shopifyPanel.php), for Shopify orders only.
@@ -187,6 +189,12 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
+// 20261111 CL/MJ SST-1002 With Brug samlet pris, a line of a set item that is not a set (saet 0, e.g. a variant) gets a position number.
+//                Without one, the next Gem posted an empty position and stopped with a TypeError.
+// 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
+//                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
 // 20261118 CL/SS SD-833 An invoice can get several credit notes, one draft at a time, never more than it invoiced in all (orderIncludes/creditControls.php). A draft offers dekort and restock per line.
 
 @session_start();
@@ -216,6 +224,13 @@ $sletslut = $sletstart = 0;
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
 $modulnr = 5;
+// GET links that change data need write: konto_id without an order id (or funktion opret_ordre / opret_ordre_kopi) creates an
+// order, and konto_id with fokus (the account lookup) moves an existing order to that customer.
+$ordreGetId = !empty($_GET['id']) || !empty($_GET['ordre_id']);
+if ((!$ordreGetId && (!empty($_GET['konto_id']) || in_array((string) (isset($_GET['funktion']) ? $_GET['funktion'] : ''), array('opret_ordre', 'opret_ordre_kopi'), true)))
+	|| ($ordreGetId && !empty($_GET['konto_id']) && !empty($_GET['fokus']))) {
+	$permission_level = 'write';
+}
 
 $css = "../css/standard.css";
 #$css="../css/ordre.css";
@@ -974,7 +989,7 @@ if ($id && $status < 3 && isset($_GET['vare_id'])) {
 }
 if (isset($_POST['orderNoteText']) && $id) {
 	$orderNoteText = $_POST['orderNoteText'];
-	$notes = $orderNoteText;
+	$notes = db_escape_string($orderNoteText);
 	$qtxt = "update ordrer set notes='" . db_escape_string($orderNoteText) . "' where id=$id";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } elseif ($id) {
@@ -1352,7 +1367,7 @@ if ($b_submit) {
 			$r = db_fetch_array(db_select("select * from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));
 
 			$qtxt = "insert into ordrer (konto_id,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,kontakt_tlf,email,mail_fakt,phone,udskriv_til,kundeordnr,";
-			$qtxt .= "lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,lev_kontakt,lev_email,lev_land,ean,institution,betalingsbet,betalingsdage,kontonr,cvrnr,art,";
+			$qtxt .= "lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,lev_kontakt,ean,institution,betalingsbet,betalingsdage,kontonr,cvrnr,art,";
 			$qtxt .= "valuta,valutakurs,sprog,projekt,ordredate,";
 			if ($r['levdate']) $qtxt .= "levdate,";
 			if ($r['fakturadate']) $qtxt .= "fakturadate,";
@@ -1373,7 +1388,7 @@ if ($b_submit) {
 			$qtxt .= "'" . db_escape_string($r['kundeordnr']) . "','" . db_escape_string($r['lev_navn']) . "','" . db_escape_string($r['lev_addr1']) . "',";
 			$qtxt .= "'" . db_escape_string($r['lev_addr2']) . "','" . db_escape_string($r['lev_postnr']) . "','" . db_escape_string($r['lev_bynavn']) . "',";
 			$qtxt .= "'" . db_escape_string($r['lev_land']) . "','" . db_escape_string($r['lev_email']) . "',";
-			$qtxt .= "'" . db_escape_string($r['lev_kontakt']) . "','" . db_escape_string($r['lev_email']) . "','" . db_escape_string($r['lev_land']) . "',";
+			$qtxt .= "'" . db_escape_string($r['lev_kontakt']) . "',";
 			$qtxt .= "'" . db_escape_string($r['ean']) . "','" . db_escape_string($r['institution']) . "',";
 			$qtxt .= "'" . db_escape_string($r['betalingsbet']) . "','" . db_escape_string($r['betalingsdage']) . "','" . db_escape_string($r['kontonr']) . "',";
 			$qtxt .= "'" . db_escape_string($r['cvrnr']) . "','OT','" . db_escape_string($r['valuta']) . "',";
@@ -2500,7 +2515,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
 				$qtxt .= "betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',cvrnr='$cvrnr',momssats='$momssats',";
 				$qtxt .= "procenttillag='$procenttillag',ean='$ean',institution='$institution',email='$email',mail_fakt='$mail_fakt',";
-				$qtxt .= "phone='$phone',udskriv_til='$udskriv_til',notes='" . db_escape_string($notes) . "', ";
+				$qtxt .= "phone='$phone',udskriv_til='$udskriv_til',notes='$notes', ";
 				$qtxt .= "ordredate='$ordredate',status='$status',ref='" . db_escape_string((string) $ref) . "',";
 				$qtxt .= "fakturanr='$fakturanr',lev_adr='$lev_adr',performed_by='" . db_escape_string((string) $performed_by) . "',tidspkt='$tidspkt',projekt='$projekt[0]',";
 				$qtxt .= "sprog='$formularsprog',pbs='$pbs',afd='$afd',restordre='$restordre',mail_subj='$mail_subj',mail_text='$mail_text' $tmp ";
@@ -3589,7 +3604,7 @@ function ordreside($id, $regnskab)
 		if (isset($_REQUEST['gls_go'])) {  // BZ
 			db_modify("update ordrer set gls_label = true where id = '$id'", __FILE__ . " linje " . __LINE__);
 			$tGrossWeight = $_POST['tGrossWeight'] * 1;
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if ($r['var_name'] == 'gls_id')   $gls_id   = $r['var_value'];
@@ -3608,7 +3623,7 @@ function ordreside($id, $regnskab)
 			$dfm_pickup_addr = $dfm_pickup_name1 = $dfm_pickup_name2 = NULL;
 			$dfm_pickup_street1 = $dfm_pickup_street2 = $dfm_pickup_town = $dfm_pickup_zipcode = NULL;
 			
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if (!isset($r['var_name'])) continue;
@@ -6654,7 +6669,7 @@ function ordreside($id, $regnskab)
 	# Malene, dette er enden
 
 	# ADD LINK TO GLS!! 
-	$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+	$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ($r['var_name'] == 'gls_id')    $gls_id    = $r['var_value'];
@@ -6762,7 +6777,7 @@ function ordreside($id, $regnskab)
 			print "<tr><td align=\"center\">\n";
 			print "<p style='font-weight:bold; font-size: 16px; text-align: center;'>" . findtekst('1057|Danske Fragtmænd', $sprog_id) . "</p><!--Danske Fragtmænd--><br />\n";
 
-			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
+			$qtxt = "select var_name,var_value from settings where var_grp in ('GLS', 'DFM')";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				if ($r['var_name'] == 'dfm_gooddes') $form_gooddes = $r['var_value'];
@@ -7002,7 +7017,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 	$dkantal = $dkpris = $dkprocent = $dkrabat = $tidl_lev = 0;
 	# if (!$x) $x--; #20160915
 	if ($folgevare) $flgv = $folgevare;
-	if (!$samlevare || !$brugsamletpris) $ny_pos++; #20150317 
+	if (!$samlevare || !$brugsamletpris || !$saet) $ny_pos++; #20150317 #20261111 SST-1002
 	#lse cho "$beskrivelse $pris<br>";
 	#  if (!$ny_pos) $ny_pos=1;
 	if ($readonly) $readonly = "readonly=\"readonly\"";

@@ -1,6 +1,6 @@
 # Test database ownership
 
-Characterization and REST API database-backed PHPUnit groups use `tests/characterization/support/database/TestDatabase.php`.
+Database-backed PHPUnit groups use `tests/characterization/support/database/TestDatabase.php`.
 Create a fresh installed tenant per mutating class; do not clone an existing
 account or introduce a fixed database name. Keep the installed test master for
 HTTP routing. SQL-only groups may explicitly share `sqlFixture()` when every
@@ -12,10 +12,9 @@ and captures the identity in individual IDE/JUnit results only when retention
 is enabled (`keep=yes`). Ordinary runs omit these debugging lines; actual errors
 remain visible. Test routing rows use locked, explicitly allocated negative IDs
 so creation, retention and cleanup never advance or reset the normal registry
-sequence or increase the highest positive ID. Generated tenant names stay in a
-separate UUID namespace (`t_<uuid fragment>`), outside `<master>_<number>`,
-so fixtures do not create new normal numeric tenant names. Keep the underscore
-that the legacy webshop API uses to distinguish a tenant from a master.
+sequence or increase the highest positive ID.
+The generated name keeps a tenant's shape, `<master>_<regnskab id>` (`t` + 22 hex + `_1`):
+`api/rest_api.php` takes a name without the underscore for the master database (MB-154).
 `SALDI_TEST_KEEP_DATABASES=1` retains all groups for inspection; later runs must
 never reuse or automatically delete retained databases. Explicit operator cleanup
 uses `tools/phpunit-databases.php`: listing by default, `--delete` for removal.
@@ -30,3 +29,33 @@ date: these rows can appear in the admin account list while tests are running.
 
 Known batch-window legacy warnings remain visible as non-failing PHPUnit
 warnings until repaired; previously unseen warning classes still fail the test.
+
+## Possible future plan: a temporary master per test batch
+
+Deferred proposal, not a current requirement. Revisit if tests need to enforce
+production database naming (`<master>_<numeric tenant ID>`) or modify master
+schema/data without affecting the installed test master.
+
+- Create one owned temporary master per test invocation, with the complete
+  master schema, its own registry entry and the required users/settings.
+  Preserve user IDs with copied password hashes, or seed known test users.
+  Keep separate tenant fixtures per mutating class.
+- Use the existing PHPUnit bootstrap to register execution-start/finish hooks,
+  covering terminal and IDE runs. Test discovery alone should not create a
+  batch. The batch owner waits for all workers before cleanup; class teardown
+  releases only its tenant. Record ownership for interrupted-run cleanup.
+- Resolve the same batch master for CLI children and the test web installation
+  used by API requests and `index/login.php`. This requires a deliberate web
+  configuration mechanism; a PHPUnit environment variable alone does not
+  redirect browser requests. Keep locator integration pointed at the test
+  environment.
+- `SALDI_TEST_KEEP_DATABASES=1` would retain the entire batch, including its
+  master, tenant databases and routing data, for browser inspection. Otherwise
+  remove owned tenants before their master after execution finishes.
+- Normal installed-master counters and tenant names must remain untouched.
+  Any production-style numeric allocation would happen inside the disposable
+  master only, within the registry's database-name length limit. Cleanup must
+  verify batch ownership rather than trusting a name prefix.
+
+The current shared installed-master and UUID-tenant implementation remains in
+use until this proposal is explicitly selected for implementation.

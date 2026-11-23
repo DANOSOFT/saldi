@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/kontokort.php -----patch 5.0.0 ----2026-02-06------
+// --- systemdata/kontokort.php -----ver 5.1.1 ----2026-11-19------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2013.02.10 Break ændret til break 1
@@ -35,7 +35,18 @@
 // 20220605 PHR - php8
 // 20250619 PHR - Somebody broke the code by omitting || in several if statements
 // 20260206	PHR	- discal_year
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
+// 20261031 CL/ASR The inactive-VAT-code filter is only added when grupper.inaktiv exists, so the page cannot fail on a database without the column.
+// 20261102 CL/ASR Opened from Kontoplan under Indstillinger (settings=1; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) the page shows the standard settings layout (includes/settings/layout.php): breadcrumb Indstillinger / Finans / Kontoplan / Kontokort, Tilbage to Kontoplan, previous, next and Ny above, the Finans group's menu with Kontoplan marked.
+//                 The form, the redirect after Gem and the way back to Kontoplan carry the marker on.
+//                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
+// 20261112 CL/MMR SST-1012 An account with postings on the first or last day of the year can no longer be deleted.
+//                 The delete action is checked again on the server and lives in chartOfAccountIncludes/accountDelete.php.
+//                 An account of another fiscal year than the selected one cannot be deleted from an old link or form.
+// 20261113 CL/LH SST-1012 The refusal alerts for a delete are translated and shown correctly on a LATIN9 regnskab.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261119 CL/LH SST-1012 An edited refusal text with two %s or a stray % no longer stops the page: sprintf() falls back to str_replace().
 @session_start();
 $s_id = session_id();
 $title = "Kontokort";
@@ -56,10 +67,16 @@ $css = "../css/standard.css";
 	</script>
 <?php
 include("../includes/connect.php");
+$permission_key = 'system.kontoplan';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/genberegn.php");
 include("../includes/topline_settings.php");
+include_once("../includes/settings/hub.php"); // settings_opened_from_settings()
+$fromSettings = settings_opened_from_settings(); // opened from Indstillinger: the settings layout, else the page as before
+$settingsMarker = $fromSettings ? '&settings=1' : ''; // on the page's own links
+
+require_once __DIR__ . '/chartOfAccountIncludes/accountDelete.php';
 
 $genvej = $kontotype = NULL; # ellers hentes typen fra connect.php  
 /*
@@ -108,16 +125,11 @@ if (isset($_GET['rapportart']))
 	$rapportart = $_GET['rapportart'];
 
 $id = if_isset($_GET['id']);
+$deleteResult = NULL;
 if (isset($_POST['slet'])) {
-	$id = $_POST['id'] * 1;
-	$kontonr = $_POST['kontonr'] * 1;
-
-	db_modify("delete from kontoplan where id = $id", __FILE__ . " linje " . __LINE__);
-	$q = db_select("select id from kontoplan where kontonr >= $kontonr and regnskabsaar = '$regnaar' order by kontonr", __FILE__ . " linje " . __LINE__);
-	if ($r = db_fetch_array($q))
-		$id = $r['id'];
-	else
-		$id = 0;
+	$kontonr = (int)$_POST['kontonr'];
+	$deleteResult = deleteAccountAction((int)$_POST['id'], $kontonr, $regnaar);
+	$id = $deleteResult['nextId'];
 } elseif (isset($_POST['gem'])) {
 	$id = $_POST['id'];
 	$kontonr = (int) $_POST['kontonr'];
@@ -258,7 +270,7 @@ if (isset($_POST['slet'])) {
 	genberegn($regnaar);
 
 	if ($id > 0) {
-		$redirect_url = "kontokort.php?id=" . intval($id);
+		$redirect_url = "kontokort.php?id=" . intval($id) . $settingsMarker;
 		if ($regnaar_return) $redirect_url .= "&regnaar="    . urlencode($regnaar_return);
 		if ($maaned_fra)     $redirect_url .= "&maaned_fra=" . urlencode($maaned_fra);
 		if ($maaned_til)     $redirect_url .= "&maaned_til=" . urlencode($maaned_til);
@@ -293,6 +305,7 @@ if ($id > 0) {
 	if ($r = db_fetch_array($q)) {
 		$id = $r['id'];
 		$kontonr = (int)$r['kontonr'];
+		$accountYear = (int)$r['regnskabsaar'];
 		$map_to = (int)$r['map_to'];
 		$beskrivelse = htmlentities(stripslashes($r['beskrivelse']), ENT_COMPAT, $charset);
 		$kontotype = $r['kontotype'];
@@ -305,13 +318,15 @@ if ($id > 0) {
 		$saldo = $r['saldo'] * 1;
 		$valutakode = $r['valuta'];
 		$valutakurs = $r['valutakurs'];
-		if (!$valutakurs)
+		if (!$valutakurs) {
 			$valutakurs = 100;
+		}
 		if ($valutakode) {
 			$r = db_fetch_array(db_select("select box1 from grupper where art='VK' and kodenr = '$valutakode'", __FILE__ . " linje " . __LINE__));
 			$valuta = $r['box1'];
-		} else
+		} else {
 			$valuta = 'DKK';
+		}
 		$qtxt = "select id from kontoplan where kontonr < '$kontonr' and regnskabsaar = '$regnaar' order by kontonr desc limit 1";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$previousPage = $r['id'] * 1;
@@ -323,31 +338,11 @@ if ($id > 0) {
 	$resultatkonto = $r['id'] * 1;
 
 	if (!$kontonr) {
-		print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=kontoplan.php\">";
+		print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=kontoplan.php" . ($fromSettings ? '?settings=1' : '') . "\">";
 		exit;
 	}
-	$qtxt = "select * from grupper where kodenr='$regnaar' and art='RA'";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array($q);
-	$startmaaned = $r['box1'] * 1;
-	$startaar = $r['box2'] * 1;
-	$slutmaaned = $r['box3'] * 1;
-	$slutaar = $r['box4'] * 1;
-	$slutdato = 31;
-
-
-	while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
-		$slutdato = $slutdato - 1;
-		if ($slutdato < 28)
-			break 1;
-	}
-	$regnstart = $startaar . "-" . $startmaaned . "-" . '01';
-	$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
-
-	$qtxt = "select id from transaktioner where transdate>'$regnstart' and transdate<'$regnslut' ";
-	$qtxt .= "and kontonr='$kontonr'";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	($r = db_fetch_array($q)) ? $slet = 0 : $slet = 1;
+	// Slet only for an account of the selected year with no postings in it (an unknown year or an account of another year: no Slet)
+	$slet = (isset($accountYear) && $accountYear === (int)$regnaar && accountHasPostingsInYear($kontonr, $regnaar) === false) ? 1 : 0;
 
 }
 /*
@@ -365,7 +360,42 @@ elseif ($kontotype == 'X')
 	$kontotype = 'Sideskift';
 */
 
-if ($menu == 'T') {
+$refusedTxt = '';
+if ($deleteResult && $deleteResult['refusedReason'] == 'postings') {
+	$refusedTxt = findtekst('account.delete.refused_postings|Konto %s har posteringer i regnskabsåret og kan ikke slettes', $sprog_id);
+} elseif ($deleteResult && $deleteResult['refusedReason'] == 'otheryear') {
+	$refusedTxt = findtekst('account.delete.refused_other_year|Konto %s hører til et andet regnskabsår og kan ikke slettes herfra', $sprog_id);
+} elseif ($deleteResult && $deleteResult['refusedReason'] == 'year') {
+	$refusedTxt = findtekst('account.delete.refused_year_setup|Regnskabsåret er ikke sat korrekt op, så konto %s kan ikke slettes', $sprog_id);
+}
+if ($refusedTxt) {
+	// A translation edited to hold two %s or a stray % makes sprintf() throw; then the number goes in with str_replace()
+	try {
+		$refusedMsg = sprintf($refusedTxt, $deleteResult['refusedKontonr']);
+	} catch (ArgumentCountError | ValueError $e) {
+		$refusedMsg = str_replace('%s', (string)$deleteResult['refusedKontonr'], $refusedTxt);
+	}
+	$refusedJs = jsString(array($refusedMsg));
+	print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars($refusedJs, ENT_QUOTES, 'UTF-8') . ")\">";
+}
+
+if ($fromSettings) {
+	// The standard settings layout: Kontokort under Kontoplan (includes/stdFunc/pageRoutes.php), Tilbage to Kontoplan; the arrows and Ny of
+	// the old head are its buttons. The card itself is the old form, at the left of the content column.
+	include_once("../includes/settings/layout.php");
+	$cardActions = array();
+	if (!empty($previousPage)) {
+		$cardActions[] = array('label' => findtekst('2598|Forrige', $sprog_id), 'href' => "kontokort.php?id=$previousPage&settings=1", 'icon' => 'bx-chevron-left');
+	}
+	if (!empty($nextPage)) {
+		$cardActions[] = array('label' => findtekst('1200|Næste', $sprog_id), 'href' => "kontokort.php?id=$nextPage&settings=1", 'icon' => 'bx-chevron-right');
+	}
+	$cardActions[] = array('label' => findtekst('39|Ny', $sprog_id), 'href' => 'kontokort.php?settings=1', 'icon' => 'bx-plus', 'accesskey' => 'N');
+	settings_layout_open(array('actions' => $cardActions));
+	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td align=\"left\" valign=\"top\">";
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+} elseif ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
@@ -424,6 +454,9 @@ if ($menu == 'T') {
 
 
 print "<form name=kontokort action=kontokort.php method=post>";
+if ($fromSettings) {
+	print settings_marker_input();
+}
 print "<input type=hidden name=id value='$id'>";
 print "<input type=hidden name=valuta value='$valuta'>";
 print "<input type=hidden name=saldo value='$saldo'>";
@@ -516,8 +549,9 @@ if ($kontotype == 'D' || $kontotype == 'S') {
   print "<tr><td>" . findtekst('1095|Momssats', $sprog_id) . ":</td><td><br></td>";
 	print "<td colspan=2><SELECT NAME = 'moms' style = 'width:70px'>";
 	print "<OPTION>$moms</OPTION>\n";
+	$hasInactive = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
 	$qtxt = "select kode, kodenr from grupper ";
-	$qtxt.= "where (art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM') and fiscal_year = '$regnaar'";
+	$qtxt.= "where (art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM') and fiscal_year = '$regnaar'" . ($hasInactive ? " and coalesce(inaktiv, false) = false" : '');
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($moms)
 		print "<OPTION></OPTION>\n";
@@ -605,7 +639,7 @@ print "</tbody>";
 print "</table>";
 print "</td></tr>";
 print "<tr><td align = 'center' valign = 'bottom'>";
-if ($menu == 'T' || $menu == 'S') {
+if ($menu == 'T' || $menu == 'S' || $fromSettings) {
 
 } else {
 	print "<table width='100%' align='center' border='1' cellspacing='0' cellpadding='0'><tbody>";
@@ -614,6 +648,9 @@ if ($menu == 'T' || $menu == 'S') {
 }
 print "</td></tr>";
 print "</tbody></table>";
+if ($fromSettings) {
+	settings_layout_close();
+}
 
 if ($menu == 'T') {
 	include_once '../includes/topmenu/footer.php';
