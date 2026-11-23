@@ -37,6 +37,7 @@
 // 20261104 CL/SS SD-743 review: a set must be written with the components it was validated with.
 // 20261104 CL/SS SD-743 review 2: the account check includes OreDif, which bogfor_nu() posts an øre difference of the posting on.
 // 20261104 CL/SS SD-743 review 2: the debtor group must have the VAT group that bogfor() reads for an order with VAT.
+// 20261112 CL/SS SD-804: an echo of our own store order queues the sale still waiting for its answer.
 // 20261113 CL/SS SD-841 (input for SD-760): the created link stores the allocation per Shopify line (flags.allocation_v1): its lager and the order lines written for it.
 
 require_once __DIR__ . '/orderIntake.php';
@@ -44,6 +45,7 @@ require_once __DIR__ . '/customers.php';
 require_once __DIR__ . '/orderLines.php';
 require_once __DIR__ . '/../legacyBridge.php';
 require_once __DIR__ . '/../queue.php';
+require_once __DIR__ . '/storeOrders.php';
 
 /** Checkpoints of a web order link, in order. */
 const SHOPIFY_IMPORT_STATES = array('validated', 'created', 'delivery_committed', 'invoiced');
@@ -125,6 +127,7 @@ function shopify_import_paid_order(array $job, array $services = array()): array
 		}
 		if (shopify_is_echo($order, (string)$GLOBALS['db'])) {
 			shopify_import_log('echo', $correlation + array('order_name' => $order['name']));
+			shopify_store_orders_echo($shopId, $order, (string)$GLOBALS['db']);
 			return array('outcome' => 'done', 'result' => array('skipped' => 'echo'));
 		}
 		if (!shopify_intake_admitted($shop)) {

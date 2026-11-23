@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.08
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,8 @@
 // 20261105 CL/SZ SD-757: the stock.display, stock.reconcile and stock.baseline handlers; commands baseline, reconcile and remap.
 // 20261106 CL/MJ SD-790 review: set-app's messages end in \n like the other commands' do.
 // 20261108 CL/SS SD-803: the customer.export handler (a Saldi debtor becomes a Shopify customer).
+// 20261109 CL/MJ SD-759: the write-back handlers order.tags, order.references, order.note and order.processed.
+// 20261112 CL/SS SD-804: the store.export and store.recover handlers (a posted POS sale becomes a Shopify order).
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -84,10 +86,12 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/services/catalogue.php';
 	require_once __DIR__ . '/../includes/shopify/services/customers.php';
 	require_once __DIR__ . '/../includes/shopify/services/customersOut.php';
+	require_once __DIR__ . '/../includes/shopify/services/storeOrders.php';
 	require_once __DIR__ . '/../includes/shopify/services/prices.php';
 	require_once __DIR__ . '/../includes/shopify/services/statusIn.php';
 	require_once __DIR__ . '/../includes/shopify/services/orderImport.php';
 	require_once __DIR__ . '/../includes/shopify/services/stock.php';
+	require_once __DIR__ . '/../includes/shopify/services/orderWriteback.php';
 	require_once __DIR__ . '/../includes/shopify/oauth.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
@@ -112,6 +116,9 @@ function shopify_worker_wiring(): array {
 	shopify_worker_register($registry, 'customer.upsert', 'shopify_customer_upsert_job');
 	// SD-803: a Saldi debtor becomes a customer in the shop (store orders carry it).
 	shopify_worker_register($registry, 'customer.export', 'shopify_customer_export_job');
+	// SD-804: a posted POS sale becomes a paid order in its brand's shop; the hourly scan catches what was never queued.
+	shopify_worker_register($registry, 'store.export', 'shopify_store_orders_run');
+	shopify_worker_register($registry, 'store.recover', 'shopify_store_orders_recover');
 	// SD-802: the quarter-hour price window of each shop with prices_enabled.
 	shopify_worker_register($registry, 'price.window', 'shopify_prices_window_job');
 	// SD-801: fulfillments, order status, cancellations and refunds projected onto the order's link.
@@ -131,6 +138,10 @@ function shopify_worker_wiring(): array {
 		=> shopify_stock_reconcile(array('heartbeat' => $heartbeat), $job, $deadline));
 	shopify_worker_register($registry, 'stock.baseline', fn(array $job, float $deadline, callable $heartbeat): array
 		=> shopify_stock_baseline(array('heartbeat' => $heartbeat), $job, $deadline));
+	// SD-759: the invoiced order's hold tags, numbers and invoice link, split-set note and saldi-behandlet, in that order.
+	foreach (array('order.tags', 'order.references', 'order.note', 'order.processed') as $stage) {
+		shopify_worker_register($registry, $stage, 'shopify_writeback_job');
+	}
 	// SD-790: the app was uninstalled; the token goes and every flow is switched off.
 	shopify_worker_register($registry, 'shop.uninstalled', 'shopify_shop_uninstalled_job');
 	return array('registry' => $registry, 'producers' => $producers);
