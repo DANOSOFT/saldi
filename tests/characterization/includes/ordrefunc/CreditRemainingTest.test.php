@@ -11,6 +11,7 @@
 // History:
 // 20261118 CL/SS SD-833 Created.
 // 20261120 CL/SS SD-833 review: a credit line whose quantity points the wrong way is held to nothing.
+// 20261123 CDX/NTR Use the test class-owned database and session.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -134,7 +135,7 @@ final class CreditRemainingTest extends CharacterizationTestCase
         $item = self::$fx->item(['beholdning' => 0.0, 'kostpris' => 500.00]);
         $purchase = self::$fx->creditorOrder(self::$fx->creditor(), [['item' => $item, 'antal' => 5, 'pris' => 500.00]]);
         self::rows('UPDATE ordrelinjer SET leveres = 5 WHERE ordre_id = $1 AND vare_id > 0', [$purchase['id']]);
-        self::runChild('run_modtag_page.php', [$purchase['id'], CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_modtag_page.php', [$purchase['id'], CharacterizationEnv::sessionId()]);
         $invoice = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 1, 'pris' => 1000.00]]);
         $this->runChildJson('run_order_invoice.php', ['invoice', $invoice['id'], CharacterizationEnv::testDb()]);
         $stock = (float)self::one('SELECT beholdning FROM varer WHERE id = $1', [$item['id']])['beholdning'];

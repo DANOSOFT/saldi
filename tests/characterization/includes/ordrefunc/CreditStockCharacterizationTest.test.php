@@ -12,6 +12,7 @@
 // History:
 // 20261118 CL/SS SD-833 Created.
 // 20261118 CL/SS SD-833 Core edit 4: retur_lager 'of' and a set's master line leave stock alone.
+// 20261123 CDX/NTR Use the test class-owned database and session.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -37,7 +38,7 @@ final class CreditStockCharacterizationTest extends CharacterizationTestCase
     private function receive(int $orderId, float $qty): void
     {
         self::rows('UPDATE ordrelinjer SET leveres = $1 WHERE ordre_id = $2 AND vare_id > 0', [$qty, $orderId]);
-        self::runChild('run_modtag_page.php', [$orderId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_modtag_page.php', [$orderId, CharacterizationEnv::sessionId()]);
     }
 
     private static function lineId(int $orderId): int

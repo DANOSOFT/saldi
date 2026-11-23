@@ -3,6 +3,7 @@
 //                  cvr -> bank -> name match order of includes/docsIncludes/poolVendorMatcher.php
 //                  (kravspec Bilagsflow AI-1/AI-2/AI-7). Same shape as
 //                  PoolAmountNormalizerCharacterizationTest: pure functions, no database.
+// 20261123 CDX/NTR Allow shared-runner timing headroom and verify every bulk vendor match.
 
 declare(strict_types=1);
 
@@ -400,11 +401,19 @@ final class PoolVendorMatcherCharacterizationTest extends TestCase
             $kreditorer[] = ['id' => 10000 + $i, 'kontonr' => (string) (40000 + $i), 'firmanavn' => "Leverandør nummer $i Handel ApS", 'cvrnr' => (string) (20000000 + $i)];
         }
         $index = poolVendorBuildIndex($kreditorer);
-        $start = microtime(true);
+        $matches = [];
+        $start = hrtime(true);
         for ($i = 0; $i < 200; $i++) {
-            poolVendorMatch(['name' => 'Leverandør nummer ' . ($i * 7) . ' Handel', 'cvr' => null], $index, ['nameScan' => 'tokens']);
+            $matches[] = poolVendorMatch(['name' => 'Leverandør nummer ' . ($i * 7) . ' Handel', 'cvr' => null], $index, ['nameScan' => 'tokens']);
         }
-        $elapsed = microtime(true) - $start;
-        self::assertLessThan(0.5, $elapsed, "200 token-scan matches against 2000 kreditorer took {$elapsed}s");
+        $elapsed = (hrtime(true) - $start) / 1e9;
+        // Shared words make every scan visit all 2000 generated suppliers. Allow shared-runner
+        // headroom while retaining a coarse regression limit for the 400000 comparisons.
+        self::assertLessThan(2.0, $elapsed, "200 token-scan matches against 2000 kreditorer took {$elapsed}s");
+        foreach ($matches as $i => $match) {
+            self::assertSame('name', $match['match']);
+            self::assertSame(10000 + $i * 7, $match['kontoId']);
+            self::assertSame(1.0, $match['score']);
+        }
     }
 }

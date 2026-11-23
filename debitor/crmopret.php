@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- lap 4.1.0 --- 2024.02.27 ---
+// --- payments/flatpay.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,17 +20,19 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260821 CL/SZ Removed debug print_r($_GET)/echo $returside leftover that
 //                leaked "Array ( [date] => ... )" text onto the page (SST-736)
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
 include ("../includes/connect.php");
+$permission_key = 'debitor.konti';
 include ("../includes/online.php");
 include ("../includes/std_func.php");
 include ("../includes/stdFunc/dkDecimal.php");
