@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.19
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,10 +47,12 @@
 //                 box4 is left as it is, and a till that already has a row for the currency keeps it.
 // 20261105 CL/ASR The one-time role changes and the till account copy are moved up before master's MB-73 block, so MB-73 and the signup block stay at the end.
 //                 OrderLineDeliveredBackfillTest runs the file from MB-73 to the end with stubbed database functions.
+// 20261105 CDX/NTR Retain the approval migration after master updates.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261119 ASR SD-775: the journal approval columns (kassekladde.godkendt, godkendt_af, godkendt_tid) are appended after master's 5.1.1 migrations.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -441,6 +443,47 @@ if (!$sawanehMysql) {
 // findBoxSale() and posbogfor() read the new rows first and the list only while no row is stored.
 require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
 migrateTillAccounts($db_type);
+
+// 20261019 ASR Delvis bogføring (kravspec "Bogfør godkendte"): per-line approval on the journal.
+// godkendt = the line may be posted on its own; godkendt_af/godkendt_tid = who and when (audit trail).
+// Serialise MySQL changes and use IF NOT EXISTS on Postgres so concurrent logins can safely apply it.
+$kkGodkMysql = in_array($db_type, ['mysql', 'mysqli'], true);
+$kkGodkColumns = array(
+	'godkendt'     => 'BOOLEAN DEFAULT FALSE',
+	'godkendt_af'  => 'VARCHAR(80) NULL',
+	'godkendt_tid' => 'TIMESTAMP NULL',
+);
+$kkGodkMissing = array();
+foreach ($kkGodkColumns as $kkGodkColumn => $kkGodkType) {
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'kassekladde' AND column_name = '$kkGodkColumn'";
+	$qtxt .= $kkGodkMysql ? " AND table_schema = DATABASE()" : " AND table_schema = current_schema()";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$kkGodkMissing[$kkGodkColumn] = $kkGodkType;
+	}
+}
+if ($kkGodkMissing) {
+	if ($kkGodkMysql) {
+		$kkGodkLock = "CONCAT('saldi:kassekladde_godkendt:', MD5(DATABASE()))";
+		$kkGodkLockResult = db_fetch_array(db_select("SELECT GET_LOCK($kkGodkLock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($kkGodkLockResult['acquired'] ?? 0) !== 1) {
+			throw new RuntimeException('Could not acquire the kassekladde godkendt migration lock.');
+		}
+		try {
+			foreach ($kkGodkMissing as $kkGodkColumn => $kkGodkType) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'kassekladde' AND column_name = '$kkGodkColumn' AND table_schema = DATABASE()";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE kassekladde ADD COLUMN $kkGodkColumn $kkGodkType", __FILE__ . " linje " . __LINE__);
+				}
+			}
+		} finally {
+			db_select("SELECT RELEASE_LOCK($kkGodkLock)", __FILE__ . " linje " . __LINE__);
+		}
+	} else {
+		foreach ($kkGodkMissing as $kkGodkColumn => $kkGodkType) {
+			db_modify("ALTER TABLE kassekladde ADD COLUMN IF NOT EXISTS $kkGodkColumn $kkGodkType", __FILE__ . " linje " . __LINE__);
+		}
+	}
+}
 
 
 ?>

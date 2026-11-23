@@ -17,15 +17,43 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261105 CDX/NTR Check saved and all blank journal rows keep the approval and voucher columns aligned.
 
 import { test, expect } from "@playwright/test";
 import { login, logout, captureDialogs, DEBIT_ACCOUNT, CREDIT_ACCOUNT } from "./support/app.mjs";
+
+/**
+ * Check the rendered positions of all voucher inputs, including supplementary unsaved rows.
+ *
+ * @param {import('@playwright/test').Page} page Open editable cash journal.
+ * @returns {Promise<void>}
+ */
+async function expectAlignedJournalRows(page) {
+  const approvalIndex = await page.locator('#kkGodkendtAlle').evaluate(input => input.closest('td').cellIndex);
+  const rows = await page.locator('table.formnavi input[type="text"][name^="bila"]').evaluateAll(inputs =>
+    inputs.map(input => {
+      const cell = input.closest('td');
+      const row = cell.parentElement;
+      const approval = row.querySelectorAll('td.kk-col-godkendt');
+      return { name: input.name, voucherIndex: cell.cellIndex, left: cell.getBoundingClientRect().left,
+        approvalCells: approval.length, approvalIndex: approval[0]?.cellIndex };
+    })
+  );
+  expect(rows.length).toBeGreaterThan(1);
+  for (const row of rows) {
+    expect(row.approvalCells, row.name).toBe(1);
+    expect(row.approvalIndex, row.name).toBe(approvalIndex);
+    expect(row.voucherIndex, row.name).toBe(approvalIndex + 1);
+    expect(Math.abs(row.left - rows[0].left), `${row.name} must align with the first voucher input`).toBeLessThan(1);
+  }
+}
 
 test("the cash journal rounds a sub-øre amount to two decimals on save", async ({ page }) => {
   captureDialogs(page);
   await login(page);
 
   await page.goto("/saldi/finans/kassekladde.php?returside=kladdeliste.php&tjek=-1");
+  await expectAlignedJournalRows(page);
 
   const description = `E2E precision ${Date.now()}`;
   await page.locator('input[name="besk1"]').fill(description);
@@ -36,6 +64,7 @@ test("the cash journal rounds a sub-øre amount to two decimals on save", async 
   await page.locator('[name="save"]').click();
 
   await expect(page.locator('input[name="besk1"]')).toHaveValue(description, { timeout: 15_000 });
+  await expectAlignedJournalRows(page);
 
   const saved = await page.locator('input[name="belo1"]').inputValue();
 
