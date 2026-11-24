@@ -1,5 +1,6 @@
 <?php
 // 20261124 CL/SZ Cover db_read_first_line() in includes/db_query.php: a missing, empty or unreadable file gives the default instead of a TypeError from fgets() (MB-142).
+// 20261124 CL/SZ Cover a directory at the file's path; unlike the chmod cases it also runs as root, so CI runs it.
 
 use PHPUnit\Framework\TestCase;
 
@@ -20,6 +21,10 @@ final class DbReadFirstLineTest extends TestCase
     protected function tearDown(): void
     {
         foreach (glob($this->dir . '/*') ?: [] as $file) {
+            if (is_dir($file)) {
+                rmdir($file);
+                continue;
+            }
             chmod($file, 0600);
             unlink($file);
         }
@@ -65,5 +70,24 @@ final class DbReadFirstLineTest extends TestCase
         file_put_contents($path, "ERROR: relation does not exist_10:15\n");
         chmod($path, 0000);
         $this->assertSame('', db_read_first_line($path, ''));
+    }
+
+    /** A directory where the stamp should be reads like a missing file, with no fgets() notice. */
+    public function testDirectoryAtThePathGivesTheDefault(): void
+    {
+        $path = $this->dir . '/selectfejl.txt';
+        mkdir($path);
+        $notices = [];
+        set_error_handler(function (int $no, string $msg) use (&$notices): bool {
+            $notices[] = $msg;
+            return true;
+        });
+        try {
+            $result = db_read_first_line($path);
+        } finally {
+            restore_error_handler();
+        }
+        $this->assertSame(0, $result);
+        $this->assertSame([], $notices);
     }
 }

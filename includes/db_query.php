@@ -70,6 +70,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261124 CL/SZ Added db_read_first_line() for the error-mail stamps and lasterror.txt (MB-142).
 //                A file the web user can't read (made by cron or CLI) no longer stops a failed query's request with a TypeError from fgets().
+// 20261124 CL/SZ db_read_first_line(): a directory where the file should be reads like a missing file, without an fgets() notice (MB-142 review).
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -130,14 +131,14 @@ if (!function_exists('db_read_first_line')) {
      * rate-limit stamps (opdatfejl.txt, modifyfejl.txt, selectfejl.txt) and lasterror.txt.
      *
      * A file another account created (cron, CLI) can be unreadable for the web user.
-     * That must not stop the request, so it reads like a missing file.
+     * That must not stop the request, so it reads like a missing file, and so does a directory at that path.
      *
      * @param string $path File path.
-     * @param int|string $default Returned when the file is missing, unreadable or empty.
+     * @param int|string $default Returned when the file is missing, unreadable, empty or not a regular file.
      * @return int|string The first line, trimmed, or $default.
      */
     function db_read_first_line($path, $default = 0) {
-        if (!is_readable($path)) {
+        if (!is_file($path) || !is_readable($path)) {
             return $default;
         }
         $fp = fopen($path, 'r');
