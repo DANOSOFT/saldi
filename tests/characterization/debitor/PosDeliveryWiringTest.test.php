@@ -2,6 +2,7 @@
 // 20261120 CL/LH K33/K34 Pin where the POS delivery choice and wished date are wired in.
 //                The behaviour itself runs against a real tenant in tests/shopify/PosDeliveryChoicesTest.php, which skips where no Shopify test database is configured; this keeps the call sites from silently going missing.
 // 20261124 CL/LH K33 The PoS-valg page is retired (#1191): the choices are kept on systemdata/posDeliveryChoices.php, linked from the till settings.
+// 20261124 CL/LH K33 Codex review: the endpoint checks pos.kasse and the token, a refusal clears the tender, a table move takes the delivery along, the settings page always redirects.
 
 namespace Saldi\Tests\PosDeliveryWiring;
 
@@ -25,6 +26,8 @@ final class PosDeliveryWiringTest extends TestCase
         $save = strpos($page, 'pos_save_sale_delivery($id, $posted_valg, $posted_dato)');
         self::assertLessThan(strpos($page, "if (strpos(\$betaling, 'på beløb') && strlen(\$varenr_ny) > 1)"), $save);
         self::assertMatchesRegularExpression('/alert\(pos_sale_brand_for_alert\(\$leveringsfejl\)\);\s*\$betaling = NULL;\s*\$afslut = NULL;/', $page);
+        // The tender suffixes (c, g, k) rebuild the payment from $modtaget, so a refusal clears it too.
+        self::assertMatchesRegularExpression('/\$afslut = NULL;\s*\$modtaget = \$modtaget2 = \'\';/', $page);
         // A deactivated last choice must not strand a sale that already has it.
         self::assertStringContainsString("is_scalar(\$_POST['leveringsvalg_id']) && pos_delivery_supported()", $page);
     }
@@ -39,6 +42,10 @@ final class PosDeliveryWiringTest extends TestCase
         self::assertStringContainsString("sprog='\$genbrug_brand'\" . pos_reset_sale_delivery_sql()", $page);
         self::assertStringContainsString("ref=''\" . pos_reset_sale_delivery_sql() . \" where id = '\$id'", $page);
         self::assertStringContainsString("\$tom_reset = ((int) \$r['id'] !== (int) \$id) ? pos_reset_sale_delivery_sql() : '';", $page);
+        // The moved sale's delivery goes along to the table's sale before the emptied one is reset.
+        $move = strpos($page, "pos_move_sale_delivery((int) \$id, (int) \$r['id']);");
+        self::assertNotFalse($move);
+        self::assertLessThan(strpos($page, '$tom_reset = '), $move);
     }
 
     public function testTheSaleHeaderShowsTheFields(): void
@@ -75,6 +82,10 @@ final class PosDeliveryWiringTest extends TestCase
         self::assertLessThan($save, $write);
         self::assertStringContainsString("require_permission('settings.pos', 'read');", $page);
         self::assertStringContainsString("pos_render_delivery_choices_settings(\$sprog_id, st_charset() === 'UTF-8');", $page);
+        // Every POST that can commit a row redirects (PRG); a refusal travels in the session to the next page.
+        self::assertStringContainsString("\$_SESSION['pos_delivery_refusals'] = (string) ob_get_clean();", $page);
+        self::assertSame(1, substr_count($page, "header('Location: posDeliveryChoices.php?msg=saved');"));
+        self::assertStringNotContainsString("if (\$refusals === '') {", $page);
     }
 
     public function testAChangeIsSavedAtOnceThroughTheDeliveryEndpoint(): void
@@ -83,6 +94,11 @@ final class PosDeliveryWiringTest extends TestCase
         $endpoint = self::source('debitor/pos_ordre_includes/saveDelivery.php');
         self::assertStringContainsString('$answer(pos_save_sale_delivery($orderId, $valg, $dato));', $endpoint);
         self::assertStringContainsString('$header = "nix";', $endpoint);
+        // $webservice skips online.php's permission gate, so the endpoint checks the till right and the token itself.
+        self::assertStringContainsString('$modulnr = 5;', $endpoint);
+        self::assertLessThan(strpos($endpoint, '$answer(pos_save_sale_delivery('), strpos($endpoint, "require_permission('pos.kasse', 'write');"));
+        self::assertLessThan(strpos($endpoint, '$answer(pos_save_sale_delivery('), strpos($endpoint, 'perm_require_post_csrf(true);'));
+        self::assertStringContainsString("'X-CSRF-Token'", self::source('debitor/pos_ordre_includes/saleDeliveryFields.php'));
         self::assertStringContainsString("fetch('pos_ordre_includes/saveDelivery.php'",
             self::source('debitor/pos_ordre_includes/saleDeliveryFields.php'));
     }
