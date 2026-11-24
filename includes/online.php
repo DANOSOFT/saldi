@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.1 --- 2026-11-13---
+// --- includes/online.php --- ver 5.1.1 --- 2026-11-24---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -87,6 +87,8 @@
 //                 Their blocks include std_func.php through __DIR__.
 // 20261113 CDX/NTR Merge translated session messages with role enforcement and error reporting.
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261124 CL/SZ MB-143: A page that sets $standardsMode = true before including this file gets <!DOCTYPE html> (standards mode).
+//                Every other page keeps the HTML 4.01 doctype and its quirks mode, which their table layouts rely on.
 include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001
@@ -439,7 +441,8 @@ if ($header != 'nix') {
 	// The new layout's fonts, text size and light tokens: only the shell, the dashboard and the settings pages
 	// (systemdata, except the chart of accounts, which keeps master's look). Every other page gets a plain <html>.
 	$uiChromePage = isset($_SERVER['SCRIPT_NAME']) && preg_match('#/(index/(main|dashboard)|systemdata/(?!(kontoplan|kontokort)\.php$)[A-Za-z0-9_]+)\.php$#', (string) $_SERVER['SCRIPT_NAME']);
-	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
+	include_once(__DIR__ . '/stdFunc/pageDoctype.php');
+	print saldi_page_doctype(!empty($standardsMode)) . "\n
 	
 	" . ($uiChromePage ? "<html data-theme=\"$uiTheme\"" . ($uiSize === 'large' ? " data-size=\"large\"" : '') . ">" : "<html>") . "\n
 	<head><title>$title</title>" . (($uiChromePage && $uiSize === 'large') ? "<script>document.documentElement.setAttribute('data-size','large')</script>" : '') . "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n

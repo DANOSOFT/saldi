@@ -20,3 +20,4 @@
 - [Recording feedback](convention_recording_feedback.md) — Record durable conventions in the linked topic files; repeated review corrections get enforcement, not more rules in AGENTS.md
 - [Change checks and review requirements](../../tools/guardrails/README.md#rules-and-enforcement) — Existing repository rules and the guardrails, tests or review that enforce each one
 - [Test database ownership](convention_test_databases.md) — Fresh UUID-owned tenants per mutating PHPUnit group; explicit SQL-fixture sharing, printed IDs and optional retention; deferred proposal for a temporary master per test batch.
+- [Standards mode opt-in](convention_standards_mode.md) — pages stay in quirks mode unless they set `$standardsMode = true` before including `includes/online.php`; opt in only with a before/after visual check (MB-143)
