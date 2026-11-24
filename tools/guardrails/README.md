@@ -50,6 +50,8 @@ requires PHP on `PATH`, as provided by the guardrails CI job. `file-history` als
 rejects history entries inserted after a leading PHPDoc instead of in the header.
 `file-history` also ignores comment-only and formatting-only changes when requiring a history entry or header date/copyright update. It ignores PHP comments and whitespace when comparing tokens, while preserving string contents (including SQL and heredocs) and inline HTML. History-entry validation and continuation alignment still run, including when only comments or indentation changed.
 
+The exemption retains existing dated entries (date/tag and duplicate counts), the header date line, and the copyright line. Descriptions may be corrected; header dates and copyright ending years cannot move backward, and the starting year is retained. A changed copyright line must name `Danosoft ApS`; untouched legacy metadata needs no update.
+
 An edited PHP header must have no uncommented blank lines anywhere from the
 opening tag through its last comment. Use comment-only separators such as `//`.
 Empty lines inside a block comment are already commented; blank separation

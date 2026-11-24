@@ -123,6 +123,40 @@ test('correcting a history description needs no new entry or header maintenance'
   assert.deepEqual(history.run(context(before, after, [4])), []);
 });
 
+for (const [label, change] of [
+  ['removed history entry', source => source.replace('// 20261028 CDX/MJ Existing behavior.\n', '')],
+  ['changed history date', source => source.replace('20261028', '20261027')],
+  ['changed history tag', source => source.replace('CDX/MJ', 'CL/MJ')],
+  ['regressed header date', source => source.replace('2026-10-29', '2019-01-01')],
+  ['invalid header date', source => source.replace('2026-10-29', '2026-99-99')],
+  ['removed header date line', source => source.replace('// example.php ver 5.1.0 2026-10-29\n', '')],
+  ['changed copyright holder', source => source.replace('Danosoft ApS', 'Another company')],
+  ['regressed copyright year', source => source.replace('2026 Danosoft', '2019 Danosoft')],
+  ['changed copyright starting year', source => source.replace('2026 Danosoft', '2027-2028 Danosoft')],
+  ['removed copyright line', source => source.replace('// Copyright (c) 2026 Danosoft ApS\n', '')],
+]) {
+  test(`comment exemption rejects ${label}`, () => {
+    const before = head + 'function example() {}';
+    const findings = history.run(context(before, change(before), [2, 3, 4]));
+    assert(findings.some(f => /retain the existing|header date|copyright line/.test(f.message)), JSON.stringify(findings));
+    assert(!findings.some(f => f.message.includes('no history line')), JSON.stringify(findings));
+  });
+}
+
+test('removing one of two history entries with the same date and tag is rejected', () => {
+  const before = head + '// 20261028 CDX/MJ Another change.\nfunction example() {}';
+  const after = before.replace('// 20261028 CDX/MJ Existing behavior.\n', '');
+  const findings = history.run(context(before, after));
+  assert(findings.some(f => f.message.includes('retain the existing history entry')), JSON.stringify(findings));
+});
+
+test('header explanations can change and metadata can advance without fresh history', () => {
+  const before = head + '// Original explanation.\nfunction example() {}';
+  const after = before.replace('Original explanation.', 'Clarified explanation.')
+    .replace('2026-10-29', '2026-10-30').replace('2026 Danosoft', '2026-2027 Danosoft');
+  assert.deepEqual(history.run(context(before, after, [2, 3, 5])), []);
+});
+
 test('comment-only edits cannot introduce blank separators inside a header', () => {
   const before = head + 'function example() {}';
   const after = before.replace('// Copyright', '\n// Copyright');

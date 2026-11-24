@@ -65,6 +65,52 @@ function validDate(yyyymmdd, today) {
   return null;
 }
 
+/** Preserve recorded metadata independently of whether executable PHP changed. */
+function retainedMetadata(path, base, lines, today) {
+  const findings = [];
+  const current = lines.slice(0, headerLength(lines));
+  const identity = (text) => {
+    const match = /^\s*(?:\/\/|#)\s*(\d{8})\b(?:[ \t]+((?:(?:CL|CDX)\/)?[A-Z]{2,4})\b)?/.exec(text);
+    return match ? `${match[1]} ${match[2] ?? ""}`.trimEnd() : null;
+  };
+  const remaining = new Map();
+  for (const text of current) {
+    const key = identity(text);
+    if (key) remaining.set(key, (remaining.get(key) ?? 0) + 1);
+  }
+  for (const [i, text] of base.slice(0, headerLength(base)).entries()) {
+    const line = Math.min(i + 1, Math.max(1, current.length));
+    const key = identity(text);
+    if (key) {
+      const count = remaining.get(key) ?? 0;
+      if (count) remaining.set(key, count - 1);
+      else findings.push({ path, line,
+        message: `retain the existing history entry ${key}; its description may be corrected, but its date and tag must stay.` });
+    }
+    const oldDate = PATH_LINE.exec(text);
+    if (oldDate && !HISTORY.test(text)) {
+      const replacement = current.find(entry => PATH_LINE.test(entry) && !HISTORY.test(entry));
+      const newDate = replacement && PATH_LINE.exec(replacement);
+      const oldValue = oldDate.slice(1).join("");
+      const newValue = newDate && newDate.slice(1).join("");
+      if (!newDate || newValue < oldValue || (newValue !== oldValue && validDate(newValue, today))) {
+        findings.push({ path, line, message: "retain the existing header date line with a valid date no earlier than the base revision." });
+      }
+    }
+    if (COPYRIGHT.test(text)) {
+      const replacement = current.find(entry => COPYRIGHT.test(entry));
+      if (replacement?.trim() === text.trim()) continue;
+      const oldYears = text.match(/\b(?:19|20)\d{2}\b/g) ?? [];
+      const newYears = replacement?.match(/\b(?:19|20)\d{2}\b/g) ?? [];
+      if (!replacement || !/Danosoft ApS/.test(replacement) || !newYears.length
+          || newYears[0] !== oldYears[0] || newYears.at(-1) < oldYears.at(-1)) {
+        findings.push({ path, line, message: "retain the existing copyright line, its starting year and a nondecreasing ending year; the company must be Danosoft ApS." });
+      }
+    }
+  }
+  return findings;
+}
+
 export default {
   id: "file-history",
   summary: "edited PHP headers stay aligned and contiguous; changes beyond comments and formatting require history and current header date/copyright",
@@ -96,6 +142,8 @@ export default {
       }
       // Comments and formatting need no history or date/copyright update; layout validation still runs.
       const previous = ctx.readBase(file.path);
+      const base = splitLines(previous ?? "");
+      findings.push(...retainedMetadata(file.path, base, lines, ctx.today));
       const behaviorUnchanged = file.status === "M" && previous !== null && phpBehaviorUnchanged(previous, ctx.readHead(file.path));
       const historyLines = [];
       for (let line = 1; line <= header; line++) if (HISTORY.test(lines[line - 1])) historyLines.push(line);
@@ -158,7 +206,6 @@ export default {
         });
       }
 
-      const base = splitLines(ctx.readBase(file.path) ?? "");
       const isNew = (line) => file.added.has(line) && !(file.status === "A" && deletedLines.has(lines[line - 1]));
       const endsSentence = (line) => /[.!?]["'`)]*$/.test(lines[line - 1].trimEnd());
       // A comment line under a history entry is a continuation when it is indented, or when it has
