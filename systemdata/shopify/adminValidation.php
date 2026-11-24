@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/shopify/adminValidation.php --- ver 5.1.0 --- 2026-11-23 ---
+// --- systemdata/shopify/adminValidation.php --- ver 5.1.1 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
