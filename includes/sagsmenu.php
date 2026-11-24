@@ -60,4 +60,8 @@ include("../includes/topline_settings.php");
 			<a href=\"../index/logud.php\" class=\"button rosy small headerbtn\">".findtekst('93|Log ud', $sprog_id)."</a>
 		</div>
 	</div><!-- end of header -->";
+
+	// SST-1040: "Saldi er blevet opdateret" popup for a major Sager/Loen release (marker 'sager' in includes/releaseNotice.php).
+	include_once(__DIR__ . "/releaseNoticeFunc.php");
+	release_notice_print(if_isset($bruger_id, 0), 'sager');
 ?>
