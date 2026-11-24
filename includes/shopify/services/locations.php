@@ -82,13 +82,18 @@ function shopify_locations_fetched(int $shopId): array {
 }
 
 /**
- * Queues the fetch of a shop's locations. A fetch already queued or running is returned instead.
+ * Queues the fetch of a shop's locations. A fetch already queued or running is returned instead,
+ * and a queued one, for example one waiting to retry, is brought forward to run now.
  *
  * @param array<string, mixed> $shop shopify_shops row
  * @return array{id: int, created: bool, state: string}
  */
 function shopify_locations_request(array $shop): array {
-	return shopify_queue_enqueue('locations.fetch', (int)$shop['id'], $shop['shop_key'] . ':locations', array(), SHOPIFY_QUEUE_PRIORITY['locations.fetch']);
+	$job = shopify_queue_enqueue('locations.fetch', (int)$shop['id'], $shop['shop_key'] . ':locations', array(), SHOPIFY_QUEUE_PRIORITY['locations.fetch']);
+	if (!$job['created'] && $job['state'] === 'queued') {
+		shopify_queue_hasten($job['id']);
+	}
+	return $job;
 }
 
 /**

@@ -39,9 +39,11 @@ if (!$shops) {
 }
 $shopId = (int)($_POST['shop'] ?? $_GET['shop'] ?? 0);
 $shop = $shops[0];
+$shopFound = false;
 foreach ($shops as $candidate) {
 	if ((int)$candidate['id'] === $shopId) {
 		$shop = $candidate;
+		$shopFound = true;
 	}
 }
 $shopId = (int)$shop['id'];
@@ -53,7 +55,10 @@ $names = array_column($fetched['locations'], 'name', 'gid');
 $errors = array();
 $chosen = array();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$shopFound) {
+	// A form posted for a shop that is gone acts on no shop, never on the first one.
+	$errors['form'] = 'shopify.admin.mapping.error.shop|Shoppen findes ikke længere. Vælg shoppen igen.';
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	if (isset($_POST['fetch'])) {
 		shopify_locations_request($shop);
 		shopify_admin_redirect($self, 'shopify.admin.mapping.fetch_queued|Lokationerne hentes fra Shopify. Genindlæs siden om et øjeblik.');
