@@ -6,7 +6,7 @@
 // that need no judgment are checked here; whether `ver` needed bumping (a
 // behaviour change or not) is still the reviewer's call.
 //
-// For a PHP file that already has a history block, a change beyond formatting must:
+// For a PHP file that already has a history block, a change must:
 //   1. add a history line: `// YYYYMMDD <TAG> <description>`, TAG = initials or CL/<initials>, CDX/<initials>
 //   2. add it below every existing history line (or, after a rebase, in date order among them)
 //   3. move the date on the `--- path --- ver --- date ---` line to that day or later
@@ -22,10 +22,8 @@
 // 20261029 CDX/MJ Reject newly added history after a leading PHPDoc instead of inside the header.
 // 20261030 CL/MJ Only a /** block counts as that PHPDoc, so history after a plain /* note in the header (includes/grid.php) is not flagged.
 // 20261111 CDX/NTR Require comment-only separators throughout edited headers, including license and history sections.
-// 20261116 CDX/NTR Exempt formatting-only edits from history and header maintenance.
 
 import { splitLines } from "../lib/changeset.mjs";
-import { phpFormattingOnly } from "../lib/php-formatting.mjs";
 
 const HISTORY = /^\s*(\/\/|#)\s*(\d{8})\b/;
 // Leading whitespace is allowed: about 20 files (includes/stdFunc/findTxt.php, includes/grid.php,
@@ -66,7 +64,7 @@ function validDate(yyyymmdd, today) {
 
 export default {
   id: "file-history",
-  summary: "edited PHP headers stay contiguous; changes beyond formatting require history and current header date/copyright",
+  summary: "edited PHP headers have no uncommented blank lines, a well-formed history entry, and current header date/copyright",
   run(ctx) {
     const findings = [];
     // The diff runs with --no-renames, so a moved file is a new file plus a deleted one. Its lines that
@@ -93,9 +91,6 @@ export default {
             message: "uncommented blank line inside the file header; use a comment-only separator (//) to keep the whole header contiguous." });
         }
       }
-      // Keep header-layout validation above, but formatting needs no history or date/copyright update.
-      const previous = ctx.readBase(file.path);
-      if (file.status === "M" && previous !== null && phpFormattingOnly(previous, ctx.readHead(file.path))) continue;
       const historyLines = [];
       for (let line = 1; line <= header; line++) if (HISTORY.test(lines[line - 1])) historyLines.push(line);
       // A leading PHPDoc ends headerLength(), but is not executable code. Catch entries
