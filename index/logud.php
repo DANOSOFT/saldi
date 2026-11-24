@@ -1,4 +1,5 @@
 <?php
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 @session_start();
 $s_id=session_id();
 
@@ -56,7 +57,7 @@ if (isset($r['revisor'])) {
 		// 20261025 CL/ASR Saldi staff (admin flag 'on') return to the operator panel; everyone else to the account list as before.
 		// 20261109 CL/ASR Only when the panel is ready (not on a MySQL/MariaDB master, not before the schema step has run).
 		$vr_r = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__));
-		include_once(__DIR__ . "/../includes/opdat_func/operatorPanelSchema.php");
+		include_once(__DIR__ . "/../includes/structure/operatorPanelSchema.php");
 		$vr_back = ($vr_r && explode(',', (string)$vr_r['rettigheder'])[0] == 'on' && file_exists('../admin/operator_panel.php') && operator_panel_ready()) ? '../admin/operator_panel.php' : '../admin/vis_regnskaber.php';
 		print "<meta http-equiv=\"refresh\" content=\"0;URL='$vr_back'\">";
 		exit;

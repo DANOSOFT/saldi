@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func/operatorPanelSchema.php --- ver 5.1.1 --- 2026-11-16 ---
+// --- includes/structure/operatorPanelSchema.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,12 +37,13 @@
 // 20261116 CL/ASR MySQL/MariaDB masters get the panel too (review #785, SirRolin); the statements come from operatorPanelDialect.php and databaseDialect.php.
 //                 The id columns, timestamps and the reserved column key follow the dialect, and the metadata lookups use opdat_schema_filter() and opdat_index_query().
 //                 MySQL/MariaDB has no partial index: two stored generated columns, 1 for an active link (and for an active owner link) and NULL otherwise, carry the same two unique rules.
-//                 The schema lock is op_lock() (pg_try_advisory_lock() or GET_LOCK() with no wait), released on every way out.
+//                 The schema lock is db_lock() (pg_try_advisory_lock() or GET_LOCK() with no wait), released on every way out.
+// 20261124 CDX/NTR Move the operator-panel schema to includes/structure and use shared db_ helpers.
 
 if (!function_exists('operator_panel_schema')) {
 	define('OPERATOR_PANEL_SCHEMA', '2');
-	define('OPERATOR_PANEL_SCHEMA_LOCK', 'operator_panel_schema'); # op_lock() name (SD-731)
-	include_once(__DIR__ . '/operatorPanelDialect.php');
+	define('OPERATOR_PANEL_SCHEMA_LOCK', 'operator_panel_schema'); # db_lock() name (SD-731)
+	include_once(__DIR__ . '/../database/compatibility.php');
 
 	/**
 	 * True when the panel can be used: a master whose panel tables are complete (the settings flag is at the
@@ -66,7 +67,7 @@ if (!function_exists('operator_panel_schema')) {
 	 * @return bool
 	 */
 	function operator_panel_scope_pending() {
-		$r = db_fetch_array(db_select("SELECT column_default AS d FROM information_schema.columns WHERE table_name = 'partner_users' AND column_name = 'scope'" . opdat_schema_filter(op_db_type()), __FILE__ . " linje " . __LINE__, true));
+		$r = db_fetch_array(db_select("SELECT column_default AS d FROM information_schema.columns WHERE table_name = 'partner_users' AND column_name = 'scope'" . opdat_schema_filter(db_type()), __FILE__ . " linje " . __LINE__, true));
 		# PostgreSQL gives 'all'::character varying, MariaDB 'all', MySQL all
 		return $r && !preg_match("/^'?all'?(::|$)/", (string)$r['d']);
 	}
@@ -81,11 +82,11 @@ if (!function_exists('operator_panel_schema')) {
 		if ($flag && $flag['var_value'] >= OPERATOR_PANEL_SCHEMA) return false;
 
 		// Two logins at the same moment: only one applies the schema, the other carries on and the next login sees the flag.
-		if (!op_lock(OPERATOR_PANEL_SCHEMA_LOCK, 0, true)) return false;
+		if (!db_lock(OPERATOR_PANEL_SCHEMA_LOCK, 0, true)) return false;
 		try {
 			return operator_panel_schema_apply();
 		} finally {
-			op_unlock(OPERATOR_PANEL_SCHEMA_LOCK, true);
+			db_unlock(OPERATOR_PANEL_SCHEMA_LOCK, true);
 		}
 	}
 
@@ -95,10 +96,10 @@ if (!function_exists('operator_panel_schema')) {
 	 * @return bool true when the schema was applied in this call
 	 */
 	function operator_panel_schema_apply() {
-		$dt = op_db_type(); $my = op_is_mysql();
+		$dt = db_type(); $my = db_is_mysql();
 		$flag = db_fetch_array(db_select("SELECT var_value FROM settings WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__, true));
 		if ($flag && $flag['var_value'] >= OPERATOR_PANEL_SCHEMA) return false;
-		$id = opdat_id_column($dt); $ts = op_ts(); $tsNow = opdat_timestamp_column($dt); $tsNowNN = opdat_timestamp_column($dt, true); $key = op_key();
+		$id = opdat_id_column($dt); $ts = db_timestamp_type(); $tsNow = opdat_timestamp_column($dt); $tsNowNN = opdat_timestamp_column($dt, true); $key = db_key_column();
 		$sf = opdat_schema_filter($dt);
 		$tables = array(
 			"CREATE TABLE IF NOT EXISTS partners ($id, kind varchar(10) NOT NULL DEFAULT 'bogholder', name varchar(120) NOT NULL, cvr varchar(20), home_regnskab_id int, status varchar(10) NOT NULL DEFAULT 'active', can_create boolean NOT NULL DEFAULT false, can_manage_features boolean NOT NULL DEFAULT true, can_manage_users boolean NOT NULL DEFAULT true, created $tsNowNN, created_by int)",
@@ -177,7 +178,7 @@ if (!function_exists('operator_panel_schema')) {
 		if (operator_panel_scope_pending()) $missing++;
 		if ($missing) return false;
 		if ($flag) db_modify("UPDATE settings SET var_value = '".OPERATOR_PANEL_SCHEMA."' WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__, true);
-		else db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('operator_panel_schema', 'system', '".OPERATOR_PANEL_SCHEMA."', 'Schema version of the operator panel tables (includes/opdat_func/operatorPanelSchema.php)')", __FILE__ . " linje " . __LINE__, true);
+		else db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('operator_panel_schema', 'system', '".OPERATOR_PANEL_SCHEMA."', 'Schema version of the operator panel tables (includes/structure/operatorPanelSchema.php)')", __FILE__ . " linje " . __LINE__, true);
 		return true;
 	}
 }

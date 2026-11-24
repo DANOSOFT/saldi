@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/admin_panel.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- admin/admin_panel.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // 20261117 CL/SZ MB-163 The page and its actions need a master user with admin rights; every POST carries the session token.
 // 20261117 CDX/NTR Use the shared master-admin lookup for the page and its actions.
 // 20261119 CL/ASR Merged master (MB-163): only a master user with the admin flag gets past the page's own check, so the operator panel redirect no longer looks the flag up again.
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -86,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // 20261012 CL/ASR Saldi staff use the new operator panel (operator_panel.php) once it is ready. Ajax calls are left alone.
 //                  The check above has already let only master users with the admin flag through, which is the operator panel's own rule (vr_require_operator()).
 if ($_SERVER['REQUEST_METHOD'] == 'GET' && !isset($_GET['klassisk']) && !preg_grep('/^ajax/', array_keys($_GET))) {
-	include_once(__DIR__ . "/../includes/opdat_func/operatorPanelSchema.php"); # operator_panel_ready(): PostgreSQL only, after the schema step (20261109 CL/ASR)
+	include_once(__DIR__ . "/../includes/structure/operatorPanelSchema.php"); # operator_panel_ready(): PostgreSQL only, after the schema step (20261109 CL/ASR)
 	if (operator_panel_ready()) { print "<meta http-equiv=\"refresh\" content=\"0;URL=operator_panel.php".(isset($_GET['regnskab_id']) ? '?regnskab_id='.(int)$_GET['regnskab_id'] : '')."\">\n"; exit; }
 }
 

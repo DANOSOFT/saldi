@@ -1,4 +1,5 @@
 <?php
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 ob_start(); # for the redirect after an action (vr_prg)
 @session_start();
 $s_id=session_id();
@@ -24,7 +25,7 @@ $s_id=session_id();
 //                 The MRR on the Kunder tab counts an on/off add-on once and multiplies only counted add-ons by their quantity, the same rule as the Abonnement tab and the Overblik MRR (review #785).
 // 20261116 CL/ASR Closing a partner and unlinking an account on the partner card also take the accounts out of the adgang_til list of the partner's users (partner_revoke_legacy(); a move does the same in partner_move_ledger()), so «alle adgange er fjernet» and «Adgang fjernet» hold for the account list and aaben_regnskab.php too (review #785).
 // 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin).
-//                 New ids come from op_insert_id(), the latest usage snapshot per account comes from a join on max(taken_at) instead of DISTINCT ON, and boolean columns are read through op_bool().
+//                 New ids come from db_insert_id(), the latest usage snapshot per account comes from a join on max(taken_at) instead of DISTINCT ON, and boolean columns are read through db_bool().
 
 $css="../css/standard.css";
 $title="Partnere";
@@ -61,7 +62,7 @@ if (isset($_POST['vr_action'])) {
 		$cvr = trim(if_isset($_POST, '', 'cvr')); $home = (int) if_isset($_POST, 0, 'home_regnskab_id');
 		if (!$name) $notes[] = vr_t('Navn mangler','Name missing');
 		else {
-			$r = array('id' => op_insert_id("insert into partners (kind, name, cvr, home_regnskab_id, can_create, created_by) values ('$kind', '".db_escape_string($name)."', '".db_escape_string($cvr)."', ".($home ? "'$home'" : "NULL").", ".(isset($_POST['can_create']) ? 'true' : 'false').", '".(int)$me['id']."')", __FILE__ . " linje " . __LINE__));
+			$r = array('id' => db_insert_id("insert into partners (kind, name, cvr, home_regnskab_id, can_create, created_by) values ('$kind', '".db_escape_string($name)."', '".db_escape_string($cvr)."', ".($home ? "'$home'" : "NULL").", ".(isset($_POST['can_create']) ? 'true' : 'false').", '".(int)$me['id']."')", __FILE__ . " linje " . __LINE__));
 			$pid = (int)$r['id'];
 			partner_log('partner.created', null, $pid, "$kind: $name");
 			$notes[] = vr_t('Partneren er oprettet','Partner created');
@@ -123,7 +124,7 @@ if (isset($_POST['vr_action'])) {
 				if (db_fetch_array(db_select("select 1 from brugere where brugernavn = '".db_escape_string($newname)."'", __FILE__ . " linje " . __LINE__))) $notes[] = vr_t('Brugernavnet findes allerede','Username already exists');
 				elseif (strlen($kode) < 6) $notes[] = vr_t('Adgangskoden skal være mindst 6 tegn','Password must be at least 6 characters');
 				else {
-					$r = array('id' => op_insert_id("insert into brugere (brugernavn, rettigheder, status) values ('".db_escape_string($newname)."', ',,,', true)", __FILE__ . " linje " . __LINE__)); $bid = (int)$r['id'];
+					$r = array('id' => db_insert_id("insert into brugere (brugernavn, rettigheder, status) values ('".db_escape_string($newname)."', ',,,', true)", __FILE__ . " linje " . __LINE__)); $bid = (int)$r['id'];
 					db_modify("update brugere set kode = '".db_escape_string(saldikrypt($bid, $kode))."' where id = '$bid'", __FILE__ . " linje " . __LINE__);
 				}
 			}
@@ -178,7 +179,7 @@ if (!$pid) {
 	foreach ($partners as $p) {
 		$nc = db_fetch_array(db_select("select count(*) as n from regnskab_partners where partner_id = '".(int)$p['id']."' and until is null", __FILE__ . " linje " . __LINE__));
 		$ne = db_fetch_array(db_select("select count(*) as n from partner_users where partner_id = '".(int)$p['id']."'", __FILE__ . " linje " . __LINE__));
-		print "<tr onclick=\"location.href='partnere.php?id=".(int)$p['id']."'\"><td class=\"vr-nm\"><a href=\"partnere.php?id=".(int)$p['id']."\">".vr_h($p['name'])."</a></td><td class=\"vr-mut\">".vr_h(vr_kind($p['kind']))."</td><td class=\"vr-mut vr-num\">".vr_h($p['cvr'])."</td><td class=\"vr-mut\">".($p['home_regnskab_id'] && isset($regNames[(int)$p['home_regnskab_id']]) ? vr_h($regNames[(int)$p['home_regnskab_id']]['regnskab']) : '–')."</td><td class=\"vr-r vr-num\">".(int)$nc['n']."</td><td class=\"vr-r vr-num\">".(int)$ne['n']."</td><td>".(op_bool($p['can_create']) ? '<span class="vr-st"><span class="vr-dot vr-ok"></span>'.vr_t('Ja','Yes').'</span>' : '<span class="vr-mut2">–</span>')."</td></tr>";
+		print "<tr onclick=\"location.href='partnere.php?id=".(int)$p['id']."'\"><td class=\"vr-nm\"><a href=\"partnere.php?id=".(int)$p['id']."\">".vr_h($p['name'])."</a></td><td class=\"vr-mut\">".vr_h(vr_kind($p['kind']))."</td><td class=\"vr-mut vr-num\">".vr_h($p['cvr'])."</td><td class=\"vr-mut\">".($p['home_regnskab_id'] && isset($regNames[(int)$p['home_regnskab_id']]) ? vr_h($regNames[(int)$p['home_regnskab_id']]['regnskab']) : '–')."</td><td class=\"vr-r vr-num\">".(int)$nc['n']."</td><td class=\"vr-r vr-num\">".(int)$ne['n']."</td><td>".(db_bool($p['can_create']) ? '<span class="vr-st"><span class="vr-dot vr-ok"></span>'.vr_t('Ja','Yes').'</span>' : '<span class="vr-mut2">–</span>')."</td></tr>";
 	}
 	if (!$partners) print "<tr><td colspan=\"7\" class=\"vr-mut\">".vr_t('Ingen partnere endnu','No partners yet')."</td></tr>";
 	print "</tbody></table></div></section>\n";
@@ -198,7 +199,7 @@ $isK = ($p['kind'] == 'koncern');
 $KU = $isK ? vr_t('Selskaber','Companies') : vr_t('Kunder','Customers');
 if (!in_array($tab, array('oversigt','kunder','medarbejdere','indstillinger','log'), true)) $tab = 'oversigt';
 $links = array(); $q = db_select("select * from regnskab_partners where partner_id = '$pid' and until is null order by since", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $links[] = $r;
-$emps = array(); $q = db_select("select pu.*, b.brugernavn, ".(op_column_exists('brugere', 'email') ? "b.email" : "'' as email")." from partner_users pu join brugere b on b.id = pu.bruger_id where pu.partner_id = '$pid' order by pu.partner_role desc, b.brugernavn", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $emps[] = $r;
+$emps = array(); $q = db_select("select pu.*, b.brugernavn, ".(db_column_exists('brugere', 'email') ? "b.email" : "'' as email")." from partner_users pu join brugere b on b.id = pu.bruger_id where pu.partner_id = '$pid' order by pu.partner_role desc, b.brugernavn", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $emps[] = $r;
 $home = $p['home_regnskab_id'] && isset($regNames[(int)$p['home_regnskab_id']]) ? $regNames[(int)$p['home_regnskab_id']] : null;
 
 $crumbs = $op ? array(array(vr_t('Operatørpanel','Operator panel'), '../admin/operator_overblik.php'), array(vr_t('Regnskaber','Accounts'), 'operator_panel.php?ltab='.($isK ? 'koncerner' : 'bogholdere')), $p['name']) : array(array(vr_t('Bogholderpanel','Accountant panel'), '../admin/operator_overblik.php'), vr_t('Mit firma','My firm'));
@@ -214,7 +215,7 @@ vr_tabs($tabs, $tab);
 if ($tab == 'oversigt') {
 	print "<div class=\"vr-grid2\"><section class=\"vr-sect\"><h2>".vr_t('Firma','Firm')."</h2><div class=\"vr-card vr-kv\">";
 	$owner = ''; foreach ($emps as $e) if ($e['partner_role'] == 'owner') { $owner = $e['brugernavn']; break; }
-	foreach (array(array(vr_t('Type','Type'), vr_h(vr_kind($p['kind']))), array('CVR', $p['cvr'] ? vr_h($p['cvr']) : '–'), array(vr_t('Eget regnskab','Own account'), $home ? "<a href=\"regnskab.php?id=".(int)$p['home_regnskab_id']."\">".vr_h($home['regnskab'])."</a>" : '–'), array(vr_t('Ejer','Owner'), $owner ? vr_h($owner) : '–'), array($KU, count($links)), array(vr_t('Medarbejdere','Employees'), count($emps)), array(vr_t('Må oprette regnskaber','May create accounts'), op_bool($p['can_create']) ? vr_t('Ja','Yes') : vr_t('Nej','No')), array(vr_t('Oprettet','Created'), vr_h(substr($p['created'],0,10)))) as $row) print "<div><span>$row[0]</span><b>$row[1]</b></div>";
+	foreach (array(array(vr_t('Type','Type'), vr_h(vr_kind($p['kind']))), array('CVR', $p['cvr'] ? vr_h($p['cvr']) : '–'), array(vr_t('Eget regnskab','Own account'), $home ? "<a href=\"regnskab.php?id=".(int)$p['home_regnskab_id']."\">".vr_h($home['regnskab'])."</a>" : '–'), array(vr_t('Ejer','Owner'), $owner ? vr_h($owner) : '–'), array($KU, count($links)), array(vr_t('Medarbejdere','Employees'), count($emps)), array(vr_t('Må oprette regnskaber','May create accounts'), db_bool($p['can_create']) ? vr_t('Ja','Yes') : vr_t('Nej','No')), array(vr_t('Oprettet','Created'), vr_h(substr($p['created'],0,10)))) as $row) print "<div><span>$row[0]</span><b>$row[1]</b></div>";
 	print "</div></section><section class=\"vr-sect\"><h2>".vr_t('Seneste hændelser','Latest events')."</h2><div class=\"vr-card\"><table class=\"vr-t\"><tbody>";
 	$q = db_select("select l.*, b.brugernavn from partner_log l left join brugere b on b.id = l.actor_bruger_id where l.partner_id = '$pid' or l.actor_partner_id = '$pid' order by l.id desc limit 8", __FILE__ . " linje " . __LINE__); $n = 0;
 	while ($r = db_fetch_array($q)) { $n++; print "<tr><td class=\"vr-mut vr-num\">".vr_h(substr($r['ts'],0,16))."</td><td>".vr_h($r['action'])."<small style=\"display:block;color:var(--text-3)\">".vr_h($r['brugernavn'])." ".vr_h($r['details'])."</small></td></tr>"; }
@@ -275,7 +276,7 @@ if ($tab == 'oversigt') {
 	print "<label>".vr_t('Type','Type')."<select name=\"kind\" class=\"vr-sel\">"; foreach (partner_kinds() as $k) print "<option value=\"$k\"".($p['kind'] == $k ? " selected" : "").">".vr_h(vr_kind($k))."</option>"; print "</select></label>";
 	print "<label>".vr_t('Navn','Name')."<input class=\"vr-inp\" name=\"name\" value=\"".vr_h($p['name'])."\" required></label><label>CVR<input class=\"vr-inp\" name=\"cvr\" value=\"".vr_h($p['cvr'])."\"></label>";
 	print "<label>".vr_t('Eget regnskab','Own account')."<select name=\"home_regnskab_id\" class=\"vr-sel\"><option value=\"0\">–</option>"; foreach ($regNames as $rid => $r) print "<option value=\"$rid\"".((int)$p['home_regnskab_id'] == $rid ? " selected" : "").">".vr_h($r['regnskab'])." · ".vr_h($r['db'])."</option>"; print "</select></label>";
-	foreach (array('can_create' => vr_t('Må oprette kunderegnskaber','May create customer accounts'), 'can_manage_features' => vr_t('Må styre funktioner inden for pakken (P3)','May manage features within the plan (P3)'), 'can_manage_users' => vr_t('Må styre kundens brugere (P2)','May manage customer users (P2)')) as $k => $lab) print "<label class=\"vr-chk\"><input type=\"checkbox\" name=\"$k\"".(op_bool($p[$k]) ? " checked" : "")."> $lab</label>";
+	foreach (array('can_create' => vr_t('Må oprette kunderegnskaber','May create customer accounts'), 'can_manage_features' => vr_t('Må styre funktioner inden for pakken (P3)','May manage features within the plan (P3)'), 'can_manage_users' => vr_t('Må styre kundens brugere (P2)','May manage customer users (P2)')) as $k => $lab) print "<label class=\"vr-chk\"><input type=\"checkbox\" name=\"$k\"".(db_bool($p[$k]) ? " checked" : "")."> $lab</label>";
 	print "<div><button type=\"submit\" class=\"vr-btn vr-primary\">".findtekst('3|Gem', $sprog_id)."</button></div></form></div></section>";
 	print "<section class=\"vr-sect\"><h2>".vr_t('Farezone','Danger zone')."</h2><div class=\"vr-card\"><div class=\"vr-frow\"><div><b>".vr_t('Luk partneren','Close the partner')."</b><small>".vr_t('Fjerner alle adgange. Regnskaberne og masterbrugerne bevares.','Removes all access. Accounts and master users are kept.')."</small></div><span></span><form method=\"post\"><input type=\"hidden\" name=\"vr_action\" value=\"close\"><button type=\"submit\" class=\"vr-btn vr-danger\" onclick=\"return confirm('".vr_t('Luk partneren og fjern alle adgange?','Close the partner and remove all access?')."')\">".vr_t('Luk','Close')."</button></form></div></div></section>\n";
 } else {

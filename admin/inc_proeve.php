@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_proeve.php --- ver 5.1.1 --- 2026.11.16 ---
+// --- admin/inc_proeve.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. Trial follow-up for the operator panel: tabs "Nye kunder" (ledgers still in the 30-day trial, with days left) and "Overskredet prøveperiode" (trial ended without payment, with follow-up status and note).
@@ -7,7 +7,7 @@
 //                 Older ledgers are treated as existing customers and never enter the lists.
 //                 Paid = marked paid here, billing status 'paid' (own or payer's, see bill_payer) or "Betalt til" set after the trial start.
 //                 Closed ledgers and bookkeeper/group home ledgers are not listed. All changes are logged.
-// 20261029 CL/ASR regnskab_trial is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
+// 20261029 CL/ASR regnskab_trial is created by the update chain (includes/structure/operatorPanelSchema.php).
 // 20261109 CL/ASR "Betalt via" names the paying ledger instead of showing its id (review #785).
 //                 Extending a trial also moves the trial's plan override (ent_start_trial) to the new end date and logs it as entitlement.override_extended, so the Abonnement tab keeps the trial plan for the extended period.
 //                 Only the override that still ends together with the trial is moved, so an override the operator ended stays ended.
@@ -15,11 +15,12 @@
 // 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin).
 //                 tr_sync() takes the latest trial override per account through a join on max(id) instead of DISTINCT ON, with CAST(… AS DATE) instead of ::date.
 //                 On MySQL/MariaDB a ledger's age is the creation time of its oldest table in information_schema, read in one query for the candidate databases; pg_stat_file() stays on PostgreSQL.
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 if (!function_exists('tr_tables_ensure')) {
 define('TR_DAYS', 30);
 function tr_tables_ensure() {
-	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	# 20261029 CL/ASR The tables come from the update chain (includes/structure/operatorPanelSchema.php via betweenUpdates.php).
 	return;
 }
 function tr_followups() { return array('open' => vr_t('Ikke kontaktet','Not contacted'), 'contacted' => vr_t('Kontaktet','Contacted'), 'promised' => vr_t('Lovet betaling','Payment promised'), 'closing' => vr_t('Skal lukkes','To be closed')); }
@@ -35,7 +36,7 @@ function tr_register($rid, $days = TR_DAYS) {
 function tr_sync() {
 	static $d = false; if ($d) return; $d = true; tr_tables_ensure(); global $sqdb;
 	db_modify("insert into regnskab_trial (regnskab_id, started, ends, source) select o.regnskab_id, CAST(o.created_at AS DATE), CAST(o.expires_at AS DATE), 'trial' from regnskab_overrides o join (select max(id) as id from regnskab_overrides where reason = 'trial' and expires_at is not null group by regnskab_id) n on n.id = o.id join regnskab r on r.id = o.regnskab_id left join regnskab_trial t on t.regnskab_id = o.regnskab_id where t.regnskab_id is null", __FILE__ . " linje " . __LINE__);
-	if (op_is_mysql()) { # the oldest table's creation time, for the candidate databases only; the ledger database itself has none
+	if (db_is_mysql()) { # the oldest table's creation time, for the candidate databases only; the ledger database itself has none
 		$rows = array(); $rq = db_select("select r.id, r.db from regnskab r left join regnskab_trial t on t.regnskab_id = r.id where t.regnskab_id is null and r.db != '".db_escape_string($sqdb)."'", __FILE__ . " linje " . __LINE__);
 		while ($rr = db_fetch_array($rq)) $rows[strtolower((string)$rr['db'])] = array('id' => $rr['id'], 'born' => null);
 		if ($rows) {
@@ -44,7 +45,7 @@ function tr_sync() {
 		}
 	} else {
 		$ok = db_fetch_array(db_select("select (rolsuper or exists (select 1 from pg_auth_members m join pg_roles g on g.oid = m.roleid where g.rolname = 'pg_read_server_files' and m.member = r.oid)) as ok from pg_roles r where r.rolname = current_user", __FILE__ . " linje " . __LINE__));
-		if (!$ok || !op_bool($ok['ok'])) return;
+		if (!$ok || !db_bool($ok['ok'])) return;
 		$q = db_select("select r.id, (pg_stat_file('base/'||d.oid||'/PG_VERSION')).modification::date as born from regnskab r join pg_database d on d.datname = r.db left join regnskab_trial t on t.regnskab_id = r.id where t.regnskab_id is null and r.db != '".db_escape_string($sqdb)."'", __FILE__ . " linje " . __LINE__);
 		$rows = array(); while ($rr = db_fetch_array($q)) $rows[] = $rr;
 	}

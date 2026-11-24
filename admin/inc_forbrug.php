@@ -1,9 +1,10 @@
 <?php
-// --- admin/inc_forbrug.php --- ver 5.1.1 --- 2026.11.16 ---
+// --- admin/inc_forbrug.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 2 "Forbrug og begrænsninger" on the customer card: live usage from the customer database (ent_usage_collect), today's snapshot stored, limits shown as plan standard vs. individual override vs. effective, utilisation bars, entries per month, modules in use vs. plan, and limit adjustment (writes regnskab_overrides kind='limit', logged as entitlement.*).
-// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). An override ends yesterday as a date from PHP instead of current_date - 1, and the column key is quoted through op_key().
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). An override ends yesterday as a date from PHP instead of current_date - 1, and the column key is quoted through db_key_column().
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 if (!function_exists('ent_forbrug_actions')) {
 function ent_forbrug_actions($rid, &$notes) {
@@ -15,12 +16,12 @@ function ent_forbrug_actions($rid, &$notes) {
 		$val = (strtolower($val) == 'ubegrænset' || strtolower($val) == 'unlimited' || $val == '*') ? '*' : (string)(int)preg_replace('/\D/', '', $val);
 		// one active limit override per key: validate first, then expire the old one and add the new one
 		if ($e = ent_override_error('limit', $reason, $exp)) { $notes[] = $e; return; }
-		db_modify("update regnskab_overrides set expires_at = '".date('Y-m-d', strtotime('-1 day'))."' where regnskab_id = '".(int)$rid."' and kind = 'limit' and ".op_key()." = '".db_escape_string($key)."' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__);
+		db_modify("update regnskab_overrides set expires_at = '".date('Y-m-d', strtotime('-1 day'))."' where regnskab_id = '".(int)$rid."' and kind = 'limit' and ".db_key_column()." = '".db_escape_string($key)."' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__);
 		$err = ent_add_override($rid, 'limit', $key, $val, $reason, $exp);
 		$notes[] = $err ? $err : vr_t('Grænsen er justeret','Limit adjusted');
 	} elseif ($_POST['fb_action'] == 'limit_clear') {
 		$key = if_isset($_POST, '', 'key');
-		db_modify("update regnskab_overrides set expires_at = '".date('Y-m-d', strtotime('-1 day'))."' where regnskab_id = '".(int)$rid."' and kind = 'limit' and ".op_key()." = '".db_escape_string($key)."' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__);
+		db_modify("update regnskab_overrides set expires_at = '".date('Y-m-d', strtotime('-1 day'))."' where regnskab_id = '".(int)$rid."' and kind = 'limit' and ".db_key_column()." = '".db_escape_string($key)."' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__);
 		ent_log('entitlement.override_expired', (int)$rid, "limit $key – tilbage til pakkens standard");
 		$notes[] = vr_t('Tilbage til pakkens standard','Back to the plan default');
 	}

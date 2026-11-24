@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.16 ---
+// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 3 "Betalinger og fakturering" on the customer card.
@@ -16,14 +16,15 @@
 // 20261116 CL/ASR The billing customer is found by an exact match only, because the API's search is a substring match over name, e-mail, phone, CVR, customer number and contact, and its first hit could be another customer, whose invoices were then shown and cached on this account (review #785).
 //                 bill_key() says what the key is (saved customer number, else CVR, else the account name), and bill_match_customers() keeps the customers whose number, CVR or name equals it; none or several is an error, never a guess.
 //                 All of the customer's invoices are fetched page by page, not only the first 100, and only invoices with that customer number are kept (the endpoint also matches a numeric number against the internal customer id).
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 if (!function_exists('bill_tables_ensure')) {
 function bill_tables_ensure() {
-	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	# 20261029 CL/ASR The tables come from the update chain (includes/structure/operatorPanelSchema.php via betweenUpdates.php).
 	return;
 }
 function bill_cache_ensure() {
-	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	# 20261029 CL/ASR The tables come from the update chain (includes/structure/operatorPanelSchema.php via betweenUpdates.php).
 	return;
 }
 // Who is invoiced for this ledger: own ledger, or another ledger (parent) via the partner's consolidated billing or a per-ledger choice.

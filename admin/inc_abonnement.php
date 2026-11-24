@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_abonnement.php --- ver 5.1.1 --- 2026.11.16 ---
+// --- admin/inc_abonnement.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. The subscription tab (area 1 "Pakker og abonnementer") as two functions shared by the operator's customer card (operator_panel.php) and, for now, regnskab.php.
@@ -7,7 +7,8 @@
 // 20261109 CL/ASR The downgrade guard counts users and items with ent_usage_collect(), the same rules as the Forbrug tab (inactive users and closed items are not counted), so deactivating users clears the conflict (review #785).
 //                 The add-on list shows "× n" only for counted add-ons (ent_addon_counted()), because PHP reads PostgreSQL's 'f' as true.
 //                 The add-on price is multiplied by the quantity only for counted add-ons, so an on/off add-on saved earlier with a quantity above 1 shows its single monthly price (review #785).
-// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). An override ends yesterday as a date from PHP instead of current_date - 1, and the column key is quoted through op_key().
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). An override ends yesterday as a date from PHP instead of current_date - 1, and the column key is quoted through db_key_column().
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 if (!function_exists('ent_tab_actions')) {
 function ent_live_usage_quick($reg) { # users/items/postings from the customer db for the downgrade guard; ent_usage_collect() reconnects to the master itself
@@ -32,7 +33,7 @@ function ent_tab_actions($rid, $reg, &$notes) {
 			$vReason = trim(if_isset($_POST, '', 'reason')) ?: ($to == 'off' ? 'Slået fra af operatør' : ''); $vExp = trim(if_isset($_POST, '', 'expires_at'));
 			if ($e = ent_override_error('feature', $vReason, $to == 'off' && !$vExp ? date('Y-m-d', strtotime('+10 years')) : $vExp)) { $notes[] = $e; return; }
 		}
-		db_modify("update regnskab_overrides set expires_at = '".date('Y-m-d', strtotime('-1 day'))."' where regnskab_id = '".(int)$rid."' and kind = 'feature' and ".op_key()." = '".db_escape_string($fk)."' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__);
+		db_modify("update regnskab_overrides set expires_at = '".date('Y-m-d', strtotime('-1 day'))."' where regnskab_id = '".(int)$rid."' and kind = 'feature' and ".db_key_column()." = '".db_escape_string($fk)."' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__);
 		if (if_isset($_POST, '', 'mode') == 'restore') { ent_log('entitlement.override_expired', (int)$rid, "feature $fk – tilbage til pakken"); $notes[] = vr_t('Funktionen følger igen pakken','Feature follows the plan again'); }
 		else { $reason = trim(if_isset($_POST, '', 'reason')) ?: ($to == 'off' ? 'Slået fra af operatør' : ''); $exp = trim(if_isset($_POST, '', 'expires_at')); if ($e = ent_override_error('feature', $reason, $to == 'off' && !$exp ? date('Y-m-d', strtotime('+10 years')) : $exp)) { $notes[] = $e; return; } $err = ent_add_override($rid, 'feature', $fk, $to, $reason, $to == 'off' && !$exp ? date('Y-m-d', strtotime('+10 years')) : $exp); $notes[] = $err ? $err : ($to == 'on' ? vr_t('Funktionen er tildelt','Feature granted') : vr_t('Funktionen er slået fra for kunden','Feature switched off for the customer')); }
 	}

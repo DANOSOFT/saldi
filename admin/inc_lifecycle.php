@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_lifecycle.php --- ver 5.1.1 --- 2026.10.29 ---
+// --- admin/inc_lifecycle.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 4 "Administration af regnskaber": lifecycle of a ledger as explicit states – active | suspended | closed – with reason and optional future date, plus subscription cancellation at a date.
@@ -8,11 +8,12 @@
 //                 Due events are applied lazily on the card and nightly by usage_snapshot_job.php.
 //                 Closing a partner never touches its customers' ledgers (partnere.php only ends the links).
 // 20261012 CL/ASR Payment model B1 (12/10-2026): a cancellation is recorded here and schedules the closing; the recurring invoicing order in the billing ledger must still be stopped by hand until the billing ledger's API can do it (invoice-mail spec, stage S4).
-// 20261029 CL/ASR regnskab_lifecycle is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
+// 20261029 CL/ASR regnskab_lifecycle is created by the update chain (includes/structure/operatorPanelSchema.php).
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 if (!function_exists('lc_tables_ensure')) {
 function lc_tables_ensure() {
-	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	# 20261029 CL/ASR The tables come from the update chain (includes/structure/operatorPanelSchema.php via betweenUpdates.php).
 	return;
 }
 // Current state: last applied lifecycle row, else derived from regnskab.lukket

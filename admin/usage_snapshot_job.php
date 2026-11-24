@@ -1,12 +1,13 @@
 <?php
-// --- admin/usage_snapshot_job.php --- ver 5.1.1 --- 2026.11.16 ---
+// --- admin/usage_snapshot_job.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Nightly usage snapshot (entitlements spec §7.3 step 1 / panels spec §5.5): for every open ledger measure usage in the customer database, store usage_snapshots for today and refresh regnskab.posteret/sidst so the lists are fresh without "Genberegn posteringer".
 //                 CLI only: cd admin && php usage_snapshot_job.php [limit] Cron (owner's decision 10/10-2026: 02:00 every night), as the web server user: 0 2 * * * cd /var/www/html/<map>/admin && /usr/bin/php usage_snapshot_job.php >> ../temp/usage_snapshot.log 2>&1
 // 20261029 CL/ASR Exits quietly until the update chain has created the panel's tables (operator_panel_schema flag).
 // 20261116 CL/ASR The billing status is looked up by an exact customer number, CVR or name (bill_key(), review #785).
-//                 The ledger's database is selected after db_connect() (op_connect_ledger()), and REQUEST_URI/REMOTE_ADDR get CLI defaults, since db_query.php's logging reads them.
+//                 The ledger's database is selected after db_connect() (db_connect_database()), and REQUEST_URI/REMOTE_ADDR get CLI defaults, since db_query.php's logging reads them.
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 if (php_sapi_name() !== 'cli') { http_response_code(403); exit("cli only\n"); }
 $_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] ?? '/admin/usage_snapshot_job.php'; $_SERVER['REMOTE_ADDR'] = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'; # db_query.php's logging reads both, and the CLI has neither
 chdir(__DIR__);
@@ -42,7 +43,7 @@ if (get_saldi_api_token()) {
 	foreach ($ids as $reg) {
 		if ($limit && $bn >= $limit) break;
 		$cfg = bill_get((int)$reg['id']); $cvr = '';
-		if ($reg['db'] && db_exists($reg['db']) && op_connect_ledger($reg['db'], __FILE__ . " linje " . __LINE__)) { $r = @db_fetch_array(@db_select("select cvrnr from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__)); if ($r) $cvr = str_replace(' ', '', preg_replace('/^DK\s*/i', '', trim((string)$r['cvrnr']))); include("../includes/connect.php"); }
+		if ($reg['db'] && db_exists($reg['db']) && db_connect_database($reg['db'], __FILE__ . " linje " . __LINE__)) { $r = @db_fetch_array(@db_select("select cvrnr from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__)); if ($r) $cvr = str_replace(' ', '', preg_replace('/^DK\s*/i', '', trim((string)$r['cvrnr']))); include("../includes/connect.php"); }
 		list($bs, $by) = bill_key($cfg['billing_kontonr'], $cvr, $reg['regnskab']); $data = bill_fetch($bs, $by); bill_cache_store((int)$reg['id'], $data, $cfg, $bs); $bn++;
 	}
 	echo "billing: $bn customers checked\n";

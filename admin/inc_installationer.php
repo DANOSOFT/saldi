@@ -1,20 +1,21 @@
 <?php
-// --- admin/inc_installationer.php --- ver 5.1.1 --- 2026.11.16 ---
+// --- admin/inc_installationer.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261012 CL/ASR New. "Egne installationer": customers who run Saldi themselves (open source) and have a support agreement with us.
 //                 They are not ledgers in this master, so they live in their own table self_hosted.
 //                 The operator registers contact, URL, version, support level, agreement period and price, and the billing-ledger customer; payments come from the billing ledger through the same REST API as for hosted ledgers (bill_fetch/bill_classify), cached for the list and overview.
 //                 Shown as a tab on operator_panel.php (ltab=egne) with a card per installation (?inst_id=N).
-// 20261029 CL/ASR self_hosted is created by the update chain (includes/opdat_func/operatorPanelSchema.php).
+// 20261029 CL/ASR self_hosted is created by the update chain (includes/structure/operatorPanelSchema.php).
 // 20261109 CL/ASR Invoice dates from the billing API reach SQL only as validated YYYY-MM-DD dates, anything else is stored as NULL (review #785).
 //                 When an invoice date cannot be read at all (bill_date_error()), the refresh is refused and the stored status kept, where bill_classify() turned it into a 1970 due date and a false "overdue" (review #785).
 // 20261113 CL/ASR The invoice table shows an unreadable invoice date as a dash with no due date (bill_dmy(), bill_classify()), not as 01-01-1970 and overdue (review #785).
-// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). A new installation's id comes from op_insert_id().
+// 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). A new installation's id comes from db_insert_id().
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 if (!function_exists('inst_tables_ensure')) {
 function inst_tables_ensure() {
-	# 20261029 CL/ASR The tables come from the update chain (includes/opdat_func/operatorPanelSchema.php via betweenUpdates.php).
+	# 20261029 CL/ASR The tables come from the update chain (includes/structure/operatorPanelSchema.php via betweenUpdates.php).
 	return;
 }
 function inst_levels() { return array('basis' => vr_t('Basis','Basic'), 'udvidet' => vr_t('Udvidet','Extended'), 'premium' => 'Premium', 'andet' => vr_t('Andet','Other')); }
@@ -41,7 +42,7 @@ function inst_actions(&$notes, &$id) {
 		if (trim((string)if_isset($_POST, '', 'name')) === '') { $notes[] = vr_t('Navn mangler','Name missing'); return; }
 		$f = inst_fields();
 		if ($a == 'create') {
-			$r = array('id' => op_insert_id("insert into self_hosted (".implode(', ', array_keys($f)).", created_by) values (".implode(', ', $f).", '".db_escape_string(ent_actor())."')", __FILE__ . " linje " . __LINE__)); $id = (int)$r['id'];
+			$r = array('id' => db_insert_id("insert into self_hosted (".implode(', ', array_keys($f)).", created_by) values (".implode(', ', $f).", '".db_escape_string(ent_actor())."')", __FILE__ . " linje " . __LINE__)); $id = (int)$r['id'];
 			inst_log($id, 'install.created', trim($_POST['name'])); $notes[] = vr_t('Installationen er oprettet','Installation created');
 		} else {
 			$set = array(); foreach ($f as $k => $v) $set[] = "$k = $v";
