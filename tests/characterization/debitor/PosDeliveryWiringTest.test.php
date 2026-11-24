@@ -1,6 +1,7 @@
 <?php
 // 20261120 CL/LH K33/K34 Pin where the POS delivery choice and wished date are wired in.
 //                The behaviour itself runs against a real tenant in tests/shopify/PosDeliveryChoicesTest.php, which skips where no Shopify test database is configured; this keeps the call sites from silently going missing.
+// 20261124 CL/LH K33 The PoS-valg page is retired (#1191): the choices are kept on systemdata/posDeliveryChoices.php, linked from the till settings.
 
 namespace Saldi\Tests\PosDeliveryWiring;
 
@@ -46,11 +47,34 @@ final class PosDeliveryWiringTest extends TestCase
         self::assertStringContainsString('pos_render_sale_delivery_fields((int) $id, (int) $status, $sprog_id);', $scan);
     }
 
-    public function testPosValgShowsAndSavesTheChoices(): void
+    public function testTheTillSettingsLinkToTheDeliveryChoicesPage(): void
     {
-        self::assertStringContainsString('pos_render_delivery_choices_settings($sprog_id);',
-            self::source('systemdata/diverseIncludes/posOptions.php'));
-        self::assertStringContainsString('pos_save_delivery_choices($_POST);', self::source('systemdata/diverse.php'));
+        // #1191 retired the PoS-valg page, so the choices are kept on their own page, linked from
+        // Indstillinger -> Kasse -> Kasseskærm -> Salg, and shown only where the Shopify schema is installed.
+        $definitions = self::source('systemdata/settingsDefinitions.php');
+        self::assertMatchesRegularExpression(
+            "/'pos\\.screen\\.delivery_choices' => array\\('sub' => 'sale', 'type' => 'link',[^\\n]*'href' => 'posDeliveryChoices\\.php'/", $definitions);
+        self::assertMatchesRegularExpression("/'pos\\.screen\\.delivery_choices' => array\\(.*?'visible_if' => array\\('module', 'pos_delivery'\\)/s", $definitions);
+        self::assertMatchesRegularExpression("/\\\$module === 'pos_delivery'.*?posSaleSettings\\.php.*?pos_delivery_supported\\(\\)/s",
+            self::source('includes/settings/SettingsService.php'));
+        // The retired page no longer carries them.
+        self::assertStringNotContainsString('pos_render_delivery_choices_settings(', self::source('systemdata/diverseIncludes/posOptions.php'));
+        self::assertStringNotContainsString('pos_save_delivery_choices(', self::source('systemdata/diverse.php'));
+    }
+
+    public function testTheDeliveryChoicesPageChecksTheTokenAndWriteRightBeforeItSaves(): void
+    {
+        $page = self::source('systemdata/posDeliveryChoices.php');
+        $csrf = strpos($page, "hash_equals((string) \$csrfToken, (string) \$_POST['csrf_token'])");
+        $write = strpos($page, "require_permission('settings.pos', 'write');");
+        $save = strpos($page, 'pos_save_delivery_choices($_POST);');
+        self::assertNotFalse($csrf);
+        self::assertNotFalse($write);
+        self::assertNotFalse($save);
+        self::assertLessThan($save, $csrf);
+        self::assertLessThan($save, $write);
+        self::assertStringContainsString("require_permission('settings.pos', 'read');", $page);
+        self::assertStringContainsString("pos_render_delivery_choices_settings(\$sprog_id, st_charset() === 'UTF-8');", $page);
     }
 
     public function testAChangeIsSavedAtOnceThroughTheDeliveryEndpoint(): void
