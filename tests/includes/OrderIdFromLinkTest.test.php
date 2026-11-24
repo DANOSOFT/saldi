@@ -26,6 +26,8 @@ final class OrderIdFromLinkTest extends TestCase
             'negative' => array(array('id' => '-1'), false),
             'decimal' => array(array('id' => '1.5'), false),
             'array' => array(array('id' => array('1')), false),
+            'NUL byte at the end' => array(array('id' => "12\0"), false),
+            'newline at the end' => array(array('id' => "12\n"), false),
             'second key bad' => array(array('id' => '1', 'tjek' => '1;'), false),
             'other parameters are not checked' => array(array('id' => '1', 'sort' => 'x y'), true),
         );

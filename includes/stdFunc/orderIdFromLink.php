@@ -19,7 +19,8 @@ if (!function_exists('order_ids_from_link_are_whole_numbers')) {
 			if (!is_string($get[$key]) && !is_int($get[$key])) {
 				return false;
 			}
-			$value = trim((string) $get[$key]);
+			// Only spaces and tabs are trimmed: trim() would also drop a NUL byte the raw value still carries.
+			$value = trim((string) $get[$key], " \t");
 			if ($value !== '' && $value !== 'null' && !ctype_digit($value)) {
 				return false;
 			}
