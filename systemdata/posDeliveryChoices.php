@@ -18,7 +18,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261124 CL/LH K33 The delivery choices the cashier picks on a sale (pos_leveringsvalg), on their own page now that PoS-valg is retired (#1191).
-//                Indstillinger -> Kasse -> Kasseskærm -> Salg links here (pos.screen.delivery_choices), only where the Shopify schema is installed.
+//                Indstillinger -> Kasse -> Skærm & kassemenuer -> Ekspedition links here (pos.screen.delivery_choices), only where the Shopify schema is installed.
 //                The table and its save are the ones K33 put on PoS-valg (diverseIncludes/posSaleSettings.php), so a choice an order already uses still keeps its meaning.
 //                CSRF and settings.pos write are checked before the save; every save redirects (PRG), and a refused row is shown on the next page.
 @session_start();

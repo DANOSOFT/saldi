@@ -57,7 +57,7 @@ final class PosDeliveryWiringTest extends TestCase
     public function testTheTillSettingsLinkToTheDeliveryChoicesPage(): void
     {
         // #1191 retired the PoS-valg page, so the choices are kept on their own page, linked from
-        // Indstillinger -> Kasse -> Kasseskærm -> Salg, and shown only where the Shopify schema is installed.
+        // Indstillinger -> Kasse -> Skærm & kassemenuer -> Ekspedition, and shown only where the Shopify schema is installed.
         $definitions = self::source('systemdata/settingsDefinitions.php');
         self::assertMatchesRegularExpression(
             "/'pos\\.screen\\.delivery_choices' => array\\('sub' => 'sale', 'type' => 'link',[^\\n]*'href' => 'posDeliveryChoices\\.php'/", $definitions);
