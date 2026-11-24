@@ -29,6 +29,11 @@
 // 20261101 CL/ASR Every item group is returned as well ('all'), so the page can show them all when its row has room.
 // 20261103 CL/ASR QA: the fiscal-year figure ends at the selected year's last day (an earlier year no longer counts later postings), the month chart runs over the year's own months (6 or 18 too, not always 12), and item groups with a negative revenue (credit notes) stay in the total and the list.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261113 CL/ASR The VAT figure reads the VAT report's range with vat_report_range() (includes/vatReportRange.php), the same row Finans > Rapporter > Momsangivelse uses.
+//                 Without a range, or with bounds that are not account numbers, the figure is left out instead of summing the revenue accounts kontomin..kontomaks as VAT.
+
+include_once(__DIR__ . '/../../includes/vatReportRange.php');
+
 /**
  * Revenue per day (date => amount) between two dates on the revenue accounts.
  *
@@ -218,17 +223,20 @@ function dash_data(array $c): array
 		$weeks[] = array('no' => $wn, 'year' => $wy, 'lastYear' => $wy - 1, 'now' => $now, 'last' => $last);
 	}
 
-	// VAT: the current period to date on the VAT report's account range (grupper MR), as the old widget counted it.
+	// VAT: the current period to date on the VAT report's account range (grupper MR), the range the VAT return uses.
+	// Without a usable range the figure stays null and the page leaves the cell out: the revenue accounts are not VAT.
 	$vat = null;
 	if (!empty($c['vat']['registered'])) {
-		$mr = db_fetch_array(db_select("select box1, box2 from grupper where art = 'MR' and fiscal_year = " . (int) $regnaar, __FILE__ . " linje " . __LINE__));
-		$vmin = $mr ? (int) $mr['box1'] : $min;
-		$vmax = $mr ? (int) $mr['box2'] : $max;
-		list($pFrom, $pTo) = vat_period_range((string) $c['vat']['period'], $today);
-		$vNow = dash_sum($pFrom, $today, $vmin, $vmax);
-		$vLast = dash_sum(dash_add($pFrom, '-1 year'), dash_add($today, '-1 year'), $vmin, $vmax);
-		// No VAT trend: prototype D shows no sparklines, and each point cost a sum over transaktioner.
-		$vat = dash_kpi($vNow, $vLast, array()) + array('from' => $pFrom, 'to' => $pTo, 'deadline' => dash_vat_deadline((string) $c['vat']['period'], $pTo));
+		$mr = vat_report_range((int) $regnaar);
+		if ($mr !== null && ctype_digit($mr['from']) && ctype_digit($mr['to'])) {
+			$vmin = (int) $mr['from'];
+			$vmax = (int) $mr['to'];
+			list($pFrom, $pTo) = vat_period_range((string) $c['vat']['period'], $today);
+			$vNow = dash_sum($pFrom, $today, $vmin, $vmax);
+			$vLast = dash_sum(dash_add($pFrom, '-1 year'), dash_add($today, '-1 year'), $vmin, $vmax);
+			// No VAT trend: prototype D shows no sparklines, and each point cost a sum over transaktioner.
+			$vat = dash_kpi($vNow, $vLast, array()) + array('from' => $pFrom, 'to' => $pTo, 'deadline' => dash_vat_deadline((string) $c['vat']['period'], $pTo));
+		}
 	}
 
 	// Customers per hour and weekday, averaged per weekday, for the last 7, 30 and 90 days (orders by time of day).
