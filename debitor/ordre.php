@@ -5475,7 +5475,7 @@ function ordreside($id, $regnskab)
 
 			if (count($da_options) > 0) {
 				print "<tr>";
-				print "<td colspan='1'></td>";  
+				print "<td colspan='1'></td>";
 				print "<td id='delivery_dropdown' colspan='1' align='left' style='padding:0;'>\n";
 				print "<select id='da_select' class='inputbox' style='width:200px;' onchange='daFillDelivery(this.value)'>\n";
 				print "<option value=''>-- Choose delivery address --</option>\n";
@@ -5537,7 +5537,7 @@ function ordreside($id, $regnskab)
 			} else {
 				// No delivery addresses saved — show empty placeholder row
 				print "<tr><td id='delivery_dropdown' colspan='2' align='right' style='padding-right:11px; color:#999; font-size:11px;'>";
-				
+
 			}
 			#######
 			print "<tr><td>$txt28</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_navn\" value=\"$lev_navn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
