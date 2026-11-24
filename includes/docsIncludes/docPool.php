@@ -225,7 +225,7 @@
 // 20261030 CDX/NTR Stop bulk extraction when the unscanned list cannot be loaded, so captured documents are never retried from cached rows.
 // 20261124 CL/LH The row and card editors' save no longer refuses an edit for the stored account the user left alone (poolMetadataEditedAccount()).
 //                A refused save says why (<pool-save-problem>, poolMetadataErrorText()) instead of "Fejl ved gemning (Status: 422)".
-//                The edit button passes its values as JavaScript strings (poolOnclickArg()), so a " in a subject or a stored date no longer breaks it.
+//                The edit button passes its values as JavaScript strings (poolOnclickArg()), and the date input escapes its value, so a " or ' in a subject or a stored date no longer breaks out.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -4577,7 +4577,7 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
         cells[1].innerHTML += "<label>{$txt9}<input type='text' class='edit-input' value='" + escapeHTML(description || '') + "' data-field='description' " + inputEvents + "></label>";
         cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(displayAmount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(invoiceNumber || '') + "' data-field='invoiceNumber' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-        cells[4].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[4].innerHTML = "<input type='date' class='edit-input' value='" + escapeHTML(dateFormatted) + "' data-field='date' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         
         // Update actions column
         cells[5].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
