@@ -6,6 +6,7 @@ use PHPUnit\Framework\TestCase;
 
 // 20261112 LOE SST-967 Pins the gate, the sag workflow, the order and history bindings and the refusal.
 // 20261113 LOE SST-967 Pins that only a copy or a credit note inherits the case customer's card.
+// 20261124 LOE SST-967 Pins master's orderTextLookupHtml() on the library rows, after the merge with #1096.
 //
 //                  includes/online.php refuses a page when the user's character at the page's $modulnr
 //                  position is below '1'. The first term of that condition used to be ($rettigheder), so
@@ -311,8 +312,8 @@ final class EmptyRightsGateTest extends TestCase
             'the text view has one escaper');
         self::assertStringContainsString("htmlspecialchars((string) \$tekst, ENT_QUOTES | ENT_SUBSTITUTE, \$charset)", $ref,
             'which escapes everything in the install charset');
-        self::assertStringContainsString("nl2br(ordretekst_print_safe(\$r['tekst']))", $ref,
-            'and is used for the library rows as well');
+        self::assertStringContainsString("nl2br(orderTextLookupHtml((string) \$r['tekst'], \$db_encode))", $ref,
+            'and the library rows use the lookup helper master added (LATIN9-safe), not the case escaper');
         self::assertStringContainsString("\$sag_id = (int)\$sag_workflow_case_id;", $ordre, 'the copy is bound to the admitted case');
         self::assertStringContainsString('$order_customer = false;', $ordre,
             'the customer the copy reads is chosen once, so the case customer and a posted kontonr cannot drift apart');

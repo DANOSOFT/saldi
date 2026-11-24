@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -196,6 +196,7 @@
 // 20261117 LOE SST-967 The order's number and mail address come from the case card on every request the exception admits; notes are read by konto_id; the page refuses through perm_refuse().
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
+// 20261124 LOE SST-967 The order's mail address is pinned at the two writes that run before the case card is read, so a request cannot set it.
 @session_start();
 $s_id = session_id();
 
@@ -345,6 +346,32 @@ function sag_workflow_order_ok($order_id) {
  *
  * @return void
  */
+/**
+ * The case customer's address row, cached, for the writes that happen before the page's own card resolution.
+ *
+ * A request the exception admits must not be able to set the order's mail address from the request: the order's
+ * invoice mail goes to the case's customer. Two handlers run before the resolution block - the GET write that
+ * saves a contact with an email, and the POST handler that writes email and mail_fakt - so both read the card
+ * here instead of the request.
+ *
+ * @return array|false The adresser row of the case's customer, or false when the case or its card is missing.
+ */
+function sag_workflow_case_card() {
+	global $sag_workflow_case_id;
+	static $card = null;
+	if ($card === null) {
+		$card = false;
+		if ($sag_workflow_case_id) {
+			$r = db_fetch_array(db_select("select konto_id from sager where id = '" . (int) $sag_workflow_case_id . "'", __FILE__ . " linje " . __LINE__));
+			if ($r) {
+				$row = db_fetch_array(db_select("select * from adresser where id = '" . (int) $r['konto_id'] . "' and art='D'", __FILE__ . " linje " . __LINE__));
+				if ($row) $card = $row;
+			}
+		}
+	}
+	return $card;
+}
+
 function sag_workflow_refuse() {
 	global $sag_workflow_case_id;
 	# The same refusal as the gate: HTTP 403, the audit entry, a JSON body for scripts and one text. The page
@@ -761,7 +788,14 @@ if (isset($_GET['vis_lev_addr']) && $id) {
 }
 if (($kontakt = if_isset($_GET, NULL, 'kontakt')) && ($id)) {
 	db_modify("update ordrer set kontakt='" . db_escape_string($kontakt) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
-	if (isset($_GET['email']) && $_GET['email']) {
+	# SST-967 the mail address of an order the exception admits is the case customer's, not the request's.
+	if ($sag_workflow_case_id) {
+		$wf_card = sag_workflow_case_card();
+		if ($wf_card) {
+			db_modify("update ordrer set email='" . db_escape_string($wf_card['email']) . "' where id='" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
+		}
+		unset($wf_card);
+	} elseif (isset($_GET['email']) && $_GET['email']) {
 		db_modify("update ordrer set email='" . db_escape_string($_GET['email']) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
 	}
 }
@@ -1250,6 +1284,15 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	if (strlen((string)$mail_fakt) > 2)  $mail_fakt  = substr((string)$mail_fakt, 0, 2);
 	if (strlen((string)$mail_bilag) > 2) $mail_bilag = substr((string)$mail_bilag, 0, 2);
 	$mail_bilag = db_escape_string($mail_bilag); // SD-639: raw request input, was reaching the UPDATE below unescaped - escaped AFTER the clamp above so a truncation can never land mid-escape-sequence
+	# SST-967 the same rule as above: a request the exception admits takes both mail fields from the case card.
+	if ($sag_workflow_case_id) {
+		$wf_card = sag_workflow_case_card();
+		if ($wf_card) {
+			$email = db_escape_string($wf_card['email']);
+			$mail_fakt = $wf_card['mailfakt'];
+		}
+		unset($wf_card);
+	}
 	$qtxt = "update ordrer set sprog = '$formularsprog', email='$email',mail_fakt='$mail_fakt',phone='$phone',pbs='$pbs',";
 	$qtxt .= "udskriv_til='$udskriv_til',  mail_bilag='$mail_bilag',ean='$ean' where id='$id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -6023,7 +6066,7 @@ function ordreside($id, $regnskab)
 			}
 		}
 		print "</td></tr></tbody></table></td></tr>\n"; #<- Tabel 4.3
-			$kontonr = (int)$kontonr;
+		$kontonr = (int)$kontonr;
 		# SST-967 the notes belong to the order's customer row - the id the page proved - so a number in the
 		# request cannot pull another customer's notes onto this order.
 		$row2 = db_fetch_array(db_select("select notes from adresser where id = '" . (int) $konto_id . "' and art = 'D'", __FILE__ . " linje " . __LINE__)); #20142403-1
