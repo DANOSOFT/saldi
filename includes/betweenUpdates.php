@@ -73,6 +73,7 @@
 // 20261120 CL/ASR The help's Momsrubrikker MR2 step 3 says plainly that in older journals without VAT codes a domestic purchase can count as an EU purchase with the same VAT in its voucher; the cached wording of 19 Nov is removed.
 // 20261120 CL/ASR The help's about texts for a sales and a purchase invoice that is not posted (dord and kord ikke_bogfoert) no longer say immediate posting is off, as an invoice whose journal lines were deleted after both settings were switched on waits too and the cash journal shows Hent for it; the cached old wording is removed.
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
+// 20261124 CL/ASR The CRM's tables and columns are made by one login at a time (crm_ensure_schema() takes a lock); two first logins after a deploy ran the same ALTER and the second stopped on "already exists".
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -469,8 +470,32 @@ include_once(__DIR__ . "/crmFunctions.php");
 if (!function_exists('crm_ensure_schema')) {
 /**
  * CRM installation and legacy follow-up conversion; updater only, never a page request.
+ * 20261124 One login at a time: two first logins after a deploy ran the same ALTER and CREATE, and the second stopped on
+ * "already exists". Each step looks again once this login holds the lock (as fixVatReportRange()).
  */
 function crm_ensure_schema(): void
+{
+	if (crm_is_mysql()) {
+		// GET_LOCK is server-wide, so the name carries the database.
+		$lockName = "CONCAT('saldi:crmschema:', MD5(DATABASE()))";
+		$locked = db_fetch_array(db_select("SELECT GET_LOCK($lockName, 30) AS acquired", __FILE__ . " linje " . __LINE__));
+		if ((int) ($locked['acquired'] ?? 0) !== 1) {
+			return; // the next login tries again
+		}
+		$unlock = "SELECT RELEASE_LOCK($lockName)";
+	} else {
+		db_select("SELECT pg_advisory_lock(hashtext('saldi_crm_schema'))", __FILE__ . " linje " . __LINE__);
+		$unlock = "SELECT pg_advisory_unlock(hashtext('saldi_crm_schema'))";
+	}
+	try {
+		crm_ensure_schema_steps();
+	} finally {
+		db_select($unlock, __FILE__ . " linje " . __LINE__);
+	}
+}
+
+/** The steps of crm_ensure_schema(), under its lock. */
+function crm_ensure_schema_steps(): void
 {
 	if (!crm_col_exists('historik', 'completed')) {
 		db_modify("ALTER TABLE historik ADD COLUMN completed boolean", __FILE__ . " linje " . __LINE__);

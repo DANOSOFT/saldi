@@ -77,6 +77,8 @@
 //                 Every restore keeps the activity log: its rows are read before the database is replaced, and the rows the backup lacks go back in after (restore_log_snapshot(), restore_log_putback()).
 // 20261124 CL/ASR Comments state the current rule; no code change.
 // 20261124 CL/ASR Putting the activity log back after a restore selects the ledger's database after db_connect(), looks up tables with saldi_schema_filter() and sets the id sequence on PostgreSQL only, so it also runs on MySQL/MariaDB.
+// 20261124 CL/ASR The activity log rows that keep their id go back first; a row whose id the backup has gets a new id after them.
+//                 Drawn first, a new id could be one a row still to come had, and its insert stopped the page before the restore was done.
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -398,7 +400,8 @@ function restore_log_snapshot() {
 /**
  * After a restore: the activity log rows of the replaced database that the backup does not have (written after the backup
  * was taken, or another ledger's history) go back into the restored ledger, with their own time. A row with the same id,
- * time and action is already there. A backup older than the table: the rows are kept in a file in temp/<db>.
+ * time and action is already there. A row whose id another row has gets a new one, after the rows that keep theirs. A
+ * backup older than the table: the rows are kept in a file in temp/<db>.
  *
  * @return int the rows put back
  */
@@ -419,26 +422,43 @@ function restore_log_putback(array $rows) {
 	$have = array();
 	$q = db_select("select id, tidspunkt, handling from audit_log", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) $have[(int) $r['id']] = substr((string) $r['tidspunkt'], 0, 19) . '|' . (string) $r['handling'];
+	global $db_type;
+	$insert = function (array $row, bool $withId) use ($cols) {
+		$names = array(); $values = array();
+		foreach ($row as $col => $value) {
+			if (!isset($cols[$col]) || ($col === 'id' && !$withId)) continue;
+			$names[] = $col;
+			$values[] = ($value === null) ? 'NULL' : "'" . db_escape_string((string) $value) . "'";
+		}
+		if (!$names) return 0;
+		db_modify("insert into audit_log (" . implode(', ', $names) . ") values (" . implode(', ', $values) . ")", __FILE__ . " linje " . __LINE__);
+		return 1;
+	};
+	$sequencePastMax = function () use ($db_type) {
+		if ($db_type == 'postgresql') {   // MySQL/MariaDB's AUTO_INCREMENT moves past the rows put back by itself
+			db_modify("select setval(pg_get_serial_sequence('audit_log', 'id'), greatest((select max(id) from audit_log), 1))", __FILE__ . " linje " . __LINE__);
+		}
+	};
+	// The rows whose id is free go back with it first. A row whose id another row has gets a new one after that, once the
+	// sequence is past them all: drawn before, it could take the id of a row still to come.
 	$n = 0;
+	$newId = array();
 	foreach ($rows as $row) {
 		$id = (int) ifset($row, 'id', 0);
 		$sig = substr((string) ifset($row, 'tidspunkt', ''), 0, 19) . '|' . (string) ifset($row, 'handling', '');
 		if ($id > 0 && isset($have[$id]) && $have[$id] === $sig) continue;   // the backup has it
-		$names = array(); $values = array();
-		foreach ($row as $col => $value) {
-			if (!isset($cols[$col])) continue;
-			if ($col === 'id' && ($id <= 0 || isset($have[$id]))) continue;   // the id is taken by another row: a new one
-			$names[] = $col;
-			$values[] = ($value === null) ? 'NULL' : "'" . db_escape_string((string) $value) . "'";
+		if ($id <= 0 || isset($have[$id])) {
+			$newId[] = $row;
+			continue;
 		}
-		if (!$names) continue;
-		db_modify("insert into audit_log (" . implode(', ', $names) . ") values (" . implode(', ', $values) . ")", __FILE__ . " linje " . __LINE__);
-		$n++;
+		$n += $insert($row, true);
+		$have[$id] = $sig;
 	}
-	global $db_type;
-	if ($db_type == 'postgresql') {   // MySQL/MariaDB's AUTO_INCREMENT moves past the rows put back by itself
-		db_modify("select setval(pg_get_serial_sequence('audit_log', 'id'), greatest((select max(id) from audit_log), 1))", __FILE__ . " linje " . __LINE__);
+	if ($newId) {
+		$sequencePastMax();
+		foreach ($newId as $row) $n += $insert($row, false);
 	}
+	$sequencePastMax();
 	return $n;
 }
 
