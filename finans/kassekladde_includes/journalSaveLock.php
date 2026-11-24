@@ -14,11 +14,16 @@
 //
 // 20261021 CL/SZ MB-81 (CodeRabbit) A lock that could not be taken stops the request before tmpkassekl is touched,
 // like a failed db_modify() does: db_select() only alerts on a first error and carries on.
+//
+// 20261119 CL/ASR On MySQL and MariaDB the lock is asked for with GET_LOCK(name, 30), again while another request holds it, for at most 2 minutes (saldiNamedLockWait()), because MariaDB answers GET_LOCK(name, -1) with NULL and no lock, so every save that takes the lock was refused there (MB-81, p1-yearend-F3).
+
+include_once(__DIR__ . '/../../includes/stdFunc/namedLockWait.php');
 
 /**
  * Wait until no other request is using this journal's staged lines, then hold the lock until kkJournalUnlock() or
  * the end of the request. Does nothing when the request already holds it. Stops the request with an alert when the
- * lock could not be taken, so nothing is staged or saved without it.
+ * lock could not be taken, so nothing is staged or saved without it. On MySQL and MariaDB the wait ends after
+ * 2 minutes (saldiNamedLockWait()); PostgreSQL waits as long as it takes.
  *
  * @param int $kladde_id Journal (kladdeliste.id).
  */
@@ -29,10 +34,17 @@ function kkJournalLock($kladde_id) {
 		return;
 	}
 	if ($db_type == 'mysql' || $db_type == 'mysqli') {
-		// GET_LOCK names are server-wide, so the database is part of the name; -1 waits like pg_advisory_lock() does
-		$q = db_select("SELECT GET_LOCK(CONCAT('saldi:kassekladde:', MD5(DATABASE()), ':', $kladde_id), -1) AS locked", __FILE__ . " linje " . __LINE__);
-		$r = $q ? db_fetch_array($q) : null;
-		$locked = ($r && (int)$r['locked'] === 1);
+		// GET_LOCK names are server-wide, so the database is part of the name. MariaDB answers a timeout of -1 with NULL
+		// instead of waiting, so the wait is GET_LOCK(name, 30) asked again while another request holds the lock.
+		$outcome = saldiNamedLockWait(function ($qtxt) {
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			$r = $q ? db_fetch_array($q) : null;
+			return $r ? $r['locked'] : null;
+		}, "CONCAT('saldi:kassekladde:', MD5(DATABASE()), ':', $kladde_id)");
+		$locked = $outcome === 'locked';
+		if (!$locked) {
+			error_log("Saldi journal save lock: journal $kladde_id, GET_LOCK() gave no lock ($outcome).");
+		}
 	} else {
 		$locked = (bool)db_select("SELECT pg_advisory_lock(hashtext('kassekladde'), $kladde_id)", __FILE__ . " linje " . __LINE__);
 	}

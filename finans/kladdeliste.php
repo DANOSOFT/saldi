@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026-10-12 ---
+// --- finans/kladdeliste.php --- ver 5.1.1 --- 2026-11-08 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 // 20150722 PHR Vis alle/egne gemmes nu som cookie. 
 // 20181220 MSC - Rettet ny kladde knap til Ny
@@ -45,6 +45,8 @@
 // 20261002 NTR - Dropped the returside parameter from both the normal and the locked-kladde links so kassekladde falls back to its own default return target.
 // 20261012 CL/SZ SD-730 Deleting an empty journal also deletes the journal's own documents (journalDocumentsDelete()); if a
 //                 document's file can't be removed, the journal and that document's row stay (CodeRabbit).
+// 20261107 CL/ASR Tour of three steps (Ny, a journal row, Vis alle/Vis egne); it no longer starts by itself (includes/tutorial.php).
+// 20261108 CL/ASR Tour step 1 (Ny) also says that the lines reach the accounts only when the journal is posted (text 8779).
 
 @session_start();
 $s_id=session_id();
@@ -840,7 +842,16 @@ function deleteKladde(kladdeId) {
 $steps = array();
 $steps[] = array(
 	"selector" => "#create-new",
-	"content" => findtekst('2607|Opret ny kassekladde ved at klikke her', $sprog_id).".",
+	"content" => findtekst('8779|Klik her for at oprette en ny kassekladde. Linjerne kommer først på kontiene, når du bogfører kladden.', $sprog_id),
+);
+$steps[] = array(
+	"selector" => "#datatable-kladdelst tbody tr:has(td[data-bogfort])",
+	"first" => true,
+	"content" => findtekst('8769|Klik på en kladde for at åbne den. Åbne kladder står øverst og bogførte nederst.', $sprog_id),
+);
+$steps[] = array(
+	"selector" => "#filter-toggle-btn",
+	"content" => findtekst('8770|Skift mellem dine egne kladder og alle brugeres kladder.', $sprog_id),
 );
 
 include(__DIR__ . "/../includes/tutorial.php");

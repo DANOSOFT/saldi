@@ -1,6 +1,7 @@
 <?php
-
+//
 // 20250911 LOE Sets value of jobkort directly.
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
 
 include("../includes/oldDesign/header.php");
 include("../includes/topline_settings.php");
@@ -103,7 +104,7 @@ if ($jobkort && $valg!='jobkort') {
 print "</tbody></table></td>\n"; # <- Tabel 1.1.1
 
 if ($valg != 'jobkort') {
-	print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+	print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'>";
 	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print $help_icon;
 	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";

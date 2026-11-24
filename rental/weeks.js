@@ -1,3 +1,4 @@
+// 20261105 CL/LH createBooking's refusal (409, days booked since the page loaded) is shown, and no order is made.
 import { getAllCustomers, getAllItems, getCustomers, createBooking, getSettings} from "/pos/rental/api/api.js"
 
 const settings = await getSettings()
@@ -140,6 +141,12 @@ form.addEventListener("submit", async (e) => {
     loading.style.display = "flex"
     const res = await createBooking(data)
     data.booking_id = res.id
+    // rental.php refuses days the stand was booked on since this page loaded: there is no booking, so no order either.
+    if (!res.id) {
+        loading.style.display = "none"
+        alert(res.msg ?? res)
+        return
+    }
 
     const response = await createOrder(data)
     loading.style.display = "none"

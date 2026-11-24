@@ -1,7 +1,7 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------ver 5.1.1 ------2026-11-13-------------
+// ------ SAGER/ANSATTE.php-------ver 5.1.1 ------2026-11-14-------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@ $s_id=session_id();
 // 20261110 CDX/NTR Use CSS wrapping for information card labels instead of JavaScript hyphenation.
 // 20261110 CDX/NTR Preserve existing login passwords on blank saves and validate before creating a login.
 // 20261113 CDX/NTR Keep employee-login permission checks with blank-password preservation.
+// 20261114 CL/ASR Merge of master: the login is saved by saveEmployeeLogin(), and a password, a link or a rename of a login the editor may not manage (user_may_manage()) is still refused before it writes.
 
 	//ini_set("display_errors", "1");
 	$bg="nix";
@@ -350,6 +351,7 @@ function ret_ansat($id) {
 	}
 	$loginError = null;
 	if (isset($_POST['brugere_navn']) && $id) {
+		// saveEmployeeLogin() refuses a password, a link or a rename of a login the editor may not manage (user_may_manage(), PR #803).
 		$loginError = saveEmployeeLogin((int) $id, (int) $regnaar, $_POST, (int) $sprog_id);
 	}
 	print "<div class=\"content\">\n";

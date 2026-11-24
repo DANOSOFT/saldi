@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/people.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/people.php --- ver 5.1.1 --- 2026.11.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,9 @@
 // 20261102 CL/ASR Review: when the list is too narrow for its E-mail column (the app shell at 1366 px), a row's sub-line shows the initials and the e-mail (ur_people_sub).
 //                 A search hit for Tilføj person (organisation.employees.add) opens the list with its dialog (add=1).
 //                 Giv adgang names both buttons in its note (7792 replaces 7775).
+// 20261110 CDX/ASR Load complete role previews and preserve dirty-state protection after confirmation dialogs.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR usersPeople.js ?v=20261114 for the e-mail field under Sikkerhed on the user card.
 /**
  * Where a plain visit of the employee list goes for a user who may open usersRoles.php: the one list, or the person's card there
  * ('' = it stays: no access, a popup, a message is waiting, or an embedded/extra-fields address). The shell's inframe=1 (every
@@ -173,6 +175,14 @@ function ur_people_model(array $vm, array $get): array
 	$canOrg = perm_can('settings.organisation', 'read');
 	$vm['canOrg'] = $canOrg;
 	$vm['canOrgWrite'] = perm_can('settings.organisation', 'write');
+	$vm['logBack'] = '';
+	if ($vm['tab'] === 'log' && isset($get['ret']) && is_string($get['ret']) && preg_match('/^user_([1-9][0-9]{0,9})\z/', $get['ret'], $m)) {
+		$vm['logBack'] = 'tab=users&bruger=' . (int) $m[1] . '&fane=login';
+	}
+	if ($vm['tab'] !== 'users') {
+		return $vm + array('company' => array(), 'peopleBefore' => array(), 'peopleRest' => array(), 'noLogin' => array(),
+			'person' => null, 'cardEid' => 0, 'stamUrl' => '', 'cardTabs' => false, 'fane' => 'login', 'otherLogins' => array(), 'userFormUrl' => $vm['selfUrl']);
+	}
 	$company = array();
 	if ($canOrg) {
 		$sid = settings_company_account_id();
@@ -270,11 +280,6 @@ function ur_people_model(array $vm, array $get): array
 	$vm['userFormUrl'] = $vm['selfUrl'];
 	if ($isNew && $u['ansat_id'] > 0 && $u['ansat_id'] === $get['_ansat']) {
 		$vm['userFormUrl'] .= (strpos($vm['selfUrl'], '?') === false ? '?' : '&') . 'ansat=' . (int) $get['_ansat'];
-	}
-	// "Se log" from the card: Tilbage on the log returns to the card (ret=user_<id>, a whitelist built from an int).
-	$vm['logBack'] = '';
-	if ($vm['tab'] === 'log' && isset($get['ret']) && is_string($get['ret']) && preg_match('/^user_([1-9][0-9]{0,9})\z/', $get['ret'], $m)) {
-		$vm['logBack'] = 'tab=users&bruger=' . (int) $m[1] . '&fane=login';
 	}
 	return $vm;
 }
@@ -585,9 +590,10 @@ function ur_people_assets(array $vm, callable $t): void
     </div>
   </div>
 </div>
-<link rel="stylesheet" href="../css/usersPeople.css?v=20261102b">
+<link rel="stylesheet" href="../css/usersPeople.css?v=20261110">
 <script>window.UR_PEOPLE = <?= json_encode($cfg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
-<script src="../javascript/usersPeople.js?v=20261102b"></script>
+<script src="../javascript/usersAccess.js?v=20261110"></script>
+<script src="../javascript/usersPeople.js?v=20261114"></script>
 	<?php
 }
 

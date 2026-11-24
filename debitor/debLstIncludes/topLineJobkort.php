@@ -36,7 +36,7 @@ print "<td width = '200px' align=center id='jobkort-btn'>
 
 print "</tbody></table></td>\n"; # <- Tabel 1.1.1
 
-print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'>";
 print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 print $help_icon;
 print findtekst('2564|Hjælp', $sprog_id)."</button></td>";

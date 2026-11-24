@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.1 --- 2026-11-13---
+// --- includes/online.php --- ver 5.1.1 --- 2026-11-14---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -80,13 +80,23 @@
 // 20261104 CL/ASR A fatal PHP error (E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR) on an HTML page with a session shows the error box of includes/errorReport.php, so the user can send a report.
 //                 API, JSON, webservice and CLI requests, redirects and non-HTML answers (PDF, CSV) are left as before.
 //                 A page load also shows the box of an earlier page that moved on before it could be seen (a meta refresh right after a failed query).
-// 20261109 NTR - Moved the cookie include below the comment header.
+// 20261105 CL/LH The tenant's lower grupper version goes to regnskab.version through tjek4opdat_skriv_version(), which writes only under the update lock, as at login.
+// 20261105 CL/LH A form drawn in another regnskab (thisDb) ends the request after the message, instead of running the page on an emptied $_POST and $_GET.
+//                On diverse.php (Kontoindstillinger) that died in the settings permission gate and the page chrome.
+//                The posted thisDb in the message goes through jsString(), so a forged value cannot run script.
+// 20261105 CL/LH The old module gate checks the Kontoplan right (position 0) on the pages that declare system.kontoplan: kontoplan.php, kontokort.php and stdktoplan.php refuse a user without it.
+//                $modulnr 0 means no module check, so such a user opened the chart of accounts and its balances by URL.
+//                This includes a user without a rights string (NULL, '' or '0'), such as a Sager employee's login, which the gate skipped before.
 // 20261105 CL/MMR SD-807 'Session expired' uses the language chosen on the login page (languageId cookie), as there is no online row, and 'Account closed' is translated.
 //                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
 // 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
 //                 Their blocks include std_func.php through __DIR__.
+// 20261109 ASR The CRM (debitor/crm.php) is a UI chrome page too: it is built from css/saldi-kit.css, so it gets css/saldi-fonts.css (Inter, Saldi Grotesk), data-theme and data-size like the dashboard and the settings pages.
+// 20261109 NTR - Moved the cookie include below the comment header.
 // 20261113 CDX/NTR Merge translated session messages with role enforcement and error reporting.
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261114 CL/ASR Saldi's own message box (javascript/saldi-dialog.js via includes/dialogHead.php) in place of the browser's alert() and confirm() on every page with this head, except the POS pages.
+// 20261114 CL/ASR A session that still owes its two-factor code ($_SESSION['twofactor_pending'], set by index/login.php) is not logged in on any page but the login itself.
 include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001
@@ -163,7 +173,19 @@ $unixtime        = date("U");
 
 $qtxt = "select * from online where session_id = '$s_id' order by logtime desc limit 1";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__, true);
-if ($r = db_fetch_array($q)) {
+$r = db_fetch_array($q);
+// Two-factor login: index/login.php sets $_SESSION['twofactor_pending'] (ledger and user) when the password is right
+// and removes it when the code is right too. Until then that login is not a session, on any page but the login
+// itself, even if it has a row in online (the row is there for a moment while the code is sent as a text message).
+// A row for another ledger or user in the same browser (mySale, a ledger opened from the admin pages) is left alone.
+$tfaPending = (isset($_SESSION['twofactor_pending']) && is_array($_SESSION['twofactor_pending'])) ? $_SESSION['twofactor_pending'] : null;
+if ($r && $tfaPending && empty($GLOBALS['saldiLoginFlow']) && isset($tfaPending['db'], $tfaPending['user'])
+	&& (string) $tfaPending['db'] === trim((string) $r['db'])
+	&& mb_strtolower((string) $tfaPending['user'], 'UTF-8') === mb_strtolower((string) $r['brugernavn'], 'UTF-8')) {
+	db_modify("delete from online where session_id = '$s_id'", __FILE__ . " linje " . __LINE__, true);
+	$r = false;
+}
+if ($r) {
 	$dbuser = trim(if_isset($r['dbuser'], ''));
 	$db = trim(if_isset($r['db'], ''));
 	$regnaar = trim(if_isset($r['regnskabsaar'], ''));
@@ -198,11 +220,13 @@ if ($r = db_fetch_array($q)) {
 	}
 }
 if (isset($_POST['thisDb']) && $db && strpos($db,'_') && $db != $_POST['thisDb']) {
-	include_once(__DIR__ . '/std_func.php');
-	$txt = sprintf(findtekst('8463|Du har skiftet regnskab fra %s til %s, handling afbrudt', $sprog_id), $_POST['thisDb'], $db);
+	include_once(__DIR__ . '/std_func.php'); // findtekst(), and jsString() through stdFunc/jsString.php
+	$postedDb = is_scalar($_POST['thisDb']) ? (string) $_POST['thisDb'] : ''; // posted by the form, so escaped for the script below
+	$txt = sprintf(findtekst('8463|Du har skiftet regnskab fra %s til %s, handling afbrudt', $sprog_id), $postedDb, $db);
 	print "<script type='text/javascript'>alert(" . jsString(array($txt)) . ");</script>";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
 	$_POST = $_GET = NULL;
+	exit; // the rest of this file and the page do not run on the emptied request (the settings gate and the page chrome need arrays)
 }
 
 $labelprint = 0;
@@ -256,11 +280,11 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				if ($r['box1'] < $db_ver) {
 					$db_ver = $r['box1'];
-					include("../includes/connect.php");
-					db_modify("update regnskab set version = '$db_ver' where id = '$db_id'", __FILE__ . " linje " . __LINE__);
+					include(__DIR__ . '/connect.php');
+					include_once(__DIR__ . '/tjek4opdat.php');
+					tjek4opdat_skriv_version($db_ver);
 #				}
 				if ($version > $db_ver && $title != 'Aaben regnskab') {
-					include("../includes/tjek4opdat.php");
 					tjek4opdat($db_ver, $version);
 				}
 #			} else {
@@ -400,11 +424,17 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$bg = 'nix';
 		$css = NULL;
 	}
-	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
+	// $modulnr 0 means "no module check", so a page cannot name the Kontoplan right (position 0) with it. The chart-of-accounts
+	// pages (systemdata/kontoplan.php, kontokort.php, stdktoplan.php) declare that right's key instead, and are checked on position 0.
+	// Those pages are checked for a user without a rights string too (NULL, '' or '0'; a Sager employee's login has none), who holds
+	// no right. Other pages still skip the check for such a user, as before.
+	$kontoplanPage = !$modulnr && isset($permission_key) && $permission_key === 'system.kontoplan';
+	$legacyModulnr = ($modulnr) ? $modulnr : ($kontoplanPage ? 0 : NULL);
+	if (($rettigheder || $kontoplanPage) && $legacyModulnr !== NULL && (substr((string) $rettigheder, $legacyModulnr, 1) < '1')) { #20190529
 		// One refusal for both gates (20261103): the text 5548, HTTP 403, JSON to scripts and a way back to Oversigt; logged as before.
 		include_once(__DIR__ . "/std_func.php");
 		include_once(__DIR__ . "/permissions.php");
-		perm_refuse('modulnr ' . (int) $modulnr, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
+		perm_refuse('modulnr ' . (int) $legacyModulnr, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
 	}
 	// 20260916 Phase 3 gate (spec R4). Pages declare $permission_key ('any' = every logged-in
 	// user), optionally $permission_level = 'write' and $permission_post_read = true (POST is a
@@ -436,9 +466,9 @@ if (!file_exists($cssPath)) {
 if ($header != 'nix') {
 	if ($db_encode == "UTF8") $charset = "UTF-8";
 	else $charset = "ISO-8859-1";
-	// The new layout's fonts, text size and light tokens: only the shell, the dashboard and the settings pages
-	// (systemdata, except the chart of accounts, which keeps master's look). Every other page gets a plain <html>.
-	$uiChromePage = isset($_SERVER['SCRIPT_NAME']) && preg_match('#/(index/(main|dashboard)|systemdata/(?!(kontoplan|kontokort)\.php$)[A-Za-z0-9_]+)\.php$#', (string) $_SERVER['SCRIPT_NAME']);
+	// The new layout's fonts, text size and light tokens: only the shell, the dashboard, the settings pages
+	// (systemdata, except the chart of accounts, which keeps master's look) and the CRM. Every other page gets a plain <html>.
+	$uiChromePage = isset($_SERVER['SCRIPT_NAME']) && preg_match('#/(index/(main|dashboard)|systemdata/(?!(kontoplan|kontokort)\.php$)[A-Za-z0-9_]+|debitor/crm)\.php$#', (string) $_SERVER['SCRIPT_NAME']);
 	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 	
 	" . ($uiChromePage ? "<html data-theme=\"$uiTheme\"" . ($uiSize === 'large' ? " data-size=\"large\"" : '') . ">" : "<html>") . "\n
@@ -471,6 +501,11 @@ if ($header != 'nix') {
 	print "<script type=\"text/javascript\" src=\"$javaPath/jquery.autosize.js\"></script>\n"; #20140502
 	print "<script LANGUAGE=\"JavaScript\" src=\"$javaPath/overlib.js\"></script>\n";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"$javaPath/confirmclose.js\"></script>\n"; #20140502
+	// Saldi's message box instead of the browser's alert()/confirm() (owner, 14 Nov 2026). Not on the POS pages: a scanner keeps typing while a box is open.
+	if (substr((string) $title, 0, 3) != 'POS') {
+		include_once(__DIR__ . '/dialogHead.php');
+		print saldi_dialog_head($javaPath, $javaPath . '/../index/dialogPref.php');
+	}
 	print "<script src=\"$javaPath/flatpickr.js\"></script>\n"; #20231107
 	/* print "<script src=\"https://npmcdn.com/flatpickr/dist/flatpickr.min.js\"></script>\n"; #20231107
 	print "<script src=\"https://npmcdn.com/flatpickr/dist/l10n/da.js\"></script>\n"; #20231107 */

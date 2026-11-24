@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formularkort --- ver 5.1.0 --- 2026-11-02 ---
+// --- systemdata/formularkort --- ver 5.1.0 --- 2026-11-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -75,8 +75,15 @@
 //                 The visual editor's Nulstil resets one form and background to the standard and keeps the e-mail texts and fee/interest rows.
 // 20261103 CL/ASR QA round 2: the page needs Dokumenter & e-mail (settings.documents), and the Vælg selector is a read, so a read-only role can choose a form; a new form language (VSPR) is created only with write.
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261114 ASR Formularer opens the visual editor (owner, 14 Nov 2026): the hub's and the menu's link (?valg=formularer) goes on to formeditor.php (Faktura, Standard).
+//              The editor's Klassisk editor button opens this page with ?klassisk=1, and its own posts and links carry no valg, so the classic editor works as before.
 @session_start();
 $s_id=session_id();
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && isset($_GET['valg']) && $_GET['valg'] === 'formularer' && !isset($_GET['klassisk'])) {
+	header('Location: formeditor.php?form_nr=4&sprog=Dansk');
+	exit;
+}
 
 $title="Formulareditor";
 $css="../css/standard.css";

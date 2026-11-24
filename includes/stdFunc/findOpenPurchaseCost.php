@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/findOpenPurchaseCost.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- includes/stdFunc/findOpenPurchaseCost.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,7 @@
 //                 It names each item, the price and where the price came from, all lines of a delivery in one message.
 //                 The cost price and the order log line are unchanged.
 // 20261030 CL/MMR SD-786 The message texts moved from 7636-7638 to 8403-8405, because other changes also use 7636 and 7637.
+// 20261117 CL/ASR A line of a foreign-currency order with no exchange rate (valutakurs 0, saved before the currency had a rate) is skipped instead of read at kurs 100, which priced its foreign amount as kroner.
 
 if (!function_exists('find_open_purchase_cost')) {
 	/**
@@ -97,7 +98,7 @@ if (!function_exists('find_open_purchase_cost')) {
 
 		$qtxt  = "select ol.id as linje_id, ol.ordre_id, ol.pris, ol.rabat, ol.antal, ol.variant_id, ";
 		$qtxt .= "coalesce((select sum(bk.antal) from batch_kob bk where bk.linje_id = ol.id), 0) as modtaget, ";
-		$qtxt .= "o.valutakurs, o.ordrenr ";
+		$qtxt .= "o.valutakurs, o.valuta, o.ordrenr ";
 		$qtxt .= "from ordrelinjer ol, ordrer o ";
 		$qtxt .= "where ol.vare_id = '$vare_id' and ol.ordre_id = o.id ";
 		$qtxt .= "and o.art = 'KO' and (o.status = '1' or o.status = '2') ";
@@ -121,6 +122,12 @@ if (!function_exists('find_open_purchase_cost')) {
 			$pris -= $pris * (float) $r['rabat'] / 100;
 			$valutakurs = (float) $r['valutakurs'];
 			if (!$valutakurs) {
+				// A DKK order may hold 0 or no rate. A foreign-currency order saved before its currency had a rate
+				// holds 0 too (kreditor/ordre.php): its price is not in kroner, so the line tells us nothing.
+				$valuta = strtoupper(trim((string) (isset($r['valuta']) ? $r['valuta'] : '')));
+				if ($valuta !== '' && $valuta !== 'DKK') {
+					continue;
+				}
 				$valutakurs = 100;
 			}
 			$pris = $pris * $valutakurs / 100;

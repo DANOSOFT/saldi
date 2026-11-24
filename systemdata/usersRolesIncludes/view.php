@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/usersRolesIncludes/view.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- systemdata/usersRolesIncludes/view.php --- ver 5.1.1 --- 2026.11.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,7 +54,21 @@
 // 20261103 CL/ASR QA round 2: a user whose role is above the editor's rights sends that role with the form, so saving gives the right message (msg=above) instead of Vælg en rolle først.
 // 20261104 CL/ASR Final QA: Tildel <forslag> on the user card asks first and names what the suggested role gives beyond the user's old rights (texts 7850, 7853).
 //                 The review banner counts the administrators and the roles to review from the users as they are now (perm_migration_summary_live()), not from the stored summary that missed the users seeded as Administrator.
+// 20261110 CDX/ASR Clear people filters, persistent list context, complete role access preview and change confirmation; compact invitation and security sections.
+// 20261110 CDX/ASR Show CRM access separately and keep every registered permission group in the role editor.
+// 20261111 CDX/ASR Refresh the role stylesheet for distinct permission group heading colours.
+// 20261111 CDX/ASR Refresh the three-level role palette and uniform module content backgrounds.
+// 20261111 CDX/ASR Refresh role colours from the shared Saldi theme and enabled-choice hover feedback.
+// 20261111 CDX/ASR Refresh the role matrix's neutral surfaces to follow the classic list and grey menu appearance.
+// 20261111 CDX/ASR Refresh the role matrix with the blue selection colours chosen from its navigation and role list.
 // 20261113 CDX/NTR Read is_built_in for role badges and built-in role controls.
+// 20261114 CL/ASR css/usersRoles.css ?v=20261114 (the role matrix's column heading in light orange, group heading and group actions in their own light tints).
+// 20261114 CL/ASR The activity log has the type Data (varer, kunder, leverandører, kontoplan) and readable names for data.created, data.updated, data.deleted and data.bulk (includes/dataAudit.php).
+// 20261114 CL/ASR The type Fakturering og kreditering (data.invoiced, data.credited) and their names.
+// 20261114 CL/ASR The user card's Tofaktor offers Fra, Kode på SMS and Kode på e-mail, with what each needs under it; three messages for a choice with nowhere to send the code.
+// 20261114 CL/ASR Under Sikkerhed the field follows the choice: Telefon for SMS, and for e-mail the card's E-mail (an unnamed copy kept equal to the field at the top).
+
+require_once __DIR__ . '/peopleAccess.php';
 
 /**
  * @param array<string, mixed> $vm From ur_view_model().
@@ -89,14 +103,14 @@ function ur_view(array $vm): void
 	// The hub entry of the tab shown (after the permission fallback), so the menu marks Brugere & ansatte, Roller or Audit-log.
 	$at = array('users' => 'brugere', 'roles' => 'roller', 'log' => 'audit_log');
 	$at = $at[$vm['tab']];
-	$pageTitle = array('users' => '5549|Brugere', 'roles' => '5550|Roller', 'log' => '5796|Audit-log');
+	$pageTitle = array('users' => 'roles.people.title|Brugere & ansatte', 'roles' => '5550|Roller', 'log' => 'roles.activity.title|Aktivitetslog');
 	// One button in the head, on the list only: Tilføj person (Roller and Audit-log are reached from the left menu).
 	$headActs = $vm['tab'] === 'users' ? ur_people_add_button($vm, $t) : '';
 	// The standard layout of a settings page (includes/settings/layout.php): breadcrumb, document title, Tilbage, title, the counts
 	// as the lead and the head's buttons, then the left menu of Virksomhed with Brugere & roller marked and the page in the content
 	// column. Its stylesheets (fonts, the kit, the settings components, boxicons) are printed first, so css/usersRoles.css comes after them.
 	print settings_layout_assets(true);
-	print "<link rel='stylesheet' href='../css/usersRoles.css?v=20261102b'>\n";
+	print "<link rel='stylesheet' href='../css/usersRoles.css?v=20261114'>\n";
 	settings_layout_open(array(
 		'at'           => $at,
 		'kit'          => true,
@@ -130,6 +144,7 @@ function ur_view(array $vm): void
   <?php
 	if ($vm['tab'] === 'users') {
 		ur_view_users($vm, $h, $t, $link, $roleName);
+		ur_view_access_data($vm);
 		if ($vm['editUser'] !== null) {
 			ur_view_user_drawer($vm, $h, $t, $link, $roleName);
 		} elseif ($vm['person'] !== null) {
@@ -181,10 +196,11 @@ function ur_user_counts(array $vm): array
 function ur_view_users(array $vm, callable $h, callable $t, callable $link, callable $roleName): void
 {
 	?>
-  <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-bulk" class="sk-panel">
+  <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-bulk" class="sk-panel" data-state-scope="<?= $h($vm['stateScope'] ?? '') ?>">
+    <?php ur_view_people_filters($vm, $t); ?>
     <input type="hidden" name="action" value="bulk_role">
     <div class="sk-bar">
-      <label class="sk-search"><i class='bx bx-search'></i><input class="sk-input" type="search" id="ur-search" placeholder="<?= $t('7791|Søg navn, initialer, brugernavn eller e-mail') ?>" autocomplete="off"></label>
+      <label class="sk-search"><i class='bx bx-search'></i><input class="sk-input" type="search" id="ur-search" placeholder="<?= $t('7791|Søg navn, initialer, brugernavn eller e-mail') ?>" aria-label="<?= $t('7791|Søg navn, initialer, brugernavn eller e-mail') ?>" autocomplete="off"></label>
       <select class="sk-input" id="ur-role-filter" aria-label="<?= $t('5553|Rolle') ?>">
         <option value=""><?= $t('5875|Alle roller') ?></option>
         <?php foreach ($vm['roles'] as $role) { ?><option value="<?= (int) $role['id'] ?>"><?= $roleName($role) ?></option><?php } ?>
@@ -214,7 +230,7 @@ function ur_view_users(array $vm, callable $h, callable $t, callable $link, call
       <span><b id="ur-bulk-n">0</b>&nbsp;<?= $t('5908|markeret') ?></span><span class="sk-bar-sep"></span>
       <select class="sk-input sk-input-sm" name="role_id">
         <?php foreach ($vm['roles'] as $role) {
-        	$assignable = perm_within_own(perm_levels_from_role($role['id']));
+        $assignable = perm_within_own($vm['roleLevels'][$role['id']] ?? array());
         ?><option value="<?= (int) $role['id'] ?>"<?= $assignable ? '' : ' disabled' ?>><?= $roleName($role) ?></option><?php } ?>
       </select>
       <button class="sk-btn sk-btn-sm" type="submit" name="bulk" value="role" data-applies="notself" data-bulk-confirm="<?= $t('5910|Tildel rolle') ?>"><?= $t('5910|Tildel rolle') ?></button>
@@ -248,7 +264,7 @@ function ur_view_users(array $vm, callable $h, callable $t, callable $link, call
             $searchBlob = mb_strtolower($u['navn'] . ' ' . (!empty($vm['canOrg']) ? $u['initialer'] : '') . ' ' . $u['brugernavn'] . ' ' . $u['email'] . ' ' . ($u['role'] ? perm_role_name($u['role'], $vm['sprogId']) : ''));
           	$status = $u['closed'] ? 'closed' : ($u['invited'] ? 'invited' : 'active');
             $cardLink = $link(ur_people_row_link($vm, $u));
-            $badge = !$u['role'] ? 'sk-bad' : ($u['role_id'] === $vm['adminRoleId'] ? 'sk-info' : ($u['role']['is_built_in'] ? '' : 'sk-warn'));
+          	$badge = !$u['role'] ? 'sk-bad' : ($u['role_id'] === $vm['adminRoleId'] ? 'sk-info' : ($u['role']['is_built_in'] ? '' : 'sk-warn'));
           	$tone = $u['closed'] ? 'sk-off' : ($u['invited'] ? 'sk-warn' : 'sk-ok');
           ?>
           <tr data-search="<?= $h($searchBlob) ?>" data-status="<?= $status ?>"<?= $u['id'] === $vm['selfId'] ? ' data-self="1"' : '' ?> data-role="<?= (int) $u['role_id'] ?>" data-tfa="<?= $u['twofactor'] ? 1 : 0 ?>"<?= $u['review'] ? ' data-review="1"' : '' ?> data-href="<?= $cardLink ?>"<?= ($vm['editUser'] && $vm['editUser']['id'] === $u['id']) ? ' class="on"' : '' ?>>
@@ -302,18 +318,6 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
 	$ownCard = (!$isNew && $u['id'] === $vm['selfId']);
 	$lastAdmin = (!$isNew && function_exists('user_is_last_admin') && user_is_last_admin($u['id']));
 	$closeUrl = $link('tab=users');
-	$modules = array();
-	foreach (permission_registry() as $key => $def) {
-		if ($def['legacy']) {
-			$modules[$key] = findtekst($def['label'], $vm['sprogId']);
-		}
-	}
-	$adminKeys = array();
-	foreach (permission_registry() as $key => $def) {
-		if ($def['group'] === 'settings' && $def['dangerous']) {
-			$adminKeys[] = $key;
-		}
-	}
 	?>
   <a class="sk-scrim" href="<?= $closeUrl ?>" aria-label="<?= $t('2172|Luk') ?>"></a>
   <aside class="sk-drawer ur-drawer" id="ur-drawer" data-close="<?= $closeUrl ?>"<?= ur_people_drawer_attrs($vm) ?> aria-labelledby="ur-drawer-title">
@@ -322,7 +326,7 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
       <a class="sk-btn sk-btn-ghost sk-btn-icon" href="<?= $closeUrl ?>" aria-label="<?= $t('2172|Luk') ?>" title="<?= $t('2172|Luk') ?>"><i class='bx bx-x'></i></a>
     </div>
     <?php ur_people_card_head($vm, $h, $t, $link); ?>
-    <form method="post" action="<?= $h($vm['userFormUrl']) ?>" autocomplete="off" id="ur-user-form" class="sk-drawer-b">
+    <form method="post" action="<?= $h($vm['userFormUrl']) ?>" autocomplete="off" id="ur-user-form" class="sk-drawer-b" data-original-role="<?= (int) $u['role_id'] ?>" data-new="<?= $isNew ? '1' : '0' ?>">
       <input type="hidden" name="action" value="save_user">
       <input type="hidden" name="id" value="<?= (int) $u['id'] ?>">
       <?php if ($isNew) { ?><input type="hidden" name="mode" value="<?= $inviteNew ? 'invite' : 'classic' ?>"><?php } ?>
@@ -378,49 +382,51 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
         <?php
         // The current role above the editor's own rights is a disabled option, which a form does not send: the hidden field
         // sends it, so Gem answers "flere rettigheder end dig selv" instead of "Vælg en rolle først" (a chosen role still wins).
-        if (!$ownCard && !$lastAdmin && $u['role_id'] > 0 && !perm_within_own(perm_levels_from_role($u['role_id']))) { ?><input type="hidden" name="role_id" value="<?= (int) $u['role_id'] ?>"><?php } ?>
+        if (!$ownCard && !$lastAdmin && $u['role_id'] > 0 && !perm_within_own($vm['roleLevels'][$u['role_id']] ?? array())) { ?><input type="hidden" name="role_id" value="<?= (int) $u['role_id'] ?>"><?php } ?>
         <select class="sk-input" name="role_id" id="ur-role"<?= ($ownCard || $lastAdmin) ? ' disabled' : $ro ?>>
           <?php if ($u['role_id'] === 0) { ?><option value="0" disabled selected><?= $t('5891|Vælg en rolle') ?></option><?php } ?>
           <?php foreach ($vm['roles'] as $role) {
-          	$assignable = perm_within_own(perm_levels_from_role($role['id']));
+          $assignable = perm_within_own($vm['roleLevels'][$role['id']] ?? array());
           ?>
           <option value="<?= (int) $role['id'] ?>"<?= $role['id'] === $u['role_id'] ? ' selected' : '' ?><?= $assignable ? '' : ' disabled' ?>><?= $roleName($role) ?><?= $assignable ? '' : ' 🔒' ?></option>
           <?php } ?>
         </select>
         <span class="sk-field-help"><?= $ownCard ? $t('5761|Du kan ikke ændre din egen rolle') : ($lastAdmin ? $t('5926|Sidste administrator. Regnskabet skal have mindst én.') : $t('5925|Kun roller inden for dine egne rettigheder kan vælges.')) ?></span>
       </div>
-      <div class="sk-field">
-        <label class="sk-field-lbl" for="ur-ansat"><?= $t('5927|Kobling til ansat') ?></label>
-        <select class="sk-input" name="ansat_id" id="ur-ansat"<?= $ro ?>>
-          <option value="0">–</option>
-          <?php foreach ($vm['employees'] as $e) { ?>
-          <option value="<?= (int) $e['id'] ?>"<?= $e['id'] === $u['ansat_id'] ? ' selected' : '' ?>><?= $h(trim($e['initialer'] . ' ' . $e['navn'])) ?><?= !empty($e['left']) ? ' (' . $t('660|Fratrådt') . ')' : '' ?><?= (isset($e['logins']) && $e['logins'] > ($e['id'] === $u['ansat_id'] ? 1 : 0)) ? ' · ' . $t('7764|har login') : '' ?></option>
-          <?php } ?>
-        </select>
-      </div>
+      <?php ur_view_user_access($vm, $h, $t); ?>
+      <details class="ur-card-section">
+        <summary><?= $t('people.security|Sikkerhed') ?> <span class="sk-muted" id="ur-tfa-status" data-on="<?= $t('people.tfa_on|Tofaktor er slået til') ?>" data-off="<?= $t('people.tfa_off|Tofaktor er slået fra') ?>"><?= $u['twofactor'] ? $t('people.tfa_on|Tofaktor er slået til') : $t('people.tfa_off|Tofaktor er slået fra') ?></span></summary>
       <div class="sk-fields-2">
         <div class="sk-field">
           <label class="sk-field-lbl" for="ur-tfa"><?= $t('5928|Tofaktor') ?></label>
+          <?php
+          // One choice says both whether two-factor is on and how the code comes. On without a number or an address
+          // shows SMS, so Gem says what is missing instead of leaving a login nobody can finish.
+          $tfaShown = $u['twofactor'] ? ((isset($u['tfaMethod']) && $u['tfaMethod'] !== '') ? $u['tfaMethod'] : 'sms') : '';
+          ?>
           <select class="sk-input" name="twofactor" id="ur-tfa"<?= $ro ?>>
-            <option value="on"<?= $u['twofactor'] ? ' selected' : '' ?>><?= $t('5929|Til') ?></option>
-            <option value=""<?= $u['twofactor'] ? '' : ' selected' ?>><?= $t('5930|Fra') ?></option>
+            <option value=""<?= $tfaShown === '' ? ' selected' : '' ?>><?= $t('5930|Fra') ?></option>
+            <option value="sms"<?= $tfaShown === 'sms' ? ' selected' : '' ?>><?= $t('people.tfa_sms|Kode på SMS') ?></option>
+            <option value="email"<?= $tfaShown === 'email' ? ' selected' : '' ?>><?= $t('people.tfa_email|Kode på e-mail') ?></option>
           </select>
+          <span class="sk-field-help"><?= $t('people.tfa_help|SMS kræver et telefonnummer på brugeren, e-mail kræver en e-mail.') ?></span>
         </div>
         <div class="sk-field">
           <label class="sk-field-lbl"><?= $t('5557|Status') ?></label>
           <select class="sk-input" disabled><option><?= $isNew ? ($inviteNew ? $t('5778|Inviteret') : $t('5558|Aktiv')) : ($u['closed'] ? $t('5559|Lukket') : ($u['invited'] ? $t('5778|Inviteret') : $t('5558|Aktiv'))) ?></option></select>
         </div>
       </div>
-      <div class="sk-field">
+      <div class="sk-field" id="ur-tfa-phone"<?= $tfaShown === 'email' ? ' style="display:none"' : '' ?>>
         <label class="sk-field-lbl" for="ur-tlf"><?= $t('37|Telefon') ?></label>
         <input class="sk-input" type="tel" name="tlf" id="ur-tlf" maxlength="16" value="<?= $h($u['tlf']) ?>"<?= $ro ?>>
-        <span class="sk-field-help"><?= $t('5516|Tofaktor-login kræver et telefonnummer eller en e-mail') ?></span>
+        <span class="sk-field-help"><?= $t('5523|Bruges til tofaktor-koder') ?></span>
       </div>
-      <div class="sk-field">
-        <label class="sk-field-lbl" for="ur-ip"><?= $t('5931|IP-begrænsning') ?></label>
-        <textarea class="sk-input ur-ip" name="ip_address" id="ur-ip" rows="2" placeholder="<?= $t('5932|Én adresse pr. linje. Tom = ingen begrænsning.') ?>"<?= $ro ?>><?= $h(str_replace(',', "\n", $u['ip'])) ?></textarea>
+      <?php // Code by e-mail goes to the card's E-mail: this copy has no name, javascript/usersPeople.js keeps it equal to #ur-email ?>
+      <div class="sk-field" id="ur-tfa-mail"<?= $tfaShown === 'email' ? '' : ' style="display:none"' ?>>
+        <label class="sk-field-lbl" for="ur-tfa-email"><?= $t('52|E-mail') ?></label>
+        <input class="sk-input" type="email" id="ur-tfa-email" value="<?= $h($u['email']) ?>"<?= $ro ?>>
+        <span class="sk-field-help"><?= $t('people.tfa_email_field|Koden sendes hertil. Det er samme e-mail som øverst på kortet.') ?></span>
       </div>
-      <label class="ur-checkrow"><input class="sk-check" type="checkbox" name="revisor" value="on"<?= $u['isRevisor'] ? ' checked' : '' ?><?= !empty($vm['revisorSet']) ? ' disabled' : $ro ?>><span><b><?= $t('5571|Denne bruger er regnskabets revisor') ?></b><small><?= $t('2563|Vil du gøre denne bruger til revisor? Kun én bruger kan have revisoradgang, og du kan ikke ændre hvilken bruger der er revisor uden at kontakte Saldi support.') ?></small></span></label>
       <?php if (!$isNew && $vm['canWrite']) { ?>
       <details class="ur-pw">
         <summary><?= $t('5935|Sæt ny adgangskode') ?></summary>
@@ -430,14 +436,26 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
         </div>
       </details>
       <?php } ?>
+      </details>
+      <details class="ur-card-section">
+        <summary><?= $t('people.advanced|Avanceret') ?></summary>
+      <?php if (!empty($vm['canOrg']) && ($vm['employees'] || $u['ansat_id'] > 0)) { ?>
       <div class="sk-field">
-        <span class="sk-field-lbl" id="ur-access-lbl"><?= $t('5933|Adgang fra rollen') ?></span>
-        <ul class="sk-kv ur-access" id="ur-access" aria-labelledby="ur-access-lbl" data-none="<?= $h(perm_level_label('none', $vm['sprogId'])) ?>" data-read="<?= $h(perm_level_label('read', $vm['sprogId'])) ?>" data-write="<?= $h(perm_level_label('write', $vm['sprogId'])) ?>">
-          <?php foreach ($modules as $key => $label) { ?><li data-key="<?= $h($key) ?>"><span><?= $h($label) ?></span><span class="ur-lv-none"></span></li><?php } ?>
-          <li data-admin hidden><span class="ur-lv-admin"><?= $t('5594|Farlige funktioner (kun administratorer som standard)') ?></span><span class="ur-lv-write"><?= $h(perm_level_label('write', $vm['sprogId'])) ?></span></li>
-        </ul>
+        <label class="sk-field-lbl" for="ur-ansat"><?= $t('5927|Kobling til ansat') ?></label>
+        <select class="sk-input" name="ansat_id" id="ur-ansat"<?= $ro ?>>
+          <option value="0">–</option>
+          <?php foreach ($vm['employees'] as $e) { ?>
+          <option value="<?= (int) $e['id'] ?>"<?= $e['id'] === $u['ansat_id'] ? ' selected' : '' ?>><?= $h(trim($e['initialer'] . ' ' . $e['navn'])) ?><?= !empty($e['left']) ? ' (' . $t('660|Fratrådt') . ')' : '' ?><?= (isset($e['logins']) && $e['logins'] > ($e['id'] === $u['ansat_id'] ? 1 : 0)) ? ' · ' . $t('7764|har login') : '' ?></option>
+          <?php } ?>
+        </select>
       </div>
-      <script type="application/json" id="ur-access-data"><?= json_encode(array('admin' => $adminKeys, 'levels' => $vm['roleLevels'])) ?></script>
+      <?php } else { ?><input type="hidden" name="ansat_id" value="<?= (int) $u['ansat_id'] ?>"><?php } ?>
+      <div class="sk-field">
+        <label class="sk-field-lbl" for="ur-ip"><?= $t('5931|IP-begrænsning') ?></label>
+        <textarea class="sk-input ur-ip" name="ip_address" id="ur-ip" rows="2" placeholder="<?= $t('5932|Én adresse pr. linje. Tom = ingen begrænsning.') ?>"<?= $ro ?>><?= $h(str_replace(',', "\n", $u['ip'])) ?></textarea>
+      </div>
+      <label class="ur-checkrow"><input class="sk-check" type="checkbox" name="revisor" value="on"<?= $u['isRevisor'] ? ' checked' : '' ?><?= !empty($vm['revisorSet']) ? ' disabled' : $ro ?>><span><b><?= $t('5571|Denne bruger er regnskabets revisor') ?></b><small><?= $t('people.auditor_explained|Dette er regnskabets særlige revisorlogin. Rollen Revisor kan tildeles flere brugere og ændres igen; denne udpegning kan kun ændres af Saldi support.') ?></small><small><?= $t('2563|Vil du gøre denne bruger til revisor? Kun én bruger kan have revisoradgang, og du kan ikke ændre hvilken bruger der er revisor uden at kontakte Saldi support.') ?></small></span></label>
+      </details>
     </form>
 
     <?php if ($vm['canWrite']) { ?>
@@ -496,132 +514,274 @@ function ur_view_user_drawer(array $vm, callable $h, callable $t, callable $link
 	<?php
 }
 
+/**
+ * Render the role editor from the controller's permission and membership snapshots.
+ *
+ * @param array<string, mixed> $vm
+ * @param callable $h HTML escaping
+ * @param callable $t Translated, HTML-escaped text
+ * @param callable $link Escaped page URL
+ * @param callable $roleName Escaped role name
+ * @return void
+ */
 function ur_view_roles(array $vm, callable $h, callable $t, callable $link, callable $roleName): void
 {
 	$role = $vm['editRole'];
-	$write = $vm['canRolesWrite'];
+	$registry = permission_registry();
+	$rank = perm_level_rank();
+	$ownLevels = $vm['ownLevels'];
+	$within = static function (array $levels) use ($ownLevels, $rank): bool {
+		foreach ($levels as $key => $level) {
+			if ($rank[$level] > $rank[ifset($ownLevels, $key, 'none')]) {
+				return false;
+			}
+		}
+		return true;
+	};
+	$canWrite = $vm['canRolesWrite'];
+	$isNew = $role && (int) $role['id'] === 0;
+	$roleId = $role ? (int) $role['id'] : 0;
+	$levels = $role ? $role['levels'] : array();
+	$write = $canWrite && ($isNew || $within($levels));
+	$isOwn = !$isNew && $roleId > 0 && $roleId === (int) ifset($vm, 'ownRoleId', 0);
+	$counts = ifset(ifset($vm, 'roleStatusCounts', array()), $roleId, array('active' => 0, 'invited' => 0, 'closed' => 0, 'total' => 0));
+	$defaults = ifset(ifset($vm, 'roleDefaults', array()), $roleId, array());
+	$revision = $role ? (string) ifset($role, 'role_revision', '') : '';
+	$source = $role ? (int) ifset($role, 'role_source', 0) : 0;
+	$canReset = $write && $role && $role['is_built_in'] && $vm['roleChanged'] && $within($defaults);
+	if ($isOwn) {
+		foreach ($levels as $key => $level) {
+			if ($rank[ifset($defaults, $key, 'none')] < $rank[$level]) {
+				$canReset = false;
+			}
+		}
+	}
+	$name = $role && !$isNew ? perm_role_name($role, $vm['sprogId']) : findtekst('5565|Ny rolle', $vm['sprogId']);
+	$messages = array(
+		'save' => 'roles.editor.save|Gem ændringer',
+		'undo' => 'roles.editor.undo|Fortryd ændringer',
+		'pending' => 'roles.editor.pending|%s ugemte ændringer',
+		'noChanges' => 'roles.editor.no_changes|Ingen ugemte ændringer',
+		'newDraft' => 'roles.editor.new_draft|Ny rolle · ikke gemt',
+		'preview' => 'roles.editor.preview|Gennemgå ændringer',
+		'resetPreview' => 'roles.editor.reset_preview|Gennemgå nulstilling',
+		'deletePreview' => 'roles.editor.delete_preview|Flyt brugere og slet rollen',
+		'discardTitle' => 'roles.editor.discard_title|Forlad ugemte ændringer?',
+		'discardBody' => 'roles.editor.discard_body|Dine ændringer i rollen er ikke gemt. Vil du forlade siden?',
+		'discard' => 'roles.editor.discard|Forlad uden at gemme',
+		'cancel' => 'common.cancel|Annullér',
+		'added' => 'roles.editor.added|Udvidet adgang',
+		'removed' => 'roles.editor.removed|Reduceret adgang',
+		'details' => 'roles.editor.details|Navn og beskrivelse',
+		'noPermissions' => 'roles.editor.no_permissions|Ingen ændringer i rettighederne.',
+		'affected' => 'roles.editor.affected|Berørte brugere: %s aktive · %s inviterede · %s lukkede',
+		'nextView' => 'roles.editor.next_view|Ændringer gælder fra brugernes næste sidevisning.',
+		'noUsers' => 'roles.editor.no_users|Den nye rolle tildeles ingen brugere, før du vælger den på en bruger.',
+		'none' => 'roles.editor.none|Ingen adgang',
+		'read' => 'roles.editor.read|Kun visning',
+		'write' => 'roles.editor.write|Fuld adgang',
+		'expand' => 'roles.editor.expand|Fold alle ud',
+		'collapse' => 'roles.editor.collapse|Fold alle sammen',
+		'standardDiff' => 'roles.editor.standard_diff|Forskelle fra standard',
+		'noStandardDiff' => 'roles.editor.no_standard_diff|Rettighederne svarer til standarden.',
+		'fromStandard' => 'roles.editor.from_standard|Standard → denne rolle',
+		'groupApplied' => 'roles.editor.group_applied|%s rettigheder ændret. Følsomme og låste rettigheder er uændrede.',
+		'moveTo' => '5950|Flyt til',
+		'moveDelete' => '5951|Flyt og slet',
+		'delete' => '1099|Slet',
+		'deleteEmpty' => '5586|Slet rolle?',
+		'deleteBody' => 'roles.editor.delete_body|Alle brugere flyttes samlet til den valgte rolle. Den nuværende rolle slettes derefter.',
+		'unsavedIgnored' => 'roles.editor.unsaved_ignored|Ugemte ændringer i editoren medtages ikke i denne handling.',
+		'noTargets' => 'roles.editor.no_targets|Ingen anden rolle kan vælges med dine rettigheder.',
+		'revenue' => 'roles.editor.revenue|Denne ændring kan slå skjulning af omsætning til for hele regnskabet, fordi brugere mister fuld adgang til Indstillinger.',
+		'close' => '2172|Luk',
+		'newRole' => '5565|Ny rolle',
+		'nameField' => '5531|Navn',
+		'descriptionField' => '5568|Beskrivelse',
+	);
+	$text = array();
+	foreach ($messages as $key => $message) {
+		$text[$key] = findtekst($message, $vm['sprogId']);
+	}
+	$roleData = array();
+	foreach ($vm['roles'] as $r) {
+		$rLevels = ifset($vm['roleLevels'], $r['id'], array());
+		$roleData[(int) $r['id']] = array('name' => perm_role_name($r, $vm['sprogId']), 'levels' => $rLevels,
+			'description' => perm_role_description($r, $vm['sprogId']), 'allowed' => $within($rLevels));
+	}
+	$labels = array();
+	foreach ($registry as $key => $def) {
+		$labels[$key] = findtekst($def['label'], $vm['sprogId']);
+	}
+	$permissionHints = array(
+		'crm.access' => 'roles.editor.crm_help|Kunder, sager, aktiviteter og kalender i CRM. Kun visning giver læseadgang; fuld adgang giver også mulighed for at oprette og ændre. Debitorkort og tilbud/ordrer kræver deres egne rettigheder under Salg.',
+		'debitor.ordre' => 'roles.editor.sales_help|Salgsordrer, tilbud og fakturering.',
+		'kreditor.ordre' => 'roles.editor.purchase_help|Indkøbsordrer og leverandørfakturaer.',
+		'finans.kassekladde' => 'roles.editor.journal_help|Kassekladder og bogføring.',
+		'pos.kasse' => 'roles.editor.pos_help|Brug af kassesystemet. Opsætning styres særskilt under indstillingsområdet Kasse.',
+	);
+	$permissionPages = array();
+	if (function_exists('settings_hub_page_def')) {
+		$pageKeys = array_keys(getSettingsSections());
+		foreach (getSettingsRegistry() as $entry) {
+			$pageKeys[] = $entry['key'];
+		}
+		foreach (array_unique($pageKeys) as $pageKey) {
+			$page = settings_hub_page_def($pageKey);
+			if ($page && $page['alias_of'] !== '') {
+				$page = settings_hub_page_def($page['alias_of']);
+			}
+			if (!$page || !isset($registry[$page['permission']]) || $registry[$page['permission']]['group'] !== 'settingsarea') {
+				continue;
+			}
+			$permissionPages[$page['permission']][$page['key']] = settings_hub_page_label($page, $vm['sprogId']);
+		}
+	}
+	$config = array('roleId' => $roleId, 'isNew' => $isNew, 'ownRole' => $isOwn, 'source' => $source,
+		'levels' => $levels, 'defaults' => $defaults, 'roles' => $roleData, 'counts' => $counts,
+		'holders' => ifset(ifset($vm, 'roleHolders', array()), $roleId, array()), 'labels' => $labels,
+		'name' => $role ? $role['navn'] : '', 'displayName' => $name, 'description' => $role ? $role['beskrivelse'] : '', 'text' => $text);
+	// JSON stays ASCII, including on legacy database encodings, and cannot close its script element.
+	$utf8 = static function ($value) use (&$utf8, $vm) {
+		if (is_array($value)) {
+			return array_map($utf8, $value);
+		}
+		return is_string($value) && $vm['charset'] !== 'UTF-8' ? mb_convert_encoding($value, 'UTF-8', 'ISO-8859-15') : $value;
+	};
 	?>
-  <div class="sk-split ur-roles" style="--sk-side-w: 18rem">
-    <section class="sk-panel ur-rlist">
-      <div class="sk-panel-h">
-        <h2 class="sk-panel-t"><?= $t('5550|Roller') ?></h2>
-        <?php if ($write) { ?>
-        <span class="sk-panel-tools">
-          <?php if ($role && $role['id'] > 0) { ?><button class="sk-btn sk-btn-sm" type="submit" form="ur-copy-form"><i class='bx bx-copy'></i><?= $t('5566|Kopiér') ?></button><?php } ?>
-          <a class="sk-btn sk-btn-sm" href="<?= $link('tab=roles&rolle=0') ?>"><i class='bx bx-plus'></i><?= $t('5565|Ny rolle') ?></a>
-        </span>
-        <?php } ?>
+  <div class="ur-roles ur-roles-editor" id="ur-roles-editor">
+    <aside class="sk-panel ur-role-list" aria-label="<?= $t('5550|Roller') ?>">
+      <div class="sk-panel-h"><h2 class="sk-panel-t"><?= $t('5550|Roller') ?></h2>
+        <?php if ($canWrite) { ?><a class="sk-btn sk-btn-sm" href="<?= $link('tab=roles&rolle=0') ?>"><i class="bx bx-plus" aria-hidden="true"></i><?= $t('5565|Ny rolle') ?></a><?php } ?>
       </div>
-      <div class="sk-list sk-list-stack">
-      <?php foreach ($vm['roles'] as $r) {
-      	$count = isset($vm['roleCounts'][$r['id']]) ? $vm['roleCounts'][$r['id']] : 0;
-      	$isOn = ($role && $role['id'] === $r['id']);
-      ?>
-        <a class="sk-list-row<?= $isOn ? ' on' : '' ?>" href="<?= $link('tab=roles&rolle=' . $r['id']) ?>"<?= $isOn ? ' aria-current="true"' : '' ?>>
-          <span class="sk-list-tx"><span class="sk-list-t"><?= $roleName($r) ?><?php if (!$r['is_built_in']) { ?> <span class="sk-tag sk-warn"><?= $t('5942|Egen') ?></span><?php } ?></span><span class="sk-list-d"><?= $h(perm_role_description($r, $vm['sprogId'])) ?></span></span>
-          <span class="sk-list-meta"><?= (int) $count ?> <i class='bx bx-user'></i></span>
+      <label class="ur-role-picker"><span class="sk-field-lbl"><?= $t('roles.editor.choose_role|Vælg rolle') ?></span>
+        <select class="sk-input" id="ur-role-picker">
+          <?php if ($isNew) { ?><option value="" selected><?= $t('5565|Ny rolle') ?></option><?php } ?>
+          <?php foreach ($vm['roles'] as $r) { ?><option value="<?= $link('tab=roles&rolle=' . (int) $r['id']) ?>"<?= (int) $r['id'] === $roleId ? ' selected' : '' ?>><?= $roleName($r) ?></option><?php } ?>
+        </select>
+      </label>
+      <nav class="sk-list ur-role-nav" aria-label="<?= $t('5550|Roller') ?>">
+        <?php foreach ($vm['roles'] as $r) {
+			$rCount = (int) ifset($vm['roleCounts'], $r['id'], 0);
+			$isOn = (int) $r['id'] === $roleId;
+		?>
+        <a class="sk-list-row<?= $isOn ? ' on' : '' ?>" href="<?= $link('tab=roles&rolle=' . (int) $r['id']) ?>"<?= $isOn ? ' aria-current="page"' : '' ?>>
+          <span class="ur-role-list-text"><b><?= $roleName($r) ?></b><small><?= $r['is_built_in'] ? $t('roles.editor.standard|Standardrolle') : $t('5942|Egen') ?><?= !empty($r['changed']) ? ' · ' . $t('roles.editor.modified|Ændret') : '' ?></small></span>
+          <span class="sk-list-meta" title="<?= $t('roles.editor.total_users|Alle tilknyttede brugere, også lukkede') ?>"><?= $rCount ?><i class="bx bx-user" aria-hidden="true"></i></span>
         </a>
-      <?php } ?>
-      </div>
-    </section>
-
-    <?php if ($role) {
-    	$isNew = ($role['id'] === 0);
-    	$count = (!$isNew && isset($vm['roleCounts'][$role['id']])) ? $vm['roleCounts'][$role['id']] : 0;
-    	$name = $isNew ? '' : perm_role_name($role, $vm['sprogId']);
-    	$rank = perm_level_rank();
-    	$registry = permission_registry();
-    ?>
-    <div class="sk-main">
-      <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-role-form" class="sk-panel ur-matrix" autocomplete="off">
+        <?php } ?>
+      </nav>
+    </aside>
+    <?php if ($role) { ?>
+    <main class="ur-role-main">
+      <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-role-form" class="sk-panel ur-role-form" autocomplete="off">
         <input type="hidden" name="action" value="save_role">
-        <input type="hidden" name="id" value="<?= (int) $role['id'] ?>">
-        <div class="sk-panel-h">
-          <?php if ($role['is_built_in']) { ?>
-          <h2 class="sk-panel-t"><?= $h($name) ?></h2><input type="hidden" name="navn" value="<?= $h($role['navn']) ?>">
-          <span class="sk-sub ur-lock"><i class='bx bx-lock-alt'></i><?= $t('5943|Standardrolle · navn låst') ?></span>
-          <?php } else { ?>
-          <input class="sk-input sk-input-sm ur-m-name" type="text" name="navn" maxlength="80" value="<?= $h($role['navn']) ?>" placeholder="<?= $t('5531|Navn') ?>" aria-label="<?= $t('5531|Navn') ?>" required<?= $write ? '' : ' disabled' ?>>
-          <?php } ?>
-          <span class="sk-panel-tools">
-          <?php if ($write && !$isNew) { ?>
-            <?php if ($role['is_built_in']) { ?>
-            <button class="sk-btn sk-btn-sm" type="submit" form="ur-reset-role-form"<?= ($vm['roleChanged'] && perm_within_own(perm_levels_from_role((int) $role['id']))) ? '' : ' disabled' ?> data-confirm-form="<?= $t('5767|Nulstil rollen til standard?') ?>"><i class='bx bx-reset'></i><?= $t('5717|Nulstil til standard') ?></button>
-            <?php } else { ?>
-            <button class="sk-btn sk-btn-sm sk-btn-danger" type="button" id="ur-del-role"><i class='bx bx-trash'></i><?= $t('1099|Slet') ?></button>
+        <input type="hidden" name="id" value="<?= $roleId ?>">
+        <input type="hidden" name="role_revision" value="<?= $h($revision) ?>">
+        <input type="hidden" name="role_source" value="<?= $source ?>">
+        <div class="ur-role-savebar">
+          <div class="ur-role-heading"><h2 data-role-title><?= $h($name) ?></h2><span class="sk-sub" id="ur-role-change-count" aria-live="polite"><?= $h($isNew ? $text['newDraft'] : $text['noChanges']) ?></span></div>
+          <?php if ($write) { ?><div class="ur-role-save-actions"><button class="sk-btn" type="button" id="ur-role-undo" disabled><?= $h($text['undo']) ?></button><button class="sk-btn sk-btn-primary" type="submit" id="ur-role-save"><?= $h($text['save']) ?></button></div><?php } ?>
+        </div>
+        <div class="ur-role-details">
+          <div class="ur-role-meta">
+            <span class="sk-tag<?= !empty($vm['roleChanged']) ? ' sk-warn' : '' ?>"><?= $role['is_built_in'] ? $t('roles.editor.standard|Standardrolle') : ($isNew ? $t('roles.editor.draft|Kladde') : $t('5942|Egen')) ?><?= !empty($vm['roleChanged']) ? ' · ' . $t('roles.editor.modified|Ændret') : '' ?></span>
+            <?php if ($role['is_built_in']) { ?><button type="button" class="sk-link" id="ur-role-standard-diff"><?= $h($text['standardDiff']) ?></button><?php } ?>
+            <?php if ($canWrite && !$isNew) { ?>
+              <?php if ($within($levels)) { ?><a class="sk-btn sk-btn-sm" href="<?= $link('tab=roles&copy_role=' . $roleId) ?>"><i class="bx bx-copy" aria-hidden="true"></i><?= $t('5566|Kopiér') ?></a><?php } ?>
+              <?php if ($role['is_built_in']) { ?><button type="button" class="sk-btn sk-btn-sm" id="ur-role-reset"<?= $canReset ? '' : ' disabled' ?> title="<?= $isOwn ? $t('roles.editor.own_protection|Du kan ikke reducere adgangen i din egen rolle. Brug en kopi til en mere begrænset rolle.') : $t('roles.editor.reset_help|Nulstilling kræver, at du selv har alle standardrettighederne.') ?>"><?= $t('5717|Nulstil til standard') ?></button>
+              <?php } else { ?><button type="button" class="sk-btn sk-btn-sm sk-btn-danger" id="ur-role-delete"<?= $write && !$isOwn ? '' : ' disabled' ?> title="<?= $isOwn ? $t('roles.editor.own_delete|En anden administrator skal flytte din bruger, før rollen kan slettes.') : $t('roles.editor.delete_help|Brugere flyttes til en anden rolle, før rollen slettes.') ?>"><?= $t('1099|Slet') ?></button><?php } ?>
             <?php } ?>
+          </div>
+          <?php if ($isNew && $write) { ?>
+          <label class="sk-field ur-template-choice"><span class="sk-field-lbl"><?= $t('roles.editor.start_from|Tag udgangspunkt i en rolle') ?></span>
+            <select class="sk-input" id="ur-role-template"><option value="0"><?= $t('roles.editor.start_blank|Start uden adgang') ?></option>
+              <?php foreach ($vm['roles'] as $r) { if (!$roleData[$r['id']]['allowed']) { continue; } ?><option value="<?= (int) $r['id'] ?>"<?= (int) $r['id'] === $source ? ' selected' : '' ?>><?= $roleName($r) ?></option><?php } ?>
+            </select>
+            <span class="sk-field-help"><?= $t('roles.editor.template_help|Skabelonen er en kladde. Ingen rolle oprettes, før du gemmer.') ?></span>
+          </label>
           <?php } ?>
-          <?php if ($write) { ?><button class="sk-btn sk-btn-sm sk-btn-primary" type="submit"><?= $t('3|Gem') ?></button><?php } ?>
-          </span>
-        </div>
-        <div class="sk-panel-note ur-m-desc">
-          <?php if ($role['is_built_in']) { ?>
-          <?= $h(perm_role_description($role, $vm['sprogId'])) ?><input type="hidden" name="beskrivelse" value="<?= $h($role['beskrivelse']) ?>">
-          <?php } else { ?>
-          <input class="sk-input sk-input-sm" type="text" name="beskrivelse" maxlength="500" value="<?= $h($role['beskrivelse']) ?>" placeholder="<?= $t('5568|Beskrivelse') ?>" aria-label="<?= $t('5568|Beskrivelse') ?>"<?= $write ? '' : ' disabled' ?>>
+          <?php if (!$role['is_built_in']) { ?>
+          <label class="sk-field"><span class="sk-field-lbl"><?= $t('5531|Navn') ?></span><input class="sk-input" type="text" name="navn" maxlength="80" value="<?= $h($role['navn']) ?>" required<?= $write ? '' : ' disabled' ?>></label>
+          <label class="sk-field"><span class="sk-field-lbl"><?= $t('5568|Beskrivelse') ?></span><input class="sk-input" type="text" name="beskrivelse" maxlength="500" value="<?= $h($role['beskrivelse']) ?>"<?= $write ? '' : ' disabled' ?>></label>
+          <?php } else { ?><p class="ur-role-description"><?= $h(perm_role_description($role, $vm['sprogId'])) ?></p><input type="hidden" name="navn" value="<?= $h($role['navn']) ?>"><input type="hidden" name="beskrivelse" value="<?= $h($role['beskrivelse']) ?>"><?php } ?>
+          <?php if (!$isNew) { ?>
+          <p class="ur-role-impact"><?= $h(sprintf($text['affected'], $counts['active'], $counts['invited'], $counts['closed'])) ?>
+            <?php if (!empty($vm['canUsers'])) { ?><a href="<?= $link('tab=users&role=' . $roleId) ?>"><?= $t('roles.editor.view_users|Se brugerne') ?></a><?php } ?>
+            <?php if ($vm['canAudit']) { ?><a href="<?= $link('tab=log&objekt=rolle&objekt_id=' . $roleId) ?>"><?= $t('roles.editor.history|Se ændringshistorik') ?></a><?php } ?>
+          </p>
           <?php } ?>
-          <?php if (!$isNew) { ?> · <?= $count > 0 ? $h(sprintf(findtekst('5944|Bruges af %s brugere. Ændringer gælder fra deres næste sidevisning.', $vm['sprogId']), $count)) : $t('5945|Ingen brugere har denne rolle.') ?><?php } ?>
+          <div class="sk-note <?= $vm['enforceMode'] === 'deny' ? 'sk-info' : 'sk-warn' ?> ur-role-enforcement"><span>
+            <b><?= $vm['enforceMode'] === 'deny' ? $t('roles.editor.enforce_deny|Adgangskontrol: Afvis') : $t('roles.editor.enforce_log|Adgangskontrol: Log kun') ?></b>
+            <?= $vm['enforceMode'] === 'deny' ? $t('roles.editor.enforce_deny_help|Rettighedskontroller afviser adgang, som rollen ikke giver.') : $t('roles.editor.enforce_log_help|Kun visning kan stadig tillade ændringer på ældre sider. Følsomme funktioner og nye indstillingssider håndhæver rettighederne.') ?>
+            <?php if ($vm['canAudit']) { ?><a href="<?= $link('tab=log#ur-enforce') ?>"><?= $t('roles.editor.enforcement_details|Om adgangskontrollen') ?></a><?php } ?>
+          </span></div>
+          <?php if ($isOwn) { ?><p class="ur-role-help"><i class="bx bx-lock-alt" aria-hidden="true"></i><?= $t('roles.editor.own_protection|Du kan ikke reducere adgangen i din egen rolle. Brug en kopi til en mere begrænset rolle.') ?></p><?php } ?>
+          <?php if (!$write) { ?><p class="ur-role-help"><?= $canWrite ? $t('roles.editor.above_own|Rollen giver mere adgang, end du selv har. Du kan se den, men ikke ændre eller kopiere den.') : $t('roles.editor.readonly|Du har kun læseadgang til roller.') ?></p><?php } ?>
         </div>
-        <div class="sk-table-wrap">
-          <table class="sk-table sk-table-flush ur-mx">
-            <thead><tr><th></th><th class="sk-c ur-lvh"><?= $h(perm_level_label('none', $vm['sprogId'])) ?></th><th class="sk-c ur-lvh"><?= $h(perm_level_label('read', $vm['sprogId'])) ?></th><th class="sk-c ur-lvh"><?= $h(perm_level_label('write', $vm['sprogId'])) ?></th></tr></thead>
-            <?php foreach (permission_groups() as $group => $groupLabel) {
-            	$keys = array_filter($registry, function ($def) use ($group) { return $def['group'] === $group; });
-            	if (!$keys) {
-            		continue;
-            	}
-            ?>
-            <tbody class="ur-grp" data-grp>
-              <tr class="sk-tr-sub<?= $group === 'settings' ? ' sk-bad' : '' ?>"><td colspan="4"><div class="ur-grp-h"><span><?= $t($groupLabel) ?><?php if ($group === 'settings') { ?> <span class="ur-grp-d">· <?= $t('5594|Farlige funktioner (kun administratorer som standard)') ?></span><?php } ?></span><?php if ($write) { $allRead = !array_filter($keys, function ($d) { return empty($d['readonly']); }); ?><button type="button" class="sk-link" data-all-write><?= $t($allRead ? '7071|Sæt alle til læs' : '5946|Sæt alle til skriv') ?></button><?php } ?></div></td></tr>
-              <?php foreach ($keys as $key => $def) {
-              	$level = isset($role['levels'][$key]) ? $role['levels'][$key] : 'none';
-              	$own = isset($vm['ownLevels'][$key]) ? $vm['ownLevels'][$key] : 'none';
-              	$adminLock = ($role['key'] === 'administrator' && in_array($key, UR_ADMIN_LOCKED, true));
-              ?>
-              <tr class="ur-prow<?= !empty($def['block']) ? ' ur-prow-block' : '' ?>"<?= $key === 'dashboard.view' ? ' data-view-row' : '' ?><?= $adminLock ? ' title="' . $t('5971|Administrator-rollen beholder altid adgang til brugere og roller') . '"' : '' ?><?= !empty($def['derive_keys']) ? ' data-derive="' . $h(implode(',', $def['derive_keys'])) . '"' : '' ?>>
-                <td class="sk-wrap ur-plbl"><?= $t($def['label']) ?><?php if ($def['dangerous']) { ?> <i class='bx bx-lock-alt ur-plock'></i><?php } ?><?php if (!empty($def['block'])) { ?> <small class="ur-block-hint" hidden><?= $t('7070|Brugeren kan se tallene her, men ikke åbne rapporten bag.') ?></small><small class="ur-block-needs" hidden><?= $t('7069|Kræver Se Oversigt') ?></small><?php } ?></td>
-                <?php foreach (array('none', 'read', 'write') as $opt) {
-                	$locked = ($rank[$opt] > $rank[$own]) || ($adminLock && $opt !== 'write') || ($opt === 'write' && !empty($def['readonly']));
-                ?>
-                <td class="sk-c ur-lv"><input class="sk-radio" type="radio" name="level[<?= $h($key) ?>]" value="<?= $opt ?>" aria-label="<?= $t($def['label']) ?>: <?= $h(perm_level_label($opt, $vm['sprogId'])) ?>"<?= $level === $opt ? ' checked' : '' ?><?= ($locked || !$write) ? ' disabled' : '' ?>></td>
-                <?php } ?>
-              </tr>
+        <div class="ur-role-filters">
+          <label class="ur-role-search"><span class="sk-sr"><?= $t('roles.editor.search|Find rettighed') ?></span><input type="search" class="sk-input" id="ur-role-search" placeholder="<?= $t('roles.editor.search|Find rettighed') ?>"></label>
+          <label><span class="sk-sr"><?= $t('roles.editor.filter|Vis rettigheder') ?></span><select class="sk-input" id="ur-role-filter"><option value="all"><?= $t('roles.editor.all|Alle rettigheder') ?></option><option value="access"><?= $t('roles.editor.has_access|Har adgang') ?></option><option value="changed"><?= $t('roles.editor.changed_only|Ændret') ?></option></select></label>
+          <button type="button" class="sk-link" id="ur-role-expand"><?= $h($text['expand']) ?></button>
+        </div>
+        <div class="ur-level-head" aria-hidden="true"><span><?= $t('roles.editor.permission|Rettighed') ?></span><?php foreach (array('none', 'read', 'write') as $opt) { ?><span><?= $h($text[$opt]) ?></span><?php } ?></div>
+        <p class="sk-empty" id="ur-role-empty" hidden><?= $t('roles.editor.no_matches|Ingen rettigheder matcher. Prøv en anden søgning eller et andet filter.') ?></p>
+        <div class="ur-role-groups">
+          <?php
+		$groups = permission_groups();
+		$order = array('finans', 'debitor', 'crm', 'kreditor', 'lager', 'pos', 'system', 'settingsarea', 'dashboard', 'settings');
+		// A registry extension must never silently omit a permission from the submitted matrix.
+		$order = array_unique(array_merge($order, array_keys($groups), array_column($registry, 'group')));
+		$groups['debitor'] = 'roles.editor.sales_group|Salg · debitor';
+		$groups['kreditor'] = 'roles.editor.purchase_group|Køb · kreditor';
+		$groups['lager'] = '5650|Varer & lager';
+		$groups['settings'] = 'roles.editor.sensitive_group|Administration og følsomme funktioner';
+		foreach ($order as $group) {
+			$keys = array_filter($registry, static function ($def) use ($group) { return $def['group'] === $group; });
+			if (!$keys) { continue; }
+		?>
+          <details class="ur-permission-group<?= $group === 'settings' ? ' ur-sensitive-group' : '' ?>" data-role-group="<?= $h($group) ?>"<?= $group === 'dashboard' ? '' : ' open' ?>>
+            <summary><span><?= $t(ifset($groups, $group, $group)) ?></span><small data-group-summary></small></summary>
+            <?php if ($write && $group !== 'settings') { ?>
+            <div class="ur-group-actions"><span><?= $t('roles.editor.set_group|Sæt gruppens adgang:') ?></span><?php foreach (array('none', 'read', 'write') as $opt) { if ($group === 'dashboard' && $opt === 'write') { continue; } ?><button class="sk-link" type="button" data-group-level="<?= $opt ?>"><?= $h($text[$opt]) ?></button><?php } ?></div>
+            <?php } ?>
+            <?php if ($group === 'settings') { ?><p class="ur-group-help"><?= $t('roles.editor.sensitive_help|Vælg disse rettigheder enkeltvis. Hængelåsen markerer funktioner, der håndhæves i alle tilstande.') ?></p><?php } ?>
+            <?php if ($group === 'settingsarea') { ?><p class="ur-group-help"><?= $t('roles.editor.areas_help|Områderne styrer de underliggende indstillingssider. Regnskabsår hører eksempelvis til Virksomhed, selv om siden findes under Finans i menuen.') ?></p><?php } ?>
+            <?php foreach ($keys as $key => $def) {
+				$level = ifset($levels, $key, 'none');
+				$own = ifset($ownLevels, $key, 'none');
+				$adminLock = $role['key'] === 'administrator' && in_array($key, UR_ADMIN_LOCKED, true);
+				$rowId = 'ur-permission-' . str_replace('.', '-', $key);
+			?>
+            <div class="ur-permission" role="radiogroup" aria-labelledby="<?= $h($rowId) ?>" data-key="<?= $h($key) ?>" data-dangerous="<?= $def['dangerous'] ? '1' : '0' ?>"<?= !empty($def['block']) ? ' data-dashboard-block' : '' ?> data-derive="<?= $h(implode(',', ifset($def, 'derive_keys', array()))) ?>">
+              <div class="ur-permission-title"><span id="<?= $h($rowId) ?>"><?= $t($def['label']) ?><?php if ($def['dangerous']) { ?> <i class="bx bx-lock-alt" aria-hidden="true"></i><?php } ?></span><span class="ur-permission-changed" hidden><?= $t('roles.editor.modified|Ændret') ?></span>
+                <?php if (!empty($def['block'])) { ?><small data-dashboard-needs hidden><?= $t('7069|Kræver Se Oversigt') ?></small><small data-dashboard-hint hidden><?= $t('7070|Brugeren kan se tallene her, men ikke åbne rapporten bag.') ?></small><?php } ?>
+                <?php if (isset($permissionHints[$key])) { ?><small><?= $t($permissionHints[$key]) ?></small><?php } ?>
+                <?php if (!empty($permissionPages[$key])) { ?><details class="ur-permission-pages"><summary><?= $h(sprintf(findtekst('roles.editor.included_pages|Se indstillingssider (%s)', $vm['sprogId']), count($permissionPages[$key]))) ?></summary><small><?= $h(implode(' · ', array_unique($permissionPages[$key]))) ?></small></details><?php } ?>
+                <?php if ($key === 'system.indstillinger') { ?><small><?= $t('roles.editor.settings_help|Adgang til klassiske indstillinger. De nye sider styres også af deres egne områder nedenfor.') ?></small><?php } ?>
+              </div>
+              <input type="hidden" name="level[<?= $h($key) ?>]" value="<?= $h($level) ?>" data-level-fallback>
+              <?php foreach (array('none', 'read', 'write') as $opt) {
+					$locked = !$write || $rank[$opt] > $rank[$own] || ($adminLock && $opt !== 'write') || ($opt === 'write' && !empty($def['readonly'])) || ($isOwn && $rank[$opt] < $rank[$level]);
+					$reason = $isOwn && $rank[$opt] < $rank[$level] ? 'roles.editor.own_protection|Du kan ikke reducere adgangen i din egen rolle. Brug en kopi til en mere begrænset rolle.' : 'roles.editor.locked_level|Dette niveau kan ikke vælges med dine rettigheder eller for denne funktion.';
+				?>
+              <label class="ur-level-choice"<?= $locked ? ' title="' . $t($reason) . '"' : '' ?>><input class="sk-radio" type="radio" name="level[<?= $h($key) ?>]" value="<?= $opt ?>" data-locked="<?= $locked ? '1' : '0' ?>" aria-label="<?= $h($labels[$key] . ': ' . $text[$opt]) ?>"<?= $level === $opt ? ' checked' : '' ?><?= $locked ? ' disabled' : '' ?>><span><?= $h($text[$opt]) ?></span></label>
               <?php } ?>
-            </tbody>
+            </div>
             <?php } ?>
-          </table>
+          </details>
+          <?php } ?>
         </div>
+        <p class="sk-sr" id="ur-role-feedback" aria-live="polite"></p>
       </form>
       <?php if ($write && !$isNew) { ?>
-      <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-copy-form" hidden><input type="hidden" name="action" value="copy_role"><input type="hidden" name="id" value="<?= (int) $role['id'] ?>"></form>
-      <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-reset-role-form" hidden><input type="hidden" name="action" value="reset_role"><input type="hidden" name="id" value="<?= (int) $role['id'] ?>"></form>
-      <?php if (!$role['is_built_in']) { ?>
-      <template id="ur-del-role-dlg">
-        <?php if ($count > 0) { ?>
-        <h3><?= $h(sprintf(findtekst('5948|%s bruges af %s brugere', $vm['sprogId']), $name, $count)) ?></h3>
-        <p><?= $t('5949|Flyt brugerne til en anden rolle først.') ?></p>
-        <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-del-role-form">
-          <input type="hidden" name="action" value="delete_role"><input type="hidden" name="id" value="<?= (int) $role['id'] ?>">
-          <div class="sk-field"><label class="sk-field-lbl" for="ur-move-to"><?= $t('5950|Flyt til') ?></label>
-            <select class="sk-input" name="move_to" id="ur-move-to">
-              <?php foreach ($vm['roles'] as $r) {
-              	if ($r['id'] === $role['id'] || !perm_within_own(perm_levels_from_role($r['id']))) {
-              		continue;
-              	}
-              ?><option value="<?= (int) $r['id'] ?>"><?= $roleName($r) ?></option><?php } ?>
-            </select>
-          </div>
-        </form>
-        <div data-buttons><button type="submit" class="sk-btn sk-btn-danger" form="ur-del-role-form"><?= $t('5951|Flyt og slet') ?></button></div>
-        <?php } else { ?>
-        <h3><?= $t('5586|Slet rolle?') ?> <?= $h($name) ?></h3>
-        <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-del-role-form"><input type="hidden" name="action" value="delete_role"><input type="hidden" name="id" value="<?= (int) $role['id'] ?>"></form>
-        <div data-buttons><button type="submit" class="sk-btn sk-btn-danger" form="ur-del-role-form"><?= $t('1099|Slet') ?></button></div>
-        <?php } ?>
-      </template>
+      <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-role-reset-form" hidden><input type="hidden" name="action" value="reset_role"><input type="hidden" name="id" value="<?= $roleId ?>"><input type="hidden" name="role_revision" value="<?= $h($revision) ?>"></form>
+      <form method="post" action="<?= $h($vm['selfUrl']) ?>" id="ur-role-delete-form" hidden><input type="hidden" name="action" value="delete_role"><input type="hidden" name="id" value="<?= $roleId ?>"><input type="hidden" name="role_revision" value="<?= $h($revision) ?>"><input type="hidden" name="move_to" value="0"></form>
       <?php } ?>
-      <?php } ?>
-    </div>
+    </main>
+    <dialog class="ur-role-dialog" id="ur-role-dialog" aria-labelledby="ur-role-dialog-title"><h2 id="ur-role-dialog-title"></h2><div id="ur-role-dialog-body"></div><div class="ur-role-dialog-actions"><button class="sk-btn" type="button" data-role-dialog-cancel><?= $h($text['cancel']) ?></button><button class="sk-btn sk-btn-primary" type="button" data-role-dialog-confirm><?= $h($text['save']) ?></button></div></dialog>
+    <script type="application/json" id="ur-role-editor-data"><?= json_encode($utf8($config), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
+    <script src="../javascript/usersRolesEditor.js?v=20261110" defer></script>
     <?php } ?>
   </div>
 	<?php
@@ -638,12 +798,15 @@ function ur_view_log(array $vm, callable $h, callable $t, callable $link): void
 		'role'       => '5550|Roller',
 		'permission' => '5812|Rettigheder og sikkerhed',
 		'setting'    => '122|Indstillinger',
+		'invoicing'  => 'audit.type.invoicing|Fakturering og kreditering',
+		'data'       => 'audit.type.data|Data (varer, kunder, leverandører, konti)',
 	);
 	?>
   <section class="sk-panel">
     <form method="get" action="usersRoles.php" class="sk-bar ur-log-bar">
       <?php if (strpos($vm['linkPrefix'], 'inframe=1') !== false) { ?><input type="hidden" name="inframe" value="1"><?php } ?>
       <input type="hidden" name="tab" value="log">
+      <?php if (($f['objekt_id'] ?? '') !== '') { ?><input type="hidden" name="objekt_id" value="<?= $h($f['objekt_id']) ?>" data-object="<?= $h($f['objekt']) ?>"><?php } ?>
       <label class="sk-search"><i class='bx bx-search'></i><input class="sk-input" type="search" name="q" value="<?= $h($f['q']) ?>" placeholder="<?= $t('5802|Søg i brugernavn og objekt…') ?>"></label>
       <select class="sk-input" name="type" aria-label="<?= $t('5582|Handling') ?>">
         <option value=""><?= $t('5800|Alle handlinger') ?></option>
@@ -705,13 +868,13 @@ function ur_view_log(array $vm, callable $h, callable $t, callable $link): void
   </section>
 
   <?php if ($vm['canRoles']) { ?>
-  <details class="sk-panel ur-enforce"<?= $mode === 'deny' ? ' open' : '' ?>>
+  <details class="sk-panel ur-enforce" id="ur-enforce"<?= $mode === 'deny' ? ' open' : '' ?>>
     <summary class="sk-panel-h"><i class='bx bx-lock-alt ur-enf-ic'></i><h2 class="sk-panel-t"><?= $t('5595|Håndhævelse') ?></h2><span class="sk-n"><?= count($vm['unguarded']) + count($vm['wouldDeny']) ?></span><span class="sk-panel-tools"><i class='bx bx-chevron-down ur-chev'></i></span></summary>
     <p class="sk-panel-note"><?= $t('5601|Skift til "Afvis" først, når listen over sider uden nøgle er tom, og alle "ville være afvist"-hændelser er forventede.') ?></p>
-    <p class="sk-panel-note"><?= $t('7099|Læseadgang håndhæves kun i "Afvis": i "Log kun" kan en bruger med læseadgang stadig ændre på de sider, der endnu bruger den gamle rettighedskontrol.') ?></p>
+    <p class="sk-panel-note"><?= $t('roles.enforcement.log_help|I "Log kun" registreres almindelige afvisninger uden at blokere alle handlinger. Ældre sider kan stadig tillade ændringer med læseadgang. Følsomme funktioner og nye indstillingssider håndhæver fortsat deres rettigheder.') ?></p>
     <form method="post" action="<?= $h($vm['selfUrl']) ?>" class="ur-enforce-form">
       <input type="hidden" name="action" value="set_enforce">
-      <label class="sk-check-lbl"><input class="sk-radio" type="radio" name="mode" value="log"<?= $mode === 'log' ? ' checked' : '' ?><?= $vm['canRolesWrite'] ? '' : ' disabled' ?>><span><b><?= $t('5596|Log kun (intet blokeres)') ?></b></span></label>
+      <label class="sk-check-lbl"><input class="sk-radio" type="radio" name="mode" value="log"<?= $mode === 'log' ? ' checked' : '' ?><?= $vm['canRolesWrite'] ? '' : ' disabled' ?>><span><b><?= $t('roles.enforcement.log_mode|Log kun (almindelige kontroller registreres)') ?></b></span></label>
       <label class="sk-check-lbl"><input class="sk-radio" type="radio" name="mode" value="deny"<?= $mode === 'deny' ? ' checked' : '' ?><?= $vm['canRolesWrite'] ? '' : ' disabled' ?>><span><b><?= $t('5597|Afvis (standard-afvis er slået til)') ?></b></span></label>
       <?php if ($vm['canRolesWrite']) { ?><button class="sk-btn sk-btn-sm" type="submit"><?= $t('3|Gem') ?></button><?php } ?>
     </form>
@@ -741,25 +904,15 @@ function ur_view_script(array $vm): void
 {
 	?>
 <script>
-	/* Oversigt (front-page addendum 4 §3): the block rows need Se Oversigt; a block without its module key gets a note. */
-	window.urDashRows = function () {
-		var first = document.querySelector('.ur-prow-block'), form = first && first.closest('form'); if (!form) return;
-		var lv = function (k) { var c = form.querySelector('input[name="level[' + k + ']"]:checked'); return c ? c.value : 'none'; };
-		var viewOn = lv('dashboard.view') !== 'none';
-		form.querySelectorAll('.ur-prow-block').forEach(function (row) {
-			row.classList.toggle('ur-prow-off', !viewOn);
-			var needs = row.querySelector('.ur-block-needs'); if (needs) needs.hidden = viewOn;
-			row.querySelectorAll('input[type="radio"]').forEach(function (r) { if (!r.dataset.lockedByOwn) r.dataset.lockedByOwn = r.disabled ? '1' : '0'; r.disabled = r.dataset.lockedByOwn === '1'; r.readOnly = !viewOn; r.tabIndex = viewOn ? 0 : -1; r.setAttribute('aria-disabled', viewOn ? 'false' : 'true'); });
-			var hint = row.querySelector('.ur-block-hint'), from = (row.dataset.derive || '').split(',').filter(Boolean), on = row.querySelector('input[type="radio"]:checked');
-			if (hint) { var rowOn = viewOn && on && on.value !== 'none'; var anyModule = from.indexOf('*') >= 0 || from.some(function (k) { return lv(k) !== 'none'; }); hint.hidden = !(rowOn && !anyModule); }
-		});
-	};
-	document.addEventListener('change', function (e) { if (e.target && e.target.name && e.target.name.indexOf('level[') === 0) window.urDashRows(); });
-	window.urDashRows();
 (function () {
+	var logObject = document.querySelector('.ur-log-bar select[name="objekt"]'), logObjectId = document.querySelector('.ur-log-bar input[name="objekt_id"]');
+	if (logObject && logObjectId) { logObject.addEventListener('change', function () { logObjectId.disabled = logObject.value !== logObjectId.dataset.object; }); }
+	var enforcement = document.getElementById('ur-enforce');
+	if (enforcement && window.location.hash === '#ur-enforce') { enforcement.open = true; enforcement.scrollIntoView(); }
 	// ---------------------------------------------------------------- dialog
-	var dlg = document.getElementById('ur-dlg');
+	var dlg = document.getElementById('ur-dlg'), dialogReturnFocus = null;
 	function openDialog(title, bodyHtml, buttons) {
+		dialogReturnFocus = document.activeElement;
 		document.getElementById('ur-dlg-title').textContent = title;
 		var body = document.getElementById('ur-dlg-body');
 		body.innerHTML = bodyHtml;
@@ -785,7 +938,8 @@ function ur_view_script(array $vm): void
 		openDialog(title, '', buttons);
 		document.getElementById('ur-dlg-body').appendChild(wrap);
 	}
-	function closeDialog() { dlg.hidden = true; }
+	function closeDialog() { dlg.hidden = true; if (dialogReturnFocus && dialogReturnFocus.isConnected) { dialogReturnFocus.focus(); } }
+	window.urPeopleDialog = { open: openDialog, close: closeDialog };
 	dlg.addEventListener('click', function (e) { if (e.target === dlg || e.target.closest('[data-dlg-close]')) { closeDialog(); } });
 	function confirmThen(text, danger, onOk) {
 		var ok = document.createElement('button');
@@ -796,6 +950,12 @@ function ur_view_script(array $vm): void
 		openDialog(text, '', [ok]);
 	}
 	document.addEventListener('keydown', function (e) {
+		if (!dlg.hidden && e.key === 'Tab') {
+			var focusable = Array.prototype.slice.call(dlg.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]')).filter(function (el) { return el.getClientRects().length > 0; });
+			var first = focusable[0], last = focusable[focusable.length - 1];
+			if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+			else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+		}
 		if (e.key !== 'Escape') { return; }
 		if (!dlg.hidden) { closeDialog(); return; }
 		var drawer = document.getElementById('ur-drawer');
@@ -807,6 +967,7 @@ function ur_view_script(array $vm): void
 			e.preventDefault();
 			var form = document.getElementById(b.getAttribute('form'));
 			confirmThen(b.dataset.confirmForm, false, function () { form.submit(); });
+			if (form.id === 'ur-confirm-use' && window.UR_ACCESS) { window.UR_ACCESS.previewSuggestion(form.elements.id.value); }
 		});
 	});
 	var closeBtn = document.getElementById('ur-close-btn');
@@ -822,24 +983,39 @@ function ur_view_script(array $vm): void
 	var reviewFilter = document.getElementById('ur-review-filter');
 	var tbody = document.querySelector('#ur-users tbody');
 	var pager = document.getElementById('ur-pager');
-	var PAGE = 50, page = 0;
+	var PAGE = 50, page = 0, sortCol = -1, sortDir = 'ascending';
+	var listForm = document.getElementById('ur-bulk');
+	var stateKey = listForm && listForm.dataset.stateScope ? 'saldi.people.' + window.location.pathname + '.' + listForm.dataset.stateScope : '';
+	var savedState = {}, drawerOpen = !!document.getElementById('ur-drawer');
+	try { savedState = stateKey ? JSON.parse(sessionStorage.getItem(stateKey) || '{}') : {}; } catch (e) { savedState = {}; }
+	if (!savedState || typeof savedState !== 'object') { savedState = {}; }
+	var savedScroll = Number(savedState.scroll) || 0;
 	function rows() { return Array.prototype.slice.call(document.querySelectorAll('#ur-users tbody tr[data-search]')); }
+	function saveListState() {
+		if (!stateKey) { return; }
+		var state = { query: search.value, status: statusFilter.value, role: roleFilter.value, tfa: tfaFilter.value,
+			review: reviewFilter ? reviewFilter.value : '', page: page, sortCol: sortCol, sortDir: sortDir,
+			scroll: drawerOpen ? savedScroll : window.scrollY,
+			selected: Array.prototype.map.call(document.querySelectorAll('#ur-users input[name="ids[]"]:checked'), function (cb) { return cb.value; }) };
+		try { sessionStorage.setItem(stateKey, JSON.stringify(state)); } catch (e) { /* private browsing may deny storage */ }
+	}
 	function applyFilters(keepPage) {
 		if (!tbody) { return; }
 		if (keepPage !== true) { page = 0; }
-		var q = search ? search.value.toLowerCase() : '';
+		var q = search ? search.value.toLowerCase().trim() : '';
 		var st = statusFilter ? statusFilter.value : '';
 		var rl = roleFilter ? roleFilter.value : '';
 		var tf = tfaFilter ? tfaFilter.value : '';
 		var rv = reviewFilter ? reviewFilter.value : '';
 		var all = rows();
-		var hits = all.filter(function (tr) {
+		var baseHits = all.filter(function (tr) {
 			tr.hidden = true;
-			return tr.dataset.search.indexOf(q) !== -1 && (st === '' || tr.dataset.status === st)
-				&& (rl === '' || tr.dataset.role === rl) && (tf === '' || tr.dataset.tfa === tf) && (rv === '' || tr.dataset.review === '1');
+			return tr.dataset.search.indexOf(q) !== -1 && (rl === '' || tr.dataset.role === rl)
+				&& (tf === '' || tr.dataset.tfa === tf) && (rv === '' || tr.dataset.review === '1');
 		});
+		var hits = baseHits.filter(function (tr) { return st === '' || tr.dataset.status === st; });
 		var pages = Math.max(1, Math.ceil(hits.length / PAGE));
-		if (page >= pages) { page = pages - 1; }
+		page = Math.max(0, Math.min(page, pages - 1));
 		hits.forEach(function (tr, i) { tr.hidden = i < page * PAGE || i >= (page + 1) * PAGE; });
 		var empty = document.getElementById('ur-empty');
 		if (empty) { empty.hidden = hits.length > 0; }
@@ -852,6 +1028,56 @@ function ur_view_script(array $vm): void
 			pager.querySelector('[data-page="-1"]').disabled = page === 0;
 			pager.querySelector('[data-page="1"]').disabled = page >= pages - 1;
 		}
+		document.querySelectorAll('[data-people-status]').forEach(function (button) {
+			button.setAttribute('aria-pressed', button.dataset.peopleStatus === st ? 'true' : 'false');
+			var count = button.querySelector('.ur-filter-count');
+			if (count) { count.textContent = baseHits.filter(function (tr) { return button.dataset.peopleStatus === '' || tr.dataset.status === button.dataset.peopleStatus; }).length; }
+		});
+		var selectAll = document.getElementById('ur-check-all');
+		if (selectAll) {
+			var visible = Array.prototype.slice.call(document.querySelectorAll('#ur-users tbody tr:not([hidden]) input[name="ids[]"]'));
+			var n = visible.filter(function (cb) { return cb.checked; }).length;
+			selectAll.checked = visible.length > 0 && n === visible.length;
+			selectAll.indeterminate = n > 0 && n < visible.length;
+		}
+		saveListState();
+	}
+	function sortRows(col, dir) {
+		if (!tbody) { return; }
+		var heading = document.querySelectorAll('#ur-users thead th')[col];
+		if (!heading || !heading.hasAttribute('data-sort')) { return; }
+		sortCol = col;
+		sortDir = dir === 'descending' ? 'descending' : 'ascending';
+		document.querySelectorAll('#ur-users th[data-sort]').forEach(function (th) { th.removeAttribute('aria-sort'); });
+		heading.setAttribute('aria-sort', sortDir);
+		var val = function (tr) { var td = tr.cells[col]; return (td.dataset.v !== undefined ? td.dataset.v : td.textContent).trim().toLowerCase(); };
+		rows().sort(function (a, b) { return (sortDir === 'ascending' ? 1 : -1) * val(a).localeCompare(val(b), undefined, { numeric: true }); })
+			.forEach(function (tr) { tbody.appendChild(tr); });
+	}
+	if (tbody) {
+		[[search, 'query'], [statusFilter, 'status'], [roleFilter, 'role'], [tfaFilter, 'tfa'], [reviewFilter, 'review']].forEach(function (pair) {
+			if (pair[0] && typeof savedState[pair[1]] === 'string') { pair[0].value = savedState[pair[1]]; }
+			if (pair[0] && pair[0].tagName === 'SELECT' && pair[0].selectedIndex < 0) { pair[0].selectedIndex = 0; }
+		});
+		page = Math.max(0, Number(savedState.page) || 0);
+		var listQuery = new URLSearchParams(window.location.search);
+		if (listQuery.has('status')) {
+			statusFilter.value = statusFilter.dataset.initial || '';
+			if (reviewFilter) { reviewFilter.value = reviewFilter.dataset.initial || ''; }
+			page = 0;
+		}
+		if (listQuery.has('role')) {
+			roleFilter.value = listQuery.get('role');
+			if (roleFilter.selectedIndex < 0) { roleFilter.selectedIndex = 0; }
+			page = 0;
+		}
+		if (!listQuery.has('msg') && Array.isArray(savedState.selected)) {
+			document.querySelectorAll('#ur-users input[name="ids[]"]').forEach(function (cb) { cb.checked = savedState.selected.indexOf(cb.value) !== -1; });
+		}
+		sortRows(Number(savedState.sortCol), savedState.sortDir);
+		applyFilters(true);
+		if (!drawerOpen && savedScroll > 0) { requestAnimationFrame(function () { window.scrollTo(0, savedScroll); }); }
+		window.addEventListener('pagehide', saveListState);
 	}
 	if (pager) {
 		pager.addEventListener('click', function (e) {
@@ -859,23 +1085,17 @@ function ur_view_script(array $vm): void
 			if (b) { page += parseInt(b.dataset.page, 10); applyFilters(true); }
 		});
 	}
-	[statusFilter, reviewFilter].forEach(function (el) { if (el && el.dataset.initial) { el.value = el.dataset.initial; } });
 	[search, statusFilter, roleFilter, tfaFilter, reviewFilter].forEach(function (el) {
 		if (el) { el.addEventListener(el === search ? 'input' : 'change', applyFilters); }
 	});
-	document.querySelectorAll('#ur-users th[data-sort]').forEach(function (th) {
-		th.addEventListener('click', function () {
-			var dir = th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending';
-			document.querySelectorAll('#ur-users th[data-sort]').forEach(function (o) { o.removeAttribute('aria-sort'); });
-			th.setAttribute('aria-sort', dir);
-			var col = th.cellIndex;
-			var val = function (tr) { var td = tr.cells[col]; return (td.dataset.v !== undefined ? td.dataset.v : td.textContent).trim().toLowerCase(); };
-			rows().sort(function (a, b) { return (dir === 'ascending' ? 1 : -1) * val(a).localeCompare(val(b), undefined, { numeric: true }); })
-				.forEach(function (tr) { tbody.appendChild(tr); });
-			applyFilters(true);
-		});
+	document.querySelectorAll('[data-people-status]').forEach(function (button) {
+		button.addEventListener('click', function () { statusFilter.value = button.dataset.peopleStatus; if (reviewFilter) { reviewFilter.value = ''; } applyFilters(); });
 	});
-	applyFilters();
+	document.querySelectorAll('#ur-users th[data-sort]').forEach(function (th) {
+		th.tabIndex = 0;
+		th.addEventListener('click', function () { sortRows(th.cellIndex, th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending'); applyFilters(true); });
+		th.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); th.click(); } });
+	});
 
 	// ---------------------------------------------------------------- bulk bar
 	// A bulk action is only offered when it applies to at least one ticked user, and the
@@ -898,6 +1118,7 @@ function ur_view_script(array $vm): void
 		bar.querySelectorAll('[data-applies]').forEach(function (b) { b.disabled = applicable(b.dataset.applies) === 0; });
 		checked().forEach(function (cb) { cb.closest('tr').classList.add('sel'); });
 		document.querySelectorAll('#ur-users tbody input[name="ids[]"]:not(:checked)').forEach(function (cb) { cb.closest('tr').classList.remove('sel'); });
+		saveListState();
 	}
 	document.querySelectorAll('[data-bulk-confirm]').forEach(function (b) {
 		b.addEventListener('click', function (e) {
@@ -911,6 +1132,7 @@ function ur_view_script(array $vm): void
 				form.appendChild(hidden);
 				form.submit();
 			});
+			if (window.UR_ACCESS) { window.UR_ACCESS.previewBulk(b.value, checked().filter(function (cb) { return applies(cb.closest('tr'), b.dataset.applies); })); }
 		});
 	});
 	document.addEventListener('change', function (e) { if (e.target.name === 'ids[]') { refreshBulk(); } });
@@ -944,6 +1166,7 @@ function ur_view_script(array $vm): void
 			p.textContent = b.dataset.dlgBody;
 			openDialog(b.dataset.dlgTitle, '', [ok]);
 			document.getElementById('ur-dlg-body').appendChild(p);
+			if (window.UR_ACCESS) { window.UR_ACCESS.previewSuggestion(b.dataset.suggest); }
 		});
 	});
 
@@ -953,31 +1176,7 @@ function ur_view_script(array $vm): void
 	document.querySelectorAll('input[data-nofill]').forEach(function (i) {
 		i.addEventListener('focus', function () { i.removeAttribute('readonly'); }, { once: true });
 	});
-	var access = document.getElementById('ur-access'), accessData = document.getElementById('ur-access-data'), rolePick = document.getElementById('ur-role');
-	if (access && accessData && rolePick) {
-		var data = JSON.parse(accessData.textContent);
-		var render = function () {
-			var levels = data.levels[rolePick.value] || {};
-			access.querySelectorAll('[data-key]').forEach(function (row) {
-				var lv = levels[row.dataset.key] || 'none';
-				var cell = row.lastElementChild;
-				cell.className = 'ur-lv-' + lv;
-				cell.textContent = access.dataset[lv];
-			});
-			access.querySelector('[data-admin]').hidden = !data.admin.some(function (k) { return levels[k] === 'write'; });
-		};
-		rolePick.addEventListener('change', render);
-		render();
-	}
 
-	// ---------------------------------------------------------------- role matrix
-	document.querySelectorAll('[data-all-write]').forEach(function (b) {
-		b.addEventListener('click', function () {
-			b.closest('[data-grp]').querySelectorAll('input[type="radio"][value="write"]:not(:disabled)').forEach(function (r) { r.checked = true; });
-			b.closest('[data-grp]').querySelectorAll('.ur-prow-block input[type="radio"][value="read"]:not(:disabled), .ur-prow[data-view-row] input[type="radio"][value="read"]:not(:disabled)').forEach(function (r) { r.checked = true; });
-			if (window.urDashRows) window.urDashRows();
-		});
-	});
 })();
 </script>
 	<?php
@@ -1028,7 +1227,13 @@ function ur_flash(string $msg, int $sprog): ?array
 {
 	$map = array(
 		'usersaved'   => array('ok',  '5572|Brugeren er gemt'),
+		'userfailed'  => array('err', 'users.error.save_failed|Brugeren kunne ikke gemmes. Ingen ændringer er gennemført. Prøv igen.'),
 		'userdeleted' => array('ok',  '5573|Brugeren er slettet'),
+		'rolestale' => array('err', 'roles.error.stale|Rollen er ændret, siden du åbnede den. Gennemgå den aktuelle rolle, og prøv igen.'),
+		'ownrolereduction' => array('err', 'roles.error.own_reduction|Du kan ikke fjerne adgang fra den rolle, du selv bruger. Opret en kopi til begrænset adgang.'),
+		'rolenameexists' => array('err', 'roles.error.name_exists|En rolle med dette navn findes allerede. Vælg et andet navn.'),
+		'rolemissing' => array('err', 'roles.error.missing|Rollen findes ikke længere. Vælg en anden rolle.'),
+		'rolefailed' => array('err', 'roles.error.save_failed|Ændringen kunne ikke gemmes. Ingen rolleændringer er gennemført. Prøv igen.'),
 		'rolesaved'   => array('ok',  '5574|Rollen er gemt'),
 		'roledeleted' => array('ok',  '5575|Rollen er slettet'),
 		'assigned'    => array('ok',  '5580|Rollerne er tildelt'),
@@ -1065,6 +1270,9 @@ function ur_flash(string $msg, int $sprog): ?array
 		'closed'      => array('err', '5866|Brugeren er lukket. Genåbn brugeren først.'),
 		'badip'       => array('err', '5906|En eller flere IP-adresser er ugyldige'),
 		'iptoolong'   => array('err', '5907|Der er ikke plads til så mange IP-adresser (højst 45 tegn)'),
+		'tfa_phone'   => array('err', 'people.tfa_need_phone|Tofaktor på SMS kræver et telefonnummer på brugeren.'),
+		'tfa_email'   => array('err', 'people.tfa_need_email|Tofaktor på e-mail kræver en e-mail på brugeren.'),
+		'tfa_contact' => array('err', '5516|Tofaktor-login kræver et telefonnummer eller en e-mail'),
 	);
 	if (!isset($map[$msg])) {
 		return null;
@@ -1121,6 +1329,12 @@ function ur_action_label(string $handling): string
 		'revisor.set'           => '5842|Revisor valgt',
 		'revisor.unset'         => '5843|Revisor fjernet',
 		'audit.exported'        => '5844|Audit-log eksporteret',
+		'data.created'          => 'audit.data.created|Oprettet',
+		'data.updated'          => 'audit.data.updated|Ændret',
+		'data.deleted'          => 'audit.data.deleted|Slettet',
+		'data.bulk'             => 'audit.data.bulk|Mange ændringer på én gang',
+		'data.invoiced'         => 'audit.data.invoiced|Faktureret',
+		'data.credited'         => 'audit.data.credited|Krediteret',
 	);
 	return isset($map[$handling]) ? $map[$handling] : '';
 }

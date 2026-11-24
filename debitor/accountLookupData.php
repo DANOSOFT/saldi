@@ -27,18 +27,29 @@
 // 20260827 CDX/PHR Restored supplier lookup when o_art is KO.
 // 20261008 CDX/PHR Include NULL closed flags in AJAX account lookup, matching the initial grid.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261110 CDX/ASR Scope lookup access to its customer/supplier context and keep preferences per user.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
+/** @var int $bruger_id Authenticated user ID injected by includes/online.php. */
 header('Content-Type: application/json');
 
 try {
     @session_start();
     $s_id = session_id();
 
-    include_once('../includes/connect.php');
-    $permission_key = 'debitor.konti';
-    include_once('../includes/online.php');
-    global $bruger_id;
+    include_once(__DIR__ . '/../includes/connect.php');
+    $lookupOrderArt = $_REQUEST['o_art'] ?? '';
+    if (!is_string($lookupOrderArt) || !in_array($lookupOrderArt, ['', 'DO', 'DK', 'DT', 'PO', 'KO'], true)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid order type']);
+        exit;
+    }
+    $permission_key = $lookupOrderArt === 'KO'
+        ? 'kreditor.ordre|kreditor.konti'
+        : ($lookupOrderArt === 'PO' ? 'pos.kasse|debitor.konti' : 'debitor.ordre|debitor.konti');
+    $permission_post_read = true; // Only lookup data and this user's grid preferences are handled.
+    include_once(__DIR__ . '/../includes/online.php');
+    $bruger_id = (int)$bruger_id;
     // Verify includes loaded properly
     if (!function_exists('db_escape_string')) {
         throw new Exception('Database functions not loaded');
@@ -56,7 +67,7 @@ try {
         'offset' => isset($_REQUEST['offset'][$grid_id]) ? (int)$_REQUEST['offset'][$grid_id] : 0,
         'search' => $_REQUEST['search'][$grid_id] ?? [],
         'menu' => $_REQUEST['menu'][$grid_id] ?? 'main',
-        'o_art' => $_REQUEST['o_art'] ?? null,
+        'o_art' => $lookupOrderArt,
         'direction' => $_REQUEST['direction'] ?? 'ASC',
         'ajax'  => $_REQUEST['ajax']  ?? '0',
         'clear' => $_REQUEST['clear'] ?? '0',   
@@ -93,10 +104,9 @@ try {
         $direction = $requestParams['direction'] === 'DESC' ? 'DESC' : 'ASC';
         $sort = in_array($_REQUEST['sort'] ?? '', $validColumns) ? $_REQUEST['sort'] : 'firmanavn';
     }
-     $ss = $_REQUEST['rowcount'][$grid_id];
+    $ss = $_REQUEST['rowcount'][$grid_id] ?? null;
     // Handle rowcount - only update DB if it's a search action
     $rowcount = $requestParams['rowcount'];
-    error_log("Rowcount from request: " . var_export($ss, true));
     // check if rowcount is > 1200 and if so, set it to 1200
     if (is_numeric($ss) && $ss > 1200) {
         $rowcount = 1200; 
@@ -109,7 +119,7 @@ try {
                    __FILE__ . " linje " . __LINE__);
     } else if ($rowcount === null) {
         // Fetch from database only when needed
-        $q = "SELECT rowcount FROM datatables WHERE tabel_id = '$grid_id' AND user_id = '$bruger_id' LIMIT 1";
+        $q = "SELECT rowcount FROM datatables WHERE tabel_id = '" . db_escape_string((string)$grid_id) . "' AND user_id = '$bruger_id' LIMIT 1";
         $r = db_fetch_array(db_select($q, __FILE__ . " linje " . __LINE__));
         $rowcount = $r['rowcount'] ?? 100;
     }
@@ -120,7 +130,7 @@ try {
     if ($shouldModifyDatabase) {
         // Only update offset in database when there's a search action
         db_modify("UPDATE datatables SET \"offset\" = $offset 
-                   WHERE tabel_id = '" . db_escape_string($grid_id) . "'", 
+                   WHERE tabel_id = '" . db_escape_string($grid_id) . "' AND user_id = '$bruger_id'",
                    __FILE__ . " linje " . __LINE__);
     }
 

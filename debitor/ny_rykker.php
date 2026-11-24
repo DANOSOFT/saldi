@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2026 Danosoft ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20121105 Fejl ved renteberegning af posteringer uden forfaldadato. Søg 20121105 
 // 20140628 Valuta og valutakurs indsættes nu ved oprettelse af ny rykker. Søg 20140628 
@@ -37,6 +37,9 @@
 // 20260828 Sawaneh Review: the three cutoffs use calendar-day arithmetic (dunning_cutoff_date) instead of
 //                  date('U') - days*86400, which shifted eligibility by a day around the DST switches.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261105 CL/LH Ny rykker refuses R2 until R1 has stood ffdage2 days and R3 until R2 has stood ffdage3 days, as the run for all debtors does.
+//                An alert names the refused løbenr.
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -49,15 +52,17 @@
 $s_id=session_id();
 
 $topniveau=NULL;
+$fristIkkeUdloebet=array(); # løbenr of reminders whose next level is not due yet
 
-include("../includes/connect.php");
+include(__DIR__ . '/../includes/connect.php');
 $permission_key = 'debitor.konti';
-include("../includes/online.php");
-include("../includes/std_func.php");
+$permission_level = 'write';
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
 include_once("../includes/stdFunc/dunningCutoff.php");
-include("../includes/formfunk.php");
-include("../includes/forfaldsdag.php");
-include("../includes/openpost.php");
+include(__DIR__ . '/../includes/formfunk.php');
+include(__DIR__ . '/../includes/forfaldsdag.php');
+include(__DIR__ . '/../includes/openpost.php');
 
 $konto_antal=$_GET['kontoantal'];
 if (isset($_GET['rykker_id'])) $rykker_id=explode(";", $_GET['rykker_id']);
@@ -80,6 +85,8 @@ $ffdage1=(int)$r['box5'];
 $ffdage2=(int)$r['box6'];
 $ffdage3=(int)$r['box7'];
 $rykkerfrist1=dunning_cutoff_date($ffdage1);
+$rykkerfrist2=dunning_cutoff_date($ffdage2);
+$rykkerfrist3=dunning_cutoff_date($ffdage3);
 
 $r = db_fetch_array(db_select("select id from formularer where beskrivelse LIKE '%inkassotekst'",__FILE__ . " linje " . __LINE__));
 if ($r['id']) {
@@ -136,7 +143,6 @@ if ($konto_id[0]=="alle") {
 	}
 	$konto_antal=$x;
 	$rykker_id=array();
-	$rykkerfrist2=dunning_cutoff_date($ffdage2);
 	#finder aabne level_1 rykkere som har overskredet rykkerdato med ffdage2.og bogforer disse
 	$q=db_select("select id,konto_id from ordrer where art = 'R1' and status < '3' and ordredate < '$rykkerfrist2'",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -145,7 +151,6 @@ if ($konto_id[0]=="alle") {
 		bogfor_rykker($r['id']);
 		$rykker_id[$x]=$r['id'];
 	}
-	$rykkerfrist3=dunning_cutoff_date($ffdage3);
 	#finder aabne level_2 rykkere som har overskredet rykkerdato med ffdage3.og bogforer disse
 	$q=db_select("select id,konto_id from ordrer where art = 'R2' and status < '3' and ordredate < '$rykkerfrist3' and betalt != 'on'",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -284,6 +289,11 @@ for ($i=0; $i<=$konto_antal; $i++) {
 			$valuta=$r['valuta'];
 			$fakturadate=$r['fakturadate'];
 			$rykkernr++;
+			# R2 needs an R1 dated before $rykkerfrist2 and R3 an R2 dated before $rykkerfrist3, as in the run for all debtors.
+			if ($rykkernr <= 3 && $r['ordredate'] >= (($rykkernr == 2) ? $rykkerfrist2 : $rykkerfrist3)) {
+				$fristIkkeUdloebet[] = $r['ordrenr'];
+				continue;
+			}
 			if ($valuta && $valuta!='DKK') { #20140707
 				$qtxt = "select valuta.kurs from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and ";
 				$qtxt.= "valuta.gruppe=grupper.kodenr::INT and valuta.valdate <= '$rykkerdate' order by valuta.valdate desc limit 1"; # 20210507
@@ -394,6 +404,10 @@ for ($i=0; $i<=$konto_antal; $i++) {
 	}
 }	
 #	xit;
+if ($fristIkkeUdloebet) {
+	$tekst = findtekst('reminder.next_level_not_due|Der er ikke oprettet en ny rykker for løbenr. %s, fordi betalingsfristen for den forrige rykker ikke er overskredet.', $sprog_id);
+	print "<script>alert(" . jsString(array(sprintf($tekst, implode(', ', $fristIkkeUdloebet)))) . ");</script>\n";
+}
 if ($topniveau) print "<BODY onLoad=\"javascript:alert('Topniveau nået for rykkere med l&oslash;benr $topniveau')\">";
 print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 

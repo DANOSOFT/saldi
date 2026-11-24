@@ -1,9 +1,11 @@
 <?php
-// --- tests/test_following_opening_balances.php --- patch 5.0.1 --- 2026.09.07 ---
+// --- tests/test_following_opening_balances.php --- ver 5.1.1 --- 2026.11.19 ---
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260907 CDX/PHR Verify chained opening balances against isolated PostgreSQL temporary tables.
 // 20260907 CL/NTR  Cover missing status and result destinations in the target year.
+// 20261119 CL/ASR A repeated carry writes only a primo that changes, a NULL one included (the statements db_modify() is given are kept for that).
+//                 The header names the release version, ver 5.1.1, instead of patch 5.0.1.
 // Run with SALDI_TEST_DSN and libpq credentials (for example PGPASSFILE).
 
 if (PHP_SAPI !== 'cli') exit('CLI only');
@@ -19,7 +21,7 @@ function db_select($sql, $location = '') {
 	if (!$result) throw new RuntimeException(pg_last_error($GLOBALS['connection']));
 	return $result;
 }
-function db_modify($sql, $location = '') { return db_select($sql, $location); }
+function db_modify($sql, $location = '') { $GLOBALS['modified'][] = $sql; return db_select($sql, $location); }
 function db_fetch_array($result) { return pg_fetch_assoc($result); }
 function afrund($value, $decimals) { return round((float)$value, $decimals); }
 function checkOpening($condition, $message) {
@@ -69,6 +71,12 @@ try {
 	checkOpening($row['box5'] === '', 'Update a closed year without reopening it');
 	updateFollowingOpeningBalances(9);
 	checkOpening(accountValue(11, 2000, 'primo') === 1170.0, 'Repeated recalculation is idempotent');
+	db_modify("update kontoplan set primo=null where regnskabsaar=11 and kontonr=2500");
+	$GLOBALS['modified'] = array();
+	checkOpening(updateFollowingOpeningBalances(9) === array(10, 11), 'Repeat the carry over a NULL opening');
+	$written = array_values(preg_grep('/^update kontoplan set primo = /', $GLOBALS['modified']));
+	checkOpening(count($written) === 1 && strpos($written[0], "primo = '0' where regnskabsaar = '11' and kontonr = '2500'") !== false && accountValue(11, 2500, 'primo') === 0.0,
+		'Write only an opening that changes, a NULL one included');
 	checkOpening(updateFollowingOpeningBalances(11) === array(), 'Posting in the newest year does not change openings');
 	db_modify('savepoint missing_status_destination');
 	db_modify("update kontoplan set primo=4444 where regnskabsaar in (10, 11) and kontonr=2000");

@@ -17,6 +17,7 @@
 //
 // History:
 // 20260724 CL/LH SD-603: created.
+// 20261124 CL/ASR The "already posted" refusal is also read from Saldi's own message box (#sdlg-msg), which replaces the browser's alert.
 
 import { test, expect } from "@playwright/test";
 
@@ -100,10 +101,15 @@ test("login, create kassekladde voucher, post it, verify it is posted", async ({
 
   // --- 4. Verify via the UI that the voucher is posted ---
   // Re-opening the posting page for the same kladde must refuse: the page
-  // raises an "already posted" alert and bails out (finans/bogfor.php:107).
+  // raises an "already posted" alert and bails out (finans/bogfor.php:141).
+  // Where the page links Saldi's own message box (javascript/saldi-dialog.js),
+  // the alert is shown in #sdlg-msg instead of the browser's box, also on the
+  // page the redirect lands on; a browser alert still lands in dialogMessages.
   await page.goto(`/saldi/finans/bogfor.php?funktion=bogfor&kladde_id=${kladdeId}`);
+  const alreadyPosted = /allerede bogf/i;
+  const boxText = () => page.locator("#sdlg-msg").first().textContent({ timeout: 1_000 }).catch(() => "");
   await expect
-    .poll(() => dialogMessages.some((m) => /allerede bogf/i.test(m)), {
+    .poll(async () => dialogMessages.some((m) => alreadyPosted.test(m)) || alreadyPosted.test((await boxText()) || ""), {
       timeout: 15_000,
       message: "re-opening a posted kladde must announce it is already posted",
     })

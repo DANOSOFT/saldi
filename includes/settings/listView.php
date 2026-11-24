@@ -41,6 +41,7 @@
 // 20261102 CL/ASR Review: an empty 'page_lead' leaves the lead's first sentence out (Ekstra felter: the row's help says it).
 // 20261103 CL/ASR No 'direct' sub-group heading any more (owner, 3 Nov 2026: a heading is never a link in Indstillinger): Brugere & roller is a heading like the others, with the rows Brugere, Roller, Audit-log and Ekstra felter.
 // 20261103 CL/ASR QA: the history hides the values of masked settings (SettingsService::historyMasked(): CPR, bank, salary as well as secrets) and offers no Gendan for them: their audit rows keep no values.
+// 20261110 CDX/ASR Offer persistent compact settings navigation and expandable role-workspace groups.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/integrations.php');
 
@@ -166,11 +167,12 @@ function settings_menu_html(array $menu, int $sprogId, array $opts = array()): s
 	}
 	$placeholder = $anyCurrent ? '' : '<option value="" selected>' . st_h(isset($opts['label']) ? (string) $opts['label'] : $title) . '</option>';
 	return '<nav class="st-tabs st-menu" aria-label="' . st_h($title) . '">'
+		. '<button type="button" class="st-menu-toggle" hidden aria-expanded="true" data-open="' . st_h(settings_hub_text('settings.menu.show|Vis indstillingsmenu', $sprogId)) . '" data-close="' . st_h(settings_hub_text('settings.menu.hide|Skjul indstillingsmenu', $sprogId)) . '"></button>'
 		. '<select class="st-tabs-select" aria-label="' . st_h($title) . '" onchange="if (this.value) { window.location = this.value; }">' . $placeholder . $options . '</select>'
 		. (isset($opts['before']) ? (string) $opts['before'] : '')
 		. '<div class="st-menu-panel"><p class="st-menu-h">' . st_h($title) . '</p>' . $panel
 		. ($flat ? '' : '<a class="st-menu-all" href="' . st_h($url('settings.php')) . '"><i class="bx bx-grid-alt" aria-hidden="true"></i><span>' . st_h(settings_hub_text('5666|Alle indstillinger', $sprogId)) . '</span></a>')
-		. '</div></nav>';
+		. '</div></nav><link rel="stylesheet" href="' . st_h($base . '../css/settingsNavigation.css?v=20261110') . '"><script defer src="' . st_h($base . '../javascript/settingsNavigation.js?v=20261110') . '"></script>';
 }
 
 /**

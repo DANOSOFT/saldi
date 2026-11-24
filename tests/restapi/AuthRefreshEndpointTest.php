@@ -12,6 +12,7 @@
 // 20260904 CL/NTR created.
 // 20260928 CL/NTR Account names come from RestApiEnv::accountOpen()/accountClosed()
 //                 (per-process suffix) instead of the removed constants.
+// 20261105 CL/LH A refresh from an address the user's IP limit does not list is refused with 403 and no token.
 // 20261111 CDX/NTR Give each REST class its own fresh database.
 
 use PHPUnit\Framework\TestCase;
@@ -120,6 +121,25 @@ final class AuthRefreshEndpointTest extends TestCase
 
         $this->assertSame(403, $res['status'], $res['body']);
         $this->assertFalse($res['json']['success']);
+    }
+
+    public function test_refresh_from_an_address_the_users_ip_limit_does_not_list_is_rejected_403(): void
+    {
+        $refreshToken = RestApiEnv::refreshToken();
+        // 192.0.2.1 is TEST-NET-1 (RFC 5737): no client ever has it.
+        RestApiEnv::setUserIpLimit('192.0.2.1');
+        try {
+            $res = $this->refresh(['refresh_token' => $refreshToken]);
+        } finally {
+            RestApiEnv::setUserIpLimit('');
+        }
+
+        $this->assertSame(403, $res['status'], $res['body']);
+        $this->assertFalse($res['json']['success']);
+        $this->assertNull($res['json']['data'], 'no access token for an address the limit does not list');
+
+        $again = $this->refresh(['refresh_token' => $refreshToken]);
+        $this->assertSame(200, $again['status'], 'an empty limit lets every address in: ' . $again['body']);
     }
 
     public function test_refresh_for_an_unknown_account_is_rejected_401(): void

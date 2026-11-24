@@ -54,6 +54,7 @@
 //                Also removed the dead second branch of the four warehouse lookups below.
 // 20261022 CL/MJ SST-876 The receipt marks its lines and tells the webshops once, after the goods are committed, rather than syncing inside the line loop.
 // 20261028 CDX/MJ SST-876 Preserve receipt price and SKU adapter calls alongside batched stock updates.
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
 // 20261112 CL/MMR SST-1010 The stock log user name is cut to the 10 characters stocklog.username holds, since a longer name stopped the receipt.
 //                 The log line is only written when the confirmStockChange setting is on, as on the item card.
 //                 The name is taken unescaped from the session's online row and escaped once after cutting, so an apostrophe is stored as typed.
@@ -68,10 +69,11 @@
 @session_start();
 $s_id=session_id();
 
-include("../includes/connect.php");
+include(__DIR__ . '/../includes/connect.php');
 $permission_key = 'kreditor.ordre';
-include("../includes/online.php");
-include("../includes/std_func.php");
+$permission_level = 'write';
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
 
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) {

@@ -1,4 +1,6 @@
 <?php
+// 20261105 CL/LH Debitorrabatgrp. stops at the last group: $dvrg_nr[0] is the item's own group, so the loops read one past the end (Undefined array key).
+//                The empty option that clears an item's group, which that read printed as value "", is now an explicit value 0 at the end of the list, as for Prisgruppe and Tilbudgruppe.
     print "<tr><td><b>".findtekst(2037,$sprog_id)."</b></td></tr>";
     #varegruppe->
     print "<tr><td width=33%>".findtekst(774,$sprog_id)."</td>";
@@ -29,12 +31,13 @@
         print "<tr><td>Debitorrabatgrp.</td>";
         print "<td><SELECT class=\"inputbox\" NAME=\"dvrg\" style=\"width: 18em\">";
         if (!$dvrg_nr[0]) print "<option value=\"0\"></option>";
-        for ($x=1;$x<=count($dvrg_nr);$x++) {
+        for ($x=1;$x<count($dvrg_nr);$x++) {
             if ($dvrg_nr[0] && $dvrg_nr[0]==$dvrg_nr[$x]) print "<option value=\"$dvrg_nr[$x]\">$dvrg_nr[$x] $dvrg_navn[$x]</option>";
         }
-        for ($x=1;$x<=count($dvrg_nr);$x++) {
+        for ($x=1;$x<count($dvrg_nr);$x++) {
             if ($dvrg_nr[0]!=$dvrg_nr[$x]) print "<option value=\"$dvrg_nr[$x]\">$dvrg_nr[$x] $dvrg_navn[$x]</option>";
         }
+        if ($dvrg_nr[0]) print "<option value=\"0\"></option>";
     }
     print "</SELECT></td></tr>";
 # Prisgruppe->

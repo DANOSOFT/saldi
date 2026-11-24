@@ -1,5 +1,5 @@
 <?php
-// --- includes/stdFunc/shopSyncQueue.php --- ver 5.1.0 --- 2026-10-28 ---
+// --- includes/stdFunc/shopSyncQueue.php --- ver 5.1.1 --- 2026-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

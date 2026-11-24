@@ -1,5 +1,7 @@
 <?php
 
+include_once __DIR__ . '/../../../includes/stdFunc/accountHasEntries.php';
+
 class CustomerModel
 {
     // Properties to match database columns from adresser table
@@ -130,6 +132,10 @@ class CustomerModel
 
         // Set default values
         $this->gruppe = $this->gruppe ?: 1;
+        // 20261105 CL/LH A new account's kontonr fell back to its phone in SQL only, so the create response said kontonr null.
+        if (!$this->id && !$this->kontonr) {
+            $this->kontonr = $this->tlf;
+        }
         
         // Handle integer fields - set to NULL if empty/null, otherwise ensure they're integers
         $betalingsdage = ($this->betalingsdage === null || $this->betalingsdage === '') ? 'NULL' : (int)$this->betalingsdage;
@@ -261,13 +267,25 @@ class CustomerModel
     }
 
     /**
-     * Delete the current customer
+     * Whether open posts or orders still point at this customer, so it cannot be deleted
+     *
+     * @see account_has_entries() in includes/stdFunc/accountHasEntries.php
+     * @return bool
+     */
+    public function hasEntries()
+    {
+        return $this->id && account_has_entries($this->id);
+    }
+
+    /**
+     * Delete the current customer, unless open posts or orders still point at it
      * 
      * @return bool Success status
      */
     public function delete($art)
     {
-        if (!$this->id) {
+        // 20261105 CL/LH An invoiced customer was deleted and left its open posts and orders without an owner.
+        if (!$this->id || $this->hasEntries()) {
             return false;
         }
 
@@ -400,19 +418,22 @@ class CustomerModel
     }
 
     /**
-     * Check if email already exists for another customer
+     * Check if email already exists for another account of the same art
      * 
      * @param string $email Email to check
+     * @param string $art 'D' for debtors, 'K' for creditors
      * @param int|null $excludeId ID to exclude from check (for updates)
      * @return bool True if email exists
      */
-    public static function emailExists($email, $excludeId = null)
+    public static function emailExists($email, $art, $excludeId = null)
     {
+        // 20261105 CL/LH Both checks looked at debtors only, so a creditor POST sent twice was stored twice with the same kontonr.
         $email = db_escape_string($email);
-        $qtxt = "SELECT id FROM adresser WHERE art = 'D' AND email = '$email'";
+        $art = db_escape_string($art);
+        $qtxt = "SELECT id FROM adresser WHERE art = '$art' AND email = '$email'";
         
         if ($excludeId) {
-            $qtxt .= " AND id NOT IN ($excludeId)";
+            $qtxt .= " AND id NOT IN (" . (int)$excludeId . ")";
         }
         
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -420,19 +441,23 @@ class CustomerModel
     }
 
     /**
-     * Check if phone number already exists for another customer
+     * Check if phone number already exists for another account of the same art
      * 
+     * The phone number is also the kontonr save() gives a new account.
+     *
      * @param string $tlf Phone number to check
+     * @param string $art 'D' for debtors, 'K' for creditors
      * @param int|null $excludeId ID to exclude from check (for updates)
      * @return bool True if phone exists
      */
-    public static function phoneExists($tlf, $excludeId = null)
+    public static function phoneExists($tlf, $art, $excludeId = null)
     {
         $tlf = db_escape_string($tlf);
-        $qtxt = "SELECT id FROM adresser WHERE art = 'D' AND tlf = '$tlf'";
+        $art = db_escape_string($art);
+        $qtxt = "SELECT id FROM adresser WHERE art = '$art' AND tlf = '$tlf'";
         
         if ($excludeId) {
-            $qtxt .= " AND id != $excludeId";
+            $qtxt .= " AND id != " . (int)$excludeId;
         }
         
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);

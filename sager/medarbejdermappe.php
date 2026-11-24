@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/medarbejdermappe.php --- ver 5.1.0 --- 2026-11-10 ---
+// --- sager/medarbejdermappe.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20261104 CL/MMR SD-799 The user-setup alert text is passed to the script as UTF-8.
 // 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 // 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
+// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1; no code change.
 @session_start();
 $s_id                  = session_id();
 

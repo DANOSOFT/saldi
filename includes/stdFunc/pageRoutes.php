@@ -25,6 +25,7 @@
 //                 Settings pages without a trail of their own now read Indstillinger / group / row / page (Formularer, backup, import, export, opening balance, translations, POS menus).
 // 20261102 CL/ASR The hub is a page of its own ('systemdata/settings.php') and the groups hang under it; the pages under them use the module 'settings', which prints no module level, so the first crumb Indstillinger is a link again (the groups share the hub's path, which made it look like the landing page).
 //                 Import & eksport also holds importer_debitor, exporter_debitor, importer_kreditor and exporter_kreditor; the import pages are named as the section links them.
+// 20261110 CDX/ASR Include the current CRM page in the shared breadcrumb map.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 return array(
 	'modules' => array(
@@ -127,6 +128,7 @@ return array(
 		'debitor/postnr.php' => array('m' => 'debitor', 'l' => '|Top 100 Postnr', 'p' => '/debitor/rapport.php'),
 		'debitor/salg_postnr.php' => array('m' => 'debitor', 'l' => '3360|Salg pr. postnummer', 'p' => '/debitor/rapport.php'),
 		'debitor/multiroute.php' => array('m' => 'debitor', 'l' => '1654|Eksport til mulitroute', 'p' => '/debitor/rapport.php'),
+		'debitor/crm.php' => array('m' => 'debitor', 'l' => '|CRM', 'p' => ''),
 		'debitor/crmkalender.php' => array('m' => 'debitor', 'l' => '|CRM', 'p' => ''),
 		'debitor/crmvisning.php' => array('m' => 'debitor', 'l' => '813|Visning', 'p' => '/debitor/crmkalender.php'),
 		'debitor/crmopret.php' => array('m' => 'debitor', 'l' => '1232|Opret', 'p' => '/debitor/crmkalender.php'),

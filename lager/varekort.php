@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- lager/varekort.php --- ver 5.1.1 --- 2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -134,12 +134,18 @@
 // 20261019 CL/MJ SST-876 (review) The warning on the stock-change confirmation path names the item. It read $varenr, which is only filled from the post further down the file, so on that one path the message stopped after "for:".
 // 20261021 CL/MJ SST-876 (review) An assembled item reports a refusal too. That branch hands over to vareproduktion.php and exits, so it never reached the check at the end of the block and a refusal recorded while the variants were saved only reached the log.
 // 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
-// 20261030 LOE MB-62 A read-only user is offered only the buttons that read, not the ones that write.
-//              The Ny control in either header layout is not offered either: it opens the blank card the page refuses.
-//              Nor are the happy-hour and varenr-alias links, which lead to pages that now refuse the same user.
 //
 // 20261027 CDX/MJ SST-876 Retain master read-only protections while merging SST-876 stock-sync warnings.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261030 LOE MB-62 A read-only user is offered only the buttons that read, not the ones that write.
+//              The Ny control in either header layout is not offered either: it opens the blank card the page refuses.
+//              Nor are the happy-hour and varenr-alias links, which lead to pages that now refuse the same user.
+// 20261114 CL/ASR Grupper stands beside Priser and Tilbud, and Colli moves to the second row.
+// 20261114 CL/ASR In menu S the gear of Tilpas visning is a button next to Ny, the same as in the kassekladde top line.
+// 20261114 CL/ASR The Diverse box is three boxes, Beholdning, Lokation and Salg, and Kategorier and Varianter move to the next row.
+// 20261114 CL/ASR In menu S the POS menuer button only shows when the card was opened from the POS menu editor (posmenuer.php), also after saves.
+// 20261116 CL/ASR Annuller on the Salgspris, Kostpris and Beskrivelse questions only puts the old value back (Kostpris also saved the card, before the answer with Saldi's message box), and the submit an Enter in the field or Gem's accesskey starts waits for the answer, also while Saldi's question is open.
+// 20261116 CL/ASR OK on the Salgspris, Kostpris and Beskrivelse questions clicks Gem only when it is on the card, so a user who may only read items gets no script error.
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -1420,9 +1426,19 @@ if ($menu == 'T') {
     $add_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 -960 960 960" fill="#ffffff"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
     if ($id) {
         if ($usePos) {
-            print "<td width='10%' align='right'>
+            # Back to the POS menu editor (MB-23). Hidden until the script below sees that the card was opened from there:
+            # the referrer is posmenuer.php, or this card itself after a save while the flag for this item is set.
+            print "<td id='pcPosBack' width='10%' align='right' style='display:none'>
         <a href=\"javascript:confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>
         <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $icon_posmenu . "POS menuer" . "</button></a></td>\n";
+            print "<script>(function () {
+                try {
+                    var ref = document.referrer || '', key = 'saldiCardFromPos', item = '" . (int) $id . "';
+                    if (ref.indexOf('/systemdata/posmenuer.php') !== -1) { sessionStorage.setItem(key, item); }
+                    else if (ref.indexOf('/lager/varekort.php') === -1) { sessionStorage.removeItem(key); }
+                    if (sessionStorage.getItem(key) === item) { document.getElementById('pcPosBack').style.display = ''; }
+                } catch (e) {}
+            })();</script>\n";
         }
         # Create new item: a read-only user is not offered the blank card it would be refused
         $confirmNewUrl = htmlspecialchars(json_encode("varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$id"), ENT_QUOTES);
@@ -1431,6 +1447,12 @@ if ($menu == 'T') {
          <a href=\"javascript:confirmClose($confirmNewUrl,$confirmTekst)\" accesskey=N>
          <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
         }
+        # Gear of the Tilpas visning panel (productCardIncludes/fieldVisibility.php), as in the kassekladde top line
+        $pcVisDocked = true;
+        $gear_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M370-80l-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm112-260q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Z"/></svg>';
+        $gear_title = htmlspecialchars(findtekst('3380|Tilpas visning', $sprog_id), ENT_QUOTES);
+        print "<td width='3%' align='right'>
+         <button type='button' id='pcVisToggle' class='center-btn' style='$buttonStyle; width:100%; justify-content:center' title='$gear_title' onMouseOver=\"this.style.cursor='pointer'\">$gear_icon</button></td>\n";
     }
     print "</td></tbody></table>\n";
     print "</td></tr>\n";
@@ -1891,36 +1913,48 @@ if (!$varenr) {
     print "\n<!-- productCardIncludes/showDiscounts.php end -->\n";
     print "</tbody></table></td>";# <- Tilbudstabel 
 
-    print "<td id='pcSecColli' valign=top width=33%><table border=0 width=100%><tbody>"; # Collitabel ->
+    print "<td id='pcSecGroups' valign=top width=33%><table border=0 width=100%><tbody>"; # Gruppe tabel ->
+    print "\n<!-- productCardIncludes/showGroups.php begin -->\n";
+    include('productCardIncludes/showGroups.php');
+    print "\n<!-- productCardIncludes/showGroups.php end -->\n";
+    print "</tbody></table></td></tr>";# <- Gruppe tabel
+
+    print "<tr><td id='pcSecColli' valign=top><table border=0 width=100%><tbody>"; # Collitabel ->
     print "\n<!-- productCardIncludes/showColli.php begin -->\n";
     include_once("productCardIncludes/showColli.php");
     print "\n<!-- productCardIncludes/showColli.php end -->\n";
+    print "</tbody></table></td>";# <- Collitabel
 
-    print "</tbody></table></td></tr>";# <- Collitabel 
-    print "<tr><td id='pcSecUnits' valign=top><table border='0' width='100%'><tbody>"; # Enhedstabel ->
+    print "<td id='pcSecUnits' valign=top><table border='0' width='100%'><tbody>"; # Enhedstabel ->
     print "\n<!-- productCardIncludes/showUnits.php begin -->\n";
     include('productCardIncludes/showUnits.php');
     print "\n<!-- productCardIncludes/showUnits.php end -->\n";
     print "</tbody></table></td>";
-
-    print "<td id='pcSecGroups' valign=top><table border=0 width=100%><tbody>"; # Gruppe tabel ->
-    print "\n<!-- productCardIncludes/showGroups.php begin -->\n";
-    include('productCardIncludes/showGroups.php');
-    print "\n<!-- productCardIncludes/showGroups.php end -->\n";
-    print "</tbody></table></td>";# <- Gruppe tabel
 
     print "<td id='pcSecQtyDiscounts' valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>"; # M-rabat tabel ->
     print "\n<!-- productCardIncludes/showQtyDiscounts.php begin -->\n";
     include('productCardIncludes/showQtyDiscounts.php');
     print "\n<!-- productCardIncludes/showQtyDiscounts.php end -->\n";
     print "</tbody></table></td></tr>";# <- M-rabat tabel 
-    print "<tr><td id='pcSecMisc' valign=\"top\" height=\"200px\"><table border=\"0\" width=\"100%\"><tbody>"; # Diverse tabel ->
+    # Beholdning, Lokation and Salg: showLocations.php fills one buffer per box; an empty box is left out
     print "\n<!-- productCardIncludes/showLocations.php begin -->\n";
     include('productCardIncludes/showLocations.php');
     print "\n<!-- productCardIncludes/showLocations.php end -->\n";
-    print "</tbody></table></td>";#  <- Diverse tabel
+    $pcStockHead = $operation ? findtekst('items.card.operation|Montage', $sprog_id) : findtekst('980|Beholdning', $sprog_id);
+    $pcBoxes = array(
+        'pcSecStock'    => array($pcStockHead, $pcStockHtml),
+        'pcSecLocation' => array(findtekst('2045|Lokation', $sprog_id), $pcLocationHtml),
+        'pcSecSales'    => array(findtekst('5544|Salg', $sprog_id), $pcSalesHtml),
+    );
+    print "<tr>";
+    foreach ($pcBoxes as $pcBoxId => $pcBox) {
+        if (trim($pcBox[1]) === '') continue;
+        print "<td id='$pcBoxId' valign='top'><table border='0' width='100%'><tbody>";
+        print "<tr><td colspan='6'><b>$pcBox[0]</b></td></tr>$pcBox[1]</tbody></table></td>";
+    }
+    print "</tr>";
 #################### KATEGORIER ###########################
-    print "<td id='pcSecCategories' valign=\"top\" height=\"200px\">";
+    print "<tr><td id='pcSecCategories' valign=\"top\" height=\"200px\">";
     print "<div class=\"vindue\">";
     print "<table border=0 width=100%><tbody>"; # Kategori tabel ->
     print "\n<!-- productCardIncludes/showCategories.php begin -->\n";
@@ -2502,6 +2536,30 @@ document.varekort.$fokus.focus();
 </script>";
 ?>
 <script>
+    // Saldi's message box (javascript/saldi-dialog.js) answers confirm() in a change event with false at once and shows the
+    // question. OK sets the new value again and repeats the change, and confirm() then answers true, so OK saves below.
+    // The false branch therefore only puts the old value back. A submit the browser starts straight after the change
+    // (Enter in the field, or Gem's accesskey, which first moves the focus to Gem) is held, so the answer decides. With
+    // Saldi's box a submit is also held while its question is on screen (Gem's accesskey pressed on the open question).
+    // The box cancels that click itself as well; the card holds it too, as a browser may still run an older copy of the
+    // box from its cache. The first submit after the answer goes through.
+    // The browser's own box has the answer already: there only Enter is held, and Gem saves as it did.
+    // A user who may only read items has no Gem (MB-62): there OK saves nothing.
+    function pcKeepOldValue(field, oldValue) {
+        field.value = oldValue;
+        const form = field.form;
+        if (!form || (!window.SaldiDialog && document.activeElement !== field)) return;
+        const unsaved = window.docChange;
+        const asking = () => document.querySelector("#sdlg-root [role=alertdialog]") !== null;
+        let sameTask = true;
+        const hold = (ev) => {
+            if (!sameTask && !asking()) { form.removeEventListener("submit", hold, true); return; }
+            ev.preventDefault(); ev.stopImmediatePropagation(); window.docChange = unsaved;
+        };
+        form.addEventListener("submit", hold, true);
+        setTimeout(() => { sameTask = false; if (!asking()) form.removeEventListener("submit", hold, true); }, 0);
+    }
+
     const salgspris = document.querySelector("input[name=salgspris]");
     if (salgspris) {
         const oldPrice = salgspris.value;
@@ -2511,9 +2569,9 @@ document.varekort.$fokus.focus();
                 if (confirm("Er du sikker på du vil ændre salgsprisen?") == true) {
                     salgspris.value = e.target.value;
                     const form = document.querySelector("[name=saveItem]");
-                    form.click()
+                    if (form) form.click()
                 } else {
-                    salgspris.value = oldPrice;
+                    pcKeepOldValue(salgspris, oldPrice);
                 }
             })
         }
@@ -2528,11 +2586,9 @@ document.varekort.$fokus.focus();
                 if (confirm("Er du sikker på du vil ændre kostprisen?") == true) {
                     kostpris.value = e.target.value;
                     const form = document.querySelector("[name=saveItem]");
-                    form.click()
+                    if (form) form.click()
                 } else {
-                    kostpris.value = oldCost;
-                    const form = document.querySelector("[name=saveItem]");
-                    form.click()
+                    pcKeepOldValue(kostpris, oldCost);
                 }
             })
         }
@@ -2547,9 +2603,9 @@ document.varekort.$fokus.focus();
                 if (confirm("Er du sikker på du vil ændre beskrivelsen?") == true) {
                     beskrivelse.value = e.target.value;
                     const form = document.querySelector("[name=saveItem]");
-                    form.click()
+                    if (form) form.click()
                 } else {
-                    beskrivelse.value = oldDescription;
+                    pcKeepOldValue(beskrivelse, oldDescription);
                 }
             })
         }

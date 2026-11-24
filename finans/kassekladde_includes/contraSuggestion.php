@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/contraSuggestion.php --- ver 5.1.0 --- 2026-11-10 ---
+// --- finans/kassekladde_includes/contraSuggestion.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 //                The history is read with up to 100 rows, so the 5 bilag are 5 bilag also when some are spread over several lines; a bilag is its journal, number and date.
 //                Every alternative brings its own reason.
 // 20261110 CDX/NTR Document ranking, suggestion payloads and the automatic-fill preference.
+// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1; no code change.
 
 include_once(__DIR__ . '/journalHistory.php');
 include_once(__DIR__ . '/../../includes/docsIncludes/poolAccountInfo.php');

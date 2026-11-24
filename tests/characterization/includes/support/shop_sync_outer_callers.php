@@ -1,6 +1,7 @@
 <?php
 // Copyright (c) 2026 Danosoft ApS
 // 20261028 CDX/MJ SST-876 Execute the real post-commit tails with transaction doubles for all five outer callers.
+// 20261115 CL/ASR Integration: start at the code that owns the drain; Lui's createBooking stand lock and ret_genfakt line save now commit first.
 $root = dirname(__DIR__, 4);
 $depth = 1;
 $events = [];
@@ -21,9 +22,13 @@ function check($condition, $message) {
     }
     echo "PASS: $message\n";
 }
+// Lui's stand lock (createBooking) and per-order line save (e1799c03) commit before the transaction that drains.
+$owner = ['mysale/api.php' => 'function fakturer_ordre', 'remoteBooking/api.php' => 'function fakturer_ordre', 'debitor/ret_genfakt.php' => "if (\$submit=='Fakturer'"];
 foreach (['soapserver/invoice.php', 'remoteBooking/api.php', 'mysale/api.php', 'debitor/ret_genfakt.php', 'debitor/bogfor.php'] as $file) {
     $source = file_get_contents($root . '/' . $file);
-    preg_match('/transaktion\s*\(\s*[\'"]commit[\'"]\s*\)\s*;/', $source, $match, PREG_OFFSET_CAPTURE);
+    $offset = isset($owner[$file]) ? strpos($source, $owner[$file]) : 0;
+    check($offset !== false, "$file has the code that owns the drain");
+    preg_match('/transaktion\s*\(\s*[\'"]commit[\'"]\s*\)\s*;/', $source, $match, PREG_OFFSET_CAPTURE, $offset);
     check(isset($match[0]), "$file has the transaction-owner commit");
     $start = $match[0][1];
     if ($file === 'remoteBooking/api.php' || $file === 'mysale/api.php') {

@@ -1,5 +1,5 @@
 <?php
-//----includes/kreditorOrderFuncIncludes/topLine_S.php---patch 4.1.1 ----2025-12-03---
+//----includes/kreditorOrderFuncIncludes/topLine_S.php---ver 5.1.1 ----2026-11-13---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20251203 LOE Created file to standardize top used for managing S menu in kreditor/ordre.php
 // 20260908 SZ SST-755: Luk links now release the lock properly (tidspkt added; the $valg
@@ -27,6 +27,7 @@
 //           refresh_lock_token()) - reuse it instead of independently re-querying tidspkt and
 //           building a separate, token-less query string, which let this menu's own Luk links
 //           bypass the whole per-render-token protection sidehoved() otherwise provides.
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
 
 
 
@@ -77,7 +78,7 @@ print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><h
 		  }
 
 	print "<td width=\"75%\" align='center' style='$topStyle'>$color$tekst</td>";
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
+	print "<td id='tutorial-help' hidden width=5% style=$buttonStyle>";
 	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print "$help_icon".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {

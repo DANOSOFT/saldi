@@ -175,7 +175,17 @@ a.forgotpass:hover
     display: inline-block;
     zoom: 1; /* zoom and *display = ie7 hack for display:inline-block */
     flex: 1;
-    background-color: #4f37f5;
+    background-color: #29295C;
+    /* The dark gradient of the Saldi logo (img/saldi-moerk-logo-lys-baggrund.svg): navy to purple, left to right (a wide button shows the diagonal of the square icon as a band). */
+    background-image: linear-gradient(100deg, transparent 42%, rgba(255, 255, 255, .3) 50%, transparent 58%),
+        linear-gradient(100deg, #183D78 0%, #29295C 50%, #4C1D86 100%);
+    /* The first layer is a light sheen, two and a half times the button's width and parked off the right edge (0%).
+       Pressing the button moves it at once off the left edge (100%, :active below); letting go slides it back across
+       the button from left to right. Works on <input type="submit"> too, which cannot have ::after. */
+    background-size: 250% 100%, 100% 100%;
+    background-repeat: no-repeat;
+    background-position: 0% 0, 0 0;
+    transition: background-position .7s ease-out;
     color: #fff;
     outline: none;
     font: 15px/100% Arial, Helvetica, sans-serif;
@@ -185,7 +195,7 @@ a.forgotpass:hover
     -moz-box-shadow: 0 1px 2px rgba(0,0,0,.2);
     box-shadow: 0 1px 2px rgba(0,0,0,.2);
 
-    border: solid 1px #0076a3;
+    border: solid 1px #29295C;
     border-radius: .5em;
     -webkit-border-radius: .5em;
     -moz-border-radius: .5em;
@@ -213,3 +223,165 @@ a.forgotpass:hover
 }
 
 
+
+/* ---- Glemt adgangskode (index/glemt_kode.php) and the two-factor code (index/tofaktor.php), 14 Nov 2026 ----
+   The same box as the login: a short text under the heading, a message line, a full-width button and quiet links. */
+body.loginPage
+{
+    overflow: auto;
+}
+
+body.loginPage #main
+{
+    height: 100%;
+}
+
+body.loginPage .loginHolder
+{
+    height: auto;
+    min-height: 100%;
+}
+
+body.loginPage .textinput
+{
+    box-sizing: border-box;
+}
+
+body.loginPage .loginAction
+{
+    margin-top: 10px;
+}
+
+.loginIntro h2
+{
+    margin-bottom: 14px;
+}
+
+.loginIntro p,
+.loginHelp p
+{
+    font-size: 14px;
+    line-height: 1.45;
+    color: #555;
+    letter-spacing: 0;
+    max-width: 420px;
+}
+
+.loginMsg
+{
+    box-sizing: border-box;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: .5em;
+    background: #eef6ee;
+    color: #1d6b2c !important;
+}
+
+.loginMsgErr
+{
+    background: #fdeeee;
+    color: #a61b1b !important;
+}
+
+button.button,
+a.button
+{
+    padding: 14px 16px;
+    text-align: center;
+    text-decoration: none;
+    letter-spacing: normal;
+}
+
+.loginLinks
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    margin-top: 18px;
+}
+
+.linkbutton
+{
+    background: none;
+    border: none;
+    padding: 0;
+    font: 13px Arial, Helvetica, sans-serif;
+    letter-spacing: 0;
+    color: #4f37f5;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.linkbutton:hover
+{
+    text-decoration: underline;
+}
+
+.loginHelp
+{
+    border-top: 1px solid lightGrey;
+    padding-top: 14px;
+}
+
+.loginHelp summary
+{
+    font-size: 13px;
+    letter-spacing: 0;
+    color: #4f37f5;
+    cursor: pointer;
+}
+
+.loginHelp p
+{
+    font-size: 13px;
+    margin-top: 10px;
+}
+
+#fa-row
+{
+    justify-content: space-between;
+    gap: 0;
+}
+
+#fa-row input
+{
+    width: 54px;
+    text-align: center;
+    font-size: 20px;
+    padding: 12px 0;
+}
+
+@media (max-width: 520px)
+{
+    body.loginPage .loginForm
+    {
+        min-width: 0;
+        width: calc(100vw - 84px);
+    }
+
+    body.loginPage #fa-row input
+    {
+        width: 14%;
+    }
+}
+
+.button:hover,
+.button:focus-visible
+{
+    background-image: linear-gradient(100deg, transparent 42%, rgba(255, 255, 255, .3) 50%, transparent 58%),
+        linear-gradient(100deg, #1F4A8F 0%, #33337A 50%, #5D27A3 100%);
+}
+
+.button:active
+{
+    background-position: 100% 0, 0 0;
+    transition: none;
+}
+
+@media (prefers-reduced-motion: reduce)
+{
+    .button
+    {
+        transition: none;
+    }
+}

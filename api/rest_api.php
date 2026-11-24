@@ -101,6 +101,10 @@
 // 20261030 CL/MMR SST-904 insert_shop_orderline() takes an order id of digits only, so 22.9, 2e1 or -5 no longer reach another order through the cast.
 //                 It writes no shop_varer mapping for a variant that is not an id, as (int)'777abc' would claim variant 777.
 //                 A vare_id that is not an id (an item number) again reaches the varenr fallback, only without the shop_varer query (review on PR #919).
+// 20261105 CL/LH fakturer_ordre() checks the paid amount (felt_2, cast to a number) before it writes anything, so a card order the shop sent without a payment is refused with "Error in amount ... vs. paid amount" instead of an HTTP 500 TypeError (float - '').
+//                The check ran after the fakturadate update had committed in its own transaction, so a refused invoice still left its fakturadate behind.
+//                It refuses a saldi_ordre_id that is not digits only and a fakturadate that is not a YYYY-MM-DD date before any query, as both went into its SQL as sent: fakturadate "2026-11-08', status=3 WHERE id='4711' -- " marked order 4711 invoiced without posting it.
+//                A time after the date is dropped, as the date column did, and the stored tidspkt is escaped.
 // 20261110 CL/MMR SST-989 insert_shop_order() refuses a DO when the shop order id is already on any order, and a DK when it is already on a DK or on a DO with a negative sum (shop_order_taken()).
 //                 The check was per art only, so a shop credit note sent once as DK and once as DO (an old integration script) was created and invoiced twice.
 //                 Also corrected the indentation of the new-debtor block in insert_shop_order() (no behaviour change).
@@ -912,6 +916,26 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	$log=fopen("../temp/$db/rest_api.log","a");
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
 
+	// saldi_ordre_id and fakturadate come from the request and go into the SQL below, so both are checked before any query:
+	// the order id is digits only (22.9, 2e1 or 4711abc would reach another order through a cast), the date is YYYY-MM-DD
+	$saldi_id = trim((string)$saldi_id);
+	if (!ctype_digit($saldi_id) || (int)$saldi_id < 1) {
+		$svar = "Invalid saldi_ordre_id ($saldi_id)";
+		fwrite($log,__line__." Svar : $svar\n");
+		fclose($log);
+		return($svar);
+	}
+	if ($fakturadate) {
+		// a time after the date (the shop's ordredate format) is dropped, as the date column did
+		if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})(?:[ T]|$)/', (string)$fakturadate, $dato) || !checkdate((int)$dato[2], (int)$dato[3], (int)$dato[1])) {
+			$svar = "Invalid fakturadate ($fakturadate)";
+			fwrite($log,__line__." Svar : $svar\n");
+			fclose($log);
+			return($svar);
+		}
+		$fakturadate = "$dato[1]-$dato[2]-$dato[3]";
+	}
+
 	$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$baseCurrency = $r['var_value'];
@@ -960,6 +984,20 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 		return($svar);
 		exit;
 	}
+	// The paid amount is checked before anything is written: the fakturadate update below commits on its own
+	fwrite($log,__line__." Betalingsbet: $betalingsbet\n");
+	if ($betalingsbet!='Forud' && $betalingsbet!='Lb. Md' && $betalingsbet!='Netto') {
+		$betalingsdiff=abs($ordresum+$ordremoms-(float)$betalingsum); // felt_2 is text, '' when the shop sent no payment
+		if ($pos_betaling && $betalingsdiff >= 0.01) {
+			fwrite($log,__line__." Ordresum : $ordresum\n");
+			fwrite($log,__line__." Ordremoms : $ordremoms\n");
+			fwrite($log,__line__." Betalingssum : $betalingsum\n");
+			$svar='Error in amount ('.$ordresum.'+'.$ordremoms.') vs. paid amount ('.$betalingsum.') : diff '.$betalingsdiff;
+			fwrite($log,__line__." Svar : $svar\n");
+			fclose($log);
+			return($svar);
+		}
+	}
 	transaktion('begin');
 	if ($fakturadate) {
 		$qtxt="update ordrer set fakturadate='$fakturadate' where id='$saldi_id'";
@@ -989,16 +1027,6 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 	fwrite($log,__line__." $qtxt\n");
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	$svar=levering($saldi_id,'on',NULL,'on');
-	fwrite($log,__line__." Betalingsbet: $betalingsbet\n");
-	if ($betalingsbet!='Forud' && $betalingsbet!='Lb. Md' && $betalingsbet!='Netto') {
-		$betalingsdiff=abs($ordresum+$ordremoms-$betalingsum);
-		if ($pos_betaling && $betalingsdiff >= 0.01) {
-			fwrite($log,__line__." Ordresum : $ordresum\n");
-			fwrite($log,__line__." Ordremoms : $ordremoms\n");
-			fwrite($log,__line__." Betalingssum : $betalingsum\n");
-			$svar='Error in amount ('.$ordresum.'+'.$ordremoms.') vs. paid amount ('.$betalingsum.') : diff '.$betalingsdiff;
-		}
-	}
 	if ($svar=='OK') {
 /*
 		if ($pos_betaling) { #20190123
@@ -1010,7 +1038,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling,$fakturadate = null
 */		
 		$svar=bogfor($saldi_id,'on');
 		if ($tidspkt) {	
-			$qtxt="update ordrer set tidspkt='$tidspkt' where id='$saldi_id'";
+			$qtxt="update ordrer set tidspkt='" . db_escape_string((string)$tidspkt) . "' where id='$saldi_id'";
 			fwrite($log,__line__." $qtxt\n");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 		}

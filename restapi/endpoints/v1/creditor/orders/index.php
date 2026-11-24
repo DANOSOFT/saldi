@@ -1,10 +1,15 @@
 <?php
+// 20261105 CL/LH Needs the Kreditorordre right (kreditor.ordre), as kreditor/ordre.php and ordreliste.php do; without it the request is refused with 403.
+//                A POST creates a purchase order (KO) whatever 'type' or 'art' the body sends.
+//                A number field that is not a number is a 400 before anything is stored.
 require_once '../../../../models/orders/OrderModel.php';
 require_once '../../../../services/OrderService.php';
 require_once '../../../../core/BaseEndpoint.php';
 
 class KreditorOrderEndpoint extends BaseEndpoint
 {
+    protected $permissionKey = 'kreditor.ordre';
+
     public function __construct()
     {
         parent::__construct();
@@ -55,9 +60,9 @@ class KreditorOrderEndpoint extends BaseEndpoint
 
     protected function handlePost($data)
     {
-        // Set art to KO for kreditor orders
-        $data->art = 'KO';
-        $result = OrderService::createOrder($data);
+        // A kreditor order (KO), whatever type the body names
+        $this->validateNumericFields($data, OrderService::DECIMAL_FIELDS, OrderService::INTEGER_FIELDS);
+        $result = OrderService::createOrder($data, 'KO');
         
         if ($result['success']) {
             $this->sendResponse(true, $result['data'], 'Order created successfully', 201);

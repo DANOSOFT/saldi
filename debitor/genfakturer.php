@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------debitor/genfakturer.php-----ver 5.1.1-----2026-11-13------
+// ---------debitor/genfakturer.php-----ver 5.1.1-----2026-11-17------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -37,6 +37,9 @@
 // 20250815 PHR	Fiscal_year;
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CL/ASR genfakt() copies the lines' rabatart and omvbet and the order's omvbet.
+//                 A discount in kr per unit became a percentage on the copy, and a reverse-charge line was charged VAT.
+//                 With Opdater priser, the copy's total counts a discount in kr per unit as kr.
 @session_start();
 $s_id=session_id();
 
@@ -219,12 +222,13 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr, konto_id, kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,";
 		$qtxt.= "institution,notes,art,ordredate,momssats,moms,ref,valuta,sprog,kontakt,kundeordnr,lev_navn,lev_addr1,lev_addr2,";
-		$qtxt.= "lev_postnr,lev_bynavn,levdate,fakturadate,nextfakt,sum,status,projekt,email,mail_fakt,pbs,udskriv_til,procenttillag)";
+		$qtxt.= "lev_postnr,lev_bynavn,levdate,fakturadate,nextfakt,sum,status,projekt,email,mail_fakt,pbs,udskriv_til,procenttillag,omvbet)";
 		$qtxt.= " values ";
 		$qtxt.= "('$ordrenr','$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$r[postnr]','$bynavn','$land','$r[betalingsdage]',";
 		$qtxt.= "'$r[betalingsbet]','$cvrnr','$ean','$institution','$notes','$r[art]','$r[ordredate]','$r[momssats]','$r[moms]','$ref','$valuta',";
 		$qtxt.= "'$sprog','$kontakt','$kundeordnr','$lev_navn','$lev_addr1','$lev_addr2','$r[lev_postnr]','$lev_bynavn','$fakturadate',";
-		$qtxt.= "'$fakturadate','$nextfakt','$r[sum]','2','$projekt','$email','$r[mail_fakt]','$pbs','$udskriv_til','$procenttillag')";
+		$qtxt.= "'$fakturadate','$nextfakt','$r[sum]','2','$projekt','$email','$r[mail_fakt]','$pbs','$udskriv_til','$procenttillag',";
+		$qtxt.= "'".db_escape_string($r['omvbet'])."')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$r2=db_fetch_array(db_select("select id from ordrer where ordrenr='$ordrenr' and nextfakt='$nextfakt' and (art='DO' or art='DK') order by id desc",__FILE__ . " linje " . __LINE__));
 		$ny_id=$r2['id'];
@@ -246,7 +250,8 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 					$r2=db_fetch_array(db_select("select salgspris,kostpris from varer where id='$r[vare_id]'",__FILE__ . " linje " . __LINE__));
 					$pris=$r2['salgspris']*1;
 					$kostpris=$r2['kostpris']*1;
-					$sum=$sum+$r['antal']*$pris-($r['antal']*$pris*$r['rabat']/100);
+					if ($r['rabatart']=='amount') $sum=$sum+$r['antal']*($pris-$r['rabat']);
+					else $sum=$sum+$r['antal']*$pris-($r['antal']*$pris*$r['rabat']/100);
 				} else {
 					$pris=$r['pris']*1;
 					$kostpris=$r['kostpris']*1;
@@ -294,11 +299,12 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 				}
 */				
 				$qtxt="insert into ordrelinjer ";
-				$qtxt.="(ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,antal,pris,rabat,procent,lev_varenr,momsfri,samlevare,kostpris";
+				$qtxt.="(ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,antal,pris,rabat,rabatart,procent,lev_varenr,momsfri,omvbet,samlevare,kostpris";
 				$qtxt.=",leveres,projekt,bogf_konto) ";
 				$qtxt.="values ";
 				$qtxt.="('$ny_id','$r[posnr]','".db_escape_string($varenr)."','$r[vare_id]','".db_escape_string($beskrivelse)."','$r[enhed]','$r[antal]',";
-				$qtxt.="'$pris','$r[rabat]','$r[procent]','".db_escape_string($lev_varenr)."','$momsfri','$r[samlevare]','$kostpris','$r[antal]',";
+				$qtxt.="'$pris','$r[rabat]','".db_escape_string($r['rabatart'])."','$r[procent]','".db_escape_string($lev_varenr)."','$momsfri',";
+				$qtxt.="'".db_escape_string($r['omvbet'])."','$r[samlevare]','$kostpris','$r[antal]',";
 				$qtxt.="'".db_escape_string($projekt)."','$bogfkto')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}	else {

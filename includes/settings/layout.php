@@ -26,6 +26,7 @@
 // 20261102 CL/ASR css/unified-components.css linked as ?v=20261102b (the direct Brugere & ansatte heading in the left menu).
 // 20261103 CL/ASR QA: the title's whitespace is normalised without the /u modifier on latin-1 installations (it returned null there: a blank heading).
 // 20261108 CL/ASR css/saldi-kit.css and css/unified-components.css linked as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
+// 20261113 CL/ASR css/saldi-kit.css ?v=20261113 (side margin 16 px, the same as the top).
 //
 /*
  * HOW TO USE (for the pages that do not have the menu yet)
@@ -293,7 +294,7 @@ function settings_layout_assets(bool $kit = false): string
 	$rel = str_repeat('../', max(1, substr_count(page_route_key(), '/')));
 	foreach (array_filter(array(
 		'fonts' => $rel . 'css/saldi-fonts.css?v=2',
-		'kit' => $kit ? $rel . 'css/saldi-kit.css?v=20261108' : '',
+		'kit' => $kit ? $rel . 'css/saldi-kit.css?v=20261114' : '',
 		'st' => $rel . 'css/unified-components.css?v=20261108',
 		'bx' => 'https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css',
 	)) as $id => $href) {

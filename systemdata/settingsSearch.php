@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsSearch.php --- Settings search Phase 1 --- 2026-11-03 ----
+// ----------------systemdata/settingsSearch.php --- Settings search Phase 1 --- 2026-11-10 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20261103 CL/ASR QA: search offers only what the hub offers this user and company: a page must be among the entries of settings_accessible_groups() (settings_entry_available(): hosted, Stripe operator, bank feature, booking licence, and an entry's own key such as Backup), and a field's section must have its licence module.
 //                 A section without 'legacy' (Backup) no longer raises PHP warnings that broke the JSON.
 //                 Labels are entity-decoded; row actions (add/remove one till, card, person ...) and the Diverse page, which only reloads the hub, are not offered.
+// 20261110 CDX/ASR Rank exact task keywords before indirect settings matches.
 // JSON lookup endpoint backing the Settings search box (see settingsRegistry.php).
 
 ob_start();
@@ -268,6 +269,7 @@ foreach (getSettingsRegistry() as $entry) {
 		'group' => $groupLabel,
 		'matchType' => $match['type'],
 		'matchedTerm' => $match['matchedTerm'],
+		'priority' => in_array(mb_strtolower($search), $entry['primaryKeywords'] ?? array(), true) ? 0 : 1,
 	);
 
 	if ($match['type'] === 'label') {
@@ -278,6 +280,9 @@ foreach (getSettingsRegistry() as $entry) {
 }
 
 // One result per page: a second entry with the same url (an alias found by another word) adds nothing.
+usort($keyword_matches, function (array $a, array $b): int {
+	return $a['priority'] <=> $b['priority'];
+});
 $results = array();
 $seenUrls = array();
 foreach (array_merge($label_matches, $keyword_matches) as $result) {

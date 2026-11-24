@@ -89,7 +89,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: The selected account is closed
+          description: The selected account is closed, or the user's IP limit (Brugere og roller) does not list the client's address
           content:
             application/json:
               schema:
@@ -139,7 +139,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: The selected account is closed
+          description: The selected account is closed, or the user's IP limit (Brugere og roller) does not list the client's address
           content:
             application/json:
               schema:

@@ -1,3 +1,4 @@
+// 20261105 CL/LH When api.php refuses the booking list (403: no Mit salg session for this customer), go to mysale.php to sign in.
 const init = async () => {
     const urlParams = new URLSearchParams(window.location.search)
     const userLink = urlParams.get('id')
@@ -14,14 +15,18 @@ const init = async () => {
     const db = fetchDB.db
     const userID = fetchDB.id
 
-    const bookings = await fetch(`api.php?getAllBookingsByUser=${userID}&db=${db}`,{
+    const response = await fetch(`api.php?getAllBookingsByUser=${userID}&db=${db}`,{
         method: "GET",
         headers: {
             "Content-Type": "application/json"
         }
-    }).then(response => {
-        return response.json()
     })
+    if (response.status === 403) {
+        // api.php lists the bookings only for the customer Mit salg signed in: sign in through the link, as mylabel.php does
+        window.location.href = `mysale.php?id=${encodeURIComponent(userLink)}`
+        return
+    }
+    const bookings = await response.json()
 
     const table = document.querySelector(".tablePoint")
     const thead = `<thead class="text-gray-700 uppercase bg-gray-50 dark:bg-gray-500 dark:text-gray-300">

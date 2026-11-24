@@ -41,6 +41,9 @@
 // 20261102 CL/ASR Opened from Kontoplan under Indstillinger (settings=1; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) the page shows the standard settings layout (includes/settings/layout.php): breadcrumb Indstillinger / Finans / Kontoplan / Kontokort, Tilbage to Kontoplan, previous, next and Ny above, the Finans group's menu with Kontoplan marked.
 //                 The form, the redirect after Gem and the way back to Kontoplan carry the marker on.
 //                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
+// 20261105 CL/LH A refused save (number below 1 or already taken) of a Drift or Status account draws the form again instead of a count() TypeError: Map til's standard accounts are read whenever the form shows Map til, not only for a saved account.
+//                The empty last line of importfiler/kontoplan.txt no longer warns Undefined array key.
+// 20261105 CL/LH The form a refused save draws again no longer warns Undefined variable $valutakurs, $slet, $previousPage and $nextPage: they start at 0 before the account load, so it shows no balance, no Slet and no arrows, as before.
 // 20261112 CL/MMR SST-1012 An account with postings on the first or last day of the year can no longer be deleted.
 //                 The delete action is checked again on the server and lives in chartOfAccountIncludes/accountDelete.php.
 //                 An account of another fiscal year than the selected one cannot be deleted from an old link or form.
@@ -285,22 +288,10 @@ if (isset($_POST['slet'])) {
 		exit;
 	}
 }
+// Only the account load below sets these, and a refused save (number below 1 or taken) draws the form without it:
+// an account that is not saved has no neighbours, no Slet and no balance (a rate of 0 leaves the Saldo row empty).
+$previousPage = $nextPage = $slet = $valutakurs = 0;
 if ($id > 0) {
-	$tmpA = explode("\n",file_get_contents("../importfiler/kontoplan.txt"));
-	$d = $s = 0;
-	for ($i = 0;$i < count($tmpA);$i++) {
-		list($n,$b,$t) = explode(chr(9),$tmpA[$i],4);
-		if ($t == 'D') {
-			$stdDkt[$d]  = $n;
-			$stdDtxt[$d] = $b;
-			$d++;		
-		} elseif ($t == 'S') {
-			$stdSkt[$s]  = $n;
-			$stdStxt[$s] = $b;
-			$s++;		
-		}
-	}
-	
 	$q = db_select("select * from kontoplan where id = '$id'", __FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array($q)) {
 		$id = $r['id'];
@@ -344,6 +335,24 @@ if ($id > 0) {
 	// Slet only for an account of the selected year with no postings in it (an unknown year or an account of another year: no Slet)
 	$slet = (isset($accountYear) && $accountYear === (int)$regnaar && accountHasPostingsInYear($kontonr, $regnaar) === false) ? 1 : 0;
 
+}
+if ($kontotype == 'D' || $kontotype == 'S') {
+	// The standard accounts Map til offers, also when a refused save (number below 1 or taken) draws the form again without an id.
+	$stdDkt = $stdDtxt = $stdSkt = $stdStxt = array();
+	$tmpA = explode("\n",file_get_contents("../importfiler/kontoplan.txt"));
+	$d = $s = 0;
+	for ($i = 0;$i < count($tmpA);$i++) {
+		list($n,$b,$t) = array_pad(explode(chr(9),$tmpA[$i],4), 3, ''); // the file's last line is empty
+		if ($t == 'D') {
+			$stdDkt[$d]  = $n;
+			$stdDtxt[$d] = $b;
+			$d++;
+		} elseif ($t == 'S') {
+			$stdSkt[$s]  = $n;
+			$stdStxt[$s] = $b;
+			$s++;
+		}
+	}
 }
 /*
 if ($kontotype == 'H')

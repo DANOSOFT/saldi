@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.1.1 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -223,12 +223,14 @@
 //                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
 // 20261029 CL/LH "Opdatér alle" scans only the documents not read yet (poolListData() unscanned=1), not the whole pool again.
 // 20261030 CDX/NTR Stop bulk extraction when the unscanned list cannot be loaded, so captured documents are never retried from cached rows.
+// 20261110 CDX/ASR Confine viewed pool files to the pool and bind XML previews to their session-authorized originals.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
 require_once __DIR__ . "/poolUpload.php";
 require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/docFileFunc.php");
+require_once __DIR__ . '/documentAccess.php';
 include_once(__DIR__ . "/poolVendorSuggestion.php");
 include_once(__DIR__ . "/../kreditorFromCvr.php");
 include_once(__DIR__ . "/poolCapture.php");
@@ -949,6 +951,20 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 
 	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle;
 	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
+
+	$poolTenantRoot = docFileTenantRoot($docFolder, $db);
+	foreach ((array)$poolFile as $requestedPoolFile) {
+		if ($requestedPoolFile === '') {
+			continue;
+		}
+		if (!is_string($requestedPoolFile) || poolFileName($requestedPoolFile) !== $requestedPoolFile || str_contains($requestedPoolFile, "\0")) {
+			docAccessDeny();
+		}
+		$requestedPoolPath = "$poolTenantRoot/pulje/$requestedPoolFile";
+		if (file_exists($requestedPoolPath) && docAccessCanonicalPath("$poolTenantRoot/pulje", $requestedPoolPath) === null) {
+			docAccessDeny();
+		}
+	}
 	
 	$afd = $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
 	$debetvat = $kreditvat = NULL;
@@ -1195,6 +1211,10 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		if (!empty($poolFiles)) {
 			// A document saved from another tab (or removed) is no longer in the pool: nothing is created for it
 			foreach ($poolFiles as $checkPoolFile) {
+				if (!is_string($checkPoolFile) || poolFileName($checkPoolFile) !== $checkPoolFile || str_contains($checkPoolFile, "\0")
+					|| (is_file("$poolTenantRoot/pulje/$checkPoolFile") && docAccessCanonicalPath("$poolTenantRoot/pulje", "$poolTenantRoot/pulje/$checkPoolFile") === null)) {
+					docAccessDeny();
+				}
 				if (!is_file("$docFolder/$db/pulje/" . basename((string)$checkPoolFile))) {
 					http_response_code(409);
 					print htmlspecialchars(findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id), ENT_QUOTES, 'UTF-8');
@@ -5509,8 +5529,14 @@ JS;
 	print "<div id='documentViewer' style='flex: 1; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;'>";
 	$docWindowUrl = ''; // docFile.php URL of the shown document, for "Åbn i nyt vindue"
 	$corrected = 0;
+	if ($poolFile && (!is_string($poolFile) || poolFileName($poolFile) !== $poolFile || str_contains($poolFile, "\0"))) {
+		docAccessDeny();
+	}
 	$ext = pathinfo($poolFile, PATHINFO_EXTENSION);
 	$fullName = "$docFolder/$db/pulje/$poolFile";
+	if ($poolFile && is_file($fullName) && docAccessCanonicalPath("$poolTenantRoot/pulje", $fullName) === null) {
+		docAccessDeny();
+	}
 	
 	// Skip processing if poolFile is empty or points to a directory
 	if (empty($poolFile) || is_dir($fullName)) {
@@ -5647,7 +5673,16 @@ JS;
 	if ($corrected == '1') {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1&poolFile=$poolFile\">";
 	}
-			if ($poolFile) {
+	if ($poolFile) {
+		$poolPreviewSource = docAccessCanonicalPath("$poolTenantRoot/pulje", $fullName);
+		if ($poolPreviewSource === null) {
+			print docFileMissingBox(basename($fullName), $sprog_id);
+			$poolFile = '';
+		} else {
+			perm_enforce_request(docFilePermissionKey('doc', 'pulje/' . $poolFile), 'read', true, null);
+		}
+	}
+	if ($poolFile) {
 		$poolFileExt = strtolower(pathinfo($poolFile, PATHINFO_EXTENSION));
 		
 		if ($poolFileExt === 'xml') {
@@ -5655,19 +5690,17 @@ JS;
 			$xmlContent = file_get_contents($fullName);
 			if ($xmlContent !== false) {
 				$base64Xml = base64_encode($xmlContent);
-				include "connect.php";
 				// Get the API key from settings
 				$apiKeyQuery = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
 				$apiKeyRow = db_fetch_array($apiKeyQuery);
 				$easyUblApiKey = $apiKeyRow ? $apiKeyRow['var_value'] : '';
-				session_start();
-				$s_id=session_id();
-				include "online.php";
-
 				// SD-718: rendered once and reused, as showDoc.php already does; a newer XML file is rendered again
-				$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
+				$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolPreviewSource) . ".html";
+				if (is_link($htmlTempFile)) {
+					docAccessDeny();
+				}
 				$xmlCached = is_file($htmlTempFile) && filesize($htmlTempFile) > 0 && filemtime($htmlTempFile) >= filemtime($fullName);
-				if ($xmlCached) {
+				if ($xmlCached && docFileRegisterPreview($db, $poolTenantRoot, $poolPreviewSource, $htmlTempFile)) {
 					$docWindowUrl = docFileUrl($htmlTempFile, $docFolder, $db);
 					$htmlTempUrl = htmlspecialchars($docWindowUrl, ENT_QUOTES);
 					print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempUrl\" frameborder=\"0\">";
@@ -5693,6 +5726,9 @@ JS;
 					if ($htmlResult && !$curlError) {
 						// Save the HTML to a temp file for display in iframe
 						file_put_contents($htmlTempFile, $htmlResult);
+						if (!docFileRegisterPreview($db, $poolTenantRoot, $poolPreviewSource, $htmlTempFile)) {
+							docAccessDeny();
+						}
 						$docWindowUrl = docFileUrl($htmlTempFile, $docFolder, $db);
 						$htmlTempUrl = htmlspecialchars($docWindowUrl, ENT_QUOTES);
 						print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempUrl\" frameborder=\"0\">";

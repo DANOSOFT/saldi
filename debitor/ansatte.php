@@ -1,6 +1,6 @@
 <?php
 //
-// --- debitor/ansatte.php --- ver 5.1.1 --- 2026.11.22----------
+// --- debitor/ansatte.php --- ver 5.1.1 --- 2026.11.24----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 //                A contact without a position goes behind the others unless it is already the primary contact.
 // 20261122 CL/SZ MB-138 When nobody holds position 1, the primary contact without a position takes it.
 //                Renaming the primary contact renames adresser.kontakt.
+// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1 and the blank line under the opening PHP tag is now a // line; no code change.
 
 @session_start();
 $s_id=session_id();

@@ -149,7 +149,7 @@ if ($menu == 'T') {
 
 	print "<td width='84%' style='$topStyle' align='center'>$h_title</td>";
 
-	print "<td id='tutorial-help' width='8%' style='$buttonStyle'>";
+	print "<td id='tutorial-help' hidden width='8%' style='$buttonStyle'>";
 	print "<button class='center-btn' style='$buttonStyle; width:100%' type='button' onMouseOver=\"this.style.cursor='pointer'\">";
 	print $help_icon . $lbl_help . "</button></td>";
 

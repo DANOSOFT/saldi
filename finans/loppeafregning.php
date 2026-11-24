@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/loppeafregning.php --- ver 5.1.0 --- 2026.11.10 ---
+// --- finans/loppeafregning.php --- ver 5.1.1 --- 2026.11.24 ---
 /// LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20260714 CX/PHR Skip items whose account part (from character six) is not numeric
 // 20261109 CL/SS SST-919: Leave out sales already settled at the cash count (ordrer.settletime > 0); query in loppeafregningSalesQuery().
 // 20261110 CL/SS SST-919 review: Leave out only the lines the cash count settles, so a zero-cost line or a line with a NULL value on a settled order stays here.
+// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1; no code change.
 
 @session_start();
 $s_id=session_id();

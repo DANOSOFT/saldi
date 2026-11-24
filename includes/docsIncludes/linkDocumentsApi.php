@@ -1,9 +1,10 @@
 <?php
-// --- includes/docsIncludes/linkDocumentsApi.php --- 2025-12-11 ---
+// --- includes/docsIncludes/linkDocumentsApi.php --- 2026-11-10 ---
 // API endpoint for linking documents between kassekladde lines
 // Used by drag-and-drop functionality in kassekladde.php
 //
 // 20261026 CL/LH The linking moved to linkDocuments.php (linkLineDocuments()), which kassekladde.php uses too.
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
 
 @session_start();
 $s_id = session_id();
@@ -12,8 +13,10 @@ $header = 'nix';
 $bg = 'nix';
 $title = 'linkDocumentsApi';
 
-include("../connect.php");
-include("../online.php");
+include(__DIR__ . '/../connect.php');
+$permission_key = 'finans.kassekladde';
+$permission_level = 'write';
+include(__DIR__ . '/../online.php');
 
 // Clean any existing output buffers
 while (ob_get_level()) {
@@ -29,7 +32,7 @@ $toSourceId = isset($_POST['toSourceId']) ? intval($_POST['toSourceId']) : 0;
 $source = isset($_POST['source']) ? $_POST['source'] : 'kassekladde';
 
 // Validate parameters
-if ($action !== 'linkDocuments') {
+if ($action !== 'linkDocuments' || $source !== 'kassekladde') {
     echo json_encode(['success' => false, 'message' => 'Invalid action']);
     exit;
 }

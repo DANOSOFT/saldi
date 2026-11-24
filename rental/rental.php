@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/ordreliste.php --- ver 5.1.1 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,13 +32,21 @@
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261008 SS The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
 // 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
-// 20261103 CL/ASR QA round 2: the key and level follow the action; changes need write, the booking settings need settings.sales, and the SMTP login and the Vibrant key need write on settings.email and settings.integrations.
-//                 The stored password and API key are no longer sent back to the browser; an empty field keeps them.
 // 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
+// 20261103 CL/ASR QA round 2: the key and level follow the action; changes need write, the booking settings need settings.sales, and the SMTP login and the Vibrant key need write on settings.email and settings.integrations.
+//                 The stored password and API key are no longer sent back to the browser; an empty field keeps them.
+// 20261105 CL/LH The public booking link (getRemoteLink) uses ?db=, which remoteBooking/index.php reads, instead of ?id=.
+//                It is built on the scheme, host and port the page was opened on instead of https on the default port.
+// 20261105 CL/LH createBooking and updateBooking refuse days the stand has another booking on (rental_period_booked()), with the stand locked from that check until the booking is committed (rental_begin_stand_lock()), as the public booking does.
+//                A period that ends before it starts and a booking or stand that does not exist are refused too, and updateBooking reads the order's status from its row instead of from the query result.
+// 20261105 CL/LH CreateOrder gives opret_ordrelinje() the order's VAT rate (global $momssats), so the item line gets the item's rate (25%) instead of 0%, and the order's VAT on its header is its lines' VAT.
 // 20261111 CL/MMR SST-992 The «Ekstern booking» link passes the account as ?db=, which the booking page reads (was ?id=).
 //                 The URL is built in remoteBookingLink().
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/ASR The clean-up of expired holds keeps a hold whose order is invoiced (status 3 or more, or an invoice number) and ends its expiry (expiry_time NULL), instead of deleting the booking of an invoice.
+//                 Whether the order is invoiced is asked in SQL that PostgreSQL, MySQL and MariaDB run alike; the expiry is compared with TO_TIMESTAMP() as before.
+// 20261123 CL/ASR Integration: remoteBookingLink() builds the link on the scheme, host and port the page was opened on (20261105), with the account in ?db= (SST-992).
     @session_start();
     $s_id=session_id();
     $header = "nix";
@@ -69,6 +77,7 @@
         require_permission('debitor.konti', 'write');
     }
     include_once("../includes/stdFunc/ensureTableAndColumns.php");
+    include_once(__DIR__ . "/../includes/stdFunc/rentalPeriodTaken.php");
 
     // "Brug adgangskode" (SST-850): true when no password protection applies or this session has
     // entered the current password. The unlock marker is bound to the stored hash, so enabling or
@@ -141,13 +150,21 @@
     }
 
     // This function is for external booking only "IT IS NOT FOR DELETING BOOKINGS THAT ARE OLD"
+    // A hold whose order is invoiced (status 3 or more, or an invoice number) is a booking: it is kept and no longer
+    // expires. Its order was invoiced while the hold waited, by staff or by an approval that stopped before it ended the expiry.
     function cleanUpExpiredBookings(){
         $currentTime = time();
         $currentTimeFormatted = date('Y-m-d H:i:s', $currentTime); // Format current time as a string
     
+        // TO_TIMESTAMP() is PostgreSQL's, as before. On MariaDB before 10.10 the bare timestamp column (includes/opretfunc.php)
+        // gets the time of each insert and update, so a comparison MariaDB also runs would remove the staff bookings there.
+        $expired = "expiry_time < TO_TIMESTAMP('$currentTimeFormatted', 'YYYY-MM-DD HH24:MI:SS')";
+        $invoiced = "EXISTS (SELECT 1 FROM ordrer WHERE ordrer.id = rentalperiod.order_id AND rentalperiod.order_id > 0"
+            . " AND (ordrer.status >= 3 OR TRIM(ordrer.fakturanr) <> ''))"; // ordrer.fakturanr is a text column
+        db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE $expired AND $invoiced", __FILE__ . " linje " . __LINE__);
         $query = "
             DELETE FROM rentalperiod
-            WHERE expiry_time < TO_TIMESTAMP('$currentTimeFormatted', 'YYYY-MM-DD HH24:MI:SS')
+            WHERE $expired AND NOT $invoiced
         ";
         db_modify($query, __FILE__ . " linje " . __LINE__);
     }
@@ -303,13 +320,29 @@
         $from = intval($from);
         $customer_id = intval($customer_id);
         $item_id = intval($item_id);
-        $query = db_select("SELECT * FROM rentalperiod WHERE item_id = $item_id AND cust_id = $customer_id AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
-        if(db_num_rows($query) > 0){
+        if($to < $from){
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Du kan ikke vælge en til dato som er før fra dato"]);
+            exit();
+        }
+        // The page only knows the bookings it loaded: one made since, or one a public booking is saving now, is refused here.
+        // The stand stays locked from the check until this booking is committed, so a public or staff save of it at the same time
+        // waits and then finds this one. A block does not count: the page lets staff book over one after asking.
+        if(!rental_begin_stand_lock($item_id)){
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Standen findes ikke"]);
+            exit();
+        }
+        if(rental_period_booked($item_id, $from, $to)){
+            transaktion('rollback');
+            http_response_code(409);
+            echo json_encode(["success" => false, "msg" => "Der er allerede en booking i den valgte periode"]);
             exit();
         }
         $query = db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id) VALUES ($item_id, $customer_id, $from, $to, 0)", __FILE__ . " linje " . __LINE__);
         $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $item_id AND cust_id = $customer_id AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
         $id = db_fetch_array($query)["id"];
+        transaktion('commit');
         if($query){
             echo json_encode(["id" => $id, "msg" => "Booking oprettet"]);
         }else{
@@ -355,19 +388,52 @@
             echo json_encode(["msg" => "Der gik noget galt!"]);
             exit();
         }
-        $id = db_escape_string($data["booking_id"]);
-        $from = db_escape_string($data["from"]);
-        $to = db_escape_string($data["to"]);
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $id", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $data["item_id"] = $res["item_id"];
-        $order_id = $res["order_id"];
-        $res = db_select("SELECT status FROM ordrer WHERE id = $order_id", __FILE__ . " linje " . __LINE__);
-        if($res["status"] >= 3){
-            $query = db_modify("UPDATE rentalperiod SET rt_from = $from, rt_to = $to WHERE id = $id", __FILE__ . " linje " . __LINE__);
+        $id = (int)$data["booking_id"];
+        $from = (int)$data["from"];
+        $to = (int)$data["to"];
+        if($to < $from){
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Du kan ikke vælge en til dato som er før fra dato"]);
+            exit();
+        }
+        // As in createBooking: another booking of the stand on one of the new days is refused, with the stand locked from the
+        // check until the move is committed. The booking's own days do not count.
+        // Its stand is read before the transaction: on MySQL and MariaDB a read in it before the lock would fix the snapshot
+        // the check reads, and hide a booking committed while this move waited for the lock (rental_begin_stand_lock()).
+        $res = db_fetch_array(db_select("SELECT item_id FROM rentalperiod WHERE id = $id", __FILE__ . " linje " . __LINE__));
+        if(!$res){
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Bookingen findes ikke"]);
+            exit();
+        }
+        $item_id = (int)$res["item_id"];
+        if(!rental_begin_stand_lock($item_id)){
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Standen findes ikke"]);
+            exit();
+        }
+        // The booking and its order as they are once the lock is given.
+        $res = db_fetch_array(db_select("SELECT order_id FROM rentalperiod WHERE id = $id AND item_id = $item_id", __FILE__ . " linje " . __LINE__));
+        if(!$res){
+            transaktion('rollback');
+            http_response_code(400);
+            echo json_encode(["success" => false, "msg" => "Bookingen findes ikke"]);
+            exit();
+        }
+        if(rental_period_booked($item_id, $from, $to, $id)){
+            transaktion('rollback');
+            http_response_code(409);
+            echo json_encode(["success" => false, "msg" => "Der er allerede en booking i det valgte tidsrum"]);
+            exit();
+        }
+        $data["item_id"] = $item_id;
+        $order_id = (int)$res["order_id"];
+        $order = db_fetch_array(db_select("SELECT status FROM ordrer WHERE id = $order_id", __FILE__ . " linje " . __LINE__));
+        db_modify("UPDATE rentalperiod SET rt_from = $from, rt_to = $to WHERE id = $id", __FILE__ . " linje " . __LINE__);
+        transaktion('commit');
+        if($order && $order["status"] >= 3){
             echo json_encode(["msg" => "Booking opdateret", "status" => 2]);
         }else{
-            db_modify("UPDATE rentalperiod SET rt_from = $from, rt_to = $to WHERE id = $id", __FILE__ . " linje " . __LINE__);
             echo json_encode(["msg" => "Booking opdateret", "booking_id" => $id, "status" => 1]);
         }
     }
@@ -1391,14 +1457,15 @@
     /**
      * The public booking page link shown under «Ekstern booking».
      * SST-992: remoteBooking/index.php reads the account from ?db=, so the link passes it there.
+     * It is built on the scheme, host and port this page was opened on.
      *
      * @param string $db The account (tenant database) name.
      * @return string Absolute URL of remoteBooking/index.php for this account.
      */
     function remoteBookingLink($db) {
-        $serverName = $_SERVER['SERVER_NAME'];
+        $remoteHost = preg_replace('/[^A-Za-z0-9.:\-\[\]]/', '', (string) ifset($_SERVER, 'HTTP_HOST', ifset($_SERVER, 'SERVER_NAME', 'localhost')));
         $firstFolder = explode('/', trim($_SERVER['REQUEST_URI'], '/'))[0];
-        return "https://" . $serverName . "/" . $firstFolder . "/remoteBooking/index.php?db=" . urlencode($db);
+        return (saldi_request_is_https() ? "https" : "http") . "://" . $remoteHost . "/" . $firstFolder . "/remoteBooking/index.php?db=" . rawurlencode($db);
     }
     if(isset($_GET["getRemoteLink"])){
         echo json_encode(remoteBookingLink($db));
@@ -1853,6 +1920,8 @@
     } # endfunc opret_orderlinje
 
     function CreateOrder($data){
+        global $momssats; // opret_ordrelinje() gives the item line no higher rate than the order's, which it reads from here
+        $momssats = 25;
         file_put_contents("order.txt", "data: " . print_r($data, true) . "\n", FILE_APPEND);
         $query = db_select("SELECT * FROM rentalitems WHERE id = $data[item_id]", __FILE__ . " linje " . __LINE__);
         $res = db_fetch_array($query);
@@ -1976,9 +2045,9 @@
         $date = date("Y-m-d");
         $ordrenr = get_next_order_number('DO');
         if($invoiceDate){
-            $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], 25, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+            $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
         }else{
-            $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], 25, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+            $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
         }
         $query = db_select("SELECT id FROM ordrer WHERE ordrenr = $ordrenr AND art LIKE 'D%'", __FILE__ . " linje " . __LINE__);
         $order_id = db_fetch_array($query)["id"];

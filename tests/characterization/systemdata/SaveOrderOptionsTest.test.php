@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
@@ -19,6 +20,10 @@ use PHPUnit\Framework\TestCase;
  * 20261029 CL/MMR The real ifset() from includes/std_func.php instead of a stub (Codex round 3).
  * 20261030 CL/MMR sendOrderNote (SST-885, merged from master) is saved as 'on'/'off' in group easyUBL.
  * 20261030 CL/MMR CodeRabbit (PR #959): a new DIV 5 row has kostmetode in box6 and the set item id in box8; orderOptionsAlert() shows all alerts in one.
+ * 20261119 CL/ASR Omgående bogføring (DIV 3 box5) that is stored on stays on whatever is posted (owner, 19 Nov 2026); the double's DIV 3 row carries box5.
+ * 20261119 CL/ASR A part that is off is not switched on while invoices of its kind wait at status 3 for Hent ordrer; the double answers the waiting-invoice query.
+ * 20261119 CL/ASR The last part that is off is not switched on while invoices of the other kind wait either: once both are on, the cash journal has no Hent for any kind.
+ * 20261120 CL/ASR The double answers the waiting-invoice query as orders_waiting_for_hent() now asks it, for every order but PO at status 3, with art K* as purchases and every other art (a reminder too) as sales.
  */
 #[RunTestsInSeparateProcesses]
 final class SaveOrderOptionsTest extends TestCase
@@ -31,11 +36,14 @@ final class SaveOrderOptionsTest extends TestCase
     ];
 
     /**
-     * @param array<string, string> $items varenr => id the double knows
+     * @param array<string, string> $items   varenr => id the double knows
+     * @param list<string>          $waiting the kinds ('sales', 'purchases') of which an invoice waits at status 3
      */
-    private static function boot(array $items = ['R1' => '501', "S'2" => '502'], bool $div3 = true, bool $div5 = true, bool $note = true): void
+    private static function boot(array $items = ['R1' => '501', "S'2" => '502'], bool $div3 = true, bool $div5 = true, bool $note = true, string $box5 = '', array $waiting = []): void
     {
         $GLOBALS['__items'] = $items;
+        $GLOBALS['__box5'] = $box5;
+        $GLOBALS['__waiting'] = $waiting;
         $GLOBALS['__rows'] = ['div3' => $div3 ? '30' : null, 'div5' => $div5 ? '50' : null, 'note' => $note ? '70' : null];
         $GLOBALS['__modify'] = [];
         $GLOBALS['__settings'] = [];
@@ -48,9 +56,13 @@ final class SaveOrderOptionsTest extends TestCase
                     $nr = stripslashes($m[1]);
                     return (object) ["rows" => isset($GLOBALS["__items"][$nr]) ? [["id" => $GLOBALS["__items"][$nr]]] : []];
                 }
-                if (strpos($q, "kodenr=\'3\'") !== false) return (object) ["rows" => $GLOBALS["__rows"]["div3"] ? [["id" => $GLOBALS["__rows"]["div3"]]] : []];
+                if (strpos($q, "kodenr=\'3\'") !== false) return (object) ["rows" => $GLOBALS["__rows"]["div3"] ? [["id" => $GLOBALS["__rows"]["div3"], "box5" => $GLOBALS["__box5"]]] : []];
                 if (strpos($q, "kodenr=\'5\'") !== false) return (object) ["rows" => $GLOBALS["__rows"]["div5"] ? [["id" => $GLOBALS["__rows"]["div5"]]] : []];
                 if (strpos($q, "orderNoteEnabled") !== false) return (object) ["rows" => $GLOBALS["__rows"]["note"] ? [["id" => $GLOBALS["__rows"]["note"]]] : []];
+                if (strpos($q, "from ordrer where status = 3 and art != \'PO\'") !== false) {
+                    $kind = strpos($q, "art not like \'K%\'") !== false ? "sales" : "purchases";
+                    return (object) ["rows" => in_array($kind, $GLOBALS["__waiting"], true) ? [["art" => $kind === "sales" ? "R1" : "KO", "felt_1" => "", "felt_2" => "", "felt_4" => "", "felt_5" => ""]] : []];
+                }
                 return (object) ["rows" => []];
             }
             function db_fetch_array($r) { return array_shift($r->rows) ?? false; }
@@ -194,6 +206,91 @@ final class SaveOrderOptionsTest extends TestCase
             . "values ('Div_valg','5','DIV','','','','','','1','','502','','','','','')",
             self::modify("'Div_valg','5'")
         );
+    }
+
+    /** @return array<string, array{0: string, 1: array<string, string>, 2: string}> stored box5, the posted boxes, box5 written */
+    public static function immediatePosting(): array
+    {
+        return [
+            'both on, nothing ticked'                   => ['on;on', [], 'on;on'],
+            'a lone on from before 3.6, nothing ticked' => ['on', [], 'on;on'],
+            'sales on, nothing ticked'                  => ['on;', [], 'on;'],
+            'purchases on, nothing ticked'              => [';on', [], ';on'],
+            'both off, sales ticked'                    => [';', ['straks_deb' => 'on'], 'on;'],
+            'purchases on, sales ticked'                => [';on', ['straks_deb' => 'on'], 'on;on'],
+            'both off, nothing ticked'                  => [';', [], ';'],
+        ];
+    }
+
+    /**
+     * The old Ordrerelaterede valg page is no longer reached (diverse.php sends sektion=ordre_valg to
+     * Indstillinger » Ordrer & fakturering), but its save keeps the rule of the new page: on can be switched
+     * on, not off.
+     *
+     * @param array<string, string> $posted
+     */
+    #[DataProvider('immediatePosting')]
+    public function testImmediatePostingThatIsOnStaysOn(string $stored, array $posted, string $written): void
+    {
+        self::boot(['R1' => '501', "S'2" => '502'], true, true, true, $stored);
+        saveOrderOptions($posted, 1, 7);
+        self::assertStringContainsString("box5='$written'", self::modify("WHERE id = '30'"));
+    }
+
+    /** @return array<string, array{0: string, 1: list<string>, 2: string, 3: list<string>}> stored box5, the kinds waiting for Hent, box5 written, the alerts */
+    public static function waitingForHent(): array
+    {
+        $sales = 'Salgsfakturaer venter på at blive hentet. Hent dem ind i en kassekladde med Hent ordrer først.';
+        $purchases = 'Købsfakturaer venter på at blive hentet. Hent dem ind i en kassekladde med Hent ordrer først.';
+        return [
+            'sales invoices wait'                   => [';', ['sales'], ';on', [$sales]],
+            'purchase invoices wait'                => [';', ['purchases'], 'on;', [$purchases]],
+            'both wait, box5 empty'                 => ['', ['sales', 'purchases'], ';', [$sales, $purchases]],
+            'both wait, sales on already'           => ['on;', ['sales', 'purchases'], 'on;', [$purchases]],
+        ];
+    }
+
+    /**
+     * Both boxes ticked. A part that is off is not switched on while invoices of its kind wait at status 3 for Hent
+     * ordrer, as on Indstillinger » Ordrer & fakturering: once both are on, the cash journal has no Hent for them. A part
+     * that is on stays on without an alert. With nothing waiting both are switched on (testEveryFieldTickedAndFilled()).
+     *
+     * @param list<string> $waiting
+     * @param list<string> $alerts
+     */
+    #[DataProvider('waitingForHent')]
+    public function testImmediatePostingIsNotSwitchedOnWhileInvoicesOfItsKindWait(string $stored, array $waiting, string $written, array $alerts): void
+    {
+        self::boot(['R1' => '501', "S'2" => '502'], true, true, true, $stored, $waiting);
+        self::assertSame($alerts, saveOrderOptions(['straks_deb' => 'on', 'straks_kred' => 'on'], 1, 7));
+        self::assertStringContainsString("box5='$written'", self::modify("WHERE id = '30'"));
+    }
+
+    /** @return array<string, array{0: string, 1: list<string>, 2: string, 3: list<string>}> stored box5, the kinds waiting for Hent, box5 written, the alerts */
+    public static function otherKindWaiting(): array
+    {
+        $sales = 'Salgsfakturaer venter på at blive hentet. Hent dem ind i en kassekladde med Hent ordrer først.';
+        $purchases = 'Købsfakturaer venter på at blive hentet. Hent dem ind i en kassekladde med Hent ordrer først.';
+        return [
+            'sales on, sales invoices wait'          => ['on;', ['sales'], 'on;', [$sales]],
+            'purchases on, purchase invoices wait'   => [';on', ['purchases'], ';on', [$purchases]],
+        ];
+    }
+
+    /**
+     * Both boxes ticked, one part on already and invoices of its kind waiting (the journal shows Hent because the other
+     * part is off). The last part is not switched on: with both on, the cash journal has no Hent for any kind. The alert
+     * names the kind that waits.
+     *
+     * @param list<string> $waiting
+     * @param list<string> $alerts
+     */
+    #[DataProvider('otherKindWaiting')]
+    public function testTheLastPartIsNotSwitchedOnWhileInvoicesOfTheOtherKindWait(string $stored, array $waiting, string $written, array $alerts): void
+    {
+        self::boot(['R1' => '501', "S'2" => '502'], true, true, true, $stored, $waiting);
+        self::assertSame($alerts, saveOrderOptions(['straks_deb' => 'on', 'straks_kred' => 'on'], 1, 7));
+        self::assertStringContainsString("box5='$written'", self::modify("WHERE id = '30'"));
     }
 
     /** The text of the alert in the markup from orderOptionsAlert(), decoded the way the browser does. */

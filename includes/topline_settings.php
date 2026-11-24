@@ -1,4 +1,5 @@
 <?php
+// 20261113 ASR The old page bars in the top bar's navy (#1f4373, css/topbar.css) with white text for every user, not the user's button colour.
 global $buttonColor;
 global $buttonTxtColor;
 
@@ -54,9 +55,10 @@ if (!function_exists('darkenColor')) {
     }
 }
 
-$topCol       = $buttonColor;
-$butDownCol   = brightenColor($buttonColor, 0.2);
-$butUpCol     = darkenColor($buttonColor, 0.2);
+$topCol       = '#1f4373';   // the top bar's navy (css/topbar.css), not the user's $buttonColor
+$butDownCol   = brightenColor($topCol, 0.2);
+$butUpCol     = darkenColor($topCol, 0.2);
+$buttonTxtColor = '#ffffff';
 $topStyle     = "border:0;border-color:$topCol;color:$buttonTxtColor;border-radius:5px;background-color:$topCol;"; //height:100%;
 $buttonStyle  = "border:0;border-color:$topCol;color:$buttonTxtColor;border-radius:5px;background-color:$topCol;";
 $butDownStyle = "border:0;border-color:$butDownCol;color:$buttonTxtColor;border-radius:5px;background-color:$butDownCol;";

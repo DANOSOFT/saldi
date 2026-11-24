@@ -1,5 +1,5 @@
 <?php
-// ------orderFuncIncludes/topLine.php---patch 5.0.0 ----2026-10-06------------
+// ------orderFuncIncludes/topLine.php---ver 5.1.1 ----2026-11-13------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,12 +16,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20251115 LOE Created file to standardize top line  in ordrefunc includes 
 // 20261006 CL/LH SST-848: Updated to use new SVG icons
-
-
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
+//
+//
 ###############
 $tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 
@@ -51,7 +52,7 @@ if (!strstr($returside, "ordre.php")) {
 
 print "<td width=75% style='$topStyle' align=center>$tekst</td>\n";
 
-print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'>";
 print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 print "$help_icon " . findtekst('2564|Hjælp', $sprog_id) . "</button></td>";
 

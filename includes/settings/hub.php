@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/hub.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/hub.php --- ver 5.1.1 --- 2026.11.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,7 +41,9 @@
 //                 Virksomhed's description is 7793 (brugere og roller); a new id, since a database keeps the old text of an existing id.
 //                 The 'direct' handling in the model, the menu, settings_hub_path() and the coverage check is gone again.
 // 20261103 CL/ASR QA: in the moved map an old setting whose own page the user cannot open links to its hub row's page when the row opens another way (Ansatte / Diverse valg for a user with Brugere but not Organisation: usersRoles.php).
+// 20261110 CDX/ASR Use clear people and activity-log names in settings navigation.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR Abonnement & konto's hint no longer promises Nulstil: a ledger is reset only from the admin panel.
 if (!function_exists('getSettingsHub')):
 
 /**
@@ -68,7 +70,7 @@ function getSettingsHub(): array
 				array('label' => '7736|Sprog & lokalisering', 'maps' => array('company.localisation', 'sprog'),
 					'hint' => $h('Sprog, tidszone, talformat og oversættelser', 'Language, time zone, number format and translations', 'Språk, tidssone, tallformat og oversettelser')),
 				array('label' => '6630|Abonnement & konto', 'maps' => array('company.account', 'konto', 'kontoindstillinger'),
-					'hint' => $h('Regnskabets navn, antal brugere, nulstil eller slet', 'Name of the accounts, number of users, reset or delete', 'Regnskapets navn, antall brukere, nullstill eller slett')),
+					'hint' => $h('Regnskabets navn, antal brugere, slet regnskabet', 'Name of the accounts, number of users, delete the ledger', 'Regnskapets navn, antall brukere, slett regnskapet')),
 				array('label' => '7737|Persondata (GDPR)', 'maps' => array('company.gdpr', 'gdpr'),
 					'hint' => $h('Slet kunder og leverandører uden aktivitet i 3 år', 'Delete customers and suppliers with no activity for 3 years', 'Slett kunder og leverandører uten aktivitet på 3 år')),
 			)),
@@ -76,13 +78,13 @@ function getSettingsHub(): array
 				'status' => array('brugere'), 'rows' => array(
 				// One list of everyone (owner, 2-3 Nov 2026): Brugere is usersRoles.php with the employees and the logins; the employee
 				// section is the list of a user who may not open usersRoles.php ('fallback'). Then Roller, Audit-log and Ekstra felter.
-				array('label' => '5549|Brugere', 'maps' => array('brugere', 'organisation.employees', 'ansatte', 'div_valg'),
+				array('label' => 'roles.people.title|Brugere & ansatte', 'maps' => array('brugere', 'organisation.employees', 'ansatte', 'div_valg'),
 					'fallback' => 'organisation.employees',
 					'terms' => $h('personer, medarbejdere, ansatte, brugere, login', 'people, staff, employees, users, login', 'personer, medarbeidere, ansatte, brukere, innlogging'),
 					'hint' => $h('Ansatte og alle, der kan logge ind (også revisor og bogholder)', 'Employees and everyone who can log in (also auditor and bookkeeper)', 'Ansatte og alle som kan logge inn (også revisor og regnskapsfører)')),
 				array('label' => '5550|Roller', 'maps' => array('roller'),
 					'hint' => $h('Hvad hver rolle må se og ændre', 'What each role may see and change', 'Hva hver rolle kan se og endre')),
-				array('label' => '5796|Audit-log', 'maps' => array('audit_log'),
+				array('label' => 'roles.activity.title|Aktivitetslog', 'maps' => array('audit_log'),
 					'hint' => $h('Hvem har gjort hvad og hvornår', 'Who did what and when', 'Hvem har gjort hva og når')),
 				array('label' => '6611|Ekstra felter', 'maps' => array('ekstra_felter'),
 					'hint' => $h('Op til 14 ekstra felter på de ansattes stamkort', "Up to 14 extra fields on the employees' records", 'Opptil 14 ekstra felt på de ansattes stamkort')),

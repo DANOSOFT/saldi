@@ -1,9 +1,14 @@
 <?php
+// 20261105 CL/LH The page makes the visitor's session before it sends anything (rental_booking_customer_session()), so createCust from two tabs that send the form at once keeps both customers in one session, and each tab books.
+// 20261123 CL/ASR Integration: the account is read from ?db=, or from ?id= as older links carry it (SST-992), and the visitor's session is made before anything is sent.
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalBookingCustomer.php");
 // SST-992: links copied before 2026-11 carry the account as ?id=; ?db= is the current form.
 $db = public_tenant_db(ifset($_GET, "db", ifset($_GET, "id", "")));
+// createCust keeps the customer for the form in this session and createBooking looks it up there: the browser gets the cookie now, not from createCust.
+rental_booking_customer_session($db);
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 
 $query = db_select("SELECT trade_conditions FROM rentalpayment", __FILE__ . " linje " . __LINE__);

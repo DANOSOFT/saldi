@@ -46,6 +46,7 @@
 // 20261014 Sawaneh Review: chart data only in the page JSON for blocks the role allows; fiscal-year dates zero-padded
 //                  (string compares dropped months 1-9 of the year to date).
 // 20261010 Sawaneh Ufakturerede ordrer: key figures 1 and 3 of addendum 3 §7 (delivered over 14 days ago, ready to invoice now). Texts 7072-7073.
+// 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261031 CL/ASR The drawer's widget key and block order are escaped before update_settings_value(): it takes its arguments as given again (master's contract, the caller escapes).
 // 20261101 CL/ASR Restyled on prototype D ("Som ordrelisten"): flat panels with a grey header band, the KPI strip without sparklines, Omsætning pr. varegruppe as a table with share bars, Ubetalte salgsfakturaer with the due groups as a table and a stacked bar, the small cards with lists and buttons, "Rediger oversigt" as a panel at the top right.
 // 20261101 CL/ASR "Aktive medarbejdere" and "Forslag klar til bekræftelse" removed (Adam): the topbar shows who is online and the
@@ -61,9 +62,23 @@
 //                 Texts 7700-7701.
 // 20261103 CL/ASR QA: the months to date are counted over the fiscal year's own months (dashData.php), not always 12.
 // 20261103 CL/ASR QA round 2: the VAT figure needs Finansrapport, each POS shortcut needs the right for its page, and a role without any block (Indkøb) gets a short note with links to its modules instead of an empty page.
-// 20261108 CL/ASR css/dashboard.css ?v=8 and css/saldi-theme.css ?v=8: the page ground is Saldi's classic page colour #eeeef0, the panels stay white (owner, 8 Nov 2026).
-// 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261104 LOE MB-62 A read-only user may open the overview but not change the settings it shares.
+// 20261105 CL/LH The month and week charts take their figures-to-date cut-offs from dash_data(), which places today in the fiscal year shown, instead of the server's date.
+// 20261108 CL/ASR css/dashboard.css ?v=8 and css/saldi-theme.css ?v=8: the page ground is Saldi's classic page colour #eeeef0, the panels stay white (owner, 8 Nov 2026).
+// 20261108 CL/ASR Omsætningskonti default to the tenant's net revenue accounts from its own chart (1010-1390 in the standard chart), not 0-2000, which also counted purchases and sales costs as negative revenue.
+//                 A saved Fra/Til kontonr. still wins, except the 0/2000 the old dashboard saved with every save of its settings form, and the 0/12000 its 2024 versions saved on other POSTs (dashData.php dash_revenue_accounts()).
+//                 Rediger oversigt shows the range in use. js v9.
+// 20261108 CL/ASR Omsætningskonti: an empty Fra or Til kontonr. means automatic (owner, 8 Nov 2026).
+// 20261113 CL/ASR css/dashboard.css ?v=10 (side margin 16 px, the same as the top).
+//                 The drawer stores an empty field empty, not as 0, which made every revenue figure 0.
+//                 It shows the automatic numbers as the fields' placeholders with a line under them (texts 8821-8822).
+//                 Letters and Fra above Til are refused (texts 8823-8824).
+//                 The link to the guide is gone (the guide no longer exists); 6991 and 6992 give way to 8820, which explains the empty fields.
+//                 css v9, js v10.
+// 20261113 CL/ASR The key figures and Ufakturerede ordrer say "ekskl. moms" (6929) like the charts, not "ex moms" (6922); the charts' grey subtitle (.db-sub) now has the key figures' subtitle colour (css/dashboard.css).
+//                 Without a previous fiscal year Omsætning pr. måned offers no comparison: no "%s mod %s" select, no last-year legend, series or table columns (dashData.php), and Omsætning pr. dag shows no last-year week before this fiscal year.
+//                 Rediger oversigt lists Momsangivelse only when the VAT figure is shown (VAT registered and a usable VAT report range), not for every VAT registered company.
+//                 css v11, js v11.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
@@ -71,7 +86,7 @@ ob_start();
 
 global $sprog_id;
 
-$css = "../css/dashboard.css?v=8";
+$css = "../css/dashboard.css?v=12";
 print "<title>Overblik</title>";
 
 include ("../includes/std_func.php");
@@ -172,9 +187,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && !isset($
 			db_modify("delete from settings where var_grp in ('dashboard_toggles', 'dashboard_layout') and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
 			update_settings_value('hide_dash', 'dashboard', 0, 'Whether the overview is hidden for the user', $brugerId);
 		} elseif ($action === 'accounts' && $canEditAccounts) {
-			update_settings_value('kontomin', 'dashboard_values', (int) ifset($_POST, 'kontomin', 0), 'Dashboard revenue accounts from');
-			update_settings_value('kontomaks', 'dashboard_values', (int) ifset($_POST, 'kontomaks', 2000), 'Dashboard revenue accounts to');
-			$res['reload'] = true;
+			// An empty field is automatic and is stored empty, not as 0 (dash_revenue_accounts()). Not an account number, or Fra
+			// above Til once the empty bounds are filled in from the chart: refused, nothing stored (dashboard.js checks first).
+			$min = dash_account_input((string) ifset($_POST, 'kontomin', ''));
+			$max = dash_account_input((string) ifset($_POST, 'kontomaks', ''));
+			$range = ($min === null || $max === null) ? null : dash_revenue_accounts($min, $max, dash_chart_revenue_range(dash_chart_rows((int) $regnaar)));
+			if (!$range) {
+				$res = array('ok' => false, 'error' => 'digits');
+			} elseif ($range['from'] > $range['to']) {
+				$res = array('ok' => false, 'error' => 'order');
+			} else {
+				update_settings_value('kontomin', 'dashboard_values', $min, 'Dashboard revenue accounts from');
+				update_settings_value('kontomaks', 'dashboard_values', $max, 'Dashboard revenue accounts to');
+				$res['reload'] = true;
+			}
 		} else {
 			$res['ok'] = false;
 		}
@@ -188,8 +214,6 @@ if (isset($_GET['hidden']) && ($_GET['hidden'] == '1' || $_GET['hidden'] == '0')
 	update_settings_value("hide_dash", "dashboard", (int) $_GET['hidden'], "Whether the overview is hidden for the user", $brugerId);
 }
 
-$kontomin = (int) get_settings_value("kontomin", "dashboard_values", 0);
-$kontomaks = (int) get_settings_value("kontomaks", "dashboard_values", 2000);
 $hide_dash = get_settings_value("hide_dash", "dashboard", "0", $brugerId) === "1";
 $widgets = array();
 foreach ($widgetDefaults as $k => $def) {
@@ -235,7 +259,7 @@ $money = function ($v) {
 	return number_format(round(abs((float) $v)), 0, $GLOBALS['dashDec'], $GLOBALS['dashThou']) . ' kr';
 };
 
-print "<link rel='stylesheet' href='../css/saldi-theme.css?v=8'>";
+print "<link rel='stylesheet' href='../css/saldi-theme.css?v=11'>";
 if ((function_exists('perm_can') ? false : !check_permissions(array(3,4))) || is_null($regnaar)) {
 	print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em;' class='content'>";
 	if (is_null($regnaar)) {
@@ -246,6 +270,12 @@ if ((function_exists('perm_can') ? false : !check_permissions(array(3,4))) || is
 	exit;
 }
 
+// Omsætningskonti, company-wide, bound by bound: the chosen Fra/Til kontonr., else (an empty field) the chart's net revenue
+// accounts (dash_revenue_accounts()). The chart is read on every load: the drawer shows its numbers in the empty fields.
+$revenueAccounts = dash_revenue_accounts(get_settings_value("kontomin", "dashboard_values", null), get_settings_value("kontomaks", "dashboard_values", null),
+	dash_chart_revenue_range(dash_chart_rows((int) $regnaar)));
+$kontomin = $revenueAccounts['from'];
+$kontomaks = $revenueAccounts['to'];
 $data = dash_data(array('regnstart' => $regnstart, 'regnslut' => $regnslut, 'regnaar' => $regnaar, 'kontomin' => $kontomin, 'kontomaks' => $kontomaks,
 	'sprog_id' => (int) $sprog_id, 'bruger_id' => $brugerId, 'vat' => $vatRegistration));
 
@@ -281,7 +311,7 @@ $kpiCell = function (string $key, string $title, string $sub, array $k, string $
 		. ($note !== '' ? "<div class='db-note'>$note</div>" : '') . "</div>";
 };
 
-$noRevenue = !array_sum($data['month']['now']) && !array_sum($data['month']['last']);
+$noRevenue = !array_sum($data['month']['now']) && !array_sum((array) $data['month']['last']);
 $emptyRevenue = "<div class='db-ph'>" . $h($tx('7053|Ingen omsætning endnu')) . "</div>";
 $blocks = array();
 
@@ -290,13 +320,13 @@ $blocks['kpis'] = function () use ($data, $widgets, $tx, $h, $money, $kpiCell) {
 	print "<section class='blk db-sec db-kpis' data-block='kpis' style='--w:1' aria-label='" . $h($tx('2158|Nøgletal')) . "'>";
 	$w = $data['weekkpi'];
 	$diff = $w['value'] - $w['last'];
-	$kpiCell('weekkpi', $tx('6920|Omsætning denne uge'), $tx('6922|ex moms'), $w, $h(sprintf($tx($diff >= 0 ? '6924|%s mere end samme uge sidste år' : '6925|%s mindre end samme uge sidste år'), $money($diff))), $widgets['weekkpi']);
+	$kpiCell('weekkpi', $tx('6920|Omsætning denne uge'), $tx('6929|ekskl. moms'), $w, $h(sprintf($tx($diff >= 0 ? '6924|%s mere end samme uge sidste år' : '6925|%s mindre end samme uge sidste år'), $money($diff))), $widgets['weekkpi']);
 	$m = $data['revmonth'];
 	$diff = $m['value'] - $m['last'];
-	$kpiCell('revmonth', $tx('6921|Omsætning denne måned'), $tx('6922|ex moms'), $m, $h($money($diff) . ' ' . $tx($diff >= 0 ? '2385|mere end sidste år til dato' : '2386|mindre end sidste år til dato')), $widgets['revmonth']);
+	$kpiCell('revmonth', $tx('6921|Omsætning denne måned'), $tx('6929|ekskl. moms'), $m, $h($money($diff) . ' ' . $tx($diff >= 0 ? '2385|mere end sidste år til dato' : '2386|mindre end sidste år til dato')), $widgets['revmonth']);
 	$y = $data['revyear'];
 	$diff = $y['value'] - $y['last'];
-	$kpiCell('revyear', $tx('2160|Omsætning for året'), $tx('6922|ex moms'), $y, $h($money($diff) . ' ' . $tx($diff >= 0 ? '2385|mere end sidste år til dato' : '2386|mindre end sidste år til dato')), $widgets['revyear']);
+	$kpiCell('revyear', $tx('2160|Omsætning for året'), $tx('6929|ekskl. moms'), $y, $h($money($diff) . ' ' . $tx($diff >= 0 ? '2385|mere end sidste år til dato' : '2386|mindre end sidste år til dato')), $widgets['revyear']);
 	if ($data['vatcount'] !== null) {
 		$v = $data['vatcount'];
 		$period = date('j.n.', strtotime($v['from'])) . '&ndash;' . date('j.n.Y', strtotime($v['to']));
@@ -309,12 +339,14 @@ $blocks['kpis'] = function () use ($data, $widgets, $tx, $h, $money, $kpiCell) {
 // Omsætning pr. måned
 $blocks['revgraph'] = function () use ($data, $widgets, $tx, $h, $noRevenue, $emptyRevenue, $gone, $blockHead) {
 	$mo = $data['month'];
+	// Without a previous fiscal year (lastLabel null) there is nothing to compare with: no select, no last-year legend.
+	$hasLast = $mo['lastLabel'] !== null;
 	$tools = $noRevenue ? '' : "<button type='button' class='db-link' id='tblToggle'>" . $h($tx('6944|Vis som tabel')) . "</button>"
-		. "<select class='db-fld' id='cmpSel'><option value='both'>" . $h(sprintf($tx('6946|%s mod %s'), $mo['nowLabel'], $mo['lastLabel'])) . "</option><option value='now'>" . $h(sprintf($tx('6947|Kun %s'), $mo['nowLabel'])) . "</option></select>";
+		. ($hasLast ? "<select class='db-fld' id='cmpSel'><option value='both'>" . $h(sprintf($tx('6946|%s mod %s'), $mo['nowLabel'], $mo['lastLabel'])) . "</option><option value='now'>" . $h(sprintf($tx('6947|Kun %s'), $mo['nowLabel'])) . "</option></select>" : '');
 	print "<section class='blk db-sec" . $gone($widgets['revgraph']) . "' data-widget='revgraph' data-block='revgraph' style='--w:.6667'>"
 		. $blockHead($tx('6928|Omsætning pr. måned'), $tx('6929|ekskl. moms'), $tools) . "<div class='db-b'>"
 		. ($noRevenue ? $emptyRevenue : "<div id='monthView'><div class='db-leg'><span><i class='db-sw sw-now'></i>" . $h($mo['nowLabel']) . "</span>"
-		. "<span id='legLast'><i class='db-sw sw-last'></i>" . $h($mo['lastLabel'] . ' ' . $tx('6948|(sidste år)')) . "</span><span><i class='db-sw sw-best'></i>" . $h($tx('6949|Bedste måned')) . "</span></div>"
+		. ($hasLast ? "<span id='legLast'><i class='db-sw sw-last'></i>" . $h($mo['lastLabel'] . ' ' . $tx('6948|(sidste år)')) . "</span>" : '') . "<span><i class='db-sw sw-best'></i>" . $h($tx('6949|Bedste måned')) . "</span></div>"
 		. "<div class='db-chartbox' id='monthChart'></div></div><div id='monthTbl' hidden></div>") . "</div></section>";
 };
 
@@ -344,7 +376,7 @@ $blocks['revweek'] = function () use ($data, $widgets, $tx, $h, $noRevenue, $emp
 	print "<section class='blk db-sec" . $gone($widgets['revweek']) . "' data-widget='revweek' data-block='revweek' style='--w:.5'>"
 		. $blockHead($tx('6955|Omsætning pr. dag'), $tx('6929|ekskl. moms'), $sel) . "<div class='db-b'>"
 		. ($noRevenue ? $emptyRevenue : "<div class='db-leg'><span><i class='db-sw sw-now'></i><span id='wkNow'>" . $h(sprintf($tx('6957|Uge %s, %s'), $wk[0]['no'], $wk[0]['year'])) . "</span></span>"
-		. "<span><i class='db-sw sw-last'></i><span id='wkLast'>" . $h(sprintf($tx('6958|Samme uge %s'), $wk[0]['lastYear'])) . "</span></span><span><i class='db-sw sw-best'></i>" . $h($tx('6959|Bedste dag')) . "</span></div>"
+		. "<span" . ($wk[0]['last'] === null ? ' hidden' : '') . "><i class='db-sw sw-last'></i><span id='wkLast'>" . $h(sprintf($tx('6958|Samme uge %s'), $wk[0]['lastYear'])) . "</span></span><span><i class='db-sw sw-best'></i>" . $h($tx('6959|Bedste dag')) . "</span></div>"
 		. "<div class='db-chartbox' id='dayChart'></div>") . "</div></section>";
 };
 
@@ -431,7 +463,7 @@ $blocks['small'] = function () use ($data, $widgets, $tx, $h, $num, $gone) {
 	};
 	print "<section class='blk db-sec db-small' data-block='small' style='--w:1' aria-label='" . $h($tx('7059|Små tal')) . "'>";
 	$o = $data['orders'];
-	print "<div class='db-cell" . $gone($widgets['ordercount']) . "' data-widget='ordercount'><div class='db-lbl'>" . $h($tx('2161|Ufakturerede ordrer')) . "<small>" . $h($tx('6922|ex moms')) . "</small></div>"
+	print "<div class='db-cell" . $gone($widgets['ordercount']) . "' data-widget='ordercount'><div class='db-lbl'>" . $h($tx('2161|Ufakturerede ordrer')) . "<small>" . $h($tx('6929|ekskl. moms')) . "</small></div>"
 		. "<div class='db-val'><span>" . $num((int) $o['count']) . "</span><small>" . $kr($o['sum']) . "</small></div>"
 		. "<ul class='db-kv'><li><span>" . $h($tx('7072|Leveret for over 14 dage siden')) . "</span><b>" . (int) $o['late']['count'] . ' &middot; ' . $kr($o['late']['sum']) . "</b></li>"
 		. ($o['largest'] ? "<li><span>" . $h($tx('7051|Største ufakturerede')) . "</span><b>" . $h($o['largest']['name']) . ' &middot; ' . $kr($o['largest']['sum']) . "</b></li>" : '')
@@ -499,7 +531,9 @@ print "<aside class='drawer' id='drawer' role='dialog' aria-modal='true' aria-la
 
 // The blocks for the drawer (§8.2/§8.3): id, name, description, the cards inside Nøgletal and Små tal.
 $kpiItems = array(array('weekkpi', $u8($tx('6920|Omsætning denne uge')), ''), array('revmonth', $u8($tx('6921|Omsætning denne måned')), ''), array('revyear', $u8($tx('2160|Omsætning for året')), ''));
-if ($vatRegistration['registered']) {
+// Only when Nøgletal has the VAT cell: VAT registered (and allowed Finansrapport) and a usable VAT report range (dashData.php).
+// The saved switch stays as it is, so the user's choice is back when the cell is.
+if ($data['vatcount'] !== null) {
 	$kpiItems[] = array('vatcount', $u8($tx('520|Momsangivelse')), $u8($tx('6980|Beløb og frist for perioden')));
 }
 $blockList = array(
@@ -517,23 +551,17 @@ $unpaidJs = null;
 if ($unpaid !== null && $unpaid['count']) {
 	$unpaidJs = array('groups' => $unpaid['groups'], 'total' => $unpaid['total'], 'count' => $unpaid['count']);
 }
-// Fiscal months begun by today: later months have no figure yet (no bar, "–" in the tooltip and the table, as the prototype).
-$monthsToDate = 0;
-for ($i = 0; $i < count($data['month']['labels']); $i++) {
-	if (date('Y-m-01', mktime(0, 0, 0, (int) substr($regnstart, 5, 2) + $i, 1, (int) substr($regnstart, 0, 4))) <= date('Y-m-d')) {
-		$monthsToDate++;
-	}
-}
 $locales = array(1 => 'da-DK', 2 => 'en-GB', 3 => 'nb-NO');
 $js = array(
 	'csrf' => $_SESSION['csrf_token'],
 	'locale' => isset($locales[(int) $sprog_id]) ? $locales[(int) $sprog_id] : 'da-DK',
 	'widgets' => $widgets, 'hidden' => $hide_dash, 'blocks' => $blockList, 'order' => $blockOrder, 'defaultOrder' => $blockDefaults,
 	'defaultOff' => array_keys(array_filter($widgetDefaults, function ($v) { return $v === 'off'; })),
-	'month' => !$blockAccess['revgraph'] ? null : array('labels' => array_map($u8, $data['month']['labels']), 'now' => $data['month']['now'], 'last' => $data['month']['last'], 'nowLabel' => $u8($data['month']['nowLabel']), 'lastLabel' => $u8($data['month']['lastLabel']), 'toDate' => $monthsToDate),
-	'weeks' => $blockAccess['revweek'] ? $data['weeks'] + array('dayToDate' => (int) date('N')) : null, 'days' => array_map($u8, $data['days']), 'heat' => $blockAccess['customergraph'] ? $data['heat'] : null, 'heatDefault' => '30',
+	'month' => !$blockAccess['revgraph'] ? null : array('labels' => array_map($u8, $data['month']['labels']), 'now' => $data['month']['now'], 'last' => $data['month']['last'], 'nowLabel' => $u8($data['month']['nowLabel']), 'lastLabel' => $data['month']['lastLabel'] === null ? null : $u8($data['month']['lastLabel']), 'toDate' => $data['month']['toDate']),
+	'weeks' => $blockAccess['revweek'] ? $data['weeks'] : null, 'days' => array_map($u8, $data['days']), 'heat' => $blockAccess['customergraph'] ? $data['heat'] : null, 'heatDefault' => '30',
 	'unpaid' => $unpaidJs,
-	'accounts' => array('kontomin' => $kontomin, 'kontomaks' => $kontomaks, 'canEdit' => $canEditAccounts, 'guide' => 'https://site.saldi.dk/saldi-manualer/omsaetningstal'),
+	'accounts' => array('kontomin' => $revenueAccounts['chosenFrom'], 'kontomaks' => $revenueAccounts['chosenTo'], 'autoMin' => $revenueAccounts['autoFrom'], 'autoMaks' => $revenueAccounts['autoTo'],
+		'autoSource' => $revenueAccounts['autoSource'], 'canEdit' => $canEditAccounts),
 	'txt' => array(
 		'avgCust' => $u8($tx('6974|Gns. kunder pr. time')), 'at' => $u8($tx('6996|kl.')), 'vsLast' => $u8($tx('6973|mod sidste år')),
 		'showTable' => $u8($tx('6944|Vis som tabel')), 'showGraph' => $u8($tx('6945|Vis som graf')),
@@ -541,7 +569,9 @@ $js = array(
 		'mioShort' => $u8($tx('6998|mio.')), 'thousandShort' => $u8($tx('6999|t.')), 'noRevenue' => $u8($tx('7053|Ingen omsætning endnu')),
 		'showDash' => $u8($tx('6978|Vis oversigten')), 'showDashHelp' => $u8($tx('6979|Slå fra, hvis du hellere vil starte på en tom forside')),
 		'accounts' => $u8($tx('6987|Omsætningskonti')), 'companyWide' => $u8($tx('6988|Gælder hele regnskabet')), 'fromAcc' => $u8($tx('6989|Fra kontonr.')), 'toAcc' => $u8($tx('6990|Til kontonr.')),
-		'accountsHelp' => $u8($tx('6991|Bestemmer, hvilke konti der tæller som omsætning i nøgletal og grafer. Er du i tvivl?')), 'seeGuide' => $u8($tx('6992|Se guiden')),
+		'accountsHelp' => $u8($tx('8820|Bestemmer, hvilke konti der tæller som omsætning i nøgletal og grafer. Lad felterne stå tomme, så bruger Saldi kontiene for nettoomsætning i din kontoplan.')),
+		'accountsAuto' => $u8($tx('8821|Automatisk: %s fra din kontoplan')), 'accountsAutoNone' => $u8($tx('8822|Automatisk: %s. Din kontoplan har ingen sumkonto for nettoomsætning, så vælg kontiene selv.')),
+		'accountDigits' => $u8($tx('8823|Skriv kontonummeret med tal, eller lad feltet stå tomt for automatisk.')), 'accountOrder' => $u8($tx('8824|Fra kontonr. må ikke være større end Til kontonr.')),
 		'contentOrder' => $u8($tx('7054|Indhold og rækkefølge')), 'dragHint' => $u8($tx('7055|Træk i ⋮⋮ for at flytte')), 'moveLabel' => $u8($tx('7056|Flyt %s. Alt+pil op/ned')),
 		'movedTo' => $u8($tx('7057|%s flyttet til plads %s af %s')), 'shownOf' => $u8($tx('7058|%s af %s vises')), 'showCards' => $u8($tx('7062|Vis kort i %s')),
 		'dueOk' => $u8($tx('7033|Ikke forfalden')), 'dueWarn' => $u8($tx('7034|Forfalden 1–15 dage')), 'dueLate' => $u8($tx('7035|Forfalden over 15 dage')),
@@ -549,4 +579,4 @@ $js = array(
 	),
 );
 print "<script>window.SALDI_DASH = " . json_encode($js, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_PARTIAL_OUTPUT_ON_ERROR) . ";</script>\n";
-print "<script src='../javascript/dashboard.js?v=8'></script>\n";
+print "<script src='../javascript/dashboard.js?v=11'></script>\n";

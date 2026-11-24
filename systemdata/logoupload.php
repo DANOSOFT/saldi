@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/logoupload.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- systemdata/logoupload.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,10 @@
 // 20261102 CL/ASR Review: opened from Formularer (its Baggrund button) or the form editor, the page sits under Formularer again: Formularer marked, breadcrumb Indstillinger / Virksomhed / Formularer / Baggrunds- og bilagsfiler, Tilbage to the form or the editor, as before (it went to Logo & baggrunde).
 //                 The place is kept in the session (logoupload_from) after an upload, a delete, a filter or the preview, which post or link back without the returside.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 ASR A background uploaded or deleted for all departments is the new ground of the form editor's logo: the stamped files are made again (fe_logo_background_changed(), includes/formEditorState.php).
+// 20261114 CL/ASR Deleting a background checks the department permission on the department the form posts.
+// 20261124 CL/ASR The include of includes/formEditorState.php is resolved from this file's folder (__DIR__), not the caller's working directory.
+// 20261124 CL/ASR Comments state the current rule; no code change.
 session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -59,6 +63,7 @@ include("../includes/online.php");
 include("../includes/db_query.php");
 include("../includes/std_func.php"); #20210803
 include("../includes/topline_settings.php");
+include_once(__DIR__ . "/../includes/formEditorState.php");
 
 if (!isset ($_POST['bilagfil'])) $_POST['bilagfil'] = null;
 
@@ -246,8 +251,8 @@ if (isset($_POST['slet_bilag'])) {
     }
     $slet_bilag=$_POST['slet_bilag'].".pdf";
     
-    // For delete operation, use the selected department and current background
-    $delete_department = $selected_department;
+    // For delete operation, use the selected department and current background; the permission check below uses the department the form posts
+    $delete_department = isset($_POST['department']) ? (int) $_POST['department'] : $selected_department;
     
     // Check permission before deleting
     if (!$is_admin && $delete_department != $user_assigned_department) {
@@ -270,6 +275,7 @@ if (isset($_POST['slet_bilag'])) {
     if (file_exists($file_path)) {
         unlink($file_path);
     }
+    if ($delete_department == 0) fe_logo_background_changed($db_id, basename($slet_bilag, '.pdf'), true);
     
     upload();
     exit;
@@ -394,6 +400,7 @@ if(isset($_POST['bgfil'])||(isset($_POST['bilagfil']) && $_POST['bilagfil'])) {
 		}
 		// G6.2 (audit L6): the PDF is in place, so the upload succeeded; the PostScript copy is only made where pdf2ps
 		// is configured (old PostScript forms), with escaped arguments. The page is shown again instead of a blank one.
+		if ($department == 0) fe_logo_background_changed($db_id, $valg, false);
 		if (!empty($pdf2ps) && file_exists($pdf2ps)) {
 			$pdffil = basename($til);
 			$psfil = str_replace(".pdf", ".ps", $pdffil);

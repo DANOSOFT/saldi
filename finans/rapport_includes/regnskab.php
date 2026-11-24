@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/regnskab.php--ver 5.1.0 ----2026-11-03--------------
+// --- finans/rapport_includes/regnskab.php--ver 5.1.1 ----2026-11-19--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,9 @@
 //                 regnskab() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
 // 20261103 LOE SST-936 Cast or escape the department, employee and project filters before they reach the query.
 //              The department-name lookup is cast as well.
+// 20261119 CL/ASR Without a Sideskift account Resultat, Budget and Sidste år show the result side and Balance the balance side of the chart, split by account type in regnskab_kontoside(), while every amount is computed as before.
+//                 A sum over both sides goes with the first account it adds up when its range starts at that account, else with most of them (one over the whole chart by its place), and a heading over both sides with the sum that closes its group.
+// 20261119 CL/ASR The entry above keeps each sentence on one line (header only, no behaviour change).
 
 function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 	print "<!--Function regnskab start-->\n";
@@ -655,7 +658,21 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		}
 	}
 
+	// Without a Sideskift account (kontotype X) finans/rapport.php cannot split the chart by account number, so the result
+	// reports show the result side of the chart and Balance its balance side (regnskab_kontoside()). Only the lines shown
+	// change: every amount, sum and Resultat line is computed above as before.
+	$kontoside = array();
+	$visSide = '';
+	if ($kontoantal && in_array($rapportart, array('balance', 'resultat', 'budget', 'lastYear'), true) && !in_array('X', $kontotype, true)) {
+		$visSide = ($rapportart == 'balance') ? 'S' : 'D';
+		$kontoside = regnskab_kontoside($kontonr, $kontotype, $fra_kto);
+	}
+	// The first line shown can now be an account instead of a heading (a split by type), so the row colour starts set.
+	$linjebg = $bgcolor;
 	for ($x = 1; $x <= $kontoantal; $x++) {
+		if ($visSide && $kontoside[$x] && $kontoside[$x] != $visSide) {
+			continue;
+		}
 		if ($kontonr[$x] >= $konto_fraSql && $kontonr[$x] <= $konto_tilSql && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $vis_kto[$x] || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220 // 20260907 - NTR - Added $vis_kto[$x] to show accounts with postings but that's balanced out.
 			if ($kontotype[$x] == 'H') {
 				$linjebg = $bgcolor;
@@ -795,4 +812,139 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	print "<!--Function regnskab slut-->\n";
 }
 #################################################################################################
+
+/**
+ * The side of the statement each line of a chart of accounts is on, for Resultat, Resultat/budget, Resultat/sidste år
+ * and Balance on a chart without a Sideskift account (kontotype X). With a Sideskift account finans/rapport.php splits
+ * the chart by account number around it; without one regnskab() splits it by account type:
+ * - a Drift account (D) is on the result side, 'D'; a Status account (S) and a Resultat account (R, the year's result
+ *   in the equity) are on the balance side, 'S';
+ * - a sum account (Z) is on the side of the D, S and R accounts it adds up, those numbered from its fra_kto up to but
+ *   not including its own number, as regnskab() sums them. A sum that adds up accounts of both sides:
+ *   - whose range starts at the first of them, as each sum of the standard chart starts at its group's first account,
+ *     is on the side of that account, so accounts numbered later in the group do not take it along, however many there
+ *     are (e.g. 7450 Leverandører over 7440 and the D accounts 7441 and 7445, or 3820 Andre skatter and 4999 Årets
+ *     resultat with S accounts 3815 and 3816);
+ *   - whose range starts before the first of them, e.g. at its heading as in importfiler/kontoplan2.txt, is on the side
+ *     of most of them, as that first account may be one numbered before the group's own (e.g. 59999 AKTIVER IALT from
+ *     50000 with a D account 50500 before 50800);
+ *   - that adds up at least half of the accounts of each side (e.g. a Balancekontrol over the whole chart), wherever
+ *     its range starts, or that starts before the first of them and adds up as many of each side, goes by its place in
+ *     the chart instead: it is on the side of the first account or settled sum after it, or, when none follows, of the
+ *     last one before it;
+ * - a heading (H) is on the side of the D, S and R accounts between it and the next heading. When they are of both
+ *   sides, it is on the side of the first sum among them that has one, the sum that closes its group, so accounts
+ *   numbered among the other side's accounts do not take it along; without such a sum, on the side of most of them.
+ *   With as many of each, or none, it is on the side of the first line after it that has a side;
+ * - every other line, a sum that adds up no D, S or R account or a line of another type, is on the side of the first
+ *   line after it that has a side, and a line after the last of those is on the side of that last one. In a chart
+ *   without D, S and R accounts no line has a side, ''.
+ *
+ * @param array<int, int|float> $kontonr the chart in account number order, as regnskab() reads it
+ * @param array<int, string|null> $kontotype the account types, with the keys of $kontonr
+ * @param array<int, int|float> $fra_kto the first account each sum account adds up, with the keys of $kontonr
+ * @return array<int, string> 'D', 'S' or '' for each key of $kontonr, in its order
+ */
+function regnskab_kontoside($kontonr, $kontotype, $fra_kto) {
+	$typeSide = array('D' => 'D', 'S' => 'S', 'R' => 'S');
+	$order = array_keys($kontonr);
+	$lines = count($order);
+	// The D, S and R accounts by their type.
+	$account = array();
+	$total = array('D' => 0, 'S' => 0);
+	foreach ($order as $x) {
+		$account[$x] = $typeSide[(string)$kontotype[$x]] ?? '';
+		if ($account[$x]) {
+			$total[$account[$x]]++;
+		}
+	}
+	$own = $account;
+	// A sum goes with the accounts it adds up ('' when it adds up none). Over both sides it goes with the first of them
+	// when its range starts at that account, the one its group starts with, and with most of them when its range starts
+	// before it (at its heading). One that adds up half of each side's accounts or more, or that starts before its first
+	// account and adds up as many of each side, is placed below.
+	$byPlace = array();
+	foreach ($order as $i => $x) {
+		if ($kontotype[$x] != 'Z') {
+			continue;
+		}
+		$found = array('D' => 0, 'S' => 0);
+		$first = '';
+		$firstNr = 0;
+		foreach ($order as $y) {
+			if ($account[$y] && $fra_kto[$x] <= $kontonr[$y] && $kontonr[$y] < $kontonr[$x]) {
+				$found[$account[$y]]++;
+				if (!$first) {
+					$first = $account[$y];
+					$firstNr = $kontonr[$y];
+				}
+			}
+		}
+		if (!$found['D'] || !$found['S']) {
+			$own[$x] = $first;
+		} elseif ($found['D'] * 2 >= $total['D'] && $found['S'] * 2 >= $total['S']) {
+			$byPlace[] = $i;
+		} elseif ($firstNr == $fra_kto[$x]) {
+			$own[$x] = $first;
+		} elseif ($found['D'] != $found['S']) {
+			$own[$x] = ($found['D'] > $found['S']) ? 'D' : 'S';
+		} else {
+			$byPlace[] = $i;
+		}
+	}
+	// Such a sum takes the side of the first line after it that has one so far, or else of the last one before it.
+	$settled = $own;
+	foreach ($byPlace as $i) {
+		$side = '';
+		for ($j = $i + 1; $j < $lines && !$side; $j++) {
+			$side = $settled[$order[$j]];
+		}
+		for ($j = $i - 1; $j >= 0 && !$side; $j--) {
+			$side = $settled[$order[$j]];
+		}
+		$own[$order[$i]] = $side;
+	}
+	// A heading goes with the accounts up to the next heading. Over both sides it goes with the first sum among them that
+	// has a side, the one that closes its group, or without one with most of the accounts; with as many of each, or
+	// none, it is left to the next step.
+	foreach ($order as $i => $x) {
+		if ($kontotype[$x] != 'H') {
+			continue;
+		}
+		$found = array('D' => 0, 'S' => 0);
+		$sum = '';
+		for ($j = $i + 1; $j < $lines && $kontotype[$order[$j]] != 'H'; $j++) {
+			$y = $order[$j];
+			if ($account[$y]) {
+				$found[$account[$y]]++;
+			} elseif (!$sum && $kontotype[$y] == 'Z') {
+				$sum = $own[$y];
+			}
+		}
+		if ($found['D'] && $found['S'] && $sum) {
+			$own[$x] = $sum;
+		} elseif ($found['D'] != $found['S']) {
+			$own[$x] = ($found['D'] > $found['S']) ? 'D' : 'S';
+		}
+	}
+	// A line without a side of its own takes the side of the first line after it that has one.
+	$after = array();
+	$next = '';
+	foreach (array_reverse($order) as $x) {
+		if ($own[$x]) {
+			$next = $own[$x];
+		}
+		$after[$x] = $next;
+	}
+	// A line after the last of those takes the side of that last one.
+	$kontoside = array();
+	$previous = '';
+	foreach ($order as $x) {
+		if ($own[$x]) {
+			$previous = $own[$x];
+		}
+		$kontoside[$x] = $after[$x] ? $after[$x] : $previous;
+	}
+	return $kontoside;
+}
 ?>

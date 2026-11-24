@@ -458,6 +458,31 @@
       }
 
 
+      const closedDays = findClosedDates(closedDates, fromDateData, toDateData)
+      const timeDiff = Math.abs(new Date(toDateData) - new Date(fromDateData))
+      let diffDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1
+      diffDays = diffDays - closedDays.length
+      const fromDate = new Date(fromDateData) / 1000
+      const toDate = new Date(toDateData) / 1000
+      const data = {
+        customer_id: selectedText,
+        item_id: item,
+        from: fromDate,
+        to: toDate,
+        fromDate: fromDateData,
+        toDate: toDateData,
+        days: diffDays
+      }
+      /* const loading = document.querySelector("#loading")
+      loading.style.display = "flex" */
+      const res = await createBooking(data)
+      data.booking_id = res.id
+      // The server refuses days booked since this page loaded (rental.php createBooking): no booking, block or order is made.
+      if (!res.id) {
+        alert(res.msg ?? res)
+        return
+      }
+
       const reservation = document.querySelector(".reservation")
       // check if reservation is checked
       if (reservation.checked) {
@@ -479,26 +504,6 @@
           })
         }
       }
-
-      const closedDays = findClosedDates(closedDates, fromDateData, toDateData)
-      const timeDiff = Math.abs(new Date(toDateData) - new Date(fromDateData))
-      let diffDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1
-      diffDays = diffDays - closedDays.length
-      const fromDate = new Date(fromDateData) / 1000
-      const toDate = new Date(toDateData) / 1000
-      const data = {
-        customer_id: selectedText,
-        item_id: item,
-        from: fromDate,
-        to: toDate,
-        fromDate: fromDateData,
-        toDate: toDateData,
-        days: diffDays
-      }
-      /* const loading = document.querySelector("#loading")
-      loading.style.display = "flex" */
-      const res = await createBooking(data)
-      data.booking_id = res.id
 
       if(settings.toggle_order == 1){
         await createOrder(data)

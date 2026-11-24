@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---finans/regnskab.php --- patch 5.0.0 --- 2026.08.28 ---
+// ---finans/regnskab.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // --------------------------------------------------------------------------
-
+//
 // 20121011 Indsat "and (lukket != 'on' or saldo != 0)" søg 20121011
 // 20121106 Resultat føres ikke ned på resultatkonto. Søg 20121106
 // 20130210 Break ændret til break 1
@@ -62,6 +62,7 @@
 // 20260902 CL/NTR Added tutorial steps + create_tutorial("regnskab") so the Hjælp button in the
 //                top bar works (it had no tutorial to restart); ids budget-link/csv-export added
 //                as anchors. Texts 3500-3503 added to importfiler/tekster.csv.
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
 
 @session_start();
 $s_id=session_id();
@@ -151,7 +152,7 @@ print "<td id='budget-link' width='200px' align='center'>
 
 print "</tbody></table></td>";
 
-print "<td id='tutorial-help' width='5%' style='$buttonStyle'>
+print "<td id='tutorial-help' hidden width='5%' style='$buttonStyle'>
     <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
     $help_icon ".findtekst('2564|Hjælp', $sprog_id)."
     </button></td>";

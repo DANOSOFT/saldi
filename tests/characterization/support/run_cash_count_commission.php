@@ -6,6 +6,8 @@
 //                The cash count commission settlement must post both sides, settle each sale once and build its own payment list.
 //                It runs the real include against an isolated schema in the database named by SALDI_COMMISSION_DSN (set by the test).
 //                It prints one "PASS: <label>" per check, and "FAIL: <label>" plus exit 1 on the first failure.
+// 20261114 CL/ASR «Fra liste» is modelled by betalinger.openpost_id, which the settlement writes with ordre_id 0 and debitor/betalinger.php reads since the testlab merge.
+// 20261120 CL/ASR The two journal-period checks settle a fixed day, 15-12-2026, instead of today: on 20-11-2026 today was the day of order 10, which this runner leaves unsettled on purpose, so the checks failed on that date.
 // 20261120 CL/SZ MB-175 The last two checks settle a fixed day instead of today.
 //                On 2026-11-20 today matched the unsettled order 10, so the settlement stopped and the test failed.
 
@@ -92,12 +94,13 @@ function sideEffects() {
 }
 /**
  * Open posts «Fra liste» (debitor/betalinger.php) offers: open, negative, «Afr:», not from the journal,
- * and no payment with ordre_id = the post's refnr.
+ * and no payment with openpost_id = the post's id.
  * @return string
  */
 function offeredByFraListe() {
+	// Fra liste matches a payment's openpost_id against the post's id (testlab merge), no longer its ordre_id against the refnr.
 	return value("SELECT count(*) FROM openpost WHERE udlignet != 1 AND amount < 0 AND beskrivelse LIKE 'Afr:%' AND coalesce(kladde_id, 0) = 0
-		AND refnr NOT IN (SELECT ordre_id FROM betalinger WHERE ordre_id <> 0)");
+		AND id NOT IN (SELECT openpost_id FROM betalinger WHERE openpost_id IS NOT NULL)");
 }
 /** @return string */
 function balance() { return value('SELECT coalesce(sum(coalesce(debet,0)) - sum(coalesce(kredit,0)),0)::numeric(15,2) FROM transaktioner'); }
@@ -120,8 +123,9 @@ try {
 	pg_query($connection, "CREATE TABLE transaktioner (id serial, bilag int, transdate date, beskrivelse text, kontonr int, faktura text, debet numeric,
 		kredit numeric, kladde_id int, afd int, logdate date, logtime text, projekt text, ansat int, ordre_id int, kasse_nr int, report_number int, moms numeric)");
 	pg_query($connection, "CREATE TABLE betalingsliste (id serial, listedate date, listenote text, oprettet_af text, hvem text, tidspkt text, bogfort text)");
+	// openpost_id: the open post a payment pays, as includes/opretfunc.php creates betalinger since the testlab merge.
 	pg_query($connection, "CREATE TABLE betalinger (id serial, bet_type text, fra_kto text, egen_ref text, til_kto text, modt_navn text, kort_ref text,
-		belob text, betalingsdato text, valuta text, bilag_id int, ordre_id int, liste_id int)");
+		belob text, betalingsdato text, valuta text, bilag_id int, ordre_id int, liste_id int, openpost_id int)");
 
 	pg_query($connection, "INSERT INTO kontoplan VALUES (1110,9,''),(1120,9,'')");
 	pg_query($connection, "INSERT INTO grupper (art,kodenr,fiscal_year,box2) VALUES ('DG','1',8,'9999'),('DG','1',9,'5600')");
@@ -155,12 +159,13 @@ try {
 		'The new list holds one payment per customer for the amount just settled');
 	check(offeredByFraListe() === '0' && value("SELECT count(*) FROM openpost WHERE faktnr <> ''") === '0',
 		'The paid open posts are linked to their payments, so «Fra liste» skips them, and have an empty faktnr');
+	// The payment carries its open post in openpost_id and ordre_id 0 (testlab merge), not the open post's refnr in ordre_id.
 	check(value("SELECT string_agg(konto_nr || ':' || refnr, ',' ORDER BY konto_nr) FROM openpost") === '1001:2,1002:1'
-		&& value("SELECT count(*) FROM betalinger b JOIN openpost p ON b.ordre_id = p.refnr AND b.egen_ref LIKE 'Afr: ' || p.konto_nr || ' %'") === '2',
-		"Each customer's open post and payment point to one of that customer's own settled sales");
+		&& value("SELECT count(*) FROM betalinger b JOIN openpost p ON b.openpost_id = p.id AND b.egen_ref LIKE 'Afr: ' || p.konto_nr || ' %' WHERE b.ordre_id = 0") === '2',
+		"Each customer's open post points to one of that customer's own settled sales, and the payment to that open post with no order");
 	pg_query($connection, "CREATE TEMP TABLE kept_payment AS SELECT * FROM betalinger WHERE egen_ref LIKE 'Afr: 1002 %'");
 	pg_query($connection, "DELETE FROM betalinger WHERE egen_ref LIKE 'Afr: 1002 %'");
-	check(offeredByFraListe() === '1' && value("SELECT konto_nr FROM openpost WHERE refnr NOT IN (SELECT ordre_id FROM betalinger WHERE ordre_id <> 0)") === '1002',
+	check(offeredByFraListe() === '1' && value("SELECT konto_nr FROM openpost WHERE id NOT IN (SELECT openpost_id FROM betalinger WHERE openpost_id IS NOT NULL)") === '1002',
 		"When one customer's payment is deleted from the list, «Fra liste» offers only that customer's post again");
 	pg_query($connection, "INSERT INTO betalinger SELECT * FROM kept_payment");
 	check(value('SELECT string_agg(id::text, \',\' ORDER BY id) FROM ordrer WHERE settletime > 0 AND settletime <> 1700000000') === '1,2',

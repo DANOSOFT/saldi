@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026-2026 Danosoft ApS
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260916 SS Roles & permissions layer (spec part 2): role -> permission levels, compatibility with the legacy rettigheder string (a role is rendered into brugere.rettigheder so old checks keep working), require_permission(), nearest-role suggestion for migration, and the audit log.
 // 20260928 SS Derived keys (pos.kasse from Debitorordre) and one-time seeding of new keys into roles.
@@ -44,9 +44,12 @@
 //                 perm_review_done() no longer deletes the custom role a user leaves, so the change can be undone by giving the role back.
 // 20261105 CL/ASR A rights string position is read like the old module gate reads it (perm_legacy_positions()): any character from '1' up is access.
 //                 The migration turned '3'..'9' into no access and wrote that back, so a user with such a string lost every module at the first login.
+// 20261110 CDX/ASR Batch role reads, refreshable request permissions, and checked atomic role writes.
+// 20261110 CDX/ASR Preserve actual source levels when new independent permissions are introduced.
 // 20261113 CDX/NTR Read and write the built-in role flag as is_built_in throughout the permission helpers.
 
 include_once(__DIR__ . '/permissionRegistry.php');
+include_once(__DIR__ . '/roleTransactions.php');
 
 // ------------------------------------------------------------------ levels
 
@@ -132,7 +135,9 @@ function perm_levels_from_legacy(string $rettigheder): array
 	$derived = array();
 	foreach (permission_registry() as $key => $def) {
 		if (!$def['legacy']) {
-			if (isset($def['derive_keys'])) {
+			if (isset($def['inherit_from'])) {
+				$levels[$key] = 'none'; // Resolved after all source keys have been read.
+			} elseif (isset($def['derive_keys'])) {
 				$derived[$key] = $def['derive_keys'];
 				$levels[$key] = 'none';
 			} elseif (isset($def['derive'])) {
@@ -153,6 +158,11 @@ function perm_levels_from_legacy(string $rettigheder): array
 			}
 		}
 		$levels[$key] = $best;
+	}
+	foreach (permission_registry() as $key => $def) {
+		if (isset($def['inherit_from'])) {
+			$levels[$key] = $levels[$def['inherit_from']] ?? 'none';
+		}
 	}
 	// Keys derived from other keys (Oversigt blocks): read when any of them is open; '*' = always (everyone sees Oversigt today).
 	foreach ($derived as $key => $from) {
@@ -207,20 +217,27 @@ function perm_legacy_string(array $levels): string
  */
 function perm_levels_from_role(int $roleId): array
 {
-	$levels = array();
-	foreach (permission_registry() as $key => $def) {
-		$levels[$key] = 'none';
+	$all = perm_levels_from_roles(array($roleId));
+	return $all[$roleId];
+}
+
+/** @return array<int, array<string, string>> Complete permission maps in one query. */
+function perm_levels_from_roles(array $roleIds): array
+{
+	$empty = array_fill_keys(array_keys(permission_registry()), 'none');
+	$ids = array_values(array_unique(array_map('intval', $roleIds)));
+	$all = array_fill_keys($ids, $empty);
+	$positive = array_filter($ids, function ($id) { return $id > 0; });
+	if (!$positive || !perm_tables_ready()) {
+		return $all;
 	}
-	if (!perm_tables_ready() || $roleId <= 0) {
-		return $levels;
-	}
-	$q = db_select("select permission_key, level from role_permissions where role_id = $roleId", __FILE__ . " linje " . __LINE__);
+	$q = db_select('select role_id, permission_key, level from role_permissions where role_id in (' . implode(',', $positive) . ')', __FILE__ . ' linje ' . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (isset($levels[$r['permission_key']])) {
-			$levels[$r['permission_key']] = perm_level_valid((string) $r['level']);
+		if (isset($empty[$r['permission_key']])) {
+			$all[(int) $r['role_id']][$r['permission_key']] = perm_level_valid((string) $r['level']);
 		}
 	}
-	return $levels;
+	return $all;
 }
 
 /**
@@ -523,16 +540,23 @@ function perm_refuse(string $what, string $page): void
  */
 function perm_level(string $key): string
 {
+	$levels = perm_current_levels();
+	return isset($levels[$key]) ? $levels[$key] : 'none';
+}
+
+/** @return array<string, string> Refresh after locking roles, before authorizing a write. */
+function perm_current_levels(bool $refresh = false): array
+{
 	global $bruger_id, $rettigheder, $revisor;
 	static $cache = null;
-	if ($cache === null) {
+	if ($cache === null || $refresh) {
 		if (!empty($revisor) && perm_enforcement_mode() === 'deny') {
 			$cache = perm_levels_from_role(perm_role_id_by_key('revisor'));
 		} else {
 			$cache = perm_user_levels((int) $bruger_id, (string) $rettigheder);
 		}
 	}
-	return isset($cache[$key]) ? $cache[$key] : 'none';
+	return $cache;
 }
 
 function perm_role_id_by_key(string $roleKey): int
@@ -622,14 +646,14 @@ function perm_role_description(array $role, int $sprogId): string
  */
 function perm_save_role_levels(int $roleId, array $levels): void
 {
-	db_modify("delete from role_permissions where role_id = $roleId", __FILE__ . " linje " . __LINE__);
+	perm_write("delete from role_permissions where role_id = $roleId");
 	foreach (permission_registry() as $key => $def) {
 		$level = isset($levels[$key]) ? perm_level_valid($levels[$key]) : 'none';
 		if ($level === 'write' && !empty($def['readonly'])) {
 			$level = 'read'; // Oversigt keys are read-only (addendum 4 §2.4)
 		}
 		if ($level !== 'none') {
-			db_modify("insert into role_permissions (role_id, permission_key, level) values ($roleId, '" . db_escape_string($key) . "', '$level')", __FILE__ . " linje " . __LINE__);
+			perm_write("insert into role_permissions (role_id, permission_key, level) values ($roleId, '" . db_escape_string($key) . "', '$level')");
 		}
 	}
 	perm_sync_role($roleId);
@@ -649,14 +673,14 @@ function perm_sync_user(int $brugerId): void
 	}
 	$legacy = perm_legacy_string(perm_levels_from_role((int) $r['role_id']));
 	perm_hide_revenue_on_settings_loss("id = $brugerId", $legacy);
-	db_modify("update brugere set rettigheder = '$legacy' where id = $brugerId", __FILE__ . " linje " . __LINE__);
+	perm_write("update brugere set rettigheder = '$legacy' where id = $brugerId");
 }
 
 function perm_sync_role(int $roleId): void
 {
 	$legacy = perm_legacy_string(perm_levels_from_role($roleId));
 	perm_hide_revenue_on_settings_loss("role_id = $roleId", $legacy);
-	db_modify("update brugere set rettigheder = '$legacy' where role_id = $roleId", __FILE__ . " linje " . __LINE__);
+	perm_write("update brugere set rettigheder = '$legacy' where role_id = $roleId");
 }
 
 /**
@@ -701,18 +725,18 @@ function perm_within_own(array $levels): bool
  *
  * @return array{id: int, key: string, distance: int}|null
  */
-function perm_suggest_role(string $rettigheder): ?array
+function perm_suggest_role(string $rettigheder, ?array $roles = null, ?array $roleLevels = null): ?array
 {
 	if (!perm_tables_ready()) {
 		return null;
 	}
 	$target = perm_levels_from_legacy($rettigheder);
 	$best = null;
-	foreach (perm_roles() as $role) {
+	foreach ($roles ?? perm_roles() as $role) {
 		if (!$role['is_built_in']) {
 			continue;
 		}
-		$levels = perm_levels_from_role($role['id']);
+		$levels = $roleLevels[$role['id']] ?? perm_levels_from_role($role['id']);
 		if (!perm_suggestion_safe($role, $rettigheder, $levels)) {
 			continue;
 		}
@@ -903,7 +927,10 @@ function perm_seed_new_keys(array $existing, array $fresh = array()): void
 				}
 				$level = 'none';
 				$freshBuiltIn = isset($builtIn[$role['id']]) && isset($fresh[$builtIn[$role['id']]]);
-				if (isset($registry[$key]['derive_keys']) && !$freshBuiltIn) {
+				if (isset($registry[$key]['inherit_from'])) {
+					// Keep the actual source permission for customized standard roles too.
+					$level = $levels[$registry[$key]['inherit_from']] ?? 'none';
+				} elseif (isset($registry[$key]['derive_keys']) && !$freshBuiltIn) {
 					// Oversigt blocks at upgrade (addendum 4 §5): derived from the role's module keys, built-in roles too, so nobody
 					// loses a block. A built-in role created in this run (a new company) takes the §4 table below instead.
 					$level = perm_derive_level($registry[$key]['derive_keys'], $levels);
@@ -946,16 +973,16 @@ function perm_normalize_legacy(string $rettigheder): string
  * (spec §6.3). Only roles perm_suggestion_safe() allows take part, so Administrator is never suggested
  * and there may be no answer: the custom role the user has then stays (Behold nuværende).
  */
-function perm_covering_role(string $rettigheder): ?array
+function perm_covering_role(string $rettigheder, ?array $roles = null, ?array $roleLevels = null): ?array
 {
 	$target = perm_levels_from_legacy(perm_normalize_legacy($rettigheder));
 	$rank = perm_level_rank();
 	$best = null;
-	foreach (perm_roles() as $role) {
+	foreach ($roles ?? perm_roles() as $role) {
 		if (!$role['is_built_in']) {
 			continue;
 		}
-		$levels = perm_levels_from_role($role['id']);
+		$levels = $roleLevels[$role['id']] ?? perm_levels_from_role($role['id']);
 		if (!perm_suggestion_safe($role, $rettigheder, $levels)) {
 			continue;
 		}

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitor_kommission.php -----ver 5.0.0 ----2026-10-27--------------
+// --- debitor/debitor_kommission.php -----ver 5.1.1 ----2026-11-21--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,8 +28,9 @@
 // 20260915 CDX/PHR Restore server sender/Reply-To and own SMTP for MySale invitations.
 // 20261027 NTR - CodeRabbit Review - if there's 2 semicolons/commas in a row or it's the a end comma, skip the empty address when adding recipients to PHPMailer. As well as skipping duplicate addresses by using array_unique() on the list of recipients. This prevents PHPMailer from throwing an exception when trying to add an empty or duplicate address.
 // 20261027 CL/NTR Trim and case-insensitively deduplicate invitation recipients before adding them.
-
-
+// 20261121 CL/ASR includes/grid.php is loaded with include_once, so Kommission opened through debitor.php?valg=kommission, which has loaded it already, no longer dies redeclaring its functions.
+//
+//
 #ob_start();
 @session_start();
 $s_id=session_id();
@@ -64,7 +65,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style.js.php");
-include(get_relative() . "includes/grid.php");
+include_once(get_relative() . "includes/grid.php"); // debitor.php?valg=kommission has loaded it already
 
 $id = if_isset($_GET,NULL,'id');
 $returside=if_isset($_GET,NULL,'returside');

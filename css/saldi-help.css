@@ -1,0 +1,386 @@
+/* ---- css/saldi-help.css --- ver 5.1.0 --- 2026.11.13 ---
+   20261107 CL/ASR Created: Hjælp variant B. The topbar slot (the Saldi AI symbol in a 28 px disc + "Hjælp"), the help
+                   panel beside the page (docked, overlay or bottom sheet), its 44 px strip and the flying mascot.
+                   Ported from prototype_hjaelp/help/core.css and surface-b.css: the light app kit, calm rows, 1 px
+                   hairlines, a shadow only while the panel floats, no scrim, no pills, chips, uppercase or hover lift.
+                   Loaded by index/main.php only for tenants with the panel (SALDI_HELP_PANEL, settings help/panel).
+                   The symbol's form is the landing page's and never changes; only its box scales.
+   20261107 CL/ASR Review round 1: the token shim has dark values too, so a hovered or selected row stays readable
+                   under data-theme dark/system; focus outlines use --focus.
+   20261107 CL/ASR Review round 2: .hsb-keyhit, a shortcut or code of the page found by search.
+   20261108 CL/ASR Ask first (spec §18): the ask block (heading, field with a send button, Tastaturgenveje and Kontakt
+                   support as quiet buttons), the problem card and the folding "Lær siden at kende".
+   20261113 CL/ASR The head's title wraps (at most three lines) instead of cutting a long page name such as
+                   "Indstillinger: Brugere og ansatte" off with an ellipsis. */
+
+/* ===== 1. token shim: the kit tokens the shell lacks (everything else from saldi-theme.css and saldi-fonts.css) ===== */
+#saldi-help, .saldi-help-flyer {
+	--hover: #eef2f8;
+	--border-field: #c6d2e4;
+	--border-field-hover: #a9b8cf;
+	--focus: #1B68BD;
+	--focus-ring: 0 0 0 2px rgba(79,160,238,.45);
+	--user-primary: #114691;
+	--user-primary-hover: #0e3a78;
+	--row-sel: #eaf3fd;
+}
+/* The shim's light values on a dark surface would put light text on a near-white hover or selected row. saldi-theme.css
+   re-maps --surface/--text under the same two selectors, so the shim follows them there (the shell is light on this branch). */
+[data-theme="dark"] #saldi-help, [data-theme="dark"] .saldi-help-flyer {
+	--hover: rgba(255,255,255,.06);
+	--row-sel: rgba(79,160,238,.16);
+	--border-field: #34466e;
+	--border-field-hover: #4a5f8c;
+	--focus: #4FA0EE;
+}
+@media (prefers-color-scheme: dark) {
+	[data-theme="system"] #saldi-help, [data-theme="system"] .saldi-help-flyer {
+		--hover: rgba(255,255,255,.06);
+		--row-sel: rgba(79,160,238,.16);
+		--border-field: #34466e;
+		--border-field-hover: #4a5f8c;
+		--focus: #4FA0EE;
+	}
+}
+
+/* ===== 2. font reset: sidebar_style.css sets Segoe UI and zero margins on '*' ===== */
+#saldi-help, #saldi-help *, .saldi-help-flyer { font-family: var(--font-ui); box-sizing: border-box; }
+#saldi-help h2, #saldi-help h3, #saldi-help .hc-sec { font-family: var(--font-display); }
+/* the other orienting lines of the prototype in Saldi Grotesk too; the page name next to the title in Inter */
+#saldi-help .hc-field__h, #saldi-help .hc-results__grp, #saldi-help .hsb-keyhead { font-family: var(--font-display); }
+#saldi-help .hsb-title__q { font-family: var(--font-ui); }
+
+/* ===== 3. the topbar slot: symbol in the 28 px disc + "Hjælp" from a 1240 px viewport ===== */
+.topbar-help { position: relative; display: flex; align-items: center; gap: 8px; height: 34px; min-width: 34px; padding: 0 3px; border: 0; border-radius: 10px; background: transparent; color: var(--topbar-txt); cursor: pointer; }
+.topbar-help:hover, .topbar-help[aria-expanded="true"] { background: var(--topbar-hover); }
+.topbar-help:focus-visible { outline: 2px solid var(--topbar-accent); outline-offset: 2px; }
+.topbar-help .ai-avatar { width: 28px; height: 28px; transition: none; }
+.topbar-help .ai-avatar svg { width: 14px; height: 17.5px; }
+.topbar-help .ai-avatar--seat:not([data-here="true"]) { background: #F7F4EF; border-color: #E3DCD2; }
+.topbar-help .ai-avatar--seat:not([data-here="true"]) svg { visibility: visible; opacity: .3; }
+.topbar-help-lbl { display: none; font-family: var(--font-display); font-weight: 500; font-size: .8125rem; line-height: 1; color: var(--topbar-txt); white-space: nowrap; }
+@media (min-width: 1240px) { .topbar-help { padding: 0 11px 0 3px; } .topbar-help-lbl { display: inline; } }
+
+/* ===== 4. dark mode: the disc keeps its light fill in every theme; the label, hover and panel follow the tokens,
+   which saldi-theme.css re-maps under [data-theme="dark"] / [data-theme="system"]. No extra rules. ===== */
+
+/* ===== 5. the Saldi AI symbol (verbatim, prototype_hjaelp/help/core.css:30-73 = landing-chat-wt/index.html:631-656, 707-712) ===== */
+@keyframes saldiRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.ai-avatar { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 999px; background: #F7F4EF; border: 1px solid #E3DCD2 }
+.ai-avatar svg { display: block; width: 20px; height: 25px; overflow: visible }
+.ai-avatar .sa-stroke, .ai-avatar .sa-track { fill: none; stroke-width: 5.55; stroke-linecap: round; stroke-linejoin: round }
+.ai-avatar .sa-track { stroke: #EDE8E1; opacity: 0 }
+.ai-avatar .sa-ring { fill: none; stroke: #8B33D4; opacity: 0; transform-box: fill-box; transform-origin: center }
+.ai-avatar .sa-ring--outer { stroke-width: .7 }
+.ai-avatar .sa-ring--inner { stroke-width: .9 }
+.ai-avatar .sa-glow, .ai-avatar .sa-halo { fill: #D9822B; opacity: 0 }
+.ai-avatar .sa-dot { transform-box: fill-box; transform-origin: center }
+.ai-avatar[data-ai-state="thinking"] .sa-ring--outer { opacity: .2; animation: saPulse 1.6s ease-in-out .25s infinite }
+.ai-avatar[data-ai-state="thinking"] .sa-ring--inner { opacity: .4; animation: saPulse 1.6s ease-in-out infinite }
+.ai-avatar[data-ai-state="answering"] .sa-track { opacity: 1 }
+.ai-avatar[data-ai-state="answering"] .sa-stroke { stroke-dasharray: 100; animation: saDraw 1.4s ease-in-out both }
+.ai-avatar[data-ai-state="signal"] .sa-glow { opacity: .18; animation: saGlow 1.8s ease-in-out infinite }
+.ai-avatar[data-ai-state="signal"] .sa-halo { opacity: .3 }
+.ai-avatar[data-ai-state="signal"] .sa-dot { fill: #D9822B }
+.ai-avatar[data-ai-state="blink"] .sa-dot { animation: saBlink .4s ease-in-out 1 }
+@keyframes saPulse { 0%, 100% { opacity: .2; transform: scale(1) } 50% { opacity: .55; transform: scale(1.18) } }
+@keyframes saDraw { 0% { stroke-dashoffset: 100 } 70%, 100% { stroke-dashoffset: 0 } }
+@keyframes saGlow { 0%, 100% { opacity: .18 } 50% { opacity: .5 } }
+@keyframes saBlink { 0%, 100% { transform: scaleY(1) } 40%, 60% { transform: scaleY(.12) } }
+/* seats: an empty round place until the mascot has landed (landing, for dark windows) */
+.ai-avatar--seat:not([data-here="true"]) { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.16) }
+.ai-avatar--seat:not([data-here="true"]) svg { visibility: hidden }
+/* the same empty seat on a light surface (the panel head): kit hairline, no fill */
+.ai-avatar--seat.ai-avatar--light:not([data-here="true"]) { background: var(--surface-2, #f7f9fc); border-color: var(--border, #e4e8ef) }
+/* sizes used by the help layer (the form never changes; only the box scales) */
+.ai-avatar.ai-avatar--28 { width: 28px; height: 28px } .ai-avatar.ai-avatar--28 svg { width: 14px; height: 17.5px }
+.ai-avatar.ai-avatar--20 { width: 20px; height: 20px } .ai-avatar.ai-avatar--20 svg { width: 10px; height: 12.5px }
+@media (prefers-reduced-motion: reduce) {
+	.ai-avatar * { animation: none !important }
+	.ai-avatar[data-ai-state="answering"] .sa-track { opacity: 0 }
+	.ai-avatar[data-ai-state="answering"] .sa-stroke { stroke-dasharray: none }
+}
+
+/* the one mascot that flies (prototype core.css:140-143). Above .home-section, below the sidebar (z 100). */
+.saldi-help-flyer { position: fixed; left: 0; top: 0; z-index: 90; width: 40px; height: 40px; pointer-events: none; visibility: hidden; transform-origin: 50% 50%; will-change: transform }
+.saldi-help-flyer[data-on="true"] { visibility: visible }
+.saldi-help-flyer .ai-avatar { width: 40px; height: 40px }
+.saldi-help-flyer::before { content: ""; position: absolute; inset: 0; border-radius: 999px; box-shadow: 0 12px 30px -12px rgba(139,51,212,0.6), 0 3px 10px rgba(18,16,23,0.16); opacity: var(--ai-shadow, 0); pointer-events: none }
+
+/* screen-reader only (the polite live region on body, labels) */
+.hc-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0 }
+
+/* ===== 6. the panel ===== */
+/* placement (spec §1.4): the frame narrows when docked; the panel lies over the page (no scrim) when not */
+.home-section .home-content { position: relative; }
+.home-section .home-content > #iframe_a { flex: 1 1 auto; min-width: 0; width: auto; }
+#saldi-help { display: flex; flex-direction: column; overflow: hidden; background: var(--surface); color: var(--text); border-left: 1px solid var(--border); }
+#saldi-help[hidden] { display: none !important; }
+#saldi-help[data-mode="docked"]  { position: relative; flex: 0 0 400px; align-self: stretch; }
+/* 20261112 ASR the brand shell's frame (css/sidebar_style.css): the page and the docked panel are one card in it, so the
+   page's top-right corner goes square and the panel takes the 6 px corner (no navy notch between them); the panel laid
+   over the page takes the corner it covers */
+.home-section > .home-content:has(> #saldi-help[data-mode="docked"]:not([hidden])) > #iframe_a { border-top-right-radius: 0; }
+.home-section > .home-content > #saldi-help[data-mode="docked"],
+.home-section > .home-content > #saldi-help[data-mode="overlay"] { border-top-right-radius: 6px; }
+#saldi-help[data-mode="overlay"] { position: absolute; top: 0; right: 0; bottom: 0; width: 400px; max-width: 100%; z-index: 45; }
+#saldi-help[data-mode="sheet"]   { position: fixed; left: 8px; right: 8px; bottom: 8px; top: auto; width: auto; max-height: 85dvh; z-index: 45; border-radius: 16px; }
+#saldi-help:focus { outline: none; }
+#saldi-help[data-mode="overlay"] { box-shadow: -1px 0 2px rgba(11,26,58,.04), -14px 0 32px rgba(11,26,58,.12); }
+#saldi-help[data-mode="docked"] { box-shadow: none; }
+#saldi-help[data-mode="sheet"] { border: 1px solid var(--border); box-shadow: 0 -6px 30px rgba(11,26,58,.16); }
+#saldi-help.hsb-enter { animation: hsbIn 160ms cubic-bezier(.4,0,.2,1); }
+#saldi-help.hsb-leave { animation: hsbOut 120ms cubic-bezier(.4,0,1,1) forwards; pointer-events: none; }
+#saldi-help[data-mode="sheet"].hsb-enter { animation-name: hsbUp; }
+#saldi-help[data-mode="sheet"].hsb-leave { animation-name: hsbDown; }
+@keyframes hsbIn { from { opacity: 0; transform: translateX(8px) } to { opacity: 1; transform: none } }
+@keyframes hsbOut { from { opacity: 1; transform: none } to { opacity: 0; transform: translateX(8px) } }
+@keyframes hsbUp { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none } }
+@keyframes hsbDown { from { opacity: 1; transform: none } to { opacity: 0; transform: translateY(16px) } }
+
+/* light kit base (prototype core.css .hc-root) */
+.hc-root { font-size: .8125rem; line-height: 1.45; color: var(--text); text-align: left; letter-spacing: normal; text-transform: none; }
+.hs-b [hidden] { display: none !important; }
+.hs-b :focus-visible { outline-color: var(--focus); }
+.hs-b p, .hs-b ol, .hs-b ul, .hs-b h2, .hs-b h3 { margin: 0; }
+.hc-sec { margin: 0; padding: 0; font-weight: 600; font-size: .8125rem; line-height: 1.3; color: var(--text); }
+.hc-muted { color: var(--text-2); }
+.hc-hidden { display: none !important; }
+
+/* buttons: one filled primary in the panel at most (the support form's Send) */
+.hs-b .hc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--border-field); border-radius: 4px; background: var(--surface); color: var(--text); font-weight: 500; font-size: .75rem; line-height: 1; cursor: pointer; white-space: nowrap; transition: background-color 140ms, border-color 140ms; }
+.hs-b .hc-btn:hover { background: var(--hover); border-color: var(--border-field-hover); }
+.hs-b .hc-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.hs-b .hc-btn:disabled { opacity: .55; cursor: default; }
+.hs-b .hc-btn--primary { background: var(--user-primary); border-color: var(--user-primary); color: #fff; }
+.hs-b .hc-btn--primary:hover { background: var(--user-primary-hover); border-color: var(--user-primary-hover); }
+.hs-b .hc-btn--ghost { border-color: transparent; background: none; color: var(--text-2); }
+.hs-b .hc-btn--ghost:hover { background: var(--hover); border-color: transparent; color: var(--text); }
+.hs-b .hc-btn svg { width: 16px; height: 16px; flex: none; }
+.hs-b .hc-link { padding: 0; border: 0; background: none; color: var(--link); font-size: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-align: left; }
+.hs-b .hc-link:hover { color: var(--text); }
+.hs-b .hc-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+.hs-b .hc-x { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: none; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--text-2); cursor: pointer; }
+.hs-b .hc-x:hover { background: var(--hover); color: var(--text); }
+.hs-b .hc-x:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.hs-b .hc-x svg { width: 16px; height: 16px; }
+
+/* calm rows: icon · title · grey description · chevron. No zebra, no tiles, no chips. */
+.hs-b .hc-rows { list-style: none; margin: 0; padding: 0; }
+.hs-b .hc-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 7px 8px; border: 0; border-radius: 6px; background: none; color: var(--text); font-size: .8125rem; line-height: 1.35; text-align: left; text-decoration: none; cursor: pointer; }
+.hs-b .hc-row:hover { background: var(--hover); }
+.hs-b .hc-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.hs-b .hc-row:disabled { opacity: .55; cursor: default; }
+.hs-b .hc-row:disabled:hover { background: none; }
+.hs-b .hc-row[aria-selected="true"] { background: var(--row-sel); }
+.hs-b .hc-row__ic { flex: none; width: 18px; height: 18px; color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; }
+.hs-b .hc-row__ic svg { width: 18px; height: 18px; }
+.hs-b .hc-row__ic .ai-avatar { width: 20px; height: 20px; }
+.hs-b .hc-row__ic .ai-avatar svg { width: 10px; height: 12.5px; }
+.hs-b .hc-row__txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.hs-b .hc-row__t { font-weight: 500; overflow-wrap: anywhere; }
+.hs-b .hc-row__d { font-size: .75rem; color: var(--text-2); overflow-wrap: anywhere; }
+.hs-b .hc-row__chev { flex: none; width: 16px; height: 16px; color: var(--text-3); transition: transform 140ms; }
+.hs-b .hc-row[aria-expanded="true"] .hc-row__chev { transform: rotate(90deg); }
+.hs-b .hc-row--ask .hc-row__t { font-weight: 600; }
+.hs-b .hc-kbd { flex: none; display: inline-block; min-width: 20px; padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-2); color: var(--text-2); font-weight: 500; font-size: .6875rem; line-height: 1.5; text-align: center; white-space: nowrap; }
+
+/* ---- head: seat · "Hjælp Kassekladde 45" · Fastgør · × ---- */
+.hs-b .hsb-head { flex: none; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 10px 10px 16px; border-bottom: 1px solid var(--border); }
+.hs-b .hsb-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.hs-b .hsb-title { margin: 0; font-weight: 600; font-size: .9375rem; line-height: 1.25; color: var(--text); overflow-wrap: break-word; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.hs-b .hsb-title__q { margin-left: 0; font-family: var(--font-ui); font-weight: 400; font-size: .8125rem; line-height: 1.25; color: var(--text-2); }
+.hs-b .hsb-pin { flex: none; gap: 5px; padding: 0 8px 0 6px; color: var(--text-2); }
+.hs-b .hsb-pin:hover { color: var(--text); }
+.hs-b .hsb-pin[aria-pressed="true"] { color: var(--text); }
+.hs-b .hsb-pin[aria-pressed="true"] .hsb-pin__head { fill: currentColor; }
+
+/* ---- body: one scrolling column ---- */
+.hs-b .hsb-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 20px; padding: 14px 16px 0; }
+.hs-b .hsb-body::after { content: ""; flex: none; height: 2px; }
+.hs-b .hsb-h { margin: 0 0 6px; }
+.hs-b .hsb-about__t + .hsb-about__t { margin-top: 6px; }
+.hs-b .hsb-list { margin: 0 -8px; }
+.hs-b .hsb-notice { margin: -8px 0 0; padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); }
+.hs-b .hsb-notice .hc-btn { margin-top: 8px; }
+
+/* search / ask field */
+.hs-b .hc-search { position: relative; }
+.hs-b .hc-search__box { position: relative; display: flex; align-items: center; }
+.hs-b .hc-search__ic { position: absolute; left: 9px; top: 50%; width: 16px; height: 16px; margin-top: -8px; color: var(--text-3); pointer-events: none; }
+.hs-b .hc-search__ic svg { width: 16px; height: 16px; display: block; }
+.hs-b .hc-input { width: 100%; height: 32px; margin: 0; padding: 0 10px 0 32px; border: 1px solid var(--border-field); border-radius: 6px; background: var(--surface); color: var(--text); font-size: .8125rem; line-height: 1; }
+.hs-b .hc-input:hover { border-color: var(--border-field-hover); }
+.hs-b .hc-input:focus { outline: none; border-color: var(--focus); box-shadow: var(--focus-ring); }
+.hs-b .hc-input::placeholder { color: var(--text-2); opacity: 1; }
+.hs-b .hc-input::-webkit-search-cancel-button { display: none; }
+.hs-b .hc-results { margin: 8px -8px 0; }
+.hs-b .hc-results__grp { margin: 10px 8px 2px; font-family: var(--font-display); font-weight: 600; font-size: .75rem; line-height: 1.3; color: var(--text-2); }
+.hs-b .hc-results > .hc-contactcard { margin: 4px 8px 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+
+/* ---- ask block (spec §18): "Hvad kan jeg hjælpe med?", the field, anything may be asked, shortcuts and support ---- */
+.hs-b .hsb-ask { display: flex; flex-direction: column; gap: 8px; }
+.hs-b .hsb-ask__h { margin: 0; font-weight: 600; font-size: .9375rem; line-height: 1.3; color: var(--text); }
+.hs-b .hsb-ask .hc-input { height: 36px; padding-right: 38px; font-size: .875rem; }
+.hs-b .hc-search__send { position: absolute; right: 4px; top: 50%; width: 28px; height: 28px; margin-top: -14px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--user-primary); cursor: pointer; }
+.hs-b .hc-search__send:hover { background: var(--hover); }
+.hs-b .hc-search__send:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.hs-b .hc-search__send svg { width: 16px; height: 16px; display: block; }
+.hs-b .hsb-ask__sub { margin: 0; font-size: .75rem; line-height: 1.4; color: var(--text-2); }
+.hs-b .hsb-quick { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: -2px 0 0 -10px; }
+.hs-b .hsb-quick__btn svg { width: 16px; height: 16px; flex: none; }
+.hs-b .hsb-quick__btn[aria-expanded="true"] { color: var(--text); }
+.hs-b .hsb-keysbox { margin: 0 -8px; padding: 2px 8px 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); }
+.hs-b .hsb-keysbox .hsb-keylist { margin: 0; }
+.hs-b .hsb-ask.is-searching .hsb-ask__sub, .hs-b .hsb-ask.is-searching .hsb-quick, .hs-b .hsb-ask.is-searching .hsb-keysbox { display: none; }
+
+/* ---- a problem the page shows: first, with its steps open; one calm accent, no scrim ---- */
+.hs-b .hsb-problem { padding: 8px 8px 2px 10px; border: 1px solid var(--border); border-left: 3px solid var(--bad, #c2410c); border-radius: 6px; background: var(--surface-2); }
+.hs-b .hsb-problem .hsb-h { margin: 0 0 2px; }
+.hs-b .hsb-problem .hsb-list { margin: 0 -4px; }
+
+/* ---- "Lær siden at kende": the page's guidance, folded for those who know it ---- */
+.hs-b .hsb-learn { display: flex; flex-direction: column; gap: 14px; padding-top: 8px; border-top: 1px solid var(--border); }
+.hs-b .hsb-learn__btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 32px; margin: 0; padding: 0; border: 0; background: none; color: var(--text); font-family: var(--font-display); font-weight: 600; font-size: .875rem; line-height: 1.3; text-align: left; cursor: pointer; }
+.hs-b .hsb-learn__btn:hover .hsb-learn__t { text-decoration: underline; text-underline-offset: 3px; }
+.hs-b .hsb-learn__btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.hs-b .hsb-learn__chev { width: 18px; height: 18px; flex: none; color: var(--text-2); transform: rotate(90deg); transition: transform 140ms; }
+.hs-b .hsb-learn__btn[aria-expanded="false"] .hsb-learn__chev { transform: none; }
+.hs-b .hsb-learn__body { display: flex; flex-direction: column; gap: 20px; }
+
+/* "Feltet du stod i" (the script keeps its height while you move between fields) */
+.hs-b .hc-field { padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); }
+.hs-b .hc-field__h { margin: 0 0 2px; font-family: var(--font-display); font-weight: 600; font-size: .8125rem; line-height: 1.3; }
+.hs-b .hc-field__t { margin: 0 0 6px; color: var(--text); }
+.hs-b .hc-field .hsb-behind { margin: 6px 0 0; }
+
+/* "Sådan gør du": calm text rows (title, grey why, chevron = the steps) and a quiet "Vis mig" link */
+.hs-b .hc-taskrow { position: relative; display: block; }
+.hs-b .hc-taskrow + .hc-taskrow { margin-top: 1px; }
+.hs-b .hsb-taskhead { position: relative; }
+.hs-b .hsb-taskhead > .hc-row { width: 100%; }
+.hs-b .hc-taskrow.hsb-task--show .hsb-taskhead > .hc-row { padding-right: 84px; }
+.hs-b .hc-taskrow.hsb-task--show .hsb-taskhead > .hc-row .hc-row__chev { position: absolute; right: 8px; top: 50%; margin-top: -8px; }
+.hs-b .hsb-showme { position: absolute; top: 0; bottom: 0; right: 30px; display: inline-flex; align-items: center; padding: 0 6px; border: 0; background: none; border-radius: 4px;
+	color: var(--text-2); font-weight: 500; font-size: .75rem; line-height: 1; text-decoration: underline; text-decoration-color: var(--border-field); text-underline-offset: 3px; cursor: pointer; }
+.hs-b .hsb-showme:hover { color: var(--text); text-decoration-color: currentColor; }
+.hs-b .hsb-showme:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.hs-b .hsb-showme:disabled { opacity: .45; cursor: default; text-decoration-color: var(--border-field); }
+/* "Knappen ligger bag hjælpen." (overlay only, when the target is under the panel) */
+.hs-b .hsb-behind { display: block; margin-top: 2px; font-size: .75rem; color: var(--text-2); }
+.hs-b .hsb-behind__show { font-size: .75rem; margin-left: 4px; }
+/* the steps of a task or a prepared question, inline under its row */
+.hs-b .hsb-steps { margin: 2px 8px 8px; padding: 0 0 0 1.4em; color: var(--text); }
+.hs-b .hsb-steps li + li { margin-top: 3px; }
+.hs-b .hsb-steps li::marker { color: var(--text-2); }
+.hs-b .hsb-steps strong, .hs-b .hc-field strong, .hs-b .hsb-about strong, .hs-b .hsb-intro strong { font-weight: 600; }
+.hs-b .hsb-intro { margin: 2px 8px 6px; }
+.hs-b .hsb-expand { padding: 0 0 4px; }
+.hs-b .hsb-expand__acts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 8px 8px 8px; }
+.hs-b .hsb-expand__acts .hc-link { font-size: .75rem; }
+
+/* Rundvisning · Tastaturgenveje · Vejledning: one quiet group under a hairline */
+.hs-b .hsb-more { margin-top: -6px; padding-top: 6px; border-top: 1px solid var(--border); }
+.hs-b .hsb-more.hsb-plain { margin-top: -8px; padding-top: 0; border-top: 0; }
+.hs-b .hsb-keylist { margin: 0 0 4px 36px; padding: 0; list-style: none; }
+.hs-b .hsb-keylist li { display: flex; align-items: center; gap: 10px; min-height: 30px; padding: 3px 8px 3px 0; font-size: .75rem; color: var(--text-2); }
+.hs-b .hsb-keylist li > span:first-child { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.hs-b .hsb-keylist strong { font-weight: 600; color: var(--text); }
+.hs-b .hsb-keylist .hsb-keyhead { min-height: 0; padding: 8px 0 2px; font-family: var(--font-display); font-weight: 600; font-size: .75rem; color: var(--text); }
+.hs-b .hsb-keylist .hsb-keynote { padding-top: 6px; }
+.hs-b .hsb-keylist .hc-row { min-height: 32px; padding-left: 0; }
+/* a shortcut or code of the page found by search: text and keys, no action, laid out as a row */
+.hs-b .hsb-keyhit { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 7px 8px; color: var(--text); font-size: .8125rem; line-height: 1.35; }
+.hs-b .hsb-keyhit__t { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.hs-b .hsb-keyhit strong { font-weight: 600; }
+
+/* ---- support: a sub-page of the panel ---- */
+.hs-b .hsb-support { display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; }
+.hs-b .hsb-back { align-self: flex-start; gap: 2px; margin-left: -8px; padding: 0 10px 0 4px; color: var(--text-2); }
+.hs-b .hsb-back:hover { color: var(--text); }
+.hs-b .hc-support { display: flex; flex-direction: column; gap: 8px; }
+.hs-b .hsb-support .hc-support > .hc-sec { font-size: .9375rem; margin-bottom: 2px; }
+.hs-b .hc-support__line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hs-b .hc-support__line svg { width: 16px; height: 16px; color: var(--text-2); flex: none; }
+.hs-b .hc-support__line a { color: var(--text); font-weight: 600; text-decoration: none; }
+.hs-b .hc-support__line a:hover { text-decoration: underline; }
+.hs-b .hc-support__line a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.hs-b .hc-open { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--text-2); }
+.hs-b .hc-open__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); flex: none; }
+.hs-b .hc-open[data-open="true"] .hc-open__dot { background: #4FA0EE; }
+.hs-b .hc-form { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.hs-b .hc-lbl { font-size: .75rem; font-weight: 500; color: var(--text-2); }
+.hs-b .hc-ta { width: 100%; min-height: 76px; margin: 0; padding: 7px 9px; border: 1px solid var(--border-field); border-radius: 6px; background: var(--surface); color: var(--text); font-size: .8125rem; line-height: 1.4; resize: vertical; }
+.hs-b .hc-ta:hover { border-color: var(--border-field-hover); }
+.hs-b .hc-ta:focus { outline: none; border-color: var(--focus); box-shadow: var(--focus-ring); }
+.hs-b .hc-attach { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hs-b .hc-attach legend { padding: 0; margin-bottom: 2px; font-size: .75rem; font-weight: 500; color: var(--text-2); }
+.hs-b .hc-check { display: flex; align-items: flex-start; gap: 8px; font-size: .78125rem; line-height: 1.4; }
+.hs-b .hc-check input { margin: 2px 0 0; accent-color: var(--user-primary); }
+.hs-b .hc-check input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.hs-b .hc-check small { display: block; color: var(--text-2); font-size: .71875rem; overflow-wrap: anywhere; }
+.hs-b .hc-form__err { color: var(--bad, #c2410c); font-size: .75rem; }
+/* the receipt is neutral: green is kept for "balances" and "saved" */
+.hs-b .hc-receipt { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: .8125rem; }
+.hs-b .hc-receipt::before { content: ""; flex: none; width: 16px; height: 16px; margin-top: 1px; background: var(--text-2);
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 16px no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 16px no-repeat; }
+.hs-b .hc-receipt:focus { outline: none; }
+.hs-b .hc-receipt:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- foot: Hvad får Saldi AI at vide? (Kontakt support is in the ask block, spec §18) ---- */
+.hs-b .hsb-foot { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px 10px; border-top: 1px solid var(--border); background: var(--surface); }
+.hs-b .hc-disclosure { padding: 0 8px; }
+.hs-b .hc-disclosure__btn { padding: 0; border: 0; background: none; color: var(--text-2); font-size: .75rem; line-height: 1.4; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-align: left; }
+.hs-b .hc-disclosure__btn:hover { color: var(--text); }
+.hs-b .hc-disclosure__btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.hs-b .hc-disclosure__txt { margin: 4px 0 0; max-width: 34em; font-size: .75rem; color: var(--text-2); }
+.hs-b .hc-disclosure__txt + .hc-disclosure__txt { margin-top: 2px; }
+
+/* ---- the sheet handle (bottom sheet only) ---- */
+.hs-b .hc-sheet__handle { display: none; }
+#saldi-help[data-mode="sheet"] .hc-sheet__handle { display: flex; justify-content: center; align-items: center; flex: none; width: 100%; height: 28px; margin: 0; padding: 8px 0; border: 0; background: none; cursor: grab; touch-action: none; }
+#saldi-help[data-mode="sheet"] .hc-sheet__handle::before { content: ""; width: 36px; height: 4px; border-radius: 2px; background: var(--border-field); }
+#saldi-help[data-mode="sheet"] .hc-sheet__handle:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* ---- minimised: the 44 px strip ("Viser: Kredit · Tilbage til hjælpen") ---- */
+.hs-b .hsb-strip { display: none; }
+.hs-b .hc-strip { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 0 16px; font-size: .8125rem; line-height: 1.2; color: var(--text); }
+.hs-b .hc-strip__txt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hs-b .hc-strip__txt b { font-weight: 600; }
+#saldi-help.is-min > :not(.hsb-strip) { display: none !important; }
+#saldi-help.is-min .hsb-strip { display: block; flex: none; }
+/* overlay: a 400 x 44 strip at one of three places inside .home-content (tr, tl, br), out of the ring's way */
+#saldi-help.is-min[data-mode="overlay"] { top: 0; bottom: auto; height: 44px; border: 0; box-shadow: 0 0 0 1px var(--border), 0 8px 24px rgba(11,26,58,.12); }
+#saldi-help.is-min[data-mode="overlay"][data-pos="tl"] { left: 0; right: auto; }
+#saldi-help.is-min[data-mode="overlay"][data-pos="br"] { top: auto; bottom: 0; box-shadow: 0 0 0 1px var(--border), 0 -8px 24px rgba(11,26,58,.12); }
+/* docked: the panel keeps its column (the page does not move); the strip sits at the top of it, the rest is the
+   panel's own surface and lets clicks through */
+#saldi-help.is-min[data-mode="docked"] { pointer-events: none; }
+#saldi-help.is-min[data-mode="docked"] .hsb-strip { pointer-events: auto; border-bottom: 1px solid var(--border); }
+/* sheet: just under the topbar (t) or at the bottom (b) */
+#saldi-help.is-min[data-mode="sheet"] { max-height: none; height: 44px; border: 0; box-shadow: 0 0 0 1px var(--border), 0 -6px 24px rgba(11,26,58,.14); }
+#saldi-help.is-min[data-mode="sheet"][data-pos="t"] { top: calc(var(--topbar-h, 44px) + 8px); bottom: auto; }
+
+/* ---- the bottom sheet: 44 px touch targets, 16 px inputs (no zoom on focus), no pin ---- */
+#saldi-help[data-mode="sheet"] .hsb-pin { display: none; }
+#saldi-help[data-mode="sheet"] .hsb-head { min-height: 56px; padding: 2px 6px 10px 14px; }
+#saldi-help[data-mode="sheet"] .hsb-body { padding: 12px 14px 0; }
+#saldi-help[data-mode="sheet"] .hc-row, #saldi-help[data-mode="sheet"] .hc-x, #saldi-help[data-mode="sheet"] .hc-btn,
+#saldi-help[data-mode="sheet"] .hc-link, #saldi-help[data-mode="sheet"] .hc-disclosure__btn, #saldi-help[data-mode="sheet"] .hsb-showme { min-height: 44px; }
+#saldi-help[data-mode="sheet"] .hsb-showme { right: 26px; padding: 0 8px; }
+#saldi-help[data-mode="sheet"] .hc-x { min-width: 44px; }
+#saldi-help[data-mode="sheet"] .hc-check { min-height: 36px; align-items: center; }
+#saldi-help[data-mode="sheet"] .hc-check input { margin-top: 0; }
+#saldi-help[data-mode="sheet"] .hc-input { height: 44px; font-size: 1rem; }
+#saldi-help[data-mode="sheet"] .hc-ta { font-size: 1rem; }
+
+/* ===== 7. print ===== */
+@media print { #saldi-help, .saldi-help-flyer { display: none !important; } }
+
+/* ===== 8. reduced motion: no enter/leave animation, no flight (saldi-help.js), no chevron turn ===== */
+@media (prefers-reduced-motion: reduce) {
+	#saldi-help.hsb-enter, #saldi-help.hsb-leave { animation: none; }
+	.hs-b .hc-row__chev { transition: none; }
+	.hs-b .hc-btn, .hs-b .hsb-learn__chev { transition: none; }
+}

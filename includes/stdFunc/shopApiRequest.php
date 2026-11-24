@@ -1,5 +1,5 @@
 <?php
-// --- includes/stdFunc/shopApiRequest.php --- ver 5.1.0 --- 2026-10-29 ---
+// --- includes/stdFunc/shopApiRequest.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20261023 CDX/MJ SST-876 Preserve each payload context when batching multiple items across shops.
 // 20261027 CDX/MJ SST-876 Read parallel transfer completion results and shell curl exit status so incomplete HTTP 200 responses remain retryable failures.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1; no code change.
 
 if (!function_exists('shopApiUrl')) {
 	/**

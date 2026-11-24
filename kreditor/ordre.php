@@ -99,6 +99,16 @@
 //                  supplier's price per component for the same reason.
 // 20261030 CL/MJ SST-872 A supplier row whose price is 0 ("0.000" from the database) falls back to the item's cost price, on the typed line and in samlevare().
 // 20261103 CL/ASR QA round 2: opening the page with konto_id and no order id creates an order, so it needs write.
+// 20261105 CL/LH Ny, an item picked on the blank order and the first Gem no longer raise PHP warnings (testlab DEVY-7).
+//                ordreside() gives a new order afd, email, kundeordnr, udskriv_til, projekt and attachId, as an opened order has them.
+//                $bogfor starts as NULL, and an item picked before a supplier no longer reads the order that was not created.
+//                A supplier typed in Kontonr. takes its currency from its creditor group's row ($row['box3'], not $r['box3']).
+//                The save looks up the exchange rate after the supplier, so the header stores the rate of the currency it stores.
+//                A currency without a rate stores 0, as a rate of 0 does, instead of breaking the header update.
+//                An opened order reads $_GET['kontonr'] only when it is there.
+// 20261105 CL/LH Two users adding lines to one purchase order no longer give lines the same posnr (testlab concurrent-posting DEVY-1, same code as debitor/ordre.php).
+//                The form carries the ids of the lines it was drawn with (order_lines_drawn), and its save puts a new line after the lines it did not show and keeps those off the positions it writes (includes/stdFunc/orderLinePositions.php).
+//                A line moved in from another order keeps its id, and counts as one the form did not show.
 // 20261105 CL/MMR SST-951 Saving the order header stores the chosen language (sprog) when that language has forms, and a restordre keeps the order's language.
 //                 ordreside() reads ordrer.sprog, so the language select and the mail texts on the order show it.
 //                 In the edited POST block the three-argument if_isset() lookups are now ifset() with the same keys and defaults, and ordreside() includes its order parts with __DIR__.
@@ -146,7 +156,7 @@ if (!$requestedOrderId && (!empty($_GET['konto_id']) || !empty($_GET['vare_id'])
 }
 
 $id=$konto_id=$debitor_id=$projekt=0;
-$hurtigfakt=$krediteret=$labelprint=$lev_adr=$momssum=$negativt_lager=$sort=$submit=NULL;
+$bogfor=$hurtigfakt=$krediteret=$labelprint=$lev_adr=$momssum=$negativt_lager=$sort=$submit=NULL;
 $antal[0]=$beskrivelse[0]=$enhed[0]=$lev_varenr[0]=$pris[0]=$rabat[0]=NULL;
 $batch=array();
 $valg=NULL;
@@ -154,6 +164,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
+require_once __DIR__ . '/../includes/stdFunc/orderLinePositions.php';
 // 20260923 SZ SST-755 (CodeRabbit): one random per-render token, reused by both sidehoved()'s
 // exit link and the unload beacon further down (see refresh_lock_token() in unlockRecord.php).
 $sessionLockToken = bin2hex(random_bytes(16));
@@ -379,9 +390,10 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 	if (!$rabat) $rabat=0;
 
 	$r=db_fetch_array(db_select("select momssats,valuta,ordredate from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));
-	$momssats=$r['momssats']; #20141107
-	$valuta=$r['valuta'];
-	$ordredate=$r['ordredate'];
+	# false when no order exists: an item picked on a blank order has no supplier, so insertAccount() created none
+	$momssats=$r['momssats'] ?? NULL; #20141107
+	$valuta=$r['valuta'] ?? NULL;
+	$ordredate=$r['ordredate'] ?? NULL;
 	if ($valuta && $valuta!='DKK') {
 		if ($r= db_fetch_array(db_select("select valuta.kurs from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=grupper.kodenr::INT and valuta.valdate <= '$ordredate' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
 			$pris[0]=$pris[0]*100/$r['kurs'];
@@ -510,6 +522,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$sum = ifset($_POST, 'sum');
 		$linjeantal = ifset($_POST, 'linjeantal');
 		$linje_id = ifset($_POST, 'linje_id');
+		$linesDrawn = $_POST['order_lines_drawn'] ?? null; // the ids of the order's lines when the form was drawn
 		$kred_linje_id = ifset($_POST, 'kred_linje_id');
 		$vare_id = ifset($_POST, 'vare_id');
 		$posnr = ifset($_POST, 'posnr');
@@ -555,20 +568,6 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$r=db_fetch_array(db_select("select ordrenr from ordrer where id = '$kred_ord_id'",__FILE__ . " linje " . __LINE__));
 				$kred_ord_nr=$r['ordrenr'];
 			}
-		if ($valuta && $valuta!='DKK') {
-			$qtxt = "select kodenr from grupper where art = 'VK' and box1 = '$valuta'";
-			$r= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$valutakode = $r['kodenr'];
-			$ordredato = dkdato($ordredate);
-			$qtxt = "select kurs from valuta where valdate <= '$ordredate' and gruppe = '$valutakode' ";
-			$qtxt.= "order by valuta.valdate limit 1";
-			if ($r= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$valutakurs=$r['kurs']*1; #20120814 *1 + naeste linje tilfojet.
-				if (!$valutakurs) print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredato')\">";
-			} else {
-				print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredato')\">";
-			}
-		} else $valutakurs=100;
 		if ($momssats > 0 && $konto_id) {
 			$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'",__FILE__ . " linje " . __LINE__));
 			$gruppe=$r['gruppe']*1;
@@ -732,8 +731,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				$row = db_fetch_array($query);
 				$omlev=$row['box9'];
 				if (substr($row['box1'],0,1)=='K') {
-	 				$tmp= substr($row['box1'],1,1)*1;
-					$valuta=$r['box3'];
+					$tmp= substr($row['box1'],1,1)*1;
+					$valuta=$row['box3'];
 					$qtxt = "select box2 from grupper where art='KM' and kodenr = '$tmp' and fiscal_year = '$regnaar'";
 					$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 					$row = db_fetch_array($query);
@@ -772,10 +771,31 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			include_once(__DIR__ . '/orderIncludes/insertAccount.php');
 			$id = insertAccount($id, $konto_id, false);
 		}
+		# The rate is looked up after the supplier lookup and insertAccount() above, which can give the order its
+		# creditor group's currency, so the header update below stores the rate of the currency it stores.
+		# This runs inside the save's transaction, where a failing query would abort the save: a currency without
+		# a VK group looks up group 0, and without a rate the order stores 0, as it does for a rate of 0.
+		if ($valuta && $valuta!='DKK') {
+			$qtxt = "select kodenr from grupper where art = 'VK' and box1 = '" . db_escape_string($valuta) . "'";
+			$r= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			$valutakode = $r ? (int)$r['kodenr'] : 0;
+			$ordredato = dkdato($ordredate);
+			$qtxt = "select kurs from valuta where valdate <= '$ordredate' and gruppe = '$valutakode' ";
+			$qtxt.= "order by valuta.valdate limit 1";
+			if ($r= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				$valutakurs=$r['kurs']*1; #20120814 *1 + naeste linje tilfojet.
+				if (!$valutakurs) print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredato')\">";
+			} else {
+				$valutakurs=0;
+				print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredato')\">";
+			}
+		} else $valutakurs=100;
 		if ( !$id && $konto_id && $firmanavn) {
 			include_once(__DIR__ . '/orderIncludes/insertAccount.php');
 			$id = insertAccount($id, $konto_id, false);
 		}	elseif(($konto_id)&&($firmanavn)) {
+			// Lines this form did not show (added by a colleague, or moved in). The order is locked, so a save that ran meanwhile has committed its lines.
+			$linesAddedSinceForm = order_lines_added_since($id, $linesDrawn, $linje_id);
 			$sum=0;
 			for($x=1; $x<=$linjeantal; $x++) {
 				if (!($antal[$x])) $antal[$x] = 0;
@@ -1003,6 +1023,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 #					if ((strpos($posnr_ny[$x], '+'))&&($id)) indsaet_linjer($id, $linje_id[$x], $posnr_ny[$x]);
 				}
 			}
+			// A new line put after every line the form showed also goes after the lines added since.
+			$posnr_ny[0] = order_line_new_position($id, $linesAddedSinceForm, $posnr_ny[0]);
 			if ( $posnr_ny[0] > 0 && $submit != 'lookup' ) {
 				if (!$varenr[0] && $lev_varenr[0] && $konto_id) {
 					$qtxt = "select varer.varenr from varer, vare_lev where vare_lev.lev_varenr = '$lev_varenr[0]' and vare_lev.lev_id = '$konto_id' and vare_lev.vare_id = varer.id";
@@ -1129,6 +1151,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					if ($status==2) $status=1;
 				}
 			}
+			// The positions this form wrote may be those of lines it never showed.
+			order_lines_keep_added_apart($id, $linesAddedSinceForm);
 			if($submit != 'lookup' && $submit != 'split'){
 				$query = db_select("select tidspkt from ordrer where id=$id and (hvem='$brugernavn' or hvem='' or hvem is null)",__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {
@@ -1355,6 +1379,11 @@ function ordreside($id) {
 	$addr1 = $addr2 = $betalingsbet = $bynavn = $cvrnr = $firmanavn = $kontakt = $kontonr = $land = '';
 	$lev_navn = $lev_addr1 = $lev_addr2 = $lev_bynavn = $lev_kontakt = $lev_postnr = $levdato = '';
 	$momssats = $omlev = $ordredato = $postnr = $ref = $valuta = $vis_projekt = '';
+	# Also read by orderIncludes/openOrder.php and openOrderData.php; only an opened order (if ($id) below) sets them.
+	$afd = $email = $kundeordnr = '';
+	$udskriv_til = 'PDF';
+	$projekt = array('');
+	$attachId = array();
 	$formularsprog = '';
 	
 	$antal = $posnr = $salgspris = array();
@@ -1366,6 +1395,8 @@ function ordreside($id) {
 	if (!$id) $fokus='kontonr';
 
 	print "<form name='ordre' action='ordre.php' method='post'>";
+	// Read before the lines are drawn, and printed before the fields each line repeats (max_input_vars).
+	if ($id) print "<input type='hidden' name='order_lines_drawn' value='" . order_lines_drawn($id) . "'>";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
 	if ($id) {
@@ -1425,7 +1456,7 @@ function ordreside($id) {
 		$lev_adr       = $r['lev_adr'];
 		$ordrenr       = $r['ordrenr'];
 		$kred_ord_id   = $r['kred_ord_id'];
-		$searchedAccountNr = $_GET['kontonr'];
+		$searchedAccountNr = $_GET['kontonr'] ?? NULL;
 		if($searchedAccountNr) $kontonr = $searchedAccountNr;
 		
 		if($r['ordredate']) $ordredato=dkdato($r['ordredate']);

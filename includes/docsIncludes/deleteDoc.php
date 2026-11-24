@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/deleteDoc.php -----patch 4.0.8 ----2023-07-24---
+// --- includes/docsIncludes/deleteDoc.php -----ver 5.1.1 ----2026-11-10---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,41 +16,30 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20230707 LOE Added kassekladde part
 // 20230724 LOE made some modifications to include alert also
+// 20261110 CDX/ASR Require an exact tenant/source/document match before touching files.
+
 
 
 if ($deleteDoc) {
-	// Decode the URL-encoded path
-	$deleteDoc = urldecode($deleteDoc);
-	
-	// Normalize the path - remove double slashes and resolve relative paths
-	$deleteDoc = str_replace('//', '/', $deleteDoc);
-	$deleteDoc = preg_replace('#/+#', '/', $deleteDoc); // Remove multiple slashes
-	
-	// Try to resolve the path
-	$resolvedPath = realpath($deleteDoc);
-	if ($resolvedPath === false && strpos($deleteDoc, '../') === 0) {
-		// Try resolving from the includes directory
-		$basePath = dirname(__FILE__) . '/../../';
-		$resolvedPath = realpath($basePath . ltrim($deleteDoc, './'));
+	require_once __DIR__ . '/documentAccess.php';
+	$documentRoot = realpath("$docFolder/$db");
+	$actionDocument = docAccessFindDocument("$docFolder/$db", (string)$deleteDoc, (string)$source, (int)$sourceId);
+	if (!$actionDocument || !$documentRoot) {
+		docAccessDeny();
 	}
-	
-	// Use resolved path if available, otherwise use normalized original
-	$deleteDoc = ($resolvedPath !== false) ? $resolvedPath : $deleteDoc;
-	
-	error_log("deleteDoc.php: Normalized path: $deleteDoc");
-	error_log("deleteDoc.php: File exists: " . (file_exists($deleteDoc) ? "yes" : "no"));
-	
-	$tmpA = explode("/",$deleteDoc);
-
-	$x    = count($tmpA)-1;
-	$h = count($tmpA)-3;
-
-	$bilag_id = $tmpA[$h];
-	$fileName = $tmpA[$x];
+	$deleteDoc = $actionDocument['canonicalPath'];
+	$documentId = $actionDocument['id'];
+	$fileName = $actionDocument['filename'];
+	$sourceId = $actionDocument['source_id'];
+	$source = $actionDocument['source'];
+	$kladde_id = (int)$kladde_id;
+	$tmpA = explode('/', $deleteDoc);
+	$x = count($tmpA) - 1;
+	$h = count($tmpA) - 3;
 
 	// Security check: Block if locked and older than 24h
 	$locked = 0;
@@ -68,7 +57,7 @@ if ($deleteDoc) {
 		}
 	}
 	
-	$qtxt = "select timestamp from documents where source = '$source' and source_id = '$sourceId' and filename = '".db_escape_string($fileName)."'";
+	$qtxt = "select timestamp from documents where id = '$documentId'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$docTimestamp = $r ? $r['timestamp'] : 0;
 	
@@ -80,18 +69,15 @@ if ($deleteDoc) {
 		exit;
 	}
 	
-	// Get the filepath for this document to check if it's linked to other lines
-	$qtxt_check = "SELECT filepath FROM documents WHERE source = '$source' AND source_id = '$sourceId' AND filename = '".db_escape_string($fileName)."' LIMIT 1";
-	$doc_row = db_fetch_array(db_select($qtxt_check, __FILE__ . " linje " . __LINE__));
-	$docFilepath = $doc_row ? $doc_row['filepath'] : '';
-	
+	$docFilepath = $actionDocument['filepath'];
+
 	// Check if this document file is linked to other lines (other source_id's)
 	$qtxt_linked = "SELECT COUNT(*) as cnt FROM documents WHERE filepath = '".db_escape_string($docFilepath)."' AND filename = '".db_escape_string($fileName)."'";
 	$linked_row = db_fetch_array(db_select($qtxt_linked, __FILE__ . " linje " . __LINE__));
 	$isLinkedToOtherLines = ($linked_row && $linked_row['cnt'] > 1);
 	
 	// Delete from database first (remove this line's reference)
-	$qtxt = "delete from documents where source = '$source' and source_id = '$sourceId' and filename = '".db_escape_string($fileName)."'";
+	$qtxt = "delete from documents where id = '$documentId'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	
 	// If the document is linked to other lines, do NOT delete the actual file
@@ -163,7 +149,7 @@ if ($deleteDoc) {
 			exit;
 		} else {
 			// Unlink failed - restore database record
-			$qtxt = "insert into documents (source, source_id, filename, filepath) values ('$source', '$sourceId', '".db_escape_string($fileName)."', '".db_escape_string($tmpA[$h-1])."')";
+			$qtxt = "insert into documents (source, source_id, filename, filepath) values ('$source', '$sourceId', '".db_escape_string($fileName)."', '".db_escape_string($actionDocument['filepath'])."')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			
 			echo '<script type="text/javascript">';

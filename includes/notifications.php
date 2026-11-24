@@ -37,6 +37,10 @@
 // 20261104 CL/ASR The batch-expiry item follows lager/udlobsrapport.php to Varerapport (owner, 4 Nov 2026): it needs legacy right 15 and the key lager.rapporter instead of right 12, so it reaches exactly the users who may open the report it links to.
 //                 A user without them has a stored item removed, and the bell list and the daily summary hide the item from them as well.
 // 20261104 CL/ASR Final QA: when no fiscal year covers today (the last one has ended), the warning asks for the next year to be created (fiscal:none, texts 7852 and 7851) instead of asking for a year to be activated, which stays for a year that covers today but is not open.
+// 20261021 ASR Type 'crm': the CRM's daily follow-up summary (crm_notif_refresh() in includes/crmFunctions.php); the CRM's event notifications (follow-up or case assigned to you, case won or lost) are written by crmFunctions.php.
+// 20261105 CL/LH Two first page loads at once both found no 'fiscal:none' row and both inserted it, so every user saw the warning twice (testlab login-race).
+//                notif_upsert() now looks up and inserts a generated item under a lock per company (notif_lock()), and the later request updates the row the earlier one inserted.
+// 20261110 CDX/ASR Hide existing CRM notification payloads and digests after CRM access is removed.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * @return array<string, string> type -> label text id
@@ -48,6 +52,7 @@ function notif_types(): array
 		'warning'    => '5641|Advarsler',
 		'suggestion' => '5642|Forslag',
 		'system'     => '5643|System',
+		'crm'        => '9212|CRM',
 	);
 }
 
@@ -81,7 +86,7 @@ function notif_disabled_types(int $brugerId): array
 }
 
 /**
- * Items the user's role hides. Resolved for the logged-in user only; the digest script sees everything.
+ * Items the user's current role hides, including notification lists and daily digests.
  */
 function notif_role_filter(int $brugerId): string
 {
@@ -89,6 +94,9 @@ function notif_role_filter(int $brugerId): string
 		return '';
 	}
 	$sql = '';
+	if (!notif_user_can($brugerId, 'crm.access')) {
+		$sql .= " and n.type != 'crm'";
+	}
 	if (!notif_user_can($brugerId, 'dashboard.block.news')) {
 		$sql .= " and n.source_key not like 'news:%'";
 	}
@@ -116,8 +124,8 @@ function notif_user_can(int $brugerId, string $key, string $level = 'read'): boo
 	static $levels = array();
 	$slot = (string) $db . ':' . $brugerId;
 	if (!isset($levels[$slot])) {
-		$r = db_fetch_array(db_select("select rettigheder from brugere where id = " . (int) $brugerId, __FILE__ . " linje " . __LINE__));
-		$levels[$slot] = $r ? perm_user_levels($brugerId, (string) $r['rettigheder']) : array();
+		$r = db_fetch_array(db_select("select rettigheder, status from brugere where id = " . (int) $brugerId, __FILE__ . " linje " . __LINE__));
+		$levels[$slot] = $r && !in_array($r['status'] ?? null, array(false, 'f', 0, '0'), true) ? perm_user_levels($brugerId, (string) $r['rettigheder']) : array();
 	}
 	$rank = perm_level_rank();
 	$have = isset($levels[$slot][$key]) ? perm_level_valid((string) $levels[$slot][$key]) : 'none';
@@ -159,24 +167,68 @@ function notif_clear_fiscal(string $keep = ''): void
 }
 
 /**
+ * Take the lock notif_upsert() looks up and inserts a generated notification under: one per company, held by the
+ * session until notif_unlock(). PostgreSQL's advisory locks belong to one database; MySQL's GET_LOCK() names are
+ * server-wide, so there the database is part of the name.
+ *
+ * @return bool false when the lock was not had: a database error, or 30 seconds of waiting on MySQL/MariaDB.
+ */
+function notif_lock(): bool
+{
+	global $db_type;
+	if ($db_type == 'mysql' || $db_type == 'mysqli') {
+		$r = db_fetch_array(db_select("select get_lock(concat('saldi:notifications:', md5(database())), 30) as locked", __FILE__ . " linje " . __LINE__));
+		return $r && (string) $r['locked'] === '1';
+	}
+	// pg_advisory_lock() waits and returns nothing: the query getting through is the lock.
+	return (bool) db_select("select pg_advisory_lock(hashtext('saldi:notifications:' || current_schema()))", __FILE__ . " linje " . __LINE__);
+}
+
+/**
+ * Let go of the lock notif_lock() took.
+ */
+function notif_unlock(): void
+{
+	global $db_type;
+	if ($db_type == 'mysql' || $db_type == 'mysqli') {
+		db_select("select release_lock(concat('saldi:notifications:', md5(database())))", __FILE__ . " linje " . __LINE__);
+		return;
+	}
+	db_select("select pg_advisory_unlock(hashtext('saldi:notifications:' || current_schema()))", __FILE__ . " linje " . __LINE__);
+}
+
+/**
  * Insert or refresh a generated notification. $sourceKey identifies the event so a poll
  * never creates duplicates; $userId null = broadcast to every user in the company.
+ *
+ * Two requests can poll the same item at once (two users' first page loads, two tabs, the daily summary). The lookup
+ * and the insert run under notif_lock(), so the later request finds the row the earlier one inserted instead of
+ * inserting it again. The callers run outside a transaction: inside one, the insert would still be invisible to the
+ * other request once the lock is let go.
  */
 function notif_upsert(string $sourceKey, ?int $userId, string $type, string $title, string $body, string $link, ?string $expires): void
 {
 	$keySql = db_escape_string(substr($sourceKey, 0, 80));
 	$userSql = ($userId === null) ? 'is null' : '= ' . (int) $userId;
-	$r = db_fetch_array(db_select("select id from notifications where source_key = '$keySql' and user_id $userSql", __FILE__ . " linje " . __LINE__));
 	$titleSql = db_escape_string($title);
 	$bodySql = db_escape_string($body);
 	$linkSql = db_escape_string($link);
 	$expSql = $expires === null ? 'null' : "'" . db_escape_string($expires) . "'";
-	if ($r) {
-		db_modify("update notifications set title = '$titleSql', body = '$bodySql', link = '$linkSql', expires = $expSql where id = " . (int) $r['id'], __FILE__ . " linje " . __LINE__);
+	if (!notif_lock()) {
+		// Nothing is written without the lock; the next refresh tries again.
 		return;
 	}
-	$userIns = ($userId === null) ? 'null' : (string) (int) $userId;
-	db_modify("insert into notifications (user_id, type, title, body, link, expires, source_key) values ($userIns, '" . db_escape_string($type) . "', '$titleSql', '$bodySql', '$linkSql', $expSql, '$keySql')", __FILE__ . " linje " . __LINE__);
+	try {
+		$r = db_fetch_array(db_select("select id from notifications where source_key = '$keySql' and user_id $userSql", __FILE__ . " linje " . __LINE__));
+		if ($r) {
+			db_modify("update notifications set title = '$titleSql', body = '$bodySql', link = '$linkSql', expires = $expSql where id = " . (int) $r['id'], __FILE__ . " linje " . __LINE__);
+			return;
+		}
+		$userIns = ($userId === null) ? 'null' : (string) (int) $userId;
+		db_modify("insert into notifications (user_id, type, title, body, link, expires, source_key) values ($userIns, '" . db_escape_string($type) . "', '$titleSql', '$bodySql', '$linkSql', $expSql, '$keySql')", __FILE__ . " linje " . __LINE__);
+	} finally {
+		notif_unlock();
+	}
 }
 
 /**
@@ -194,6 +246,11 @@ function notif_refresh(int $brugerId, string $rettigheder, int $sprogId): void
 	if ($brugerId !== 0) {
 		notif_source_batches($brugerId, $rettigheder, $sprogId);
 		notif_source_bank($brugerId, $sprogId);
+		// CRM: today's follow-ups for the user's employee (debitor/crm.php).
+		include_once(__DIR__ . '/crmFunctions.php');
+		if ($brugerId > 0 && function_exists('crm_notif_refresh')) {
+			crm_notif_refresh($brugerId, $rettigheder, $sprogId);
+		}
 	}
 	// Prune what has expired (spec 3.4).
 	db_modify("delete from notification_read where notification_id in (select id from notifications where expires is not null and expires < current_date)", __FILE__ . " linje " . __LINE__);

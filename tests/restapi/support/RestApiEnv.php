@@ -31,6 +31,9 @@
 // 20261022 CL/NTR Removed the bootstrapTenantOnce()/$bootstrapped pair the master merge duplicated (fatal on load);
 //                 bootstrapTenantOnce() now keys on $ownedDb, so a class teardown makes the next class re-provision.
 //                 bootstrapTenant() no longer opens a stray master connection it never closed.
+// 20261105 CL/LH The seeded API user holds every module right (the rights string install.php gives the first administrator), not 'admin'.
+//                The REST API now checks the endpoint's module right, and 'admin' only opens positions 0-4 of the rights string.
+// 20261105 CL/LH Added setUserIpLimit() for the login and refresh IP-limit cases.
 // 20261111 CDX/NTR Fresh UUID-owned tenant per REST class; no existing template dependency.
 
 require_once dirname(__DIR__, 2) . '/TestCredentials.php';
@@ -144,7 +147,7 @@ final class RestApiEnv
         $tenant = self::connect(self::testDb());
         try {
             self::rows($tenant, "INSERT INTO brugere (brugernavn,kode,email,rettigheder,status)
-                VALUES ($1,$2,$3,'admin',true)", [self::user(), md5(self::password()), 'apitest@example.invalid']);
+                VALUES ($1,$2,$3,'11111111111111111111',true)", [self::user(), md5(self::password()), 'apitest@example.invalid']);
         } finally {
             pg_close($tenant);
         }
@@ -158,6 +161,21 @@ final class RestApiEnv
             self::$database = null;
         }
         self::$ownedRegnskabIds = [];
+    }
+
+    /** Set the seeded API user's IP limit (brugere.ip_address); '' removes it. */
+    public static function setUserIpLimit(string $ipAddresses): void
+    {
+        if (self::$database === null) {
+            throw new RuntimeException('no tenant bootstrapped in this process');
+        }
+        $tenant = self::connect(self::testDb());
+        $updated = pg_query_params($tenant, 'UPDATE brugere SET ip_address = $1 WHERE brugernavn = $2', [$ipAddresses, self::user()]);
+        $error = $updated === false ? pg_last_error($tenant) : '';
+        pg_close($tenant);
+        if ($updated === false) {
+            throw new RuntimeException("could not set the IP limit: $error");
+        }
     }
 
     /**

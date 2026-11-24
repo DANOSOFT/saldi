@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.1 --- 2026.11.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,8 +60,17 @@
 // 20261103 CL/ASR QA: Gendan goes through the normal save (settings_section_save()): the field must be visible, writable and not locked, the old value is validated, and the follow-ups (on_save, settings_after_section_save) run; a value that was not set is restored as the default the readers used.
 //                 Masked history rows (SettingsService::historyMasked(): secrets, CPR, bank, salary) offer no Gendan and are refused.
 //                 A row error no longer saves the page's fields (dry run, spec §7.3).
+// 20261105 CL/LH Every posted form carries thisDb again, as Stamdata did in stamkort.php, so a form drawn before the session moved to another regnskab is refused by online.php and saves nothing there.
+//                The refusal shows online.php's message instead of the settings hub.
+// 20261105 CL/LH online.php now ends a refused request itself, so the page's own check for it after the include is gone.
+// 20261105 CL/LH A save fills an empty By from Postnr. again (st_fill_city_from_zip()), as stamkort.php and ansatte_save.php did: Stamdata and the employee card stored the code without its town.
+// 20261105 CL/LH A section with 'cvr_lookup' (Stamdata) loads javascript/cvrapiopslag.js with its field names (cvrFeltNavne), so a CVR-nr. typed between *, + or / fills the company again, as on stamkort.php.
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8, css/saldi-kit.css and css/unified-components.css as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
+// 20261113 CL/ASR css/saldi-kit.css ?v=20261113 (side margin 16 px, the same as the top).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR The action ledger_reset is gone from the list of actions that write their own audit entry: the reset moved to the admin panel.
+// 20261119 CL/ASR A save reads composite settings (two settings in one stored value, such as Omgående bogføring of sales and purchase orders in DIV/3 box5) again under a row lock inside its transaction and applies the lock rules to what is stored then, so a save of the other setting at the same time can no longer switch one that stays on off again (p1-settings-posting-F1). A refused Gendan shows its own message, also when it is a text key, and no longer says Gendannet. Under the row lock it also asks st_hent_first_error() again, so the last Omgående bogføring setting is not switched on when the other was switched on in between and invoices of its kind wait; then nothing is written and the field shows the message.
+// 20261120 CL/ASR A stored value without a row is created under a named lock that is taken before the save's transaction and held until it has committed (SettingsService::lockCreationBeforeSave(), lockForSave(), releaseLocks()), so two first saves at the same time keep both parts, also under repeatable read, and a save whose locked read or named lock failed rolls back, writes nothing and says to try again (settings.save.lock_failed) (p1-settings-posting-F1r3). The same lock covers a setting of its own in a grupper row the page found missing, such as Hurtigfakturering (DIV/3 box4) saved at the same moment as Omgående bogføring, so the two saves end in one DIV/3 row (fix round 7, review round 1).
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var int    $sprog_id
@@ -72,7 +81,15 @@
 
 @session_start();
 $s_id = session_id();
-ob_start();
+// Every form this page posts carries the regnskab it was drawn in (thisDb), as Stamdata did in stamkort.php: includes/online.php refuses
+// the post when the session has moved to another regnskab since (admin/aaben_regnskab.php keeps the session and its CSRF token).
+// online.php sets $db below, so the field is added on output, as diverse.php adds its token.
+ob_start(function ($buffer) {
+	$thisDb = '<input type="hidden" name="thisDb" value="' . htmlspecialchars(isset($GLOBALS['db']) ? (string) $GLOBALS['db'] : '', ENT_QUOTES) . '">';
+	return preg_replace_callback('/<form\b[^>]*\bmethod=["\']?post\b[^>]*>/i', function ($m) use ($thisDb) {
+		return $m[0] . $thisDb;
+	}, $buffer);
+});
 
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -80,15 +97,15 @@ if (!isset($_SESSION['csrf_token'])) {
 $csrfToken = $_SESSION['csrf_token'];
 
 $title = "Indstillinger";
-$css = "../css/saldi-theme.css?v=8";
+$css = "../css/saldi-theme.css?v=11";
 $modulnr = 0; // the section's own permission key is required below
 $permission_key = 'any';
 $permission_post_read = false;
 
 include(__DIR__ . "/../includes/connect.php");
-include(__DIR__ . "/../includes/online.php");
+include(__DIR__ . "/../includes/online.php"); // a form from another regnskab (thisDb) ends there, with online.php's message
 // The kit's tokens and base under .sk, then the settings components (.st-*), which build on them (prototype D).
-print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261108'><link rel='stylesheet' href='../css/unified-components.css?v=20261108'>\n";
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261114'><link rel='stylesheet' href='../css/unified-components.css?v=20261108'>\n";
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/settingsRegistry.php");
 include_once(__DIR__ . "/../includes/settings/components.php");
@@ -255,6 +272,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$action = isset($_POST['action']) ? (string) $_POST['action'] : 'save';
 
 	if ($action === 'revert') {
+		$reverted = '&reverted=1';
 		$entry = SettingsService::historyEntry(isset($_POST['entry']) ? (int) $_POST['entry'] : 0);
 		if ($entry && $entry['section'] === $sectionId && isset($defs[$entry['setting_key']]) && !SettingsService::historyMasked($defs[$entry['setting_key']]) && st_field_access($defs[$entry['setting_key']]) === 'write') {
 			// Through the normal save: visibility, locks, validation and the follow-ups apply as for Gem. A value that was not set
@@ -266,11 +284,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			}
 			$revState = settings_section_save($sectionId, array($entry['setting_key'] => $revDef), array('f' => array($entry['setting_key'] => st_form_value($revDef, $revRaw)), 'version' => SettingsService::version($sectionId)), true, 'setting.reverted');
 			if ($revState['errors']) {
-				$_SESSION['settings_error'] = st_txt((int) reset($revState['errors']));
+				// A text id, or a text key (Omgående bogføring while invoices wait for Hent ordrer).
+				$_SESSION['settings_error'] = st_txt(reset($revState['errors']));
+				$reverted = '';
 			}
 		}
 		ob_end_clean();
-		header('Location: ' . $backUrl . '&reverted=1#' . ($entry ? rawurlencode((string) $entry['setting_key']) : ''));
+		header('Location: ' . $backUrl . $reverted . '#' . ($entry ? rawurlencode((string) $entry['setting_key']) : ''));
 		exit;
 	}
 
@@ -286,7 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		}
 		if (isset($defs[$key]) && $defs[$key]['type'] === 'action' && st_visible($defs[$key], array()) && st_field_access($defs[$key]) === 'write') {
 			// Till and price-list row actions write their own entry with before/after.
-			if (!in_array(isset($defs[$key]['run']) ? $defs[$key]['run'] : '', array('till_add', 'till_remove', 'pricelist_create', 'pricelist_delete', 'card_add', 'card_up', 'card_down', 'card_remove', 'pickup_add', 'pickup_delete', 'gdpr_delete_inactive', 'employee_add', 'employee_up', 'employee_down', 'employee_delete', 'ledger_reset', 'ledger_delete'), true)) {
+			if (!in_array(isset($defs[$key]['run']) ? $defs[$key]['run'] : '', array('till_add', 'till_remove', 'pricelist_create', 'pricelist_delete', 'card_add', 'card_up', 'card_down', 'card_remove', 'pickup_add', 'pickup_delete', 'gdpr_delete_inactive', 'employee_add', 'employee_up', 'employee_down', 'employee_delete', 'ledger_delete'), true)) {
 				audit_log('setting.action', '', 'indstilling', $key);
 			}
 			$GLOBALS['settings_action_inputs'] = array();
@@ -418,7 +438,7 @@ settings_section_view($sectionId, $section, $defs, $state, $canWrite, $csrfToken
  * Validate everything first; save only when nothing is wrong and nobody else saved in between.
  *
  * @param array<string, array<string, mixed>> $defs
- * @return array{errors: array<string, int>, posted: array<string, string>, conflict: array<string, mixed>|null, flash: array<int, mixed>}
+ * @return array{errors: array<string, int|string>, posted: array<string, string>, conflict: array<string, mixed>|null, flash: array<int, mixed>}
  */
 function settings_section_save(string $sectionId, array $defs, array $post, bool $write = true, string $handling = 'setting.changed'): array
 {
@@ -434,10 +454,13 @@ function settings_section_save(string $sectionId, array $defs, array $post, bool
 			$originals[$key] = $value;
 		}
 	}
+	// By left empty next to a Postnr. is filled in before the comparison below, so it is saved even when it was empty already.
+	$posted = st_fill_city_from_zip($defs, $posted);
 
 	// Only fields that were rendered, may be changed and are visible take part (P6, R17).
 	$errors = array();
 	$toSave = array();
+	$wanted = array();
 	foreach ($defs as $key => $def) {
 		if (in_array($def['type'], array('action', 'info', 'link', 'mini'), true) || !isset($posted[$key]) || st_locked($def, null, trim((string) $posted[$key])) || !st_visible($def, $posted) || st_field_access($def) !== 'write') {
 			continue;
@@ -456,6 +479,7 @@ function settings_section_save(string $sectionId, array $defs, array $post, bool
 		}
 		if (!$unchanged) {
 			$toSave[$key] = $res['raw'];
+			$wanted[$key] = trim($posted[$key]);
 		}
 	}
 
@@ -474,11 +498,52 @@ function settings_section_save(string $sectionId, array $defs, array $post, bool
 	}
 
 	if ($write && !$errors && !$conflict && $toSave) {
+		// A stored value without a row is created under a named lock that holds until the commit, so a save at the same time
+		// adds its part to that row (F1r3); that includes a grupper row a setting of its own creates (DIV/3 box4
+		// Hurtigfakturering next to box5). The lock is taken before the transaction, so once it is given, the transaction
+		// sees the row the other save created, also under repeatable read.
+		if (!SettingsService::lockCreationBeforeSave(array_keys($toSave))) {
+			SettingsService::releaseLocks();
+			return array('errors' => array_fill_keys(array_keys($toSave), 'settings.save.lock_failed'), 'posted' => $posted, 'conflict' => null, 'flash' => array());
+		}
 		transaktion('begin');
+		// Settings that share one stored value (composites, such as DIV/3 box5 "<sales>;<purchases>") are read again under a
+		// row lock, and the lock rules decide on what is stored now: the other setting may have been saved since this page
+		// read the row. The checks above read the row as it was then (p1-settings-posting-F1).
+		if (!SettingsService::lockForSave(array_keys($toSave))) {
+			// A row was not read under its lock (lock wait timeout, deadlock): nothing is written.
+			transaktion('rollback');
+			SettingsService::releaseLocks();
+			return array('errors' => array_fill_keys(array_keys($toSave), 'settings.save.lock_failed'), 'posted' => $posted, 'conflict' => null, 'flash' => array());
+		}
+		foreach ($toSave as $key => $raw) {
+			if (st_locked($defs[$key], null, $wanted[$key])) {
+				unset($toSave[$key]);
+				continue;
+			}
+			// Omgående bogføring: the other setting may have been switched on since, so waiting invoices of its kind count now.
+			$hentFirst = st_hent_first_error($defs[$key], $wanted[$key]);
+			if ($hentFirst !== null) {
+				$errors[$key] = $hentFirst;
+			}
+		}
+		if ($errors) {
+			// Nothing is written, as when the checks above refuse a field.
+			transaktion('rollback');
+			SettingsService::releaseLocks();
+			return array('errors' => $errors, 'posted' => $posted, 'conflict' => null, 'flash' => array());
+		}
 		foreach ($toSave as $key => $raw) {
 			SettingsService::saveRaw($key, $raw, null, $handling);
 		}
+		if (SettingsService::lockFailed()) {
+			// saveRaw() reads a composite again under its lock; when that read failed, it wrote nothing, and nothing else stays.
+			transaktion('rollback');
+			SettingsService::releaseLocks();
+			return array('errors' => array_fill_keys(array_keys($toSave), 'settings.save.lock_failed'), 'posted' => $posted, 'conflict' => null, 'flash' => array());
+		}
 		transaktion('commit');
+		SettingsService::releaseLocks();
 		foreach ($toSave as $key => $raw) {
 			if (!empty($defs[$key]['on_save'])) {
 				settings_after_save($defs[$key], $raw);
@@ -809,6 +874,17 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 </div>
 <script>window.SALDI_SETTINGS = <?= json_encode($config) ?>;</script>
 <script src="../javascript/settingsSection.js?v=9"></script>
+	<?php if (!empty($section['cvr_lookup']) && $canWrite) {
+		// Stamdata: a CVR-nr. (or phone number) typed between *, + or / fills the company from cvrapi.dk, as on stamkort.php.
+		// The lookup knows the fields by adresser's column names; cvrFeltNavne gives it their names in this form.
+		$cvrNames = array();
+		foreach ($section['cvr_lookup'] as $cvrName => $cvrKey) {
+			$cvrNames[$cvrName] = 'f[' . $cvrKey . ']';
+		}
+		?>
+<script>var cvrFeltNavne = <?= json_encode($cvrNames, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
+<script src="../javascript/cvrapiopslag.js?v=20261105"></script>
+	<?php } ?>
 	<?php
 }
 

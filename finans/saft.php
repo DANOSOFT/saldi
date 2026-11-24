@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/saft.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- finans/saft.php --- ver 5.1.1 --- 2026.11.17 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,8 @@
 // 20261002 NTR - Added null coalescing operator to $PostalCode to avoid undefined index notice when postnr is null.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CL/ASR Opening and closing balances start from the fiscal year's opening balance (kontoplan.primo of the status accounts), as kontoplan.saldo and the balance report do.
+//                 They were the year's postings only, which is wrong from the second year on and after an entered opening balance.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
@@ -616,11 +618,18 @@ if ($kontoantal_check <= 0) {
 
 $regnskabsaarStartDato = $startaar . '-' . $regnskabsaarStartmaaned . '-01';
 for ($x = 1; $x <= $kontoantal; $x++) {
+	// The fiscal year's opening balance is not posted: it is kept in kontoplan.primo, for status accounts only
+	// (genberegn() resets it on the others). Both balances start from it, as kontoplan.saldo and the balance report do.
+	$primoBalance[$x] = 0;
+	$qtxt = "SELECT sum(primo) AS primo FROM kontoplan WHERE regnskabsaar = '$regnaar' AND kontotype = 'S' AND kontonr IN ($kontonr[$x])";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$primoBalance[$x] = (float) $r['primo'];
+	}
 	$qtxt = "SELECT sum(debet) AS debet, sum(kredit) AS kredit FROM transaktioner WHERE transdate >= '$regnskabsaarStartDato' AND transdate < '$startDate' AND kontonr IN ($kontonr[$x])";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$debetStart[$x] = $r['debet'];
 		$kreditStart[$x] = $r['kredit'];
-		$openingBalance[$x] = $debetStart[$x] - $kreditStart[$x];
+		$openingBalance[$x] = $primoBalance[$x] + $debetStart[$x] - $kreditStart[$x];
 		$openingDbCr[$x] = number_format(round($openingBalance[$x], 2), 2, '.', '');
 	}
 
@@ -632,7 +641,7 @@ for ($x = 1; $x <= $kontoantal; $x++) {
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$debetSlut[$x] = $r['debet'];
 		$kreditSlut[$x] = $r['kredit'];
-		$closingBalance[$x] = $debetSlut[$x] - $kreditSlut[$x];
+		$closingBalance[$x] = $primoBalance[$x] + $debetSlut[$x] - $kreditSlut[$x];
 		$closingDbCr[$x] = number_format(round($closingBalance[$x], 2), 2, '.', '');
 	}
 

@@ -53,6 +53,11 @@
 // 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
 // 20261031 CL/ASR The inactive-group filter in the creditor group dropdown is only added when grupper has the inaktiv column, as in includes/orderFuncIncludes/accountLookup.php.
 //                 A ledger whose database update has not added the column yet still lists its groups instead of failing the query.
+// 20261105 CL/LH A posted Slet keeps a creditor that open posts or orders point at and says why (account_has_entries()); only linked items stopped the delete.
+// 20261105 CL/LH Gem on a card drawn before the card was last saved (by a colleague, or in another window) writes nothing and says so (account_card_begin_save()).
+//                It wrote every field back from the old form over the colleague's save.
+//                The form carries the version of the row its fields are drawn from, and the save compares it and writes in one transaction that locks the account first.
+//                The version comes straight after the account's id, before the contact persons, so a post that PHP cuts at max_input_vars still has it; a Gem without one is refused.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 @session_start();
@@ -70,6 +75,8 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/kreditorCreate.php");
+include_once(__DIR__ . '/../includes/stdFunc/accountHasEntries.php');
+include_once(__DIR__ . '/../includes/stdFunc/accountCardVersion.php');
 include("../includes/topline_settings.php");
 # window.onbeforeunload = confirmBrowseAway;
 
@@ -179,6 +186,11 @@ if ($_POST) {
 			} elseif ($ny_kontonr) {
 				$id = kreditorInsert(compact('firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'land', 'kontakt', 'tlf', 'mobile', 'email', 'web', 'betalingsdage', 'kreditmax', 'betalingsbet', 'cvrnr', 'notes', 'gruppe', 'bank_navn', 'bank_reg', 'bank_konto', 'bank_fi', 'erh', 'swift', 'felt_1', 'felt_2', 'felt_3', 'felt_4', 'felt_5', 'lukket') + array('kontonr' => $ny_kontonr));
 			}
+		} elseif ($id > 0 && !account_card_begin_save($id, $_POST)) {
+			// Drawn before the card was last saved, or posted without the version: this Gem would put that save's fields
+			// back. Nothing is written, and the card below is drawn as it is saved. A save that may write holds the
+			// account's lock from here to account_card_end_save().
+			print account_card_stale_alert();
 		} elseif ($id > 0) {
 			if ($ny_kontonr != $kontonr) {
 				$query = db_select("select kontonr from adresser where art = 'K' order by kontonr", __FILE__ . " linje " . __LINE__);
@@ -197,10 +209,14 @@ if ($_POST) {
 				elseif (($y == "-") && ($ans_id[$x])) db_modify("delete from ansatte	where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
 				else print "<BODY onLoad=\"javascript:alert('Hint!	Du skal s&aelig;tte et - (minus) som pos nr for at slette en kontaktperson')\">\n";
 			}
+			account_card_end_save();
 		}
 	} else {
+		$id = (int)$id;
 		if (db_fetch_array(db_select("select vare_id from vare_lev where lev_id = '$id'", __FILE__ . " linje " . __LINE__))) {
 			print "<BODY onLoad=\"javascript:alert('Det er tilknyttet varer til denne kreditor')\">\n";
+		} elseif (account_has_entries($id)) {
+			print account_has_entries_alert();
 		} else {
 			db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
 			$id = 0;
@@ -325,6 +341,7 @@ if ($menu != 'T') {
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
+	$accountCard = $r ?: array(); // the row the fields are drawn from, for the form's version (account_card_version_field())
 	$kontonr = trim($r['kontonr']);
 	$firmanavn = htmlentities(trim($r['firmanavn']), ENT_COMPAT, $charset);
 	$addr1 = htmlentities(trim($r['addr1']), ENT_COMPAT, $charset);
@@ -361,6 +378,7 @@ if ($id > 0) {
 	($r['lukket']) ? $lukket = 'checked' : $lukket = '';
 } else {
 	$id = 0;
+	$accountCard = array();
 	$bankUnconfirmed = $autoCreated = '';
 	$autoCreatedBy = 0;
 	$betalingsdage = 8;
@@ -373,6 +391,7 @@ if ($id > 0) {
 $kreditmax = dkdecimal($kreditmax);
 print "<form name=kreditorkort id='kreditorkortForm' action=kreditorkort.php method=post>\n";
 print "<input type=hidden name=id value='$id'>\n";
+print account_card_version_field($accountCard);
 print "<input type=hidden name=kontonr value='$kontonr'>\n";
 print "<input type=hidden name=ordre_id value='$ordre_id'>\n";
 print "<input type=hidden name=returside value='$returside'>\n";

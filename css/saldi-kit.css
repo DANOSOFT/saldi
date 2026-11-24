@@ -1,4 +1,4 @@
-/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.12 ---
+/* ---- css/saldi-kit.css --- ver 5.1.0 --- 2026.11.13 ---
    20261101 CL/ASR The shared UI kit for pages on the new design (prototype D "Som ordrelisten", as index/dashboard.php):
                    the design tokens and the components the settings pages need, everything scoped under .sk.
    20261101 CL/ASR No zebra on .sk-list rows: they are navigation (the settings hub, the left menu, lists of roles), and the owner found
@@ -7,6 +7,13 @@
                    the hub, Brugere & roller and the moved map each carried a copy of the rule.
    20261108 CL/ASR The page ground is Saldi's classic page colour (--page, #eeeef0, as the body of the classic pages), not white:
                    panels, lists, tables, menus and fields stay white on it, so they stand out (owner, 8 Nov 2026).
+   20261114 ASR    The control tokens (field border, hover, rows, switch, warn ink, scrim, on) read css/saldi-theme.css, which holds their
+                   light and dark values; the kit's own dark blocks are gone. The fallbacks are the light values, as before.
+   20261113 CL/ASR --sk-page-x 16 px (was 28): a page's side margin to the frame equals its top margin (owner, 13 Nov 2026).
+   20261109 ASR    A segmented control, .sk-seg, for one choice of a few (Alle | Mine, Måned | Uge, a list's status groups): a row of
+                   buttons in a field frame, the chosen one light grey with dark text (the kladdeliste prototype D's Alle kladder · Mine
+                   kladder), never filled navy. Added for the CRM (debitor/crm.php); no other rule changed. It wraps onto more rows
+                   in a narrow frame, and a disabled button does not react to hover.
    20261109 CL/ASR A module's outer frame is --sk-edge with a soft shadow (--sk-lift) and the line under its title band --sk-edge-head
                    (theme --edge/--lift/--edge-head): panel, standalone menu and save bar; notices get the frame, not the shadow, and keep the
                    hairline inside a panel, popover, drawer or dialog (owner, 9 Nov 2026).
@@ -15,7 +22,7 @@
                    The first piece after a form's hidden fields and the corner cells of a table at a panel's edge follow the corner.
 
    HOW TO USE
-   1. Load it after includes/online.php (which links css/saldi-fonts.css on the shell, the dashboard and systemdata pages):
+   1. Load it after includes/online.php (which links css/saldi-fonts.css on the shell, the dashboard, the systemdata pages and the CRM):
         print "<link rel='stylesheet' href='../css/saldi-theme.css?v=8'>\n<link rel='stylesheet' href='../css/saldi-kit.css?v=20261108'>\n";
       saldi-theme.css gives the colours for light and dark; without it the kit falls back to the light values.
       A module that moves to the kit must also be in $uiChromePage in includes/online.php (fonts, data-theme, text size).
@@ -40,7 +47,8 @@
       controls .sk-input on input/select/textarea (.sk-input-sm, .sk-num, [aria-invalid="true"]) · .sk-lookup > .sk-input +
                icon (+ .sk-pop) · .sk-search > icon + .sk-input (+ kbd, + .sk-pop) · .sk-unit · widths .sk-w-xs/s/m/l/xl
                (or --sk-w) · .sk-switch on button[role=switch][aria-checked] or input[type=checkbox] · input.sk-check,
-               input.sk-radio, label.sk-check-lbl
+               input.sk-radio, label.sk-check-lbl · .sk-seg > button[type=button] (segmented control; the chosen one has aria-pressed="true",
+               aria-checked="true", aria-selected="true" or .on; .sk-seg-sm = 24 px)
       buttons  .sk-btn (white with a border) · .sk-btn-primary (navy, one per page) · .sk-btn-ghost · .sk-btn-danger ·
                .sk-btn-sm (24 px) · .sk-btn-icon (square) · .sk-link (a link-looking <a> or <button>)
       tabs     .sk-tabs > .sk-tab (.on, aria-selected or aria-current) (+ .sk-n count)
@@ -66,28 +74,19 @@
 	--sk-lift: var(--lift, 0 1px 2px rgba(11, 26, 58, .08), 0 4px 12px rgba(11, 26, 58, .06));
 	--sk-text: var(--text, #0b1a3a); --sk-text-2: var(--text-2, #5b6b85); --sk-text-3: var(--text-3, #8a97ad); --sk-link: var(--link, #1b68bd);
 	--sk-good: var(--good, #15803d); --sk-bad: var(--bad, #c2410c); --sk-good-bg: var(--good-bg, #e8f6ee); --sk-bad-bg: var(--bad-bg, #fdecec);
-	--sk-warn: var(--saldi-amber, #D9822B); --sk-warn-ink: #a15c07; --sk-info: var(--saldi-blue, #4FA0EE);
+	--sk-warn: var(--saldi-amber, #D9822B); --sk-warn-ink: var(--warn-ink, #a15c07); --sk-info: var(--saldi-blue, #4FA0EE);
 	--sk-mark: var(--saldi-blue, #4FA0EE); --sk-focus: var(--saldi-blue, #4FA0EE); --sk-focus-ring: 0 0 0 2px rgba(79, 160, 238, .45);
 	--sk-primary: #114691; --sk-primary-hover: color-mix(in srgb, #114691 94%, #000); --sk-primary-text: #ffffff;
-	--sk-border-field: #c6d2e4; --sk-border-field-hover: #a9b8cf;
-	--sk-hover: #eef2f8; --sk-row-hover: #f5f9fe; --sk-row-sel: #eaf3fd; --sk-switch-off: #c9d3e2; --sk-on: var(--sk-text);
-	--sk-scrim: rgba(11, 26, 58, .24); --sk-toast-bg: var(--tip-bg, #0b1a3a); --sk-toast-text: var(--tip-text, #ffffff);
+	--sk-border-field: var(--border-field, #c6d2e4); --sk-border-field-hover: var(--border-field-hover, #a9b8cf);
+	--sk-hover: var(--hover, #eef2f8); --sk-row-hover: var(--row-hover, #f5f9fe); --sk-row-sel: var(--row-sel, #eaf3fd);
+	--sk-switch-off: var(--switch-off, #c9d3e2); --sk-on: var(--on, var(--sk-text));
+	--sk-scrim: var(--scrim, rgba(11, 26, 58, .24)); --sk-toast-bg: var(--tip-bg, #0b1a3a); --sk-toast-text: var(--tip-text, #ffffff);
 	--sk-shadow-win: var(--shadow-up, 0 2px 4px rgba(11, 26, 58, .06), 0 12px 28px rgba(11, 26, 58, .11));
 	--sk-font: var(--font-ui, Inter, system-ui, sans-serif); --sk-font-display: var(--font-display, 'Saldi Grotesk', Inter, system-ui, sans-serif);
 	--sk-fs: .8125rem; --sk-fs-s: .75rem; --sk-fs-xs: .6875rem; --sk-fs-h: .875rem; --sk-fs-title: 1.125rem;
 	--sk-row-h: 1.5rem; --sk-band-h: 1.75rem; --sk-ctl-h: 1.75rem; --sk-ctl-h-sm: 1.5rem;
-	--sk-r: 4px; --sk-r-mod: var(--r-mod, 6px); --sk-r-win: 8px; --sk-gap: 16px; --sk-pad: 12px; --sk-page-x: 28px;
+	--sk-r: 4px; --sk-r-mod: var(--r-mod, 6px); --sk-r-win: 8px; --sk-gap: 16px; --sk-pad: 12px; --sk-page-x: 16px;
 	--sk-t: 140ms; --sk-ease: var(--e-io, cubic-bezier(.4, 0, .2, 1));
-}
-[data-theme="dark"] .sk {
-	--sk-border-field: #34466e; --sk-border-field-hover: #4a5f8c; --sk-hover: #22325a; --sk-row-hover: #1f2e50;
-	--sk-row-sel: rgba(79, 160, 238, .16); --sk-switch-off: #3a4a6c; --sk-on: #4596ea; --sk-warn-ink: #e0a35a; --sk-scrim: rgba(0, 0, 0, .45);
-}
-@media (prefers-color-scheme: dark) {
-	[data-theme="system"] .sk {
-		--sk-border-field: #34466e; --sk-border-field-hover: #4a5f8c; --sk-hover: #22325a; --sk-row-hover: #1f2e50;
-		--sk-row-sel: rgba(79, 160, 238, .16); --sk-switch-off: #3a4a6c; --sk-on: #4596ea; --sk-warn-ink: #e0a35a; --sk-scrim: rgba(0, 0, 0, .45);
-	}
 }
 /* tones for .sk-status, .sk-dot, .sk-tag, .sk-note and .sk-tr-sub; registered as not inherited, so a tone never leaks into
    a nested component (an inert name on pages without the kit) */
@@ -403,6 +402,21 @@ html:has(.sk-page), html:has(.sk-page) > body { margin: 0; background: var(--pag
 	padding: 6px 12px; transform: translateX(-50%); border-radius: var(--sk-r); background: var(--sk-toast-bg); color: var(--sk-toast-text); box-shadow: var(--sk-shadow-win);
 	animation: sk-in var(--sk-t) var(--sk-ease); }
 .sk .sk-toast :is(a, .sk-link) { color: inherit; text-decoration: underline; }
+
+/* ---- segmented control (20261109 ASR): a row of buttons in a field frame, 28 px (24 px with .sk-seg-sm); the chosen one light grey
+   with dark 600 text, the others grey text. Quiet like the kladdeliste prototype D's Alle kladder · Mine kladder: no filled navy ---- */
+.sk .sk-seg { display: inline-flex; flex: none; flex-wrap: wrap; align-items: stretch; gap: 2px; max-width: 100%; min-height: var(--sk-ctl-h); margin: 0; padding: 2px; vertical-align: middle;
+	border: 1px solid var(--sk-border-field); border-radius: var(--sk-r); background: var(--sk-surface); }
+/* button height = the control's height less the 1 px frame and 2 px padding, top and bottom; in a narrow frame the buttons wrap */
+.sk .sk-seg > button { display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: calc(var(--sk-ctl-h) - 6px); margin: 0; padding: 0 8px; border: 0; border-radius: 3px;
+	background: none; color: var(--sk-text-2); font: 500 var(--sk-fs)/1 var(--sk-font); white-space: nowrap; cursor: pointer; transition: background-color var(--sk-t), color var(--sk-t); }
+.sk .sk-seg > button:hover:not(:disabled) { color: var(--sk-text); }
+.sk .sk-seg > button:is(.on, [aria-pressed="true"], [aria-checked="true"], [aria-selected="true"]) { background: var(--sk-hover); color: var(--sk-text); font-weight: 600; }
+.sk .sk-seg > button:disabled { opacity: .45; cursor: default; }
+.sk .sk-seg > button:focus-visible { outline-offset: -2px; }
+.sk .sk-seg > button > :is(svg, i, .sk-ic) { flex: none; width: 14px; height: 14px; font-size: 14px; line-height: 14px; fill: currentColor; }
+.sk .sk-seg-sm { min-height: var(--sk-ctl-h-sm); }
+.sk .sk-seg-sm > button { height: calc(var(--sk-ctl-h-sm) - 6px); padding: 0 6px; font-size: var(--sk-fs-s); }
 
 @media (prefers-reduced-motion: reduce) {
 	.sk *, .sk *::before, .sk *::after { transition: none !important; animation: none !important; }

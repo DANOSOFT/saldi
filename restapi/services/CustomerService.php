@@ -120,8 +120,9 @@ class CustomerService
             }
 
             // Check for duplicate email
+            // 20261105 CL/LH Checked among accounts of the same art, so a repeated creditor POST is refused like a debtor's.
             $email = $mappedData->email ?? $data->email ?? '';
-            if (!empty($email) && CustomerModel::emailExists(trim($email))) {
+            if (!empty($email) && CustomerModel::emailExists(trim($email), $art)) {
                 return [
                     'success' => false,
                     'message' => 'Email address is already in use by another customer'
@@ -130,7 +131,7 @@ class CustomerService
 
             // Check for duplicate phone number
             $phone = $mappedData->tlf ?? $data->phone ?? '';
-            if (!empty($phone) && CustomerModel::phoneExists(trim($phone))) {
+            if (!empty($phone) && CustomerModel::phoneExists(trim($phone), $art)) {
                 return [
                     'success' => false,
                     'message' => 'Phone number is already in use by another customer'
@@ -235,7 +236,7 @@ class CustomerService
 
             // Check for duplicate email (excluding current customer)
             $email = $mappedData->email ?? $data->email ?? null;
-            if ($email && CustomerModel::emailExists(trim($email), $data->id)) {
+            if ($email && CustomerModel::emailExists(trim($email), $art, $data->id)) {
                 return [
                     'success' => false,
                     'message' => 'Email address is already in use by another customer'
@@ -244,7 +245,7 @@ class CustomerService
 
             // Check for duplicate phone number (excluding current customer)
             $phone = $mappedData->tlf ?? $data->phone ?? null;
-            if ($phone && CustomerModel::phoneExists(trim($phone), $data->id)) {
+            if ($phone && CustomerModel::phoneExists(trim($phone), $art, $data->id)) {
                 return [
                     'success' => false,
                     'message' => 'Phone number is already in use by another customer'

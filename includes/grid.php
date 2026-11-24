@@ -1,8 +1,8 @@
 <?php
-
+//
 #..includes/grid.php
 ######################### >>>>>>>Notice before editing this file<<<<<<###############
-
+//
 // This file contains the core logic for creating and managing data grids on Saldi.
 // If you have a specific logic or feature you want to implement just for a single file, please consider the following before making changes:
 // 1. If the logic is specific to a single page, consider implementing it directly in that page's PHP file instead of here.
@@ -41,6 +41,7 @@ Regards:) 20260220 LOE
 //                 A stored legacy header is matched against the code's texts in decoded form.
 // 20261113 CL/LH SST-990 review: the kolonner editor's own header and description inputs use grid_html_exact(), so a saved text round-trips unchanged.
 //                Only displayed texts are decoded, including the placeholders of a column added since the setup.
+// 20261124 CL/ASR Header only: the two blank lines at the top of the editing notice are now // lines; no code change.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 /**
  * Extracts values from a specific column in a multi-dimensional array.

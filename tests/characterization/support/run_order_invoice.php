@@ -19,6 +19,9 @@
 //
 // Scenarios (argv 1):
 //   invoice <ordre_id>  - run the sequence above on an existing order
+//   invoice_dated <ordre_id> - the same sequence on an order whose fakturadate
+//                         the test has set (it is not reset to ordredate), as
+//                         the order page invoices an order from an earlier day
 //   reinvoice <ordre_id>- call bogfor() again on an already-invoiced order
 //
 // Prints a single JSON object on the LAST line of stdout.
@@ -30,9 +33,10 @@
 // 20261028 CL/LH Removed the inline bootstrap that the #815 merge brought back next to the
 //                bootstrap_ordrefunc.php require; it included ordrefunc.php a second time.
 // 20261111 CDX/NTR Require the caller-owned database instead of a fixed fallback.
+// 20261117 CL/ASR Scenario invoice_dated keeps the order's own fakturadate, for the exchange rate of the invoice date.
 
 if ($argc < 4) {
-    fwrite(STDERR, "usage: php run_order_invoice.php <invoice|reinvoice> <ordre_id> <tenant_db>\n");
+    fwrite(STDERR, "usage: php run_order_invoice.php <invoice|invoice_dated|reinvoice> <ordre_id> <tenant_db>\n");
     exit(2);
 }
 $scenario = $argv[1];
@@ -44,9 +48,11 @@ error_reporting(E_ALL);
 
 $out = ['scenario' => $scenario, 'ordre_id' => $ordreId];
 
-if ($scenario === 'invoice') {
+if ($scenario === 'invoice' || $scenario === 'invoice_dated') {
     transaktion('begin');
-    db_modify("update ordrer set fakturadate=ordredate where id='$ordreId'", __FILE__ . " linje " . __LINE__);
+    if ($scenario === 'invoice') {
+        db_modify("update ordrer set fakturadate=ordredate where id='$ordreId'", __FILE__ . " linje " . __LINE__);
+    }
     db_modify("update ordrelinjer set leveres = antal where ordre_id='$ordreId'", __FILE__ . " linje " . __LINE__);
     $out['levering'] = levering($ordreId, 'on', NULL, 'on');
     $out['bogfor'] = bogfor($ordreId, 'on');

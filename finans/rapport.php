@@ -1,11 +1,10 @@
-
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport.php --- ver 5.1.0 --- 2026-11-03 ---
+// --- finans/rapport.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +22,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20210110 PHR some minor changes related til 'deferred financial year'
 // 20230611 +20230619 PHR php8
 // 20240403 PHR Changet bankReconcile to $[POST]
@@ -34,11 +33,21 @@
 // 20260917 CDX/PHR Expand scrollable financial reports and release sticky headers when printing.
 // 20260918 CDX/PHR Expand all report scroll containers and hide pagination in print.
 // 20261103 LOE SST-936 Escape the project-name lookup the report form runs before any report is built.
+// 20261110 CDX/ASR Treat known report-filter submissions as reads for role enforcement.
+// 20261119 CL/ASR A chart without a Sideskift account no longer alerts on the statement reports, as regnskab() now splits it by account type.
+//                 Balance alerts instead when such a chart has no Resultat account, as the year's result is then not in the balance.
+// 20261119 CL/ASR The file starts with <?php and its header has no blank line, so the page no longer prints a newline before its output.
 @session_start();
 $s_id = session_id();
 
 $title = "Finansrapport";
 $modulnr = 4;
+$permission_key = 'finans.rapporter';
+// Only known report filters are read operations; an unknown action keeps the write gate.
+$permission_post_read = empty($_POST['bankReconcile']) && in_array(strtolower(trim((string) ($_POST['rapportart'] ?? ''))), array(
+	'', 'kontokort', 'kontokort_moms', 'kontokort_ubogfort', 'balance', 'resultat', 'regnskab', 'budget', 'lastyear',
+	'momsangivelse', 'moms_transaktioner', 'moms_rubrik', 'moms_afstemning', 'moms_oss', 'saft', 'regnskabbasis', 'emballage',
+), true);
 $css = "../css/standard.css";
 
 include("../includes/var_def.php");
@@ -292,10 +301,19 @@ elseif ($rapportart) {
 					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $konto_fra = $r['kontonr'];
 				}
 			}
-		}	else {
-			$txt = 'Sideskiftkonto ikke defineret i kontoplan - Balance & Resultat kan ikke adskilles';
-			alert($txt);
+		} elseif ($rapportart == "balance") {
+			// Without a Sideskift account regnskab() splits the chart by account type (regnskab_kontoside()). The year's
+			// result reaches the balance only through a Resultat account (kontotype R), so without one the balance cannot
+			// balance: say why.
+			$qtxt = "select distinct kontotype from kontoplan where regnskabsaar='$regnaar' and kontotype in ('D','R')";
+			$typer = array();
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) $typer[] = $r['kontotype'];
+			if (in_array('D', $typer) && !in_array('R', $typer)) {
+				alert(addslashes(findtekst('report.balance_no_result_account|Kontoplanen har ingen konto af typen Resultat, så årets resultat er ikke med i balancen.', $sprog_id)));
+			}
 		}
+		// Without a Sideskift account regnskab() splits the chart by account type (regnskab_kontoside()).
 		$submit = "regnskab";
 	} else $submit = str2low($rapportart);
 }

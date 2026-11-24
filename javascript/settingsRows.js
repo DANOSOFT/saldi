@@ -1,4 +1,8 @@
-// ---- javascript/settingsRows.js --- lap 5.0.0 --- 2026.11.03 ---
+// ---- javascript/settingsRows.js --- ver 5.1.0 --- 2026.11.05 ---
+// 20261105 CL/LH Gem posts only the cells of stored rows that changed, and the new rows.
+//                Every cell was posted, so a table of more than about 1000 cells (the values of variant "." on Varianter) went past PHP's max_input_vars, and a value added at the end was lost without a message.
+// 20261105 CL/LH A table card's inaktiv flag is data-can-inactive (rowsView.php), so only the eye is a [data-inactive] target.
+//                A click into a cell found the card, which has no row, and threw "Cannot read properties of null (reading 'dataset')".
 // 20261103 CL/ASR QA: a switch among the page's fields (Momsregistreret on Moms) toggles (click, Space): its hidden value and aria-checked;
 //                 Fortryd also puts the switches and the discount matrix's cells and types back, and ?field= / #key lights up the field.
 // 20261006 Sawaneh A row action can ask for one value in its dialog (data-input), e.g. the new control account.
@@ -204,7 +208,7 @@
 			}
 			var code = tr.dataset.code || '';
 			if (tr.dataset.use) {
-				var canInactive = card.dataset.inactive === '1' && !tr.classList.contains('st-row-inactive');
+				var canInactive = card.dataset.canInactive === '1' && !tr.classList.contains('st-row-inactive');
 				openDialog(fmt(cfg.cannotTitle, code), fmt(cfg.usedBody, tr.dataset.use), canInactive ? cfg.inactiveVerb : '', { action: 'row_inactive', table: card.dataset.table, id: tr.dataset.row, value: '1' }, false);
 				document.getElementById('st-dialog-cancel').textContent = cfg.close || '';
 				return;
@@ -249,6 +253,17 @@
 	form.addEventListener('input', refresh);
 	form.addEventListener('change', refresh);
 	form.addEventListener('submit', function () { window.docChange = false; });
+	// Only what changed is posted: a cell of a stored row that still holds what was drawn, which refresh() does not count
+	// as unsaved, stays out of the post; settings_rows_save() keeps the stored value of a cell or row that is not posted.
+	// Every cell went along before, so a long table (one variant's 2690 values) passed PHP's max_input_vars (1000),
+	// which drops the rest of the post without a word: a value added at the end, or an edit further down, was lost.
+	form.addEventListener('formdata', function (e) {
+		form.querySelectorAll('.st-rows tr[data-row]:not(.st-new)').forEach(function (tr) {
+			tr.querySelectorAll('.st-rin, .st-rcheck').forEach(function (c) {
+				if (c.name && valueOf(c) === origOf(c)) { e.formData.delete(c.name); }
+			});
+		});
+	});
 	if (undo) {
 		undo.addEventListener('click', function () {
 			controls().forEach(function (c) {

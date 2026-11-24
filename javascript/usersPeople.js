@@ -13,6 +13,9 @@
 //                   a login only opens the new-login form. Nothing is sent by mail from here.
 // 20261102 CL/ASR Review: add=1 in the address (a search hit for Tilføj person) opens that dialog on the list, when the page has its button
 //                 (a user who may add); add=1 then leaves the address, so a reload does not open it again.
+// 20261110 CDX/ASR Keep unsaved login changes after cancelled permission previews and protect refresh/navigation.
+// 20261114 CL/ASR The card's Tofaktor has three values (off, SMS, e-mail): the status line says on for any of the two ways.
+// 20261114 CL/ASR Under Sikkerhed the field follows the choice: Telefon for SMS, the card's e-mail for e-mail, and the two e-mail inputs stay equal.
 (function () {
 	'use strict';
 	var cfg = window.UR_PEOPLE || {};
@@ -59,6 +62,25 @@
 		if (dirty()) { ask(function () { window.location.href = href; }); return; }
 		window.location.href = href;
 	}
+	var tfaPick = document.getElementById('ur-tfa'), tfaStatus = document.getElementById('ur-tfa-status');
+	if (tfaPick && tfaStatus) {
+		tfaPick.addEventListener('change', function () { tfaStatus.textContent = tfaPick.value !== '' ? tfaStatus.dataset.on : tfaStatus.dataset.off; });
+	}
+	// Under Sikkerhed the field follows the choice: Telefon for SMS, E-mail for e-mail. The e-mail there is an unnamed
+	// copy of the card's E-mail at the top (the one that is saved), so both inputs always hold the same address.
+	var tfaPhone = document.getElementById('ur-tfa-phone'), tfaMail = document.getElementById('ur-tfa-mail');
+	if (tfaPick && tfaPhone && tfaMail) {
+		tfaPick.addEventListener('change', function () {
+			var byMail = tfaPick.value === 'email';
+			tfaPhone.style.display = byMail ? 'none' : '';
+			tfaMail.style.display = byMail ? '' : 'none';
+		});
+	}
+	var mailTop = document.getElementById('ur-email'), mailTfa = document.getElementById('ur-tfa-email');
+	if (mailTop && mailTfa) {
+		mailTfa.addEventListener('input', function () { mailTop.value = mailTfa.value; });
+		mailTop.addEventListener('input', function () { mailTfa.value = mailTop.value; });
+	}
 	if (userForm) {
 		userForm.addEventListener('input', function () { loginDirty = true; });
 		userForm.addEventListener('change', function () { loginDirty = true; });
@@ -69,10 +91,11 @@
 		if (!drawer || !stamDirty() || form.id === 'ur-padd-form') { return; }
 		e.preventDefault();
 		var submitter = e.submitter || null;
-		ask(function () { if (form.requestSubmit) { form.requestSubmit(submitter); } else { form.submit(); } });
+		ask(function () { if (form === userForm) { loginDirty = true; } if (form.requestSubmit) { form.requestSubmit(submitter); } else { form.submit(); } });
 	}, true);
 	if (userForm) {
-		userForm.addEventListener('submit', function () { loginDirty = false; });
+		userForm.addEventListener('submit', function (e) { if (!e.defaultPrevented) { loginDirty = false; } });
+		window.addEventListener('beforeunload', function (e) { if (dirty()) { e.preventDefault(); e.returnValue = ''; } });
 	}
 	// Links of the page (the X, the scrim, Annullér, the menu, Tilbage) while something is unsaved.
 	document.addEventListener('click', function (e) {
@@ -135,7 +158,7 @@
 			if (e.target.closest('[data-plink]')) {
 				setFane('login', false);
 				var pick = document.getElementById('ur-ansat');
-				if (pick) { pick.focus(); }
+				if (pick) { var section = pick.closest('details'); if (section) { section.open = true; } pick.focus(); }
 			}
 		});
 		var tabs = drawer.querySelector('.ur-ptabs');

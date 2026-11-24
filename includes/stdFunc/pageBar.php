@@ -105,7 +105,7 @@ function page_bar(array $o): void
 		$assets = true;
 		// Pages sit one level (debitor/) or two levels (lager/lister/) below the install root.
 		$rel = function_exists('get_relative') ? rtrim(get_relative(), '/') : '..';
-		print "<link rel='stylesheet' href='$rel/css/saldi-theme.css?v=8'><link rel='stylesheet' href='$rel/css/page.css?v=2'><link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>";
+		print "<link rel='stylesheet' href='$rel/css/saldi-theme.css?v=11'><link rel='stylesheet' href='$rel/css/page.css?v=2'><link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>";
 	}
 	$style = "--user-primary:" . $h(!empty($buttonColor) ? $buttonColor : '#114691') . ";--user-primary-text:" . $h(!empty($buttonTxtColor) ? $buttonTxtColor : '#ffffff');
 	print "<div class='pg' style='$style'>";

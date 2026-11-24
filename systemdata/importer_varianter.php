@@ -32,7 +32,7 @@
 $s_id = session_id();
 
 $title = "Importér varianter";
-$css = "../css/saldi-theme.css?v=8"; // the theme tokens, as the section pages; the layout links css/unified-components.css
+$css = "../css/saldi-theme.css?v=11"; // the theme tokens, as the section pages; the layout links css/unified-components.css
 $permission_key = 'settings.import_export';
 $permission_level = 'write';
 

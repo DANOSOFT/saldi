@@ -16,6 +16,13 @@ use PHPUnit\Framework\TestCase;
 // 20260920 CDX/MJ The control-flow and rollback checks were regexes and missed real cases -
 //                  "return $value;", "break 2;" and a rollback guarded by some other condition all
 //                  passed. Both now work on tokens. Raised by CodeRabbit on the PR.
+// 20261105 CL/LH The block's transaction is now the card's: account_card_begin_save() opens it with a lock on
+//                  the account before the card is compared, and account_card_end_save() commits it, or rolls it
+//                  back on $db_modify_fejl, once the contact persons are written too (testlab concurrent-editing
+//                  DEVY-2). The same invariant is pinned at that boundary: the block opens and ends no
+//                  transaction of its own, which would let the lock go halfway through the save, and nothing
+//                  from the block to the card's commit can leave without ending the save.
+// 20261115 CL/ASR Integration: back to master's version (decision T2): the debtor card uses master's MB-82 check (debitorkortIncludes/staleSave.php), not account_card_begin_save()/end_save(), so the block has its own transaction again and the 20260920 checks are back; the check of account_card_end_save()'s rollback gate stays for the Sager and creditor cards.
 final class DeliveryAddressSaveTransactionTest extends TestCase
 {
     /** @return string The delivery-address save block, start comment to end comment. */
@@ -267,5 +274,25 @@ final class DeliveryAddressSaveTransactionTest extends TestCase
             $normalised,
             'the rollback/commit choice should be made by !empty($db_modify_fejl) and nothing else'
         );
+    }
+
+    // 20261115 CL/ASR Kept from the 20261105 CL/LH version (T2): account_card_end_save() still ends the save of the Sager card and both creditor cards.
+    /**
+     * The card helper's rollback must be guarded by the write-failure flag specifically.
+     *
+     * account_card_end_save() in includes/stdFunc/accountCardVersion.php ends the save of the Sager customer card
+     * (debitor/debkort_save.php) and of both creditor cards (kreditor/kreditorkort.php, includes/kreditorkort.php).
+     * The webservice path returns from db_modify() instead of exiting, so without this guard a half-written save
+     * would commit. Asserted as the exact construct: a rollback guarded by something unrelated must not pass.
+     */
+    public function testTheCardHelperRollsBackOnTheWriteFailureFlag(): void
+    {
+        $source = (string)file_get_contents(__DIR__ . '/../../../includes/stdFunc/accountCardVersion.php');
+        $this->assertSame(1, preg_match('/\nfunction account_card_end_save\(.*?\n}\n/s', $source, $function), 'account_card_end_save() not found');
+        $normalised = preg_replace('/\s+/', ' ', $function[0]);
+        $gate = "if (!empty(\$db_modify_fejl)) { transaktion('rollback'); return; }";
+        $this->assertStringContainsString($gate, $normalised, 'the rollback/commit choice should be made by !empty($db_modify_fejl) and nothing else');
+        $this->assertSame(1, substr_count($normalised, "transaktion('commit')"), 'one commit');
+        $this->assertLessThan(strpos($normalised, "transaktion('commit')"), strpos($normalised, $gate), 'the flag is checked before the commit');
     }
 }

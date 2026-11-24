@@ -9,7 +9,7 @@
 // 20261027 CDX/MJ SST-876 Verify an old marker becomes a fresh active claim and is not recovered by a second request.
 // 20261028 CDX/MJ SST-876 Cover retry fairness and one-time exhaustion reporting.
 // 20261029 CDX/MJ SST-876 Start the competing claimant with the current PHP binary without a shell.
-
+//
 // ---------------------------------------------------------------- the stubbed transport
 // 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
 $GLOBALS['sent']    = array();   // every batch of urls the sender handed to the transport
