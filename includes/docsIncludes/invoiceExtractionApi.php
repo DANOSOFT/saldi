@@ -1,7 +1,7 @@
 <?php
 // --- includes/docsIncludes/invoiceExtractionApi.php -----
 // Helper functions for invoice extraction API integration
-
+//
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
 // 20260922 CL/LAH Leverandørforslag fra AI-scan: return the seller's CVR/VAT number, IBAN and
 //                  reg.nr./kontonr. plus the buyer's CVR (vendorCvr, vendorIban, vendorBankReg,
@@ -16,6 +16,9 @@
 //                This shouldn't be a problem, since we only have https calls and it's a setting that's not accessable to the user.
 // 20261003 CL/SZ SD-722 extractInvoiceData() keeps what the extraction itself returned in $GLOBALS['invoiceExtractionLastRaw']: the service's decoded answer, or for UBL XML array('source' => 'ubl', 'values' => ...).
 //                The pool stores it as the document's snapshot (poolCapture.php); the return value is unchanged.
+// 20261124 CL/LH The service's invoice_date goes through poolExtractedDate(): "21 11 26" is read day-first, and a date read year-first (2021-11-26 for a receipt uploaded 2026-11-24) gets its day-first reading.
+
+require_once __DIR__ . '/poolDateNormalizer.php';
 
 function invoiceExtractionApiResolveApiKey() {
 	if (!function_exists('db_select') || !function_exists('db_fetch_array')) {
@@ -370,15 +373,9 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		if (isset($extractedData['invoice_description'])) $description = $extractedData['invoice_description'];
 
 		if (isset($extractedData['invoice_date'])) {
-			$rawDate = $extractedData['invoice_date'];
-			if (preg_match('/^(\d{2})[-\/](\d{2})[-\/](\d{2})$/', $rawDate, $matches)) {
-				$date = '20' . $matches[3] . '-' . $matches[2] . '-' . $matches[1];
-			} elseif (preg_match('/^(\d{2})[-\/](\d{2})[-\/](\d{4})$/', $rawDate, $matches)) {
-				$date = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
-			} else {
-				$timestamp = strtotime($rawDate);
-				$date = $timestamp !== false && $timestamp > 0 ? date('Y-m-d', $timestamp) : $rawDate;
-			}
+			// The day the document arrived is what a misread year is measured against (poolExtractedDate()).
+			$mtime = is_file($filePath) ? filemtime($filePath) : false;
+			$date = poolExtractedDate((string) $extractedData['invoice_date'], $mtime ? date('Y-m-d', $mtime) : null);
 		}
 
 		if (isset($extractedData['vendor'])) $vendor = $extractedData['vendor'];

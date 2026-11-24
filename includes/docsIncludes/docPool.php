@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -223,6 +223,8 @@
 //                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
 // 20261029 CL/LH "Opdatér alle" scans only the documents not read yet (poolListData() unscanned=1), not the whole pool again.
 // 20261030 CDX/NTR Stop bulk extraction when the unscanned list cannot be loaded, so captured documents are never retried from cached rows.
+// 20261124 CL/LH The row and card editors' save no longer refuses an edit for the stored account the user left alone (poolMetadataEditedAccount()).
+//                A refused save says why (<pool-save-problem>, poolMetadataErrorText()) instead of "Fejl ved gemning (Status: 422)".
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -1044,12 +1046,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			}
 			poolMetadataSave($poolFile, $input, true, $version, (int)$regnaar);
 		} catch (RuntimeException | InvalidArgumentException $error) {
-			$status = $error->getCode() === 409 ? 409 : 422;
-			http_response_code($status);
-			$message = $status === 409
-				? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
-				: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
-			print htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+			http_response_code($error->getCode() === 409 ? 409 : 422);
+			// documents.php has printed its page head by now, so the reason is marked for the editor to find
+			print '<pool-save-problem>' . json_encode(poolMetadataErrorText($error, $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP) . '</pool-save-problem>';
 		}
 		return;
 	}
@@ -1526,7 +1525,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			if (!$currentRow || $submittedVersion === null || !hash_equals(poolMetadataVersion($currentRow), $submittedVersion)) {
 				throw new RuntimeException('Document changed', 409);
 			}
-			$newAccount = poolMetadataAccount($newAccount, (int)$regnaar);
+			$newAccount = poolMetadataEditedAccount($newAccount, $currentRow['account'] ?? '', (int)$regnaar);
 			if ($newAmount !== '' && $newAmount !== null && normalizePoolAmount($newAmount) === null) {
 				throw new InvalidArgumentException('Invalid amount', 422);
 			}
@@ -1534,12 +1533,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				throw new InvalidArgumentException('Invalid date', 422);
 			}
 		} catch (RuntimeException | InvalidArgumentException $error) {
-			$status = $error->getCode() === 409 ? 409 : 422;
-			http_response_code($status);
-			$message = $status === 409
-				? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
-				: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
-			print htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+			http_response_code($error->getCode() === 409 ? 409 : 422);
+			print '<pool-save-problem>' . json_encode(poolMetadataErrorText($error, $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP) . '</pool-save-problem>';
 			return;
 		}
 
@@ -4078,7 +4073,7 @@ print <<<JS
 				// Refresh the file list
 				fetchFiles();
 			} else {
-				alert('{$txt71}');
+				response.text().then(text => alert(poolSaveProblemText(text) || '{$txt71}')).catch(() => alert('{$txt71}'));
 			}
 		})
 		.catch(error => {
@@ -4427,6 +4422,13 @@ print <<<JS
 	// The message insertDoc.php marks when it refuses an account (<pool-account-problem>"…"</pool-account-problem>), or ''
 	function poolAccountProblemText(text) {
 		const match = /<pool-account-problem>([\s\S]*?)<\/pool-account-problem>/.exec(text || '');
+		if (!match) return '';
+		try { return JSON.parse(match[1]); } catch (e) { return ''; }
+	}
+
+	// The reason docPool.php gives for a refused row or card save (<pool-save-problem>"…"</pool-save-problem>), or ''
+	function poolSaveProblemText(text) {
+		const match = /<pool-save-problem>([\s\S]*?)<\/pool-save-problem>/.exec(text || '');
 		if (!match) return '';
 		try { return JSON.parse(match[1]); } catch (e) { return ''; }
 	}
@@ -5112,7 +5114,7 @@ window.saveRowData = function(input) {
 			// Try to get error message from response
 			response.text().then(text => {
 				console.error('Save failed. Response:', response.status, text);
-				alert(response.status === 409 ? '{$poolStaleText}' : '{$txt31} (Status: ' + response.status + '). {$txt32}.');
+				alert(response.status === 409 ? '{$poolStaleText}' : (poolSaveProblemText(text) || '{$txt31} (Status: ' + response.status + '). {$txt32}.'));
 			}).catch(() => {
 				alert('{$txt71}');
 			});

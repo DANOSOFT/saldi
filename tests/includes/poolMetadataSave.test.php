@@ -1,7 +1,7 @@
 <?php
 // 20261124 CL/LH Created: the pool row's green save refused Marian's edit with 422 (ssl3 /master, bilag 784).
-//                The row editor posts the stored account back, and a stored app or AI suggestion that is not in
-//                this year's kontoplan was checked like a typed one. Only a changed account is checked now.
+//                The row editor posts the stored account back, and a stored app or AI suggestion that is not in this year's kontoplan was checked like a typed one.
+//                Only a changed account is checked now.
 
 declare(strict_types=1);
 
