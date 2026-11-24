@@ -3,6 +3,7 @@
 // 20261101 CL/MJ Pin that a /*****\ licence banner (includes/barcode.php) is not read as PHPDoc.
 // 20261111 CDX/NTR Require comment-only separators throughout edited file headers.
 // 20261116 CDX/NTR Exempt formatting while retaining history requirements for content changes.
+// 20261124 CDX/NTR Exempt comment edits from maintenance while retaining history continuation validation.
 import test from "node:test";
 import assert from "node:assert/strict";
 import history from "../checks/file-history.mjs";
@@ -31,7 +32,7 @@ test("indentation and blank separators do not require history or header maintena
 for (const [label, beforeBody, afterBody] of [
   ['code', 'return 1;', 'return 2;'],
   ['string whitespace', 'return "a b";', 'return "a  b";'],
-  ['comment text', '// Original explanation.\nreturn 1;', '// Changed explanation.\nreturn 1;'],
+  ['comment-like string text', 'return "// Original explanation.";', 'return "// Changed explanation.";'],
   ['inline HTML whitespace', '?>a b<?php ', '?>a  b<?php '],
   ['heredoc contents', 'return <<<SQL\na b\nSQL;', 'return <<<SQL\na  b\nSQL;'],
 ]) {
@@ -40,6 +41,67 @@ for (const [label, beforeBody, afterBody] of [
     assert(findings.some(f => f.message.includes('no history line')), JSON.stringify(findings));
   });
 }
+
+for (const [label, beforeComment, afterComment] of [
+  ['line comment', '// Original explanation.', '// Changed explanation.'],
+  ['hash comment', '# Original explanation.', '# Changed explanation.'],
+  ['block comment', '/* Original explanation. */', '/* Changed explanation. */'],
+  ['PHPDoc', '/** Original explanation. */', '/** Changed explanation. */'],
+  ['added comment', '', '// Added explanation.'],
+  ['removed comment', '// Removed explanation.', ''],
+]) {
+  test(`${label} edits do not require history or header maintenance`, () => {
+    const before = head.replaceAll('2026-10-29', '2025-01-01').replace('2026 Danosoft', '2025 Danosoft')
+      + `function example() {\n${beforeComment}\nreturn 1;\n}`;
+    const after = before.replace(`\n${beforeComment}\nreturn`, `\n${afterComment}\nreturn`);
+    assert.deepEqual(history.run(context(before, after, [6])), []);
+  });
+}
+
+for (const [label, entryIndent, continuationIndent, additions] of [
+  ['both lines', '    ', '        ', [4, 5]],
+  ['entry only', '    ', '', [4]],
+  ['continuation only', '', '    ', [5]],
+]) {
+  test(`formatting-only edits to ${label} still require aligned history continuations`, () => {
+    const before = head + '//                 Another sentence.\nfunction example() {}';
+    const lines = before.split('\n');
+    lines[3] = entryIndent + lines[3];
+    lines[4] = continuationIndent + lines[4];
+    const findings = history.run(context(before, lines.join('\n'), additions));
+    assert(findings.some(f => f.line === 5 && f.message.includes('align the history continuation')), JSON.stringify(findings));
+    assert(!findings.some(f => /no history line|header date|copyright line/.test(f.message)), JSON.stringify(findings));
+  });
+}
+
+test('comment-only changes to continuation spacing still require alignment', () => {
+  const before = head + '//                 Another sentence.\nfunction example() {}';
+  const after = before.replace('//                 Another sentence.', '//        Another sentence.');
+  const findings = history.run(context(before, after, [5]));
+  assert(findings.some(f => f.line === 5 && f.message.includes('align the history continuation')), JSON.stringify(findings));
+  assert(!findings.some(f => f.message.includes('no history line')), JSON.stringify(findings));
+});
+
+test('equally indented history lines need no header maintenance', () => {
+  const before = head.replaceAll('2026-10-29', '2025-01-01').replace('2026 Danosoft', '2025 Danosoft')
+    + '//                 Another sentence.\nfunction example() {}';
+  const after = before.split('\n').map((line, i) => i === 3 || i === 4 ? '    ' + line : line).join('\n');
+  assert.deepEqual(history.run(context(before, after, [4, 5])), []);
+});
+
+test('correcting a history description needs no new entry or header maintenance', () => {
+  const before = head.replaceAll('2026-10-29', '2025-01-01').replace('2026 Danosoft', '2025 Danosoft')
+    + '//                 Another sentence.\nfunction example() {}';
+  const after = before.replace('Existing behavior.', 'Clarified description.');
+  assert.deepEqual(history.run(context(before, after, [4])), []);
+});
+
+test('comment-only edits cannot introduce blank separators inside a header', () => {
+  const before = head + 'function example() {}';
+  const after = before.replace('// Copyright', '\n// Copyright');
+  const findings = history.run(context(before, after, [3]));
+  assert(findings.some(f => f.line === 3 && f.message.includes('blank line')), JSON.stringify(findings));
+});
 
 test("history belongs before PHPDoc even when another new header entry is present", () => {
   const after = head + '// 20261029 CDX/MJ First new entry.\n/** Function documentation. */\n// 20261029 CDX/MJ Misplaced entry.\nfunction example() {}';

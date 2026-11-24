@@ -6,7 +6,7 @@
 // that need no judgment are checked here; whether `ver` needed bumping (a
 // behaviour change or not) is still the reviewer's call.
 //
-// For a PHP file that already has a history block, a change beyond formatting must:
+// For a PHP file that already has a history block, a change beyond comments and formatting must:
 //   1. add a history line: `// YYYYMMDD <TAG> <description>`, TAG = initials or CL/<initials>, CDX/<initials>
 //   2. add it below every existing history line (or, after a rebase, in date order among them)
 //   3. move the date on the `--- path --- ver --- date ---` line to that day or later
@@ -23,9 +23,10 @@
 // 20261030 CL/MJ Only a /** block counts as that PHPDoc, so history after a plain /* note in the header (includes/grid.php) is not flagged.
 // 20261111 CDX/NTR Require comment-only separators throughout edited headers, including license and history sections.
 // 20261116 CDX/NTR Exempt formatting-only edits from history and header maintenance.
+// 20261124 CDX/NTR Exempt comment edits from maintenance while always validating changed history continuations.
 
 import { splitLines } from "../lib/changeset.mjs";
-import { phpFormattingOnly } from "../lib/php-formatting.mjs";
+import { phpBehaviorUnchanged } from "../lib/php-behavior.mjs";
 
 const HISTORY = /^\s*(\/\/|#)\s*(\d{8})\b/;
 // Leading whitespace is allowed: about 20 files (includes/stdFunc/findTxt.php, includes/grid.php,
@@ -66,7 +67,7 @@ function validDate(yyyymmdd, today) {
 
 export default {
   id: "file-history",
-  summary: "edited PHP headers stay contiguous; changes beyond formatting require history and current header date/copyright",
+  summary: "edited PHP headers stay aligned and contiguous; changes beyond comments and formatting require history and current header date/copyright",
   run(ctx) {
     const findings = [];
     // The diff runs with --no-renames, so a moved file is a new file plus a deleted one. Its lines that
@@ -93,9 +94,9 @@ export default {
             message: "uncommented blank line inside the file header; use a comment-only separator (//) to keep the whole header contiguous." });
         }
       }
-      // Keep header-layout validation above, but formatting needs no history or date/copyright update.
+      // Comments and formatting need no history or date/copyright update; layout validation still runs.
       const previous = ctx.readBase(file.path);
-      if (file.status === "M" && previous !== null && phpFormattingOnly(previous, ctx.readHead(file.path))) continue;
+      const behaviorUnchanged = file.status === "M" && previous !== null && phpBehaviorUnchanged(previous, ctx.readHead(file.path));
       const historyLines = [];
       for (let line = 1; line <= header; line++) if (HISTORY.test(lines[line - 1])) historyLines.push(line);
       // A leading PHPDoc ends headerLength(), but is not executable code. Catch entries
@@ -128,16 +129,14 @@ export default {
 
       if (file.status === "M" && !added.length) {
         const touched = file.hunks.some((hunk) => hunk.removed.length || hunk.added.some((entry) => entry.line > header));
-        if (existing.length && touched) {
+        if (!behaviorUnchanged && existing.length && touched) {
           findings.push({
             path: file.path,
             line: existing[existing.length - 1],
             message: `no history line for this change; add "// ${ctx.today.replaceAll("-", "")} CL/<initials> <what changed>" below line ${existing[existing.length - 1]} (doc/ai/convention_file_history.md).`,
           });
         }
-        continue;
       }
-      if (!added.length) continue;
 
       for (const line of added) {
         const text = lines[line - 1];
@@ -190,12 +189,14 @@ export default {
             // A corrected dated line keeps its own continuation: at the base, the line above that
             // continuation was a dated line, and that line is gone now.
             const at = base.indexOf(lines[next - 1]);
-            if (at > 0 && HISTORY.test(base[at - 1]) && !lines.includes(base[at - 1])) break;
-            let last = next;
-            while (last + 1 <= header && !isNew(last + 1) && continuationAt(last + 1)) last++;
-            findings.push({ path: file.path, line,
-              message: `this entry splits the entry above from its continuation on line ${next}; move it below line ${last}.` });
-            break;
+            const keepsContinuation = at > 0 && HISTORY.test(base[at - 1]) && !lines.includes(base[at - 1]);
+            if (!keepsContinuation) {
+              let last = next;
+              while (last + 1 <= header && !isNew(last + 1) && continuationAt(last + 1)) last++;
+              findings.push({ path: file.path, line,
+                message: `this entry splits the entry above from its continuation on line ${next}; move it below line ${last}.` });
+              break;
+            }
           }
           if (continuation[1].length !== prefix[1].length) {
             findings.push({ path: file.path, line: next,
@@ -208,6 +209,7 @@ export default {
         }
       }
 
+      if (behaviorUnchanged || !added.length) continue;
       const newest = added.map((line) => HISTORY.exec(lines[line - 1])[2]).sort().pop();
       for (let line = 1; line <= header; line++) {
         const text = lines[line - 1];
