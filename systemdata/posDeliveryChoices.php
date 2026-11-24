@@ -63,7 +63,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$_SESSION['pos_delivery_refusals'] = (string) ob_get_clean();
 	audit_log('setting.changed', 'pos.screen.delivery_choices', 'indstilling', 'pos.screen.delivery_choices');
 	ob_end_clean();
-	header('Location: posDeliveryChoices.php?msg=saved');
+	if ($_SESSION['pos_delivery_refusals'] !== '') {
+		header('Location: posDeliveryChoices.php?msg=refused');
+	} else {
+		header('Location: posDeliveryChoices.php?msg=saved');
+	}
 	exit;
 }
 $refusals = isset($_SESSION['pos_delivery_refusals']) ? (string) $_SESSION['pos_delivery_refusals'] : '';
@@ -71,7 +75,7 @@ unset($_SESSION['pos_delivery_refusals']);
 
 $flash = array();
 $msg = isset($_GET['msg']) ? (string) $_GET['msg'] : '';
-if ($msg === 'saved' && $refusals === '') {
+if ($msg === 'saved') {
 	$flash[] = array('ok', 3322);
 } elseif ($msg === 'csrf') {
 	$flash[] = array('err', 5754);

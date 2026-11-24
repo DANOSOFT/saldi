@@ -86,6 +86,8 @@ final class PosDeliveryWiringTest extends TestCase
         self::assertStringContainsString("\$_SESSION['pos_delivery_refusals'] = (string) ob_get_clean();", $page);
         self::assertSame(1, substr_count($page, "header('Location: posDeliveryChoices.php?msg=saved');"));
         self::assertStringNotContainsString("if (\$refusals === '') {", $page);
+        // A save with a refused row never lands on the success banner, also not on a reload.
+        self::assertStringContainsString("header('Location: posDeliveryChoices.php?msg=refused');", $page);
     }
 
     public function testAChangeIsSavedAtOnceThroughTheDeliveryEndpoint(): void
