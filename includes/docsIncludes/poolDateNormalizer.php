@@ -23,7 +23,7 @@
 //                  Three extraction defects fixed at the same time - see normalizeDateFormat().
 // 20261124 CL/LH A receipt printing "21 11 26" (dd mm yy with spaces) became 2021-11-26 in the pool.
 //                A space-separated triple and a time after the date are read like the dotted forms.
-//                poolExtractedDate() takes the day-first reading of an AI-read date that is more than a year before the upload or in the future, when that reading falls in between.
+//                poolExtractedDate() takes the day-first reading of an AI-read date that is more than a year before the upload or in the future, when that reading falls in the three months before the upload.
 
 if (!function_exists('poolDateFromParts')) {
 	/**
@@ -141,6 +141,8 @@ if (!function_exists('normalizeDateFormat')) {
 		// with a time is left to strtotime() as before: it reads "11/12/26 13:02" month-first, as US receipts print it.
 		if (strpos($dateStr, '/') === false) {
 			$dateStr = preg_replace('/\s+\d{1,2}[:.]\d{2}(?:[:.]\d{2})?$/', '', $dateStr);
+			// An ISO timestamp ("2026-02-30T13:02:00Z") is checked as a date too, not rolled over by strtotime().
+			$dateStr = preg_replace('/^(\d{4}-\d{1,2}-\d{1,2})T\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+\-]\d{2}:?\d{2})?$/', '$1', $dateStr);
 		}
 		// Between the parts: . - or /, or only spaces, as till receipts print "21 11 26".
 		$separator = '(?:\s*[.\-\/]\s*|\s+)';
@@ -229,8 +231,11 @@ if (!function_exists('poolExtractedDate')) {
 		if (substr($parts[1], 0, 2) !== '20') {
 			return $date;
 		}
+		// The misread receipt was recent: its day-first reading must fall within a quarter before the upload. A wider
+		// window turned real dates around ("2027-01-26", an advance invoice, became 2026-01-27).
+		$recent = $reference->modify('-3 months')->format('Y-m-d');
 		$dayFirst = poolDateFromParts(poolDateExpandYear($parts[3]), $parts[2], substr($parts[1], 2));
-		if ($dayFirst !== '' && $dayFirst >= $earliest && $dayFirst <= $latest) {
+		if ($dayFirst !== '' && $dayFirst >= $recent && $dayFirst <= $latest) {
 			return $dayFirst;
 		}
 		return $date;
