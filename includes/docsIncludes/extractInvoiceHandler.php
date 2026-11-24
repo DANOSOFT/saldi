@@ -371,7 +371,8 @@ if ($action === 'save') {
 		echo json_encode($result, JSON_INVALID_UTF8_SUBSTITUTE);
 	} catch (RuntimeException | InvalidArgumentException $error) {
 		http_response_code($error->getCode() === 409 ? 409 : 422);
-		echo json_encode(['success' => false, 'error' => poolMetadataErrorText($error, $sprog_id)]);
+		// jsString() turns a legacy (ISO-8859) database's text into JSON, where json_encode() gives false
+		echo '{"success":false,"error":' . jsString([poolMetadataErrorText($error, $sprog_id)]) . '}';
 	}
 	exit;
 }

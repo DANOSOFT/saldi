@@ -225,6 +225,7 @@
 // 20261030 CDX/NTR Stop bulk extraction when the unscanned list cannot be loaded, so captured documents are never retried from cached rows.
 // 20261124 CL/LH The row and card editors' save no longer refuses an edit for the stored account the user left alone (poolMetadataEditedAccount()).
 //                A refused save says why (<pool-save-problem>, poolMetadataErrorText()) instead of "Fejl ved gemning (Status: 422)".
+//                The edit button passes its values as JavaScript strings (poolOnclickArg()), so a " in a subject or a stored date no longer breaks it.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -1048,7 +1049,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		} catch (RuntimeException | InvalidArgumentException $error) {
 			http_response_code($error->getCode() === 409 ? 409 : 422);
 			// documents.php has printed its page head by now, so the reason is marked for the editor to find
-			print '<pool-save-problem>' . json_encode(poolMetadataErrorText($error, $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP) . '</pool-save-problem>';
+			print '<pool-save-problem>' . jsString([poolMetadataErrorText($error, $sprog_id)]) . '</pool-save-problem>';
 		}
 		return;
 	}
@@ -1534,7 +1535,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			}
 		} catch (RuntimeException | InvalidArgumentException $error) {
 			http_response_code($error->getCode() === 409 ? 409 : 422);
-			print '<pool-save-problem>' . json_encode(poolMetadataErrorText($error, $sprog_id), JSON_HEX_TAG | JSON_HEX_AMP) . '</pool-save-problem>';
+			print '<pool-save-problem>' . jsString([poolMetadataErrorText($error, $sprog_id)]) . '</pool-save-problem>';
 			return;
 		}
 
@@ -3570,7 +3571,7 @@ print <<<JS
 			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromHref);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(row.invoiceNumber || '') + "\", \"" + escapeHTML(row.description || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, " + [poolFileFromHref, row.subject, row.account, row.amount, row.date.split(' ')[0], row.invoiceNumber, row.description].map(poolOnclickArg).join(', ') + "); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='{$txt12}'>" + svgIcons.trash + "</button>" +
 				(window.poolArchive ? window.poolArchive.button(poolFileFromHref, 'row') : '') +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='{$txt25}'>" + svgIcons.scan + "</button>" +
@@ -4095,6 +4096,12 @@ print <<<JS
 		});
 	}
 
+
+    // A value as a JavaScript string argument inside an onclick='...' attribute: the browser decodes the HTML entities
+    // before the script runs, so a " or ' in a subject or a stored date must arrive escaped for JavaScript too.
+    function poolOnclickArg(value) {
+        return escapeHTML(JSON.stringify(value == null ? '' : String(value)));
+    }
 
     function escapeHTML(str) {
         if (typeof str !== 'string') return str;
@@ -5078,7 +5085,7 @@ window.saveRowData = function(input) {
 			const deleteUrl = currentUrl.replace(/poolFile=[^&]*/, '') + (currentUrl.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromRow);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(data.newInvoiceNumber || '') + "\", \"" + escapeHTML(data.newInvoiceDescription || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, " + [poolFileFromRow, data.newSubject, data.newAccount, data.newAmount, dateFormatted, data.newInvoiceNumber, data.newInvoiceDescription].map(poolOnclickArg).join(', ') + "); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='{$txt12}'>" + svgIcons.trash + "</button>" +
 				(window.poolArchive ? window.poolArchive.button(poolFileFromRow, 'row') : '') +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='{$txt25}'>" + svgIcons.scan + "</button>" +
