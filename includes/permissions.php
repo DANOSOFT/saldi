@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissions.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/permissions.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,8 @@
 // 20261110 CDX/ASR Batch role reads, refreshable request permissions, and checked atomic role writes.
 // 20261110 CDX/ASR Preserve actual source levels when new independent permissions are introduced.
 // 20261113 CDX/NTR Read and write the built-in role flag as is_built_in throughout the permission helpers.
+// 20261124 CL/ASR audit_log() cuts the user name, the action, the object and the source to their columns' width in characters, so an entry never fails inside the caller's transaction.
+//                 Text that is not UTF-8 is converted first, as db_escape_string() converts it (audit_log_cut()), so the cut counts the characters that are stored.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 include_once(__DIR__ . '/roleTransactions.php');
@@ -1233,6 +1235,19 @@ function audit_user_name(): string
 }
 
 /**
+ * $value cut to $width characters, as audit_log()'s column holds it. Text that is not UTF-8 is read as Windows-1252 first,
+ * as db_escape_string() does when it escapes the value, so the cut counts the characters that reach the database.
+ */
+function audit_log_cut($value, int $width): string
+{
+	$s = (string) $value;
+	if (!mb_check_encoding($s, 'UTF-8')) {
+		$s = mb_convert_encoding($s, 'UTF-8', 'Windows-1252');
+	}
+	return mb_substr($s, 0, $width, 'UTF-8');
+}
+
+/**
  * Record who did what (spec R7). Never throws: an install without the table just skips.
  * $system: written as the user "system" without an IP address (the one-time migration at a first login, which is not that user's doing).
  */
@@ -1247,13 +1262,14 @@ function audit_log(string $handling, string $detaljer = '', string $objektType =
 		$extended = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'audit_log' and column_name = 'objekt_type'" . (function_exists('saldi_schema_filter') ? saldi_schema_filter() : ''), __FILE__ . " linje " . __LINE__));
 	}
 	$id = (isset($bruger_id) && !$system) ? (int) $bruger_id : 0;
-	$navn = db_escape_string($system ? 'system' : audit_user_name());
+	// Each value is cut to its column's width in characters, so the entry never fails inside the caller's transaction.
+	$navn = db_escape_string(audit_log_cut($system ? 'system' : audit_user_name(), 80));
 	$ip = db_escape_string((isset($_SERVER['REMOTE_ADDR']) && !$system) ? substr((string) $_SERVER['REMOTE_ADDR'], 0, 45) : '');
-	$handling = db_escape_string(substr($handling, 0, 60));
+	$handling = db_escape_string(audit_log_cut($handling, 60));
 	$detaljer = db_escape_string($detaljer);
 	if ($extended) {
 		$qtxt = "insert into audit_log (bruger_id, brugernavn, handling, detaljer, ip, objekt_type, objekt_id, kilde) values ($id, '$navn', '$handling', '$detaljer', '$ip', ";
-		$qtxt .= "'" . db_escape_string(substr($objektType, 0, 30)) . "', '" . db_escape_string(substr($objektId, 0, 60)) . "', '" . db_escape_string(substr($kilde, 0, 30)) . "')";
+		$qtxt .= "'" . db_escape_string(audit_log_cut($objektType, 30)) . "', '" . db_escape_string(audit_log_cut($objektId, 60)) . "', '" . db_escape_string(audit_log_cut($kilde, 30)) . "')";
 	} else {
 		$qtxt = "insert into audit_log (bruger_id, brugernavn, handling, detaljer, ip) values ($id, '$navn', '$handling', '$detaljer', '$ip')";
 	}

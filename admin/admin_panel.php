@@ -27,6 +27,7 @@
 // 20261117 CDX/NTR Use the shared master-admin lookup for the page and its actions.
 // 20261119 CL/ASR Merged master (MB-163): only a master user with the admin flag gets past the page's own check, so the operator panel redirect no longer looks the flag up again.
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
+// 20261124 CL/ASR Nulstil regnskab selects the ledger's database after db_connect(), which selects none on MySQL/MariaDB.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -321,7 +322,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $admin_user = function_exists('audit_user_name') ? audit_user_name() : (string)$brugernavn;
             $admin_ip = isset($_SERVER['REMOTE_ADDR']) ? substr((string)$_SERVER['REMOTE_ADDR'], 0, 45) : '';
             $client_conn = @db_connect($sqhost, $squser, $sqpass, $reset_db, __FILE__ . " linje " . __LINE__);
-            if (!$client_conn) {
+            if (!$client_conn || !db_select_database($client_conn, $reset_db)) { # db_connect() selects no database on MySQL/MariaDB
                 $message = "Kunne ikke forbinde til regnskabets database. Intet er nulstillet.";
             } else {
                 // While $db names the ledger, resetAccount()'s update of the sessions reaches the master database

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/crm/ical.php --- ver 5.1.1 --- 2026.11.10 ---
+// --- api/crm/ical.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20261029 ASR A user's CRM meetings as a calendar feed (Google, Outlook, Apple subscribe to the link). No login: the link carries the company (r = regnskab.id in the master database) and the user's secret token (k = <bruger_id>-<token>, crm_ical). The feed is read-only and stops working when the user makes a new link, turns it off, loses CRM access, is closed or is no longer linked to an employee.
 // 20261110 CDX/ASR Recheck active account and current CRM access for each calendar feed request.
+// 20261124 CL/ASR The ledger's database is selected after db_connect(), which selects none on MySQL/MariaDB.
 
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
@@ -52,7 +53,7 @@ if (!$r || !preg_match('/^[A-Za-z0-9_]+$/', (string) $r['db'])) {
 }
 $db = (string) $r['db'];
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
-if (!$connection) {
+if (!$connection || !db_select_database($connection, $db)) { # db_connect() selects no database on MySQL/MariaDB
 	crm_ical_fail(503);
 }
 include_once(__DIR__ . "/../../includes/std_func.php");

@@ -34,6 +34,8 @@
 //                 Table ordrer, sales and purchases (art DO, DK, KO, KK; not the POS receipts, art PO): an order whose status goes from under 3 to 3 or more is logged as Faktureret or Krediteret, with number, account, amount and the invoice credited.
 //                 A deleted order is logged too; other changes to orders (every save) are not.
 // 20261124 CL/ASR Integration: the look at the rows before a write reads LIKE as master's db_modify() now runs it (db_normalize_like_operators), so quoted text with ' like ' in it is found as written.
+// 20261124 CL/ASR The activity log's reads run under a savepoint inside the caller's transaction, so a read that fails no longer aborts it.
+//                 An insert is logged by name only when it added exactly one row (pg_affected_rows()), drew its id from the sequence and has no ON CONFLICT, nextval() or setval(); others are counted.
 
 if (!defined('DATA_AUDIT_MAX')) define('DATA_AUDIT_MAX', 100);
 
@@ -115,12 +117,28 @@ function data_audit_page(): string
 	return implode('/', array_slice($parts, -2));
 }
 
-/** A read of our own on the request's connection: never the error box or the error mail of db_select(), only rows or null. */
+/**
+ * A read of our own on the request's connection: never the error box or the error mail of db_select(), only rows or null.
+ * Inside the caller's transaction the read runs under a savepoint of its own, so a read that fails is rolled back to it and
+ * the caller's transaction goes on; a transaction that has already failed, or a connection that is busy, is not read from.
+ */
 function data_audit_rows($conn, string $sql): ?array
 {
+	if (!$conn) return null;
+	$status = pg_transaction_status($conn);
+	if ($status !== PGSQL_TRANSACTION_IDLE && $status !== PGSQL_TRANSACTION_INTRANS) return null;
+	$inTransaction = ($status === PGSQL_TRANSACTION_INTRANS);
+	if ($inTransaction && !@pg_query($conn, 'savepoint data_audit')) return null;
 	$res = @pg_query($conn, $sql);
-	if (!$res) return null;
+	if (!$res) {
+		if ($inTransaction) {
+			@pg_query($conn, 'rollback to savepoint data_audit');
+			@pg_query($conn, 'release savepoint data_audit');
+		}
+		return null;
+	}
 	$rows = pg_fetch_all($res);
+	if ($inTransaction) @pg_query($conn, 'release savepoint data_audit');
 	return is_array($rows) ? $rows : array();
 }
 
@@ -163,7 +181,17 @@ function data_audit_before(string $qtext, bool $global, $conn): ?array
 		$tables = data_audit_tables();
 		if (!isset($tables[$table]) || !audit_ready()) return null;
 		$ctx = array('op' => $op, 'table' => $table, 'conn' => $conn, 'rows' => array(), 'bulk' => false);
-		if ($op === 'insert') return $ctx;
+		if ($op === 'insert') {
+			// The new row is found afterwards by the id the statement drew from the table's sequence (currval()). An insert that
+			// names the id itself or has no column list may draw none, with ON CONFLICT an id can be drawn for a row that is
+			// skipped or updated instead, and a statement that calls nextval() or setval() itself can move the sequence past the
+			// new row, so these are counted instead (also when the words are only in a value: never a wrong name).
+			if (!preg_match('/^insert\s+into\s+[a-z_][a-z0-9_]*\s*\(([^)]*)\)/i', $q, $c) || preg_match('/(^|,)\s*"?id"?\s*(,|$)/i', $c[1])
+				|| preg_match('/\bon\s+conflict\b|\b(nextval|setval)\s*\(/i', $q)) {
+				$ctx['bulk'] = true;
+			}
+			return $ctx;
+		}
 		$w = data_audit_find($q, ' where ');
 		if ($w < 0) { $ctx['bulk'] = true; return $ctx; }   // a whole table: counted, not listed
 		$where = substr($q, $w + 7);
@@ -199,6 +227,12 @@ function data_audit_after(array $ctx, $result = null): void
 		}
 		if (!empty($def['events'])) { data_audit_order_events($ctx, $def); return; }
 		if ($ctx['op'] === 'insert') {
+			// currval() names the last row the statement added, so only an insert of exactly one row is logged by name.
+			$n = ($result !== null && $result !== false) ? (int) @pg_affected_rows($result) : 1;
+			if ($n !== 1) {
+				if ($n > 1) data_audit_count($table, 'data.created', $n);
+				return;
+			}
 			$rows = data_audit_rows($conn, "select * from $table where id = currval(pg_get_serial_sequence('$table', 'id'))");
 			if ($rows) data_audit_entry($table, 'data.created', $rows[0], data_audit_snapshot($rows[0], $def));
 			return;
