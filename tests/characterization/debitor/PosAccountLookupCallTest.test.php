@@ -1,8 +1,10 @@
 <?php
-// 20261124 CL/MJ MB-188 The till's payment on account (or an amount ending in k) without a customer
-// opens the customer lookup. It called pos_kontoopslag(), which was never defined, so the till
-// stopped with a fatal error. The branch is read from the shipped files: every function it calls
-// has to exist in the repo, and the lookup gets as many arguments as kontoopslag() takes.
+// The till's payment on account (or an amount ending in k) without a customer opens the customer
+// lookup. It called pos_kontoopslag(), which was never defined, so the till stopped with a fatal
+// error. The branch is read from the shipped files: the lookup it calls has to be the one the till
+// loads, with as many arguments as that function takes.
+//
+// 20261124 CL/MJ MB-188: created.
 
 namespace Saldi\Tests\PosCallSites;
 
