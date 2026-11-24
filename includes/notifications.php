@@ -246,8 +246,20 @@ function notif_source_release(int $sprogId): int
 	}
 	list($title, $body) = notif_texts($key, '', '', $sprogId);
 	notif_upsert($key, null, 'news', $title, $body, $config['url'], null);
-	$r = db_fetch_array(db_select("select id from notifications where source_key = '$keySql' and user_id is null", __FILE__ . " linje " . __LINE__));
-	return $r ? (int) $r['id'] : 0;
+	// notifications has no unique key, so two users logging in at the same moment right after a deploy can both
+	// insert the item. Keep the oldest and remove any duplicate (with its read marks), so everyone sees one item.
+	$keepId = 0;
+	$q = db_select("select id from notifications where source_key = '$keySql' and user_id is null order by id", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$id = (int) $r['id'];
+		if ($keepId === 0) {
+			$keepId = $id;
+			continue;
+		}
+		db_modify("delete from notification_read where notification_id = $id", __FILE__ . " linje " . __LINE__);
+		db_modify("delete from notifications where id = $id", __FILE__ . " linje " . __LINE__);
+	}
+	return $keepId;
 }
 
 /**
