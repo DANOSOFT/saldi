@@ -82,6 +82,8 @@
 // 20261118 CDX/NTR Track expression operands so LIKE function calls retain their original names.
 // 20261124 CL/ASR Integration: a write with bound parameters skips the activity log's look at the rows.
 //                 That look runs the statement's where clause without the values, and a failed look inside a transaction would abort it.
+// 20261124 CL/ASR db_escape_string() reads text that is not UTF-8 as Windows-1252 only for a UTF8 connection; a LATIN9 connection gets its single-byte text as it is.
+//                 It was converted to UTF-8 there too, so the LATIN9 database stored æ, ø and å as two characters each and € as ¤.
 // 20261124 CL/ASR Integration: db_query_connection() selects the master database with master's guarded call (20261116, SD-731) only; the unguarded call of 20261105 fixed the same failure and is removed.
 require_once __DIR__ . '/sharedFile.php';
 
@@ -736,10 +738,12 @@ if (!function_exists('transaktion')) {
 
 if (!function_exists('db_escape_string')) {
 	function db_escape_string($qtext) {
-		global $db_type;
+		global $db_type, $db_encode;
 		global $connection; #20190704
 		$qtext = str_replace("\0", "", $qtext);
-		if (!mb_check_encoding($qtext, 'UTF-8')) {
+		// Text that is not UTF-8 is read as Windows-1252 for a UTF8 connection. A LATIN9 connection ($db_encode not UTF8,
+		// includes/db_query.php db_connect()) expects single-byte text, so it gets the text as it is.
+		if ((!isset($db_encode) || $db_encode === 'UTF8') && !mb_check_encoding($qtext, 'UTF-8')) {
 			$qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
 		}
 		if ($db_type=="mysql" || $db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20261105 'mysql' has a mysqli connection too (db_connect())

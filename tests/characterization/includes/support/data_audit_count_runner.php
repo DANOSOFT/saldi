@@ -26,7 +26,8 @@ function audit_ready(): bool
 
 function audit_log(string $handling, string $detaljer = '', string $objektType = '', string $objektId = '', string $kilde = 'ui', bool $system = false): void
 {
-    echo json_encode([$handling, $detaljer, $objektType, $objektId], JSON_UNESCAPED_UNICODE), "\n";
+    // Straight to STDOUT: data_audit_log() keeps what the write prints out of the page (output buffering).
+    fwrite(STDOUT, json_encode([$handling, $detaljer, $objektType, $objektId], JSON_UNESCAPED_UNICODE) . "\n");
 }
 
 require __DIR__ . '/../../../../includes/dataAudit.php';
@@ -47,4 +48,4 @@ if ($ctx) {
     data_audit_after($ctx, $res);
 }
 pg_query($conn, "COMMIT");
-echo json_encode(['rows', (int) pg_fetch_result(pg_query($conn, "SELECT count(*) FROM adresser"), 0, 0)]), "\n";
+fwrite(STDOUT, json_encode(['rows', (int) pg_fetch_result(pg_query($conn, "SELECT count(*) FROM adresser"), 0, 0)]) . "\n");

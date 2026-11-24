@@ -49,6 +49,7 @@
 // 20261113 CDX/NTR Read and write the built-in role flag as is_built_in throughout the permission helpers.
 // 20261124 CL/ASR audit_log() cuts the user name, the action, the object and the source to their columns' width in characters, so an entry never fails inside the caller's transaction.
 //                 Text that is not UTF-8 is converted first, as db_escape_string() converts it (audit_log_cut()), so the cut counts the characters that are stored.
+//                 On a LATIN9 connection, which stores each byte as a character, the cut counts bytes.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 include_once(__DIR__ . '/roleTransactions.php');
@@ -1236,11 +1237,16 @@ function audit_user_name(): string
 
 /**
  * $value cut to $width characters, as audit_log()'s column holds it. Text that is not UTF-8 is read as Windows-1252 first,
- * as db_escape_string() does when it escapes the value, so the cut counts the characters that reach the database.
+ * as db_escape_string() does for a UTF8 connection, so the cut counts the characters that reach the database. A LATIN9
+ * connection ($db_encode not UTF8) stores every byte it is sent as a character, so there the cut counts bytes.
  */
 function audit_log_cut($value, int $width): string
 {
+	global $db_encode;
 	$s = (string) $value;
+	if (isset($db_encode) && $db_encode !== 'UTF8') {
+		return mb_check_encoding($s, 'UTF-8') ? mb_strcut($s, 0, $width, 'UTF-8') : substr($s, 0, $width);
+	}
 	if (!mb_check_encoding($s, 'UTF-8')) {
 		$s = mb_convert_encoding($s, 'UTF-8', 'Windows-1252');
 	}

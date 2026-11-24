@@ -45,6 +45,14 @@ final class DataAuditTransactionTest extends TestCase
         eval('
             function audit_ready(): bool { return true; }
             function audit_log(string $handling, string $detaljer = "", string $objektType = "", string $objektId = "", string $kilde = "ui", bool $system = false): void {
+                if (!empty($GLOBALS["__dat_fail"])) {
+                    // An entry that cannot be written, as db_modify() in webservice mode leaves it: the statement failed, the flag is set.
+                    $GLOBALS["__dat_webservice"] = $GLOBALS["webservice"] ?? null;
+                    @pg_query($GLOBALS["connection"], "INSERT INTO no_such_table VALUES (1)");
+                    $GLOBALS["db_modify_fejl"] = true;
+                    echo "Fejl!! INSERT INTO no_such_table<br>";   // as db_modify() prints the error on a develop server
+                    return;
+                }
                 $GLOBALS["__dat_log"][] = [$handling, $objektType, $objektId];
             }
         ');
@@ -203,6 +211,28 @@ final class DataAuditTransactionTest extends TestCase
         self::write("UPDATE adresser SET firmanavn = 'Efter' WHERE kontonr = '400'");
         self::exec('COMMIT');
         self::assertSame([['data.updated', 'Leverandør', '400 · Efter']], $GLOBALS['__dat_log']);
+    }
+
+    public function testAnEntryThatCannotBeWrittenLeavesTheCallersTransactionAndFlagAlone(): void
+    {
+        $GLOBALS['connection'] = self::$conn;   // the request's connection, which db_modify() writes the entry on
+        $GLOBALS['__dat_fail'] = true;
+        $GLOBALS['db_modify_fejl'] = false;
+        $serverLog = tempnam(sys_get_temp_dir(), 'dat');
+        ini_set('error_log', $serverLog);
+        self::exec('BEGIN');
+        ob_start();
+        self::write("INSERT INTO adresser (kontonr, firmanavn, art) VALUES ('500', 'Første', 'D')");
+        self::assertSame('', ob_get_clean(), 'the failed entry printed into the page');
+        self::assertStringContainsString('dataAudit: data.created: Fejl!! INSERT INTO no_such_table', (string) file_get_contents($serverLog), 'what the entry printed is not in the server\'s error log');
+        @unlink($serverLog);
+        self::assertTrue($GLOBALS['__dat_webservice'], 'db_modify() did not run in its webservice mode for the entry');
+        self::assertSame(PGSQL_TRANSACTION_INTRANS, self::transactionStatus(), 'the entry aborted the caller\'s transaction');
+        self::assertFalse($GLOBALS['db_modify_fejl'], 'the entry\'s failure was reported as the caller\'s');
+        self::assertArrayNotHasKey('webservice', $GLOBALS, 'webservice mode was left on');
+        self::exec("INSERT INTO adresser (kontonr, firmanavn, art) VALUES ('501', 'Anden', 'D')");
+        self::exec('COMMIT');
+        self::assertSame('2', (string) pg_fetch_result(pg_query(self::$conn, "SELECT count(*) FROM adresser"), 0, 0));
     }
 
     public function testATransactionThatHasAlreadyFailedIsNotReadFrom(): void

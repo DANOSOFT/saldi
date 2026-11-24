@@ -36,6 +36,8 @@
 // 20261124 CL/ASR Integration: the look at the rows before a write reads LIKE as master's db_modify() now runs it (db_normalize_like_operators), so quoted text with ' like ' in it is found as written.
 // 20261124 CL/ASR The activity log's reads run under a savepoint inside the caller's transaction, so a read that fails no longer aborts it.
 //                 An insert is logged by name only when it added exactly one row (pg_affected_rows()), drew its id from the sequence and has no ON CONFLICT, nextval() or setval(); others are counted.
+//                 Its own entries are written under a savepoint with db_modify() in webservice mode (data_audit_log()), so one that cannot be written never ends the request or the caller's transaction.
+//                 What such a write prints goes to the server's error log, not into the page.
 
 if (!defined('DATA_AUDIT_MAX')) define('DATA_AUDIT_MAX', 100);
 
@@ -380,12 +382,48 @@ function data_audit_object(string $table, array $row): array
 	return array($type, implode(' · ', $parts));
 }
 
+/**
+ * audit_log() for an entry the activity log makes by itself, on the request's connection (db_modify()'s). Inside the
+ * caller's transaction it runs under a savepoint, and db_modify() runs in its webservice mode, which returns instead of
+ * showing the error box and ending the request; an entry that cannot be written is left out, the caller's transaction goes
+ * on, and the caller's own failure flag ($db_modify_fejl, which the posting pages check) is left as it was. What the write
+ * prints is kept out of the page and goes to the server's error log.
+ */
+function data_audit_log(string $handling, string $details, string $type, string $id): void
+{
+	$conn = $GLOBALS['connection'] ?? null;
+	$isPg = $conn instanceof \PgSql\Connection;
+	$status = $isPg ? pg_transaction_status($conn) : null;
+	if ($isPg && $status !== PGSQL_TRANSACTION_IDLE && $status !== PGSQL_TRANSACTION_INTRANS) return;
+	$inTransaction = $isPg && $status === PGSQL_TRANSACTION_INTRANS;
+	if ($inTransaction && !@pg_query($conn, 'savepoint data_audit_log')) return;
+	$had = array();
+	foreach (array('webservice', 'db_modify_fejl') as $g) $had[$g] = array_key_exists($g, $GLOBALS) ? array($GLOBALS[$g]) : null;
+	$GLOBALS['webservice'] = true;
+	ob_start();   // what a failed entry prints (a warning, the error text on a develop server, an alert) stays out of the page
+	try {
+		audit_log($handling, $details, $type, $id, mb_substr(data_audit_page(), 0, 30));
+	} catch (\Throwable $e) {
+		error_log('dataAudit: ' . $handling . ' not logged: ' . $e->getMessage());
+	} finally {
+		$printed = ob_get_clean();
+		if ($printed !== '' && $printed !== false) error_log('dataAudit: ' . $handling . ': ' . mb_substr(strip_tags($printed), 0, 500));
+		foreach ($had as $g => $v) {
+			if ($v === null) unset($GLOBALS[$g]); else $GLOBALS[$g] = $v[0];
+		}
+	}
+	if ($inTransaction) {
+		if (pg_transaction_status($conn) === PGSQL_TRANSACTION_INERROR) @pg_query($conn, 'rollback to savepoint data_audit_log');
+		@pg_query($conn, 'release savepoint data_audit_log');
+	}
+}
+
 function data_audit_entry(string $table, string $handling, array $row, string $details): void
 {
 	static $n = 0;
 	if (++$n > DATA_AUDIT_MAX) { data_audit_count($table, $handling, 1); return; }
 	list($type, $id) = data_audit_object($table, $row);
-	audit_log($handling, $details, $type, mb_substr($id, 0, 60), mb_substr(data_audit_page(), 0, 30));
+	data_audit_log($handling, $details, $type, mb_substr($id, 0, 60));
 }
 
 /** Many changes in one request (an import, a new fiscal year): counted, and one line at the end. */
@@ -401,8 +439,7 @@ function data_audit_count(string $table, string $handling, int $count): void
 					$def = data_audit_tables()[$t];
 					$what = ($hnd === 'data.created') ? 'oprettet' : (($hnd === 'data.deleted') ? 'slettet' : (($hnd === 'data.invoiced') ? 'faktureret' : (($hnd === 'data.credited') ? 'krediteret' : 'ændret')));
 					$noun = ($t === 'varer') ? 'varer' : (($t === 'kontoplan') ? 'konti i kontoplanen' : (($t === 'ordrer') ? 'ordrer' : 'kunder/leverandører'));
-					audit_log('data.bulk', $c . ' ' . $noun . ' ' . $what . ' i én handling',
-						$def['type'], '', mb_substr(data_audit_page(), 0, 30));
+					data_audit_log('data.bulk', $c . ' ' . $noun . ' ' . $what . ' i én handling', $def['type'], '');
 				}
 			} catch (\Throwable $e) {
 			}

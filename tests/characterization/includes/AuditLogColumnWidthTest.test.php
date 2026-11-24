@@ -12,7 +12,8 @@ use PHPUnit\Framework\TestCase;
  * (includes/dataAudit.php through db_modify()). A value wider than its column (brugernavn VARCHAR(80), handling
  * VARCHAR(60), objekt_type VARCHAR(30), objekt_id VARCHAR(60), kilde VARCHAR(30)) made the insert fail, and a failed
  * statement aborts the whole transaction. Every value is now cut to its column's width in characters, counted as they are
- * stored: text that is not UTF-8 is converted first, as db_escape_string() converts it.
+ * stored: text that is not UTF-8 is converted first, as db_escape_string() converts it for a UTF8 connection, and on a
+ * LATIN9 connection, which stores each byte as a character, bytes are counted.
  *
  * Runs on a real Postgres with search_path set to pg_temp: audit_log is a TEMP table of this session, and nothing in the
  * shared SQL fixture database (TestDatabase::sqlFixture()) is read or changed.
@@ -51,9 +52,10 @@ final class AuditLogColumnWidthTest extends TestCase
             function db_modify($q, $where = "", $global = false) { return db_select($q, $where); }
             function db_fetch_array($r) { return pg_fetch_array($r); }
             function db_escape_string($s) {
-                // As includes/db_query.php: text that is not UTF-8 is read as Windows-1252 before it is escaped.
+                // As includes/db_query.php: for a UTF8 connection, text that is not UTF-8 is read as Windows-1252 before it is escaped.
                 $s = str_replace("\0", "", (string) $s);
-                if (!mb_check_encoding($s, "UTF-8")) $s = mb_convert_encoding($s, "UTF-8", "Windows-1252");
+                $utf8 = !isset($GLOBALS["db_encode"]) || $GLOBALS["db_encode"] === "UTF8";
+                if ($utf8 && !mb_check_encoding($s, "UTF-8")) $s = mb_convert_encoding($s, "UTF-8", "Windows-1252");
                 return pg_escape_string($GLOBALS["__alw_conn"], $s);
             }
             function tbl_exists($table) {
@@ -112,6 +114,22 @@ final class AuditLogColumnWidthTest extends TestCase
         self::assertSame(str_repeat('æ', 30), $row['objekt_type']);
         self::assertSame(str_repeat('æ', 60), $row['objekt_id']);
         self::assertSame(str_repeat('æ', 30), $row['kilde']);
+    }
+
+    public function testOnALatin9ConnectionTheCutCountsBytes(): void
+    {
+        // A LATIN9 connection stores every byte it is sent as a character: UTF-8 æ (two bytes) takes two places in the column.
+        $GLOBALS['db_encode'] = 'LATIN9';
+        pg_set_client_encoding(self::$conn, 'LATIN9');
+        $GLOBALS['bruger_id'] = 9;
+        $GLOBALS['brugernavn_raw'] = str_repeat('Ø', 50);
+        self::exec('BEGIN');
+        audit_log('data.created', 'detaljer', 'Leverandør', str_repeat('æ', 40), str_repeat("\xe6", 40));
+        self::assertSame(PGSQL_TRANSACTION_INTRANS, pg_transaction_status(self::$conn), 'the entry aborted the caller\'s transaction');
+        self::exec('COMMIT');
+
+        $row = pg_fetch_assoc(pg_query(self::$conn, "SELECT char_length(brugernavn) AS navn, char_length(objekt_id) AS id, char_length(kilde) AS kilde FROM audit_log"));
+        self::assertSame(['navn' => '80', 'id' => '60', 'kilde' => '30'], $row);
     }
 
     public function testShortValuesAreWrittenAsGiven(): void

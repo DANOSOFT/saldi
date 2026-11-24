@@ -76,6 +76,7 @@
 //                 The admin panel's restore asks for a reason, written in the ledger's activity log with the restore.
 //                 Every restore keeps the activity log: its rows are read before the database is replaced, and the rows the backup lacks go back in after (restore_log_snapshot(), restore_log_putback()).
 // 20261124 CL/ASR Comments state the current rule; no code change.
+// 20261124 CL/ASR Putting the activity log back after a restore selects the ledger's database after db_connect(), looks up tables with saldi_schema_filter() and sets the id sequence on PostgreSQL only, so it also runs on MySQL/MariaDB.
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -404,7 +405,7 @@ function restore_log_snapshot() {
 function restore_log_putback(array $rows) {
 	if (!$rows) return 0;
 	global $db;
-	$exists = db_fetch_array(db_select("select 1 as found from information_schema.tables where table_name = 'audit_log' and table_schema = current_schema()", __FILE__ . " linje " . __LINE__));
+	$exists = db_fetch_array(db_select("select 1 as found from information_schema.tables where table_name = 'audit_log' " . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
 	if (!$exists) {
 		// a backup from before the table: the rows are kept in a file next to the ledger's other files (the table itself comes with the next login's update)
 		$file = "../temp/$db/audit_log_kept_" . date('Ymd_His') . ".json";
@@ -413,7 +414,7 @@ function restore_log_putback(array $rows) {
 		return 0;
 	}
 	$cols = array();
-	$q = db_select("select column_name from information_schema.columns where table_name = 'audit_log' and table_schema = current_schema()", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select column_name from information_schema.columns where table_name = 'audit_log' " . saldi_schema_filter(), __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) $cols[(string) $r['column_name']] = true;
 	$have = array();
 	$q = db_select("select id, tidspunkt, handling from audit_log", __FILE__ . " linje " . __LINE__);
@@ -434,7 +435,10 @@ function restore_log_putback(array $rows) {
 		db_modify("insert into audit_log (" . implode(', ', $names) . ") values (" . implode(', ', $values) . ")", __FILE__ . " linje " . __LINE__);
 		$n++;
 	}
-	db_modify("select setval(pg_get_serial_sequence('audit_log', 'id'), greatest((select max(id) from audit_log), 1))", __FILE__ . " linje " . __LINE__);
+	global $db_type;
+	if ($db_type == 'postgresql') {   // MySQL/MariaDB's AUTO_INCREMENT moves past the rows put back by itself
+		db_modify("select setval(pg_get_serial_sequence('audit_log', 'id'), greatest((select max(id) from audit_log), 1))", __FILE__ . " linje " . __LINE__);
+	}
 	return $n;
 }
 
@@ -844,6 +848,7 @@ function restore_audit_detail($step, array $p) {
 function restore_audit_done(array $p, array $keptLog = array()) {
 	global $connection, $db, $sqhost, $squser, $sqpass, $adminRestore;
 	$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+	if ($connection && !db_select_database($connection, $db)) $connection = false;   // db_connect() selects no database on MySQL/MariaDB
 	if ($connection) {
 		try {
 			$p['log_rows_kept'] = restore_log_putback($keptLog);
@@ -855,7 +860,7 @@ function restore_audit_done(array $p, array $keptLog = array()) {
 	error_log("restore.php import_export.backup.restore setting.action $db $detail");
 	if (!$connection) return;
 	$cols = array();
-	$q = db_select("select column_name from information_schema.columns where table_name = 'audit_log' and table_schema = current_schema()", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select column_name from information_schema.columns where table_name = 'audit_log' " . saldi_schema_filter(), __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) $cols[(string) $r['column_name']] = true;
 	if (!empty($cols['handling']) && !empty($cols['detaljer']) && !empty($cols['bruger_id']) && !empty($cols['brugernavn'])) {
 		$name = function_exists('audit_user_name') ? audit_user_name() : '';
