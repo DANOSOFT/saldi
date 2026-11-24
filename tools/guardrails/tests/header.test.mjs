@@ -6,6 +6,10 @@
 // 20261124 CDX/NTR Exempt comment edits from maintenance while retaining history continuation validation.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import history from "../checks/file-history.mjs";
 import version from "../checks/file-version.mjs";
 
@@ -22,6 +26,29 @@ function context(before, after, additions = []) {
   };
 }
 const head = '<?php\n// example.php ver 5.1.0 2026-10-29\n// Copyright (c) 2026 Danosoft ApS\n// 20261028 CDX/MJ Existing behavior.\n';
+
+for (const check of ['file-history', 'file-version']) {
+  test(`${check} keeps PHP tokenizer warnings visible without corrupting JSON`, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'guardrails-php-errors-'));
+    try {
+      writeFileSync(join(dir, 'errors.ini'), 'display_errors=On\nlog_errors=Off\n');
+      const before = head.replace('ver 5.1.0', 'lap 2.0.9') + 'echo "\\400";';
+      const after = before + '\n// An ordinary comment.';
+      const module = new URL(`../checks/${check}.mjs`, import.meta.url).href;
+      const script = `import check from ${JSON.stringify(module)};\n`
+        + `const ctx = (${context.toString()})(${JSON.stringify(before)}, ${JSON.stringify(after)}, [6]);\n`
+        + 'console.log(JSON.stringify(check.run(ctx)));';
+      const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+        encoding: 'utf8', env: { ...process.env, PHP_INI_SCAN_DIR: `${process.env.PHP_INI_SCAN_DIR ?? ''}:${dir}` },
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout.trim(), '[]');
+      assert.match(result.stderr, /Octal escape sequence overflow/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
 
 test("indentation and blank separators do not require history or header maintenance", () => {
   const before = head.replaceAll('2026-10-29', '2025-01-01').replace('2026 Danosoft', '2025 Danosoft')

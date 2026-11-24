@@ -24,7 +24,7 @@ echo json_encode($hashes);
 /** Whether executable PHP tokens match; whitespace and comments are ignored, string and HTML contents are preserved. */
 export function phpBehaviorUnchanged(before, after) {
   const [command, ...args] = phpCommand();
-  const [oldHash, newHash] = JSON.parse(execFileSync(command, [...args, "-r", TOKENS], {
+  const [oldHash, newHash] = JSON.parse(execFileSync(command, [...args, "-d", "display_errors=stderr", "-r", TOKENS], {
     input: JSON.stringify([before, after]), encoding: "utf8", maxBuffer: 1024 * 1024,
   }));
   return oldHash === newHash;

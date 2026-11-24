@@ -41,7 +41,7 @@ export default {
       const previous = ctx.readBase(file.path);
       if (previous !== null) {
         php ??= phpCommand();
-        const [before, after] = JSON.parse(execFileSync(php[0], [...php.slice(1), "-r", TOKEN_HASH], {
+        const [before, after] = JSON.parse(execFileSync(php[0], [...php.slice(1), "-d", "display_errors=stderr", "-r", TOKEN_HASH], {
           input: JSON.stringify([previous, source]), encoding: "utf8", maxBuffer: 1024 * 1024,
         }));
         if (before === after) continue;
