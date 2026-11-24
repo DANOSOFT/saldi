@@ -25,6 +25,7 @@
 // History:
 // 20261119 CL/ASR Created (p1-yearend-F3, MB-81).
 // 20261120 CL/ASR carry-before-reconnect, and the events: which connection a statement went to and when a connection was closed (p1-pos-close-N1).
+// 20261124 CL/ASR The mysqli stand-ins are declared inside an if, so the file also parses where PHP has mysqli.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php named_lock_runner.php <mysql|mariadb> <carry-before|carry-before-exit|carry-in-transaction|journal-save> <answers json>\n");
@@ -79,33 +80,37 @@ final class LockRunConnection {
     }
 }
 
-final class mysqli_result {
-    /** @var array<int, mixed> */
-    public $row;
+// The mysqli stand-ins are declared inside an if: PHP declares them only when that line runs, so the file also compiles
+// where PHP has mysqli (php -l in CI), and the check above skips there before they would be needed.
+if (!extension_loaded('mysqli')) {
+    final class mysqli_result {
+        /** @var array<int, mixed> */
+        public $row;
 
-    public function __construct(array $row) {
-        $this->row = $row;
+        public function __construct(array $row) {
+            $this->row = $row;
+        }
     }
-}
 
-function mysqli_query($connection, $sql) {
-    $GLOBALS['lockRun']['events'][] = ($connection instanceof LockRunConnection ? $connection->name : (string) $connection) . ': ' . $sql;
-    return new mysqli_result([lock_run_answer($sql)]);
-}
+    function mysqli_query($connection, $sql) {
+        $GLOBALS['lockRun']['events'][] = ($connection instanceof LockRunConnection ? $connection->name : (string) $connection) . ': ' . $sql;
+        return new mysqli_result([lock_run_answer($sql)]);
+    }
 
-function mysqli_fetch_row($result) {
-    return $result->row;
-}
+    function mysqli_fetch_row($result) {
+        return $result->row;
+    }
 
-function mysqli_free_result($result) {
-}
+    function mysqli_free_result($result) {
+    }
 
-function mysqli_error($connection) {
-    return '';
-}
+    function mysqli_error($connection) {
+        return '';
+    }
 
-function mysqli_errno($connection) {
-    return 0;
+    function mysqli_errno($connection) {
+        return 0;
+    }
 }
 
 // db_select() and db_fetch_array() of includes/db_query.php, as kkJournalLock() reads GET_LOCK() through them.

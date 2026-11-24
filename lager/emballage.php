@@ -10,6 +10,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261104 LOE MB-62 A read-only Items user is refused: this page only saves and deletes packaging.
+// 20261124 CL/ASR The Hjælp cell in the old page bar is hidden; the top bar has Hjælp.
 
 @session_start();
 $s_id = session_id();

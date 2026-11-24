@@ -1,5 +1,5 @@
 <?php
-// --- debitor/pos_ordre_includes/settleCommission/commissionDefaultFromDate.php --- ver 5.1.1 --- 2026.11.09 ---
+// --- debitor/pos_ordre_includes/settleCommission/commissionDefaultFromDate.php --- ver 5.1.0 --- 2026.11.09 ---
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261109 CL/SS SST-919 Default first day of the cash count commission settlement.

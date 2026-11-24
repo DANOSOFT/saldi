@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/pageBar.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/stdFunc/pageBar.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 //                 The shell no longer hides Tilbage.
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 (--page is Saldi's classic page colour #eeeef0 now; no page_bar page uses it).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261124 CL/ASR css/saldi-theme.css linked as ?v=11: the theme file has the dark-ready tokens now, so browsers fetch it again.
 if (!function_exists('page_bar_back_ok')) {
 	/**
 	 * Whether a back link may be printed (review 2, PR #803). Several pages pass a returside taken from the request.

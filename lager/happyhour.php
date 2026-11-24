@@ -1,5 +1,5 @@
 <?php
-// ------------- lager/happyhour.php ---------- ver 5.1.1 --- 2026-11-04 ---
+// ------------- lager/happyhour.php ---------- ver 5.1.0 --- 2026-11-04 ---
 // LICENS
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
