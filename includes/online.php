@@ -89,6 +89,11 @@
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
 // 20261124 CL/SZ MB-143: A page that sets $standardsMode = true before including this file gets <!DOCTYPE html> (standards mode).
 //                Every other page keeps the HTML 4.01 doctype and its quirks mode, which their table layouts rely on.
+
+/**
+ * Set by the including page before it includes this file (optional, see doc/ai/convention_standards_mode.md):
+ * @var bool|null $standardsMode
+ */
 include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001

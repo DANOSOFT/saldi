@@ -13,5 +13,5 @@ metadata:
 
 - A new page, or a page rewritten with modern CSS, sets `$standardsMode = true;` before `include("../includes/online.php")`.
 - To move an existing page over, compare it before and after in Chrome and Safari/WebKit at a normal window size: full-height tables and scroll areas, font sizes in tables, column widths, the page's popups, and print. Put the before/after screenshots in the PR.
-- A page that prints anything (a `<script>`, whitespace, a BOM) before `online.php` runs stays in quirks mode whatever it sets: the doctype must be the first thing in the response. `debitor/debitor.php`, `debitor/debitorkort.php`, `debitor/ordreliste.php`, `kreditor/kreditor.php` and `finans/kontrolspor.php` do this today; move that output below the include first.
+- A page that prints any markup or text before `online.php` runs (a `<script>`, a `<title>`, a `<link>`) stays in quirks mode whatever it sets: the doctype must come before any element. Only whitespace and comments may come before it. `debitor/debitor.php`, `debitor/debitorkort.php`, `debitor/ordreliste.php`, `kreditor/kreditor.php` and `finans/kontrolspor.php` do this today; move that output below the include first.
 - Don't add `html, body { height: 100% }` globally: with the default 8px body margin it makes every page scroll. Size full-height areas on the page itself.
