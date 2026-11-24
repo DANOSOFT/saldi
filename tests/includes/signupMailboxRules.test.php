@@ -281,6 +281,23 @@ final class signupMailboxRules extends TestCase
         self::assertSame([10, 0, 12], array_map(fn ($r) => (int)($r['r_id'] ?? 0), $rows));
     }
 
+    public function testATagOnlyNameMatchesOnlyOtherTagOnlyNamesOfTheDomain(): void
+    {
+        // the query selects every address of the domain for '+trial@firma.dk'; signup_email_key() keeps only '@firma.dk'
+        $signups = [
+            ['signup_id' => 1, 'status' => 'activated', 'email' => '+old@firma.dk', 'r_id' => 20],
+            ['signup_id' => 2, 'status' => 'activated', 'email' => 'kontor@firma.dk', 'r_id' => 21],
+            ['signup_id' => 3, 'status' => 'activated', 'email' => '+trial@andet.dk', 'r_id' => 22],
+        ];
+        $accounts = [
+            ['r_id' => 20, 'email' => '+old@firma.dk'], // the account of signup 1: counted once
+            ['r_id' => 23, 'email' => '+FIN@Firma.dk'], // its signup row is gone
+            ['r_id' => 24, 'email' => 'kontor+trial@firma.dk'],
+        ];
+        $rows = signup_mailbox_history_rows('+trial@firma.dk', $signups, $accounts);
+        self::assertSame([20, 23], array_map(fn ($r) => (int)($r['r_id'] ?? 0), $rows));
+    }
+
     public function testTheCustomerIsToldWhyInDanishWithTheSupportPhoneSetting(): void
     {
         self::assertSame(
