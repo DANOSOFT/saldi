@@ -48,8 +48,8 @@
 //                A choice an order already uses is never rewritten: a change of name, type, Shopify value or tags deactivates it and adds a new version, and delete only deactivates it.
 //                The section shows only where the Shopify schema is installed, so MySQL installations are untouched.
 //
-// 20261124 CL/LH K33 PoS-valg is retired (#1191, #1192), so the delivery choices are kept on systemdata/posDeliveryChoices.php,
-//                linked from Indstillinger -> Kasse -> Kasseskærm -> Salg; pos_render_delivery_choices_settings() takes the page's charset.
+// 20261124 CL/LH K33 PoS-valg is retired (#1191, #1192), so the delivery choices are kept on systemdata/posDeliveryChoices.php, linked from Indstillinger -> Kasse -> Kasseskærm -> Salg.
+//                pos_render_delivery_choices_settings() takes the page's charset.
 //
 // The brand is kept as a tab separated list indexed by terminal number less one, in
 // grupper art='POS' kodenr='4' box1 - the same shape as every other per-terminal POS setting
