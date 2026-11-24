@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.09
+// --- tools/shopify_worker.php --- ver 5.1.0 --- 2026.11.12
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 //        php tools/shopify_worker.php seed --db=<tenant> --shop=<shop_key> [--batch=250]
 //        php tools/shopify_worker.php baseline --db=<tenant> --shop=<shop_key>
 //        php tools/shopify_worker.php reconcile --db=<tenant> --shop=<shop_key>
+//        php tools/shopify_worker.php activate --db=<tenant> --shop=<shop_key> [--dry-run]
 //        php tools/shopify_worker.php remap --db=<tenant> --shop=<shop_key> --lager=<kodenr> [--location=gid://shopify/Location/...]
 //        php tools/shopify_worker.php set-app --db=<tenant> --shop=<shop_key> --client-id=<id> < client-secret
 //
@@ -54,12 +55,17 @@
 // 20261106 CL/MJ SD-790 review: set-app's messages end in \n like the other commands' do.
 // 20261108 CL/SS SD-803: the customer.export handler (a Saldi debtor becomes a Shopify customer).
 // 20261109 CL/MJ SD-759: the write-back handlers order.tags, order.references, order.note and order.processed.
+// 20261112 CL/SZ SD-822: the stock.activate handler and the command activate; --dry-run alone reads as --dry-run=1.
+// 20261112 CL/SS SD-804: the store.export and store.recover handlers (a posted POS sale becomes a Shopify order).
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
 	print 'CLI only';
 	exit;
 }
+
+/** Options that may be given alone (--dry-run means --dry-run=1); every other one needs =value. */
+const SHOPIFY_WORKER_SWITCHES = array('--dry-run');
 
 /** @return array<string, callable(array<string, string>): int> */
 function shopify_worker_commands(): array {
@@ -70,6 +76,7 @@ function shopify_worker_commands(): array {
 		'seed' => 'shopify_worker_cmd_seed',
 		'baseline' => 'shopify_worker_cmd_baseline',
 		'reconcile' => 'shopify_worker_cmd_reconcile',
+		'activate' => 'shopify_worker_cmd_activate',
 		'remap' => 'shopify_worker_cmd_remap',
 		'set-app' => 'shopify_worker_cmd_set_app',
 	);
@@ -85,6 +92,7 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/services/catalogue.php';
 	require_once __DIR__ . '/../includes/shopify/services/customers.php';
 	require_once __DIR__ . '/../includes/shopify/services/customersOut.php';
+	require_once __DIR__ . '/../includes/shopify/services/storeOrders.php';
 	require_once __DIR__ . '/../includes/shopify/services/prices.php';
 	require_once __DIR__ . '/../includes/shopify/services/statusIn.php';
 	require_once __DIR__ . '/../includes/shopify/services/orderImport.php';
@@ -114,6 +122,9 @@ function shopify_worker_wiring(): array {
 	shopify_worker_register($registry, 'customer.upsert', 'shopify_customer_upsert_job');
 	// SD-803: a Saldi debtor becomes a customer in the shop (store orders carry it).
 	shopify_worker_register($registry, 'customer.export', 'shopify_customer_export_job');
+	// SD-804: a posted POS sale becomes a paid order in its brand's shop; the hourly scan catches what was never queued.
+	shopify_worker_register($registry, 'store.export', 'shopify_store_orders_run');
+	shopify_worker_register($registry, 'store.recover', 'shopify_store_orders_recover');
 	// SD-802: the quarter-hour price window of each shop with prices_enabled.
 	shopify_worker_register($registry, 'price.window', 'shopify_prices_window_job');
 	// SD-801: fulfillments, order status, cancellations and refunds projected onto the order's link.
@@ -133,6 +144,9 @@ function shopify_worker_wiring(): array {
 		=> shopify_stock_reconcile(array('heartbeat' => $heartbeat), $job, $deadline));
 	shopify_worker_register($registry, 'stock.baseline', fn(array $job, float $deadline, callable $heartbeat): array
 		=> shopify_stock_baseline(array('heartbeat' => $heartbeat), $job, $deadline));
+	// SD-822: every linked item stocked at its locations before go-live.
+	shopify_worker_register($registry, 'stock.activate', fn(array $job, float $deadline, callable $heartbeat): array
+		=> shopify_stock_activate_all(array('heartbeat' => $heartbeat), $job, $deadline));
 	// SD-759: the invoiced order's hold tags, numbers and invoice link, split-set note and saldi-behandlet, in that order.
 	foreach (array('order.tags', 'order.references', 'order.note', 'order.processed') as $stage) {
 		shopify_worker_register($registry, $stage, 'shopify_writeback_job');
@@ -447,6 +461,34 @@ function shopify_worker_cmd_reconcile(array $opts): int {
 }
 
 /**
+ * Queues the stock activation of --shop (one stock.activate job; see shopify_stock_activate_all()), or with
+ * --dry-run one that only counts the pairs left. The outcome is the shop's stock/activate row on the error
+ * list. Prints the job.
+ *
+ * @param array<string, string> $opts
+ */
+function shopify_worker_cmd_activate(array $opts): int {
+	$usage = 'activate --db=<tenant> --shop=<shop_key> [--dry-run]';
+	if (!in_array($opts['dry-run'] ?? '0', array('0', '1'), true)) {
+		fwrite(STDERR, "usage: php tools/shopify_worker.php $usage\n");
+		return 2;
+	}
+	$shop = shopify_worker_stock_shop($opts, $usage);
+	if ($shop === null) {
+		return 2;
+	}
+	$dryRun = ($opts['dry-run'] ?? '0') === '1';
+	try {
+		$job = shopify_stock_start_activate(array(), (int)$shop['id'], $dryRun);
+	} catch (ShopifyConfigError $e) {
+		fwrite(STDERR, 'activate: ' . $e->getMessage() . "\n");
+		return 2;
+	}
+	echo json_encode(array('shop' => $shop['shop_key'], 'dry_run' => $dryRun) + $job) . "\n";
+	return 0;
+}
+
+/**
  * Zeroes --lager's location in --shop and moves the lager to --location, or leaves it unmapped without
  * one (shopify_stock_remap()). Waits for the worker lock and holds it, so no push runs meanwhile. Prints
  * how many pairs were zeroed; exits 1 when Shopify refused or didn't answer, and then the mapping stays.
@@ -494,6 +536,9 @@ function shopify_worker_parse(array $argv): array {
 	foreach (array_slice($argv, 2) as $arg) {
 		if (preg_match('/^--([a-z-]+)=(.*)$/', $arg, $m)) {
 			$opts[$m[1]] = $m[2];
+		} elseif (in_array($arg, SHOPIFY_WORKER_SWITCHES, true)) {
+			// a switch alone means on; any other option without a value is dropped, so the command asks for it
+			$opts[substr($arg, 2)] = '1';
 		}
 	}
 	return array($command, $opts);

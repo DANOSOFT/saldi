@@ -451,6 +451,35 @@ final class PosDeliveryChoicesTest extends TestCase
         self::assertStringContainsString('12-01-2027', $html);
     }
 
+    public function testAWishedDateIsShownAsAnIsoDateWhateverTheDateStyle(): void
+    {
+        // The date input only takes YYYY-MM-DD; a DMY DateStyle would blank it and the next submit would clear the date.
+        $valg = $this->choice('Levering', 'levering');
+        $html = $this->steps([['datestyle', 'SQL, DMY'], ['render_sale', $this->sale(0, $valg, '2027-01-12'), 0]])[1]['result'];
+        self::assertStringContainsString('2027-01-12', $html);
+        self::assertStringNotContainsString('12/01/2027', $html);
+    }
+
+    public function testMovingASaleOntoAnotherTablesSaleTakesItsDeliveryAlong(): void
+    {
+        $valg = $this->choice('Levering', 'levering');
+        $from = $this->sale(0, $valg, '2027-01-12');
+        $to = $this->sale();
+        $this->steps([['move_delivery', $from, $to]]);
+        self::assertSame(['leveringsvalg_id' => (string)$valg, 'leveringsmaade' => null, 'oensket_levdato' => '2027-01-12'], $this->order($to));
+    }
+
+    public function testMovingASaleOntoASaleWithItsOwnDeliveryKeepsThatOne(): void
+    {
+        $levering = $this->choice('Levering', 'levering');
+        $afhentning = $this->choice('Afhentning', 'afhentning');
+        $from = $this->sale(0, $levering, '2027-01-12');
+        $to = $this->sale(0, $afhentning, '2027-02-01');
+        $this->steps([['move_delivery', $from, $to]]);
+        self::assertSame((string)$afhentning, $this->order($to)['leveringsvalg_id']);
+        self::assertSame('2027-02-01', $this->order($to)['oensket_levdato']);
+    }
+
     public function testANewSaleIsResetToTakenAlong(): void
     {
         self::assertSame(',leveringsvalg_id=NULL,leveringsmaade=NULL,oensket_levdato=NULL', $this->steps([['reset_sql']])[0]['result']);

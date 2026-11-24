@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/saleDeliveryFields.php --- ver 5.1.0 ---- 2026-11-20 ----
+// --- debitor/pos_ordre_includes/saleDeliveryFields.php --- ver 5.1.1 ---- 2026-11-24 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 //                No choice is "taget med".
 //                The wished date never goes in levdate, which exitFunc/settlePOS.php overwrites when the sale is posted.
 //                Without an active choice, or without the Shopify schema (MySQL), the POS is exactly as before.
+// 20261124 CL/LH K33 The wished date is read as YYYY-MM-DD whatever the connection's DateStyle, the background save sends the session's CSRF token, and pos_move_sale_delivery() takes a moved sale's delivery to the table's sale.
 
 include_once(__DIR__ . "/../../systemdata/diverseIncludes/posSaleSettings.php");
 
@@ -43,7 +44,8 @@ function pos_sale_delivery($orderId) {
 	if ($orderId < 1 || !pos_delivery_supported()) {
 		return null;
 	}
-	$qtxt = "select o.status, o.art, o.leveringsvalg_id, o.leveringsmaade, o.oensket_levdato, v.navn, v.type";
+	// to_char: the date input takes only YYYY-MM-DD, and a DMY DateStyle would blank it, so the next submit cleared the date.
+	$qtxt = "select o.status, o.art, o.leveringsvalg_id, o.leveringsmaade, to_char(o.oensket_levdato, 'YYYY-MM-DD') as oensket_levdato, v.navn, v.type";
 	$qtxt.= " from ordrer o left join pos_leveringsvalg v on v.id = o.leveringsvalg_id where o.id = '$orderId'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (!$r) {
@@ -203,6 +205,27 @@ function pos_reset_sale_delivery_sql() {
 }
 
 /**
+ * A sale moved onto a table that already has an open sale: its lines join that sale, so its
+ * delivery choice and wished date go along, unless the table's sale has a choice of its own.
+ * Called before the emptied sale is reset.
+ *
+ * @param int $fromId The sale that is moved and then emptied.
+ * @param int $toId   The table's sale that receives the lines.
+ * @return void
+ */
+function pos_move_sale_delivery($fromId, $toId) {
+	$fromId = (int) $fromId;
+	$toId = (int) $toId;
+	if ($fromId < 1 || $toId < 1 || $fromId === $toId || !pos_delivery_supported()) {
+		return;
+	}
+	$qtxt = "update ordrer set leveringsvalg_id = s.leveringsvalg_id, leveringsmaade = s.leveringsmaade, oensket_levdato = s.oensket_levdato";
+	$qtxt.= " from ordrer s where ordrer.id = '$toId' and s.id = '$fromId'";
+	$qtxt.= " and ordrer.leveringsvalg_id is null and s.leveringsvalg_id is not null";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+/**
  * The delivery row in the sale header (debitor/func/pos_ordre_itemscan.php).
  *
  * An open sale gets the list of active choices and the wished date. Neither submits the sale form:
@@ -299,6 +322,11 @@ function pos_render_sale_delivery_fields($orderId, $status, $sprog_id) {
  */
 function pos_sale_delivery_script($orderId) {
 	$orderId = (int) $orderId;
+	// saveDelivery.php refuses a request without the session's token (perm_require_post_csrf()).
+	if (!isset($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token']) || $_SESSION['csrf_token'] === '') {
+		$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+	}
+	$token = preg_replace('/[^0-9a-f]/', '', $_SESSION['csrf_token']);
 	return "<script>\n"
 		. "function posLeveringGem(el) {\n"
 		. "  var f = el.form, o = f.elements['leveringsvalg_id'], d = f.elements['oensket_levdato'];\n"
@@ -313,7 +341,7 @@ function pos_sale_delivery_script($orderId) {
 		. "  b.append('leveringsvalg_id', o.value);\n"
 		. "  b.append('oensket_levdato', (d && !d.disabled) ? d.value : '');\n"
 		. "  window.posLeveringKoe = (window.posLeveringKoe || Promise.resolve()).then(function () {\n"
-		. "    return fetch('pos_ordre_includes/saveDelivery.php', { method: 'POST', body: b, credentials: 'same-origin' })\n"
+		. "    return fetch('pos_ordre_includes/saveDelivery.php', { method: 'POST', body: b, credentials: 'same-origin', headers: { 'X-CSRF-Token': '$token' } })\n"
 		. "      .then(function (r) { return r.json(); })\n"
 		. "      .then(function (j) { if (j && j.error) { alert(j.error); } })\n"
 		. "      .catch(function () {});\n"

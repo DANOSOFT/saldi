@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----ver 5.0.0 ----2026-10-26--------------
+// --- debitor/ordreliste.php -----ver 5.1.1 ----2026-11-13--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240815 PHR- $title 
 // 20250828 PHR error in translation of 'tilbud'
@@ -76,9 +76,10 @@
 //                 It used to delete the user's whole datatables row, so added columns, own headers and rows per page were lost.
 // 20261023 CL/MMR SST-874 Moved the "Ryd" database work into clearOrderListSearch() per the controller/view convention.
 //                 The list name (valg) is escaped in its SQL (review by Codex).
+// 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
 // 20261026 CL/SZ SD-750 Order intake asks every slot open for intake in the shopify_legacy settings (an empty box4
 //                no longer hides box5/box6); the SHOP import follows the intake switch of afd 4's slot.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -418,6 +419,7 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
     $qtxt = "UPDATE settings SET var_value = '$valg' WHERE var_name = 'ordreliste_valg' AND var_grp = 'debitor' AND user_id = '$bruger_id'";
 } else {
     $qtxt = "INSERT INTO settings (var_name, var_value, var_grp, user_id) VALUES ('ordreliste_valg', '$valg', 'debitor', '$bruger_id')";
+    $qtxt .= (in_array($GLOBALS['db_type'], array('mysql', 'mysqli')) ? '' : ' ON CONFLICT DO NOTHING');
 }
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 #if ($valg=="ordrer" && $sort=="fakturanr") $sort="ordrenr";

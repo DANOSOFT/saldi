@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/saveDelivery.php --- ver 5.1.0 ---- 2026-11-20 ----
+// --- debitor/pos_ordre_includes/saveDelivery.php --- ver 5.1.1 ---- 2026-11-24 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,13 +25,14 @@
 // 20261120 CL/LH K33/K34 Saves the delivery choice and wished date of an open POS sale the moment the cashier changes them (posLeveringGem() in saleDeliveryFields.php).
 //                The POS product buttons leave the page by a link, which would otherwise lose a change that was not yet posted with the sale form.
 //                Answers JSON: {"ok": true} or {"ok": false, "error": "<text for the cashier>"}.
+// 20261124 CL/LH K33 Codex review: $webservice skips online.php's permission gate, so the endpoint checks pos.kasse write and the CSRF token itself; modulnr 5 as the POS.
 
 ob_start();
 
 @session_start();
 $s_id = session_id();
 $title = "saveDelivery";
-$modulnr = 0;
+$modulnr = 5;
 $bg = "nix";
 $header = "nix";
 $webservice = true;
@@ -42,6 +43,11 @@ include(__DIR__ . "/../../includes/std_func.php");
 include_once(__DIR__ . "/saleDeliveryFields.php");
 
 ob_end_clean();
+
+// $webservice keeps online.php from printing a page, and with it skips the permission gate, so the till right and the
+// session's token are checked here; both answer JSON.
+require_permission('pos.kasse', 'write');
+perm_require_post_csrf(true);
 
 header('Content-Type: application/json; charset=utf-8');
 @ini_set('display_errors', '0');

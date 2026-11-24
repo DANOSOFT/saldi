@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/posSaleSettings.php --- ver 5.1.0 ---- 2026-11-20 ----
+// --- systemdata/diverseIncludes/posSaleSettings.php --- ver 5.1.1 ---- 2026-11-24 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,9 @@
 // 20261120 CL/LH K33 The delivery choices the POS offers (pos_leveringsvalg, Shopify schema v1) are maintained here, below the terminals on POS-valg: name, type (taget med, afhentning, levering), the value and tags the store order is sent to Shopify with, order and active.
 //                A choice an order already uses is never rewritten: a change of name, type, Shopify value or tags deactivates it and adds a new version, and delete only deactivates it.
 //                The section shows only where the Shopify schema is installed, so MySQL installations are untouched.
+//
+// 20261124 CL/LH K33 PoS-valg is retired (#1191, #1192), so the delivery choices are kept on systemdata/posDeliveryChoices.php, linked from Indstillinger -> Kasse -> Skærm & kassemenuer -> Ekspedition.
+//                pos_render_delivery_choices_settings() takes the page's charset.
 //
 // The brand is kept as a tab separated list indexed by terminal number less one, in
 // grupper art='POS' kodenr='4' box1 - the same shape as every other per-terminal POS setting
@@ -457,8 +460,8 @@ function pos_delivery_try($op) {
 /**
  * Stores the delivery choices from a submitted POS settings form.
  *
- * Called from systemdata/diverse.php with the POS-valg POST, next to pos_save_sale_settings(). A
- * form without the delivery fields leaves the choices alone. A row without a name or with an unknown
+ * Called from systemdata/posDeliveryChoices.php with its POST. A form without the delivery fields
+ * leaves the choices alone. A row without a name or with an unknown
  * type is refused and reported, and the other rows are still saved.
  *
  * A choice that an order already points at keeps its meaning: changing its name, type, Shopify
@@ -561,21 +564,26 @@ function pos_save_delivery_choices($post) {
 }
 
 /**
- * The delivery choices section of POS-valg: one row per stored choice and an empty row for a new
- * one. Prints nothing where the Shopify schema is not installed.
+ * The delivery choices table: one row per stored choice and an empty row for a new one, printed as
+ * rows of an enclosing table (systemdata/posDeliveryChoices.php). Prints nothing where the Shopify
+ * schema is not installed.
  *
- * @param int $sprog_id
+ * @param int       $sprog_id
+ * @param bool|null $utf8Page TRUE when the page is printed as UTF-8, FALSE when in the installation's
+ *                            own charset; NULL decides as the old top-menu pages did.
  * @return void
  */
-function pos_render_delivery_choices_settings($sprog_id) {
+function pos_render_delivery_choices_settings($sprog_id, $utf8Page = null) {
 	if (!pos_delivery_supported()) {
 		return;
 	}
 	global $db_encode, $menu;
 	$types = pos_delivery_types($sprog_id);
-	// systemdata/diverse.php prints the top-menu layout as UTF-8 (includes/top_header.php), also on a
-	// LATIN9 installation; the stored names are converted for it.
-	$utf8Page = (!isset($db_encode) || $db_encode === 'UTF8' || (isset($menu) && $menu === 'T'));
+	if ($utf8Page === null) {
+		// The top-menu layout is printed as UTF-8 (includes/top_header.php), also on a LATIN9
+		// installation; the stored names are converted for it.
+		$utf8Page = (!isset($db_encode) || $db_encode === 'UTF8' || (isset($menu) && $menu === 'T'));
+	}
 	$h = function ($key) use ($sprog_id, $utf8Page) {
 		return pos_delivery_html(findtekst($key, $sprog_id), $utf8Page);
 	};

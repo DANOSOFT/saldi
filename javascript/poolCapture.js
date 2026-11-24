@@ -1,4 +1,4 @@
-// --- javascript/poolCapture.js --- ver 5.0.0 --- 2026-10-03 ---
+// --- javascript/poolCapture.js --- ver 5.1.0 --- 2026-11-10 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-722 Created: data capture in the document pool.
 //                "Aflæst" on a field "Overfør data" filled with what the extraction read, until the user changes it or saves.
@@ -11,8 +11,56 @@
 // 20261006 CL/SZ SD-722 The suggestion box under Debet is styled also when it isn't filled in automatically: unstyled, it stretched the line and moved Debet and Kredit.
 // 20261006 CL/SZ SD-722 The report button asks the server on load whether this user reported the document already, so after a reload or on the
 //                journal line it reads "Du har allerede rapporteret dette bilag" too, not only right after sending.
+// 20261026 CL/LH The Debet suggestion looks like Kredit's "Fundet via": the account's name under Debet, then "3 af 5 bilag · 1 anden ▾ ×",
+//                instead of a box with a sentence and a button. Filled in by default; not filled in, it is Debet's dashed placeholder,
+//                taken with Enter, Tab or a click on the account's name. "1 anden ▾" / Alt+↓ lists the other accounts of the last bilag with their counts,
+//                and "Søg anden konto" hands over to the lookup. A suggestion from a single bilag is never filled in.
+// 20261106 CL/LH (review) Debet is filled in only on a new line; a saved line, which may be collapsed out of view, shows the placeholder.
+//                A Debet the suggestion wrote follows Kredit also when Enter in Kredit saves without a change event (beforeSave(), called by docPoolSaveNext.js).
+//                Back on a kreditor rejected with "×", the line no longer keeps the suggestion of the kreditor shown in between.
+// 20261110 CDX/NTR Document suggestion data, placeholder/list helpers and save handling.
 (function () {
     'use strict';
+
+    /**
+     * A ranked finance account returned by contraSuggestionLookup.php.
+     * @typedef {Object} ContraAccount
+     * @property {string} account Finance account number.
+     * @property {string} type Account type, currently F.
+     * @property {string} name Display name for the current fiscal year.
+     * @property {string} moms VAT code, or an empty string.
+     * @property {string} text First history description for this account.
+     * @property {number} count Distinct history bilag using this account.
+     * @property {string} reason Localized explanation for this account.
+     */
+
+    /**
+     * The preferred account plus its history window and remaining ranked accounts.
+     * @typedef {ContraAccount & {total: number, source: string, alternatives: ContraAccount[]}} ContraSuggestion
+     */
+
+    /**
+     * Suggestion state attached to a pool entry while its suggestion is visible.
+     * @typedef {Object} SuggestionState
+     * @property {string} kreditor Supplier whose history produced the suggestion.
+     * @property {ContraAccount[]} all Preferred account followed by ranked alternatives.
+     * @property {number} total Distinct bilag examined, including ones using non-finance accounts.
+     * @property {string} reason Original preferred account's reason, used as a fallback.
+     * @property {number} [index] Displayed account index, assigned by renderSuggestion().
+     * @property {string} [filledWith] Account written by renderSuggestion(), or empty for a placeholder.
+     */
+
+    /** @typedef {HTMLElement & {poolSuggestion?: SuggestionState}} SuggestionEntry */
+
+    /**
+     * Account fields resolved by rowFields(); missing DOM elements are null.
+     * @typedef {Object} SuggestionFields
+     * @property {HTMLInputElement|null} debet
+     * @property {HTMLInputElement|null} debetType
+     * @property {HTMLElement|null} debetName
+     * @property {HTMLInputElement|null} kredit
+     * @property {HTMLInputElement|null} kreditType
+     */
 
     var suggestions = {};   // kreditor => promise of the endpoint's answer, for this page
     var reportedFiles = {}; // file => true once this user reported it here
@@ -48,6 +96,10 @@
         return node;
     }
 
+    /**
+     * Install capture badges, suggestion placeholders/lists and report-dialog styles once.
+     * @returns {void}
+     */
     function addStyles() {
         if (document.getElementById('poolCaptureStyles')) return;
         var style = document.createElement('style');
@@ -63,10 +115,25 @@
             '.pool-capture-x{border:none;background:none;color:#888;cursor:pointer;font-size:13px;line-height:1;padding:0 2px;margin-left:2px}' +
             '.pool-capture-x:hover,.pool-capture-x:focus{color:#c00}' +
             '.pool-capture-reason{font-size:11px;color:#555;margin-top:2px;max-width:260px;white-space:normal;line-height:1.3}' +
-            '.pool-suggest{margin-top:3px;padding:3px 6px;border:1px solid #9cc4ea;border-radius:4px;background:#f2f8fe;font-size:11px;max-width:260px;white-space:normal;line-height:1.35}' +
-            '.pool-suggest b{font-weight:600}' +
-            '.pool-suggest button.pool-suggest-use{margin:3px 4px 0 0;padding:1px 8px;font-size:11px;border:1px solid #4a90d9;border-radius:3px;background:#4a90d9;color:#fff;cursor:pointer}' +
-            '.pool-suggest button.pool-suggest-use:focus{outline:2px solid #1d5fa3;outline-offset:1px}' +
+            '.pool-capture-badge.suggested.weak{background:#fff;color:#4a90d9;box-shadow:inset 0 0 0 1px #4a90d9}' +
+            'input.pool-suggest-ghost{border:1px dashed #4a90d9 !important}' +
+            'input.pool-suggest-ghost::placeholder{color:#4a90d9;font-style:italic;opacity:1}' +
+            '.pool-account-name.pool-suggest-ghostname{color:#1d5fa3;cursor:pointer}' +
+            '.pool-account-name.pool-suggest-ghostname:hover{text-decoration:underline}' +
+            '.pool-capture-reason.pool-suggest{white-space:nowrap;max-width:none}' +
+            '.pool-suggest button.pool-suggest-more{border:none;border-bottom:1px dotted #1d5fa3;background:none;padding:0;font:inherit;color:#1d5fa3;cursor:pointer}' +
+            '#poolSuggestList{position:fixed;z-index:10040;background:#fff;border:1px solid #9cc4ea;border-radius:5px;box-shadow:0 6px 18px rgba(20,40,80,.18);min-width:290px;max-width:400px;padding:4px 0;font-size:12px}' +
+            '#poolSuggestList .hd{padding:3px 10px 5px;color:#666;font-size:11px;border-bottom:1px solid #eef2f7}' +
+            '#poolSuggestList .opt{display:grid;grid-template-columns:12px 52px 1fr 30px 44px;gap:6px;align-items:center;padding:5px 10px;cursor:pointer}' +
+            '#poolSuggestList .opt.hl{background:#e6f3ff}' +
+            '#poolSuggestList .chk{color:#1d5fa3;font-weight:700}' +
+            '#poolSuggestList .acc{font-weight:600}' +
+            '#poolSuggestList .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+            '#poolSuggestList .moms{color:#777;font-size:11px}' +
+            '#poolSuggestList .cnt{text-align:right;color:#555;font-size:11px;white-space:nowrap}' +
+            '#poolSuggestList .bar{display:inline-block;height:5px;border-radius:2px;background:#4a90d9;vertical-align:middle;margin-right:4px}' +
+            '#poolSuggestList .ft{border-top:1px solid #eef2f7;margin-top:3px;padding:4px 10px 2px}' +
+            '#poolSuggestList .ft button{border:none;background:none;padding:0;font:inherit;font-size:11px;color:#1d5fa3;text-decoration:underline;cursor:pointer}' +
             '#poolCaptureBar{display:flex;justify-content:flex-end;padding:4px 6px;flex-shrink:0}' +
             '.pool-capture-report-btn{padding:4px 10px;font-size:12px;border:1px solid #bbb;border-radius:4px;background:#fff;color:#333;cursor:pointer}' +
             '.pool-capture-report-btn[disabled]{opacity:.6;cursor:default}' +
@@ -178,11 +245,30 @@
     });
 
     // ---------------------------------------------------------------- The contra account suggestion under Debet
+    //
+    // Under Debet, the way Kredit shows how it was found: the account's name, then "3 af 5 bilag · 1 anden ▾ ×".
+    // Filled in (the default), Debet holds the account and "Forslag". Not filled in (switched off, or a single bilag),
+    // the account is Debet's dashed placeholder ("2100 ↵"); Enter, Tab or a click on the name under it takes it.
+    // The line is the same in both, and no wider than Debet, so Kredit doesn't move.
+    // "1 anden ▾" (or Alt+↓ in Debet) lists the other accounts the last bilag went to.
 
+    /** @type {{box: HTMLElement, entry: SuggestionEntry, index: number}|null} Open alternative list and its highlighted option. */
+    var list = null;
+
+    /**
+     * Find the pool entry containing a field or other DOM node.
+     * @param {Element|null} node
+     * @returns {SuggestionEntry|null} Closest entry, or null when the node has none.
+     */
     function entryOf(node) {
         return node && node.closest ? node.closest('.kassebilag-entry') : null;
     }
 
+    /**
+     * Resolve an entry's Debet/Kredit inputs and Debet name by its row ID.
+     * @param {SuggestionEntry} entry Existing, new or split pool entry.
+     * @returns {SuggestionFields}
+     */
     function rowFields(entry) {
         var prefix = 'row_' + entry.id.replace('bilagEntry_', '') + '_';
         return {
@@ -194,12 +280,82 @@
         };
     }
 
-    function removeSuggestion(entry) {
-        if (!entry) return;
-        var box = entry.querySelector('.pool-suggest');
-        if (box) box.remove();
+    /**
+     * Replace $antal and $total in a translated count template, retaining missing tokens.
+     * @param {string} text
+     * @param {{antal?: number, total?: number}} values
+     * @returns {string}
+     */
+    function fill(text, values) {
+        return String(text || '').replace(/\$(antal|total)/g, function (all, key) { return values[key] !== undefined ? values[key] : all; });
     }
 
+    /**
+     * Show an unaccepted account as Debet's placeholder and clickable name.
+     * Remembers the original placeholder without writing the account input's value.
+     * @param {SuggestionFields} f Fields with a Debet input.
+     * @param {ContraAccount} item
+     * @returns {void}
+     */
+    function setGhost(f, item) {
+        var debet = f.debet;
+        if (!('ghostPlaceholder' in debet.dataset)) debet.dataset.ghostPlaceholder = debet.getAttribute('placeholder') || '';
+        debet.setAttribute('placeholder', item.account + ' ↵');
+        debet.classList.add('pool-suggest-ghost');
+        if (f.debetName && debet.value.trim() === '') {
+            f.debetName.textContent = item.name;
+            f.debetName.title = texts().use;
+            f.debetName.classList.add('pool-suggest-ghostname');
+        }
+    }
+
+    /**
+     * Restore Debet's original placeholder and remove the suggestion's name and styling.
+     * @param {SuggestionFields} f Fields with a Debet input.
+     * @returns {void}
+     */
+    function clearGhost(f) {
+        var debet = f.debet;
+        if ('ghostPlaceholder' in debet.dataset) {
+            debet.setAttribute('placeholder', debet.dataset.ghostPlaceholder);
+            delete debet.dataset.ghostPlaceholder;
+        }
+        debet.classList.remove('pool-suggest-ghost');
+        if (f.debetName && f.debetName.classList.contains('pool-suggest-ghostname')) {
+            // The name was the placeholder's; a typed account gets its own from docPoolAccounts.js on change
+            f.debetName.classList.remove('pool-suggest-ghostname');
+            f.debetName.textContent = '';
+            f.debetName.title = '';
+        }
+    }
+
+    /**
+     * Remove a row's suggestion UI/state, closing its list and restoring any placeholder.
+     * A filled Debet and its badge remain until the caller unmarks or clears them.
+     * @param {SuggestionEntry|null} entry Null is ignored.
+     * @returns {void}
+     */
+    function removeSuggestion(entry) {
+        if (!entry) return;
+        if (list && list.entry === entry) closeList();
+        var line = entry.querySelector('.pool-suggest');
+        if (line) line.remove();
+        var f = rowFields(entry);
+        if (f.debet && f.debet.classList.contains('pool-suggest-ghost')) {
+            clearGhost(f);
+            // The placeholder's "Forslag"; a filled Debet keeps its own until unmark()
+            var box = fieldBox(f.debet);
+            var b = box && !f.debet.classList.contains('pool-suggested') ? box.querySelector('.pool-capture-badge') : null;
+            if (b) b.remove();
+        }
+        delete entry.poolSuggestion;
+    }
+
+    /**
+     * Reuse one lookup promise per supplier until the document switches.
+     * @param {string} kreditor Numeric supplier account number.
+     * @returns {Promise<{suggestion?: ContraSuggestion|null, auto?: boolean, error?: string}>} Endpoint response; HTTP/network failures resolve to an empty object.
+     */
     function fetchSuggestion(kreditor) {
         var c = cfg();
         if (!suggestions[kreditor]) {
@@ -211,69 +367,152 @@
         return suggestions[kreditor];
     }
 
-    /** Fills Debet with the suggested account, as choosing it in the lookup panel would. */
+    /**
+     * Write a suggestion's account/type into Debet and emit change for its name and VAT.
+     * @param {SuggestionFields} f Fields with a Debet input.
+     * @param {ContraAccount} suggestion
+     * @returns {void}
+     */
     function fillDebet(f, suggestion) {
         if (f.debetType) f.debetType.value = suggestion.type || 'F';
         f.debet.value = suggestion.account;
         f.debet.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    function suggestionLine(suggestion) {
-        var line = el('div');
-        line.appendChild(el('b', '', texts().suggested + ': ' + suggestion.account + ' ' + suggestion.name));
-        if (suggestion.moms) line.appendChild(document.createTextNode(' (' + suggestion.moms + ')'));
-        return line;
+    /**
+     * Display the preferred account and remember its alternatives for this supplier.
+     * Auto-fill requires the enabled preference, more than one supporting bilag and a new row.
+     * @param {SuggestionEntry} entry
+     * @param {string} kreditor Supplier account number.
+     * @param {ContraSuggestion} suggestion
+     * @param {boolean} auto User's automatic-fill preference.
+     * @returns {void}
+     */
+    function showSuggestion(entry, kreditor, suggestion, auto) {
+        var state = {
+            kreditor: kreditor,
+            all: [suggestion].concat(suggestion.alternatives || []),
+            total: suggestion.total || suggestion.count,
+            reason: suggestion.reason
+        };
+        // One bilag is too little to write the account in without asking. A saved line, which may be collapsed out of view,
+        // only shows it: "Gem alle" would otherwise save an account nobody saw or typed
+        renderSuggestion(entry, state, 0, auto && suggestion.count > 1 && isNewLine(entry));
     }
 
-    function showSuggestion(entry, kreditor, suggestion, auto) {
+    /**
+     * Recognize unsaved rows, including new2 and subsequent rows from docPoolSplit.js.
+     * @param {SuggestionEntry} entry
+     * @returns {boolean} Whether the ID begins with bilagEntry_new.
+     */
+    function isNewLine(entry) {
+        return /^bilagEntry_new/.test(entry.id);
+    }
+
+    /**
+     * Replace the suggestion line with one ranked account and its count, badge and actions.
+     * Updates state.index/filledWith, attaches state to the entry and suppresses the normal
+     * lookup while Debet is focused. Filling emits change so the account name and VAT follow.
+     * @param {SuggestionEntry} entry Entry with a Debet input.
+     * @param {SuggestionState} state Supplier and ranked accounts to display.
+     * @param {number} index Valid index into state.all.
+     * @param {boolean} filled Write the account when true; otherwise show its placeholder.
+     * @returns {void}
+     */
+    function renderSuggestion(entry, state, index, filled) {
         var f = rowFields(entry);
+        var item = state.all[index];
         removeSuggestion(entry);
-        // Both kinds need the styles: without them the box under Debet stretches the line (a document without captured values)
+        // Both kinds need the styles: without them the line under Debet stretches the row (a document without captured values)
         addStyles();
-        var box = el('div', 'pool-suggest');
-        box.dataset.kreditor = kreditor;
-        var reason = el('div', 'pool-capture-reason', suggestion.reason);
-        if (auto) {
-            fillDebet(f, suggestion);
-            f.debet.classList.add('pool-suggested');
-            badge(f.debet, texts().suggested, 'suggested');
-            reason.appendChild(rejectButton(function () {
-                reject('debet', 'F' + suggestion.account, suggestion.reason);
-                entry.dataset.suggestRejected = kreditor;
-                removeSuggestion(entry);
-                unmark(f.debet);
-                if (f.debet.value.trim() === String(suggestion.account)) clearAccount(f.debet);
-                f.debet.focus();
-            }));
-            box.appendChild(reason);
-        } else {
-            box.appendChild(suggestionLine(suggestion));
-            box.appendChild(reason);
-            var use = el('button', 'pool-suggest-use', texts().use);
-            use.type = 'button';
-            use.addEventListener('click', function () {
-                fillDebet(f, suggestion);
-                removeSuggestion(entry);
-                // Back in Debet, where the next Enter saves (the panel the focus opens has no line highlighted)
-                f.debet.focus();
+        state.index = index;
+        state.filledWith = filled ? String(item.account) : '';
+        entry.poolSuggestion = state;
+        var line = el('div', 'pool-capture-reason pool-suggest');
+        line.dataset.kreditor = state.kreditor;
+        line.title = item.reason || '';
+        line.appendChild(document.createTextNode(fill(texts().ofTotal, { antal: item.count, total: state.total })));
+        var others = state.all.length - 1;
+        if (others > 0) {
+            line.appendChild(document.createTextNode(' · '));
+            var more = el('button', 'pool-suggest-more', (others === 1 ? texts().oneOther : fill(texts().others, { antal: others })) + ' ▾');
+            more.type = 'button';
+            more.tabIndex = -1;
+            more.setAttribute('aria-haspopup', 'listbox');
+            more.setAttribute('aria-expanded', 'false');
+            more.addEventListener('mousedown', function (e) {
+                // Debet keeps the cursor; a second click closes the list
+                e.preventDefault();
+                if (list && list.entry === entry) closeList();
+                else openList(entry);
             });
-            box.appendChild(use);
-            box.appendChild(rejectButton(function () {
-                reject('debet', 'F' + suggestion.account, suggestion.reason);
-                entry.dataset.suggestRejected = kreditor;
-                removeSuggestion(entry);
-                f.debet.focus();
-            }));
+            line.appendChild(more);
         }
+        line.appendChild(rejectButton(function () { rejectSuggestion(entry); }));
+        if (filled) {
+            fillDebet(f, item);
+            f.debet.classList.add('pool-suggested');
+        } else {
+            setGhost(f, item);
+        }
+        // Hollow while it rests on a single bilag and nobody chose it
+        badge(f.debet, texts().suggested, 'suggested' + (filled || item.count > 1 ? '' : ' weak'));
         var field = f.debet.closest('.pool-account-field') || fieldBox(f.debet);
-        if (field) field.appendChild(box);
-        // The lookup panel opened on the empty Debet would cover the suggestion and its reason. With the cursor in Debet the panel
-        // is closed: the suggestion takes the focus, so Enter uses it ("Brug forslag"); filled automatically, Debet keeps it and Enter saves.
+        if (field) field.appendChild(line);
+        // The lookup panel opened on Debet would cover the line; with the cursor in Debet it is kept shut, so Enter takes
+        // the placeholder or, filled in, saves.
         if (document.activeElement === f.debet) {
             closePanel();
-            var use = box.querySelector('.pool-suggest-use');
-            if (use) use.focus();
-            else keepPanelShut(f.debet, suggestion.account);
+            keepPanelShut(f.debet);
+        }
+    }
+
+    /**
+     * Accept a ranked account, replacing the suggestion UI and returning focus to Debet.
+     * @param {SuggestionEntry} entry Detached entries or entries without suggestion state are ignored.
+     * @param {number} index Valid index into the entry's ranked accounts.
+     * @returns {void}
+     */
+    function takeSuggestion(entry, index) {
+        var state = entry.poolSuggestion;
+        // A line another document replaced (SD-719) keeps its state but is no longer on the page
+        if (!state || !document.body.contains(entry)) return;
+        renderSuggestion(entry, state, index, true);
+        // Back in Debet, where the next Enter saves
+        rowFields(entry).debet.focus();
+    }
+
+    /**
+     * Record rejection of the displayed account, drop its suggestion and focus Debet.
+     * @param {SuggestionEntry} entry Entries without suggestion state are ignored.
+     * @returns {void}
+     */
+    function rejectSuggestion(entry) {
+        var state = entry.poolSuggestion;
+        if (!state) return;
+        var f = rowFields(entry);
+        var item = state.all[state.index];
+        reject('debet', 'F' + item.account, item.reason || state.reason);
+        dropSuggestion(entry);
+        f.debet.focus();
+    }
+
+    /**
+     * Dismiss the suggestion locally and remember its supplier as rejected on this row.
+     * Clears Debet only when it still holds the marked value the suggestion wrote;
+     * posting a rejection record is the caller's responsibility.
+     * @param {SuggestionEntry} entry Entry with active suggestion state and a Debet input.
+     * @returns {void}
+     */
+    function dropSuggestion(entry) {
+        var state = entry.poolSuggestion;
+        var f = rowFields(entry);
+        entry.dataset.suggestRejected = state.kreditor;
+        var filledWith = state.filledWith;
+        removeSuggestion(entry);
+        if (f.debet.classList.contains('pool-suggested')) {
+            unmark(f.debet);
+            if (filledWith && f.debet.value.trim() === filledWith) clearAccount(f.debet);
         }
     }
 
@@ -282,45 +521,284 @@
     }
 
     /**
-     * The panel opens on focus after a delay and its own search, so it can appear after the automatic fill.
-     * For a moment it is shut again while Debet still holds the untouched suggestion; typing in Debet ends this.
+     * The panel opens on focus after a delay and its own search, so it can appear after the suggestion is shown.
+     * For a moment it is shut again while Debet still shows the untouched suggestion; typing in Debet ends this.
+     * Observation stops after two seconds or when focus/the suggestion changes.
+     * @param {HTMLInputElement} debet Debet input whose suggestion should remain visible.
+     * @returns {void}
      */
-    function keepPanelShut(debet, account) {
+    function keepPanelShut(debet) {
         var container = document.getElementById('account-autocomplete-container');
         if (!container || typeof MutationObserver !== 'function') return;
         var observer = new MutationObserver(function () {
-            if (document.activeElement === debet && debet.classList.contains('pool-suggested') && debet.value.trim() === String(account)) closePanel();
+            var entry = entryOf(debet);
+            var state = entry && entry.poolSuggestion;
+            var untouched = state && (debet.classList.contains('pool-suggest-ghost')
+                ? debet.value.trim() === ''
+                : debet.classList.contains('pool-suggested') && debet.value.trim() === state.filledWith);
+            if (document.activeElement === debet && untouched) closePanel();
             else observer.disconnect();
         });
         observer.observe(container, { attributes: true, attributeFilter: ['style'], subtree: true, childList: true });
         setTimeout(function () { observer.disconnect(); }, 2000);
     }
 
-    /** Kredit holds a kreditor and Debet is empty: ask for the contra account. A typed Debet is never replaced. */
+    // ---------------------------------------------------------------- The list of the kreditor's other accounts
+
+    /**
+     * Open a viewport-positioned list of ranked accounts while Debet keeps focus.
+     * Replaces any open suggestion list and closes the normal lookup panel.
+     * @param {SuggestionEntry} entry Requires a visible suggestion line and at least two accounts.
+     * @returns {void}
+     */
+    function openList(entry) {
+        var state = entry.poolSuggestion;
+        var line = entry.querySelector('.pool-suggest');
+        if (!state || !line || state.all.length < 2) return;
+        closeList();
+        closePanel();
+        var box = el('div');
+        box.id = 'poolSuggestList';
+        box.setAttribute('role', 'listbox');
+        box.appendChild(el('div', 'hd', fill(texts().listHead, { antal: state.total })));
+        var max = state.all.reduce(function (m, item) { return Math.max(m, item.count); }, 1);
+        state.all.forEach(function (item, i) {
+            var opt = el('div', 'opt');
+            opt.setAttribute('role', 'option');
+            opt.setAttribute('aria-selected', i === state.index ? 'true' : 'false');
+            opt.title = item.account + ' ' + item.name;
+            opt.appendChild(el('span', 'chk', i === state.index ? '✓' : ''));
+            opt.appendChild(el('span', 'acc', item.account));
+            opt.appendChild(el('span', 'nm', item.name));
+            opt.appendChild(el('span', 'moms', item.moms || ''));
+            var count = el('span', 'cnt');
+            var bar = el('span', 'bar');
+            bar.style.width = Math.max(4, Math.round(24 * item.count / max)) + 'px';
+            count.appendChild(bar);
+            count.appendChild(document.createTextNode(String(item.count)));
+            opt.appendChild(count);
+            opt.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                takeSuggestion(entry, i);
+            });
+            opt.addEventListener('mousemove', function () { highlight(i); });
+            box.appendChild(opt);
+        });
+        var foot = el('div', 'ft');
+        var search = el('button', '', texts().searchOther + '…');
+        search.type = 'button';
+        search.tabIndex = -1;
+        search.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            searchOther(entry);
+        });
+        foot.appendChild(search);
+        box.appendChild(foot);
+        document.body.appendChild(box);
+        // Fixed on the page, so a scrolling line container can't cut it off
+        var r = line.getBoundingClientRect();
+        var h = box.offsetHeight;
+        box.style.left = Math.max(4, Math.min(r.left, window.innerWidth - box.offsetWidth - 4)) + 'px';
+        box.style.top = (r.bottom + 4 + h > window.innerHeight && r.top - 4 - h > 0 ? r.top - 4 - h : r.bottom + 4) + 'px';
+        list = { box: box, entry: entry, index: state.index };
+        highlight(state.index);
+        var more = line.querySelector('.pool-suggest-more');
+        if (more) {
+            more.setAttribute('aria-expanded', 'true');
+            more.textContent = more.textContent.replace('▾', '▴');
+        }
+    }
+
+    /**
+     * Remove the alternative list and reset its trigger's expanded indicator, if open.
+     * @returns {void}
+     */
+    function closeList() {
+        if (!list) return;
+        var line = list.entry.querySelector('.pool-suggest');
+        var more = line && line.querySelector('.pool-suggest-more');
+        if (more) {
+            more.setAttribute('aria-expanded', 'false');
+            more.textContent = more.textContent.replace('▴', '▾');
+        }
+        list.box.remove();
+        list = null;
+    }
+
+    /**
+     * Move the open list's highlight, wrapping at either end without accepting an account.
+     * @param {number} i Current/adjacent option index supplied by mouse or arrow keys.
+     * @returns {void}
+     */
+    function highlight(i) {
+        if (!list) return;
+        var opts = list.box.querySelectorAll('.opt');
+        list.index = (i + opts.length) % opts.length;
+        opts.forEach(function (opt, n) { opt.classList.toggle('hl', n === list.index); });
+    }
+
+    /**
+     * Dismiss this supplier's suggestion and open Debet's normal account lookup.
+     * @param {SuggestionEntry} entry Entry with active suggestion state.
+     * @returns {void}
+     */
+    function searchOther(entry) {
+        var f = rowFields(entry);
+        closeList();
+        dropSuggestion(entry);
+        // The panel opens on focus; with the cursor already in Debet (Alt+↓) a click opens it, as in accountAutocomplete.js
+        if (document.activeElement === f.debet) f.debet.click();
+        else f.debet.focus();
+    }
+
+    // Keys: Enter or Tab takes the placeholder, Alt+↓ opens the list; with the list open ↑ ↓ Enter Esc work in it.
+    // On window, capturing, so it runs before the journal's own Enter handling (fieldNavigation.js).
+    window.addEventListener('keydown', function (e) {
+        if (list) {
+            if (/^(Shift|Control|Alt|Meta)$/.test(e.key)) return;
+            // Ctrl/Cmd + key (fieldNavigation.js moves on Ctrl+arrows), or the line is gone: the list closes and the key goes on
+            if (e.ctrlKey || e.metaKey || !document.body.contains(list.entry)) {
+                closeList();
+                return;
+            }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                highlight(list.index + (e.key === 'ArrowDown' ? 1 : -1));
+            } else if (e.key === 'Enter') {
+                takeSuggestion(list.entry, list.index);
+            } else if (e.key === 'Escape') {
+                closeList();
+            } else {
+                closeList();
+                return;
+            }
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
+        }
+        var input = e.target;
+        if (!(input instanceof HTMLInputElement) || !/_Debet$/.test(input.id)) return;
+        var entry = entryOf(input);
+        var state = entry && entry.poolSuggestion;
+        if (!state) return;
+        if (e.key === 'ArrowDown' && e.altKey && state.all.length > 1) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            openList(entry);
+        } else if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey
+            && input.classList.contains('pool-suggest-ghost') && input.value.trim() === '' && !panelHasSelection()) {
+            takeSuggestion(entry, state.index);
+            // Enter stays in Debet, where the next Enter saves; Tab goes on to the next field as usual
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }
+        }
+    }, true);
+
+    /**
+     * Check whether a visible normal lookup has a selected item that should receive Enter.
+     * @returns {boolean}
+     */
+    function panelHasSelection() {
+        return Array.prototype.some.call(document.querySelectorAll('.account-autocomplete-dropdown'), function (dd) {
+            return dd.style.display !== 'none' && dd.getClientRects().length > 0 && !!dd.querySelector('.account-autocomplete-item.selected');
+        });
+    }
+
+    // Not filled in, the account's name under Debet takes it ("Brug forslag"), as Enter in Debet does
+    document.addEventListener('mousedown', function (e) {
+        var name = e.target.closest ? e.target.closest('.pool-suggest-ghostname') : null;
+        var entry = name && entryOf(name);
+        if (!entry || !entry.poolSuggestion) return;
+        e.preventDefault();
+        takeSuggestion(entry, entry.poolSuggestion.index);
+    });
+
+    document.addEventListener('mousedown', function (e) {
+        // "1 anden ▾" toggles the list itself
+        if (list && !list.box.contains(e.target) && !(e.target.closest && e.target.closest('.pool-suggest-more'))) closeList();
+    }, true);
+    window.addEventListener('resize', closeList);
+    document.addEventListener('scroll', function (e) {
+        if (list && !list.box.contains(e.target)) closeList();
+    }, true);
+
+    /**
+     * Read Kredit, recognizing K1234 before docPoolAccounts.js splits type and number.
+     * @param {SuggestionFields} f Fields with a Kredit input.
+     * @returns {{type: string, value: string}} Uppercase type and trimmed account, with a K prefix removed.
+     */
+    function kreditOf(f) {
+        var value = f.kredit.value.trim();
+        var type = f.kreditType ? f.kreditType.value.trim().toUpperCase() : '';
+        var prefixed = value.match(/^K(\d+)$/i);
+        if (prefixed) { type = 'K'; value = prefixed[1]; }
+        return { type: type, value: value };
+    }
+
+    /**
+     * Clear a marked, suggestion-filled Debet when Kredit no longer matches its supplier.
+     * @param {SuggestionEntry} entry
+     * @returns {boolean} True when Debet and the obsolete suggestion were cleared.
+     */
+    function followKredit(entry) {
+        var f = rowFields(entry);
+        if (!f.debet || !f.kredit || !f.debet.classList.contains('pool-suggested')) return false;
+        var kredit = kreditOf(f);
+        var current = entry.querySelector('.pool-suggest');
+        if (current && kredit.type === 'K' && current.dataset.kreditor === kredit.value) return false;
+        unmark(f.debet);
+        clearAccount(f.debet);
+        removeSuggestion(entry);
+        return true;
+    }
+
+    /**
+     * Before "Gem og næste" saves (docPoolSaveNext.js). Enter in Kredit saves without a change event, so a Debet the suggestion
+     * wrote for the kreditor Kredit held before would be saved against the one typed now. Such a Debet is taken away, the new
+     * kreditor's suggestion is asked for, and true stops the save: the user sees the new account before the next Enter saves.
+     * @param {SuggestionEntry[]} entries The lines about to be saved.
+     * @returns {boolean} True stops this save for a refreshed suggestion; false allows the caller to continue validation.
+     */
+    function beforeSave(entries) {
+        var stopped = false;
+        entries.forEach(function (entry) {
+            if (!followKredit(entry)) return;
+            stopped = true;
+            // The rest of the page (Kredit's name, docPoolAccounts.js's split of "K1234") catches up, and considerRow() asks again
+            rowFields(entry).kredit.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        return stopped;
+    }
+
+    /**
+     * Request a suggestion for a supplier in Kredit when Debet is empty and editable.
+     * Clears obsolete suggestions, respects this row's rejected supplier and ignores
+     * late answers for removed rows or changed account values. A typed Debet is preserved.
+     * @param {SuggestionEntry|null} entry Null, read-only or incompletely rendered entries are ignored.
+     * @returns {void} Starts the cached lookup asynchronously.
+     */
     function considerRow(entry) {
         var c = cfg();
         if (!c || c.readOnly || !c.suggestUrl || !entry) return;
         var f = rowFields(entry);
         if (!f.debet || !f.kredit || f.debet.readOnly || f.kredit.readOnly) return;
-        var value = f.kredit.value.trim();
-        var type = f.kreditType ? f.kreditType.value.trim().toUpperCase() : '';
-        var prefixed = value.match(/^K(\d+)$/i);
-        if (prefixed) { type = 'K'; value = prefixed[1]; }
+        var kredit = kreditOf(f);
+        var type = kredit.type;
+        var value = kredit.value;
+        followKredit(entry);
         var current = entry.querySelector('.pool-suggest');
-        // A Debet the suggestion wrote follows Kredit: another kreditor, or none, takes it away again
-        if (f.debet.classList.contains('pool-suggested') && (!current || current.dataset.kreditor !== value || type !== 'K')) {
-            unmark(f.debet);
-            clearAccount(f.debet);
-            removeSuggestion(entry);
-            current = null;
-        }
         if (type !== 'K' || !/^\d+$/.test(value)) {
             removeSuggestion(entry);
             return;
         }
         if (current && current.dataset.kreditor === value) return;
-        // Rejected with "×": not offered again for this kreditor on this line
-        if (entry.dataset.suggestRejected === value) return;
+        // Rejected with "×" (or put aside with "Søg anden konto"): not offered again for this kreditor on this line,
+        // and another kreditor's suggestion shown meanwhile goes
+        if (entry.dataset.suggestRejected === value) {
+            removeSuggestion(entry);
+            return;
+        }
         if (f.debet.value.trim() !== '') {
             removeSuggestion(entry);
             return;
@@ -331,7 +809,7 @@
             if (!document.body.contains(entry) || now.debet.value.trim() !== '') return;
             var kNow = now.kredit.value.trim().replace(/^K/i, '');
             if (kNow !== value) return;
-            // Two change events can ask at the same time; the second answer must not replace the box (and its focus)
+            // Two change events can ask at the same time; the second answer must not replace the line (and its focus)
             var shown = entry.querySelector('.pool-suggest');
             if (shown && shown.dataset.kreditor === value) return;
             if (!data || !data.suggestion) {
@@ -355,7 +833,11 @@
         document.querySelectorAll('#bilagRowsContainer .kassebilag-entry, .kassebilag-entry').forEach(considerRow);
     }
 
-    // A save ends the marks of the saved row: the values are the user's now
+    /**
+     * Wrap _saveRowFetch once to remove capture marks and suggestion state after success.
+     * Preserves the original receiver, arguments and returned result; failed saves keep their UI.
+     * @returns {void}
+     */
     function hookSave() {
         if (typeof window._saveRowFetch !== 'function' || window._saveRowFetch.poolCapture) return;
         var original = window._saveRowFetch;
@@ -363,7 +845,10 @@
             return original.apply(this, arguments).then(function (result) {
                 if (result && result.success) {
                     var entry = document.getElementById('bilagEntry_' + rowId);
-                    if (entry) entry.querySelectorAll('input.pool-captured, input.pool-suggested').forEach(unmark);
+                    if (entry) {
+                        entry.querySelectorAll('input.pool-captured, input.pool-suggested').forEach(unmark);
+                        removeSuggestion(entry);
+                    }
                 }
                 return result;
             });
@@ -558,10 +1043,11 @@
         considerAll();
     }
 
-    window.poolCapture = { mark: mark, consider: considerRow, openReport: openReport };
+    window.poolCapture = { mark: mark, consider: considerRow, beforeSave: beforeSave, openReport: openReport };
 
     // A document opened in place (SD-719) brings its own config
     document.addEventListener('poolswitch', function () {
+        closeList();
         suggestions = {};
         init();
     });

@@ -1,0 +1,23 @@
+/* ---- css/saldi-fonts.css --- lap 5.0.0 --- 2026.10.09 ---
+   20261009 Sawaneh The two Saldi fonts (front-page addendum 3 §3, prototype v8.13): Saldi Grotesk for what orients
+                    (greeting, card titles, sidebar, user chip, tabs, drawer headings) and Inter for content. Both self-hosted
+                    (css/fonts, SIL OFL), loaded in the shell and in every page. The text-size choice (Normal / Større, personal
+                    setting) sets --base; every font size in the new CSS is in rem so the browser's own zoom works on top. */
+@font-face { font-family: 'Saldi Grotesk'; font-weight: 300; font-style: normal; font-display: swap; src: url("fonts/SaldiGrotesk-Light.woff2") format("woff2"); }
+@font-face { font-family: 'Saldi Grotesk'; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/SaldiGrotesk-Regular.woff2") format("woff2"); }
+@font-face { font-family: 'Saldi Grotesk'; font-weight: 500; font-style: normal; font-display: swap; src: url("fonts/SaldiGrotesk-Medium.woff2") format("woff2"); }
+@font-face { font-family: 'Saldi Grotesk'; font-weight: 600; font-style: normal; font-display: swap; src: url("fonts/SaldiGrotesk-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: 'Saldi Grotesk'; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/SaldiGrotesk-Bold.woff2") format("woff2"); }
+@font-face { font-family: 'Inter'; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/Inter-Regular.woff2") format("woff2"); }
+@font-face { font-family: 'Inter'; font-weight: 500; font-style: normal; font-display: swap; src: url("fonts/Inter-Medium.woff2") format("woff2"); }
+@font-face { font-family: 'Inter'; font-weight: 600; font-style: normal; font-display: swap; src: url("fonts/Inter-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: 'Inter'; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/Inter-Bold.woff2") format("woff2"); }
+:root {
+	--font-inter: Inter, system-ui, sans-serif;
+	--font-grotesk: 'Saldi Grotesk', Inter, system-ui, sans-serif;
+	--font-ui: var(--font-inter);
+	--font-display: var(--font-grotesk);
+	--base: 16px;
+}
+html { font-size: var(--base); }
+html[data-size="large"] { --base: 17.75px; }

@@ -23,6 +23,7 @@
 // 20261027 CL/SZ Created (SD-778, sub-task of SD-750).
 // 20261028 CL/SZ SD-778 review: the pos8 test moves a tenant item with varenr 'varenr' aside while it runs.
 // 20261110 CL/SZ Sync of master into hml/shopify: lagerreguler() sends only the stock call (SST-876), so the push is checked on update_stock.
+// 20261123 CDX/NTR Use the test class-owned database and session.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 require_once __DIR__ . '/../support/LegacyShopStub.php';
@@ -41,12 +42,12 @@ final class LegacyShopStockPullCharacterizationTest extends CharacterizationTest
 			self::$createdTemp = true;
 		}
 		if (!is_writable($temp)) {
-			self::fail("$temp is not writable by this user; set SALDI_CHAR_TEST_DB to a tenant name without one");
+			self::fail("$temp is not writable by this user; check the runtime directory permissions");
 		}
 		self::$shop = new LegacyShopStub();
 		// lager/webshopStock.php wants exactly '1' in the varer rights position (9), not '9'.
 		$master = CharacterizationEnv::connect(CharacterizationEnv::masterDb());
-		CharacterizationEnv::rows($master, "UPDATE online SET rettigheder = overlay(rettigheder placing '1' from 10 for 1) WHERE session_id = $1", [CharacterizationEnv::SESSION_ID]);
+		CharacterizationEnv::rows($master, "UPDATE online SET rettigheder = overlay(rettigheder placing '1' from 10 for 1) WHERE session_id = $1", [CharacterizationEnv::sessionId()]);
 		pg_close($master);
 		self::rows("DELETE FROM grupper WHERE art = 'API'");
 		self::rows("INSERT INTO grupper (beskrivelse, art, kodenr) VALUES ($1, 'API', '1')", [Fixtures::TAG]);
@@ -356,7 +357,7 @@ final class LegacyShopStockPullCharacterizationTest extends CharacterizationTest
 	{
 		$output = (string)tempnam(sys_get_temp_dir(), 'legacy-shop-page');
 		try {
-			self::runChild('run_legacy_shop_page.php', [$page, CharacterizationEnv::SESSION_ID, json_encode(['get' => $get, 'post' => $post]), $output]);
+			self::runChild('run_legacy_shop_page.php', [$page, CharacterizationEnv::sessionId(), json_encode(['get' => $get, 'post' => $post]), $output]);
 			return (string)file_get_contents($output);
 		} finally {
 			unlink($output);
@@ -368,7 +369,7 @@ final class LegacyShopStockPullCharacterizationTest extends CharacterizationTest
 	{
 		$output = (string)tempnam(sys_get_temp_dir(), 'legacy-shop-page');
 		try {
-			$res = CharacterizationEnv::runChild(__DIR__ . '/../support/run_legacy_shop_page.php', [$page, CharacterizationEnv::SESSION_ID, json_encode(['get' => $get]), $output]);
+			$res = CharacterizationEnv::runChild(__DIR__ . '/../support/run_legacy_shop_page.php', [$page, CharacterizationEnv::sessionId(), json_encode(['get' => $get]), $output]);
 			return $res + ['output' => (string)file_get_contents($output)];
 		} finally {
 			unlink($output);
