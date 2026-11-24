@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -109,6 +109,8 @@
 //                 Codex review round: the write check reads the order id as an integer like the vare_id branch.
 //                 An item pick with an id that is not a whole number (or not a string) is refused before the contact update and the item branch.
 //                 Review (Saul): a picked supplier row with price 0 gives 0 on the line, like the supplier lookup on the other paths.
+// 20261124 CL/LH MB-177 The contact picked in the contact list (GET kontakt) is escaped and written only on the order whose id is a whole number.
+//                The link needs write permission and sends the name URL-encoded.
 @session_start();
 $s_id=session_id();
 
@@ -142,6 +144,10 @@ $modulnr=7;
 // The order id is read as an integer, as the vare_id branch below reads it, so the check and the creation agree.
 $requestedOrderId = (isset($_GET['id']) && is_scalar($_GET['id'])) ? (int) $_GET['id'] : 0;
 if (!$requestedOrderId && (!empty($_GET['konto_id']) || !empty($_GET['vare_id']))) {
+	$permission_level = 'write';
+}
+// MB-177 A contact picked in the contact list (kontakt with an order id) is written on the order by GET, so it needs write.
+if (!empty($_GET['kontakt'])) {
 	$permission_level = 'write';
 }
 
@@ -297,8 +303,10 @@ if (isset($_POST['create_creditor'])) {
 	}
 	exit;
 }
-if ( !empty($kontakt) && $id ) {
-	db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
+// MB-177 kontakt and id come from the link: the name is escaped and only an id that is a whole number is used.
+if (!empty($kontakt) && is_scalar($kontakt) && is_scalar($id) && ctype_digit(trim((string) $id)) && (int) $id) {
+	$qtxt = "update ordrer set kontakt='" . db_escape_string($kontakt) . "' where id='" . (int) $id . "'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716 
 	transaktion("begin");
@@ -1589,7 +1597,7 @@ function ansatopslag($sort, $fokus, $id){
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 		else {$linjebg=$bgcolor5; $color='#000000';}
 		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=$row[navn]'>".htmlentities($row['navn'],ENT_COMPAT,$charset)."</a></td>";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode($row['navn']) . "'>".htmlentities($row['navn'],ENT_COMPAT,$charset)."</a></td>";
 		print "<td> $row[tlf]</td>";
 		print "<td> $row[mobil]</td>";
 		print "<td> $row[email]</td>";
