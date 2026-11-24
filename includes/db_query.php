@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.0 ----2026-11-03--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-18--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,7 +63,18 @@
 // 20261029 CDX/NTR Document query and path helpers affected by shared runtime logging.
 // 20261103 CDX/NTR Attempt every database log line even when an earlier write is incomplete.
 // 20261103 CDX/NTR Report incomplete database log writes through non-throwing server diagnostics.
-
+// 20261103 CL/ASR db_cast() and saldi_schema_filter() added for the settings system (PR #803 review): one cast and one information_schema filter that MySQL and PostgreSQL both accept.
+// 20261104 CL/ASR A failed query shows the error box of includes/errorReport.php (saldi_error_box()) instead of the alert that told everyone to call 4690 2208.
+//                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
+//                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/ASR db_query_connection() selects the master database on the cached global connection, since db_connect() selects none on MySQL/MariaDB; a $global query from a ledger's context failed there with "No database selected" (SD-731, review #785).
+// 20261118 CDX/NTR Allow bound write parameters without changing legacy query handling.
+// 20261118 CDX/NTR Normalize LIKE outside literals, quoted identifiers and comments in both query paths.
+// 20261118 CDX/NTR Explain dollar-quote and SQL identifier matching in the LIKE normalizer.
+// 20261118 CDX/NTR Preserve escape-string continuations and normalize LIKE after qualified AS columns.
+// 20261118 CDX/NTR Optionally report affected write rows while preserving legacy status returns.
+// 20261118 CDX/NTR Track expression operands so LIKE function calls retain their original names.
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -235,6 +246,7 @@ if (!function_exists('db_query_connection')) {
 				$current_connection = $connection;
 				$global_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
 				$connection = $current_connection;
+				if ($global_connection) db_select_database($global_connection, $sqdb); # a no-op on PostgreSQL
 			}
 			return $global_connection;
 		}
@@ -261,8 +273,125 @@ if (!function_exists('db_close')) {
 	}
 }
 
+if (!function_exists('db_normalize_like_operators')) {
+	/**
+	 * Normalize the existing space-delimited lowercase LIKE operators without changing quoted data or comments.
+	 * String boundaries follow the connection's standard_conforming_strings setting.
+	 * @param string $sql SQL before PostgreSQL execution.
+	 * @param bool $standardConformingStrings Whether ordinary strings treat backslashes literally.
+	 * @return string SQL with case-insensitive pattern operators.
+	 */
+	function db_normalize_like_operators(string $sql, bool $standardConformingStrings = true): string {
+		if (strpos($sql, ' like ') === false) {
+			return $sql;
+		}
+		$length = strlen($sql);
+		$result = '';
+		$previousToken = null;
+		$expectOperand = true;
+		for ($offset = 0; $offset < $length;) {
+			$start = $offset;
+			$char = $sql[$offset];
+			$pair = substr($sql, $offset, 2);
+			if ($pair === '--') {
+				$offset += strcspn($sql, "\r\n", $offset);
+			} elseif ($pair === '/*') {
+				$offset += 2;
+				$depth = 1;
+				while ($offset < $length && $depth > 0) {
+					$pair = substr($sql, $offset, 2);
+					if ($pair === '/*' || $pair === '*/') {
+						$depth += $pair === '/*' ? 1 : -1;
+						$offset += 2;
+					} else {
+						$offset++;
+					}
+				}
+			} elseif ($char === "'" || $char === '"' || $pair === "E'" || $pair === "e'") {
+				$escapePrefix = $pair === "E'" || $pair === "e'";
+				$quote = $escapePrefix ? "'" : $char;
+				$escaped = $escapePrefix || ($quote === "'" && !$standardConformingStrings);
+				$offset += $escapePrefix ? 2 : 1;
+				while ($offset < $length) {
+					if ($escaped && $sql[$offset] === '\\') {
+						$offset = min($length, $offset + 2);
+					} elseif ($sql[$offset] === $quote) {
+						$offset++;
+						if ($offset < $length && $sql[$offset] === $quote) {
+							$offset++;
+						} else {
+							// A newline-separated single-quoted segment continues the same PostgreSQL string and escape mode.
+							// Match whitespace and -- comments with a required newline; block comments do not permit continuation.
+							if ($quote === "'" && preg_match("/\\G(?:[ \\t\\f\\v]|--[^\\r\\n]*)*[\\r\\n](?:[ \\t\\f\\v\\r\\n]|--[^\\r\\n]*[\\r\\n])*'/", $sql, $continuation, 0, $offset)) {
+								$offset += strlen($continuation[0]);
+								continue;
+							}
+							break;
+						}
+					} else {
+						$offset++;
+					}
+				}
+				$previousToken = 'quoted';
+				$expectOperand = false;
+			// Match a dollar-quote opener ($$ or $tag$) at this offset; \G prevents matching later text.
+			} elseif ($char === '$' && preg_match('/\G\$(?:[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)?\$/', $sql, $match, 0, $offset)) {
+				$delimiter = $match[0];
+				$end = strpos($sql, $delimiter, $offset + strlen($delimiter));
+				$offset = $end === false ? $length : $end + strlen($delimiter);
+				$previousToken = 'quoted';
+				$expectOperand = false;
+			// Match a whole SQL word/identifier here, allowing non-ASCII bytes and internal $ signs.
+			} elseif (preg_match('/\G[a-zA-Z_\x80-\xff][a-zA-Z0-9_$\x80-\xff]*/', $sql, $match, 0, $offset)) {
+				$word = $match[0];
+				$keyword = strtolower($word);
+				$qualified = $previousToken === '.';
+				// Infix LIKE needs a completed left operand; a function name starts an operand instead.
+				$isOperator = !$expectOperand && !$qualified;
+				if ($word === 'like' && $start > 0 && $sql[$start - 1] === ' ' && $start + 4 < $length && $sql[$start + 4] === ' ' && $isOperator) {
+					$result .= 'ilike';
+					$offset += strlen($word);
+					$previousToken = $word;
+					$expectOperand = true;
+					continue;
+				}
+				$offset += strlen($word);
+				// A word after a dot is a column identifier, even when its spelling is the AS keyword.
+				if ($qualified) {
+					$expectOperand = false;
+				} elseif ($keyword !== 'not') {
+					// Clause boundaries introduce expressions; expression operators introduce their right operand.
+					// NOT preserves the state for both unary NOT like(...) and infix value NOT LIKE pattern.
+					$expectOperand = in_array($keyword, ['select', 'where', 'having', 'on', 'returning', 'when', 'then', 'else', 'case', 'and', 'or', 'as', 'values', 'distinct', 'all', 'limit', 'offset', 'from', 'join', 'into', 'using', 'union', 'intersect', 'except', 'lateral'], true)
+						|| ($keyword === 'by' && in_array(strtolower((string)$previousToken), ['order', 'group', 'partition'], true))
+						|| (!$expectOperand && in_array($keyword, ['like', 'ilike', 'similar', 'between', 'in', 'is', 'escape', 'collate', 'overlaps', 'to'], true));
+				}
+				$previousToken = $qualified ? 'qualified identifier' : $word;
+			} else {
+				$offset++;
+				if (!ctype_space($char)) {
+					$previousToken = $char;
+					// Numbers and closing delimiters complete operands; punctuation operators and openings need one.
+					$expectOperand = !ctype_digit($char) && $char !== ')' && $char !== ']';
+				}
+			}
+			$result .= substr($sql, $start, $offset - $start);
+		}
+		return $result;
+	}
+}
+
 if (!function_exists('db_modify')) {
-	function db_modify($qtext, $spor, $global = false) {
+	/**
+	 * Execute a write with the existing logging and error handling.
+	 * @param string $qtext SQL with escaped values, or driver-native placeholders when binding parameters.
+	 * @param string $spor Caller context recorded in error logs.
+	 * @param bool $global Whether to use the master connection.
+	 * @param array|null $params Bound values: use $1, $2, ... on PostgreSQL and ? on MySQL/MariaDB.
+	 * @param bool $returnAffectedRows Return the driver's affected-row count on success instead of the legacy status.
+	 * @return int|string Affected rows when requested; otherwise the tab-separated status code and message.
+	 */
+	function db_modify($qtext, $spor, $global = false, ?array $params = null, bool $returnAffectedRows = false) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_skriv_id,$db_type;
@@ -279,7 +408,9 @@ if (!function_exists('db_modify')) {
 		#20190704 START
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 
-            $db_query = mysqli_query($use_connection, $qtext);  //mysql_query deprecated in php 7 and above
+			$db_query = $params === null
+				? mysqli_query($use_connection, $qtext)
+				: mysqli_execute_query($use_connection, $qtext, $params);
 			if (!$db_query) {
 				$error_message = "Error executing query: " . mysqli_error($use_connection) . " | Query: $qtext";
 				error_log($error_message);
@@ -287,10 +418,18 @@ if (!function_exists('db_modify')) {
 			}
 
 		}else {
-			$qtext=str_replace(' like ',' ilike ',$qtext);
-			$db_query=pg_query($use_connection, $qtext);
+			$qtext = db_normalize_like_operators($qtext, pg_parameter_status($use_connection, 'standard_conforming_strings') !== 'off');
+			$db_query = $params === null
+				? pg_query($use_connection, $qtext)
+				: pg_query_params($use_connection, $qtext, $params);
 		}
 		#20190704 END
+		$affectedRows = null;
+		if ($returnAffectedRows && $db_query) {
+			$affectedRows = ($db_type === 'mysql' || $db_type === 'mysqli')
+				? mysqli_affected_rows($use_connection)
+				: pg_affected_rows($db_query);
+		}
 		
 		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1 && $db != $sqdb) {
@@ -323,6 +462,8 @@ if (!function_exists('db_modify')) {
 					db_log_append("$temp/opdatfejl.txt", date("U")."\n", 'w');
 				} 
 			} else {
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
+				$message .= " | ".saldi_error_ref(); #20261104 the error box's reference, so a customer's report can be matched to this mail
 				if (file_exists("$temp/modifyfejl.txt")) {
 					$ff=fopen("$temp/modifyfejl.txt","r");
 					$lastmail=trim(fgets($ff));
@@ -351,9 +492,14 @@ if (!function_exists('db_modify')) {
 					$db_modify_fejl = true;
 					return ('1'.chr(9)."$alerttekst");
 				}
-				alert("$alerttekst");
+				$shown = saldi_error_box($spor, (string) $errtxt, $qtext, true); #20261104 the error box (includes/errorReport.php) instead of the plain alert
+				if ($shown === 'nested') return ('1'.chr(9)."$alerttekst"); // a failure inside the box itself: no second box, no exit
+				if ($shown === 'nosession') alert("$alerttekst"); // CLI, cron, API: as before
 				exit;
 			}
+		}
+		if ($returnAffectedRows && $db_query) {
+			return $affectedRows;
 		}
 		return ('0'.chr(9).'query accepted');
 	}
@@ -394,7 +540,7 @@ if (!function_exists('db_select')) {
 			$query = mysqli_query($use_connection, $qtext);
 			$errtxt = mysqli_error($use_connection);  // Use mysqli_error for both MySQL and MySQLi
 		} else {
-			$qtext = str_replace(' like ', ' ilike ', $qtext);
+			$qtext = db_normalize_like_operators($qtext, pg_parameter_status($use_connection, 'standard_conforming_strings') !== 'off');
 			$query = pg_query($use_connection, $qtext);
 			$errtxt = pg_last_error($use_connection);
 			if ($errtxt) {
@@ -429,13 +575,14 @@ if (!function_exists('db_select')) {
 					"-- Fejl!! ".$qtext." | $errtxt;\n",
 				]);
 				// if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
 				if (file_exists("$temp/selectfejl.txt")) {
 					$ff=fopen("$temp/selectfejl.txt","r");
 					$lastmail=trim(fgets($ff));
 					fclose($ff);
 				} else $lastmail=0; 
 				if($lastmail!=date("U")) {
-					$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
+					$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt | ".saldi_error_ref(); #20261104 + the error box's reference
 					if ($sqdb == 'develop') echo "$message<br>";
 					else {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
@@ -445,12 +592,15 @@ if (!function_exists('db_select')) {
 				} 
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
-				alert("$alerttekst");
+				if (saldi_error_box($spor, (string) $errtxt, $qtext, false) === 'nosession') alert("$alerttekst"); #20261104 the error box; the page goes on as before
 			} else {
 				#	$customAlertText saettes i connect.php;
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				echo $fejltxt; 
-				alert("$alerttekst");
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
+				$shown = saldi_error_box($spor, (string) $errtxt, $qtext, true); #20261104 the error box instead of the plain alert
+				if ($shown === 'nested') return $query;
+				if ($shown === 'nosession') alert("$alerttekst");
 				exit;
 			}
 		} else {
@@ -616,6 +766,26 @@ if (!function_exists('db_exists')) {
 			(db_fetch_array($q))?$db_exists=1:$db_exists=0;
 		}	
 		return($db_exists);
+	}
+}
+
+if (!function_exists('db_cast')) {
+	// 20261016 Sawaneh Review (PR #803): a cast MySQL and Postgres both accept: text -> CHAR, integer -> SIGNED on MySQL.
+	function db_cast($expr, $type) {
+		global $db_type;
+		if (in_array($db_type, array('mysql', 'mysqli'), true)) {
+			return "cast($expr as " . ($type === 'text' ? 'char' : 'signed') . ")";
+		}
+		return "cast($expr as $type)";
+	}
+}
+
+if (!function_exists('saldi_schema_filter')) {
+	// 20261016 Sawaneh Review (PR #803): information_schema spans every database the user can see on MySQL, so a
+	// column/table check must name this one; appended to a WHERE on information_schema.columns/tables.
+	function saldi_schema_filter() {
+		global $db_type;
+		return in_array($db_type, array('mysql', 'mysqli'), true) ? " and table_schema = DATABASE()" : " and table_schema = current_schema()";
 	}
 }
 

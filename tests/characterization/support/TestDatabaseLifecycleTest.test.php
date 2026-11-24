@@ -6,6 +6,12 @@
 // 20261111 CDX/NTR Put wrapped helper-call arguments on separate lines.
 // 20261111 CDX/NTR Restore retention environment even when database cleanup fails.
 // 20261111 CDX/NTR Verify a failed ownership record leaves no retained routing account.
+// 20261113 CDX/NTR Require registry last-activity values to use the Unix seconds expected by admin pages.
+// 20261120 CDX/NTR Check database identity output only appears when retention is enabled.
+// 20261120 CDX/NTR Require routing-account creation and cleanup to leave normal IDs untouched.
+// 20261120 CDX/NTR Keep the simple child-process helper call on one line.
+// 20261111 CL/SZ MB-154 Test databases are named t + 22 hex + _1, like a <master>_<regnskab id> tenant, so api/rest_api.php does not take them for the master.
+// 20261122 CL/SZ MB-154 The cleanup of retained databases matches the t + 22 hex + _1 name.
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -22,37 +28,54 @@ final class TestDatabaseLifecycleTest extends TestCase
         }
     }
 
-    /** @return array<string, array{string}> */
+    /** @return array<string, array{string, string, string, bool}> */
     public static function outputCases(): array
     {
-        return [
-            'installed tenant' => ['DunningCharacterizationTest::test_an_invoice_overdue_beyond_the_grace_period_is_dunned'],
-            'shared SQL fixture' => ['DimensionSqlFragmentTest::testNoFilterMeansNoFragment'],
-        ];
+        $cases = [];
+        foreach ([
+            'installed tenant' => 'TestDatabaseOutputFixture::testConnectionUsesOwnedDatabase',
+            'shared SQL fixture' => 'DimensionSqlFragmentTest::testNoFilterMeansNoFragment',
+        ] as $fixture => $filter) {
+            $cases[$fixture . ' discarded'] = [$filter, '0', '0', false];
+            $cases[$fixture . ' retained'] = [$filter, 'yes', '0', true];
+            $cases[$fixture . ' retained by legacy flag'] = [$filter, '0', 'yes', true];
+        }
+        return $cases;
     }
 
     #[DataProvider('outputCases')]
-    public function testClassSetupIdentityAppearsInIndividualTestResultOutput(string $filter): void
+    public function testClassSetupIdentityOutputRequiresRetention(string $filter, string $keep, string $legacyKeep, bool $retained): void
     {
         require_once __DIR__ . '/CharacterizationEnv.php';
         $root = dirname(__DIR__, 3);
         $report = tempnam(sys_get_temp_dir(), 'saldi-test-output-');
+        $previous = getenv('SALDI_TEST_KEEP_DATABASES');
+        $legacy = getenv('SALDI_REST_KEEP_TENANT');
+        $result = ['stdout' => ''];
         try {
-            $result = CharacterizationEnv::runChild(
-                $root . '/vendor/bin/phpunit',
-                [
-                    '--configuration', $root . '/phpunit.xml', '--teamcity', '--log-junit', $report,
-                    '--filter', $filter,
-                ]
-            );
+            putenv('SALDI_TEST_KEEP_DATABASES=' . $keep);
+            putenv('SALDI_REST_KEEP_TENANT=' . $legacyKeep);
+            $arguments = [
+                '--configuration', $root . '/phpunit.xml', '--teamcity', '--log-junit', $report,
+                '--filter', $filter,
+            ];
+            if (str_starts_with($filter, 'TestDatabaseOutputFixture::')) {
+                $arguments[] = __DIR__ . '/database/TestDatabaseOutputFixture.php';
+            }
+            $result = CharacterizationEnv::runChild($root . '/vendor/bin/phpunit', $arguments);
             self::assertSame(0, $result['exit'], $result['stdout'] . $result['stderr']);
             $xml = simplexml_load_file($report);
             self::assertNotFalse($xml);
             $cases = $xml->xpath('//testcase');
             self::assertCount(1, $cases);
             $output = (string)$cases[0]->{'system-out'};
+            if (!$retained) {
+                self::assertSame('', $output, 'Discarded database identities must not appear in JUnit output');
+                self::assertStringNotContainsString('[test database]', $result['stdout'] . $result['stderr']);
+                return;
+            }
             self::assertMatchesRegularExpression(
-                '/UUID=[a-f0-9-]{36} database=t[a-f0-9]{24}/',
+                '/UUID=[a-f0-9-]{36} database=t[a-f0-9]{22}_1/',
                 $output,
                 'The IDE needs the database identity attached to the individual test result'
             );
@@ -61,9 +84,88 @@ final class TestDatabaseLifecycleTest extends TestCase
             self::assertNotFalse($started);
             self::assertNotFalse($finished);
             self::assertStringContainsString(trim($output), substr($result['stdout'], $started, $finished - $started));
+            self::assertStringContainsString('keep=yes', $output);
         } finally {
-            unlink($report);
+            try {
+                // Only databases named by this child process are eligible for cleanup.
+                preg_match_all('/database=(t[a-f0-9]{22}_1)/', $result['stdout'], $matches);
+                foreach (array_unique($matches[1]) as $name) {
+                    foreach (RetainedTestDatabases::listing($name) as $identity) {
+                        RetainedTestDatabases::delete($identity['database']);
+                    }
+                }
+            } finally {
+                unlink($report);
+                putenv($previous === false ? 'SALDI_TEST_KEEP_DATABASES' : 'SALDI_TEST_KEEP_DATABASES=' . $previous);
+                putenv($legacy === false ? 'SALDI_REST_KEEP_TENANT' : 'SALDI_REST_KEEP_TENANT=' . $legacy);
+            }
         }
+    }
+
+    /** @return array<string, array{bool}> */
+    public static function retentionCases(): array
+    {
+        return ['discarded' => [false], 'retained' => [true]];
+    }
+
+    #[DataProvider('retentionCases')]
+    public function testRoutingAccountsLeaveTheNormalRegistryIdsUntouched(bool $keep): void
+    {
+        $previous = getenv('SALDI_TEST_KEEP_DATABASES');
+        $legacy = getenv('SALDI_REST_KEEP_TENANT');
+        $databases = [];
+        $master = TestDatabase::connect(TestDatabase::masterDb());
+        $sequence = self::registrySequenceState($master);
+        $maximum = pg_fetch_result(TestDatabase::query($master, 'SELECT MAX(id) FROM regnskab'), 0, 0);
+        try {
+            putenv('SALDI_TEST_KEEP_DATABASES=' . ($keep ? 'yes' : 'no'));
+            putenv('SALDI_REST_KEEP_TENANT=0');
+            $first = $databases[] = TestDatabase::create('registry-first');
+            $second = $databases[] = TestDatabase::create('registry-second', false);
+            $openId = $second->registerAccount('open_' . $second->name());
+            $closedId = $second->registerAccount('closed_' . $second->name(), true);
+
+            self::assertSame($sequence, self::registrySequenceState($master), 'Creating test accounts must not consume normal registry IDs');
+            self::assertSame($maximum, pg_fetch_result(TestDatabase::query($master, 'SELECT MAX(id) FROM regnskab'), 0, 0));
+            self::assertLessThan(0, $openId);
+            self::assertLessThan(0, $closedId);
+            self::assertNotSame($openId, $closedId);
+            self::assertSame(
+                [['id' => (string)$openId, 'lukket' => ''], ['id' => (string)$closedId, 'lukket' => 'on']],
+                pg_fetch_all(TestDatabase::query($master, 'SELECT id,lukket FROM regnskab WHERE db=$1 ORDER BY id DESC', [$second->name()]))
+            );
+            $first->release();
+            if ($keep) {
+                RetainedTestDatabases::delete($first->name());
+            }
+            self::assertSame('2', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM regnskab WHERE db=$1', [$second->name()]), 0, 0));
+            $second->release();
+            if ($keep) {
+                RetainedTestDatabases::delete($second->name());
+            }
+            self::assertSame('0', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM regnskab WHERE id=ANY($1::integer[])', ['{' . $openId . ',' . $closedId . '}']), 0, 0));
+            self::assertSame($sequence, self::registrySequenceState($master), 'Cleanup must leave the registry sequence unchanged');
+        } finally {
+            try {
+                foreach ($databases as $database) {
+                    $database->release();
+                    foreach (RetainedTestDatabases::listing($database->name()) as $identity) {
+                        RetainedTestDatabases::delete($identity['database']);
+                    }
+                }
+            } finally {
+                pg_close($master);
+                putenv($previous === false ? 'SALDI_TEST_KEEP_DATABASES' : 'SALDI_TEST_KEEP_DATABASES=' . $previous);
+                putenv($legacy === false ? 'SALDI_REST_KEEP_TENANT' : 'SALDI_REST_KEEP_TENANT=' . $legacy);
+            }
+        }
+    }
+
+    /** @return array{last_value:string, is_called:string} Normal registry ID allocation state. */
+    private static function registrySequenceState(PgSql\Connection $master): array
+    {
+        $sequence = pg_fetch_result(TestDatabase::query($master, "SELECT pg_get_serial_sequence('regnskab','id')"), 0, 0);
+        return pg_fetch_assoc(TestDatabase::query($master, 'SELECT last_value,is_called FROM ' . $sequence));
     }
 
     public function testCleanupCommandDeletesOnlyVerifiedRetainedTestDatabases(): void
@@ -138,6 +240,8 @@ final class TestDatabaseLifecycleTest extends TestCase
     {
         $previous = getenv('SALDI_TEST_KEEP_DATABASES');
         $database = null;
+        $sequenceMaster = TestDatabase::connect(TestDatabase::masterDb());
+        $sequence = self::registrySequenceState($sequenceMaster);
         try {
             putenv('SALDI_TEST_KEEP_DATABASES=1');
             $database = TestDatabase::create('failed-account-recording', false);
@@ -161,6 +265,7 @@ final class TestDatabaseLifecycleTest extends TestCase
             }
             self::assertNotNull($failure);
             self::assertStringContainsString('check constraint', $failure->getMessage());
+            self::assertSame($sequence, self::registrySequenceState($sequenceMaster), 'Failed registrations must not consume normal registry IDs');
             $database->release();
             $master = TestDatabase::connect(TestDatabase::masterDb());
             try {
@@ -185,6 +290,7 @@ final class TestDatabaseLifecycleTest extends TestCase
                     }
                 }
             } finally {
+                pg_close($sequenceMaster);
                 putenv($previous === false ? 'SALDI_TEST_KEEP_DATABASES' : 'SALDI_TEST_KEEP_DATABASES=' . $previous);
             }
         }
@@ -223,6 +329,9 @@ final class TestDatabaseLifecycleTest extends TestCase
             pg_close($connection);
             $master = TestDatabase::connect(TestDatabase::masterDb());
             self::assertSame('1', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM online WHERE session_id=$1 AND db=$2', [$database->sessionId(), $database->name()]), 0, 0));
+            $lastActivity = pg_fetch_result(TestDatabase::query($master, 'SELECT sidst FROM regnskab WHERE db=$1', [$database->name()]), 0, 0);
+            self::assertMatchesRegularExpression('/^[0-9]+$/', $lastActivity);
+            self::assertSame(date('d-m-Y'), date('d-m-Y', $lastActivity));
             $database->release();
             if (!TestDatabase::keep()) {
                 self::assertSame('0', pg_fetch_result(TestDatabase::query($master, 'SELECT count(*) FROM regnskab WHERE db=$1', [$database->name()]), 0, 0));

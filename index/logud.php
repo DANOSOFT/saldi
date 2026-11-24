@@ -1,8 +1,9 @@
 <?php
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 @session_start();
 $s_id=session_id();
 
-// -----------index/logud.php------ ver 4.0.8 --- 2024-04-09 -------------
+// -----------index/logud.php------ ver 5.1.1 --- 2026-11-13 -------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,7 +19,7 @@ $s_id=session_id();
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20131010 Tilføjet sletning af lås fra kladdeliste.
 // 20150114 PK - Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
@@ -27,22 +28,38 @@ $s_id=session_id();
 // 20260904 Sawaneh WP-1.7: delete the session's nav-stack file on logout (before
 //                  session_destroy, while session_id() is still valid) and sweep
 //                  stale nav files from sessions that never logged out.
+// 20260916 Sawaneh Logout written to audit_log while the company connection is still active.
+// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261104 CL/ASR The session's unconfirmed restore uploads (admin/restore.php) are removed at logout, and expired ones of any session (includes/restorePending.php).
+// 20261109 CL/ASR Staff leaving an account return to the operator panel only when it is ready (operator_panel_ready(): PostgreSQL master, panel tables created); otherwise to the account list (review #785).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 $title="logud";
 $css = "";
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 if ($db && $db!=$sqdb) {
 	db_modify("update ordrer set tidspkt='' where hvem = '".db_escape_string($brugernavn)."' and status < '3'",__FILE__ . " linje " . __LINE__);
 	db_modify("update kladdeliste set tidspkt='' where hvem = '".db_escape_string($brugernavn)."' and bogfort != 'V'",__FILE__ . " linje " . __LINE__);
+}
+// Company connection is still active here: record the logout before switching to master.
+include_once("../includes/permissions.php");
+if (function_exists('audit_log') && isset($db) && isset($sqdb) && $db != $sqdb) {
+	audit_log('logout', $db, 'session', (string) $db);
 }
 include("../includes/connect.php");
 $r=db_fetch_array(db_select("select * from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__));
 if (isset($r['revisor'])) {
 	if ($db && $db!=$sqdb) {
 		db_modify("update online set db='$sqdb' where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
-		print "<meta http-equiv=\"refresh\" content=\"0;URL='../admin/vis_regnskaber.php'\">";
+		// 20261025 CL/ASR Saldi staff (admin flag 'on') return to the operator panel; everyone else to the account list as before.
+		// 20261109 CL/ASR Only when the panel is ready (not on a MySQL/MariaDB master, not before the schema step has run).
+		$vr_r = db_fetch_array(db_select("select rettigheder from brugere where brugernavn = '".db_escape_string($brugernavn)."'",__FILE__ . " linje " . __LINE__));
+		include_once(__DIR__ . "/../includes/structure/operatorPanelSchema.php");
+		$vr_back = ($vr_r && explode(',', (string)$vr_r['rettigheder'])[0] == 'on' && file_exists('../admin/operator_panel.php') && operator_panel_ready()) ? '../admin/operator_panel.php' : '../admin/vis_regnskaber.php';
+		print "<meta http-equiv=\"refresh\" content=\"0;URL='$vr_back'\">";
 		exit;
 	}	
 }
@@ -51,6 +68,10 @@ if (function_exists('nav_forget')) {
 	nav_forget();
 	nav_cleanup_old();
 }
+// An unconfirmed restore upload holds a full copy of a ledger: it does not outlive the session.
+include_once("../includes/restorePending.php");
+restore_pending_drop_session();
+restore_pending_sweep();
 session_unset();
 session_destroy();
 if(isset($_COOKIE["saldi_std"])) {

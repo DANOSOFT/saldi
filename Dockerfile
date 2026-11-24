@@ -1,6 +1,7 @@
 FROM php:8.3-apache
 
 # 20261028 CDX/MJ SST-876 Provide cURL and Python for the discovered HTTP recovery regressions.
+# 20261120 CDX/NTR Include PDF inspection tools for background preparation and its integration checks.
 # Install PostgreSQL/cURL client libraries and PHP extensions
 RUN apt-get update && apt-get install -y \
         libpq-dev \
@@ -12,12 +13,13 @@ RUN apt-get update && apt-get install -y \
         git \
         pdftk-java \
         ghostscript \
+        poppler-utils \
         imagemagick \
         barcode \
         msmtp \
         msmtp-mta \
         wget \
-    && docker-php-ext-install pgsql pdo_pgsql curl \
+    && docker-php-ext-install pgsql pdo_pgsql ftp curl \
     && rm -rf /var/lib/apt/lists/*
 
 # msmtp config is generated at container startup from env vars (see docker-entrypoint.sh)
