@@ -3,7 +3,8 @@
 // K61 contact check and its two settings queries stubbed, and reports whether the gift card
 // number form was shown and which alerts the cashier got.
 //
-// usage: php run_pos_voucher_guard.php <betaling> <indbetaling> <ok|refuse> [giftcardNumber]
+// usage: php run_pos_voucher_guard.php <betaling> <indbetaling> <ok|refuse|refused-earlier> [giftcardNumber]
+// refused-earlier: afslut() or delbetal() already refused the sale and showed it in this request.
 // prints JSON: {result, guardCalls, formShown, alerts}
 
 require_once __DIR__ . '/pos_lift.php';
@@ -19,6 +20,9 @@ function alert($text)
 
 $GLOBALS['guardCalls'] = [];
 $GLOBALS['guardVerdict'] = $verdict;
+if ($verdict === 'refused-earlier') {
+    $GLOBALS['pos_delivery_contact_refused'] = true;
+}
 $GLOBALS['done'] = false;
 $GLOBALS['result'] = null;
 $regnaar = 2026;

@@ -91,6 +91,15 @@ final class PosPaymentContactGuardTest extends TestCase
         self::assertSame(['contact missing'], $report['alerts'], 'the cashier is told why');
     }
 
+    public function testARefusalAfslutOrDelbetalAlreadyShowedIsNotShownAgain(): void
+    {
+        $report = $this->runVoucher('Gavekort', '', 'refused-earlier');
+
+        self::assertFalse($report['result'], 'still refused');
+        self::assertFalse($report['formShown']);
+        self::assertSame([], $report['alerts'], 'one alert per request, not two');
+    }
+
     public function testAGiftCardNumberPostedWithAnotherPaymentTypeIsChecked(): void
     {
         // The card number reaches useVoucher() whatever payment type is posted with it.

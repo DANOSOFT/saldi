@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- debitor/pos_ordre_includes/voucherFunc/voucherPay.php --- ver 5.1.1 --- 2026.11.23 ---
+// ---- debitor/pos_ordre_includes/voucherFunc/voucherPay.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20261120 CL/MJ SD-844 K61: a gift card is not taken for a pickup or delivery sale without the customer's email or phone.
 //                The card number form is not shown and no payment is recorded, so the gift card path in pos_ordre.php cannot settle such a sale either.
 // 20261123 CL/MJ SD-844 K61: the check also runs when a gift card number is posted with another payment type, and the refusal is shown to the cashier.
+// 20261124 CL/MJ SD-844 K61: the refusal is not shown a second time when afslut() or delbetal() already showed it in this request.
 
 include_once(__DIR__ . "/../deliveryContact.php");
 
@@ -50,9 +51,12 @@ function voucherPay($orderId, $betaling, $modtaget) {
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $vouchers = explode(chr(9),$r['var_value']);
 	// 20261120 CL/MJ SD-844 K61: the same check as afslut() and delbetal(), for the gift card path that reaches here without them
 	if (($vouchers[$payCardNo] || isset($_POST['giftcardNumber'])) && !$indbetaling) {
+		$alreadyShown = !empty($GLOBALS['pos_delivery_contact_refused']);
 		$check = pos_validate_checkout_sale($orderId);
 		if (!$check['ok']) {
-			alert($check['message']);
+			if (!$alreadyShown) {
+				alert($check['message']);
+			}
 			return false;
 		}
 	}

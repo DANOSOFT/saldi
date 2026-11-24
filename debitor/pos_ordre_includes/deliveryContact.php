@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/deliveryContact.php --- ver 5.1.1 --- 2026.11.23 ---
+// --- debitor/pos_ordre_includes/deliveryContact.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,8 @@
 // 20261120 CL/MJ SD-844 K61: a pickup or delivery sale cannot be paid at the till without the customer's email or phone.
 //                The sale's delivery choice (ordrer.leveringsvalg_id -> pos_leveringsvalg.type) decides; no choice is "taget med" and is never checked.
 // 20261123 CL/MJ SD-844 K61: the rule itself is pos_delivery_contact_ok(), with no text and no database.
+// 20261124 CL/MJ SD-844 K61: quotes in the refusal become \x27 and \x22, not curly quotes, which a LATIN9 tenant cannot show.
+//                A refusal is remembered for the request, so voucherPay() does not show it a second time.
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
@@ -57,6 +59,8 @@ function pos_validate_delivery_contact($type, $email, $phone) {
 		return array('ok' => true, 'message' => '');
 	}
 	$message = findtekst('pos.delivery.contact_missing|Afhentning og levering kræver kundens e-mail eller telefonnummer.', $sprog_id);
+	// The caller shows the refusal; a later check in the same request (voucherPay()) does not show it again.
+	$GLOBALS['pos_delivery_contact_refused'] = true;
 	return array('ok' => false, 'message' => pos_delivery_contact_alert_text($message));
 }
 
@@ -83,8 +87,10 @@ function pos_validate_checkout_sale($orderId) {
 }
 
 /**
- * The text as the till shows it: callers print it inside alert('...') in a double-quoted HTML
- * attribute, so quotes, backslashes, line breaks and angle brackets are taken out.
+ * The text as the till shows it: callers print it inside alert('...'), in a double-quoted HTML
+ * attribute or a script tag. Quotes become the JavaScript escapes \x27 and \x22, which are plain
+ * ASCII, so the alert shows them on a LATIN9 tenant too. Backslashes, line breaks and angle
+ * brackets are taken out.
  *
  * @param string $message
  * @return string
@@ -92,7 +98,7 @@ function pos_validate_checkout_sale($orderId) {
 function pos_delivery_contact_alert_text($message) {
 	return str_replace(
 		array('\\', "'", '"', "\r", "\n", '<', '>'),
-		array('', '’', '”', ' ', ' ', '', ''),
+		array('', '\\x27', '\\x22', ' ', ' ', '', ''),
 		(string) $message
 	);
 }

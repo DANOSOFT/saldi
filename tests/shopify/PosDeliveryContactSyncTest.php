@@ -80,7 +80,17 @@ final class PosDeliveryContactSyncTest extends TestCase
 
     public function testTheMessageCannotBreakTheAlertItIsShownIn(): void
     {
-        self::assertSame('a’b”c d e', pos_delivery_contact_alert_text("a'b\"c\rd\ne<>\\"));
+        self::assertSame('a\\x27b\\x22c d e', pos_delivery_contact_alert_text("a'b\"c\rd\ne<>\\"));
+    }
+
+    public function testARefusalIsRememberedForTheRequest(): void
+    {
+        unset($GLOBALS['pos_delivery_contact_refused']);
+        pos_validate_delivery_contact('levering', 'kunde@example.test', '');
+        self::assertArrayNotHasKey('pos_delivery_contact_refused', $GLOBALS, 'an accepted sale leaves no mark');
+        pos_validate_delivery_contact('levering', '', '');
+        self::assertTrue($GLOBALS['pos_delivery_contact_refused']);
+        unset($GLOBALS['pos_delivery_contact_refused']);
     }
 
     public function testASaleIsJudgedByItsDeliveryChoice(): void
