@@ -1,5 +1,4 @@
 <?php
-
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -39,6 +38,7 @@
 //                lookup precedence and '*' check, and skip that grant on the sign-up API.
 // 20261028 CL/LH MB-73: ordrelinjer.leveret defaults to 0, as includes/betweenUpdates.php sets it on
 //                existing accounts (moved here from admin/opret.php with opret_build_tenant()).
+// 20261029 CL/MMR SST-841: rentalperiod gets payment_id and payment_url for the server-side Vibrant payment check.
 // 20261110 CDX/NTR Release 5.1.1: create tekst_key and its lookup index for new tenants.
 
 /**
@@ -519,7 +519,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$qtxt = "CREATE TABLE rentalperiod ($id_column, rt_id int, rt_cust_id int, rt_from $decimal_type(15,0),";
-	$qtxt.= "rt_to $decimal_type(15,0), item_id int, cust_id int, order_id int, expiry_time timestamp, PRIMARY KEY (id))";
+	$qtxt.= "rt_to $decimal_type(15,0), item_id int, cust_id int, order_id int, expiry_time timestamp, payment_id varchar(100), payment_url varchar(500), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	$qtxt="CREATE TABLE returnings ($id_column, price $decimal_type(15,3), kasse integer, report_number integer default 0, PRIMARY KEY (id))";
