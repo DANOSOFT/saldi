@@ -197,6 +197,7 @@
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
 // 20261124 LOE SST-967 The order's mail address is pinned at the two writes that run before the case card is read, so a request cannot set it.
+// 20261124 LOE SST-967 Copying a stored text, single or in a batch, needs the Ordre right; a save with no case card is refused; a credit reference must sit on an order of the case's customer.
 @session_start();
 $s_id = session_id();
 
@@ -693,6 +694,9 @@ if (($tekst_id = (int) if_isset($_GET, NULL, 'tekst_id')) && ($id = (int) if_iss
 		db_modify("delete from ordretekster where id = '$slet_tekst'", __FILE__ . " linje " . __LINE__);
 		header("location:ordre.php?id=$id&ret_tekst=$id");
 		exit();
+	} elseif (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
+		# SST-967 copying a stored text is reading the shared library, so it needs the module right like the view.
+		sag_workflow_refuse();
 	} elseif ($r = db_fetch_array(db_select("select tekst from ordretekster where id = '$tekst_id'", __FILE__ . " linje " . __LINE__))) {
 		db_modify("insert into ordrelinjer (ordre_id,beskrivelse,posnr) values ('$id','" . db_escape_string($r['tekst']) . "','9999')", __FILE__ . " linje " . __LINE__);
 	}
@@ -722,6 +726,10 @@ if ($ny_linjetekst = if_isset($_POST, NULL, 'ny_linjetekst')) {
 // Her hentes flere linjetekster til tilbud
 $posnrstart = NULL;
 if ((isset($_POST['linjetekster'])) && ($id = (int) if_isset($_POST, NULL, 'id'))) {
+	# SST-967 the batch copies the same shared library, so the same rule applies before its first read.
+	if (substr((string)$rettigheder, (int)$modulnr, 1) < '1') {
+		sag_workflow_refuse();
+	}
 	$r = db_fetch_array(db_select("select max(posnr) as posnr from ordrelinjer where ordre_id = '$id'", __FILE__ . " linje " . __LINE__));
 	$posnrstart = $r['posnr'] + 100;
 	foreach ($_POST['linjetekster'] as $linjetekster) {
@@ -791,9 +799,12 @@ if (($kontakt = if_isset($_GET, NULL, 'kontakt')) && ($id)) {
 	# SST-967 the mail address of an order the exception admits is the case customer's, not the request's.
 	if ($sag_workflow_case_id) {
 		$wf_card = sag_workflow_case_card();
-		if ($wf_card) {
-			db_modify("update ordrer set email='" . db_escape_string($wf_card['email']) . "' where id='" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
+		# A case with no debtor card has no address to pin, so the request is refused like the copy paths do;
+		# writing the request's address would route the invoice mail to an address the customer does not own.
+		if (!$wf_card) {
+			sag_workflow_refuse();
 		}
+		db_modify("update ordrer set email='" . db_escape_string($wf_card['email']) . "' where id='" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
 		unset($wf_card);
 	} elseif (isset($_GET['email']) && $_GET['email']) {
 		db_modify("update ordrer set email='" . db_escape_string($_GET['email']) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
@@ -1287,10 +1298,11 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	# SST-967 the same rule as above: a request the exception admits takes both mail fields from the case card.
 	if ($sag_workflow_case_id) {
 		$wf_card = sag_workflow_case_card();
-		if ($wf_card) {
-			$email = db_escape_string($wf_card['email']);
-			$mail_fakt = $wf_card['mailfakt'];
+		if (!$wf_card) {
+			sag_workflow_refuse();
 		}
+		$email = db_escape_string($wf_card['email']);
+		$mail_fakt = $wf_card['mailfakt'];
 		unset($wf_card);
 	}
 	$qtxt = "update ordrer set sprog = '$formularsprog', email='$email',mail_fakt='$mail_fakt',phone='$phone',pbs='$pbs',";
@@ -1490,7 +1502,15 @@ if ($b_submit) {
 		}
 		if ($sst967_kred_ids) {
 			$sst967_kred_ok = array();
-			$q = db_select("select ordrelinjer.id from ordrelinjer, ordrer where ordrelinjer.ordre_id = ordrer.id and ordrer.sag_id = '$sag_workflow_case_id' and ordrelinjer.id in (" . implode(',', array_keys($sst967_kred_ids)) . ")", __FILE__ . " linje " . __LINE__);
+			# SST-967 the line has to sit on an order of the admitted case AND of the case's customer: a line on
+			# another customer's order in the same case would otherwise be admitted and its quantity reported.
+			$sst967_kred_card = sag_workflow_case_card();
+			if (!$sst967_kred_card) {
+				sag_workflow_refuse();
+			}
+			$sst967_kred_where = "ordrer.sag_id = '$sag_workflow_case_id' and ordrer.konto_id = '" . (int) $sst967_kred_card['id'] . "'";
+			unset($sst967_kred_card);
+			$q = db_select("select ordrelinjer.id from ordrelinjer, ordrer where ordrelinjer.ordre_id = ordrer.id and $sst967_kred_where and ordrelinjer.id in (" . implode(',', array_keys($sst967_kred_ids)) . ")", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$sst967_kred_ok[(int) $r['id']] = true;
 			}

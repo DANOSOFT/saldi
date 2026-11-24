@@ -355,6 +355,21 @@ final class EmptyRightsGateTest extends TestCase
             'a case without a customer card is refused on a copy rather than filled from the request');
         self::assertStringContainsString("select * from adresser where id = '\$konto_id' and art='D'", $ordre,
             'and the case customer is read from its address row');
+        // The shared text library is behind the module right on every read, including the two copy handlers.
+        self::assertStringContainsString("the batch copies the same shared library, so the same rule applies before its first read", $ordre,
+            'the batch copy of stored texts needs the Ordre right');
+        self::assertSame(1, substr_count($ordre, 'copying a stored text is reading the shared library'), 'and so does the single text');
+        // A case with no debtor card has no address to pin, so the save is refused rather than taking the request's.
+        self::assertStringContainsString('A case with no debtor card has no address to pin', $ordre,
+            'a save with no case card is refused');
+        self::assertSame(2, substr_count($ordre, 'if (!$wf_card) {'), 'at both mail writes');
+        // A credit reference must sit on an order of the case's customer, not only in the case.
+        self::assertStringContainsString("ordrer.konto_id = '\" . (int) \$sst967_kred_card['id'] . \"'", $ordre,
+            'the credit reference is bound to the case customer');
+        $hist = @file_get_contents(__DIR__ . '/../../../debitor/historikkort.php');
+        self::assertNotFalse($hist, 'cannot read debitor/historikkort.php');
+        self::assertStringContainsString("(\$_GET['konto_id'] ?? '') !== '' ? \$_GET['konto_id'] : (\$_GET['id'] ?? 0)", (string)$hist,
+            'the history gate and page normalise the customer the same way');
         // Identity is atomic under the exception: the number the order is filed on and the address its mail
         // goes to come from the case card on every admitted request, not only on a copy.
         self::assertStringContainsString("\$kontonr = db_escape_string(\$wf_case_card['kontonr']);", $ordre,

@@ -1,5 +1,5 @@
 <?php
-// --- debitor/historikkort.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/historikkort.php --- ver 5.1.1 --- 2026-11-24 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
 // 20261101 CL/SZ MB-129 Saving a note no longer fails when a contact has an apostrophe in the name: the posted names are escaped before the lookup.
 // 20261112 LOE SST-967 The history opens on the craft right for a customer with a case, and every id and row it uses is read as a number and scoped to that customer.
+// 20261124 LOE SST-967 The customer the gate checks and the page opens is normalised once, so an empty konto_id falls back to id.
 
 @session_start();
 $s_id = session_id();
@@ -58,7 +59,9 @@ include("../includes/connect.php");
 # hands online.php the id to check; any other customer keeps the module gate. std_func.php is included
 # after online.php on this page, so the reads use ?? rather than ifset().
 $sag_workflow_page = 'customer';
-$sag_workflow_konto = (int) ($_GET['konto_id'] ?? ($_GET['id'] ?? 0));
+# SST-967 one value for the gate and the page: an empty konto_id falls back to id, a non-empty one wins, so the
+# two cannot disagree about which customer the request is about.
+$sag_workflow_konto = (int) (($_GET['konto_id'] ?? '') !== '' ? $_GET['konto_id'] : ($_GET['id'] ?? 0));
 
 include("../includes/online.php");
 include("../includes/std_func.php");

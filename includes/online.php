@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.1 --- 2026-11-13---
+// --- includes/online.php --- ver 5.1.1 --- 2026-11-24---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,10 +85,10 @@
 //                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
 // 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
 //                 Their blocks include std_func.php through __DIR__.
-// 20261113 CDX/NTR Merge translated session messages with role enforcement and error reporting.
-// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 // 20261112 LOE SST-967 An empty rights string is no rights; the sag workflow and the Mit Salg label page are the exceptions, and every order or history row a request names is bound to what the gate proved.
 //              The label page's Mit Salg proof is that the account has no brugere row.
+// 20261113 CDX/NTR Merge translated session messages with role enforcement and error reporting.
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
 // 20261113 LOE SST-967 The module refusal is #1033's perm_refuse(), and an admitted case or Mit Salg page reaches the role gate as 'any'.
 include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
@@ -114,6 +114,7 @@ $relativePath = str_repeat('../', max(0, $slashCount - 2));
 // 20261006 Sawaneh Every page prints its breadcrumb for the shell (page_auto_breadcrumb(), stdFunc/pageChrome.php).
 // 20261009 Sawaneh $uiSize (settings ui/text_size per user) printed as <html data-size>, css/saldi-fonts.css linked (shell/settings/dashboard only).
 // 20261013 Sawaneh data-size is also set by a one-line script: pages print a <title> before this html tag, and not every
+// 20261124 LOE SST-967 History entries are ordered oldest first again; the case admission still refuses through the gate.
 //                  parser merges the attributes of a second html tag onto the element it already created.
 date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
