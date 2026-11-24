@@ -1,6 +1,7 @@
 <?php
 // 20261124 CL/SZ Cover db_read_first_line() in includes/db_query.php: a missing, empty or unreadable file gives the default instead of a TypeError from fgets() (MB-142).
 // 20261124 CL/SZ Cover a directory at the file's path; unlike the chmod cases it also runs as root, so CI runs it.
+// 20261124 CL/SZ Cover db_error_mail_last_sent(): no stamp mails, a readable stamp gives its time, an unreadable stamp or a directory counts as mailed now.
 
 use PHPUnit\Framework\TestCase;
 
@@ -89,5 +90,42 @@ final class DbReadFirstLineTest extends TestCase
         }
         $this->assertSame(0, $result);
         $this->assertSame([], $notices);
+    }
+
+    public function testMailStampMissingGivesZeroSoTheMailGoesOut(): void
+    {
+        $this->assertSame(0, db_error_mail_last_sent($this->dir . '/modifyfejl.txt'));
+    }
+
+    public function testMailStampReadableGivesItsTime(): void
+    {
+        file_put_contents($this->dir . '/modifyfejl.txt', "1764000000\n");
+        $this->assertSame('1764000000', db_error_mail_last_sent($this->dir . '/modifyfejl.txt'));
+    }
+
+    /** MB-142 review: a stamp the web user can't read can't limit the mail, so it counts as mailed now. */
+    public function testMailStampUnreadableCountsAsMailedNow(): void
+    {
+        if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+            $this->markTestSkipped('root reads any file, so the unreadable case cannot be set up');
+        }
+        $path = $this->dir . '/selectfejl.txt';
+        file_put_contents($path, "1700000000\n");
+        chmod($path, 0000);
+        $before = (int) date("U");
+        $result = (int) db_error_mail_last_sent($path);
+        $this->assertGreaterThanOrEqual($before, $result);
+        $this->assertLessThanOrEqual((int) date("U"), $result);
+    }
+
+    /** Same rule for a directory at the stamp path; this case also runs as root, so CI runs it. */
+    public function testMailStampDirectoryCountsAsMailedNow(): void
+    {
+        $path = $this->dir . '/opdatfejl.txt';
+        mkdir($path);
+        $before = (int) date("U");
+        $result = (int) db_error_mail_last_sent($path);
+        $this->assertGreaterThanOrEqual($before, $result);
+        $this->assertLessThanOrEqual((int) date("U"), $result);
     }
 }
