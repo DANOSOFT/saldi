@@ -135,9 +135,10 @@
 //                The sku call skips slot 6. shopSyncApiConfigured() counts any of box4-box6, so an empty box4 no longer stops the queue.
 // 20261110 CL/SZ SD-817 shopSyncApiConfigured() counts only a slot with a URL that is open for outbound in the shopify_legacy settings.
 //                A tenant that has cut over no longer writes shopsync markers that are never sent.
-// 20261123 CL/SZ SD-819 shopSyncApiConfigured() asks shopify_legacy_open_slots(), the rule shopify_legacy_endpoints() uses.
-//
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261123 CL/SZ SD-819 shopSyncApiConfigured() asks shopify_legacy_open_slots(), the rule shopify_legacy_endpoints() uses.
+
+
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
