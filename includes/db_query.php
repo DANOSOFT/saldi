@@ -75,6 +75,7 @@
 //                A stamp that exists but can't be read counts as mailed just now, so it sends no mail instead of one per failed query.
 // 20261124 CL/SZ db_error_mail_last_sent(): a stamp the web user can read but not rewrite also counts as mailed just now (MB-142 review).
 //                Before, the stamp never updated and every failed query sent a mail.
+// 20261124 CL/SZ db_error_mail_last_sent(): repair a stamp this account owns first (sharedFilePermissions(), as the stamp write did), and log when a stamp turns the mail off (MB-142 review).
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -161,14 +162,21 @@ if (!function_exists('db_error_mail_last_sent')) {
      * selectfejl.txt), so a failed query mails fejl@saldi.dk at most once per second.
      *
      * A stamp that exists but can't be read or can't be rewritten (made by cron or CLI) can't limit the mail.
-     * It then counts as "mailed just now" and no mail goes out; the error is still logged and the error box still shows.
+     * One this account owns in a trusted temp folder is repaired first, as the stamp write did before.
+     * Otherwise it counts as "mailed just now", no mail goes out and the server log says why;
+     * the error is still logged and the error box still shows.
      *
      * @param string $path Stamp file path.
      * @return int|string The stamp's first line, trimmed; 0 when there is no stamp yet;
      *                    the current time when the stamp exists but can't be read or rewritten.
      */
     function db_error_mail_last_sent($path) {
+        if (is_file($path) && !(is_readable($path) && is_writable($path))) {
+            sharedFilePermissions($path);
+            clearstatcache(true, $path);
+        }
         if (file_exists($path) && !(is_file($path) && is_readable($path) && is_writable($path))) {
+            sharedFileWarning("Error-mail stamp can't be read or rewritten, so no error mail is sent: $path; follow doc/runtime-permissions.md");
             return date("U");
         }
         return db_read_first_line($path);
