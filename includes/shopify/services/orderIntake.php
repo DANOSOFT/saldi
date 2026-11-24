@@ -257,7 +257,8 @@ function shopify_order_from_graphql(array $o): array {
 			'card' => trim((string)($t['paymentDetails']['company'] ?? '')),
 			'parent_gid' => isset($t['parentTransaction']['id']) ? (string)$t['parentTransaction']['id'] : null,
 			'expires_at' => isset($t['authorizationExpiresAt']) && trim((string)$t['authorizationExpiresAt']) !== '' ? trim((string)$t['authorizationExpiresAt']) : null,
-			'unsettled' => isset($t['totalUnsettledSet']['shopMoney']['amount']) ? $money($t['totalUnsettledSet']) : null);
+			// selected by the read: null from Shopify means nothing is left to capture
+			'unsettled' => isset($t['totalUnsettledSet']['shopMoney']['amount']) ? $money($t['totalUnsettledSet']) : '0.00');
 	}
 	$address = static function ($a): ?array {
 		if (!is_array($a)) {
@@ -296,24 +297,25 @@ function shopify_order_from_graphql(array $o): array {
 }
 
 /**
- * The money that pays the order (pure): each successful SALE, each successful capture that belongs
- * to no authorization of the order, and each successful AUTHORIZATION with its captures folded in.
- * An authorization counts what was captured of it plus what Shopify still lets be captured
- * (totalUnsettledSet; its amount less the captures when the read has none), and only what was
- * captured once it is voided, expired at $now, or the whole order is EXPIRED or VOIDED (Shopify may
- * give no expiry). A capture whose authorization the read does not hold counts as itself. Pending
- * and failed transactions are no money.
+ * The money that pays the order (pure): each successful SALE and CAPTURE as itself (a capture is
+ * mapped by its own gateway, which may differ from its authorization's), and for each successful
+ * AUTHORIZATION what Shopify still lets be captured of it (totalUnsettledSet; its amount less its
+ * captures when the read has no such field, 0 when Shopify answers null). An authorization that is
+ * voided, expired at $now, or of an order that is EXPIRED or VOIDED (Shopify may give no expiry)
+ * adds nothing more. A capture follows its authorization, so an authorization captured before the
+ * read is paid by its capture. Pending and failed transactions are no money.
  *
  * @param list<array{gid: string, kind: string, status: string, amount: string, parent_gid?: string|null, expires_at?: string|null, unsettled?: string|null}> $transactions
+ *   unsettled: absent when not read, null when Shopify answered null
  * @param string $financial the order's displayFinancialStatus, upper case
- * @return list<array{transaction: array<string, mixed>, amount: float, capture_gid: string|null}> in the order of the transactions; the
- *   transaction is the sale, capture or authorization, capture_gid an authorization's first capture
+ * @return list<array{transaction: array<string, mixed>, amount: float}> a sale, a capture, or an authorization's capturable rest,
+ *   each capture right after its authorization's place
  */
 function shopify_order_payments(array $transactions, int $now, string $financial = ''): array {
 	$authorizations = array();
 	foreach ($transactions as $t) {
 		if ($t['status'] === 'SUCCESS' && $t['kind'] === SHOPIFY_AUTHORIZATION_KIND) {
-			$authorizations[$t['gid']] = array('captured' => 0.0, 'voided' => false, 'capture_gid' => null);
+			$authorizations[$t['gid']] = array('captures' => array(), 'captured' => 0.0, 'voided' => false);
 		}
 	}
 	foreach ($transactions as $t) {
@@ -322,8 +324,8 @@ function shopify_order_payments(array $transactions, int $now, string $financial
 			continue;
 		}
 		if ($t['kind'] === 'CAPTURE') {
+			$authorizations[$parent]['captures'][] = $t;
 			$authorizations[$parent]['captured'] += (float)$t['amount'];
-			$authorizations[$parent]['capture_gid'] ??= $t['gid'];
 		} elseif ($t['kind'] === 'VOID') {
 			$authorizations[$parent]['voided'] = true;
 		}
@@ -336,15 +338,19 @@ function shopify_order_payments(array $transactions, int $now, string $financial
 		}
 		if ($t['kind'] === SHOPIFY_AUTHORIZATION_KIND) {
 			$a = $authorizations[$t['gid']];
+			foreach ($a['captures'] as $capture) {
+				$payments[] = array('transaction' => $capture, 'amount' => (float)$capture['amount']);
+			}
 			$expires = isset($t['expires_at']) ? strtotime((string)$t['expires_at']) : false;
-			$open = !$lost && !$a['voided'] && ($expires === false || $expires > $now);
-			$capturable = isset($t['unsettled']) ? (float)$t['unsettled'] : max(0.0, (float)$t['amount'] - $a['captured']);
-			$amount = round($a['captured'] + ($open ? $capturable : 0.0), 2);
-			if ($amount > 0) {
-				$payments[] = array('transaction' => $t, 'amount' => $amount, 'capture_gid' => $a['capture_gid']);
+			if ($lost || $a['voided'] || ($expires !== false && $expires <= $now)) {
+				continue;
+			}
+			$capturable = array_key_exists('unsettled', $t) ? (float)($t['unsettled'] ?? 0) : max(0.0, (float)$t['amount'] - $a['captured']);
+			if (round($capturable, 2) > 0) {
+				$payments[] = array('transaction' => $t, 'amount' => round($capturable, 2));
 			}
 		} elseif (in_array($t['kind'], SHOPIFY_PAID_KINDS, true) && !isset($authorizations[$t['parent_gid'] ?? ''])) {
-			$payments[] = array('transaction' => $t, 'amount' => (float)$t['amount'], 'capture_gid' => null);
+			$payments[] = array('transaction' => $t, 'amount' => (float)$t['amount']);
 		}
 	}
 	return $payments;

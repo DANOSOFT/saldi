@@ -43,7 +43,7 @@
 // 20261103 CL/MJ SD-790: APP_UNINSTALLED is subscribed and becomes a shop.uninstalled job.
 // 20261124 CL/LH HML: ORDERS_CREATE becomes order.import, and so does ORDERS_UPDATED of an authorized or paid order not linked yet.
 //                HML captures at fulfilment, so ORDERS_PAID comes only after the order has shipped.
-//                An event for an order whose import is running queues a second import behind it.
+//                An event for an order whose import is running queues a second import behind it; ORDERS_PAID upgrades a queued one.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -463,7 +463,8 @@ function shopify_promote_event(array $event, int $id, string $ref): array {
 /**
  * Queues a routed job. An order.import whose job is running already may have read the order
  * before this event's payment (a CREATE import that found no payment yet): a second job
- * (<key>:again) is queued behind it, so the order is read again.
+ * (<key>:again) is queued behind it, so the order is read again. A queued import that an
+ * ORDERS_PAID event joins becomes an ORDERS_PAID job (shopify_import_not_paid_yet()) and is due now.
  *
  * @param array{type: string, dedupe_key: string, payload: array<string, mixed>, priority: int, correlation: array<string, mixed>} $route
  * @return array{id: int, created: bool, state: string}
@@ -472,6 +473,11 @@ function shopify_event_enqueue(int $shopId, array $route): array {
 	$job = shopify_queue_enqueue($route['type'], $shopId, $route['dedupe_key'], $route['payload'], $route['priority'], null, $route['correlation']);
 	if ($route['type'] === 'order.import' && !$job['created'] && $job['state'] === 'running') {
 		$job = shopify_queue_enqueue($route['type'], $shopId, "{$route['dedupe_key']}:again", $route['payload'], $route['priority'], null, $route['correlation']);
+	}
+	if ($route['type'] === 'order.import' && !$job['created'] && $job['state'] === 'queued' && ($route['payload']['topic'] ?? '') === 'ORDERS_PAID') {
+		// the queued import of a CREATE or UPDATED event takes over the payment's provenance, and runs now
+		shopify_db_rows("UPDATE shopify_jobs SET payload = jsonb_set(payload, '{topic}', '\"ORDERS_PAID\"'), next_run_at = least(next_run_at, now())
+			WHERE id = $1 AND state = 'queued'", array((int)$job['id']));
 	}
 	return $job;
 }

@@ -333,6 +333,10 @@ final class StatusInSyncTest extends TestCase
         $this->deliver('ORDERS_CANCELLED', self::body('orders_cancelled.json'));
         $this->pass();
         $this->assertSame(['status.credit_note'], array_column($this->errors(), 'kind'));
+        // a delayed update from before the cancellation: the stored status is voided, but the link is cancelled
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => 'voided', 'updated_at' => '2026-11-02T09:14:00+01:00']));
+        $this->pass();
+        $this->assertSame(['status.credit_note'], array_column($this->errors(), 'kind'), 'one credit note for the order');
     }
 
     /** @return array<string, array{string}> */

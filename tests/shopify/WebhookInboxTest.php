@@ -261,6 +261,11 @@ final class WebhookInboxTest extends TestCase
             array_values(array_filter($this->jobs(), fn(array $j): bool => $j['type'] === 'order.import')));
         $this->assertSame([["hml:$gid", 'queued']], $imports(), 'one import for the order, whichever event asked first');
         $this->assertSame(['order.import', 'order.status', 'order.status'], array_column($this->jobs(), 'type'), 'each update keeps its status job');
+        $this->assertSame('ORDERS_CREATE', json_decode($this->jobs()[0]['payload'], true)['topic']);
+        $this->receive([self::delivery('hml', 'orders/paid', 'ev-a6', json_encode(['financial_status' => 'paid'] + $order, JSON_UNESCAPED_SLASHES))]);
+        $this->promote(10, $queue);
+        $this->assertSame([["hml:$gid", 'queued']], $imports());
+        $this->assertSame('ORDERS_PAID', json_decode($this->jobs()[0]['payload'], true)['topic'], 'the queued import takes over the payment event: it is refused, not skipped, if Shopify reads no payment');
 
         // the import ran and linked the order; the shop captures it at fulfilment
         $conn = ShopifyEnv::connect(self::$db);

@@ -329,9 +329,9 @@ final class OrderImportSyncTest extends TestCase
         $this->assertSame([0, null], [$this->outcome($order)['orders'], $this->outcome($order)['link']], 'nothing written, no link: ORDERS_PAID may still import it');
         $this->assertSame([], $this->sql('SELECT kind FROM shopify_errors WHERE resolved_at IS NULL'), 'and nothing listed');
 
-        $this->assertSame(['skipped' => 'no payment yet'], $this->import($pending, 'ORDERS_PAID')['result'] ?? null, 'whichever job reads it first');
+        $this->assertSame(['order.payment'], $this->import($pending, 'ORDERS_PAID')['result']['refused'] ?? null, 'ORDERS_PAID without a payment is refused as before');
         $paidWithout = ['financial_status' => 'PAID', 'transactions' => []] + $order;
-        $this->assertSame(['order.payment'], $this->import($paidWithout, 'ORDERS_CREATE')['result']['refused'] ?? null, 'an order Shopify calls paid without a payment is refused as before');
+        $this->assertSame(['order.payment'], $this->import($paidWithout, 'ORDERS_CREATE')['result']['refused'] ?? null, 'and so is an order Shopify calls paid without a payment');
     }
 
     public function testACreatedOrUpdatedOrderOfALegacyShopFromBeforeItsGoLiveIsNotImported(): void

@@ -40,6 +40,7 @@
 // 20261112 CL/SS SD-804: an echo of our own store order queues the sale still waiting for its answer.
 // 20261124 CL/LH HML: an authorized order is imported too (ORDERS_CREATE/UPDATED); one with no payment yet waits quietly for ORDERS_PAID.
 //                The payment id is the authorization's until it is captured, and an import that validates resolves the order's payment error.
+//                A capture is mapped by its own gateway; a job that took over an ORDERS_PAID event is an ORDERS_PAID job.
 //                A created or updated order of a legacy shop older than its go-live is not imported: the legacy intake may have it.
 
 require_once __DIR__ . '/orderIntake.php';
@@ -139,7 +140,7 @@ function shopify_import_paid_order(array $job, array $services = array()): array
 			shopify_import_log('legacy_era', $correlation + array('order_name' => $order['name'], 'topic' => (string)($job['payload']['topic'] ?? '')));
 			return array('outcome' => 'done', 'result' => array('skipped' => 'created before the go-live of a legacy shop'));
 		}
-		if (shopify_import_not_paid_yet($order)) {
+		if (shopify_import_not_paid_yet($job, $order)) {
 			shopify_import_log('not_paid_yet', $correlation + array('order_name' => $order['name'], 'topic' => (string)($job['payload']['topic'] ?? '')));
 			return array('outcome' => 'done', 'result' => array('skipped' => 'no payment yet'));
 		}
@@ -545,20 +546,21 @@ function shopify_import_header(int $kontoId, array $h): int {
  */
 function shopify_import_payment_id(array $order): string {
 	$payments = shopify_order_payments($order['transactions'], time(), (string)($order['financial_status'] ?? ''));
-	$gid = isset($payments[0]) ? (string)($payments[0]['capture_gid'] ?? $payments[0]['transaction']['gid']) : '';
+	$gid = isset($payments[0]) ? (string)$payments[0]['transaction']['gid'] : '';
 	return (string)preg_replace('#^gid://shopify/OrderTransaction/#', '', $gid);
 }
 
 /**
- * Whether the order has no money reserved or paid yet and is not marked paid, so a job that came
- * before its payment ends quietly: no successful sale, capture or capturable authorization, no
- * refund, and a financial status other than PAID, PARTIALLY_PAID or (PARTIALLY_)REFUNDED (a bank
- * transfer or a payment still pending; an authorization voided or expired). Nothing is listed;
- * ORDERS_PAID, or ORDERS_UPDATED once authorized, brings it back. An order Shopify calls paid
- * without such a payment is refused as before, and a partial payment is refused either way.
+ * Whether a job that came before the order's payment ends quietly: not an ORDERS_PAID job (one
+ * that took over an ORDERS_PAID event carries its topic), and the order has no successful sale,
+ * capture or capturable authorization, no refund, and a financial status other than PAID,
+ * PARTIALLY_PAID or (PARTIALLY_)REFUNDED (a bank transfer or a payment still pending; an
+ * authorization voided or expired). Nothing is listed; ORDERS_PAID, or ORDERS_UPDATED once
+ * authorized, brings it back. ORDERS_PAID without such a payment is refused as before, and a
+ * partial payment is refused either way.
  */
-function shopify_import_not_paid_yet(array $order): bool {
-	if (in_array((string)($order['financial_status'] ?? ''), array('PAID', 'PARTIALLY_PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'), true)) {
+function shopify_import_not_paid_yet(array $job, array $order): bool {
+	if ((string)($job['payload']['topic'] ?? 'ORDERS_PAID') === 'ORDERS_PAID' || in_array((string)($order['financial_status'] ?? ''), array('PAID', 'PARTIALLY_PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'), true)) {
 		return false;
 	}
 	foreach ($order['transactions'] as $t) {

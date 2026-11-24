@@ -446,6 +446,12 @@ function shopify_status_lost_authorization(array $event, array $link, string $fi
 		if (shopify_db_rows('SELECT 1 FROM shopify_errors WHERE error_key = $1', array($key)) !== array()) {
 			return;
 		}
+		// cancelled meanwhile (the cancellation asks for the credit note itself), whatever this older body says
+		$now = shopify_db_rows('SELECT cancelled_at FROM shopify_order_links WHERE id = $1 FOR UPDATE', array((int)$link['id']))[0] ?? null;
+		if ($now === null || $now['cancelled_at'] !== null
+			|| shopify_db_rows('SELECT 1 FROM shopify_errors WHERE error_key = $1', array(shopify_error_key($shopId, 'status.credit_note', $gid))) !== array()) {
+			return;
+		}
 		$name = shopify_status_text($body['name'] ?? null) ?? (string)($link['order_name'] ?? $gid);
 		$ordrenr = shopify_db_rows('SELECT ordrenr FROM ordrer WHERE id = $1', array((int)$link['ordre_id']))[0]['ordrenr'] ?? $link['ordre_id'];
 		$invoiced = shopify_status_invoiced($link) ? 'was invoiced' : 'is being invoiced (its import resumes)';

@@ -115,7 +115,7 @@ final class OrderIntakeTest extends TestCase
 				'amountSet' => ['shopMoney' => ['amount' => '269']], 'paymentDetails' => ['company' => 'Visa']],
 				['id' => 'gid://shopify/OrderTransaction/2', 'kind' => 'AUTHORIZATION', 'status' => 'SUCCESS', 'gateway' => 'shopify_payments',
 				'amountSet' => ['shopMoney' => ['amount' => '269']], 'paymentDetails' => null, 'parentTransaction' => null, 'authorizationExpiresAt' => '2026-12-01T12:00:00Z',
-				'totalUnsettledSet' => ['shopMoney' => ['amount' => '0']]],
+				'totalUnsettledSet' => ['shopMoney' => ['amount' => '169']]],
 				['id' => 'gid://shopify/OrderTransaction/3', 'kind' => 'CAPTURE', 'status' => 'SUCCESS', 'gateway' => 'shopify_payments',
 				'amountSet' => ['shopMoney' => ['amount' => '269']], 'paymentDetails' => null, 'parentTransaction' => ['id' => 'gid://shopify/OrderTransaction/2'], 'authorizationExpiresAt' => null]],
 			'fulfillmentOrders' => ['nodes' => [['id' => 'gid://shopify/FulfillmentOrder/1', 'status' => 'OPEN',
@@ -145,7 +145,7 @@ final class OrderIntakeTest extends TestCase
 		$this->assertSame('Visa', $o['transactions'][0]['card']);
 		$this->assertSame([[null, null], [null, '2026-12-01T12:00:00Z'], ['gid://shopify/OrderTransaction/2', null]],
 			array_map(fn(array $t): array => [$t['parent_gid'], $t['expires_at']], $o['transactions']), 'a capture names its authorization; an authorization its expiry');
-		$this->assertSame([null, '0.00', null], array_column($o['transactions'], 'unsettled'), 'what Shopify still lets be captured, when it says');
+		$this->assertSame(['0.00', '169.00', '0.00'], array_column($o['transactions'], 'unsettled'), 'what Shopify still lets be captured; null or absent is nothing');
 		$this->assertSame('39.00', $o['shipping'][0]['amount']);
 	}
 
@@ -483,8 +483,9 @@ final class OrderIntakeTest extends TestCase
 	/** A SUCCESS transaction of the order's card, with what the read keeps of the authorization it belongs to. */
 	private static function tx(string $gid, string $kind, string $amount, ?string $parent = null, ?string $expires = null, string $status = 'SUCCESS', ?string $unsettled = null): array
 	{
+		// unsettled left out: as an order read before totalUnsettledSet was selected
 		return ['gid' => $gid, 'kind' => $kind, 'status' => $status, 'gateway' => 'shopify_payments', 'amount' => $amount, 'card' => 'Visa',
-			'parent_gid' => $parent, 'expires_at' => $expires, 'unsettled' => $unsettled];
+			'parent_gid' => $parent, 'expires_at' => $expires] + ($unsettled === null ? [] : ['unsettled' => $unsettled]);
 	}
 
 	/** felt_1/felt_2 of a valid order, or its error messages. */
@@ -543,9 +544,16 @@ final class OrderIntakeTest extends TestCase
 		$auth = self::tx('gid://shopify/OrderTransaction/41', 'AUTHORIZATION', '269.00', null, '2026-12-01T12:00:00Z');
 		$capture = self::tx('gid://shopify/OrderTransaction/42', 'CAPTURE', '269.00', 'gid://shopify/OrderTransaction/41');
 
+		$this->assertSame([['gid://shopify/OrderTransaction/42', 269.0]], array_map(fn(array $p): array => [$p['transaction']['gid'], $p['amount']],
+			shopify_order_payments([$capture, $auth], $now)), 'captured in full: the capture is the payment, the authorization adds nothing');
 		$this->assertSame([['gid://shopify/OrderTransaction/41', 269.0]], array_map(fn(array $p): array => [$p['transaction']['gid'], $p['amount']],
-			shopify_order_payments([$capture, $auth], $now)));
-		$this->assertSame('gid://shopify/OrderTransaction/42', shopify_order_payments([$capture, $auth], $now)[0]['capture_gid']);
+			shopify_order_payments([$auth], $now)), 'not captured: the authorization');
+		$manual = ['gateway' => 'manual', 'card' => ''] + self::tx('gid://shopify/OrderTransaction/43', 'CAPTURE', '100.00', 'gid://shopify/OrderTransaction/41');
+		$this->assertSame([['gid://shopify/OrderTransaction/43', 'manual', 100.0], ['gid://shopify/OrderTransaction/41', 'shopify_payments', 169.0]],
+			array_map(fn(array $p): array => [$p['transaction']['gid'], $p['transaction']['gateway'], $p['amount']], shopify_order_payments([$auth, $manual], $now)),
+			'a capture keeps its own gateway (mark as paid); the authorization pays what is left to capture');
+		$this->assertSame([['gid://shopify/OrderTransaction/43', 100.0]], array_map(fn(array $p): array => [$p['transaction']['gid'], $p['amount']],
+			shopify_order_payments([['unsettled' => null] + $auth, $manual], $now)), 'Shopify answers null: nothing left to capture');
 		$this->assertSame([], shopify_order_payments([$auth, self::tx('v', 'VOID', '269.00', 'gid://shopify/OrderTransaction/41')], $now));
 		$this->assertSame([['s', 269.0]], array_map(fn(array $p): array => [$p['transaction']['gid'], $p['amount']],
 			shopify_order_payments([self::tx('s', 'SALE', '269.00')], $now)), 'a sale as before');
