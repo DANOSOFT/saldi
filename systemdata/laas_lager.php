@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------systemdata/laas_lager.php---------------------ver 5.1.1-----2026.11.13---
+// ---------systemdata/laas_lager.php---------------------ver 5.1.1-----2026.11.14---
 // LICENS
 //
 // // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -26,6 +26,8 @@
 // // Copyright (c) 2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR Lås lagerværdi is retired for every tenant: the page only says so and stops.
+//                 It no longer writes computed stock movements to transaktioner or sets box9 on the fiscal year.
 @session_start();
 $s_id=session_id();
 
@@ -34,6 +36,16 @@ $modulnr = 2; // 20261004 Sawaneh Security 4.0 (A8), same as regnskabskort.php w
 $permission_key = 'system.indstillinger';
 include("../includes/online.php");
 include("../includes/std_func.php");
+
+// 20261114 CL/ASR Retired for every tenant. On every GET with print=0 this page inserted the year's computed stock
+// movements straight into transaktioner, with no guard against a second run, and its button in
+// fiscalYearInc/yearX.php has long been commented out. Opened by URL it now only shows that it is retired.
+/**
+ * Injected by ../includes/online.php, included above:
+ * @var int $sprog_id
+ */
+print "<p>" . findtekst('stock.recon.laas_lager_retired|Lås lagerværdi er udgået. Bogfør selv ændringen i lagerværdien i en kassekladde.', $sprog_id) . "</p>\n";
+exit;
 
 $regnaar=if_isset($_GET['regnaar']);
 $regnaar_id=if_isset($_GET['regnaar_id']);
