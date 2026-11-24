@@ -20,7 +20,7 @@
 // 20261124 CL/LH K33 The delivery choices the cashier picks on a sale (pos_leveringsvalg), on their own page now that PoS-valg is retired (#1191).
 //                Indstillinger -> Kasse -> Kasseskærm -> Salg links here (pos.screen.delivery_choices), only where the Shopify schema is installed.
 //                The table and its save are the ones K33 put on PoS-valg (diverseIncludes/posSaleSettings.php), so a choice an order already uses still keeps its meaning.
-//                CSRF and settings.pos write are checked before the save; a clean save redirects (PRG), and a refusal is shown on the page.
+//                CSRF and settings.pos write are checked before the save; every save redirects (PRG), and a refused row is shown on the next page.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -47,7 +47,6 @@ if (!isset($_SESSION['csrf_token'])) {
 $csrfToken = $_SESSION['csrf_token'];
 
 $supported = pos_delivery_supported();
-$refusals = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	if (!isset($_POST['csrf_token']) || !hash_equals((string) $csrfToken, (string) $_POST['csrf_token'])) {
 		audit_log('csrf', 'posDeliveryChoices.php');
@@ -56,22 +55,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		exit;
 	}
 	require_permission('settings.pos', 'write');
-	// pos_save_delivery_choices() reports a refused or conflicting row with alert(), which prints a script; it is kept
-	// and shown on this page, since a redirect would lose it.
+	// pos_save_delivery_choices() reports a refused or conflicting row with alert(), which prints a script. The other rows
+	// are already committed, so the page still redirects (a reload must not post them again) and the script is shown
+	// on the next page.
 	ob_start();
 	pos_save_delivery_choices($_POST);
-	$refusals = (string) ob_get_clean();
-	if ($refusals === '') {
-		audit_log('setting.changed', 'pos.screen.delivery_choices', 'indstilling', 'pos.screen.delivery_choices');
-		ob_end_clean();
-		header('Location: posDeliveryChoices.php?msg=saved');
-		exit;
-	}
+	$_SESSION['pos_delivery_refusals'] = (string) ob_get_clean();
+	audit_log('setting.changed', 'pos.screen.delivery_choices', 'indstilling', 'pos.screen.delivery_choices');
+	ob_end_clean();
+	header('Location: posDeliveryChoices.php?msg=saved');
+	exit;
 }
+$refusals = isset($_SESSION['pos_delivery_refusals']) ? (string) $_SESSION['pos_delivery_refusals'] : '';
+unset($_SESSION['pos_delivery_refusals']);
 
 $flash = array();
 $msg = isset($_GET['msg']) ? (string) $_GET['msg'] : '';
-if ($msg === 'saved') {
+if ($msg === 'saved' && $refusals === '') {
 	$flash[] = array('ok', 3322);
 } elseif ($msg === 'csrf') {
 	$flash[] = array('err', 5754);

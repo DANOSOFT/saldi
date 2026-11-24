@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.20 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -133,6 +133,7 @@
 // 20261112 CL/SS SD-804: braces on the voucher branch that includes settlePOS.php (which queues the store order).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261120 CL/LH K33/K34: the sale's delivery choice and wished delivery date are saved from the sale form (pos_save_sale_delivery() in pos_ordre_includes/saleDeliveryFields.php), and Forfra, a reused abandoned sale or a table emptied by a move starts again as "taget med".
+// 20261124 CL/LH K33 A refused delivery also clears the tendered amount, so a c, g or k suffix cannot pay the sale; a sale moved onto a table's sale takes its delivery along (pos_move_sale_delivery()).
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -506,6 +507,7 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 			db_modify("update ordrelinjer set ordre_id='$r[id]' where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
 			# 20261120 CL/LH K33/K34 The emptied sale is reused for the table's next customer, so it starts as
 			# "taget med" - unless the table was moved onto itself and kept its lines.
+			pos_move_sale_delivery((int) $id, (int) $r['id']); # 20261124 CL/LH K33 the delivery goes along with the lines
 			$tom_reset = ((int) $r['id'] !== (int) $id) ? pos_reset_sale_delivery_sql() : '';
 			db_modify("update ordrer set hvem=''" . $tom_reset . " where id='$id'", __FILE__ . " linje " . __LINE__);
 			$id = $r['id'];
@@ -1132,6 +1134,7 @@ if ($vare_id) {
 			alert(pos_sale_brand_for_alert($leveringsfejl));
 			$betaling = NULL;
 			$afslut = NULL;
+			$modtaget = $modtaget2 = ''; # the tender suffixes c, g and k would rebuild the payment from it
 		}
 	}
 	if (strpos($betaling, 'på beløb') && strlen($varenr_ny) > 1) { #20201029
