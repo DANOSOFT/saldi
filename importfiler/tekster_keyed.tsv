@@ -18,6 +18,9 @@ order_text.not_found	Teksten findes ikke længere. Dine ændringer er ikke gemt.
 order_text.save_failed	Teksten kunne ikke gemmes. Dine ændringer vises stadig nedenfor.	The text could not be saved. Your changes are still shown below.	Teksten kunne ikke lagres. Endringene dine vises fortsatt nedenfor.
 order_text.unsupported_characters	Teksten indeholder tegn, som regnskabet ikke kan gemme. Ret teksten, og prøv igen.	The text contains characters this account cannot store. Edit the text and try again.	Teksten inneholder tegn som regnskapet ikke kan lagre. Rett teksten og prøv igjen.
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
+pool.save.invalid_account	Kontoen findes ikke i kontoplanen for regnskabsåret, eller den er lukket. Ingen ændringer er gemt.	The account does not exist in the chart of accounts for the fiscal year, or it is closed. No changes have been saved.	Kontoen finnes ikke i kontoplanen for regnskapsåret, eller den er lukket. Ingen endringer er lagret.
+pool.save.invalid_amount	Beløbet kan ikke læses. Ingen ændringer er gemt.	The amount cannot be read. No changes have been saved.	Beløpet kan ikke leses. Ingen endringer er lagret.
+pool.save.invalid_date	Datoen findes ikke. Ingen ændringer er gemt.	The date does not exist. No changes have been saved.	Datoen finnes ikke. Ingen endringer er lagret.
 wage.overtime.hours_100	Overtid 100%	Overtime 100%	Overtid 100%
 wage.overtime.hours_50	Overtid 50%	Overtime 50%	Overtid 50%
 wage.overtime.no_access	Du har ikke adgang til denne side.	You do not have access to this page.	Du har ikke tilgang til denne siden.

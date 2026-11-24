@@ -2,6 +2,7 @@
 // 20260914 CDX/LH Exercise document corrections against PostgreSQL temporary tables.
 // Run with SALDI_TEST_PG_DSN (or libpq PG* environment variables plus SALDI_TEST_PG=1).
 // 20261027 CL/LH Account 0 is not set; a stored suggestion the journal can't use is left out on attach instead of 422.
+// 20261124 CL/LH The row editor's exact save for bilag 784 (ssl3 /master): the stored app account 9310 is not in the kontoplan.
 if (!getenv('SALDI_TEST_PG_DSN') && !getenv('SALDI_TEST_PG')) {
 	fwrite(STDOUT, "SKIP: configure a PostgreSQL test connection\n");
 	exit(0);
@@ -77,4 +78,11 @@ foreach (['0','9999','3000','4000','5000','unknown'] as $account) {
 }
 poolMetadataSave('invoice.pdf', ['account'=>'0'], true, poolMetadataVersion(metadataRow()), 9);
 check(metadataRow()['account']==='', 'Account 0 is saved as not set');
+db_modify("INSERT INTO pool_files (filename,subject,account,amount,file_date,invoice_number,description,currency) VALUES ('voucher-1795.pdf','jem & fix','9310','212.6','2021-11-26','762-421','','DKK')");
+$voucher = fn() => db_fetch_array(db_select("SELECT * FROM pool_files WHERE filename='voucher-1795.pdf'"));
+poolMetadataSave('voucher-1795.pdf', ['subject'=>'jem & fix','account'=>'9310','amount'=>'212.60','file_date'=>'2026-11-21','invoice_number'=>'762-421','description'=>'Første stop'], true, poolMetadataVersion($voucher()), 9);
+$row = $voucher();
+check($row['account']==='9310' && $row['file_date']==='2026-11-21' && $row['norm_amount']==='212.6', 'Row editor save keeps the stored app account');
+check($row['subject']==='jem & fix' && $row['description']==='Første stop' && poolMetadataIsManual($row), 'Row editor save stores the text as typed');
+rejected(fn()=>poolMetadataSave('voucher-1795.pdf', ['account'=>'9311'], true, poolMetadataVersion($voucher()), 9), 422, 'Changed account outside the kontoplan');
 printf("PASS: %d PostgreSQL metadata and account checks\n", $checks);

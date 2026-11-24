@@ -1,5 +1,5 @@
 <?php
-
+//
 // 20260810 CL/SZ pool_files.norm_amount was only ever populated by extractInvoiceHandler.php's
 //                 save action - inserts made via this REST endpoint left norm_amount NULL, so
 //                 Bilagsmatch's amount_score always scored 0 for files uploaded through the API.
@@ -21,7 +21,10 @@
 // 20261005 LOE SST-855 loadFromFilename() confines the request-supplied name to the pool folder, so a
 //                 traversal name can no longer load or unlink the lock in the tenant folder above it.
 // 20261004 CL/SZ SD-727: a bilag posted again while archived in the pool is restored to the pool's list (poolArchiveRestoreOnArrival()); the copy is still not kept.
+// 20261124 CL/LH The app's date goes through poolExtractedDate() before it is stored: a receipt's "21 11 26" read as 2021-11-26 is stored as 2026-11-21.
+//                It was stored exactly as the app sent it, and an impossible date is now stored as none, as a pool upload does.
 require_once __DIR__ . "/../../../includes/docsIncludes/poolAmountNormalizer.php";
+require_once __DIR__ . "/../../../includes/docsIncludes/poolDateNormalizer.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolVendorMatcher.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolPaths.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolContentHash.php";
@@ -738,7 +741,11 @@ class AttachmentModel
                 $subject = isset($metadata['subject']) && $metadata['subject'] ? $metadata['subject'] : $baseName;
                 $account = isset($metadata['accountnr']) ? $metadata['accountnr'] : '';
                 $amount = isset($metadata['amount']) ? $metadata['amount'] : '';
-                $fileDate = isset($metadata['date']) && $metadata['date'] ? $metadata['date'] : $fileDate;
+                if (isset($metadata['date']) && is_scalar($metadata['date']) && (string) $metadata['date'] !== '') {
+                    // The app's AI read the date; a year-first misreading is corrected against today, the upload day.
+                    // As on a pool upload: an impossible date is stored as none rather than rolled over.
+                    $fileDate = poolExtractedDate((string) $metadata['date']);
+                }
                 $invoiceNumber = isset($metadata['invoiceNumber']) ? $metadata['invoiceNumber'] : '';
                 $description = isset($metadata['invoiceDescription']) ? $metadata['invoiceDescription'] : '';
                 $currency = isset($metadata['currency']) ? normalizePoolCurrency($metadata['currency']) ?? '' : '';

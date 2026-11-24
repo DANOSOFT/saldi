@@ -15,8 +15,7 @@
 // History:
 // 20260909 CDX/MJ SST-775: created.
 // 20261124 CL/LH A receipt printing "21 11 26" (spaces, dd mm yy) became 2021-11-26 in the pool.
-//                Space-separated triples are read day-first, and poolExtractedDate() takes the day-first
-//                reading of an AI-read date that is more than a year old or in the future.
+//                Space-separated triples are read day-first, and poolExtractedDate() takes the day-first reading of an AI-read date that is more than a year old or in the future.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
