@@ -15,12 +15,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260909 CDX/MJ SST-775 Moved normalizeDateFormat() here out of extractInvoiceHandler.php,
 //                  which cannot be included without connecting to a database and exiting, so the
 //                  date handling had no test coverage. Same shape as poolAmountNormalizer.php.
 //                  Three extraction defects fixed at the same time - see normalizeDateFormat().
+// 20261124 CL/LH A receipt printing "21 11 26" (dd mm yy with spaces) became 2021-11-26 in the pool.
+//                A space-separated triple and a time after the date are read like the dotted forms.
+//                poolExtractedDate() takes the day-first reading of an AI-read date that is more than a year before the upload or in the future, when that reading falls in the three months before the upload.
 
 if (!function_exists('poolDateFromParts')) {
 	/**
@@ -134,10 +137,20 @@ if (!function_exists('normalizeDateFormat')) {
 			}
 		}
 
-		// Format: dd.mm.yyyy or dd-mm-yyyy or dd/mm/yyyy, and the same with a two-digit year.
-		// A leading four-digit group cannot match here, so yyyy-mm-dd still falls to the
-		// branch below.
-		if (preg_match('/^(\d{1,2})[.\-\/](\d{1,2})[.\-\/](\d{4}|\d{2})$/', $dateStr, $matches)) {
+		// A time after the date ("21 11 26 13:02" on a till receipt) says nothing about the day. A slashed date
+		// with a time is left to strtotime() as before: it reads "11/12/26 13:02" month-first, as US receipts print it.
+		if (strpos($dateStr, '/') === false) {
+			$dateStr = preg_replace('/\s+\d{1,2}[:.]\d{2}(?:[:.]\d{2})?$/', '', $dateStr);
+			// An ISO timestamp ("2026-02-30T13:02:00Z") is checked as a date too, not rolled over by strtotime().
+			$dateStr = preg_replace('/^(\d{4}-\d{1,2}-\d{1,2})T\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+\-]\d{2}:?\d{2})?$/', '$1', $dateStr);
+		}
+		// Between the parts: . - or /, or only spaces, as till receipts print "21 11 26".
+		$separator = '(?:\s*[.\-\/]\s*|\s+)';
+
+		// Format: dd.mm.yyyy or dd-mm-yyyy or dd/mm/yyyy or dd mm yyyy, and the same with a
+		// two-digit year. A leading four-digit group cannot match here, so yyyy-mm-dd still
+		// falls to the branch below.
+		if (preg_match('/^(\d{1,2})' . $separator . '(\d{1,2})' . $separator . '(\d{4}|\d{2})$/', $dateStr, $matches)) {
 			$day = (int) $matches[1];
 			$month = (int) $matches[2];
 			$year = poolDateExpandYear($matches[3]);
@@ -157,7 +170,7 @@ if (!function_exists('normalizeDateFormat')) {
 		}
 
 		// Format: yyyy-mm-dd (already correct)
-		if (preg_match('/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})$/', $dateStr, $matches)) {
+		if (preg_match('/^(\d{4})' . $separator . '(\d{1,2})' . $separator . '(\d{1,2})$/', $dateStr, $matches)) {
 			$year = $matches[1];
 			$month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
 			$day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
@@ -165,12 +178,66 @@ if (!function_exists('normalizeDateFormat')) {
 		}
 
 		// Try PHP's strtotime as fallback
-		$timestamp = strtotime($dateStr);
+		$timestamp = strtotime($originalDate);
 		if ($timestamp !== false && $timestamp > 0) {
 			return date('Y-m-d', $timestamp);
 		}
 
 		// Return original if nothing worked
 		return $originalDate;
+	}
+}
+
+if (!function_exists('poolExtractedDate')) {
+	/**
+	 * Normalize a date read from a document by the AI scan, and correct a year-first misreading.
+	 *
+	 * A till receipt printing "21 11 26" (21 November 2026) comes back from the scan as
+	 * 2021-11-26 as often as not: the model read the triple year-first. Nothing in that ISO
+	 * date says it was misread, but a bilag is seldom more than a year old when it is
+	 * uploaded, and never from the future. When the date read is either, and reading its
+	 * day as the two-digit year (and its year as the day) gives a date in that window,
+	 * the scan misread the triple, and that reading is the one returned.
+	 *
+	 * Only for dates the AI read, and only when it returned them year-first: a date the user typed, or
+ * one read day-first ("26.11.2021"), is never second-guessed. A misread that still looks recent
+ * (2025-11-26 for "25 11 26" uploaded 2026-11-25) cannot be told from a real date and stays.
+	 *
+	 * @param string|null $dateStr Raw or normalized date from the extraction.
+	 * @param string|null $referenceDate Y-m-d the document arrived (upload or file date); today when null.
+	 * @return string As normalizeDateFormat(), with a misread year corrected.
+	 */
+	function poolExtractedDate($dateStr, $referenceDate = null)
+	{
+		$date = normalizeDateFormat($dateStr);
+		if (!preg_match('/\A(\d{4})-(\d{2})-(\d{2})\z/', $date, $parts)) {
+			return $date;
+		}
+		// Only a date the scan returned year-first can be a misread triple. "26.11.2021" was read day-first
+		// with its year in full: that is the date on the document, however old.
+		if (!preg_match('/\A\s*\d{4}\D/', (string) $dateStr)) {
+			return $date;
+		}
+		$reference = DateTimeImmutable::createFromFormat('!Y-m-d', (string) ($referenceDate ?: date('Y-m-d')));
+		if ($reference === false) {
+			return $date;
+		}
+		$earliest = $reference->modify('-1 year')->format('Y-m-d');
+		// Some invoices are dated ahead (a month's rent, a subscription); a month is not "the future".
+		$latest = $reference->modify('+1 month')->format('Y-m-d');
+		if ($date >= $earliest && $date <= $latest) {
+			return $date;
+		}
+		if (substr($parts[1], 0, 2) !== '20') {
+			return $date;
+		}
+		// The misread receipt was recent: its day-first reading must fall within a quarter before the upload. A wider
+		// window turned real dates around ("2027-01-26", an advance invoice, became 2026-01-27).
+		$recent = $reference->modify('-3 months')->format('Y-m-d');
+		$dayFirst = poolDateFromParts(poolDateExpandYear($parts[3]), $parts[2], substr($parts[1], 2));
+		if ($dayFirst !== '' && $dayFirst >= $recent && $dayFirst <= $latest) {
+			return $dayFirst;
+		}
+		return $date;
 	}
 }

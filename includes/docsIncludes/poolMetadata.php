@@ -3,6 +3,9 @@
 // 20261027 CL/LH Account 0 is "not set", as the journal stores an empty account. A stored account the journal can't use
 //                (0, another year's, closed, or an app's suggestion that isn't in kontoplan) no longer refuses "Indsæt" and
 //                Bilagsmatch with 422; the line keeps its empty Debet. A typed Debet/Kredit is still checked (#732).
+// 20261124 CL/LH The pool row and card editors post the stored account back with every save, so a stored suggestion the kontoplan doesn't have (the Saldi app stores its own unchecked) refused any edit of that row with 422.
+//                An account left as stored is saved as it is; only a changed account is checked (poolMetadataEditedAccount()).
+//                poolMetadataErrorText() says which field a refused save was refused for.
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
 
@@ -41,6 +44,52 @@ function poolMetadataAccount($account, int $year): string {
 }
 
 /**
+ * The account an editor's save keeps: an account left as it was stored is not checked again.
+ *
+ * The row and card editors post the stored account back with every save. That account may be a
+ * suggestion (the Saldi app's, or one saved for another year) the kontoplan doesn't have, and
+ * checking it would refuse an edit of the date or the amount for an account the user never touched.
+ * The journal leaves such a suggestion out when the document is attached (poolJournalSuggestedAccount()).
+ *
+ * @param mixed $account Account as posted.
+ * @param mixed $storedAccount Account the row holds now.
+ * @param int $year Active fiscal year.
+ * @return string The account to save: the stored one unchanged, or a changed one that passed poolMetadataAccount().
+ */
+function poolMetadataEditedAccount($account, $storedAccount, int $year): string {
+	if (is_scalar($account) && is_scalar($storedAccount)) {
+		$account = trim((string)$account);
+		$unset = $account === '' || (ctype_digit($account) && (int)$account === 0);
+		if (!$unset && $account === trim((string)$storedAccount)) {
+			return $account;
+		}
+	}
+	return poolMetadataAccount($account, $year);
+}
+
+/**
+ * What a refused metadata save tells the user: which field was refused, or that the document changed.
+ *
+ * @param Throwable $error What poolMetadataSave() or the editor's own checks threw.
+ * @param mixed $languageId The user's sprog_id.
+ * @return string Text for the user.
+ */
+function poolMetadataErrorText(Throwable $error, $languageId): string {
+	if ($error->getCode() === 409) {
+		return findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $languageId);
+	}
+	switch ($error->getMessage()) {
+		case 'Invalid account':
+			return findtekst('pool.save.invalid_account|Kontoen findes ikke i kontoplanen for regnskabsåret, eller den er lukket. Ingen ændringer er gemt.', $languageId);
+		case 'Invalid amount':
+			return findtekst('pool.save.invalid_amount|Beløbet kan ikke læses. Ingen ændringer er gemt.', $languageId);
+		case 'Invalid date':
+			return findtekst('pool.save.invalid_date|Datoen findes ikke. Ingen ændringer er gemt.', $languageId);
+	}
+	return findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $languageId);
+}
+
+/**
  * Persist metadata under a row lock. Manual requests must name the version shown to the user.
  *
  * @return array{success: bool, skipped: bool, version: string}
@@ -66,6 +115,7 @@ function poolMetadataSave(string $filename, array $input, bool $manual, ?string 
 			transaktion('commit');
 			return ['success' => true, 'skipped' => true, 'version' => $currentVersion];
 		}
+		$storedAccount = $row['account'] ?? '';
 		$fields = ['subject', 'account', 'amount', 'file_date', 'invoice_number', 'description', 'currency'];
 		foreach ($fields as $field) {
 			$value = array_key_exists($field, $input) ? $input[$field] : ($row[$field] ?? '');
@@ -74,7 +124,7 @@ function poolMetadataSave(string $filename, array $input, bool $manual, ?string 
 			}
 			$row[$field] = trim((string)$value);
 		}
-		$row['account'] = poolMetadataAccount($row['account'], $year);
+		$row['account'] = poolMetadataEditedAccount($row['account'], $storedAccount, $year);
 		$amount = normalizePoolAmount($row['amount']);
 		if ($row['amount'] !== '' && $amount === null) {
 			throw new InvalidArgumentException('Invalid amount', 422);

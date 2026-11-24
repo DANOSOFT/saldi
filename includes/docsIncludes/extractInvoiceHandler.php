@@ -27,7 +27,7 @@
 // 20260923 CL/NTR The non-JSON fallback no longer echoes the raw error/alert text to the
 //             client (CodeRabbit); it now sends a short random ref id and logs the full
 //             reason against that same id, so the incident can still be found in the log.
-
+//
 // 20260914 CDX/LH Share atomic metadata saves and reject stale confirmations.
 // 20260930 CL/SZ SST-777 (CodeRabbit): an automatic save right after upload always 409'd
 //             because the pool_files row didn't exist yet (syncPuljeFilesToDatabase() only
@@ -42,7 +42,8 @@
 // 20261004 LOE Register automatic-save fallback rows with a stored-file hash.
 // 20261006 CL/SZ SD-717 (CodeRabbit) $brugernavn was escaped here and again by audit_log_write(), which double-escaped a name
 //             with an apostrophe (audit_log.brugernavn stored '' where the name had a single '). Kept raw; only escaped at the query below.
-
+// 20261124 CL/LH A refused save answers with the field it was refused for (poolMetadataErrorText()), not the general text.
+//
 // Set JSON response header FIRST
 header('Content-Type: application/json');
 
@@ -369,12 +370,9 @@ if ($action === 'save') {
 		$result['vendor'] = $vendorMatch;
 		echo json_encode($result, JSON_INVALID_UTF8_SUBSTITUTE);
 	} catch (RuntimeException | InvalidArgumentException $error) {
-		$status = $error->getCode() === 409 ? 409 : 422;
-		http_response_code($status);
-		$message = $status === 409
-			? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
-			: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
-		echo json_encode(['success' => false, 'error' => $message]);
+		http_response_code($error->getCode() === 409 ? 409 : 422);
+		// jsString() turns a legacy (ISO-8859) database's text into JSON, where json_encode() gives false
+		echo '{"success":false,"error":' . jsString([poolMetadataErrorText($error, $sprog_id)]) . '}';
 	}
 	exit;
 }
