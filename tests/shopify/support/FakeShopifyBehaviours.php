@@ -21,6 +21,7 @@
 // 20261105 CL/SZ SD-757: B38, the bulk read of the stock levels.
 // 20261106 CL/SZ SD-757 review: B38 gives committed too when the query asks for it.
 // 20261112 CL/SZ SD-822: B39 bulk mutations with a staged upload, B40 inventoryBulkToggleActivation.
+// 20261124 CL/LH HML: B41-B43, an order authorized at checkout and captured at fulfilment, or voided (HML's capture at fulfilment).
 
 final class FakeShopifyBehaviours
 {
@@ -273,6 +274,24 @@ final class FakeShopifyBehaviours
 			'basis' => 'partly',
 			'source' => self::DOCS . 'mutations/inventoryBulkToggleActivation and the 2026-07 schema (arguments and error codes); the hidden quantity shown, the stocked pair kept and no @idempotent read from the dev store on 2026-11-12 (SD-822); the quantity of a new pair without a hidden one and a refusal changing nothing ASSUMED',
 			'calibrated_by' => 'done on the dev store (SD-822, 2026-11-12): a hidden 7 showed as 7, a stocked 5 stayed 5, accepted without @idempotent',
+		],
+		'B41' => [
+			'behaviour' => 'an order whose successful AUTHORIZATION covers its total, with nothing captured, is AUTHORIZED (orders/create fires, orders/paid does not); the authorization shows authorizationExpiresAt 7 days after it was made, and totalUnsettledSet its amount less its captures until it is voided or expires',
+			'basis' => 'partly',
+			'source' => self::DOCS . 'enums/OrderDisplayFinancialStatus (AUTHORIZED) and objects/OrderTransaction (kind AUTHORIZATION, authorizationExpiresAt, parentTransaction, totalUnsettledSet); orderCreate taking an AUTHORIZATION, no orders/paid, the 7 days (gateway and card dependent) and what totalUnsettledSet shows after a capture, a void or the expiry ASSUMED',
+			'calibrated_by' => 'HML sandbox (to add): a checkout with capture at fulfilment, read the order\'s transactions and authorizationExpiresAt',
+		],
+		'B42' => [
+			'behaviour' => 'capturing an authorized order (the shop does it at fulfilment) adds a CAPTURE whose parentTransaction is the authorization, at most what is left of it and not after it expired; once the captures cover the total the order is PAID and orders/updated then orders/paid fire, a partial capture leaves it PARTIALLY_PAID with orders/updated only',
+			'basis' => 'partly',
+			'source' => self::DOCS . 'mutations/orderCapture (a capture of the parent authorization) and objects/OrderTransaction (parentTransaction); the webhooks fired, their order and PARTIALLY_PAID after a partial capture ASSUMED',
+			'calibrated_by' => 'HML sandbox (to add): fulfil an order with capture at fulfilment and record the webhooks and the transactions',
+		],
+		'B43' => [
+			'behaviour' => 'voiding an authorized order adds a VOID whose parentTransaction is the authorization; the order is VOIDED and orders/updated fires',
+			'basis' => 'partly',
+			'source' => self::DOCS . 'mutations/transactionVoid and enums/OrderDisplayFinancialStatus (VOIDED); orders/updated firing and the REST financial_status voided ASSUMED',
+			'calibrated_by' => 'HML sandbox (to add): void an authorization in the admin and record the webhook',
 		],
 	];
 

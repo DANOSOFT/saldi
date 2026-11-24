@@ -369,48 +369,8 @@
             "state": "queued"
         },
         {
-            "type": "order.observed",
-            "dedupe_key": "hml:ORDERS_CREATE:006baf25-102e-4102-802e-06baf25f102e",
-            "state": "queued"
-        },
-        {
-            "type": "order.observed",
-            "dedupe_key": "hml:ORDERS_CREATE:006baf25-103a-4103-803a-06baf25f103a",
-            "state": "queued"
-        },
-        {
-            "type": "order.observed",
-            "dedupe_key": "hml:ORDERS_CREATE:006baf25-1044-4104-8044-06baf25f1044",
-            "state": "queued"
-        },
-        {
-            "type": "order.observed",
-            "dedupe_key": "hml:ORDERS_CREATE:006baf25-1050-4105-8050-06baf25f1050",
-            "state": "queued"
-        },
-        {
-            "type": "order.observed",
-            "dedupe_key": "hml:ORDERS_CREATE:006baf25-105c-4105-805c-06baf25f105c",
-            "state": "queued"
-        },
-        {
-            "type": "order.observed",
-            "dedupe_key": "hml:ORDERS_CREATE:006baf25-1063-4106-8063-06baf25f1063",
-            "state": "queued"
-        },
-        {
-            "type": "order.observed",
-            "dedupe_key": "hml:ORDERS_CREATE:006baf25-106a-4106-806a-06baf25f106a",
-            "state": "queued"
-        },
-        {
-            "type": "order.observed",
-            "dedupe_key": "hml:ORDERS_CREATE:006baf25-1071-4107-8071-06baf25f1071",
-            "state": "queued"
-        },
-        {
-            "type": "order.observed",
-            "dedupe_key": "hml:ORDERS_CREATE:006baf25-1077-4107-8077-06baf25f1077",
+            "type": "order.import",
+            "dedupe_key": "hml:gid://shopify/Order/7400000000116",
             "state": "queued"
         },
         {

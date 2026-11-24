@@ -15,6 +15,9 @@
 // 20261104 CL/SS SD-743 review: a set whose BOM changed after the validation is refused before any write.
 // 20261104 CL/SS SD-743 review 2: an øre difference of the posting goes on OreDif; without a valid OreDif account on every row the order is not created.
 // 20261104 CL/SS SD-743 review 2: a debtor group without its VAT group refuses a Kreditkort order before it is created.
+// 20261124 CL/LH HML: an order authorized but not captured is imported on its card type, and the capture posts nothing.
+//                An order seen before any payment waits quietly; a partial authorization is listed and resolved once authorized in full.
+//                End to end on the fake store (support/run_authorized.php): created, captured and voided through the webhooks.
 
 use PHPUnit\Framework\TestCase;
 
@@ -70,7 +73,7 @@ final class OrderImportSyncTest extends TestCase
             'shopify_shipping_map', 'shopify_payment_map', 'shopify_location_map', 'shopify_brands', 'shopify_lager', 'shopify_shops'] as $table) {
             $this->sql("DELETE FROM $table");
         }
-        $this->sql("DELETE FROM settings WHERE var_grp = 'shopify' AND var_name IN ('split_set_lager', 'virtual_lager')");
+        $this->sql("DELETE FROM settings WHERE (var_grp = 'shopify' AND var_name IN ('split_set_lager', 'virtual_lager')) OR var_grp = 'shopify_legacy:4'");
         $this->sql("DELETE FROM transaktioner WHERE ordre_id IN (SELECT id FROM ordrer WHERE kundeordnr LIKE '#SD743%')");
         $this->sql("DELETE FROM pos_betalinger WHERE ordre_id IN (SELECT id FROM ordrer WHERE kundeordnr LIKE '#SD743%')");
         $this->sql("DELETE FROM batch_salg WHERE ordre_id IN (SELECT id FROM ordrer WHERE kundeordnr LIKE '#SD743%')");
@@ -178,21 +181,21 @@ final class OrderImportSyncTest extends TestCase
             'assigned_location' => $location, 'assigned_locations' => [$location]];
     }
 
-    private function job(array $order): array
+    private function job(array $order, ?string $topic = null): array
     {
-        return ['id' => 0, 'shop_id' => $this->shopId(), 'payload' => ['order_gid' => $order['gid']]];
+        return ['id' => 0, 'shop_id' => $this->shopId(), 'payload' => ['order_gid' => $order['gid']] + ($topic === null ? [] : ['topic' => $topic])];
     }
 
     /** @return array{exit: int, result: ?array, stderr: string, stdout: string} */
-    private function runChild(array $order, string $crash = '', int $hold = 0, bool $wait = true)
+    private function runChild(array $order, string $crash = '', int $hold = 0, bool $wait = true, ?string $topic = null)
     {
-        $child = ShopifyEnv::startChild('run_import.php', [self::$db, json_encode($this->job($order)), json_encode($order), $crash, $hold]);
+        $child = ShopifyEnv::startChild('run_import.php', [self::$db, json_encode($this->job($order, $topic)), json_encode($order), $crash, $hold]);
         return $wait ? ShopifyEnv::waitChild($child) : $child;
     }
 
-    private function import(array $order): array
+    private function import(array $order, ?string $topic = null): array
     {
-        $run = $this->runChild($order);
+        $run = $this->runChild($order, '', 0, true, $topic);
         $this->assertSame(0, $run['exit'], $run['stderr'] . $run['stdout']);
         $this->assertArrayHasKey('result', $run['result'] ?? [], $run['stdout'] . $run['stderr']);
         return $run['result']['result'];
@@ -258,6 +261,151 @@ final class OrderImportSyncTest extends TestCase
         $again = $this->import($order);
         $this->assertSame('invoiced', $again['result']['state'] ?? null);
         $this->assertSame($o, $this->outcome($order));
+    }
+
+    /** An order whose card is only authorized, as a shop that captures at fulfilment has it until the order ships. */
+    private function authorized(array $order, string $amount, ?string $expires = '+7 days'): array
+    {
+        $auth = $order['transactions'][0]['gid'];
+        $order['financial_status'] = 'AUTHORIZED';
+        $order['transactions'] = [['gid' => $auth, 'kind' => 'AUTHORIZATION', 'status' => 'SUCCESS', 'gateway' => 'shopify_payments', 'amount' => $amount, 'card' => 'Visa',
+            'parent_gid' => null, 'expires_at' => $expires === null ? null : gmdate('Y-m-d\TH:i:s\Z', strtotime($expires))]];
+        return $order;
+    }
+
+    /** The same order once the shop captured the authorization at fulfilment. */
+    private static function captured(array $order): array
+    {
+        $auth = $order['transactions'][0];
+        $order['financial_status'] = 'PAID';
+        $order['transactions'][] = ['gid' => $auth['gid'] . '1', 'kind' => 'CAPTURE', 'status' => 'SUCCESS', 'gateway' => 'shopify_payments', 'amount' => $auth['amount'],
+            'card' => 'Visa', 'parent_gid' => $auth['gid'], 'expires_at' => null];
+        return $order;
+    }
+
+    public function testAnAuthorizedOrderIsInvoicedAsPaidOnItsCardAndItsCaptureAddsNothing(): void
+    {
+        $a = $this->item('A');
+        $this->stock($a, 1, 10);
+        $order = $this->order([self::line('A', 2, '250.00')]);
+        $order = $this->authorized($order, $order['total']);
+
+        $result = $this->import($order, 'ORDERS_CREATE');
+        $this->assertSame('invoiced', $result['result']['state'] ?? null, json_encode($result));
+        $o = $this->outcome($order);
+        $this->assertSame([1, 4, 'Kreditkort', 'Kort', '289.00', 0.0, 0], [$o['orders'], $o['status'], $o['order']['betalingsbet'], $o['order']['felt_1'],
+            $o['order']['felt_2'], $o['balance'], $o['open_posts']], 'K20: invoiced and posted on the card type with no open post, as a captured order is');
+        $this->assertSame(substr($order['transactions'][0]['gid'], strlen('gid://shopify/OrderTransaction/')),
+            (string)$this->sql('SELECT betalings_id FROM ordrer WHERE id = $1', [$o['order']['id']])[0]['betalings_id'], 'the payment id is the authorization\'s');
+        $this->assertSame(8.0, (float)$this->sql('SELECT beholdning FROM lagerstatus WHERE vare_id = $1', [$a])[0]['beholdning'], 'drawn at the import, before the parcel ships');
+        $this->assertSame([], $this->sql("SELECT kind FROM shopify_errors WHERE resolved_at IS NULL AND severity = 'error'"));
+
+        // the warehouse ships, the shop captures, ORDERS_PAID and ORDERS_UPDATED bring the order back
+        foreach (['ORDERS_PAID', 'ORDERS_UPDATED', 'ORDERS_CREATE'] as $topic) {
+            $again = $this->import(self::captured($order), $topic);
+            $this->assertSame('invoiced', $again['result']['state'] ?? null, "$topic: " . json_encode($again));
+            $this->assertSame($o, $this->outcome($order), "$topic after the capture: one order, one posting, nothing re-posted");
+        }
+        $this->assertSame(8.0, (float)$this->sql('SELECT beholdning FROM lagerstatus WHERE vare_id = $1', [$a])[0]['beholdning'], 'drawn once');
+    }
+
+    public function testAnOrderSeenBeforeAnyPaymentWaitsQuietlyForItsPayment(): void
+    {
+        $a = $this->item('A');
+        $this->stock($a, 1, 10);
+        $order = $this->order([self::line('A', 1, '125.00')]);
+        $pending = ['financial_status' => 'PENDING', 'transactions' => [['gid' => 'gid://shopify/OrderTransaction/77', 'kind' => 'SALE', 'status' => 'PENDING',
+            'gateway' => 'bank_transfer', 'amount' => $order['total'], 'card' => '', 'parent_gid' => null, 'expires_at' => null]]] + $order;
+        $voided = $this->authorized($order, $order['total']);
+        $voided['transactions'][] = ['gid' => 'gid://shopify/OrderTransaction/78', 'kind' => 'VOID', 'status' => 'SUCCESS', 'gateway' => 'shopify_payments',
+            'amount' => $order['total'], 'card' => 'Visa', 'parent_gid' => $voided['transactions'][0]['gid'], 'expires_at' => null];
+        $expired = $this->authorized($order, $order['total'], '-1 hour');
+
+        foreach (['pending bank transfer' => $pending, 'voided' => $voided, 'expired' => $expired] as $what => $o) {
+            foreach (['ORDERS_CREATE', 'ORDERS_UPDATED'] as $topic) {
+                $this->assertSame(['skipped' => 'no payment yet'], $this->import($o, $topic)['result'] ?? null, "$what, $topic");
+            }
+        }
+        $this->assertSame([0, null], [$this->outcome($order)['orders'], $this->outcome($order)['link']], 'nothing written, no link: ORDERS_PAID may still import it');
+        $this->assertSame([], $this->sql('SELECT kind FROM shopify_errors WHERE resolved_at IS NULL'), 'and nothing listed');
+
+        $this->assertSame(['skipped' => 'no payment yet'], $this->import($pending, 'ORDERS_PAID')['result'] ?? null, 'whichever job reads it first');
+        $paidWithout = ['financial_status' => 'PAID', 'transactions' => []] + $order;
+        $this->assertSame(['order.payment'], $this->import($paidWithout, 'ORDERS_CREATE')['result']['refused'] ?? null, 'an order Shopify calls paid without a payment is refused as before');
+    }
+
+    public function testACreatedOrUpdatedOrderOfALegacyShopFromBeforeItsGoLiveIsNotImported(): void
+    {
+        $a = $this->item('A');
+        $this->stock($a, 1, 10);
+        $order = $this->authorized($this->order([self::line('A', 1, '125.00')]), '164.00');
+        // slot 4 is cut over: its intake is closed, so the Shopify intake is admitted (K06)
+        $this->sql("DELETE FROM settings WHERE var_grp = 'shopify_legacy:4'");
+        $this->sql("INSERT INTO settings (var_grp, var_name, var_value) VALUES ('shopify_legacy:4', 'intake_enabled', '0')");
+        $this->sql("UPDATE shopify_shops SET legacy_slot = 4, go_live_at = now() + interval '1 day'");
+
+        foreach (['ORDERS_UPDATED', 'ORDERS_CREATE'] as $topic) {
+            $this->assertSame(['skipped' => 'created before the go-live of a legacy shop'], $this->import($order, $topic)['result'] ?? null,
+                "$topic: the legacy intake may have it; an update after the cut-over must not import it again");
+        }
+        $this->sql("UPDATE shopify_shops SET go_live_at = NULL");
+        $this->assertSame('created before the go-live of a legacy shop', $this->import($order, 'ORDERS_UPDATED')['result']['skipped'] ?? null, 'no go-live: no telling');
+        $this->assertSame(0, $this->outcome($order)['orders']);
+
+        $this->sql("UPDATE shopify_shops SET go_live_at = now() - interval '1 day'");
+        $this->assertSame('invoiced', $this->import($order, 'ORDERS_UPDATED')['result']['state'] ?? null, 'created after the go-live');
+    }
+
+    public function testAPartialAuthorizationIsListedAndResolvedOnceTheOrderIsAuthorizedInFull(): void
+    {
+        $a = $this->item('A');
+        $this->stock($a, 1, 10);
+        $order = $this->order([self::line('A', 1, '125.00')]);
+
+        $this->assertSame(['order.payment'], $this->import($this->authorized($order, '100.00'), 'ORDERS_CREATE')['result']['refused'] ?? null);
+        $listed = $this->sql('SELECT kind, severity, message FROM shopify_errors WHERE resolved_at IS NULL');
+        $this->assertSame([['order.payment', 'error', "order {$order['name']} is paid 100.00 of 164.00"]], array_map('array_values', $listed));
+        $this->assertSame(0, $this->outcome($order)['orders']);
+
+        $this->assertSame('invoiced', $this->import($this->authorized($order, $order['total']), 'ORDERS_UPDATED')['result']['state'] ?? null);
+        $this->assertSame([], $this->sql('SELECT kind FROM shopify_errors WHERE resolved_at IS NULL'), 'the payment error is resolved by the import');
+        $this->assertSame(substr($order['transactions'][0]['gid'], strlen('gid://shopify/OrderTransaction/')),
+            (string)$this->sql('SELECT betalings_id FROM ordrer WHERE kundeordnr = $1', [$order['name']])[0]['betalings_id']);
+        $this->assertSame([1, 4], [$this->outcome($order)['orders'], $this->outcome($order)['status']]);
+    }
+
+    public function testOnTheFakeStoreAnAuthorizedOrderIsImportedOnceItsCapturePostsNothingAndAVoidIsListed(): void
+    {
+        $a = $this->item('A', ['salgspris' => 100]);
+        $this->stock($a, 1, 10);
+        $run = ShopifyEnv::waitChild(ShopifyEnv::startChild('run_authorized.php', [self::$db, 'SD743A', '1']));
+        $this->assertSame(0, $run['exit'], $run['stdout'] . $run['stderr']);
+        ['phases' => $p, 'orders' => [$first, $second]] = $run['result'];
+        $rows = fn(array $phase, string $part): array => array_map('array_values', $phase[$part]);
+
+        $authorized = $p['authorized'];
+        $this->assertSame(['customers/create', 'orders/create'], $authorized['day']['topics'], 'B41: no orders/paid while the card is only authorized');
+        $this->assertSame([['#1001', '4', 'Kort', '250.00', '250.00']], array_map(fn(array $o): array => [$o['kundeordnr'], (string)$o['status'], $o['felt_1'],
+            number_format((float)$o['felt_2'], 2, '.', ''), $o['total']], $authorized['orders']), 'imported, invoiced and posted on the card type from ORDERS_CREATE: ' . json_encode($authorized));
+        $this->assertGreaterThan(0, (int)$authorized['orders'][0]['postings']);
+        $this->assertSame([[$first, 'invoiced']], $rows($authorized, 'links'));
+        $this->assertSame([["hml:$first", 'done']], $rows($authorized, 'imports'), 'two deliveries of each webhook, one import');
+        $this->assertSame([], $authorized['errors']);
+        $this->assertSame(8.0, (float)$authorized['stock'], 'drawn before the parcel ships');
+
+        $captured = $p['captured'];
+        $this->assertSame(['orders/updated', 'orders/paid'], $captured['day']['topics'], 'B42: the shop captures at fulfilment');
+        $this->assertSame($authorized['orders'], $captured['orders'], 'the capture posts nothing: same order, status and number of postings');
+        $this->assertSame([["hml:$first", 'done'], ["hml:$first", 'done']], $rows($captured, 'imports'), 'ORDERS_PAID runs the import, which finds the order invoiced');
+        $this->assertSame([], $captured['errors']);
+        $this->assertSame(8.0, (float)$captured['stock']);
+
+        $this->assertCount(2, $p['second_authorized']['orders']);
+        $voided = $p['voided'];
+        $this->assertSame(['orders/updated'], $voided['day']['topics'], 'B43');
+        $this->assertSame($p['second_authorized']['orders'], $voided['orders'], 'nothing is posted or re-posted on the void');
+        $this->assertSame([['order.authorization', $second, 'error', '1']], $rows($voided, 'errors'), 'a person makes the credit note (lav kreditnota)');
+        $this->assertSame(6.0, (float)$voided['stock']);
     }
 
     public function testARunKilledAtEveryStageIsResumedToOneOrderAndOneInvoice(): void

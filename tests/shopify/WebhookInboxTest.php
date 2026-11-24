@@ -18,6 +18,7 @@
 // 20261028 CL/SZ SD-749: the webhook.health job restores a deleted subscription.
 // 20261029 CL/SZ SD-749 review: a health job that can't restore raises one error and one alarm mail.
 // 20261029 CL/SZ SD-749 review: the next run that restores everything resolves that error.
+// 20261124 CL/LH HML: ORDERS_CREATE shares the order's one order.import; an authorized ORDERS_UPDATED asks for it only before the order has a link.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -242,6 +243,41 @@ final class WebhookInboxTest extends TestCase
 
     // ---- promote ---------------------------------------------------------------------------
 
+    #[DataProvider('queues')]
+    public function testAnAuthorizedOrderGetsOneImportFromItsCreatedUpdatedAndPaidEventsAndNoneOnceLinked(string $queue): void
+    {
+        $order = json_decode(self::body('orders_create'), true);
+        $gid = 'gid://shopify/Order/820982911946154508';
+        $authorized = json_encode(['financial_status' => 'authorized'] + $order, JSON_UNESCAPED_SLASHES);
+        $this->receive([
+            self::delivery('hml', 'orders/create', 'ev-a1', $authorized),
+            self::delivery('hml', 'orders/create', 'ev-a1', $authorized), // Shopify retries a delivery
+            self::delivery('hml', 'orders/updated', 'ev-a2', $authorized),
+            self::delivery('hml', 'orders/updated', 'ev-a3', json_encode(['financial_status' => 'pending'] + $order, JSON_UNESCAPED_SLASHES)),
+        ]);
+        $this->promote(10, $queue);
+
+        $imports = fn(): array => array_map(fn(array $j): array => [$j['dedupe_key'], $j['state']],
+            array_values(array_filter($this->jobs(), fn(array $j): bool => $j['type'] === 'order.import')));
+        $this->assertSame([["hml:$gid", 'queued']], $imports(), 'one import for the order, whichever event asked first');
+        $this->assertSame(['order.import', 'order.status', 'order.status'], array_column($this->jobs(), 'type'), 'each update keeps its status job');
+
+        // the import ran and linked the order; the shop captures it at fulfilment
+        $conn = ShopifyEnv::connect(self::$db);
+        try {
+            ShopifyEnv::rows($conn, "UPDATE shopify_jobs SET state = 'done' WHERE type = 'order.import'");
+            ShopifyEnv::rows($conn, "INSERT INTO shopify_order_links (shop_id, order_gid, order_name, direction, state) SELECT id, $1, '#1001', 'web', 'invoiced' FROM shopify_shops WHERE shop_key = 'hml'", [$gid]);
+        } finally {
+            pg_close($conn);
+        }
+        $paid = json_encode(['financial_status' => 'paid'] + $order, JSON_UNESCAPED_SLASHES);
+        $this->receive([self::delivery('hml', 'orders/updated', 'ev-a4', $paid), self::delivery('hml', 'orders/paid', 'ev-a5', $paid)]);
+        $this->promote(10, $queue);
+        $this->assertSame([["hml:$gid", 'done'], ["hml:$gid", 'queued']], $imports(),
+            'the update of a linked order asks for no import; ORDERS_PAID queues one as before, which finds the order invoiced');
+    }
+
+
     public static function queues(): array
     {
         return ['stand-in queue' => [''], 'SD-737 queue' => ['real_queue']];
@@ -269,15 +305,15 @@ final class WebhookInboxTest extends TestCase
         $this->assertSame([
             ['order.import', 10, 'hml:gid://shopify/Order/820982911946154508', 'gid://shopify/Order/820982911946154508'],
             ['customer.upsert', 25, 'hml:CUSTOMERS_CREATE:ev-1', null],
-            ['order.observed', 25, 'hml:ORDERS_CREATE:ev-2', 'gid://shopify/Order/820982911946154508'],
-        ], array_map(fn(array $j): array => [$j['type'], (int)$j['priority'], $j['dedupe_key'], $j['order_gid']], $jobs), 'two paid events of one order make one order.import');
+        ], array_map(fn(array $j): array => [$j['type'], (int)$j['priority'], $j['dedupe_key'], $j['order_gid']], $jobs),
+            'two paid events and the created event of one order make one order.import');
         $byTopic = [];
         foreach ($this->events() as $event) {
             $this->assertSame('queued', $event['state']);
             $this->assertNotNull($event['processed_at']);
             $byTopic[$event['event_id']] = (int)$event['job_id'];
         }
-        $this->assertSame(['ev-1' => (int)$jobs[1]['id'], 'ev-2' => (int)$jobs[2]['id'], 'ev-3' => (int)$jobs[0]['id'], 'ev-4' => (int)$jobs[0]['id']], $byTopic);
+        $this->assertSame(['ev-1' => (int)$jobs[1]['id'], 'ev-2' => (int)$jobs[0]['id'], 'ev-3' => (int)$jobs[0]['id'], 'ev-4' => (int)$jobs[0]['id']], $byTopic);
         $this->assertSame((int)$this->events()[2]['id'], (int)$jobs[0]['event_row_id'], 'the job points at the event that made it');
         $payload = json_decode($jobs[0]['payload'], true);
         ksort($payload); // jsonb keeps its own key order

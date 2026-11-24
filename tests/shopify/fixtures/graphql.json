@@ -534,7 +534,9 @@
                             "kind": "SALE",
                             "status": "SUCCESS",
                             "gateway": "shopify_payments",
-                            "amount": 250
+                            "amount": 250,
+                            "parent": null,
+                            "expires": null
                         }
                     ],
                     "inventory_behaviour": "BYPASS",
@@ -597,7 +599,9 @@
                             "kind": "SALE",
                             "status": "SUCCESS",
                             "gateway": "shopify_payments",
-                            "amount": 1000
+                            "amount": 1000,
+                            "parent": null,
+                            "expires": null
                         }
                     ],
                     "inventory_behaviour": "BYPASS",
@@ -647,7 +651,9 @@
                             "kind": "SALE",
                             "status": "SUCCESS",
                             "gateway": "shopify_payments",
-                            "amount": 2000
+                            "amount": 2000,
+                            "parent": null,
+                            "expires": null
                         }
                     ],
                     "inventory_behaviour": "BYPASS",
@@ -710,7 +716,9 @@
                             "kind": "SALE",
                             "status": "SUCCESS",
                             "gateway": "shopify_payments",
-                            "amount": 1250
+                            "amount": 1250,
+                            "parent": null,
+                            "expires": null
                         }
                     ],
                     "inventory_behaviour": "BYPASS",
@@ -771,7 +779,9 @@
                             "kind": "SALE",
                             "status": "SUCCESS",
                             "gateway": "shopify_payments",
-                            "amount": 1750
+                            "amount": 1750,
+                            "parent": null,
+                            "expires": null
                         }
                     ],
                     "inventory_behaviour": "BYPASS",
@@ -821,7 +831,9 @@
                             "kind": "SALE",
                             "status": "SUCCESS",
                             "gateway": "shopify_payments",
-                            "amount": 750
+                            "amount": 750,
+                            "parent": null,
+                            "expires": null
                         }
                     ],
                     "inventory_behaviour": "BYPASS",
@@ -871,7 +883,9 @@
                             "kind": "SALE",
                             "status": "SUCCESS",
                             "gateway": "shopify_payments",
-                            "amount": 500
+                            "amount": 500,
+                            "parent": null,
+                            "expires": null
                         }
                     ],
                     "inventory_behaviour": "BYPASS",
@@ -923,7 +937,9 @@
                             "kind": "SALE",
                             "status": "SUCCESS",
                             "gateway": "shopify_payments",
-                            "amount": 1000
+                            "amount": 1000,
+                            "parent": null,
+                            "expires": null
                         }
                     ],
                     "inventory_behaviour": "BYPASS",

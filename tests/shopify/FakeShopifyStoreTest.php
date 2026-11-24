@@ -17,6 +17,7 @@
 // 20261103 CL/SS SD-802: productVariantsBulkUpdate sets and clears the prices (B37).
 // 20261105 CL/SZ SD-757: a bulk read of the stock levels (B38).
 // 20261106 CL/SZ SD-757 review: the bulk read gives committed beside available.
+// 20261124 CL/LH HML: an order authorized at checkout, captured at fulfilment or voided (B41-B43), read by the intake's own document.
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -533,6 +534,54 @@ final class FakeShopifyStoreTest extends TestCase
 		$created = $this->gql('mutation w($t: WebhookSubscriptionTopic!, $s: WebhookSubscriptionInput!) { webhookSubscriptionCreate(topic: $t, webhookSubscription: $s) { userErrors { message } } }',
 			['t' => 'ORDERS_PAID', 's' => ['uri' => 'https://saldi.example/api/shopify/webhook.php?shop=hml']]);
 		$this->assertSame('Address for this topic has already been taken', $created['data']['webhookSubscriptionCreate']['userErrors'][0]['message'], 'B28');
+	}
+
+	public function testAnAuthorizedOrderIsCapturedAtFulfilmentOrVoidedWithItsWebhooks(): void
+	{
+		require_once __DIR__ . '/../../includes/shopify/services/orderIntake.php';
+		foreach (SHOPIFY_WEBHOOK_TOPICS as $topic) {
+			$this->store->subscribe($this->domain, $topic, 'https://saldi.example/api/shopify/webhook.php?shop=hml');
+		}
+		$this->store->epoch = time() - 1000; // the intake compares the authorization's expiry with the wall clock
+		$p = $this->store->seedProduct($this->domain, 'parasol', 'HML-AUTH-1', [$this->l1 => 4]);
+		$authorize = fn(): ?array => $this->gql(self::ORDER_CREATE, ['order' => ['lineItems' => [['variantId' => $p['variant'], 'quantity' => 2]],
+			'transactions' => [['kind' => 'AUTHORIZATION', 'status' => 'SUCCESS', 'gateway' => 'shopify_payments',
+				'amountSet' => ['shopMoney' => ['amount' => '200', 'currencyCode' => 'DKK']]]]], 'options' => ['inventoryBehaviour' => 'DECREMENT_OBEYING_POLICY']]);
+		$read = fn(string $gid): array => shopify_fetch_paid_order($this->shop, $gid, ['graphql' => $this->store->opts()]);
+
+		$order = $authorize()['data']['orderCreate']['order'];
+		$this->assertSame('AUTHORIZED', $order['displayFinancialStatus'], 'B41');
+		$created = $this->store->takeDeliveries();
+		$this->assertSame(['orders/create'], array_column($created, 'topic'), 'B41: no orders/paid before the capture');
+		$this->assertSame('authorized', json_decode($created[0]['body'], true)['financial_status']);
+		$this->assertSame(['available' => 2, 'on_hand' => 4, 'committed' => 2], $this->level($p['item'], $this->l1),
+			'the authorized order holds its units as committed');
+		$t = $read($order['id'])['transactions'];
+		$this->assertSame([['AUTHORIZATION', 'SUCCESS', '200.00', null]], array_map(fn(array $x): array => [$x['kind'], $x['status'], $x['amount'], $x['parent_gid']], $t));
+		$this->assertSame(gmdate('Y-m-d', time() + 7 * 86400), substr((string)$t[0]['expires_at'], 0, 10), 'B41: it expires in 7 days');
+
+		$capture = $this->store->captureOrder($this->domain, $order['id']);
+		$this->assertSame(['orders/updated', 'orders/paid'], array_column($this->store->takeDeliveries(), 'topic'), 'B42');
+		$t = $read($order['id'])['transactions'];
+		$this->assertSame([[$t[0]['gid'], null], [$capture, $t[0]['gid']]], array_map(fn(array $x): array => [$x['gid'], $x['parent_gid']], $t), 'B42: the capture names its authorization');
+		$this->assertSame('PAID', $read($order['id'])['financial_status']);
+
+		$this->store->clock->now += 20; // the reads above drained the bucket (B10)
+		$second = $authorize();
+		$this->assertNotNull($second['data']['orderCreate']['order'] ?? null, json_encode($second));
+		$second = $second['data']['orderCreate']['order'];
+		$this->store->takeDeliveries();
+		$this->store->voidOrder($this->domain, $second['id']);
+		$voided = $this->store->takeDeliveries();
+		$this->assertSame(['orders/updated'], array_column($voided, 'topic'), 'B43');
+		$this->assertSame('voided', json_decode($voided[0]['body'], true)['financial_status']);
+		$this->assertSame('VOIDED', $read($second['id'])['financial_status']);
+		try {
+			$this->store->captureOrder($this->domain, $second['id']);
+			$this->fail('a voided authorization cannot be captured');
+		} catch (LogicException $e) {
+			$this->assertStringContainsString('no open authorization', $e->getMessage());
+		}
 	}
 
 	public function testStockSetsAreAbsoluteAndNeedAnIdempotencyKeyThatAnswersOnce(): void

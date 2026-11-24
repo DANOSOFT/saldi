@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderIntake.php --- ver 5.1.0 --- 2026.11.04
+// --- includes/shopify/services/orderIntake.php --- ver 5.1.1 --- 2026.11.24
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20261104 CL/SS SD-808: the paid order is read in pages, each document under Shopify's query cost limit of 1000.
 // 20261104 CL/SS SD-808 review: an order changed while it was read in pages is refused as changed, and retried.
 // 20261104 CL/SS SD-743 review 2: a kasse VAT code of 0 and a VAT account 1 are refused, as the posting stops at them.
+// 20261124 CL/LH HML: an authorization covering the total pays the order (HML captures at fulfilment); its capture is the same money.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -67,6 +68,12 @@ const SHOPIFY_INTAKE_COUNTRY = 'DK';
 const SHOPIFY_INTAKE_VARIANT_STOCK = 1000000000000;
 /** Transactions that are money received. */
 const SHOPIFY_PAID_KINDS = array('SALE', 'CAPTURE');
+/**
+ * A web payment reserved on the card and captured later (HML captures at fulfilment). It pays the
+ * order until it is voided or expires; a capture of it is the same money. EMV_AUTHORIZATION is a
+ * card-present one and is not counted.
+ */
+const SHOPIFY_AUTHORIZATION_KIND = 'AUTHORIZATION';
 
 /** The fields of an order line, as the order read and its further line pages ask for them. */
 const SHOPIFY_ORDER_LINE_FIELDS = 'id sku name quantity currentQuantity variant { id } product { id }
@@ -84,7 +91,8 @@ const SHOPIFY_ORDER_READ = 'query paidOrderRead($id: ID!) { order(id: $id) {
 	billingAddress { firstName lastName company address1 address2 zip city country countryCodeV2 phone }
 	lineItems(first: 100) { pageInfo { hasNextPage endCursor } nodes { ' . SHOPIFY_ORDER_LINE_FIELDS . ' } }
 	shippingLines(first: 10) { nodes { id title code discountedPriceSet { shopMoney { amount } } } }
-	transactions(first: 50) { id kind status gateway amountSet { shopMoney { amount } } paymentDetails { ... on CardPaymentDetails { company } } }
+	transactions(first: 50) { id kind status gateway amountSet { shopMoney { amount } } paymentDetails { ... on CardPaymentDetails { company } }
+		parentTransaction { id } authorizationExpiresAt totalUnsettledSet { shopMoney { amount } } }
 } }';
 /** The order's next 100 lines. */
 const SHOPIFY_ORDER_LINES_READ = 'query paidOrderLines($id: ID!, $after: String) { order(id: $id) {
@@ -197,7 +205,7 @@ function shopify_fetch_paid_order(array $shop, string $gid, array $rt = array())
  *   lines: list<array{gid: string, sku: string, name: string, quantity: int, current_quantity: int, variant_gid: string|null, product_gid: string|null,
  *     original_total: string, discount: string, assigned_location: string|null, assigned_locations: list<string>}>,
  *   shipping: list<array{gid: string, title: string, code: string, amount: string}>,
- *   transactions: list<array{gid: string, kind: string, status: string, gateway: string, amount: string, card: string}>}
+ *   transactions: list<array{gid: string, kind: string, status: string, gateway: string, amount: string, card: string, parent_gid: string|null, expires_at: string|null, unsettled: string|null}>}
  */
 function shopify_order_from_graphql(array $o): array {
 	$money = static fn($set): string => number_format((float)($set['shopMoney']['amount'] ?? 0), 2, '.', '');
@@ -246,7 +254,10 @@ function shopify_order_from_graphql(array $o): array {
 	foreach ($o['transactions'] ?? array() as $t) {
 		$transactions[] = array('gid' => (string)$t['id'], 'kind' => strtoupper((string)($t['kind'] ?? '')), 'status' => strtoupper((string)($t['status'] ?? '')),
 			'gateway' => trim((string)($t['gateway'] ?? '')), 'amount' => $money($t['amountSet'] ?? array()),
-			'card' => trim((string)($t['paymentDetails']['company'] ?? '')));
+			'card' => trim((string)($t['paymentDetails']['company'] ?? '')),
+			'parent_gid' => isset($t['parentTransaction']['id']) ? (string)$t['parentTransaction']['id'] : null,
+			'expires_at' => isset($t['authorizationExpiresAt']) && trim((string)$t['authorizationExpiresAt']) !== '' ? trim((string)$t['authorizationExpiresAt']) : null,
+			'unsettled' => isset($t['totalUnsettledSet']['shopMoney']['amount']) ? $money($t['totalUnsettledSet']) : null);
 	}
 	$address = static function ($a): ?array {
 		if (!is_array($a)) {
@@ -282,6 +293,61 @@ function shopify_order_from_graphql(array $o): array {
 		'shipping' => $shipping,
 		'transactions' => $transactions,
 	);
+}
+
+/**
+ * The money that pays the order (pure): each successful SALE, each successful capture that belongs
+ * to no authorization of the order, and each successful AUTHORIZATION with its captures folded in.
+ * An authorization counts what was captured of it plus what Shopify still lets be captured
+ * (totalUnsettledSet; its amount less the captures when the read has none), and only what was
+ * captured once it is voided, expired at $now, or the whole order is EXPIRED or VOIDED (Shopify may
+ * give no expiry). A capture whose authorization the read does not hold counts as itself. Pending
+ * and failed transactions are no money.
+ *
+ * @param list<array{gid: string, kind: string, status: string, amount: string, parent_gid?: string|null, expires_at?: string|null, unsettled?: string|null}> $transactions
+ * @param string $financial the order's displayFinancialStatus, upper case
+ * @return list<array{transaction: array<string, mixed>, amount: float, capture_gid: string|null}> in the order of the transactions; the
+ *   transaction is the sale, capture or authorization, capture_gid an authorization's first capture
+ */
+function shopify_order_payments(array $transactions, int $now, string $financial = ''): array {
+	$authorizations = array();
+	foreach ($transactions as $t) {
+		if ($t['status'] === 'SUCCESS' && $t['kind'] === SHOPIFY_AUTHORIZATION_KIND) {
+			$authorizations[$t['gid']] = array('captured' => 0.0, 'voided' => false, 'capture_gid' => null);
+		}
+	}
+	foreach ($transactions as $t) {
+		$parent = $t['parent_gid'] ?? null;
+		if ($t['status'] !== 'SUCCESS' || $parent === null || !isset($authorizations[$parent])) {
+			continue;
+		}
+		if ($t['kind'] === 'CAPTURE') {
+			$authorizations[$parent]['captured'] += (float)$t['amount'];
+			$authorizations[$parent]['capture_gid'] ??= $t['gid'];
+		} elseif ($t['kind'] === 'VOID') {
+			$authorizations[$parent]['voided'] = true;
+		}
+	}
+	$lost = in_array($financial, array('EXPIRED', 'VOIDED'), true);
+	$payments = array();
+	foreach ($transactions as $t) {
+		if ($t['status'] !== 'SUCCESS') {
+			continue;
+		}
+		if ($t['kind'] === SHOPIFY_AUTHORIZATION_KIND) {
+			$a = $authorizations[$t['gid']];
+			$expires = isset($t['expires_at']) ? strtotime((string)$t['expires_at']) : false;
+			$open = !$lost && !$a['voided'] && ($expires === false || $expires > $now);
+			$capturable = isset($t['unsettled']) ? (float)$t['unsettled'] : max(0.0, (float)$t['amount'] - $a['captured']);
+			$amount = round($a['captured'] + ($open ? $capturable : 0.0), 2);
+			if ($amount > 0) {
+				$payments[] = array('transaction' => $t, 'amount' => $amount, 'capture_gid' => $a['capture_gid']);
+			}
+		} elseif (in_array($t['kind'], SHOPIFY_PAID_KINDS, true) && !isset($authorizations[$t['parent_gid'] ?? ''])) {
+			$payments[] = array('transaction' => $t, 'amount' => (float)$t['amount'], 'capture_gid' => null);
+		}
+	}
+	return $payments;
 }
 
 /**
@@ -327,8 +393,9 @@ function shopify_intake_admitted(array $shop): bool {
  * freight item must exist, carry no serial numbers, and have an item group of the fiscal year
  * with a purchase and a sales account, the sales account in the chart with a VAT code that has
  * a VAT account (a VAT-free group needs none). A variant line needs its variant's barcode, the
- * way opret_ordrelinje() finds a variant. The order must be paid in full (sales and captures
- * less refunds equal the total) in the tenant's currency with taxes included, its lines and
+ * way opret_ordrelinje() finds a variant. The order must be paid in full (sales, captures and
+ * what is captured or still capturable of its authorizations as shopify_order_payments() counts
+ * them, less refunds, equal the total) in the tenant's currency with taxes included, its lines and
  * freight must add up to the total, and it must not have been edited or refunded in Shopify
  * before the intake. It is posted on the intake date, which must be in the fiscal year and not
  * in a closed VAT period.
@@ -562,24 +629,20 @@ function shopify_validate_paid_order(array $shop, array $order, array $ctx): arr
 	$byType = array();
 	$net = 0.0;
 	foreach ($order['transactions'] as $t) {
-		if ($t['status'] !== 'SUCCESS') {
-			continue;
-		}
-		if ($t['kind'] === 'REFUND') {
+		if ($t['status'] === 'SUCCESS' && $t['kind'] === 'REFUND') {
 			$error('order.edited', "order $name was refunded in Shopify before Saldi took it; enter it by hand");
 			$net -= (float)$t['amount'];
-			continue;
 		}
-		if (!in_array($t['kind'], SHOPIFY_PAID_KINDS, true)) {
-			continue;
-		}
+	}
+	foreach (shopify_order_payments($order['transactions'], (int)($ctx['now'] ?? time()), (string)($order['financial_status'] ?? '')) as $payment) {
+		$t = $payment['transaction'];
 		$type = $ctx['payments']["{$t['gateway']}\x1f{$t['card']}"] ?? $ctx['payments']["{$t['gateway']}\x1f"] ?? null;
 		if ($type === null) {
 			$alarm('order.payment', "order $name: gateway '{$t['gateway']}'" . ($t['card'] !== '' ? " ({$t['card']})" : '') . " is not mapped; posted as '" . SHOPIFY_PAYMENT_UNKNOWN . "'");
 			$type = SHOPIFY_PAYMENT_UNKNOWN;
 		}
-		$byType[$type] = round(($byType[$type] ?? 0) + (float)$t['amount'], 2);
-		$net += (float)$t['amount'];
+		$byType[$type] = round(($byType[$type] ?? 0) + $payment['amount'], 2);
+		$net += $payment['amount'];
 	}
 	if ($byType === array()) {
 		$error('order.payment', "order $name has no successful payment");
@@ -878,6 +941,7 @@ function shopify_intake_context(array $shop, array $order): array {
 		'assembly_lager' => $assembly,
 		'stock_milli' => $stock,
 		'today' => $today,
+		'now' => time(),
 		'fiscal' => $fiscal,
 		'period_closed' => $closed === false ? null : (string)$closed,
 		'currency' => (string)($baseCurrency ?: 'DKK'),

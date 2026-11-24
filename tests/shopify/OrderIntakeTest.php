@@ -13,6 +13,7 @@
 // 20261104 CL/SS SD-808 review: an order changed between its reads is refused as changed, retryable.
 // 20261104 CL/SS SD-808 review: all 250 lines are assembled; an edit between two reads of the store is caught.
 // 20261104 CL/SS SD-743 review 2: a kasse VAT code of 0 is refused.
+// 20261124 CL/LH HML: an authorization covering the total is a payment; its capture is not counted again, a voided or expired one is none.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -111,7 +112,12 @@ final class OrderIntakeTest extends TestCase
 			]],
 			'shippingLines' => ['nodes' => [['id' => 'gid://shopify/ShippingLine/1', 'title' => 'GLS', 'code' => null, 'discountedPriceSet' => ['shopMoney' => ['amount' => '39']]]]],
 			'transactions' => [['id' => 'gid://shopify/OrderTransaction/1', 'kind' => 'sale', 'status' => 'success', 'gateway' => 'shopify_payments',
-				'amountSet' => ['shopMoney' => ['amount' => '269']], 'paymentDetails' => ['company' => 'Visa']]],
+				'amountSet' => ['shopMoney' => ['amount' => '269']], 'paymentDetails' => ['company' => 'Visa']],
+				['id' => 'gid://shopify/OrderTransaction/2', 'kind' => 'AUTHORIZATION', 'status' => 'SUCCESS', 'gateway' => 'shopify_payments',
+				'amountSet' => ['shopMoney' => ['amount' => '269']], 'paymentDetails' => null, 'parentTransaction' => null, 'authorizationExpiresAt' => '2026-12-01T12:00:00Z',
+				'totalUnsettledSet' => ['shopMoney' => ['amount' => '0']]],
+				['id' => 'gid://shopify/OrderTransaction/3', 'kind' => 'CAPTURE', 'status' => 'SUCCESS', 'gateway' => 'shopify_payments',
+				'amountSet' => ['shopMoney' => ['amount' => '269']], 'paymentDetails' => null, 'parentTransaction' => ['id' => 'gid://shopify/OrderTransaction/2'], 'authorizationExpiresAt' => null]],
 			'fulfillmentOrders' => ['nodes' => [['id' => 'gid://shopify/FulfillmentOrder/1', 'status' => 'OPEN',
 				'assignedLocation' => ['location' => ['id' => 'gid://shopify/Location/2']],
 				'lineItems' => ['nodes' => [['id' => 'x', 'totalQuantity' => 1, 'lineItem' => ['id' => 'gid://shopify/LineItem/1']]]]],
@@ -137,6 +143,9 @@ final class OrderIntakeTest extends TestCase
 			'a line Shopify split over two fulfillment orders; a closed one and one holding none of the line are no assignment');
 		$this->assertSame('SALE', $o['transactions'][0]['kind']);
 		$this->assertSame('Visa', $o['transactions'][0]['card']);
+		$this->assertSame([[null, null], [null, '2026-12-01T12:00:00Z'], ['gid://shopify/OrderTransaction/2', null]],
+			array_map(fn(array $t): array => [$t['parent_gid'], $t['expires_at']], $o['transactions']), 'a capture names its authorization; an authorization its expiry');
+		$this->assertSame([null, '0.00', null], array_column($o['transactions'], 'unsettled'), 'what Shopify still lets be captured, when it says');
 		$this->assertSame('39.00', $o['shipping'][0]['amount']);
 	}
 
@@ -469,6 +478,77 @@ final class OrderIntakeTest extends TestCase
 		$v = self::validate(self::order(['transactions' => []]), self::ctx());
 
 		$this->assertSame(['order.payment'], self::kinds($v['errors']));
+	}
+
+	/** A SUCCESS transaction of the order's card, with what the read keeps of the authorization it belongs to. */
+	private static function tx(string $gid, string $kind, string $amount, ?string $parent = null, ?string $expires = null, string $status = 'SUCCESS', ?string $unsettled = null): array
+	{
+		return ['gid' => $gid, 'kind' => $kind, 'status' => $status, 'gateway' => 'shopify_payments', 'amount' => $amount, 'card' => 'Visa',
+			'parent_gid' => $parent, 'expires_at' => $expires, 'unsettled' => $unsettled];
+	}
+
+	/** felt_1/felt_2 of a valid order, or its error messages. */
+	private static function paidAs(array $transactions, array $ctx = [], string $financial = 'AUTHORIZED'): array
+	{
+		$v = self::validate(self::order(['transactions' => $transactions, 'financial_status' => $financial]), self::ctx($ctx));
+		return $v['ok'] ? [$v['header']['felt_1'], $v['header']['felt_2']] : array_column($v['errors'], 'message');
+	}
+
+	public function testAnAuthorizationCoveringTheTotalIsAPaymentOnItsCardType(): void
+	{
+		$now = ['now' => strtotime('2026-11-24T12:00:00Z')];
+		$auth = self::tx('gid://shopify/OrderTransaction/a', 'AUTHORIZATION', '269.00', null, '2026-12-01T12:00:00Z');
+
+		$this->assertSame(['Visa/Dankort', '269.00'], self::paidAs([$auth], $now), 'captured at fulfilment: the authorization pays the order (option A)');
+		$this->assertSame(['Visa/Dankort', '269.00'], self::paidAs([self::tx('gid://shopify/OrderTransaction/a', 'AUTHORIZATION', '269.00')], $now),
+			'an authorization Shopify gives no expiry for');
+		$this->assertSame(['Visa/Dankort', '269.00'], self::paidAs([$auth, self::tx('c', 'CAPTURE', '269.00', 'gid://shopify/OrderTransaction/a')], $now),
+			'its capture is the same money, not a second payment');
+		$this->assertSame(['Visa/Dankort', '269.00'], self::paidAs([$auth, self::tx('c', 'CAPTURE', '100.00', 'gid://shopify/OrderTransaction/a')], $now),
+			'a partial capture leaves the rest authorized');
+		$this->assertSame(['Visa/Dankort', '269.00'], self::paidAs([self::tx('gid://shopify/OrderTransaction/a', 'AUTHORIZATION', '269.00', null, '2026-11-20T12:00:00Z'),
+			self::tx('c', 'CAPTURE', '269.00', 'gid://shopify/OrderTransaction/a')], $now), 'captured before it expired: the capture is the money');
+	}
+
+	public function testAVoidedExpiredFailedOrPartialAuthorizationIsNoFullPayment(): void
+	{
+		$now = ['now' => strtotime('2026-11-24T12:00:00Z')];
+		$auth = self::tx('gid://shopify/OrderTransaction/a', 'AUTHORIZATION', '269.00', null, '2026-12-01T12:00:00Z');
+
+		$this->assertSame(['order #HML1001 has no successful payment'], self::paidAs([$auth, self::tx('v', 'VOID', '269.00', 'gid://shopify/OrderTransaction/a')], $now), 'voided');
+		$this->assertSame(['order #HML1001 has no successful payment'],
+			self::paidAs([self::tx('gid://shopify/OrderTransaction/a', 'AUTHORIZATION', '269.00', null, '2026-11-23T12:00:00Z')], $now), 'expired, nothing captured');
+		$this->assertSame(['order #HML1001 is paid 100.00 of 269.00'],
+			self::paidAs([self::tx('gid://shopify/OrderTransaction/a', 'AUTHORIZATION', '269.00', null, '2026-11-23T12:00:00Z'),
+				self::tx('c', 'CAPTURE', '100.00', 'gid://shopify/OrderTransaction/a')], $now), 'expired after a partial capture: only the capture is money');
+		$this->assertSame(['order #HML1001 has no successful payment'], self::paidAs([self::tx('a', 'AUTHORIZATION', '269.00', null, null, 'PENDING'),
+			self::tx('b', 'AUTHORIZATION', '269.00', null, null, 'FAILURE')], $now), 'pending or failed');
+		$this->assertSame(['order #HML1001 is paid 200.00 of 269.00'], self::paidAs([self::tx('a', 'AUTHORIZATION', '200.00', null, '2026-12-01T12:00:00Z')], $now),
+			'a partial authorization is not importable yet');
+		$this->assertSame(['order #HML1001 has no successful payment'], self::paidAs([self::tx('a', 'EMV_AUTHORIZATION', '269.00')], $now),
+			'a card-present authorization is no web payment');
+		$this->assertSame(['order #HML1001 is paid 100.00 of 269.00'], self::paidAs([self::tx('gid://shopify/OrderTransaction/a', 'AUTHORIZATION', '269.00', null, '2026-12-01T12:00:00Z', 'SUCCESS', '0.00'),
+			self::tx('c', 'CAPTURE', '100.00', 'gid://shopify/OrderTransaction/a')], $now, 'PARTIALLY_PAID'), 'a single capture closed the authorization: Shopify leaves nothing to capture');
+		$this->assertSame(['Visa/Dankort', '269.00'], self::paidAs([self::tx('gid://shopify/OrderTransaction/a', 'AUTHORIZATION', '269.00', null, '2026-12-01T12:00:00Z', 'SUCCESS', '169.00'),
+			self::tx('c', 'CAPTURE', '100.00', 'gid://shopify/OrderTransaction/a')], $now, 'PARTIALLY_PAID'), 'a multi-capture authorization keeps the rest');
+		foreach (['EXPIRED', 'VOIDED'] as $financial) {
+			$this->assertSame(['order #HML1001 has no successful payment'], self::paidAs([self::tx('a', 'AUTHORIZATION', '269.00')], $now, $financial),
+				"the order is $financial though Shopify gave the authorization no expiry");
+		}
+	}
+
+	public function testThePaymentIdIsTheAuthorizationsAndItsCaptureIsFoldedIntoIt(): void
+	{
+		$now = strtotime('2026-11-24T12:00:00Z');
+		$auth = self::tx('gid://shopify/OrderTransaction/41', 'AUTHORIZATION', '269.00', null, '2026-12-01T12:00:00Z');
+		$capture = self::tx('gid://shopify/OrderTransaction/42', 'CAPTURE', '269.00', 'gid://shopify/OrderTransaction/41');
+
+		$this->assertSame([['gid://shopify/OrderTransaction/41', 269.0]], array_map(fn(array $p): array => [$p['transaction']['gid'], $p['amount']],
+			shopify_order_payments([$capture, $auth], $now)));
+		$this->assertSame('gid://shopify/OrderTransaction/42', shopify_order_payments([$capture, $auth], $now)[0]['capture_gid']);
+		$this->assertSame([], shopify_order_payments([$auth, self::tx('v', 'VOID', '269.00', 'gid://shopify/OrderTransaction/41')], $now));
+		$this->assertSame([['s', 269.0]], array_map(fn(array $p): array => [$p['transaction']['gid'], $p['amount']],
+			shopify_order_payments([self::tx('s', 'SALE', '269.00')], $now)), 'a sale as before');
 	}
 
 	public function testAShortageIsInvoicedTaggedAndAlarmed(): void
