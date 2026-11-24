@@ -6820,8 +6820,7 @@ function ordreside($id, $regnskab)
  * @param int|string|null $orderId The order id (ordrer.id).
  * @return bool True when the order has a non-zero shop_id.
  */
-function orderIsWebshopOrder($orderId)
-{
+function orderIsWebshopOrder($orderId) {
 	$orderId = (int)$orderId;
 	if (!$orderId) return false;
 	$qtxt = "select shop_id from ordrer where id = '$orderId'";
