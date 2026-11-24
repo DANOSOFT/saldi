@@ -3,6 +3,7 @@
 //                The real afslut() runs in a child process (support/run_afslut_posting_error.php) with the database, settlement and receipt boundaries stood in for.
 //                It needs no database, so it also runs in CI.
 // 20261117 CL/SS MB-49: an exchange whose lines cancel out is not refused.
+// 20261124 CL/SS MB-49: a card of 0 in the second payment slot is refused too.
 
 declare(strict_types=1);
 
@@ -56,13 +57,17 @@ final class PosCheckoutPostingErrorTest extends TestCase
     }
 
     /**
-     * A card payment of 0 on a 0-kr sale is refused before settlement, so nothing is written and no invoice number is taken.
+     * A card payment of 0 on a 0-kr sale, in either payment slot, is refused before settlement, so nothing is written and no invoice number is taken.
      */
     public function testACardPaymentOfZeroOnAZeroSaleIsRefusedBeforeSettlement(): void
     {
         $result = self::checkout(['payment' => 'Dankort', 'received' => 0, 'sum' => 0]);
         self::assertStringContainsString('Indtast beløbet, før du betaler med Dankort', (string)$result['returned']);
         self::assertSame([], $result['events'], 'nothing may run before the refusal');
+
+        $result = self::checkout(['payment' => 'Kontant', 'received' => 0, 'payment2' => 'Dankort', 'received2' => 0, 'sum' => 0]);
+        self::assertStringContainsString('Indtast beløbet, før du betaler med Dankort', (string)$result['returned'], 'a card in the second slot');
+        self::assertSame([], $result['events']);
     }
 
     /**
