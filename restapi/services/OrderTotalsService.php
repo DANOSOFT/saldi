@@ -5,6 +5,8 @@
 //                A POS rabatgruppe's percentage discount on a line of a set is 0, as productLines.php computes it from the set line's price after drawing it at 0.
 // 20261110 CL/LH store() writes each total as the screen writes it and lets the column round it to 3 decimals, as the screen's UPDATE does.
 //                afrund() rounded 5.145 x 31.031 = 159.654495 to a kostpris of 159.655, where opening the order stores 159.654.
+// 20261124 CL/ASR A VAT-free or reverse-charge (omvbet) line has no VAT whatever its rate, as ordreside() has drawn it since 20261119.
+//                 It was an elseif, so such a line without a rate of its own (a Genfakturer copy, a Del ordre remainder) got the order's rate and its VAT.
 
 /**
  * The totals an order screen stores in an order's header when it draws the order, computed from the stored lines.
@@ -104,7 +106,9 @@ class OrderTotalsService
                 $rate = $orderRate;
             } elseif ($rate > $orderRate) {
                 $rate = $orderRate;
-            } elseif ($row['momsfri'] || $row['omvbet']) {
+            }
+            // A VAT-free or reverse-charge line has no VAT whatever its rate, as ordreside() draws it (debitor/ordre.php)
+            if ($row['momsfri'] || $row['omvbet']) {
                 $rate = 0;
             }
             $row['rate'] = $rate;

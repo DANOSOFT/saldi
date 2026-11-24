@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/resetAccount.php --- 2026-10-05 ---
+// --- systemdata/resetAccount.php --- 2026-11-24 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Build an explicit reset plan using only existing tenant tables.
 // 20260916 CDX/PHR Clear item texts when items are not retained.
@@ -8,6 +8,8 @@
 // 20260917 CL/LH Refuse the reset on MySQL/MariaDB, where TRUNCATE auto-commits and the
 //                transaction cannot be rolled back.
 // 20261005 SS Settings redesign G1.4: users' personal settings (grupper USET) survive a reset.
+// 20261124 CL/ASR The CRM's deals, meetings and participants are reset with historik and crm, whose rows they point at.
+//                 A user's calendar feed (crm_ical) is the user's, like brugere, and stays.
 
 /**
  * Build reset statements. Unlisted tables are never cleared implicitly.
@@ -35,7 +37,8 @@ function accountResetStatements(array $existingTables, $keepAccounts, $keepItems
 		'emballage', 'emballage_cat', 'rental', 'rentalclosed', 'rentalitems', 'rentalmail',
 		'rentalpayment', 'rentalperiod', 'rentalremote', 'rentalremoteperiods', 'rentalreserved', 'rentalsettings',
 		'kds_records', 'pos_events', 'labels', 'mylabel', 'timereg_breaks', 'timereg_sessions',
-		'moms_periode_luk', 'notifications', 'datatables', 'tekster',
+		'moms_periode_luk', 'notifications', 'datatables', 'tekster', 'crm_deals', 'crm_meetings',
+		'crm_participants',
 	);
 	if (!$keepAccounts) {
 		$tables = array_merge($tables, array('ansatte', 'vare_lev'));

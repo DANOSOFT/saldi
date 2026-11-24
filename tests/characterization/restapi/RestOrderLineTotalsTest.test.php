@@ -18,7 +18,8 @@
 // order (support/run_pos_order_lines.php), kreditor/ordre.php for a purchase
 // order (support/run_kreditor_order_page.php). The sales cases cover what the
 // screen adds beyond the lines' own amounts: a stored quantity discount
-// (m_rabat), a følgevare, a set's rounding, the order's procenttillæg, and
+// (m_rabat), a reverse-charge line without a VAT rate of its own, a
+// følgevare, a set's rounding, the order's procenttillæg, and
 // the VAT of a customer whose prices include VAT next to one whose prices do
 // not. The POS cases cover a quantity discount, a følgevare and a
 // rabatgruppe's discount on a plain line and on a line of a set, and a
@@ -36,6 +37,7 @@
 //                Review round 2: the private customer's VAT is compared with the order screen too, and a POS rabatgruppe on a plain line and on a line of a set.
 // 20261110 CL/LH Review round 3: a POS følgevare's VAT in a book with no fiscal year covering today, and the cost of a fractional quantity (5.145 x 31.031).
 // 20261115 CL/ASR Integration: fit to master's UUID-owned test databases (CharacterizationEnv::sessionId() for the order screens).
+// 20261124 CL/ASR A reverse-charge line without a VAT rate of its own has no VAT, as the order screen draws it.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -279,6 +281,20 @@ final class RestOrderLineTotalsTest extends CharacterizationTestCase
 
         // 100 less the stored quantity discount of 10, plus the new 100, at 25 %
         $this->assertSame(['sum' => '190.000', 'moms' => '47.500', 'kostpris' => '120.000'], $this->totals($orderId));
+        $this->assertTheScreenStoresTheSameTotals($orderId, $this->totals($orderId));
+    }
+
+    public function test_a_reverse_charge_line_without_a_rate_of_its_own_has_no_vat_as_the_order_screen_draws_it(): void
+    {
+        $orderId = $this->emptyOffer();
+        $hundred = $this->extraItem(100, 60);
+        // As a Genfakturer copy or a Del ordre remainder stores it: reverse charge, no VAT rate of its own
+        $this->storedLine($orderId, $hundred, ['posnr' => 1, 'omvbet' => 'on', 'momssats' => 0]);
+
+        $this->addLine(['orderId' => $orderId, 'productId' => $hundred['id'], 'quantity' => 1, 'price' => 100]);
+
+        // 100 + 100, VAT only on the new line: the reverse-charge line took the order's 25 % and gave moms 50.000
+        $this->assertSame(['sum' => '200.000', 'moms' => '25.000', 'kostpris' => '120.000'], $this->totals($orderId));
         $this->assertTheScreenStoresTheSameTotals($orderId, $this->totals($orderId));
     }
 
