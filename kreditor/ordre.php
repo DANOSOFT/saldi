@@ -151,18 +151,18 @@ if (!$requestedOrderId && (!empty($_GET['konto_id']) || !empty($_GET['vare_id'])
 if (!empty($_GET['kontakt'])) {
 	$permission_level = 'write';
 }
-// MB-177 The order id in the link goes into SQL on this page, so a link whose id is not a whole number is refused.
-require_once __DIR__ . '/../includes/stdFunc/orderIdFromLink.php';
-if (!order_ids_from_link_are_whole_numbers($_GET, array('id', 'tjek'))) {
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
-	exit;
-}
 
 $id=$konto_id=$debitor_id=$projekt=0;
 $hurtigfakt=$krediteret=$labelprint=$lev_adr=$momssum=$negativt_lager=$sort=$submit=NULL;
 $antal[0]=$beskrivelse[0]=$enhed[0]=$lev_varenr[0]=$pris[0]=$rabat[0]=NULL;
 $batch=array();
 $valg=NULL;
+// MB-177 The order id in the link goes into SQL on this page, so a link whose id is not a whole number is refused.
+require_once __DIR__ . '/../includes/stdFunc/orderIdFromLink.php';
+if (!order_ids_from_link_are_whole_numbers($_GET, array('id', 'tjek'))) {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+	exit;
+}
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
