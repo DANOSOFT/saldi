@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -131,6 +131,7 @@
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261124 CL/MJ MB-188 A payment on account, or an amount ending in k, without a customer opens the customer lookup (kontoopslag()) instead of stopping on the undefined pos_kontoopslag().
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1321,7 +1322,7 @@ if ($vare_id) {
 		elseif (!is_numeric(substr($modtaget, -1)))
 			$modtaget = substr($modtaget, 0, strlen($modtaget) - 1);
 		if (!$modtaget || !$kontonr)
-			pos_kontoopslag('PO', "", $fokus, $id, "", "", "");
+			kontoopslag('PO', "", "kontonr", $id, "", "", "", "", "", "", "", "", "", "", "", "", "");
 	} elseif (isset($_POST['debitoropslag']) || isset($_POST['kreditoropslag'])) {
 		(isset($_POST['debitoropslag']) && $db != 'test_31') ? $tmp = 'PO' : $tmp = 'KO';
 		kontoopslag($tmp, "", "kontonr", $id, "", "", "", "", "", "", "", "", "", "", "", "", "");

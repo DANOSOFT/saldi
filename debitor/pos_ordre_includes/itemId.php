@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- debitor/pos_ordre_includes/itemId.php ---------- lap 3.7.7----2019.05.13-------
+// ------------- debitor/pos_ordre_includes/itemId.php ---------- ver 5.1.1----2026.11.24-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,11 +23,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2019 saldi.dk aps
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190513 Move the handling of vare_id here
 // 20261023 CL/LH MB-95 opret_saet() call in the "på beløb" branch passed 6 of 7 arguments; now matches the call further down.
+// 20261124 CL/MJ MB-188 The account lookup calls kontoopslag(), as pos_ordre.php does; pos_kontoopslag() was never defined.
 
 if ($vare_id) {
 	$r=db_fetch_array(db_select("select varenr from varer where id = '$vare_id'",__FILE__ . " linje " . __LINE__));
@@ -239,7 +240,7 @@ if ($vare_id) {
 	elseif (substr($modtaget,-1)=='k' || $betaling == "konto") {
 		if (substr($modtaget,0,1)=='+') $modtaget=$sum+usdecimal(substr($modtaget,1,strlen($modtaget)-1),2);
 		elseif (!is_numeric(substr($modtaget,-1))) $modtaget=substr($modtaget,0,strlen($modtaget)-1);
-		if (!$modtaget || !$kontonr) pos_kontoopslag('PO',"",$fokus, $id,"","","");
+		if (!$modtaget || !$kontonr) kontoopslag('PO', "", "kontonr", $id, "", "", "", "", "", "", "", "", "", "", "", "", "");
 	} elseif (isset($_POST['debitoropslag']) || isset($_POST['kreditoropslag'])) {
 		(isset($_POST['debitoropslag']))?$tmp='PO':$tmp='KO';
 		kontoopslag($tmp,"","varenr_ny",$id,"","","","","","","");
