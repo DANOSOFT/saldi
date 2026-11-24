@@ -22,7 +22,8 @@
 // locations. A lager without a location gets one here through WP01's shopify_save_map(). Moving
 // or removing a mapping is the worker's remap command, which zeroes the old location's stock
 // first, so the page shows a mapped lager without a choice. A sellable lager without a location
-// is marked, because no stock reaches the shop from it.
+// is marked, because no stock reaches the shop from it. On a shop that already sends stock, a new
+// mapping marks the listed items, so the new location gets its stock on the next push.
 //
 // 20261123 CL/MJ SD-865: created, with the location mapping.
 
@@ -30,6 +31,7 @@ $title = 'Shopify mapping';
 require __DIR__ . '/adminBootstrap.php';
 require_once __DIR__ . '/../../includes/shopify/queue.php';
 require_once __DIR__ . '/../../includes/shopify/services/locations.php';
+require_once __DIR__ . '/../../includes/shopify/services/stock.php';
 
 $shops = shopify_shops();
 if (!$shops) {
@@ -60,8 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$shopFound) {
 	$errors['form'] = 'shopify.admin.mapping.error.shop|Shoppen findes ikke længere. Vælg shoppen igen.';
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	if (isset($_POST['fetch'])) {
-		shopify_locations_request($shop);
-		shopify_admin_redirect($self, 'shopify.admin.mapping.fetch_queued|Lokationerne hentes fra Shopify. Genindlæs siden om et øjeblik.');
+		try {
+			shopify_locations_request($shop);
+			shopify_admin_redirect($self, 'shopify.admin.mapping.fetch_queued|Lokationerne hentes fra Shopify. Genindlæs siden om et øjeblik.');
+		} catch (ShopifyConfigError | ShopifyDbError | ShopifySchemaError $e) {
+			$errors['form'] = 'shopify.admin.error.save|Ændringen kunne ikke gemmes. Prøv igen.';
+		}
 	}
 	$posted = is_array($_POST['location'] ?? null) ? $_POST['location'] : array();
 	foreach ($lagre as $row) {
@@ -71,11 +77,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$shopFound) {
 	$errors = shopify_admin_validate_locations($chosen, $mapped, array_keys($names));
 	if (!$errors) {
 		try {
-			shopify_db_transaction(function () use ($chosen, $mapped, $shopId) {
+			shopify_db_transaction(function () use ($chosen, $mapped, $shopId, $shop) {
+				$saved = 0;
 				foreach ($chosen as $lager => $gid) {
 					if ($gid !== '' && !isset($mapped[$lager])) {
 						shopify_save_map($shopId, $lager, $gid);
+						$saved++;
 					}
+				}
+				// as shopify_stock_remap_finish(): on a shop that already sends stock, the listed items are marked,
+				// so the new location gets its stock on the next push instead of at the next stock change
+				if ($saved && $shop['stock_capture_enabled'] === 't') {
+					$rows = shopify_db_rows('SELECT vare_id FROM shopify_product_links WHERE shop_id = $1 AND variant_id = 0 AND listed AND inventory_item_gid IS NOT NULL', array($shopId));
+					shopify_stock_mark($shop, array_map('intval', array_column($rows, 'vare_id')), (int)shopify_db_rows('SELECT txid_current() AS x')[0]['x']);
 				}
 			});
 			shopify_admin_redirect($self, 'shopify.admin.saved|Gemt.');
