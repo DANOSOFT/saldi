@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -190,6 +190,7 @@
 // 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
+// 20261124 CL/MMR SST-1049 The delivery-address dropdown's "Choose delivery address" and "No delivery address" options are translated (texts 8530 and 8531).
 @session_start();
 $s_id = session_id();
 
@@ -4236,8 +4237,8 @@ function ordreside($id, $regnskab)
 				}
 				print "<tr class='tableTexting2'><td><b>$txt28</b></td><td colspan=\"2\">\n";
 				print "<select id='da_select_ntr' class='inputbox' style='width:200px' onchange='daFillDeliveryNtr(this.value)'>\n";
-				print "<option value=''>-- " . findtekst('Choose delivery address', $sprog_id) . " --</option>\n";
-				print "<option value='none'>-- " . findtekst('No delivery address', $sprog_id) . " --</option>\n";
+				print "<option value=''>-- " . findtekst('8530|Vælg leveringsadresse', $sprog_id) . " --</option>\n";
+				print "<option value='none'>-- " . findtekst('8531|Ingen leveringsadresse', $sprog_id) . " --</option>\n";
 				foreach ($da_options as $da_opt) {
 					$label = htmlspecialchars($da_opt['description'] ?: $da_opt['company_name'] ?: $da_opt['city']);
 					if ($da_opt['is_primary']) $label .= ' ★';
@@ -5475,8 +5476,8 @@ function ordreside($id, $regnskab)
 					print "<td colspan='1'></td>";  
 					print "<td id='delivery_dropdown' colspan='1' align='left' style='padding:0;'>\n";
 					print "<select id='da_select' class='inputbox' style='width:200px;' onchange='daFillDelivery(this.value)'>\n";
-					print "<option value=''>-- Choose delivery address --</option>\n";
-					print "<option value='none'>-- No delivery address --</option>\n";
+					print "<option value=''>-- " . findtekst('8530|Vælg leveringsadresse', $sprog_id) . " --</option>\n";
+					print "<option value='none'>-- " . findtekst('8531|Ingen leveringsadresse', $sprog_id) . " --</option>\n";
 					foreach ($da_options as $da_opt) {
 						$label = htmlspecialchars($da_opt['description'] ?: $da_opt['company_name'] ?: $da_opt['city']);
 						if ($da_opt['is_primary']) $label .= ' ★';
