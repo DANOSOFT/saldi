@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.0 ----2026-11-06 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
-
+//
+//
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -164,6 +164,7 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261124 CL/LH MB-177 ansatopslag() sends the contact name URL-encoded, so a name with & or ' arrives whole.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -3936,7 +3937,7 @@ function ansatopslag($sort, $fokus, $id)
 			$color = '#000000';
 		}
 		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=$row[navn]'>$row[navn]</a></td>";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode($row['navn']) . "'>$row[navn]</a></td>";
 		print "<td> $row[tlf]</td>";
 		print "<td> $row[mobil]</td>";
 		print "<td> $row[email]</td>";
