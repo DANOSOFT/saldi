@@ -83,16 +83,6 @@ final class PosDeliveryContactSyncTest extends TestCase
         self::assertSame('a\\x27b\\x22c d e', pos_delivery_contact_alert_text("a'b\"c\rd\ne<>\\"));
     }
 
-    public function testARefusalIsRememberedForTheRequest(): void
-    {
-        unset($GLOBALS['pos_delivery_contact_refused']);
-        pos_validate_delivery_contact('levering', 'kunde@example.test', '');
-        self::assertArrayNotHasKey('pos_delivery_contact_refused', $GLOBALS, 'an accepted sale leaves no mark');
-        pos_validate_delivery_contact('levering', '', '');
-        self::assertTrue($GLOBALS['pos_delivery_contact_refused']);
-        unset($GLOBALS['pos_delivery_contact_refused']);
-    }
-
     public function testASaleIsJudgedByItsDeliveryChoice(): void
     {
         $this->needDatabase();
@@ -112,6 +102,8 @@ final class PosDeliveryContactSyncTest extends TestCase
 
         foreach ($sales as $label => [$id, $allowed]) {
             self::assertSame($allowed, $answers[$id]['ok'], $label);
+            // A refusal is remembered for the request, so voucherPay() does not show it a second time.
+            self::assertSame(!$allowed, $answers[$id]['remembered'], "$label: remembered");
         }
         self::assertSame('Afhentning og levering kræver kundens e-mail eller telefonnummer.', $answers[$sales['pickup, no contact'][0]]['message']);
     }

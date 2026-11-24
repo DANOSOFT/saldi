@@ -3,7 +3,8 @@
 // on a test tenant, through the legacy database layer the till uses.
 //
 // usage: php run_pos_contact.php <test_db> <order id> [<order id> ...]
-// prints JSON: {"<order id>": {"ok": bool, "message": string}, ...}
+// prints JSON: {"<order id>": {"ok": bool, "message": string, "remembered": bool}, ...}
+// remembered: whether the refusal was marked for the request ($GLOBALS['pos_delivery_contact_refused']).
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_pos_contact.php <test_db> <order id> [<order id> ...]\n");
@@ -39,6 +40,8 @@ require_once ShopifyEnv::repoRoot() . '/debitor/pos_ordre_includes/deliveryConta
 
 $out = [];
 foreach (array_slice($argv, 2) as $orderId) {
+    unset($GLOBALS['pos_delivery_contact_refused']);
     $out[$orderId] = pos_validate_checkout_sale((int)$orderId);
+    $out[$orderId]['remembered'] = !empty($GLOBALS['pos_delivery_contact_refused']);
 }
 echo json_encode($out);
