@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -190,6 +190,8 @@
 // 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
+// 20261124 CL/MMR SST-1050 A webshop order (shop_id set) with no delivery address no longer gets the debtor's primary delivery address written onto it when the order is opened with the delivery address shown.
+//                 For a webshop order, empty delivery fields mean the invoice address.
 @session_start();
 $s_id = session_id();
 
@@ -5428,9 +5430,10 @@ function ordreside($id, $regnskab)
 					}
 				}
 
-				// Auto-populate delivery fields if no delivery address set on order yet
+				// Auto-populate delivery fields if no delivery address set on order yet.
+				// Not on a webshop order: there empty delivery fields mean "deliver to the invoice address" (SST-1050).
 				$blocked_autofill = isset($_SESSION['no_delivery_order_' . $id]) && $_SESSION['no_delivery_order_' . $id];
-				$need_autofill = (!$lev_navn && !$lev_addr1 && !$lev_postnr) && !$blocked_autofill;
+				$need_autofill = (!$lev_navn && !$lev_addr1 && !$lev_postnr) && !$blocked_autofill && !orderIsWebshopOrder($id);
 				if ($need_autofill && $da_primary) {
 					$lev_navn    = htmlspecialchars($da_primary['company_name']);
 					$lev_addr1   = htmlspecialchars($da_primary['address_line1']);
@@ -6808,6 +6811,22 @@ function ordreside($id, $regnskab)
 	if (($gls_user) || (($dfm_user) && ($status >= 3))) print "</tr></td>\n";
 
 	print "<!--Function ordreside slut-->";
+}
+
+/**
+ * Tell whether an order came from a webshop, i.e. it has a shop order id (ordrer.shop_id set and not 0).
+ * Such orders are created by insert_shop_order() in api/rest_api.php or through api/v2/ordrer.php.
+ *
+ * @param int|string|null $orderId The order id (ordrer.id).
+ * @return bool True when the order has a non-zero shop_id.
+ */
+function orderIsWebshopOrder($orderId)
+{
+	$orderId = (int)$orderId;
+	if (!$orderId) return false;
+	$qtxt = "select shop_id from ordrer where id = '$orderId'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	return $r && (int)$r['shop_id'] !== 0;
 }
 
 /**
