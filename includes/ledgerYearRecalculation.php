@@ -102,7 +102,7 @@ if (!function_exists('recalculateLedgerYear')) {
 				}
 				db_modify("update kontoplan set  saldo='$saldo[$x]' where id='$konto_id[$x]'",__FILE__ . " linje " . __LINE__);
 			}
- 		}
+		}
 
 		$y=date('Y')-1;$m=date('m');$d=date('d');
 		while (!checkdate($m, $d, $y)) { #Skudår !
