@@ -177,6 +177,7 @@ export default {
       for (const line of historyLines) {
         const prefix = /^(\s*\/\/ \d{8}[ \t]+(?:(?:CL|CDX)\/)?[A-Z]{2,4}[ \t]+)/.exec(lines[line - 1]);
         if (!prefix) continue;
+        let keepsContinuation = false;
         for (let next = line + 1; next <= header; next++) {
           const continuation = continuationAt(next);
           if (!continuation) break;
@@ -186,10 +187,10 @@ export default {
             // one-space line there is a file description (// Run: ...), not a continuation, even when
             // the new entry has no full stop: the convention does not ask for one on a one-line entry.
             if (continuation[2] === " ") break;
-            // A corrected dated line keeps its own continuation: at the base, the line above that
-            // continuation was a dated line, and that line is gone now.
+            // The first retained continuation identifies a corrected base entry; every following
+            // continuation in the same block keeps that owner while still undergoing validation.
             const at = base.indexOf(lines[next - 1]);
-            const keepsContinuation = at > 0 && HISTORY.test(base[at - 1]) && !lines.includes(base[at - 1]);
+            keepsContinuation ||= at > 0 && HISTORY.test(base[at - 1]) && !lines.includes(base[at - 1]);
             if (!keepsContinuation) {
               let last = next;
               while (last + 1 <= header && !isNew(last + 1) && continuationAt(last + 1)) last++;

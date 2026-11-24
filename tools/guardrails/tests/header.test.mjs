@@ -91,7 +91,7 @@ test('equally indented history lines need no header maintenance', () => {
 
 test('correcting a history description needs no new entry or header maintenance', () => {
   const before = head.replaceAll('2026-10-29', '2025-01-01').replace('2026 Danosoft', '2025 Danosoft')
-    + '//                 Another sentence.\nfunction example() {}';
+    + '//                 Another sentence.\n//                 Third sentence.\nfunction example() {}';
   const after = before.replace('Existing behavior.', 'Clarified description.');
   assert.deepEqual(history.run(context(before, after, [4])), []);
 });
