@@ -1594,7 +1594,7 @@ function ansatopslag($sort, $fokus, $id){
 	$sort = contact_lookup_sort_column(if_isset($_GET, NULL, 'sort')); // MB-177 one of the four headings
 	if (!$id) $id = '0'; # <- 2009.05.10
 
-	$query = db_select("select konto_id from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select konto_id from ordrer where id = " . (int) $id,__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	$konto_id = (int) $row['konto_id']; # <- 2009.05.10
 

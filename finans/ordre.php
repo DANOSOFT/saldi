@@ -38,7 +38,7 @@
 // block in isolation; the isolated check couldn't have caught this since it doesn't reproduce
 // ordreside()'s own scope.
 // 20261124 CL/LH MB-177 The contact picked in the contact list (GET kontakt) is escaped and written only on the order whose id is a whole number, and needs write permission.
-//                A link whose order id (id, tjek) is not a whole number is refused before any query.
+//                A link whose order id (id, tjek) is not a whole number is refused before any query, and the posted order id is read as an integer.
 
 @session_start();
 $s_id=session_id();
@@ -261,7 +261,7 @@ if (isset($_POST['submit'])) {
 	if (strstr($submit,"Faktur")) $submit="Fakturer";
 	if (strstr($submit,"Del ordre")) $submit="del_ordre";
 #	if ($submit=='Kredit&eacute;r') $sumbit='Fakturer';
-	$id = $_POST['id'];
+	$id = (int) if_isset($_POST, 0, 'id'); // MB-177 the posted order id reaches the contact lookup's query
 	$ordrenr = $_POST['ordrenr'];
 	$kred_ord_id = $_POST['kred_ord_id'];
 	$art = $_POST['art'];
