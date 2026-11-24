@@ -6,6 +6,14 @@ function satser() {
 	global $db_encode;
 	$visLønninger='checked';
 	global $sprog_id;
+	global $sag_rettigheder;
+	global $brugernavn;
+	# SST-969 the form below saves for whoever posts it, so the save asks for the approver right itself.
+	# loen.php refuses the page, and this keeps the include safe if it is ever reached another way.
+	if (isset($_POST['gruppe_id']) && !substr((string)$sag_rettigheder, 6, 1)) {
+		error_log('SST-969: rate save refused for user ' . $brugernavn . ' (sag right 6 is not set)');
+		return;
+	}
 	# 20261106 SD-813 currency unit after the amounts
 	# 20261107 SD-813 escaped once here, so a custom translation cannot add markup in the eleven places it is printed (Saul, CodeRabbit)
 	# 20261107 SD-813 loen.php skips the charset of online.php ($header 'nix'), so it is taken from the database encoding here (CodeRabbit)
