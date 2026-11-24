@@ -1,13 +1,14 @@
 <?php
 // 20261111 CDX/NTR Run the production tenant installer against an already owned empty database.
 // 20261111 CDX/NTR Document the production installer adapter contracts.
+// 20261111 CL/SZ MB-154 Test databases are named t + 22 hex + _1, like a <master>_<regnskab id> tenant, so api/rest_api.php does not take them for the master.
 // 20261123 CDX/NTR Port the reviewed test fixture repairs to hml/shopify.
 
 require_once __DIR__ . '/TestDatabase.php';
 require_once __DIR__ . '/../../../TestCredentials.php';
 
 $db = $argv[1] ?? '';
-if (!preg_match('/^t_[a-f0-9]{23}$/', $db)) {
+if (!preg_match('/^t[a-f0-9]{22}_1$/', $db)) {
     throw new RuntimeException('The installer requires a generated test database name');
 }
 $connection = TestDatabase::connect($db);

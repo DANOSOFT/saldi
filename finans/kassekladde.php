@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -203,6 +203,8 @@
 //                rendered by a save and dropped unsaved changes.
 //                The clip drag uses the copy effect instead of link: Chrome on a Wayland desktop cancelled every drop of
 //                a link drag (Wayland has no link action), so nothing happened when a clip was released on another clip.
+// 20261026 CL/LH "Udfyld modkonto automatisk" is on by default: stored in box3 as modk_off when switched off (was modk_auto when on).
+//                accountAutocomplete.js?v= bumped: each VAT lookup gets its own key, so an earlier lookup of the same account cannot write over a newer one.
 // 20261027 CL/LH (review) lookupVat() drops an answer for a momskode the field no longer holds (data-lookup-key or the code
 //                changed since it asked), so "Fortryd" after an invoice pick keeps the code it puts back; accountAutocomplete.js?v= bumped.
 // 20261028 CL/LH "<bilag>+N" put its N empty lines at the bottom of the journal on the render after the save: the post-save
@@ -211,6 +213,8 @@
 //                The date a row was drawn with (transdate[]) is matched by line id, not screen row, since those lines shift the rows
 //                below them; by row a debtor line could take another line's date and lose a due date typed by hand.
 //                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
+// 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated, numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
+// 20261103 CL/ASR QA round 2: the GET link ompost (Tilbagefør postering) needs write on the journal.
 // 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated,
 //                 numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
 // 20261103 CL/LH SD-796 window.saldiBaseCurrency gives accountAutocomplete.js the base currency, so an invoice pick can tell an invoice in another currency than the line and write its Beløb and Valuta again.
@@ -221,7 +225,8 @@
 //                 The messages show a typed 0 as 0, and kontroller()'s includes use __DIR__.
 //                 The lookup return's $_GET reads use ifset(), and kontroller()'s line-check branch has braces on every multi-line body.
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
-
+// 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -285,6 +290,10 @@ register_shutdown_function(function() {
 $s_id = session_id();
 $title = "Kassekladde";
 $modulnr = 2;
+// Tilbageføring (ompost / ompost_til) writes a journal line from a GET link, so it needs write.
+if (!empty($_GET['ompost'])) {
+	$permission_level = 'write';
+}
 $css = "../css/standard.css";
 $afd = $amount = $ansat = $ansat_id = $belob = $beskrivelse = $betal_id = $bilag = $dato = $d_type = $debet = $debetvat = array();
 $faktura = $forfaldsdate = $forfaldsdato = $id = $k_type = $kontonr = $kredit = $kreditvat = $lobenr = $momsfri = $projekt = $valuta = array();
@@ -701,7 +710,7 @@ print "<script>
 </script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css?v=4.1.6">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.16" defer></script>';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.17" defer></script>';
 // SD-721: "Opret kreditor" in the lookup panel when a kreditor search finds nothing
 include_once("../includes/kreditorFromCvr.php");
 print kreditorCvrClientScript($sprog_id, '1');
@@ -801,8 +810,10 @@ $kk_toggle_cols = array(
 );
 // Panel-sektioner i det blaa kontoopslag - ikke tabelkolonner, men gemmes/fravaelges via samme mekanisme
 $kk_panel_opts = array('ac_forslag', 'ac_opslag');
-// Switches that are off by default and stored when on (SD-721: kred_auto, "Opret kreditor automatisk"; SD-722: modk_auto, "Udfyld modkonto automatisk")
-$kk_user_opts = array('kred_auto', 'modk_auto');
+// Switches that are off by default and stored when on (SD-721: kred_auto, "Opret kreditor automatisk")
+$kk_user_opts = array('kred_auto');
+// Switches that are on by default and stored when off (SD-722: modk_off, "Udfyld modkonto automatisk")
+$kk_user_optouts = array('modk_off');
 // SD-726: the shortcut profile ("Ctrl + pil op/ned"), stored as sc.<choice>=<value> with the options above
 include_once(__DIR__ . '/kassekladde_includes/shortcutProfile.php');
 
@@ -813,7 +824,7 @@ if (isset($_POST['save_kk_cols']) && isset($bruger_id) && (int)$bruger_id != 0) 
     $parts = array_filter(array_map('trim', explode(',', (string)$_POST['save_kk_cols'])));
     $clean = array();
     foreach ($parts as $p) {
-        if (array_key_exists($p, $kk_toggle_cols) || in_array($p, $kk_panel_opts, true) || in_array($p, $kk_user_opts, true) || kkShortcutToken($p)) $clean[] = $p;
+        if (array_key_exists($p, $kk_toggle_cols) || in_array($p, $kk_panel_opts, true) || in_array($p, $kk_user_opts, true) || in_array($p, $kk_user_optouts, true) || kkShortcutToken($p)) $clean[] = $p;
     }
     $cols_str = db_escape_string(implode(',', $clean));
     $exists = db_fetch_array(db_select("select id from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
@@ -831,6 +842,7 @@ if (isset($_POST['save_kk_cols']) && isset($bruger_id) && (int)$bruger_id != 0) 
 $kk_hidden_cols = array();
 $kk_panel_hidden = array();
 $kk_opts_on = array();
+$kk_opts_off = array();
 $kk_shortcuts = kkShortcutProfile('');
 if (isset($bruger_id) && (int)$bruger_id != 0) {
     $kk_r = db_fetch_array(db_select("select box3 from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
@@ -840,6 +852,7 @@ if (isset($bruger_id) && (int)$bruger_id != 0) {
             if (array_key_exists($c, $kk_toggle_cols)) $kk_hidden_cols[] = $c;
             elseif (in_array($c, $kk_panel_opts, true)) $kk_panel_hidden[] = $c;
             elseif (in_array($c, $kk_user_opts, true)) $kk_opts_on[] = $c;
+            elseif (in_array($c, $kk_user_optouts, true)) $kk_opts_off[] = $c;
         }
         $kk_shortcuts = kkShortcutProfile($kk_r['box3']);
     }
@@ -3149,10 +3162,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$kkAutoKred = findtekst('5359|Opret kreditor automatisk', $sprog_id);
 		$checked = in_array('kred_auto', $kk_opts_on, true) ? 'checked' : '';
 		print "<label class='kkVisRow'><input type='checkbox' class='kk-opt-toggle' data-opt='kred_auto' $checked><span>" . htmlspecialchars($kkAutoKred, ENT_QUOTES, $charset) . "</span></label>";
-		// SD-722: on, the document pool fills Debet with the contra account suggested from the kreditor's history
+		// SD-722: on (the default), the document pool fills Debet with the contra account suggested from the kreditor's history
 		$kkAutoModk = findtekst('5390|Udfyld modkonto automatisk', $sprog_id);
-		$checked = in_array('modk_auto', $kk_opts_on, true) ? 'checked' : '';
-		print "<label class='kkVisRow'><input type='checkbox' class='kk-opt-toggle' data-opt='modk_auto' $checked><span>" . htmlspecialchars($kkAutoModk, ENT_QUOTES, $charset) . "</span></label>";
+		$checked = in_array('modk_off', $kk_opts_off, true) ? '' : 'checked';
+		print "<label class='kkVisRow'><input type='checkbox' class='kk-opt-toggle kk-optout' data-opt='modk_off' $checked><span>" . htmlspecialchars($kkAutoModk, ENT_QUOTES, $charset) . "</span></label>";
 		// SD-726: what Ctrl+↓ / Ctrl+↑ do in the journal and the pool; the default isn't stored
 		print "<hr class='kkVisSplit'>";
 		print "<div class='kkVisGroup'>" . htmlspecialchars(findtekst('5395|Ctrl + pil op/ned', $sprog_id), ENT_QUOTES, $charset) . "</div>";
@@ -3183,10 +3196,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				document.querySelectorAll('.kk-col-'+col).forEach(function(el){el.style.display=show?'table-cell':'none';});
 			}
 		}
+		/**
+		 * Post hidden columns/panels, enabled opt-ins, disabled opt-outs and nondefault shortcuts.
+		 * The server stores these tokens in the user's KASKL box3; an unchecked
+		 * automatic contra-account option contributes modk_off. Request failures are ignored.
+		 * @returns {void} Starts a keepalive request without returning its promise.
+		 */
 		function kkSaveCols(){
 			var hidden=[];
 			document.querySelectorAll('.kk-col-toggle').forEach(function(cb){if(!cb.checked) hidden.push(cb.getAttribute('data-col'));});
-			document.querySelectorAll('.kk-opt-toggle').forEach(function(cb){if(cb.checked) hidden.push(cb.getAttribute('data-opt'));});
+			document.querySelectorAll('.kk-opt-toggle').forEach(function(cb){if(cb.checked!==cb.classList.contains('kk-optout')) hidden.push(cb.getAttribute('data-opt'));});
 			document.querySelectorAll('.kk-sc-choice').forEach(function(rb){if(rb.checked && rb.value!==rb.getAttribute('data-default')) hidden.push('sc.'+rb.getAttribute('data-sc')+'='+rb.value);});
 			var fd=new FormData();fd.append('save_kk_cols',hidden.join(','));
 			// keepalive: a reload right after toggling must not cancel the save request

@@ -8,6 +8,7 @@
 //
 // History:
 // 20261026 CL/SZ Created (SD-750).
+// 20261123 CL/SZ SD-819 every on/off combination also checks shopify_legacy_open_slots() and shopSyncApiConfigured() against the endpoints.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -92,9 +93,13 @@ final class CoexistenceTest extends TestCase
 				}
 			}
 
-			$out = $this->legacy([['shopify_legacy_endpoints', [['db' => $this->db], 'intake']], ['shopify_legacy_endpoints', [['db' => $this->db], 'outbound']]], array_merge([$api], $settings));
+			$out = $this->legacy([['shopify_legacy_endpoints', [['db' => $this->db], 'intake']], ['shopify_legacy_endpoints', [['db' => $this->db], 'outbound']],
+				['shopify_legacy_open_slots', [['db' => $this->db], 'outbound']], ['shopSyncApiConfigured', []]], array_merge([$api], $settings));
 
-			$this->assertSame([$expected['intake'], $expected['outbound']], $out['return'], "mask $mask: keyed by the original slot, never renumbered");
+			$this->assertSame([$expected['intake'], $expected['outbound']], array_slice($out['return'], 0, 2), "mask $mask: keyed by the original slot, never renumbered");
+			// SD-819: the queue decision and the send decision come from one rule
+			$this->assertSame($expected['outbound'], $out['return'][2], "mask $mask: the lock-free rule finds the same slots");
+			$this->assertSame($expected['outbound'] !== [], $out['return'][3], "mask $mask: shopsync queues exactly when a slot is open for outbound");
 		}
 	}
 
