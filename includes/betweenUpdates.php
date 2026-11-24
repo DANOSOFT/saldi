@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.24
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -48,10 +48,12 @@
 // 20261105 CL/ASR The one-time role changes and the till account copy are moved up before master's MB-73 block, so MB-73 and the signup block stay at the end.
 //                 OrderLineDeliveredBackfillTest runs the file from MB-73 to the end with stubbed database functions.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
+// 20261111 CL/ASR SD-731: the operator panel's master-database tables (includes/structure/operatorPanelSchema.php), last in the file.
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
 // 20261030 CL/MJ SST-882 New table einvoice_events: every e-invoice status and message per invoice.
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -443,6 +445,14 @@ if (!$sawanehMysql) {
 require_once __DIR__ . '/opdat_func/migrateTillAccounts.php';
 migrateTillAccounts($db_type);
 
+// 20261111 CL/ASR SD-731 operator panel: its tables live in the master database. operator_panel_schema() uses the master
+// connection ($global = true) and runs once per master (settings flag 'operator_panel_schema'); later logins only read the flag.
+// It only runs in a real login, where $db and $sqdb are set (not in a test that evaluates this file), and only on PostgreSQL.
+if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
+	// guardrails-allow migrations until 2026-12-31 by NTR: relocate the existing schema include without changing migration order
+	include_once(__DIR__ . '/structure/operatorPanelSchema.php');
+	operator_panel_schema();
+}
 // 20261030 CL/MJ SST-882 einvoice_events keeps every status EasyUBL reports for an e-invoice and every failed
 // send, with the message. Before this the message went only to temp/, so a rejected invoice could not say why.
 include_once(__DIR__ . '/stdFunc/ensureTableAndColumns.php');
