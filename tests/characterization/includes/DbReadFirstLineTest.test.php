@@ -2,6 +2,7 @@
 // 20261124 CL/SZ Cover db_read_first_line() in includes/db_query.php: a missing, empty or unreadable file gives the default instead of a TypeError from fgets() (MB-142).
 // 20261124 CL/SZ Cover a directory at the file's path; unlike the chmod cases it also runs as root, so CI runs it.
 // 20261124 CL/SZ Cover db_error_mail_last_sent(): no stamp mails, a readable stamp gives its time, an unreadable stamp or a directory counts as mailed now.
+// 20261124 CL/SZ Cover a stamp that can be read but not rewritten: it counts as mailed now.
 
 use PHPUnit\Framework\TestCase;
 
@@ -123,6 +124,21 @@ final class DbReadFirstLineTest extends TestCase
     {
         $path = $this->dir . '/opdatfejl.txt';
         mkdir($path);
+        $before = (int) date("U");
+        $result = (int) db_error_mail_last_sent($path);
+        $this->assertGreaterThanOrEqual($before, $result);
+        $this->assertLessThanOrEqual((int) date("U"), $result);
+    }
+
+    /** A stamp that can be read but not rewritten can't limit the mail either, so it counts as mailed now. */
+    public function testMailStampReadOnlyCountsAsMailedNow(): void
+    {
+        if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+            $this->markTestSkipped('root writes any file, so the read-only case cannot be set up');
+        }
+        $path = $this->dir . '/modifyfejl.txt';
+        file_put_contents($path, "1700000000\n");
+        chmod($path, 0444);
         $before = (int) date("U");
         $result = (int) db_error_mail_last_sent($path);
         $this->assertGreaterThanOrEqual($before, $result);
