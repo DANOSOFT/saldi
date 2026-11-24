@@ -42,8 +42,9 @@ $s_id=session_id();
 // 20261113 CL/LH SD-824 The overtime menu items use a descriptive text key.
 //                The rights checks around both overtime menu items tolerate missing rights.
 // 20261124 CDX/NTR Name the approver permission shared by the payroll and overtime menu links.
+// 20261124 CDX/NTR Use documented integer permission constants directly.
 
-require_once(__DIR__ . '/../includes/enums/SagerPermission.php');
+require_once(__DIR__ . '/../includes/constants/SagerPermission.php');
 
 if (!isset($loendate))      $loendate      = NULL;
 if (!isset($loendateFra))   $loendateFra   = NULL;
@@ -82,7 +83,7 @@ print "<div class=\"leftmenu\">";
 			print "<li><a href=\"sager.php\">".findtekst('2955|Sagsliste', $sprog_id)."</a></li>";
 			print "<li><hr></li>";
 			print "<li><a href=\"loen.php?funktion=loenliste&amp;sag_id=$sag_id\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2958|Akkordsedler', $sprog_id))."</a></li>"; #Til akkordsedler
-			if (substr((string)$sag_rettigheder, SagerPermission::ApprovePiecework->value, 1)) {
+			if (substr((string)$sag_rettigheder, SagerPermission::APPROVE_PIECEWORK, 1)) {
 				print "<li><a href=\"loen.php?funktion=overtid&amp;sag_id=".(int)$sag_id."\">".findtekst('wage.overtime.title|Overtid og løn pr. sag', $sprog_id)."</a></li>";
 			}
 		} elseif ($funktion=='kontrolskema') {
@@ -323,7 +324,7 @@ print "<div class=\"leftmenu\">";
 			if ($vis!='betalte') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=betalte\">".findtekst('2975|Udbetalte', $sprog_id)."</a></li>";
 			if ($vis!='godkendte') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=godkendte\">".ucfirst(findtekst('904|til', $sprog_id))." ".lcfirst(findtekst('2976|Udbetaling', $sprog_id))."</a></li>"; #Til udbetaling
 			if ($vis!=NULL && $vis!='alle') print "<li><a href=\"loen.php?funktion=loenliste&amp;sort=$sort&amp;nysort=$nysort&amp;vis=alle\">".findtekst('636|Vis alle', $sprog_id)."</a></li>";
-			if (substr((string)$sag_rettigheder, SagerPermission::ApprovePiecework->value, 1)) {
+			if (substr((string)$sag_rettigheder, SagerPermission::APPROVE_PIECEWORK, 1)) {
 				print "<li><a href=\"loen.php?funktion=loenafregning&amp;refresh=on\">".findtekst('2786|Lønafregning', $sprog_id)."</a></li>";
 #				print "<li><a href=\"loen.php?funktion=d_loenafregning\">Løn (datoindelt)</a></li>";
 				print "<li><a href=\"loen.php?funktion=satser\">".findtekst('1206|Ret', $sprog_id)." ".lcfirst(findtekst('2782|Satser', $sprog_id))." ".lcfirst(findtekst('2981|Mm.', $sprog_id))."</a></li>"; #Ret satser mm.

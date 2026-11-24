@@ -39,6 +39,7 @@ $s_id=session_id();
 // 20261110 CDX/NTR Preserve existing login passwords on blank saves and validate before creating a login.
 // 20261113 CDX/NTR Keep employee-login permission checks with blank-password preservation.
 // 20261124 CDX/NTR Link the group editor to the bilingual Sager permission definitions.
+// 20261124 CDX/NTR Use documented integer permission constants directly.
 
 	//ini_set("display_errors", "1");
 	$bg="nix";
@@ -463,7 +464,7 @@ function ret_ansat($id) {
  * Edit the Sager employee groups and serialize their eight checkboxes into grupper.box2.
  *
  * Permission names, positions and Danish/English labels are documented in
- * includes/enums/SagerPermission.php, separately from the systemdata/usersRoles.php roles.
+ * includes/constants/SagerPermission.php, separately from the systemdata/usersRoles.php roles.
  *
  * @param mixed $id Legacy page argument.
  * @return void

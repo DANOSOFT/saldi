@@ -16,8 +16,9 @@ use PHPUnit\Framework\TestCase;
 // 20261109 LOE SST-969 created.
 // 20261109 LOE SST-969 the refusals have to end the request, so the guards are checked for that too.
 // 20261124 CDX/NTR Follow the named approver offset in the existing rates guards.
+// 20261124 CDX/NTR Use documented integer permission constants directly.
 
-require_once(__DIR__ . '/../../../includes/enums/SagerPermission.php');
+require_once(__DIR__ . '/../../../includes/constants/SagerPermission.php');
 
 final class LoenRatesRightTest extends TestCase
 {
@@ -103,9 +104,9 @@ final class LoenRatesRightTest extends TestCase
     public function testTheRatesPageRefusesAndLeavesBeforeTheForm(): void
     {
         $loen = self::source('/sager/loen.php');
-        self::assertSame(6, SagerPermission::ApprovePiecework->value, 'the approver right is still the seventh character');
+        self::assertSame(6, SagerPermission::APPROVE_PIECEWORK, 'the approver right is still the seventh character');
 
-        $guardLine = "if (\$funktion == 'satser' && !substr((string)\$sag_rettigheder, SagerPermission::ApprovePiecework->value, 1)) {";
+        $guardLine = "if (\$funktion == 'satser' && !substr((string)\$sag_rettigheder, SagerPermission::APPROVE_PIECEWORK, 1)) {";
         $body = self::guardBody($loen, $guardLine);
         self::assertNotSame('', $body, 'the rates page checks the right the menu asks for');
 
@@ -134,7 +135,7 @@ final class LoenRatesRightTest extends TestCase
     {
         $rates = self::source('/sager/loenIncludes/rates.php');
 
-        $guardLine = "if (isset(\$_POST['gruppe_id']) && !substr((string)\$sag_rettigheder, SagerPermission::ApprovePiecework->value, 1)) {";
+        $guardLine = "if (isset(\$_POST['gruppe_id']) && !substr((string)\$sag_rettigheder, SagerPermission::APPROVE_PIECEWORK, 1)) {";
         $body = self::guardBody($rates, $guardLine);
         self::assertNotSame('', $body, 'the include refuses a save without the approver right');
         self::assertStringContainsString('return;', $body, 'and the refusal returns before the form is drawn');
