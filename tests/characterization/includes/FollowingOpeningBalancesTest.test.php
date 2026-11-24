@@ -23,6 +23,7 @@
 //                 A rebuild that the production db_modify() ends with exit is rolled back and leaves the 'failed' message (CodeRabbit on PR #1109).
 //                 The year card's save keeps that message whether its own primo reset or the carry-forward fails, and a nested caller never disarms its guard (Codex round 22).
 //                 A COMMIT the database refuses leaves it too, for the card and for the page check (Codex round 23).
+// 20261124 CL/MMR SST-1005 A page that declares its own genberegn() first (debitor/ordreliste.php) gets the year recalculated, and its order is left alone (Saul on PR #1109).
 
 declare(strict_types=1);
 
@@ -118,14 +119,25 @@ final class FollowingOpeningBalancesTest extends TestCase
                 return $parts[1] ?? $parts[0];
             }
         }
-        if ($this->name() === 'testAnUnexpectedErrorRollsTheCarryForwardBackAndIsReported' && !function_exists('genberegn')) {
+        if ($this->name() === 'testAnUnexpectedErrorRollsTheCarryForwardBackAndIsReported' && !function_exists('recalculateLedgerYear')) {
             /** Fails after the first target year's primo is written, like an error nobody expected. */
-            function genberegn($year, $updateUsage = true) {
-                throw new RuntimeException('test: genberegn stopped');
+            function recalculateLedgerYear($year, $updateUsage = true) {
+                throw new RuntimeException('test: recalculation stopped');
+            }
+        }
+        // debitor/ordreliste.php declares its own genberegn($id) at the top level, so PHP has it before the page
+        // includes online.php and the page check runs; includes/genberegn.php is not loaded on that page.
+        $pageWithItsOwnGenberegn = $this->name() === 'testThePageCheckOnAPageWithItsOwnGenberegnRecalculatesTheYearAndLeavesTheOrderAlone';
+        if ($pageWithItsOwnGenberegn && !function_exists('genberegn')) {
+            /** Like the order list's genberegn($id): recalculates the cost price of order $id. */
+            function genberegn($id) {
+                db_modify("UPDATE ordrer SET kostpris = 0 WHERE id = '" . (int) $id . "'");
             }
         }
         require_once dirname(__DIR__, 3) . '/includes/std_func.php';
-        require_once dirname(__DIR__, 3) . '/includes/genberegn.php';
+        if (!$pageWithItsOwnGenberegn) {
+            require_once dirname(__DIR__, 3) . '/includes/genberegn.php';
+        }
         require_once dirname(__DIR__, 3) . '/includes/updateFollowingOpeningBalances.php';
     }
 
@@ -284,6 +296,44 @@ final class FollowingOpeningBalancesTest extends TestCase
         $maxId = pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
         self::assertSame("$maxId|0", $this->syncState());
         self::assertSame(1175.0, $this->primo(11, 2000));
+    }
+
+    public function testThePageCheckOnAPageWithItsOwnGenberegnRecalculatesTheYearAndLeavesTheOrderAlone(): void
+    {
+        // Orders whose ids are the years the rebuild recalculates, as Saul's order id 2 for year 2.
+        $this->sql('CREATE TEMP TABLE ordrer (id INTEGER, kostpris NUMERIC)');
+        $this->sql('INSERT INTO ordrer (id, kostpris) VALUES (10, 999), (11, 999)');
+        // A page opened with ?regnskabsaar= must not start includes/genberegn.php's own recalculation either.
+        $_GET['regnskabsaar'] = '10';
+        self::assertNull(checkFollowingOpeningBalances(11));
+        $this->postInYear9(2000, 5);
+        self::assertNull(checkFollowingOpeningBalances(9));
+
+        // A session in year 10 opens the page: years 10 and 11 follow year 9 and are recalculated.
+        self::assertNull(checkFollowingOpeningBalances(10));
+        unset($_GET['regnskabsaar']);
+        self::assertSame(1125.0, $this->primo(10, 2000));
+        self::assertSame(1175.0, $this->primo(11, 2000));
+        $saldo = static function (array $state, int $account): float {
+            foreach ($state['accounts'] as $row) {
+                if ((int) $row['kontonr'] === $account) return (float) $row['saldo'];
+            }
+            return NAN;
+        };
+        $year10 = $this->yearState(10);
+        $year11 = $this->yearState(11);
+        // Year 10 (2024/25) has the 50 posted on 2024-07-01 on top of its new primo; year 11 has no postings.
+        self::assertSame(1175.0, $saldo($year10, 2000), 'Year 10 is recalculated by the ledger, not left at its old saldo.');
+        self::assertSame(-1125.0, $saldo($year10, 3000));
+        self::assertSame(1175.0, $saldo($year11, 2000));
+        self::assertSame('2', $year10['summary']['box6'], 'The ledger recalculation counts the year\'s postings.');
+        self::assertSame(date('Y-m-d'), $year10['summary']['box7']);
+        self::assertSame(
+            [['id' => '10', 'kostpris' => '999'], ['id' => '11', 'kostpris' => '999']],
+            pg_fetch_all($this->sql('SELECT id, kostpris FROM ordrer ORDER BY id')),
+            "The page's own genberegn() is never called with a year as an order id."
+        );
+        self::assertFalse(function_exists('equalizeMatchingRecords'), 'includes/genberegn.php (with its ?regnskabsaar= block) was not loaded.');
     }
 
     public function testNothingRunsInsideACallersTransaction(): void
@@ -472,7 +522,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertSame($expected, syncFollowingOpeningBalances(9));
         self::assertSame(PGSQL_TRANSACTION_IDLE, pg_transaction_status($this->connection));
         self::assertSame(777.0, $this->primo(10, 2000));
-        self::assertStringContainsString('SST-1005: opening balances after saving fiscal year 10 not updated: test: genberegn stopped', (string) file_get_contents($log));
+        self::assertStringContainsString('SST-1005: opening balances after saving fiscal year 10 not updated: test: recalculation stopped', (string) file_get_contents($log));
         unlink($log);
     }
 

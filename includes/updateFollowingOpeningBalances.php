@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/updateFollowingOpeningBalances.php --- ver 5.1.1 --- 2026.11.20 ---
+// --- includes/updateFollowingOpeningBalances.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -57,6 +57,10 @@
 //                  A rebuild that a failed statement, a fatal error or a time-out ends before its catch runs is rolled back on shutdown and leaves the 'failed' message (CodeRabbit).
 // 20261120 CL/MMR  SST-1005: The year card arms that guard for its whole save, so a failure in its own primo reset leaves the message too, and a nested caller never disarms it (Codex round 22).
 // 20261120 CL/MMR  SST-1005: A COMMIT the database refuses is reported like any failed statement, and the guard is only disarmed after a confirmed commit (Codex round 23).
+// 20261124 CL/MMR  SST-1005: The rebuild recalculates a year with recalculateLedgerYear() (includes/ledgerYearRecalculation.php), not genberegn(): debitor/ordreliste.php declares its own genberegn($id), so the page check there recalculated an order instead of the year (Saul on PR #1109).
+//                  Only that side-effect-free file is included, not includes/genberegn.php, whose ?regnskabsaar= block would run a full recalculation and include online.php again on a page with that parameter.
+
+include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
 /**
  * Whether a fiscal year's grupper art 'RA' box10 marks it as deleted. systemdata/fiscalYearInc/deleteFiscalYear.php
@@ -114,7 +118,7 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null, &$deferredYe
 			break;
 		}
 		$blocked = followingOpeningBalanceStopShape($sourceYear, $targetYear);
-		// The source year's dates select its postings and genberegn() reads the target year's dates,
+		// The source year's dates select its postings and recalculateLedgerYear() reads the target year's dates,
 		// so both are checked before anything is written; a target year is never left half rebuilt.
 		$sourceRange = followingOpeningBalanceYearRange($source);
 		if (!$sourceRange) $blocked['invalidDates'][] = $sourceYear;
@@ -178,8 +182,9 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null, &$deferredYe
 		if ($savepoint) {
 			db_modify('release savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
 		}
-		// Avoid switching database connections while the journal transaction is active.
-		genberegn($targetYear, false);
+		// Avoid switching database connections while the journal transaction is active. Not genberegn(): a page's own
+		// function of that name (debitor/ordreliste.php) would be called instead.
+		recalculateLedgerYear($targetYear, false);
 		$updated[] = $targetYear;
 	}
 	if ($pendingYear) {
@@ -419,7 +424,7 @@ function followingOpeningBalanceInputs($sourceYear, $targetYear, $start, $end) {
  * year one at a time, in the order of its lines, so a rebuild that waited for one of them while holding another could
  * deadlock with it (Codex round 10: the journal holds 2000, the rebuild holds 1000 and waits for 2000, the journal
  * then needs 1000). Here the rows that are free are locked with SKIP LOCKED; when any row was busy, the partial lock
- * is undone at once and tried again shortly. While the rebuild holds the whole year, genberegn() and the writes need
+ * is undone at once and tried again shortly. While the rebuild holds the whole year, recalculateLedgerYear() and the writes need
  * no further row of it, so the rebuild itself never waits for a kontoplan row.
  * Outside a transaction a lock would end with the statement, so nothing is locked and true is returned, as before.
  * MySQL keeps the plain lock, because SKIP LOCKED needs MySQL 8 / MariaDB 10.6.
@@ -696,7 +701,6 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		return null;
 	}
 	include_once(__DIR__ . '/std_func.php');
-	include_once(__DIR__ . '/genberegn.php');
 	// Taken before the rebuild, so a failing rebuild is not retried on every page. A year registered after this is
 	// left for the next check.
 	$pending = followingOpeningBalanceTakePending();
