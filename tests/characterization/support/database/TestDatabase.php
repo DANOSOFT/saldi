@@ -9,6 +9,7 @@
 // 20261113 CDX/NTR Store routing-account activity as Unix seconds, matching login and the admin account list.
 // 20261120 CDX/NTR Print database identities only when retaining fixtures for debugging.
 // 20261120 CDX/NTR Allocate negative routing IDs under a lock without advancing the normal sequence.
+// 20261111 CL/SZ MB-154 Test databases are named t + 22 hex + _1, like a <master>_<regnskab id> tenant, so api/rest_api.php does not take them for the master.
 
 require_once __DIR__ . '/RetainedTestDatabases.php';
 
@@ -38,8 +39,11 @@ final class TestDatabase
         $hex = bin2hex($bytes);
         $this->uuid = substr($hex, 0, 8) . '-' . substr($hex, 8, 4) . '-' . substr($hex, 12, 4)
             . '-' . substr($hex, 16, 4) . '-' . substr($hex, 20);
-        // regnskab.db is varchar(25). Keep 96 identifier bits within that limit.
-        $this->name = 't' . substr($hex, 0, 24);
+        // regnskab.db is varchar(25). A tenant is named <master>_<regnskab id>, and api/rest_api.php
+        // takes a name without the underscore for the master database (MB-154), so the name keeps
+        // that shape: 22 hex (82 random bits) and the suffix _1. rest_api.php takes db_skriv_id
+        // from that suffix, and above 1 db_query.php would write the modify log.
+        $this->name = 't' . substr($hex, 0, 22) . '_1';
         self::$groups[$group] = $this;
         if (self::keep()) {
             echo "\n" . $this->description();

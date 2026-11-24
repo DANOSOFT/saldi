@@ -116,9 +116,12 @@
 // 20261103 CL/MMR SD-799 The texts of the former employee warning are passed to jquery.loen.js in the user's language.
 // 20261103 CL/MMR SD-799 The date picker, the piecework list toggle, the list paging line and the date clear button follow the user's language.
 // 20261105 CL/MMR SST-943 The print icon is not shown on a wage slip whose save was stopped for a missing date.
+// 20261109 LOE SST-969 The rates page asks for the approver right the menu already asks for.
 // 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
 // 20261113 CL/MMR SD-824 New route 'overtid': overtime hours and wage expenses per case and month.
 // 20261113 CL/LH SD-824 The overtime page title uses a descriptive text key.
+// 20261113 LOE SST-969 Merge master: SST-968's whitelist supersedes this branch's list, and the approver check stays.
+// 20261113 LOE SST-969 The approver check runs after the route is chosen and before output, so the dispatch test can lift the selection.
 
 @session_start();
 $s_id = session_id();
@@ -190,6 +193,21 @@ if (!in_array($funktion, ['loenliste', 'ret_loen', 'loenafregning', 'satser', 'o
 $sort = if_isset($_GET['sort']);
 $nysort = if_isset($_GET['nysort']);
 $vis = if_isset($_GET['vis']);
+# SST-969 the rates page saves for every user who reaches it. The menu offers "Ret Satser" only with the
+# approver right (sager/leftmenu.php), so the page asks for the same right and logs the attempt. The function
+# name is whitelisted above (SST-968), so a refused page never reaches $funktion() below. It runs here, after
+# the route is chosen and before anything is printed, because a route test lifts the selection block alone.
+if ($funktion == 'satser' && !substr((string)$sag_rettigheder, 6, 1)) {
+	error_log('SST-969: rates page refused for user ' . $brugernavn . ' (sag right 6 is not set)');
+	print tekstboks(findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id));
+	# The box is a floating overlay (z-index 100) that hides itself when it is closed, and this page is
+	# only the box, so closing it left a blank window. The link sits above the box, in the top left
+	# corner, so it stays reachable whether the box is open or closed.
+	print "<div style=\"position:fixed; top:10px; left:10px; z-index:101; font:14px Arial,Helvetica,sans-serif;\">";
+	print "<a href=\"loen.php\" style=\"display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;color:#fff;text-decoration:none;\">"
+		. "&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+	exit;
+}
 
 print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
 	<html>
