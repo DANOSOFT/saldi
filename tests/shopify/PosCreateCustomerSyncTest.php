@@ -101,6 +101,20 @@ final class PosCreateCustomerSyncTest extends TestCase
         self::assertSame('1', $this->sql("SELECT count(*) AS n FROM adresser WHERE firmanavn = 'SD844 Kunde'")[0]['n']);
     }
 
+    public function testAFormSentAgainAfterItsCustomerWasDeletedCreatesANewOne(): void
+    {
+        $token = $this->token();
+        [$first] = $this->steps(['create', $this->form(), $token]);
+        $this->sql('DELETE FROM adresser WHERE id = $1', [$first['konto_id']]);
+
+        [$again] = $this->steps(['create', $this->form(), $token]);
+
+        self::assertTrue($again['created'], 'not a failure on the old token row');
+        self::assertNotSame($first['konto_id'], $again['konto_id']);
+        self::assertSame((string)$again['konto_id'], $this->sql('SELECT var_value FROM settings WHERE var_grp = $1 AND var_name = $2',
+            ['pos_customer_create', $token])[0]['var_value'], 'the token now points at the new customer');
+    }
+
     public function testTwoCopiesOfTheFormAtTheSameMomentCreateOneCustomer(): void
     {
         $token = $this->token();

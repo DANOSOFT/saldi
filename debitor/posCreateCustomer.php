@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/posCreateCustomer.php --- ver 5.1.1 --- 2026.11.23 ---
+// --- debitor/posCreateCustomer.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20261120 CL/MJ SD-844 K31: the till's "Opret ny kunde" form posts here when customers belong to Shopify.
 //                The customer is created, and the seller is sent back to the same sale with the customer attached, as when picking one from the list.
 // 20261123 CL/MJ SD-844 K31: a form whose token this session was not given (another site's) creates nothing.
+// 20261124 CL/MJ SD-844 K31: the page asks for the till's right (pos.kasse), as pos_ordre.php does, so a cashier with only that right can create.
 
 /**
  * Session/account context supplied by includes/online.php.
@@ -33,6 +34,7 @@
 @session_start();
 $s_id = session_id();
 $modulnr = 5;
+$permission_key = 'pos.kasse';
 $title = "POS Ordre";
 $css = "../css/pos.css";
 

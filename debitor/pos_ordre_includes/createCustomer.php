@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/createCustomer.php --- ver 5.1.1 --- 2026.11.23 ---
+// --- debitor/pos_ordre_includes/createCustomer.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,8 @@
 //                The number comes from the shared Shopify customer allocator, so it never collides with a customer Shopify creates.
 //                A resent form (a refresh, a double click) gives back the customer it created the first time.
 // 20261123 CL/MJ SD-844 K31: a form token is kept in the session that was given the form, so a form from another site creates nothing.
+// 20261124 CL/MJ SD-844 K31: a form resent after its customer was deleted creates a new one instead of failing on the old token row.
+//                The payment terms are cut to the column's 15 characters.
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
@@ -114,7 +116,8 @@ function pos_create_customer(array $c, $token) {
 	if ($group <= 0) {
 		throw new InvalidArgumentException('a customer needs a debtor group');
 	}
-	$terms = trim((string) ($c['betalingsbet'] ?? '')) ?: 'Kontant';
+	// adresser.betalingsbet is varchar(15); the form offers a list, but a posted value is not trusted to fit
+	$terms = mb_substr(trim((string) ($c['betalingsbet'] ?? '')), 0, 15, 'UTF-8') ?: 'Kontant';
 	$days = (int) ($c['betalingsdage'] ?? 0);
 
 	return shopify_db_transaction(function () use ($fields, $group, $terms, $days, $token) {
@@ -140,6 +143,8 @@ function pos_create_customer(array $c, $token) {
 		}
 		$params[] = $id;
 		shopify_db_rows('UPDATE adresser SET ' . implode(', ', $set) . ' WHERE id = $' . count($params), $params);
+		// a token whose customer was deleted since is replaced, not inserted twice (settings is unique per group and name)
+		shopify_db_rows('DELETE FROM settings WHERE var_grp = $1 AND var_name = $2', array(POS_CUSTOMER_CREATE_GROUP, $token));
 		shopify_db_rows('INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ($1, $2, $3, $4)',
 			array($token, POS_CUSTOMER_CREATE_GROUP, (string) $id, date('Y-m-d H:i:s')));
 		return array('konto_id' => $id, 'kontonr' => (string) $kontonr, 'created' => true);
