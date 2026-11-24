@@ -68,6 +68,7 @@
 //                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
 //                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/ASR db_query_connection() selects the master database on the cached global connection, since db_connect() selects none on MySQL/MariaDB; a $global query from a ledger's context failed there with "No database selected" (SD-731, review #785).
 // 20261118 CDX/NTR Allow bound write parameters without changing legacy query handling.
 // 20261118 CDX/NTR Normalize LIKE outside literals, quoted identifiers and comments in both query paths.
 // 20261118 CDX/NTR Explain dollar-quote and SQL identifier matching in the LIKE normalizer.
@@ -245,6 +246,7 @@ if (!function_exists('db_query_connection')) {
 				$current_connection = $connection;
 				$global_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
 				$connection = $current_connection;
+				if ($global_connection) db_select_database($global_connection, $sqdb); # a no-op on PostgreSQL
 			}
 			return $global_connection;
 		}
