@@ -38,6 +38,7 @@
 // block in isolation; the isolated check couldn't have caught this since it doesn't reproduce
 // ordreside()'s own scope.
 // 20261124 CL/LH MB-177 The contact picked in the contact list (GET kontakt) is escaped and written only on the order whose id is a whole number, and needs write permission.
+//                A link whose order id (id, tjek) is not a whole number is refused before any query.
 
 @session_start();
 $s_id=session_id();
@@ -69,6 +70,12 @@ $modulnr=5;
 // MB-177 A contact picked in the contact list (kontakt with an order id) is written on the order by GET, so it needs write.
 if (!empty($_GET['kontakt'])) {
 	$permission_level = 'write';
+}
+// MB-177 The order id in the link goes into SQL on this page, so a link whose id is not a whole number is refused.
+require_once __DIR__ . '/../includes/stdFunc/orderIdFromLink.php';
+if (!order_ids_from_link_are_whole_numbers($_GET, array('id', 'tjek'))) {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordreliste.php\">";
+	exit;
 }
 $title="Kundeordre";
 $css="../css/standard.css";

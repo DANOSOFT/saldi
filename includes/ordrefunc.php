@@ -171,6 +171,7 @@
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261124 CL/LH MB-177 ansatopslag() sends the contact name URL-encoded, so a name with & or ' arrives whole.
+//                It sorts only by its four headings (the link's sort went into ORDER BY as it came) and reads konto_id as an integer.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -3926,15 +3927,14 @@ function ansatopslag($sort, $fokus, $id)
 	print " </tr>\n";
 
 
-	$sort = $_GET['sort'];
-	if (!$sort) {
-		$sort = navn;
-	}
+	// MB-177 The sort comes from the link: only one of the four headings is used, navn by default.
+	require_once __DIR__ . '/stdFunc/orderIdFromLink.php';
+	$sort = contact_lookup_sort_column(if_isset($_GET, NULL, 'sort'));
 
 	if (!$id) {
 		exit;
 	}
-	$query = db_select("select * from ansatte where konto_id = $konto_id order by $sort", __FILE__ . " linje " . __LINE__);
+	$query = db_select("select * from ansatte where konto_id = " . (int) $konto_id . " order by $sort", __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		if ($linjebg != $bgcolor) {
 			$linjebg = $bgcolor;

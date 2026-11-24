@@ -6,6 +6,8 @@
 // the text as typed and leave every other order alone, whatever the text or id holds.
 // The block is lifted from kreditor/ordre.php, finans/ordre.php and debitor/ordre.php and run with the real
 // query on an ordrer table in a private schema on the shared SQL fixture database.
+// Codex review: a malformed id changes no order at all, the debtor e-mail follows the same rules, and each page
+// checks the order id from the link before it opens the database.
 namespace OrderContactUpdateSqlFixture {
 
     final class Rec
@@ -176,20 +178,44 @@ namespace Saldi\Tests\OrderContactUpdateSql {
             self::assertSame(array(1 => 'Første', 2 => $name, 3 => 'Tredje'), $this->contacts());
         }
 
-        /** An id that is not a whole number changes no order but, at most, the one it starts with. */
+        /** An id that is not a whole number changes no order at all. */
         #[DataProvider('pages')]
-        public function testAnIdThatIsNotAWholeNumberDoesNotChangeOtherOrders(string $page): void
+        public function testAnIdThatIsNotAWholeNumberChangesNoOrder(string $page): void
         {
             foreach (array('1 or id > 0', "1' or '1'='1") as $id) {
                 try {
                     $this->runContactUpdate($page, array('id' => $id, 'kontakt' => 'Hanne Holm'));
                 } catch (\RuntimeException $e) {
-                    // A refused statement changes nothing; only a change to another order fails this test.
+                    // A refused statement changes nothing; only a change to an order fails this test.
                 }
-                $contacts = $this->contacts();
-                self::assertSame('Anden', $contacts[2], 'id ' . $id . ' changed order 2');
-                self::assertSame('Tredje', $contacts[3], 'id ' . $id . ' changed order 3');
+                self::assertSame(array(1 => 'Første', 2 => 'Anden', 3 => 'Tredje'), $this->contacts(), 'id ' . $id . ' changed an order');
             }
+        }
+
+        /** debitor/ordre.php also takes the contact's e-mail from the link, with the same rules. */
+        public function testTheDebtorEmailIsSetOnThisOrderOnlyAndStoredAsTyped(): void
+        {
+            $email = "o'brien@x.dk' --";
+            $this->runContactUpdate('debitor/ordre.php', array('id' => '2', 'kontakt' => 'Sean', 'email' => $email));
+            $rows = pg_fetch_all(pg_query(Rec::$connection, 'SELECT id, email FROM ordrer ORDER BY id')) ?: array();
+            self::assertSame(array('a@x.dk', $email, 'c@x.dk'), array_column($rows, 'email'));
+        }
+
+        /**
+         * The page refuses a link whose order id is not a whole number before it opens the database,
+         * so every query on the page that reads the id gets a whole number.
+         */
+        #[DataProvider('pages')]
+        public function testThePageChecksTheOrderIdBeforeItConnects(string $page): void
+        {
+            $src = (string)file_get_contents(__DIR__ . '/../../../' . $page);
+            $check = strpos($src, 'if (!order_ids_from_link_are_whole_numbers($_GET, array(');
+            $connect = strpos($src, 'include("../includes/connect.php")');
+            self::assertNotFalse($check, $page . ' does not check the order id from the link');
+            self::assertNotFalse($connect);
+            self::assertLessThan($connect, $check, $page . ' checks the order id after it connects');
+            $keys = $page === 'debitor/ordre.php' ? "array('id', 'ordre_id')" : "array('id', 'tjek')";
+            self::assertStringContainsString('order_ids_from_link_are_whole_numbers($_GET, ' . $keys . ')', $src);
         }
 
         /** kontakt[]= in the link sends an array; the page must not write it. */
