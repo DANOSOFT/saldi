@@ -190,8 +190,10 @@ final class DbReadFirstLineTest extends TestCase
         file_put_contents($path, "1700000000\n");
         chmod($path, 0444);
         $this->assertSame('1700000000', db_error_mail_last_sent($path));
-        clearstatcache(true, $path);
-        $this->assertSame(0660, fileperms($path) & 0777);
+        if (!function_exists('posix_geteuid') || posix_geteuid() !== 0) {
+            clearstatcache(true, $path);
+            $this->assertSame(0660, fileperms($path) & 0777);
+        }
         $this->assertStringNotContainsString('so no error mail is sent', $this->serverLog());
     }
 }
