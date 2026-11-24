@@ -4,6 +4,7 @@
 // 20261124 CL/SZ Cover db_error_mail_last_sent(): no stamp mails, a readable stamp gives its time, an unreadable stamp or a directory counts as mailed now.
 // 20261124 CL/SZ Cover a stamp that can be read but not rewritten: it counts as mailed now.
 // 20261124 CL/SZ A stamp this account owns in a trusted folder is repaired and mails, as the stamp write did on master; a stamp in an untrusted folder sends no mail and logs why.
+// 20261124 CL/SZ serverLog(): check the log file exists instead of hiding the warning with @ (MB-142 review).
 
 use PHPUnit\Framework\TestCase;
 
@@ -64,7 +65,8 @@ final class DbReadFirstLineTest extends TestCase
 
     private function serverLog(): string
     {
-        return (string) @file_get_contents($this->dir . '/diagnostics.log');
+        $log = $this->dir . '/diagnostics.log';
+        return is_file($log) ? (string) file_get_contents($log) : '';
     }
 
     private function assertMailedNow(callable $call): void
