@@ -135,6 +135,7 @@
 // 20261120 CL/LH K33/K34: the sale's delivery choice and wished delivery date are saved from the sale form (pos_save_sale_delivery() in pos_ordre_includes/saleDeliveryFields.php), and Forfra, a reused abandoned sale or a table emptied by a move starts again as "taget med".
 // 20261123 CL/MJ SD-844 K61: Forfra also clears the phone number, so the previous customer's phone can't satisfy the contact rule for pickup or delivery.
 // 20261124 CL/LH K33 A refused delivery also clears the tendered amount, so a c, g or k suffix cannot pay the sale; a sale moved onto a table's sale takes its delivery along (pos_move_sale_delivery()).
+// 20261124 CL/MJ SD-844 K61: a "på beløb" payment is skipped once the contact refusal was shown in the request, so a refused gift card on amount shows one alert, not two.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1820,7 +1821,8 @@ if ($id && $betaling) {
 	$betaling = (float) $betaling;
 	indbetaling($id, $indbetaling, $modtaget, $modtaget2, $betaling);
 }
-if (strpos($betaling, onAmount())) {
+// 20261124 CL/MJ SD-844 K61: a sale whose contact refusal was already shown in this request is not paid "på beløb" (it would be refused and shown again)
+if (strpos($betaling, onAmount()) && empty($GLOBALS['pos_delivery_contact_refused'])) {
 	if (substr($betaling, 0, 7) == "Kontant" || substr($betaling, 0, 7) == "Cash")
 		$betaling = 'Kontant';
 	elseif (substr($betaling, 0, 13) == "Betalingskort")

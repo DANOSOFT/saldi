@@ -143,4 +143,13 @@ final class PosPaymentContactGuardTest extends TestCase
         self::assertStringContainsString("institution='',email='',kontakt='',phone='',art='PO',", $page,
             'Forfra clears email and phone together');
     }
+
+    public function testAPaymentOnAmountIsSkippedOnceTheRefusalWasShown(): void
+    {
+        // A refused "Gavekort på beløb": voucherPay() shows the refusal, and the "på beløb" block
+        // after it would call afslut(), which refuses and shows it again.
+        $page = (string) file_get_contents(dirname(__DIR__, 3) . '/debitor/pos_ordre.php');
+
+        self::assertStringContainsString("if (strpos(\$betaling, onAmount()) && empty(\$GLOBALS['pos_delivery_contact_refused'])) {", $page);
+    }
 }
