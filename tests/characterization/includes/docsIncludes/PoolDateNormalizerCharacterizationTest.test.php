@@ -14,6 +14,9 @@
 //
 // History:
 // 20260909 CDX/MJ SST-775: created.
+// 20261124 CL/LH A receipt printing "21 11 26" (spaces, dd mm yy) became 2021-11-26 in the pool.
+//                Space-separated triples are read day-first, and poolExtractedDate() takes the day-first
+//                reading of an AI-read date that is more than a year old or in the future.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -109,5 +112,58 @@ final class PoolDateNormalizerCharacterizationTest extends TestCase
 	public function testNonLeapDayIsRejected(): void
 	{
 		$this->assertSame('', normalizeDateFormat('29-02-2025'));
+	}
+
+	public static function spaceSeparatedProvider(): array
+	{
+		return [
+			'receipt "21 11 26"'          => ['21 11 26', '2026-11-21'],
+			'receipt "05 11 24"'          => ['05 11 24', '2024-11-05'],
+			'four-digit year, spaces'     => ['21 11 2026', '2026-11-21'],
+			'dots with a two-digit year'  => ['21.11.26', '2026-11-21'],
+			'iso with spaces'             => ['2026 11 21', '2026-11-21'],
+			'time after the date'         => ['21 11 26 13:02', '2026-11-21'],
+			'time after a dashed date'    => ['21-11-26 13:02', '2026-11-21'],
+		];
+	}
+
+	#[DataProvider('spaceSeparatedProvider')]
+	public function testSpaceSeparatedDateIsReadDayFirst(string $input, string $expected): void
+	{
+		// Was returned unchanged ("21 11 26"): only . - / separated a day-first triple, and
+		// strtotime() cannot read the spaced form at all.
+		$this->assertSame($expected, normalizeDateFormat($input));
+	}
+
+	public static function extractedDateProvider(): array
+	{
+		return [
+			// The AI read "21 11 26" year-first. Three years before the upload, while the
+			// day-first reading is three days before it.
+			'year-first read of "21 11 26"'   => ['2021-11-26', '2026-11-24', '2026-11-21'],
+			'the raw receipt text'            => ['21 11 26', '2026-11-24', '2026-11-21'],
+			// Read year-first as 2030-11-25: in the future, and 30 Nov 2025 fits.
+			'future year-first read'          => ['2030-11-25', '2026-11-24', '2025-11-30'],
+			'plausible date is kept'          => ['2026-11-21', '2026-11-24', '2026-11-21'],
+			// 2025-11-26 is within a year of the upload, so its swap (2026-11-25) is not taken.
+			'recent ambiguous date is kept'   => ['2025-11-26', '2026-11-24', '2025-11-26'],
+			// Two years old, but 2005-11-24 is no better: nothing to correct.
+			'old date without a better read'  => ['2024-11-05', '2026-11-24', '2024-11-05'],
+			'invoice a few days ahead'        => ['2026-11-30', '2026-11-24', '2026-11-30'],
+			'impossible date stays empty'     => ['31.02.2026', '2026-11-24', ''],
+			'empty stays empty'               => ['', '2026-11-24', ''],
+		];
+	}
+
+	#[DataProvider('extractedDateProvider')]
+	public function testExtractedDatePrefersTheDayFirstReadingWhenOnlyItIsPlausible(string $input, string $uploaded, string $expected): void
+	{
+		$this->assertSame($expected, poolExtractedDate($input, $uploaded));
+	}
+
+	public function testTypedDateIsNotSecondGuessed(): void
+	{
+		// A date the user typed goes through normalizeDateFormat() only: an old date is kept.
+		$this->assertSame('2021-11-26', normalizeDateFormat('2021-11-26'));
 	}
 }
