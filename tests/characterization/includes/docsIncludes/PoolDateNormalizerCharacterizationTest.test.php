@@ -149,6 +149,10 @@ final class PoolDateNormalizerCharacterizationTest extends TestCase
 			// Two years old, but 2005-11-24 is no better: nothing to correct.
 			'old date without a better read'  => ['2024-11-05', '2026-11-24', '2024-11-05'],
 			'invoice a few days ahead'        => ['2026-11-30', '2026-11-24', '2026-11-30'],
+			'year-first read with a time'     => ['2021-11-26 00:00:00', '2026-11-24', '2026-11-21'],
+			// Read day-first with the year in full: that is what the document says, however old.
+			'old day-first date is kept'      => ['26.11.2021', '2026-11-24', '2021-11-26'],
+			'old spaced day-first date kept'  => ['26 11 2021', '2026-11-24', '2021-11-26'],
 			'impossible date stays empty'     => ['31.02.2026', '2026-11-24', ''],
 			'empty stays empty'               => ['', '2026-11-24', ''],
 		];
@@ -158,6 +162,12 @@ final class PoolDateNormalizerCharacterizationTest extends TestCase
 	public function testExtractedDatePrefersTheDayFirstReadingWhenOnlyItIsPlausible(string $input, string $uploaded, string $expected): void
 	{
 		$this->assertSame($expected, poolExtractedDate($input, $uploaded));
+	}
+
+	public function testSlashedDateWithATimeIsStillReadByStrtotime(): void
+	{
+		// US receipts print "11/12/26 13:02" month-first; only the spaced and dotted forms lose their time.
+		$this->assertSame('2026-11-12', normalizeDateFormat('11/12/26 13:02'));
 	}
 
 	public function testTypedDateIsNotSecondGuessed(): void

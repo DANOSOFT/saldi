@@ -137,8 +137,11 @@ if (!function_exists('normalizeDateFormat')) {
 			}
 		}
 
-		// A time after the date ("21 11 26 13:02" on a till receipt) says nothing about the day.
-		$dateStr = preg_replace('/\s+\d{1,2}[:.]\d{2}(?:[:.]\d{2})?$/', '', $dateStr);
+		// A time after the date ("21 11 26 13:02" on a till receipt) says nothing about the day. A slashed date
+		// with a time is left to strtotime() as before: it reads "11/12/26 13:02" month-first, as US receipts print it.
+		if (strpos($dateStr, '/') === false) {
+			$dateStr = preg_replace('/\s+\d{1,2}[:.]\d{2}(?:[:.]\d{2})?$/', '', $dateStr);
+		}
 		// Between the parts: . - or /, or only spaces, as till receipts print "21 11 26".
 		$separator = '(?:\s*[.\-\/]\s*|\s+)';
 
@@ -194,7 +197,9 @@ if (!function_exists('poolExtractedDate')) {
 	 * day as the two-digit year (and its year as the day) gives a date in that window,
 	 * the scan misread the triple, and that reading is the one returned.
 	 *
-	 * Only for dates the AI read: a date the user typed is never second-guessed.
+	 * Only for dates the AI read, and only when it returned them year-first: a date the user typed, or
+ * one read day-first ("26.11.2021"), is never second-guessed. A misread that still looks recent
+ * (2025-11-26 for "25 11 26" uploaded 2026-11-25) cannot be told from a real date and stays.
 	 *
 	 * @param string|null $dateStr Raw or normalized date from the extraction.
 	 * @param string|null $referenceDate Y-m-d the document arrived (upload or file date); today when null.
@@ -204,6 +209,11 @@ if (!function_exists('poolExtractedDate')) {
 	{
 		$date = normalizeDateFormat($dateStr);
 		if (!preg_match('/\A(\d{4})-(\d{2})-(\d{2})\z/', $date, $parts)) {
+			return $date;
+		}
+		// Only a date the scan returned year-first can be a misread triple. "26.11.2021" was read day-first
+		// with its year in full: that is the date on the document, however old.
+		if (!preg_match('/\A\s*\d{4}\D/', (string) $dateStr)) {
 			return $date;
 		}
 		$reference = DateTimeImmutable::createFromFormat('!Y-m-d', (string) ($referenceDate ?: date('Y-m-d')));

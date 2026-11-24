@@ -375,7 +375,13 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		if (isset($extractedData['invoice_date'])) {
 			// The day the document arrived is what a misread year is measured against (poolExtractedDate()).
 			$mtime = is_file($filePath) ? filemtime($filePath) : false;
-			$date = poolExtractedDate((string) $extractedData['invoice_date'], $mtime ? date('Y-m-d', $mtime) : null);
+			$rawDate = (string) $extractedData['invoice_date'];
+			$date = poolExtractedDate($rawDate, $mtime ? date('Y-m-d', $mtime) : null);
+			// An impossible date stays what was read, so the upload stores no date (normalizeDateFormat() says '')
+			// instead of taking the empty answer as "nothing read" and using the file's own date.
+			if ($date === '') {
+				$date = $rawDate;
+			}
 		}
 
 		if (isset($extractedData['vendor'])) $vendor = $extractedData['vendor'];
