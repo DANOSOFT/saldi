@@ -103,6 +103,7 @@
 //                 In the edited POST block the three-argument if_isset() lookups are now ifset() with the same keys and defaults, and ordreside() includes its order parts with __DIR__.
 // 20261124 CL/LH MB-177 The contact picked in the contact list (GET kontakt) is escaped and written only on the order whose id is a whole number.
 //                The link sends the name URL-encoded.
+//                A link whose order id (id, tjek) is not a whole number is refused before any query, and the contact list sorts only by its four headings.
 
 @session_start();
 $s_id=session_id();
@@ -132,6 +133,12 @@ function fejltekst(tekst) {
 $title="Kreditorordre";
 $css="../css/standard.css";
 $modulnr=7;
+// MB-177 The order id in the link goes into SQL on this page, so a link whose id is not a whole number is refused.
+require_once __DIR__ . '/../includes/stdFunc/orderIdFromLink.php';
+if (!order_ids_from_link_are_whole_numbers($_GET, array('id', 'tjek'))) {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+	exit;
+}
 
 $id=$konto_id=$debitor_id=$projekt=0;
 $hurtigfakt=$krediteret=$labelprint=$lev_adr=$momssum=$negativt_lager=$sort=$submit=NULL;
@@ -1526,13 +1533,12 @@ function ansatopslag($sort, $fokus, $id){
 	print" </tr>\n";
 
 
-	$sort = $_GET['sort'];
-	if (!$sort) $sort = "navn";
+	$sort = contact_lookup_sort_column(if_isset($_GET, NULL, 'sort')); // MB-177 one of the four headings
 	if (!$id) $id = '0'; # <- 2009.05.10
 
 	$query = db_select("select konto_id from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
-	$konto_id = $row['konto_id']*1; # <- 2009.05.10
+	$konto_id = (int) $row['konto_id']; # <- 2009.05.10
 
 	$query = db_select("select * from ansatte where konto_id = $konto_id order by $sort",__FILE__ . " linje " . __LINE__); # <- 2009.05.10
 	while ($row = db_fetch_array($query))	{

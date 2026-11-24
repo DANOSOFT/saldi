@@ -189,6 +189,7 @@
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
 // 20261124 CL/LH MB-177 The contact picked in the contact list (GET kontakt, email) is written only on the order whose id is a whole number.
+//                A link whose order id (id, ordre_id) is not a whole number is refused before any query.
 @session_start();
 $s_id = session_id();
 
@@ -216,6 +217,12 @@ $sletslut = $sletstart = 0;
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
 $modulnr = 5;
+// MB-177 The order id in the link goes into SQL on this page, so a link whose id is not a whole number is refused.
+require_once __DIR__ . '/../includes/stdFunc/orderIdFromLink.php';
+if (!order_ids_from_link_are_whole_numbers($_GET, array('id', 'ordre_id'))) {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+	exit;
+}
 
 $css = "../css/standard.css";
 #$css="../css/ordre.css";
