@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.1 ----2026-11-13--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-24--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -68,6 +68,8 @@
 //                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
 //                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261124 CL/SZ Added db_read_first_line() for the error-mail stamps and lasterror.txt (MB-142).
+//                A file the web user can't read (made by cron or CLI) no longer stops a failed query's request with a TypeError from fgets().
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -119,6 +121,32 @@ if (!function_exists('db_log_append')) {
         } finally {
             fclose($fp);
         }
+    }
+}
+
+if (!function_exists('db_read_first_line')) {
+    /**
+     * Read the first line of a small runtime file in the tenant's temp folder: the error-mail
+     * rate-limit stamps (opdatfejl.txt, modifyfejl.txt, selectfejl.txt) and lasterror.txt.
+     *
+     * A file another account created (cron, CLI) can be unreadable for the web user.
+     * That must not stop the request, so it reads like a missing file.
+     *
+     * @param string $path File path.
+     * @param int|string $default Returned when the file is missing, unreadable or empty.
+     * @return int|string The first line, trimmed, or $default.
+     */
+    function db_read_first_line($path, $default = 0) {
+        if (!is_readable($path)) {
+            return $default;
+        }
+        $fp = fopen($path, 'r');
+        if ($fp === false) {
+            return $default;
+        }
+        $line = fgets($fp);
+        fclose($fp);
+        return $line === false ? $default : trim($line);
     }
 }
 
@@ -313,11 +341,7 @@ if (!function_exists('db_modify')) {
 			]);
 			$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
 			if (strstr($spor,"includes/opdat")) {
-				if (file_exists("$temp/opdatfejl.txt")) {
-					$ff=fopen("$temp/opdatfejl.txt","r");
-					$lastmail=trim(fgets($ff));
-					fclose($ff);
-				} else $lastmail=0; 
+				$lastmail = db_read_first_line("$temp/opdatfejl.txt"); #20261124 MB-142 an unreadable stamp no longer stops the request
 				if($lastmail!=date("U")) {
 					if ($sqdb == 'develop') echo "$message<br>";
 					else {
@@ -329,11 +353,7 @@ if (!function_exists('db_modify')) {
 			} else {
 				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
 				$message .= " | ".saldi_error_ref(); #20261104 the error box's reference, so a customer's report can be matched to this mail
-				if (file_exists("$temp/modifyfejl.txt")) {
-					$ff=fopen("$temp/modifyfejl.txt","r");
-					$lastmail=trim(fgets($ff));
-					fclose($ff);
-				} else $lastmail=0; 
+				$lastmail = db_read_first_line("$temp/modifyfejl.txt"); #20261124 MB-142 an unreadable stamp no longer stops the request
 				if($lastmail!=date("U")) { 
 					if ($sqdb == 'develop') echo "$message<br>";
 					else {
@@ -417,12 +437,7 @@ if (!function_exists('db_select')) {
 
 		if ($errtxt)	{		
 			$db=trim($db);
-			$linje="";
-			if (file_exists("$temp/lasterror.txt")) {
-				$fp=fopen("$temp/lasterror.txt","r");
-				$linje=trim(fgets($fp));
-				fclose($fp);
-			}
+			$linje = db_read_first_line("$temp/lasterror.txt", ''); #20261124 MB-142 an unreadable file no longer stops the request
 			#list($tmp,$tmp2)=explode("\n",$errtxt);
 
 			$lines = explode("\n", $errtxt);
@@ -438,11 +453,7 @@ if (!function_exists('db_select')) {
 				]);
 				// if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
 				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
-				if (file_exists("$temp/selectfejl.txt")) {
-					$ff=fopen("$temp/selectfejl.txt","r");
-					$lastmail=trim(fgets($ff));
-					fclose($ff);
-				} else $lastmail=0; 
+				$lastmail = db_read_first_line("$temp/selectfejl.txt"); #20261124 MB-142 an unreadable stamp no longer stops the request
 				if($lastmail!=date("U")) {
 					$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt | ".saldi_error_ref(); #20261104 + the error box's reference
 					if ($sqdb == 'develop') echo "$message<br>";
