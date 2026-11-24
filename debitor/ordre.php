@@ -5418,127 +5418,127 @@ function ordreside($id, $regnskab)
 			$txt666 = findtekst('666|Postnr & by', $sprog_id);
 			#######
 			$da_options = [];
-				$da_primary = null;
-				if ($konto_id) {
-					$q_da = db_select(
-						"SELECT * FROM delivery_addresses WHERE account_id = '$konto_id' ORDER BY is_primary DESC, sort_order ASC, id ASC",
-						__FILE__ . " linje " . __LINE__
-					);
-					while ($r_da = db_fetch_array($q_da)) {
-						$da_options[] = $r_da;
-						if ($r_da['is_primary'] && !$da_primary) $da_primary = $r_da;
-					}
+			$da_primary = null;
+			if ($konto_id) {
+				$q_da = db_select(
+					"SELECT * FROM delivery_addresses WHERE account_id = '$konto_id' ORDER BY is_primary DESC, sort_order ASC, id ASC",
+					__FILE__ . " linje " . __LINE__
+				);
+				while ($r_da = db_fetch_array($q_da)) {
+					$da_options[] = $r_da;
+					if ($r_da['is_primary'] && !$da_primary) $da_primary = $r_da;
 				}
+			}
 
-				// Auto-populate delivery fields if no delivery address set on order yet.
-				// Not on a webshop order: there empty delivery fields mean "deliver to the invoice address" (SST-1050).
-				$blocked_autofill = isset($_SESSION['no_delivery_order_' . $id]) && $_SESSION['no_delivery_order_' . $id];
-				$need_autofill = (!$lev_navn && !$lev_addr1 && !$lev_postnr) && !$blocked_autofill && !orderIsWebshopOrder($id);
-				if ($need_autofill && $da_primary) {
-					$lev_navn    = htmlspecialchars($da_primary['company_name']);
-					$lev_addr1   = htmlspecialchars($da_primary['address_line1']);
-					$lev_addr2   = htmlspecialchars($da_primary['address_line2']);
-					$lev_postnr  = htmlspecialchars($da_primary['postal_code']);
-					$lev_bynavn  = htmlspecialchars($da_primary['city']);
-					$lev_land    = htmlspecialchars($da_primary['country']);
-					$lev_kontakt = htmlspecialchars($da_primary['contact_name']);
-					$lev_email   = htmlspecialchars($da_primary['email']);
-					// Persist to order
-					$s_comp  = db_escape_string($da_primary['company_name']);
-					$s_a1    = db_escape_string($da_primary['address_line1']);
-					$s_a2    = db_escape_string($da_primary['address_line2']);
-					$s_post  = db_escape_string($da_primary['postal_code']);
-					$s_city  = db_escape_string($da_primary['city']);
-					$s_land  = db_escape_string($da_primary['country']);
-					$s_cont  = db_escape_string($da_primary['contact_name']);
-					$s_em    = db_escape_string($da_primary['email']);
-					if ($id) {
-						db_modify("UPDATE ordrer SET lev_navn='$s_comp', lev_addr1='$s_a1', lev_addr2='$s_a2', lev_postnr='$s_post', lev_bynavn='$s_city', lev_land='$s_land', lev_kontakt='$s_cont', lev_email='$s_em' WHERE id='$id'", __FILE__ . " linje " . __LINE__);
-					}
+			// Auto-populate delivery fields if no delivery address set on order yet.
+			// Not on a webshop order: there empty delivery fields mean "deliver to the invoice address" (SST-1050).
+			$blocked_autofill = isset($_SESSION['no_delivery_order_' . $id]) && $_SESSION['no_delivery_order_' . $id];
+			$need_autofill = (!$lev_navn && !$lev_addr1 && !$lev_postnr) && !$blocked_autofill && !orderIsWebshopOrder($id);
+			if ($need_autofill && $da_primary) {
+				$lev_navn    = htmlspecialchars($da_primary['company_name']);
+				$lev_addr1   = htmlspecialchars($da_primary['address_line1']);
+				$lev_addr2   = htmlspecialchars($da_primary['address_line2']);
+				$lev_postnr  = htmlspecialchars($da_primary['postal_code']);
+				$lev_bynavn  = htmlspecialchars($da_primary['city']);
+				$lev_land    = htmlspecialchars($da_primary['country']);
+				$lev_kontakt = htmlspecialchars($da_primary['contact_name']);
+				$lev_email   = htmlspecialchars($da_primary['email']);
+				// Persist to order
+				$s_comp  = db_escape_string($da_primary['company_name']);
+				$s_a1    = db_escape_string($da_primary['address_line1']);
+				$s_a2    = db_escape_string($da_primary['address_line2']);
+				$s_post  = db_escape_string($da_primary['postal_code']);
+				$s_city  = db_escape_string($da_primary['city']);
+				$s_land  = db_escape_string($da_primary['country']);
+				$s_cont  = db_escape_string($da_primary['contact_name']);
+				$s_em    = db_escape_string($da_primary['email']);
+				if ($id) {
+					db_modify("UPDATE ordrer SET lev_navn='$s_comp', lev_addr1='$s_a1', lev_addr2='$s_a2', lev_postnr='$s_post', lev_bynavn='$s_city', lev_land='$s_land', lev_kontakt='$s_cont', lev_email='$s_em' WHERE id='$id'", __FILE__ . " linje " . __LINE__);
 				}
+			}
 
-				// Build JS map of addresses for client-side population
-				$da_js_map = 'var daAddrMap = {};' . "\n";
+			// Build JS map of addresses for client-side population
+			$da_js_map = 'var daAddrMap = {};' . "\n";
+			foreach ($da_options as $da_opt) {
+				$js_key = (int)$da_opt['id'];
+				$da_js_map .= "daAddrMap[$js_key] = " . json_encode([
+					'lev_navn'    => $da_opt['company_name'],
+					'lev_addr1'   => $da_opt['address_line1'],
+					'lev_addr2'   => $da_opt['address_line2'],
+					'lev_postnr'  => $da_opt['postal_code'],
+					'lev_bynavn'  => $da_opt['city'],
+					'lev_land'    => $da_opt['country'],
+					'lev_kontakt' => $da_opt['contact_name'],
+					'lev_email'   => $da_opt['email'],
+				]) . ";\n";
+			}
+
+			if (count($da_options) > 0) {
+				print "<tr>";
+				print "<td colspan='1'></td>";  
+				print "<td id='delivery_dropdown' colspan='1' align='left' style='padding:0;'>\n";
+				print "<select id='da_select' class='inputbox' style='width:200px;' onchange='daFillDelivery(this.value)'>\n";
+				print "<option value=''>-- Choose delivery address --</option>\n";
+				print "<option value='none'>-- No delivery address --</option>\n";
 				foreach ($da_options as $da_opt) {
-					$js_key = (int)$da_opt['id'];
-					$da_js_map .= "daAddrMap[$js_key] = " . json_encode([
-						'lev_navn'    => $da_opt['company_name'],
-						'lev_addr1'   => $da_opt['address_line1'],
-						'lev_addr2'   => $da_opt['address_line2'],
-						'lev_postnr'  => $da_opt['postal_code'],
-						'lev_bynavn'  => $da_opt['city'],
-						'lev_land'    => $da_opt['country'],
-						'lev_kontakt' => $da_opt['contact_name'],
-						'lev_email'   => $da_opt['email'],
-					]) . ";\n";
+					$label = htmlspecialchars($da_opt['description'] ?: $da_opt['company_name'] ?: $da_opt['city']);
+					if ($da_opt['is_primary']) $label .= ' ★';
+					$selected = ($need_autofill && $da_opt['is_primary']) ? ' selected' : '';
+					print "<option value='" . (int)$da_opt['id'] . "'$selected>$label</option>\n";
 				}
-
-				if (count($da_options) > 0) {
-					print "<tr>";
-					print "<td colspan='1'></td>";  
-					print "<td id='delivery_dropdown' colspan='1' align='left' style='padding:0;'>\n";
-					print "<select id='da_select' class='inputbox' style='width:200px;' onchange='daFillDelivery(this.value)'>\n";
-					print "<option value=''>-- Choose delivery address --</option>\n";
-					print "<option value='none'>-- No delivery address --</option>\n";
-					foreach ($da_options as $da_opt) {
-						$label = htmlspecialchars($da_opt['description'] ?: $da_opt['company_name'] ?: $da_opt['city']);
-						if ($da_opt['is_primary']) $label .= ' ★';
-						$selected = ($need_autofill && $da_opt['is_primary']) ? ' selected' : '';
-						print "<option value='" . (int)$da_opt['id'] . "'$selected>$label</option>\n";
+				print "</select></td></tr>\n";
+				print "<script>\n$da_js_map\n";
+				print "function daFillDelivery(id) {
+					var f = document.forms['ordre'];
+					if (!f) return;
+					function set(name, val) {
+						var el = f.elements[name];
+						if (el) el.value = val;
 					}
-					print "</select></td></tr>\n";
-					print "<script>\n$da_js_map\n";
-					print "function daFillDelivery(id) {
-						var f = document.forms['ordre'];
-						if (!f) return;
-						function set(name, val) {
-							var el = f.elements[name];
-							if (el) el.value = val;
-						}
-						if (id === 'none') {
-							set('lev_navn', ''); set('lev_addr1', ''); set('lev_addr2', '');
-							set('lev_postnr', ''); set('lev_bynavn', ''); set('lev_land', '');
-							set('lev_kontakt', ''); set('lev_email', '');
-							var idfNone = f.elements['delivery_address_id'];
-							if (idfNone) idfNone.value = '';
-							docChange = true;
-							var orderIdNone = '" . (int)$id . "';
-							if (orderIdNone) {
-								var xhrNone = new XMLHttpRequest();
-								xhrNone.open('POST', window.location.pathname);
-								xhrNone.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
-								xhrNone.send('id=' + encodeURIComponent(orderIdNone) + '&clear_delivery=1');
-							}
-							return;
-						}
-						if (!id || !daAddrMap[id]) return;
-						var a = daAddrMap[id];
-						set('lev_navn',    a.lev_navn);
-						set('lev_addr1',   a.lev_addr1);
-						set('lev_addr2',   a.lev_addr2);
-						set('lev_postnr',  a.lev_postnr);
-						set('lev_bynavn',  a.lev_bynavn);
-						set('lev_land',    a.lev_land);
-						set('lev_kontakt', a.lev_kontakt);
-						set('lev_email',   a.lev_email);
-						// Set the hidden field to the selected address ID
-						var idField = f.elements['delivery_address_id'];
-						if (idField) idField.value = id;
+					if (id === 'none') {
+						set('lev_navn', ''); set('lev_addr1', ''); set('lev_addr2', '');
+						set('lev_postnr', ''); set('lev_bynavn', ''); set('lev_land', '');
+						set('lev_kontakt', ''); set('lev_email', '');
+						var idfNone = f.elements['delivery_address_id'];
+						if (idfNone) idfNone.value = '';
 						docChange = true;
-						var orderId = '" . (int)$id . "';
-						if (orderId) {
-							var xhr = new XMLHttpRequest();
-							xhr.open('POST', window.location.pathname);
-							xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
-							xhr.send('id=' + encodeURIComponent(orderId) + '&clear_delivery=0');
+						var orderIdNone = '" . (int)$id . "';
+						if (orderIdNone) {
+							var xhrNone = new XMLHttpRequest();
+							xhrNone.open('POST', window.location.pathname);
+							xhrNone.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+							xhrNone.send('id=' + encodeURIComponent(orderIdNone) + '&clear_delivery=1');
 						}
+						return;
 					}
-					</script>\n";
-				} else {
-					// No delivery addresses saved — show empty placeholder row
-					print "<tr><td id='delivery_dropdown' colspan='2' align='right' style='padding-right:11px; color:#999; font-size:11px;'>";
-					
+					if (!id || !daAddrMap[id]) return;
+					var a = daAddrMap[id];
+					set('lev_navn',    a.lev_navn);
+					set('lev_addr1',   a.lev_addr1);
+					set('lev_addr2',   a.lev_addr2);
+					set('lev_postnr',  a.lev_postnr);
+					set('lev_bynavn',  a.lev_bynavn);
+					set('lev_land',    a.lev_land);
+					set('lev_kontakt', a.lev_kontakt);
+					set('lev_email',   a.lev_email);
+					// Set the hidden field to the selected address ID
+					var idField = f.elements['delivery_address_id'];
+					if (idField) idField.value = id;
+					docChange = true;
+					var orderId = '" . (int)$id . "';
+					if (orderId) {
+						var xhr = new XMLHttpRequest();
+						xhr.open('POST', window.location.pathname);
+						xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+						xhr.send('id=' + encodeURIComponent(orderId) + '&clear_delivery=0');
+					}
 				}
+				</script>\n";
+			} else {
+				// No delivery addresses saved — show empty placeholder row
+				print "<tr><td id='delivery_dropdown' colspan='2' align='right' style='padding-right:11px; color:#999; font-size:11px;'>";
+				
+			}
 			#######
 			print "<tr><td>$txt28</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_navn\" value=\"$lev_navn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 			print "<tr><td>$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" onfocus=\"document.forms[0].fokus.value=this.name;\" name=\"lev_addr1\" value=\"$lev_addr1\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
