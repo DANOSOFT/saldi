@@ -9,6 +9,7 @@
 // 20261119 CL/MMR SST-1041 Codex round 6: the Enter-path message shows the typed number, not the SQL-escaped one.
 // 20261119 CL/MMR SST-1041 Review (CodeRabbit): the pick sends the supplier row id (vare_lev_id), not the number.
 // 20261119 CL/MMR SST-1041 Codex review round: the write check and the vare_id branch read the order id the same way; a non-numeric id is refused.
+// 20261124 CL/LH MB-177 The contact update the order id check must precede is found by its MB-177 comment.
 namespace CreditorOrderItemPickFixture {
 
     final class Rec
@@ -322,7 +323,7 @@ namespace Saldi\Tests\CreditorOrderItemPick {
         {
             $src = (string) file_get_contents(__DIR__ . '/../../../kreditor/ordre.php');
             $check = strpos($src, '// SST-1041 An item pick (vare_id) with an order id that is not a whole number');
-            $contact = strpos($src, 'if ( !empty($kontakt) && $id ) {');
+            $contact = strpos($src, '// MB-177 kontakt and id come from the link');
             $branch = strpos($src, "if(isset(\$_GET['vare_id']) && \$_GET['vare_id']) {");
             self::assertNotFalse($check);
             self::assertNotFalse($contact);
