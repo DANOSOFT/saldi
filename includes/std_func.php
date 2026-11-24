@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -135,8 +135,10 @@
 //                The sku call skips slot 6. shopSyncApiConfigured() counts any of box4-box6, so an empty box4 no longer stops the queue.
 // 20261110 CL/SZ SD-817 shopSyncApiConfigured() counts only a slot with a URL that is open for outbound in the shopify_legacy settings.
 //                A tenant that has cut over no longer writes shopsync markers that are never sent.
-
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261123 CL/SZ SD-819 shopSyncApiConfigured() asks shopify_legacy_open_slots(), the rule shopify_legacy_endpoints() uses.
+
+
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
@@ -2435,15 +2437,8 @@ if (!function_exists('shopSyncApiConfigured')) {
 		static $configured = array();
 		$key = (string)$db;
 		if (!array_key_exists($key, $configured)) {
-			$configured[$key] = false;
 			// Any slot, not only box4: an empty box4 no longer disables box5/box6 (SD-750).
-			$row = db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API'", __FILE__ . ' line ' . __LINE__));
-			foreach (array(4, 5, 6) as $slot) {
-				if ($row && trim((string)($row["box$slot"] ?? '')) !== '' && shopify_legacy_enabled(array('db' => $db), $slot, 'outbound')) {
-					$configured[$key] = true;
-					break;
-				}
-			}
+			$configured[$key] = shopify_legacy_open_slots(array('db' => $db), 'outbound') !== array();
 		}
 		return $configured[$key];
 	}
