@@ -21,6 +21,7 @@
 // History:
 // 20261026 CL/SZ Created (SD-777, sub-task of SD-750).
 // 20261026 CL/SZ SD-750 An empty box4 no longer disables box5/box6: every slot with an endpoint is called.
+// 20261123 CDX/NTR Use the test class-owned database and session.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 require_once __DIR__ . '/../support/LegacyShopStub.php';
@@ -44,7 +45,7 @@ final class LegacyShopPagesCharacterizationTest extends CharacterizationTestCase
 			self::$createdTemp = true;
 		}
 		if (!is_writable($temp)) {
-			self::fail("$temp is not writable by this user; set SALDI_CHAR_TEST_DB to a tenant name without one");
+			self::fail("$temp is not writable by this user; check the runtime directory permissions");
 		}
 		self::$shop = new LegacyShopStub();
 		foreach (['API' => null, 'DIV' => '5'] as $art => $kodenr) {
@@ -330,7 +331,7 @@ final class LegacyShopPagesCharacterizationTest extends CharacterizationTestCase
 	{
 		$output = (string)tempnam(sys_get_temp_dir(), 'legacy-shop-page');
 		try {
-			self::runChild('run_legacy_shop_page.php', [$page, CharacterizationEnv::SESSION_ID, json_encode(['get' => $get]), $output]);
+			self::runChild('run_legacy_shop_page.php', [$page, CharacterizationEnv::sessionId(), json_encode(['get' => $get]), $output]);
 			return (string)file_get_contents($output);
 		} finally {
 			unlink($output);

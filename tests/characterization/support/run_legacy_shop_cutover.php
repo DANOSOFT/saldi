@@ -3,16 +3,18 @@
 //
 // Runs shopify_legacy_cutover() on the throwaway characterization tenant with an operation that
 // writes intake_enabled=0 for slot 5 and then commits, leaves the transaction open, or throws
-// inside it (SD-750). Refuses any database but CharacterizationEnv::testDb().
+// inside it (SD-750). Verifies that the caller's tenant is an active owned test database.
 //
-// argv: 1 = commits|uncommitted|throws
+// argv: 1 = commits|uncommitted|throws, 2 = caller-owned tenant
 // Prints one JSON line: {result|exception, message, idle}.
 //
 // History:
 // 20261026 CL/SZ Created (SD-750).
+// 20261123 CDX/NTR Use and verify the parent test class's generated tenant.
 
 require_once __DIR__ . '/CharacterizationEnv.php';
-CharacterizationEnv::assertSafeDatabases();
+$db = $argv[2] ?? '';
+CharacterizationEnv::assertOwnedTenant($db);
 
 function alert($msg)
 {
@@ -26,7 +28,6 @@ $db_encode = 'UTF8';
 $brugernavn = 'chartest';
 $sqdb = '';
 $db_skriv_id = 0;
-$db = CharacterizationEnv::testDb();
 
 require_once CharacterizationEnv::repoRoot() . '/includes/db_query.php';
 $connection = db_connect(CharacterizationEnv::pgHost(), CharacterizationEnv::pgUser(), CharacterizationEnv::pgPass(), $db);

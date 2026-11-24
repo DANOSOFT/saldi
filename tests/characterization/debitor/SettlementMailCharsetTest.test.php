@@ -1,4 +1,5 @@
 <?php
+// 20261111 CDX/NTR Decode MIME Q-encoded spaces correctly on PHP 8.2.
 
 declare(strict_types=1);
 
@@ -15,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 //                  prints on include, so the assignment is read out of the source rather than
 //                  by loading the file, and the value found there is then fed to a real
 //                  PHPMailer to confirm it actually produces a UTF-8 header.
+// 20261123 CDX/NTR Port the reviewed test fixture repairs to hml/shopify.
 final class SettlementMailCharsetTest extends TestCase
 {
     private const PAGE = __DIR__ . '/../../../debitor/mail_modtagere.php';
@@ -158,7 +160,7 @@ final class SettlementMailCharsetTest extends TestCase
 
         // The subject survives its encoded-word round trip.
         self::assertSame(1, preg_match('/^Subject:.*$/im', $raw, $m), 'no Subject header');
-        $decodedSubject = mb_decode_mimeheader(trim(substr($m[0], strlen('Subject:'))));
+        $decodedSubject = iconv_mime_decode(trim(substr($m[0], strlen('Subject:'))), 0, 'UTF-8');
         self::assertSame($subject, trim($decodedSubject),
             'the subject does not decode back to what was set');
         self::assertStringNotContainsString('iso-8859-1', strtolower($m[0]),

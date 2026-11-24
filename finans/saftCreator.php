@@ -3,6 +3,7 @@
 $s_id = session_id();
 
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("saftCreatorUtil/address.php");

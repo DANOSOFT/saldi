@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/posOptions.php --- ver 5.1.0 -- 2026-11-20 ---
+// --- systemdata/diverseIncludes/posOptions.php --- ver 5.1.1 -- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,7 +26,8 @@
 // 20131230 PHR addad fiscal year to groups.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20261008 CDX/NTR pre-fetch terminal_type for all POS terminals before the render loop, as $terminal_type was never populated, throwing errors.
-// 20261120 CL/LH K33 The delivery choices the POS offers are maintained below the terminals (pos_render_delivery_choices_settings() in posSaleSettings.php).
+// 20261001 SS KDS colours are named color_1, color_2... (one row per setting name).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 include_once(__DIR__ . "/posSaleSettings.php"); # 20261021 CL/MJ SD-758 brand per terminal
 
@@ -458,8 +459,6 @@ function type_change(idx) {
 	}
 	print "</tbody></table></td></tr>";
 	print "<tr><td><hr></td></tr>\n";
-	# 20261120 CL/LH K33 The delivery choices the cashier picks on a sale; nothing without the Shopify schema.
-	pos_render_delivery_choices_settings($sprog_id);
 	print "<tr><td><table><tbody>";
 	print "<tr><td colspan= '2' title='".findtekst(279,$sprog_id)."'><!--Tekst 726-->".findtekst(280,$sprog_id)."<!--Tekst 280-->&nbsp;<input class='inputbox' type='text' style='text-align:right' size='1' name='kortantal' value='$kortantal'></td></tr>\n";
 	if ($kortantal) {
@@ -669,7 +668,7 @@ function type_change(idx) {
 	print "<tr><td><table border='0'><tbody>";
 	print "<tr><td>Antal minutter</td><td>Farve</td></tr>\n";
 	$x = 0;
-	$q = db_select("select var_value from settings where var_name='color' and var_grp='KDS' order by var_value", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select var_value from settings where var_name like 'color%' and var_grp='KDS' order by var_value", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$row = explode("-", $r["var_value"]);
 		print "<tr><td><input class='inputbox' type='text' size='5' name='kdscolorindex[$x]' value='$row[0]'></td><td><input class='inputbox' type='color' name='kdscolor[$x]' value='$row[1]'></td></tr>\n";

@@ -18,6 +18,7 @@
 // 20261104 CL/SS SD-801 review 5: a listed event whose write fails stays listed.
 // 20261104 CL/SS SD-744: the EasyRoutes delivery date follows the newest ORDERS_UPDATED; the order screen's panel shows the order's Shopify side.
 // 20261105 CL/SS SD-744 review: a tie keeps the date, also from a status stored before the date was read; a cancelled shipment is not shown as sent; statuses in the user's language.
+// 20261118 CL/SS SD-804: the EasyRoutes date is read from the Delivery Date note attribute.
 
 use PHPUnit\Framework\TestCase;
 
@@ -657,7 +658,7 @@ final class StatusInSyncTest extends TestCase
 
     private static function dated(string $date, string $updatedAt = '2026-11-02T14:05:12+01:00'): array
     {
-        return self::body('orders_updated.json', ['updated_at' => $updatedAt, 'note_attributes' => [['name' => 'Gavebesked', 'value' => 'Tillykke'], ['name' => 'leveringsdato', 'value' => $date]]]);
+        return self::body('orders_updated.json', ['updated_at' => $updatedAt, 'note_attributes' => [['name' => 'Gavebesked', 'value' => 'Tillykke'], ['name' => 'delivery date', 'value' => $date]]]);
     }
 
     private function easyroutes(): ?string

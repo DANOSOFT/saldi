@@ -1,5 +1,5 @@
 <?php
-// ---------------------debitor/debkort_save.php----ver 5.1.0---2026-11-11---
+// ---------------------debitor/debkort_save.php----ver 5.1.1---2026-11-13---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -20,11 +20,11 @@
 //
 // Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 2014.05.05 indsat  >>|| $_POST['firmanavn']<< da man ikke kunne oprette nye kunder. (PHR - Danosoft) Søg20140505
 // 20261111 CL/SZ SD-800 A new debtor's number is chosen under the shared debtor-number lock (hashtext('saldi:debtor_number')), not 5130513.
 //                It now waits for create_debtor() and the Shopify worker, which choose and insert their numbers under the same lock.
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if ($delete_category=if_isset($_GET['delete_category'])) {
 	$r=db_fetch_array(db_select("select * from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
 	$cat_id=explode(chr(9),$r['box1']);
@@ -177,6 +177,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 					}
 					$felt_1.=" : $regnskab"; 
 				}
+			 $permission_key = 'debitor.konti';
 			 include("../includes/online.php");
 			}
 		}

@@ -24,9 +24,12 @@
 //   ["save_choices_utf8", {post}]             as save_choices, but posted as UTF-8 also on LATIN9 (a top-menu page)
 //   ["attaches", valg]                        pos_delivery_choice_attaches()
 //   ["menu", "T"]                             sets $menu, as the user's top-menu layout does
+//   ["datestyle", "SQL, DMY"]                 sets the connection's DateStyle
+//   ["move_delivery", fromId, toId]           pos_move_sale_delivery()
 //
 // History:
 // 20261120 CL/LH K33/K34: created.
+// 20261124 CL/LH K33: steps datestyle and move_delivery.
 
 if ($argc < 5) {
     fwrite(STDERR, "usage: php run_pos_delivery.php <test_db> <UTF8|LATIN9> <postgresql|mysqli> '<steps json>'\n");
@@ -139,6 +142,14 @@ foreach ($steps as $step) {
             break;
         case 'reset_sql':
             $r = pos_reset_sale_delivery_sql();
+            break;
+        case 'datestyle':
+            db_modify("set datestyle to '" . db_escape_string((string)$step[0]) . "'", __FILE__ . " linje " . __LINE__);
+            $r = null;
+            break;
+        case 'move_delivery':
+            pos_move_sale_delivery((int)$step[0], (int)$step[1]);
+            $r = null;
             break;
         default:
             fwrite(STDERR, "unknown step $name\n");

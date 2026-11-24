@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//---includes/orderFuncIncludes/accountLookup.php --- ver 5.1.0 --- 2026-11-20 ---
+//---includes/orderFuncIncludes/accountLookup.php ---ver 5.1.1 ----2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,12 +23,14 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
+//
 // 20260827 CDX/PHR Restored supplier lookup for KO, including AJAX results.
 // 20260901 CL/LH Escape grid cell values before rendering (XSS) and pass
 //                 o_art=KO along on row select so supplier choice survives
 // 20260901 CL/LH Skip the debtor-creation form for KO (supplier) lookups
 // 20261008 CDX/PHR Include open accounts with a NULL closed flag in order lookups.
+// 20261019 SS Review 2 (PR #803): inactive debtor groups left out of the new-customer group dropdown.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261120 CL/MJ SD-844 K31: at the till, where customers belong to Shopify, the create form posts to debitor/posCreateCustomer.php and the number is assigned there.
 //                The seller stays on the sale instead of landing on the order page, and a resent form creates one customer.
 
@@ -336,7 +338,8 @@ HTML;
 
     // Fetch debtor groups for dropdown
     $grp_options = '';
-    $qtxt = "select * from grupper where art='DG' and fiscal_year = '$regnaar' order by kodenr";
+    $hasInactive = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
+    $qtxt = "select * from grupper where art='DG' and fiscal_year = '$regnaar'" . ($hasInactive ? " and coalesce(inaktiv, false) = false" : '') . " order by kodenr";
     $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
     while ($r = db_fetch_array($q)) {
         $grp_nr = htmlspecialchars($r['kodenr']);

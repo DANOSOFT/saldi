@@ -8,13 +8,20 @@
 // of their tests had been failing unseen. This turns that state into a red job.
 //
 // Usage: php tools/ci/check-skips.php <phpunit --log-junit file>
-
+//
+// 20261119 CL/MMR SST-1017 Allow the Kassespor MySQL/MariaDB test to skip in CI, which has no MySQL server.
+// 20261123 CL/SZ Sync of master into hml/shopify: allow the SD-758 brand-save check to skip until SD-830.
+//
 // Entries are Class::method for one test, or Class for a class skipped as a whole.
 $allowed = [
+	// #1033 retired PoS-valg, so the brand per till has no settings screen until SD-830 (hml/shopify only).
+	'Saldi\\Tests\\PosSaleHeader\\PosSaleHeaderTest::testTheSettingsPageRendersAndSavesTheBrand',
 	// The container runs as root, and root ignores directory permissions.
 	'FileReservationTest::testReturnsNullForUnwritableDirectory',
 	// Same reason: as root, chmod 0555 does not make the journal folder unwritable (SST-929).
 	'JournalDocumentsDeleteRegressionTest::testDocumentInAFolderThatCanNotBeWrittenKeepsItsRow',
+	// CI has no MySQL/MariaDB server; the test runs where SALDI_TEST_MYSQL_SOCKET points at one (SST-1017).
+	'KassesporSetCostTest::testSetHeadIsMatchedAsPhpDoesOnMysqlPadSpace',
 ];
 
 $file = $argv[1] ?? '';
