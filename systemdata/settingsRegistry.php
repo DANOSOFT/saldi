@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-03 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-18 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -99,6 +99,8 @@
 // 20261102 CL/ASR Review: search shows Ekstra felter under Brugere & ansatte, as Roller and Audit-log ('searchGroup'), not under Organisation.
 // 20261103 CL/ASR The heading is Brugere & roller again with the rows Brugere, Roller, Audit-log and Ekstra felter (owner, 3 Nov 2026): the brugere entry is called Brugere (5549, no 'renamedFrom': Brugere & roller is the heading now, not an old name), and the users group and Ekstra felter's search group are Brugere & roller (5536); the employee section's entry (ansatte, the list of a user without usersRoles.php) is called Brugere too.
 //                 'Brugere & roller' is a keyword of Brugere, so the top-bar search, which does not search headings, still finds the page by its old name.
+// 20261114 CL/ASR Abonnement & konto is no longer found by 'nulstil regnskab' and 'reset': the reset moved to the admin panel.
+// 20261118 CL/ASR The old Kontoindstillinger entry loses its reset words too: that page has had no reset since 20261005 (review #1131).
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -132,7 +134,7 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'stamkort',         'group' => 'company', 'url' => 'settingsSection.php?s=company.data', 'section' => 'company.data', 'category' => 'company', 'textId' => 779,
 				'keywords' => array('company info','company profile','company name','company address','vat number','tax id','cvr number','bank details','bank account','gdpr agreement','data processing agreement','contact person','phone number','mobile number','employee list','firmanavn','bankoplysninger','databehandleraftale','kontaktperson')),
 			array('key' => 'konto',            'group' => 'company', 'url' => 'settingsSection.php?s=company.account', 'section' => 'company.account', 'category' => 'company', 'textId' => 6630, 'visibilityRule' => 'hosted',
-				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'nulstil regnskab', 'slet regnskab', 'farezone', 'reset', 'delete ledger')),
+				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'slet regnskab', 'farezone', 'delete ledger')),
 			array('key' => 'gdpr',             'group' => 'company', 'url' => 'settingsSection.php?s=company.gdpr', 'section' => 'company.gdpr', 'category' => 'company', 'textId' => 7737,
 				'keywords' => array('gdpr', 'persondata', 'personal data', 'inaktive kunder', 'inactive customers', 'oprydning')),
 			array('key' => 'ansatte',          'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees', 'section' => 'organisation.employees', 'category' => 'company', 'textId' => 5549, 'renamedFrom' => 1262, 'searchHideIf' => 'users',
@@ -151,7 +153,7 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'diverse_overview',      'group' => '', 'url' => 'diverse.php',                              'category' => 'diverse', 'textId' => 782,
 				'keywords' => array('miscellaneous settings','other settings','diverse indstillinger')),
 			array('key' => 'kontoindstillinger',    'group' => 'company', 'url' => 'diverse.php?sektion=kontoindstillinger',   'category' => 'diverse', 'textId' => 783,
-				'keywords' => array('account settings','company settings','system settings','rename account','rename company','company name change','base currency','system currency','timezone','time zone','max users','user limit','number of users','reset account data','wipe all data','delete account','close account','terminate account','regnskabsnavn','tidszone','nulstil regnskab','slet regnskab','antal brugere','kontoinnstillinger','sort by phone number','postings last 12 months','keep customers and suppliers on reset','keep products on reset','reset account confirmation','backup before reset warning','5 year backup retention','bookkeeping law backup')),
+				'keywords' => array('account settings','company settings','system settings','rename account','rename company','company name change','base currency','system currency','timezone','time zone','max users','user limit','number of users','delete account','close account','terminate account','regnskabsnavn','tidszone','slet regnskab','antal brugere','kontoinnstillinger','sort by phone number','postings last 12 months','5 year backup retention','bookkeeping law backup')),
 			array('key' => 'provision',             'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.commission', 'section' => 'organisation.commission', 'category' => 'diverse', 'textId' => 657,
 				'keywords' => array('commission report settings','commission calculation','sales commission','provisionsrapport','provision','provisjonsberegning','provisjon',
 					'commission basis','invoiced or paid commission','commission source person','customer responsible person commission','reference person commission','cost price source for commission','purchase price commission','product card cost price commission','cutoff date commission calculation', 'default commission rate', 'show commission on item card', 'standard provisionssats')),
