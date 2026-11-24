@@ -10,6 +10,8 @@
 // 20261120 CDX/NTR Check database identity output only appears when retention is enabled.
 // 20261120 CDX/NTR Require routing-account creation and cleanup to leave normal IDs untouched.
 // 20261120 CDX/NTR Keep the simple child-process helper call on one line.
+// 20261111 CL/SZ MB-154 Test databases are named t + 22 hex + _1, like a <master>_<regnskab id> tenant, so api/rest_api.php does not take them for the master.
+// 20261122 CL/SZ MB-154 The cleanup of retained databases matches the t + 22 hex + _1 name.
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -73,7 +75,7 @@ final class TestDatabaseLifecycleTest extends TestCase
                 return;
             }
             self::assertMatchesRegularExpression(
-                '/UUID=[a-f0-9-]{36} database=t[a-f0-9]{24}/',
+                '/UUID=[a-f0-9-]{36} database=t[a-f0-9]{22}_1/',
                 $output,
                 'The IDE needs the database identity attached to the individual test result'
             );
@@ -86,7 +88,7 @@ final class TestDatabaseLifecycleTest extends TestCase
         } finally {
             try {
                 // Only databases named by this child process are eligible for cleanup.
-                preg_match_all('/database=(t[a-f0-9]{24})/', $result['stdout'], $matches);
+                preg_match_all('/database=(t[a-f0-9]{22}_1)/', $result['stdout'], $matches);
                 foreach (array_unique($matches[1]) as $name) {
                     foreach (RetainedTestDatabases::listing($name) as $identity) {
                         RetainedTestDatabases::delete($identity['database']);
