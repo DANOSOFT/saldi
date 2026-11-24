@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rows.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/rows.php --- ver 5.1.1 --- 2026.11.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20261018 SS Review 2 (PR #803): an empty cell in a number column is written as NULL (SettingsService::sqlValue). master's warehouseDeletion.php (history, order lines, departments; duplicates may go).
 // 20261019 SS Review 2 (PR #803): numeric codes compared as numbers ("01" = "1") in the uniqueness check, a row's own unchanged code is not checked again (legacy duplicates), copy-year keeps inaktiv, next auto code and the AFD default-warehouse cleanup without Postgres regex / same-table subquery (MySQL).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261119 CL/ASR G6.2 Baggrunde: the usage count (and the delete check) counts the debtor and creditor groups (grupper DG/KG box4) that name the background, not adresser.sprog, a column that does not exist.
 /**
  * The tables of a rows section with their defaults filled in.
  *
@@ -249,8 +250,9 @@ function settings_rows_usage(array $t, array $row): array
 				$add("select count(*) as n from varer where " . db_cast('gruppe', 'text') . " = '$esc'", 6427);
 				break;
 			case 'background':
-				// G6.2: customers, suppliers and orders name their background (form language) by its name.
-				$add("select count(*) as n from adresser where sprog = '$esc'", 6682);
+				// G6.2: debtor and creditor groups (grupper.box4) and orders name their background (form language)
+				// by its name. adresser has no sprog column - a customer's language comes from its group.
+				$add("select count(*) as n from grupper where art in ('DG', 'KG') and box4 = '$esc'", 6464);
 				$add("select count(*) as n from ordrer where sprog = '$esc'", 6422);
 				break;
 			case 'currency':
