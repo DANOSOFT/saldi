@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 //                  cryptic error it raises first, would add the returned quantity to an
 //                  unrelated item's purchase batch. The last test below pins that nothing
 //                  in this change touched it.
+// 20261110 CL/MJ SST-924 That last test is removed: the krediter() defect is fixed, see BatchControlReturnTest.
 final class BatchSelectionDisplayTest extends TestCase
 {
     private const ORDRE = __DIR__ . '/../../../debitor/ordre.php';
@@ -165,27 +166,5 @@ final class BatchSelectionDisplayTest extends TestCase
         // The part that is still open must not be recorded as done.
         self::assertStringContainsString('that part is still open', $doc,
             'the missing expiry warning at point of sale is no longer recorded as open');
-    }
-
-    /**
-     * Guard rail for the defect this change deliberately leaves alone. krediter() queries
-     * batch_salg on the line's kred_linje_id, which is 0 for a manually typed return line,
-     * and then writes batch_kob.rest for whatever came back first. If that moves, it should
-     * be because Nicolai or Lui decided it.
-     *
-     * TO WHOEVER FIXES THAT: this test is a tripwire, not a specification. Both strings below
-     * are the broken behaviour. When the escalated krediter() defect is fixed, delete this
-     * test rather than updating the strings to match the new code - there is nothing here
-     * worth keeping once the real fix lands, and a test that tracks a defect's wording only
-     * makes the fix look like a regression. Raised by ZaynSaul on PR #789.
-     */
-    public function testTheCreditLookupIsUnchanged(): void
-    {
-        $src = $this->read(__DIR__ . '/../../../includes/ordrefunc.php');
-
-        self::assertStringContainsString('select * from batch_salg where linje_id=$kred_linje_id order by id desc', $src,
-            'the batch_salg lookup in krediter() changed; that is escalated, not fixed here');
-        self::assertStringContainsString("update batch_kob set rest = rest+\$antal where id ='\$batch_kob_id[1]'", $src,
-            'the restock in krediter() changed; that is escalated, not fixed here');
     }
 }
