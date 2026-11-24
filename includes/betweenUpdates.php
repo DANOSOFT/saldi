@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.20
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.24
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -50,6 +50,7 @@
 // 20261105 CL/LH betalinger gets openpost_id (includes/opdat_func/paymentOpenpostColumn.php), the open post a payment on a payment list pays, so Fra liste and Afregn kommission no longer link an Afr open post to its payment through the report number in ordre_id.
 // 20261110 CDX/ASR Keep CRM DDL and one-time follow-up conversion in the updater instead of ordinary page requests.
 // 20261110 CDX/NTR Release 5.1.1: move pending migrations into opdat_5.1.php and retain the bounded backfill continuation.
+// 20261111 CL/ASR SD-731: the operator panel's master-database tables (includes/structure/operatorPanelSchema.php), last in the file.
 // 20261112 ASR help.sansat.name (the help panel's name for Indstillinger > Brugere) follows the hub row: Brugere og ansatte; the cached old wording is removed.
 // 20261113 CL/ASR The CRM page help's CR2 step 2, Q3 step 3 and Sager text are reworded (til only with employees, the empty board); the cached old wording is removed.
 // 20261113 CL/ASR The VAT report range seeded as 6780..7740 (grupper MR, a digit swap of 7680) becomes 7680..7830 once, per fiscal year, on the standard chart of accounts (includes/opdat_func/fixVatReportRange.php).
@@ -71,6 +72,7 @@
 // 20261120 CL/ASR The help for Omgående bogføring (the creditor order's KO21, the purchase and sales settings' about texts, the purchase settings' Q1 and the steps of KB1 and OF3) no longer says to switch it on and contact support about invoices that were not posted, as the settings page refuses to switch it on while they wait for Hent and says to fetch them first; it says to fetch them with Hent and post the journal first, and the cached old wording is removed.
 // 20261120 CL/ASR The help's Momsrubrikker MR2 step 3 says plainly that in older journals without VAT codes a domestic purchase can count as an EU purchase with the same VAT in its voucher; the cached wording of 19 Nov is removed.
 // 20261120 CL/ASR The help's about texts for a sales and a purchase invoice that is not posted (dord and kord ikke_bogfoert) no longer say immediate posting is off, as an invoice whose journal lines were deleted after both settings were switched on waits too and the cash journal shows Hent for it; the cached old wording is removed.
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -937,5 +939,14 @@ deleteStaleTekst('help.kord.about.ikke_bogfoert', array(
 	'The invoice is not in the accounts yet, because **Immediate posting of purchase orders** is turned off in the settings.',
 	'Fakturaen står ikke i regnskapet ennå, fordi **Umiddelbar postering av innkjøpsordrer** er slått av i innstillingene.',
 ));
+
+// 20261111 CL/ASR SD-731 operator panel: its tables live in the master database. operator_panel_schema() uses the master
+// connection ($global = true) and runs once per master (settings flag 'operator_panel_schema'); later logins only read the flag.
+// It only runs in a real login, where $db and $sqdb are set (not in a test that evaluates this file), and only on PostgreSQL.
+if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
+	// guardrails-allow migrations until 2026-12-31 by NTR: relocate the existing schema include without changing migration order
+	include_once(__DIR__ . '/structure/operatorPanelSchema.php');
+	operator_panel_schema();
+}
 
 ?>

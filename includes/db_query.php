@@ -73,6 +73,7 @@
 //                It called mysql_real_escape_string(), which PHP 7 removed, so every escaped value was a fatal error there.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261114 CL/ASR db_modify() puts changes to master data (varer, adresser, kontoplan) in the activity log through includes/dataAudit.php: a look at the rows just before and after the statement, never in its way.
+// 20261116 CL/ASR db_query_connection() selects the master database on the cached global connection, since db_connect() selects none on MySQL/MariaDB; a $global query from a ledger's context failed there with "No database selected" (SD-731, review #785).
 // 20261118 CDX/NTR Allow bound write parameters without changing legacy query handling.
 // 20261118 CDX/NTR Normalize LIKE outside literals, quoted identifiers and comments in both query paths.
 // 20261118 CDX/NTR Explain dollar-quote and SQL identifier matching in the LIKE normalizer.
@@ -81,6 +82,7 @@
 // 20261118 CDX/NTR Track expression operands so LIKE function calls retain their original names.
 // 20261124 CL/ASR Integration: a write with bound parameters skips the activity log's look at the rows.
 //                 That look runs the statement's where clause without the values, and a failed look inside a transaction would abort it.
+// 20261124 CL/ASR Integration: db_query_connection() selects the master database with master's guarded call (20261116, SD-731) only; the unguarded call of 20261105 fixed the same failure and is removed.
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -251,8 +253,8 @@ if (!function_exists('db_query_connection')) {
 			if (empty($global_connection)) {
 				$current_connection = $connection;
 				$global_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
-				db_select_database($global_connection, $sqdb);
 				$connection = $current_connection;
+				if ($global_connection) db_select_database($global_connection, $sqdb); # a no-op on PostgreSQL
 			}
 			return $global_connection;
 		}
