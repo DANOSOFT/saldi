@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- signup/rydop.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- signup/rydop.php --- ver 5.1.1 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,10 @@
 // ----------------------------------------------------------------------
 // Cleanup job for the signup flow (plan.md, section 2): deletes signups that were never activated
 // after cleanup_days (default 14), rate-limit events older than a week and CVR lookups older
-// than a month. Activated rows are kept: they link the account to its signup, and their token hash
+// than a month. A signup still 'activating' an hour after its build started died without
+// cleaning up (fatal error, time limit, restart): it is marked 'failed' (its link says "call us",
+// and the e-mail rules no longer count it), and named in the output so staff can remove a
+// half-built regnskab row and database. Activated rows are kept: they link the account to its signup, and their token hash
 // stays so the welcome mail's link can still say "already activated - go to login".
 //
 // Command line only, e.g. nightly from cron:
@@ -32,6 +35,8 @@
 //
 // 20261014 CL/PS Created.
 // 20261102 CL/ASR Header: activated rows keep their token hash.
+// 20261109 CL/PS Marks signups stuck in 'activating' for more than an hour as 'failed' (the build died), and names them.
+// 20261123 CL/PS Marks only the stuck attempt it read, and says 'marked failed' only when the row reads back as failed.
 
 if (php_sapi_name() !== 'cli') {
 	http_response_code(404);
@@ -51,6 +56,27 @@ $count = function ($qtxt) {
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, true));
 	return (int)ifset($r, 'n', 0);
 };
+$q = db_select("SELECT id, regnskab, activated FROM signup_pending WHERE status = 'activating' AND " . $older('activated', 1, 'HOUR'), __FILE__ . " linje " . __LINE__, true);
+$stuck = array();
+while ($r = db_fetch_array($q)) {
+	$stuck[] = $r;
+}
+foreach ($stuck as $r) {
+	$id = (int)$r['id'];
+	$fejl = date('Y-m-d H:i:s') . ' build never finished';
+	// only the attempt read above: a new attempt on the same signup has a new activated time
+	$qtxt = "UPDATE signup_pending SET status = 'failed', fejl = " . signup_q($fejl) . " WHERE id = $id AND status = 'activating' AND activated = " . signup_q($r['activated']);
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+	// db_modify() does not stop on an error in webservice mode and reports no rows changed: read the row back
+	$now = db_fetch_array(db_select("SELECT status, fejl FROM signup_pending WHERE id = $id", __FILE__ . " linje " . __LINE__, true));
+	if (ifset($now, 'status', '') === 'failed' && ifset($now, 'fejl', '') === $fejl) {
+		$msg = "signup $id was still being activated after an hour; marked failed. Check regnskab '" . $r['regnskab'] . "' and its database";
+	} else {
+		$msg = "signup $id was still being activated after an hour, but was not marked failed (status now '" . ifset($now, 'status', 'gone') . "')";
+	}
+	echo date('Y-m-d H:i:s') . " $msg\n";
+	signup_log($msg);
+}
 $pending = $count("SELECT count(*) AS n FROM signup_pending WHERE status IN ('pending','failed') AND " . $older('created', $days, 'DAY'));
 db_modify("DELETE FROM signup_pending WHERE status IN ('pending','failed') AND " . $older('created', $days, 'DAY'), __FILE__ . " linje " . __LINE__, true);
 $events = $count("SELECT count(*) AS n FROM signup_events WHERE " . $older('ts', 7, 'DAY'));

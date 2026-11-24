@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/signupIncludes/signupFunc.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- includes/signupIncludes/signupFunc.php --- ver 5.1.1 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,6 +60,17 @@
 //                 The CVR cache is written with an upsert, and IPv4-mapped client addresses count as their IPv4 address.
 //                 A CVR number is looked up with master's cvrLookupCompany() (Datafordeleren, the server's key, no daily quota); cvrapi.dk only searches names,
 //                 with master's User-Agent and refusal pause, and an ended company is not found by either.
+// 20261109 CL/PS One e-mail, one account: signup_mailbox_rule() refuses a mailbox that already has a signup account, or whose trial closed less than cooldown_months (3) ago.
+//                signup_activate() asks again under its lock and returns error 'mailbox'; its result also carries lukkes and the activation time.
+//                signup_after_response() runs best-effort work (the new-customer mail) after the page has gone to the browser.
+//                Review: a customer's own deletion counts from its logintekst date; an activation older than 30 minutes is no account; cooldown_months 0 refuses nothing.
+//                MySQL serializes the reserve step with GET_LOCK; outside PHP-FPM the page is sent with its length before the task runs.
+// 20261119 CL/PS signup_mailbox_message() sends bookkeepers and accountants to the bookkeeper scheme (revisor_url, default <landing_url>/revisor/).
+// 20261120 CL/PS Where a signup came from: signup_kilde() cleans the form's utm_*, Google Ads click ids, referrer and landing page, and signup_create_pending() stores them once their columns exist.
+//                signup_kilde_text() sums them up in one line for the new-customer mail.
+// 20261123 CL/PS signup_track_activation() sends account_activated to GA4 from the server (Measurement Protocol, ga_id + ga_api_secret), only with the visitor's statistics consent from the website's saldi_consent cookie.
+//                The activation page itself loads no tracking script.
+//                signup_email_sql_match() finds an address whose name is only a +tag (e.g. +trial@firma.dk) among all addresses of its domain.
 
 /** @var string $sqhost  from includes/connect.php */
 /** @var string $squser  from includes/connect.php */
@@ -136,7 +147,7 @@ if (!function_exists('signup_setting')) {
 	 * Keys and defaults:
 	 *   base_url          absolute url of this installation, e.g. https://ssl3.saldi.dk/finans (REQUIRED)
 	 *   assets_url        where the mail/page images and fonts live (https://saldi.dk/assets)
-	 *   landing_url       the website (https://saldi.dk); priser_url, guide_url derive from it
+	 *   landing_url       the website (https://saldi.dk); priser_url, guide_url, revisor_url derive from it
 	 *   login_url         login page (default <base_url>/index/index.php); every package is created on this installation
 	 *   login_url_finans  optional separate login page for Finans (default: login_url)
 	 *   from_email, from_name, reply_to, bcc, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_secure
@@ -148,6 +159,9 @@ if (!function_exists('signup_setting')) {
 	 *                     trial unless sales extends it; token_days (7), cleanup_days (14), max_mails (5)
 	 *   brugere_<pakke>, posteringer_<pakke>  override the package's included users / postings
 	 *   support_phone, support_email
+	 *   cooldown_months (3): how long a mailbox waits for a new trial after its account closed (0 = no wait)
+	 *   notify_email (info@saldi.dk): internal "Ny kunde i Saldi" mail after an activation; comma-separated, 'off' = none
+	 *   ga_id, ga_api_secret ('' = off): GA4 Measurement ID and Measurement Protocol API secret for account_activated
 	 *
 	 * @param string $name    key as listed above
 	 * @param string $default returned when neither the environment nor the table has a value
@@ -195,7 +209,7 @@ if (!function_exists('signup_urls')) {
 	 * The links used in mails and pages for one package.
 	 *
 	 * @param string $pakke package key from signup_packages()
-	 * @return array{login: string, priser: string, guide: string, assets: string, landing: string, nytlink: string}
+	 * @return array{login: string, priser: string, guide: string, revisor: string, assets: string, landing: string, nytlink: string}
 	 */
 	function signup_urls($pakke) {
 		$landing = rtrim(signup_setting('landing_url', 'https://saldi.dk'), '/');
@@ -209,6 +223,7 @@ if (!function_exists('signup_urls')) {
 			'login'   => $login,
 			'priser'  => signup_setting('priser_url', $landing . '/priser/'),
 			'guide'   => signup_setting('guide_url', $landing . '/vejledninger/'),
+			'revisor' => signup_setting('revisor_url', $landing . '/revisor/'),
 			'assets'  => rtrim(signup_setting('assets_url', $landing . '/assets'), '/'),
 			'landing' => $landing,
 			'nytlink' => signup_base_url() . '/signup/nytlink.php',
@@ -510,6 +525,78 @@ if (!function_exists('signup_validate_form')) {
 			'errors' => $errors,
 			'data' => array('navn' => $navn, 'cvr' => $cvr, 'firmanavn' => $firma, 'email' => $email, 'tlf' => $tlf, 'pakke' => $pakke, 'source' => $source),
 		);
+	}
+}
+
+if (!function_exists('signup_kilde_columns')) {
+	/**
+	 * The source columns on signup_pending and their lengths (includes/betweenUpdates.php, 20261120).
+	 *
+	 * @return array<string, int> column => VARCHAR length
+	 */
+	function signup_kilde_columns() {
+		return array(
+			'utm_source' => 100, 'utm_medium' => 100, 'utm_campaign' => 150, 'utm_term' => 150, 'utm_content' => 150,
+			'gclid' => 200, 'gbraid' => 200, 'wbraid' => 200, 'referrer' => 100, 'landing' => 200,
+		);
+	}
+}
+
+if (!function_exists('signup_kilde')) {
+	/**
+	 * Where a signup came from, as the website's form sends it (doc/signup.md, "Kilde"): the visit's campaign
+	 * parameters (utm_*), Google Ads click ids (gclid, gbraid, wbraid; the website sends them only with the customer's
+	 * consent to marketing), the referring site (host only) and the first page of the visit (path only). Anything
+	 * that does not have the expected form is dropped; nothing here is required.
+	 *
+	 * @param array $in raw $_POST (or decoded JSON body)
+	 * @return array<string, string> every key of signup_kilde_columns(), '' when not sent or not valid
+	 */
+	function signup_kilde(array $in) {
+		$out = array();
+		foreach (signup_kilde_columns() as $col => $max) {
+			$value = signup_clean_text(ifset($in, $col, ''), $max + 1);
+			if (mb_strlen($value) > $max) {
+				$value = ''; // a cut click id or path is a wrong one
+			} elseif (in_array($col, array('gclid', 'gbraid', 'wbraid'), true)) {
+				$value = preg_match('/^[A-Za-z0-9._~-]+$/', $value) ? $value : '';
+			} elseif ($col === 'referrer') {
+				$value = strtolower($value);
+				$value = preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/', $value) ? $value : '';
+			} elseif ($col === 'landing') {
+				$value = preg_match('#^/[A-Za-z0-9/._~%-]*$#', $value) ? $value : '';
+			} else {
+				// utm_*: free text chosen by whoever made the link; markup characters have no business there
+				$value = trim(preg_replace('/[<>"\\\\]+/', '', $value));
+			}
+			$out[$col] = $value;
+		}
+		return $out;
+	}
+}
+
+if (!function_exists('signup_kilde_text')) {
+	/**
+	 * One line about where a signup came from, for the new-customer mail: the campaign (utm_source / utm_medium /
+	 * utm_campaign), otherwise the referring site; "Google Ads-klik" is added when a click id came along.
+	 *
+	 * @param array $row signup_pending row (the source columns may be missing on rows from before they existed)
+	 * @return string '' when nothing is known
+	 */
+	function signup_kilde_text(array $row) {
+		$parts = array();
+		foreach (array('utm_source', 'utm_medium', 'utm_campaign') as $col) {
+			$value = trim((string)ifset($row, $col, ''));
+			if ($value !== '') {
+				$parts[] = $value;
+			}
+		}
+		$text = $parts ? implode(' / ', $parts) : trim((string)ifset($row, 'referrer', ''));
+		$click = trim(ifset($row, 'gclid', '') . ifset($row, 'gbraid', '') . ifset($row, 'wbraid', '')) !== '';
+		if ($click) {
+			$text = ($text !== '' ? $text . ', ' : '') . 'Google Ads-klik';
+		}
+		return $text;
 	}
 }
 
@@ -858,7 +945,8 @@ if (!function_exists('signup_create_pending')) {
 	 * Stores a validated form submission and issues its first activation token.
 	 *
 	 * @param array $data array{navn, email, tlf, cvrnr, firmanavn, addr1, addr2, postnr, bynavn,
-	 *                    regnskab, pakke, source, navn_fra_cvr: int 1|0}
+	 *                    regnskab, pakke, source, navn_fra_cvr: int 1|0, kilde?: array<string, string>}
+	 *                    kilde: signup_kilde()'s result; stored once includes/betweenUpdates.php has added its columns
 	 * @return array{id: int, token: string, resend: string} the token and the resend key go to the
 	 *               mail and the "check your inbox" page respectively; only hashes are stored
 	 */
@@ -873,6 +961,13 @@ if (!function_exists('signup_create_pending')) {
 		}
 		$cols[] = 'navn_fra_cvr';
 		$values[] = (int)(bool)ifset($data, 'navn_fra_cvr', 0);
+		$kilde = (array)ifset($data, 'kilde', array());
+		if (array_filter($kilde, 'strlen') && signup_column_exists('signup_pending', 'landing')) {
+			foreach (signup_kilde_columns() as $col => $max) {
+				$cols[] = $col;
+				$values[] = signup_q(mb_substr((string)ifset($kilde, $col, ''), 0, $max));
+			}
+		}
 		$qtxt = "INSERT INTO signup_pending (" . implode(',', $cols) . ", token_hash, token_expires, resend_hash, ip) VALUES ("
 			. implode(',', $values) . ", " . signup_q(signup_token_hash($token)) . ", " . signup_q(date('Y-m-d H:i:s', time() + $days * 86400)) . ", "
 			. signup_q(signup_token_hash($resend)) . ", " . signup_q(signup_client_ip()) . ")";
@@ -1020,6 +1115,332 @@ if (!function_exists('signup_mask_email')) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// One e-mail, one account; a waiting period before a new trial (doc/signup.md)
+// ---------------------------------------------------------------------------------------------
+
+if (!function_exists('signup_add_months')) {
+	/**
+	 * Adds whole calendar months to a date. A day the target month does not have becomes its last day
+	 * (30 November + 3 months = 28 or 29 February, 31 August + 3 = 30 November); PHP's '+3 months' would
+	 * run over into the next month instead (2 or 1 March).
+	 *
+	 * @param string $ymd    Y-m-d (a longer timestamp is cut to its date)
+	 * @param int    $months 0 or more
+	 * @return string Y-m-d, or '' when $ymd is not a date
+	 */
+	function signup_add_months($ymd, $months) {
+		if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})/', (string)$ymd, $m) || !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) {
+			return '';
+		}
+		$index = (int)$m[1] * 12 + (int)$m[2] - 1 + max(0, (int)$months);
+		$year = intdiv($index, 12);
+		$month = $index % 12 + 1;
+		$leap = ($year % 4 === 0 && $year % 100 !== 0) || $year % 400 === 0;
+		$days = array(1 => 31, $leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
+		return sprintf('%04d-%02d-%02d', $year, $month, min((int)$m[3], $days[$month]));
+	}
+}
+
+if (!function_exists('signup_danish_date')) {
+	/**
+	 * "2027-02-09" -> "9. februar 2027", the long Danish form used in the flow's pages and mails.
+	 *
+	 * @param string $ymd Y-m-d (a longer timestamp is cut to its date)
+	 * @return string '' when $ymd is not a date
+	 */
+	function signup_danish_date($ymd) {
+		if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})/', (string)$ymd, $m) || !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) {
+			return '';
+		}
+		$months = array(1 => 'januar', 'februar', 'marts', 'april', 'maj', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'december');
+		return (int)$m[3] . '. ' . $months[(int)$m[2]] . ' ' . $m[1];
+	}
+}
+
+if (!function_exists('signup_account_state')) {
+	/**
+	 * Whether one signup-created account of a mailbox is still open, and if not, from which day it counts as
+	 * closed. Saldi has no column for when an account was closed, so the date is the best one it has:
+	 *
+	 * - deleted by the customer (Indstillinger, "Slet regnskab"): systemdata/diverse.php sets lukket and writes
+	 *   logintekst "slettet af <user> den YYYYMMDD H.i". That date is used (or lukkes, if that came first), unless
+	 *   somebody logged in after it (regnskab.sidst): then the account was reopened and the text is old.
+	 * - regnskab.lukkes when it is a real date (not empty, not 2099-12-31): the account closes by itself on that
+	 *   day (includes/online.php, at the next login). If staff ("Lukket" in admin/admin_panel.php or
+	 *   admin/vis_regnskaber.php) closed it earlier, no date of that is kept, so it still counts from lukkes, the
+	 *   day the trial would have ended: up to trial_days + trial_grace_days later than the real closing.
+	 * - closed without such a date (staff cleared it, typically when the trial became a subscription, and ticked
+	 *   "Lukket" later): the last day Saldi knows of, the later of the last login (regnskab.sidst) and the end of
+	 *   the trial plus trial_grace_days. Staff may have closed it later than that.
+	 * - the regnskab row is gone (admin/slet_regnskab.php deletes closed accounts and keeps no date): the day the
+	 *   trial would have closed, counted from the activation (signup_pending.activated) with today's trial settings.
+	 *   For an account that was extended or became a subscription, the real closing was later.
+	 *
+	 * A signup that is being activated (status 'activating') counts as an open account for 30 minutes after the
+	 * build started. Later than that the build died without cleaning up (a fatal error, the time limit, a restart):
+	 * it is no account (open false, closed ''), and rydop.php marks it 'failed'. A half-built regnskab row it left
+	 * still counts, as a regnskab row with a package.
+	 *
+	 * @param array  $item      one row from signup_mailbox_history()
+	 * @param string $today     Y-m-d
+	 * @param int    $trialDays trial_days setting
+	 * @param int    $graceDays trial_grace_days setting
+	 * @param string $now       Y-m-d H:i:s ('' = the start of $today), for the age of an activation
+	 * @return array{open: bool, closed: string} closed: Y-m-d the account counts as closed from ('' while open, and
+	 *               for a build that died)
+	 */
+	function signup_account_state(array $item, $today, $trialDays, $graceDays, $now = '') {
+		$day = function ($value) {
+			$value = (string)$value;
+			return (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $value, $m) && checkdate((int)$m[2], (int)$m[3], (int)$m[1]) && (int)$m[1] >= 2000) ? substr($value, 0, 10) : '';
+		};
+		// the day the trial closes by itself, counted from its first day
+		$planned = function ($start) use ($trialDays, $graceDays) {
+			return signup_trial_dates($trialDays, $graceDays, strtotime($start . ' 12:00:00'))['lukkes'];
+		};
+		if ((string)ifset($item, 'status', '') === 'activating') {
+			$started = strtotime((string)ifset($item, 'activated', ''));
+			$at = strtotime(($now !== '') ? $now : $today . ' 00:00:00');
+			if ($started !== false && $at !== false && $started < $at - 30 * 60) {
+				return array('open' => false, 'closed' => '');
+			}
+			return array('open' => true, 'closed' => '');
+		}
+		$activated = $day(ifset($item, 'activated', ''));
+		if ((int)ifset($item, 'r_id', 0) === 0) {
+			// the account was deleted (only closed accounts can be, admin/slet_regnskab.php)
+			return array('open' => false, 'closed' => ($activated !== '') ? $planned($activated) : $today);
+		}
+		$lukkes = $day(ifset($item, 'lukkes', ''));
+		if ($lukkes === '2099-12-31') {
+			$lukkes = ''; // "never" (admin/vis_regnskaber.php, includes/online.php)
+		}
+		// lukket as index/login.php reads it: any value but '' and '0' means closed
+		$lukket = (bool)trim((string)ifset($item, 'lukket', ''));
+		if (!$lukket && ($lukkes === '' || $lukkes > $today)) {
+			return array('open' => true, 'closed' => '');
+		}
+		$sidst = trim((string)ifset($item, 'sidst', ''));
+		$lastLogin = ($sidst !== '' && ctype_digit($sidst)) ? date('Y-m-d', (int)$sidst) : ''; // index/login.php writes the time of the last login
+		if ($lukket && preg_match('/slettet af .+ den (\d{4})(\d{2})(\d{2})/', (string)ifset($item, 'logintekst', ''), $m)) {
+			$deleted = $day("$m[1]-$m[2]-$m[3]");
+			if ($deleted !== '' && $deleted <= $today && ($lastLogin === '' || $lastLogin <= $deleted)) {
+				return array('open' => false, 'closed' => ($lukkes !== '' && $lukkes < $deleted) ? $lukkes : $deleted);
+			}
+		}
+		if ($lukkes !== '') {
+			return array('open' => false, 'closed' => $lukkes);
+		}
+		$known = array();
+		if ($lastLogin !== '') {
+			$known[] = $lastLogin;
+		}
+		$trialEnd = $day(ifset($item, 'trial_end', ''));
+		if ($trialEnd !== '') {
+			$known[] = date('Y-m-d', strtotime($trialEnd . ' 12:00:00 +' . max(0, (int)$graceDays) . ' days'));
+		} elseif ($activated !== '') {
+			$known[] = $planned($activated);
+		}
+		return array('open' => false, 'closed' => $known ? max($known) : $today);
+	}
+}
+
+if (!function_exists('signup_mailbox_decision')) {
+	/**
+	 * The rule for a new trial (doc/signup.md, "One e-mail, one account"): a mailbox gets one account across all
+	 * packages. While one of its signup-created accounts is open (or being created) it gets no other; after the
+	 * last one closed it waits $cooldownMonths calendar months, and may sign up again on the day they have passed.
+	 *
+	 * @param array  $history        rows from signup_mailbox_history()
+	 * @param string $today          Y-m-d
+	 * @param int    $trialDays      trial_days setting (for accounts whose closing date is unknown)
+	 * @param int    $graceDays      trial_grace_days setting
+	 * @param int    $cooldownMonths cooldown_months setting (0 = no wait: a closed account never refuses)
+	 * @param string $now            Y-m-d H:i:s ('' = the start of $today), see signup_account_state()
+	 * @return array{
+	 *   decision: string,  'allowed' | 'already_has_account' | 'cooldown'.
+	 *   date: string,      Y-m-d the mailbox may sign up again ('cooldown' only, otherwise '').
+	 *   regnskab_id: int,  the account behind the decision (0 when it was deleted, or 'allowed').
+	 *   signup_id: int,    its signup (0 when it has none, or 'allowed').
+	 * }
+	 */
+	function signup_mailbox_decision(array $history, $today, $trialDays = 30, $graceDays = 14, $cooldownMonths = 3, $now = '') {
+		$result = array('decision' => 'allowed', 'date' => '', 'regnskab_id' => 0, 'signup_id' => 0);
+		foreach ($history as $item) {
+			$ids = array('regnskab_id' => (int)ifset($item, 'r_id', 0), 'signup_id' => (int)ifset($item, 'signup_id', 0));
+			$state = signup_account_state($item, $today, $trialDays, $graceDays, $now);
+			if ($state['open']) {
+				return array('decision' => 'already_has_account', 'date' => '') + $ids;
+			}
+			if ($state['closed'] === '' || (int)$cooldownMonths <= 0) {
+				continue; // a build that died is no account; without a waiting period a closed account refuses nothing
+			}
+			$from = signup_add_months($state['closed'], $cooldownMonths);
+			if ($from > $today && $from > $result['date']) {
+				$result = array('decision' => 'cooldown', 'date' => $from) + $ids;
+			}
+		}
+		return $result;
+	}
+}
+
+if (!function_exists('signup_mailbox_message')) {
+	/**
+	 * What the customer is told when signup_mailbox_decision() refuses a mailbox: under the e-mail field of the
+	 * website's form (opret.php, errors.email) and on the activation page.
+	 *
+	 * Bookkeepers and accountants work in their customers' accounts through the bookkeeper scheme, not through
+	 * trials in their own mailbox, so a refusal also points them there when $revisorUrl is given. The address is
+	 * shown without "https://" and the trailing slash, because the website prints the message as plain text.
+	 *
+	 * @param array  $decision   from signup_mailbox_decision()
+	 * @param string $phone      the support_phone setting
+	 * @param string $revisorUrl the bookkeeper scheme's page (signup_urls()['revisor']); '' leaves the sentence out
+	 * @return string '' when the mailbox is allowed
+	 */
+	function signup_mailbox_message(array $decision, $phone, $revisorUrl = '') {
+		$revisor = trim(preg_replace('#^https?://#i', '', rtrim(trim((string)$revisorUrl), '/')));
+		$bookkeeper = ($revisor !== '')
+			? ' Er du bogholder eller revisor? Så får du adgang til dine kunders regnskaber gennem bogholderordningen på ' . $revisor . '.'
+			: '';
+		if ($decision['decision'] === 'already_has_account') {
+			return 'Der er allerede en Saldi-konto med denne e-mail. Log ind på den, eller ring på ' . $phone . ', hvis du vil skifte pakke.' . $bookkeeper;
+		}
+		if ($decision['decision'] === 'cooldown') {
+			return 'Denne e-mail har haft en gratis prøveperiode. Du kan prøve Saldi gratis igen fra den ' . signup_danish_date($decision['date'])
+				. '. Ring på ' . $phone . ', hvis du vil i gang nu.' . $bookkeeper;
+		}
+		return '';
+	}
+}
+
+if (!function_exists('signup_mailbox_log_text')) {
+	/**
+	 * signup_mailbox_decision()'s answer for the log, without the address: "cooldown until 2027-02-09 (regnskab 12, signup 34)".
+	 *
+	 * @param array $decision from signup_mailbox_decision()
+	 * @return string
+	 */
+	function signup_mailbox_log_text(array $decision) {
+		$until = ($decision['date'] !== '') ? ' until ' . $decision['date'] : '';
+		return $decision['decision'] . $until . ' (regnskab ' . (int)$decision['regnskab_id'] . ', signup ' . (int)$decision['signup_id'] . ')';
+	}
+}
+
+if (!function_exists('signup_email_sql_match')) {
+	/**
+	 * A WHERE condition that finds every spelling of a mailbox in an e-mail column (a superset: callers compare
+	 * signup_email_key() afterwards, signup_mailbox_history_rows()): the same domain and a column that starts with the
+	 * mailbox's name, without dots for Gmail. Uses only lower(), replace(), substr() and LIKE, which PostgreSQL and
+	 * MySQL share.
+	 *
+	 * @param string   $column a column name from the code, e.g. 'sp.email' (never input)
+	 * @param string   $email  the address typed by the customer
+	 * @param callable $quote  quotes a value for SQL (signup_q; the tests pass their own)
+	 * @return string
+	 */
+	function signup_email_sql_match($column, $email, $quote = 'signup_q') {
+		$key = signup_email_key($email);
+		$at = strrpos($key, '@');
+		$local = ($at === false) ? '' : substr($key, 0, $at);
+		$domain = ($at === false) ? '' : substr($key, $at + 1);
+		// signup_valid_email() allows only these characters in a domain, so it needs no LIKE escaping
+		if (!preg_match('/^[a-z0-9-]+(\.[a-z0-9-]+)+$/', $domain)) {
+			return "lower($column) = " . $quote($key);
+		}
+		$gmail = ($domain === 'gmail.com');
+		$where = $gmail ? "(lower($column) LIKE '%@gmail.com' OR lower($column) LIKE '%@googlemail.com')" : "lower($column) LIKE " . $quote('%@' . $domain);
+		// '+trial@firma.dk' has an empty name ('@firma.dk'): every address of the domain, and the caller's comparison keeps the right ones
+		if ($local === '') {
+			return $where;
+		}
+		$len = mb_strlen($local);
+		$name = $gmail ? "replace(lower($column), '.', '')" : "lower($column)";
+		return "$where AND substr($name, 1, $len) = " . $quote($local);
+	}
+}
+
+if (!function_exists('signup_mailbox_history_rows')) {
+	/**
+	 * Keeps the rows signup_mailbox_history()'s queries found that really belong to the mailbox (the queries return a
+	 * superset, see signup_email_sql_match()): signups first, then regnskab rows that no signup row of the mailbox
+	 * links to (their signup row is gone).
+	 *
+	 * @param string $email
+	 * @param array  $signupRows   signup_pending joined to regnskab (signup_id, status, email, activated, r_id, ...)
+	 * @param array  $regnskabRows regnskab rows with a package (r_id, email, ...)
+	 * @return array
+	 */
+	function signup_mailbox_history_rows($email, array $signupRows, array $regnskabRows) {
+		$key = signup_email_key($email);
+		$items = array();
+		$linked = array();
+		foreach ($signupRows as $r) {
+			if (signup_email_key((string)ifset($r, 'email', '')) === $key) {
+				$items[] = $r;
+				if ((int)ifset($r, 'r_id', 0) > 0) {
+					$linked[(int)$r['r_id']] = true;
+				}
+			}
+		}
+		foreach ($regnskabRows as $r) {
+			if (!isset($linked[(int)ifset($r, 'r_id', 0)]) && signup_email_key((string)ifset($r, 'email', '')) === $key) {
+				$items[] = $r;
+			}
+		}
+		return $items;
+	}
+}
+
+if (!function_exists('signup_mailbox_history')) {
+	/**
+	 * The accounts the signup flow has created for a mailbox (signup_email_key(): +tags and Gmail dots count as one):
+	 * signups that are activated or being activated, with their regnskab row (gone when the account was deleted),
+	 * and regnskab rows with a package (only the flow sets regnskab.pakke) whose signup row is gone. Accounts set up
+	 * by hand with the same e-mail do not count.
+	 *
+	 * @param string $email
+	 * @return array<int, array{signup_id?: int, status?: string, email: string, activated?: string|null, r_id: int|null,
+	 *               lukket: string|null, lukkes: string|null, sidst: string|null, trial_end: string|null, logintekst: string|null}>
+	 */
+	function signup_mailbox_history($email) {
+		$read = function ($qtxt) {
+			$rows = array();
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__, true);
+			while ($r = db_fetch_array($q)) {
+				$rows[] = $r;
+			}
+			return $rows;
+		};
+		$signups = $read("SELECT sp.id AS signup_id, sp.status, sp.email, sp.activated, r.id AS r_id, r.lukket, r.lukkes, r.sidst, r.trial_end, r.logintekst"
+			. " FROM signup_pending sp LEFT JOIN regnskab r ON r.id = sp.regnskab_id"
+			. " WHERE sp.status IN ('activating', 'activated') AND (" . signup_email_sql_match('sp.email', $email) . ")");
+		$accounts = $read("SELECT id AS r_id, email, lukket, lukkes, sidst, trial_end, logintekst FROM regnskab"
+			. " WHERE pakke IS NOT NULL AND pakke <> '' AND (" . signup_email_sql_match('email', $email) . ")");
+		return signup_mailbox_history_rows($email, $signups, $accounts);
+	}
+}
+
+if (!function_exists('signup_mailbox_rule')) {
+	/**
+	 * signup_mailbox_decision() for a mailbox today, with the installation's settings.
+	 *
+	 * @param string $email
+	 * @return array{decision: string, date: string, regnskab_id: int, signup_id: int} see signup_mailbox_decision()
+	 */
+	function signup_mailbox_rule($email) {
+		return signup_mailbox_decision(
+			signup_mailbox_history($email),
+			date('Y-m-d'),
+			(int)signup_setting('trial_days', '30'),
+			(int)signup_setting('trial_grace_days', '14'),
+			(int)signup_setting('cooldown_months', '3'),
+			date('Y-m-d H:i:s')
+		);
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
 // Activation: create the account
 // ---------------------------------------------------------------------------------------------
 
@@ -1055,18 +1476,28 @@ if (!function_exists('signup_activate')) {
 	 * tenant database and the master row are removed again.
 	 *
 	 * The caller has validated the password and shown the name check to the customer; the final
-	 * uniqueness check happens here, inside the lock.
+	 * uniqueness check happens here, inside the lock, and so does the final check of the mailbox rule
+	 * (signup_mailbox_rule(): one account per e-mail, a waiting period after a trial).
 	 *
 	 * @param array  $row      signup_pending row in state 'valid'
 	 * @param string $regnskab the account name the customer confirmed (normalised)
 	 * @param string $password the password in clear text; stored only as saldikrypt() hash
-	 * @return array{ok: bool, error: string, regnskab: string, regnskab_id: int, trial_end: string,
-	 *               suggestion: string} error: '' | 'taken' | 'state' | 'create' | 'failed' (3rd failed build)
-	 *               | 'ceiling' (max_activations_per_day reached)
+	 * @return array{
+	 *   ok: bool,
+	 *   error: string,       '' | 'taken' | 'state' | 'create' | 'failed' (3rd failed build) | 'ceiling'
+	 *                        (max_activations_per_day reached) | 'mailbox' (see mailbox).
+	 *   regnskab: string,
+	 *   regnskab_id: int,
+	 *   trial_end: string,   Y-m-d.
+	 *   lukkes: string,      Y-m-d the account closes unless sales moves the date.
+	 *   activated: string,   Y-m-d H:i:s the account was ready.
+	 *   suggestion: string,  a free account name when error is 'taken'.
+	 *   mailbox: array,      signup_mailbox_decision()'s answer when error is 'mailbox', otherwise empty.
+	 * }
 	 */
 	function signup_activate(array $row, $regnskab, $password) {
 		global $sqhost, $squser, $sqpass, $sqdb, $db, $db_type, $db_modify_fejl;
-		$fail = array('ok' => false, 'error' => '', 'regnskab' => $regnskab, 'regnskab_id' => 0, 'trial_end' => '', 'suggestion' => '');
+		$fail = array('ok' => false, 'error' => '', 'regnskab' => $regnskab, 'regnskab_id' => 0, 'trial_end' => '', 'lukkes' => '', 'activated' => '', 'suggestion' => '', 'mailbox' => array());
 		$regnskab = signup_normalize_name($regnskab);
 		if ($regnskab === '') {
 			$fail['error'] = 'taken';
@@ -1086,10 +1517,28 @@ if (!function_exists('signup_activate')) {
 			$fail['suggestion'] = $avail['suggestion'];
 			return $fail;
 		}
+		// The reserve step below runs one activation at a time: under LOCK TABLE regnskab on PostgreSQL, and under a named
+		// lock on MySQL (LOCK TABLES would end the transaction there; includes/betweenUpdates.php uses GET_LOCK the same way).
+		// So the mailbox rule and the ceiling are asked by one activation at a time on both.
+		$mysql = ($db_type == 'mysql' || $db_type == 'mysqli');
+		$release = function () use ($mysql) {
+			if ($mysql) {
+				db_select("SELECT RELEASE_LOCK('saldi:signup_activate')", __FILE__ . " linje " . __LINE__);
+			}
+		};
+		if ($mysql) {
+			$lock = db_fetch_array(db_select("SELECT GET_LOCK('saldi:signup_activate', 30) AS acquired", __FILE__ . " linje " . __LINE__));
+			if ((int)ifset($lock, 'acquired', 0) !== 1) {
+				signup_log("activation $id: the activation lock was not granted within 30 seconds");
+				$fail['error'] = 'create';
+				return $fail;
+			}
+		}
 		// A failure while reserving is logged and noted on the signup; the page then says the error was registered.
-		$reserveFailed = function () use ($id, $fail) {
+		$reserveFailed = function () use ($id, $fail, $release) {
 			global $db_modify_fejl;
 			transaktion('rollback');
+			$release();
 			signup_log("activation $id: could not reserve the account in the master database");
 			$db_modify_fejl = false;
 			db_modify("UPDATE signup_pending SET fejl = " . signup_q(date('Y-m-d H:i:s') . ' reserve failed') . " WHERE id = $id", __FILE__ . " linje " . __LINE__);
@@ -1104,22 +1553,37 @@ if (!function_exists('signup_activate')) {
 		$cur = db_fetch_array(db_select("SELECT status FROM signup_pending WHERE id = $id FOR UPDATE", __FILE__ . " linje " . __LINE__));
 		if (!$cur || $cur['status'] !== 'pending') {
 			transaktion('rollback');
+			$release();
 			$fail['error'] = 'state';
 			return $fail;
 		}
+		// One account per mailbox, asked again under the lock every activation takes: two pending signups of one
+		// mailbox (say for two packages) cannot both become accounts, since the second one sees the first as
+		// 'activating' or 'activated'.
+		$mailbox = signup_mailbox_rule($row['email']);
+		if ($mailbox['decision'] !== 'allowed') {
+			transaktion('rollback');
+			$release();
+			signup_log("activation of signup $id refused: " . signup_mailbox_log_text($mailbox));
+			$fail['error'] = 'mailbox';
+			$fail['mailbox'] = $mailbox;
+			return $fail;
+		}
 		// The server's ceiling on new accounts (each one is a database on the shared server): signups that reserved
-		// an account in the last 24 hours. Counted under the regnskab lock, which every activation takes, so
-		// parallel activations cannot all pass it (MySQL has no such lock here). Sales can raise the setting.
+		// an account in the last 24 hours. Counted under the lock every activation takes, so parallel activations
+		// cannot all pass it. Sales can raise the setting.
 		$since = signup_q(date('Y-m-d H:i:s', time() - 86400));
 		$n = db_fetch_array(db_select("SELECT count(*) AS n FROM signup_pending WHERE status IN ('activating', 'activated') AND activated > $since", __FILE__ . " linje " . __LINE__));
 		if ((int)ifset($n, 'n', 0) >= (int)signup_setting('max_activations_per_day', '30')) {
 			transaktion('rollback');
+			$release();
 			signup_log("max_activations_per_day reached; activation of signup $id refused");
 			$fail['error'] = 'ceiling';
 			return $fail;
 		}
 		if (signup_name_taken_locally($regnskab)) {
 			transaktion('rollback');
+			$release();
 			$fail['error'] = 'taken';
 			$avail = signup_name_available($regnskab);
 			$fail['suggestion'] = $avail['suggestion'];
@@ -1154,6 +1618,7 @@ if (!function_exists('signup_activate')) {
 			return $reserveFailed();
 		}
 		transaktion('commit');
+		$release();
 
 		// 2. Create and seed the tenant database with master's tenant build (includes/opretfunc.php), the one
 		//    admin/opret.php and api/signup_api.php use through create_regnskab(). The master row is ours
@@ -1208,11 +1673,13 @@ if (!function_exists('signup_activate')) {
 
 		// 3. Done. The token hash stays so the link can still show "already activated - go to login";
 		//    status 'activated' is what stops it from ever activating again. No more mails for it.
-		$qtxt = "UPDATE signup_pending SET status = 'activated', activated = " . signup_q(date('Y-m-d H:i:s')) . ", regnskab_id = $regnskabId, "
+		$activatedAt = date('Y-m-d H:i:s');
+		$qtxt = "UPDATE signup_pending SET status = 'activated', activated = " . signup_q($activatedAt) . ", regnskab_id = $regnskabId, "
 			. "resend_hash = NULL WHERE id = $id";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		signup_log("activated signup $id as regnskab $regnskabId ($regnskab)");
-		return array('ok' => true, 'error' => '', 'regnskab' => $regnskab, 'regnskab_id' => $regnskabId, 'trial_end' => $trialEnd, 'suggestion' => '');
+		return array('ok' => true, 'error' => '', 'regnskab' => $regnskab, 'regnskab_id' => $regnskabId, 'trial_end' => $trialEnd, 'lukkes' => $dates['lukkes'],
+			'activated' => $activatedAt, 'suggestion' => '', 'mailbox' => array());
 	}
 }
 
@@ -1328,8 +1795,185 @@ if (!function_exists('signup_create_billing_order')) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Measurement (doc/signup.md, "Measurement") - account_activated to Google Analytics, best effort
+// ---------------------------------------------------------------------------------------------
+
+if (!function_exists('signup_consent_cookie')) {
+	/**
+	 * The visitor's cookie choice on the website, from the saldi_consent cookie its consent.js sets on the parent domain
+	 * (domain=saldi.dk, so the browser sends it here too): "<version>.<time in ms>.<statistics 0/1>.<marketing 0/1>".
+	 * Another version, a choice older than 12 months or one from the future counts as no choice.
+	 *
+	 * @param string   $raw the cookie value
+	 * @param int|null $now timestamp (default: now)
+	 * @return array{statistik: bool, marketing: bool}|null null = no valid choice
+	 */
+	function signup_consent_cookie($raw, $now = null) {
+		if (!preg_match('/^1\.(\d{10,14})\.([01])\.([01])\z/', (string)$raw, $m)) {
+			return null;
+		}
+		$now = ($now === null) ? time() : (int)$now;
+		$age = $now - intdiv((int)$m[1], 1000);
+		if ($age < -86400 || $age > 365 * 86400) {
+			return null;
+		}
+		return array('statistik' => ($m[2] === '1'), 'marketing' => ($m[3] === '1'));
+	}
+}
+
+if (!function_exists('signup_ga_ids')) {
+	/**
+	 * Google Analytics' ids for the visitor, from the cookies GA4 sets on the website's parent domain:
+	 * _ga = "GA1.1.<client id>", _ga_<stream> = "GS1.1.<session id>.<n>…" or "GS2.1.s<session id>$o<n>…".
+	 *
+	 * @param array  $cookies $_COOKIE
+	 * @param string $gaId    Measurement ID, e.g. G-XC59W34F3B
+	 * @return array{client_id: string, session_id: string} '' where the cookie is missing or not of that form
+	 */
+	function signup_ga_ids(array $cookies, $gaId) {
+		$client = '';
+		if (preg_match('/^GA\d\.\d+\.(\d{1,20}\.\d{1,20})\z/', (string)ifset($cookies, '_ga', ''), $m)) {
+			$client = $m[1];
+		}
+		$session = '';
+		$stream = (string)ifset($cookies, '_ga_' . preg_replace('/^G-/', '', (string)$gaId), '');
+		if (preg_match('/^GS1\.\d+\.(\d{1,20})\./', $stream, $m) || preg_match('/^GS2\.\d+\.s(\d{1,20})(\$|\z)/', $stream, $m)) {
+			$session = $m[1];
+		}
+		return array('client_id' => $client, 'session_id' => $session);
+	}
+}
+
+if (!function_exists('signup_ga_activation_payload')) {
+	/**
+	 * The GA4 Measurement Protocol body for account_activated, or null when it may not or cannot be sent: the visitor
+	 * has not allowed statistics on the website, or has no GA cookie (e.g. the link was opened in another browser).
+	 * Only the package goes along, never name, e-mail, CVR number or account name. Google Ads may use the event
+	 * (ad_user_data) only with marketing consent.
+	 *
+	 * @param array|null $consent from signup_consent_cookie()
+	 * @param array      $ids     from signup_ga_ids()
+	 * @param string     $pakke   'finans' | 'professionel' | 'business'
+	 * @return array|null
+	 */
+	function signup_ga_activation_payload($consent, array $ids, $pakke) {
+		if (!$consent || !$consent['statistik'] || $ids['client_id'] === '') {
+			return null;
+		}
+		$params = array('pakke' => (string)$pakke, 'engagement_time_msec' => 1);
+		if ($ids['session_id'] !== '') {
+			$params['session_id'] = $ids['session_id'];
+		}
+		$ads = $consent['marketing'] ? 'GRANTED' : 'DENIED';
+		return array(
+			'client_id' => $ids['client_id'],
+			'consent' => array('ad_user_data' => $ads, 'ad_personalization' => $ads),
+			'events' => array(array('name' => 'account_activated', 'params' => $params)),
+		);
+	}
+}
+
+if (!function_exists('signup_track_activation')) {
+	/**
+	 * Sends account_activated for a new account to GA4 (Measurement Protocol, EU endpoint), so the website's signup
+	 * funnel ends at a real account and the event can be a key event / Google Ads conversion. The activation page loads
+	 * no tracking script (it holds the new password); the server does it once the page has gone out. Off until ga_id
+	 * and ga_api_secret are set. Run it through signup_after_response(); a failure is only logged.
+	 *
+	 * @param array $row     signup_pending row
+	 * @param array $cookies $_COOKIE of the activation request
+	 * @return bool sent
+	 */
+	function signup_track_activation(array $row, array $cookies) {
+		$gaId = trim(signup_setting('ga_id', ''));
+		$secret = trim(signup_setting('ga_api_secret', ''));
+		if (!preg_match('/^G-[A-Z0-9]{4,20}$/', $gaId) || $secret === '' || !function_exists('curl_init')) {
+			return false;
+		}
+		$payload = signup_ga_activation_payload(signup_consent_cookie(ifset($cookies, 'saldi_consent', '')), signup_ga_ids($cookies, $gaId), ifset($row, 'pakke', ''));
+		if (!$payload) {
+			return false;
+		}
+		$ch = curl_init('https://region1.google-analytics.com/mp/collect?measurement_id=' . rawurlencode($gaId) . '&api_secret=' . rawurlencode($secret));
+		curl_setopt_array($ch, array(
+			CURLOPT_POST => true,
+			CURLOPT_POSTFIELDS => json_encode($payload),
+			CURLOPT_HTTPHEADER => array('Content-Type: application/json'),
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_TIMEOUT => 5,
+		));
+		curl_exec($ch);
+		$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		$err = curl_error($ch);
+		curl_close($ch);
+		if ($code < 200 || $code >= 300) {
+			signup_log("account_activated to GA4 failed (http $code $err)");
+			return false;
+		}
+		return true;
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
 // HTTP helpers for the endpoints
 // ---------------------------------------------------------------------------------------------
+
+if (!function_exists('signup_after_response')) {
+	/**
+	 * Runs best-effort work once the page has gone to the browser, so a slow or failing task (a mail) neither delays
+	 * nor breaks what the customer sees. Call it before the page is printed. Under PHP-FPM the response is finished
+	 * first (fastcgi_finish_request()). Elsewhere (mod_php) the page is buffered from here on and sent with its
+	 * Content-Length and "Connection: close", so the browser has all of it before the task starts; Apache's own
+	 * compression is switched off for the request, since it would drop that length. Only a PHP output handler that
+	 * cannot be removed (zlib.output_compression) keeps the page back until the task is done; the task then still
+	 * runs, and the mail transport's timeouts bound the wait. Errors are logged, never shown.
+	 *
+	 * @param callable $task
+	 * @return void
+	 */
+	function signup_after_response(callable $task) {
+		$fpm = function_exists('fastcgi_finish_request');
+		if (!$fpm) {
+			ob_start(); // the page, so it can be sent with its length
+		}
+		register_shutdown_function(function () use ($task, $fpm) {
+			ignore_user_abort(true); // the customer closing the tab must not stop the task
+			if ($fpm) {
+				fastcgi_finish_request();
+			} else {
+				$page = '';
+				while (ob_get_level() > 0) {
+					$buffer = ob_get_status();
+					if (!((int)ifset($buffer, 'flags', 0) & PHP_OUTPUT_HANDLER_REMOVABLE)) {
+						break; // e.g. zlib.output_compression: it stays, and the page goes out when the script ends
+					}
+					$chunk = ob_get_clean();
+					if ($chunk === false) {
+						break;
+					}
+					$page = $chunk . $page;
+				}
+				if (ob_get_level() === 0 && !headers_sent()) {
+					if (function_exists('apache_setenv')) {
+						@apache_setenv('no-gzip', '1'); // mod_deflate would send it chunked, without the length
+					}
+					header('Content-Length: ' . strlen($page));
+					header('Connection: close');
+				}
+				echo $page;
+				flush();
+			}
+			try {
+				if (function_exists('set_time_limit')) {
+					set_time_limit(60); // a fresh allowance: the account build may have used most of the request's
+				}
+				$task();
+			} catch (Throwable $e) {
+				signup_log('after the response: ' . $e->getMessage());
+			}
+		});
+	}
+}
 
 if (!function_exists('signup_allowed_origins')) {
 	/**
