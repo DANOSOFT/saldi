@@ -36,6 +36,8 @@
 // 20261125 CL/MMR SST-1051 Only HTTP 200 is accepted as a whole file.
 // 20261125 CL/MMR SST-1051 Rows with a missing or non-numeric price are skipped, space-only lines before the header are
 //                 dropped, and gzip/deflate responses are decoded.
+// 20261125 CL/MMR SST-1051 Prices must be in one of the four documented formats, and a last record with a missing
+//                 closing quote is refused.
 
 /**
  * The active price list, or null when none is in use.
@@ -67,21 +69,55 @@ function externalPriceListActive(): ?array
 }
 
 /**
- * Turn a price from the file into a number. Accepts 1234.50, 1234,50, 1.234,50 and 1,234.50.
+ * Turn a price from the file into a number. Accepts 1234.50, 1234,50, 1.234,50 and 1,234.50 (also negative and
+ * without decimals); anything else, e.g. «799 kr», «1e309» or «1,2,3.40», is not a price.
  *
- * @return float|null null when the value is empty or not a number (e.g. «799 kr»)
+ * @return float|null null when the value is empty or not a price in one of those formats
  */
 function externalPriceListNumber(string $value): ?float
 {
 	$value = str_replace(array(' ', "\xC2\xA0"), '', trim($value));
-	$comma = strrpos($value, ',');
-	$dot = strrpos($value, '.');
-	if ($comma !== false && ($dot === false || $comma > $dot)) {
+	if (preg_match('/^-?\d+(?:[.,]\d+)?$/', $value)) {
+		$value = str_replace(',', '.', $value);
+	} elseif (preg_match('/^-?\d{1,3}(?:\.\d{3})+(?:,\d+)?$/', $value)) {
 		$value = str_replace(array('.', ','), array('', '.'), $value);
-	} else {
+	} elseif (preg_match('/^-?\d{1,3}(?:,\d{3})+(?:\.\d+)?$/', $value)) {
 		$value = str_replace(',', '', $value);
+	} else {
+		return null;
 	}
-	return ($value !== '' && is_numeric($value)) ? (float) $value : null;
+	$number = (float) $value;
+	// The item card stores prices as numeric(15,3).
+	return (is_finite($number) && abs($number) < 1e12) ? $number : null;
+}
+
+/**
+ * True when the raw text of a CSV record ends inside a quoted field, i.e. the closing quote is missing.
+ * fgetcsv() silently accepts such a field when it runs to the end of the file.
+ */
+function externalPriceListQuoteOpen(string $raw, string $delimiter): bool
+{
+	$inQuote = false;
+	$fieldStart = true;
+	$length = strlen($raw);
+	for ($i = 0; $i < $length; $i++) {
+		$char = $raw[$i];
+		if ($inQuote) {
+			if ($char === '"') {
+				if ($i + 1 < $length && $raw[$i + 1] === '"') {
+					$i++;
+				} else {
+					$inQuote = false;
+				}
+			}
+		} elseif ($fieldStart && $char === '"') {
+			$inQuote = true;
+			$fieldStart = false;
+		} else {
+			$fieldStart = ($char === $delimiter || $char === "\n");
+		}
+	}
+	return $inQuote;
 }
 
 /**
@@ -177,7 +213,20 @@ function externalPriceListEach(array $priceList, callable $visit): bool
 		fclose($stream);
 		return false;
 	}
-	while (($record = fgetcsv($stream, 0, $priceList['delimiter'], '"', '')) !== false) {
+	while (true) {
+		$recordStart = ftell($stream);
+		$record = fgetcsv($stream, 0, $priceList['delimiter'], '"', '');
+		if ($record === false) {
+			break;
+		}
+		// Only a record that runs to the end of the file can have an open quote; such a record is refused.
+		if (feof($stream)) {
+			fseek($stream, $recordStart);
+			$raw = (string) stream_get_contents($stream);
+			if (externalPriceListQuoteOpen($raw, $priceList['delimiter'])) {
+				break;
+			}
+		}
 		if (trim(implode('', array_map('strval', $record))) === '') {
 			continue;
 		}
