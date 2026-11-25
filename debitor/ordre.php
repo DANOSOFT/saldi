@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -190,6 +190,16 @@
 // 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
+// 20261112 CL/MMR SST-1013 Credit limit: an open post in a third currency is converted with its own rate and the order's rate.
+//                 It multiplied by the currency code, which stopped the page with a TypeError on PHP 8.
+//                 The rate lookup for a base-currency post gets the debug argument db_select() requires (ArgumentCountError on PHP 8).
+//                 Without a rate the alert now has its text, and the previous post's amount is no longer counted again.
+//                 The alert text and invoice number are encoded with jsString() for the onload attribute.
+// 20261118 CL/MMR SST-1013 The credit-limit queries escape the order currency and the post date, and cast the account id.
+//                 A rate of 0 is handled like a missing rate, so it no longer stops the page with a division by zero.
+//                 A post without a date is handled like a missing rate too, instead of comparing with an empty date.
+//                 A post amount that is not a number (NaN) counts as 0, and a post rate that is not a number gives the no-rate alert, so the sum cannot stop the page.
+//                 All invoices without a usable rate are named in one alert after the page has loaded, instead of one onload per post where only the first was shown.
 @session_start();
 $s_id = session_id();
 
@@ -6572,25 +6582,44 @@ function ordreside($id, $regnskab)
 			//print "<tr><td></td></tr>\n";
 		} # end if ($status < 3)
 		if ($konto_id) {
-			$r = db_fetch_array(db_select("select kreditmax from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(db_select("select kreditmax from adresser where id = '" . (int)$konto_id . "'", __FILE__ . " linje " . __LINE__));
 			if ($kreditmax = floatval(ifset($r, 'kreditmax', 0))) { // 20210719 checked whether it is set as it was throwing a boolean error // Changed it from string * int to floatval to avoid type errors.
 				if ($valutakurs) $kreditmax = $kreditmax * 100 / $valutakurs;
-				$q = db_select("select * from openpost where konto_id = '$konto_id' and udlignet='0'", __FILE__ . " linje " . __LINE__);
+				$q = db_select("select * from openpost where konto_id = '" . (int)$konto_id . "' and udlignet='0'", __FILE__ . " linje " . __LINE__);
 				$tilgode = 0;
+				$noRateInvoices = array(); // invoices whose post could not be converted, shown in one alert after the loop
 				while ($r = db_fetch_array($q)) {
 					if (!$r['valuta']) $r['valuta'] = $baseCurrency;
 					if (!$r['valutakurs']) $r['valutakurs'] = 100;
-					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
-					elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
-						if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc"))) {
-							$opp_amount = $r['amount'] * 100 / $r3['kurs'];
-							$alert = findtekst('1850|Ingen valutakurs for faktura', $sprog_id);
-						} elseif ($valuta) print "<BODY onLoad=\"javascript:alert('$alert $r[faktnr]')\">\n";
+					// NULL or NaN cannot be calculated with: such an amount counts as 0, and such a rate means the post cannot be converted
+					$postAmount = is_numeric($r['amount']) ? (float)$r['amount'] : 0;
+					$postRate = is_numeric($r['valutakurs']) ? (float)$r['valutakurs'] : null;
+					$opp_amount = 0; // a post that cannot be converted adds nothing, and the previous post's amount is not counted again
+					$noRate = false;
+					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) {
+						if ($postRate === null) $noRate = true;
+						else $opp_amount = $postAmount * $postRate / 100;
+					} elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
+						$r3 = false; // a post without a date has no rate to look up
+						if ($r['transdate']) {
+							$r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='" . db_escape_string((string)$valuta) . "' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '" . db_escape_string((string)$r['transdate']) . "' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__));
+						}
+						$rateKurs = ($r3 && is_numeric($r3['kurs'])) ? (float)$r3['kurs'] : 0;
+						if ($rateKurs > 0) $opp_amount = $postAmount * 100 / $rateKurs; // a rate of 0 or no rate is handled as no rate
+						else $noRate = true;
 					} elseif ($valuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $valuta) {
-						$tmp == $r['amount'] * $r['valuta'] / 100;
-						$opp_amount = $tmp * 100 / $r['valutakurs'];
-					} else $opp_amount = $r['amount'];
+						if ($postRate === null) $noRate = true;
+						else {
+							$tmp = $postAmount * $postRate / 100; // the post in the base currency
+							$opp_amount = ($valutakurs) ? $tmp * 100 / $valutakurs : $tmp; // and in the order's currency
+						}
+					} else $opp_amount = $postAmount;
+					if ($noRate && $valuta) $noRateInvoices[] = (string)$r['faktnr'];
 					$tilgode = $tilgode + $opp_amount;
+				}
+				if ($noRateInvoices) {
+					$alertJs = jsString(array(findtekst('1850|Ingen valutakurs for faktura', $sprog_id), ' ', implode(', ', $noRateInvoices)));
+					print "<script>window.addEventListener('load', function () { alert($alertJs); });</script>\n";
 				}
 				if ($kreditmax < $ialt + $tilgode) {
 					$tmp = dkdecimal(($ialt + $tilgode) - $kreditmax, 2);
