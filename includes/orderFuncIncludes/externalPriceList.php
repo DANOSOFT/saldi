@@ -32,6 +32,7 @@
 // 20261125 CL/MMR SST-1051 CR-only line ends and blank lines before the header are accepted.
 // 20261125 CL/MMR SST-1051 A file larger than 20 MB is refused instead of being cut inside a record.
 // 20261125 CL/MMR SST-1051 Records are visited one by one instead of kept, so a file with many short lines fits in memory.
+// 20261125 CL/MMR SST-1051 The file is downloaded with curl, and a broken-off transfer or HTTP error gives no rows.
 
 /**
  * The active price list, or null when none is in use.
@@ -79,6 +80,47 @@ function externalPriceListNumber(string $value): float
 }
 
 /**
+ * Download the price file completely or not at all. A transfer that breaks off (curl reports it, also when fewer
+ * bytes arrive than the server announced), an HTTP error status and a file over the limit all give null, so a row
+ * cut in the middle is never read as a row with missing prices.
+ *
+ * @return string|null the whole file, or null
+ */
+function externalPriceListDownload(string $url, int $maxBytes): ?string
+{
+	if (!function_exists('curl_init')) {
+		return null;
+	}
+	$data = '';
+	$tooBig = false;
+	$ch = curl_init($url);
+	curl_setopt_array($ch, array(
+		CURLOPT_FOLLOWLOCATION => true,
+		CURLOPT_MAXREDIRS => 3,
+		CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+		CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+		CURLOPT_CONNECTTIMEOUT => 10,
+		CURLOPT_TIMEOUT => 30,
+		CURLOPT_WRITEFUNCTION => function ($handle, string $chunk) use (&$data, &$tooBig, $maxBytes): int {
+			if (strlen($data) + strlen($chunk) > $maxBytes) {
+				$tooBig = true;
+				return 0; // stops the transfer
+			}
+			$data .= $chunk;
+			return strlen($chunk);
+		},
+	));
+	$ok = curl_exec($ch);
+	$error = curl_errno($ch);
+	$status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+	curl_close($ch);
+	if ($ok === false || $error || $tooBig || $status < 200 || $status >= 300) {
+		return null;
+	}
+	return $data;
+}
+
+/**
  * Read the price file record by record and hand each row to $visit; when $visit returns false the reading stops.
  * Rows are not kept, so a file with many short lines does not fill the memory. The column names follow the sample
  * file in Indstillinger → Prislister (varenr, stregkode, varemærke, beskrivelse, kostpris, salgspris, enhed, ...),
@@ -92,11 +134,8 @@ function externalPriceListEach(array $priceList, callable $visit): bool
 	if (!preg_match('#^https?://#i', $priceList['url'])) {
 		return false;
 	}
-	$context = stream_context_create(array('http' => array('timeout' => 10), 'https' => array('timeout' => 10)));
-	$maxBytes = 20 * 1024 * 1024;
-	$data = @file_get_contents($priceList['url'], false, $context, 0, $maxBytes + 1);
-	// A file over the limit would be cut inside a record, so it is refused rather than read in part.
-	if ($data === false || trim($data) === '' || strlen($data) > $maxBytes) {
+	$data = externalPriceListDownload($priceList['url'], 20 * 1024 * 1024);
+	if ($data === null || trim($data) === '') {
 		return false;
 	}
 	if (strncmp($data, "\xEF\xBB\xBF", 3) === 0) {
