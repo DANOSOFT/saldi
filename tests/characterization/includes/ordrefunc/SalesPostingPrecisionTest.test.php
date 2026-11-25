@@ -16,6 +16,7 @@
 //
 // History:
 // 20261125 CL/MMR MB-80: created.
+// 20261125 CL/MMR MB-80 (Codex round 4): direct posting without a caller transaction (the REST send) with a blank, 0 or configured currency difference account, and with no usable difference account.
 // 20261125 CL/MMR MB-80 (Codex round 3): orders that fail only the rounded-sides check (99.961/-0.005), and a table of edge prices decided as on origin/master.
 // 20261125 CL/MMR MB-80 (Codex round 2): the cutoff of the pre-flight check, DKK and EUR, invoice and credit note, refused and accepted as on origin/master.
 // 20261125 CL/MMR MB-80 (Codex round 1): ten half-øre revenue groups in DKK (invoice and credit note) and EUR; the pre-flight must accept each invoice and the order must reach status 4.
@@ -565,6 +566,143 @@ final class SalesPostingPrecisionTest extends TestCase
             [self::CURRENCY_DIFF, '0.00', '4.00']
         ), $rows);
         $this->assertPreflightMatchesPosting($id, $rows);
+    }
+
+    /**
+     * An EUR order delivered and invoiced (status 2, invoice number set) the way the REST send method finds it:
+     * header 200.02, two VAT-free lines of 100.01 on 1010 and 1050 (Codex round 4).
+     */
+    private function createDeliveredEurOrder(float $mainPrice = 100.01, ?float $secondPrice = 100.01, float $header = 200.02): int
+    {
+        $lines = [self::line(self::REVENUE, 0, 0, $mainPrice, 1, ['momsfri' => 'on'])];
+        if ($secondPrice !== null) {
+            $lines[] = self::line(self::REVENUE_EXEMPT, 0, 0, $secondPrice, 1, ['momsfri' => 'on']);
+        }
+        $id = $this->createOrder('EUR', 'DO', $lines, $header, 0);
+        CharacterizationEnv::rows(
+            self::$tenant,
+            "UPDATE ordrer SET status = 2, valutakurs = 745, fakturadate = ordredate, fakturanr = (90000 + id)::text WHERE id = $1",
+            [$id]
+        );
+        CharacterizationEnv::rows(self::$tenant, 'UPDATE ordrelinjer SET leveret = antal, leveres = 0 WHERE ordre_id = $1', [$id]);
+        return $id;
+    }
+
+    /**
+     * Runs bogfor_nu() directly, with no caller transaction, under the given currency and øre difference accounts,
+     * and restores the class setup afterwards.
+     *
+     * @return array{out: array<string, mixed>, rows: array<int, array{0: string, 1: string, 2: string}>, status: string, openItems: int}
+     */
+    private function postDirectly(int $orderId, string $currencyAccount, string $oreAccount): array
+    {
+        $t = self::$tenant;
+        CharacterizationEnv::rows($t, "UPDATE grupper SET box3 = $1 WHERE art = 'VK' AND box1 = 'EUR'", [$currencyAccount]);
+        CharacterizationEnv::rows($t, "UPDATE grupper SET box2 = $1 WHERE art = 'OreDif'", [$oreAccount]);
+        try {
+            $out = $this->runInvoiceChild('direct', $orderId);
+        } finally {
+            CharacterizationEnv::rows($t, "UPDATE grupper SET box3 = $1 WHERE art = 'VK' AND box1 = 'EUR'", [self::CURRENCY_DIFF]);
+            CharacterizationEnv::rows($t, "UPDATE grupper SET box2 = $1 WHERE art = 'OreDif'", [self::ORE_DIFF]);
+        }
+        $this->assertSame(0, $out['transaction_depth'], 'no transaction left open');
+        $rows = [];
+        foreach (CharacterizationEnv::rows(
+            $t,
+            "SELECT kontonr, to_char(debet, 'FM999999990.00') AS debet, to_char(kredit, 'FM999999990.00') AS kredit
+             FROM transaktioner WHERE ordre_id = $1 ORDER BY id",
+            [$orderId]
+        ) as $row) {
+            $rows[] = [(string)$row['kontonr'], $row['debet'], $row['kredit']];
+        }
+        $openItems = CharacterizationEnv::one($t, 'SELECT count(*) AS n FROM openpost WHERE refnr = $1', [$orderId]);
+        return ['out' => $out, 'rows' => $rows, 'status' => (string)$out['status'], 'openItems' => (int)$openItems['n']];
+    }
+
+    /** @return array<string, array{string, string, string}> currency account (VK box3), øre account, account expected for the 0.01 */
+    public static function directPostingAccounts(): array
+    {
+        return [
+            'currency account blank: øre account, as before' => ['', self::ORE_DIFF, self::ORE_DIFF],
+            'currency account 0: øre account, as before' => ['0', self::ORE_DIFF, self::ORE_DIFF],
+            'currency account configured' => [self::CURRENCY_DIFF, self::ORE_DIFF, self::CURRENCY_DIFF],
+            'currency account configured, no øre account' => [self::CURRENCY_DIFF, '', self::CURRENCY_DIFF],
+        ];
+    }
+
+    /**
+     * The ledger rows' rounding (745.07 + 745.07 against 1490.15) with balanced control sides: posted in full,
+     * with the 0.01 on the currency account, or on the øre account when there is no usable currency account.
+     */
+    #[DataProvider('directPostingAccounts')]
+    public function test_direct_posting_books_the_rounding_on_a_usable_account(string $currencyAccount, string $oreAccount, string $expectedAccount): void
+    {
+        $id = $this->createDeliveredEurOrder();
+        $result = $this->postDirectly($id, $currencyAccount, $oreAccount);
+        $this->assertSame('OK', $result['out']['bogfor']);
+        $this->assertSame('4', $result['status']);
+        $this->assertSame(1, $result['openItems']);
+        $this->assertSame(self::rows(
+            [self::DEBTOR, '1490.15', '0.00'],
+            [self::REVENUE, '0.00', '745.07'],
+            [self::REVENUE_EXEMPT, '0.00', '745.07'],
+            [$expectedAccount, '0.00', '0.01']
+        ), $result['rows']);
+    }
+
+    /** Neither a currency nor an øre account: refused before anything is written, the order unchanged. */
+    public function test_direct_posting_without_a_usable_difference_account_changes_nothing(): void
+    {
+        $id = $this->createDeliveredEurOrder();
+        $result = $this->postDirectly($id, '0', '');
+        $this->assertStringContainsString('Manglende kontonummer til &oslash;redifferencer', (string)$result['out']['bogfor']);
+        $this->assertSame('2', $result['status']);
+        $this->assertSame(0, $result['openItems']);
+        $this->assertSame([], $result['rows']);
+    }
+
+    /**
+     * The rounded control sides differ (745.08 - 741.08 = 4.00, within the limit), which the currency account must
+     * take, as before: without one the order is refused before anything is written (origin/master refused it after
+     * writing). With one, it is posted in full.
+     */
+    public function test_direct_posting_with_a_control_difference_needs_the_currency_account(): void
+    {
+        $id = $this->createDeliveredEurOrder(99.474, null, 100.01);
+        $result = $this->postDirectly($id, '0', self::ORE_DIFF);
+        $this->assertSame('Kontonr 0 (kursdiff) eksisterer ikke', (string)$result['out']['bogfor']);
+        $this->assertSame('2', $result['status']);
+        $this->assertSame(0, $result['openItems']);
+        $this->assertSame([], $result['rows']);
+
+        $result = $this->postDirectly($id, self::CURRENCY_DIFF, self::ORE_DIFF);
+        $this->assertSame('OK', $result['out']['bogfor']);
+        $this->assertSame('4', $result['status']);
+        $this->assertSame(1, $result['openItems']);
+        $this->assertSame(self::rows(
+            [self::DEBTOR, '745.07', '0.00'],
+            [self::REVENUE, '0.00', '741.08'],
+            [self::CURRENCY_DIFF, '0.00', '3.99']
+        ), $result['rows']);
+    }
+
+    /**
+     * A failure after the first writes: a VAT line on a revenue account with no VAT code makes bogfor_nu() return
+     * after the debtor, open item and revenue rows are written. Without a caller transaction it now rolls them back.
+     */
+    public function test_direct_posting_that_fails_after_writing_leaves_the_order_unchanged(): void
+    {
+        $id = $this->createOrder('DKK', 'DO', [self::line(self::REVENUE_EXEMPT, 0, 25, 100)], 100, 25);
+        CharacterizationEnv::rows(
+            self::$tenant,
+            "UPDATE ordrer SET status = 2, valutakurs = 100, fakturadate = ordredate, fakturanr = (90000 + id)::text WHERE id = $1",
+            [$id]
+        );
+        $result = $this->postDirectly($id, self::CURRENCY_DIFF, self::ORE_DIFF);
+        $this->assertStringContainsString('har ingen momskode', (string)$result['out']['bogfor']);
+        $this->assertSame('2', $result['status']);
+        $this->assertSame(0, $result['openItems']);
+        $this->assertSame([], $result['rows']);
     }
 
     /** A real header/line discrepancy (VAT 26.00 on the order, 25.00 on its lines) is still refused before anything is written. */
