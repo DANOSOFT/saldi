@@ -75,6 +75,7 @@
 // 20261125 CL/MMR  SST-1005: The waiting year is taken and a setting of this feature is written by its id, so no statement of the feature scans settings and waits in a circle with a year card that holds the block row (Codex round 33).
 // 20261125 CL/MMR  SST-1005: The page check lowers the waiting year by its id too, read together with its value (followingOpeningBalancePendingRow()) (Codex round 34).
 // 20261125 CL/MMR  SST-1005: A rebuild or year card that leaves a year waiting locks the waiting-year and block rows together in id order, the order any scan of settings takes, so other Saldi code that writes settings by name waits instead of deadlocking (Codex round 35).
+// 20261125 CL/MMR  SST-1005: followingOpeningBalanceLockRow() reads the remembered ids with ifset(), followingOpeningBalanceReleaseLocks() its locks with if_array(), and the PHPDoc describes the paired lock (Codex round 35).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -1354,22 +1355,35 @@ function followingOpeningBalanceRememberRows($ids = null) {
  * access to it in the transaction. Under SERIALIZABLE a plain read of the row first would take a shared lock, and two
  * transactions that both then lock it for the write deadlock (Codex round 32); by id, and not by name, because MySQL
  * has no index on settings.var_name and would lock every row it scans (Codex round 28).
- * Only that row is locked, so a kassekladde posting that leaves a year waiting does not hold the block row too. This
- * feature's other statements on these rows also go by id (followingOpeningBalanceTakePending(),
- * saveFollowingOpeningBalanceSetting()), so none of them scans settings and waits in a circle with a transaction that
- * holds one of the rows (Codex round 33).
+ * Which rows are locked:
+ * - In a transaction marked by followingOpeningBalanceSavesStop() («Sæt aktivt», the page check, the year card), a
+ *   request for 'openingBalancePending' locks the waiting-year row and the block row together, in one statement in id
+ *   order, when both ids are known. That is the order in which any statement that scans settings locks them, such as
+ *   update_settings_value() elsewhere in Saldi, so such a statement waits for the transaction instead of holding one of
+ *   the two rows while the transaction waits for it (Codex round 35).
+ * - Otherwise only the requested row: a kassekladde posting, which never stores a block, keeps to the waiting-year row,
+ *   so a year card does not wait for a journal's block row.
+ * This feature's other statements on these rows also go by id (followingOpeningBalanceTakePending(),
+ * followingOpeningBalanceMarkPending(), saveFollowingOpeningBalanceSetting()), so none of them scans settings (Codex
+ * rounds 33-34). Either way only the requested row is returned.
  *
  * @param string $name 'openingBalancePending' or 'openingBalanceStop'.
- * @return array|null array{id: int, var_value: string|null} of the locked row, or null when no id is remembered or the
- *   row is gone (the caller then finds the row as before).
+ * @return array|null array{id: int, var_value: string|null} of the requested row, locked, or null when no id is
+ *   remembered or the row is gone (the caller then finds the row as before).
  */
 function followingOpeningBalanceLockRow($name) {
-	$id = isset($GLOBALS['followingOpeningBalanceRowIds'][$name]) ? (int)$GLOBALS['followingOpeningBalanceRowIds'][$name] : 0;
-	if (!$id || !followingOpeningBalancesInTransaction()) {
+	if (!followingOpeningBalancesInTransaction()) {
+		return null;
+	}
+	// ifset(): the page check runs from includes/online.php, possibly before std_func.php is loaded (as in
+	// syncFollowingOpeningBalances()).
+	include_once(__DIR__ . '/std_func.php');
+	$id = (int)ifset($GLOBALS, array('followingOpeningBalanceRowIds', $name), 0);
+	if (!$id) {
 		return null;
 	}
 	$escaped = db_escape_string($name);
-	$stopId = isset($GLOBALS['followingOpeningBalanceRowIds']['openingBalanceStop']) ? (int)$GLOBALS['followingOpeningBalanceRowIds']['openingBalanceStop'] : 0;
+	$stopId = (int)ifset($GLOBALS, array('followingOpeningBalanceRowIds', 'openingBalanceStop'), 0);
 	if ($name === 'openingBalancePending' && !empty($GLOBALS['followingOpeningBalanceSavesStop']) && $stopId) {
 		// A rebuild or year card that leaves a year waiting stores its outcome in the block row afterwards: both rows are
 		// locked now, in one statement in id order, the order in which any statement that scans settings (such as
@@ -1559,7 +1573,8 @@ function followingOpeningBalanceReleaseLock($name) {
  * @return void
  */
 function followingOpeningBalanceReleaseLocks() {
-	$locks = isset($GLOBALS['followingOpeningBalanceLocks']) && is_array($GLOBALS['followingOpeningBalanceLocks']) ? array_keys($GLOBALS['followingOpeningBalanceLocks']) : array();
+	include_once(__DIR__ . '/std_func.php'); // if_array()
+	$locks = array_keys((array)if_array($GLOBALS, 'followingOpeningBalanceLocks'));
 	foreach ($locks as $name) {
 		followingOpeningBalanceReleaseLock($name);
 	}
