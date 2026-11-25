@@ -33,6 +33,7 @@
 // 20261125 CL/MMR SST-1005 On MySQL the lock for creating a setting is kept until the transaction ends and released once (Codex round 29).
 // 20261125 CL/MMR SST-1005 The settings rows exist before «Sæt aktivt», the page check or the year card begins its transaction, and a transaction only tries the MySQL creation lock (Codex round 31).
 // 20261125 CL/MMR SST-1005 Inside a transaction the waiting-year and block rows are locked by their id before they are read (Codex round 32).
+// 20261125 CL/MMR SST-1005 «Sæt aktivt» takes the waiting year by its id, and no setting of the feature is written by name (Codex round 33).
 
 declare(strict_types=1);
 
@@ -2016,7 +2017,7 @@ final class FollowingOpeningBalancesTest extends TestCase
     {
         $maxId = (int) pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
         $this->sql("INSERT INTO settings (var_name, var_grp, var_value, user_id) VALUES ('openingBalanceSync', 'system', '$maxId|8', 0), ('openingBalancePending', 'system', '9', 0)");
-        $GLOBALS['sst1005Hook'] = ['after' => "/^update settings set var_value = '\\{.*' where var_name = 'openingBalanceSync'$/s", 'times' => 1, 'run' => function (): void {
+        $GLOBALS['sst1005Hook'] = ['after' => "/^update settings set var_value = '\\{.*' where id = '\\d+'$/s", 'times' => 1, 'run' => function (): void {
             throw new RuntimeException('test: the request ends right after the state is saved');
         }];
         try {
@@ -2039,7 +2040,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         ini_set('error_log', $log);
         self::assertNull(checkFollowingOpeningBalances(11));
         followingOpeningBalanceMarkPending(9);
-        $GLOBALS['sst1005Hook'] = ['after' => "update settings set var_value = '0' where var_name = 'openingBalancePending'", 'times' => 1, 'run' => function (): void {
+        $GLOBALS['sst1005Hook'] = ['after' => "/^update settings set var_value = '0' where (id = '\\d+'|var_name = 'openingBalancePending') and var_value = /", 'times' => 1, 'run' => function (): void {
             // The request ends here: PHP runs the shutdown functions.
             followingOpeningBalanceFailureOnShutdown();
             throw new RuntimeException('test: the request ended');
@@ -2254,9 +2255,9 @@ final class FollowingOpeningBalancesTest extends TestCase
             $seen[] = $sql;
             return $sql;
         };
-        $firstTouch = function (string $name) use (&$seen): string {
+        $firstTouch = function () use (&$seen): string {
             foreach ($seen as $sql) {
-                if (strpos($sql, "'$name'") !== false) {
+                if (strpos($sql, ' settings ') !== false) {
                     return $sql;
                 }
             }
@@ -2266,16 +2267,19 @@ final class FollowingOpeningBalancesTest extends TestCase
         $this->sql('BEGIN');
         followingOpeningBalanceMarkPending(9);
         $this->sql('COMMIT');
-        self::assertMatchesRegularExpression("/^select id, var_value from settings where id = '\\d+' and var_name = 'openingBalancePending' for update$/", $firstTouch('openingBalancePending'));
+        self::assertMatchesRegularExpression("/^select id, var_value from settings where id = '\\d+' and var_name = 'openingBalancePending' for update$/", $firstTouch());
         self::assertSame('9', $this->setting('openingBalancePending'));
         // «Sæt aktivt» stores a block in its transaction.
         $this->postInYear9(2500, 7.5);
         $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 10 AND kontonr = 2500');
         $seen = [];
         self::assertSame($this->stop(['accounts' => [2500]]), syncFollowingOpeningBalances(9));
-        $inTransaction = array_slice($seen, (int) array_search('begin', array_map('strtolower', $seen), true));
-        $seen = $inTransaction;
-        self::assertMatchesRegularExpression("/^select id, var_value from settings where id = '\\d+' and var_name = 'openingBalanceStop' for update$/", $firstTouch('openingBalanceStop'));
+        $begin = (int) array_search('begin', array_map('strtolower', $seen), true);
+        $before = array_slice($seen, 0, $begin);
+        self::assertCount(1, preg_grep("/^update settings set var_value = '0' where id = '\\d+' and var_value = '9'$/", $before), 'The waiting year 9 is taken by its id.');
+        self::assertCount(0, preg_grep('/^update settings .* where var_name = /', $seen), 'No setting of the feature is written by name (Codex round 33).');
+        $seen = array_slice($seen, $begin + 1);
+        self::assertMatchesRegularExpression("/^select id, var_value from settings where id = '\\d+' and var_name = 'openingBalanceStop' for update$/", $firstTouch());
         self::assertSame($this->stop(['accounts' => [2500]]), followingOpeningBalanceStop());
     }
 

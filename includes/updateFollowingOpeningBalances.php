@@ -72,6 +72,7 @@
 // 20261125 CL/MMR  SST-1005: The waiting-year and block rows are created in autocommit before a rebuild, the year card or a stored block begins its transaction, and by the first check (Codex round 31).
 //                  Inside a transaction the MySQL creation lock is only tried, never awaited, so a request holding settings rows cannot wait in a circle with a creator.
 // 20261125 CL/MMR  SST-1005: Inside a transaction the waiting-year and block rows are locked by the id read before it (or by the page check's first query) before anything of them is read, so two rebuilds under SERIALIZABLE no longer deadlock on a shared lock they both upgrade (Codex round 32).
+// 20261125 CL/MMR  SST-1005: The waiting year is taken and a setting of this feature is written by its id, so no statement of the feature scans settings and waits in a circle with a year card that holds the block row (Codex round 33).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -417,7 +418,12 @@ function followingOpeningBalanceTakePending() {
 		if ($year < 1 || ($taken && $year >= $taken)) {
 			break;
 		}
-		db_modify("update settings set var_value = '0' where var_name = 'openingBalancePending' and var_value = '$year'", __FILE__ . ' line ' . __LINE__);
+		// By its remembered id when there is one: MySQL has no index on settings.var_name, and an UPDATE by name locks
+		// every settings row it scans, the block row too, which a rebuild or card may hold while it waits for this one
+		// (Codex round 33).
+		$id = isset($GLOBALS['followingOpeningBalanceRowIds']['openingBalancePending']) ? (int)$GLOBALS['followingOpeningBalanceRowIds']['openingBalancePending'] : 0;
+		$where = $id ? "id = '$id'" : "var_name = 'openingBalancePending'";
+		db_modify("update settings set var_value = '0' where $where and var_value = '$year'", __FILE__ . ' line ' . __LINE__);
 		$taken = $year;
 	}
 	return $taken;
@@ -1328,6 +1334,10 @@ function followingOpeningBalanceRememberRows($ids = null) {
  * access to it in the transaction. Under SERIALIZABLE a plain read of the row first would take a shared lock, and two
  * transactions that both then lock it for the write deadlock (Codex round 32); by id, and not by name, because MySQL
  * has no index on settings.var_name and would lock every row it scans (Codex round 28).
+ * Only that row is locked, so a kassekladde posting that leaves a year waiting does not hold the block row too. This
+ * feature's other statements on these rows also go by id (followingOpeningBalanceTakePending(),
+ * saveFollowingOpeningBalanceSetting()), so none of them scans settings and waits in a circle with a transaction that
+ * holds one of the rows (Codex round 33).
  *
  * @param string $name 'openingBalancePending' or 'openingBalanceStop'.
  * @return array|null array{id: int, var_value: string|null} of the locked row, or null when no id is remembered or the
@@ -1338,8 +1348,8 @@ function followingOpeningBalanceLockRow($name) {
 	if (!$id || !followingOpeningBalancesInTransaction()) {
 		return null;
 	}
-	$name = db_escape_string($name);
-	$r = db_fetch_array(db_select("select id, var_value from settings where id = '$id' and var_name = '$name' for update", __FILE__ . ' line ' . __LINE__));
+	$escaped = db_escape_string($name);
+	$r = db_fetch_array(db_select("select id, var_value from settings where id = '$id' and var_name = '$escaped' for update", __FILE__ . ' line ' . __LINE__));
 	if (!$r) {
 		unset($GLOBALS['followingOpeningBalanceRowIds'][$name]);
 		return null;
@@ -1359,7 +1369,11 @@ function saveFollowingOpeningBalanceSetting($name, $value, $description) {
 	followingOpeningBalanceEnsureSetting($name, $value, $description);
 	$name = db_escape_string($name);
 	$value = db_escape_string($value);
-	db_modify("update settings set var_value = '$value' where var_name = '$name'", __FILE__ . ' line ' . __LINE__);
+	// By id, read first: MySQL has no index on settings.var_name, and an UPDATE by name locks every settings row it
+	// scans, also a waiting-year or block row a rebuild holds while it waits for another (Codex round 33).
+	$r = db_fetch_array(db_select("select id from settings where var_name = '$name' order by id limit 1", __FILE__ . ' line ' . __LINE__));
+	$where = $r ? "id = '" . (int)$r['id'] . "'" : "var_name = '$name'";
+	db_modify("update settings set var_value = '$value' where $where", __FILE__ . ' line ' . __LINE__);
 }
 
 /**
