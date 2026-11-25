@@ -71,6 +71,7 @@
 // 20261125 CL/MMR  SST-1005: On MySQL the lock for creating a setting is kept until the transaction that creates it ends, as under READ COMMITTED a second creator did not wait for the row (Codex round 29).
 // 20261125 CL/MMR  SST-1005: The waiting-year and block rows are created in autocommit before a rebuild, the year card or a stored block begins its transaction, and by the first check (Codex round 31).
 //                  Inside a transaction the MySQL creation lock is only tried, never awaited, so a request holding settings rows cannot wait in a circle with a creator.
+// 20261125 CL/MMR  SST-1005: Inside a transaction the waiting-year and block rows are locked by the id read before it (or by the page check's first query) before anything of them is read, so two rebuilds under SERIALIZABLE no longer deadlock on a shared lock they both upgrade (Codex round 32).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -304,6 +305,13 @@ function followingOpeningBalanceMarkPending($year) {
 	if ($year < 1) {
 		return true;
 	}
+	// Inside a transaction the row is locked by its remembered id before anything of it is read, and lowered there
+	// (Codex round 32: under SERIALIZABLE a plain read first and the write after deadlocked between two rebuilds).
+	$row = followingOpeningBalanceLockRow('openingBalancePending');
+	if ($row) {
+		followingOpeningBalanceLowerPending($year, $row['id']);
+		return true;
+	}
 	if (followingOpeningBalancePending() === null) {
 		// No row visible: it does not exist, or another request created it and has not committed. Under the lock in
 		// followingOpeningBalanceCreatePending() the row is read again and this year inserted or lowered into it, so a
@@ -320,15 +328,17 @@ function followingOpeningBalanceMarkPending($year) {
  * (see followingOpeningBalanceMarkPending()).
  *
  * @param int $year Fiscal year (kodenr), 1 or later.
+ * @param int $id The row's id when it is known and locked (followingOpeningBalanceLockRow()), else 0 (by name).
  * @return void
  */
-function followingOpeningBalanceLowerPending($year) {
+function followingOpeningBalanceLowerPending($year, $id = 0) {
 	global $db_type;
 	$year = (int)$year;
+	$id = (int)$id;
 	$type = ($db_type === 'mysql' || $db_type === 'mysqli') ? 'signed' : 'integer';
 	$current = "cast(coalesce(nullif(var_value, ''), '0') as $type)";
 	$qtxt = "update settings set var_value = case when $current = 0 or $current > $year then '$year' else var_value end ";
-	$qtxt.= "where var_name = 'openingBalancePending'";
+	$qtxt.= $id ? "where id = '$id'" : "where var_name = 'openingBalancePending'";
 	db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
 }
 
@@ -629,11 +639,15 @@ function checkFollowingOpeningBalances($activeYear) {
 	}
 	$qtxt = "select (select max(id) from transaktioner) as max_id, ";
 	$qtxt.= "(select var_value from settings where var_name = 'openingBalanceSync' order by id limit 1) as state, ";
-	$qtxt.= "(select var_value from settings where var_name = 'openingBalancePending' order by id limit 1) as pending";
+	$qtxt.= "(select var_value from settings where var_name = 'openingBalancePending' order by id limit 1) as pending, ";
+	// The rows' ids for a transaction later in this request, such as a kassekladde posting (followingOpeningBalanceLockRow()).
+	$qtxt.= "(select id from settings where var_name = 'openingBalancePending' order by id limit 1) as pending_id, ";
+	$qtxt.= "(select id from settings where var_name = 'openingBalanceStop' order by id limit 1) as stop_id";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
 	if (!$r) {
 		return null;
 	}
+	followingOpeningBalanceRememberRows(array('openingBalancePending' => (int)$r['pending_id'], 'openingBalanceStop' => (int)$r['stop_id']));
 	$state = ($r['state'] === null || $r['state'] === '') ? null : followingOpeningBalanceStateParts($r['state']);
 	$pending = $r['pending'] === null ? null : (int)$r['pending'];
 	$found = 0;
@@ -755,6 +769,7 @@ function followingOpeningBalanceInitialize() {
 		}
 		// The block row too, here in autocommit, so a later transaction never has to create it (Codex round 31).
 		followingOpeningBalanceEnsureSetting('openingBalanceStop', '', 'SST-1005: fiscal year transition whose opening balances could not be updated automatically');
+		followingOpeningBalanceRememberRows();
 		if ($state === null) {
 			$state = array('lastId' => $maxId, 'pendingYear' => 0, 'fingerprintAt' => time(), 'fingerprint' => $fingerprint);
 			saveFollowingOpeningBalanceState($state);
@@ -1204,16 +1219,28 @@ function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0) {
 			// Created in autocommit before the transaction, see followingOpeningBalancePrepareRows() (Codex round 31).
 			followingOpeningBalanceEnsureSetting('openingBalanceStop', '', $description);
 		}
+		followingOpeningBalanceRememberRows();
 		transaktion('begin');
 	}
-	if ($stop) {
-		// A block to store: the row exists before it is locked, as there is no row to lock while it does not. An empty
-		// value is no block. Clearing never creates it: with no row there is nothing to clear, and a row another request
-		// creates meanwhile is its block, which stays (Codex round 28).
-		followingOpeningBalanceEnsureSetting('openingBalanceStop', '', $description);
+	// The row is locked by the id found before the transaction, with nothing of it read first in the transaction: under
+	// SERIALIZABLE a plain read takes a shared lock, and two savers that both upgrade it deadlock (Codex round 32).
+	$row = followingOpeningBalanceLockRow('openingBalanceStop');
+	if (!$row) {
+		// Not found before (a caller's transaction that did not prepare the rows): as before.
+		if ($stop) {
+			// A block to store: the row exists before it is locked, as there is no row to lock while it does not. An empty
+			// value is no block. Clearing never creates it: with no row there is nothing to clear, and a row another
+			// request creates meanwhile is its block, which stays (Codex round 28).
+			followingOpeningBalanceEnsureSetting('openingBalanceStop', '', $description);
+		}
+		$foundId = followingOpeningBalanceStopRowId($stop !== null);
+		if ($foundId) {
+			$GLOBALS['followingOpeningBalanceRowIds']['openingBalanceStop'] = $foundId;
+			$row = followingOpeningBalanceLockRow('openingBalanceStop');
+		}
 	}
-	$id = followingOpeningBalanceStopRowId($stop !== null);
-	$stored = $id ? followingOpeningBalanceStop($id) : null;
+	$id = $row ? $row['id'] : 0;
+	$stored = $row ? followingOpeningBalanceParseStop($row['var_value']) : null;
 	$keep = !$stop && !$stored;
 	if ($stored && (int)$stored['sourceYear'] < (int)$fromYear) {
 		$keep = true;
@@ -1251,19 +1278,73 @@ function followingOpeningBalanceStopRowId($current) {
 /**
  * The stored transition that blocked the last rebuild.
  *
- * @param int $lockId 0 to read it, or the row's id (followingOpeningBalanceStopRowId()) to read it with the row locked
- *   until the transaction ends (select ... for update, by primary key); only inside a transaction.
  * @return array|null See updateFollowingOpeningBalances() for the shape, or null when nothing is blocked.
  */
-function followingOpeningBalanceStop($lockId = 0) {
-	$lockId = (int)$lockId;
-	$qtxt = $lockId ? "select var_value from settings where id = '$lockId' for update" : "select var_value from settings where var_name = 'openingBalanceStop' order by id limit 1";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
-	if (!$r || !$r['var_value']) {
+function followingOpeningBalanceStop() {
+	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalanceStop' order by id limit 1", __FILE__ . ' line ' . __LINE__));
+	return $r ? followingOpeningBalanceParseStop($r['var_value']) : null;
+}
+
+/**
+ * A stored transition from its settings value.
+ *
+ * @param string|null $value var_value of 'openingBalanceStop'.
+ * @return array|null See updateFollowingOpeningBalances() for the shape, or null when it holds no block.
+ */
+function followingOpeningBalanceParseStop($value) {
+	if (!$value) {
 		return null;
 	}
-	$stop = json_decode($r['var_value'], true);
+	$stop = json_decode($value, true);
 	return (is_array($stop) && isset($stop['sourceYear'], $stop['targetYear'])) ? $stop : null;
+}
+
+/**
+ * Remember the ids of this feature's 'openingBalancePending' and 'openingBalanceStop' rows, read outside a transaction
+ * (autocommit, so the read keeps no lock). Rows are never deleted, so an id stays valid; a transaction then locks a row
+ * by its id first (followingOpeningBalanceLockRow()).
+ *
+ * @param array|null $ids var_name => id already read (by the page check's first query), or null to read them here.
+ * @return void
+ */
+function followingOpeningBalanceRememberRows($ids = null) {
+	if ($ids === null) {
+		if (followingOpeningBalancesInTransaction()) {
+			return;
+		}
+		$ids = array();
+		$q = db_select("select id, var_name from settings where var_name in ('openingBalancePending', 'openingBalanceStop') order by id", __FILE__ . ' line ' . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			if (!isset($ids[$r['var_name']])) $ids[$r['var_name']] = (int)$r['id'];
+		}
+	}
+	foreach ($ids as $name => $id) {
+		if ((int)$id > 0) $GLOBALS['followingOpeningBalanceRowIds'][$name] = (int)$id;
+	}
+}
+
+/**
+ * Lock this feature's row $name by its remembered id (select ... for update by primary key) and read it, as the first
+ * access to it in the transaction. Under SERIALIZABLE a plain read of the row first would take a shared lock, and two
+ * transactions that both then lock it for the write deadlock (Codex round 32); by id, and not by name, because MySQL
+ * has no index on settings.var_name and would lock every row it scans (Codex round 28).
+ *
+ * @param string $name 'openingBalancePending' or 'openingBalanceStop'.
+ * @return array|null array{id: int, var_value: string|null} of the locked row, or null when no id is remembered or the
+ *   row is gone (the caller then finds the row as before).
+ */
+function followingOpeningBalanceLockRow($name) {
+	$id = isset($GLOBALS['followingOpeningBalanceRowIds'][$name]) ? (int)$GLOBALS['followingOpeningBalanceRowIds'][$name] : 0;
+	if (!$id || !followingOpeningBalancesInTransaction()) {
+		return null;
+	}
+	$name = db_escape_string($name);
+	$r = db_fetch_array(db_select("select id, var_value from settings where id = '$id' and var_name = '$name' for update", __FILE__ . ' line ' . __LINE__));
+	if (!$r) {
+		unset($GLOBALS['followingOpeningBalanceRowIds'][$name]);
+		return null;
+	}
+	return array('id' => (int)$r['id'], 'var_value' => $r['var_value']);
 }
 
 /**
@@ -1358,6 +1439,7 @@ function followingOpeningBalancePrepareRows() {
 	}
 	followingOpeningBalanceEnsureSetting('openingBalancePending', '0', 'SST-1005: earliest fiscal year waiting for its later years to get new opening balances (0 = none)');
 	followingOpeningBalanceEnsureSetting('openingBalanceStop', '', 'SST-1005: fiscal year transition whose opening balances could not be updated automatically');
+	followingOpeningBalanceRememberRows();
 }
 
 /**

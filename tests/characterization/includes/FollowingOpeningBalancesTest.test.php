@@ -32,6 +32,7 @@
 // 20261125 CL/MMR SST-1005 Clearing the block never creates its row, and two rebuilds storing the first block make one row, also without a unique index (Codex round 28).
 // 20261125 CL/MMR SST-1005 On MySQL the lock for creating a setting is kept until the transaction ends and released once (Codex round 29).
 // 20261125 CL/MMR SST-1005 The settings rows exist before «Sæt aktivt», the page check or the year card begins its transaction, and a transaction only tries the MySQL creation lock (Codex round 31).
+// 20261125 CL/MMR SST-1005 Inside a transaction the waiting-year and block rows are locked by their id before they are read (Codex round 32).
 
 declare(strict_types=1);
 
@@ -2101,7 +2102,7 @@ final class FollowingOpeningBalancesTest extends TestCase
             saveFollowingOpeningBalanceStop($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'accounts' => [2500]]), 10);
             $blocked = $this->stop(['accounts' => [2500]]);
             // Rebuild B from year 9 (other connection) commits its block right after rebuild A has read the stored one.
-            $GLOBALS['sst1005Hook'] = ['after' => "/^select var_value from settings where id = '\\d+' for update$/", 'times' => 1, 'run' => function () use ($other, $blocked): void {
+            $GLOBALS['sst1005Hook'] = ['after' => "/^select id, var_value from settings where id = '\\d+' and var_name = 'openingBalanceStop' for update$/", 'times' => 1, 'run' => function () use ($other, $blocked): void {
                 pg_send_query($other, "UPDATE settings SET var_value = '" . pg_escape_string($other, json_encode($blocked)) . "' WHERE var_name = 'openingBalanceStop'");
                 for ($i = 0; $i < 20 && pg_connection_busy($other); $i++) {
                     usleep(50000);
@@ -2238,6 +2239,44 @@ final class FollowingOpeningBalancesTest extends TestCase
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
+    }
+
+    /**
+     * Codex round 32: inside a transaction the waiting-year and block rows are locked by their id before anything of
+     * them is read. Under MySQL SERIALIZABLE a plain read first takes a shared lock, and two rebuilds that both upgrade it
+     * to write deadlocked. The ids come from the page check's first query or from before the transaction.
+     */
+    public function testInsideATransactionTheSettingsRowsAreLockedBeforeTheyAreRead(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        $seen = [];
+        $GLOBALS['sst1005Rewrite'] = function (string $sql) use (&$seen): string {
+            $seen[] = $sql;
+            return $sql;
+        };
+        $firstTouch = function (string $name) use (&$seen): string {
+            foreach ($seen as $sql) {
+                if (strpos($sql, "'$name'") !== false) {
+                    return $sql;
+                }
+            }
+            return '';
+        };
+        // A kassekladde posting (a caller's transaction) leaves year 9 waiting.
+        $this->sql('BEGIN');
+        followingOpeningBalanceMarkPending(9);
+        $this->sql('COMMIT');
+        self::assertMatchesRegularExpression("/^select id, var_value from settings where id = '\\d+' and var_name = 'openingBalancePending' for update$/", $firstTouch('openingBalancePending'));
+        self::assertSame('9', $this->setting('openingBalancePending'));
+        // «Sæt aktivt» stores a block in its transaction.
+        $this->postInYear9(2500, 7.5);
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 10 AND kontonr = 2500');
+        $seen = [];
+        self::assertSame($this->stop(['accounts' => [2500]]), syncFollowingOpeningBalances(9));
+        $inTransaction = array_slice($seen, (int) array_search('begin', array_map('strtolower', $seen), true));
+        $seen = $inTransaction;
+        self::assertMatchesRegularExpression("/^select id, var_value from settings where id = '\\d+' and var_name = 'openingBalanceStop' for update$/", $firstTouch('openingBalanceStop'));
+        self::assertSame($this->stop(['accounts' => [2500]]), followingOpeningBalanceStop());
     }
 
     public function testTheMessageNamesTheYearsAndAccounts(): void
