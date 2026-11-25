@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/posmenufunc.php --- ver 5.1.0 --- 2026.10.29 ---
+//--- includes/posmenufunc.php --- ver 5.1.1 --- 2026.11.17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,7 @@
 //                 empty, so Udskriv, Find bon and Korrektion are drawn again.
 // 20261029 CL/MJ SD-783 tastatur(): a company without table plans leaves $bord an empty array instead of NULL,
 //                 so the count($bord) for the table buttons no longer stops the POS keypad with a TypeError on PHP 8.
+// 20261117 CL/MMR MB-162 The Ekspedient button opens the password dialog with the user preselected (skift_bruger=1) instead of switching user without a password.
 
 include(__DIR__ . "/posmenufunc_includes/buttonFunc.php");
 require_once __DIR__ . '/stdFunc/navStack.php';
@@ -393,11 +394,12 @@ if (!function_exists('menubuttons')) {
 							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
 							print "<td onclick=\"return confirm('" . findtekst('2398|Slet alt og start forfra', $sprog_id) . "?')\"><INPUT TYPE=\"submit\" $tmp NAME=\"forfra\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 'f';pos_ordre.$fokus.focus();\">\n";
 						} elseif ($c == '14') {
-							$knap = "<input $disabled onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id&skift_bruger=2&brugernavn=$a&bordnr=$bordnr&$menu=$menu_id'\" type=\"button\" $stil value= \"$a\">\n";
-							if (strtolower($brugernavn) == strtolower($a))
+							$knap = "<input $disabled onclick=\"window.location.href='pos_ordre.php?{$posNavigationQuery}id=$id&skift_bruger=1&brugernavn=" . urlencode($a) . "&bordnr=$bordnr&$menu=$menu_id'\" type=\"button\" $stil value= \"$a\">\n";
+							if (strtolower($brugernavn) == strtolower($a)) {
 								$knap = str_replace("background-color: ;", "background-color: #00ff00;", $knap);
-							else
+							} else {
 								$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
+							}
 							print "<td>" . $knap;
 						} elseif ($c == '15') {
 							$txt = findtekst('2117|Ryd', $sprog_id);
