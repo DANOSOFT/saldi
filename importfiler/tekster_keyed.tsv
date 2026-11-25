@@ -30,6 +30,6 @@ webshop.sync.bad_group	varegruppen er ikke et tal	the item group is not a number
 webshop.sync.bad_price	salgsprisen er ikke et tal	the sales price is not a number	salgsprisen er ikke et tall
 webshop.sync.bad_shop_id	shop-id %s er ikke et gyldigt id	shop id %s is not a valid id	shop-id %s er ikke en gyldig id
 webshop.sync.duplicate_item	varenummeret står også i CSV-række %s	the item number is also in CSV row %s	varenummeret står også i CSV-rad %s
+webshop.sync.link_skipped	CSV-række %s, varenr %s: %s. Shop-id'et er ikke knyttet til varen.	CSV row %s, item no. %s: %s. The shop id was not linked to the item.	CSV-rad %s, varenr %s: %s. Shop-id-en er ikke knyttet til varen.
 webshop.sync.row_skipped	CSV-række %s, varenr %s: %s. Rækken er sprunget over.	CSV row %s, item no. %s: %s. The row was skipped.	CSV-rad %s, varenr %s: %s. Raden er hoppet over.
-webshop.sync.shop_id_not_linked	CSV-række %s, varenr %s: shop-id %s hører allerede til varenr %s og er ikke knyttet til varen.	CSV row %s, item no. %s: shop id %s already belongs to item no. %s and was not linked to this item.	CSV-rad %s, varenr %s: shop-id %s hører allerede til varenr %s og er ikke knyttet til varen.
 webshop.sync.shop_id_taken	shop-id %s hører allerede til varenr %s	shop id %s already belongs to item no. %s	shop-id %s hører allerede til varenr %s

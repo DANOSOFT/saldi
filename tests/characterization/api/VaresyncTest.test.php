@@ -40,6 +40,10 @@
 //   not a number is skipped with a message, and the rows after it are still imported.
 // - A shop id that already belongs to another product is not linked to a new product (Hent) or to an
 //   existing product without a link (Opdater); the message names the owner.
+// - In Opdater fra shop a shop id that isn't a number doesn't stop the price update: an already linked item
+//   ignores it, an unlinked item gets a message and no link.
+// - A shop id guessed from a numeric item number is dropped when it is not valid or belongs to another
+//   product; the item itself is still created, without a link. A shop id of only spaces counts as none.
 //
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
@@ -50,6 +54,7 @@
 // 20261125 CL/SZ MB-109 Quoted ';', qty by header name in LF files, apostrophe item number stock tests.
 // 20261125 CL/SZ MB-109 Review: column position tests and the stock door values.
 // 20261125 CL/SZ MB-110 Bad and duplicate row tests; sync() can run Opdater fra shop.
+// 20261125 CL/SZ MB-110 Review: Opdater with a bad shop id, guessed shop ids.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -578,6 +583,36 @@ final class VaresyncTest extends CharacterizationTestCase
 		$this->assertSame([['varenr' => 'MB110UOWN', 'shop_variant' => '0']], $this->linksOf(1501));
 		$r = self::one('SELECT salgspris FROM varer WHERE varenr = $1', ['MB110ULINK']);
 		$this->assertSame(150.0, (float)$r['salgspris'], 'the price is still updated');
-		$this->assertStringContainsString('CSV-række 2, varenr MB110ULINK: shop-id 1501 hører allerede til varenr MB110UOWN og er ikke knyttet til varen.', $printed);
+		$this->assertStringContainsString("CSV-række 2, varenr MB110ULINK: shop-id 1501 hører allerede til varenr MB110UOWN. Shop-id'et er ikke knyttet til varen.", $printed);
+	}
+
+	public function test_opdater_updates_the_price_when_the_shop_id_is_not_a_number(): void
+	{
+		$g = self::$group;
+		$this->sync(self::PRODUCT_HEADER, ["1801;MB110LNK;;100;Linked;$g;;"], []);
+		self::one(
+			"INSERT INTO varer (varenr, beskrivelse, salgspris, kostpris, gruppe, beholdning, lukket) VALUES ('MB110NOLNK', 'Not linked', 100, 0, $1, 0, '0') RETURNING id",
+			[$g]
+		);
+		$printed = $this->sync(self::PRODUCT_HEADER, ["-5;MB110LNK;;175;Linked;$g;;", "12.5;MB110NOLNK;;180;Not linked;$g;;"], [], "\n", '2');
+
+		$this->assertSame(175.0, (float)self::one('SELECT salgspris FROM varer WHERE varenr = $1', ['MB110LNK'])['salgspris']);
+		$this->assertSame(180.0, (float)self::one('SELECT salgspris FROM varer WHERE varenr = $1', ['MB110NOLNK'])['salgspris']);
+		$this->assertSame([['varenr' => 'MB110LNK', 'shop_variant' => '0']], $this->linksOf(1801));
+		$this->assertStringNotContainsString('MB110LNK', $printed, 'no message for the linked item');
+		$this->assertStringContainsString("CSV-række 3, varenr MB110NOLNK: shop-id 12.5 er ikke et gyldigt id. Shop-id'et er ikke knyttet til varen.", $printed);
+	}
+
+	public function test_a_guessed_shop_id_that_cannot_be_used_is_dropped(): void
+	{
+		$g = self::$group;
+		$this->sync(self::PRODUCT_HEADER, ["1901;MB110OWN2;;100;Owner;$g;;"], []);
+		$printed = $this->sync(self::PRODUCT_HEADER, [";1901;;100;Numeric item no.;$g;;", ";19.5;;100;Decimal item no.;$g;;", " ;MB110BLANK;;100;Blank shop id;$g;;"], []);
+
+		$this->itemId('1901');
+		$this->itemId('19.5');
+		$this->itemId('MB110BLANK');
+		$this->assertSame([['varenr' => 'MB110OWN2', 'shop_variant' => '0']], $this->linksOf(1901));
+		$this->assertStringNotContainsString('Rækken er sprunget over', $printed);
 	}
 }

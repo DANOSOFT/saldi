@@ -44,6 +44,7 @@
 // 20261125 CL/SZ MB-192 Every variant barcode is read for the product barcode check, not only the last one, and each clash message ends its line. The barcode messages are shown when the run stops at a missing variant file.
 // 20261125 CL/SZ MB-109 The shop files are read as CSV, so a ';' inside quotes stays in its field. The qty and kostpris columns are found by header name in their usual positions, also in LF files and after a BOM. A new item whose item number has an apostrophe gets its stock.
 // 20261125 CL/SZ MB-110 A bad row in the shop product file (price, group or cost not a number, an invalid shop id, an item number twice, a shop id that belongs to another product) is skipped with a message naming the CSV row and item number, instead of stopping the run halfway or creating a second product. A shop id is no longer linked to a second product.
+// 20261125 CL/SZ MB-110 Review: Opdater fra shop checks the shop id only where it links it, so a bad shop id no longer stops a price update. A shop id guessed from the item number or EAN barcode is dropped when it can't be used, and the item is still created.
 
 
 /**
@@ -87,15 +88,14 @@ function varesyncHeaderAt($rows, $position, $name) {
 
 /**
  * Why a product row from the shop file can't be used, or '' when it can.
- * Prices, groups and costs must be numbers (a Danish '12,34' is not); a shop id must fit the integer column.
+ * Prices, groups and costs must be numbers (a Danish '12,34' is not).
  *
  * @param string $price salgspris
  * @param string $group gruppe
  * @param string|int $cost kostpris, 0 when the file has no kostpris column
- * @param string|int $shopId 0 or '' when the row has none
  * @return string the reason, for the 'CSV-række … sprunget over' message
  */
-function varesyncRowProblem($price, $group, $cost, $shopId) {
+function varesyncRowProblem($price, $group, $cost) {
 	global $sprog_id;
 	if (!is_numeric($price)) {
 		return findtekst('webshop.sync.bad_price|salgsprisen er ikke et tal', $sprog_id);
@@ -106,6 +106,17 @@ function varesyncRowProblem($price, $group, $cost, $shopId) {
 	if (!is_numeric($cost)) {
 		return findtekst('webshop.sync.bad_cost|kostprisen er ikke et tal', $sprog_id);
 	}
+	return '';
+}
+
+/**
+ * Why a shop id can't be stored in shop_varer.shop_id (an integer column), or '' when it can or is empty.
+ *
+ * @param string|int $shopId 0 or '' when the row has none
+ * @return string the reason, for the messages
+ */
+function varesyncShopIdProblem($shopId) {
+	global $sprog_id;
 	$shopId = (string)$shopId;
 	if ($shopId !== '' && $shopId !== '0' && (!ctype_digit($shopId) || (float)$shopId > 2147483647)) {
 		return sprintf(findtekst('webshop.sync.bad_shop_id|shop-id %s er ikke et gyldigt id', $sprog_id), htmlspecialchars($shopId));
@@ -138,7 +149,7 @@ function varesync($valg) {
 	global $brugernavn,$db,$sprog_id;
 	# if ($db == 'pos_8') transaktion('begin');
 	$showtxt=NULL;
-	$newItemsId = $vare_id = $fileRowOfItem = array();
+	$newItemsId = $vare_id = $fileRowOfItem = $derivedShopId = array();
 	db_modify("update shop_varer set saldi_variant='0' where saldi_variant is NULL",__FILE__ . " linje " . __LINE__);
 	db_modify("update shop_varer set shop_variant='0' where shop_variant is NULL",__FILE__ . " linje " . __LINE__);
 	$x=0;
@@ -249,7 +260,7 @@ function varesync($valg) {
 		}
 
 #		list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y])=explode(";",$linje[$y]);
-		$shop_id[$y]=trim($shop_id[$y],'"');
+		$shop_id[$y]=trim(trim($shop_id[$y],'"')); # 20261125 a shop id of only spaces counts as none
 		$varenr[$y]=trim($varenr[$y],'"');
 		$stockItemNo[$y]=$varenr[$y];
 		$salgspris[$y]=trim($salgspris[$y],'"');
@@ -266,6 +277,7 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 		if (!$shop_id[$y]) {
 			if (substr($stregkode[$y],0,3)=='EAN' && is_numeric(substr($stregkode[$y],3))) $shop_id[$y]=substr($stregkode[$y],3);
 			elseif (is_numeric($varenr[$y])) $shop_id[$y]=$varenr[$y];
+			$derivedShopId[$y] = ($shop_id[$y]) ? 1 : 0; # 20261125 guessed, not sent by the shop
 		}
 		if (!$shop_encode) {
 			$tmp=$beskrivelse[$y];
@@ -287,7 +299,13 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 		$knownItem = in_array(db_escape_string($varenr[$y]),$sProductNo);
 		$rowUsed = ($valg=='1') ? !$knownItem : $knownItem;
 		if ($rowUsed && ($y > 0 || is_numeric($salgspris[$y]))) { # the first row is the header when its price is not a number
-			$rowProblem = varesyncRowProblem($salgspris[$y],$gruppe[$y],$kostpris[$y],$shop_id[$y]);
+			if (!empty($derivedShopId[$y]) && (varesyncShopIdProblem($shop_id[$y]) !== '' || ($valg=='1' && varesyncShopIdOwner($shop_id[$y],$svShopId,$svSaldiId) !== ''))) {
+				$shop_id[$y] = 0; # a guessed shop id that can't be used is dropped, the item itself is still imported
+			}
+			$rowProblem = varesyncRowProblem($salgspris[$y],$gruppe[$y],$kostpris[$y]);
+			if (!$rowProblem && $valg=='1') {
+				$rowProblem = varesyncShopIdProblem($shop_id[$y]); # in Opdater the shop id is only checked where it is linked
+			}
 			if ($valg=='1' && isset($fileRowOfItem[$varenr[$y]])) {
 				if (!$rowProblem) {
 					$rowProblem = sprintf(findtekst('webshop.sync.duplicate_item|varenummeret står også i CSV-række %s', $sprog_id), $fileRowOfItem[$varenr[$y]]);
@@ -386,12 +404,18 @@ file_put_contents("../temp/$db/varesync.log","$qtxt\n",FILE_APPEND);
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						}
 						if ($shop_id[$y] && !in_array($sProductId[$i],$svSaldiId)) {
-							$ownerNo = varesyncShopIdOwner($shop_id[$y],$svShopId,$svSaldiId); # 20261125
-							if ($ownerNo !== '') {
-								$showtxt.=sprintf(findtekst('webshop.sync.shop_id_not_linked|CSV-række %s, varenr %s: shop-id %s hører allerede til varenr %s og er ikke knyttet til varen.', $sprog_id), $y+1, htmlspecialchars($itemNo[$y]), $shop_id[$y], htmlspecialchars($ownerNo))."<br>";
+							$linkProblem = varesyncShopIdProblem($shop_id[$y]); # 20261125
+							if (!$linkProblem) {
+								$ownerNo = varesyncShopIdOwner($shop_id[$y],$svShopId,$svSaldiId);
+								if ($ownerNo !== '') {
+									$linkProblem = sprintf(findtekst('webshop.sync.shop_id_taken|shop-id %s hører allerede til varenr %s', $sprog_id), $shop_id[$y], htmlspecialchars($ownerNo));
+								}
+							}
+							if ($linkProblem) {
+								$showtxt.=sprintf(findtekst("webshop.sync.link_skipped|CSV-række %s, varenr %s: %s. Shop-id'et er ikke knyttet til varen.", $sprog_id), $y+1, htmlspecialchars($itemNo[$y]), $linkProblem)."<br>";
 							} else {
 								$qtxt = "insert into shop_varer (saldi_id,saldi_variant,shop_id,shop_variant) ";
-								$qtxt.= "values ('$sProductId[$i]','0','$shop_id[$y]','0')";
+								$qtxt.= "values ('" . (int)$sProductId[$i] . "','0','" . (int)$shop_id[$y] . "','0')";
 								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 								$svShopId[] = $shop_id[$y];
 								$svSaldiId[] = $sProductId[$i];
