@@ -1,4 +1,8 @@
 <?php
+// 20261124 CDX/NTR Name the save permission with the documented Sager enum.
+// 20261124 CDX/NTR Use documented integer permission constants directly.
+
+require_once(__DIR__ . '/../../includes/constants/SagerPermission.php');
 
 function satser() {
 	global $charset;
@@ -10,8 +14,8 @@ function satser() {
 	global $brugernavn;
 	# SST-969 the form below saves for whoever posts it, so the save asks for the approver right itself.
 	# loen.php refuses the page, and this keeps the include safe if it is ever reached another way.
-	if (isset($_POST['gruppe_id']) && !substr((string)$sag_rettigheder, 6, 1)) {
-		error_log('SST-969: rate save refused for user ' . $brugernavn . ' (sag right 6 is not set)');
+	if (isset($_POST['gruppe_id']) && !substr((string)$sag_rettigheder, SagerPermission::APPROVE_PIECEWORK, 1)) {
+		error_log('SST-969: rate save refused for user ' . $brugernavn . ' (SagerPermission::APPROVE_PIECEWORK is not set)');
 		return;
 	}
 	# 20261106 SD-813 currency unit after the amounts
