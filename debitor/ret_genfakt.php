@@ -42,6 +42,8 @@
 // 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+// 20261110 CL/SZ SST-879 Quoted the firmanavn key in the stamdata sync update; the bare constant was a fatal error on PHP 8 (white screen).
+//                The sync checkboxes are now read by form row ($x), not by found-order count ($y), so an order dropped from the list no longer shifts them onto the wrong order.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -438,15 +440,15 @@ for ($x=0;$x<$ordreantal;$x++) {
 		$stam_pbs[$y]=stripslashes(htmlentities(trim($r['pbs']),ENT_COMPAT,$charset));
 		$stam_pbs_nr[$y]=stripslashes(htmlentities(trim($r['pbs_nr']),ENT_COMPAT,$charset));
 		$stam_notes[$y]=stripslashes(htmlentities(trim($r['notes']),ENT_COMPAT,$charset));
-		if ($sync_stamdata[$y]) { #20140422
-			db_modify("update ordrer set firmanavn='".db_escape_string($r[firmanavn])."',addr1='".db_escape_string($r['addr1'])."',addr2='".db_escape_string($r['addr2'])."',postnr='".db_escape_string($r['postnr'])."',bynavn='".db_escape_string($r['bynavn'])."',procenttillag='$procenttillag[$y]' where id='$id[$y]'",__FILE__ . " linje " . __LINE__);
+		if (!empty($sync_stamdata[$x])) { #20140422
+			db_modify("update ordrer set firmanavn='".db_escape_string($r['firmanavn'])."',addr1='".db_escape_string($r['addr1'])."',addr2='".db_escape_string($r['addr2'])."',postnr='".db_escape_string($r['postnr'])."',bynavn='".db_escape_string($r['bynavn'])."',procenttillag='$procenttillag[$y]' where id='$id[$y]'",__FILE__ . " linje " . __LINE__);
 			$firmanavn[$y]=$stam_firmanavn[$y];
 			$addr1[$y]=$stam_addr1[$y];
 			$addr2[$y]=$stam_addr2[$y];
 			$postnr[$y]=$stam_postnr[$y];
 			$bynavn[$y]=$stam_bynavn[$y];
 		}
-		if ($sync_email[$y]) {
+		if (!empty($sync_email[$x])) {
 			db_modify("update ordrer set email='".db_escape_string($r['email'])."' where id='$id[$y]'",__FILE__ . " linje " . __LINE__);
 			$email[$y]=$stam_email[$y];
 		}

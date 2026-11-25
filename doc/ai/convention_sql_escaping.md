@@ -22,3 +22,10 @@ accepting strings or integers. `is_numeric()` also accepts scientific notation
 forms before querying rather than casting them into a different account number.
 The database-free `poolCapture` tests cover rejection in both journal-history
 lookups; `JournalHistoryRegressionTest` covers accepted integer/string accounts.
+
+**SQL normalization (user feedback, 2026-11-18):** Converting PostgreSQL `LIKE`
+to `ILIKE` must only change SQL operators. Never replace text inside string
+literals, quoted identifiers, dollar-quoted bodies or comments. Both
+`db_select()` and `db_modify()` use `db_normalize_like_operators()` for this;
+`OrderTextReviewTest::testQueryPathsNormalizeOnlySqlTokens` covers both paths,
+including MySQL/MariaDB queries remaining unchanged.
