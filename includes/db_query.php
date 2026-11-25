@@ -78,6 +78,7 @@
 //                db_create() creates a UTF8 database with CHARACTER SET utf8mb4, so its columns can hold emoji.
 // 20261113 CL/SZ db_escape_string(): on Postgres, choose the conversion from pg_client_encoding() (MB-135).
 //                With $db_encode unset on a UTF8 connection it took the LATIN9 branch and pg_escape_string() threw.
+// 20261116 CL/ASR db_query_connection() selects the master database on the cached global connection, since db_connect() selects none on MySQL/MariaDB; a $global query from a ledger's context failed there with "No database selected" (SD-731, review #785).
 // 20261118 CDX/NTR Allow bound write parameters without changing legacy query handling.
 // 20261118 CDX/NTR Normalize LIKE outside literals, quoted identifiers and comments in both query paths.
 // 20261118 CDX/NTR Explain dollar-quote and SQL identifier matching in the LIKE normalizer.
@@ -255,6 +256,7 @@ if (!function_exists('db_query_connection')) {
 				$current_connection = $connection;
 				$global_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
 				$connection = $current_connection;
+				if ($global_connection) db_select_database($global_connection, $sqdb); # a no-op on PostgreSQL
 			}
 			return $global_connection;
 		}
