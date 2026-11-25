@@ -193,6 +193,7 @@
 //                 bogfor_nu() includes genberegn.php and forfaldsdag.php via __DIR__.
 // 20261125 CL/MMR MB-80 (Codex round 4): forkontrolDifferenceAccount() finds and checks the currency or øre difference account before anything is written; a blank or 0 currency account (VK box3) counts as missing, and a ledger-only rounding then goes to the øre account as before.
 // 20261125 CL/MMR MB-80 (Codex round 5): the øre account is checked in kontoplan (kontotype D) also for a ledger-only rounding, so no account the fix chooses can fail after writing.
+// 20261125 CL/MMR MB-80 (Codex round 6): a difference account is only required when a difference row is written; a control difference within the limits with balanced posted rows needs none.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2860,9 +2861,10 @@ function bogfor_nu($id, $kilde) {
 		return ($svar);
 	}
 	# <- 20260824 Sawaneh JOB-056
-	# MB-80: the currency or øre difference account is found and checked before anything is written
+	# MB-80: the currency or øre difference account is found and checked before anything is written, when a
+	# difference row will be written (the posted rows do not balance by themselves)
 	$differenceAccount = NULL;
-	if ($postingControl !== NULL && ($postingControl['rounding'] || $postingControl['sideDifference'])) {
+	if ($postingControl !== NULL && $postingControl['rounding']) {
 		$differenceAccount = forkontrolDifferenceAccount($valuta, $postingControl['sideDifference']);
 		if ($differenceAccount['error']) {
 			return ($differenceAccount['error']);

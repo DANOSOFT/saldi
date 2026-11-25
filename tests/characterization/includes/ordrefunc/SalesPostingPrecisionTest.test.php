@@ -17,6 +17,7 @@
 // History:
 // 20261125 CL/MMR MB-80: created.
 // 20261125 CL/MMR MB-80 (Codex round 4): direct posting without a caller transaction (the REST send) with a blank, 0 or configured currency difference account, and with no usable difference account.
+// 20261125 CL/MMR MB-80 (Codex round 6): control difference within the limits with balanced posted rows posts without a difference account (DKK and EUR, box3 blank, 0, configured).
 // 20261125 CL/MMR MB-80 (Codex round 5): a nonexistent øre account is refused before writing; the late-failure test of the removed transaction wrapper is dropped.
 // 20261125 CL/MMR MB-80 (Codex round 3): orders that fail only the rounded-sides check (99.961/-0.005), and a table of edge prices decided as on origin/master.
 // 20261125 CL/MMR MB-80 (Codex round 2): the cutoff of the pre-flight check, DKK and EUR, invoice and credit note, refused and accepted as on origin/master.
@@ -698,6 +699,54 @@ final class SalesPostingPrecisionTest extends TestCase
             [self::REVENUE, '0.00', '741.08'],
             [self::CURRENCY_DIFF, '0.00', '3.99']
         ), $result['rows']);
+    }
+
+    /**
+     * Control difference within the limits, posted rows that balance (Codex round 6): no difference row is written,
+     * so no difference account is needed, whatever VK box3 says.
+     *
+     * @return array<string, array{string, float, array<int, array<string, mixed>>, float, float, string, string, array<int, array{0: string, 1: string, 2: string}>}>
+     *         currency, rate, lines, header net, header VAT, VK box3, OreDif box2, expected rows
+     */
+    public static function controlDifferenceWithoutRounding(): array
+    {
+        $eur = [self::line(self::REVENUE, self::VAT25, 25, 0.169)];
+        $eurRows = [[self::DEBTOR, '1.56', '0.00'], [self::REVENUE, '0.00', '1.26'], [(string)self::VAT25, '0.00', '0.30']];
+        $rate100 = [self::line(self::REVENUE, self::VAT25, 25, 100.003), self::line(self::REVENUE, self::VAT10, 10, 0.001)];
+        $rate100Rows = [[self::DEBTOR, '125.00', '0.00'], [self::REVENUE, '0.00', '100.00'], [(string)self::VAT25, '0.00', '25.00'], [self::REVENUE, '0.00', '0.00']];
+        $dkk = [self::line(self::REVENUE, 0, 0, 50.004, 1, ['momsfri' => 'on']), self::line(self::REVENUE_EXEMPT, 0, 0, 50.004, 1, ['momsfri' => 'on'])];
+        $dkkRows = [[self::DEBTOR, '100.00', '0.00'], [self::REVENUE, '0.00', '50.00'], [self::REVENUE_EXEMPT, '0.00', '50.00']];
+        $cases = [];
+        foreach (['blank' => '', '0' => '0', 'configured' => self::CURRENCY_DIFF] as $name => $box3) {
+            $cases["EUR 0.169 at 745, box3 $name"] = ['EUR', 745, $eur, 0.17, 0.04, $box3, self::ORE_DIFF, $eurRows];
+            $cases["EUR at rate 100, mixed VAT, box3 $name"] = ['EUR', 100, $rate100, 100.00, 25.00, $box3, self::ORE_DIFF, $rate100Rows];
+            $cases["DKK two groups at 50.004, box3 $name"] = ['DKK', 100, $dkk, 100.00, 0, $box3, self::ORE_DIFF, $dkkRows];
+        }
+        $cases['DKK two groups at 50.004, no øre account'] = ['DKK', 100, $dkk, 100.00, 0, '0', '', $dkkRows];
+        return $cases;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $lines
+     * @param array<int, array{0: string, 1: string, 2: string}> $expectedRows
+     */
+    #[DataProvider('controlDifferenceWithoutRounding')]
+    public function test_control_difference_with_balanced_rows_posts_without_a_difference_account(string $currency, float $rate, array $lines, float $net, float $vat, string $currencyAccount, string $oreAccount, array $expectedRows): void
+    {
+        $id = $this->createOrder($currency, 'DO', $lines, $net, $vat);
+        CharacterizationEnv::rows(
+            self::$tenant,
+            "UPDATE ordrer SET status = 2, valutakurs = $2, fakturadate = ordredate, fakturanr = (90000 + id)::text WHERE id = $1",
+            [$id, $rate]
+        );
+        $result = $this->postDirectly($id, $currencyAccount, $oreAccount);
+        $this->assertSame('OK', $result['out']['bogfor']);
+        $this->assertSame('4', $result['status']);
+        $this->assertSame(1, $result['openItems']);
+        $this->assertSame($expectedRows, $result['rows']);
+        $preflight = $this->runInvoiceChild('preflight', $id)['preflight'];
+        $this->assertEqualsWithDelta(0.0, (float)$preflight['rounding'], 0.001, 'the posted rows balance by themselves');
+        $this->assertGreaterThan(0.0, abs((float)$preflight['difference']) + abs((float)$preflight['sideDifference']), 'the control totals differ');
     }
 
     /** A real header/line discrepancy (VAT 26.00 on the order, 25.00 on its lines) is still refused before anything is written. */
