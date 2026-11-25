@@ -23,6 +23,9 @@
 //                 The debit/credit swap of a negative amount is decided on the typed sign, so -0,004 is saved as 0.00 on swapped accounts as before.
 // 20261125 CL/MMR MB-86 (Codex round 3) A stored amount left as it was drawn is not range checked, so 999999999999.995 (shown 1.000.000.000.000,00) no longer blocks the save.
 //                 journalAmountDrawn() is the one test for "left as drawn", used by the range check and by journalAmountKept().
+// 20261125 CL/MMR MB-86 (Codex round 4) One rule for both signs: an amount left as drawn is never rounded or range checked, and its value is kept exactly.
+//                 journalAmountToSave() replaces journalAmountKept() and also decides the debit/credit swap.
+//                 A stored negative amount is still saved as its exact magnitude on swapped accounts, because bogfor.php only splits VAT on a positive amount.
 //
 // usdecimal() itself is not changed: it is used all over Saldi, also where three decimals are wanted
 // (quantities, prices). Only the journal's save path rounds to øre.
@@ -64,8 +67,8 @@ function journalAmountFromInput($input) {
  * kassekladde.amount, numeric(15,3). 999.999.999.999,995 rounds to 1.000.000.000.000,00, which the column cannot
  * hold, so it is refused like "1234.56" instead of failing in the database.
  *
- * A stored amount left as it was drawn (journalAmountDrawn()) is valid whatever it rounds to: opdater() keeps the
- * stored amount, so nothing is written for it, and the user is not stopped by a value they did not type.
+ * A stored amount left as it was drawn (journalAmountDrawn()) is valid whatever it rounds to and whatever its sign:
+ * opdater() keeps its exact value (journalAmountToSave()), and the user is not stopped by a value they did not type.
  *
  * @param string|null           $input        The field's text.
  * @param string|int|float|null $storedAmount The line's amount in the database, or null for a new line or when the
@@ -102,30 +105,40 @@ function journalAmountShown($storedAmount) {
 
 /**
  * True when the field still holds exactly the text it was drawn with for the stored amount, so the user did not
- * touch it. A negative stored amount never counts: opdater() saves a negative amount as a positive one on swapped
- * accounts, so it cannot be kept as it is.
+ * touch it. Either sign: "-1.000.000.000.000,00" for a stored -999999999999.995 counts like its positive.
  *
  * @param string|int|float|null $storedAmount The line's amount in the database, or null for a new line.
  * @param string|null           $typed        The field's text as posted, before rounding.
  * @return bool
  */
 function journalAmountDrawn($storedAmount, $typed) {
-	if ($storedAmount === null || !is_numeric(trim((string)$storedAmount)) || (float)$storedAmount < 0) return false;
+	if ($storedAmount === null || !is_numeric(trim((string)$storedAmount))) return false;
 	return trim((string)$typed) === journalAmountShown($storedAmount);
 }
 
 /**
- * The amount to write for a line that is saved: the stored amount while its field still holds the text it was drawn
- * with (journalAmountDrawn()), otherwise the new one. So an amount stored with three decimals before MB-86 is only
- * replaced when the user changes the text in the field.
+ * The amount opdater() writes for a line, and whether it swaps the line's accounts, account types and VAT codes.
  *
- * @param string|int|float|null $storedAmount The line's amount in the database, or null for a new line.
+ * One rule, whatever the sign:
+ *   - an amount the field still shows as it was drawn (journalAmountDrawn()) is the stored value, exactly: never
+ *     rounded and never range checked. A stored negative amount is written as its exact magnitude on swapped
+ *     accounts, the way every save has always written a negative amount: bogfor.php splits VAT only off a positive
+ *     amount, so a negative line would post without VAT. -999999999999.995 becomes 999999999999.995, which fits.
+ *   - any other text is a new amount: rounded to whole øre, swapped when the typed text is below zero (-0,004 too).
+ *
  * @param string|null           $typed        The field's text as posted (tmpkassekl.amount), before rounding.
- * @param float                 $amount       That text rounded to whole øre (journalAmountFromInput()), sign removed.
- * @return string|int|float The stored amount, or $amount.
+ * @param string|int|float|null $storedAmount The line's amount in the database, or null for a new line.
+ * @return array{
+ *   0: string|float,  The amount to write, never negative: the stored digits as text, or the rounded new amount.
+ *   1: bool,          True when the accounts, account types and VAT codes are swapped.
+ * }
  */
-function journalAmountKept($storedAmount, $typed, $amount) {
-	return journalAmountDrawn($storedAmount, $typed) ? $storedAmount : $amount;
+function journalAmountToSave($typed, $storedAmount = null) {
+	if (journalAmountDrawn($storedAmount, $typed)) {
+		$tal = trim((string)$storedAmount);
+		return ((float)$tal < 0) ? array(ltrim($tal, '-'), true) : array($tal, false);
+	}
+	return array(abs(journalAmountFromInput($typed)), journalAmountIsNegative($typed));
 }
 
 /**
@@ -134,7 +147,7 @@ function journalAmountKept($storedAmount, $typed, $amount) {
  * Each value is compared the way its column holds it: NULL counts as empty text, or as 0 in a number column,
  * numbers compare as numbers, and text and dates compare exactly. The amount compares with the stored amount as a
  * number to the column's three decimals (0.010 and 0.01 are equal, 0.005 and 0.010 are not); opdater() passes the
- * stored amount itself when journalAmountKept() keeps it.
+ * stored amount itself when journalAmountToSave() keeps it.
  *
  * @param array<string, mixed>|null $stored The kassekladde row from the database, or null when it was not found.
  * @param array<string, mixed>      $new    Column => the value opdater() would write.

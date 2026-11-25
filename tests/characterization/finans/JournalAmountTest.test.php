@@ -18,6 +18,7 @@
 // 20261125 CL/MMR MB-86 (Codex round 1) The kept amount is decided on the field's text; regression tests for an edit that rounds to the shown amount.
 // 20261125 CL/MMR MB-86 (Codex round 2) The column's range limit and the typed sign that decides the debit/credit swap.
 // 20261125 CL/MMR MB-86 (Codex round 3) A stored amount at the limit, left as drawn, is not range checked and is kept.
+// 20261125 CL/MMR MB-86 (Codex round 4) One rule for both signs (journalAmountToSave()), tested at +-999999999999.995 through the decision opdater() makes.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -99,20 +100,23 @@ final class JournalAmountTest extends TestCase
         // A newly typed amount past the limit is refused also on that line
         $this->assertFalse(journalAmountIsValid('999.999.999.999,995', '999999999999.995'));
         $this->assertFalse(journalAmountIsValid('1.000.000.000.000,01', '999999999999.995'));
-        // and its amount is kept by opdater(), so nothing past the limit is written
-        $this->assertSame('999999999999.995', journalAmountKept('999999999999.995', '1.000.000.000.000,00', 1000000000000.0));
-        $stored = self::storedLine();
-        $stored['amount'] = '999999999999.995';
-        $posted = self::postedLine();
-        $posted['amount'] = journalAmountKept($stored['amount'], '1.000.000.000.000,00', journalAmountFromInput('1.000.000.000.000,00'));
-        $this->assertTrue(journalLineUnchanged($stored, $posted));
+        // and opdater() keeps its exact value, so nothing past the limit is written
+        $this->assertSame(array('999999999999.995', true, false), self::saveLine('999999999999.995', '1.000.000.000.000,00'));
     }
 
-    public function testANegativeStoredAmountAtTheLimitIsStillRangeChecked(): void
+    public function testANegativeStoredAmountAtTheLimitLeftAsDrawnIsNotRangeCheckedEither(): void
     {
-        // opdater() swaps a negative amount and writes its rounded value, which would not fit, so it is refused
-        $this->assertFalse(journalAmountDrawn('-999999999999.995', '-1.000.000.000.000,00'));
-        $this->assertFalse(journalAmountIsValid('-1.000.000.000.000,00', '-999999999999.995'));
+        // Codex round 4: one rule for both signs
+        $this->assertSame('-1.000.000.000.000,00', journalAmountShown('-999999999999.995'));
+        $this->assertSame(dkdecimal('-999999999999.995', 2), journalAmountShown('-999999999999.995'));
+        $this->assertTrue(journalAmountDrawn('-999999999999.995', '-1.000.000.000.000,00'));
+        $this->assertTrue(journalAmountIsValid('-1.000.000.000.000,00', '-999999999999.995'));
+        $this->assertFalse(journalAmountIsValid('-1.000.000.000.000,00'));
+        $this->assertFalse(journalAmountIsValid('-999.999.999.999,995', '-999999999999.995'));
+        // Its exact magnitude on swapped accounts, as every save has written a negative amount: 999999999999.995 fits
+        $this->assertSame(array('999999999999.995', false, true), self::saveLine('-999999999999.995', '-1.000.000.000.000,00'));
+        // and once saved that way it is drawn as 1.000.000.000.000,00 and left alone
+        $this->assertSame(array('999999999999.995', true, false), self::saveLine('999999999999.995', '1.000.000.000.000,00'));
     }
 
     public function testTheHighestValidAmountIsSavedAsTyped(): void
@@ -184,57 +188,75 @@ final class JournalAmountTest extends TestCase
         $this->assertEquals(12.345, usdecimal('12,345', 2));
     }
 
-    public function testStoredAmountIsKeptWhileTheFieldHoldsTheTextItWasDrawnWith(): void
+    public function testAnAmountLeftAsDrawnKeepsItsExactStoredValue(): void
     {
-        $this->assertSame('0.005', journalAmountKept('0.005', '0,01', 0.01));
-        $this->assertSame('0.005', journalAmountKept('0.005', ' 0,01 ', 0.01));
-        $this->assertSame('12.345', journalAmountKept('12.345', '12,35', 12.35));
-        $this->assertSame('1234.565', journalAmountKept('1234.565', '1.234,57', 1234.57));
-        $this->assertSame('1.010', journalAmountKept('1.010', '1,01', 1.01));
+        $this->assertSame(array('0.005', false), journalAmountToSave('0,01', '0.005'));
+        $this->assertSame(array('0.005', false), journalAmountToSave(' 0,01 ', '0.005'));
+        $this->assertSame(array('12.345', false), journalAmountToSave('12,35', '12.345'));
+        $this->assertSame(array('1234.565', false), journalAmountToSave('1.234,57', '1234.565'));
+        $this->assertSame(array('1.010', false), journalAmountToSave('1,01', '1.010'));
+        // A stored negative amount: its exact magnitude, swapped
+        $this->assertSame(array('5.005', true), journalAmountToSave('-5,01', '-5.005'));
+        $this->assertSame(array('7.500', true), journalAmountToSave('-7,50', '-7.500'));
     }
 
     public function testOtherTextInTheFieldIsANewRoundedAmount(): void
     {
         // Codex round 1: 0,006 rounds to the 0,01 the field showed, and must still replace the stored 0.005
-        $this->assertSame(0.01, journalAmountKept('0.005', '0,006', 0.01));
-        $this->assertSame(0.01, journalAmountKept('0.005', '0,010', 0.01));
-        $this->assertSame(0.02, journalAmountKept('0.005', '0,02', 0.02));
-        $this->assertSame(12.34, journalAmountKept('12.345', '12,34', 12.34));
-        $this->assertSame(1234.57, journalAmountKept('1234.565', '1234,57', 1234.57));
-        // A negative amount the user typed: opdater() swaps the accounts, so the stored amount cannot be kept
-        $this->assertSame(0.01, journalAmountKept('0.005', '-0,01', 0.01));
+        $this->assertSame(array(0.01, false), journalAmountToSave('0,006', '0.005'));
+        $this->assertSame(array(0.01, false), journalAmountToSave('0,010', '0.005'));
+        $this->assertSame(array(0.02, false), journalAmountToSave('0,02', '0.005'));
+        $this->assertSame(array(12.34, false), journalAmountToSave('12,34', '12.345'));
+        $this->assertSame(array(1234.57, false), journalAmountToSave('1234,57', '1234.565'));
+        // A negative amount typed over a positive one, and the typed sign of an amount that rounds to zero
+        $this->assertSame(array(0.01, true), journalAmountToSave('-0,01', '0.005'));
+        $this->assertSame(array(0.0, true), journalAmountToSave('-0,004', '10.000'));
+        $this->assertSame(array(5.0, true), journalAmountToSave('-5', '-5.005'));
     }
 
-    public function testANegativeOrMissingStoredAmountIsNeverKept(): void
+    public function testANewLineIsRoundedAndSwappedOnItsTypedSign(): void
     {
-        $this->assertSame(5.01, journalAmountKept('-5.005', '-5,01', 5.01));
-        $this->assertSame(0.01, journalAmountKept(null, '0,01', 0.01));
-        $this->assertSame(0.0, journalAmountKept('', '', 0.0));
+        $this->assertSame(array(0.01, false), journalAmountToSave('0,005'));
+        $this->assertSame(array(0.0, true), journalAmountToSave('-0,004'));
+        $this->assertSame(array(50.0, true), journalAmountToSave('-50'));
+        $this->assertSame(array(0.0, false), journalAmountToSave(''));
     }
 
     /**
-     * The decision opdater() makes for a line stored with 0.005 before MB-86 and drawn as 0,01.
+     * The decision opdater() makes for a stored line whose Beløb field is posted with $typed: the amount it writes,
+     * whether it swaps the accounts, and whether the line counts as unchanged (no write).
      *
-     * @return array{0: string|float, 1: bool} The amount it writes, and whether the line counts as unchanged.
+     * @return array{0: string|float, 1: bool, 2: bool}
      */
-    private static function saveLegacyLine(string $typed): array
+    private static function saveLine(string $storedAmount, string $typed, string $text = 'Porto'): array
     {
         $stored = self::storedLine();
-        $stored['amount'] = '0.005';
+        $stored['amount'] = $storedAmount;
         $posted = self::postedLine();
-        $posted['amount'] = journalAmountKept($stored['amount'], $typed, abs(journalAmountFromInput($typed)));
-        return array($posted['amount'], journalLineUnchanged($stored, $posted));
+        $posted['beskrivelse'] = $text;
+        list($posted['amount'], $swap) = journalAmountToSave($typed, $storedAmount);
+        if ($swap) {
+            list($posted['debet'], $posted['kredit']) = array($posted['kredit'], $posted['debet']);
+            list($posted['d_type'], $posted['k_type']) = array($posted['k_type'], $posted['d_type']);
+            list($posted['debetvat'], $posted['kreditvat']) = array($posted['kreditvat'], $posted['debetvat']);
+        }
+        return array($posted['amount'], journalLineUnchanged($stored, $posted), $swap);
     }
 
     public function testALegacyLineLeftAloneIsNotWritten(): void
     {
-        $this->assertSame(array('0.005', true), self::saveLegacyLine('0,01'));
+        $this->assertSame(array('0.005', true, false), self::saveLine('0.005', '0,01'));
     }
 
     public function testALegacyLineEditedToAnAmountThatRoundsToTheShownOneIsWritten(): void
     {
-        $this->assertSame(array(0.01, false), self::saveLegacyLine('0,006'));
-        $this->assertSame(array(0.02, false), self::saveLegacyLine('0,02'));
+        $this->assertSame(array(0.01, false, false), self::saveLine('0.005', '0,006'));
+        $this->assertSame(array(0.02, false, false), self::saveLine('0.005', '0,02'));
+    }
+
+    public function testADescriptionChangeKeepsTheExactStoredAmountAtTheLimit(): void
+    {
+        $this->assertSame(array('999999999999.995', false, false), self::saveLine('999999999999.995', '1.000.000.000.000,00', 'Porto, rettet'));
     }
 
     /**

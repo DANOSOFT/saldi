@@ -236,6 +236,8 @@
 //                 opdater() swaps the accounts of a negative amount on its typed sign, so -0,004 is saved as 0.00 on swapped accounts.
 // 20261125 CL/MMR MB-86 (Codex round 3) kontroller() does not range check a stored amount the field still shows as drawn, so an untouched 999999999999.995 no longer blocks the save.
 //                 Its two multi-line if bodies have braces.
+// 20261125 CL/MMR MB-86 (Codex round 4) opdater() takes the amount and the swap from journalAmountToSave(): an amount left as drawn keeps its exact value, whatever its sign.
+//                 A stored negative amount is still saved as its magnitude on swapped accounts, as before, so -999999999999.995 no longer blocks the save either.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -4854,8 +4856,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				} else {
 					$forfaldsdate = NULL; # <- 2009.05.12
 				}
-				# MB-86 rounded to whole øre, so the amount stored is the one the field shows
-				$amount = journalAmountFromInput($r['amount']);
+				# MB-86 a new amount is rounded to whole øre, so the amount stored is the one the field shows; an amount the field
+				# still shows as drawn keeps its exact stored value. journalAmountToSave() also decides the swap below.
+				$kk_gemt = $r['id'] ? ($kk_gemte[(int)$r['id']] ?? null) : null;
+				list($amount, $kk_vend) = journalAmountToSave($r['amount'], $kk_gemt ? $kk_gemt['amount'] : null);
 				$momsfri = trim($r['momsfri']);
 				$debet = (int) $r['debet'];
 				$kredit = (int) $r['kredit'];
@@ -4886,8 +4890,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$beskrivelse = db_escape_string(if_isset($r['beskrivelse'], ''));
 				$debetvat = db_escape_string(if_isset($r['debetvat'], ''));
 				$kreditvat = db_escape_string(if_isset($r['kreditvat'], ''));
-				# MB-86 the typed sign decides: -0,004 is saved as 0.00 but swaps like any negative amount
-				if (journalAmountIsNegative($r['amount'])) { # Hvis beloebet er negativt, byttes om paa debet og kredit.
+				# MB-86 the typed sign decides for a new amount (-0,004 is saved as 0.00 but swaps); a stored negative amount swaps too
+				if ($kk_vend) { # Hvis beloebet er negativt, byttes om paa debet og kredit.
 					$tmp = $kredit;
 					$kredit = $debet;
 					$debet = $tmp;
@@ -4897,7 +4901,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$tmp = $kreditvat;
 					$kreditvat = $debetvat;
 					$debetvat = $tmp;
-					$amount = abs($amount);
 				}
 
 				if ($r['id'] && ($r['bilag'] || $r['bilag'] == '0')) {
@@ -4940,13 +4943,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					# MB-86 a line whose values are the stored ones is left alone: every Gem posts every line, and
 					# writing them all again rewrote amounts the user never touched. Text values are compared escaped,
 					# the way the update below would write them.
-					$kk_gemt = $kk_gemte[(int)$r['id']] ?? null;
 					if ($kk_gemt) {
 						foreach (array('beskrivelse', 'faktura', 'debetvat', 'kreditvat') as $kk_felt) {
 							$kk_gemt[$kk_felt] = db_escape_string((string)$kk_gemt[$kk_felt]);
 						}
-						# an amount stored with three decimals before MB-86 is kept while the field still holds the text it was drawn with
-						$amount = journalAmountKept($kk_gemt['amount'], $r['amount'], $amount);
 					}
 					$kk_nye = array(
 						'bilag' => $bilag, 'transdate' => $transdate, 'beskrivelse' => $beskrivelse, 'd_type' => $d_type,
