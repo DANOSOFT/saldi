@@ -13,11 +13,16 @@
 //   and the variant stores the type of its own category instead of 0.
 // - A label that already exists under the same category is reused, not created twice.
 // - The last stock message names the item, even after the variant step has read its own file.
+// - A label with an apostrophe is saved (it is escaped in the variant_typer queries).
+// - When the shop gives an existing variant a new id, the relink finds the variant through the
+//   label within its own category, so the existing shop_varer link moves to the new id instead of
+//   a second link being added.
 //
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
 // History:
 // 20261125 CL/SZ MB-145 Created.
+// 20261125 CL/SZ MB-145 Review: apostrophe and relink tests, skip without wget or php -S, temp folders removed.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -36,18 +41,29 @@ final class VaresyncTest extends CharacterizationTestCase
 
 	public static function setUpBeforeClass(): void
 	{
+		if (trim((string)shell_exec('command -v wget')) === '') {
+			self::markTestSkipped('varesync() downloads the shop files with wget, which is not installed');
+		}
 		parent::setUpBeforeClass();
 
 		self::$stubDir = sys_get_temp_dir() . '/varesync_stub_' . getmypid();
-		@mkdir(self::$stubDir, 0777, true);
+		if (!is_dir(self::$stubDir) && !mkdir(self::$stubDir, 0777, true)) {
+			self::fail('could not create ' . self::$stubDir);
+		}
 		$port = self::freePort();
+		// php -S writes its start line and one line per request here; the test waits for the first.
+		$log = self::$stubDir . '/server.log';
 		self::$server = proc_open(
 			[PHP_BINARY, '-S', "127.0.0.1:$port", __DIR__ . '/../support/varesync_stub_router.php'],
-			[0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']],
+			[0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', $log, 'w']],
 			$pipes,
 			self::$stubDir
 		);
-		self::waitForServer($port);
+		if (!self::waitForServer($log)) {
+			self::stopServer();
+			parent::tearDownAfterClass();
+			self::markTestSkipped("the stub shop (php -S on port $port) did not start");
+		}
 
 		self::rows("DELETE FROM grupper WHERE art = 'API'");
 		self::rows(
@@ -71,16 +87,35 @@ final class VaresyncTest extends CharacterizationTestCase
 
 	public static function tearDownAfterClass(): void
 	{
+		self::stopServer();
+		self::removeDir(self::$stubDir);
+		if (isset(self::$tenant) && self::$tenant) {
+			// run_varesync.php works in temp/<tenant db>, as the page does.
+			self::removeDir(CharacterizationEnv::repoRoot() . '/temp/' . CharacterizationEnv::testDb());
+		}
+		parent::tearDownAfterClass();
+	}
+
+	private static function stopServer(): void
+	{
 		if (self::$server) {
 			proc_terminate(self::$server);
 			proc_close(self::$server);
 			self::$server = null;
 		}
-		foreach (glob(self::$stubDir . '/*') ?: [] as $f) {
-			unlink($f);
+	}
+
+	private static function removeDir(string $dir): void
+	{
+		if ($dir === '' || !is_dir($dir)) {
+			return;
 		}
-		@rmdir(self::$stubDir);
-		parent::tearDownAfterClass();
+		foreach (scandir($dir) as $f) {
+			if ($f !== '.' && $f !== '..') {
+				is_dir("$dir/$f") ? self::removeDir("$dir/$f") : unlink("$dir/$f");
+			}
+		}
+		rmdir($dir);
 	}
 
 	private static function freePort(): int
@@ -91,17 +126,16 @@ final class VaresyncTest extends CharacterizationTestCase
 		return (int)substr($name, strrpos($name, ':') + 1);
 	}
 
-	private static function waitForServer(int $port): void
+	private static function waitForServer(string $log): bool
 	{
 		for ($i = 0; $i < 50; $i++) {
-			$fp = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1);
-			if ($fp) {
-				fclose($fp);
-				return;
+			clearstatcache();
+			if (is_file($log) && str_contains((string)file_get_contents($log), 'started')) {
+				return true;
 			}
 			usleep(100000);
 		}
-		self::fail("stub shop on port $port did not start");
+		return false;
 	}
 
 	/** @param list<string> $productRows @param list<string> $variantRows */
@@ -190,6 +224,44 @@ final class VaresyncTest extends CharacterizationTestCase
 			'/Sætter MB145QA til 3 stk<br>/',
 			$printed,
 			'the last stock message names the item and its quantity'
+		);
+	}
+
+	public function test_a_label_with_an_apostrophe_is_saved(): void
+	{
+		$g = self::$group;
+		$this->sync(self::PRODUCT_HEADER, ["505;MB145APO;;100;Apostrophe item;$g;;"], [
+			"MB145APO;505;9505;MB145APOW;Women's;Size;Womens size",
+		]);
+
+		$types = self::rows(
+			"SELECT id FROM variant_typer WHERE beskrivelse = 'Women''s' AND variant_id = $1",
+			[self::$sizeId]
+		);
+		$this->assertCount(1, $types, "Women's is created under Size");
+
+		$variants = $this->variantsOf($this->itemId('MB145APO'));
+		$this->assertCount(1, $variants, 'the variant is saved');
+		$this->assertSame((string)$types[0]['id'], (string)$variants[0]['variant_type'], "it stores the Women's type");
+	}
+
+	public function test_a_new_shop_variant_id_moves_the_existing_link(): void
+	{
+		$g = self::$group;
+		$product = ["503;MB145REL;;100;Relink item;$g;;"];
+		$this->sync(self::PRODUCT_HEADER, $product, ['MB145REL;503;9601;MB145RELSMALL;Small;Length;Small length']);
+		$this->sync(self::PRODUCT_HEADER, $product, ['MB145REL;503;9602;MB145RELSMALL;Small;Length;Small length']);
+
+		$itemId = $this->itemId('MB145REL');
+		$this->assertCount(1, $this->variantsOf($itemId), 'still one variant');
+		$links = self::rows(
+			"SELECT shop_id, shop_variant FROM shop_varer WHERE saldi_id = $1 AND saldi_variant <> '0' ORDER BY id",
+			[$itemId]
+		);
+		$this->assertSame(
+			[['shop_id' => '503', 'shop_variant' => '9602']],
+			$links,
+			'the one variant link now points at the new shop variant id'
 		);
 	}
 }

@@ -40,7 +40,7 @@
 // 20261105 CL/SZ MB-133 Initialize $stockVariant and $vt_id so a new variant no longer hits a fatal count() on null when the file has no qty column or variant_typer is empty.
 // 20261105 CL/SZ MB-134 Product qty column is cast to float, so a qty file no longer dies on its header line under PHP 8.
 // 20261105 CL/SZ MB-119 'Opdater fra shop' only adds a shop_varer link when the row has a shop id, so a row without one no longer blocks the real link on a later sync.
-// 20261125 CL/SZ MB-145 A variant label that exists under another category is created under its own category, so the variant no longer gets variant_type 0. The last stock message names the item instead of a variant-file value.
+// 20261125 CL/SZ MB-145 A variant label that exists under another category is created under its own category, so the variant no longer gets variant_type 0. The last stock message names the item instead of a variant-file value. Variant labels are escaped in these queries.
 
 
 function varesync($valg) {
@@ -435,14 +435,15 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 				}
 			}
 			if (!$vtExists) {
-					$qtxt="insert into variant_typer (beskrivelse,variant_id) values ('$variant[$y]','$var_id[$z]')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					$qtxt="select id from variant_typer where beskrivelse='$variant[$y]' and variant_id='$var_id[$z]'";
-					$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-					$v=count($vt_id);
-					$vt_id[$v]=$r['id'];
-					$vt_var_id[$v]=$var_id[$z];
-					$vt_var[$v]=$variant[$y];
+				$variantSql = db_escape_string($variant[$y]);
+				$qtxt="insert into variant_typer (beskrivelse,variant_id) values ('$variantSql','$var_id[$z]')";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				$qtxt="select id from variant_typer where beskrivelse='$variantSql' and variant_id='$var_id[$z]'";
+				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+				$v=count($vt_id);
+				$vt_id[$v]=$r['id'];
+				$vt_var_id[$v]=$var_id[$z];
+				$vt_var[$v]=$variant[$y];
 			}
 		}
 		for ($x=0;$x<count($var_id);$x++) {
@@ -491,8 +492,8 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 #echo $r['saldi_id'] ." && $variantVareId[$y] != ". $r['saldi_id'] ."<br>";
 		if (isset($r['saldi_id']) && $variantVareId[$y] != $r['saldi_id']) {
 			$variantVareId[$y] = $r['saldi_id'];
-			$qtxt = "select id from variant_typer where beskrivelse = '$variant[$y]'";
-			if ($s_var_id[$y]) $qtxt.= " and variant_id = '$s_var_id[$y]'"; # 20261125
+			$qtxt = "select id from variant_typer where beskrivelse = '" . db_escape_string($variant[$y]) . "'";
+			if ($s_var_id[$y]) $qtxt.= " and variant_id = '" . (int)$s_var_id[$y] . "'"; # 20261125
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$qtxt = "select id from variant_varer where vare_id = '$variantVareId[$y]' and variant_type ='$r[id]'";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
