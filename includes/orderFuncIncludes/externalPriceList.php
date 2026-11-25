@@ -34,6 +34,8 @@
 // 20261125 CL/MMR SST-1051 Records are visited one by one instead of kept, so a file with many short lines fits in memory.
 // 20261125 CL/MMR SST-1051 The file is downloaded with curl, and a broken-off transfer or HTTP error gives no rows.
 // 20261125 CL/MMR SST-1051 Only HTTP 200 is accepted as a whole file.
+// 20261125 CL/MMR SST-1051 Rows with a missing or non-numeric price are skipped, space-only lines before the header are
+//                 dropped, and gzip/deflate responses are decoded.
 
 /**
  * The active price list, or null when none is in use.
@@ -66,8 +68,10 @@ function externalPriceListActive(): ?array
 
 /**
  * Turn a price from the file into a number. Accepts 1234.50, 1234,50, 1.234,50 and 1,234.50.
+ *
+ * @return float|null null when the value is empty or not a number (e.g. «799 kr»)
  */
-function externalPriceListNumber(string $value): float
+function externalPriceListNumber(string $value): ?float
 {
 	$value = str_replace(array(' ', "\xC2\xA0"), '', trim($value));
 	$comma = strrpos($value, ',');
@@ -77,7 +81,7 @@ function externalPriceListNumber(string $value): float
 	} else {
 		$value = str_replace(',', '', $value);
 	}
-	return is_numeric($value) ? (float) $value : 0.0;
+	return ($value !== '' && is_numeric($value)) ? (float) $value : null;
 }
 
 /**
@@ -102,6 +106,7 @@ function externalPriceListDownload(string $url, int $maxBytes): ?string
 		CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
 		CURLOPT_CONNECTTIMEOUT => 10,
 		CURLOPT_TIMEOUT => 30,
+		CURLOPT_ENCODING => '', // accept gzip/deflate and get the decoded file; the size limit counts decoded bytes
 		CURLOPT_WRITEFUNCTION => function ($handle, string $chunk) use (&$data, &$tooBig, $maxBytes): int {
 			if (strlen($data) + strlen($chunk) > $maxBytes) {
 				$tooBig = true;
@@ -147,8 +152,8 @@ function externalPriceListEach(array $priceList, callable $visit): bool
 		$data = mb_convert_encoding($data, 'UTF-8', 'ISO-8859-1');
 	}
 	// Read whole CSV records, so a quoted field may span several lines. CRLF and CR-only line ends become LF first,
-	// and blank lines before the header are dropped.
-	$data = ltrim(str_replace(array("\r\n", "\r"), "\n", $data), "\n");
+	// and blank or space-only lines before the header are dropped.
+	$data = preg_replace('/\A(?:[ \t]*\n)+/', '', str_replace(array("\r\n", "\r"), "\n", $data));
 	$stream = fopen('php://temp', 'r+');
 	fwrite($stream, $data);
 	unset($data);
@@ -173,16 +178,27 @@ function externalPriceListEach(array $priceList, callable $visit): bool
 		return false;
 	}
 	while (($record = fgetcsv($stream, 0, $priceList['delimiter'], '"', '')) !== false) {
-		if ($record === array(null)) {
+		if (trim(implode('', array_map('strval', $record))) === '') {
 			continue;
 		}
 		$row = array('varenr' => '', 'stregkode' => '', 'trademark' => '', 'beskrivelse' => '', 'kostpris' => 0.0, 'salgspris' => 0.0, 'enhed' => '');
-		foreach ($record as $index => $value) {
-			if (!isset($columns[$index])) {
-				continue;
+		$valid = true;
+		foreach ($columns as $index => $key) {
+			if ($key === 'kostpris' || $key === 'salgspris') {
+				// A price column that is missing in the record, empty or not a number makes the row unusable, so it is
+				// never offered or created with price 0. An explicit 0 is a price.
+				$number = isset($record[$index]) ? externalPriceListNumber((string) $record[$index]) : null;
+				if ($number === null) {
+					$valid = false;
+					break;
+				}
+				$row[$key] = $number;
+			} else {
+				$row[$key] = trim((string) ($record[$index] ?? ''));
 			}
-			$key = $columns[$index];
-			$row[$key] = ($key === 'kostpris' || $key === 'salgspris') ? externalPriceListNumber((string) $value) : trim((string) $value);
+		}
+		if (!$valid) {
+			continue;
 		}
 		// A line break inside a quoted field becomes a space: item numbers and descriptions are one line in Saldi.
 		$row['varenr'] = preg_replace('/\s*\R\s*/u', ' ', $row['varenr']);
