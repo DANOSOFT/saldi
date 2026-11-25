@@ -36,6 +36,7 @@
 // 20261125 CL/MMR SST-1005 «Sæt aktivt» takes the waiting year by its id, and no setting of the feature is written by name (Codex round 33).
 // 20261125 CL/MMR SST-1005 The page check registers a waiting year by the row's id as well (Codex round 34).
 // 20261125 CL/MMR SST-1005 A rebuild that leaves a year waiting locks the waiting-year and block rows together in id order (Codex round 35).
+// 20261125 CL/MMR SST-1005 A request that ends right after an earlier waiting year is taken names that year in its message (CodeRabbit on PR #1109).
 
 declare(strict_types=1);
 
@@ -2300,6 +2301,33 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertSame('8', $this->setting('openingBalancePending'));
         self::assertCount(1, preg_grep("/^update settings set var_value = case .* then '8' else var_value end where id = '\\d+'$/", $seen), 'Year 8 is registered by the row\'s id.');
         self::assertCount(0, preg_grep('/^update settings .* where var_name = /', $seen), 'Nor does the page check write by name.');
+    }
+
+    /**
+     * CodeRabbit on PR #1109 (follow-up): with year 8 waiting, «Sæt aktivt» on year 11 armed the guard for year 10. A
+     * request that ended right after year 8 was cleared then asked for Gem/opdatér on year 11, which starts from year 10,
+     * so years 9 and 10 were never rebuilt from year 8. The message must name the year taken.
+     */
+    public function testARequestThatEndsRightAfterTakingAnEarlierWaitingYearNamesThatYear(): void
+    {
+        $log = tempnam(sys_get_temp_dir(), 'sst1005');
+        ini_set('error_log', $log);
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $GLOBALS['sst1005Hook'] = ['after' => "/^update settings set var_value = '0' where id = '\\d+' and var_value = '8'$/", 'times' => 1, 'run' => function (): void {
+            // The request ends here: PHP runs the shutdown functions.
+            followingOpeningBalanceFailureOnShutdown();
+            throw new RuntimeException('test: the request ended');
+        }];
+        try {
+            syncFollowingOpeningBalances(10, 11);
+            self::fail('The request was meant to end.');
+        } catch (RuntimeException $e) {
+            self::assertSame('test: the request ended', $e->getMessage());
+        }
+        self::assertSame('0', $this->setting('openingBalancePending'), 'Year 8 was taken.');
+        self::assertSame($this->stop(['sourceYear' => 8, 'targetYear' => 9, 'failed' => true]), followingOpeningBalanceStop(), 'The message asks for Gem/opdatér on year 9, which rebuilds from year 8.');
+        unlink($log);
     }
 
     public function testTheMessageNamesTheYearsAndAccounts(): void

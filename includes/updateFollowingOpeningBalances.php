@@ -76,6 +76,7 @@
 // 20261125 CL/MMR  SST-1005: The page check lowers the waiting year by its id too, read together with its value (followingOpeningBalancePendingRow()) (Codex round 34).
 // 20261125 CL/MMR  SST-1005: A rebuild or year card that leaves a year waiting locks the waiting-year and block rows together in id order, the order any scan of settings takes, so other Saldi code that writes settings by name waits instead of deadlocking (Codex round 35).
 // 20261125 CL/MMR  SST-1005: followingOpeningBalanceLockRow() reads the remembered ids with ifset(), followingOpeningBalanceReleaseLocks() its locks with if_array(), and the PHPDoc describes the paired lock (Codex round 35).
+// 20261125 CL/MMR  SST-1005: Before «Sæt aktivt» or the page check clears an earlier waiting year, the failure guard is moved to that year, so a request that ends right after the clear names the year to start again from (CodeRabbit on PR #1109).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -427,15 +428,20 @@ function followingOpeningBalancePendingRow() {
  * lower year registered meanwhile stays (and is taken on the next pass). A request that registered a year inside its
  * transaction holds the row until it commits, so the clear waits for it and the rebuild then reads what it committed.
  *
+ * @param callable|null $beforeClear Called with the year read, right before the statement that clears it, so the
+ *   caller's failure guard names that year if the request ends after the clear (see syncFollowingOpeningBalances()).
  * @return int The earliest waiting fiscal year that this rebuild takes on, or 0.
  */
-function followingOpeningBalanceTakePending() {
+function followingOpeningBalanceTakePending($beforeClear = null) {
 	$taken = 0;
 	for ($pass = 0; $pass < 3; $pass++) {
 		$row = followingOpeningBalancePendingRow();
 		$year = $row ? $row['year'] : 0;
 		if ($year < 1 || ($taken && $year >= $taken)) {
 			break;
+		}
+		if ($beforeClear) {
+			$beforeClear($year);
 		}
 		// By its id: MySQL has no index on settings.var_name, and an UPDATE by name locks every settings row it scans,
 		// the block row too, which a rebuild or card may hold while it waits for this one (Codex round 33).
@@ -854,8 +860,16 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	// the lookups below) still leaves the message instead of losing the work without a word (CodeRabbit).
 	$guarded = followingOpeningBalanceFailureGuard($fromYear > 0 ? $fromYear : $year, $fromYear > 0 ? $fromYear : $year);
 	// Taken before the rebuild, so a failing rebuild is not retried on every page. A year registered after this is
-	// left for the next check.
-	$pending = followingOpeningBalanceTakePending();
+	// left for the next check. Before each clear the guard is moved to the year being taken when that is earlier, so a
+	// request that ends right after the clear names the year the user must start again from: with year 8 waiting and
+	// «Sæt aktivt» on year 11, the message asks for Gem/opdatér on year 9, not 11 (CodeRabbit on PR #1109).
+	$beforeClear = function ($taken) use ($guarded, $fromYear) {
+		if ($guarded && ($fromYear < 1 || $taken < $fromYear)) {
+			followingOpeningBalanceFailureGuard(null);
+			followingOpeningBalanceFailureGuard($taken, $taken);
+		}
+	};
+	$pending = followingOpeningBalanceTakePending($beforeClear);
 	if ($pending) {
 		$fromYear = $fromYear > 0 ? min($fromYear, $pending) : $pending;
 	}
