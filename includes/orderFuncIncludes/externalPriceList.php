@@ -140,8 +140,8 @@ function externalPriceListRows(array $priceList): ?array
 }
 
 /**
- * Rows whose item number and description contain the search terms (case-insensitive). Empty terms match nothing,
- * so the whole file is never listed.
+ * Rows whose item number and description contain the search terms (case-insensitive) and that are not items yet.
+ * Empty terms match nothing, so the whole file is never listed. The limit counts only rows that are returned.
  *
  * @return array<int, array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: float, salgspris: float, enhed: string}>
  */
@@ -160,12 +160,33 @@ function externalPriceListSearch(array $rows, string $itemNo, string $descriptio
 		if ($description !== '' && mb_stripos($row['beskrivelse'], $description) === false) {
 			continue;
 		}
+		if (externalPriceListItemId($row['varenr'])) {
+			continue;
+		}
 		$found[] = $row;
 		if (count($found) >= $limit) {
 			break;
 		}
 	}
 	return $found;
+}
+
+/**
+ * The item group of the price list: its group number, or the group with the stored name (older settings page).
+ *
+ * @return int the group number, or 0 when the list has none
+ */
+function externalPriceListGroup(array $priceList): int
+{
+	if ($priceList['group']) {
+		return $priceList['group'];
+	}
+	if ($priceList['groupName'] === '') {
+		return 0;
+	}
+	$qtxt = "select kodenr from grupper where art = 'VG' and beskrivelse = '" . db_escape_string($priceList['groupName']) . "' order by fiscal_year desc limit 1";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	return $r ? (int) $r['kodenr'] : 0;
 }
 
 /**
@@ -189,12 +210,7 @@ function externalPriceListCreateItem(array $row, array $priceList): int
 	if ($itemId) {
 		return $itemId;
 	}
-	$group = $priceList['group'];
-	if (!$group && $priceList['groupName'] !== '') {
-		$qtxt = "select kodenr from grupper where art = 'VG' and beskrivelse = '" . db_escape_string($priceList['groupName']) . "' order by fiscal_year desc limit 1";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$group = $r ? (int) $r['kodenr'] : 0;
-	}
+	$group = externalPriceListGroup($priceList);
 	if (!$group) {
 		return 0;
 	}

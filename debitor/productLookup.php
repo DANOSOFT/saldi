@@ -88,9 +88,17 @@ if (isset($_GET['insertItems']) && isset($_GET['vare_id']) && isset($_GET['antal
     exit;
 }
 
-// SST-1051: an item chosen from the active external price list is created in the item file, then added like any other
-$priceListItemNo = (string) ifset($_GET, 'plVarenr', '');
-if ($priceListItemNo !== '' && $art != 'PO') {
+// SST-1051: an item chosen from the active external price list (POST) is created in the item file, then added like
+// any other chosen item. Only for an open customer order (or credit note) that exists.
+$priceListItemNo = (string) ifset($_POST, 'plVarenr', '');
+if ($priceListItemNo !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $orderId = (int) $id;
+    $r = $orderId ? db_fetch_array(db_select("select art, status from ordrer where id = $orderId", __FILE__ . " linje " . __LINE__)) : false;
+    if (!$r || !in_array($r['art'], array('DO', 'DK'), true) || (int) $r['status'] >= 3) {
+        http_response_code(400);
+        print "<script>alert(" . json_encode("Varer fra prislisten kan kun sættes på en åben kundeordre.") . "); history.back();</script>";
+        exit;
+    }
     include_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
     $priceList = externalPriceListActive();
     $priceListRows = $priceList ? externalPriceListRows($priceList) : null;
@@ -102,10 +110,10 @@ if ($priceListItemNo !== '' && $art != 'PO') {
         }
     }
     if ($newItemId) {
-        header("Location: ordre.php?id=" . (int) $id . "&vare_id=$newItemId&fokus=" . urlencode((string) $fokus));
+        header("Location: ordre.php?id=$orderId&vare_id=$newItemId&fokus=" . urlencode((string) $fokus));
         exit;
     }
-    $backUrl = "productLookup.php?id=" . (int) $id . "&art=" . urlencode((string) $art) . "&fokus=" . urlencode((string) $fokus) . "&find=" . urlencode($priceListItemNo);
+    $backUrl = "productLookup.php?id=$orderId&art=" . urlencode((string) $r['art']) . "&fokus=" . urlencode((string) $fokus) . "&find=" . urlencode($priceListItemNo);
     $message = "Varen $priceListItemNo kunne ikke oprettes fra prislisten. Tjek at prislisten har en varegruppe, og at varen findes i prisfilen.";
     print "<script>alert(" . json_encode($message) . "); window.location.href = " . json_encode($backUrl) . ";</script>";
     exit;
@@ -568,29 +576,25 @@ if ($art == 'DO' || $art == 'DK') {
         if ($priceListRows === null) {
             print "<div style='color: #a00;'>Prisfilen kunne ikke hentes eller har ingen kolonne varenr.</div>";
         } else {
-            $priceListFound = array();
-            foreach (externalPriceListSearch($priceListRows, $searchItemNo, $searchText) as $priceListRow) {
-                if (!externalPriceListItemId($priceListRow['varenr'])) {
-                    $priceListFound[] = $priceListRow;
-                }
-            }
+            $priceListFound = externalPriceListSearch($priceListRows, $searchItemNo, $searchText);
+            $priceListGroup = externalPriceListGroup($priceList);
             if (!$priceListFound) {
                 print "<div>Ingen nye varer i prislisten matcher søgningen.</div>";
             } else {
                 print "<table style='width: 100%; border-collapse: collapse; table-layout: auto;'>";
                 print "<tr style='display: table-row;'><th style='text-align: left; padding: 2px 6px;'>Varenr</th><th style='text-align: left; padding: 2px 6px;'>Enhed</th><th style='text-align: left; padding: 2px 6px;'>Beskrivelse</th><th style='text-align: right; padding: 2px 6px;'>Salgspris</th><th></th></tr>";
                 foreach ($priceListFound as $priceListRow) {
-                    $chooseUrl = "productLookup.php?id=" . (int) $id . "&art=" . urlencode((string) $art) . "&fokus=" . urlencode((string) $fokus) . "&plVarenr=" . urlencode($priceListRow['varenr']);
+                    $chooseUrl = "productLookup.php?id=" . (int) $id . "&art=" . urlencode((string) $art) . "&fokus=" . urlencode((string) $fokus);
                     print "<tr style='display: table-row;'>";
                     print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['varenr']) . "</td>";
                     print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['enhed']) . "</td>";
                     print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['beskrivelse']) . "</td>";
                     $priceListPrice = $priceListRow['salgspris'];
-                    if ($incl_moms && !in_array($priceList['group'], $momsfri)) {
+                    if ($incl_moms && !in_array($priceListGroup, $momsfri)) {
                         $priceListPrice = $priceListPrice * (1 + (float) $momssats / 100);
                     }
                     print "<td style='text-align: right; padding: 2px 6px;'>" . dkdecimal($priceListPrice, 2) . "</td>";
-                    print "<td style='text-align: right; padding: 2px 6px;'><a href='" . htmlspecialchars($chooseUrl) . "' style='color: #114691; text-decoration: underline;'>Opret og vælg</a></td>";
+                    print "<td style='text-align: right; padding: 2px 6px;'><form method='post' action='" . htmlspecialchars($chooseUrl) . "' style='margin: 0;'><input type='hidden' name='plVarenr' value='" . htmlspecialchars($priceListRow['varenr']) . "'><input type='submit' value='Opret og vælg'></form></td>";
                     print "</tr>";
                 }
                 print "</table>";
