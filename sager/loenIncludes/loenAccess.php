@@ -1,5 +1,6 @@
 <?php
 // 20261110 CDX/NTR SST-980 Validate wage-slip identifiers and authorize stored ownership and state.
+// 20261125 CDX/NTR Copy piecework lines only when rejecting a stored piecework slip.
 
 /**
  * Read an identifier without accepting SQL, signs, fractions, arrays or an overflowing integer.
@@ -148,7 +149,9 @@ function loenRejectSlip(array $slip, string $reason, string $reviewer): void {
 	db_modify("insert into loen ($columns,$reset) select $columns,'','','','','','','','','$reason',0 from loen where id='$id'", __FILE__ . ' linje ' . __LINE__);
 	$row = db_fetch_array(db_select("select max(id) as id from loen where nummer='$number' and id!='$id' and coalesce(afvist,'')=''", __FILE__ . ' linje ' . __LINE__));
 	$newId = (int)$row['id'];
-	$lines = 'vare_id,op,ned,op_25,ned_25,op_30,ned_30,op_40,ned_40,op_60,ned_60,op_70,ned_70,op_100,ned_100,op_160,ned_160,op_30m,ned_30m,pris_op,pris_ned,tekst,procent,varenr';
-	db_modify("insert into loen_enheder (loen_id,$lines) select '$newId',$lines from loen_enheder where loen_id='$id'", __FILE__ . ' linje ' . __LINE__);
+	if (in_array($slip['art'], array('akk_afr', 'akkord'), true)) {
+		$lines = 'vare_id,op,ned,op_25,ned_25,op_30,ned_30,op_40,ned_40,op_60,ned_60,op_70,ned_70,op_100,ned_100,op_160,ned_160,op_30m,ned_30m,pris_op,pris_ned,tekst,procent,varenr';
+		db_modify("insert into loen_enheder (loen_id,$lines) select '$newId',$lines from loen_enheder where loen_id='$id'", __FILE__ . ' linje ' . __LINE__);
+	}
 	db_modify("update loen set afsluttet='',afsluttet_af='',master_id='0' where master_id='$id' and coalesce(afregnet,'')=''", __FILE__ . ' linje ' . __LINE__);
 }

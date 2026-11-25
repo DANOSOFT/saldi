@@ -1,5 +1,6 @@
 <?php
 // 20261110 CDX/NTR SST-980 Exercise malformed targets, stored authorization, lifecycle and safe controller writes.
+// 20261125 CDX/NTR Rejection copies piecework lines only for stored piecework slip types.
 
 declare(strict_types=1);
 
@@ -13,7 +14,7 @@ final class WageSlipAccessTest extends TestCase {
 		require_once(__DIR__ . '/../../../includes/std_func.php');
 		require_once(__DIR__ . '/../../../sager/loenIncludes/retLoen.php');
 		WageSlipHarness::$slip = array_replace(array(
-			'id' => 52, 'nummer' => 12, 'sag_id' => 7, 'opg_id' => 8,
+			'id' => 52, 'nummer' => 12, 'sag_id' => 7, 'opg_id' => 8, 'art' => 'timer',
 			'oprettet_af' => 'installer', 'oprettet' => '1700000000',
 			'afsluttet' => '', 'godkendt' => '', 'afregnet' => '', 'afvist' => '',
 			'afsluttet_af' => '', 'godkendt_af' => '', 'afvist_af' => ''
@@ -103,7 +104,7 @@ final class WageSlipAccessTest extends TestCase {
 	}
 
 	public function testRejectionCopiesStoredRowsAndIgnoresForgedContent(): void {
-		$this->boot(array('afsluttet' => '123', 'oprettet_af' => 'another'));
+		$this->boot(array('art' => 'akkord', 'afsluttet' => '123', 'oprettet_af' => 'another'));
 		$GLOBALS['sag_rettigheder'] = '0000001';
 		$this->request(array('id' => '52', 'afvis' => 'Afvis', 'afvist_pga' => "Wrong person's hours", 'sum' => "0' where id='53' --", 'sag_id' => '90', 'opg_id' => '91'));
 		self::assertCount(4, WageSlipHarness::$writes);
@@ -111,6 +112,17 @@ final class WageSlipAccessTest extends TestCase {
 		self::assertStringContainsString("from loen where id='52'", WageSlipHarness::$writes[1]);
 		self::assertStringContainsString("from loen_enheder where loen_id='52'", WageSlipHarness::$writes[2]);
 		self::assertStringNotContainsString("where id='53'", implode('\n', WageSlipHarness::$writes));
+	}
+
+	public function testHourlyRejectionDoesNotAttemptAPieceworkCopyEvenWhenTheFormForgesItsType(): void {
+		$this->boot(array('afsluttet' => '123', 'oprettet_af' => 'another'));
+		$GLOBALS['sag_rettigheder'] = '0000001';
+		$output = $this->request(array('id' => '52', 'afvis' => 'Afvis', 'afvist_pga' => 'Wrong hours', 'loen_art' => 'akkord'));
+		self::assertSame(200, http_response_code());
+		self::assertCount(3, WageSlipHarness::$writes);
+		self::assertStringNotContainsString('loen_enheder', implode('\n', WageSlipHarness::$writes));
+		self::assertSame(array('begin', 'commit'), WageSlipHarness::$transactions);
+		self::assertStringContainsString('loen.php?funktion=loenliste', $output);
 	}
 
 	public function testAConcurrentCaseMoveIsRefusedBeforeAnyWrite(): void {

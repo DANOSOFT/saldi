@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.24
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,7 @@
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
+// 20261125 CDX/NTR Complete existing tenants' piecework line schema through includes/structure/loenEnhederSchema.php.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -452,5 +453,8 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
 	include_once(__DIR__ . '/structure/operatorPanelSchema.php');
 	operator_panel_schema();
 }
+
+require_once __DIR__ . '/structure/loenEnhederSchema.php';
+loen_enheder_schema();
 
 ?>
