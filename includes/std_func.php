@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-14 ---
+// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -141,6 +141,7 @@
 // 20261113 CL/ASR cvrnr_omr(): Bulgaria (bg) and Croatia (hr) are EU countries, so their customers and suppliers are on the EU sales list and book to the item group's EU accounts, not as export.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261114 CL/ASR send_email() sends the mail once (it went out twice) and prints nothing: its one caller, the two-factor step, shows its own message.
+// 20261125 CDX/ASR Check webshop entitlements before import or stock transport, without stopping core posting.
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
@@ -2031,6 +2032,7 @@ if (!function_exists('hent_shop_ordrer')) {
 	  $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	  $api_fil = isset($r['box4']) ? trim($r['box4']) : 0;
 	  if ($api_fil) {
+		if (!ent_integration_allowed((string) $db, 'shop.integration')) return;
 		file_put_contents("../temp/$db/ny_shop.json", json_encode($r));
 		if (file_exists("../temp/$db/shoptidspkt.txt")) {
 		  $tidspkt = trim(file_get_contents("../temp/$db/shoptidspkt.txt"));
@@ -2189,6 +2191,10 @@ if (!function_exists('sync_shop_vare')) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 			fclose($log);
 			return ('no api');
+		}
+		if (!ent_integration_allowed((string) $db, 'shop.advanced')) {
+			fclose($log);
+			return 'no api';
 		}
 		
 		$qtxt = "select delvare,gruppe from varer where id='$vare_id'"; #20220110

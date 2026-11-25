@@ -5,6 +5,7 @@
 //                The token was the only check, so a user with Debitorordre alone read the chart of accounts and the purchase orders.
 //                checkAuthorization() selects the account database and sets global $db to it, as includes/online.php does on the web.
 //                On MySQL/MariaDB tbl_exists() looked in no schema, so the role and the enforcement mode were never read and read-only could write under 'deny'.
+// 20261125 CDX/ASR Check the authenticated account package before module writes; preserve reads and exports.
 
 include_once __DIR__ . "/../../includes/db_query.php";
 include_once __DIR__ . "/../../includes/connect.php";
@@ -15,6 +16,7 @@ include_once __DIR__ . "/cors.php";
 require_once __DIR__ . '/ApiException.php';
 require_once __DIR__ . '/JWT.php';
 require_once __DIR__ . '/JWTAuth.php';
+require_once __DIR__ . '/../../includes/entitlements.php';
 
 // JWT signing secret (SD-587, self-provisioning added SD-634): install-specific,
 // >=256 bits, stored outside the repo at restapi/.ht_jwt_secret.bin (git-ignored,
@@ -162,6 +164,11 @@ abstract class BaseEndpoint
         
         write_log("Authorization successful", $logDb, 'INFO');
 
+        ent_load_database((string) $this->db);
+        if ($this->permissionKey !== null && !ent_permission_allowed($this->permissionKey, in_array($method, array('GET', 'HEAD'), true) ? 'read' : 'write')) {
+            $this->sendResponse(false, array('code' => 'upgrade_required'), 'Opgradér: Funktionen er ikke med i jeres pakke.', 403);
+            return;
+        }
         if (!$this->checkModuleRight()) {
             write_log("Module right {$this->permissionKey} missing for user {$this->username}", $logDb, 'WARNING');
             $this->sendResponse(false, null, "This user has no access to this function in Saldi ({$this->permissionKey}). Contact your administrator.", 403);

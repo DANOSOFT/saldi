@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/license_func.php --- 2024-12-17 ---
+// --- includes/license_func.php --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -12,14 +12,15 @@
 // which is published by The Free Software Foundation; either in version 2
 // of this license or later version of your choice.
 //
-// Copyright (c) 2024 Saldi.dk ApS
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Feature licensing functions for controlling access to paid features
 //
 // IMPORTANT: This file must be included AFTER connect.php but BEFORE online.php
 // so that license data is loaded while still connected to the master database.
-
+//
 // Global cache for license data - loaded once when this file is included
+// 20261125 CDX/ASR Use assigned package entitlements before legacy feature licences.
 $GLOBALS['_license_cache'] = array();
 $GLOBALS['_license_cache_loaded'] = false;
 
@@ -82,6 +83,9 @@ _load_license_cache();
  */
 function is_feature_licensed($feature_key) {
     global $db_id;
+    if (function_exists('ent_has_plan') && ent_has_plan()) {
+        return ent_check((string) $feature_key);
+    }
     
     // If no database context or cache not loaded, allow access (safety fallback)
     if (!isset($db_id) || !$db_id || !$GLOBALS['_license_cache_loaded']) {

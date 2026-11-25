@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/SettingsService.php --- ver 5.1.1 --- 2026.11.20 ---
+// ---- includes/settings/SettingsService.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026-2026 Danosoft ApS
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260929 SS Settings redesign phase 4a (spec §7.2): one service that reads and writes a setting through its registry definition.
 //             The registry points at the EXISTING storage (grupper box / settings row), so every current reader keeps working.
@@ -44,6 +44,7 @@
 // 20261119 CL/ASR An empty straksbogfør box (DIV/3 box5 '', NULL or no row) splits into two empty parts, so switching on only sales stores 'on;' and not a lone 'on' that every reader takes as purchases on too.
 // 20261119 CL/ASR A save of one part of a composite ('join') reads the stored row again with a row lock (lockForSave(), select ... for update) and merges its part into that, so a save of the other part at the same time no longer puts it back to what this request read when it started (p1-settings-posting-F1).
 // 20261120 CL/ASR A stored value without a row is created under a named lock for that row (PostgreSQL pg_advisory_lock before the save's transaction, or pg_advisory_xact_lock inside it; MySQL and MariaDB GET_LOCK through saldiNamedLockWait()), which the save that creates the row holds until it has committed (lockCreationBeforeSave(), lockForSave(), releaseLocks()), so two first saves at the same time create one row and both parts are kept ('on;on', not ';on' and 'on;' in two rows) (p1-settings-posting-F1r3). A setting of its own in a grupper row (DIV/3 box4 Hurtigfakturering, box9 negative stock) whose row the request did not find is saved the same way, so its first save at the same time as a save of Omgående bogføring writes into the row the other save created and inserts no second DIV/3 row (fix round 7, review round 1). The lock of a row the request read as missing is taken before the transaction begins, so the transaction sees the other save's row also under repeatable read, and a save that waits for it holds no row lock. A locked read or a named lock that fails is reported by lockForSave() and lockFailed(), no composite or grupper setting is written until releaseLocks() and saveRaw() rolls back its own transaction, so a failed read on MySQL or MariaDB, where the transaction goes on, is never taken for a missing row and a second row inserted.
+// 20261125 CDX/ASR Guard package-controlled settings and module access; enforce effective quick invoicing.
 include_once(__DIR__ . '/../../systemdata/settingsRegistry.php');
 
 class SettingsService
@@ -297,6 +298,10 @@ class SettingsService
 			return null;
 		}
 		$raw = self::raw($key, $scopeId);
+		if ($key === 'sales.orders.quick_invoice' && function_exists('ent_quick_invoice')) {
+			$raw = ent_quick_invoice((string) $raw);
+			if ($raw === 'on') return true;
+		}
 		if ($raw === '' && !self::exists($key, $scopeId)) {
 			return isset($def['default']) ? $def['default'] : null;
 		}
@@ -733,6 +738,9 @@ class SettingsService
 	 */
 	public static function saveRaw(string $key, string $raw, $scopeId = null, string $handling = 'setting.changed'): bool
 	{
+		if (function_exists('ent_setting_change_allowed') && !ent_setting_change_allowed($key, $raw === 'on')) {
+			ent_upgrade($key);
+		}
 		$def = self::definition($key);
 		if (!$def || empty($def['storage'])) {
 			return false;
@@ -937,6 +945,8 @@ class SettingsService
 	 */
 	public static function hasModule(string $module): bool
 	{
+		$feature = array('pos' => 'pos.kasse', 'booking' => 'booking', 'kommission' => 'kommission')[$module] ?? null;
+		if ($feature !== null && function_exists('ent_check') && !ent_check($feature)) return false;
 		static $cache = array();
 		if (isset($cache[$module])) {
 			return $cache[$module];

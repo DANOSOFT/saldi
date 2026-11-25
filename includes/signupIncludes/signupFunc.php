@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/signupIncludes/signupFunc.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- includes/signupIncludes/signupFunc.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -60,6 +60,7 @@
 //                 The CVR cache is written with an upsert, and IPv4-mapped client addresses count as their IPv4 address.
 //                 A CVR number is looked up with master's cvrLookupCompany() (Datafordeleren, the server's key, no daily quota); cvrapi.dk only searches names,
 //                 with master's User-Agent and refusal pause, and an ended company is not found by either.
+// 20261125 CDX/ASR Reserve the package entitlement with the signup account and read allowances from the catalogue.
 
 /** @var string $sqhost  from includes/connect.php */
 /** @var string $squser  from includes/connect.php */
@@ -74,37 +75,28 @@ if (!function_exists('signup_packages')) {
 	 * Names and prices follow the price page (plan.md, "Pakker"): the old Mini/Basis/Proff names
 	 * are not used anywhere in the new flow. 'sku' is the item number used on the billing order.
 	 *
-	 * @return array<string, array{name: string, price: int, sku: string, system: string}>
+	 * @return array<string, array{name: string, price: float|int, sku: string, brugere: ?int, posteringer: ?int}>
 	 */
 	function signup_packages() {
-		return array(
-			// brugere/posteringer: what the package includes (content/pricing.json on saldi.dk). They become the
-			// account's brugerantal/posteringer; 0 would mean "unlimited" (admin/admin_panel.php).
-			'finans'       => array('name' => 'Finans',       'price' => 99,  'sku' => 'FINANS',       'brugere' => 1, 'posteringer' => 500),
-			'professionel' => array('name' => 'Professionel', 'price' => 199, 'sku' => 'PROFESSIONEL', 'brugere' => 1, 'posteringer' => 5000),
-			'business'     => array('name' => 'Business',     'price' => 499, 'sku' => 'BUSINESS',     'brugere' => 1, 'posteringer' => 25000),
-		);
+		include_once(__DIR__ . '/../entitlementPolicy.php');
+		$out = array();
+		foreach (ent_policy()['self_signup'] as $key) {
+			$plan = ent_policy()['plans'][$key];
+			$out[$key] = array('name' => $plan[0], 'price' => $plan[2] / 100, 'sku' => strtoupper($key),
+				'brugere' => $plan[4], 'posteringer' => $plan[5]);
+		}
+		return $out;
 	}
 }
 
 if (!function_exists('signup_package_limits')) {
-	/**
-	 * Users and postings the new account gets for its package (the package's included amounts, or the
-	 * brugere_<pakke> / posteringer_<pakke> settings). Never 0: in 'regnskab' 0 means unlimited.
-	 *
-	 * @param string $pakke package key from signup_packages(); unknown keys get Business
-	 * @return array{brugerantal: int, posteringer: int}
-	 */
+	/** @return array{brugerantal: int, posteringer: int} Legacy counters derived from the catalogue, never a second package source. */
 	function signup_package_limits($pakke) {
-		$pakker = signup_packages();
-		$key = isset($pakker[$pakke]) ? $pakke : 'business';
-		$p = $pakker[$key];
-		$brugere = (int)signup_setting('brugere_' . $key, (string)$p['brugere']);
-		$posteringer = (int)signup_setting('posteringer_' . $key, (string)$p['posteringer']);
-		return array(
-			'brugerantal' => $brugere > 0 ? $brugere : (int)$p['brugere'],
-			'posteringer' => $posteringer > 0 ? $posteringer : (int)$p['posteringer'],
-		);
+		include_once(__DIR__ . '/../entitlements.php');
+		$catalog = ent_catalog();
+		if (!isset($catalog['plans'][$pakke])) throw new InvalidArgumentException('Unknown signup package');
+		$plan = $catalog['plans'][$pakke];
+		return array('brugerantal' => (int) $plan['max_users'], 'posteringer' => (int) $plan['included_postings']);
 	}
 }
 
@@ -146,7 +138,7 @@ if (!function_exists('signup_setting')) {
 	 *   billing_api_base  REST api base for the billing order ('' = no order is created)
 	 *   trial_days (30), trial_grace_days (14): the account closes (regnskab.lukkes) this many days after the
 	 *                     trial unless sales extends it; token_days (7), cleanup_days (14), max_mails (5)
-	 *   brugere_<pakke>, posteringer_<pakke>  override the package's included users / postings
+	 *   Package allowances come from the entitlement catalogue, not signup settings.
 	 *   support_phone, support_email
 	 *
 	 * @param string $name    key as listed above
@@ -1072,6 +1064,11 @@ if (!function_exists('signup_activate')) {
 			$fail['error'] = 'taken';
 			return $fail;
 		}
+		include_once(__DIR__ . '/../entitlements.php');
+		if (!ent_runtime_ready() || !isset(ent_catalog()['plans'][$row['pakke']])) {
+			$fail['error'] = 'create';
+			return $fail;
+		}
 		$id = (int)$row['id'];
 		$dates = signup_trial_dates((int)signup_setting('trial_days', '30'), (int)signup_setting('trial_grace_days', '14'));
 		$trialStart = $dates['start'];
@@ -1127,9 +1124,9 @@ if (!function_exists('signup_activate')) {
 		}
 		// brugerantal/posteringer from the package (0 would be unlimited); lukkes closes the account after the
 		// trial and its grace period, unless sales extends it (includes/online.php enforces it at login).
-		$qtxt = "INSERT INTO regnskab (regnskab, dbhost, dbuser, brugerantal, posteringer, email, bilag, pakke, trial_start, trial_end, lukkes) VALUES ("
+		$qtxt = "INSERT INTO regnskab (regnskab, dbhost, dbuser, brugerantal, posteringer, email, bilag, trial_start, trial_end, lukkes) VALUES ("
 			. signup_q($regnskab) . ", " . signup_q($sqhost) . ", " . signup_q($squser) . ", " . (int)$limits['brugerantal'] . ", " . (int)$limits['posteringer'] . ", "
-			. signup_q($row['email']) . ", '0', " . signup_q($row['pakke']) . ", " . signup_q($trialStart) . ", " . signup_q($trialEnd) . ", " . signup_q($dates['lukkes']) . ")";
+			. signup_q($row['email']) . ", '0', " . signup_q($trialStart) . ", " . signup_q($trialEnd) . ", " . signup_q($dates['lukkes']) . ")";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		if ($db_modify_fejl) { // before any further statement: on PostgreSQL the transaction is aborted now
 			return $reserveFailed();
@@ -1148,6 +1145,10 @@ if (!function_exists('signup_activate')) {
 			$note = 'Prøveperiode via saldi.dk til ' . $trialEnd . '. Lukkes ' . $dates['lukkes'] . ', medmindre datoen ryddes eller flyttes.';
 			db_modify("UPDATE regnskab SET lukkes_kommentar = " . signup_q($note) . " WHERE id = $regnskabId", __FILE__ . " linje " . __LINE__);
 		}
+		ent_write_plan($regnskabId, $row['pakke'], $trialStart, 'signup');
+		if ($db_modify_fejl) return $reserveFailed();
+		db_modify("UPDATE regnskab_entitlements SET subscription_status = 'trialing', current_period_end = " . signup_q($trialEnd) . " WHERE regnskab_id = $regnskabId", __FILE__ . " linje " . __LINE__);
+		if ($db_modify_fejl) return $reserveFailed();
 		// activated = when the account was reserved (counted by the ceiling above); set again when it is ready.
 		db_modify("UPDATE signup_pending SET status = 'activating', activated = " . signup_q(date('Y-m-d H:i:s')) . ", regnskab = " . signup_q($regnskab) . " WHERE id = $id", __FILE__ . " linje " . __LINE__);
 		if ($db_modify_fejl) {
@@ -1196,6 +1197,7 @@ if (!function_exists('signup_activate')) {
 			if ($db_modify_fejl) {
 				signup_log("LEFTOVER DATABASE $newDb from signup $id could not be dropped; drop it by hand");
 			}
+			db_modify("DELETE FROM regnskab_entitlements WHERE regnskab_id = $regnskabId", __FILE__ . " linje " . __LINE__);
 			db_modify("DELETE FROM regnskab WHERE id = $regnskabId", __FILE__ . " linje " . __LINE__);
 			// A build that keeps failing for the same signup is not retried from the link forever.
 			signup_log_event('createfail', 'signup' . $id);

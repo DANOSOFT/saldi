@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- ver 5.1.1 --- 2026.11.05 ---
+// --- api/varesync.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,10 +42,12 @@
 // 20261105 CL/SZ MB-119 'Opdater fra shop' only adds a shop_varer link when the row has a shop id, so a row without one no longer blocks the real link on a later sync.
 // 20261105 CL/LH $sProductNo, $svSaldiId and $variantVareId start as empty arrays, so in_array() no longer ends the import with a TypeError when the regnskab has no items or shop mappings yet, or the shop's variant file has no variants.
 //                The last of these stopped every catalog import without variants after its items were written, before the last stock pass and the notices.
+// 20261125 CDX/ASR Check the webshop add-on before importing or updating shop items.
 
 
 function varesync($valg) {
 	global $brugernavn,$db;
+	if (function_exists('ent_check') && !ent_check('shop.integration')) ent_upgrade('shop.integration');
 	# if ($db == 'pos_8') transaktion('begin');
 	$showtxt=NULL;
 	$newItemsId = $vare_id = $vnrtjek = array();

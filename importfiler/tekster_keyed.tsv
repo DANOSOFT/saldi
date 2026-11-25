@@ -37,6 +37,8 @@ dialog.key.invoice_date	Fakturadato ved fakturering	Invoice date when invoicing	
 dialog.key.invoice_date_help	Spørgsmålet om fakturadatoen, når du trykker Fakturér	The question about the invoice date when you press Invoice	Spørsmålet om fakturadatoen når du trykker Fakturer
 dialog.ok	OK	OK	OK
 dialog.show_again	Vis igen	Show again	Vis igjen
+entitlement.upgrade	Opgradér	Upgrade	Oppgrader
+entitlement.upgrade_message	Denne funktion er ikke med i jeres pakke, eller pakkens grænse er nået. Kontakt Saldi for at ændre aftalen.	This feature is not included in your plan, or the plan limit has been reached. Contact Saldi to change your agreement.	Denne funksjonen er ikke inkludert i pakken deres, eller pakkens grense er nådd. Kontakt Saldi for å endre avtalen.
 help.au.about.afregn	**Afregn** skriver kunden eller leverandøren og fakturanummeret på linjen. Fakturaen lukkes først, når kladden bogføres.	**Settle** writes the customer or supplier and the invoice number on the line. The invoice is only closed when the journal is posted.	**Avregn** skriver kunden eller leverandøren og fakturanummeret på linjen. Fakturaen lukkes først når kladden bokføres.
 help.au.about.faerdig	Du er igennem kladden. Fakturaerne lukkes, når du bogfører kladden.	You are through the journal. The invoices are closed when you post the journal.	Du er gjennom kladden. Fakturaene lukkes når du bokfører kladden.
 help.au.about.ingen	Kladden har ingen linjer, som Udlign kan hjælpe med.	The journal has no lines that Equalize can help with.	Kladden har ingen linjer som Utjevner kan hjelpe med.

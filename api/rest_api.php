@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- api/rest_api.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -114,6 +114,7 @@
 //                 The order number is taken and the order inserted in one transaction, and the new order's id is read inside it, so two orders no longer share a number or an id.
 //                 Before, both calls passed the duplicate check, got the same ordrenr and the same id, the lines were added twice to one order, and the race check could delete the order that had the lines.
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261125 CDX/ASR Apply the webshop entitlement before authenticated shop writes.
 
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -1360,6 +1361,13 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 	$action=trim($_GET['action']);
 	$svar = access_check();
 	if ($svar == 'OK') {#exit(json_encode($value));
+		include_once(__DIR__ . '/../includes/entitlements.php');
+		ent_load_database((string) $db);
+		if (in_array($action, array('insert_shop_order', 'insert_shop_orderline'), true) && !ent_check('shop.integration')) {
+			header('Content-Type: application/json; charset=UTF-8');
+			http_response_code(403);
+			exit(json_encode(array('success' => false, 'error' => 'upgrade_required', 'message' => 'Opgradér: Webshop kræver et tilkøb.')));
+		}
 		$log=fopen("../temp/$db/rest_api.log","a");
 		fwrite($log,__line__." Action:".$_GET['action']."\n");
 		if ($action=='fetch_from_table') {

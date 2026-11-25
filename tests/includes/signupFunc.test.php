@@ -1,5 +1,6 @@
 <?php
 // 20261111 CDX/NTR Isolate pure signup settings from connections and caches left by integration tests.
+// 20261125 CDX/ASR Verify catalogue allowances and reject unknown signup packages.
 
 declare(strict_types=1);
 
@@ -169,26 +170,39 @@ final class signupFunc extends TestCase
         }
     }
 
-    public function testEveryPackageGetsItsOwnLimitsNeverUnlimited(): void
+    private function useEntitlementCatalogue(): void
     {
-        self::assertSame(['brugerantal' => 1, 'posteringer' => 500], signup_package_limits('finans'));
-        self::assertSame(['brugerantal' => 1, 'posteringer' => 5000], signup_package_limits('professionel'));
-        self::assertSame(['brugerantal' => 1, 'posteringer' => 25000], signup_package_limits('business'));
-        self::assertSame(signup_package_limits('business'), signup_package_limits('ukendt'), 'unknown package falls back to Business');
-        foreach (array_keys(signup_packages()) as $key) {
-            // 0 in regnskab.posteringer means unlimited (admin/admin_panel.php shows the infinity sign)
-            self::assertGreaterThan(0, signup_package_limits($key)['posteringer'], "$key would get unlimited postings");
-            self::assertGreaterThan(0, signup_package_limits($key)['brugerantal'], "$key would get unlimited users");
-        }
+        require_once __DIR__ . '/../../includes/entitlements.php';
+        $GLOBALS['ent_catalog_cache']['default'] = ['plans' => [
+            'finans' => ['max_users' => 1, 'included_postings' => 500],
+            'professionel' => ['max_users' => 6, 'included_postings' => 5000],
+            'business' => ['max_users' => 12, 'included_postings' => 25000],
+        ]];
     }
 
-    public function testPackageLimitsCanBeOverriddenButNeverToUnlimited(): void
+    public function testEveryPackageGetsItsLimitsFromTheEntitlementCatalogue(): void
     {
+        $this->useEntitlementCatalogue();
+        self::assertSame(['brugerantal' => 1, 'posteringer' => 500], signup_package_limits('finans'));
+        self::assertSame(['brugerantal' => 6, 'posteringer' => 5000], signup_package_limits('professionel'));
+        self::assertSame(['brugerantal' => 12, 'posteringer' => 25000], signup_package_limits('business'));
+        $GLOBALS['ent_catalog_cache']['default']['plans']['business']['max_users'] = 15;
+        self::assertSame(15, signup_package_limits('business')['brugerantal']);
+    }
+
+    public function testUnknownPackageDoesNotSilentlyBecomeBusiness(): void
+    {
+        $this->useEntitlementCatalogue();
+        $this->expectException(InvalidArgumentException::class);
+        signup_package_limits('ukendt');
+    }
+
+    public function testLegacySignupOverridesCannotOverrideTheCatalogue(): void
+    {
+        $this->useEntitlementCatalogue();
         putenv('SALDI_SIGNUP_POSTERINGER_FINANS=750');
         putenv('SALDI_SIGNUP_BRUGERE_FINANS=2');
-        self::assertSame(['brugerantal' => 2, 'posteringer' => 750], signup_package_limits('finans'));
-        putenv('SALDI_SIGNUP_POSTERINGER_FINANS=0');
-        self::assertSame(500, signup_package_limits('finans')['posteringer'], 'a setting of 0 must not make the account unlimited');
+        self::assertSame(['brugerantal' => 1, 'posteringer' => 500], signup_package_limits('finans'));
     }
 
     public function testTrialEndsAndTheAccountClosesAfterTheGracePeriod(): void

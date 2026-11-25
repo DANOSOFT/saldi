@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -211,6 +211,7 @@
 //                 An order without a valuta is checked as a kroner order, so its kroner invoices count in full and no rate is looked up for them.
 //                 A credit note made with Kreditér keeps the credited order's reverse charge (omvbet), so its save no longer clears the lines' omvbet and it credits no VAT the invoice never charged.
 //                 An open order's VAT-free or reverse-charge line gets rate 0 even without a rate of its own, so a Genfakturer copy or a Del ordre remainder no longer shows and stores VAT on a reverse-charge line.
+// 20261125 CDX/ASR Use the package quick-invoice setting without rewriting it in observe mode.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -492,7 +493,7 @@ $incl_moms = $vatPrivateCustomers; // Default to private customer setting
 #$rabatvare_id=$r['box2']*1; #20150317
 $rb = $r['box2'];
 $rabatvare_id = (int)$rb; #20210715
-$hurtigfakt = $r['box4'];
+$hurtigfakt = ent_quick_invoice((string) $r['box4']);
 $negativt_lager = $r['box9'];
 $procentfakt = $r['box12'];
 ($r['box13']) ? $box13 = $r['box13'] : $box13 = '0' . chr(9) . '';

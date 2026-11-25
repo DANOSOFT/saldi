@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- ver 5.1.1 --- 2026.11.20 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,6 +71,7 @@
 // 20261114 CL/ASR The action ledger_reset is gone from the list of actions that write their own audit entry: the reset moved to the admin panel.
 // 20261119 CL/ASR A save reads composite settings (two settings in one stored value, such as Omgående bogføring of sales and purchase orders in DIV/3 box5) again under a row lock inside its transaction and applies the lock rules to what is stored then, so a save of the other setting at the same time can no longer switch one that stays on off again (p1-settings-posting-F1). A refused Gendan shows its own message, also when it is a text key, and no longer says Gendannet. Under the row lock it also asks st_hent_first_error() again, so the last Omgående bogføring setting is not switched on when the other was switched on in between and invoices of its kind wait; then nothing is written and the field shows the message.
 // 20261120 CL/ASR A stored value without a row is created under a named lock that is taken before the save's transaction and held until it has committed (SettingsService::lockCreationBeforeSave(), lockForSave(), releaseLocks()), so two first saves at the same time keep both parts, also under repeatable read, and a save whose locked read or named lock failed rolls back, writes nothing and says to try again (settings.save.lock_failed) (p1-settings-posting-F1r3). The same lock covers a setting of its own in a grupper row the page found missing, such as Hurtigfakturering (DIV/3 box4) saved at the same moment as Omgående bogføring, so the two saves end in one DIV/3 row (fix round 7, review round 1).
+// 20261125 CDX/ASR Check the package before opening dedicated paid-feature settings.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var int    $sprog_id
@@ -122,6 +123,8 @@ if (!isset($sections[$sectionId])) {
 	exit;
 }
 $section = $sections[$sectionId];
+$packageFeature = ent_feature_for_settings($sectionId);
+if ($packageFeature !== null && !ent_check($packageFeature)) ent_upgrade($packageFeature);
 if (!empty($section['module']) && !settings_has_module($section['module'])) {
 	ob_end_clean();
 	header('Location: settings.php?err=module');
