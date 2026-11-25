@@ -29,6 +29,7 @@
 // 20261125 CL/MMR SST-1051 Search skips rows that are already items before the limit.
 //                 The item group comes from the stored group name when it names one group, else the group number.
 // 20261125 CL/MMR SST-1051 The file is read as whole CSV records, so a quoted field may span several lines.
+// 20261125 CL/MMR SST-1051 CR-only line ends and blank lines before the header are accepted.
 
 /**
  * The active price list, or null when none is in use.
@@ -103,7 +104,9 @@ function externalPriceListRows(array $priceList): ?array
 	if ($priceList['encoding'] !== 'utf-8' || !mb_check_encoding($data, 'UTF-8')) {
 		$data = mb_convert_encoding($data, 'UTF-8', 'ISO-8859-1');
 	}
-	// Read whole CSV records, so a quoted field may span several lines.
+	// Read whole CSV records, so a quoted field may span several lines. CRLF and CR-only line ends become LF first,
+	// and blank lines before the header are dropped.
+	$data = ltrim(str_replace(array("\r\n", "\r"), "\n", $data), "\n");
 	$stream = fopen('php://temp', 'r+');
 	fwrite($stream, $data);
 	rewind($stream);
