@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../includes/twoFactor.php';
@@ -84,6 +85,41 @@ final class twoFactor extends TestCase
         $this->assertSame('', twofactor_notices('<html><head><script>alert(document.cookie)</script></head>'));
         $this->assertSame('', twofactor_notices(''));
         $this->assertSame('', twofactor_notices(false));
+    }
+
+    /**
+     * On a LATIN9 ledger findtekst() gives its texts single-byte. send_sms() JSON-encodes the message and send_email()
+     * sends UTF-8: json_encode() refused the text and htmlspecialchars(..., 'UTF-8') emptied it, so the text message
+     * failed and the e-mail came without the code.
+     */
+    #[RunInSeparateProcess]
+    public function testOnALatin9LedgerTheCodeReachesTheTextMessageAndTheEmail(): void
+    {
+        $GLOBALS['db_encode'] = 'LATIN9';
+        $GLOBALS['__tfa_sent'] = [];
+        eval('
+            function findtekst($id, $languageId) {   // the fallback text as a LATIN9 ledger stores it
+                $parts = explode("|", (string) $id, 2);
+                return mb_convert_encoding($parts[1] ?? $parts[0], "ISO-8859-1", "UTF-8");
+            }
+            function send_sms($from, $to, $message) {
+                $GLOBALS["__tfa_sent"][] = ["sms", json_encode(["message" => $message])];
+                return true;
+            }
+            function send_email($to, $subject, $body) {
+                $GLOBALS["__tfa_sent"][] = ["email", $subject, $body];
+                return true;
+            }
+        ');
+
+        $this->assertTrue(twofactor_send('sms', '+4512345678', '123456', 1));
+        $this->assertTrue(twofactor_send('email', 'bruger@example.invalid', '654321', 1));
+
+        [$sms, $mail] = $GLOBALS['__tfa_sent'];
+        $this->assertNotFalse($sms[1], 'the text message could not be encoded');
+        $this->assertSame('Din kode til Saldi er 123456. Den gælder i 3 minutter.', json_decode($sms[1], true)['message']);
+        $this->assertSame('Din kode til Saldi', $mail[1]);
+        $this->assertSame('<p>Din kode til Saldi er 654321. Den gælder i 3 minutter.</p><p>Har du ikke selv forsøgt at logge ind, så skift din adgangskode.</p>', $mail[2]);
     }
 
     public function testACodeIsSixDigits(): void

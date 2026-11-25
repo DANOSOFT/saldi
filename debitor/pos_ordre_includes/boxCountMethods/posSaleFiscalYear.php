@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/posSaleFiscalYear.php --- ver 5.1.1 --- 2026.11.19 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/posSaleFiscalYear.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,8 @@
 //                 The checks that an earlier year's result reaches the active year's opening balances moved here from posbogfor() unchanged, so they stay together.
 //                 posAccountsOutsideChart(): the close is refused when it posted into an earlier fiscal year on an account that is not in that year's chart.
 // 20261119 CL/ASR A year's result without a Sideskift account no longer refuses the close: the carry puts it on 6940, and where it has no account at all the close is committed with a warning for the bookkeeper (owner's decision 19 Nov 2026).
+// 20261125 CL/ASR posTextUtf8() and posTextHtml(): the close's messages join this file's UTF-8 texts with a ledger's own texts (fiscal year names), which are single-byte on a LATIN9 ledger; json_encode() refused the mix and the alert came up blank.
+//                 The fiscal year names go into the messages through posDbText(), converted from the ledger's encoding where they are read; posTextUtf8() only mends what is left.
 // 20261119 CL/ASR posCloseCarries() tells posbogfor() before its transaction whether the close will carry a sale from an earlier fiscal year, so it takes the carry's lock first (p1-pos-close-R1).
 //                 posCarryOpeningBalances(): a carry whose lock is refused (OpeningCarryConflict) asks the clerk to approve the count again.
 //                 The refusal for a status account without an account in the next year names that account and the two years where the carry stopped.
@@ -115,7 +117,7 @@ function posSaleFiscalYear($saleDate) {
  */
 function posResultCarryRefusal($fromYear, $activeYear, $fiscalYears) {
 	for ($fyNo = (int) $fromYear; $fyNo < $activeYear; $fyNo++) {
-		$fyName = trim((string) $fiscalYears[$fyNo]['beskrivelse']) ?: $fyNo;
+		$fyName = posDbText(trim((string) $fiscalYears[$fyNo]['beskrivelse'])) ?: $fyNo;
 		if (!isset($fiscalYears[$fyNo + 1]) || trim((string) $fiscalYears[$fyNo + 1]['box10'])) {
 			return "regnskabsåret efter $fyName findes ikke eller er slettet, så salget kan ikke føres til primo i det aktive regnskabsår.";
 		}
@@ -143,7 +145,7 @@ function posAccountsOutsideChart($kasse, $firstTransId, $years, $fiscalYears) {
 		$year = $fiscalYears[$fyNo];
 		$start = sprintf('%04d-%02d-01', (int) $year['box2'], (int) $year['box1']);
 		$end = date('Y-m-t', mktime(0, 0, 0, (int) $year['box3'], 1, (int) $year['box4']));
-		$fyName = trim((string) $year['beskrivelse']) ?: $fyNo;
+		$fyName = posDbText(trim((string) $year['beskrivelse'])) ?: $fyNo;
 		$qtxt = "select distinct t.transdate, t.kontonr from transaktioner t where t.id > '" . (int) $firstTransId . "' ";
 		$qtxt.= "and t.kasse_nr = '" . (int) $kasse . "' and t.kontonr <> 0 and t.transdate >= '$start' and t.transdate <= '$end' ";
 		$qtxt.= "and not exists (select 1 from kontoplan k where k.regnskabsaar = '$fyNo' and k.kontonr = t.kontonr ";
@@ -206,8 +208,8 @@ function posCarryOpeningBalances($fromYear, $activeYear, $fiscalYears) {
 	if ($stop && $stop['reason'] === 'result') {
 		$source = (int) $stop['sourceYear'];
 		$target = (int) $stop['targetYear'];
-		$sourceName = trim((string) $fiscalYears[$source]['beskrivelse']) ?: $source;
-		$targetName = trim((string) $fiscalYears[$target]['beskrivelse']) ?: $target;
+		$sourceName = posDbText(trim((string) $fiscalYears[$source]['beskrivelse'])) ?: $source;
+		$targetName = posDbText(trim((string) $fiscalYears[$target]['beskrivelse'])) ?: $target;
 		$later = isset($fiscalYears[$target + 1]) && !trim((string) $fiscalYears[$target + 1]['box10']);
 		$where = "Gem/opdatér på åbningsbalancen for regnskabsår $targetName (Indstillinger » Virksomhed » Regnskabsår » Åbningsbalance)";
 		$warning = "primo i regnskabsår $targetName" . ($later ? " og de følgende regnskabsår" : "") . " er ikke opdateret med salgene, ";
@@ -231,7 +233,7 @@ function posCarryOpeningBalances($fromYear, $activeYear, $fiscalYears) {
 	}
 	# Name the account and the years where the walk stopped, not the oldest year it started from.
 	$yearName = function ($year) use ($fiscalYears) {
-		return (isset($fiscalYears[$year]) ? trim((string) $fiscalYears[$year]['beskrivelse']) : '') ?: (string) $year;
+		return (isset($fiscalYears[$year]) ? posDbText(trim((string) $fiscalYears[$year]['beskrivelse'])) : '') ?: (string) $year;
 	};
 	if ($stop && $stop['reason'] === 'status') {
 		$sourceName = $yearName((int) $stop['sourceYear']);
@@ -315,7 +317,7 @@ function posTillCarryWarnings($kasse, $firstTransId, $years, $activeYear, $fisca
 	$kasse = (int) $kasse;
 	$activeYear = (int) $activeYear;
 	$yearName = function ($year) use ($fiscalYears) {
-		return (isset($fiscalYears[$year]) ? trim((string) $fiscalYears[$year]['beskrivelse']) : '') ?: (string) $year;
+		return (isset($fiscalYears[$year]) ? posDbText(trim((string) $fiscalYears[$year]['beskrivelse'])) : '') ?: (string) $year;
 	};
 	$isStatus = function ($account, $year) {
 		$qtxt = "select id from kontoplan where regnskabsaar = '" . (int) $year . "' and kontonr = '" . (int) $account . "' and kontotype = 'S'";
@@ -375,4 +377,40 @@ function posTillCarryWarnings($kasse, $firstTransId, $years, $activeYear, $fisca
 		}
 	}
 	return $lines;
+}
+
+/**
+ * A text of the ledger (a fiscal year's name) as UTF-8 for the close's messages: on a LATIN9 ledger it is single-byte
+ * and is converted, as saldi_error_utf8() (includes/errorReport.php) converts a ledger's text; one already UTF-8 is kept.
+ */
+function posDbText($text) {
+	global $db_encode;
+	$text = (string) $text;
+	if ((isset($db_encode) && $db_encode === 'UTF8') || mb_check_encoding($text, 'UTF-8')) {
+		return $text;
+	}
+	return mb_convert_encoding($text, 'UTF-8', 'ISO-8859-15');
+}
+
+/**
+ * A message of the close as valid UTF-8. It joins this code's UTF-8 texts with a ledger's own texts (fiscal year names,
+ * account names), which are single-byte Windows-1252 on a LATIN9 ledger: each valid UTF-8 character is kept and each
+ * byte that is not part of one is read as Windows-1252, as db_escape_string() reads such text.
+ */
+function posTextUtf8($text) {
+	$text = (string) $text;
+	if (mb_check_encoding($text, 'UTF-8')) {
+		return $text;
+	}
+	return preg_replace_callback('/[\x00-\x7F]+|[\xC2-\xDF][\x80-\xBF]|\xE0[\xA0-\xBF][\x80-\xBF]|[\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}'
+		. '|\xED[\x80-\x9F][\x80-\xBF]|\xF0[\x90-\xBF][\x80-\xBF]{2}|[\xF1-\xF3][\x80-\xBF]{3}|\xF4[\x80-\x8F][\x80-\xBF]{2}|([\x80-\xFF])/',
+		function ($m) {
+			return isset($m[1]) ? mb_convert_encoding($m[1], 'UTF-8', 'Windows-1252') : $m[0];
+		}, $text);
+}
+
+/** A message of the close as HTML in plain ASCII (numeric entities), so it reads the same on a UTF-8 and on an ISO-8859-1 page. */
+function posTextHtml($text) {
+	$html = htmlspecialchars(posTextUtf8($text), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	return mb_encode_numericentity($html, array(0x80, 0x10FFFF, 0, 0x1FFFFF), 'UTF-8');
 }

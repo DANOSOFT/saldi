@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_rubrik.php --- ver 5.1.1 --- 2026-11-20 ---
+// --- finans/rapport_includes/moms_rubrik.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,7 @@
 // 20261119 CL/ASR Box A counts a posting of a journal whose lines carry VAT codes by the journal line it was posted from (its journal, bilag, date, account, department, side and net amount, reverse-charged by the code finans/bogfor.php took), so a domestic purchase no longer takes the VAT of an EU purchase in another department, on an account outside box A or with a net an øre apart; journals without VAT codes and postings outside a journal keep the pairing by VAT.
 // 20261119 CL/ASR The accounts that postings without an order count on are listed under the table at Konti uden ordre, by rubrik and with their names, since Indstillinger > Moms shows only the box A accounts (MR box3/box4); the footnote points to that list.
 // 20261120 CL/ASR Box A reads a journal line whose saved VAT codes do not decide its VAT (no code, so the account's code, or another code against a debtor or creditor) by its posting, VAT on top of the net and that VAT on an acquisition VAT account in its voucher and department, instead of by the account's code and the groups as they are now, so a later change to them neither removes a posted EU purchase nor adds one posted without the reverse charge, and the footnote says plainly that in journals without VAT codes and outside a journal a domestic purchase can count as an EU purchase with the same VAT.
+// 20261125 CL/ASR Konti uden ordre: the account names are HTML entities through saldi_error_h(), so a LATIN9 ledger's æøå are no longer replacement characters.
 
 if (!function_exists('moms_rubrik_group_rows')) {
     /**
@@ -809,7 +810,10 @@ function moms_rubrik($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         $konti = [];
         foreach ($konti_uden_ordre[$kode] as $konto) {
             $navn = $konto_navne[$konto] ?? '';
-            $konti[] = $konto . (($navn !== '') ? ' (' . htmlspecialchars($navn, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . ')' : '');
+            if (!function_exists('saldi_error_h')) include_once(__DIR__ . '/../../includes/errorReport.php');
+            // As the page's own texts (HTML entities): ASCII that reads the same on a UTF-8 and on an ISO-8859-1 page; a LATIN9
+            // ledger's account name is converted to UTF-8 first (saldi_error_h()), where 'UTF-8' alone made æøå replacement characters.
+            $konti[] = $konto . (($navn !== '') ? ' (' . saldi_error_h($navn) . ')' : '');
         }
         $konti_txt[] = "$kode " . implode(', ', $konti);
     }

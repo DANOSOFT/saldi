@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/twoFactor.php --- ver 5.1.1 --- 2026-11-14 ---
+// --- includes/twoFactor.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261114 CL/ASR Created. One place for the two-factor rules that index/login.php, personal settings and Brugere & roller share: which ways a code can reach a user, which one is used, and the code sent last.
+// 20261125 CL/ASR twofactor_send() reads its texts with findtekst_utf8(): on a LATIN9 ledger findtekst()'s text made send_sms()'s JSON fail and the e-mail arrive without the code.
 //
 // A user with two-factor login (brugere.twofactor) gets a code by text message or by e-mail. Which of the two is the
 // user's own choice, kept in the ledger's settings table (var_grp '2fa', var_name 'method', user_id). Without a
@@ -231,16 +232,19 @@ if (!function_exists('twofactor_is_on')) {
 	function twofactor_send(string $method, string $to, string $code, $languageId, &$output = ''): bool
 	{
 		$languageId = in_array((int) $languageId, array(2, 3), true) ? (int) $languageId : 1;
-		$text = sprintf(findtekst('login.tfa.message|Din kode til Saldi er %s. Den gælder i 3 minutter.', $languageId), $code);
+		// send_sms() JSON-encodes the text and send_email() sends UTF-8. findtekst() gives a LATIN9 ledger's own encoding,
+		// which json_encode() refuses and htmlspecialchars(..., 'UTF-8') turns into '', so the texts are read as UTF-8.
+		if (!function_exists('findtekst_utf8')) include_once(__DIR__ . '/stdFunc/findTxtUtf8.php');
+		$text = sprintf(findtekst_utf8('login.tfa.message|Din kode til Saldi er %s. Den gælder i 3 minutter.', $languageId), $code);
 		$sent = false;
 		ob_start();
 		try {
 			if ($method === 'sms') {
 				$sent = (send_sms('Saldi', $to, $text) === true);
 			} elseif ($method === 'email') {
-				$subject = findtekst('login.tfa.mail_subject|Din kode til Saldi', $languageId);
-				$body = '<p>' . htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . '</p><p>'
-					. htmlspecialchars(findtekst('login.tfa.mail_warning|Har du ikke selv forsøgt at logge ind, så skift din adgangskode.', $languageId), ENT_QUOTES, 'UTF-8') . '</p>';
+				$subject = findtekst_utf8('login.tfa.mail_subject|Din kode til Saldi', $languageId);
+				$body = '<p>' . htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p><p>'
+					. htmlspecialchars(findtekst_utf8('login.tfa.mail_warning|Har du ikke selv forsøgt at logge ind, så skift din adgangskode.', $languageId), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p>';
 				$sent = (send_email($to, $subject, $body) === true);
 			}
 		} catch (Throwable $error) {

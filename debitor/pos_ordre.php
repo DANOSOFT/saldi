@@ -154,6 +154,7 @@
 //                 A till account of an earlier year that the carry does not take onto the till's account in the active year is listed for the bookkeeper after the close (p1-pos-close-F4).
 //                 A row of the active year that the carry writes and another session changed after the close's snapshot also rolls the close back and asks the clerk to approve again, instead of the database error box and its mail.
 // 20261125 CL/SS MB-49: The terminal and day-end refusal alerts go through jsString(), so a LATIN9 text with æøå is not blank.
+// 20261125 CL/ASR function posbogfor: the close's own refusals and warnings (fiscal years, carry, till accounts) go through posTextUtf8() and posTextHtml(), so on a LATIN9 ledger a fiscal year name with æøå no longer blanks the alert.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -2660,8 +2661,8 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 		} catch (OpeningCarryConflict $e) {
 			error_log('Saldi POS day close: ' . $e->getMessage());
 			$txt = "Kasseoptællingen er ikke bogført. Kasse " . (int) $kasse . ": " . posOpeningCarryConflictText() . "\nIntet er bogført. Godkend kasseoptællingen igen.";
-			echo "<br>Svar " . nl2br(htmlspecialchars($txt, ENT_QUOTES)) . "<br>\n";
-			print "<script>alert(" . json_encode($txt, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
+			echo "<br>Svar " . nl2br(posTextHtml($txt)) . "<br>\n";
+			print "<script>alert(" . json_encode(posTextUtf8($txt), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
 			exit;
 		}
 	}
@@ -2796,8 +2797,8 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 		openingCarryUnlock();
 		$txt = "Kasseoptællingen er ikke bogført. Kasse $kasse har ikke-bogførte salg, som ikke kan bogføres nu:\n";
 		$txt.= implode("\n", $reasons) . ($retry ? "\nIntet er bogført. Godkend kasseoptællingen igen." : "\nRet forholdet, og godkend kasseoptællingen igen.");
-		echo "<br>Svar " . nl2br(htmlspecialchars($txt, ENT_QUOTES)) . "<br>\n";
-		print "<script>alert(" . json_encode($txt, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
+		echo "<br>Svar " . nl2br(posTextHtml($txt)) . "<br>\n";
+		print "<script>alert(" . json_encode(posTextUtf8($txt), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
 		exit;
 	};
 	$activeYear = $regnaar;
@@ -3323,8 +3324,8 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 	# till accounts of earlier years that the carry does not take onto the till's account in the active year.
 	foreach (array($noYearWarning, $carryWarning, $tillWarning) as $warning) {
 		if ($warning) {
-			echo "<br>" . nl2br(htmlspecialchars($warning, ENT_QUOTES)) . "<br>\n";
-			print "<script>alert(" . json_encode($warning, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
+			echo "<br>" . nl2br(posTextHtml($warning)) . "<br>\n";
+			print "<script>alert(" . json_encode(posTextUtf8($warning), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
 		}
 	}
 	$pfnavn = "../temp/" . $db . "/kasseopg" . str_replace("-", "", $kasse) . ".txt";
