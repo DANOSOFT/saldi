@@ -125,6 +125,10 @@ final class BilagNumberCharacterizationTest extends TestCase
     {
         $this->assertSame('2026-06-13', bilagStagedDate('13-06-2026'), 'tmpkassekl keeps the operator dd-mm-yyyy');
         $this->assertSame('2026-06-13', bilagStagedDate('13.06.2026'), 'the staging table also holds dots');
+        $this->assertSame('2026-06-13', bilagStagedDate('130626'), 'and the compact ddmm the journal accepts');
+        $this->assertSame('2026-06-13', bilagStagedDate('13062026'), 'or a compact ddmmyyyy');
+        $this->assertSame('', bilagStagedDate('1306'), 'a value without a year is not read: usdate() guesses that year');
+        $this->assertSame('', bilagStagedDate('1306261'), 'seven digits are not a date this reads');
         $this->assertSame('2026-11-25', bilagStagedDate('2026-11-25'), 'an already converted date passes through');
         $this->assertSame('', bilagStagedDate('2026-02-31'), 'nor is a Y-m-d field the calendar does not have a day');
         $this->assertSame('', bilagStagedDate(''), 'an empty staged date names no day');

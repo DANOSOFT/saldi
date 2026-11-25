@@ -44,6 +44,7 @@
 //                 Only an empty field is numbered (bilagIsUnnumbered()), and the page shows a saved 0 as 0 (bilagFieldValue()).
 // 20261125 LOE SST-906 A line dated in another fiscal year continues that year's series: bilagFiscalYearForDate(), a year on bilagFiscalYearBounds(), the line date on bilagNextNumberForJournal(), and bilagReplaceForeignYearProposals() for the save.
 //              That last one skips the rows the save will not store, gives lines of one voucher one number, and is told the numbers the taken-proposal pass already moved lines onto.
+//              It answers per line, so a number the operator typed on another line stays his, and it reports a line the year has no number left for so the save can refuse it.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -191,13 +192,20 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $from = 0, $own_ids =
  * line's date, and so is a row the save skips (it never gets a line to renumber, so announcing one would be a
  * lie). Rows that share a proposal share the replacement, because they are lines of one voucher.
  *
+ * The answer is per line, not per number, because only the line that still carries its proposal may have it
+ * replaced - the same number typed on another line is the operator's, and stays. A line whose own fiscal year
+ * has no number left comes back with 'to' = 0: the caller refuses that line rather than store the number the
+ * page had offered for a different year.
+ *
  * @param int                $kladde_id     Journal (kladdeliste.id).
  * @param array<int, int>    $proposed      Line number (tmpkassekl.lobenr) => the number the page proposed.
  * @param array<int, string> $proposedDates Line number => the date that proposal was drawn for (Y-m-d).
  * @param int                $from          Series start: the journal's next number, read once per save.
  * @param array<int, int>    $alreadyUsed   Replacements this save has already made (bilagReplaceTakenProposals()),
  *                                          whose numbers are taken and must not be handed out again.
- * @return array<int, int> Staged proposal => the number of the line's own fiscal year's series; empty when none.
+ * @return array<int, array{from: int, to: int}> Line number => the number it carries and the number to save it
+ *                                               under; 'to' = 0 when that year has no number left. Lines this
+ *                                               does not touch are absent.
  */
 function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates, $from = 0, $alreadyUsed = array()) {
 	$kladde_id = (int)$kladde_id;
@@ -211,6 +219,8 @@ function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates,
 	foreach ((array)$alreadyUsed as $taken_number) {
 		$used[] = (int)$taken_number;
 	}
+	# a proposal number => the number its lines move to, so the lines of one voucher share it
+	$targets = array();
 	# SELECT * so the row can be asked the same question opdater() asks: will this line be saved at all?
 	$q = db_select("SELECT * FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -219,9 +229,6 @@ function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates,
 		if (!bilagStagedRowWillBeSaved($r) || (int)$r['id'] > 0 || $bilag <= 0
 			|| !isset($proposed[$lobenr]) || (int)$proposed[$lobenr] !== $bilag) {
 			continue;   # a row the save skips, an existing line, a line without a number, or a number the operator typed
-		}
-		if (isset($replacements[$bilag])) {
-			continue;   # another line of the same voucher already took this proposal's replacement
 		}
 		$proposalDate = trim((string)($proposedDates[$lobenr] ?? ''));
 		if ($proposalDate === '') {
@@ -236,6 +243,11 @@ function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates,
 		if ($proposalYear <= 0 || $lineYear <= 0 || $proposalYear === $lineYear) {
 			continue;
 		}
+		if (isset($targets[$bilag])) {
+			# another line of the same voucher already worked out where it goes, so this one follows it
+			$replacements[$lobenr] = array('from' => $bilag, 'to' => (int)$targets[$bilag]);
+			continue;
+		}
 		# the line's own year's next number, past the numbers this save already holds or hands out
 		$heldHere = $held;
 		unset($heldHere[$bilag]);
@@ -243,12 +255,11 @@ function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates,
 		if ((int)$from > 0 && $target <= 0) {
 			$target = (int)$from;
 		}
-		$target = bilagNextNumberSkipping($heldHere, array_merge($used, array_values($replacements)), $target);
-		if ($target > 0 && $target !== $bilag) {
-			$replacements[$bilag] = $target;
-		}
-		# no number left in that year (its series is at the column maximum): the line keeps the number it has, and
-		# the save's own exhausted-series refusal is what the operator meets instead
+		$target = bilagNextNumberSkipping($heldHere, array_merge($used, array_values($targets)), $target);
+		# no number left in that year (its series is at the column maximum): the line is refused by the caller
+		# rather than stored under a number that belongs to another year
+		$targets[$bilag] = (int)$target;
+		$replacements[$lobenr] = array('from' => $bilag, 'to' => (int)$target);
 	}
 	return $replacements;
 }
@@ -274,6 +285,11 @@ function bilagStagedDate($date) {
 	}
 	# the staging table keeps the operator's dd-mm-yyyy; read it here so the helper stands on its own
 	$parts = preg_split('/[^0-9]+/', $date, -1, PREG_SPLIT_NO_EMPTY);
+	# and a compact ddmm or ddmmyyyy, which usdate() also reads - a 1 to 4 digit value is not read at all,
+	# because usdate() takes its year from the fiscal-year boxes rather than from what the operator typed
+	if (is_array($parts) && count($parts) === 1 && preg_match('/^(\d{2})(\d{2})(\d{2}|\d{4})$/', $parts[0], $compact)) {
+		$parts = array($compact[1], $compact[2], $compact[3]);
+	}
 	if (is_array($parts) && count($parts) === 3) {
 		list($day, $month, $year) = array_map('intval', $parts);
 		if ($year < 100) {
