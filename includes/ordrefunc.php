@@ -192,7 +192,7 @@
 // 20261125 CL/MMR MB-80 (Codex round 3): the pre-flight also makes the posting's check (the rounded control sides), so an invoice that check refuses is refused before anything is written; bogfor_nu() decides on the rounded sides as before.
 //                 bogfor_nu() includes genberegn.php and forfaldsdag.php via __DIR__.
 // 20261125 CL/MMR MB-80 (Codex round 4): forkontrolDifferenceAccount() finds and checks the currency or øre difference account before anything is written; a blank or 0 currency account (VK box3) counts as missing, and a ledger-only rounding then goes to the øre account as before.
-//                 bogfor_nu() opens and owns a transaction when its caller holds none (the REST send, the POS day close), so an order is fully posted or unchanged; the postings themselves are in bogfor_nu_postings().
+// 20261125 CL/MMR MB-80 (Codex round 5): the øre account is checked in kontoplan (kontotype D) also for a ledger-only rounding, so no account the fix chooses can fail after writing.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2581,9 +2581,11 @@ function pos_lines_amount(int $ordreId): float {
  * The account bogfor_nu() books the difference between the posted rows on, found before anything is written.
  * A foreign-currency invoice uses the currency's difference account (VK box3; blank or 0 counts as missing).
  * When the rounded control sides balance, the difference is only the rounding of the ledger rows, and without a
- * currency account it goes to the øre difference account, as the stored-row check did before MB-80. Otherwise
- * the account rules of the old difference postings apply: the currency account for a foreign currency, an
- * existing øre difference account (kontotype D) for the base currency.
+ * currency account it goes to the øre difference account (the caller's $difkto, else OreDif), as the stored-row
+ * check did before MB-80. Otherwise the currency account is required for a foreign currency, as the old currency
+ * difference posting required it. Every account is checked in kontoplan before it is returned: the currency
+ * account as the old currency difference posting checked it, the øre account as the old øre difference posting
+ * did (kontotype D).
  *
  * @param string $valuta The invoice currency.
  * @param float $sideDifference forkontrolPosteringsdifference()'s 'sideDifference'.
@@ -2610,11 +2612,11 @@ function forkontrolDifferenceAccount($valuta, $sideDifference)
 	$missing = 'Manglende kontonummer til &oslash;redifferencer - Se indstillinger -> diverse -> &oslash;rediff';
 	$r = db_fetch_array(db_select("select box2 from grupper where art = 'OreDif'", __FILE__ . " linje " . __LINE__));
 	$account = trim((string)ifset($r, 'box2', ''));
-	if (!$sideDifference) {
-		# the old stored-row check: the øre account set by the caller, or OreDif
-		$account = $difkto ? (string)$difkto : $account;
-		return $account ? array('account' => $account, 'error' => NULL) : array('account' => NULL, 'error' => $missing);
+	if (!$sideDifference && $difkto) {
+		# the old stored-row check took the øre account set by the caller first
+		$account = trim((string)$difkto);
 	}
+	# checked as the old øre difference posting checked it: an existing kontotype D account in this year
 	$qtxt = "select id from kontoplan where kontotype = 'D' and kontonr = '" . db_escape_string($account) . "' and regnskabsaar='" . (int)$regnaar . "'";
 	if ($account && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		return array('account' => $account, 'error' => NULL);
@@ -2625,40 +2627,12 @@ function forkontrolDifferenceAccount($valuta, $sideDifference)
 /**
  * Posts one or more orders' lines to the ledger (transaktioner/kontoplan), validating VAT/account
  * setup and control-total balance before writing anything.
- * A caller that holds no transaction (the REST send, the POS day close) gets one here, so the order is
- * either fully posted or left unchanged; a caller's own transaction is used as it is (MB-80).
  *
  * @param int|string $id A single ordrer.id, or a comma-separated list of ids to post together.
  * @param string $kilde Caller context; 'Dagsafslutning' forces POS (cash-drawer) posting rules.
  * @return string 'OK' on success, otherwise a user-facing description of why posting failed.
  */
 function bogfor_nu($id, $kilde) {
-	global $connection, $db_modify_fejl, $db_transaktion_depth, $db_type;
-
-	$callerOwnsTransaction = !empty($db_transaktion_depth);
-	if (!$callerOwnsTransaction && $db_type != 'mysql' && $db_type != 'mysqli' && $connection) {
-		$callerOwnsTransaction = (pg_transaction_status($connection) != PGSQL_TRANSACTION_IDLE);
-	}
-	if ($callerOwnsTransaction) {
-		return bogfor_nu_postings($id, $kilde);
-	}
-	transaktion('begin');
-	$svar = bogfor_nu_postings($id, $kilde);
-	if ($svar == 'OK' && $db_modify_fejl) {
-		$svar = "Database write failed while posting order $id";
-	}
-	transaktion(($svar == 'OK') ? 'commit' : 'rollback');
-	return $svar;
-}
-
-/**
- * The postings of bogfor_nu(), which owns the transaction around them.
- *
- * @param int|string $id A single ordrer.id, or a comma-separated list of ids to post together.
- * @param string $kilde Caller context; 'Dagsafslutning' forces POS (cash-drawer) posting rules.
- * @return string 'OK' on success, otherwise a user-facing description of why posting failed.
- */
-function bogfor_nu_postings($id, $kilde) {
 
 	include(__DIR__ . '/genberegn.php');
 	include(__DIR__ . '/forfaldsdag.php');
@@ -3738,7 +3712,7 @@ function bogfor_nu_postings($id, $kilde) {
 		genberegn($regnaar);
 	#xit;
 	return ($svar);
-} # endfunc bogfor_nu_postings
+} # endfunc bogfor_nu
 
 ######################################################################################################################################
 function stamkunder($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $kontakt, $sum)

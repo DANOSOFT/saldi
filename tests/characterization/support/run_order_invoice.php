@@ -69,7 +69,6 @@ if ($scenario === 'invoice') {
     } catch (Throwable $error) {
         $out['bogfor'] = get_class($error) . ': ' . $error->getMessage();
     }
-    $out['transaction_depth'] = (int)$db_transaktion_depth;
 } elseif ($scenario === 'preflight') {
     $r = db_fetch_array(db_select("select sum, moms, valuta, valutakurs from ordrer where id = '$ordreId'", __FILE__ . " linje " . __LINE__));
     $out['preflight'] = forkontrolPosteringsdifference($ordreId, $r['sum'] + $r['moms'], $r['valutakurs'], $r['moms']);

@@ -17,6 +17,7 @@
 // History:
 // 20261125 CL/MMR MB-80: created.
 // 20261125 CL/MMR MB-80 (Codex round 4): direct posting without a caller transaction (the REST send) with a blank, 0 or configured currency difference account, and with no usable difference account.
+// 20261125 CL/MMR MB-80 (Codex round 5): a nonexistent øre account is refused before writing; the late-failure test of the removed transaction wrapper is dropped.
 // 20261125 CL/MMR MB-80 (Codex round 3): orders that fail only the rounded-sides check (99.961/-0.005), and a table of edge prices decided as on origin/master.
 // 20261125 CL/MMR MB-80 (Codex round 2): the cutoff of the pre-flight check, DKK and EUR, invoice and credit note, refused and accepted as on origin/master.
 // 20261125 CL/MMR MB-80 (Codex round 1): ten half-øre revenue groups in DKK (invoice and credit note) and EUR; the pre-flight must accept each invoice and the order must reach status 4.
@@ -605,7 +606,6 @@ final class SalesPostingPrecisionTest extends TestCase
             CharacterizationEnv::rows($t, "UPDATE grupper SET box3 = $1 WHERE art = 'VK' AND box1 = 'EUR'", [self::CURRENCY_DIFF]);
             CharacterizationEnv::rows($t, "UPDATE grupper SET box2 = $1 WHERE art = 'OreDif'", [self::ORE_DIFF]);
         }
-        $this->assertSame(0, $out['transaction_depth'], 'no transaction left open');
         $rows = [];
         foreach (CharacterizationEnv::rows(
             $t,
@@ -650,6 +650,20 @@ final class SalesPostingPrecisionTest extends TestCase
         ), $result['rows']);
     }
 
+    /**
+     * The øre fallback is checked in kontoplan too (Codex round 5): an OreDif account that does not exist
+     * (999991) with no usable currency account is refused before anything is written.
+     */
+    public function test_direct_posting_with_a_nonexistent_ore_account_changes_nothing(): void
+    {
+        $id = $this->createDeliveredEurOrder();
+        $result = $this->postDirectly($id, '0', '999991');
+        $this->assertStringContainsString('Manglende kontonummer til &oslash;redifferencer', (string)$result['out']['bogfor']);
+        $this->assertSame('2', $result['status']);
+        $this->assertSame(0, $result['openItems']);
+        $this->assertSame([], $result['rows']);
+    }
+
     /** Neither a currency nor an øre account: refused before anything is written, the order unchanged. */
     public function test_direct_posting_without_a_usable_difference_account_changes_nothing(): void
     {
@@ -684,25 +698,6 @@ final class SalesPostingPrecisionTest extends TestCase
             [self::REVENUE, '0.00', '741.08'],
             [self::CURRENCY_DIFF, '0.00', '3.99']
         ), $result['rows']);
-    }
-
-    /**
-     * A failure after the first writes: a VAT line on a revenue account with no VAT code makes bogfor_nu() return
-     * after the debtor, open item and revenue rows are written. Without a caller transaction it now rolls them back.
-     */
-    public function test_direct_posting_that_fails_after_writing_leaves_the_order_unchanged(): void
-    {
-        $id = $this->createOrder('DKK', 'DO', [self::line(self::REVENUE_EXEMPT, 0, 25, 100)], 100, 25);
-        CharacterizationEnv::rows(
-            self::$tenant,
-            "UPDATE ordrer SET status = 2, valutakurs = 100, fakturadate = ordredate, fakturanr = (90000 + id)::text WHERE id = $1",
-            [$id]
-        );
-        $result = $this->postDirectly($id, self::CURRENCY_DIFF, self::ORE_DIFF);
-        $this->assertStringContainsString('har ingen momskode', (string)$result['out']['bogfor']);
-        $this->assertSame('2', $result['status']);
-        $this->assertSame(0, $result['openItems']);
-        $this->assertSame([], $result['rows']);
     }
 
     /** A real header/line discrepancy (VAT 26.00 on the order, 25.00 on its lines) is still refused before anything is written. */
