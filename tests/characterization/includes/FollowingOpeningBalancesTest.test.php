@@ -29,6 +29,7 @@
 //                 A transfer left for the next check keeps the block it did not reach, and a block committed meanwhile is never overwritten.
 //                 Two requests creating the block row both finish, and the alert reads the same on a LATIN9 regnskab.
 //                 A finally block ends the blocking transaction before it drains the connection that waits for it (CodeRabbit).
+//                 Clearing the block never creates its row, and two rebuilds storing the first block make one row, also without a unique index (Codex round 28).
 
 declare(strict_types=1);
 
@@ -1914,8 +1915,8 @@ final class FollowingOpeningBalancesTest extends TestCase
 
     /**
      * CodeRabbit and Lui's pre-check on PR #1109: on MySQL the result of GET_LOCK() was ignored, so a request that did
-     * not get the lock (0 = time-out, NULL = error) still created the row, and the lock was released before the caller's
-     * COMMIT. PostgreSQL does not know GET_LOCK, so the test answers it the way MySQL would.
+     * not get the lock (0 = time-out, NULL = error) still created the row. PostgreSQL does not know GET_LOCK, so the
+     * test answers it the way MySQL would; the real MySQL behaviour is in the round-28 MariaDB smoke test.
      */
     public function testOnMysqlTheWaitingYearRowIsOnlyCreatedUnderTheLock(): void
     {
@@ -1926,7 +1927,11 @@ final class FollowingOpeningBalancesTest extends TestCase
                 $seen[] = $m[1] . ' ' . $m[2];
                 return ($m[1] === 'GET_LOCK' && $m[2] === 'openingBalancePending') ? "SELECT $answer AS locked" : 'SELECT 1 AS locked';
             }
-            return $sql === 'select version() as version' ? "select '10.11.14-MariaDB-0ubuntu0.24.04.1' as version" : $sql;
+            if ($sql === 'select version() as version') {
+                return "select '10.11.14-MariaDB-0ubuntu0.24.04.1' as version";
+            }
+            // MySQL's INSERT ... SELECT ... FROM DUAL and cast(... as signed) in PostgreSQL's words.
+            return str_replace(["'0' from dual where not exists", 'as signed)'], ["'0' where not exists", 'as integer)'], $sql);
         };
         $GLOBALS['db_type'] = 'mysqli';
         foreach (['0', 'NULL'] as $answer) {
@@ -1945,7 +1950,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertTrue(followingOpeningBalanceCreatePending(9));
         self::assertSame('9', $this->setting('openingBalancePending'));
         self::assertSame(['GET_LOCK openingBalancePending', 'RELEASE_LOCK openingBalancePending'], $seen, 'Outside a transaction it is released at once.');
-        // Inside a transaction the lock is kept until the request ends, so it outlives the caller's COMMIT.
+        // Inside a transaction too: the INSERT ... SELECT's current read makes the next creator wait for the row.
         $this->sql("DELETE FROM settings WHERE var_name = 'openingBalancePending'");
         $seen = [];
         $this->sql('BEGIN');
@@ -1953,7 +1958,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertTrue(followingOpeningBalanceCreatePending(8));
         $this->sql('COMMIT');
         $GLOBALS['db_transaktion_depth'] = 0;
-        self::assertSame(['GET_LOCK openingBalancePending'], $seen);
+        self::assertSame(['GET_LOCK openingBalancePending', 'RELEASE_LOCK openingBalancePending'], $seen);
         self::assertSame('8', $this->setting('openingBalancePending'));
 
         // A rebuild that has to leave a year waiting and cannot create the row throws, so its caller rolls it back.
@@ -2087,7 +2092,7 @@ final class FollowingOpeningBalancesTest extends TestCase
             saveFollowingOpeningBalanceStop($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'accounts' => [2500]]), 10);
             $blocked = $this->stop(['accounts' => [2500]]);
             // Rebuild B from year 9 (other connection) commits its block right after rebuild A has read the stored one.
-            $GLOBALS['sst1005Hook'] = ['after' => "select var_value from settings where var_name = 'openingBalanceStop'", 'times' => 1, 'run' => function () use ($other, $blocked): void {
+            $GLOBALS['sst1005Hook'] = ['after' => "/^select var_value from settings where id = '\\d+' for update$/", 'times' => 1, 'run' => function () use ($other, $blocked): void {
                 pg_send_query($other, "UPDATE settings SET var_value = '" . pg_escape_string($other, json_encode($blocked)) . "' WHERE var_name = 'openingBalanceStop'");
                 for ($i = 0; $i < 20 && pg_connection_busy($other); $i++) {
                     usleep(50000);
@@ -2129,6 +2134,67 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalanceStop'"))['n']);
         } finally {
             unset($GLOBALS['sst1005Hook']);
+            $this->releaseThenDrain([$this->connection, $other], $other);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /**
+     * Codex round 28: without a unique index on settings (MySQL, or a tenant whose index migration has not run),
+     * clearing the block created an empty row before its locking read, so a block another rebuild stored meanwhile
+     * ended up as a second row.
+     */
+    public function testClearingTheBlockNeverCreatesASecondRow(): void
+    {
+        $schema = 'sst1005_clear_row_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $mine = $GLOBALS['connection'];
+            $blocked = $this->stop(['accounts' => [2500]]);
+            // Rebuild A from year 10 got through and finds no block row; rebuild B from year 9 then stores 9→10.
+            $GLOBALS['sst1005Hook'] = ['after' => "select id from settings where var_name = 'openingBalanceStop' order by id", 'times' => 1, 'run' => function () use ($mine, $other, $blocked): void {
+                $GLOBALS['connection'] = $other;
+                saveFollowingOpeningBalanceStop($blocked, 9);
+                $GLOBALS['connection'] = $mine;
+            }];
+            saveFollowingOpeningBalanceStop(null, 10);
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'B stored its block after A looked.');
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalanceStop'"))['n'], 'One block row.');
+            self::assertSame($blocked, followingOpeningBalanceStop());
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            $this->releaseThenDrain([$this->connection, $other], $other);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /**
+     * Codex round 28: two rebuilds that both find the block row missing create it one at a time under the setting's
+     * lock, and the second one reads again and finds the first one's row, also without a unique index.
+     */
+    public function testTwoRebuildsStoringTheFirstBlockMakeOneRow(): void
+    {
+        $schema = 'sst1005_two_writers_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $mine = $GLOBALS['connection'];
+            $first = $this->stop(['accounts' => [2500]]);
+            // Rebuild B (other connection) stores 9→10 right after rebuild A found no row.
+            $GLOBALS['sst1005Hook'] = ['after' => "select id from settings where var_name = 'openingBalanceStop' order by id", 'times' => 1, 'run' => function () use ($mine, $other, $first): void {
+                $GLOBALS['connection'] = $other;
+                saveFollowingOpeningBalanceStop($first, 9);
+                $GLOBALS['connection'] = $mine;
+            }];
+            saveFollowingOpeningBalanceStop($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'accounts' => [2500]]), 10);
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS);
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalanceStop'"))['n'], 'One block row.');
+            self::assertSame($first, followingOpeningBalanceStop(), 'A found B\'s earlier block and kept it.');
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
             $this->releaseThenDrain([$this->connection, $other], $other);
             pg_close($other);
             $this->dropPrivateSchema($schema);

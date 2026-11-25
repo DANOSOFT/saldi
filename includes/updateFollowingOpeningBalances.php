@@ -60,13 +60,15 @@
 // 20261124 CL/MMR  SST-1005: The rebuild recalculates a year with recalculateLedgerYear() (includes/ledgerYearRecalculation.php), not genberegn(): debitor/ordreliste.php declares its own genberegn($id), so the page check there recalculated an order instead of the year (Saul on PR #1109).
 //                  Only that side-effect-free file is included, not includes/genberegn.php, whose ?regnskabsaar= block would run a full recalculation and include online.php again on a page with that parameter.
 // 20261125 CL/MMR  SST-1005: A transfer reads both years' dates again after the target year is locked and compares them with its other inputs, so a card that changed them meanwhile is calculated from (CodeRabbit).
-//                  On MySQL the row for a waiting year is only created when GET_LOCK gives the lock, held until the request ends inside a transaction; otherwise nothing is saved and the work is done again (CodeRabbit, Lui's pre-check).
+//                  On MySQL the row for a waiting year is only created when GET_LOCK gives the lock; otherwise nothing is saved and the work is done again (CodeRabbit, Lui's pre-check).
 //                  A year waiting in an old state is lowered into its row before the state is saved without it, also when the row exists (CodeRabbit).
 //                  «Sæt aktivt» and the page check arm the failure guard before they take the waiting year (CodeRabbit).
 //                  A rebuild that leaves a transfer for the next check keeps a stored block at or after it, and the block is read with its row locked and replaced in the same transaction (CodeRabbit).
 //                  A setting of this feature is created with ON CONFLICT DO NOTHING on PostgreSQL, so two requests creating it at once no longer end one of them (Lui's pre-check).
 //                  The alert text is converted to UTF-8 on a LATIN9 regnskab and written as ASCII, and the account list ends in plain dots (Lui's pre-check).
 //                  MySQL 8 and MariaDB 10.6 lock a target year without waiting, like PostgreSQL (Lui's pre-check).
+//                  A setting of this feature is created under a lock named after it and with a current read, and clearing the block never creates its row, so MySQL never gets a second row of one (Codex round 28).
+//                  The block row is locked and written by its id, as a locking statement by var_name locks every settings row it scans on MySQL.
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -307,12 +309,25 @@ function followingOpeningBalanceMarkPending($year) {
 		return followingOpeningBalanceCreatePending($year);
 	}
 	// The row is committed and visible, so this statement finds it (no row is ever deleted).
+	followingOpeningBalanceLowerPending($year);
+	return true;
+}
+
+/**
+ * Lower 'openingBalancePending' to $year, or keep the lower year it holds, in one statement that always writes the row
+ * (see followingOpeningBalanceMarkPending()).
+ *
+ * @param int $year Fiscal year (kodenr), 1 or later.
+ * @return void
+ */
+function followingOpeningBalanceLowerPending($year) {
+	global $db_type;
+	$year = (int)$year;
 	$type = ($db_type === 'mysql' || $db_type === 'mysqli') ? 'signed' : 'integer';
 	$current = "cast(coalesce(nullif(var_value, ''), '0') as $type)";
 	$qtxt = "update settings set var_value = case when $current = 0 or $current > $year then '$year' else var_value end ";
 	$qtxt.= "where var_name = 'openingBalancePending'";
 	db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
-	return true;
 }
 
 /**
@@ -323,10 +338,10 @@ function followingOpeningBalanceMarkPending($year) {
  * - outside one (the first check, followingOpeningBalanceInitialize()) it is a session lock released right after.
  * Whoever waits for the lock holds nothing else of this feature: a rebuild only gets here after its last kontoplan
  * write, and the first check runs in autocommit. MySQL has no transaction-level advisory lock; there GET_LOCK is taken
- * and only used when MySQL gives it (1; 0 is a time-out, NULL an error). Inside a transaction it is kept until the
- * request ends and the connection closes, after the caller's COMMIT, so a first check waits for the row as on
- * PostgreSQL (Lui's pre-check); outside one it is released right after. A MySQL transaction in repeatable read may
- * still not see a row committed after its snapshot (best effort, documented).
+ * and only used when MySQL gives it (1; 0 is a time-out, NULL an error), and released right after. It may be released
+ * before the caller's COMMIT (Lui's pre-check): the row is created by an INSERT ... SELECT ... WHERE NOT EXISTS
+ * (followingOpeningBalanceEnsureSetting()), whose read is a current, locking read on MySQL, so the next creator waits for
+ * a row that is not committed yet and then sees it, also when its own repeatable-read snapshot is older (Codex round 28).
  *
  * @param int $year Fiscal year to leave waiting, or 0 to only create the row.
  * @return bool True when the row was created or lowered; false when MySQL did not give the lock within 10 seconds,
@@ -349,20 +364,20 @@ function followingOpeningBalanceCreatePending($year) {
 		db_select("SELECT pg_advisory_lock(hashtext('openingBalancePending'), 1005)", __FILE__ . ' line ' . __LINE__);
 	}
 	try {
-		$current = followingOpeningBalancePending();
-		if ($current === null) {
-			$description = 'SST-1005: earliest fiscal year waiting for its later years to get new opening balances (0 = none)';
-			saveFollowingOpeningBalanceSetting('openingBalancePending', (string)max(0, $year), $description);
-		} elseif ($year > 0) {
+		// Created only when a current read under this lock still finds no row (followingOpeningBalanceEnsureSetting()),
+		// so a MySQL transaction whose snapshot predates another request's row does not add a second one (Codex round 28).
+		$description = 'SST-1005: earliest fiscal year waiting for its later years to get new opening balances (0 = none)';
+		followingOpeningBalanceEnsureSetting('openingBalancePending', (string)max(0, $year), $description, true);
+		if ($year > 0) {
 			// Written even when the row already holds this year or an earlier one: like every MarkPending, the write keeps
 			// the row locked until this transaction commits, so syncFollowingOpeningBalances() cannot take the year and
 			// rebuild before the changes it stands for are visible (Codex round 15).
-			followingOpeningBalanceMarkPending($year);
+			followingOpeningBalanceLowerPending($year);
 		}
 	} finally {
-		if ($mysql && !$transaction) {
+		if ($mysql) {
 			db_select("SELECT RELEASE_LOCK(CONCAT('saldi:openingBalancePending:', MD5(DATABASE()))) AS locked", __FILE__ . ' line ' . __LINE__);
-		} elseif (!$mysql && !$transaction) {
+		} elseif (!$transaction) {
 			db_select("SELECT pg_advisory_unlock(hashtext('openingBalancePending'), 1005)", __FILE__ . ' line ' . __LINE__);
 		}
 	}
@@ -1164,7 +1179,9 @@ function saveFollowingOpeningBalanceState($state) {
  * that left a transfer for the next check did not reach a stored transition at or after that one, so it stays too.
  * The stored transition is read with its row locked and replaced in the same transaction, so a block another rebuild
  * commits for an earlier year between the read and the write is waited for and kept, never overwritten (CodeRabbit).
- * Outside a transaction (after a rollback, on shutdown) the two run in a transaction of their own.
+ * Outside a transaction (after a rollback, on shutdown) the two run in a transaction of their own. The row is locked
+ * and written by its id: MySQL has no index on settings.var_name, and a locking statement by name would lock every row
+ * of settings it scans until the commit (Codex round 28).
  *
  * @param array|null $stop The rebuild's outcome (see updateFollowingOpeningBalances()).
  * @param int $fromYear The fiscal year the rebuild started from.
@@ -1177,9 +1194,14 @@ function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0) {
 	if ($ownTransaction) {
 		transaktion('begin');
 	}
-	// The row exists before it is locked: there is no row to lock while it does not. An empty value is no block.
-	followingOpeningBalanceInsertSetting('openingBalanceStop', '', $description);
-	$stored = followingOpeningBalanceStop(true);
+	if ($stop) {
+		// A block to store: the row exists before it is locked, as there is no row to lock while it does not. An empty
+		// value is no block. Clearing never creates it: with no row there is nothing to clear, and a row another request
+		// creates meanwhile is its block, which stays (Codex round 28).
+		followingOpeningBalanceEnsureSetting('openingBalanceStop', '', $description);
+	}
+	$id = followingOpeningBalanceStopRowId($stop !== null);
+	$stored = $id ? followingOpeningBalanceStop($id) : null;
 	$keep = !$stop && !$stored;
 	if ($stored && (int)$stored['sourceYear'] < (int)$fromYear) {
 		$keep = true;
@@ -1187,8 +1209,9 @@ function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0) {
 	if (!$stop && $stored && (int)$deferredYear > 0 && (int)$stored['sourceYear'] >= (int)$deferredYear) {
 		$keep = true;
 	}
-	if (!$keep) {
-		saveFollowingOpeningBalanceSetting('openingBalanceStop', $stop ? json_encode($stop) : '', $description);
+	if (!$keep && $id) {
+		$value = db_escape_string($stop ? json_encode($stop) : '');
+		db_modify("update settings set var_value = '$value' where id = '$id'", __FILE__ . ' line ' . __LINE__);
 	}
 	if ($ownTransaction) {
 		transaktion('commit');
@@ -1196,13 +1219,32 @@ function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0) {
 }
 
 /**
+ * The id of the 'openingBalanceStop' row. A row that already existed is found by a plain read. A row another request
+ * created after a MySQL transaction's repeatable-read snapshot is not; when it must be found ($current, a block is to
+ * be stored and the row was just made sure of), a locking read by name finds it. That read locks the settings rows it
+ * scans until the commit on MySQL, so it is only used then, which is once per tenant at most.
+ *
+ * @param bool $current Find a row the snapshot does not show as well.
+ * @return int The row's id, or 0 when there is none to be seen.
+ */
+function followingOpeningBalanceStopRowId($current) {
+	$r = db_fetch_array(db_select("select id from settings where var_name = 'openingBalanceStop' order by id limit 1", __FILE__ . ' line ' . __LINE__));
+	if (!$r && $current && followingOpeningBalancesInTransaction()) {
+		$r = db_fetch_array(db_select("select id from settings where var_name = 'openingBalanceStop' order by id limit 1 for update", __FILE__ . ' line ' . __LINE__));
+	}
+	return $r ? (int)$r['id'] : 0;
+}
+
+/**
  * The stored transition that blocked the last rebuild.
  *
- * @param bool $lock Lock the row until the transaction ends (select ... for update); only inside a transaction.
+ * @param int $lockId 0 to read it, or the row's id (followingOpeningBalanceStopRowId()) to read it with the row locked
+ *   until the transaction ends (select ... for update, by primary key); only inside a transaction.
  * @return array|null See updateFollowingOpeningBalances() for the shape, or null when nothing is blocked.
  */
-function followingOpeningBalanceStop($lock = false) {
-	$qtxt = "select var_value from settings where var_name = 'openingBalanceStop' order by id limit 1" . ($lock ? ' for update' : '');
+function followingOpeningBalanceStop($lockId = 0) {
+	$lockId = (int)$lockId;
+	$qtxt = $lockId ? "select var_value from settings where id = '$lockId' for update" : "select var_value from settings where var_name = 'openingBalanceStop' order by id limit 1";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
 	if (!$r || !$r['var_value']) {
 		return null;
@@ -1212,7 +1254,7 @@ function followingOpeningBalanceStop($lock = false) {
 }
 
 /**
- * Write a tenant setting of this feature (var_grp 'system'), creating it with the value when it does not exist yet.
+ * Write a tenant setting of this feature (var_grp 'system'), creating it first when it does not exist yet.
  *
  * @param string $name var_name.
  * @param string $value var_value.
@@ -1220,43 +1262,70 @@ function followingOpeningBalanceStop($lock = false) {
  * @return void
  */
 function saveFollowingOpeningBalanceSetting($name, $value, $description) {
-	if (followingOpeningBalanceInsertSetting($name, $value, $description)) {
-		return;
-	}
+	followingOpeningBalanceEnsureSetting($name, $value, $description);
 	$name = db_escape_string($name);
 	$value = db_escape_string($value);
 	db_modify("update settings set var_value = '$value' where var_name = '$name'", __FILE__ . ' line ' . __LINE__);
 }
 
 /**
- * Create a tenant setting of this feature with $value when it does not exist. On PostgreSQL the settings table has a
- * unique index (settings_key_unique, includes/settings/uniqueIndex.php), so two requests that both found the row
- * missing made the second INSERT fail, and that ended its request and rolled back a card save with it (Lui's
- * pre-check). With ON CONFLICT DO NOTHING the second INSERT waits for the first and then leaves its row as it is, as
- * update_settings_value() (includes/std_func.php) does. Nothing is lost that way: 'openingBalancePending' and
- * 'openingBalanceSync' are only created under a lock (followingOpeningBalanceCreatePending(),
- * followingOpeningBalanceInitialize()), and 'openingBalanceStop' is created empty and then written under its row lock
- * (saveFollowingOpeningBalanceStop()). MySQL has no such index, so there it is the plain INSERT.
+ * Create a tenant setting of this feature with $value when it does not exist, so there is only ever one row of it.
+ * A row that is seen is used as it is. Otherwise the creation is serialised by a lock named after the setting, the
+ * same lock followingOpeningBalanceCreatePending() and followingOpeningBalanceInitLock() take for theirs, and the
+ * INSERT ... SELECT ... WHERE NOT EXISTS reads the table again under it (Codex round 28: MySQL has no unique index on
+ * settings, so a second row was possible).
+ * - PostgreSQL: inside a transaction pg_advisory_xact_lock, held until this row is committed, because a read there
+ *   does not wait for a row that is not committed; outside one a session lock released right after. ON CONFLICT DO
+ *   NOTHING is kept for settings_key_unique (includes/settings/uniqueIndex.php): a second INSERT that failed there
+ *   ended its request and rolled back a card save with it (Lui's pre-check).
+ * - MySQL: GET_LOCK, released right after the statement. The read of INSERT ... SELECT is a current, locking read, so
+ *   the next creator waits for a row that is not committed yet and then sees it, whatever its snapshot. On a table
+ *   without an index on var_name it locks the settings rows it scans until the commit; that happens only when the row
+ *   is missing, once per tenant.
  *
  * @param string $name var_name.
  * @param string $value var_value of a new row.
  * @param string $description var_description of a new row.
- * @return bool True when the row did not exist and was inserted now (or, on PostgreSQL, by another request at the
- *   same moment); false when it existed already.
+ * @param bool $lockHeld True when the caller holds the setting's lock already (followingOpeningBalanceCreatePending()).
+ * @return void
+ * @throws RuntimeException When MySQL does not give the lock within 10 seconds (only while another request creates the
+ *   same row); nothing is written then.
  */
-function followingOpeningBalanceInsertSetting($name, $value, $description) {
+function followingOpeningBalanceEnsureSetting($name, $value, $description, $lockHeld = false) {
 	global $db_type;
 	$name = db_escape_string($name);
 	if (db_fetch_array(db_select("select id from settings where var_name = '$name' order by id limit 1", __FILE__ . ' line ' . __LINE__))) {
-		return false;
+		return;
 	}
-	$qtxt = "insert into settings (var_name, var_grp, var_value, var_description, user_id) values ";
-	$qtxt.= "('$name', 'system', '" . db_escape_string($value) . "', '" . db_escape_string($description) . "', '0')";
-	if ($db_type !== 'mysql' && $db_type !== 'mysqli') {
-		$qtxt.= " on conflict do nothing";
+	$mysql = ($db_type === 'mysql' || $db_type === 'mysqli');
+	$transaction = followingOpeningBalancesInTransaction();
+	$lockName = "CONCAT('saldi:$name:', MD5(DATABASE()))";
+	if (!$lockHeld) {
+		if ($mysql) {
+			$r = db_fetch_array(db_select("SELECT GET_LOCK($lockName, 10) AS locked", __FILE__ . ' line ' . __LINE__));
+			if (!$r || (string)$r['locked'] !== '1') {
+				throw new RuntimeException("SST-1005: the setting $name could not be created: another request is creating it");
+			}
+		} elseif ($transaction) {
+			db_select("SELECT pg_advisory_xact_lock(hashtext('$name'), 1005)", __FILE__ . ' line ' . __LINE__);
+		} else {
+			db_select("SELECT pg_advisory_lock(hashtext('$name'), 1005)", __FILE__ . ' line ' . __LINE__);
+		}
 	}
-	db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
-	return true;
+	try {
+		$qtxt = "insert into settings (var_name, var_grp, var_value, var_description, user_id) ";
+		$qtxt.= "select '$name', 'system', '" . db_escape_string($value) . "', '" . db_escape_string($description) . "', '0' ";
+		$qtxt.= ($mysql ? "from dual " : "") . "where not exists (select id from settings where var_name = '$name')";
+		if (!$mysql) {
+			$qtxt.= " on conflict do nothing";
+		}
+		db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
+	} finally {
+		if (!$lockHeld && ($mysql || !$transaction)) {
+			$unlock = $mysql ? "SELECT RELEASE_LOCK($lockName) AS locked" : "SELECT pg_advisory_unlock(hashtext('$name'), 1005)";
+			db_select($unlock, __FILE__ . ' line ' . __LINE__);
+		}
+	}
 }
 
 /**
