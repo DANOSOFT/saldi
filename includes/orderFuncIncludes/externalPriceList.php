@@ -42,6 +42,7 @@
 // 20261125 CL/MMR SST-1051 Prices are rounded on their digits to 3 decimals and written to the item as exact text.
 // 20261125 CDX/NTR Reject CSV headers without both cost and sale prices instead of supplying zero.
 // 20261125 CDX/NTR Check existing catalogue items in bounded batches while counting only new rows toward the search limit.
+// 20261125 CDX/NTR Serialize external item creation with the shared database lock and always release it.
 
 /**
  * The active price list, or null when none is in use.
@@ -410,20 +411,31 @@ function externalPriceListItemId(string $itemNo): int
  */
 function externalPriceListCreateItem(array $row, array $priceList): int
 {
-	$itemId = externalPriceListItemId($row['varenr']);
-	if ($itemId) {
-		return $itemId;
-	}
-	$group = externalPriceListGroup($priceList);
-	if (!$group) {
+	include_once(__DIR__ . '/../database/compatibility.php');
+	// Use the active database in the name: MySQL advisory locks are server-wide.
+	$r = db_fetch_array(db_select(db_is_mysql() ? 'select database() as tenant' : 'select current_database() as tenant', __FILE__ . " linje " . __LINE__));
+	$lock = 'externalPriceListCreateItem:' . $r['tenant'];
+	if (!db_lock($lock)) {
 		return 0;
 	}
-	$qtxt = "insert into varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, enhed, gruppe, lukket) values (";
-	$qtxt .= "'" . db_escape_string($row['varenr']) . "', '" . db_escape_string($row['stregkode']) . "', ";
-	$qtxt .= "'" . db_escape_string($row['trademark']) . "', '" . db_escape_string($row['beskrivelse']) . "', ";
-	// The prices are exact decimal texts from externalPriceListNumber() (digits, an optional minus and a point).
-	$qtxt .= "'" . db_escape_string($row['kostpris']) . "', '" . db_escape_string($row['salgspris']) . "', ";
-	$qtxt .= "'" . db_escape_string($row['enhed']) . "', $group, '0')";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	return externalPriceListItemId($row['varenr']);
+	try {
+		$itemId = externalPriceListItemId($row['varenr']);
+		if ($itemId) {
+			return $itemId;
+		}
+		$group = externalPriceListGroup($priceList);
+		if (!$group) {
+			return 0;
+		}
+		$qtxt = "insert into varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, enhed, gruppe, lukket) values (";
+		$qtxt .= "'" . db_escape_string($row['varenr']) . "', '" . db_escape_string($row['stregkode']) . "', ";
+		$qtxt .= "'" . db_escape_string($row['trademark']) . "', '" . db_escape_string($row['beskrivelse']) . "', ";
+		// The prices are exact decimal texts from externalPriceListNumber() (digits, an optional minus and a point).
+		$qtxt .= "'" . db_escape_string($row['kostpris']) . "', '" . db_escape_string($row['salgspris']) . "', ";
+		$qtxt .= "'" . db_escape_string($row['enhed']) . "', $group, '0')";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		return externalPriceListItemId($row['varenr']);
+	} finally {
+		db_unlock($lock);
+	}
 }
