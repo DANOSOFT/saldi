@@ -34,6 +34,7 @@
 // 20261125 CL/MMR SST-1005 The settings rows exist before «Sæt aktivt», the page check or the year card begins its transaction, and a transaction only tries the MySQL creation lock (Codex round 31).
 // 20261125 CL/MMR SST-1005 Inside a transaction the waiting-year and block rows are locked by their id before they are read (Codex round 32).
 // 20261125 CL/MMR SST-1005 «Sæt aktivt» takes the waiting year by its id, and no setting of the feature is written by name (Codex round 33).
+// 20261125 CL/MMR SST-1005 The page check registers a waiting year by the row's id as well (Codex round 34).
 
 declare(strict_types=1);
 
@@ -2281,6 +2282,14 @@ final class FollowingOpeningBalancesTest extends TestCase
         $seen = array_slice($seen, $begin + 1);
         self::assertMatchesRegularExpression("/^select id, var_value from settings where id = '\\d+' and var_name = 'openingBalanceStop' for update$/", $firstTouch());
         self::assertSame($this->stop(['accounts' => [2500]]), followingOpeningBalanceStop());
+
+        // A page check that finds a new posting in year 8 lowers the waiting year by its id too, in autocommit (Codex round 34).
+        $this->sql("INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2023-03-01', 3, 0), (1000, '2023-03-01', 0, 3)");
+        $seen = [];
+        self::assertNull(checkFollowingOpeningBalances(8));
+        self::assertSame('8', $this->setting('openingBalancePending'));
+        self::assertCount(1, preg_grep("/^update settings set var_value = case .* then '8' else var_value end where id = '\\d+'$/", $seen), 'Year 8 is registered by the row\'s id.');
+        self::assertCount(0, preg_grep('/^update settings .* where var_name = /', $seen), 'Nor does the page check write by name.');
     }
 
     public function testTheMessageNamesTheYearsAndAccounts(): void

@@ -73,6 +73,7 @@
 //                  Inside a transaction the MySQL creation lock is only tried, never awaited, so a request holding settings rows cannot wait in a circle with a creator.
 // 20261125 CL/MMR  SST-1005: Inside a transaction the waiting-year and block rows are locked by the id read before it (or by the page check's first query) before anything of them is read, so two rebuilds under SERIALIZABLE no longer deadlock on a shared lock they both upgrade (Codex round 32).
 // 20261125 CL/MMR  SST-1005: The waiting year is taken and a setting of this feature is written by its id, so no statement of the feature scans settings and waits in a circle with a year card that holds the block row (Codex round 33).
+// 20261125 CL/MMR  SST-1005: The page check lowers the waiting year by its id too, read together with its value (followingOpeningBalancePendingRow()) (Codex round 34).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -313,14 +314,16 @@ function followingOpeningBalanceMarkPending($year) {
 		followingOpeningBalanceLowerPending($year, $row['id']);
 		return true;
 	}
-	if (followingOpeningBalancePending() === null) {
+	$row = followingOpeningBalancePendingRow();
+	if ($row === null) {
 		// No row visible: it does not exist, or another request created it and has not committed. Under the lock in
 		// followingOpeningBalanceCreatePending() the row is read again and this year inserted or lowered into it, so a
 		// row that appears between a read and a write here can never skip this year (Codex round 14).
 		return followingOpeningBalanceCreatePending($year);
 	}
-	// The row is committed and visible, so this statement finds it (no row is ever deleted).
-	followingOpeningBalanceLowerPending($year);
+	// The row is committed and visible, so this statement finds it by its id (no row is ever deleted), also in
+	// autocommit: by name it would lock every settings row it scans (Codex round 34).
+	followingOpeningBalanceLowerPending($year, $row['id']);
 	return true;
 }
 
@@ -329,7 +332,8 @@ function followingOpeningBalanceMarkPending($year) {
  * (see followingOpeningBalanceMarkPending()).
  *
  * @param int $year Fiscal year (kodenr), 1 or later.
- * @param int $id The row's id when it is known and locked (followingOpeningBalanceLockRow()), else 0 (by name).
+ * @param int $id The row's id (followingOpeningBalanceLockRow() or followingOpeningBalancePendingRow()); 0 only when
+ *   there is none to find, then by name.
  * @return void
  */
 function followingOpeningBalanceLowerPending($year, $id = 0) {
@@ -381,8 +385,9 @@ function followingOpeningBalanceCreatePending($year) {
 		if ($year > 0) {
 			// Written even when the row already holds this year or an earlier one: like every MarkPending, the write keeps
 			// the row locked until this transaction commits, so syncFollowingOpeningBalances() cannot take the year and
-			// rebuild before the changes it stands for are visible (Codex round 15).
-			followingOpeningBalanceLowerPending($year);
+			// rebuild before the changes it stands for are visible (Codex round 15). By its id where it can be read.
+			$row = followingOpeningBalancePendingRow();
+			followingOpeningBalanceLowerPending($year, $row ? $row['id'] : 0);
 		}
 	} finally {
 		if ($mysql && !$transaction) {
@@ -400,8 +405,19 @@ function followingOpeningBalanceCreatePending($year) {
  * @return int|null The fiscal year, 0 when nothing waits, or null when the row does not exist yet.
  */
 function followingOpeningBalancePending() {
-	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalancePending' order by id limit 1", __FILE__ . ' line ' . __LINE__));
-	return $r ? (int)$r['var_value'] : null;
+	$row = followingOpeningBalancePendingRow();
+	return $row ? $row['year'] : null;
+}
+
+/**
+ * The 'openingBalancePending' row as it is read now (a plain read), with its id, so a write to it goes by id: MySQL
+ * has no index on settings.var_name, and a write by name locks every settings row it scans (Codex rounds 33-34).
+ *
+ * @return array{id: int, year: int}|null The row's id and year (0 when nothing waits), or null when it does not exist.
+ */
+function followingOpeningBalancePendingRow() {
+	$r = db_fetch_array(db_select("select id, var_value from settings where var_name = 'openingBalancePending' order by id limit 1", __FILE__ . ' line ' . __LINE__));
+	return $r ? array('id' => (int)$r['id'], 'year' => (int)$r['var_value']) : null;
 }
 
 /**
@@ -414,16 +430,14 @@ function followingOpeningBalancePending() {
 function followingOpeningBalanceTakePending() {
 	$taken = 0;
 	for ($pass = 0; $pass < 3; $pass++) {
-		$year = (int)followingOpeningBalancePending();
+		$row = followingOpeningBalancePendingRow();
+		$year = $row ? $row['year'] : 0;
 		if ($year < 1 || ($taken && $year >= $taken)) {
 			break;
 		}
-		// By its remembered id when there is one: MySQL has no index on settings.var_name, and an UPDATE by name locks
-		// every settings row it scans, the block row too, which a rebuild or card may hold while it waits for this one
-		// (Codex round 33).
-		$id = isset($GLOBALS['followingOpeningBalanceRowIds']['openingBalancePending']) ? (int)$GLOBALS['followingOpeningBalanceRowIds']['openingBalancePending'] : 0;
-		$where = $id ? "id = '$id'" : "var_name = 'openingBalancePending'";
-		db_modify("update settings set var_value = '0' where $where and var_value = '$year'", __FILE__ . ' line ' . __LINE__);
+		// By its id: MySQL has no index on settings.var_name, and an UPDATE by name locks every settings row it scans,
+		// the block row too, which a rebuild or card may hold while it waits for this one (Codex round 33).
+		db_modify("update settings set var_value = '0' where id = '" . $row['id'] . "' and var_value = '$year'", __FILE__ . ' line ' . __LINE__);
 		$taken = $year;
 	}
 	return $taken;
