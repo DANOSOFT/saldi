@@ -18,10 +18,12 @@ use PHPUnit\Framework\TestCase;
  * Pins: on a real Postgres (a TEMP audit_log, so nothing in the shared SQL fixture database, TestDatabase::sqlFixture(),
  * is read or changed), the rows that keep their id go back with it, a row whose id is taken gets a new one after the
  * highest, nothing fails, and the sequence ends past every row. So does a second row with an id the first one took back.
- * A row the backup has (same id, time and action) is not put back twice.
+ * A row the backup has (same id, time and action) is not put back twice. The sequence is set on PostgreSQL whatever the
+ * $db_type calls it ('postgres' where connect.php names none).
  *
  * History:
  * 20261124 CL/ASR Created.
+ * 20261125 CL/ASR $db_type 'postgres'.
  */
 #[RunTestsInSeparateProcesses]
 final class RestoreLogPutbackTest extends TestCase
@@ -31,7 +33,7 @@ final class RestoreLogPutbackTest extends TestCase
     /** @var \PgSql\Connection|null */
     private static $conn = null;
 
-    private static function boot(): void
+    private static function boot(string $dbType = 'postgresql'): void
     {
         if (!extension_loaded('pgsql')) {
             self::markTestSkipped('the pgsql extension is required to run the activity log SQL.');
@@ -43,7 +45,7 @@ final class RestoreLogPutbackTest extends TestCase
         }
         self::$conn = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
         $GLOBALS['__rlp_conn'] = self::$conn;
-        $GLOBALS['db_type'] = 'postgresql';
+        $GLOBALS['db_type'] = $dbType;
         $GLOBALS['db'] = 'chartest';
         eval('
             function db_escape_string($s) { return pg_escape_string($GLOBALS["__rlp_conn"], (string) $s); }
@@ -119,6 +121,21 @@ final class RestoreLogPutbackTest extends TestCase
             'rows 4 and 5 keep their ids, and the row whose id 2 is taken gets the next one after them');
         $next = (int) pg_fetch_result(pg_query(self::$conn, "SELECT nextval(pg_get_serial_sequence('audit_log', 'id'))"), 0, 0);
         self::assertSame(7, $next, 'the sequence ends past every row');
+    }
+
+    public function test_the_sequence_is_moved_on_postgresql_named_postgres_too(): void
+    {
+        // includes/online.php sets $db_type 'postgres' where connect.php names none
+        self::boot('postgres');
+        self::restoredBackup(3);
+
+        $n = restore_log_putback([
+            self::kept(2, '2026-11-20 09:00:00', 'other.2'),
+            self::kept(4, '2026-11-20 09:00:01', 'kept.4'),
+        ]);
+
+        self::assertSame(2, $n);
+        self::assertSame([1 => 'backup.1', 2 => 'backup.2', 3 => 'backup.3', 4 => 'kept.4', 5 => 'other.2'], self::log());
     }
 
     public function test_a_row_whose_id_a_row_just_put_back_took_gets_a_new_id_too(): void

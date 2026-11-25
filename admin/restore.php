@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/restore.php --- ver 5.1.1 --- 2026-11-24 ---
+// --- admin/restore.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -79,6 +79,7 @@
 // 20261124 CL/ASR Putting the activity log back after a restore selects the ledger's database after db_connect(), looks up tables with saldi_schema_filter() and sets the id sequence on PostgreSQL only, so it also runs on MySQL/MariaDB.
 // 20261124 CL/ASR The activity log rows that keep their id go back first; a row whose id the backup has gets a new id after them.
 //                 Drawn first, a new id could be one a row still to come had, and its insert stopped the page before the restore was done.
+// 20261125 CL/ASR The activity log's id sequence is set on every $db_type but mysql/mysqli: includes/online.php sets 'postgres' where connect.php names none, and the rows that get a new id collided there.
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -435,7 +436,9 @@ function restore_log_putback(array $rows) {
 		return 1;
 	};
 	$sequencePastMax = function () use ($db_type) {
-		if ($db_type == 'postgresql') {   // MySQL/MariaDB's AUTO_INCREMENT moves past the rows put back by itself
+		// MySQL/MariaDB's AUTO_INCREMENT moves past the rows put back by itself. PostgreSQL is every other $db_type:
+		// includes/online.php sets 'postgres' where connect.php names none.
+		if (!in_array($db_type, array('mysql', 'mysqli'), true)) {
 			db_modify("select setval(pg_get_serial_sequence('audit_log', 'id'), greatest((select max(id) from audit_log), 1))", __FILE__ . " linje " . __LINE__);
 		}
 	};
