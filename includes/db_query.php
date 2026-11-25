@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.1 ----2026-11-18--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-25--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,8 @@
 // 20261118 CDX/NTR Preserve escape-string continuations and normalize LIKE after qualified AS columns.
 // 20261118 CDX/NTR Optionally report affected write rows while preserving legacy status returns.
 // 20261118 CDX/NTR Track expression operands so LIKE function calls retain their original names.
+// 20261125 CL/SZ db_escape_string(): $db_type 'mysql' escapes with mysqli_real_escape_string(), as #1199 does (MB-135).
+//                db_connect() opens a mysqli connection for it, and PHP 7 removed mysql_real_escape_string().
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -745,8 +747,7 @@ if (!function_exists('db_escape_string')) {
 		} elseif (is_string($qtext) && preg_match('/[\x80-\xFF]/', $qtext) && mb_check_encoding($qtext, 'UTF-8')) { #20261109 LATIN9 connection: UTF-8 input becomes Windows-1252, like the browser posts (MB-135)
 			$qtext = mb_convert_encoding($qtext, 'Windows-1252', 'UTF-8');
 		}
-		if ($db_type=="mysql") return mysql_real_escape_string("$qtext");
-		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20190704
+		if ($db_type=="mysql" || $db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20261125 'mysql' has a mysqli connection too (db_connect())
 		else return pg_escape_string($connection, "$qtext");
 	}
 }
