@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loen.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- sager/loen.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -122,6 +122,8 @@
 // 20261113 CL/LH SD-824 The overtime page title uses a descriptive text key.
 // 20261113 LOE SST-969 Merge master: SST-968's whitelist supersedes this branch's list, and the approver check stays.
 // 20261113 LOE SST-969 The approver check runs after the route is chosen and before output, so the dispatch test can lift the selection.
+// 20261124 CDX/NTR Name the payroll-rates permission with the documented Sager enum.
+// 20261124 CDX/NTR Use documented integer permission constants directly.
 
 @session_start();
 $s_id = session_id();
@@ -149,6 +151,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
+require_once(__DIR__ . '/../includes/constants/SagerPermission.php');
 include("loenliste.php");
 include('loenIncludes/footer.php');
 include("../includes/topline_settings.php");
@@ -197,8 +200,8 @@ $vis = if_isset($_GET['vis']);
 # approver right (sager/leftmenu.php), so the page asks for the same right and logs the attempt. The function
 # name is whitelisted above (SST-968), so a refused page never reaches $funktion() below. It runs here, after
 # the route is chosen and before anything is printed, because a route test lifts the selection block alone.
-if ($funktion == 'satser' && !substr((string)$sag_rettigheder, 6, 1)) {
-	error_log('SST-969: rates page refused for user ' . $brugernavn . ' (sag right 6 is not set)');
+if ($funktion == 'satser' && !substr((string)$sag_rettigheder, SagerPermission::APPROVE_PIECEWORK, 1)) {
+	error_log('SST-969: rates page refused for user ' . $brugernavn . ' (SagerPermission::APPROVE_PIECEWORK is not set)');
 	print tekstboks(findtekst('8465|Du har ikke nogen rettigheder her - din aktivitet er blevet logget', $sprog_id));
 	# The box is a floating overlay (z-index 100) that hides itself when it is closed, and this page is
 	# only the box, so closing it left a blank window. The link sits above the box, in the top left
