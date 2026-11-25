@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -227,6 +227,7 @@
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 LOE SST-906 A proposal follows the line's own date, so a session still in the previous fiscal year cannot stamp its series onto a line dated in the new one.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -3794,7 +3795,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		// holds - and at 2147483647 to the column maximum itself. Offer the next number instead, and
 		// nothing at all when the column cannot hold it.
 		if (!$kk_has_saved_lines && $y == 1 && !$bilag[$y]) {
-			$kk_last_bilag_next = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+			# SST-906 the placeholder line carries today's date, so its series is today's fiscal year's
+			$kk_last_bilag_next = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut, date('Y-m-d'));
 			if (!bilagNumberFits((string)$kk_last_bilag_next)) {
 				$kk_last_bilag_next = '';
 			}
@@ -3975,7 +3977,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		&& !$debet[$y] && !$kredit[$y] && !$faktura[$y] && !$amount[$x])) && ($x == 1)) || (!$kladde_id)) {
 		# 20260928 LOE SST-817 Same allocation as the line rendered below: the journal's highest used
 		# number + 1, or the fiscal year's when this journal has no numbered row yet.
-		$bilag[$x] = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+		# SST-906 the line's own date decides which fiscal year's series it continues
+		$bilag[$x] = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut, usdate($dato[$x] ?? ''));
 		# SST-888 (review) never offer a number the column cannot hold: at 2147483647 the next number
 		# is 2147483648, and offering it only earns a refusal after the operator has typed it
 		if (!bilagNumberFits((string)$bilag[$x])) {
@@ -3988,7 +3991,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	# 20260928 LOE SST-817 The number the next line carries comes from the journal itself (highest used
 	# number + 1), not from the row above it. A journal whose last row is an empty row used to offer no
 	# number at all there, the line typed on it was stored as bilag 0, and the series restarted at 1.
-	$kk_next_bilag = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+	# SST-906 the next line takes the series of its own date, which is today's by default
+	$kk_next_bilag = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut, date('Y-m-d'));
 	# SST-888 (review) no proposal for a number the column cannot hold either
 	if (!bilagNumberFits((string)$kk_next_bilag)) {
 		$kk_next_bilag = 0;
