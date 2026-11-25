@@ -12,11 +12,11 @@ use PHPUnit\Framework\TestCase;
  * crm_meetings, crm_participants, crm_ical) where they are missing. Two first logins after a deploy both found a
  * column missing and both ran the ALTER: the second waited for the first and then stopped on "already exists", and on
  * a page that is the error box instead of the login. It now takes a lock (pg_advisory_lock, GET_LOCK on MySQL), and
- * each step looks again once the login holds it.
+ * each step looks again once the login holds it. A login that finds everything there takes no lock.
  *
  * Pins: on a real Postgres, a login (support/crm_schema_runner.php, a child process) waits while another session holds
- * the lock, makes nothing meanwhile, and makes the tables once the lock is free; a second login after it finds
- * everything and changes nothing. The tables go in a schema of the test's own in the shared SQL fixture database
+ * the lock, makes nothing meanwhile, and makes the tables once the lock is free; a login after it finds everything
+ * there and ends without waiting, while another session holds the lock again. The tables go in a schema of the test's own in the shared SQL fixture database
  * (TestDatabase::sqlFixture()), dropped afterwards; nothing else there is read or changed.
  *
  * History:
@@ -138,10 +138,12 @@ final class CrmSchemaLockTest extends TestCase
             $this->assertTrue($this->tableExists($table), "$table is made once the lock is free");
         }
 
-        // The next login finds everything and changes nothing.
+        // A later login finds everything there and takes no lock: it ends while another session holds it.
+        $this->exec("SELECT pg_advisory_lock(hashtext('saldi_crm_schema'))");
         [$proc, $pipes] = $this->startLogin();
-        [$code, $out, $err] = $this->finish($proc, $pipes);
+        [$code, $out, $err] = $this->finish($proc, $pipes, 15);
         $this->assertSame(0, $code, "a later login ended with an error: $err");
         $this->assertSame("start\ndone\n", $out);
+        $this->exec("SELECT pg_advisory_unlock(hashtext('saldi_crm_schema'))");
     }
 }

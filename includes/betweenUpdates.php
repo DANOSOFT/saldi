@@ -74,6 +74,7 @@
 // 20261120 CL/ASR The help's about texts for a sales and a purchase invoice that is not posted (dord and kord ikke_bogfoert) no longer say immediate posting is off, as an invoice whose journal lines were deleted after both settings were switched on waits too and the cash journal shows Hent for it; the cached old wording is removed.
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 // 20261124 CL/ASR The CRM's tables and columns are made by one login at a time (crm_ensure_schema() takes a lock); two first logins after a deploy ran the same ALTER and the second stopped on "already exists".
+//                 A login that finds them all takes no lock and runs no step (crm_schema_complete(): one look at the columns, one at the index).
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -471,10 +472,14 @@ if (!function_exists('crm_ensure_schema')) {
 /**
  * CRM installation and legacy follow-up conversion; updater only, never a page request.
  * 20261124 One login at a time: two first logins after a deploy ran the same ALTER and CREATE, and the second stopped on
- * "already exists". Each step looks again once this login holds the lock (as fixVatReportRange()).
+ * "already exists". Each step looks again once this login holds the lock (as fixVatReportRange()). A login that finds
+ * everything there takes no lock (crm_schema_complete()).
  */
 function crm_ensure_schema(): void
 {
+	if (crm_schema_complete()) {
+		return;
+	}
 	if (crm_is_mysql()) {
 		// GET_LOCK is server-wide, so the name carries the database.
 		$lockName = "CONCAT('saldi:crmschema:', MD5(DATABASE()))";
@@ -492,6 +497,31 @@ function crm_ensure_schema(): void
 	} finally {
 		db_select($unlock, __FILE__ . " linje " . __LINE__);
 	}
+}
+
+/**
+ * Whether everything crm_ensure_schema_steps() makes is there, in one look at the columns and one at historik's index,
+ * and the legacy follow-ups are converted. Then a login runs no step and takes no lock.
+ */
+function crm_schema_complete(): bool
+{
+	$want = array(array('historik', 'completed'), array('historik', 'type'), array('historik', 'author_id'), array('historik', 'completed_at'),
+		array('crm_deals', 'id'), array('crm_deals', 'ordre_id'), array('crm_meetings', 'historik_id'), array('crm_participants', 'ref_id'),
+		array('crm_ical', 'token'));
+	$pairs = implode(', ', array_map(function ($c) { return "('$c[0]', '$c[1]')"; }, $want));
+	$schema = crm_is_mysql() ? "table_schema = DATABASE()" : "table_schema = current_schema()";
+	$r = db_fetch_array(db_select("select count(*) as n from information_schema.columns where $schema and (table_name, column_name) in ($pairs)", __FILE__ . " linje " . __LINE__));
+	if (!$r || (int) $r['n'] !== count($want)) {
+		return false;
+	}
+	$index = crm_is_mysql()
+		? "show index from historik where Key_name = 'historik_konto_idx'"
+		: "select indexname from pg_indexes where schemaname = current_schema() and tablename = 'historik' and indexname = 'historik_konto_idx'";
+	if (!db_fetch_array(db_select($index, __FILE__ . " linje " . __LINE__))) {
+		return false;
+	}
+	// As crm_migrate_legacy_followups() reads its flag; without the settings functions it does nothing either
+	return !function_exists('get_settings_value') || (string) get_settings_value('crm_legacy_followups', 'crm', '') === '1';
 }
 
 /** The steps of crm_ensure_schema(), under its lock. */

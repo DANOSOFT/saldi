@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/crmFunctions.php --- ver 5.1.1 --- 2026.11.10 ---
+// --- includes/crmFunctions.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,8 @@
 // 20261110 CDX/ASR Include CRM-only leads and promote them when preparing the first sales document.
 // 20261110 CDX/ASR Translate lead creation and continuation within the activity customer picker.
 // 20261110 CDX/ASR Enforce CRM actions and live notification/feed rights independently of debtor access; run migrations only in the updater.
+// 20261124 CL/ASR Meeting invitations choose their mail server and sender with stamdata_smtp(), as user_send_mail() has since 20261105.
+//                 They logged in to Saldi's own mail server with a login left in felt_2, and sent from kan_ikke_besvares@saldi.dk through the company's own server.
 //
 // Data model (existing unless marked new):
 //   historik     konto_id (customer), ansat_id (our employee = owner), kontakt_id (customer's contact person, ansatte),
@@ -1689,6 +1691,7 @@ function crm_flush_mail(): array
 		return $res;
 	}
 	require_once $autoload;
+	require_once __DIR__ . '/stdFunc/stamdataSmtp.php';
 	$firm = db_fetch_array(db_select("select * from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
 	$firmName = $firm ? crm_out((string) $firm['firmanavn']) : 'Saldi';
 	$firmMail = $firm ? trim((string) $firm['email']) : '';
@@ -1699,19 +1702,9 @@ function crm_flush_mail(): array
 			$mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
 			$mail->IsSMTP();
 			$mail->CharSet = 'UTF-8';
-			$mail->Host = ($firm && $firm['felt_1']) ? (string) $firm['felt_1'] : 'localhost';
-			if ($firm && $firm['felt_2']) {
-				$mail->SMTPAuth = true;
-				$mail->Username = (string) $firm['felt_2'];
-				$mail->Password = (string) $firm['felt_3'];
-				if (!empty($firm['felt_4'])) {
-					$mail->SMTPSecure = strtolower((string) $firm['felt_4']);
-				}
-			} else {
-				$mail->SMTPAuth = false;
-			}
 			$mail->Timeout = 10;
-			$mail->From = 'kan_ikke_besvares@saldi.dk';
+			// The company's own mail server, login and sender, or Saldi's own server without a login (stamdata_smtp())
+			stamdata_smtp($mail, $firm, 'kan_ikke_besvares@saldi.dk');
 			$mail->FromName = $firmName;
 			if ($firmMail !== '' && filter_var($firmMail, FILTER_VALIDATE_EMAIL)) {
 				$mail->AddReplyTo($firmMail, $firmName);

@@ -33,16 +33,32 @@
 // 20261028 CL/LH The first-grace-period test pinned a defect that #444 fixed; it now asserts the fix.
 // 20261105 CL/LH Ny rykker waits the grace period of the reminder it escalates.
 // 20261111 CDX/NTR Isolate the test class database and session.
+// 20261125 CL/ASR Dates as the page has them (support/AppTimezone.php): between midnight and 01:00 the UTC date of the test process was the day before.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
+require_once __DIR__ . '/../support/AppTimezone.php';
 
 final class DunningCharacterizationTest extends CharacterizationTestCase
 {
+    use AppTimezone;
+
     private const FFDAGE1 = 8;   // days overdue before an invoice is dunned
     private const FFDAGE2 = 10;  // days an R1 may stand before escalation
     private const FFDAGE3 = 14;  // days an R2 may stand before escalation
 
     private static int $faktnrSeq = 7000;
+
+    public static function setUpBeforeClass(): void
+    {
+        parent::setUpBeforeClass();
+        self::useAppTimezone();
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        self::restoreTimezone();
+        parent::tearDownAfterClass();
+    }
 
     protected function setUp(): void
     {

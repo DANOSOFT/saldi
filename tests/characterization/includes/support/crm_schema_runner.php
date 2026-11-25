@@ -44,7 +44,7 @@ require __DIR__ . '/../../../../includes/crmFunctions.php';
 
 $source = file_get_contents(__DIR__ . '/../../../../includes/betweenUpdates.php');
 $tokens = token_get_all($source);
-foreach (['crm_ensure_schema', 'crm_ensure_schema_steps', 'crm_migrate_legacy_followups'] as $name) {
+foreach (['crm_ensure_schema', 'crm_schema_complete', 'crm_ensure_schema_steps', 'crm_migrate_legacy_followups'] as $name) {
     foreach ($tokens as $i => $token) {
         if (!is_array($token) || $token[0] !== T_FUNCTION) {
             continue;

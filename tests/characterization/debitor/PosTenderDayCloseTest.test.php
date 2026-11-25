@@ -48,6 +48,7 @@
 //                 Fifteen tills: tills 11 to 15 are used by the new cases, till 14 with a till account of its own.
 // 20261118 CL/ASR An account the close posts on in an earlier fiscal year must be in that year's chart: a commission account and a sales account of the active year only.
 //                 Seventeen tills: tills 16 and 17 are used by these cases.
+// 20261125 CL/ASR Dates as the page has them (support/AppTimezone.php): between midnight and 01:00 the UTC date of the test process was the day before.
 // 20261118 CL/ASR The commission reclass balances: commission account without a VAT code, with another rate, and the margin case.
 //                 Twenty tills: tills 18 to 20 are used by these cases.
 // 20261119 CL/ASR A chart without a Sideskift account no longer refuses the count: the opening moves by the change onto 6940.
@@ -66,9 +67,12 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../support/CharacterizationEnv.php';
+require_once __DIR__ . '/../support/AppTimezone.php';
 
 final class PosTenderDayCloseTest extends TestCase
 {
+    use AppTimezone;
+
     private const RUNNER = __DIR__ . '/../support/run_pos_day_close.php';
     private const TILL = 58101;
     private const OTHER_CARDS = 58102;
@@ -121,6 +125,7 @@ final class PosTenderDayCloseTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
+        self::useAppTimezone();
         CharacterizationEnv::bootstrapTenant(static::class);
         $t = self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
 
@@ -209,6 +214,7 @@ final class PosTenderDayCloseTest extends TestCase
 
     public static function tearDownAfterClass(): void
     {
+        self::restoreTimezone();
         if (isset(self::$tenant) && self::$tenant) {
             pg_close(self::$tenant);
             self::$tenant = null;

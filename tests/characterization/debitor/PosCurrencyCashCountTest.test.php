@@ -18,15 +18,19 @@
 //
 // History:
 // 20261117 CL/ASR Created.
+// 20261125 CL/ASR Dates as the page has them (support/AppTimezone.php): between midnight and 01:00 the UTC date of the test process was the day before.
 
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../support/CharacterizationEnv.php';
+require_once __DIR__ . '/../support/AppTimezone.php';
 
 final class PosCurrencyCashCountTest extends TestCase
 {
+    use AppTimezone;
+
     private const RUNNER = __DIR__ . '/../support/run_pos_currency_count.php';
 
     private const TILL_DKK = 99100;
@@ -52,6 +56,7 @@ final class PosCurrencyCashCountTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
+        self::useAppTimezone();
         CharacterizationEnv::bootstrapTenant(static::class);
         self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
         self::$today = date('Y-m-d');
@@ -74,6 +79,7 @@ final class PosCurrencyCashCountTest extends TestCase
 
     public static function tearDownAfterClass(): void
     {
+        self::restoreTimezone();
         if (self::$tenant) {
             pg_close(self::$tenant);
             self::$tenant = null;

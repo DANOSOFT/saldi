@@ -17,6 +17,7 @@
 // 20261105 CL/LH products/groups reads buyOutsideEuAccount from box13, not box2 (Lagertræk), and a PUT keeps it.
 // 20261105 CL/LH vat-codes lists the current fiscal year's SM/KM/EM/YM rows with the rate from box2, not an empty list.
 // 20261111 CDX/NTR Use a fresh database and cover year-independent and other-year warehouses.
+// 20261125 CL/ASR Today is compared in php.ini's zone, which the API runs in; an earlier test in the process could have set Europe/Copenhagen.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -172,9 +173,11 @@ final class ReferenceDataEndpointsTest extends TestCase
         $this->assertSame(200, $res['status'], $res['body']);
         $this->assertTrue($res['json']['success']);
         $data = $res['json']['data'];
-        $this->assertSame(date('Y-m-d'), $data['current_date']);
-        $this->assertSame(date('m'), $data['current_month']);
-        $this->assertSame(date('Y'), $data['current_year']);
+        // The API dates in php.ini's zone; an earlier test in this process may have set another (includes/settings.php)
+        $today = new DateTimeImmutable('now', new DateTimeZone(ini_get('date.timezone') ?: 'UTC'));
+        $this->assertSame($today->format('Y-m-d'), $data['current_date']);
+        $this->assertSame($today->format('m'), $data['current_month']);
+        $this->assertSame($today->format('Y'), $data['current_year']);
         $this->assertMatchesRegularExpression('/^\d{4}$/', (string)$data['fiscal_year']);
         $this->assertMatchesRegularExpression('/^\d{1,2}$/', (string)$data['fiscal_year_start']);
         $this->assertMatchesRegularExpression('/^\d{1,2}$/', (string)$data['fiscal_year_end']);
