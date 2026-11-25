@@ -43,6 +43,7 @@
 // 20261125 CL/SZ MB-145 A variant label that exists under another category is created under its own category, so the variant no longer gets variant_type 0. The last stock message names the item instead of a variant-file value. Variant labels are escaped in these queries.
 // 20261125 CL/SZ MB-192 Every variant barcode is read for the product barcode check, not only the last one, and each clash message ends its line. The barcode messages are shown when the run stops at a missing variant file.
 // 20261125 CL/SZ MB-109 The shop files are read as CSV, so a ';' inside quotes stays in its field. The qty and kostpris columns are found by header name in their usual positions, also in LF files and after a BOM. A new item whose item number has an apostrophe gets its stock.
+// 20261125 CL/SZ MB-110 A bad row in the shop product file (price, group or cost not a number, an invalid shop id, an item number twice, a shop id that belongs to another product) is skipped with a message naming the CSV row and item number, instead of stopping the run halfway or creating a second product. A shop id is no longer linked to a second product.
 
 
 /**
@@ -84,11 +85,60 @@ function varesyncHeaderAt($rows, $position, $name) {
 	return (strtolower(trim($rows[0][$position], "\" \t")) == $name) ? 1 : 0;
 }
 
+/**
+ * Why a product row from the shop file can't be used, or '' when it can.
+ * Prices, groups and costs must be numbers (a Danish '12,34' is not); a shop id must fit the integer column.
+ *
+ * @param string $price salgspris
+ * @param string $group gruppe
+ * @param string|int $cost kostpris, 0 when the file has no kostpris column
+ * @param string|int $shopId 0 or '' when the row has none
+ * @return string the reason, for the 'CSV-række … sprunget over' message
+ */
+function varesyncRowProblem($price, $group, $cost, $shopId) {
+	global $sprog_id;
+	if (!is_numeric($price)) {
+		return findtekst('webshop.sync.bad_price|salgsprisen er ikke et tal', $sprog_id);
+	}
+	if (!is_numeric($group)) {
+		return findtekst('webshop.sync.bad_group|varegruppen er ikke et tal', $sprog_id);
+	}
+	if (!is_numeric($cost)) {
+		return findtekst('webshop.sync.bad_cost|kostprisen er ikke et tal', $sprog_id);
+	}
+	$shopId = (string)$shopId;
+	if ($shopId !== '' && $shopId !== '0' && (!ctype_digit($shopId) || (float)$shopId > 2147483647)) {
+		return sprintf(findtekst('webshop.sync.bad_shop_id|shop-id %s er ikke et gyldigt id', $sprog_id), htmlspecialchars($shopId));
+	}
+	return '';
+}
+
+/**
+ * The item number of the product a shop id is already linked to, or '' when it is free.
+ * A link to a product that no longer exists counts as free, as before.
+ *
+ * @param string|int $shopId
+ * @param array $svShopId shop_varer.shop_id per link
+ * @param array $svSaldiId shop_varer.saldi_id per link, same index
+ * @return string
+ */
+function varesyncShopIdOwner($shopId, $svShopId, $svSaldiId) {
+	for ($i=0;$i<count($svShopId);$i++) {
+		if ($svShopId[$i] == $shopId) {
+			$qtxt = "select varenr from varer where id = '" . (int)$svSaldiId[$i] . "'";
+			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				return (string)$r['varenr'];
+			}
+		}
+	}
+	return '';
+}
+
 function varesync($valg) {
-	global $brugernavn,$db;
+	global $brugernavn,$db,$sprog_id;
 	# if ($db == 'pos_8') transaktion('begin');
 	$showtxt=NULL;
-	$newItemsId = $vare_id = $vnrtjek = array();
+	$newItemsId = $vare_id = $fileRowOfItem = array();
 	db_modify("update shop_varer set saldi_variant='0' where saldi_variant is NULL",__FILE__ . " linje " . __LINE__);
 	db_modify("update shop_varer set shop_variant='0' where shop_variant is NULL",__FILE__ . " linje " . __LINE__);
 	$x=0;
@@ -122,7 +172,7 @@ function varesync($valg) {
 	fclose($plf);
 
 	$i = 0;
-	$svSaldiId = array();
+	$svSaldiId = $svShopId = array();
 	$qtxt="select * from shop_varer order by saldi_id";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
@@ -233,15 +283,30 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 			$stregkode[$y]=mb_convert_encoding($stregkode[$y], 'UTF-8', 'ISO-8859-1'); #20191104
 		}
 		$dbvnr=NULL;
-		if (in_array("'". $varenr[$y]. ",",$vnrtjek)) {
-			for ($i=0;$i<count($vnrtjek);$i++) {
-				if ($vnrtjek[$i]==$varenr[$y]) {
-					$dbvnr=$varenr[$i];
-					$dbbesk=$beskrivelse[$i];
+		$rowProblem = ''; # 20261125 a bad row is skipped with a message before anything is written
+		$knownItem = in_array(db_escape_string($varenr[$y]),$sProductNo);
+		$rowUsed = ($valg=='1') ? !$knownItem : $knownItem;
+		if ($rowUsed && ($y > 0 || is_numeric($salgspris[$y]))) { # the first row is the header when its price is not a number
+			$rowProblem = varesyncRowProblem($salgspris[$y],$gruppe[$y],$kostpris[$y],$shop_id[$y]);
+			if ($valg=='1' && isset($fileRowOfItem[$varenr[$y]])) {
+				if (!$rowProblem) {
+					$rowProblem = sprintf(findtekst('webshop.sync.duplicate_item|varenummeret står også i CSV-række %s', $sprog_id), $fileRowOfItem[$varenr[$y]]);
+				}
+			} elseif ($valg=='1') {
+				$fileRowOfItem[$varenr[$y]] = $y+1; # the first row counts, also when it is skipped
+			}
+			if (!$rowProblem && $valg=='1' && $shop_id[$y]) {
+				$ownerNo = varesyncShopIdOwner($shop_id[$y],$svShopId,$svSaldiId);
+				if ($ownerNo !== '') {
+					$rowProblem = sprintf(findtekst('webshop.sync.shop_id_taken|shop-id %s hører allerede til varenr %s', $sprog_id), $shop_id[$y], htmlspecialchars($ownerNo));
 				}
 			}
-#			alert("Varenr $varenr[$y]:$beskrivelse[$y] bruges også i $dbbesk\\n $dbbesk overskrives");
-			$showtxt.="Varenr $varenr[$y]:$beskrivelse[$y] bruges også i $dbbesk-- $dbbesk overskrevet<br>";
+			if ($rowProblem) {
+				$showtxt.=sprintf(findtekst('webshop.sync.row_skipped|CSV-række %s, varenr %s: %s. Rækken er sprunget over.', $sprog_id), $y+1, htmlspecialchars($varenr[$y]), $rowProblem)."<br>";
+			}
+		}
+		if ($rowProblem) {
+			$stregkode[$y]=NULL; # a skipped row's barcode doesn't clear the barcode of a later row
 		} elseif ($stregkode[$y] && in_array("$stregkode[$y]",$strktjek)) {
 			for ($i=0;$i<count($strktjek);$i++) {
 				if ($strktjek[$i]==$stregkode[$y]) {
@@ -257,12 +322,11 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 			$stregkode[$y]=NULL;
 		}
 		$strktjek[$y]=$stregkode[$y];
-		$vnrtjek[$y]="'". $varenr[$y] ."'";
 		$itemNo[$y]=$varenr[$y]; # 20261125 kept for the last stock message, the variant step reuses $varenr
 		$beskrivelse[$y]=db_escape_string($beskrivelse[$y]);
 		$varenr[$y]=db_escape_string($varenr[$y]);
 
-		if (is_numeric($salgspris[$y]) && is_numeric($gruppe[$y])) {
+		if (!$rowProblem && is_numeric($salgspris[$y]) && is_numeric($gruppe[$y])) {
 			if ($valg=='1' && !in_array($varenr[$y],$sProductNo) && is_numeric($salgspris[$y]) && is_numeric($gruppe[$y])) {
 				echo "Opretter $varenr[$y], $beskrivelse[$y]<br>";
 				$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
@@ -289,6 +353,8 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 					$qtxt = "insert into shop_varer (saldi_id,shop_id,saldi_variant,shop_variant) ";
 					$qtxt.= "values ('$vare_id[$y]','$shop_id[$y]','0','0')";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					$svShopId[] = $shop_id[$y]; # 20261125 a later row in this file sees the link
+					$svSaldiId[] = $vare_id[$y];
 				}
 				for($s=0;$s<count($stockItemNo);$s++) {
 					$stockItemNo[$s] = trim($stockItemNo[$s],'"');
@@ -296,6 +362,7 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 						$newstock[$y]=$stock[$s];
 						lagerreguler($vare_id[$y],$stock[$s],0,0,date("Y-m-d"),'0');
 						if ($stock[$s]) echo "Sætter $itemNo[$y] til ".dkdecimal($stock[$s])." stk<br>";
+						break; # 20261125 the first row wins, a skipped duplicate row's qty is not used
 					}
 				}
 			} elseif ($valg=='2' && $salgspris[$y] && in_array($varenr[$y],$sProductNo)) {
@@ -319,9 +386,16 @@ file_put_contents("../temp/$db/varesync.log","$qtxt\n",FILE_APPEND);
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						}
 						if ($shop_id[$y] && !in_array($sProductId[$i],$svSaldiId)) {
-							$qtxt = "insert into shop_varer (saldi_id,saldi_variant,shop_id,shop_variant) ";
-							$qtxt.= "values ('$sProductId[$i]','0','$shop_id[$y]','0')";
-							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+							$ownerNo = varesyncShopIdOwner($shop_id[$y],$svShopId,$svSaldiId); # 20261125
+							if ($ownerNo !== '') {
+								$showtxt.=sprintf(findtekst('webshop.sync.shop_id_not_linked|CSV-række %s, varenr %s: shop-id %s hører allerede til varenr %s og er ikke knyttet til varen.', $sprog_id), $y+1, htmlspecialchars($itemNo[$y]), $shop_id[$y], htmlspecialchars($ownerNo))."<br>";
+							} else {
+								$qtxt = "insert into shop_varer (saldi_id,saldi_variant,shop_id,shop_variant) ";
+								$qtxt.= "values ('$sProductId[$i]','0','$shop_id[$y]','0')";
+								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+								$svShopId[] = $shop_id[$y];
+								$svSaldiId[] = $sProductId[$i];
+							}
 						}
 					}
 				}

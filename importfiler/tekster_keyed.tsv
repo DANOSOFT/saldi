@@ -25,3 +25,11 @@ wage.overtime.no_slips	Ingen godkendte sedler i perioden.	No approved slips in t
 wage.overtime.note	Kun godkendte sedler tæller med. Overtid er timer med overtidstillæg.	Only approved slips are counted. Overtime is hours with overtime supplement.	Kun godkjente sedler telles med. Overtid er timer med overtidstillegg.
 wage.overtime.title	Overtid og løn pr. sag	Overtime and wages per project	Overtid og lønn per sak
 wage.overtime.total	Overtid i alt	Total overtime	Overtid totalt
+webshop.sync.bad_cost	kostprisen er ikke et tal	the cost price is not a number	kostprisen er ikke et tall
+webshop.sync.bad_group	varegruppen er ikke et tal	the item group is not a number	varegruppen er ikke et tall
+webshop.sync.bad_price	salgsprisen er ikke et tal	the sales price is not a number	salgsprisen er ikke et tall
+webshop.sync.bad_shop_id	shop-id %s er ikke et gyldigt id	shop id %s is not a valid id	shop-id %s er ikke en gyldig id
+webshop.sync.duplicate_item	varenummeret står også i CSV-række %s	the item number is also in CSV row %s	varenummeret står også i CSV-rad %s
+webshop.sync.row_skipped	CSV-række %s, varenr %s: %s. Rækken er sprunget over.	CSV row %s, item no. %s: %s. The row was skipped.	CSV-rad %s, varenr %s: %s. Raden er hoppet over.
+webshop.sync.shop_id_not_linked	CSV-række %s, varenr %s: shop-id %s hører allerede til varenr %s og er ikke knyttet til varen.	CSV row %s, item no. %s: shop id %s already belongs to item no. %s and was not linked to this item.	CSV-rad %s, varenr %s: shop-id %s hører allerede til varenr %s og er ikke knyttet til varen.
+webshop.sync.shop_id_taken	shop-id %s hører allerede til varenr %s	shop id %s already belongs to item no. %s	shop-id %s hører allerede til varenr %s
