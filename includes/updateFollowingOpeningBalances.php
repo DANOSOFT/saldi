@@ -67,9 +67,8 @@
 //                  A setting of this feature is created with ON CONFLICT DO NOTHING on PostgreSQL, so two requests creating it at once no longer end one of them (Lui's pre-check).
 //                  The alert text is converted to UTF-8 on a LATIN9 regnskab and written as ASCII, and the account list ends in plain dots (Lui's pre-check).
 //                  MySQL 8 and MariaDB 10.6 lock a target year without waiting, like PostgreSQL (Lui's pre-check).
-//                  A setting of this feature is created under a lock named after it and with a current read, and clearing the block never creates its row, so MySQL never gets a second row of one (Codex round 28).
-//                  The block row is locked and written by its id, as a locking statement by var_name locks every settings row it scans on MySQL.
-//                  On MySQL the lock for creating a setting is kept until the transaction that creates it ends, as under READ COMMITTED a second creator did not wait for the row (Codex round 29).
+// 20261125 CL/MMR  SST-1005: A setting of this feature is created under a lock named after it and with a current read, and clearing the block never creates its row, so MySQL never gets a second row of one (Codex round 28). The block row is locked and written by its id, as a locking statement by var_name locks every settings row it scans on MySQL.
+// 20261125 CL/MMR  SST-1005: On MySQL the lock for creating a setting is kept until the transaction that creates it ends, as under READ COMMITTED a second creator did not wait for the row (Codex round 29).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 

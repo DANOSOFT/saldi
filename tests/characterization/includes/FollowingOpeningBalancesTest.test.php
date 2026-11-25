@@ -29,8 +29,8 @@
 //                 A transfer left for the next check keeps the block it did not reach, and a block committed meanwhile is never overwritten.
 //                 Two requests creating the block row both finish, and the alert reads the same on a LATIN9 regnskab.
 //                 A finally block ends the blocking transaction before it drains the connection that waits for it (CodeRabbit).
-//                 Clearing the block never creates its row, and two rebuilds storing the first block make one row, also without a unique index (Codex round 28).
-//                 On MySQL the lock for creating a setting is kept until the transaction ends and released once (Codex round 29).
+// 20261125 CL/MMR SST-1005 Clearing the block never creates its row, and two rebuilds storing the first block make one row, also without a unique index (Codex round 28).
+// 20261125 CL/MMR SST-1005 On MySQL the lock for creating a setting is kept until the transaction ends and released once (Codex round 29).
 
 declare(strict_types=1);
 
