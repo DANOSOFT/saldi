@@ -14,6 +14,8 @@
 // History:
 // 20260723 CL/LH SD-602: created.
 // 20260904 CL/NTR Drop the throwaway tenant again in tearDownAfterClass().
+// 20261111 CDX/NTR Give each REST class its own fresh database.
+// 20261123 CDX/NTR Port the reviewed test fixture repairs to hml/shopify.
 
 use PHPUnit\Framework\TestCase;
 
@@ -30,7 +32,7 @@ final class OrdersEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenantOnce();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     public static function tearDownAfterClass(): void

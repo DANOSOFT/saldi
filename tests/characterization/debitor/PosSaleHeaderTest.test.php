@@ -1,12 +1,14 @@
 <?php
 // 20261021 CL/MJ SD-758 Pin the POS sale header: the department and brand a sale is created with,
 // the customer's phone number coming along, and the receipt print no longer rewriting either.
+// 20261123 CL/SZ Sync of master into hml/shopify: the brand-save check is skipped until SD-830.
 //
 // opret_posordre() cannot be called here - it writes a lock file under ../temp, calls
 // hent_shop_ordrer(), prints redirects and exits - so its insert is read from the shipped source.
 // Everything else runs for real against sqlite. The functions live in files that are include()d
 // into a page, so they are lifted and evaluated into this namespace; eval() does not inherit the
 // caller's namespace, so it is restated.
+// 20261123 CL/MJ SD-830 The brand's wiring test follows the field to the till settings (pos.tills), since master retired the PoS-valg page, and is no longer skipped.
 
 namespace Saldi\Tests\PosSaleHeader;
 
@@ -553,21 +555,25 @@ final class PosSaleHeaderTest extends TestCase
 
     // --------------------------------------------------- how the page wires it up
 
-    public function testTheSettingsPageRendersAndSavesTheBrand(): void
+    public function testTheTillSettingsRenderAndSaveTheBrand(): void
     {
-        $options = file_get_contents(dirname(__DIR__, 3) . '/systemdata/diverseIncludes/posOptions.php');
-        self::assertStringContainsString('posSaleSettings.php', $options,
-            'posOptions.php has to load the sale settings to render them');
-        self::assertStringContainsString('pos_render_sale_brand_header(', $options);
-        self::assertStringContainsString('pos_render_sale_brand_field(', $options);
-        self::assertMatchesRegularExpression('/\$pos_sale_brands\s*=\s*pos_sale_brands\(/', $options,
-            'the rendered field needs the stored brands');
-        self::assertStringContainsString('pos_sale_brand_variants()', $options,
+        // SD-830: the PoS-valg page is retired, so the brand is a per-till field in the settings section pos.tills.
+        $definitions = file_get_contents(dirname(__DIR__, 3) . '/systemdata/settingsDefinitions.php');
+        self::assertMatchesRegularExpression("/'pos\.tills\.brand' => array\([^\n]*'per' => 'till'/", $definitions,
+            'the brand has to be a field per till in the till settings');
+        self::assertMatchesRegularExpression(
+            "/'pos\.tills\.brand' => array\(.*?'storage' => array\('grupper', 'POS', 4, 'box1', 'raw',[^)]*'fiscal' => true, 'join' => \"\\\\t\", 'list' => true\)/s",
+            $definitions, 'the field has to write the row pos_sale_brands() reads: POS kodenr 4 box1, a tab list per fiscal year');
+        self::assertMatchesRegularExpression("/'pos\.tills\.brand' => array\(.*?'options_from' => 'pos_form_variants'/s", $definitions,
             'without the variant list the field would offer no brands at all');
+        self::assertMatchesRegularExpression("/'pos\.tills\.brand' => array\(.*?'validate' => array\('in_options', 7202\)/s", $definitions,
+            'a brand with no form variant has to be refused, not stored or silently cleared');
 
-        $diverse = file_get_contents(dirname(__DIR__, 3) . '/systemdata/diverse.php');
-        self::assertStringContainsString('pos_save_sale_settings($_POST, $regnaar)', $diverse,
-            'diverse.php owns the posOptions POST, so without this the brand is never saved');
+        $components = file_get_contents(dirname(__DIR__, 3) . '/includes/settings/components.php');
+        self::assertMatchesRegularExpression("/\\\$from === 'pos_form_variants'.*?posSaleSettings\.php.*?pos_sale_brand_variants\(\).*?strpbrk\(\\\$variant, \"\\\\t\\\\r\\\\n\"\) === false/s", $components,
+            'the options are the form variants, from the same function SD-758 used');
+        self::assertMatchesRegularExpression("/'in_options'\) \{\s*\/\/[^\n]*\n\s*\\\$error = \(int\) \\\$def\['validate'\]\[1\];/", $components,
+            'a value the list does not offer is refused with the rule\'s text');
     }
 
     public function testTheSaleHeaderFunctionsAreNoLongerDefinedInThePage(): void

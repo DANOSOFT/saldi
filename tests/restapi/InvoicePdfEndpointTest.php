@@ -10,6 +10,7 @@
 // History:
 // 20261029 CL/SZ SD-751: created.
 // 20261102 CL/SZ SD-795: a failed read of the order gives 500, not 404.
+// 20261123 CDX/NTR Use the test class-owned database and session.
 
 use PHPUnit\Framework\TestCase;
 
@@ -28,7 +29,7 @@ final class InvoicePdfEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenantOnce();
+        RestApiEnv::bootstrapTenant(static::class);
         $conn = RestApiEnv::connect(RestApiEnv::testDb());
         $rows = RestApiEnv::rows($conn, "INSERT INTO adresser (kontonr, firmanavn, addr1, postnr, bynavn, email, art, gruppe, betalingsbet, betalingsdage)"
             . " VALUES (91930, 'Pdf Kunde', 'Pdfvej 9', '8000', 'Aarhus', 'pdf@example.invalid', 'D', 1, 'Netto', 8) RETURNING id");
