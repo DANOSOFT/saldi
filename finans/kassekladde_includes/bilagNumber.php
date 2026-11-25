@@ -43,6 +43,7 @@
 //                 A typed 0, and a line already saved under 0, now travel through the save as '00' (bilagFromInput()).
 //                 Only an empty field is numbered (bilagIsUnnumbered()), and the page shows a saved 0 as 0 (bilagFieldValue()).
 // 20261125 LOE SST-906 A line dated in another fiscal year continues that year's series: bilagFiscalYearForDate(), a year on bilagFiscalYearBounds(), the line date on bilagNextNumberForJournal(), and bilagReplaceForeignYearProposals() for the save.
+//              That last one skips the rows the save will not store, gives lines of one voucher one number, and is told the numbers the taken-proposal pass already moved lines onto.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -185,28 +186,42 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $from = 0, $own_ids =
  * stands in the closing year) leaves a number from the wrong series on the line. A number the operator did
  * not type is a proposal, so the save takes it from the year the line is dated in instead.
  *
- * Only a line that is new, staged, and still carrying the proposal it was posted with is touched: a typed
- * number is kept, and so is a proposal whose date belongs to the same fiscal year as the line's date.
+ * Only a line the save will actually store, that is new, staged, and still carrying the proposal it was posted
+ * with, is touched: a typed number is kept, so is a proposal whose date belongs to the same fiscal year as the
+ * line's date, and so is a row the save skips (it never gets a line to renumber, so announcing one would be a
+ * lie). Rows that share a proposal share the replacement, because they are lines of one voucher.
  *
  * @param int                $kladde_id     Journal (kladdeliste.id).
  * @param array<int, int>    $proposed      Line number (tmpkassekl.lobenr) => the number the page proposed.
  * @param array<int, string> $proposedDates Line number => the date that proposal was drawn for (Y-m-d).
  * @param int                $from          Series start: the journal's next number, read once per save.
+ * @param array<int, int>    $alreadyUsed   Replacements this save has already made (bilagReplaceTakenProposals()),
+ *                                          whose numbers are taken and must not be handed out again.
  * @return array<int, int> Staged proposal => the number of the line's own fiscal year's series; empty when none.
  */
-function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates, $from = 0) {
+function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates, $from = 0, $alreadyUsed = array()) {
 	$kladde_id = (int)$kladde_id;
 	$replacements = array();
 	if ($kladde_id <= 0 || !$proposed || !$proposedDates) {
 		return $replacements;
 	}
 	$held = bilagStagedNumbersWillBeSaved($kladde_id);
-	$q = db_select("SELECT lobenr, id, bilag, transdate FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+	# SST-906 (review) the numbers the taken-proposal pass already moved lines onto are this save's as well
+	$used = array();
+	foreach ((array)$alreadyUsed as $taken_number) {
+		$used[] = (int)$taken_number;
+	}
+	# SELECT * so the row can be asked the same question opdater() asks: will this line be saved at all?
+	$q = db_select("SELECT * FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$bilag = (int)$r['bilag'];
 		$lobenr = (int)$r['lobenr'];
-		if ((int)$r['id'] > 0 || $bilag <= 0 || !isset($proposed[$lobenr]) || (int)$proposed[$lobenr] !== $bilag) {
-			continue;   # an existing line, a line without a number, or a number the operator typed
+		if (!bilagStagedRowWillBeSaved($r) || (int)$r['id'] > 0 || $bilag <= 0
+			|| !isset($proposed[$lobenr]) || (int)$proposed[$lobenr] !== $bilag) {
+			continue;   # a row the save skips, an existing line, a line without a number, or a number the operator typed
+		}
+		if (isset($replacements[$bilag])) {
+			continue;   # another line of the same voucher already took this proposal's replacement
 		}
 		$proposalDate = trim((string)($proposedDates[$lobenr] ?? ''));
 		if ($proposalDate === '') {
@@ -228,10 +243,12 @@ function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates,
 		if ((int)$from > 0 && $target <= 0) {
 			$target = (int)$from;
 		}
-		$target = bilagNextNumberSkipping($heldHere, array_values($replacements), $target);
+		$target = bilagNextNumberSkipping($heldHere, array_merge($used, array_values($replacements)), $target);
 		if ($target > 0 && $target !== $bilag) {
 			$replacements[$bilag] = $target;
 		}
+		# no number left in that year (its series is at the column maximum): the line keeps the number it has, and
+		# the save's own exhausted-series refusal is what the operator meets instead
 	}
 	return $replacements;
 }
@@ -252,8 +269,8 @@ function bilagStagedDate($date) {
 	if ($date === '') {
 		return '';
 	}
-	if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-		return $date;
+	if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $ymd)) {
+		return checkdate((int)$ymd[2], (int)$ymd[3], (int)$ymd[1]) ? $date : '';
 	}
 	# the staging table keeps the operator's dd-mm-yyyy; read it here so the helper stands on its own
 	$parts = preg_split('/[^0-9]+/', $date, -1, PREG_SPLIT_NO_EMPTY);

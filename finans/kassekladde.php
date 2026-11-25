@@ -228,6 +228,7 @@
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261125 LOE SST-906 A proposal follows the line's own date: every proposal site is handed it, and each proposal posts the date it was drawn for, so a number kept while the line is dated in another fiscal year is saved under that year's series.
+//              The save hands the replacements it has already made to the year's allocator, so two lines cannot end up on one number.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -4840,8 +4841,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, $kk_bilag_fra, $kk_egne_linjer);
 		# SST-906 (review) a proposal the page drew for a date in another fiscal year is replaced by the series
 		# of the year the line is dated in now, so changing only the date cannot carry one year's numbers into
-		# the other. The year's number wins over a taken-proposal replacement: it is free in that year by design
-		$kk_aar_erstat = bilagReplaceForeignYearProposals($kladde_id, $bilagForslag, $bilagForslagDato, $kk_bilag_fra);
+		# the other. The replacements made above are handed over, because their numbers are this save's already:
+		# the year's allocator must not pick one of them for a line of its own
+		$kk_aar_erstat = bilagReplaceForeignYearProposals($kladde_id, $bilagForslag, $bilagForslagDato, $kk_bilag_fra, $bilagErstat);
 		if ($kk_aar_erstat) {
 			$bilagErstat = $kk_aar_erstat + $bilagErstat;
 		}
