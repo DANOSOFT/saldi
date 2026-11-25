@@ -16,9 +16,11 @@
 //
 // History:
 // 20261125 CL/MMR MB-80: created.
+// 20261125 CL/MMR MB-80 (Codex round 3): orders that fail only the rounded-sides check (99.961/-0.005), and a table of edge prices decided as on origin/master.
 // 20261125 CL/MMR MB-80 (Codex round 2): the cutoff of the pre-flight check, DKK and EUR, invoice and credit note, refused and accepted as on origin/master.
 // 20261125 CL/MMR MB-80 (Codex round 1): ten half-øre revenue groups in DKK (invoice and credit note) and EUR; the pre-flight must accept each invoice and the order must reach status 4.
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../support/CharacterizationEnv.php';
@@ -435,7 +437,7 @@ final class SalesPostingPrecisionTest extends TestCase
     private function assertRefusedBeforePosting(int $orderId, string $difference): void
     {
         $out = $this->runInvoiceChild('invoice', $orderId);
-        $this->assertStringContainsString("balancerer ikke (difference $difference)", (string)$out['bogfor']);
+        $this->assertStringContainsString('balancerer ikke (difference ' . $difference, (string)$out['bogfor']);
         $this->assertSame('1', (string)$out['status'], 'status unchanged');
         $this->assertNull($out['fakturanr'], 'no invoice number');
         $this->assertSame([], CharacterizationEnv::rows(self::$tenant, 'SELECT id FROM transaktioner WHERE ordre_id = $1', [$orderId]), 'no ledger rows');
@@ -446,13 +448,66 @@ final class SalesPostingPrecisionTest extends TestCase
      * Two VAT-free lines whose 3-decimal amounts differ from the 2-decimal header: the pre-flight decides on the
      * net 3-decimal difference rounded once, as origin/master does (Codex round 2).
      */
-    private function createCutoffOrder(string $currency, string $art, float $mainPrice, float $qty): int
+    private function createCutoffOrder(string $currency, string $art, float $mainPrice, float $qty, ?float $secondPrice = -0.004, float $header = 100): int
     {
         $lines = [self::line(self::REVENUE, 0, 0, $mainPrice, $qty, ['momsfri' => 'on'])];
-        if ($currency === 'DKK') {
-            $lines[] = self::line(self::REVENUE_EXEMPT, 0, 0, -0.004, $qty, ['momsfri' => 'on']);
+        if ($secondPrice !== null) {
+            $lines[] = self::line(self::REVENUE_EXEMPT, 0, 0, $secondPrice, $qty, ['momsfri' => 'on']);
         }
-        return $this->createOrder($currency, $art, $lines, 100 * $qty, 0);
+        return $this->createOrder($currency, $art, $lines, $header * $qty, 0);
+    }
+
+    /**
+     * Codex round 3: 100.005 - 99.961 = 0.044 passes the pre-flight's own check, but the rounded control sides
+     * (100.01 - 99.96 = 0.05) fail the check origin/master makes after posting. Refused before anything is written.
+     */
+    public function test_dkk_invoice_failing_only_the_rounded_sides_check_is_refused_as_before(): void
+    {
+        $this->assertRefusedBeforePosting($this->createCutoffOrder('DKK', 'DO', 99.961, 1, -0.005), '0,05 DKK');
+    }
+
+    public function test_dkk_credit_note_failing_only_the_rounded_sides_check_is_refused_as_before(): void
+    {
+        $this->assertRefusedBeforePosting($this->createCutoffOrder('DKK', 'DK', 99.961, -1, -0.005), '-0,05 DKK');
+    }
+
+    /**
+     * Edge prices around both cutoffs, DKK (0.05) and EUR (one line: 4.00). The decision is origin/master's
+     * (checked by running this table on origin/master): refused before anything is written, or posted balanced.
+     *
+     * @return array<string, array{string, string, float, ?float, float, bool}> currency, art, main price, second price, header, posted
+     */
+    public static function edgeOrders(): array
+    {
+        return [
+            'DKK net 0.045' => ['DKK', 'DO', 99.959, -0.004, 100, false],
+            'DKK net 0.044, sides 0.04' => ['DKK', 'DO', 99.960, -0.004, 100, true],
+            'DKK net 0.044, sides 0.05' => ['DKK', 'DO', 99.961, -0.005, 100, false],
+            'DKK net 0.043, sides 0.05' => ['DKK', 'DO', 99.962, -0.005, 100, false],
+            'DKK net 0.040, sides 0.04' => ['DKK', 'DO', 99.965, -0.005, 100, true],
+            'DKK net -0.044, sides -0.04' => ['DKK', 'DO', 100.043, 0.001, 100, true],
+            'DKK net -0.045' => ['DKK', 'DO', 100.044, 0.001, 100, false],
+            'DKK credit net 0.045' => ['DKK', 'DK', 99.959, -0.004, 100, false],
+            'DKK credit net 0.044, sides 0.04' => ['DKK', 'DK', 99.960, -0.004, 100, true],
+            'DKK credit net 0.044, sides 0.05' => ['DKK', 'DK', 99.961, -0.005, 100, false],
+            'EUR net 4.001, sides 4.01' => ['EUR', 'DO', 99.473, null, 100.01, false],
+            'EUR net 3.994, sides 4.00' => ['EUR', 'DO', 99.474, null, 100.01, true],
+            'EUR net 4.001, sides 4.00' => ['EUR', 'DO', 99.463, null, 100, true],
+            'EUR net 4.008' => ['EUR', 'DO', 99.462, null, 100, false],
+        ];
+    }
+
+    #[DataProvider('edgeOrders')]
+    public function test_edge_orders_are_posted_or_refused_as_before(string $currency, string $art, float $mainPrice, ?float $secondPrice, float $header, bool $posted): void
+    {
+        $qty = ($art === 'DK') ? -1 : 1;
+        $id = $this->createCutoffOrder($currency, $art, $mainPrice, $qty, $secondPrice, $header);
+        if (!$posted) {
+            $this->assertRefusedBeforePosting($id, '');
+            return;
+        }
+        $rows = $this->invoiceRows($id);
+        $this->assertPreflightMatchesPosting($id, $rows);
     }
 
     /** 100.004 - 99.959 = 0.045 rounds to 0.05: refused, as on origin/master. */
@@ -496,13 +551,13 @@ final class SalesPostingPrecisionTest extends TestCase
     /** EUR, one line, so the limit is 2 + 2 = 4.00 DKK: (100 - 99.462) x 7.45 = 4.008 rounds to 4.01 and is refused. */
     public function test_eur_invoice_over_its_cutoff_is_refused_as_before(): void
     {
-        $this->assertRefusedBeforePosting($this->createCutoffOrder('EUR', 'DO', 99.462, 1), '4,01 DKK');
+        $this->assertRefusedBeforePosting($this->createCutoffOrder('EUR', 'DO', 99.462, 1, null), '4,01 DKK');
     }
 
     /** (100 - 99.463) x 7.45 = 4.001 rounds to 4.00: posted, with 4.00 on the currency account. */
     public function test_eur_invoice_at_its_cutoff_posts_as_before(): void
     {
-        $id = $this->createCutoffOrder('EUR', 'DO', 99.463, 1);
+        $id = $this->createCutoffOrder('EUR', 'DO', 99.463, 1, null);
         $rows = $this->invoiceRows($id);
         $this->assertSame(self::rows(
             [self::DEBTOR, '745.00', '0.00'],

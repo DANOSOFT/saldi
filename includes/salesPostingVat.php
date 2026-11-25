@@ -27,6 +27,7 @@
 //                 Allocation ported from Lui's #657 (62bdc0d1).
 // 20261125 CL/MMR MB-80 (Codex round 1): salesPostingControlAmount() keeps the 3-decimal control amounts that decide whether an invoice balances.
 //                 ifset() for the two array lookups with a default.
+// 20261125 CL/MMR MB-80 (Codex round 3): salesPostingControlSide() keeps the debit and credit control totals apart for the pre-flight.
 
 require_once __DIR__ . '/std_func.php';
 
@@ -69,6 +70,27 @@ if (!function_exists('salesPostingControlAmount')) {
 			$amount = $amount * $currencyRate / 100;
 		}
 		return afrund($amount, 3);
+	}
+}
+
+if (!function_exists('salesPostingControlSide')) {
+	/**
+	 * Adds a control amount to the debit or credit control total the way bogfor_nu() does: a positive amount
+	 * on its natural side, a negative one on the other side.
+	 *
+	 * @param array{d: float, k: float} $control Running debit ('d') and credit ('k') control totals, updated in place.
+	 * @param float $amount Signed control amount.
+	 * @param string $side 'd' for the debtor posting, 'k' for revenue and VAT.
+	 * @return void
+	 */
+	function salesPostingControlSide(array &$control, $amount, $side)
+	{
+		$other = ($side == 'd') ? 'k' : 'd';
+		if ($amount > 0) {
+			$control[$side] += $amount;
+		} else {
+			$control[$other] -= $amount;
+		}
 	}
 }
 

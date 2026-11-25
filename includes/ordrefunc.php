@@ -188,7 +188,9 @@
 //                 DKK amounts are unchanged; the øre difference account no longer gets cancelling or split rows.
 // 20261125 CL/MMR MB-80 (Codex round 1): the 3-decimal control totals decide again whether an invoice balances, as before, so ten DKK revenue groups at 100.005 still post with 0.05 on the øre account.
 //                 What is left between the posted 2-decimal rows is booked as one row on the currency or øre difference account.
-// 20261125 CL/MMR MB-80 (Codex round 2): the pre-flight and bogfor_nu() (outside POS) decide on the unrounded 3-decimal control difference rounded once, as the pre-flight did before, so an order at the 0.05 DKK cutoff is refused as before.
+// 20261125 CL/MMR MB-80 (Codex round 2): the pre-flight decides on the unrounded 3-decimal control difference rounded once, as it did before, so an order at the 0.05 DKK cutoff is refused as before.
+// 20261125 CL/MMR MB-80 (Codex round 3): the pre-flight also makes the posting's check (the rounded control sides), so an invoice that check refuses is refused before anything is written; bogfor_nu() decides on the rounded sides as before.
+//                 bogfor_nu() includes genberegn.php and forfaldsdag.php via __DIR__.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2448,16 +2450,19 @@ function bogfor_indbetaling($id, $webservice) {
 /**
  * Pre-flight for bogfor_nu(): predicts the difference between the debtor posting and the revenue and VAT
  * postings, using the same grouping, rounding and VAT allocation as bogfor_nu() (includes/salesPostingVat.php).
- * 'difference' is bogfor_nu()'s control difference (3-decimal amounts, as before MB-80), which decides whether
- * the invoice balances. 'rounding' is what is left between the posted 2-decimal rows; a positive amount is what
- * bogfor_nu() posts as a credit on the currency or øre difference account.
+ * Two differences decide whether the invoice balances, as before MB-80: 'difference' is the net of the 3-decimal
+ * control amounts rounded once (the pre-flight's own number), 'sideDifference' the difference of the debit and
+ * credit control totals each rounded to 2 decimals (the number bogfor_nu() checks after posting).
+ * 'rounding' is what is left between the posted 2-decimal rows; a positive amount is what bogfor_nu() posts as a
+ * credit on the currency or øre difference account.
  *
  * @param int|string $id A single ordrer.id, or a comma-separated list of ids.
  * @param float|string $headerTotal The orders' sum + moms in the invoice currency.
  * @param float|string $valutakurs ordrer.valutakurs (100 for the base currency).
  * @param float|string $headerVat The orders' moms in the invoice currency (used for the foreign-currency VAT allocation).
  * @return array{
- *   difference: float,  Control debit minus credit in the base currency, 2 decimals.
+ *   difference: float,  Control debit minus credit in the base currency, rounded once to 2 decimals.
+ *   sideDifference: float,  Control debit and credit each rounded to 2 decimals, then subtracted.
  *   rounding: float,    Posted debit minus credit in the base currency, 2 decimals.
  *   lines: int,         Number of order lines posted (bogfor_nu() allows 2 øre per line in a foreign currency).
  * }
@@ -2494,7 +2499,9 @@ function forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerV
 	if (is_numeric($id) && $valutakurs != 100) {
 		$vatAllocations = salesPostingVatAllocations($postingLines['groups'][1], $headerVat, $valutakurs);
 	}
-	$kontrol = salesPostingControlAmount(afrund($headerTotal, 3), $valutakurs);
+	# Debit and credit control totals as bogfor_nu() keeps them
+	$control = array('d' => 0, 'k' => 0);
+	salesPostingControlSide($control, salesPostingControlAmount(afrund($headerTotal, 3), $valutakurs), 'd');
 	$posted = salesPostingAmount(afrund($headerTotal, 3), $valutakurs);
 	for ($t = 1; $t <= 2; $t++) {
 		$rate = ($t == 1) ? $valutakurs : 0;
@@ -2503,19 +2510,24 @@ function forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerV
 				if (!$group['bogf_konto'] || (!$group['pris'] && !$group['linjemoms'])) {
 					continue;
 				}
-				$kontrol -= salesPostingControlAmount($group['pris'], $rate);
+				salesPostingControlSide($control, salesPostingControlAmount($group['pris'], $rate), 'k');
 				$posted -= salesPostingAmount($group['pris'], $rate);
 				if ($t == 1 && $vatAllocations !== null) {
-					$kontrol -= $vatAllocations[$p][$y];
+					salesPostingControlSide($control, $vatAllocations[$p][$y], 'k');
 					$posted -= $vatAllocations[$p][$y];
 				} else {
-					$kontrol -= salesPostingControlAmount($group['linjemoms'], $rate);
+					salesPostingControlSide($control, salesPostingControlAmount($group['linjemoms'], $rate), 'k');
 					$posted -= salesPostingAmount($group['linjemoms'], $rate);
 				}
 			}
 		}
 	}
-	return array('difference' => afrund($kontrol, 2), 'rounding' => afrund($posted, 2), 'lines' => $postingLines['lines']);
+	return array(
+		'difference' => afrund($control['d'] - $control['k'], 2),
+		'sideDifference' => afrund(afrund($control['d'], 2) - afrund($control['k'], 2), 2),
+		'rounding' => afrund($posted, 2),
+		'lines' => $postingLines['lines'],
+	);
 }
 
 function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs, $headerVat = 0)
@@ -2535,17 +2547,21 @@ function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs, $h
 	if ($valutakurs != 100) {
 		$maxdif += 2 * $control['lines'];
 	}
-	$diff = $control['difference'];
-	if (!$diff) {
-		return NULL;
+	# MB-80: both of the checks bogfor_nu() made before, the pre-flight's net difference and the posting's
+	# difference of the rounded sides, so an invoice is refused here, before any write, if either would refuse it
+	foreach (array($control['difference'], $control['sideDifference']) as $diff) {
+		if (!$diff) {
+			continue;
+		}
+		if ($valuta != $baseCurrency && abs($diff) <= $maxdif) {
+			continue;
+		}
+		if (abs($diff) < 0.05) {
+			continue;
+		}
+		return $diff;
 	}
-	if ($valuta != $baseCurrency && abs($diff) <= $maxdif) {
-		return NULL;
-	}
-	if (abs($diff) < 0.05) {
-		return NULL;
-	}
-	return $diff;
+	return NULL;
 }
 /**
  * The order's lines added up as absolute amounts after discount, worked out as bogfor_nu() does.
@@ -2568,8 +2584,8 @@ function pos_lines_amount(int $ordreId): float {
  */
 function bogfor_nu($id, $kilde) {
 
-	include("../includes/genberegn.php");
-	include("../includes/forfaldsdag.php");
+	include(__DIR__ . '/genberegn.php');
+	include(__DIR__ . '/forfaldsdag.php');
 	global $baseCurrency;
 	$brugernavn;
 	global $db, $db_skriv_id;
@@ -3408,16 +3424,14 @@ function bogfor_nu($id, $kilde) {
 	$qtxt = "delete from ordrelinjer where $tmp and posnr < 0 "; #20260630
 	$qtxt.= "and exists (select 1 from ordrelinjer ol_keep where ol_keep.ordre_id = ordrelinjer.ordre_id and ol_keep.posnr >= 0)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	$controlDiff = afrund($d_kontrol - $k_kontrol, 2); # MB-80: the unrounded control sums, as forkontrolPosteringsbalance() decides
 	$d_kontrol = afrund($d_kontrol, 2);
 	$k_kontrol = afrund($k_kontrol, 2);
 	if ($brugernavn == 'saldi')
 		echo __LINE__ . " $d_kontrol != $k_kontrol<br>";
 
-	# MB-80: outside POS the control difference of the unrounded 3-decimal sums decides whether the invoice
-	# balances, exactly as in forkontrolPosteringsbalance(), and the amount booked is what is left between the
-	# posted rows. POS keeps the difference of the rounded sides.
-	$diff = ($art == 'PO') ? afrund($d_kontrol - $k_kontrol, 2) : $controlDiff;
+	# MB-80: the difference of the rounded control sides decides, as before (forkontrolPosteringsbalance() has
+	# already refused an invoice it would refuse). Outside POS the amount booked is what is left between the posted rows.
+	$diff = afrund($d_kontrol - $k_kontrol, 2);
 	$postedDiff = ($art == 'PO') ? 0 : afrund($d_posted - $k_posted, 2);
 	if ($diff || $postedDiff) {
 		$bookDiff = ($art == 'PO') ? $diff : $postedDiff;
