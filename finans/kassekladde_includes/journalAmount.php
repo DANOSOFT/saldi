@@ -19,6 +19,8 @@
 //
 // 20261125 CL/MMR MB-86 (Codex round 1) Whether the field still shows the stored amount is decided on the text left in it, not on the rounded amount.
 //                 0,006 rounds to the 0,01 the field showed, so that edit was lost.
+// 20261125 CL/MMR MB-86 (Codex round 2) An amount that rounds past what kassekladde.amount (numeric(15,3)) holds is refused like any invalid amount.
+//                 The debit/credit swap of a negative amount is decided on the typed sign, so -0,004 is saved as 0.00 on swapped accounts as before.
 //
 // usdecimal() itself is not changed: it is used all over Saldi, also where three decimals are wanted
 // (quantities, prices). Only the journal's save path rounds to øre.
@@ -53,6 +55,31 @@ function journalAmountRound($number) {
  */
 function journalAmountFromInput($input) {
 	return journalAmountRound(str_replace(array('.', ','), array('', '.'), trim((string)$input)));
+}
+
+/**
+ * True when the Beløb text can be saved: Danish format (dk_amount_is_valid()), and rounded to whole øre it fits
+ * kassekladde.amount, numeric(15,3). 999.999.999.999,995 rounds to 1.000.000.000.000,00, which the column cannot
+ * hold, so it is refused like "1234.56" instead of failing in the database.
+ *
+ * @param string|null $input The field's text.
+ * @return bool
+ */
+function journalAmountIsValid($input) {
+	return dk_amount_is_valid($input) && abs(journalAmountFromInput($input)) <= 999999999999.99;
+}
+
+/**
+ * True when the typed amount is below zero before it is rounded. opdater() saves a negative amount as a positive
+ * one on swapped accounts, and -0,004 must still swap although it is saved as 0.00.
+ *
+ * @param string|null $input The field's text, read like journalAmountFromInput() reads it.
+ * @return bool
+ */
+function journalAmountIsNegative($input) {
+	$tal = str_replace(array('.', ','), array('', '.'), trim((string)$input));
+	if (preg_match('/^-\d*(?:\.\d*)?$/', $tal)) return (bool)preg_match('/[1-9]/', $tal);
+	return is_numeric($tal) && (float)$tal < 0;
 }
 
 /**

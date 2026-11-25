@@ -232,6 +232,8 @@
 //                 An amount stored with three decimals before this change is kept until the user types another amount, see journalAmount.php.
 // 20261125 CL/MMR MB-86 (Codex round 1) The kept amount is chosen from the text left in the field, so 0,006 typed over a stored 0.005 shown as 0,01 is saved as 0.010.
 //                 The multi-line if/else bodies in opdater() and indsaet_linjer() have braces.
+// 20261125 CL/MMR MB-86 (Codex round 2) A Beløb that rounds past what kassekladde.amount holds is refused like "1234.56" (journalAmountIsValid()), also on the "+=" line.
+//                 opdater() swaps the accounts of a negative amount on its typed sign, so -0,004 is saved as 0.00 on swapped accounts.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -1580,7 +1582,8 @@ if ($_POST) {
 			$bilag[$x] = bilagFromInput($bilag[$x]);
 			// 20260907 CL/LH  "+=" inserts straight into kassekladde through usdecimal() without passing
 			// kontroller(), so the amount has to be validated here as well; the line stays in tmpkassekl as typed.
-			if ($newLines == '=' && !dk_amount_is_valid($belob[$x])) {
+			# MB-86 also an amount that rounds past what the column holds
+			if ($newLines == '=' && !journalAmountIsValid($belob[$x])) {
 				alert_ugyldigt_belob($belob[$x], bilagFieldValue($bilag[$x], true));
 				$fejl = 1;
 			} elseif ($newLines == '=') {
@@ -3501,7 +3504,8 @@ if ($kladde_id) {
 			}
 			// 20260907 CL/LH  A rejected amount is shown as the operator typed it; usdecimal() would turn
 			// "1234.56" into 123456 and the field would come back as 123.456,00, which then passes validation.
-			if (dk_amount_is_valid($row['amount'])) {
+			# MB-86 also an amount refused because it rounds past what the column holds
+			if (journalAmountIsValid($row['amount'])) {
 				$amount[$x] = usdecimal($row['amount']);
 			} else {
 				$amount[$x] = 0;
@@ -4445,7 +4449,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		// 20260907 CL/LH  The rejected line skips the processing and tmpkassekl update below (elseif), so
 		// nothing downstream converts it: the row inserted from POST keeps the operator's raw text, opdater()
 		// never runs while $fejl is set, and the error re-render shows the text as typed.
-		if ($bilag != "-" && !dk_amount_is_valid($belob)) {
+		// 20261125 CL/MMR MB-86 An amount that rounds past what kassekladde.amount holds (999.999.999.999,995) is refused the same way.
+		if ($bilag != "-" && !journalAmountIsValid($belob)) {
 			# SST-934 the messages show a typed 0 ('00') as 0
 			alert_ugyldigt_belob($belob, bilagFieldValue($bilag, true));
 			$fejl = 1;
@@ -4871,7 +4876,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$beskrivelse = db_escape_string(if_isset($r['beskrivelse'], ''));
 				$debetvat = db_escape_string(if_isset($r['debetvat'], ''));
 				$kreditvat = db_escape_string(if_isset($r['kreditvat'], ''));
-				if ($amount < 0) { # Hvis beloebet er negativt, byttes om paa debet og kredit.
+				# MB-86 the typed sign decides: -0,004 is saved as 0.00 but swaps like any negative amount
+				if (journalAmountIsNegative($r['amount'])) { # Hvis beloebet er negativt, byttes om paa debet og kredit.
 					$tmp = $kredit;
 					$kredit = $debet;
 					$debet = $tmp;
@@ -4881,7 +4887,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$tmp = $kreditvat;
 					$kreditvat = $debetvat;
 					$debetvat = $tmp;
-					$amount = $amount * -1;
+					$amount = abs($amount);
 				}
 
 				if ($r['id'] && ($r['bilag'] || $r['bilag'] == '0')) {

@@ -16,6 +16,7 @@
 // History:
 // 20261125 CL/MMR MB-86: created.
 // 20261125 CL/MMR MB-86 (Codex round 1) The kept amount is decided on the field's text; regression tests for an edit that rounds to the shown amount.
+// 20261125 CL/MMR MB-86 (Codex round 2) The column's range limit and the typed sign that decides the debit/credit swap.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -58,6 +59,61 @@ final class JournalAmountTest extends TestCase
     public function testTypedAmountIsRoundedToWholeOere(string $typed, float $expected): void
     {
         $this->assertSame($expected, journalAmountFromInput($typed));
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: bool}>
+     */
+    public static function amountsAtTheColumnLimit(): array
+    {
+        return array(
+            'the highest cent the column holds'          => array('999.999.999.999,99', true),
+            'its negative'                               => array('-999.999.999.999,99', true),
+            'below the half of the next cent'            => array('999.999.999.999,994', true),
+            'the first text that rounds past the limit'  => array('999.999.999.999,995', false),
+            'its negative counterpart'                   => array('-999.999.999.999,995', false),
+            'a whole amount past the limit'              => array('1.000.000.000.000', false),
+            'past the limit without thousands separators' => array('9999999999999', false),
+            'an ordinary amount'                         => array('12,345', true),
+            'an empty field'                             => array('', true),
+            'a dot as decimal separator stays refused'   => array('1234.56', false),
+        );
+    }
+
+    #[DataProvider('amountsAtTheColumnLimit')]
+    public function testAnAmountThatRoundsPastTheColumnIsRefused(string $typed, bool $valid): void
+    {
+        $this->assertSame($valid, journalAmountIsValid($typed));
+    }
+
+    public function testTheHighestValidAmountIsSavedAsTyped(): void
+    {
+        $this->assertSame(999999999999.99, journalAmountFromInput('999.999.999.999,99'));
+        $this->assertSame(-999999999999.99, journalAmountFromInput('-999.999.999.999,994'));
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: bool}>
+     */
+    public static function typedSigns(): array
+    {
+        return array(
+            'rounds to zero but is negative' => array('-0,004', true),
+            'a negative half øre'            => array('-0,005', true),
+            'an ordinary negative amount'    => array('-50', true),
+            'negative with thousands'        => array('-1.234,56', true),
+            'a negative zero'                => array('-0,000', false),
+            'minus and nothing else'         => array('-', false),
+            'a positive amount'              => array('0,004', false),
+            'a leading plus'                 => array('+5', false),
+            'an empty field'                 => array('', false),
+        );
+    }
+
+    #[DataProvider('typedSigns')]
+    public function testTheTypedSignDecidesTheSwap(string $typed, bool $negative): void
+    {
+        $this->assertSame($negative, journalAmountIsNegative($typed));
     }
 
     public function testNegativeZeroIsNotWrittenAsMinusZero(): void
