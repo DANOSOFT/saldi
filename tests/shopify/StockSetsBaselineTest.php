@@ -10,6 +10,7 @@
 // 20261106 CL/SZ SD-757 review: a moved-on acknowledgement blocks the stamp unless dirty, committed stock defers a pair.
 //                A stored zero call waits for its items' barriers; the sandbox scripts print lines the runner reads.
 //                A set inside a set doesn't keep the baseline from stamping.
+// 20261124 CL/LH SD-868: the nightly read compares what the push would show, so committed stock needs no deferral. A set drawn for an unshipped order is held once.
 
 declare(strict_types=1);
 
@@ -73,7 +74,9 @@ final class StockSetsBaselineTest extends TestCase
                 $this->sql("DROP TRIGGER IF EXISTS $name ON $table");
             }
         }
-        foreach (['shopify_stock_state', 'shopify_stock_dirty', 'shopify_move_barriers', 'shopify_product_links', 'shopify_location_map',
+        $this->sql("DELETE FROM ordrelinjer WHERE ordre_id IN (SELECT id FROM ordrer WHERE ordrenr BETWEEN 86800 AND 86899 AND art = 'DO')");
+        $this->sql("DELETE FROM ordrer WHERE ordrenr BETWEEN 86800 AND 86899 AND art = 'DO'");
+        foreach (['shopify_fulfillments', 'shopify_order_links', 'shopify_stock_state', 'shopify_stock_dirty', 'shopify_move_barriers', 'shopify_product_links', 'shopify_location_map',
             'shopify_lager', 'shopify_jobs', 'shopify_errors', 'shopify_shops'] as $table) {
             $this->sql("DELETE FROM $table");
         }
@@ -192,6 +195,34 @@ final class StockSetsBaselineTest extends TestCase
         $this->assertSame(0, $shown['Kolding'], 'lager 2 has none whole');
         $this->assertSame(2, $shown['Mårum'], 'the cross-location sets');
         $this->assertSame(3, $shown['Ballerup'] + $shown['Kolding'] + $shown['Mårum'], 'never more than the lagre can assemble: min(3/1, 8/2)');
+    }
+
+    public function test_a_set_saldi_drew_for_an_unshipped_web_order_is_held_once_and_its_components_not_at_all(): void
+    {
+        $x = $this->item('X', [1 => 4]);
+        $y = $this->item('Y', [1 => 8]);
+        $set = $this->set('SET', [$x => 1, $y => 2]);
+        $this->shop([$set, $x, $y]);
+        $this->dirty([$set, $x, $y]);
+        $this->assertNoException($this->steps(['drain', 100], ['push', 'hml']));
+
+        // a web order of 2 sets: Shopify commits the set item at Ballerup; Saldi imported it and drew the components (opret_saet()'s rows)
+        $this->assertNoException($this->steps(['hold', 'hml', $set, 1, 2]));
+        $ordreId = (int)$this->sql("INSERT INTO ordrer (ordrenr, art, status, firmanavn) VALUES (86811, 'DO', 4, 'SD868 Kunde') RETURNING id")[0]['id'];
+        $this->sql("INSERT INTO ordrelinjer (ordre_id, posnr, vare_id, varenr, antal, leveret, lager, saet, samlevare) VALUES
+            ($1, 1, $2, 'x', 2, 2, 1, 1, ''), ($1, 2, $3, 'y', 4, 4, 1, 1, ''), ($1, 3, $4, 'set', 1, 1, 1, 1, 'on')", [$ordreId, $x, $y, $set]);
+        $this->sql("INSERT INTO shopify_order_links (shop_id, order_gid, order_name, ordre_id, direction, state)
+            SELECT id, 'gid://shopify/Order/86811', '#86811', $1, 'web', 'invoiced' FROM shopify_shops WHERE shop_key = 'hml'", [$ordreId]);
+        $this->sql('UPDATE lagerstatus SET beholdning = 2 WHERE vare_id = $1 AND lager = 1', [$x]);
+        $this->sql('UPDATE lagerstatus SET beholdning = 4 WHERE vare_id = $1 AND lager = 1', [$y]);
+        $this->dirty([$set, $x, $y]);
+        $run = $this->steps(['drain', 100], ['push', 'hml']);
+        $this->assertNoException($run);
+
+        $this->assertSame(['on_hand' => 4, 'committed' => 2], $run['held']['hml']['SD757-SET']['Ballerup'], 'the 2 sets Saldi drew are not held back again');
+        $this->assertSame(2, $run['levels']['hml']['SD757-SET']['Ballerup'], 'min(2/1, 4/2) sets for sale, the order\'s 2 held once');
+        $this->assertSame([2, 4], [$run['levels']['hml']['SD757-X']['Ballerup'], $run['levels']['hml']['SD757-Y']['Ballerup']],
+            'Shopify commits nothing on the components, so their draws are not added');
     }
 
     public function test_a_set_with_two_components_shows_the_right_quantity_and_follows_a_component(): void
@@ -745,22 +776,22 @@ final class StockSetsBaselineTest extends TestCase
         $this->assertSame(0, $out['drifted']);
     }
 
-    public function test_a_pair_with_stock_committed_in_shopify_is_deferred_not_corrected(): void
+    public function test_a_pair_with_stock_committed_in_shopify_is_compared_with_what_the_push_would_show(): void
     {
         $id = $this->inStep('A', [1 => 5, 2 => 4]);
-        // an unpaid order holds 2 at Ballerup: available 3 there, Saldi still 5
+        // an order Saldi has not drawn holds 2 at Ballerup: available 3 there, as Saldi's 5 less the 2 held
         $this->assertNoException($this->steps(['hold', 'hml', $id, 1, 2]));
-        // at Kolding the order is held as well, but available is back at Saldi's 4: nothing to defer
+        // at Kolding the order is held as well, and someone put the held unit back on sale in the admin (available 4, Saldi 4 less 1)
         $this->assertNoException($this->steps(['hold', 'hml', $id, 2, 1], ['level', 'hml', $id, 2, 4]));
 
         $out = $this->reconcile();
 
-        $this->assertSame(0, $out['drifted']);
-        $this->assertSame(1, $out['deferred']);
-        $this->assertStringContainsString("item $id at lager 1 deferred: Shopify 3 with 2 committed, Saldi 5", implode(' ', $this->errors()));
+        $this->assertSame(1, $out['drifted'], 'SD-868: the held units are left out on both sides; only Kolding differs');
+        $this->assertArrayNotHasKey('deferred', $out);
+        $this->assertStringContainsString("item $id at lager 2: Shopify 4, Saldi 3", implode(' ', $this->errors()));
         $push = $this->steps(['push', 'hml']);
-        $this->assertSame([], self::calls($push, 'stockSet'), 'the reserved unit is not put on sale again');
-        $this->assertSame(3, $push['levels']['hml']['SD757-A']['Ballerup']);
+        $this->assertSame([3, 3], [$push['levels']['hml']['SD757-A']['Ballerup'], $push['levels']['hml']['SD757-A']['Kolding']],
+            'the reserved units stay reserved at both');
     }
 
     public function test_a_lost_file_is_fetched_again(): void

@@ -35,6 +35,7 @@
 // 20261112 CL/SZ SD-822: stagedUploadsCreate, the upload seam, bulkOperationRunMutation of inventoryBulkToggleActivation (B39, B40).
 //                Test knobs refuseActivation(), failBulkAfter(), hideQuantity(), refuseQuantity() and limitBulkOnce().
 // 20261113 CL/SZ SD-822 Review: a failure can be a sequence of modes, one per call.
+// 20261124 CL/LH SD-868: shipHeld(), the warehouse ships what holdForOrder() held (B17).
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -192,6 +193,19 @@ final class FakeShopifyStore
 	public function holdForOrder(string $domain, string $item, string $location, int $qty): void
 	{
 		$this->commit($domain, $item, $location, $qty);
+	}
+
+	/** The order holdForOrder() held is shipped: on_hand and committed drop by $qty, available stays (B17). */
+	public function shipHeld(string $domain, string $item, string $location, int $qty): void
+	{
+		$this->uses('B17');
+		$level = &$this->shop($domain)['levels'][$item][$location];
+		if ($level['committed'] < $qty) {
+			throw new LogicException("FakeShopifyStore: $item has {$level['committed']} committed at $location, not $qty");
+		}
+		$level['on_hand'] -= $qty;
+		$level['committed'] -= $qty;
+		$level['updated'] = $this->clock->now;
 	}
 
 	/** A quantity changed in the shop's admin, not through Saldi: what the nightly read looks for. */

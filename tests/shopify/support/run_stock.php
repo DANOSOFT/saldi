@@ -12,9 +12,10 @@
 //        ["open", shop_key, ordre_id, [vare_ids]], ["release", shop_key, ordre_id],
 //        ["display", shop_key, seconds], ["udstillet", shop_key, vare_id] (the metafield's value), ["level", shop_key, vare_id, lager, quantity] (changed in the shop's admin),
 //        ["start_baseline", shop_key], ["baseline", shop_key, checkpoint, seconds], ["reconcile", shop_key, checkpoint, lines_per_run, seconds], ["kill_file", shop_key, bulk operation id], ["file", shop_key, bulk operation id],
-//        ["location", shop_key, name] (a new location, its GID as the result), ["remap", shop_key, lager, new location GID or null].
+//        ["location", shop_key, name] (a new location, its GID as the result), ["remap", shop_key, lager, new location GID or null],
+//        ["hold", shop_key, vare_id, lager, quantity] (an order Saldi has not drawn holds it), ["ship", shop_key, vare_id, lager, quantity] (that order ships).
 // Prints JSON: one result per step (or its exception), the calls sent and every shop's available
-// quantity per SKU and location name.
+// quantity per SKU and location name (levels), and its on_hand and committed (held).
 //
 // History:
 // 20261104 CL/SZ SD-756: created.
@@ -25,6 +26,7 @@
 // 20261112 CL/SZ SD-822: steps start_activate, activate, hide, refuse_toggle, refuse_set, limit_bulk and fail_bulk.
 // 20261112 CL/SZ SD-822 CodeRabbit: activate can run out of time just before the upload.
 // 20261113 CL/SZ SD-822 Review: or right after it, before the bulk mutation starts.
+// 20261124 CL/LH SD-868: step ship (the warehouse ships what hold held); the output's on_hand and committed per SKU and location.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_stock.php <test_db> <state file> '<steps json>'\n");
@@ -141,6 +143,10 @@ try {
                     $store->holdForOrder($domain($step[1]), shopify_product_link($shopId($step[1]), (int)$step[2])['inventory_item_gid'], $location($step[1], (int)$step[3]), (int)$step[4]);
                     $results[] = 'held';
                     break;
+                case 'ship':
+                    $store->shipHeld($domain($step[1]), shopify_product_link($shopId($step[1]), (int)$step[2])['inventory_item_gid'], $location($step[1], (int)$step[3]), (int)$step[4]);
+                    $results[] = 'shipped';
+                    break;
                 case 'start_baseline':
                     $results[] = shopify_stock_start_baseline([], $shopId($step[1]));
                     break;
@@ -222,14 +228,15 @@ try {
 }
 $state = $store->exportState();
 file_put_contents($stateFile, json_encode($state));
-$levels = [];
+$levels = $held = [];
 foreach ($state['shops'] as $s) {
     foreach ($s['variants'] as $v) {
         foreach ($s['levels'][$v['item']] ?? [] as $gid => $level) {
             $levels[$s['key']][$v['sku']][$s['locations'][$gid]['name']] = $level['available'];
+            $held[$s['key']][$v['sku']][$s['locations'][$gid]['name']] = ['on_hand' => $level['on_hand'], 'committed' => $level['committed']];
         }
     }
 }
 $calls = array_map(fn(array $c): array => ['shop' => substr($c['shop'], 0, strpos($c['shop'], '-')), 'operation' => $c['operation'], 'variables' => $c['variables'], 'status' => $c['status']],
     array_slice($store->calls, $sent));
-echo json_encode(['results' => $results, 'calls' => $calls, 'levels' => $levels], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+echo json_encode(['results' => $results, 'calls' => $calls, 'levels' => $levels, 'held' => $held], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

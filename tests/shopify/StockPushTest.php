@@ -20,6 +20,8 @@
 //                An item Shopify refuses to stock is left out with a warning.
 // 20261105 CL/SZ SD-756 review: a stored call and an open barrier, a lost activation, a pair the read misses, an item over one call's size.
 // 20261120 CDX/NTR Materialize the held batch and cover the drain limit after empty-table statistics.
+// 20261124 CL/LH SD-868: a unit Shopify holds for an order Saldi has not drawn stays reserved; one Saldi drew is not held twice.
+//                A shipment Saldi has not projected yet, or a draw from another lager, holds back no less; an order committed after the read makes the call stale.
 
 use PHPUnit\Framework\TestCase;
 
@@ -80,7 +82,9 @@ final class StockPushTest extends TestCase
                 $this->sql("DROP TRIGGER IF EXISTS $name ON $table");
             }
         }
-        foreach (['shopify_stock_state', 'shopify_stock_dirty', 'shopify_move_barriers', 'shopify_product_links', 'shopify_location_map',
+        $this->sql("DELETE FROM ordrelinjer WHERE ordre_id IN (SELECT id FROM ordrer WHERE ordrenr BETWEEN 86800 AND 86899 AND art = 'DO')");
+        $this->sql("DELETE FROM ordrer WHERE ordrenr BETWEEN 86800 AND 86899 AND art = 'DO'");
+        foreach (['shopify_fulfillments', 'shopify_order_links', 'shopify_stock_state', 'shopify_stock_dirty', 'shopify_move_barriers', 'shopify_product_links', 'shopify_location_map',
             'shopify_lager', 'shopify_jobs', 'shopify_errors', 'shopify_shops'] as $table) {
             $this->sql("DELETE FROM $table");
         }
@@ -192,7 +196,7 @@ final class StockPushTest extends TestCase
         $this->assertCount(3, array_unique($keys), 'each call has a key of its own');
         foreach (self::sets($run) as $call) {
             $this->assertSame('available', $call['variables']['input']['name']);
-            $this->assertNull($call['variables']['input']['quantities'][0]['changeFromQuantity']);
+            $this->assertSame(0, $call['variables']['input']['quantities'][0]['changeFromQuantity'], 'SD-868: set only while Shopify still has what the read saw');
         }
         $this->assertSame(7, $run['levels']['hml']['SD756-7']['Mårum']);
         $this->assertSame(501, (int)$this->sql('SELECT count(*) AS n FROM shopify_stock_state')[0]['n']);
@@ -200,6 +204,146 @@ final class StockPushTest extends TestCase
         $this->dirty($ids);
         $again = $this->steps(['drain', 1000], ['push', 'hml']);
         $this->assertSame([], self::sets($again), 'what Shopify already has is not sent again');
+    }
+
+    /**
+     * A web order Saldi imported and drew (SD-743): the Saldi order with its plain line at $lager and
+     * the link; $fulfilled is the link's last known Shopify fulfillment status.
+     */
+    private function webOrder(int $ordrenr, int $vareId, int $lager, float $qty, ?string $fulfilled = null, ?string $cancelledAt = null): string
+    {
+        $ordreId = (int)$this->sql("INSERT INTO ordrer (ordrenr, art, status, firmanavn) VALUES ($1, 'DO', 4, 'SD868 Kunde') RETURNING id", [$ordrenr])[0]['id'];
+        $this->sql("INSERT INTO ordrelinjer (ordre_id, posnr, vare_id, varenr, antal, leveret, lager, saet) VALUES ($1, 1, $2, 'x', $3, $3, $4, 0)", [$ordreId, $vareId, $qty, $lager]);
+        $gid = "gid://shopify/Order/868$ordrenr";
+        $this->sql("INSERT INTO shopify_order_links (shop_id, order_gid, order_name, ordre_id, direction, state, flags, cancelled_at)
+            SELECT id, $1, $2, $3, 'web', 'invoiced', $4::jsonb, $5 FROM shopify_shops WHERE shop_key = 'hml'",
+            [$gid, "#$ordrenr", $ordreId, json_encode(['status' => ['fulfillment_status' => $fulfilled]]), $cancelledAt]);
+        return $gid;
+    }
+
+    /** Shopify's fulfillment of $qty of the item, as SD-801 projects it. */
+    private function fulfilment(string $orderGid, int $vareId, int $qty, string $status = 'success'): void
+    {
+        $variant = $this->sql("SELECT variant_gid FROM shopify_product_links l JOIN shopify_shops s ON s.id = l.shop_id WHERE s.shop_key = 'hml' AND l.vare_id = $1", [$vareId])[0]['variant_gid'];
+        $id = random_int(1000, 999999);
+        $body = ['id' => $id, 'order_id' => (int)substr($orderGid, strrpos($orderGid, '/') + 1), 'status' => $status,
+            'line_items' => [['id' => 1, 'variant_id' => (int)substr($variant, strrpos($variant, '/') + 1), 'quantity' => $qty]]];
+        $this->sql("INSERT INTO shopify_fulfillments (shop_id, order_gid, fulfillment_gid, status, payload_b64) SELECT id, $1, $2, $3, $4 FROM shopify_shops WHERE shop_key = 'hml'",
+            [$orderGid, "gid://shopify/Fulfillment/$id", $status, base64_encode(json_encode($body))]);
+    }
+
+    public function test_a_unit_shopify_holds_for_an_order_saldi_has_not_drawn_stays_reserved_after_a_stock_change(): void
+    {
+        $id = $this->item('parasol', [1 => 5]);
+        $this->steps(...$this->shops([$id], ['hml']));
+        $this->dirty([$id]);
+        $this->assertNoException($this->steps(['drain', 100], ['push', 'hml']));
+        // a web order Saldi has not imported (waiting for its payment, or refused) holds 2 at Mårum
+        $this->assertNoException($this->steps(['hold', 'hml', $id, 1, 2]));
+
+        // a goods receipt of 3 in Saldi
+        $this->sql('UPDATE lagerstatus SET beholdning = 8 WHERE vare_id = $1 AND lager = 1', [$id]);
+        $this->dirty([$id]);
+        $run = $this->steps(['drain', 100], ['push', 'hml']);
+        $this->assertNoException($run);
+
+        $this->assertSame(['on_hand' => 8, 'committed' => 2], $run['held']['hml']['SD756-parasol']['Mårum'], 'Shopify counts the 8 Saldi has and keeps the order\'s 2');
+        $this->assertSame(6, $run['levels']['hml']['SD756-parasol']['Mårum'], 'SD-868: the 2 reserved units are not put on sale again');
+    }
+
+    public function test_units_saldi_drew_for_a_web_order_not_shipped_yet_are_not_held_twice(): void
+    {
+        $id = $this->item('bord', [1 => 5]);
+        $other = $this->item('stol', [1 => 4]);
+        $this->steps(...$this->shops([$id, $other], ['hml']));
+        $this->dirty([$id, $other]);
+        $this->assertNoException($this->steps(['drain', 100], ['push', 'hml']));
+
+        // the order of 2 is committed in Shopify; Saldi imports it on its authorization and draws 2 (option A), long before it ships
+        $this->assertNoException($this->steps(['hold', 'hml', $id, 1, 2]));
+        $order = $this->webOrder(86801, $id, 1, 2);
+        $this->sql('UPDATE lagerstatus SET beholdning = 3 WHERE vare_id = $1 AND lager = 1', [$id]);
+        // orders of the other item that no longer hold anything: shipped, cancelled, a store order
+        $this->webOrder(86802, $other, 1, 1, 'fulfilled');
+        $this->webOrder(86803, $other, 1, 1, null, '2026-11-20 10:00:00');
+        $this->sql("UPDATE shopify_order_links SET direction = 'store' WHERE order_gid = $1", [$this->webOrder(86804, $other, 1, 1)]);
+        $this->dirty([$id, $other]);
+        $run = $this->steps(['drain', 100], ['push', 'hml']);
+        $this->assertNoException($run);
+        $this->assertSame(3, $run['levels']['hml']['SD756-bord']['Mårum'], 'the 2 Saldi drew are committed in Shopify once, not subtracted again');
+        $this->assertSame(['on_hand' => 5, 'committed' => 2], $run['held']['hml']['SD756-bord']['Mårum'], 'the parcel is still in the warehouse');
+        $this->assertSame([], array_values(array_filter(array_merge(...array_map(fn(array $c): array => $c['variables']['input']['quantities'], self::sets($run))),
+            fn(array $q): bool => $q['quantity'] !== 3 && $q['quantity'] !== 5)), 'nothing else was sent');
+        $this->assertSame(4, $run['levels']['hml']['SD756-stol']['Mårum'], 'a shipped, cancelled or store order holds nothing');
+
+        // the warehouse ships one of the two; SD-801 projects the fulfillment
+        $this->assertNoException($this->steps(['ship', 'hml', $id, 1, 1]));
+        $this->fulfilment($order, $id, 1);
+        $this->sql('UPDATE lagerstatus SET beholdning = 4 WHERE vare_id = $1 AND lager = 1', [$id]); // and a return of 1 in Saldi
+        $this->dirty([$id]);
+        $run = $this->steps(['drain', 100], ['push', 'hml']);
+        $this->assertNoException($run);
+        $this->assertSame(['on_hand' => 5, 'committed' => 1], $run['held']['hml']['SD756-bord']['Mårum'], 'the shipped unit is gone from on_hand, the other still held');
+        $this->assertSame(4, $run['levels']['hml']['SD756-bord']['Mårum']);
+
+        // a cancelled fulfillment ships nothing
+        $this->fulfilment($order, $id, 1, 'cancelled');
+        $this->dirty([$id]);
+        $this->assertSame(4, $this->steps(['drain', 100], ['push', 'hml'])['levels']['hml']['SD756-bord']['Mårum']);
+    }
+
+    public function test_a_shipment_saldi_has_not_projected_or_a_draw_from_another_lager_holds_back_no_less(): void
+    {
+        $id = $this->item('hynde', [1 => 5, 2 => 4]);
+        $this->steps(...$this->shops([$id], ['hml']));
+        $this->dirty([$id]);
+        $this->assertNoException($this->steps(['drain', 100], ['push', 'hml']));
+
+        // an order of 2 committed at Mårum, imported and drawn; the warehouse ships 1 and the fulfillment webhook is not in yet
+        $this->assertNoException($this->steps(['hold', 'hml', $id, 1, 2], ['ship', 'hml', $id, 1, 1]));
+        $this->webOrder(86805, $id, 1, 2);
+        // another order of 2 committed at Ballerup, which Saldi drew from Mårum instead
+        $this->assertNoException($this->steps(['hold', 'hml', $id, 2, 2]));
+        $this->webOrder(86806, $id, 1, 2);
+        $this->sql('UPDATE lagerstatus SET beholdning = 4 WHERE vare_id = $1 AND lager = 1', [$id]); // 5 - 2 - 2 + a receipt of 3
+        $this->dirty([$id]);
+        $run = $this->steps(['drain', 100], ['push', 'hml']);
+        $this->assertNoException($run);
+
+        $this->assertSame(4, $run['levels']['hml']['SD756-hynde']['Mårum'], 'Saldi\'s 4: its 4 open draws count only up to the 1 Shopify still holds there');
+        $this->assertSame(2, $run['levels']['hml']['SD756-hynde']['Ballerup'], 'Saldi\'s 4 less the 2 Shopify holds there: no draw of Saldi\'s is matched to them');
+    }
+
+    public function test_an_order_committed_after_the_read_makes_the_call_stale_and_it_is_planned_again(): void
+    {
+        $id = $this->item('pude', [1 => 5]);
+        $this->steps(...$this->shops([$id], ['hml']));
+        $this->dirty([$id]);
+        $this->assertNoException($this->steps(['drain', 100], ['push', 'hml']));
+
+        $this->sql('UPDATE lagerstatus SET beholdning = 8 WHERE vare_id = $1 AND lager = 1', [$id]);
+        $this->dirty([$id]);
+        // the call is planned (available 8 from 5), then an order Saldi has not drawn commits 2 before it is sent
+        $planned = $this->steps(['drain', 100], ['next', 'hml'], ['hold', 'hml', $id, 1, 2], ['push', 'hml']);
+        $this->assertNoException($planned);
+        $sets = self::sets($planned);
+        $this->assertSame([5, 3], array_map(fn(array $c): ?int => $c['variables']['input']['quantities'][0]['changeFromQuantity'], $sets),
+            'the stale call, then one planned again from the new read');
+        $this->assertSame(6, $planned['levels']['hml']['SD756-pude']['Mårum'], 'Saldi\'s 8 less the 2 the order holds');
+        $this->assertSame([], $this->sql("SELECT message FROM shopify_errors WHERE resolved_at IS NULL"), 'a stale call is no error');
+        $stale = fn(): ?string => $this->sql("SELECT var_value FROM settings WHERE var_grp = 'shopify_state' AND var_name = 'stock.stale:hml'")[0]['var_value'] ?? null;
+        $this->assertContains($stale(), [null, '[]', '{}'], 'the call that went through ends the run of stale answers');
+
+        // a pair so busy that the last 3 calls were stale: the next one goes without the check, as before SD-868
+        $this->sql("DELETE FROM settings WHERE var_grp = 'shopify_state' AND var_name = 'stock.stale:hml'");
+        $this->sql("INSERT INTO settings (var_grp, var_name, var_value) VALUES ('shopify_state', 'stock.stale:hml', '{\"count\": 3}')");
+        $this->sql('UPDATE lagerstatus SET beholdning = 9 WHERE vare_id = $1 AND lager = 1', [$id]);
+        $this->dirty([$id]);
+        $busy = $this->steps(['drain', 100], ['push', 'hml']);
+        $this->assertNoException($busy);
+        $this->assertSame([null], array_map(fn(array $c): ?int => $c['variables']['input']['quantities'][0]['changeFromQuantity'], self::sets($busy)));
+        $this->assertSame(7, $busy['levels']['hml']['SD756-pude']['Mårum']);
+        $this->assertContains($stale(), [null, '[]', '{}']);
     }
 
     public function test_a_ballerup_sale_reaches_ballerup_in_all_three_shops_in_one_worker_pass(): void

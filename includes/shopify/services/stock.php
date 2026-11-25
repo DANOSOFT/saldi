@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/stock.php --- ver 5.1.0 --- 2026.11.20
+// --- includes/shopify/services/stock.php --- ver 5.1.1 --- 2026.11.24
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,12 +32,19 @@
 //
 // The stock push (WP06-2, K12, K18): the worker's stock producer drains shopify_stock_dirty into a
 // dirty set per shop that captures stock and queues one stock.push job per shop. The job sends
-// absolute available quantities, the ones that differ from what Shopify last acknowledged
+// absolute available quantities for the pairs whose Saldi quantity differs from what Shopify last acknowledged
 // (shopify_stock_state), in inventorySetQuantities calls of at most 250. Each call is stored as the
 // shop's pending mutation before it is sent and is resent unchanged, with the same @idempotent key,
 // until Shopify answers it, so a shop has one unresolved mutation at a time and a crash or timeout
 // never draws twice. The pending mutation and the dirty set live in the shop's queue state, not in a
 // job's checkpoint, so every job of the shop sees them. Saldi's stock is never changed from Shopify.
+// SD-868: Shopify holds units for open orders as committed. Saldi has already drawn the units of the
+// web orders it imported, but not those of an order it has not imported (no payment yet, refused), so
+// the quantity sent is Saldi's less what Shopify holds beyond Saldi's open web draws: max(0, committed
+// - drawn), read with the stocked locations just before the call (shopify_stock_open_web_draws()).
+// An error in Saldi's estimate of its draws can only make fewer units for sale, never more, as it is
+// capped by what Shopify holds. The call sets available only while it is what the read saw, so an
+// order committed in between makes the call stale, and it is planned again.
 //
 // Sets, display stock, reconcile, baseline and remap (WP06-3, K09, K12, K13, K19, K55): a set publishes
 // complete sets per lager and the surplus on the split-set lager, and waits for a barrier on any of
@@ -72,6 +79,10 @@
 // 20261113 CL/SZ SD-822 Review: the unanswered zero call is kept in the shop's state, so a failed pass or a dead job keeps its key.
 //                It goes first again, and the baseline refuses while it is there.
 // 20261120 CDX/NTR Materialize the drain batch once so a nested-loop plan cannot delete beyond its limit.
+// 20261124 CL/LH SD-868: the push keeps the units Shopify holds for orders Saldi has not drawn (committed less Saldi's open web draws).
+//                It reads committed with the stocked locations and sets available only if it is still what was read (changeFromQuantity).
+//                The nightly read compares on the same basis, so committed stock is no longer deferred.
+//                After 3 stale answers in a row the next call goes without the check, so a busy pair can't hold back the others.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -237,13 +248,15 @@ const SHOPIFY_STOCK_BATCH = 250;
 const SHOPIFY_STOCK_MIN_SECONDS = 5;
 /** A push whose remaining items all wait for a move barrier, or for the gate, looks again after this many seconds. */
 const SHOPIFY_STOCK_DEFERRED_SECONDS = 60;
+/** After this many stale answers in a row a shop's next call is sent without the check, so one busy pair can't hold back the rest. */
+const SHOPIFY_STOCK_STALE_TRIES = 3;
 /** Items of the dirty set read per query while a call is filled. */
 const SHOPIFY_STOCK_SLICE = 500;
 const SHOPIFY_STOCK_SET = 'mutation stockSet($input: InventorySetQuantitiesInput!, $key: String!) {
 	inventorySetQuantities(input: $input) @idempotent(key: $key) { inventoryAdjustmentGroup { id } userErrors { field message code } }
 }';
 const SHOPIFY_STOCK_LEVELS = 'query stockLevels($ids: [ID!]!) {
-	nodes(ids: $ids) { ... on InventoryItem { id inventoryLevels(first: 50) { nodes { location { id } } } } }
+	nodes(ids: $ids) { ... on InventoryItem { id inventoryLevels(first: 50) { nodes { location { id } quantities(names: ["available", "committed"]) { name quantity } } } } }
 }';
 const SHOPIFY_STOCK_ACTIVATE = 'mutation stockActivate($item: ID!, $location: ID!, $available: Int!, $key: String!) {
 	inventoryActivate(inventoryItemId: $item, locationId: $location, available: $available) @idempotent(key: $key) { inventoryLevel { id } userErrors { field message } }
@@ -488,7 +501,8 @@ function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 	if ($settled !== array()) {
 		shopify_stock_unmark($shop, $settled);
 	}
-	$refused = $rows === array() ? array() : shopify_stock_levels_ready($rt, $shop, $rows, $deadline);
+	$levels = array();
+	$refused = $rows === array() ? array() : shopify_stock_levels_ready($rt, $shop, $rows, $deadline, $levels);
 	if ($refused === null) {
 		return array();
 	}
@@ -501,10 +515,15 @@ function shopify_stock_next(array $rt, array $shop, float $deadline): array {
 	if ($rows === array()) {
 		return array();
 	}
+	$open = shopify_stock_open_web_draws($shopId, array_values(array_unique(array_column($rows, 'vare_id'))));
+	$check = (int)(shopify_queue_state_get("stock.stale:{$shop['shop_key']}")['count'] ?? 0) < SHOPIFY_STOCK_STALE_TRIES;
 	$quantities = array();
 	foreach ($rows as $row) {
+		// a pair the read did not see (just stocked, or past its 50 locations): nothing known committed, set without a check
+		$level = $levels["{$row['inventory_item_gid']}|{$row['location_gid']}"] ?? array('available' => null, 'committed' => 0);
 		$quantities[] = array('inventoryItemId' => $row['inventory_item_gid'], 'locationId' => $row['location_gid'],
-			'quantity' => $row['quantity'], 'changeFromQuantity' => null);
+			'quantity' => shopify_stock_sellable($row['quantity'], $level['committed'], $open[$row['vare_id']][$row['lager']] ?? 0),
+			'changeFromQuantity' => $check ? $level['available'] : null);
 	}
 	$pending = array(
 		'vars' => array('key' => shopify_stock_key(), 'input' => array('name' => 'available', 'reason' => 'correction', 'quantities' => $quantities)),
@@ -620,6 +639,124 @@ function shopify_stock_plan(int $shopId, array $ids, array $config): array {
 }
 
 /**
+ * The units Saldi drew for web orders that Shopify has not shipped yet, per item and lager: Shopify
+ * still has them on hand and committed to the order, Saldi no longer has them (SD-743 draws at the
+ * import). A plain line counts what was delivered; a set counts its sets at the set line's lager
+ * (its first component's delivered quantity over the BOM's), and its components count nothing, as
+ * Shopify commits only the set. Orders that hold nothing any more are left out: cancelled, store
+ * orders, and orders whose last known fulfillment status is fulfilled. What Shopify fulfilled of an
+ * order (SD-801's projection, a cancelled, failed or errored fulfillment not counted) is taken off,
+ * at the fulfilment's location first. Whole units, rounded down. An estimate: its caller caps it by
+ * what Shopify has committed (shopify_stock_sellable()), so a fulfilment not projected yet, a draw
+ * from another lager than Shopify's or a changed BOM can only hold back more, never less.
+ *
+ * @param list<int> $ids
+ * @return array<int, array<int, int>> vare_id => lager => units
+ */
+function shopify_stock_open_web_draws(int $shopId, array $ids): array {
+	if ($ids === array()) {
+		return array();
+	}
+	$rows = shopify_db_rows(
+		"SELECT l.order_gid, ol.ordre_id, ol.vare_id, ol.lager, coalesce(ol.saet, 0) AS saet, round(coalesce(ol.leveret, 0) * 1000)::bigint AS milli,
+			coalesce(ol.samlevare, '') = 'on' AS is_set
+		 FROM shopify_order_links l JOIN ordrelinjer ol ON ol.ordre_id = l.ordre_id
+		 WHERE l.shop_id = $1 AND l.direction = 'web' AND l.cancelled_at IS NULL
+			AND coalesce(l.flags->'status'->>'fulfillment_status', '') <> 'fulfilled'
+			AND ol.vare_id = ANY($2::int[]) AND ol.lager IS NOT NULL
+			AND (coalesce(ol.saet, 0) = 0 OR coalesce(ol.samlevare, '') = 'on')
+		 ORDER BY l.order_gid, ol.lager, ol.id",
+		array($shopId, shopify_barrier_int_array($ids))
+	);
+	if ($rows === array()) {
+		return array();
+	}
+	// a set line: its sets, from the first component's delivered quantity
+	$sets = array_filter($rows, fn(array $r): bool => $r['is_set'] === 't');
+	$boms = shopify_stock_boms(array_values(array_unique(array_map(fn(array $r): int => (int)$r['vare_id'], $sets))));
+	if ($sets !== array()) {
+		$delivered = array();
+		foreach (shopify_db_rows(
+			'SELECT ordre_id, saet, vare_id, round(sum(coalesce(leveret, 0)) * 1000)::bigint AS milli FROM ordrelinjer
+			 WHERE ordre_id = ANY($1::int[]) AND saet > 0 AND coalesce(samlevare, \'\') <> \'on\' GROUP BY ordre_id, saet, vare_id',
+			array(shopify_barrier_int_array(array_values(array_unique(array_map(fn(array $r): int => (int)$r['ordre_id'], $sets)))))
+		) as $c) {
+			$delivered[(int)$c['ordre_id']][(int)$c['saet']][(int)$c['vare_id']] = (int)$c['milli'];
+		}
+	}
+	$draws = array();
+	foreach ($rows as $r) {
+		$vareId = (int)$r['vare_id'];
+		if ($r['is_set'] === 't') {
+			$first = $boms[$vareId][0] ?? null;
+			$milli = $first === null || $first['quantity_milli'] < 1 ? 0
+				: intdiv($delivered[(int)$r['ordre_id']][(int)$r['saet']][$first['vare_id']] ?? 0, $first['quantity_milli']) * 1000;
+		} else {
+			$milli = (int)$r['milli'];
+		}
+		if ($milli > 0) {
+			$draws[$r['order_gid']][$vareId][(int)$r['lager']] = ($draws[$r['order_gid']][$vareId][(int)$r['lager']] ?? 0) + $milli;
+		}
+	}
+	if ($draws === array()) {
+		return array();
+	}
+	$variants = array_column(shopify_db_rows('SELECT variant_gid, vare_id FROM shopify_product_links WHERE shop_id = $1 AND variant_id = 0 AND vare_id = ANY($2::int[]) AND variant_gid IS NOT NULL',
+		array($shopId, shopify_barrier_int_array($ids))), 'vare_id', 'variant_gid');
+	$lagerOf = array_column(shopify_db_rows('SELECT lager, location_gid FROM shopify_location_map WHERE shop_id = $1', array($shopId)), 'lager', 'location_gid');
+	foreach (shopify_db_rows(
+		"SELECT order_gid, payload_b64 FROM shopify_fulfillments WHERE shop_id = $1 AND order_gid = ANY($2::text[])
+			AND lower(coalesce(status, '')) NOT IN ('cancelled', 'error', 'failure')",
+		array($shopId, '{' . implode(',', array_map(fn(string $gid): string => '"' . addcslashes($gid, '"\\') . '"', array_keys($draws))) . '}')
+	) as $f) {
+		$body = json_decode((string)base64_decode((string)$f['payload_b64'], true), true);
+		if (!is_array($body)) {
+			continue;
+		}
+		$at = isset($body['location_id']) && (int)$body['location_id'] > 0 ? ($lagerOf['gid://shopify/Location/' . (int)$body['location_id']] ?? null) : null;
+		foreach ((array)($body['line_items'] ?? array()) as $line) {
+			$variant = is_array($line) && (int)($line['variant_id'] ?? 0) > 0 ? 'gid://shopify/ProductVariant/' . (int)$line['variant_id'] : null;
+			$vareId = $variant === null ? null : (int)($variants[$variant] ?? 0);
+			if (!$vareId || !isset($draws[$f['order_gid']][$vareId])) {
+				continue;
+			}
+			$left = max(0, (int)($line['quantity'] ?? 0)) * 1000;
+			$lagre = $draws[$f['order_gid']][$vareId];
+			// the fulfilment's own lager first, then the order's other lagre
+			uksort($lagre, fn(int $a, int $b): int => ($b === (int)$at) <=> ($a === (int)$at) ?: $a <=> $b);
+			foreach (array_keys($lagre) as $lager) {
+				$taken = min($left, $draws[$f['order_gid']][$vareId][$lager]);
+				$draws[$f['order_gid']][$vareId][$lager] -= $taken;
+				$left -= $taken;
+			}
+		}
+	}
+	$open = array();
+	foreach ($draws as $byItem) {
+		foreach ($byItem as $vareId => $byLager) {
+			foreach ($byLager as $lager => $milli) {
+				$open[$vareId][$lager] = ($open[$vareId][$lager] ?? 0) + $milli;
+			}
+		}
+	}
+	foreach ($open as $vareId => $byLager) {
+		foreach ($byLager as $lager => $milli) {
+			$open[$vareId][$lager] = intdiv(max(0, $milli), 1000);
+		}
+	}
+	return $open;
+}
+
+/**
+ * The available quantity to send for a pair (SD-868): Saldi's quantity less what Shopify holds
+ * there for orders Saldi has not drawn, which is its committed less Saldi's open web draws, and
+ * never below 0. Saldi's draws count only up to what Shopify has committed.
+ */
+function shopify_stock_sellable(int $quantity, int $committed, int $drawn): int {
+	return max(0, $quantity - max(0, $committed - $drawn));
+}
+
+/**
  * A set that can't be published is sent as 0 at every mapped lager it would be sent to, so a quantity
  * published before it broke can't be sold, and its warning stays open.
  *
@@ -717,6 +854,9 @@ function shopify_stock_ack(array $shop, array $pending): void {
 		}
 		shopify_stock_clear_pending($shop, $pending);
 		shopify_stock_unmark($shop, $pending['marks']);
+		if (shopify_queue_state_get("stock.stale:{$shop['shop_key']}") !== array()) {
+			shopify_queue_state_set("stock.stale:{$shop['shop_key']}", array());
+		}
 		// Shopify took the items, so a warning left by an earlier refusal is over (a broken set's own warning is set:<vare_id>)
 		$keys = array();
 		foreach (array_unique(array_column($pending['rows'], 'vare_id')) as $vareId) {
@@ -748,6 +888,12 @@ function shopify_stock_clear_pending(array $shop, array $pending): void {
 function shopify_stock_refused(array $shop, array $pending, array $userErrors): array {
 	shopify_stock_clear_pending($shop, $pending);
 	$shopId = (int)$shop['id'];
+	if (array_filter($userErrors, fn(array $e): bool => ($e['code'] ?? '') === 'CHANGE_FROM_QUANTITY_STALE') !== array()) {
+		// Shopify changed the level after the read (an order committed units): nothing was set; the items stay marked and are planned
+		// again, the next call without the check once this happened SHOPIFY_STOCK_STALE_TRIES times in a row
+		shopify_stock_state_update("stock.stale:{$shop['shop_key']}", fn(array $current): array => array('count' => (int)($current['count'] ?? 0) + 1));
+		return array();
+	}
 	$drop = array();
 	foreach ($userErrors as $error) {
 		$code = (string)($error['code'] ?? '');
@@ -784,7 +930,8 @@ function shopify_stock_refused(array $shop, array $pending, array $userErrors): 
  * @return array<int, true>|null the items refused, null when the time ran out; the marks stay and the next run goes on
  * @throws RuntimeException when Shopify doesn't answer
  */
-function shopify_stock_levels_ready(array $rt, array $shop, array $rows, float $deadline): ?array {
+function shopify_stock_levels_ready(array $rt, array $shop, array $rows, float $deadline, ?array &$levels = null): ?array {
+	$levels = array();
 	$res = shopify_graphql($shop, 'stockLevels', SHOPIFY_STOCK_LEVELS, array('ids' => array_values(array_unique(array_column($rows, 'inventory_item_gid')))),
 		($rt['graphql'] ?? array()) + array('deadline' => $deadline, 'retry_mode' => 'read'));
 	if (!$res['ok']) {
@@ -795,6 +942,8 @@ function shopify_stock_levels_ready(array $rt, array $shop, array $rows, float $
 		$known[$node['id']] = true;
 		foreach ($node['inventoryLevels']['nodes'] as $level) {
 			$stocked["{$node['id']}|{$level['location']['id']}"] = true;
+			$quantities = array_column($level['quantities'] ?? array(), 'quantity', 'name');
+			$levels["{$node['id']}|{$level['location']['id']}"] = array('available' => (int)($quantities['available'] ?? 0), 'committed' => (int)($quantities['committed'] ?? 0));
 		}
 	}
 	$refused = array();
@@ -1007,16 +1156,15 @@ function shopify_stock_reconcile_file(array $shop, string $op, string $kind = 'r
  * corrected by the push: its acknowledgement is forgotten and its item marked, in one transaction.
  * So this job sends no stock call and never changes Saldi. A pair is left alone while its item is
  * marked or behind a barrier, when it was acknowledged after the read started (the file is older
- * than that), and when a call holding it was unanswered as the read started. A pair that differs while Shopify has
- * stock committed there is deferred, not corrected: an unpaid order lowered available and Saldi only counts it once
- * paid, so a correction would put the reserved unit on sale again. What was corrected or deferred goes on the error
- * list as one warning, resolved by the next clean night. The checks run outside the correcting transaction, so the
+ * than that), and when a call holding it was unanswered as the read started. A pair is compared with what the push
+ * would send (SD-868: Saldi's quantity less the units Shopify holds for orders Saldi has not drawn), so stock committed
+ * there needs no exception. What was corrected goes on the error list as one warning, resolved by the next clean night. The checks run outside the correcting transaction, so the
  * caller holds the worker lock, which keeps a push or remap from committing in between (tools/shopify_worker.php does).
  *
  * @param array{heartbeat?: callable(): bool, graphql?: array<string, mixed>, download?: array<string, mixed>, lines_per_run?: int} $rt
  *   lines_per_run: a test seam, yield after each chunk of this many items
  * @param array{id: int, shop_id: int, checkpoint?: array<string, mixed>|null} $job
- * @return array{outcome: string, checkpoint?: array<string, mixed>, run_after?: int, gate?: string, compared?: int, drifted?: int, deferred?: int}
+ * @return array{outcome: string, checkpoint?: array<string, mixed>, run_after?: int, gate?: string, compared?: int, drifted?: int}
  * @throws RuntimeException when the read can't be started, polled or downloaded; the job retries
  */
 function shopify_stock_reconcile(array $rt, array $job, float $deadline): array {
@@ -1051,20 +1199,19 @@ function shopify_stock_reconcile(array $rt, array $job, float $deadline): array 
 			shopify_error_open($shopId, 'stock', 'reconcile', "The nightly stock read ended without a file: $read", 'warning');
 			return array('outcome' => 'done', 'compared' => 0, 'drifted' => 0);
 		}
-		$cp += array('offset' => 0, 'compared' => 0, 'drifted' => 0, 'deferred' => 0, 'named' => array(), 'corrected' => array());
+		$cp += array('offset' => 0, 'compared' => 0, 'drifted' => 0, 'named' => array(), 'corrected' => array());
 	}
 	$out = shopify_stock_reconcile_scan($rt, $shop, $file, $cp, shopify_stock_checked_config(), $deadline);
 	if ($out !== null) {
 		return $out;
 	}
 	@unlink($file);
-	$deferred = $cp['deferred'] ?? 0;
-	if ($cp['drifted'] > 0 || $deferred > 0) {
-		shopify_error_open($shopId, 'stock', 'reconcile', "The nightly read found {$cp['drifted']} of {$cp['compared']} pairs differing from Saldi and corrects them through the push, and deferred $deferred while Shopify has stock committed there: " . implode('; ', $cp['named']), 'warning');
+	if ($cp['drifted'] > 0) {
+		shopify_error_open($shopId, 'stock', 'reconcile', "The nightly read found {$cp['drifted']} of {$cp['compared']} pairs differing from Saldi and corrects them through the push: " . implode('; ', $cp['named']), 'warning');
 	} else {
 		shopify_error_resolve_key($shopId, 'stock', 'reconcile');
 	}
-	return array('outcome' => 'done', 'compared' => $cp['compared'], 'drifted' => $cp['drifted'], 'deferred' => $deferred);
+	return array('outcome' => 'done', 'compared' => $cp['compared'], 'drifted' => $cp['drifted']);
 }
 
 /**
@@ -1156,8 +1303,11 @@ function shopify_stock_reconcile_scan(array $rt, array $shop, string $file, arra
 /**
  * Compares whole items' levels with what Saldi wants and corrects what differs.
  *
+ * A pair is compared with what the push would show (shopify_stock_sellable()), so units Shopify
+ * holds for an order are in both sides (SD-868).
+ *
  * @param array<string, array<string, int>> $levels inventory item gid => location gid => available, every item of the chunk
- * @param array<string, mixed> $cp compared, drifted, deferred and named are updated in place
+ * @param array<string, mixed> $cp compared, drifted and named are updated in place
  * @param array<string, array<string, int>> $held inventory item gid => location gid => committed, where above 0
  */
 function shopify_stock_reconcile_compare(array $shop, array $levels, array &$cp, array $config, array $held = array()): void {
@@ -1170,6 +1320,7 @@ function shopify_stock_reconcile_compare(array $shop, array $levels, array &$cp,
 		return;
 	}
 	$plan = shopify_stock_plan($shopId, $ids, $config);
+	$open = shopify_stock_open_web_draws($shopId, array_keys($plan['items']));
 	$marked = shopify_queue_state_get("stock.dirty:{$shop['shop_key']}");
 	$deferred = shopify_stock_deferred($shopId, $ids, $plan['components']);
 	$recent = array();
@@ -1191,22 +1342,16 @@ function shopify_stock_reconcile_compare(array $shop, array $levels, array &$cp,
 			}
 			$has = array_key_exists($pair['location_gid'], $levels[$item['inventory_item_gid']]);
 			$cp['compared']++;
-			if (isset($recent[$vareId][$lager]) || ($has && $levels[$item['inventory_item_gid']][$pair['location_gid']] === $pair['quantity'])) {
-				continue;
-			}
-			$committed = $held[$item['inventory_item_gid']][$pair['location_gid']] ?? 0;
-			if ($committed > 0) {
-				$cp['deferred'] = ($cp['deferred'] ?? 0) + 1;
-				if (count($cp['named']) < SHOPIFY_STOCK_RECONCILE_NAMED) {
-					$cp['named'][] = "item $vareId at lager $lager deferred: Shopify {$levels[$item['inventory_item_gid']][$pair['location_gid']]} with $committed committed, Saldi {$pair['quantity']}";
-				}
+			// what the push would show: Saldi's quantity less the units Shopify holds for orders Saldi has not drawn (SD-868)
+			$want = shopify_stock_sellable($pair['quantity'], $held[$item['inventory_item_gid']][$pair['location_gid']] ?? 0, $open[$vareId][$lager] ?? 0);
+			if (isset($recent[$vareId][$lager]) || ($has && $levels[$item['inventory_item_gid']][$pair['location_gid']] === $want)) {
 				continue;
 			}
 			$drift[$vareId][] = $lager;
 			$cp['corrected'][$vareId] = true;
 			$cp['drifted']++;
 			if (count($cp['named']) < SHOPIFY_STOCK_RECONCILE_NAMED) {
-				$cp['named'][] = "item $vareId at lager $lager: Shopify " . ($has ? $levels[$item['inventory_item_gid']][$pair['location_gid']] : 'not stocked') . ", Saldi {$pair['quantity']}";
+				$cp['named'][] = "item $vareId at lager $lager: Shopify " . ($has ? $levels[$item['inventory_item_gid']][$pair['location_gid']] : 'not stocked') . ", Saldi $want";
 			}
 		}
 	}
