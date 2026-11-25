@@ -234,6 +234,8 @@
 //                 The multi-line if/else bodies in opdater() and indsaet_linjer() have braces.
 // 20261125 CL/MMR MB-86 (Codex round 2) A Beløb that rounds past what kassekladde.amount holds is refused like "1234.56" (journalAmountIsValid()), also on the "+=" line.
 //                 opdater() swaps the accounts of a negative amount on its typed sign, so -0,004 is saved as 0.00 on swapped accounts.
+// 20261125 CL/MMR MB-86 (Codex round 3) kontroller() does not range check a stored amount the field still shows as drawn, so an untouched 999999999999.995 no longer blocks the save.
+//                 Its two multi-line if bodies have braces.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -4423,10 +4425,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$md2 = trim($row['box3']);
 				$year2 = trim($row['box4']);
 				if (strlen($md1) < 2 || strlen($md2) < 2) {
-					if (strlen($md1) < 2)
+					if (strlen($md1) < 2) {
 						$md1 = '0' . $md1;
-					if (strlen($md2) < 2)
+					}
+					if (strlen($md2) < 2) {
 						$md2 = '0' . $md2;
+					}
 					db_modify("update grupper set box1='$md1',box3='$md2' where art='RA' and kodenr='$regnaar'", __FILE__ . " linje " . __LINE__);
 				}
 				$aarstart = $year1 . $md1;
@@ -4449,8 +4453,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		// 20260907 CL/LH  The rejected line skips the processing and tmpkassekl update below (elseif), so
 		// nothing downstream converts it: the row inserted from POST keeps the operator's raw text, opdater()
 		// never runs while $fejl is set, and the error re-render shows the text as typed.
-		// 20261125 CL/MMR MB-86 An amount that rounds past what kassekladde.amount holds (999.999.999.999,995) is refused the same way.
-		if ($bilag != "-" && !journalAmountIsValid($belob)) {
+		// 20261125 CL/MMR MB-86 An amount that rounds past what kassekladde.amount holds (999.999.999.999,995) is refused the same way,
+		// but not a stored amount the field still shows as it was drawn: opdater() keeps that one (journalAmountDrawn()).
+		$kk_belob_ok = journalAmountIsValid($belob);
+		if (!$kk_belob_ok && (int)$id > 0) {
+			$kk_gemt_belob = db_fetch_array(db_select("select amount from kassekladde where id = '" . (int)$id . "' and kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
+			$kk_belob_ok = $kk_gemt_belob && journalAmountIsValid($belob, $kk_gemt_belob['amount']);
+		}
+		if ($bilag != "-" && !$kk_belob_ok) {
 			# SST-934 the messages show a typed 0 ('00') as 0
 			alert_ugyldigt_belob($belob, bilagFieldValue($bilag, true));
 			$fejl = 1;

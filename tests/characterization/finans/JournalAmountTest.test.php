@@ -17,6 +17,7 @@
 // 20261125 CL/MMR MB-86: created.
 // 20261125 CL/MMR MB-86 (Codex round 1) The kept amount is decided on the field's text; regression tests for an edit that rounds to the shown amount.
 // 20261125 CL/MMR MB-86 (Codex round 2) The column's range limit and the typed sign that decides the debit/credit swap.
+// 20261125 CL/MMR MB-86 (Codex round 3) A stored amount at the limit, left as drawn, is not range checked and is kept.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -84,6 +85,34 @@ final class JournalAmountTest extends TestCase
     public function testAnAmountThatRoundsPastTheColumnIsRefused(string $typed, bool $valid): void
     {
         $this->assertSame($valid, journalAmountIsValid($typed));
+    }
+
+    public function testAStoredAmountAtTheLimitLeftAsDrawnIsNotRangeChecked(): void
+    {
+        // 999999999999.995 fits the column, but the page draws it as 1.000.000.000.000,00
+        $this->assertSame(dkdecimal('999999999999.995', 2), journalAmountShown('999999999999.995'));
+        $this->assertSame('1.000.000.000.000,00', journalAmountShown('999999999999.995'));
+        $this->assertTrue(journalAmountDrawn('999999999999.995', '1.000.000.000.000,00'));
+        $this->assertTrue(journalAmountIsValid('1.000.000.000.000,00', '999999999999.995'));
+        // The same text without the stored line (a new line, or the "+=" copy) is a new amount past the limit
+        $this->assertFalse(journalAmountIsValid('1.000.000.000.000,00'));
+        // A newly typed amount past the limit is refused also on that line
+        $this->assertFalse(journalAmountIsValid('999.999.999.999,995', '999999999999.995'));
+        $this->assertFalse(journalAmountIsValid('1.000.000.000.000,01', '999999999999.995'));
+        // and its amount is kept by opdater(), so nothing past the limit is written
+        $this->assertSame('999999999999.995', journalAmountKept('999999999999.995', '1.000.000.000.000,00', 1000000000000.0));
+        $stored = self::storedLine();
+        $stored['amount'] = '999999999999.995';
+        $posted = self::postedLine();
+        $posted['amount'] = journalAmountKept($stored['amount'], '1.000.000.000.000,00', journalAmountFromInput('1.000.000.000.000,00'));
+        $this->assertTrue(journalLineUnchanged($stored, $posted));
+    }
+
+    public function testANegativeStoredAmountAtTheLimitIsStillRangeChecked(): void
+    {
+        // opdater() swaps a negative amount and writes its rounded value, which would not fit, so it is refused
+        $this->assertFalse(journalAmountDrawn('-999999999999.995', '-1.000.000.000.000,00'));
+        $this->assertFalse(journalAmountIsValid('-1.000.000.000.000,00', '-999999999999.995'));
     }
 
     public function testTheHighestValidAmountIsSavedAsTyped(): void

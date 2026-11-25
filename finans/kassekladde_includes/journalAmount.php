@@ -21,6 +21,8 @@
 //                 0,006 rounds to the 0,01 the field showed, so that edit was lost.
 // 20261125 CL/MMR MB-86 (Codex round 2) An amount that rounds past what kassekladde.amount (numeric(15,3)) holds is refused like any invalid amount.
 //                 The debit/credit swap of a negative amount is decided on the typed sign, so -0,004 is saved as 0.00 on swapped accounts as before.
+// 20261125 CL/MMR MB-86 (Codex round 3) A stored amount left as it was drawn is not range checked, so 999999999999.995 (shown 1.000.000.000.000,00) no longer blocks the save.
+//                 journalAmountDrawn() is the one test for "left as drawn", used by the range check and by journalAmountKept().
 //
 // usdecimal() itself is not changed: it is used all over Saldi, also where three decimals are wanted
 // (quantities, prices). Only the journal's save path rounds to øre.
@@ -62,10 +64,16 @@ function journalAmountFromInput($input) {
  * kassekladde.amount, numeric(15,3). 999.999.999.999,995 rounds to 1.000.000.000.000,00, which the column cannot
  * hold, so it is refused like "1234.56" instead of failing in the database.
  *
- * @param string|null $input The field's text.
+ * A stored amount left as it was drawn (journalAmountDrawn()) is valid whatever it rounds to: opdater() keeps the
+ * stored amount, so nothing is written for it, and the user is not stopped by a value they did not type.
+ *
+ * @param string|null           $input        The field's text.
+ * @param string|int|float|null $storedAmount The line's amount in the database, or null for a new line or when the
+ *                                            text is not the line's own (the "+=" copy is a new line).
  * @return bool
  */
-function journalAmountIsValid($input) {
+function journalAmountIsValid($input, $storedAmount = null) {
+	if (journalAmountDrawn($storedAmount, $input)) return true;
 	return dk_amount_is_valid($input) && abs(journalAmountFromInput($input)) <= 999999999999.99;
 }
 
@@ -93,11 +101,23 @@ function journalAmountShown($storedAmount) {
 }
 
 /**
- * The amount to write for a line that is saved: the stored amount while its field still holds the text it was drawn
- * with, otherwise the new one. So an amount stored with three decimals before MB-86 is only replaced when the user
- * changes the text in the field.
+ * True when the field still holds exactly the text it was drawn with for the stored amount, so the user did not
+ * touch it. A negative stored amount never counts: opdater() saves a negative amount as a positive one on swapped
+ * accounts, so it cannot be kept as it is.
  *
- * A negative stored amount is never kept: opdater() turns a negative amount into a positive one on swapped accounts.
+ * @param string|int|float|null $storedAmount The line's amount in the database, or null for a new line.
+ * @param string|null           $typed        The field's text as posted, before rounding.
+ * @return bool
+ */
+function journalAmountDrawn($storedAmount, $typed) {
+	if ($storedAmount === null || !is_numeric(trim((string)$storedAmount)) || (float)$storedAmount < 0) return false;
+	return trim((string)$typed) === journalAmountShown($storedAmount);
+}
+
+/**
+ * The amount to write for a line that is saved: the stored amount while its field still holds the text it was drawn
+ * with (journalAmountDrawn()), otherwise the new one. So an amount stored with three decimals before MB-86 is only
+ * replaced when the user changes the text in the field.
  *
  * @param string|int|float|null $storedAmount The line's amount in the database, or null for a new line.
  * @param string|null           $typed        The field's text as posted (tmpkassekl.amount), before rounding.
@@ -105,8 +125,7 @@ function journalAmountShown($storedAmount) {
  * @return string|int|float The stored amount, or $amount.
  */
 function journalAmountKept($storedAmount, $typed, $amount) {
-	if ($storedAmount === null || !is_numeric(trim((string)$storedAmount)) || (float)$storedAmount < 0) return $amount;
-	return trim((string)$typed) === journalAmountShown($storedAmount) ? $storedAmount : $amount;
+	return journalAmountDrawn($storedAmount, $typed) ? $storedAmount : $amount;
 }
 
 /**
