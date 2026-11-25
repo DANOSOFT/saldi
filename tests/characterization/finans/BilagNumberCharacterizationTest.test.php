@@ -93,6 +93,17 @@ final class BilagNumberCharacterizationTest extends TestCase
         $this->assertSame(0, bilagFiscalYearContaining('2026-11-25', array()), 'no years configured, no year');
         $this->assertSame(0, bilagFiscalYearContaining('2026-11-25', array(9 => array('', '2026-09-30'))),
             'a year without a window cannot claim a date');
+        $this->assertSame(5, bilagFiscalYearContaining('2026-05-13', array(5 => array('2026-1-01', '2026-12-31'))),
+            'a window whose month is written with one digit still holds its dates');
+        $this->assertSame(6, bilagFiscalYearContaining('2026-5-13', array(6 => array('2026-01-01', '2026-12-31'))),
+            'and so does a date written the same way');
+        $this->assertSame(array('2026-01-01', '2026-12-31'), bilagFiscalYearWindow(1, 2026, 12, 2026),
+            'a year opens on the first of its month and closes on the last day of its closing month');
+        $this->assertSame(array('2025-07-01', '2026-06-30'), bilagFiscalYearWindow(7, 2025, 6, 2026),
+            'including a closing June, which has thirty days');
+        $this->assertSame(array('', ''), bilagFiscalYearWindow(0, 2026, 12, 2026), 'month zero is no window');
+        $this->assertSame('2026-06-13', bilagIsoDate('2026-6-13'), 'a date is read whatever its padding');
+        $this->assertSame('', bilagIsoDate('2026-13-13'), 'and rejected when the calendar has no such day');
     }
 
     /**
@@ -127,7 +138,13 @@ final class BilagNumberCharacterizationTest extends TestCase
         $this->assertSame('2026-06-13', bilagStagedDate('13.06.2026'), 'the staging table also holds dots');
         $this->assertSame('2026-06-13', bilagStagedDate('130626'), 'and the compact ddmm the journal accepts');
         $this->assertSame('2026-06-13', bilagStagedDate('13062026'), 'or a compact ddmmyyyy');
-        $this->assertSame('', bilagStagedDate('1306'), 'a value without a year is not read: usdate() guesses that year');
+        $this->assertSame('2026-06-13', bilagStagedDate('1306', array('2025-10-01', '2026-09-30')),
+            'a value without a year takes the year the journal gives it: the opening year from the opening month onwards');
+        $this->assertSame('2025-11-13', bilagStagedDate('1311', array('2025-10-01', '2026-09-30')),
+            'and the opening year again for a month after the opening one');
+        $this->assertSame('2026-06-13', bilagStagedDate('13-06', array('2025-10-01', '2026-09-30')),
+            'the same for a day and month written with a separator');
+        $this->assertSame('', bilagStagedDate('1306'), 'with no tenant and no window given, there is no year to use');
         $this->assertSame('', bilagStagedDate('1306261'), 'seven digits are not a date this reads');
         $this->assertSame('2026-11-25', bilagStagedDate('2026-11-25'), 'an already converted date passes through');
         $this->assertSame('', bilagStagedDate('2026-02-31'), 'nor is a Y-m-d field the calendar does not have a day');

@@ -230,6 +230,7 @@
 // 20261125 LOE SST-906 A proposal follows the line's own date: every proposal site is handed it, and each proposal posts the date it was drawn for, so a number kept while the line is dated in another fiscal year is saved under that year's series.
 //              The save hands the replacements it has already made to the year's allocator, so two lines cannot end up on one number.
 //              A replaced number reaches only the line that still carries its proposal, and a line whose own year has no number left is refused instead of stored under another year's number.
+//              A taken-proposal replacement the year pass overrides is not announced, and its number is not held back from the year's own series.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -5109,7 +5110,28 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 		}
 		transaktion('commit');
+		# SST-906 (review) a number this save moves to another year is stored under this pass's number, so the
+		# taken-proposal replacement for it is never used and must not be announced. Only numbers that no line
+		# of this save keeps are dropped: if another staged line still carries it, the message is true for that one
+		$kk_aar_overskrevet = array();
+		foreach ($kk_aar_erstat as $kk_aar_svar) {
+			if ((int)$kk_aar_svar['to'] > 0) {
+				$kk_aar_overskrevet[(int)$kk_aar_svar['from']] = true;
+			}
+		}
+		if ($kk_aar_overskrevet && $bilagErstat) {
+			$q = db_select("select bilag from tmpkassekl where kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$kk_staget_bilag = (int)$r['bilag'];
+				if (!isset($kk_aar_overskrevet[$kk_staget_bilag])) {
+					unset($kk_aar_overskrevet[$kk_staget_bilag]);
+				}
+			}
+		}
 		foreach ($bilagErstat as $taget => $ny) {
+			if (isset($kk_aar_overskrevet[(int)$taget])) {
+				continue;   # this save moved its line itself, and says so below
+			}
 			alert(addslashes(sprintf(findtekst('5439|Bilagsnummer %s blev brugt af en anden bruger, mens du skrev. Linjen er gemt som bilag %s.', $sprog_id), $taget, $ny)));
 		}
 		foreach ($kk_aar_erstat as $kk_aar_lobenr => $kk_aar_svar) {
