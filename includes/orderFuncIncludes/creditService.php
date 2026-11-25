@@ -30,6 +30,7 @@
 // 20261121 CL/SS SD-833 review: an amount discount counts in kroner, as momsupdat() counts it.
 //                What is left counts only the lines a credit note copies, and a held line delivers no more than it credits.
 // 20261123 CL/SS SD-833 review: the cap counts every invoice line again, so no line can be credited twice. Only the Kredit button counts just the lines a credit note copies, an item found by its number included.
+// 20261125 CL/SS SD-833 review: an item line whose varenr is NULL still counts for the Kredit button when there is a procenttillæg, as the copy in debitor/ordre.php copies it.
 
 include_once(__DIR__ . '/stockNeutralLine.php'); # order_line_has_credit_columns()
 
@@ -79,7 +80,7 @@ function credit_remaining(int $origId, int $exceptCreditId = 0, bool $lock = tru
 		$qtxt .= " and exists (select 1 from varer v where v.varenr = ordrelinjer.varenr or v.varenr_alias = ordrelinjer.varenr";
 		$qtxt .= " or v.stregkode = ordrelinjer.varenr)))";
 		if ($percentItem = credit_percent_item($origId)) {
-			$qtxt .= " and varenr != '" . db_escape_string($percentItem) . "'";
+			$qtxt .= " and coalesce(varenr, '') != '" . db_escape_string($percentItem) . "'";
 		}
 	}
 	$q = db_select("$qtxt order by posnr, id", __FILE__ . " linje " . __LINE__);
