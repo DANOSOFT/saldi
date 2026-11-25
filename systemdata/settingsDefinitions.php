@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-18 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-25 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -80,6 +80,7 @@
 // as includes/db_query.php's db_cast(), so the definitions load either way.
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
 // 20261118 CL/MJ SD-830 pos.tills.brand: the brand per till (SD-758) had no screen after the PoS-valg page was retired. Same storage (POS kodenr 4 box1, tab list per fiscal year), choices from the form variants, and an unknown brand is refused.
+// 20261125 CL/MJ SD-880 settings_till_count() reads this fiscal year's POS/1 row only, as the till does.
 if (!function_exists('db_cast')) {
 	function db_cast($expr, $type) {
 		global $db_type;
@@ -2136,7 +2137,9 @@ if (!function_exists('getSettingsSections')) {
 		if ($n === null || !empty($GLOBALS['settings_tills_changed'])) {
 			unset($GLOBALS['settings_tills_changed']);
 			global $regnaar;
-			$r = db_fetch_array(db_select("select box1 from grupper where art = 'POS' and kodenr = '1' order by (coalesce(fiscal_year, 0) = " . (int) $regnaar . ") desc, id limit 1", __FILE__ . " linje " . __LINE__));
+			// This year's row only, as the till reads it: another year's count offered tills whose saves made a
+			// POS/1 row for this year with only that field in it (SD-880).
+			$r = db_fetch_array(db_select("select box1 from grupper where art = 'POS' and kodenr = '1' and fiscal_year = " . (int) $regnaar . " order by id limit 1", __FILE__ . " linje " . __LINE__));
 			$n = $r ? max(0, (int) $r['box1']) : 0;
 		}
 		return $n;

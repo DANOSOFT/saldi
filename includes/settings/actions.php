@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/actions.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/actions.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 //                 Same insert, audit entry and redirect.
 // 20261103 CL/ASR QA: the FTP test fails when the configured folder cannot be opened (it went on in the login's root and could report success).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 CL/MJ SD-880 Tilføj/Fjern kasse in a fiscal year without its own POS/1 row creates that year's row and leaves the other years' till counts as they are.
 include_once(__DIR__ . '/integrations.php');
 
 /**
@@ -174,11 +175,13 @@ function settings_run_action(array $def, string $selfUrl): string
 		case 'till_remove':
 			// Every fiscal year's POS/1 row (risk review R2). The per-till lists keep their entries; removing the
 			// last till only stops it, adding it again brings its setup back.
+			// The count is this year's (settings_till_count()). A year without its own POS/1 row gets one, and the
+			// other years keep theirs: their count is not this year's 0 plus one (SD-880).
+			global $regnaar;
 			$before = settings_till_count();
 			$tills = $before + ($def['run'] === 'till_add' ? 1 : -1);
 			if ($tills >= 0) {
-				if (!db_fetch_array(db_select("select id from grupper where art = 'POS' and kodenr = '1'", __FILE__ . " linje " . __LINE__))) {
-					global $regnaar;
+				if (!db_fetch_array(db_select("select id from grupper where art = 'POS' and kodenr = '1' and fiscal_year = " . (int) $regnaar, __FILE__ . " linje " . __LINE__))) {
 					db_modify("insert into grupper (beskrivelse, kode, kodenr, art, box1, fiscal_year) values ('POS_valg', '', '1', 'POS', '$tills', " . (int) $regnaar . ")", __FILE__ . " linje " . __LINE__);
 				} else {
 					db_modify("update grupper set box1 = '$tills' where art = 'POS' and kodenr = '1'", __FILE__ . " linje " . __LINE__);
