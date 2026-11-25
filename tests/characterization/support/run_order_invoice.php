@@ -20,6 +20,9 @@
 // Scenarios (argv 1):
 //   invoice <ordre_id>  - run the sequence above on an existing order
 //   reinvoice <ordre_id>- call bogfor() again on an already-invoiced order
+//   invoice-webservice <ordre_id> - "invoice" with the global $webservice set, as the API callers have it:
+//                         a failed write or a stopped posting comes back as bogfor()'s answer instead of
+//                         ending the page
 //
 // Prints a single JSON object on the LAST line of stdout.
 //
@@ -30,6 +33,7 @@
 // 20261028 CL/LH Removed the inline bootstrap that the #815 merge brought back next to the
 //                bootstrap_ordrefunc.php require; it included ordrefunc.php a second time.
 // 20261111 CDX/NTR Require the caller-owned database instead of a fixed fallback.
+// 20261118 CL/MMR SST-1008 Scenario invoice-webservice.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_order_invoice.php <invoice|reinvoice> <ordre_id> <tenant_db>\n");
@@ -44,6 +48,10 @@ error_reporting(E_ALL);
 
 $out = ['scenario' => $scenario, 'ordre_id' => $ordreId];
 
+if ($scenario === 'invoice-webservice') {
+    $webservice = 'on';
+    $scenario = 'invoice';
+}
 if ($scenario === 'invoice') {
     transaktion('begin');
     db_modify("update ordrer set fakturadate=ordredate where id='$ordreId'", __FILE__ . " linje " . __LINE__);

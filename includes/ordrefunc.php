@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-19 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -169,7 +169,13 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
+// 20261118 CL/MMR SST-1008 batch_salg(): the cost-transfer lines for batch items without automatic stock posting name the saet column.
+// 20261118 CL/MMR SST-1008 Those two lines cast the quantity, cost, order id and accounts and escape the project (Codex).
+// 20261118 CL/MMR SST-1008 batch_salg() stops the invoice with a message when the item group has no purchase account for the cost transfer (Codex).
+// 20261118 CL/MMR SST-1008 In a page that stop rolls back and ends the page, like the database error before, so massefakt.php does not print the order (Codex).
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
+// 20261123 CL/MMR SST-1008 A sale against a purchase reservation keeps the sale line's project on the cost lines, so they are posted (Codex).
+// 20261123 CL/MMR SST-1008 The reservation's purchase line id is cast in that lookup (Codex).
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -1756,7 +1762,11 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 			}
 		}
 		batch_kob($id, $art);
-		batch_salg($id);
+		$batchError = batch_salg($id);
+		if ($batchError) {
+			if (!$callerOwnsTransaction) transaktion('rollback');
+			return $batchError;
+		}
 		$tidspkt = date("H:i");
 		$betaling_id = "";
 		if(isset($_SESSION["payment_id"]) && $_SESSION["payment_id"] != '') {
@@ -1902,6 +1912,35 @@ function momsupdat($id)
 	return ("OK");
 }
 ###########################################################
+/**
+ * The item group has no purchase account (VG box3) for the cost transfer in a year without automatic stock posting.
+ * It stops the posting the way a failed database write in batch_salg() always has: in a page (no global $webservice)
+ * the transaction is rolled back and the page stops with the message, so a caller that does not read bogfor()'s
+ * answer, like debitor/massefakt.php, never goes on to print the order. A webservice caller gets the message back.
+ *
+ * @param int|string $gruppe The item group (VG kodenr).
+ * @return string The message, for bogfor() to return (webservice only; a page stops here).
+ */
+function batchSalgMissingPurchaseAccount($gruppe)
+{
+	global $webservice;
+
+	$message = "Varegruppe $gruppe mangler kontonummer for varekøb";
+	if (!$webservice) {
+		transaktion('rollback');
+		alert($message);
+		exit;
+	}
+	return $message;
+}
+###########################################################
+/**
+ * Sets cost and accounts on the invoice's stock lines and, in a fiscal year without automatic stock posting,
+ * adds the lines that move the cost from the stock account to the purchase account. Called by bogfor().
+ *
+ * @param int|string $id The order being invoiced.
+ * @return string|null A message when the invoice cannot be posted (webservice; bogfor() rolls back and returns it), else null.
+ */
 function batch_salg($id)
 {
 	global $fakturadate;
@@ -2102,9 +2141,9 @@ function batch_salg($id)
 					$res_antal = $res_antal + $row['antal'];
 					$res_linje_id = $row['linje_id'];
 					$lager = $row['lager'];
-					$r1 = db_fetch_array(db_select("select ordre_id, pris, rabat, projekt from ordrelinjer where id = '$res_linje_id'", __FILE__ . " linje " . __LINE__));
+					$r1 = db_fetch_array(db_select("select ordre_id, pris, rabat from ordrelinjer where id = '" . (int) $res_linje_id . "'", __FILE__ . " linje " . __LINE__));
 					$kob_ordre_id = $r1['ordre_id'];
-					$projekt = $r1['projekt'];
+					// The cost lines keep the sale line's project: bogfor_nu() posts posnr -1 lines only for the order's own projects.
 					$r2 = db_fetch_array(db_select("select valutakurs from ordrer where id = '$kob_ordre_id'", __FILE__ . " linje " . __LINE__));
 					$kostpris = ($r1['pris'] - ($r1['pris'] * $r1['rabat'] / 100)) * $r2['valutakurs'] / 100;
 					if ($valutakurs && $valutakurs != 100)
@@ -2133,9 +2172,18 @@ function batch_salg($id)
 			}
 			if (!$aut_lager && $box1 && $box2 && $kostpris) { #kostvaerdien flyttes fra "afgang varelager" til "varekob".- hvis der ikke bogfoeres direkte paa varekobs kontoen
 				#	if ($valutakurs) $pris=$pris*100/$valutakurs;
-				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt) values ('-1','$antal[$x]', '$kostpris', 0, '$id', '$box2','$projekt','0')", __FILE__ . " linje " . __LINE__);
+				if (!(int) $box3) {
+					// Without a purchase account only one side of the cost transfer could be posted.
+					return batchSalgMissingPurchaseAccount($gruppe);
+				}
+				$qtyCost = (float) $antal[$x];
+				$orderId = (int) $id;
+				$stockAccount = (int) $box2;
+				$purchaseAccount = (int) $box3;
+				$projectCost = db_escape_string((string) $projekt);
+				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt, saet) values ('-1', '$qtyCost', '" . (float) $kostpris . "', 0, '$orderId', '$stockAccount', '$projectCost', '0')", __FILE__ . " linje " . __LINE__);
 				$kostpris = $kostpris * -1;
-				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt) values ('-1','$antal[$x]', '$kostpris', 0, '$id', '$box3','$projekt','0')", __FILE__ . " linje " . __LINE__);
+				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt, saet) values ('-1', '$qtyCost', '" . (float) $kostpris . "', 0, '$orderId', '$purchaseAccount', '$projectCost', '0')", __FILE__ . " linje " . __LINE__);
 			}
 			#xit;			
 		} elseif ($box8 == 'on') { # hvis box8 er 'on' er varen lagerfoert
@@ -2157,6 +2205,9 @@ function batch_salg($id)
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			if (!$aut_lager && $box1 && $box2 && ($kostpris || $linjekostpris)) {
+				if (!(int) $box3) {
+					return batchSalgMissingPurchaseAccount($gruppe);
+				}
 				if (!$kostpris)
 					$kostpris = $linjekostpris;
 				db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt,saet) values ('-1','$antal[$x]', '$kostpris', '0', '$id', '$box2','$projekt','0')", __FILE__ . " linje " . __LINE__);
