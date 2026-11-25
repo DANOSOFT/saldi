@@ -32,6 +32,7 @@
 // 20261125 CL/MMR SST-1051 Customer orders show items from the active external price list (Prislister).
 //                 The chosen one is created as an item before it goes on the order.
 // 20261125 CL/MMR SST-1051 An item is only created by POST for an open customer order or credit note.
+// 20261125 CL/MMR SST-1051 The price-list message also names a file larger than 20 MB.
 @session_start();
 $s_id = session_id();
 
