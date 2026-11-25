@@ -10,6 +10,7 @@
 //
 // History:
 // 20261101 CL/MJ SST-910 Created.
+// 20261111 CDX/NTR Isolate the test class database and session.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -23,7 +24,7 @@ final class ReturnPurchaseBatchTest extends CharacterizationTestCase
     private function receive(int $orderId, float $qty): void
     {
         self::rows('UPDATE ordrelinjer SET leveres = $1 WHERE ordre_id = $2 AND vare_id > 0', [$qty, $orderId]);
-        self::runChild('run_modtag_page.php', [$orderId, CharacterizationEnv::SESSION_ID]);
+        self::runChild('run_modtag_page.php', [$orderId, CharacterizationEnv::sessionId()]);
     }
 
     private static function lineId(int $orderId): int

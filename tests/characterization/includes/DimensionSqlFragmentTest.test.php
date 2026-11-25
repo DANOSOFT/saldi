@@ -20,6 +20,8 @@ use PHPUnit\Framework\TestCase;
 //
 // History:
 // 20261103 LOE SST-936 created.
+// 20261111 CDX/NTR Exercise escaping on the owned SQL fixture instead of the master.
+// 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
 
 if (!function_exists('str2low')) {
 	/** The same transformation as std_func.php's str2low() for the characters this report sees. */
@@ -42,24 +44,12 @@ final class DimensionSqlFragmentTest extends TestCase
      */
     public static function setUpBeforeClass(): void
     {
-        if (!extension_loaded('pgsql')) {
-            self::markTestSkipped('pgsql extension not loaded');
+        require_once __DIR__ . '/../support/database/TestDatabase.php';
+        $reason = TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
         }
-        $pass = getenv('SALDI_CHAR_PGPASS');
-        if (!$pass) {
-            self::markTestSkipped('SALDI_CHAR_PGPASS is required for the escaping test');
-        }
-        $dsn = sprintf(
-            'host=%s dbname=%s user=%s password=%s connect_timeout=3',
-            getenv('SALDI_CHAR_PGHOST') ?: 'postgres',
-            getenv('SALDI_CHAR_MASTER_DB') ?: 'saldi',
-            getenv('SALDI_CHAR_PGUSER') ?: 'user',
-            $pass
-        );
-        $connection = @pg_connect($dsn);
-        if ($connection === false) {
-            self::markTestSkipped('postgres not reachable (is the docker-compose stack up?)');
-        }
+        $connection = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
         $GLOBALS['connection'] = $connection;
         $GLOBALS['db_type'] = 'postgres';
     }

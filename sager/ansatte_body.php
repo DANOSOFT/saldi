@@ -1,5 +1,5 @@
 <?php
-// -------systemdata/ansatte_body.php--------lap 3.0.0-------2013-01-29---12:05----
+// -------systemdata/ansatte_body.php--------ver 5.1.0-------2026-11-10---12:05----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,11 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2013 DANOSOFT ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Diverse html rettelser
 // 20140923 PK - Indsat $messages efter nummer, som viser fejlmeddelelse
 // 20150610 PK - Har ændret fax til privattlf i tekst 656
+// 20261110 CDX/NTR Let the information card labels wrap through the existing CSS.
 
 print "<input type=\"hidden\" name=\"id\" value=\"$id\">\n";
 print "<input type=\"hidden\" name=\"konto_id\" value=\"$konto_id\">\n";
@@ -106,7 +107,7 @@ if (isset($box)&&count($box)) {
 			}
 			$kolonne++;
 			if ($felttype[$x]=='textarea' && $kolonne==2) print "</tr>\n<tr class=\"row2\">";
-			if ($feltnavn[$x]) print "<td  class=\"leftTableCell hyphenate\" >$feltnavn[$x]</td>";
+			if ($feltnavn[$x]) print "<td class=\"leftTableCell\">$feltnavn[$x]</td>";
 			if ($felttype[$x]=='text') print "<td class=\"rightTableCell\"><input class=\"text textIndent\" type=\"text\" name=\"box[$x]\" value=\"$box[$x]\"></td>";
 			elseif ($felttype[$x]=='select') {
 				print "<td class=\"rightTableCell\"><select name=\"box[$x]\" style=\"width: 196px;\">";

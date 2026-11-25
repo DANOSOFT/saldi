@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontokort_standalone.php-----ver 5.1.0 ----2026-11-03-----
+// --- finans/kontokort_standalone.php-----ver 5.1.1 ----2026-11-13-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,18 +28,21 @@
 //20260824 CL/SZ Cast konto_fra/konto_til to int - unescaped GET values hit the
 //                numeric(15,0) kontonr columns and threw "invalid input syntax
 //                for type numeric" (SST-672)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 //20260929 MJ SST-809 Read udskriv from the URL and pass it on: the print view
 //                renders the whole kontokort instead of the requested page.
 // 20261030 CL/LAH per_page defaults to 0 = all lines.
 // 20261103 LOE SST-936 Resolve the employee range into the id list kontokort() filters by.
 //              The report page builds that list from its form; this page only gets the bounds.
 //              The employee list the report page resolved is used when the print link carries it.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
 $css = "../css/standard.css";
 include("../includes/var_def.php");
 include("../includes/connect.php");
+$permission_key = 'finans.regnskab';
 include("../includes/online.php");
  include("../includes/std_func.php");
 

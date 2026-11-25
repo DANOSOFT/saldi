@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------ admin/admin_menu --------------- ver 4.0.4 --- 2021-09-16 ---
+// ------------ admin/admin_menu --------------- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,17 +20,22 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2021 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20180131 
 // 20210916 LOE translated some texts 
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261012 CL/ASR Saldi staff (admin flag 'on') go to the operator panel; everyone else sees this menu unchanged.
+// 20261109 CL/ASR Staff go there only when the panel is ready (operator_panel_ready(): PostgreSQL master, panel tables created); otherwise they keep this menu (review #785).
+// 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 @session_start();  # Skal angives oeverst i filen??!!
 $s_id=session_id();
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 
@@ -53,6 +58,13 @@ if ($bruger_id=$r['id']) {
 	}
 	list($admin,$oprette,$slette,$tmp)=explode(",",$rettigheder,4);
 	$adgang_til=explode(",",$tmp);
+}
+// 20261012 CL/ASR Saldi staff (admin flag 'on') go to the operator panel; everyone else sees this menu unchanged.
+//                  ?klassisk=1 shows this menu to staff as well.
+// 20261109 CL/ASR Only when the panel is ready; on a MySQL/MariaDB master, or before the schema step has run, staff keep this menu.
+if (isset($admin) && $admin == 'on' && !isset($_GET['klassisk'])) {
+	include_once(__DIR__ . "/../includes/structure/operatorPanelSchema.php");
+	if (operator_panel_ready()) { print "<meta http-equiv=\"refresh\" content=\"0;URL=../admin/operator_overblik.php\">\n"; exit; }
 }
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
