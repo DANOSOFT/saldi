@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sager.php --- ver 5.1.1 --- 2026-11-20 ---
+// --- sager/sager.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -56,6 +56,7 @@
 //                 The piecework date filter's clear button shows its label again.
 // 20261104 CL/MMR SD-799 The datepicker clear-button text is passed to the script as UTF-8.
 // 20261120 CL/MMR MB-158 «funktion» only selects one of the page's own views; any other value shows the case list.
+// 20261125 CL/MMR MB-158 «kontrolskema» is not a view: its function is commented out, so the value shows the case list instead of a fatal error.
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -83,7 +84,7 @@ $s_id=session_id();
 	$ordre_id = if_isset($_GET['ordre_id'],0);
 	#cho "returside: $returside";
 		
-	if (!in_array($funktion, ['sagsliste', 'opret_sag', 'ret_kunde', 'vis_sag', 'ret_opgave', 'ret_sag', 'kontrolskema', 'kopi_ordre', 'sag_kontakt', 'akkordliste', 'ny_kunde'], true)) {
+	if (!in_array($funktion, ['sagsliste', 'opret_sag', 'ret_kunde', 'vis_sag', 'ret_opgave', 'ret_sag', 'kopi_ordre', 'sag_kontakt', 'akkordliste', 'ny_kunde'], true)) {
 		$funktion = 'sagsliste';
 	}
 	

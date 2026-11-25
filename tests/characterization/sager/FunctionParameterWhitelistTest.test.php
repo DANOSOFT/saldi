@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 // 20261120 CL/MMR MB-158 Run the real «funktion» selection and dispatch of sager.php, kontrolskemaer.php and kassekladde.php
 //                 without their database and rendering code: only the view handlers and the include are replaced by recorders.
 //                 An unknown kassekladde value with «sort» stops the page before the staged line is touched (Codex round 3).
+// 20261125 CL/MMR MB-158 Every allowed view must be a function the page really declares; «kontrolskema» is only in a comment (Codex round 15).
 
 /** An existing function that must never be reachable from the address bar. */
 function unrelated(): void
@@ -41,7 +42,7 @@ final class FunctionParameterWhitelistTest extends TestCase
     private const ROOT = __DIR__ . '/../../..';
 
     private const SAGER_ROUTES = [
-        'sager' => ['sagsliste', 'opret_sag', 'ret_kunde', 'vis_sag', 'ret_opgave', 'ret_sag', 'kontrolskema', 'kopi_ordre', 'sag_kontakt', 'akkordliste', 'ny_kunde'],
+        'sager' => ['sagsliste', 'opret_sag', 'ret_kunde', 'vis_sag', 'ret_opgave', 'ret_sag', 'kopi_ordre', 'sag_kontakt', 'akkordliste', 'ny_kunde'],
         'kontrolskemaer' => ['kontrolskemaliste', 'vis_skema', 'vis_arbejdsseddel', 'vis_kontrolskema'],
     ];
 
@@ -154,6 +155,8 @@ final class FunctionParameterWhitelistTest extends TestCase
             }
             yield "$page: wrong case" => [$page, strtoupper(self::SAGER_ROUTES[$page][1])];
         }
+        // Its function is inside a block comment in sager.php, so calling it was a fatal error.
+        yield 'sager: commented-out view' => ['sager', 'kontrolskema'];
     }
 
     #[DataProvider('invalidSagerRequests')]
@@ -177,6 +180,28 @@ final class FunctionParameterWhitelistTest extends TestCase
     public function testEveryViewTheLinksSendStillOpens(string $page, string $route): void
     {
         self::assertSame([[$route, [23]]], self::dispatchSager($page, ['funktion' => $route]));
+    }
+
+    #[DataProvider('sagerRoutes')]
+    public function testEveryAllowedViewIsDeclaredByThePage(string $page, string $route): void
+    {
+        // Comments are dropped by the tokenizer, so a function that only exists in a comment is not found.
+        $tokens = token_get_all(self::source('sager/' . $page . '.php'));
+        $declared = [];
+        foreach ($tokens as $i => $token) {
+            if (is_array($token) && $token[0] === T_FUNCTION) {
+                for ($j = $i + 1; isset($tokens[$j]); $j++) {
+                    if (is_array($tokens[$j]) && $tokens[$j][0] === T_STRING) {
+                        $declared[] = $tokens[$j][1];
+                        break;
+                    }
+                    if (!is_array($tokens[$j]) || $tokens[$j][0] !== T_WHITESPACE) {
+                        break;
+                    }
+                }
+            }
+        }
+        self::assertContains($route, $declared);
     }
 
     /** @return iterable<string, array{mixed}> */
