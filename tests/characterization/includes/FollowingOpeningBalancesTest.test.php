@@ -30,6 +30,7 @@
 //                 Two requests creating the block row both finish, and the alert reads the same on a LATIN9 regnskab.
 //                 A finally block ends the blocking transaction before it drains the connection that waits for it (CodeRabbit).
 //                 Clearing the block never creates its row, and two rebuilds storing the first block make one row, also without a unique index (Codex round 28).
+//                 On MySQL the lock for creating a setting is kept until the transaction ends and released once (Codex round 29).
 
 declare(strict_types=1);
 
@@ -1950,16 +1951,23 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertTrue(followingOpeningBalanceCreatePending(9));
         self::assertSame('9', $this->setting('openingBalancePending'));
         self::assertSame(['GET_LOCK openingBalancePending', 'RELEASE_LOCK openingBalancePending'], $seen, 'Outside a transaction it is released at once.');
-        // Inside a transaction too: the INSERT ... SELECT's current read makes the next creator wait for the row.
+        // Inside a transaction the lock is kept until that transaction ends, so the next creator reads only once the row
+        // is committed (Codex round 29: under READ COMMITTED it did not wait for the row); a second take reuses it.
         $this->sql("DELETE FROM settings WHERE var_name = 'openingBalancePending'");
         $seen = [];
         $this->sql('BEGIN');
         $GLOBALS['db_transaktion_depth'] = 1;
         self::assertTrue(followingOpeningBalanceCreatePending(8));
+        $this->sql("DELETE FROM settings WHERE var_name = 'openingBalancePending'");
+        self::assertTrue(followingOpeningBalanceCreatePending(7));
+        self::assertSame(['GET_LOCK openingBalancePending'], $seen, 'Kept, and not taken twice.');
         $this->sql('COMMIT');
         $GLOBALS['db_transaktion_depth'] = 0;
-        self::assertSame(['GET_LOCK openingBalancePending', 'RELEASE_LOCK openingBalancePending'], $seen);
-        self::assertSame('8', $this->setting('openingBalancePending'));
+        followingOpeningBalanceReleaseLocks();
+        self::assertSame(['GET_LOCK openingBalancePending', 'RELEASE_LOCK openingBalancePending'], $seen, 'Released once the transaction has ended.');
+        followingOpeningBalanceReleaseLocks();
+        self::assertCount(2, $seen, 'Only once.');
+        self::assertSame('7', $this->setting('openingBalancePending'));
 
         // A rebuild that has to leave a year waiting and cannot create the row throws, so its caller rolls it back.
         $this->sql("DELETE FROM settings WHERE var_name = 'openingBalancePending'");

@@ -69,6 +69,7 @@
 //                  MySQL 8 and MariaDB 10.6 lock a target year without waiting, like PostgreSQL (Lui's pre-check).
 //                  A setting of this feature is created under a lock named after it and with a current read, and clearing the block never creates its row, so MySQL never gets a second row of one (Codex round 28).
 //                  The block row is locked and written by its id, as a locking statement by var_name locks every settings row it scans on MySQL.
+//                  On MySQL the lock for creating a setting is kept until the transaction that creates it ends, as under READ COMMITTED a second creator did not wait for the row (Codex round 29).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -338,10 +339,9 @@ function followingOpeningBalanceLowerPending($year) {
  * - outside one (the first check, followingOpeningBalanceInitialize()) it is a session lock released right after.
  * Whoever waits for the lock holds nothing else of this feature: a rebuild only gets here after its last kontoplan
  * write, and the first check runs in autocommit. MySQL has no transaction-level advisory lock; there GET_LOCK is taken
- * and only used when MySQL gives it (1; 0 is a time-out, NULL an error), and released right after. It may be released
- * before the caller's COMMIT (Lui's pre-check): the row is created by an INSERT ... SELECT ... WHERE NOT EXISTS
- * (followingOpeningBalanceEnsureSetting()), whose read is a current, locking read on MySQL, so the next creator waits for
- * a row that is not committed yet and then sees it, also when its own repeatable-read snapshot is older (Codex round 28).
+ * and only used when MySQL gives it (1; 0 is a time-out, NULL an error). Inside a transaction it is kept until that
+ * transaction ends (followingOpeningBalanceGetLock()), not released before the caller's COMMIT (Lui's pre-check), so the
+ * next creator only reads once this row is committed (Codex rounds 28-29).
  *
  * @param int $year Fiscal year to leave waiting, or 0 to only create the row.
  * @return bool True when the row was created or lowered; false when MySQL did not give the lock within 10 seconds,
@@ -353,9 +353,7 @@ function followingOpeningBalanceCreatePending($year) {
 	$mysql = ($db_type === 'mysql' || $db_type === 'mysqli');
 	$transaction = followingOpeningBalancesInTransaction();
 	if ($mysql) {
-		// GET_LOCK names are server-wide, so the database is part of the name; MD5 only shortens it, it secures nothing.
-		$r = db_fetch_array(db_select("SELECT GET_LOCK(CONCAT('saldi:openingBalancePending:', MD5(DATABASE())), 10) AS locked", __FILE__ . ' line ' . __LINE__));
-		if (!$r || (string)$r['locked'] !== '1') {
+		if (!followingOpeningBalanceGetLock('openingBalancePending')) {
 			return false;
 		}
 	} elseif ($transaction) {
@@ -375,9 +373,9 @@ function followingOpeningBalanceCreatePending($year) {
 			followingOpeningBalanceLowerPending($year);
 		}
 	} finally {
-		if ($mysql) {
-			db_select("SELECT RELEASE_LOCK(CONCAT('saldi:openingBalancePending:', MD5(DATABASE()))) AS locked", __FILE__ . ' line ' . __LINE__);
-		} elseif (!$transaction) {
+		if ($mysql && !$transaction) {
+			followingOpeningBalanceReleaseLock('openingBalancePending');
+		} elseif (!$mysql && !$transaction) {
 			db_select("SELECT pg_advisory_unlock(hashtext('openingBalancePending'), 1005)", __FILE__ . ' line ' . __LINE__);
 		}
 	}
@@ -839,6 +837,7 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	} catch (Throwable $e) {
 		// Nothing of the rebuild is kept, and the stored message tells the user to retry with Gem/opdatér.
 		transaktion('rollback');
+		followingOpeningBalanceReleaseLocks();
 		error_log('SST-1005: opening balances after fiscal year ' . $fromYear . ' not updated: ' . $e->getMessage());
 		$stop = followingOpeningBalanceStopShape($fromYear, $fromYear + 1);
 		$stop['failed'] = true;
@@ -869,6 +868,7 @@ function followingOpeningBalanceCommit() {
 	if ($db_transaktion_depth) {
 		$db_transaktion_depth--;
 	}
+	followingOpeningBalanceReleaseLocks();
 	return !(is_string($result) && substr($result, 0, 1) === '1');
 }
 
@@ -925,6 +925,7 @@ function followingOpeningBalanceFailureOnShutdown() {
 		for ($i = 0; $i < 10 && followingOpeningBalancesInTransaction(); $i++) {
 			transaktion('rollback');
 		}
+		followingOpeningBalanceReleaseLocks();
 		error_log('SST-1005: opening balances after fiscal year ' . $guard['sourceYear'] . ' not updated: the request ended during the rebuild and it was rolled back');
 		$stop = followingOpeningBalanceStopShape($guard['sourceYear'], $guard['sourceYear'] + 1);
 		$stop['failed'] = true;
@@ -1215,6 +1216,7 @@ function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0) {
 	}
 	if ($ownTransaction) {
 		transaktion('commit');
+		followingOpeningBalanceReleaseLocks();
 	}
 }
 
@@ -1278,9 +1280,10 @@ function saveFollowingOpeningBalanceSetting($name, $value, $description) {
  *   does not wait for a row that is not committed; outside one a session lock released right after. ON CONFLICT DO
  *   NOTHING is kept for settings_key_unique (includes/settings/uniqueIndex.php): a second INSERT that failed there
  *   ended its request and rolled back a card save with it (Lui's pre-check).
- * - MySQL: GET_LOCK, released right after the statement. The read of INSERT ... SELECT is a current, locking read, so
- *   the next creator waits for a row that is not committed yet and then sees it, whatever its snapshot. On a table
- *   without an index on var_name it locks the settings rows it scans until the commit; that happens only when the row
+ * - MySQL: GET_LOCK, inside a transaction kept until it ends (followingOpeningBalanceGetLock()), so the next creator
+ *   reads only once this row is committed. Under REPEATABLE READ the read of INSERT ... SELECT is a current, locking
+ *   read, so an older snapshot does not hide the row; under READ COMMITTED a plain read sees it. On a table without
+ *   an index on var_name that read locks the settings rows it scans until the commit; that happens only when the row
  *   is missing, once per tenant.
  *
  * @param string $name var_name.
@@ -1299,11 +1302,9 @@ function followingOpeningBalanceEnsureSetting($name, $value, $description, $lock
 	}
 	$mysql = ($db_type === 'mysql' || $db_type === 'mysqli');
 	$transaction = followingOpeningBalancesInTransaction();
-	$lockName = "CONCAT('saldi:$name:', MD5(DATABASE()))";
 	if (!$lockHeld) {
 		if ($mysql) {
-			$r = db_fetch_array(db_select("SELECT GET_LOCK($lockName, 10) AS locked", __FILE__ . ' line ' . __LINE__));
-			if (!$r || (string)$r['locked'] !== '1') {
+			if (!followingOpeningBalanceGetLock($name)) {
 				throw new RuntimeException("SST-1005: the setting $name could not be created: another request is creating it");
 			}
 		} elseif ($transaction) {
@@ -1321,10 +1322,64 @@ function followingOpeningBalanceEnsureSetting($name, $value, $description, $lock
 		}
 		db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
 	} finally {
-		if (!$lockHeld && ($mysql || !$transaction)) {
-			$unlock = $mysql ? "SELECT RELEASE_LOCK($lockName) AS locked" : "SELECT pg_advisory_unlock(hashtext('$name'), 1005)";
-			db_select($unlock, __FILE__ . ' line ' . __LINE__);
+		if (!$lockHeld && $mysql && !$transaction) {
+			followingOpeningBalanceReleaseLock($name);
+		} elseif (!$lockHeld && !$transaction) {
+			db_select("SELECT pg_advisory_unlock(hashtext('$name'), 1005)", __FILE__ . ' line ' . __LINE__);
 		}
+	}
+}
+
+/**
+ * Take the MySQL lock under which the setting $name of this feature is created (GET_LOCK names are server-wide, so the
+ * database is part of the name; MD5 only shortens it, it secures nothing). Inside a transaction the lock is kept until
+ * that transaction ends: followingOpeningBalanceReleaseLocks() releases it after the COMMIT or ROLLBACK of the callers in
+ * this file, and otherwise (a kassekladde posting commits in finans/bogfor.php) the connection releases it when the
+ * request ends. A lock released earlier let the next creator read before this row was committed: under READ COMMITTED
+ * its INSERT ... SELECT does not wait for a row that is not committed, and it added a second one (Codex round 29).
+ * A lock this transaction holds already is not taken again.
+ *
+ * @param string $name var_name, already escaped.
+ * @return bool True when the lock is held; false when MySQL did not give it within 10 seconds (0) or failed (NULL).
+ */
+function followingOpeningBalanceGetLock($name) {
+	if (!isset($GLOBALS['followingOpeningBalanceLocks']) || !is_array($GLOBALS['followingOpeningBalanceLocks'])) {
+		$GLOBALS['followingOpeningBalanceLocks'] = array();
+	}
+	if (!empty($GLOBALS['followingOpeningBalanceLocks'][$name])) {
+		return true;
+	}
+	$r = db_fetch_array(db_select("SELECT GET_LOCK(CONCAT('saldi:$name:', MD5(DATABASE())), 10) AS locked", __FILE__ . ' line ' . __LINE__));
+	if (!$r || (string)$r['locked'] !== '1') {
+		return false;
+	}
+	if (followingOpeningBalancesInTransaction()) {
+		$GLOBALS['followingOpeningBalanceLocks'][$name] = true;
+	}
+	return true;
+}
+
+/**
+ * Release one MySQL creation lock now (outside a transaction, see followingOpeningBalanceGetLock()).
+ *
+ * @param string $name var_name, already escaped.
+ * @return void
+ */
+function followingOpeningBalanceReleaseLock($name) {
+	unset($GLOBALS['followingOpeningBalanceLocks'][$name]);
+	db_select("SELECT RELEASE_LOCK(CONCAT('saldi:$name:', MD5(DATABASE()))) AS locked", __FILE__ . ' line ' . __LINE__);
+}
+
+/**
+ * Release the MySQL creation locks kept for the transaction that has just been committed or rolled back. Nothing to
+ * do on PostgreSQL, whose transaction-level advisory locks end with the transaction.
+ *
+ * @return void
+ */
+function followingOpeningBalanceReleaseLocks() {
+	$locks = isset($GLOBALS['followingOpeningBalanceLocks']) && is_array($GLOBALS['followingOpeningBalanceLocks']) ? array_keys($GLOBALS['followingOpeningBalanceLocks']) : array();
+	foreach ($locks as $name) {
+		followingOpeningBalanceReleaseLock($name);
 	}
 }
 
