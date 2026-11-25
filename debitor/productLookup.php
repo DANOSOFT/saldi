@@ -29,8 +29,9 @@
 // 20260618 CL/PHR replaced lower(vv.variant_type) by lower(vv.variant_type::text) to avoid Fatal error
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261125 CL/MMR SST-1051 Customer orders: show items from the active external price list (Prislister) and
-//                 create the chosen one as an item before it goes on the order.
+// 20261125 CL/MMR SST-1051 Customer orders show items from the active external price list (Prislister).
+//                 The chosen one is created as an item before it goes on the order.
+// 20261125 CL/MMR SST-1051 An item is only created by POST for an open customer order or credit note.
 @session_start();
 $s_id = session_id();
 

@@ -26,6 +26,8 @@
 // The active external price list (Indstillinger → Prislister, grupper art 'PL', box12 'Yes') for the item lookup
 // on customer orders: read the CSV file, search it, and create a chosen row as an item.
 // 20261125 CL/MMR SST-1051 New file. Brings the external price list back to the customer order item lookup.
+// 20261125 CL/MMR SST-1051 Search skips rows that are already items before the limit.
+//                 The item group comes from the stored group name when it names one group, else the group number.
 
 /**
  * The active price list, or null when none is in use.
@@ -172,21 +174,34 @@ function externalPriceListSearch(array $rows, string $itemNo, string $descriptio
 }
 
 /**
- * The item group of the price list: its group number, or the group with the stored name (older settings page).
+ * The item group of the price list in the current fiscal year. The stored name wins when it names exactly one item
+ * group, because the older settings page could store a group number that did not match the name the user chose.
+ * Otherwise the stored number is used when it is an item group.
  *
- * @return int the group number, or 0 when the list has none
+ * @return int the group number, or 0 when no item group can be found
  */
 function externalPriceListGroup(array $priceList): int
 {
+	global $regnaar;
+	$year = (int) $regnaar;
+	if ($priceList['groupName'] !== '') {
+		$qtxt = "select distinct kodenr from grupper where art = 'VG' and fiscal_year = $year and beskrivelse = '" . db_escape_string($priceList['groupName']) . "'";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$byName = array();
+		while ($r = db_fetch_array($q)) {
+			$byName[] = (int) $r['kodenr'];
+		}
+		if (count($byName) === 1) {
+			return $byName[0];
+		}
+	}
 	if ($priceList['group']) {
-		return $priceList['group'];
+		$qtxt = "select kodenr from grupper where art = 'VG' and fiscal_year = $year and kodenr = '" . (int) $priceList['group'] . "' limit 1";
+		if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			return $priceList['group'];
+		}
 	}
-	if ($priceList['groupName'] === '') {
-		return 0;
-	}
-	$qtxt = "select kodenr from grupper where art = 'VG' and beskrivelse = '" . db_escape_string($priceList['groupName']) . "' order by fiscal_year desc limit 1";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	return $r ? (int) $r['kodenr'] : 0;
+	return 0;
 }
 
 /**
