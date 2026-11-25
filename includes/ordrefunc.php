@@ -180,9 +180,16 @@
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
+// 20261125 CL/MMR MB-80 bogfor_nu: a foreign-currency invoice posts its VAT rounded to øre in the invoice currency before conversion, so 250.00 EUR at 745 is 1862.50 and not 1862.49 plus 0.02 currency and -0.01 øre difference rows.
+//                 A converted amount is rounded once, and the control totals add the posted 2-decimal amounts.
+//                 Lines are grouped per revenue account and VAT account, so a line on an account already used with another VAT account is no longer dropped.
+//                 A group with net 0 still posts its VAT.
+//                 forkontrolPosteringsbalance() predicts with the same code (includes/salesPostingVat.php).
+//                 DKK amounts are unchanged; the øre difference account no longer gets cancelling or split rows.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/salesPostingVat.php';
 require_once __DIR__ . '/orderFuncIncludes/glsLabel.php';
 require_once __DIR__ . '/orderFuncIncludes/posPaymentType.php';
 
@@ -2435,25 +2442,34 @@ function bogfor_indbetaling($id, $webservice) {
 	return ('OK');
 }
 ######################################################################################################################################
-function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
+/**
+ * Pre-flight for bogfor_nu(): predicts the difference between the debtor posting and the revenue and VAT
+ * postings, using the same grouping, rounding and VAT allocation as bogfor_nu() (includes/salesPostingVat.php).
+ * A positive difference is what bogfor_nu() would post as a credit on the currency or øre difference account.
+ *
+ * @param int|string $id A single ordrer.id, or a comma-separated list of ids.
+ * @param float|string $headerTotal The orders' sum + moms in the invoice currency.
+ * @param float|string $valutakurs ordrer.valutakurs (100 for the base currency).
+ * @param float|string $headerVat The orders' moms in the invoice currency (used for the foreign-currency VAT allocation).
+ * @return array{
+ *   difference: float,  Debit minus credit in the base currency, 2 decimals.
+ *   lines: int,         Number of order lines posted (bogfor_nu() allows 2 øre per line in a foreign currency).
+ * }
+ */
+function forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerVat = 0)
 {
-	# 20260824 Sawaneh JOB-056
-	# Toerkoersel af posteringsberegningen i bogfor_nu: forudsiger den debet/kredit-difference
-	# bogfoeringen vil skabe, saa en ordre i ubalance kan afvises FOER der skrives til
-	# transaktioner/openpost. Tolerancerne spejler dem kursdifference-/oeredifference-
-	# posteringerne allerede opfanger, saa ordrer der bogfoeres rent i dag paavirkes ikke.
-	global $baseCurrency;
-	if (!$valutakurs)
+	if (!$valutakurs) {
 		$valutakurs = 100;
-	$maxdif = 2;
-	if (is_numeric($id))
-		$tmp = "ordre_id = '" . $id . "'";
-	else {
+	}
+	if (is_numeric($id)) {
+		$tmp = "ordre_id = '" . (int)$id . "'";
+	} else {
 		$idliste = explode(",", $id);
 		$antal = count($idliste);
-		$tmp = "(ordre_id = '" . $idliste[0] . "'";
-		for ($x = 1; $x < $antal; $x++)
-			$tmp .= " or ordre_id = '" . $idliste[$x] . "'";
+		$tmp = "(ordre_id = '" . (int)$idliste[0] . "'";
+		for ($x = 1; $x < $antal; $x++) {
+			$tmp .= " or ordre_id = '" . (int)$idliste[$x] . "'";
+		}
 		$tmp .= ")";
 	}
 	$p = 0;
@@ -2464,66 +2480,61 @@ function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
 		$projekt[$p] = trim($r['projekt']);
 	}
 	$projektantal = ($p) ? $p : 1;
-	if (!$p)
+	if (!$p) {
 		$projekt[1] = '';
-	$kontrol = afrund(afrund($headerTotal, 3) * $valutakurs / 100, 3);
+	}
+	$postingLines = salesPostingLoadGroups($tmp, $projekt, $projektantal);
+	$vatAllocations = null;
+	if (is_numeric($id) && $valutakurs != 100) {
+		$vatAllocations = salesPostingVatAllocations($postingLines['groups'][1], $headerVat, $valutakurs);
+	}
+	$kontrol = salesPostingAmount(afrund($headerTotal, 3), $valutakurs);
 	for ($t = 1; $t <= 2; $t++) {
+		$rate = ($t == 1) ? $valutakurs : 0;
 		for ($p = 1; $p <= $projektantal; $p++) {
-			$y = 0;
-			$konto = $vatkonto = $net = $vat = array();
-			if ($t == 1)
-				$qtxt = "select * from ordrelinjer where $tmp and coalesce(projekt,'')='$projekt[$p]' and posnr>='0' and bogf_konto > 0 order by bogf_konto,vat_account";
-			else
-				$qtxt = "select * from ordrelinjer where $tmp and coalesce(projekt,'')='$projekt[$p]' and posnr<'0' order by bogf_konto,vat_account";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				if ($valutakurs != 100)
-					$maxdif += 2;
-				if (!in_array($r['bogf_konto'], $konto)) {
-					$y++;
-					$konto[$y] = $r['bogf_konto'];
-					$vatkonto[$y] = $r['vat_account'] * 1;
-					if ($r['rabatart'] == 'amount') {
-						$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']);
-						($r['procent'] || $r['procent'] != '') ? $net[$y] = $linjesum * $r['procent'] / 100 : $net[$y] = $linjesum;
-					} else {
-						$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
-						($r['procent'] || $r['procent'] != '') ? $net[$y] = $linjesum * $r['procent'] / 100 : $net[$y] = $linjesum;
-						$net[$y] = afrund($net[$y], 3);
-					}
-					($r['momssats'] && !$r['momsfri']) ? $vat[$y] = afrund($linjesum / 100 * $r['momssats'], 3) : $vat[$y] = 0;
-				} else {
-					for ($a = 1; $a <= $y; $a++) {
-						if ($konto[$a] == $r['bogf_konto'] && $vatkonto[$a] == $r['vat_account']) {
-							if ($r['rabatart'] == 'amount')
-								$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']);
-							else
-								$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
-							($r['procent'] || $r['procent'] != '') ? $net[$a] += $linjesum * $r['procent'] / 100 : $net[$a] += $linjesum;
-							$net[$a] = afrund($net[$a], 3);
-							if ($r['momssats'] && !$r['momsfri'])
-								$vat[$a] += afrund($linjesum / 100 * $r['momssats'], 3);
-						}
-					}
-				}
-			}
-			for ($x = 1; $x <= $y; $x++) {
-				if (!$konto[$x] || !$net[$x])
+			foreach ($postingLines['groups'][$t][$p] as $y => $group) {
+				if (!$group['bogf_konto'] || (!$group['pris'] && !$group['linjemoms'])) {
 					continue;
-				if ($t == 1)
-					$kontrol -= afrund($net[$x] * $valutakurs / 100, 3) + afrund($vat[$x] * $valutakurs / 100, 3);
-				else
-					$kontrol -= afrund($net[$x], 3) + afrund($vat[$x], 3);
+				}
+				$kontrol -= salesPostingAmount($group['pris'], $rate);
+				if ($t == 1 && $vatAllocations !== null) {
+					$kontrol -= $vatAllocations[$p][$y];
+				} else {
+					$kontrol -= salesPostingAmount($group['linjemoms'], $rate);
+				}
 			}
 		}
 	}
-	$diff = afrund($kontrol, 2);
-	if (!$diff)
+	return array('difference' => afrund($kontrol, 2), 'lines' => $postingLines['lines']);
+}
+
+function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs, $headerVat = 0)
+{
+	# 20260824 Sawaneh JOB-056
+	# Toerkoersel af posteringsberegningen i bogfor_nu: forudsiger den debet/kredit-difference
+	# bogfoeringen vil skabe, saa en ordre i ubalance kan afvises FOER der skrives til
+	# transaktioner/openpost. Tolerancerne spejler dem kursdifference-/oeredifference-
+	# posteringerne allerede opfanger, saa ordrer der bogfoeres rent i dag paavirkes ikke.
+	# 20261125 MB-80: the amounts come from forkontrolPosteringsdifference(), which uses bogfor_nu()'s own grouping and rounding.
+	global $baseCurrency;
+	if (!$valutakurs) {
+		$valutakurs = 100;
+	}
+	$control = forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerVat);
+	$maxdif = 2;
+	if ($valutakurs != 100) {
+		$maxdif += 2 * $control['lines'];
+	}
+	$diff = $control['difference'];
+	if (!$diff) {
 		return NULL;
-	if ($valuta != $baseCurrency && abs($diff) <= $maxdif)
+	}
+	if ($valuta != $baseCurrency && abs($diff) <= $maxdif) {
 		return NULL;
-	if (abs($diff) < 0.05)
+	}
+	if (abs($diff) < 0.05) {
 		return NULL;
+	}
 	return $diff;
 }
 /**
@@ -2762,7 +2773,7 @@ function bogfor_nu($id, $kilde) {
 		$kontonr = NULL;
 	}
 	# 20260824 Sawaneh JOB-056 ->
-	if ($art != 'PO' && ($balancediff = forkontrolPosteringsbalance($id, $sum, $valuta, $valutakurs))) {
+	if ($art != 'PO' && ($balancediff = forkontrolPosteringsbalance($id, $sum, $valuta, $valutakurs, $moms))) {
 		$svar = "Bogf&oslash;ring afbrudt: ordren balancerer ikke (difference " . dkdecimal($balancediff, 2) . " $baseCurrency). ";
 		$svar .= "Ordrens moms stemmer ikke med ordrelinjernes momssatser - &aring;bn ordren, kontroller konto og momssats p&aring; linjerne og gem den igen f&oslash;r bogf&oslash;ring.";
 		$message = $db . " | Bogfoering blokeret foer postering: ordre_id=$id, diff=$balancediff | " . __FILE__ . " linje " . __LINE__ . " | " . $brugernavn . " " . date("Y-m-d H:i:s");
@@ -3045,14 +3056,10 @@ function bogfor_nu($id, $kilde) {
 			$debet = '0';
 			$kredit = $sum * -1;
 		}
-		if ($valutakurs) {
-			$kredit = afrund($kredit * $valutakurs / 100, 3);
-			$debet = afrund($debet * $valutakurs / 100, 3);
-		} # Omregning til DKR.
-		$d_kontrol = $d_kontrol + $debet;
+		$kredit = salesPostingAmount($kredit, $valutakurs); # Omregning til DKR (MB-80: a foreign currency is rounded once)
+		$debet = salesPostingAmount($debet, $valutakurs);
+		$d_kontrol = $d_kontrol + $debet; # MB-80: the control totals add what is posted
 		$k_kontrol = $k_kontrol + $kredit;
-		$debet = afrund($debet, 2);
-		$kredit = afrund($kredit, 2);
 		if (is_numeric($id)) {
 			$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kontonr','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
 		} else {
@@ -3091,76 +3098,35 @@ function bogfor_nu($id, $kilde) {
 	if ($projektliste && $openpost) {
 		db_modify("update openpost set projekt='$projektliste' where id='$openpost_id'", __FILE__ . " linje " . __LINE__);
 	}
+	# 20261125 MB-80: lines are grouped per revenue account AND VAT account (includes/salesPostingVat.php, shared with
+	# forkontrolPosteringsbalance()). Before, a line on an account already seen with another VAT account was dropped.
+	$postingLines = salesPostingLoadGroups($tmp, $projekt, $projektantal);
+	if ($valutakurs && $valutakurs != 100) {
+		$maxdif = $maxdif + 2 * $postingLines['lines']; #Og yderligere 2 pr ordrelinje.
+	}
+	# Foreign currency: the invoice VAT is rounded to øre in the invoice currency before it is converted (MB-80)
+	$vatAllocations = null;
+	if ($art != 'PO' && is_numeric($id) && $valutakurs && $valutakurs != 100) {
+		$vatAllocations = salesPostingVatAllocations($postingLines['groups'][1], $moms, $valutakurs);
+	}
 	for ($t = 1; $t <= 2; $t++) {
 		for ($p = 1; $p <= $projektantal; $p++) {
+			$bogf_konto = $vat_account = $pris = $linjemoms = $postedVat = array();
 			$y = 0;
-			$tjek = array();
-			$bogf_konto = array();
-			if (is_numeric($id))
-				$tmp = "ordre_id = '" . $id . "'";
-			else {
-				$idliste = explode(",", $id);
-				$antal = count($idliste);
-				$tmp = "(ordre_id = '" . $idliste[0] . "'";
-				for ($x = 1; $x < $antal; $x++)
-					$tmp .= " or ordre_id = '" . $idliste[$x] . "'";
-				$tmp .= ")";
-			}
-			if ($t == 1) {
-				$qtxt = "select * from ordrelinjer where $tmp and projekt='$projekt[$p]' and posnr>='0' and bogf_konto > 0 order by bogf_konto,vat_account"; #20191127
-			} else {
-				$qtxt = "select * from ordrelinjer where $tmp and projekt='$projekt[$p]' and posnr<'0' order by bogf_konto,vat_account";
-			}
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				if ($valutakurs && $valutakurs != 100)
-					$maxdif = $maxdif + 2; #Og yderligere 2 pr ordrelinje.
-				$tmp = $r['bogf_konto'] . "|" . $r['vat_account'];
-				#				if (!in_array($tmp,$bogf_vat) && $r['bogf_konto']) {
-
-				if (!in_array($r['bogf_konto'], $bogf_konto)) {
-					$y++;
-					$bogf_konto[$y] = $r['bogf_konto'];
-					$vat_account[$y] = $r['vat_account'] * 1;
-					$bogf_vat[$y] = $bogf_konto[$y] . "|" . $vat_account[$y];
-
-					if ($r['rabatart'] == 'amount') {
-						$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']); #20140424b
-						($r['procent'] || $r['procent'] != '') ? $pris[$y] = $linjesum * $r['procent'] / 100 : $pris[$y] = $linjesum; #20140424b
-					} else {
-						$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100); #20140424b
-						($r['procent'] || $r['procent'] != '') ? $pris[$y] = $linjesum * $r['procent'] / 100 : $pris[$y] = $linjesum; #20140424b
-						if ($art == 'PO')
-							$pris[$y] = afrund($pris[$y], 3);
-						else
-							$pris[$y] = afrund($pris[$y], 3); #Afrunding tilfoejet 20090126 grundet diff i ordre 98 i saldi_104 -- 20110207 ændret til 2 decimaler ordre_id 1325 saldi_329
-					}
-					($r['momssats'] && !$r['momsfri']) ? $linjemoms[$y] = afrund($linjesum / 100 * $r['momssats'], 3) : $linjemoms[$y] = 0; #20191127
-
-				} else {
-					for ($a = 1; $a <= $y; $a++) {
-						if ($bogf_konto[$a] == $r['bogf_konto'] && $vat_account[$a] == $r['vat_account']) {
-							if ($r['rabatart'] == 'amount') {
-								$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']); #20140424b
-							} else {
-								$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100); #20140424b
-							}
-							($r['procent'] || $r['procent'] != '') ? $pris[$a] += $linjesum * $r['procent'] / 100 : $pris[$a] += $linjesum; #20140424b
-							if ($art == 'PO')
-								$pris[$a] = afrund($pris[$a], 3);
-							else
-								$pris[$a] = afrund($pris[$a], 3); #Afrunding tilfoejet 20090126 grundet diff i ordre 98 i saldi_104 -- 20110207 ændret til 2 decimaler ordre_id 1325 saldi_329
-							if ($r['momssats'] && !$r['momsfri'])
-								$linjemoms[$a] += afrund($linjesum / 100 * $r['momssats'], 3);
-						}
-					}
-				}
+			foreach ($postingLines['groups'][$t][$p] as $group) {
+				$y++;
+				$bogf_konto[$y] = $group['bogf_konto'];
+				$vat_account[$y] = $group['vat_account'];
+				$pris[$y] = $group['pris'];
+				$linjemoms[$y] = $group['linjemoms'];
+				$postedVat[$y] = ($t == 1 && $vatAllocations !== null) ? $vatAllocations[$p][$y] : null;
 			}
 			$ordrelinjer = $y;
-			if ($indbetaling)
+			if ($indbetaling) {
 				$ordrelinjer = 0;
+			}
 			for ($y = 1; $y <= $ordrelinjer; $y++) {
-				if ($bogf_konto[$y] && $pris[$y]) {
+				if ($bogf_konto[$y] && ($pris[$y] || $linjemoms[$y])) { # MB-80: a group with net 0 still posts its VAT
 					if ($pris[$y] > 0) {
 						$kredit = $pris[$y];
 						$debet = 0;
@@ -3170,42 +3136,40 @@ function bogfor_nu($id, $kilde) {
 						$debet = $pris[$y] * -1;
 						$vat = $linjemoms[$y] * -1;
 					}
-					if ($t == 1 && $valutakurs) {
-						$kredit = $kredit * $valutakurs / 100;
-						$debet = $debet * $valutakurs / 100;
-						$vat = $vat * $valutakurs / 100;
-					} # Omregning til DKR.
-					$kredit = afrund($kredit, 3);
-					$debet = afrund($debet, 3);
-					$d_kontrol = $d_kontrol + $debet;
-					$k_kontrol = $k_kontrol + $kredit;
-					$debet = afrund($debet, 2);
-					$kredit = afrund($kredit, 2);
-					$vat = afrund($vat, 2);
-					#						$linjemoms[$y]=afrund($linjemoms[$y]*1,2);
-					if (is_numeric($id)) {
-						$qtxt = "insert into transaktioner ";
-						$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
-						$qtxt .= "projekt,ansat,ordre_id,kasse_nr,moms)";
-						$qtxt .= " values ";
-						$qtxt .= "('0','$transdate','$beskrivelse','$bogf_konto[$y]','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime',";
-						$qtxt .= "'$projekt[$p]','$ansat','$id','$kasse',$vat)";
-					} else {
-						$qtxt = "insert into transaktioner ";
-						$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
-						$qtxt .= "projekt,ansat,ordre_id,kasse_nr,moms)";
-						$qtxt .= " values ";
-						$qtxt .= "('0','$transdate','$beskrivelse','$bogf_konto[$y]','0','$debet','$kredit','0','$afd','$logdate',";
-						$qtxt .= "'$logtime','$projekt[$p]','$ansat','0','$kasse',$vat)";
+					$rate = ($t == 1) ? $valutakurs : 0;
+					$kredit = salesPostingAmount($kredit, $rate); # Omregning til DKR.
+					$debet = salesPostingAmount($debet, $rate);
+					if ($rate) {
+						$vat = $vat * $rate / 100;
 					}
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					$postedRows++;
-					$tmp = $debet - $kredit;
-					$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$bogf_konto[$y]' and regnskabsaar='$regnaar'";
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					if ($linjemoms[$y]) {
+					$d_kontrol = $d_kontrol + $debet; # MB-80: the control totals add what is posted
+					$k_kontrol = $k_kontrol + $kredit;
+					$vat = ($postedVat[$y] !== null) ? $postedVat[$y] * -1 : afrund($vat, 2);
+					if ($pris[$y]) {
+						if (is_numeric($id)) {
+							$qtxt = "insert into transaktioner ";
+							$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
+							$qtxt .= "projekt,ansat,ordre_id,kasse_nr,moms)";
+							$qtxt .= " values ";
+							$qtxt .= "('0','$transdate','$beskrivelse','$bogf_konto[$y]','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime',";
+							$qtxt .= "'$projekt[$p]','$ansat','$id','$kasse',$vat)";
+						} else {
+							$qtxt = "insert into transaktioner ";
+							$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
+							$qtxt .= "projekt,ansat,ordre_id,kasse_nr,moms)";
+							$qtxt .= " values ";
+							$qtxt .= "('0','$transdate','$beskrivelse','$bogf_konto[$y]','0','$debet','$kredit','0','$afd','$logdate',";
+							$qtxt .= "'$logtime','$projekt[$p]','$ansat','0','$kasse',$vat)";
+						}
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$postedRows++;
+						$tmp = $debet - $kredit;
+						$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$bogf_konto[$y]' and regnskabsaar='$regnaar'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					}
+					if (($postedVat[$y] !== null) ? $postedVat[$y] != 0 : $linjemoms[$y]) {
 						if (!$vat_account[$y]) {
-							include_once('../includes/stdFunc/findAccountVat.php');
+							include_once(__DIR__ . '/stdFunc/findAccountVat.php');
 							$vat_account[$y] = findAccountVat($bogf_konto[$y]);
 						}
 						if (!$vat_account[$y]) {
@@ -3214,23 +3178,22 @@ function bogfor_nu($id, $kilde) {
 							# amount that was never actually posted anywhere.
 							return ("Kontroller moms & momsopsætning: kontonr $bogf_konto[$y] har ingen momskode, men ordre $id har en linje med moms");
 						}
-						if ($linjemoms[$y] > 0) {
-							$kredit = $linjemoms[$y];
-							$debet = 0;
+						if ($postedVat[$y] !== null) { # already in the base currency, rounded
+							$kredit = max(0, $postedVat[$y]);
+							$debet = max(0, $postedVat[$y] * -1);
 						} else {
-							$kredit = 0;
-							$debet = $linjemoms[$y] * -1;
+							if ($linjemoms[$y] > 0) {
+								$kredit = $linjemoms[$y];
+								$debet = 0;
+							} else {
+								$kredit = 0;
+								$debet = $linjemoms[$y] * -1;
+							}
+							$kredit = salesPostingAmount($kredit, $rate); # Omregning til DKR.
+							$debet = salesPostingAmount($debet, $rate);
 						}
-						if ($t == 1 && $valutakurs) {
-							$kredit = $kredit * $valutakurs / 100;
-							$debet = $debet * $valutakurs / 100;
-						} # Omregning til DKR.
-						$kredit = afrund($kredit, 3);
-						$debet = afrund($debet, 3);
 						$d_kontrol = $d_kontrol + $debet;
 						$k_kontrol = $k_kontrol + $kredit;
-						$debet = afrund($debet, 2);
-						$kredit = afrund($kredit, 2);
 						if (is_numeric($id)) {
 							$qtxt = "insert into transaktioner ";
 							$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
