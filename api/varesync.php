@@ -41,6 +41,7 @@
 // 20261105 CL/SZ MB-134 Product qty column is cast to float, so a qty file no longer dies on its header line under PHP 8.
 // 20261105 CL/SZ MB-119 'Opdater fra shop' only adds a shop_varer link when the row has a shop id, so a row without one no longer blocks the real link on a later sync.
 // 20261125 CL/SZ MB-145 A variant label that exists under another category is created under its own category, so the variant no longer gets variant_type 0. The last stock message names the item instead of a variant-file value. Variant labels are escaped in these queries.
+// 20261125 CL/SZ MB-192 Every variant barcode is read for the product barcode check, not only the last one, and each clash message ends its line. The barcode messages are shown when the run stops at a missing variant file.
 
 
 function varesync($valg) {
@@ -113,6 +114,7 @@ function varesync($valg) {
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$varBarCode[$x]=$r['variant_stregkode'];
+		$x++;
 	}
 	$header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
 	file_put_contents("../temp/$db/restApiVarer.log","db = $db\n", FILE_APPEND);
@@ -215,7 +217,7 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 			$showtxt.="Stregkode $stregkode[$y] bruges også i $dbvnr:$dbbesk -- stregkode slettet for $varenr[$y]:$beskrivelse[$y]<br>";
 			$stregkode[$y]=NULL;
 		} elseif ($stregkode[$y] && in_array($stregkode[$y],$varBarCode)) {
-			$showtxt.="Stregkode $stregkode[$y] bruges også i varianter,  -- stregkode slettet for $varenr[$y]:$beskrivelse[$y]";
+			$showtxt.="Stregkode $stregkode[$y] bruges også i varianter,  -- stregkode slettet for $varenr[$y]:$beskrivelse[$y]<br>";
 			$stregkode[$y]=NULL;
 		}
 		$strktjek[$y]=$stregkode[$y];
@@ -331,7 +333,10 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 #		$result=system ($systxt);
 		if (file_exists("../temp/$db/$sfn.csv")) unlink("../temp/$db/$sfn.csv");
 		system ("cd ../temp/$db/\nwget $sf\n");
-		if (!file_exists("../temp/$db/$vfn.csv")) exit;
+		if (!file_exists("../temp/$db/$vfn.csv")) {
+			echo $showtxt;
+			exit;
+		}
 		if (file_exists("../temp/$db/$sfn.csv")) {
 			$stockfile=file_get_contents("../temp/$db/$sfn.csv");
 #			unlink("../temp/$db/$sfn.csv");
@@ -352,7 +357,10 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 		if (file_exists("../temp/$db/$vfn.csv")) unlink ("../temp/$db/$vfn.csv");
 		$systxt="cd ../temp/$db/\nwget --no-cache --no-check-certificate --header='$header' '$lf'\n";
 		$result=system ($systxt);
-		if (!file_exists("../temp/$db/$vfn.csv")) exit;
+		if (!file_exists("../temp/$db/$vfn.csv")) {
+			echo $showtxt;
+			exit;
+		}
 	}
 	$indhold=file_get_contents("../temp/$db/$vfn.csv");
 #	unlink("../temp/$db/$vfn.csv");

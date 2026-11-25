@@ -13,8 +13,12 @@
 //
 // Prints what varesync() printed, then a JSON object on the last line.
 //
+// varesync() stops with exit when the variant file can't be fetched, so the JSON line is printed
+// from a shutdown function.
+//
 // History:
 // 20261125 CL/SZ MB-145 Created.
+// 20261125 CL/SZ MB-192 Print the JSON line from a shutdown function, so a run that stops with exit still reports.
 
 if ($argc < 3) {
 	fwrite(STDERR, "usage: php run_varesync.php <valg> <tenant_db>\n");
@@ -32,9 +36,11 @@ if (!is_dir($tempDir)) {
 
 require_once dirname(__DIR__, 3) . '/api/varesync.php';
 
+register_shutdown_function(static function (): void {
+	$printed = (string)ob_get_clean();
+	echo $printed, "\n";
+	echo json_encode(['printed' => $printed]), "\n";
+});
+
 ob_start();
 varesync($valg);
-$printed = ob_get_clean();
-
-echo $printed, "\n";
-echo json_encode(['printed' => $printed]), "\n";
