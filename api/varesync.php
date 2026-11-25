@@ -118,8 +118,8 @@ function varesyncRowProblem($price, $group, $cost, $shopId) {
  * A link to a product that no longer exists counts as free, as before.
  *
  * @param string|int $shopId
- * @param array $svShopId shop_varer.shop_id per link
- * @param array $svSaldiId shop_varer.saldi_id per link, same index
+ * @param list<string|int> $svShopId shop_varer.shop_id per link
+ * @param list<string|int> $svSaldiId shop_varer.saldi_id per link, same index
  * @return string
  */
 function varesyncShopIdOwner($shopId, $svShopId, $svSaldiId) {
