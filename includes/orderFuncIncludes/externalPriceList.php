@@ -41,6 +41,7 @@
 //                 A last record with a missing closing quote is refused, also when spaces come before the quote.
 // 20261125 CL/MMR SST-1051 Prices are rounded on their digits to 3 decimals and written to the item as exact text.
 // 20261125 CDX/NTR Reject CSV headers without both cost and sale prices instead of supplying zero.
+// 20261125 CDX/NTR Check existing catalogue items in bounded batches while counting only new rows toward the search limit.
 
 /**
  * The active price list, or null when none is in use.
@@ -300,19 +301,46 @@ function externalPriceListSearch(array $priceList, string $itemNo, string $descr
 		return array();
 	}
 	$found = array();
-	$usable = externalPriceListEach($priceList, function (array $row) use ($itemNo, $description, $limit, &$found): bool {
+	$pending = array();
+	$flush = function () use (&$pending, &$found, $limit): void {
+		if (!$pending) {
+			return;
+		}
+		$candidates = array();
+		foreach ($pending as $index => $row) {
+			$candidates[] = 'select ' . (int) $index . " as row_index, '" . db_escape_string($row['varenr']) . "' as varenr";
+		}
+		// Joining candidate indices lets the database apply its own item-number collation on every engine.
+		$qtxt = 'select distinct candidates.row_index from (' . implode(' union all ', $candidates) . ') candidates inner join varer on varer.varenr = candidates.varenr';
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$existing = array();
+		while ($r = db_fetch_array($q)) {
+			$existing[(int) $r['row_index']] = true;
+		}
+		foreach ($pending as $index => $row) {
+			if (!isset($existing[$index])) {
+				$found[] = $row;
+				if (count($found) >= $limit) {
+					break;
+				}
+			}
+		}
+		$pending = array();
+	};
+	$usable = externalPriceListEach($priceList, function (array $row) use ($itemNo, $description, $limit, &$found, &$pending, $flush): bool {
 		if ($itemNo !== '' && mb_stripos($row['varenr'], $itemNo) === false && mb_stripos($row['stregkode'], $itemNo) === false) {
 			return true;
 		}
 		if ($description !== '' && mb_stripos($row['beskrivelse'], $description) === false) {
 			return true;
 		}
-		if (externalPriceListItemId($row['varenr'])) {
-			return true;
+		$pending[] = $row;
+		if (count($pending) >= 250) {
+			$flush();
 		}
-		$found[] = $row;
 		return count($found) < $limit;
 	});
+	$flush();
 	return $usable ? $found : null;
 }
 
