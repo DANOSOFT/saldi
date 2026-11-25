@@ -37,6 +37,7 @@
 // 20261125 CL/MMR SST-1051 The preview converts the exact price text from the helper to a number for display.
 // 20261125 CDX/NTR Escape imported catalogue text before the grid adds search highlighting.
 // 20261125 CDX/NTR Preserve the selected warehouse through external item creation, selection and failure redirects.
+// 20261125 CDX/NTR Route description lookups and their automatic grid search to the description field.
 @session_start();
 $s_id = session_id();
 
@@ -577,14 +578,14 @@ if ($art == 'DO' || $art == 'DK') {
     include_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
     $priceList = externalPriceListActive();
     $gridSearch = if_array(if_array($_GET, 'search'), "productLookup$id");
-    $searchItemNo = trim((string) ifset($gridSearch, 'varenr', (string) $find));
-    $searchText = trim((string) ifset($gridSearch, 'beskrivelse', ''));
+    $searchItemNo = trim((string) ifset($gridSearch, 'varenr', $fokus === 'beskrivelse' ? '' : (string) $find));
+    $searchText = trim((string) ifset($gridSearch, 'beskrivelse', $fokus === 'beskrivelse' ? (string) $find : ''));
     if ($priceList && ($searchItemNo !== '' || $searchText !== '')) {
         $priceListFound = externalPriceListSearch($priceList, $searchItemNo, $searchText);
         print "<div id='priceListMatches' style='margin: 4px 8px 8px 8px; max-height: 35vh; overflow: auto;'>";
         print "<b>Fra prislisten " . htmlspecialchars($priceList['name']) . "</b>";
         if ($priceListFound === null) {
-            print "<div style='color: #a00;'>Prisfilen kunne ikke bruges. Den kunne ikke hentes, er større end 20 MB eller har ingen kolonne varenr.</div>";
+            print "<div style='color: #a00;'>Prisfilen kunne ikke bruges. Den kunne ikke hentes, er større end 20 MB eller mangler en af kolonnerne varenr, kostpris og salgspris.</div>";
         } else {
             $priceListGroup = externalPriceListGroup($priceList);
             if (!$priceListFound) {
@@ -733,10 +734,10 @@ print "<script type=\"text/javascript\">
                 form.append('<input type=\"hidden\" name=\"bordnr\" value=\"' + orderContext.bordnr + '\">');
             }
         }
-        // Auto-search if 'find' parameter is present (e.g. from varenr non-exact-match redirect)
-        var findParam = '" . addslashes($find) . "';
+        // Match the order's item-number or description lookup, including its automatic grid search.
+        var findParam = " . json_encode((string) $find, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) . ";
         if (findParam) {
-            var searchInput = $('input[name=\"search[productLookup" . $id . "][varenr]\"]');
+            var searchInput = $('input[name=\"search[productLookup" . $id . "][" . ($fokus === 'beskrivelse' ? 'beskrivelse' : 'varenr') . "]\"]');
             if (searchInput.length && !searchInput.val()) {
                 searchInput.val(findParam);
                 // Auto-submit the form to trigger the search
