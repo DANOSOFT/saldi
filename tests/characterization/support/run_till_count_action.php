@@ -9,7 +9,7 @@
 // argv: 1 = session id (must match the seeded online row)
 //       2 = the fiscal year ($regnaar)
 //       3 = count | add | remove
-// prints JSON on the last line: {"count": int, "rows": [{"fiscal_year": int, "box1": string}, ...]}
+// prints JSON on the last line: {"count": int, "rows": [{"fiscal_year": int, "box1": string, "box5": string}, ...]}
 //
 // History:
 // 20261125 CL/MJ SD-880 Created.
@@ -49,8 +49,8 @@ if ($what === 'add' || $what === 'remove') {
 $count = settings_till_count();
 
 $rows = array();
-$q = db_select("select fiscal_year, box1 from grupper where art = 'POS' and kodenr = '1' order by fiscal_year, id", __FILE__ . " linje " . __LINE__);
+$q = db_select("select fiscal_year, box1, box5 from grupper where art = 'POS' and kodenr = '1' order by fiscal_year, id", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
-    $rows[] = array('fiscal_year' => (int) $r['fiscal_year'], 'box1' => (string) $r['box1']);
+    $rows[] = array('fiscal_year' => (int) $r['fiscal_year'], 'box1' => (string) $r['box1'], 'box5' => (string) $r['box5']);
 }
 echo "\n" . json_encode(array('count' => $count, 'rows' => $rows)) . "\n";
