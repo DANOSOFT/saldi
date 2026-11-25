@@ -31,6 +31,7 @@
 // 20261125 CL/MMR SST-1051 The file is read as whole CSV records, so a quoted field may span several lines.
 // 20261125 CL/MMR SST-1051 CR-only line ends and blank lines before the header are accepted.
 // 20261125 CL/MMR SST-1051 A file larger than 20 MB is refused instead of being cut inside a record.
+// 20261125 CL/MMR SST-1051 Records are visited one by one instead of kept, so a file with many short lines fits in memory.
 
 /**
  * The active price list, or null when none is in use.
@@ -78,28 +79,25 @@ function externalPriceListNumber(string $value): float
 }
 
 /**
- * Read the price file. The column names follow the sample file in Indstillinger → Prislister
- * (varenr, stregkode, varemærke, beskrivelse, kostpris, salgspris, enhed, ...), case-insensitive.
+ * Read the price file record by record and hand each row to $visit; when $visit returns false the reading stops.
+ * Rows are not kept, so a file with many short lines does not fill the memory. The column names follow the sample
+ * file in Indstillinger → Prislister (varenr, stregkode, varemærke, beskrivelse, kostpris, salgspris, enhed, ...),
+ * case-insensitive.
  *
- * @return array<int, array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: float, salgspris: float, enhed: string}>|null
- *         null when the file cannot be fetched, is larger than 20 MB or has no varenr column
+ * @param callable(array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: float, salgspris: float, enhed: string}): bool $visit
+ * @return bool false when the file cannot be fetched, is larger than 20 MB or has no varenr column
  */
-function externalPriceListRows(array $priceList): ?array
+function externalPriceListEach(array $priceList, callable $visit): bool
 {
-	static $cache = array();
-	if (array_key_exists($priceList['id'], $cache)) {
-		return $cache[$priceList['id']];
-	}
-	$cache[$priceList['id']] = null;
 	if (!preg_match('#^https?://#i', $priceList['url'])) {
-		return null;
+		return false;
 	}
 	$context = stream_context_create(array('http' => array('timeout' => 10), 'https' => array('timeout' => 10)));
 	$maxBytes = 20 * 1024 * 1024;
 	$data = @file_get_contents($priceList['url'], false, $context, 0, $maxBytes + 1);
 	// A file over the limit would be cut inside a record, so it is refused rather than read in part.
 	if ($data === false || trim($data) === '' || strlen($data) > $maxBytes) {
-		return null;
+		return false;
 	}
 	if (strncmp($data, "\xEF\xBB\xBF", 3) === 0) {
 		$data = substr($data, 3);
@@ -112,6 +110,7 @@ function externalPriceListRows(array $priceList): ?array
 	$data = ltrim(str_replace(array("\r\n", "\r"), "\n", $data), "\n");
 	$stream = fopen('php://temp', 'r+');
 	fwrite($stream, $data);
+	unset($data);
 	rewind($stream);
 	$names = array(
 		'varenr' => 'varenr', 'vare nr' => 'varenr', 'varenummer' => 'varenr',
@@ -130,9 +129,8 @@ function externalPriceListRows(array $priceList): ?array
 	}
 	if (!in_array('varenr', $columns, true)) {
 		fclose($stream);
-		return null;
+		return false;
 	}
-	$rows = array();
 	while (($record = fgetcsv($stream, 0, $priceList['delimiter'], '"', '')) !== false) {
 		if ($record === array(null)) {
 			continue;
@@ -148,22 +146,22 @@ function externalPriceListRows(array $priceList): ?array
 		// A line break inside a quoted field becomes a space: item numbers and descriptions are one line in Saldi.
 		$row['varenr'] = preg_replace('/\s*\R\s*/u', ' ', $row['varenr']);
 		$row['beskrivelse'] = preg_replace('/\s*\R\s*/u', ' ', $row['beskrivelse']);
-		if ($row['varenr'] !== '') {
-			$rows[] = $row;
+		if ($row['varenr'] !== '' && $visit($row) === false) {
+			break;
 		}
 	}
 	fclose($stream);
-	$cache[$priceList['id']] = $rows;
-	return $rows;
+	return true;
 }
 
 /**
  * Rows whose item number and description contain the search terms (case-insensitive) and that are not items yet.
  * Empty terms match nothing, so the whole file is never listed. The limit counts only rows that are returned.
  *
- * @return array<int, array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: float, salgspris: float, enhed: string}>
+ * @return array<int, array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: float, salgspris: float, enhed: string}>|null
+ *         null when the file cannot be used
  */
-function externalPriceListSearch(array $rows, string $itemNo, string $description, int $limit = 50): array
+function externalPriceListSearch(array $priceList, string $itemNo, string $description, int $limit = 50): ?array
 {
 	$itemNo = trim($itemNo, " *");
 	$description = trim($description, " *");
@@ -171,22 +169,38 @@ function externalPriceListSearch(array $rows, string $itemNo, string $descriptio
 		return array();
 	}
 	$found = array();
-	foreach ($rows as $row) {
+	$usable = externalPriceListEach($priceList, function (array $row) use ($itemNo, $description, $limit, &$found): bool {
 		if ($itemNo !== '' && mb_stripos($row['varenr'], $itemNo) === false && mb_stripos($row['stregkode'], $itemNo) === false) {
-			continue;
+			return true;
 		}
 		if ($description !== '' && mb_stripos($row['beskrivelse'], $description) === false) {
-			continue;
+			return true;
 		}
 		if (externalPriceListItemId($row['varenr'])) {
-			continue;
+			return true;
 		}
 		$found[] = $row;
-		if (count($found) >= $limit) {
-			break;
+		return count($found) < $limit;
+	});
+	return $usable ? $found : null;
+}
+
+/**
+ * The row with exactly this item number, or null when the file has none or cannot be used.
+ *
+ * @return array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: float, salgspris: float, enhed: string}|null
+ */
+function externalPriceListFind(array $priceList, string $itemNo): ?array
+{
+	$match = null;
+	externalPriceListEach($priceList, function (array $row) use ($itemNo, &$match): bool {
+		if ($row['varenr'] === $itemNo) {
+			$match = $row;
+			return false;
 		}
-	}
-	return $found;
+		return true;
+	});
+	return $match;
 }
 
 /**

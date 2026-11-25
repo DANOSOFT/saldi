@@ -33,6 +33,7 @@
 //                 The chosen one is created as an item before it goes on the order.
 // 20261125 CL/MMR SST-1051 An item is only created by POST for an open customer order or credit note.
 // 20261125 CL/MMR SST-1051 The price-list message also names a file larger than 20 MB.
+// 20261125 CL/MMR SST-1051 The price file is searched record by record (externalPriceListSearch/Find).
 @session_start();
 $s_id = session_id();
 
@@ -103,14 +104,8 @@ if ($priceListItemNo !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     include_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
     $priceList = externalPriceListActive();
-    $priceListRows = $priceList ? externalPriceListRows($priceList) : null;
-    $newItemId = 0;
-    foreach ((array) $priceListRows as $priceListRow) {
-        if ($priceListRow['varenr'] === $priceListItemNo) {
-            $newItemId = externalPriceListCreateItem($priceListRow, $priceList);
-            break;
-        }
-    }
+    $priceListRow = $priceList ? externalPriceListFind($priceList, $priceListItemNo) : null;
+    $newItemId = $priceListRow ? externalPriceListCreateItem($priceListRow, $priceList) : 0;
     if ($newItemId) {
         header("Location: ordre.php?id=$orderId&vare_id=$newItemId&fokus=" . urlencode((string) $fokus));
         exit;
@@ -572,13 +567,12 @@ if ($art == 'DO' || $art == 'DK') {
     $searchItemNo = trim((string) ifset($gridSearch, 'varenr', (string) $find));
     $searchText = trim((string) ifset($gridSearch, 'beskrivelse', ''));
     if ($priceList && ($searchItemNo !== '' || $searchText !== '')) {
-        $priceListRows = externalPriceListRows($priceList);
+        $priceListFound = externalPriceListSearch($priceList, $searchItemNo, $searchText);
         print "<div id='priceListMatches' style='margin: 4px 8px 8px 8px; max-height: 35vh; overflow: auto;'>";
         print "<b>Fra prislisten " . htmlspecialchars($priceList['name']) . "</b>";
-        if ($priceListRows === null) {
+        if ($priceListFound === null) {
             print "<div style='color: #a00;'>Prisfilen kunne ikke bruges. Den kunne ikke hentes, er større end 20 MB eller har ingen kolonne varenr.</div>";
         } else {
-            $priceListFound = externalPriceListSearch($priceListRows, $searchItemNo, $searchText);
             $priceListGroup = externalPriceListGroup($priceList);
             if (!$priceListFound) {
                 print "<div>Ingen nye varer i prislisten matcher søgningen.</div>";
