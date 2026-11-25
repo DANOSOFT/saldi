@@ -399,7 +399,11 @@ final class VaresyncTest extends CharacterizationTestCase
 		);
 	}
 
-	/** @param list<string> $productRows @param list<string> $variantRows */
+	/**
+	 * @param list<string> $productRows
+	 * @param list<string> $variantRows
+	 * @return string what the run printed
+	 */
 	private function syncWithVariantHeader(string $variantHeader, array $productRows, array $variantRows): string
 	{
 		file_put_contents(
