@@ -176,6 +176,7 @@
 // 20261118 CL/SS MB-49 bogfor_nu(): a card payment on a 0-kr sale with no card account is refused per sale, before the day-end batch adds them up.
 //                Another sale's rows in the same batch no longer hide it.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
@@ -4875,6 +4876,8 @@ if (!function_exists('vareopslag')) {
 ######################################################################################################################################
 function tekstopslag($sort, $id)
 {
+	require_once __DIR__ . '/orderFuncIncludes/standardOrderText.php';
+	global $db_encode;
 	global $bgcolor;
 	global $bgcolor5;
 	global $db, $db_skriv_id;
@@ -4885,8 +4888,9 @@ function tekstopslag($sort, $id)
 
 	$linjebg = NULL;
 
-	if (!isset($fokus))
+	if (!isset($fokus)) {
 		$fokus = null;
+	}
 
 	sidehoved($id, "ordre.php", "", $fokus, findtekst(1092, $sprog_id) . " $id - Vareopslag");
 	//print "<td width=100% align=\"center\">\n";
@@ -4919,7 +4923,7 @@ function tekstopslag($sort, $id)
 		print "	<input type=\"checkbox\" title=\"Afkryds ved insættelse af flere tekster\" name=\"linjetekster[]\" value=\"$r[id]\">";
 		print "</td>";
 		print "<td align=\"left\" title=\"" . findtekst(491, $sprog_id) . "\" style=\"width:800px;\">";
-		print "	<!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_id=$r[id]\">" . nl2br($r['tekst']) . "</a>";
+		print "	<!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_id=$r[id]\">" . nl2br(orderTextLookupHtml((string) $r['tekst'], $db_encode)) . "</a>";
 		print "</td>\n";
 		print "<td title=\"Ret tekst\" align=\"right\">";
 		print "	<span style=\"width:16px; display:block;\"><a href=\"ret_tekst_ordre.php?id=$id&amp;tekst_id=$r[id]\">";
@@ -4928,10 +4932,11 @@ function tekstopslag($sort, $id)
 		print "</td>\n";
 		print "<td title=\"" . findtekst(492, $sprog_id) . "\" align=\"left\"><!--tekst 492-->";
 		print "<a href=\"ordre.php?id=$id&amp;tekst_id=$r[id]&amp;slet_tekst=$r[id]\" onclick=\"return confirm('" . findtekst(493, $sprog_id) . "')\"><!--Tekst 493-->";
-		if ($sag_id)
+		if ($sag_id) {
 			print "<span style=\"width:16px; display:block;\"><span class=\"xmark\"></span></a></td>\n"; #20170601 indsat 'if ($sag_id)'
-		else
+		} else {
 			print "<!--Tekst 493--><img src=\"../img/x_mark.png\"></a></td>\n";
+		}
 		print "</tr>\n";
 	}
 	print "</tbody>\n";
