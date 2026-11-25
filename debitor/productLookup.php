@@ -36,6 +36,7 @@
 // 20261125 CL/MMR SST-1051 The price file is searched record by record (externalPriceListSearch/Find).
 // 20261125 CL/MMR SST-1051 The preview converts the exact price text from the helper to a number for display.
 // 20261125 CDX/NTR Escape imported catalogue text before the grid adds search highlighting.
+// 20261125 CDX/NTR Preserve the selected warehouse through external item creation, selection and failure redirects.
 @session_start();
 $s_id = session_id();
 
@@ -59,6 +60,7 @@ $ref = if_isset($_GET, NULL, 'ref');
 $find = if_isset($_GET, NULL, 'find');
 $bordnr = if_isset($_GET, NULL, 'bordnr');
 $afd_lager = if_isset($_GET, NULL, 'lager');
+$priceListWarehouseParam = '&lager=' . urlencode((string) $afd_lager);
 
 // Get VAT settings from settings table
 $vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
@@ -109,10 +111,10 @@ if ($priceListItemNo !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $priceListRow = $priceList ? externalPriceListFind($priceList, $priceListItemNo) : null;
     $newItemId = $priceListRow ? externalPriceListCreateItem($priceListRow, $priceList) : 0;
     if ($newItemId) {
-        header("Location: ordre.php?id=$orderId&vare_id=$newItemId&fokus=" . urlencode((string) $fokus));
+        header("Location: ordre.php?id=$orderId&vare_id=$newItemId&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam);
         exit;
     }
-    $backUrl = "productLookup.php?id=$orderId&art=" . urlencode((string) $r['art']) . "&fokus=" . urlencode((string) $fokus) . "&find=" . urlencode($priceListItemNo);
+    $backUrl = "productLookup.php?id=$orderId&art=" . urlencode((string) $r['art']) . "&fokus=" . urlencode((string) $fokus) . "&find=" . urlencode($priceListItemNo) . $priceListWarehouseParam;
     $message = "Varen $priceListItemNo kunne ikke oprettes fra prislisten. Tjek at prislisten har en varegruppe, og at varen findes i prisfilen.";
     print "<script>alert(" . json_encode($message) . "); window.location.href = " . json_encode($backUrl) . ";</script>";
     exit;
@@ -591,7 +593,7 @@ if ($art == 'DO' || $art == 'DK') {
                 print "<table style='width: 100%; border-collapse: collapse; table-layout: auto;'>";
                 print "<tr style='display: table-row;'><th style='text-align: left; padding: 2px 6px;'>Varenr</th><th style='text-align: left; padding: 2px 6px;'>Enhed</th><th style='text-align: left; padding: 2px 6px;'>Beskrivelse</th><th style='text-align: right; padding: 2px 6px;'>Salgspris</th><th></th></tr>";
                 foreach ($priceListFound as $priceListRow) {
-                    $chooseUrl = "productLookup.php?id=" . (int) $id . "&art=" . urlencode((string) $art) . "&fokus=" . urlencode((string) $fokus);
+                    $chooseUrl = "productLookup.php?id=" . (int) $id . "&art=" . urlencode((string) $art) . "&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam;
                     print "<tr style='display: table-row;'>";
                     print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['varenr']) . "</td>";
                     print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['enhed']) . "</td>";
