@@ -40,6 +40,7 @@
 // 20261125 CL/MMR SST-1051 Prices must be in one of the four documented formats.
 //                 A last record with a missing closing quote is refused, also when spaces come before the quote.
 // 20261125 CL/MMR SST-1051 Prices are rounded on their digits to 3 decimals and written to the item as exact text.
+// 20261125 CDX/NTR Reject CSV headers without both cost and sale prices instead of supplying zero.
 
 /**
  * The active price list, or null when none is in use.
@@ -194,7 +195,7 @@ function externalPriceListDownload(string $url, int $maxBytes): ?string
  * case-insensitive.
  *
  * @param callable(array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: string, salgspris: string, enhed: string}): bool $visit
- * @return bool false when the file cannot be fetched, is larger than 20 MB or has no varenr column
+ * @return bool false when the file cannot be fetched, is larger than 20 MB or lacks varenr, kostpris or salgspris
  */
 function externalPriceListEach(array $priceList, callable $visit): bool
 {
@@ -233,7 +234,7 @@ function externalPriceListEach(array $priceList, callable $visit): bool
 			$columns[$index] = $names[$name];
 		}
 	}
-	if (!in_array('varenr', $columns, true)) {
+	if (array_diff(array('varenr', 'kostpris', 'salgspris'), $columns)) {
 		fclose($stream);
 		return false;
 	}
