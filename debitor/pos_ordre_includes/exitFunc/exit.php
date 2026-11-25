@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.1 --- 2026.11.24---
+// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.1 --- 2026.11.25---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 //                A posting error from settlePOS.php is rolled back and returned, instead of printing the receipt as if the sale was settled.
 // 20261117 CL/SS MB-49 afslut(): an exchange whose lines cancel out (+100 and -100) is not refused; its lines still post.
 // 20261124 CL/SS MB-49 afslut(): a card of 0 in the second payment slot is refused too.
+// 20261125 CL/SS MB-49 afslut(): which payment is a card comes from pos_payment_is_card(), shared with bogfor_nu().
 
 /**
  * True for a print server on the shop's own network: a private or reserved IP (10/8,
@@ -118,7 +119,7 @@ print "\n<!-- Function afslut (start)-->\n";
 
 	$zeroCard = '';
 	foreach (array($betaling, $betaling2) as $paymentType) {
-		if ($paymentType && !in_array(strtolower($paymentType), array('kontant', 'konto', 'cash', 'cash on amount'))) {
+		if (pos_payment_is_card($paymentType)) {
 			$zeroCard = $paymentType;
 			break;
 		}

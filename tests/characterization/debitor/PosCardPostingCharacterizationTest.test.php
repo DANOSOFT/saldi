@@ -307,6 +307,25 @@ final class PosCardPostingCharacterizationTest extends TestCase
     }
 
     /**
+     * A Swiss till's part payment stores cash as 'Cash' (partPayment.php does not rename it to 'Kontant'), and an
+     * unfinished terminal payment is a '!' row. Neither is a card, so a 0-kr sale carrying one finishes as with 'Kontant',
+     * and at the day-end count it does not block the other sales.
+     */
+    public function testCashUnderItsSwissNameOrAPendingTerminalRowIsNotTakenForACard(): void
+    {
+        foreach ([['Cash', 400.0], ['Cash on amount', 400.0], ['!', 400.0]] as [$payment, $amount]) {
+            $result = self::post(self::sale(0, $payment, $amount));
+            self::assertSame('OK', $result['bogfor'], "$payment $amount");
+            self::assertSame(4, $result['status'], "$payment $amount");
+            self::assertSame([], $result['rows'], "$payment $amount");
+        }
+        $result = self::postAtDayEnd(self::sale(100, 'Dankort', 125) . ',' . self::sale(0, 'Cash', 400));
+        self::assertSame('OK', $result['bogfor']);
+        self::assertSame(4, $result['status']);
+        self::assertContains([self::CARD_ACCOUNT, 125.0, 0.0], $result['rows']);
+    }
+
+    /**
      * A second 0-kr item in a product group whose sales account differs from the first item's.
      *
      * @return array{0: int, 1: int} item id and its sales account

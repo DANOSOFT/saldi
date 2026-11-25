@@ -12,6 +12,7 @@
 // History:
 // 20261112 CL/SS MB-49: created.
 // 20261117 CL/SS MB-49: the order lines' total ('lines' in the case) stands in for pos_lines_amount().
+// 20261125 CL/SS MB-49: the real pos_payment_is_card() is loaded, not stood in for.
 
 $case = json_decode($argv[1], true, 512, JSON_THROW_ON_ERROR);
 chdir($argv[2] . '/debitor');
@@ -41,6 +42,7 @@ function betaling(...$args) { return $GLOBALS['case']['sum'] ?? 0; }
 function pos_afrund($amount, ...$args) { return round((float)$amount, 2); }
 /** @return float */
 function afrund($amount, $decimals) { return round((float)$amount, $decimals); }
+require_once __DIR__ . '/../../../../includes/orderFuncIncludes/posPaymentType.php';
 /** @return float */
 function pos_lines_amount(int $ordreId): float { return (float)($GLOBALS['case']['lines'] ?? 0); }
 /** @return string */

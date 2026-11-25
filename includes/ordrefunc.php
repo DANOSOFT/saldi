@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-19 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -178,10 +178,12 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
+// 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 require_once __DIR__ . '/orderFuncIncludes/glsLabel.php';
+require_once __DIR__ . '/orderFuncIncludes/posPaymentType.php';
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -3373,7 +3375,7 @@ function bogfor_nu($id, $kilde) {
 				*/
 	if ($art == 'PO') {
 		foreach ($zeroTotalPayments as list($b, $paid)) {
-			if (afrund($paid, 2) &&empty($cardPosted[$b]) && !in_array(strtolower($betaling[$b]), array('kontant', 'konto'))) {
+			if (afrund($paid, 2) && empty($cardPosted[$b]) && pos_payment_is_card($betaling[$b])) {
 				$txt = findtekst('pos.posting.card_account_missing|Betalingen med %s kan ikke bogføres, da %s ikke har en konto under kortbetalinger. Salget er ikke afsluttet.', $sprog_id);
 				return sprintf($txt, $betaling[$b], $betaling[$b]);
 			}
@@ -3381,7 +3383,7 @@ function bogfor_nu($id, $kilde) {
 		$cardTotal = 0;
 		$unpostedCard = '';
 		for ($b = 0; $b < count($betaling); $b++) {
-			if (in_array(strtolower($betaling[$b]), array('kontant', 'konto'))) {
+			if (!pos_payment_is_card($betaling[$b])) {
 				continue;
 			}
 			$cardTotal += abs((float)$modtaget[$b]);

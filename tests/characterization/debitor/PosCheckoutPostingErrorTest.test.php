@@ -4,6 +4,7 @@
 //                It needs no database, so it also runs in CI.
 // 20261117 CL/SS MB-49: an exchange whose lines cancel out is not refused.
 // 20261124 CL/SS MB-49: a card of 0 in the second payment slot is refused too.
+// 20261125 CL/SS MB-49: the refusal alerts are not blank on a LATIN9 company.
 
 declare(strict_types=1);
 
@@ -115,7 +116,31 @@ final class PosCheckoutPostingErrorTest extends TestCase
         $at = strpos($src, $call);
         self::assertNotFalse($at, "the terminal return's afslut() call must keep its result");
         $next = substr($src, $at + strlen($call), 200);
-        self::assertMatchesRegularExpression('/if \(\$svar\) \{\s*print "<script>alert\(" \. json_encode\(\$svar, JSON_HEX_TAG \| JSON_HEX_AMP \| JSON_HEX_APOS \| JSON_HEX_QUOT\)/',
-            $next, 'the result must be shown as an alert, JSON-encoded so quotes, newlines and markup in the message are safe');
+        self::assertMatchesRegularExpression('/if \(\$svar\) \{\s*print "<script>alert\(" \. jsString\(array\(\$svar\)\) \. "\);<\/script>\\\\n";/',
+            $next, 'the result must be shown as an alert through jsString(), so quotes, newlines, markup and LATIN9 text are safe');
+    }
+
+    /**
+     * On a LATIN9 company findtekst() returns ISO-8859-1 text, which json_encode() rejects with false,
+     * so the refusal alert came up empty. Both alerts that show a posting refusal must go through jsString().
+     */
+    public function testARefusalAlertIsNotBlankOnALatin9Company(): void
+    {
+        $src = (string)file_get_contents(__DIR__ . '/../../../debitor/pos_ordre.php');
+        self::assertSame(0, substr_count($src, 'alert(" . json_encode($svar'), 'no refusal alert may embed $svar with json_encode()');
+        self::assertSame(2, substr_count($src, 'print "<script>alert(" . jsString(array($svar)) . ");</script>\n";'),
+            'the terminal return and the day-end alert both go through jsString()');
+
+        require_once __DIR__ . '/../../../includes/stdFunc/jsString.php';
+        $previous = $GLOBALS['db_encode'] ?? null;
+        $GLOBALS['db_encode'] = 'LATIN9';
+        try {
+            $latin9 = mb_convert_encoding('Salget kunne ikke bogføres, da der ikke blev dannet nogen posteringer.', 'ISO-8859-1', 'UTF-8');
+            self::assertFalse(json_encode($latin9), 'json_encode() gives up on ISO-8859-1 text');
+            $literal = jsString(array($latin9));
+            self::assertStringContainsString('bogf\\u00f8res', $literal, 'the alert keeps the message, with ø escaped');
+        } finally {
+            $GLOBALS['db_encode'] = $previous;
+        }
     }
 }
