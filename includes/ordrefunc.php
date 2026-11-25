@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-19 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -170,6 +170,8 @@
 // 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
+// 20261124 CL/LH MB-177 ansatopslag() sends the contact name URL-encoded, so a name with & or ' arrives whole.
+//                It sorts only by its four headings (the link's sort went into ORDER BY as it came) and reads the order id and konto_id as integers.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -3909,7 +3911,7 @@ function ansatopslag($sort, $fokus, $id)
 
 	if (!$id)
 		$id = '0';
-	$query = db_select("select konto_id from ordrer where id = $id", __FILE__ . " linje " . __LINE__);
+	$query = db_select("select konto_id from ordrer where id = " . (int) $id, __FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	$konto_id = $row['konto_id'];
 
@@ -3925,15 +3927,14 @@ function ansatopslag($sort, $fokus, $id)
 	print " </tr>\n";
 
 
-	$sort = $_GET['sort'];
-	if (!$sort) {
-		$sort = navn;
-	}
+	// MB-177 The sort comes from the link: only one of the four headings is used, navn by default.
+	require_once __DIR__ . '/stdFunc/orderIdFromLink.php';
+	$sort = contact_lookup_sort_column(if_isset($_GET, NULL, 'sort'));
 
 	if (!$id) {
 		exit;
 	}
-	$query = db_select("select * from ansatte where konto_id = $konto_id order by $sort", __FILE__ . " linje " . __LINE__);
+	$query = db_select("select * from ansatte where konto_id = " . (int) $konto_id . " order by $sort", __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		if ($linjebg != $bgcolor) {
 			$linjebg = $bgcolor;
@@ -3943,7 +3944,7 @@ function ansatopslag($sort, $fokus, $id)
 			$color = '#000000';
 		}
 		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=$row[navn]'>$row[navn]</a></td>";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode($row['navn']) . "'>$row[navn]</a></td>";
 		print "<td> $row[tlf]</td>";
 		print "<td> $row[mobil]</td>";
 		print "<td> $row[email]</td>";

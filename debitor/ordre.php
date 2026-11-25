@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -190,6 +190,8 @@
 // 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
+// 20261124 CL/LH MB-177 The contact picked in the contact list (GET kontakt, email) is written only on the order whose id is a whole number, and needs write permission.
+//                A link whose order id (id, ordre_id) is not a whole number is refused before any query.
 @session_start();
 $s_id = session_id();
 
@@ -223,6 +225,16 @@ $ordreGetId = !empty($_GET['id']) || !empty($_GET['ordre_id']);
 if ((!$ordreGetId && (!empty($_GET['konto_id']) || in_array((string) (isset($_GET['funktion']) ? $_GET['funktion'] : ''), array('opret_ordre', 'opret_ordre_kopi'), true)))
 	|| ($ordreGetId && !empty($_GET['konto_id']) && !empty($_GET['fokus']))) {
 	$permission_level = 'write';
+}
+// MB-177 A contact picked in the contact list (kontakt with an order id) is written on the order by GET, so it needs write.
+if (!empty($_GET['kontakt'])) {
+	$permission_level = 'write';
+}
+// MB-177 The order id in the link goes into SQL on this page, so a link whose id is not a whole number is refused.
+require_once __DIR__ . '/../includes/stdFunc/orderIdFromLink.php';
+if (!order_ids_from_link_are_whole_numbers($_GET, array('id', 'ordre_id'))) {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+	exit;
 }
 
 $css = "../css/standard.css";
@@ -594,10 +606,12 @@ if (isset($_GET['vis_lev_addr']) && $id) {
 	else $qtxt = "update ordrer set vis_lev_addr='' where id='$id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
-if (($kontakt = if_isset($_GET, NULL, 'kontakt')) && ($id)) {
-	db_modify("update ordrer set kontakt='" . db_escape_string($kontakt) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
-	if (isset($_GET['email']) && $_GET['email']) {
-		db_modify("update ordrer set email='" . db_escape_string($_GET['email']) . "' where id='$id'", __FILE__ . " linje " . __LINE__);
+// MB-177 kontakt, email and id come from the link: the texts are escaped and only an id that is a whole number is used.
+$kontakt = if_isset($_GET, NULL, 'kontakt');
+if ($kontakt && is_scalar($kontakt) && is_scalar($id) && ctype_digit(trim((string) $id)) && (int) $id) {
+	db_modify("update ordrer set kontakt='" . db_escape_string($kontakt) . "' where id='" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
+	if (!empty($_GET['email']) && is_scalar($_GET['email'])) {
+		db_modify("update ordrer set email='" . db_escape_string($_GET['email']) . "' where id='" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
 	}
 }
 
