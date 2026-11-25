@@ -33,6 +33,7 @@
 // 20261125 CL/MMR SST-1051 A file larger than 20 MB is refused instead of being cut inside a record.
 // 20261125 CL/MMR SST-1051 Records are visited one by one instead of kept, so a file with many short lines fits in memory.
 // 20261125 CL/MMR SST-1051 The file is downloaded with curl, and a broken-off transfer or HTTP error gives no rows.
+// 20261125 CL/MMR SST-1051 Only HTTP 200 is accepted as a whole file.
 
 /**
  * The active price list, or null when none is in use.
@@ -82,7 +83,7 @@ function externalPriceListNumber(string $value): float
 /**
  * Download the price file completely or not at all. A transfer that breaks off (curl reports it, also when fewer
  * bytes arrive than the server announced), an HTTP error status and a file over the limit all give null, so a row
- * cut in the middle is never read as a row with missing prices.
+ * cut in the middle is never read as a row with missing prices. Any status other than 200 is refused.
  *
  * @return string|null the whole file, or null
  */
@@ -114,7 +115,8 @@ function externalPriceListDownload(string $url, int $maxBytes): ?string
 	$error = curl_errno($ch);
 	$status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
 	curl_close($ch);
-	if ($ok === false || $error || $tooBig || $status < 200 || $status >= 300) {
+	// Only 200 is a whole file: this request asks for no range, so e.g. 206 Partial Content is refused too.
+	if ($ok === false || $error || $tooBig || $status !== 200) {
 		return null;
 	}
 	return $data;
