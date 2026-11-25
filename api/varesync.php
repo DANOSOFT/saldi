@@ -42,7 +42,7 @@
 // 20261105 CL/SZ MB-119 'Opdater fra shop' only adds a shop_varer link when the row has a shop id, so a row without one no longer blocks the real link on a later sync.
 // 20261125 CL/SZ MB-145 A variant label that exists under another category is created under its own category, so the variant no longer gets variant_type 0. The last stock message names the item instead of a variant-file value. Variant labels are escaped in these queries.
 // 20261125 CL/SZ MB-192 Every variant barcode is read for the product barcode check, not only the last one, and each clash message ends its line. The barcode messages are shown when the run stops at a missing variant file.
-// 20261125 CL/SZ MB-109 The shop files are read as CSV, so a ';' inside quotes stays in its field. The qty and kostpris columns are found by header name, also in LF files and after a BOM. A new item whose item number has an apostrophe gets its stock.
+// 20261125 CL/SZ MB-109 The shop files are read as CSV, so a ';' inside quotes stays in its field. The qty and kostpris columns are found by header name in their usual positions, also in LF files and after a BOM. A new item whose item number has an apostrophe gets its stock.
 
 
 /**
@@ -69,22 +69,19 @@ function varesyncCsvRows($content) {
 }
 
 /**
- * Whether the header row (the first row) of a shop CSV file has a column with this name.
+ * Whether the header row (the first row) of a shop CSV file has this column name at this position.
+ * The rows are read by position, so an optional column only counts where its layout expects it.
  *
  * @param array<int, array<int, string>> $rows from varesyncCsvRows()
+ * @param int $position 0-based column index, e.g. 8 for qty in the product file
  * @param string $name e.g. 'qty' or 'kostpris'
  * @return int 1 or 0, as the callers' $useQty / $useCost flags
  */
-function varesyncHasColumn($rows, $name) {
-	if (!isset($rows[0])) {
+function varesyncHeaderAt($rows, $position, $name) {
+	if (!isset($rows[0][$position])) {
 		return 0;
 	}
-	foreach ($rows[0] as $column) {
-		if (strtolower(trim($column, "\" \t")) == $name) {
-			return 1;
-		}
-	}
-	return 0;
+	return (strtolower(trim($rows[0][$position], "\" \t")) == $name) ? 1 : 0;
 }
 
 function varesync($valg) {
@@ -185,8 +182,8 @@ function varesync($valg) {
 	system ("cd ../temp/$db/\nwget $lf\n");
 	$indhold=file_get_contents("../temp/$db/$pfn.csv");
 	$linje=varesyncCsvRows($indhold);
-	$useQty=varesyncHasColumn($linje,'qty');
-	$useCost=varesyncHasColumn($linje,'kostpris');
+	$useQty=varesyncHeaderAt($linje,8,'qty');
+	$useCost=varesyncHeaderAt($linje,4,'kostpris');
 	$shop_encode='';
 	for ($y=0;$y<count($linje);$y++){
 		$shop_id[$y]=0;
@@ -404,7 +401,7 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 	$indhold=file_get_contents("../temp/$db/$vfn.csv");
 #	unlink("../temp/$db/$vfn.csv");
 	$linje=varesyncCsvRows($indhold);
-	$useQty=varesyncHasColumn($linje,'qty');
+	$useQty=varesyncHeaderAt($linje,7,'qty');
 	for ($y=0;$y<count($linje);$y++){
 		$shop_id[$y]=0;
 		if ($useQty) {

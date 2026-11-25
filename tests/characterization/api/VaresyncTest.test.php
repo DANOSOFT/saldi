@@ -28,6 +28,9 @@
 // - A qty column is found by its header name in an LF file with a BOM, so new items get the stock from the file.
 // - A qty column in an LF variant file sets the stock of a new variant.
 // - A new item whose item number has an apostrophe gets its stock.
+// - qty and kostpris are only used in their fixed column positions, as before: an LF file with
+//   kostpris and a trailing qty keeps the kostpris layout, and a qty column that is not last is ignored.
+// - Stock values from the file keep their decimals (1250.500, 0.005, 0).
 //
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
@@ -36,6 +39,7 @@
 // 20261125 CL/SZ MB-145 Review: apostrophe and relink tests, skip without wget or php -S, temp folders removed.
 // 20261125 CL/SZ MB-192 Variant barcode clash and missing variant file tests; sync() can leave the variant file out.
 // 20261125 CL/SZ MB-109 Quoted ';', qty by header name in LF files, apostrophe item number stock tests.
+// 20261125 CL/SZ MB-109 Review: column position tests and the stock door values.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -416,5 +420,47 @@ final class VaresyncTest extends CharacterizationTestCase
 		);
 		$out = $this->runChildJson('run_varesync.php', ['1', CharacterizationEnv::testDb()]);
 		return (string)$out['printed'];
+	}
+
+	public function test_an_lf_file_with_kostpris_and_a_trailing_qty_keeps_the_kostpris_layout(): void
+	{
+		$g = self::$group;
+		$this->sync(
+			'id;varenr;stregkode;salgspris;kostpris;beskrivelse;gruppe;tilbud;notes;qty',
+			["851;MB109KQ;;100;40;Kost qty item;$g;;;7"],
+			[]
+		);
+
+		$r = self::one('SELECT beskrivelse, kostpris, gruppe FROM varer WHERE varenr = $1', ['MB109KQ']);
+		$this->assertNotNull($r, 'the product is created');
+		$this->assertSame('Kost qty item', $r['beskrivelse']);
+		$this->assertSame(40.0, (float)$r['kostpris']);
+		$this->assertSame((string)$g, (string)$r['gruppe']);
+	}
+
+	public function test_a_qty_column_that_is_not_last_is_ignored(): void
+	{
+		$g = self::$group;
+		$this->sync('id;varenr;stregkode;salgspris;beskrivelse;gruppe;tilbud;qty;notes', ["861;MB109QN;;100;Qty not last;$g;;9;12"], []);
+
+		$this->assertSame(
+			['beholdning' => 0.0, 'kob' => 0.0],
+			$this->stockOf($this->itemId('MB109QN')),
+			'neither the qty nor the notes value is used as stock'
+		);
+	}
+
+	public function test_stock_values_keep_their_decimals(): void
+	{
+		$g = self::$group;
+		$this->sync(self::PRODUCT_HEADER . ';qty', [
+			"871;MB109BIG;;100;Big stock;$g;;;1250.500",
+			"872;MB109TINY;;100;Tiny stock;$g;;;0.005",
+			"873;MB109ZERO;;100;Zero stock;$g;;;0",
+		], []);
+
+		$this->assertSame(['beholdning' => 1250.5, 'kob' => 1250.5], $this->stockOf($this->itemId('MB109BIG')));
+		$this->assertSame(['beholdning' => 0.005, 'kob' => 0.005], $this->stockOf($this->itemId('MB109TINY')));
+		$this->assertSame(['beholdning' => 0.0, 'kob' => 0.0], $this->stockOf($this->itemId('MB109ZERO')));
 	}
 }
