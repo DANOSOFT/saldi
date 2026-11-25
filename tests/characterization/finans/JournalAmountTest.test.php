@@ -9,11 +9,13 @@
 //   - a typed amount is rounded to whole øre, half away from zero, also where the float is just below the half
 //   - saving again what the field shows never changes the stored amount (the round trip through dkdecimal())
 //   - a line whose values are the stored ones counts as unchanged, so opdater() does not write it
-//   - an amount stored with three decimals before MB-86 is kept while the field still shows it
+//   - an amount stored with three decimals before MB-86 is kept while the field still holds the text it was drawn
+//     with, and any other text is saved as a new, rounded amount (0,006 over a stored 0.005 shown as 0,01 -> 0.010)
 //   - usdecimal() itself still keeps three decimals for every other caller
 //
 // History:
 // 20261125 CL/MMR MB-86: created.
+// 20261125 CL/MMR MB-86 (Codex round 1) The kept amount is decided on the field's text; regression tests for an edit that rounds to the shown amount.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -85,7 +87,9 @@ final class JournalAmountTest extends TestCase
         for ($thousandths = -3000; $thousandths <= 3000; $thousandths++) {
             $stored = sprintf('%.3F', $thousandths / 1000);
             $this->assertSame(journalAmountFromInput(dkdecimal($stored, 2)), journalAmountRound($stored), "stored $stored");
+            $this->assertSame(dkdecimal($stored, 2), journalAmountShown($stored), "stored $stored");
         }
+        $this->assertSame('1.234,57', journalAmountShown('1234.565'));
         $this->assertSame(0.0, journalAmountRound(null));
     }
 
@@ -95,17 +99,57 @@ final class JournalAmountTest extends TestCase
         $this->assertEquals(12.345, usdecimal('12,345', 2));
     }
 
-    public function testStoredAmountIsKeptWhileTheFieldShowsIt(): void
+    public function testStoredAmountIsKeptWhileTheFieldHoldsTheTextItWasDrawnWith(): void
     {
-        $this->assertSame('0.005', journalAmountKept('0.005', 0.01));
-        $this->assertSame('12.345', journalAmountKept('12.345', 12.35));
-        $this->assertSame('1.010', journalAmountKept('1.010', 1.01));
-        // The user typed another amount: the new, rounded one is written
-        $this->assertSame(0.02, journalAmountKept('0.005', 0.02));
-        $this->assertSame(12.34, journalAmountKept('12.345', 12.34));
-        // A new line, or a line without a stored amount, takes the new amount
-        $this->assertSame(0.01, journalAmountKept(null, 0.01));
-        $this->assertSame(0.0, journalAmountKept('', 0.0));
+        $this->assertSame('0.005', journalAmountKept('0.005', '0,01', 0.01));
+        $this->assertSame('0.005', journalAmountKept('0.005', ' 0,01 ', 0.01));
+        $this->assertSame('12.345', journalAmountKept('12.345', '12,35', 12.35));
+        $this->assertSame('1234.565', journalAmountKept('1234.565', '1.234,57', 1234.57));
+        $this->assertSame('1.010', journalAmountKept('1.010', '1,01', 1.01));
+    }
+
+    public function testOtherTextInTheFieldIsANewRoundedAmount(): void
+    {
+        // Codex round 1: 0,006 rounds to the 0,01 the field showed, and must still replace the stored 0.005
+        $this->assertSame(0.01, journalAmountKept('0.005', '0,006', 0.01));
+        $this->assertSame(0.01, journalAmountKept('0.005', '0,010', 0.01));
+        $this->assertSame(0.02, journalAmountKept('0.005', '0,02', 0.02));
+        $this->assertSame(12.34, journalAmountKept('12.345', '12,34', 12.34));
+        $this->assertSame(1234.57, journalAmountKept('1234.565', '1234,57', 1234.57));
+        // A negative amount the user typed: opdater() swaps the accounts, so the stored amount cannot be kept
+        $this->assertSame(0.01, journalAmountKept('0.005', '-0,01', 0.01));
+    }
+
+    public function testANegativeOrMissingStoredAmountIsNeverKept(): void
+    {
+        $this->assertSame(5.01, journalAmountKept('-5.005', '-5,01', 5.01));
+        $this->assertSame(0.01, journalAmountKept(null, '0,01', 0.01));
+        $this->assertSame(0.0, journalAmountKept('', '', 0.0));
+    }
+
+    /**
+     * The decision opdater() makes for a line stored with 0.005 before MB-86 and drawn as 0,01.
+     *
+     * @return array{0: string|float, 1: bool} The amount it writes, and whether the line counts as unchanged.
+     */
+    private static function saveLegacyLine(string $typed): array
+    {
+        $stored = self::storedLine();
+        $stored['amount'] = '0.005';
+        $posted = self::postedLine();
+        $posted['amount'] = journalAmountKept($stored['amount'], $typed, abs(journalAmountFromInput($typed)));
+        return array($posted['amount'], journalLineUnchanged($stored, $posted));
+    }
+
+    public function testALegacyLineLeftAloneIsNotWritten(): void
+    {
+        $this->assertSame(array('0.005', true), self::saveLegacyLine('0,01'));
+    }
+
+    public function testALegacyLineEditedToAnAmountThatRoundsToTheShownOneIsWritten(): void
+    {
+        $this->assertSame(array(0.01, false), self::saveLegacyLine('0,006'));
+        $this->assertSame(array(0.02, false), self::saveLegacyLine('0,02'));
     }
 
     /**
@@ -139,14 +183,17 @@ final class JournalAmountTest extends TestCase
         $this->assertTrue(journalLineUnchanged(self::storedLine(), self::postedLine()));
     }
 
-    public function testALineStoredWithThreeDecimalsIsUnchangedWhileItsFieldShowsTheAmount(): void
+    public function testTheAmountComparesWithTheStoredValueToThreeDecimals(): void
     {
+        // 0.010 in the database and 0.01 from the save are the same amount
+        $this->assertTrue(journalLineUnchanged(self::storedLine(), self::postedLine()));
+        // but a stored 0.005 is not the 0.01 a save would write (Codex round 1)
         $stored = self::storedLine();
         $stored['amount'] = '0.005';
-        $this->assertTrue(journalLineUnchanged($stored, self::postedLine()));
+        $this->assertFalse(journalLineUnchanged($stored, self::postedLine()));
         $posted = self::postedLine();
-        $posted['amount'] = 0.02;
-        $this->assertFalse(journalLineUnchanged($stored, $posted));
+        $posted['amount'] = '0.005';
+        $this->assertTrue(journalLineUnchanged($stored, $posted));
     }
 
     /**

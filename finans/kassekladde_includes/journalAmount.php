@@ -12,10 +12,13 @@
 //   - a typed amount is rounded to whole øre before it is stored, half away from zero like øre rounding
 //     (0,005 -> 0,01, -0,005 -> -0,01, 12,345 -> 12,35), so the stored amount is the one the field shows
 //   - a line whose values are already the stored ones is not written again, so saving one line never rewrites
-//     another. An amount stored with three decimals before MB-86 counts as unchanged while the field still shows
-//     it rounded, and it is also kept when another value of its line is changed (or a line is written only because
-//     the page filled in something it had left empty, such as the account's VAT code). It changes only when the
-//     user types an amount the field did not show, and that amount is rounded like any other.
+//     another. An amount stored with three decimals before MB-86 is kept while its field still holds the text it
+//     was drawn with, also when another value of its line is changed (or a line is written only because the page
+//     filled in something it had left empty, such as the account's VAT code). Any other text in the field is a new
+//     amount, rounded like any other: 0.005 drawn as 0,01 and changed to 0,006 is saved as 0.010.
+//
+// 20261125 CL/MMR MB-86 (Codex round 1) Whether the field still shows the stored amount is decided on the text left in it, not on the rounded amount.
+//                 0,006 rounds to the 0,01 the field showed, so that edit was lost.
 //
 // usdecimal() itself is not changed: it is used all over Saldi, also where three decimals are wanted
 // (quantities, prices). Only the journal's save path rounds to øre.
@@ -53,25 +56,39 @@ function journalAmountFromInput($input) {
 }
 
 /**
- * The amount to write for a line that is saved: the stored amount while its field still shows it, otherwise the
- * new one. So an amount stored with three decimals before MB-86 only changes when the user types another amount.
+ * The text the Beløb field is drawn with for a stored amount, the same as dkdecimal($storedAmount, 2).
+ *
+ * @param string|int|float|null $storedAmount The line's amount in the database.
+ * @return string E.g. "0,01" for 0.005 and "1.234,57" for 1234.565.
+ */
+function journalAmountShown($storedAmount) {
+	return number_format(journalAmountRound($storedAmount), 2, ',', '.');
+}
+
+/**
+ * The amount to write for a line that is saved: the stored amount while its field still holds the text it was drawn
+ * with, otherwise the new one. So an amount stored with three decimals before MB-86 is only replaced when the user
+ * changes the text in the field.
+ *
+ * A negative stored amount is never kept: opdater() turns a negative amount into a positive one on swapped accounts.
  *
  * @param string|int|float|null $storedAmount The line's amount in the database, or null for a new line.
- * @param float                 $amount       The amount from the field, already rounded (journalAmountFromInput()).
+ * @param string|null           $typed        The field's text as posted (tmpkassekl.amount), before rounding.
+ * @param float                 $amount       That text rounded to whole øre (journalAmountFromInput()), sign removed.
  * @return string|int|float The stored amount, or $amount.
  */
-function journalAmountKept($storedAmount, $amount) {
-	if ($storedAmount === null || !is_numeric(trim((string)$storedAmount))) return $amount;
-	return abs(journalAmountRound($storedAmount) - journalAmountRound($amount)) < 0.005 ? $storedAmount : $amount;
+function journalAmountKept($storedAmount, $typed, $amount) {
+	if ($storedAmount === null || !is_numeric(trim((string)$storedAmount)) || (float)$storedAmount < 0) return $amount;
+	return trim((string)$typed) === journalAmountShown($storedAmount) ? $storedAmount : $amount;
 }
 
 /**
  * True when writing $new over the stored line would change nothing, so opdater() can leave the line alone.
  *
  * Each value is compared the way its column holds it: NULL counts as empty text, or as 0 in a number column,
- * numbers compare as numbers, and text and dates compare exactly. The amount compares with what the Beløb field
- * showed for the stored amount (rounded to whole øre), so a line stored with 0.005 before MB-86 stays unchanged
- * while its field still says 0,01.
+ * numbers compare as numbers, and text and dates compare exactly. The amount compares with the stored amount as a
+ * number to the column's three decimals (0.010 and 0.01 are equal, 0.005 and 0.010 are not); opdater() passes the
+ * stored amount itself when journalAmountKept() keeps it.
  *
  * @param array<string, mixed>|null $stored The kassekladde row from the database, or null when it was not found.
  * @param array<string, mixed>      $new    Column => the value opdater() would write.
@@ -85,7 +102,7 @@ function journalLineUnchanged($stored, array $new) {
 		$was = $stored[$column] === null ? '' : (string)$stored[$column];
 		$now = $value === null ? '' : (string)$value;
 		if ($column === 'amount') {
-			if (journalAmountKept($stored[$column], $value) !== $stored[$column]) return false;
+			if (!is_numeric(trim($was)) || !is_numeric(trim($now)) || abs((float)$was - (float)$now) >= 0.0005) return false;
 		} elseif (in_array($column, $numeric, true)) {
 			$was = trim($was) === '' ? '0' : trim($was);
 			$now = trim($now) === '' ? '0' : trim($now);

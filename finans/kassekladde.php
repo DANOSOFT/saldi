@@ -230,6 +230,8 @@
 // 20261125 CL/MMR MB-86 A typed Beløb is saved rounded to whole øre (half away from zero), so 0,005 is stored as the 0,01 the field shows.
 //                 opdater() writes an existing line only when one of its values changed, so saving one line no longer rewrites the amount of another.
 //                 An amount stored with three decimals before this change is kept until the user types another amount, see journalAmount.php.
+// 20261125 CL/MMR MB-86 (Codex round 1) The kept amount is chosen from the text left in the field, so 0,006 typed over a stored 0.005 shown as 0,01 is saved as 0.010.
+//                 The multi-line if/else bodies in opdater() and indsaet_linjer() have braces.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -4827,14 +4829,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (($r['bilag'] != "-") && ($r['transdate'] || $r['debet'] || $r['kredit'])) {
-				if ($r['transdate'])
+				if ($r['transdate']) {
 					$transdate = usdate($r['transdate']);
+				}
 				#else $transdate=NULL; # <- 2009.05.12
 				#else $transdate=date("Y-m-d"); # <- 2009.05.14
-				if ($r['forfaldsdate'])
+				if ($r['forfaldsdate']) {
 					$forfaldsdate = usdate($r['forfaldsdate']);
-				else
+				} else {
 					$forfaldsdate = NULL; # <- 2009.05.12
+				}
 				# MB-86 rounded to whole øre, so the amount stored is the one the field shows
 				$amount = journalAmountFromInput($r['amount']);
 				$momsfri = trim($r['momsfri']);
@@ -4850,8 +4854,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if ($egen_kto_id && $ansat) {
 					$r2 = db_fetch_array(db_select("select id from ansatte where lower(initialer) = '$ansat' and konto_id = '$egen_kto_id'", __FILE__ . " linje " . __LINE__));
 					$ansat_id = $r2['id'] * 1;
-				} else
+				} else {
 					$ansat_id = 0;
+				}
 				$projekt = $r['projekt'];
 				$valuta = $r['valuta'];
 				if ($valuta != $baseCurrency) {
@@ -4859,8 +4864,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					# 20120806 Indsat "art = 'VK' and " herunder.
 					$qtxt = "select kodenr from grupper where art = 'VK' and box1 = '$valuta'";
 					($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $valutakode = $r2['kodenr'] : $valutakode = 0;
-				} else
+				} else {
 					$valutakode = 0; #Valutakode 0 er altid $baseCurrency
+				}
 				$betal_id = $r['betal_id'];
 				$beskrivelse = db_escape_string(if_isset($r['beskrivelse'], ''));
 				$debetvat = db_escape_string(if_isset($r['debetvat'], ''));
@@ -4879,10 +4885,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				}
 
 				if ($r['id'] && ($r['bilag'] || $r['bilag'] == '0')) {
-					if (!$transdate && isset($_GET['dato']))
+					if (!$transdate && isset($_GET['dato'])) {
 						$transdate = usdate($_GET['dato']);
-					if (!$transdate)
+					}
+					if (!$transdate) {
 						$transdate = date("Y-m-d");
+					}
 					$bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
 					# SST-934 a 0 the user typed, or the 0 the line was saved under, is a voucher number
 					$kk_nul_tastet = ($bilag === 0 && !bilagIsUnnumbered($r['bilag']));
@@ -4921,8 +4929,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						foreach (array('beskrivelse', 'faktura', 'debetvat', 'kreditvat') as $kk_felt) {
 							$kk_gemt[$kk_felt] = db_escape_string((string)$kk_gemt[$kk_felt]);
 						}
-						# an amount stored with three decimals before MB-86 is kept while the field still shows it
-						$amount = journalAmountKept($kk_gemt['amount'], $amount);
+						# an amount stored with three decimals before MB-86 is kept while the field still holds the text it was drawn with
+						$amount = journalAmountKept($kk_gemt['amount'], $r['amount'], $amount);
 					}
 					$kk_nye = array(
 						'bilag' => $bilag, 'transdate' => $transdate, 'beskrivelse' => $beskrivelse, 'd_type' => $d_type,
@@ -4943,8 +4951,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$GLOBALS['kk_committed']++;
 					if ($forfaldsdate) {
 						$qtxt = "update kassekladde set forfaldsdate='$forfaldsdate', betal_id='$betal_id' where id = '$r[id]'";
-					} else
+					} else {
 						$qtxt = "update kassekladde set forfaldsdate=NULL, betal_id='' where id = '$r[id]'";
+					}
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				} elseif (
 					($r['transdate'] || $transdate)
@@ -5152,10 +5161,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$date = usdate($dato);
 		# MB-86 the "+=" copy is rounded to whole øre like a line saved through opdater()
 		$amount = journalAmountFromInput($belob);
-		if ($forfaldsdato)
+		if ($forfaldsdato) {
 			$forfaldsdate = usdate($forfaldsdato);
-		else
+		} else {
 			$forfaldsdate = NULL;
+		}
 		#	$bilag = str_replace('+',':',$bilag); #jeg ved ikke hvorfor, men den vil ikke splitte med "+"
 		#list ($bilag,$antal) = explode (':',$bilag);
 		if ($ansat) {
@@ -5167,17 +5177,19 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$ansat_id = $ansat_id * 1;
 		if ($valuta && $valuta != $baseCurrency) {
 			$r = db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art = 'VK'", __FILE__ . " linje " . __LINE__));
-			if ($r['kodenr'])
+			if ($r['kodenr']) {
 				$valutakode = $r['kodenr'] * 1;
-			else {
+			} else {
 				$fejl = 1;
 				print "<BODY onLoad=\"javascript:alert('Valuta $valuta eksisterer ikke (Bilag $bilag)')\">";
 			}
-		} else
+		} else {
 			$valutakode = 0;
+		}
 		if (!$fejl) {
-			if (!$forfaldsdate)
+			if (!$forfaldsdate) {
 				$forfaldsdate = $date;
+			}
 			$qtxt = "insert into kassekladde ";
 			$qtxt .= "(bilag,kladde_id,transdate,beskrivelse,d_type,debet,k_type,kredit,";
 			$qtxt .= "faktura,amount,afd,ansat,projekt,valuta,forfaldsdate,betal_id,momsfri) values ";
@@ -5185,8 +5197,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$qtxt .= "'$faktura','$amount','$afd','$ansat_id','$projekt','$valutakode','$forfaldsdate','$betal_id','$momsfri')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		if (!$fokus)
+		if (!$fokus) {
 			$fokus = "ny_kladdenote";
+		}
 		return $fejl ? 0 : kk_last_insert_id();
 	}
 	######################################################################################################################################
