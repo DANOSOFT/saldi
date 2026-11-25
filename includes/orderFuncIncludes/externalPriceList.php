@@ -34,13 +34,12 @@
 // 20261125 CL/MMR SST-1051 Records are visited one by one instead of kept, so a file with many short lines fits in memory.
 // 20261125 CL/MMR SST-1051 The file is downloaded with curl, and a broken-off transfer or HTTP error gives no rows.
 // 20261125 CL/MMR SST-1051 Only HTTP 200 is accepted as a whole file.
-// 20261125 CL/MMR SST-1051 Rows with a missing or non-numeric price are skipped, space-only lines before the header are
-//                 dropped, and gzip/deflate responses are decoded.
-// 20261125 CL/MMR SST-1051 Prices must be in one of the four documented formats, and a last record with a missing
-//                 closing quote is refused.
-// 20261125 CL/MMR SST-1051 The open-quote check allows spaces before the quote, and prices are rounded to 3 decimals
-//                 before the range check.
-// 20261125 CL/MMR SST-1051 Prices are written to the item with number_format (3 decimals).
+// 20261125 CL/MMR SST-1051 Rows with a missing or non-numeric price are skipped.
+//                 Space-only lines before the header are dropped.
+//                 Gzip and deflate responses are decoded.
+// 20261125 CL/MMR SST-1051 Prices must be in one of the four documented formats.
+//                 A last record with a missing closing quote is refused, also when spaces come before the quote.
+// 20261125 CL/MMR SST-1051 Prices are rounded on their digits to 3 decimals and written to the item as exact text.
 
 /**
  * The active price list, or null when none is in use.
@@ -72,12 +71,14 @@ function externalPriceListActive(): ?array
 }
 
 /**
- * Turn a price from the file into a number. Accepts 1234.50, 1234,50, 1.234,50 and 1,234.50 (also negative and
- * without decimals); anything else, e.g. «799 kr», «1e309» or «1,2,3.40», is not a price.
+ * Turn a price from the file into an exact decimal text with 3 decimals, rounded half away from zero like
+ * PostgreSQL's numeric(15,3). Accepts 1234.50, 1234,50, 1.234,50 and 1,234.50 (also negative and without decimals);
+ * anything else, e.g. «799 kr», «1e309» or «1,2,3.40», is not a price. The rounding is done on the digits, not on a
+ * float, so 1.23449999999999999999 stays 1.234.
  *
- * @return float|null null when the value is empty or not a price in one of those formats
+ * @return string|null e.g. "1234.500", or null when the value is empty, not a price or out of the numeric(15,3) range
  */
-function externalPriceListNumber(string $value): ?float
+function externalPriceListNumber(string $value): ?string
 {
 	$value = str_replace(array(' ', "\xC2\xA0"), '', trim($value));
 	if (preg_match('/^-?\d+(?:[.,]\d+)?$/', $value)) {
@@ -89,9 +90,26 @@ function externalPriceListNumber(string $value): ?float
 	} else {
 		return null;
 	}
-	// The item card stores prices as numeric(15,3): round to 3 decimals first, then check the range.
-	$number = round((float) $value, 3);
-	return (is_finite($number) && abs($number) < 1e12) ? $number : null;
+	$negative = ($value[0] === '-');
+	$parts = explode('.', ltrim($value, '-') . '.');
+	$whole = ltrim($parts[0], '0');
+	$fraction = str_pad($parts[1], 4, '0');
+	// All digits as one integer string in thousandths, then round on the fourth decimal.
+	$digits = ($whole === '' ? '0' : $whole) . substr($fraction, 0, 3);
+	if ($fraction[3] >= '5') {
+		$i = strlen($digits) - 1;
+		while ($i >= 0 && $digits[$i] === '9') {
+			$digits[$i] = '0';
+			$i--;
+		}
+		$digits = ($i < 0) ? '1' . $digits : substr_replace($digits, (string) ((int) $digits[$i] + 1), $i, 1);
+	}
+	$digits = str_pad(ltrim($digits, '0'), 4, '0', STR_PAD_LEFT);
+	$result = substr($digits, 0, -3) . '.' . substr($digits, -3);
+	if (strlen($digits) > 15) {
+		return null; // more than 12 digits before the decimal point
+	}
+	return ($negative && $digits !== '0000') ? '-' . $result : $result;
 }
 
 /**
@@ -175,7 +193,7 @@ function externalPriceListDownload(string $url, int $maxBytes): ?string
  * file in Indstillinger → Prislister (varenr, stregkode, varemærke, beskrivelse, kostpris, salgspris, enhed, ...),
  * case-insensitive.
  *
- * @param callable(array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: float, salgspris: float, enhed: string}): bool $visit
+ * @param callable(array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: string, salgspris: string, enhed: string}): bool $visit
  * @return bool false when the file cannot be fetched, is larger than 20 MB or has no varenr column
  */
 function externalPriceListEach(array $priceList, callable $visit): bool
@@ -236,7 +254,7 @@ function externalPriceListEach(array $priceList, callable $visit): bool
 		if (trim(implode('', array_map('strval', $record))) === '') {
 			continue;
 		}
-		$row = array('varenr' => '', 'stregkode' => '', 'trademark' => '', 'beskrivelse' => '', 'kostpris' => 0.0, 'salgspris' => 0.0, 'enhed' => '');
+		$row = array('varenr' => '', 'stregkode' => '', 'trademark' => '', 'beskrivelse' => '', 'kostpris' => '0.000', 'salgspris' => '0.000', 'enhed' => '');
 		$valid = true;
 		foreach ($columns as $index => $key) {
 			if ($key === 'kostpris' || $key === 'salgspris') {
@@ -270,7 +288,7 @@ function externalPriceListEach(array $priceList, callable $visit): bool
  * Rows whose item number and description contain the search terms (case-insensitive) and that are not items yet.
  * Empty terms match nothing, so the whole file is never listed. The limit counts only rows that are returned.
  *
- * @return array<int, array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: float, salgspris: float, enhed: string}>|null
+ * @return array<int, array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: string, salgspris: string, enhed: string}>|null
  *         null when the file cannot be used
  */
 function externalPriceListSearch(array $priceList, string $itemNo, string $description, int $limit = 50): ?array
@@ -300,7 +318,7 @@ function externalPriceListSearch(array $priceList, string $itemNo, string $descr
 /**
  * The row with exactly this item number, or null when the file has none or cannot be used.
  *
- * @return array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: float, salgspris: float, enhed: string}|null
+ * @return array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: string, salgspris: string, enhed: string}|null
  */
 function externalPriceListFind(array $priceList, string $itemNo): ?array
 {
@@ -374,8 +392,8 @@ function externalPriceListCreateItem(array $row, array $priceList): int
 	$qtxt = "insert into varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, enhed, gruppe, lukket) values (";
 	$qtxt .= "'" . db_escape_string($row['varenr']) . "', '" . db_escape_string($row['stregkode']) . "', ";
 	$qtxt .= "'" . db_escape_string($row['trademark']) . "', '" . db_escape_string($row['beskrivelse']) . "', ";
-	// number_format, not string conversion: PHP prints floats with 14 digits, which turns 999999999999.999 into 1.0E+12.
-	$qtxt .= number_format((float) $row['kostpris'], 3, '.', '') . ", " . number_format((float) $row['salgspris'], 3, '.', '') . ", ";
+	// The prices are exact decimal texts from externalPriceListNumber() (digits, an optional minus and a point).
+	$qtxt .= "'" . db_escape_string($row['kostpris']) . "', '" . db_escape_string($row['salgspris']) . "', ";
 	$qtxt .= "'" . db_escape_string($row['enhed']) . "', $group, '0')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	return externalPriceListItemId($row['varenr']);

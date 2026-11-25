@@ -585,7 +585,7 @@ if ($art == 'DO' || $art == 'DK') {
                     print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['varenr']) . "</td>";
                     print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['enhed']) . "</td>";
                     print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['beskrivelse']) . "</td>";
-                    $priceListPrice = $priceListRow['salgspris'];
+                    $priceListPrice = (float) $priceListRow['salgspris'];
                     if ($incl_moms && !in_array($priceListGroup, $momsfri)) {
                         $priceListPrice = $priceListPrice * (1 + (float) $momssats / 100);
                     }
