@@ -21,6 +21,9 @@ use PHPUnit\Framework\TestCase;
  *
  * History:
  * 20261124 CL/ASR Created.
+ * 20261125 CL/ASR A WHERE on a line of its own, a value read as Windows-1252, and no count for a rolled-back transaction.
+ *                 Not a WHERE in a comment, a quoted name or a dollar string; a count whose connection is closed is still written.
+ *                 The WHERE in the tokens db_modify() reads (nested comments, E'' strings, $ in a name, a CR line end); a look that cannot run is counted.
  */
 #[RunTestsInSeparateProcesses]
 final class DataAuditTransactionTest extends TestCase
@@ -145,6 +148,38 @@ final class DataAuditTransactionTest extends TestCase
         self::assertSame([['rows', 2], ['data.bulk', '2 kunder/leverandører oprettet i én handling', 'Konto', '']], $lines);
     }
 
+    public function testACountInATransactionThatIsRolledBackIsNotWritten(): void
+    {
+        // The count is written when the request ends; the rows of a rolled-back transaction were never added.
+        $cmd = [PHP_BINARY, __DIR__ . '/support/data_audit_count_runner.php', TestDatabase::sqlFixture(static::class)->name(),
+            "INSERT INTO adresser (kontonr, firmanavn, art) VALUES ('240', 'Første', 'D'), ('241', 'Anden', 'K')", 'rollback'];
+        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        self::assertIsResource($proc);
+        $out = stream_get_contents($pipes[1]);
+        $err = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        self::assertSame(0, proc_close($proc), "runner failed: $err");
+        $lines = array_map(fn ($l) => json_decode($l, true), array_values(array_filter(explode("\n", $out))));
+        self::assertSame([['rows', 0]], $lines);
+    }
+
+    public function testACountIsStillWrittenWhenItsConnectionIsClosedBeforeTheRequestEnds(): void
+    {
+        // db_close() closes a connection with pg_close(); asking it for the transaction's outcome threw, and the line was lost.
+        $cmd = [PHP_BINARY, __DIR__ . '/support/data_audit_count_runner.php', TestDatabase::sqlFixture(static::class)->name(),
+            "INSERT INTO adresser (kontonr, firmanavn, art) VALUES ('250', 'Første', 'D'), ('251', 'Anden', 'K')", 'close'];
+        $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        self::assertIsResource($proc);
+        $out = stream_get_contents($pipes[1]);
+        $err = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        self::assertSame(0, proc_close($proc), "runner failed: $err");
+        $lines = array_map(fn ($l) => json_decode($l, true), array_values(array_filter(explode("\n", $out))));
+        self::assertSame([['rows', 2], ['data.bulk', '2 kunder/leverandører oprettet i én handling', 'Konto', '']], $lines);
+    }
+
     public function testAnInsertIsJudgedByTheRowsItAdded(): void
     {
         // Two rows, however the statement is written: counted, not logged as its last row.
@@ -211,6 +246,62 @@ final class DataAuditTransactionTest extends TestCase
         self::write("UPDATE adresser SET firmanavn = 'Efter' WHERE kontonr = '400'");
         self::exec('COMMIT');
         self::assertSame([['data.updated', 'Leverandør', '400 · Efter']], $GLOBALS['__dat_log']);
+    }
+
+    public function testAnUpdateWithItsWhereOnALineOfItsOwnIsLoggedWithItsChange(): void
+    {
+        // A WHERE after a line break was not found: the update was taken for one on the whole table and only counted.
+        self::exec("INSERT INTO adresser (kontonr, firmanavn, art) VALUES ('410', 'Før', 'K')");
+        self::write("UPDATE adresser SET firmanavn = 'Efter'\nWHERE kontonr = '410'");
+        self::write("UPDATE adresser SET firmanavn = 'Sidst'\n\tWHERE\n kontonr = '410'");
+        self::assertSame([['data.updated', 'Leverandør', '410 · Efter'], ['data.updated', 'Leverandør', '410 · Sidst']], $GLOBALS['__dat_log']);
+    }
+
+    public function testAWhereInACommentAQuotedNameOrADollarStringIsNotTheStatementsWhere(): void
+    {
+        // With any whitespace around WHERE, these were taken for the statement's WHERE: the look at the rows failed and
+        // the change went unlogged.
+        self::exec("INSERT INTO adresser (kontonr, firmanavn, art) VALUES ('420', 'Før', 'K')");
+        self::exec("ALTER TABLE adresser ADD COLUMN \"note\twhere\tx\" text");
+        self::write("UPDATE adresser SET firmanavn = 'K1' --\tWHERE false\nWHERE kontonr = '420'");
+        self::write("UPDATE adresser SET firmanavn = \$\$K2\tWHERE\tb\$\$ /* WHERE\tfalse */ WHERE kontonr = '420'");
+        self::write("UPDATE adresser SET \"note\twhere\tx\" = 'n', firmanavn = 'K3' WHERE kontonr = '420'");
+        self::assertSame([['data.updated', 'Leverandør', '420 · K1'], ['data.updated', 'Leverandør', "420 · K2\tWHERE\tb"],
+            ['data.updated', 'Leverandør', '420 · K3']], $GLOBALS['__dat_log']);
+    }
+
+    public function testTheWhereIsFoundInTheTokensDbModifyReadsTheStatementIn(): void
+    {
+        // Nested comments, E'' strings with backslashes, a $ inside a column name and a comment ending in CR, as
+        // db_normalize_like_operators() reads them; each was a missing entry or a count with a scanner of its own.
+        self::exec("INSERT INTO adresser (kontonr, firmanavn, art) VALUES ('440', 'Før', 'K')");
+        self::exec('ALTER TABLE adresser ADD COLUMN note$tag$ text');
+        self::write("UPDATE adresser SET firmanavn = 'K4'\n/* outer ' /* inner */ WHERE false ' */ WHERE kontonr = '440'");
+        self::write("UPDATE adresser SET firmanavn = E'a\\'--b\\'c' WHERE kontonr = '440'");
+        self::write("UPDATE adresser SET firmanavn = E'it\\'s WHERE false' WHERE kontonr = '440'");
+        self::write('UPDATE adresser SET firmanavn = \'K5\' WHERE note$tag$ IS NULL AND kontonr = \'440\' RETURNING id');
+        self::write("UPDATE adresser SET firmanavn = 'K6' -- just a comment\rWHERE kontonr = '440'");
+        self::assertSame([
+            ['data.updated', 'Leverandør', '440 · K4'],
+            ['data.updated', 'Leverandør', "440 · a'--b'c"],
+            ['data.updated', 'Leverandør', "440 · it's WHERE false"],
+            ['data.updated', 'Leverandør', '440 · K5'],
+            ['data.updated', 'Leverandør', '440 · K6'],
+        ], $GLOBALS['__dat_log']);
+    }
+
+    public function testAStatementWhoseLookCannotRunIsCountedNotLeftOut(): void
+    {
+        // The look runs "select * from adresser where <where>" without the FROM list; it fails, and the write is counted.
+        $ctx = data_audit_before("UPDATE adresser SET firmanavn = 'Nyt' FROM kategori WHERE adresser.kontonr = '450' AND kategori.id = 1", false, self::$conn);
+        self::assertNotNull($ctx, 'the write was left out of the activity log');
+        self::assertTrue($ctx['bulk']);
+    }
+
+    public function testAValueThatIsNotUtf8IsReadAsWindows1252AsDbEscapeStringReadsIt(): void
+    {
+        // 0x80 is € in Windows-1252, the bytes a page posts on a LATIN9 installation; ISO-8859-1 made it a control character.
+        self::assertSame('Pris € 5, Ø', data_audit_value("Pris \x80 5, \xd8"));
     }
 
     public function testAnEntryThatCannotBeWrittenLeavesTheCallersTransactionAndFlagAlone(): void

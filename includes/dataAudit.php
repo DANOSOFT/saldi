@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/dataAudit.php --- ver 5.1.1 --- 2026.11.24 ---
+// ---- includes/dataAudit.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,11 @@
 //                 An insert is logged by name only when it added exactly one row (pg_affected_rows()), drew its id from the sequence and has no ON CONFLICT, nextval() or setval(); others are counted.
 //                 Its own entries are written under a savepoint with db_modify() in webservice mode (data_audit_log()), so one that cannot be written never ends the request or the caller's transaction.
 //                 What such a write prints goes to the server's error log, not into the page.
+// 20261125 CL/ASR A WHERE (or RETURNING) after a line break is found, so such an update is logged with its change instead of only counted.
+//                 A value that is not UTF-8 is read as Windows-1252, as db_escape_string() reads it (€ is 0x80 there; ISO-8859-1 made it a control character).
+//                 A count made inside a transaction is written at the end of the request only when that transaction committed (txid_status()).
+//                 Its WHERE is found in the tokens db_normalize_like_operators() reads (comments, strings, E'' strings, quoted names, dollar strings, whole words), and each count's status is asked of any open connection, so one closed before the end of the request loses no line.
+//                 A statement whose look at the rows cannot run is counted instead of left out.
 
 if (!defined('DATA_AUDIT_MAX')) define('DATA_AUDIT_MAX', 100);
 
@@ -144,17 +149,78 @@ function data_audit_rows($conn, string $sql): ?array
 	return is_array($rows) ? $rows : array();
 }
 
-/** Where a clause begins outside quotes and brackets ($word as ' where '; not the where of a sub-select), or -1. */
-function data_audit_find(string $sql, string $word): int
+/**
+ * Where a clause begins in a statement ($word as ' where '; not the where of a sub-select), or -1. The statement is
+ * read in the tokens includes/db_query.php db_normalize_like_operators() reads it in, which db_modify() runs every query
+ * through: -- and nested block comments, strings ('' inside, E'' and backslashes as $standardConformingStrings says,
+ * a string continued on the next line), quoted identifiers, dollar-quoted strings, and whole words (a $ inside a word
+ * is part of it). The word counts outside brackets with whitespace on both sides; the offset is the whitespace before
+ * it, and strlen($word) after the offset is the clause. Unterminated quoting reads to the end: -1.
+ */
+function data_audit_find(string $sql, string $word, bool $standardConformingStrings = true): int
 {
-	$len = strlen($sql); $wl = strlen($word); $inQ = false; $depth = 0;
-	for ($i = 0; $i < $len; $i++) {
-		$c = $sql[$i];
-		if ($c === "'") { $inQ = !$inQ; continue; }   // '' inside a string flips twice: still inside
-		if ($inQ) continue;
-		if ($c === '(') { $depth++; continue; }
-		if ($c === ')') { $depth = max(0, $depth - 1); continue; }
-		if ($depth === 0 && strncasecmp(substr($sql, $i, $wl), $word, $wl) === 0) return $i;
+	$core = strtolower(trim($word));
+	$length = strlen($sql);
+	$depth = 0;
+	for ($offset = 0; $offset < $length;) {
+		$start = $offset;
+		$char = $sql[$offset];
+		$pair = substr($sql, $offset, 2);
+		if ($pair === '--') {
+			$offset += strcspn($sql, "\r\n", $offset);
+		} elseif ($pair === '/*') {
+			$offset += 2;
+			$nest = 1;
+			while ($offset < $length && $nest > 0) {
+				$pair = substr($sql, $offset, 2);
+				if ($pair === '/*' || $pair === '*/') {
+					$nest += $pair === '/*' ? 1 : -1;
+					$offset += 2;
+				} else {
+					$offset++;
+				}
+			}
+			if ($nest > 0) return -1;
+		} elseif ($char === "'" || $char === '"' || $pair === "E'" || $pair === "e'") {
+			$escapePrefix = $pair === "E'" || $pair === "e'";
+			$quote = $escapePrefix ? "'" : $char;
+			$escaped = $escapePrefix || ($quote === "'" && !$standardConformingStrings);
+			$offset += $escapePrefix ? 2 : 1;
+			$closed = false;
+			while ($offset < $length) {
+				if ($escaped && $sql[$offset] === '\\') {
+					$offset = min($length, $offset + 2);
+				} elseif ($sql[$offset] === $quote) {
+					$offset++;
+					if ($offset < $length && $sql[$offset] === $quote) {
+						$offset++;
+					} elseif ($quote === "'" && preg_match("/\\G(?:[ \\t\\f\\v]|--[^\\r\\n]*)*[\\r\\n](?:[ \\t\\f\\v\\r\\n]|--[^\\r\\n]*[\\r\\n])*'/", $sql, $continuation, 0, $offset)) {
+						$offset += strlen($continuation[0]);   // the string goes on after a line break
+					} else {
+						$closed = true;
+						break;
+					}
+				} else {
+					$offset++;
+				}
+			}
+			if (!$closed) return -1;
+		} elseif ($char === '$' && preg_match('/\G\$(?:[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)?\$/', $sql, $match, 0, $offset)) {
+			$end = strpos($sql, $match[0], $offset + strlen($match[0]));
+			if ($end === false) return -1;
+			$offset = $end + strlen($match[0]);
+		} elseif (preg_match('/\G[a-zA-Z_\x80-\xff][a-zA-Z0-9_$\x80-\xff]*/', $sql, $match, 0, $offset)) {
+			$wl = strlen($match[0]);
+			if ($depth === 0 && strtolower($match[0]) === $core && $start > 0 && ctype_space($sql[$start - 1])
+				&& $start + $wl < $length && ctype_space($sql[$start + $wl])) {
+				return $start - 1;
+			}
+			$offset += $wl;
+		} else {
+			if ($char === '(') $depth++;
+			elseif ($char === ')') $depth = max(0, $depth - 1);
+			$offset++;
+		}
 	}
 	return -1;
 }
@@ -194,16 +260,20 @@ function data_audit_before(string $qtext, bool $global, $conn): ?array
 			}
 			return $ctx;
 		}
-		$w = data_audit_find($q, ' where ');
+		$standard = !$conn || pg_parameter_status($conn, 'standard_conforming_strings') !== 'off';
+		$w = data_audit_find($q, ' where ', $standard);
 		if ($w < 0) { $ctx['bulk'] = true; return $ctx; }   // a whole table: counted, not listed
 		$where = substr($q, $w + 7);
-		$r = data_audit_find($where, ' returning ');
+		$r = data_audit_find($where, ' returning ', $standard);
 		if ($r >= 0) $where = substr($where, 0, $r);
 		$where = rtrim($where, " ;\n\r\t");
 		$busy = true;
-		$rows = data_audit_rows($conn, "select * from $table where $where limit " . (DATA_AUDIT_MAX + 1));
+		$rows = data_audit_rows($conn, "select * from $table where $where\nlimit " . (DATA_AUDIT_MAX + 1));   // a -- comment ends at the line
 		$busy = false;
-		if ($rows === null) return null;
+		if ($rows === null) {   // the look could not run (its WHERE is not one alone, or not read right): counted, not lost
+			$ctx['bulk'] = true;
+			return $ctx;
+		}
 		if (count($rows) > DATA_AUDIT_MAX) $ctx['bulk'] = true;
 		$ctx['rows'] = $rows;
 		return $ctx;
@@ -224,7 +294,7 @@ function data_audit_after(array $ctx, $result = null): void
 		if ($ctx['bulk'] && !empty($def['events']) && $ctx['op'] !== 'delete') return;   // a mass status change of orders (POS day end, updates): not an invoicing by a person
 		if ($ctx['bulk']) {
 			$n = ($result !== null && $result !== false) ? (int) @pg_affected_rows($result) : count($ctx['rows']);
-			if ($n > 0) data_audit_count($table, 'data.' . ($ctx['op'] === 'insert' ? 'created' : ($ctx['op'] === 'delete' ? 'deleted' : 'updated')), $n);
+			if ($n > 0) data_audit_count($table, 'data.' . ($ctx['op'] === 'insert' ? 'created' : ($ctx['op'] === 'delete' ? 'deleted' : 'updated')), $n, $conn);
 			return;
 		}
 		if (!empty($def['events'])) { data_audit_order_events($ctx, $def); return; }
@@ -232,7 +302,7 @@ function data_audit_after(array $ctx, $result = null): void
 			// currval() names the last row the statement added, so only an insert of exactly one row is logged by name.
 			$n = ($result !== null && $result !== false) ? (int) @pg_affected_rows($result) : 1;
 			if ($n !== 1) {
-				if ($n > 1) data_audit_count($table, 'data.created', $n);
+				if ($n > 1) data_audit_count($table, 'data.created', $n, $conn);
 				return;
 			}
 			$rows = data_audit_rows($conn, "select * from $table where id = currval(pg_get_serial_sequence('$table', 'id'))");
@@ -286,7 +356,7 @@ function data_audit_value($v): string
 	if ($s === '') return '(tom)';
 	if ($s === 't' || $s === 'on') return 'Ja';    // PostgreSQL's booleans and Saldi's ticked boxes
 	if ($s === 'f' || $s === 'off') return 'Nej';
-	if (!mb_check_encoding($s, 'UTF-8')) $s = mb_convert_encoding($s, 'UTF-8', 'ISO-8859-1');
+	if (!mb_check_encoding($s, 'UTF-8')) $s = mb_convert_encoding($s, 'UTF-8', 'Windows-1252');   // as db_escape_string() reads it
 	if (is_numeric($s) && strpos($s, '.') !== false) $s = str_replace('.', ',', rtrim(rtrim($s, '0'), '.'));   // 5.000 as 5, 17.50 as 17,5
 	return mb_strlen($s) > 60 ? mb_substr($s, 0, 57) . '…' : $s;
 }
@@ -426,27 +496,74 @@ function data_audit_entry(string $table, string $handling, array $row, string $d
 	data_audit_log($handling, $details, $type, mb_substr($id, 0, 60));
 }
 
-/** Many changes in one request (an import, a new fiscal year): counted, and one line at the end. */
-function data_audit_count(string $table, string $handling, int $count): void
+/**
+ * Many changes in one request (an import, a new fiscal year): counted, and one line at the end. A count made inside a
+ * transaction is kept with the transaction's id, and the line counts it only when that transaction committed: after a
+ * rollback, or a transaction still open when the request ends (rolled back as the connection closes), nothing changed.
+ * $conn is the statement's connection (db_modify()'s); without it the request's.
+ */
+function data_audit_count(string $table, string $handling, int $count, $conn = null): void
 {
-	static $counts = null;
+	static $counts = null, $statusConns = array();
+	if ($conn === null) $conn = isset($GLOBALS['connection']) ? $GLOBALS['connection'] : null;
 	if ($counts === null) {
 		$counts = array();
-		register_shutdown_function(function () use (&$counts) {
-			try {
-				foreach ($counts as $key => $c) {
+		register_shutdown_function(function () use (&$counts, &$statusConns) {
+			$total = array(); $status = array();
+			foreach ($counts as $key => $c) {
+				try {
+					list($t, $hnd, $xid) = explode('|', $key);
+					if ($xid !== '') {
+						if (!array_key_exists($xid, $status)) $status[$xid] = data_audit_xid_status($xid, $statusConns);
+						if ($status[$xid] === 'aborted' || $status[$xid] === 'in progress') continue;
+					}
+					$total[$t . '|' . $hnd] = (isset($total[$t . '|' . $hnd]) ? $total[$t . '|' . $hnd] : 0) + $c;
+				} catch (\Throwable $e) {
+				}
+			}
+			foreach ($total as $key => $c) {
+				try {
 					list($t, $hnd) = explode('|', $key);
 					$def = data_audit_tables()[$t];
 					$what = ($hnd === 'data.created') ? 'oprettet' : (($hnd === 'data.deleted') ? 'slettet' : (($hnd === 'data.invoiced') ? 'faktureret' : (($hnd === 'data.credited') ? 'krediteret' : 'ændret')));
 					$noun = ($t === 'varer') ? 'varer' : (($t === 'kontoplan') ? 'konti i kontoplanen' : (($t === 'ordrer') ? 'ordrer' : 'kunder/leverandører'));
 					data_audit_log('data.bulk', $c . ' ' . $noun . ' ' . $what . ' i én handling', $def['type'], '');
+				} catch (\Throwable $e) {
 				}
-			} catch (\Throwable $e) {
 			}
 		});
 	}
-	$key = $table . '|' . $handling;
+	$xid = '';
+	if ($conn instanceof \PgSql\Connection && pg_transaction_status($conn) === PGSQL_TRANSACTION_INTRANS) {
+		$r = data_audit_rows($conn, 'select txid_current_if_assigned() as x');
+		if ($r && ctype_digit((string) $r[0]['x'])) {
+			$xid = (string) $r[0]['x'];
+			$statusConns[spl_object_id($conn)] = $conn;
+		}
+	}
+	$key = $table . '|' . $handling . '|' . $xid;
 	$counts[$key] = (isset($counts[$key]) ? $counts[$key] : 0) + $count;
+}
+
+/**
+ * What became of transaction $xid: 'committed', 'aborted', 'in progress', or '' when no connection can tell (then the
+ * count is written, as before txid_status() was asked). Transaction ids are the database server's, so any open
+ * connection to it answers: the request's first, then those the counts were made on. One that is closed is passed over.
+ *
+ * @param array<int, mixed> $conns
+ */
+function data_audit_xid_status(string $xid, array $conns): string
+{
+	$candidates = array_merge(isset($GLOBALS['connection']) ? array($GLOBALS['connection']) : array(), array_values($conns));
+	foreach ($candidates as $cn) {
+		try {
+			if (!($cn instanceof \PgSql\Connection) || pg_connection_status($cn) !== PGSQL_CONNECTION_OK) continue;
+			$r = data_audit_rows($cn, "select txid_status($xid) as s");
+			if ($r) return (string) $r[0]['s'];
+		} catch (\Throwable $e) {   // a connection closed with pg_close() (db_close()) throws
+		}
+	}
+	return '';
 }
 
 endif;

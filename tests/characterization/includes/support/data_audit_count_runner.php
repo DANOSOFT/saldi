@@ -7,9 +7,12 @@
 //
 // argv: 1 = the SQL fixture database (TestDatabase::sqlFixture()) to connect to; the connection settings come from the
 //           same SALDI_CHAR_* environment as the test's. 2 = the INSERT to run, on a TEMP adresser table.
+//       3 = 'rollback' to end the transaction with ROLLBACK instead of COMMIT, or 'close' to close the connection
+//           (pg_close(), as db_close()) before the request ends (optional).
 //
 // History:
 // 20261124 CL/ASR Created.
+// 20261125 CL/ASR argv 3: 'rollback' or 'close'.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php data_audit_count_runner.php <database> <insert>\n");
@@ -47,5 +50,8 @@ if ($res === false) {
 if ($ctx) {
     data_audit_after($ctx, $res);
 }
-pg_query($conn, "COMMIT");
+pg_query($conn, (($argv[3] ?? '') === 'rollback') ? "ROLLBACK" : "COMMIT");
 fwrite(STDOUT, json_encode(['rows', (int) pg_fetch_result(pg_query($conn, "SELECT count(*) FROM adresser"), 0, 0)]) . "\n");
+if (($argv[3] ?? '') === 'close') {
+    pg_close($conn);
+}
