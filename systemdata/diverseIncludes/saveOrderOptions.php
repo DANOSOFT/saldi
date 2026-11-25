@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/saveOrderOptions.php --- ver 5.1.1 --- 2026-11-20 ---
+// --- systemdata/diverseIncludes/saveOrderOptions.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,6 +34,7 @@
 //                 The old page is no longer reached (diverse.php sends sektion=ordre_valg there, a POST too), so this only guards the function.
 // 20261119 CL/ASR A part that is off is not switched on while invoices of its kind wait at status 3 for Hent ordrer (orders_waiting_for_hent()); the save keeps it off and returns an alert that says to fetch them into a cash journal first. The last part that is off is not switched on while invoices of the other kind wait either (the cash journal has no Hent for any kind once both are on), and the alert names the kind that waits.
 // 20261120 CL/ASR Comment: the cash journal keeps Hent for an invoice left waiting after both parts are on (owner, 20 Nov 2026), so the save no longer gives its absence as the reason.
+// 20261125 CDX/ASR Preserve package-required quick invoicing when legacy options are saved.
 
 include_once(__DIR__ . '/../../includes/stdFunc/ordersWaitingForHent.php');
 
@@ -65,6 +66,7 @@ if (!function_exists('saveOrderOptions')) {
 		$box2                   = ifset($post, 'box2'); #Rabatvarenr
 		$box3                   = ifset($post, 'box3'); #folge_s_tekst
 		$box4                   = ifset($post, 'box4'); #hurtigfakt
+		if (function_exists('ent_quick_invoice')) $box4 = ent_quick_invoice((string) $box4);
 		$box6                   = ifset($post, 'box6'); #fifo
 		$box7                   = ifset($post, 'box7'); #
 		$box8                   = ifset($post, 'box8'); #vis_nul_lev

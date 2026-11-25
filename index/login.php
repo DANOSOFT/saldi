@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.1 --- 2026-11-24 ---
+// --- index/login.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -88,6 +88,7 @@
 // 20261124 CL/ASR The includes of includes/loginThrottle.php and includes/twoFactor.php are resolved from this file's folder (__DIR__), not the caller's working directory.
 //                 The history lines of 20261114 are reworded; no code change.
 // 20261124 CL/ASR Comments state the current rule; no code change.
+// 20261125 CDX/ASR Observe concurrent users and posting volume; serialize package admission when enforcement is enabled.
 
 if (isset($_GET['invite'])) {
 	$inviteToken = preg_match('/^\d{1,9}-[a-f0-9]{48}$/', (string) $_GET['invite']) ? (string) $_GET['invite'] : '';
@@ -772,6 +773,9 @@ if ($userId) {
 	} */
 	include("../includes/connect.php");
 	if ($sqdb != $regnskab) {
+		include_once(__DIR__ . '/../includes/entitlements.php');
+		ent_load_database((string) $db);
+		$entLoginLock = ent_login_lock();
 		$udlob = time() - 14400; // 4 hours
 		// if mysql or mysqli
 		if($db_type == 'mysql' || $db_type == 'mysqli') {
@@ -790,11 +794,17 @@ if ($userId) {
 
 		$r = db_fetch_array($query);
 		$y = (int) $r['user_count'];
+		$entConcurrentUsers = ent_has_plan() ? ent_concurrent_users((string) $db, (string) $brugernavn) : $y;
+		if (!ent_check_limit('max_users', $entConcurrentUsers)) ent_upgrade('max_users');
 
 		$bruger_max = 2; // Default value
 		$q = db_select("SELECT brugerantal FROM regnskab WHERE db = '$db'", __FILE__ . " linje " . __LINE__);
 		if ($r = db_fetch_array($q)) {
 			$bruger_max = (int) $r['brugerantal'];
+		}
+		if (ent_enforcing()) {
+			$bruger_max = (int) ent_limit('max_users');
+			$y = $entConcurrentUsers;
 		}
 
 		if($db_type == 'mysql' || $db_type == 'mysqli') {
@@ -962,6 +972,7 @@ if ($userId) {
 #		$qtxt.= "where session_id = '$s_id'";
 #	} else $qtxt = "update online set rettigheder='$rettigheder', language_id='$languageId' where session_id = '$s_id'";
 	
+	if (!empty($entLoginLock)) db_unlock($entLoginLock, true);
 	$qtxt = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS ";
 	$qtxt.= "WHERE table_name = 'online' AND column_name = 'rettigheder' ";
 	$qtxt.= "AND DATA_TYPE = 'character varying' AND CHARACTER_MAXIMUM_LENGTH < 50";
@@ -987,6 +998,12 @@ if ($userId) {
 	}
 	if (!$regnskabsaar && $db != $sqdb) $regnskabsaar = if_isset($regnaar, '');
 
+	if (ent_has_plan()) {
+		$since = db_escape_string(date('Y-m-d', strtotime('-12 months')));
+		$today = db_escape_string(date('Y-m-d'));
+		$usage = db_fetch_array(db_select("SELECT count(*) AS n FROM transaktioner WHERE logdate >= '$since' AND logdate <= '$today'", __FILE__ . ' linje ' . __LINE__));
+		ent_check_limit('included_postings', $usage ? (int) $usage['n'] : 0, 1);
+	}
 	// Logged in (and past the two-factor step): the count of wrong attempts for this user is gone.
 	if (function_exists('login_throttle_success')) login_throttle_success($throttleRegnskab, $throttleUser);
 	if ($post_max && $db!=$sqdb) {

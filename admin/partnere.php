@@ -1,5 +1,6 @@
 <?php
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
+// 20261125 CDX/ASR Keep user-record counts separate from the package concurrent-session cap.
 ob_start(); # for the redirect after an action (vr_prg)
 @session_start();
 $s_id=session_id();
@@ -233,10 +234,10 @@ if ($tab == 'oversigt') {
 		$e = ent_resolve($rid); $sn = isset($snaps[$rid]) ? $snaps[$rid] : null; $b = isset($bills[$rid]) ? $bills[$rid] : null; list($payerId, $payerSrc) = bill_payer($rid);
 		if ($e['plan'] && $e['price_ore'] !== null && $r['lukket'] != 'on') { $m = $e['interval'] == 'year' ? (int)round($e['price_ore'] / 12) : (int)$e['price_ore']; foreach ($e['addons'] as $ak => $ar) if (isset($cat['addons'][$ak]) && $cat['addons'][$ak]['price_ore'] !== null) { $ad = $cat['addons'][$ak]; $m += (int)$ad['price_ore'] * (ent_addon_counted($ad) ? max(1, (int)$ar['quantity']) : 1); } $mrr += $m; } # an on/off add-on counts once, as on the Abonnement tab and in the Overblik MRR
 		if ($b && $b['outstanding_ore']) $out += (int)$b['outstanding_ore'];
-		$uPct = ($sn && $e['plan'] && $e['limits']['max_users']) ? min(100, (int)round($sn['users_active'] / $e['limits']['max_users'] * 100)) : 0; $pPct = ($sn && $e['plan'] && $e['limits']['included_postings']) ? min(100, (int)round($sn['postings_12m'] / $e['limits']['included_postings'] * 100)) : 0;
+		$pPct = ($sn && $e['plan'] && $e['limits']['included_postings']) ? min(100, (int)round($sn['postings_12m'] / $e['limits']['included_postings'] * 100)) : 0;
 		print "<tr".($r['lukket']=='on' ? " class=\"vr-closed\"" : "")."><td class=\"vr-r vr-id\">$rid</td><td class=\"vr-nm\"><a href=\"operator_panel.php?regnskab_id=$rid\">".vr_h($r['regnskab'])."</a><small>".vr_h($r['db']).($r['lukket']=='on' ? ' · '.findtekst('387|Lukket', $sprog_id) : '')."</small></td>";
 		print "<td class=\"vr-mut\">".($e['plan'] ? vr_h($e['plan']['name']) : '<span class="vr-mut2">–</span>')."</td>";
-		print "<td class=\"vr-r vr-num\">".($sn ? (int)$sn['users_active'].($e['plan'] && $e['limits']['max_users'] !== null ? ' <span class="vr-mut2">/ '.(int)$e['limits']['max_users'].'</span>' : '').($uPct >= 80 ? ' <span class="vr-dot vr-warn"></span>' : '') : '<span class="vr-mut2">–</span>')."</td>";
+		print "<td class=\"vr-r vr-num\">".($sn ? (int)$sn['users_active'] : '<span class="vr-mut2">–</span>')."</td>";
 		print "<td class=\"vr-r vr-num\">".($sn ? vr_num($sn['postings_12m']).($e['plan'] && $e['limits']['included_postings'] !== null ? ' <span class="vr-mut2">/ '.vr_num($e['limits']['included_postings']).'</span>' : '').($pPct >= 80 ? ' <span class="vr-dot vr-warn"></span>' : '') : '<span class="vr-mut2">–</span>')."</td>";
 		print "<td>".($b && $b['pay_status'] ? "<span class=\"vr-st\"><span class=\"vr-dot ".$stDot[$b['pay_status']]."\"></span>".$stTxt[$b['pay_status']]."</span>".($b['outstanding_ore'] ? " <span class=\"vr-mut2\">· ".number_format($b['outstanding_ore']/100, 0, ',', '.')." kr.</span>" : "") : '<span class="vr-mut2">'.vr_t('ikke tjekket','not checked').'</span>')."</td>";
 		print "<td class=\"vr-mut\">".($payerId ? vr_h(isset($regNames[$payerId]) ? $regNames[$payerId]['regnskab'] : "#$payerId")." <span class=\"vr-mut2\" title=\"".vr_h($payerSrc)."\">·</span>" : vr_t('selv','itself'))."</td>";

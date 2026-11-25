@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_overblik.php --- ver 5.1.1 --- 2026.11.16 ---
+// --- admin/inc_overblik.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 5: a small commercial overview on the operator's Overblik page.
@@ -11,6 +11,7 @@
 //                 MRR counts an on/off add-on once and multiplies only counted add-ons by their quantity, the same rule as the Abonnement tab (review #785).
 // 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin).
 //                 Accounts without a due date sort last through (oldest_due is null) instead of NULLS LAST, and the latest usage snapshot per account comes from a join on max(taken_at) instead of DISTINCT ON.
+// 20261125 CDX/ASR Do not compare registered-user snapshots with the concurrent-session limit.
 
 if (!function_exists('ov_data')) {
 	// The overview's figures, computed from the master database on every call.
@@ -130,7 +131,7 @@ if (!function_exists('ov_data')) {
 			}
 
 			$measured = array(
-				'max_users' => array($sn['users_active'], vr_t('brugere','users')),
+				// The stored snapshot counts user records, not concurrent sessions; it cannot measure max_users.
 				'included_postings' => array($sn['postings_12m'], vr_t('posteringer','entries')),
 				'max_items' => array($sn['items'], vr_t('varer','items')),
 			);

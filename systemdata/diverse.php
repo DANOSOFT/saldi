@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----ver 5.1.1 ----2026-11-14------------
+// --- systemdata/diverse.php -----ver 5.1.1 ----2026-11-25------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -129,6 +129,7 @@
 //                With the hosted module these posts are ignored here, so the password of the G1.4 danger zone stays the only way there.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261114 CL/ASR kontoindstillinger no longer saves a reset (owner, 14 Nov 2026): a ledger is reset only from the admin panel (admin/admin_panel.php). The new name and the delete are saved as before.
+// 20261125 CDX/ASR Guard customer changes to the package-controlled concurrent-user limit.
 @session_start();
 $s_id = session_id();
 
@@ -596,6 +597,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'kontoindstillinger') {
 
 		if (isset($_POST['update_max_users'])) {
+			if (!ent_setting_change_allowed('max_users', (int) ($_POST['max_users'] ?? 0))) ent_upgrade('max_users');
 		
 			$new_max_users = isset($_POST['max_users']) ? (int)$_POST['max_users'] : 0;
 			if ($new_max_users <= 0 || $new_max_users > 1000) {

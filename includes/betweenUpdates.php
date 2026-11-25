@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.24
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -75,6 +75,7 @@
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 // 20261124 CL/ASR The CRM's tables and columns are made by one login at a time (crm_ensure_schema() takes a lock); two first logins after a deploy ran the same ALTER and the second stopped on "already exists".
 //                 A login that finds them all takes no lock and runs no step (crm_schema_complete(): one look at the columns, one at the index).
+// 20261125 CDX/ASR Install the package catalogue policy on the master in observe mode.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -1002,6 +1003,12 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
 	// guardrails-allow migrations until 2026-12-31 by NTR: relocate the existing schema include without changing migration order
 	include_once(__DIR__ . '/structure/operatorPanelSchema.php');
 	operator_panel_schema();
+}
+
+// 20261125 CDX/ASR Package policy starts in observe mode; no tenant without a package is assigned one.
+if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
+	include_once(__DIR__ . '/structure/entitlementSchema.php');
+	entitlement_schema();
 }
 
 ?>

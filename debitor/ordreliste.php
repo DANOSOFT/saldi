@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----ver 5.1.1 ----2026-11-13--------------
+// --- debitor/ordreliste.php -----ver 5.1.1 ----2026-11-25--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -78,6 +78,7 @@
 //                 The list name (valg) is escaped in its SQL (review by Codex).
 // 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 CDX/ASR Use the effective package quick-invoice setting for the order list.
 @session_start();
 $s_id = session_id();
 
@@ -399,6 +400,7 @@ if (isset($_GET['valg']) && $_GET['valg']) {
 $r2 = db_fetch_array(db_select("select max(id) as id from grupper", __FILE__ . " linje " . __LINE__));
 
 if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4='on'", __FILE__ . " linje " . __LINE__))) $hurtigfakt = 'on';
+$hurtigfakt = ent_quick_invoice((string) $hurtigfakt);
 if ($valg == "tilbud" && $hurtigfakt) $valg = "ordrer"; //20210323
 if ($valg == 'invoice') $valg = 'faktura';
 if (!$valg) $valg = "ordrer";

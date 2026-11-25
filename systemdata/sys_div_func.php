@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 5.1.1 -- 2026.11.19 ---
+// --- systemdata/sys_div_func.php --- ver 5.1.1 -- 2026.11.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -165,6 +165,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261114 CL/ASR Without the hosted module kontoindstillinger() keeps the name and Slet regnskab, but not Nulstil regnskab (owner, 14 Nov 2026): a ledger is reset only from the admin panel (admin/admin_panel.php).
 // 20261119 CL/ASR ordre_valg(): an Omgående bogføring box that is on cannot be unticked (owner, 19 Nov 2026), as saveOrderOptions() keeps it on; the page itself is no longer reached (diverse.php redirects it).
+// 20261125 CDX/ASR Display package limits and lock controlled options only in enforcement mode.
 include_once("../includes/connect.php"); 
 include_once(__DIR__ . "/../includes/labelTemplates.php");
 
@@ -206,9 +207,13 @@ function kontoindstillinger($regnskab, $skiftnavn)
 		$disabled = "disabled";
 	}
 	
+	if (ent_enforcing()) {
+		$max_users = ent_limit('max_users');
+		$disabled = 'disabled';
+	}
 	print "<form name='maxusers' action='diverse.php?sektion=kontoindstillinger' onsubmit='return confirmUpdate();' method='post'>\n";
 	print "<tr><td>Sæt brugere antal:</td>";
-	print "<td><input class='inputbox' type='number' style='width:50px' name='max_users' value='" . htmlspecialchars($max_users) . "' $disabled></td></tr>";
+	print "<td><input class='inputbox' type='number' style='width:50px' name='max_users' value='" . htmlspecialchars((string) $max_users) . "' $disabled></td></tr>";
 	print "<td></td><td><input class='button gray medium' style='width:200px' type='submit' value='Opdater bruger antal' name='update_max_users'></td></tr>\n";
 	print "</form>\n";
 
@@ -689,6 +694,7 @@ function ordre_valg() {
 	print "<tr><td title='".findtekst('189|Hvis dette felt afmærkes inkluderes kun linjer med angivet antal på følgesedler', $sprog_id)."'>".findtekst('169|Medtag kun linjer med antal på følgeseddel', $sprog_id)."</td><td><INPUT title='".findtekst('189|Hvis dette felt afmærkes inkluderes kun linjer med angivet antal på følgesedler', $sprog_id)."' class='inputbox' type='checkbox' name=box8 $vis_nul_lev></td></tr>";
 	$qtxt = "select id from grupper where art = 'VG' and box9='on'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $hurtigfakt = "onclick='return false'";
+	if (ent_has_plan() && ent_allows('sales.quick_invoice_required') && ent_enforcing()) $hurtigfakt = 'checked disabled';
 	print "<tr><td title='".findtekst('190|Hurtigfakturering anvendes, hvis der ikke er behov for tilbud/følgesedler', $sprog_id)."'>".findtekst('165|Anvend hurtigfakturering (ingen tilbud & automatisk levering ved fakturering)', $sprog_id)."</td><td><INPUT title='".findtekst('190|Hurtigfakturering anvendes, hvis der ikke er behov for tilbud/følgesedler', $sprog_id)."' class='inputbox' type='checkbox' name='box4' $hurtigfakt></td></tr>";
 	print "<tr><td title='".findtekst('191|Hvis dette felt ikke er afmærket, skal salgsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen', $sprog_id)."'>".findtekst('166|Omgående bogføring af salgsordrer', $sprog_id)."</td><td><INPUT title='".findtekst('191|Hvis dette felt ikke er afmærket, skal salgsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen', $sprog_id)."' class='inputbox' type='checkbox' name='straks_deb' $straks_deb></td></tr>";
 	print "<tr><td title='".findtekst('214|Hvis dette felt ikke er afmærket, skal købsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen', $sprog_id)."'>".findtekst('213|Omgående bogføring af købsordrer', $sprog_id)."</td><td><INPUT title='".findtekst('214|Hvis dette felt ikke er afmærket, skal købsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen', $sprog_id)."' class='inputbox' type='checkbox' name='straks_kred' $straks_kred></td></tr>";

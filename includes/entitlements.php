@@ -1,5 +1,5 @@
 <?php
-// --- includes/entitlements.php --- ver 5.1.1 --- 2026.11.24 ---
+// --- includes/entitlements.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE: GNU GPL v2 or later; see admin/vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Catalogue + entitlement layer in the master database, tables as in Requirements_packages_entitlements_billing_EN.md §4.1/§5.1 with three additions needed for the operator's subscription card: prices on plans/addons (price_ore, billing_interval, extra_user_price_ore), valid_from on regnskab_entitlements, and regnskab_plan_changes for changes with a future effective date.
@@ -19,70 +19,21 @@
 //                 The usage count reads column names and the type of brugere.status from information_schema on MySQL/MariaDB, and months come from DATE_FORMAT() there instead of to_char().
 //                 ent_usage_history() picks the last snapshot per month in PHP instead of DISTINCT ON, and the column key is quoted on MySQL/MariaDB (db_key_column()).
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
+// 20261125 CDX/ASR Resolve catalogue-backed package policy on the master and keep numeric limits editable as data.
 
 if (!function_exists('ent_tables_ensure')) {
 include_once(__DIR__ . '/database/compatibility.php');
 
-function ent_plan_defs() { # plan_key => [name, sort, price_ore (null = contact), included_users, max_users, included_postings, max_items, included_webshops, extra_user_price_ore]
-	return array(
-		'finans'       => array('Finans', 1, 9900, 1, 1, 500, 0, 0, null),
-		'professionel' => array('Professionel', 2, 19900, 1, 6, 5000, 10000, 1, 7900),
-		'business'     => array('Business', 3, 49900, 1, 12, 25000, null, 0, 18900),
-		'erp'          => array('ERP', 4, null, 1, null, null, null, null, 22900),
-	);
-}
-function ent_feature_defs() { # [key, name, area, finans, professionel, business, erp]  ✓ included · ✗ none · B basic · A addon
-	return array(
-		array('finans.core','Finansmodul, kontokort, kassekladder, årsafslutning, momsberegning','Finans','✓','✓','✓','✓'),
-		array('bilag.digital','Digitale bilag','Finans','✓','✓','✓','✓'),
-		array('bilag.scan_mobile','Bilagsscanning (mobil)','Finans','✗','✓','✓','✓'),
-		array('bilag.automatch','Automatisk bilagsmatch','Finans','✗','✓','✓','✓'),
-		array('finans.dimensioner','Dimensioner','Finans','✗','✗','✓','✓'),
-		array('finans.budget','Budget og forecast','Finans','✗','✓','✓','✓'),
-		array('moms.eu_reverse','EU-handel (reverse charge)','Finans','✗','✓','✓','✓'),
-		array('debitor.fakturering','Fakturering (Basis/Fuld)','Salg','B','✓','✓','✓'),
-		array('debitor.tilbud','Tilbud','Salg','✗','✗','✓','✓'),
-		array('debitor.ordrer','Ordrer og ordre-tracking','Salg','✗','✓','✓','✓'),
-		array('debitor.abonnement','Abonnementsfakturering','Salg','✗','✓','✓','✓'),
-		array('debitor.peppol','E-faktura (PEPPOL)','Salg','✗','✓','✓','✓'),
-		array('debitor.rykker','Rykkersystem','Salg','✗','✓','✓','✓'),
-		array('debitor.rente','Renteberegning','Salg','✗','✓','✓','✓'),
-		array('debitor.location_sales','Debitorsalg pr. location','Salg','✗','✗','✓','✓'),
-		array('salg.prisgrupper','Kundegrupper, prislister og rabatgrupper','Salg','✗','✓','✓','✓'),
-		array('salg.backorder','Backorder-håndtering','Salg','✗','✗','✓','✓'),
-		array('kreditor.register','Kreditorregister (Basis/Fuld)','Køb','B','✓','✓','✓'),
-		array('kreditor.indkob','Indkøbsordrer og leverandørstyring','Køb','✗','✓','✓','✓'),
-		array('kreditor.pbs','Betalingsintegration (PBS)','Køb','✗','✓','✓','✓'),
-		array('lager.styring','Lagerstyring (Simpel/Fuld)','Lager','✗','B','✓','✓'),
-		array('lager.varekartotek','Varekartotek','Lager','✗','✓','✓','✓'),
-		array('lager.optaelling','Lageroptælling','Lager','✗','✗','✓','✓'),
-		array('lager.serienumre','Serienumre og batch','Lager','✗','✗','✓','✓'),
-		array('lager.multilocation','Multi-location lager og flytninger','Lager','✗','✗','✓','✓'),
-		array('lager.minmax','Min/max og genbestilling','Lager','✗','✗','✓','✓'),
-		array('lager.barcode','Barcode-scanning','Lager','✗','✗','✓','✓'),
-		array('lager.plukliste','Plukliste','Lager','✗','✗','✓','✓'),
-		array('shop.integration','Webshop-integration','Webshop og kasse','✗','A','A','✓'),
-		array('shop.advanced','Avanceret webshop, lagersync, multi-shop','Webshop og kasse','✗','✗','A','✓'),
-		array('pos','Integreret kassesystem','Webshop og kasse','✗','A','A','✓'),
-		array('pos.multilocation','Multi-location kasse','Webshop og kasse','✗','✗','✓','✓'),
-		array('pos.kasseafstemning','Kasseafstemning og bon-printer','Webshop og kasse','✗','A','✓','✓'),
-		array('booking','Booking og udlejning','Moduler','✗','A','A','A'),
-		array('kommission','Kommissionssalg','Moduler','✗','A','A','A'),
-		array('sager','Sager og jobkort','Moduler','✓','✓','✓','✓'),
-		array('produktion','Produktion','Moduler','✗','✗','✗','✓'),
-	);
-}
-function ent_addon_defs() { # addon_key => [name, feature_key, quantity_based, price_ore, available_on]
-	return array(
-		'webshop_simple'   => array('Simpel webshop', 'shop.integration', false, 12900, 'professionel'),
-		'webshop_advanced' => array('Avanceret webshop', 'shop.advanced', false, 28900, 'business'),
-		'kommission'       => array('Kommissionssalg', 'kommission', false, 39900, 'professionel,business,erp'),
-		'booking'          => array('Booking / udlejning', 'booking', false, 29900, 'professionel,business,erp'),
-		'pos_location'     => array('Kasse-lokation', 'pos', true, 29900, 'professionel,business'),
-		'pos_extra'        => array('Ekstra kasse', 'pos', true, null, 'professionel,business'),
-		'lager_location'   => array('Ekstra lagerlokation', 'lager.multilocation', true, 9900, 'business'),
-	);
-}
+include_once(__DIR__ . '/entitlementPolicy.php');
+include_once(__DIR__ . '/entitlementRuntime.php');
+include_once(__DIR__ . '/entitlementRoutes.php');
+
+/** @return array<string, array> Seed plans; never use these values to decide a customer's access. */
+function ent_plan_defs() { return ent_policy()['plans']; }
+/** @return array<int, array> Catalogue feature labels and initial levels. */
+function ent_feature_defs() { return ent_policy()['features']; }
+/** @return array<string, array> Catalogue add-on seed data. */
+function ent_addon_defs() { return ent_policy()['addons']; }
 
 function ent_tables_ensure() {
 	# 20261029 CL/ASR The tables come from the update chain (includes/structure/operatorPanelSchema.php via betweenUpdates.php).
@@ -106,87 +57,104 @@ function ent_seed() {
 			$idx++;
 		}
 		foreach (ent_addon_defs() as $k => $d) db_modify("insert into addons (catalog_version_id, addon_key, name, feature_key, quantity_based, available_on, price_ore) values ('$cv', '$k', '".db_escape_string($d[0])."', '$d[1]', ".($d[2] ? 'true' : 'false').", '$d[4]', ".$n($d[3]).")", __FILE__ . " linje " . __LINE__);
-		foreach (array(array(0,100000,250), array(100000,199999,200), array(200000,499999,100), array(500000,1000000,50), array(1000000,null,36)) as $t) db_modify("insert into posting_tiers (catalog_version_id, from_count, to_count, unit_centiore) values ('$cv', '$t[0]', ".$n($t[1]).", '$t[2]')", __FILE__ . " linje " . __LINE__);
+		foreach (ent_policy()['posting_tiers'] as $t) db_modify("insert into posting_tiers (catalog_version_id, from_count, to_count, unit_centiore) values ('$cv', '$t[0]', ".$n($t[1]).", '$t[2]')", __FILE__ . " linje " . __LINE__);
 		return '';
 	});
 }
 
-function ent_catalog() {
-	static $c = null; if ($c !== null) return $c;
-	ent_tables_ensure();
-	$cv = db_fetch_array(db_select("select * from catalog_versions where is_default order by id desc limit 1", __FILE__ . " linje " . __LINE__));
-	$c = array('version' => $cv, 'plans' => array(), 'features' => array(), 'addons' => array(), 'feature_names' => array());
+/** @return array{version: mixed, plans: array, features: array, limits: array, addons: array, feature_names: array} */
+function ent_catalog($versionId = null) {
+	$slot = $versionId === null ? 'default' : (int) $versionId;
+	if (isset($GLOBALS['ent_catalog_cache'][$slot])) return $GLOBALS['ent_catalog_cache'][$slot];
+	$condition = $versionId === null ? 'is_default' : 'id = ' . (int) $versionId;
+	$cv = db_fetch_array(db_select("select * from catalog_versions where $condition order by id desc limit 1", __FILE__ . " linje " . __LINE__, true));
+	$c = array('version' => $cv, 'plans' => array(), 'features' => array(), 'limits' => array(), 'addons' => array(), 'feature_names' => array());
 	if (!$cv) return $c;
-	$q = db_select("select * from plans where catalog_version_id = '".(int)$cv['id']."' order by sort", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) { $c['plans'][$r['plan_key']] = $r; $c['features'][$r['plan_key']] = array(); }
-	foreach ($c['plans'] as $k => $p) { $q = db_select("select feature_key, level from plan_features where plan_id = '".(int)$p['id']."'", __FILE__ . " linje " . __LINE__); while ($r = db_fetch_array($q)) $c['features'][$k][$r['feature_key']] = $r['level']; }
-	$q = db_select("select * from addons where catalog_version_id = '".(int)$cv['id']."' order by id", __FILE__ . " linje " . __LINE__);
+	$cid = (int) $cv['id'];
+	$q = db_select("select * from plans where catalog_version_id = $cid order by sort", __FILE__ . " linje " . __LINE__, true);
+	while ($r = db_fetch_array($q)) {
+		$c['plans'][$r['plan_key']] = $r;
+		$c['features'][$r['plan_key']] = array();
+	}
+	foreach ($c['plans'] as $k => $p) {
+		$pid = (int) $p['id'];
+		$q = db_select("select feature_key, level from plan_features where plan_id = $pid", __FILE__ . " linje " . __LINE__, true);
+		while ($r = db_fetch_array($q)) $c['features'][$k][$r['feature_key']] = $r['level'];
+		if (ent_runtime_ready()) {
+			$q = db_select("select limit_key, limit_value from plan_limits where plan_id = $pid", __FILE__ . " linje " . __LINE__, true);
+			while ($r = db_fetch_array($q)) $c['limits'][$k][$r['limit_key']] = $r['limit_value'];
+		}
+	}
+	$q = db_select("select * from addons where catalog_version_id = $cid order by id", __FILE__ . " linje " . __LINE__, true);
 	while ($r = db_fetch_array($q)) $c['addons'][$r['addon_key']] = $r;
 	foreach (ent_feature_defs() as $f) $c['feature_names'][$f[0]] = array($f[1], $f[2]);
-	return $c;
+	return $GLOBALS['ent_catalog_cache'][$slot] = $c;
 }
 function ent_kr($ore) { return $ore === null ? null : number_format($ore / 100, 0, ',', '.').' kr.'; }
 function ent_log($action, $rid, $details = '') {
 	if ($rid) ent_resolve_flush($rid); # every entitlement change is logged, so the cached resolution is dropped here
-	if (function_exists('partner_log')) partner_log($action, $rid, null, $details);
+	if (($GLOBALS['db'] ?? '') === ($GLOBALS['sqdb'] ?? '') && function_exists('partner_log')) {
+		partner_log($action, $rid, null, $details);
+	} else {
+		db_modify("INSERT INTO partner_log (regnskab_id, action, details) VALUES (" . (int) $rid . ", '" . db_escape_string($action) . "', '" . db_escape_string($details) . "')", __FILE__ . ' linje ' . __LINE__, true);
+	}
 }
 function ent_actor() { global $brugernavn; if (function_exists('partner_current_user')) { $u = partner_current_user(); if (!empty($u['brugernavn'])) return (string)$u['brugernavn']; } return (string)$brugernavn; } # the logged-in user, also on operator_opret.php where \$brugernavn is reused for the new admin
 
 // Apply plan changes whose effective date has arrived (lazy, on read and on the nightly job).
+/** Apply due operator changes on the master connection. @return void */
 function ent_apply_due_changes($rid) {
-	$rid = (int)$rid;
-	$q = db_select("select * from regnskab_plan_changes where regnskab_id = '$rid' and applied_at is null and cancelled_at is null and effective_from <= current_date order by effective_from, id", __FILE__ . " linje " . __LINE__);
+	$rid = (int) $rid;
+	$q = db_select("select * from regnskab_plan_changes where regnskab_id = $rid and applied_at is null and cancelled_at is null and effective_from <= current_date order by effective_from, id", __FILE__ . " linje " . __LINE__, true);
 	while ($r = db_fetch_array($q)) {
 		ent_write_plan($rid, $r['plan_key'], $r['effective_from'], 'scheduled');
-		db_modify("update regnskab_plan_changes set applied_at = now() where id = '".(int)$r['id']."'", __FILE__ . " linje " . __LINE__);
-		ent_log('entitlement.plan_applied', $rid, $r['plan_key'].' fra '.$r['effective_from'].($r['reason'] ? ' – '.$r['reason'] : ''));
+		db_modify("update regnskab_plan_changes set applied_at = now() where id = " . (int) $r['id'], __FILE__ . " linje " . __LINE__, true);
+		ent_log('entitlement.plan_applied', $rid, $r['plan_key'] . ' fra ' . $r['effective_from']);
 	}
-}
-function ent_write_plan($rid, $plan_key, $valid_from, $source = 'manual') {
-	ent_resolve_flush($rid);
-	$c = ent_catalog(); $cv = $c['version'] ? (int)$c['version']['id'] : 'NULL';
-	$rid = (int)$rid; $pk = db_escape_string($plan_key); $vf = db_escape_string($valid_from);
-	if (db_fetch_array(db_select("select 1 from regnskab_entitlements where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__)))
-		db_modify("update regnskab_entitlements set plan_key = '$pk', catalog_version_id = $cv, source = '".db_escape_string($source)."', valid_from = '$vf', updated_at = now() where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__);
-	else db_modify("insert into regnskab_entitlements (regnskab_id, catalog_version_id, plan_key, source, valid_from, subscription_status) values ('$rid', $cv, '$pk', '".db_escape_string($source)."', '$vf', 'none')", __FILE__ . " linje " . __LINE__);
 }
 
-// 20261012 CL/ASR The per-request cache is dropped for a ledger whenever it changes (ent_log / ent_write_plan); before,
-//                  a page that resolved the ledger before the change showed the old plan until it was reloaded.
-function ent_resolve_flush($rid = null) { if ($rid === null) $GLOBALS['ent_resolve_cache'] = array(); else unset($GLOBALS['ent_resolve_cache'][(int)$rid]); }
-// §5.2 resolution: plan matrix -> add-ons -> overrides. NULL limit = unlimited.
-function ent_resolve($rid) {
-	$cache = &$GLOBALS['ent_resolve_cache']; if (!is_array($cache)) $cache = array(); $rid = (int)$rid;
-	if (isset($cache[$rid])) return $cache[$rid];
-	ent_apply_due_changes($rid);
+/** Write the single authoritative package assignment. @return void */
+function ent_write_plan($rid, $plan_key, $valid_from, $source = 'manual') {
+	ent_resolve_flush($rid);
 	$c = ent_catalog();
-	$e = db_fetch_array(db_select("select * from regnskab_entitlements where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__));
-	$out = array('row' => $e ?: null, 'plan_key' => $e ? $e['plan_key'] : null, 'plan' => null, 'features' => array(), 'limits' => array(), 'addons' => array(), 'overrides' => array(), 'pending' => array(), 'price_ore' => null, 'extra_user_price_ore' => null, 'interval' => 'month');
-	if ($out['plan_key'] && isset($c['plans'][$out['plan_key']])) {
-		$p = $c['plans'][$out['plan_key']]; $out['plan'] = $p;
-		$out['features'] = $c['features'][$out['plan_key']];
-		$out['limits'] = array('included_users' => (int)$p['included_users'], 'max_users' => $p['max_users'] === null ? null : (int)$p['max_users'], 'included_postings' => $p['included_postings'] === null ? null : (int)$p['included_postings'], 'max_items' => $p['max_items'] === null ? null : (int)$p['max_items'], 'max_webshops' => (int)$p['included_webshops']);
-		$out['price_ore'] = $p['price_ore'] === null ? null : (int)$p['price_ore']; $out['extra_user_price_ore'] = $p['extra_user_price_ore'] === null ? null : (int)$p['extra_user_price_ore']; $out['interval'] = $p['billing_interval'];
+	if (!isset($c['plans'][$plan_key])) throw new InvalidArgumentException('Unknown entitlement plan');
+	$cv = (int) $c['version']['id'];
+	$rid = (int) $rid;
+	$pk = db_escape_string($plan_key);
+	$vf = db_escape_string($valid_from);
+	$src = db_escape_string($source);
+	if (db_fetch_array(db_select("select 1 from regnskab_entitlements where regnskab_id = $rid", __FILE__ . " linje " . __LINE__, true))) {
+		db_modify("update regnskab_entitlements set plan_key = '$pk', catalog_version_id = $cv, source = '$src', valid_from = '$vf', updated_at = now() where regnskab_id = $rid", __FILE__ . " linje " . __LINE__, true);
+	} else {
+		db_modify("insert into regnskab_entitlements (regnskab_id, catalog_version_id, plan_key, source, valid_from, subscription_status, enforcement) values ($rid, $cv, '$pk', '$src', '$vf', 'none', 'observe')", __FILE__ . " linje " . __LINE__, true);
 	}
-	$q = db_select("select * from regnskab_addons where regnskab_id = '$rid' and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$out['addons'][$r['addon_key']] = $r;
-		if (isset($c['addons'][$r['addon_key']])) { $fk = $c['addons'][$r['addon_key']]['feature_key']; $out['features'][$fk] = 'included'; if ($r['addon_key'] == 'webshop_simple' || $r['addon_key'] == 'webshop_advanced') $out['limits']['max_webshops'] = max(1, (int)($out['limits']['max_webshops'] ?? 0)); }
-	}
-	// 20261012 CL/ASR Plan overrides first (they reset features and limits to the plan), then feature/limit/addon overrides
-	//                  on top – regardless of the order they were created in.
-	$q = db_select("select * from regnskab_overrides where regnskab_id = '$rid' and (expires_at is null or expires_at >= current_date) order by (kind = 'plan') desc, id", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$out['overrides'][] = $r;
-		if ($r['kind'] == 'plan' && isset($c['plans'][$r['value']])) { $out['plan_key'] = $r['value']; $out['plan'] = $c['plans'][$r['value']]; $out['features'] = array_merge($c['features'][$r['value']], array_intersect_key($out['features'], array())); foreach ($out['addons'] as $ak => $ar) if (isset($c['addons'][$ak])) $out['features'][$c['addons'][$ak]['feature_key']] = 'included'; $pp = $out['plan']; $out['price_ore'] = $pp['price_ore'] === null ? null : (int)$pp['price_ore']; $out['extra_user_price_ore'] = $pp['extra_user_price_ore'] === null ? null : (int)$pp['extra_user_price_ore']; $out['interval'] = $pp['billing_interval']; $out['limits'] = array('included_users' => (int)$pp['included_users'], 'max_users' => $pp['max_users'] === null ? null : (int)$pp['max_users'], 'included_postings' => $pp['included_postings'] === null ? null : (int)$pp['included_postings'], 'max_items' => $pp['max_items'] === null ? null : (int)$pp['max_items'], 'max_webshops' => (int)$pp['included_webshops']); if (isset($out['addons']['webshop_simple']) || isset($out['addons']['webshop_advanced'])) $out['limits']['max_webshops'] = max(1, $out['limits']['max_webshops']); }
-		elseif ($r['kind'] == 'feature') $out['features'][$r['key']] = ($r['value'] == 'on') ? 'included' : 'none';
-		elseif ($r['kind'] == 'limit') $out['limits'][$r['key']] = ($r['value'] === '' || strtolower($r['value']) == 'ubegrænset' || $r['value'] == '*') ? null : (int)$r['value'];
-		elseif ($r['kind'] == 'addon') { $out['addons'][$r['key']] = array('addon_key' => $r['key'], 'quantity' => (int)$r['value'] ?: 1, 'source' => 'override', 'expires_at' => $r['expires_at']); if (isset($c['addons'][$r['key']])) $out['features'][$c['addons'][$r['key']]['feature_key']] = 'included'; }
-	}
-	$q = db_select("select * from regnskab_plan_changes where regnskab_id = '$rid' and applied_at is null and cancelled_at is null order by effective_from", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) $out['pending'][] = $r;
-	return $cache[$rid] = $out;
 }
+
+/** @return void Invalidate the resolver and any current runtime snapshot for this account. */
+function ent_resolve_flush($rid = null) {
+	if ($rid === null) $GLOBALS['ent_resolve_cache'] = array();
+	else unset($GLOBALS['ent_resolve_cache'][(int) $rid]);
+	if ($rid === null || (int) ($GLOBALS['ent_runtime_id'] ?? 0) === (int) $rid) unset($GLOBALS['ent_runtime_state']);
+}
+
+/** @return array Resolved package, allocations and limits for a master regnskab id. */
+function ent_resolve($rid) {
+	$rid = (int) $rid;
+	if (isset($GLOBALS['ent_resolve_cache'][$rid])) return $GLOBALS['ent_resolve_cache'][$rid];
+	ent_apply_due_changes($rid);
+	$e = db_fetch_array(db_select("select * from regnskab_entitlements where regnskab_id = $rid", __FILE__ . " linje " . __LINE__, true));
+	$c = ent_catalog($e && $e['catalog_version_id'] !== null ? (int) $e['catalog_version_id'] : null);
+	$addons = $overrides = array();
+	$q = db_select("select * from regnskab_addons where regnskab_id = $rid and (expires_at is null or expires_at >= current_date)", __FILE__ . " linje " . __LINE__, true);
+	while ($r = db_fetch_array($q)) $addons[] = $r;
+	$q = db_select("select * from regnskab_overrides where regnskab_id = $rid and (expires_at is null or expires_at >= current_date) order by id", __FILE__ . " linje " . __LINE__, true);
+	while ($r = db_fetch_array($q)) $overrides[] = $r;
+	$out = ent_resolve_policy($e ?: null, $c, $addons, $overrides);
+	$q = db_select("select * from regnskab_plan_changes where regnskab_id = $rid and applied_at is null and cancelled_at is null order by effective_from, id", __FILE__ . " linje " . __LINE__, true);
+	while ($r = db_fetch_array($q)) $out['pending'][] = $r;
+	return $GLOBALS['ent_resolve_cache'][$rid] = $out;
+}
+
 function ent_plan_name($plan_key) { $c = ent_catalog(); return isset($c['plans'][$plan_key]) ? $c['plans'][$plan_key]['name'] : ($plan_key ?: null); }
 
 // Plans for all ledgers in one query (for lists): regnskab_id => plan_key
@@ -202,7 +170,7 @@ function ent_plans_by_ledger() {
 function ent_conflicts($target_key, $usage) {
 	$c = ent_catalog(); if (!isset($c['plans'][$target_key])) return array('Ukendt pakke');
 	$p = $c['plans'][$target_key]; $out = array();
-	if ($p['max_users'] !== null && isset($usage['users_active']) && $usage['users_active'] > (int)$p['max_users']) $out[] = "Regnskabet har {$usage['users_active']} aktive brugere – {$p['name']} tillader {$p['max_users']}. Deaktivér ".($usage['users_active'] - (int)$p['max_users'])." brugere først.";
+	// The package limits concurrent sessions, never the number of user records.
 	if ($p['max_items'] !== null && isset($usage['items']) && $usage['items'] > (int)$p['max_items']) $out[] = "Regnskabet har ".number_format($usage['items'],0,',','.')." varer – {$p['name']} tillader ".number_format((int)$p['max_items'],0,',','.').".";
 	if ($p['included_postings'] !== null && isset($usage['postings_12m']) && $usage['postings_12m'] > (int)$p['included_postings']) $out[] = "Posteringer de seneste 12 måneder (".number_format($usage['postings_12m'],0,',','.').") overstiger det inkluderede i {$p['name']} (".number_format((int)$p['included_postings'],0,',','.')."). Forbruget derover afregnes efter posteringstrappen.";
 	return $out;
@@ -323,10 +291,11 @@ function ent_expire_override($rid, $id) {
 // Live measurement in the customer database, rules from the entitlements spec §2.3/§5.6.
 function ent_usage_collect($reg) {
 	global $sqhost, $squser, $sqpass;
-	$u = array('ok' => false, 'users_active' => null, 'users_total' => null, 'postings_12m' => null, 'postings_month' => null, 'postings_by_month' => array(), 'items' => null, 'webshops' => null, 'pos_tills' => null, 'pos_locations' => null, 'warehouses' => null, 'invoices_12m' => null, 'last_activity' => null, 'modules' => array());
+	$u = array('ok' => false, 'users_active' => null, 'users_concurrent' => null, 'users_total' => null, 'postings_12m' => null, 'postings_month' => null, 'postings_by_month' => array(), 'items' => null, 'webshops' => null, 'pos_tills' => null, 'pos_locations' => null, 'warehouses' => null, 'invoices_12m' => null, 'last_activity' => null, 'modules' => array());
 	if (!$reg['db'] || !db_exists($reg['db'])) return $u;
 	if (!db_connect_database($reg['db'], __FILE__ . " linje " . __LINE__)) return $u;
 	$u['ok'] = true;
+	$u['users_concurrent'] = ent_concurrent_users((string) $reg['db']);
 	$one = function($q) { $r = @db_fetch_array(@db_select($q, __FILE__ . " linje " . __LINE__)); return $r ? $r : array(); };
 	# 20261111 CL/ASR Columns of the relation the unqualified name resolves to through search_path (to_regclass), the same table the counts below read; current_schema() can name a schema that has no such table (review #785).
 	$my = db_is_mysql(); # 20261116 CL/ASR on MySQL/MariaDB the ledger's own database (DATABASE()) through information_schema
@@ -381,7 +350,7 @@ function ent_usage_history($rid, $months = 12) {
 	while (count($out) < (int)$months && ($r = db_fetch_array($q))) { $r['m'] = substr((string)$r['taken_at'], 0, 7); if (!isset($out[$r['m']])) $out[$r['m']] = $r; } # the newest snapshot of each month
 	return array_values($out);
 }
-function ent_limit_label($k) { $l = array('max_users' => vr_t('Brugere','Users'), 'included_postings' => vr_t('Posteringer (12 mdr.)','Entries (12 m)'), 'max_items' => vr_t('Varer','Items'), 'max_webshops' => vr_t('Webshops','Webshops'), 'pos_tills' => vr_t('Kasser','Tills'), 'warehouses' => vr_t('Lagre','Warehouses')); return isset($l[$k]) ? $l[$k] : $k; }
+function ent_limit_label($k) { $l = array('max_users' => vr_t('Samtidige brugere','Concurrent users'), 'included_postings' => vr_t('Posteringer (12 mdr.)','Entries (12 m)'), 'max_items' => vr_t('Varer','Items'), 'max_webshops' => vr_t('Webshops','Webshops'), 'pos_tills' => vr_t('Kasser','Tills'), 'warehouses' => vr_t('Lagre','Warehouses')); return isset($l[$k]) ? $l[$k] : $k; }
 
 // New ledger: base plan + trial override (entitlements spec §6.5). $plan_key = the plan tried, $days = trial length.
 function ent_start_trial($rid, $plan_key, $days = 30, $base = 'finans') {

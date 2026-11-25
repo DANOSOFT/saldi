@@ -1,8 +1,5 @@
 <?php
-	@session_start();
-	$s_id=session_id();
-
-// --------------debitor/levering.php--------ver 5.1.1 ----2026-11-10-----
+// --------------debitor/levering.php--------ver 5.1.1 ----2026-11-25-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +28,10 @@
 // 20261027 CDX/MJ SST-876 Drain older webshop updates after the delivery transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
+// 20261125 CDX/ASR Use the effective package quick-invoice setting during delivery.
+
+@session_start();
+$s_id=session_id();
 
 $id=NULL;	
 if (isset($_GET['id'])) $id = (int)$_GET['id'];
@@ -43,7 +44,7 @@ if ($id && $id>=1) {
 	include(__DIR__ . '/../includes/std_func.php');
 	include(__DIR__ . '/../includes/ordrefunc.php');
 	include(__DIR__ . '/../includes/fuld_stykliste.php');
-	$hurtigfakt=if_isset($_GET['hurtigfakt']);
+	$hurtigfakt = ent_quick_invoice((string) if_isset($_GET['hurtigfakt']));
 	$genfakt=if_isset($_GET['genfakt']);
 	$pbs=if_isset($_GET['pbs']);
 	$mail_fakt=if_isset($_GET['mail_fakt']);

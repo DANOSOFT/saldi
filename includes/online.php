@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.1.1 --- 2026-11-14---
+// --- includes/online.php --- ver 5.1.1 --- 2026-11-25---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -97,6 +97,7 @@
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
 // 20261114 CL/ASR Saldi's own message box (javascript/saldi-dialog.js via includes/dialogHead.php) in place of the browser's alert() and confirm() on every page with this head, except the POS pages.
 // 20261114 CL/ASR A session that still owes its two-factor code ($_SESSION['twofactor_pending'], set by index/login.php) is not logged in on any page but the login itself.
+// 20261125 CDX/ASR Load the authenticated account package from regnskab_entitlements.
 include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001
@@ -246,7 +247,9 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 	$db_ver = $row['version']; # 20150104
 	$regnskab = $row['regnskab'];
 	$max_posteringer = $row['posteringer'];
-	$regnskab_pakke = (string)($row['pakke'] ?? ''); // package from the self-service signup ('' = account set up by hand)
+	include_once(__DIR__ . '/entitlements.php');
+	ent_load((int) $row['id']);
+	$regnskab_pakke = (string) (ent_current()['plan_key'] ?? '');
 	$lukket = $row['lukket'];
 
 	if ($lukket != 'on' && !empty($row['lukkes']) && $row['lukkes'] !== '2099-12-31') {

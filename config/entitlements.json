@@ -1,0 +1,579 @@
+{
+  "revision": "2026-11-24",
+  "note": "Provisional package policy supplied by the owner; revise after 2026-12-01. No plan keeps legacy access. Business warehouse allowance and Professionel extra warehouse availability are undecided; warehouse quantity enforcement is deferred.",
+  "plans": {
+    "finans": [
+      "Finans",
+      1,
+      9900,
+      1,
+      1,
+      500,
+      0,
+      0,
+      null
+    ],
+    "professionel": [
+      "Professionel",
+      2,
+      19900,
+      1,
+      6,
+      5000,
+      10000,
+      1,
+      7900
+    ],
+    "business": [
+      "Business",
+      3,
+      49900,
+      1,
+      12,
+      25000,
+      null,
+      1,
+      18900
+    ],
+    "erp": [
+      "ERP",
+      4,
+      null,
+      1,
+      null,
+      null,
+      null,
+      0,
+      22900
+    ]
+  },
+  "features": [
+    [
+      "finans.core",
+      "Finansmodul, kontokort, kassekladder, årsafslutning, momsberegning",
+      "Finans",
+      "✓",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "bilag.digital",
+      "Digitale bilag",
+      "Finans",
+      "✓",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "bilag.scan_mobile",
+      "Bilagsscanning (mobil)",
+      "Finans",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "bilag.automatch",
+      "Automatisk bilagsmatch",
+      "Finans",
+      "✓",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "finans.dimensioner",
+      "Dimensioner",
+      "Finans",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "finans.budget",
+      "Budget og forecast",
+      "Finans",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "moms.eu_reverse",
+      "EU-handel (reverse charge)",
+      "Finans",
+      "✓",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "debitor.fakturering",
+      "Fakturering (Basis/Fuld)",
+      "Salg",
+      "✓",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "debitor.tilbud",
+      "Tilbud",
+      "Salg",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "debitor.ordrer",
+      "Ordrer og ordre-tracking",
+      "Salg",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "debitor.abonnement",
+      "Abonnementsfakturering",
+      "Salg",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "debitor.peppol",
+      "E-faktura (PEPPOL)",
+      "Salg",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "debitor.rykker",
+      "Rykkersystem",
+      "Salg",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "debitor.rente",
+      "Renteberegning",
+      "Salg",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "debitor.location_sales",
+      "Debitorsalg pr. location",
+      "Salg",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "salg.prisgrupper",
+      "Kundegrupper, prislister og rabatgrupper",
+      "Salg",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "salg.backorder",
+      "Backorder-håndtering",
+      "Salg",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "kreditor.register",
+      "Kreditorregister (Basis/Fuld)",
+      "Køb",
+      "✓",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "kreditor.ordre",
+      "Indkøbsordrer og leverandørstyring",
+      "Køb",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "kreditor.pbs",
+      "Betalingsintegration (PBS)",
+      "Køb",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "lager.styring",
+      "Lagerstyring (Simpel/Fuld)",
+      "Lager",
+      "✗",
+      "B",
+      "✓",
+      "✓"
+    ],
+    [
+      "lager.varer",
+      "Varekartotek",
+      "Lager",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "lager.optaelling",
+      "Lageroptælling",
+      "Lager",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "lager.serienumre",
+      "Serienumre og batch",
+      "Lager",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "lager.multilocation",
+      "Multi-location lager og flytninger",
+      "Lager",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "lager.minmax",
+      "Min/max og genbestilling",
+      "Lager",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "lager.barcode",
+      "Barcode-scanning",
+      "Lager",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "lager.plukliste",
+      "Plukliste",
+      "Lager",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "shop.integration",
+      "Webshop-integration",
+      "Webshop og kasse",
+      "✗",
+      "A",
+      "A",
+      "A"
+    ],
+    [
+      "shop.advanced",
+      "Avanceret webshop, lagersync, multi-shop",
+      "Webshop og kasse",
+      "✗",
+      "✗",
+      "A",
+      "A"
+    ],
+    [
+      "pos.kasse",
+      "Integreret kassesystem",
+      "Webshop og kasse",
+      "✗",
+      "A",
+      "A",
+      "A"
+    ],
+    [
+      "pos.multilocation",
+      "Multi-location kasse",
+      "Webshop og kasse",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ],
+    [
+      "pos.kasseafstemning",
+      "Kasseafstemning og bon-printer",
+      "Webshop og kasse",
+      "✗",
+      "A",
+      "A",
+      "A"
+    ],
+    [
+      "booking",
+      "Booking og udlejning",
+      "Moduler",
+      "✗",
+      "A",
+      "A",
+      "A"
+    ],
+    [
+      "kommission",
+      "Kommissionssalg",
+      "Moduler",
+      "✗",
+      "A",
+      "A",
+      "A"
+    ],
+    [
+      "sager",
+      "Sager og jobkort",
+      "Moduler",
+      "✓",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "produktion",
+      "Produktion",
+      "Moduler",
+      "✗",
+      "✗",
+      "✗",
+      "✓"
+    ],
+    [
+      "lager.varemodtagelse",
+      "Varemodtagelse",
+      "Lager",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "debitor.betalingsservice",
+      "Betalingsservice",
+      "Salg",
+      "✗",
+      "✓",
+      "✓",
+      "✓"
+    ],
+    [
+      "sales.quick_invoice_required",
+      "Tvungen hurtigfakturering",
+      "Salg",
+      "✓",
+      "✗",
+      "✗",
+      "✗"
+    ],
+    [
+      "kreditor.godkendelse",
+      "Godkendelse af indkøb",
+      "Køb",
+      "✗",
+      "✗",
+      "✓",
+      "✓"
+    ]
+  ],
+  "addons": {
+    "webshop_simple": [
+      "Simpel webshop",
+      "shop.integration",
+      false,
+      12900,
+      "professionel,business,erp"
+    ],
+    "webshop_advanced": [
+      "Avanceret webshop",
+      "shop.advanced",
+      false,
+      28900,
+      "business,erp"
+    ],
+    "kommission": [
+      "Kommissionssalg",
+      "kommission",
+      false,
+      39900,
+      "professionel,business,erp"
+    ],
+    "booking": [
+      "Booking / udlejning",
+      "booking",
+      false,
+      29900,
+      "professionel,business,erp"
+    ],
+    "pos_location": [
+      "Kasse-lokation",
+      "pos.kasse",
+      true,
+      29900,
+      "professionel,business,erp"
+    ],
+    "pos_extra": [
+      "Ekstra kasse",
+      "pos.kasse",
+      true,
+      null,
+      "professionel,business,erp"
+    ],
+    "lager_location": [
+      "Ekstra lagerlokation",
+      "lager.multilocation",
+      true,
+      9900,
+      "business,erp"
+    ]
+  },
+  "limits": {
+    "finans": {
+      "max_users": 1,
+      "included_postings": 500,
+      "max_items": 0,
+      "max_webshops": 0
+    },
+    "professionel": {
+      "max_users": 6,
+      "included_postings": 5000,
+      "max_items": 10000,
+      "max_webshops": 1
+    },
+    "business": {
+      "max_users": 12,
+      "included_postings": 25000,
+      "max_items": null,
+      "max_webshops": 1
+    },
+    "erp": {
+      "max_users": null,
+      "included_postings": null,
+      "max_items": null,
+      "max_webshops": null
+    }
+  },
+  "aliases": {
+    "lager.varekartotek": "lager.varer",
+    "kreditor.indkob": "kreditor.ordre",
+    "pos": "pos.kasse",
+    "lager": "lager.varer",
+    "kreditor": "kreditor.register"
+  },
+  "protected": [
+    "finans.core",
+    "bilag.digital",
+    "moms.eu_reverse",
+    "debitor.fakturering",
+    "kreditor.register"
+  ],
+  "requires": {
+    "shop.advanced": [
+      "shop.integration"
+    ],
+    "pos.multilocation": [
+      "pos.kasse"
+    ],
+    "pos.kasseafstemning": [
+      "pos.kasse"
+    ]
+  },
+  "addon_features": {
+    "webshop_advanced": [
+      "shop.integration",
+      "shop.advanced"
+    ],
+    "webshop_simple": [
+      "shop.integration"
+    ],
+    "pos_location": [
+      "pos.kasse",
+      "pos.kasseafstemning"
+    ],
+    "pos_extra": [
+      "pos.kasse",
+      "pos.kasseafstemning"
+    ]
+  },
+  "deferred_features": [
+    "finans.dimensioner",
+    "debitor.tilbud",
+    "salg.backorder",
+    "kreditor.godkendelse",
+    "lager.serienumre"
+  ],
+  "posting_tiers": [
+    [
+      0,
+      100000,
+      250
+    ],
+    [
+      100000,
+      199999,
+      200
+    ],
+    [
+      200000,
+      499999,
+      100
+    ],
+    [
+      500000,
+      1000000,
+      50
+    ],
+    [
+      1000000,
+      null,
+      36
+    ]
+  ],
+  "self_signup": [
+    "finans",
+    "professionel",
+    "business"
+  ]
+}

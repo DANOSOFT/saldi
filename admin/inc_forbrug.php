@@ -1,10 +1,11 @@
 <?php
-// --- admin/inc_forbrug.php --- ver 5.1.1 --- 2026.11.24 ---
+// --- admin/inc_forbrug.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 2 "Forbrug og begrænsninger" on the customer card: live usage from the customer database (ent_usage_collect), today's snapshot stored, limits shown as plan standard vs. individual override vs. effective, utilisation bars, entries per month, modules in use vs. plan, and limit adjustment (writes regnskab_overrides kind='limit', logged as entitlement.*).
 // 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). An override ends yesterday as a date from PHP instead of current_date - 1, and the column key is quoted through db_key_column().
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
+// 20261125 CDX/ASR Compare the user cap with concurrent sessions, preserve unlimited catalogue limits and resolve feature aliases.
 
 if (!function_exists('ent_forbrug_actions')) {
 	function ent_forbrug_actions($rid, &$notes) {
@@ -31,9 +32,10 @@ if (!function_exists('ent_forbrug_actions')) {
 		$P = $ent['plan']; $today = date('Y-m-d');
 		$inf = vr_t('ubegrænset','unlimited'); $fmt = fn($v) => $v === null ? $inf : vr_num($v);
 		$std = $P ? array('max_users' => $P['max_users'] === null ? null : (int)$P['max_users'], 'included_postings' => $P['included_postings'] === null ? null : (int)$P['included_postings'], 'max_items' => $P['max_items'] === null ? null : (int)$P['max_items'], 'max_webshops' => (int)$P['included_webshops'], 'pos_tills' => null, 'warehouses' => null) : array();
+		$std = array_replace($std, $cat['limits'][$ent['plan_key']] ?? array());
 		$ov = array(); foreach ($ent['overrides'] as $o) if ($o['kind'] == 'limit') $ov[$o['key']] = $o;
-		$eff = array(); foreach (array('max_users','included_postings','max_items','max_webshops','pos_tills','warehouses') as $k) { $eff[$k] = isset($ent['limits'][$k]) ? $ent['limits'][$k] : (isset($std[$k]) ? $std[$k] : null); if (isset($ov[$k])) $eff[$k] = ($ov[$k]['value'] === '*' || $ov[$k]['value'] === '') ? null : (int)$ov[$k]['value']; }
-		$use = array('max_users' => $u['users_active'], 'included_postings' => $u['postings_12m'], 'max_items' => $u['items'], 'max_webshops' => $u['webshops'], 'pos_tills' => $u['pos_tills'], 'warehouses' => $u['warehouses']);
+		$eff = array(); foreach (array('max_users','included_postings','max_items','max_webshops','pos_tills','warehouses') as $k) { $eff[$k] = array_key_exists($k, $ent['limits']) ? $ent['limits'][$k] : (isset($std[$k]) ? $std[$k] : null); if (isset($ov[$k])) $eff[$k] = ($ov[$k]['value'] === '*' || $ov[$k]['value'] === '') ? null : (int)$ov[$k]['value']; }
+		$use = array('max_users' => ($u['users_concurrent'] ?? null), 'included_postings' => $u['postings_12m'], 'max_items' => $u['items'], 'max_webshops' => $u['webshops'], 'pos_tills' => $u['pos_tills'], 'warehouses' => $u['warehouses']);
 		if (!$u['ok']) vr_note(array(vr_t('Kunne ikke læse fra regnskabets database – forbruget er fra sidste øjebliksbillede.','Could not read the account database – usage is from the last snapshot.')), 'warn');
 		if (!$P) vr_note(array(vr_t('Regnskabet har ingen pakke. Grænserne nedenfor er derfor kun individuelle aftaler.','The account has no plan; the limits below are individual terms only.')), 'warn');
 		// ---- utilisation table
@@ -65,7 +67,7 @@ if (!function_exists('ent_forbrug_actions')) {
 		$mods = array('pos' => vr_t('Kassesystem','POS'), 'shop.integration' => vr_t('Webshop','Webshop'), 'kommission' => vr_t('Kommissionssalg','Commission sales'), 'booking' => vr_t('Booking / udlejning','Booking / rental'), 'sager' => vr_t('Sager og jobkort','Jobs'), 'finans.dimensioner' => vr_t('Dimensioner','Dimensions'), 'finans.budget' => vr_t('Budget','Budget'), 'debitor.tilbud' => vr_t('Tilbud','Quotes'), 'debitor.abonnement' => vr_t('Abonnementsfakturering','Subscription invoicing'), 'debitor.rykker' => vr_t('Rykkersystem','Reminders'), 'kreditor.register' => vr_t('Kreditorer','Creditors'), 'kreditor.indkob' => vr_t('Indkøbsordrer','Purchase orders'), 'lager.styring' => vr_t('Lagerstyring','Inventory'), 'lager.multilocation' => vr_t('Flere lagre','Multiple warehouses'), 'lager.serienumre' => vr_t('Serienumre','Serial numbers'), 'lager.minmax' => vr_t('Min/max genbestilling','Min/max'));
 		print "<section class=\"vr-sect\" style=\"margin-top:22px\"><h2>".vr_t('Moduler kunden benytter','Modules the customer uses')." <small>".vr_t('aflæst i kundens opsætning og data','read from the customer setup and data')."</small></h2><div class=\"vr-card\"><table class=\"vr-t\"><thead><tr><th>".vr_t('Modul','Module')."</th><th>".vr_t('I brug','In use')."</th><th>".vr_t('I pakken','In plan')."</th><th></th></tr></thead><tbody>";
 		foreach ($mods as $k => $n) {
-			$used = isset($u['modules'][$k]) ? $u['modules'][$k] : null; $lv = isset($ent['features'][$k]) ? $ent['features'][$k] : 'none';
+			$used = isset($u['modules'][$k]) ? $u['modules'][$k] : null; $lv = $ent['features'][ent_feature_key($k)] ?? 'none';
 			$warn = ($P && $used && ($lv == 'none' || $lv == 'addon') && !isset($ent['addons'][$k]));
 			print "<tr".($warn ? " style=\"background:color-mix(in srgb,var(--amber) 8%,var(--surface))\"" : "")."><td>".vr_h($n)."<small style=\"display:block;color:var(--text-3)\">$k</small></td><td>".($used === null ? '<span class="vr-mut2">'.vr_t('ukendt','unknown').'</span>' : ($used ? '<span class="vr-st"><span class="vr-dot vr-ok"></span>'.vr_t('Ja','Yes').'</span>' : '<span class="vr-mut2">'.vr_t('Nej','No').'</span>'))."</td><td class=\"vr-mut\">".($P ? $lvTxt[$lv] : '–')."</td><td class=\"vr-r\">".($warn ? "<span class=\"vr-st\" style=\"color:var(--warn-ink)\"><span class=\"vr-dot vr-warn\"></span>".vr_t('bruges, men er ikke med i pakken','used, but not in the plan')."</span>" : "")."</td></tr>";
 		}

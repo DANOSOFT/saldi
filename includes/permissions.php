@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissions.php --- ver 5.1.1 --- 2026.11.24 ---
+// ---- includes/permissions.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -50,9 +50,11 @@
 // 20261124 CL/ASR audit_log() cuts the user name, the action, the object and the source to their columns' width in characters, so an entry never fails inside the caller's transaction.
 //                 Text that is not UTF-8 is converted first, as db_escape_string() converts it (audit_log_cut()), so the cut counts the characters that are stored.
 //                 On a LATIN9 connection, which stores each byte as a character, the cut counts bytes.
+// 20261125 CDX/ASR Apply the package ceiling independently of the role enforcement mode.
 
 include_once(__DIR__ . '/permissionRegistry.php');
 include_once(__DIR__ . '/roleTransactions.php');
+include_once(__DIR__ . '/entitlements.php');
 
 // ------------------------------------------------------------------ levels
 
@@ -324,6 +326,8 @@ function perm_enforce_request(?string $declaredKey, string $declaredLevel, bool 
 	// that would let a page pass as another (review 2, PR #803).
 	$page = !empty($_SERVER['SCRIPT_NAME']) ? (string) $_SERVER['SCRIPT_NAME'] : (string) parse_url($uri, PHP_URL_PATH);
 
+	ent_guard_page($page);
+
 	$isPost = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST');
 	// Legacy pages change data through GET links too (review, PR #803): those verbs count as writes.
 	$getWrite = false;
@@ -382,11 +386,13 @@ function perm_enforce_request(?string $declaredKey, string $declaredLevel, bool 
 	foreach ($keys as $k) {
 		$dangerous = $dangerous || (isset($registry[$k]) && $registry[$k]['dangerous']);
 	}
+	$packageAllowed = false;
 	foreach ($keys as $k) {
-		if (perm_can($k, $need)) {
-			return;
-		}
+		$allowed = ent_permission_allowed($k, $need, $page);
+		$packageAllowed = $packageAllowed || $allowed;
+		if ($allowed && perm_can($k, $need)) return;
 	}
+	if (!$packageAllowed) ent_upgrade($key);
 	if ($mode === 'deny' || $dangerous) {
 		perm_refuse($key . ' (' . $need . ')', $page);
 	}
