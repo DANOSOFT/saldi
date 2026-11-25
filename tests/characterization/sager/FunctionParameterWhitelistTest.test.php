@@ -1,4 +1,10 @@
 <?php
+// tests/characterization/sager/FunctionParameterWhitelistTest.test.php
+//
+// 20261120 CL/MMR MB-158 Run the real «funktion» selection and dispatch of sager.php, kontrolskemaer.php and kassekladde.php without their database and rendering code: only the view handlers and the include are replaced by recorders.
+//                 An unknown kassekladde value with «sort» stops the page before the staged line is touched (Codex round 3).
+// 20261125 CL/MMR MB-158 Every allowed view must be a function the page really declares; «kontrolskema» is only in a comment (Codex round 15).
+//                 The history now sits in the file header directly below the opening tag (CodeRabbit).
 
 declare(strict_types=1);
 
@@ -6,11 +12,6 @@ namespace FunctionParameterWhitelistTest;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-
-// 20261120 CL/MMR MB-158 Run the real «funktion» selection and dispatch of sager.php, kontrolskemaer.php and kassekladde.php
-//                 without their database and rendering code: only the view handlers and the include are replaced by recorders.
-//                 An unknown kassekladde value with «sort» stops the page before the staged line is touched (Codex round 3).
-// 20261125 CL/MMR MB-158 Every allowed view must be a function the page really declares; «kontrolskema» is only in a comment (Codex round 15).
 
 /** An existing function that must never be reachable from the address bar. */
 function unrelated(): void
