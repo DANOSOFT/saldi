@@ -575,7 +575,7 @@ if ($art == 'DO' || $art == 'DK') {
         print "<div id='priceListMatches' style='margin: 4px 8px 8px 8px; max-height: 35vh; overflow: auto;'>";
         print "<b>Fra prislisten " . htmlspecialchars($priceList['name']) . "</b>";
         if ($priceListRows === null) {
-            print "<div style='color: #a00;'>Prisfilen kunne ikke hentes eller har ingen kolonne varenr.</div>";
+            print "<div style='color: #a00;'>Prisfilen kunne ikke bruges. Den kunne ikke hentes, er større end 20 MB eller har ingen kolonne varenr.</div>";
         } else {
             $priceListFound = externalPriceListSearch($priceListRows, $searchItemNo, $searchText);
             $priceListGroup = externalPriceListGroup($priceList);

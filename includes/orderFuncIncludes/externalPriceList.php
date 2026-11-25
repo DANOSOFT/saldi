@@ -30,6 +30,7 @@
 //                 The item group comes from the stored group name when it names one group, else the group number.
 // 20261125 CL/MMR SST-1051 The file is read as whole CSV records, so a quoted field may span several lines.
 // 20261125 CL/MMR SST-1051 CR-only line ends and blank lines before the header are accepted.
+// 20261125 CL/MMR SST-1051 A file larger than 20 MB is refused instead of being cut inside a record.
 
 /**
  * The active price list, or null when none is in use.
@@ -81,7 +82,7 @@ function externalPriceListNumber(string $value): float
  * (varenr, stregkode, varemærke, beskrivelse, kostpris, salgspris, enhed, ...), case-insensitive.
  *
  * @return array<int, array{varenr: string, stregkode: string, trademark: string, beskrivelse: string, kostpris: float, salgspris: float, enhed: string}>|null
- *         null when the file cannot be fetched or has no varenr column
+ *         null when the file cannot be fetched, is larger than 20 MB or has no varenr column
  */
 function externalPriceListRows(array $priceList): ?array
 {
@@ -94,8 +95,10 @@ function externalPriceListRows(array $priceList): ?array
 		return null;
 	}
 	$context = stream_context_create(array('http' => array('timeout' => 10), 'https' => array('timeout' => 10)));
-	$data = @file_get_contents($priceList['url'], false, $context, 0, 20 * 1024 * 1024);
-	if ($data === false || trim($data) === '') {
+	$maxBytes = 20 * 1024 * 1024;
+	$data = @file_get_contents($priceList['url'], false, $context, 0, $maxBytes + 1);
+	// A file over the limit would be cut inside a record, so it is refused rather than read in part.
+	if ($data === false || trim($data) === '' || strlen($data) > $maxBytes) {
 		return null;
 	}
 	if (strncmp($data, "\xEF\xBB\xBF", 3) === 0) {
