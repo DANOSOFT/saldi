@@ -35,6 +35,7 @@
 // 20261125 CL/MMR SST-1051 The price-list message also names a file larger than 20 MB.
 // 20261125 CL/MMR SST-1051 The price file is searched record by record (externalPriceListSearch/Find).
 // 20261125 CL/MMR SST-1051 The preview converts the exact price text from the helper to a number for display.
+// 20261125 CDX/NTR Escape imported catalogue text before the grid adds search highlighting.
 @session_start();
 $s_id = session_id();
 
@@ -272,6 +273,9 @@ $columns = array();
 $columns[] = array(
     "field" => "varenr",
     "headerName" => "Varenr",
+    "valueGetter" => function ($value, $row, $column) {
+        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    },
     "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
@@ -304,6 +308,9 @@ $columns[] = array(
     "headerName" => "Enhed",
     "width" => "0.5",
     "sqlOverride" => "v.enhed",
+    "valueGetter" => function ($value, $row, $column) {
+        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    },
     "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
@@ -320,6 +327,9 @@ $columns[] = array(
     "headerName" => "Beskrivelse",
     "width" => "3",
     "sqlOverride" => "v.beskrivelse",
+    "valueGetter" => function ($value, $row, $column) {
+        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    },
     "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
