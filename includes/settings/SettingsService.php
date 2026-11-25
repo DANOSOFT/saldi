@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/SettingsService.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/SettingsService.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,7 @@
 // 20261019 SS Review 2 (PR #803): a lone value in a tab-joined box is its first part only (DIV/3 box13); kode '0' also matches NULL/empty kode rows.
 // 20261103 CL/ASR QA: historyMasked() is the one rule for settings whose history keeps no values (secrets and the employees' CPR, bank and salary): the audit row, the history views and Gendan all use it, so a masked row can never be restored as ''.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 CL/MJ SD-877 A setting kept per fiscal year (POS) reads and writes this year's row only; with none, the save creates it for this year instead of changing another year's row.
 include_once(__DIR__ . '/../../systemdata/settingsRegistry.php');
 
 class SettingsService
@@ -144,6 +145,7 @@ class SettingsService
 	public static function preload(array $keys): void
 	{
 		$gr = array();
+		$fiscal = array();
 		$names = array();
 		foreach ($keys as $key) {
 			$def = self::definition($key);
@@ -153,6 +155,9 @@ class SettingsService
 			$st = self::storage($def);
 			if ($st['table'] === 'grupper') {
 				$gr[self::grKey($st)] = "(art = '" . db_escape_string($st['art']) . "' and kodenr = '" . db_escape_string($st['kodenr']) . "'" . self::kodeWhere($st) . ")";
+				if ($st['fiscal']) {
+					$fiscal[self::grKey($st)] = true;
+				}
 			} elseif ($st['table'] === 'adresser') {
 				if (self::$company === null) {
 					$r = db_fetch_array(db_select("select * from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
@@ -196,12 +201,15 @@ class SettingsService
 			global $regnaar;
 			$q = db_select("select * from grupper where " . implode(' or ', $gr) . " order by (coalesce(fiscal_year, 0) = " . (int) $regnaar . ") desc, id", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
+				// A setting kept per year (POS) uses this year's row only: its readers ask for fiscal_year = $regnaar,
+				// so another year's row is not one they would see, and saving into it would change that year (SD-877).
+				$otherYear = (int) $r['fiscal_year'] !== (int) $regnaar;
 				$k = $r['art'] . '|' . $r['kodenr'];
-				if (isset(self::$grupper[$k]) && self::$grupper[$k] === false) {
+				if (isset(self::$grupper[$k]) && self::$grupper[$k] === false && !($otherYear && isset($fiscal[$k]))) {
 					self::$grupper[$k] = $r;
 				}
 				$kk = $k . '|k' . ((string) $r['kode'] === '' ? '0' : $r['kode']);
-				if (isset(self::$grupper[$kk]) && self::$grupper[$kk] === false) {
+				if (isset(self::$grupper[$kk]) && self::$grupper[$kk] === false && !($otherYear && isset($fiscal[$kk]))) {
 					self::$grupper[$kk] = $r;
 				}
 			}
