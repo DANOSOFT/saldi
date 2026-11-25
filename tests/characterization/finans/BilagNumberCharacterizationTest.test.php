@@ -15,7 +15,7 @@
 //
 // History:
 // 20260928 LOE SST-817: created.
-// 20261125 LOE SST-906: pins that a line's own date chooses the fiscal year's series, and that the page passes the date.
+// 20261125 LOE SST-906: the year choice and the staged-date conversion are pinned as behaviour, and no proposal site may fall back to the session year or to a hardcoded today.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -73,40 +73,86 @@ final class BilagNumberCharacterizationTest extends TestCase
     /**
      * A line's own date decides which fiscal year's series it continues (SST-906).
      *
-     * The date-to-year helper is database-facing (it reads grupper art='RA'), so what can be pinned without a
-     * tenant is the rule the allocator applies: a line date is accepted, and a malformed one leaves the bounds
-     * alone instead of picking a year. The page wiring is pinned at source level below.
+     * bilagFiscalYearContaining() is the choice itself, so it can be pinned without a tenant: the year whose
+     * window holds the date, the end of a year being inclusive (the day a payment on the closing date is
+     * posted), and no year at all when the date falls in none of them.
      *
      * @return void
      */
-    public function testTheLineDateDecidesTheSeries(): void
+    public function testTheYearThatContainsTheDateIsChosen(): void
     {
-        $ref = @file_get_contents(dirname(__DIR__, 3) . '/finans/kassekladde_includes/bilagNumber.php');
-        self::assertNotFalse($ref, 'cannot read finans/kassekladde_includes/bilagNumber.php');
-        self::assertStringContainsString('function bilagFiscalYearForDate($date)', (string)$ref,
-            'the line date can be resolved to a fiscal year');
-        self::assertStringContainsString('function bilagFiscalYearBounds($regnskabsaar = null)', (string)$ref,
-            'the bounds helper takes the year, so another year than the active one can be asked for');
-        self::assertStringContainsString('function bilagNextNumberForJournal($kladde_id, $regnstart = null, $regnslut = null, $lineDate = null)', (string)$ref,
-            'the allocator takes the line date');
-        self::assertStringContainsString('$lineYear = bilagFiscalYearForDate($lineDate);', (string)$ref,
-            'and switches the bounds to that year before the seed is read');
-        self::assertStringContainsString("preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', \$date)", (string)$ref,
-            'a date that is not Y-m-d resolves to no year, so the caller keeps its own bounds');
+        $years = array(
+            9  => array('2025-10-01', '2026-09-30'),
+            10 => array('2026-10-01', '2027-09-30'),
+        );
+        $this->assertSame(10, bilagFiscalYearContaining('2026-11-25', $years), 'today in the open year');
+        $this->assertSame(9, bilagFiscalYearContaining('2026-06-13', $years), 'a date in the closing year');
+        $this->assertSame(9, bilagFiscalYearContaining('2026-09-30', $years), 'the last day of a year is inside it');
+        $this->assertSame(10, bilagFiscalYearContaining('2026-10-01', $years), 'and the first day of the next one');
+        $this->assertSame(0, bilagFiscalYearContaining('2031-01-01', $years), 'a date in no year is no year');
+        $this->assertSame(0, bilagFiscalYearContaining('2026-11-25', array()), 'no years configured, no year');
+        $this->assertSame(0, bilagFiscalYearContaining('2026-11-25', array(9 => array('', '2026-09-30'))),
+            'a year without a window cannot claim a date');
     }
 
     /**
-     * Every place the page proposes a number passes the date of the line it proposes for (SST-906).
+     * A date the page's converter would not produce resolves to no year at all (SST-906).
+     *
+     * Only the malformed cases are pinned here, because they answer before any tenant is consulted - the whole
+     * suite runs in one process, so a neighbouring test may well have loaded the application's database layer
+     * (and with it `db_select`). Which year a valid date lands in when a tenant *is* available is the subject
+     * of testTheYearThatContainsTheDateIsChosen() above.
      *
      * @return void
      */
-    public function testThePagePassesTheLineDate(): void
+    public function testAMalformedDateResolvesToNoYear(): void
+    {
+        $this->assertSame(0, bilagFiscalYearForDate('13-06-2026'), 'the page hands over Y-m-d, never dd-mm-yyyy');
+        $this->assertSame(0, bilagFiscalYearForDate(''), 'an empty date names no year');
+        $this->assertSame(0, bilagFiscalYearForDate('2026-6-13'), 'not zero padded, not a date this reads');
+        $this->assertSame(0, bilagFiscalYearForDate('2026-11-31'), 'a field the calendar does not have is a date string, not a day');
+    }
+
+    /**
+     * A staged date is read the way the save reads it (SST-906).
+     *
+     * A value this cannot read must come back empty, never as today: the save would otherwise renumber a line
+     * from today's fiscal year's series.
+     *
+     * @return void
+     */
+    public function testAStagedDateIsReadAsTheSaveReadsIt(): void
+    {
+        $this->assertSame('2026-06-13', bilagStagedDate('13-06-2026'), 'tmpkassekl keeps the operator dd-mm-yyyy');
+        $this->assertSame('2026-06-13', bilagStagedDate('13.06.2026'), 'the staging table also holds dots');
+        $this->assertSame('2026-11-25', bilagStagedDate('2026-11-25'), 'an already converted date passes through');
+        $this->assertSame('', bilagStagedDate(''), 'an empty staged date names no day');
+        $this->assertSame('', bilagStagedDate(null), 'and neither does a missing one');
+        $this->assertSame('', bilagStagedDate('not a date'), 'a value this cannot read names no day');
+        $this->assertSame('', bilagStagedDate('31-02-2026'), 'and neither does a day the month does not have');
+    }
+
+    /**
+     * Every place the page proposes a number hands the allocator a date, and tells the save which date it was
+     * (SST-906).
+     *
+     * This stays a source pin on purpose: what the page computes needs a rendered journal and a tenant, which
+     * this suite does not open. It pins the wiring the save depends on - three proposal sites, each deriving
+     * the number from a date through the page's own converter, and the hidden bilfdN that carries that date.
+     *
+     * @return void
+     */
+    public function testEveryProposalCarriesTheDateItWasDrawnFor(): void
     {
         $page = @file_get_contents(dirname(__DIR__, 3) . '/finans/kassekladde.php');
         self::assertNotFalse($page, 'cannot read finans/kassekladde.php');
-        self::assertSame(2, substr_count((string)$page, "bilagNextNumberForJournal(\$kladde_id, \$regnstart, \$regnslut, date('Y-m-d'))"),
-            'the placeholder line and the next-line proposal use today, which is what a new line gets');
-        self::assertStringContainsString("bilagNextNumberForJournal(\$kladde_id, \$regnstart, \$regnslut, usdate(\$dato[\$x] ?? ''))", (string)$page,
-            'and the rendered line uses its own date');
+        self::assertSame(4, substr_count((string)$page, 'bilagNextNumberForJournal('),
+            'four allocation sites: the placeholder line, the next line, its hidden proposal, and the save');
+        self::assertStringNotContainsString('bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut)', (string)$page,
+            'no proposal site may fall back to the session year: every one of them is handed a date');
+        self::assertStringNotContainsString("bilagNextNumberForJournal(\$kladde_id, \$regnstart, \$regnslut, date('Y-m-d'))", (string)$page,
+            'and none of them hardcodes today instead of the date the line carries');
+        self::assertSame(2, substr_count((string)$page, "name='bilfd"),
+            'both render sites post the date their proposal was drawn for');
     }
 }

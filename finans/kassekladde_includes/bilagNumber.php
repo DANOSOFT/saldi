@@ -42,7 +42,7 @@
 //                 The save has always read an empty Bilag field as '0', and since SST-817 a line saved with that '0' is given the journal's next number, so a typed 0 was replaced too.
 //                 A typed 0, and a line already saved under 0, now travel through the save as '00' (bilagFromInput()).
 //                 Only an empty field is numbered (bilagIsUnnumbered()), and the page shows a saved 0 as 0 (bilagFieldValue()).
-// 20261125 LOE SST-906 A line dated in another fiscal year continues that year's series: bilagFiscalYearForDate() and an optional year on bilagFiscalYearBounds(), and the page passes the line date.
+// 20261125 LOE SST-906 A line dated in another fiscal year continues that year's series: bilagFiscalYearForDate(), a year on bilagFiscalYearBounds(), the line date on bilagNextNumberForJournal(), and bilagReplaceForeignYearProposals() for the save.
 
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
@@ -67,24 +67,15 @@ function bilagNextNumberAfter($journal_max, $fiscal_year_max = 0) {
  * Rows with bilag 0 (or no bilag) are ignored on purpose: they are the residue of the defect above,
  * and they must not decide the series.
  *
- * @param int        $kladde_id Journal (kladdeliste.id); 0 or less means the journal does not exist yet.
+ * @param int         $kladde_id Journal (kladdeliste.id); 0 or less means the journal does not exist yet.
  * @param string|null $regnstart Fiscal year start (Y-m-d); derived from $regnaar when not given.
  * @param string|null $regnslut  Fiscal year end (Y-m-d); derived from $regnaar when not given.
+ * @param string|null $lineDate  The date the proposed line carries (Y-m-d); its fiscal year's series is
+ *                               continued instead of the active year's one (SST-906).
  * @return int The voucher number to offer, or allocate, for the next line.
  */
 function bilagNextNumberForJournal($kladde_id, $regnstart = null, $regnslut = null, $lineDate = null) {
 	$kladde_id = (int)$kladde_id;
-	# SST-906 a line dated in another fiscal year continues that year's series, not the active one's
-	if ($lineDate !== null && $lineDate !== '') {
-		$lineYear = bilagFiscalYearForDate($lineDate);
-		if ($lineYear > 0) {
-			list($yearStart, $yearEnd) = bilagFiscalYearBounds($lineYear);
-			if ($yearStart && $yearEnd) {
-				$regnstart = $yearStart;
-				$regnslut = $yearEnd;
-			}
-		}
-	}
 	$journal_max = 0;
 	if ($kladde_id > 0) {
 		$row = db_fetch_array(db_select(
@@ -99,6 +90,18 @@ function bilagNextNumberForJournal($kladde_id, $regnstart = null, $regnslut = nu
 		return bilagNextNumberAfter($journal_max, 0);
 	}
 
+	# SST-906 a line dated in another fiscal year continues that year's series, not the active one's. The
+	# journal's own series wins above, so the two lookups below only run for a journal with no numbered row
+	if ($lineDate !== null && $lineDate !== '') {
+		$lineYear = bilagFiscalYearForDate($lineDate);
+		if ($lineYear > 0) {
+			list($yearStart, $yearEnd) = bilagFiscalYearBounds($lineYear);
+			if ($yearStart && $yearEnd) {
+				$regnstart = $yearStart;
+				$regnslut = $yearEnd;
+			}
+		}
+	}
 	if (!$regnstart || !$regnslut) {
 		list($regnstart, $regnslut) = bilagFiscalYearBounds();
 	}
@@ -172,6 +175,98 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $from = 0, $own_ids =
 		}
 	}
 	return $replacements;
+}
+
+/**
+ * The proposals the page drew for another fiscal year than the one the line is now dated in (SST-906).
+ *
+ * The page proposes a number from the series of the date the line carries when it is drawn - today, for a
+ * blank line. An operator who then dates the line in another year (year-end entries, in a session that still
+ * stands in the closing year) leaves a number from the wrong series on the line. A number the operator did
+ * not type is a proposal, so the save takes it from the year the line is dated in instead.
+ *
+ * Only a line that is new, staged, and still carrying the proposal it was posted with is touched: a typed
+ * number is kept, and so is a proposal whose date belongs to the same fiscal year as the line's date.
+ *
+ * @param int                $kladde_id     Journal (kladdeliste.id).
+ * @param array<int, int>    $proposed      Line number (tmpkassekl.lobenr) => the number the page proposed.
+ * @param array<int, string> $proposedDates Line number => the date that proposal was drawn for (Y-m-d).
+ * @param int                $from          Series start: the journal's next number, read once per save.
+ * @return array<int, int> Staged proposal => the number of the line's own fiscal year's series; empty when none.
+ */
+function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates, $from = 0) {
+	$kladde_id = (int)$kladde_id;
+	$replacements = array();
+	if ($kladde_id <= 0 || !$proposed || !$proposedDates) {
+		return $replacements;
+	}
+	$held = bilagStagedNumbersWillBeSaved($kladde_id);
+	$q = db_select("SELECT lobenr, id, bilag, transdate FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$bilag = (int)$r['bilag'];
+		$lobenr = (int)$r['lobenr'];
+		if ((int)$r['id'] > 0 || $bilag <= 0 || !isset($proposed[$lobenr]) || (int)$proposed[$lobenr] !== $bilag) {
+			continue;   # an existing line, a line without a number, or a number the operator typed
+		}
+		$proposalDate = trim((string)($proposedDates[$lobenr] ?? ''));
+		if ($proposalDate === '') {
+			continue;   # a page that posted no proposal date: nothing says which year the number came from
+		}
+		$lineDate = bilagStagedDate($r['transdate']);
+		if ($lineDate === '') {
+			continue;
+		}
+		$proposalYear = bilagFiscalYearForDate($proposalDate);
+		$lineYear = bilagFiscalYearForDate($lineDate);
+		if ($proposalYear <= 0 || $lineYear <= 0 || $proposalYear === $lineYear) {
+			continue;
+		}
+		# the line's own year's next number, past the numbers this save already holds or hands out
+		$heldHere = $held;
+		unset($heldHere[$bilag]);
+		$target = bilagNextNumberForJournal($kladde_id, null, null, $lineDate);
+		if ((int)$from > 0 && $target <= 0) {
+			$target = (int)$from;
+		}
+		$target = bilagNextNumberSkipping($heldHere, array_values($replacements), $target);
+		if ($target > 0 && $target !== $bilag) {
+			$replacements[$bilag] = $target;
+		}
+	}
+	return $replacements;
+}
+
+/**
+ * A staged date as Y-m-d.
+ *
+ * tmpkassekl keeps the operator's dd-mm-yyyy, which is read here so the helper stands on its own: it never
+ * asks the page's converters, whose answer for a value they cannot read is today's date - and a garbage date
+ * turned into today would let the save renumber a line from the wrong year's series. Anything this cannot
+ * read is no date, and the caller then leaves the line's number alone.
+ *
+ * @param string|null $date The staged transdate.
+ * @return string The date as Y-m-d, or '' when it cannot be read.
+ */
+function bilagStagedDate($date) {
+	$date = trim((string)$date);
+	if ($date === '') {
+		return '';
+	}
+	if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+		return $date;
+	}
+	# the staging table keeps the operator's dd-mm-yyyy; read it here so the helper stands on its own
+	$parts = preg_split('/[^0-9]+/', $date, -1, PREG_SPLIT_NO_EMPTY);
+	if (is_array($parts) && count($parts) === 3) {
+		list($day, $month, $year) = array_map('intval', $parts);
+		if ($year < 100) {
+			$year += $year < 80 ? 2000 : 1900;
+		}
+		if (checkdate($month, $day, $year)) {
+			return sprintf('%04d-%02d-%02d', $year, $month, $day);
+		}
+	}
+	return '';
 }
 
 /**
@@ -380,48 +475,87 @@ function bilagNextNumberReserved($kladde_id, $replacements, $from = 0, $handed =
 }
 
 /**
- * @return array{0: string, 1: string} Fiscal year start and end (Y-m-d), or two empty strings.
- */
-/**
- * The fiscal year a voucher line belongs to, from its own date.
+ * The fiscal year a voucher line belongs to, from its own date (SST-906).
  *
- * SST-906 a line is dated today (the page fills the date with dkdato(date("Y-m-d"))), but the number used to
- * be taken from the ACTIVE fiscal year. A session still standing in the previous year therefore stamped that
+ * A line is dated today (the page fills the date with dkdato(date("Y-m-d"))), but the number used to be
+ * taken from the ACTIVE fiscal year. A session still standing in the previous year therefore stamped that
  * year's series onto a line dated in the new one, and the single stray number owned the new year's series.
- * The date is what decides which series a line continues, so this returns the fiscal year that contains it,
- * and the active year when it contains it (the common case, and the one the caller already knows).
+ * The date is what decides which series a line continues, so this returns the fiscal year that contains it.
+ *
+ * The active year is asked first, and the other years in `grupper art='RA'` only when it does not contain
+ * the date, so the common case costs one lookup and no extra query.
  *
  * @param string $date Line date as Y-m-d (the page's dkdato() input).
- * @return int The regnskabsaar whose fiscal year contains the date, or 0 when it cannot be determined.
+ * @return int The regnskabsaar whose fiscal year contains the date; 0 for a date that is not Y-m-d, and the
+ *             active year when no year contains it (a year still to be created, or one that was deleted) -
+ *             the caller then keeps the bounds it already had.
  */
 function bilagFiscalYearForDate($date) {
 	$date = trim((string)$date);
-	if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+	# a date the calendar does not have is no date either: '2026-11-31' would otherwise be compared against
+	# the fiscal year windows and quietly answer the fallback below
+	if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $parts) || !checkdate((int)$parts[2], (int)$parts[3], (int)$parts[1])) {
 		return 0;
 	}
 	$active = (int)($GLOBALS['regnaar'] ?? 0);
-	$years = array();
-	if ($active > 0) {
-		$years[] = $active;
+	# without a database there is no fiscal year to read, which is what the unit tests run as
+	if (!function_exists('db_select')) {
+		return $active;
 	}
-	if (function_exists('db_select')) {
-		$q = db_select("select kodenr from grupper where art = 'RA' order by kodenr", __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$years[] = (int)$r['kodenr'];
+	if ($active > 0) {
+		list($start, $end) = bilagFiscalYearBounds($active);
+		if ($start && $end && $date >= $start && $date <= $end) {
+			return $active;
 		}
 	}
-	foreach (array_unique($years) as $year) {
-		if ($year <= 0) {
+	$others = array();
+	$q = db_select("select kodenr from grupper where art = 'RA' order by kodenr", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$year = (int)$r['kodenr'];
+		if ($year <= 0 || $year === $active) {
 			continue;
 		}
-		list($start, $end) = bilagFiscalYearBounds($year);
-		if ($start && $end && $date >= $start && $date <= $end) {
-			return $year;
-		}
+		$others[$year] = bilagFiscalYearBounds($year);
 	}
-	return $active;
+	$found = bilagFiscalYearContaining($date, $others);
+	return $found > 0 ? $found : $active;
 }
 
+/**
+ * Which of the given fiscal years contains the date.
+ *
+ * The bounds are the `start => end` pairs bilagFiscalYearBounds() answers with, so the choice can be
+ * characterized without a tenant: the year whose window holds the date, and 0 when none does.
+ *
+ * @param string $date  Line date as Y-m-d.
+ * @param array  $years Regnskabsaar => array(start, end), both Y-m-d.
+ * @return int The regnskabsaar containing the date, or 0 when no year does.
+ */
+function bilagFiscalYearContaining($date, array $years) {
+	$date = trim((string)$date);
+	if ($date === '') {
+		return 0;
+	}
+	ksort($years);
+	foreach ($years as $year => $bounds) {
+		$start = trim((string)($bounds[0] ?? ''));
+		$end = trim((string)($bounds[1] ?? ''));
+		if ($start === '' || $end === '') {
+			continue;
+		}
+		if ($date >= $start && $date <= $end) {
+			return (int)$year;
+		}
+	}
+	return 0;
+}
+
+/**
+ * Start and end of a fiscal year's window, as the rest of the application reads it.
+ *
+ * @param int|null $regnskabsaar The regnskabsaar to answer for; the session's when not given.
+ * @return array{0: string, 1: string} Fiscal year start and end (Y-m-d), or two empty strings.
+ */
 function bilagFiscalYearBounds($regnskabsaar = null) {
 	$regnaar = $regnskabsaar !== null ? $regnskabsaar : ($GLOBALS['regnaar'] ?? null);
 	if (!$regnaar) {
