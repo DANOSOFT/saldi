@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -131,7 +131,9 @@
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
 // 20261112 CL/SS SD-804: braces on the voucher branch that includes settlePOS.php (which queues the store order).
+// 20261112 CL/SS MB-49: The card terminal's return shows afslut()'s error, as the other afslut() callers do.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 CL/SS MB-49: The terminal and day-end refusal alerts go through jsString(), so a LATIN9 text with æøå is not blank.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -795,7 +797,10 @@ if ($godkendt == 'OK') { # 20131205
 	} else {
 		fwrite($gf, "afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id, __line__)\n");
 		fclose($gf);
-		afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, __LINE__); #20140129 Tilføjet $kortnavn
+		$svar = afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, __LINE__); #20140129 Tilføjet $kortnavn
+		if ($svar) {
+			print "<script>alert(" . jsString(array($svar)) . ");</script>\n";
+		}
 	}
 
 	#} elseif ($godkendt) {
@@ -2747,7 +2752,7 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 						# str_replace to embed $svar in the inline script - matches the existing pattern in
 						# index/login.php and safely handles quotes/backslashes/markup in one call.
 						echo "<br>Svar $svar<br>\n";
-						print "<script>alert(" . json_encode($svar, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
+						print "<script>alert(" . jsString(array($svar)) . ");</script>\n";
 						exit;
 					}
 				}
