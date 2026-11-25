@@ -16,6 +16,7 @@
 //
 // History:
 // 20261125 CL/MMR MB-80: created.
+// 20261125 CL/MMR MB-80 (Codex round 1): ten half-øre revenue groups in DKK (invoice and credit note) and EUR; the pre-flight must accept each invoice and the order must reach status 4.
 
 use PHPUnit\Framework\TestCase;
 
@@ -158,6 +159,7 @@ final class SalesPostingPrecisionTest extends TestCase
     {
         $out = $this->runInvoiceChild('invoice', $orderId);
         $this->assertSame('OK', $out['bogfor'], 'bogfor reports OK');
+        $this->assertSame('4', (string)$out['status'], 'the order is invoiced (status 4)');
         $rows = CharacterizationEnv::rows(
             self::$tenant,
             "SELECT kontonr, to_char(debet, 'FM999999990.00') AS debet, to_char(kredit, 'FM999999990.00') AS kredit
@@ -172,8 +174,8 @@ final class SalesPostingPrecisionTest extends TestCase
     }
 
     /**
-     * The pre-flight check, run on the invoiced order, must predict exactly the difference that was posted
-     * on the currency and øre difference accounts, and the stored rows must balance.
+     * The pre-flight check, run on the invoiced order, must accept it and predict exactly the rounding that was
+     * posted on the currency and øre difference accounts, and the stored rows must balance.
      *
      * @param array<int, array{0: string, 1: string, 2: string}> $rows
      */
@@ -189,7 +191,8 @@ final class SalesPostingPrecisionTest extends TestCase
         }
         $this->assertEqualsWithDelta(0.0, $balance, 0.001, 'the posted rows balance');
         $out = $this->runInvoiceChild('preflight', $orderId);
-        $this->assertEqualsWithDelta($posted, (float)$out['preflight']['difference'], 0.001, 'pre-flight predicts the posted difference');
+        $this->assertEqualsWithDelta($posted, (float)$out['preflight']['rounding'], 0.001, 'pre-flight predicts the posted difference');
+        $this->assertNull($out['balance'], 'pre-flight accepts the invoice');
     }
 
     /** @return array<int, array{0: string, 1: string, 2: string}> */
@@ -355,6 +358,87 @@ final class SalesPostingPrecisionTest extends TestCase
             [(string)self::VAT10, '0.00', '10.00']
         ), $rows);
         $this->assertPreflightMatchesPosting($id, $rows);
+    }
+
+    /** @return array<int, string> Ten revenue accounts from the seeded chart of accounts. */
+    private static function tenRevenueAccounts(): array
+    {
+        $rows = CharacterizationEnv::rows(
+            self::$tenant,
+            "SELECT kontonr FROM kontoplan WHERE kontotype = 'D' AND regnskabsaar = $1 AND kontonr NOT IN (2720, 3610) ORDER BY kontonr LIMIT 10",
+            [self::$regnaar]
+        );
+        return array_map(static fn(array $row): string => (string)$row['kontonr'], $rows);
+    }
+
+    /**
+     * Codex round 1: ten VAT-free revenue groups at 100.005 each post 100.01, 0.05 more than the debtor's 1000.05.
+     * origin/master posts this with 0.05 on the øre difference account; it must not be refused as unbalanced.
+     *
+     * @return array{0: int, 1: array<int, string>} Order id and the revenue accounts used.
+     */
+    private function createTenGroupOrder(string $currency, string $art, float $qty): array
+    {
+        $accounts = self::tenRevenueAccounts();
+        $this->assertCount(10, $accounts);
+        $lines = [];
+        foreach ($accounts as $account) {
+            $lines[] = self::line($account, 0, 0, 100.005, $qty);
+        }
+        return [$this->createOrder($currency, $art, $lines, 1000.05 * $qty, 0), $accounts];
+    }
+
+    public function test_dkk_invoice_with_ten_half_ore_revenue_groups_posts_the_rounding_on_the_ore_account(): void
+    {
+        [$id, $accounts] = $this->createTenGroupOrder('DKK', 'DO', 1);
+        $rows = $this->invoiceRows($id);
+        $expected = [[self::DEBTOR, '1000.05', '0.00']];
+        foreach ($accounts as $account) {
+            $expected[] = [$account, '0.00', '100.01'];
+        }
+        $expected[] = [self::ORE_DIFF, '0.05', '0.00'];
+        $this->assertSame($expected, $rows);
+        $this->assertPreflightMatchesPosting($id, $rows);
+    }
+
+    public function test_dkk_credit_note_with_ten_half_ore_revenue_groups_posts_the_rounding_on_the_ore_account(): void
+    {
+        [$id, $accounts] = $this->createTenGroupOrder('DKK', 'DK', -1);
+        $rows = $this->invoiceRows($id);
+        $expected = [[self::DEBTOR, '0.00', '1000.05']];
+        foreach ($accounts as $account) {
+            $expected[] = [$account, '100.01', '0.00'];
+        }
+        $expected[] = [self::ORE_DIFF, '0.00', '0.05'];
+        $this->assertSame($expected, $rows);
+        $this->assertPreflightMatchesPosting($id, $rows);
+    }
+
+    /** The same in EUR: 745.04 per group against a debtor of 7450.37 leaves 0.03, booked once on the currency account. */
+    public function test_eur_invoice_with_ten_half_cent_revenue_groups_posts_the_rounding_on_the_currency_account(): void
+    {
+        [$id, $accounts] = $this->createTenGroupOrder('EUR', 'DO', 1);
+        $rows = $this->invoiceRows($id);
+        $expected = [[self::DEBTOR, '7450.37', '0.00']];
+        foreach ($accounts as $account) {
+            $expected[] = [$account, '0.00', '745.04'];
+        }
+        $expected[] = [self::CURRENCY_DIFF, '0.03', '0.00'];
+        $this->assertSame($expected, $rows);
+        $this->assertPreflightMatchesPosting($id, $rows);
+    }
+
+    /** A real header/line discrepancy (VAT 26.00 on the order, 25.00 on its lines) is still refused before anything is written. */
+    public function test_dkk_invoice_with_a_real_vat_difference_is_refused_before_posting(): void
+    {
+        $id = $this->createOrder('DKK', 'DO', [
+            self::line(self::REVENUE, self::VAT25, 25, 100),
+            self::line(self::REVENUE_EXEMPT, 0, 0, 50, 1, ['momsfri' => 'on']),
+        ], 150, 26.00);
+        $out = $this->runInvoiceChild('invoice', $id);
+        $this->assertStringContainsString('balancerer ikke (difference 1,00 DKK)', (string)$out['bogfor']);
+        $this->assertNotSame('4', (string)$out['status'], 'the order is not invoiced');
+        $this->assertSame([], CharacterizationEnv::rows(self::$tenant, 'SELECT id FROM transaktioner WHERE ordre_id = $1', [$id]), 'nothing is posted');
     }
 
     /** Two accounts each rounding 2.5025 VAT down: the invoice's 5.01 leaves 0.01 on the øre difference account, as before. */

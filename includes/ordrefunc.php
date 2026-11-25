@@ -181,11 +181,13 @@
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
 // 20261125 CL/MMR MB-80 bogfor_nu: a foreign-currency invoice posts its VAT rounded to øre in the invoice currency before conversion, so 250.00 EUR at 745 is 1862.50 and not 1862.49 plus 0.02 currency and -0.01 øre difference rows.
-//                 A converted amount is rounded once, and the control totals add the posted 2-decimal amounts.
+//                 A converted amount is rounded once.
 //                 Lines are grouped per revenue account and VAT account, so a line on an account already used with another VAT account is no longer dropped.
 //                 A group with net 0 still posts its VAT.
 //                 forkontrolPosteringsbalance() predicts with the same code (includes/salesPostingVat.php).
 //                 DKK amounts are unchanged; the øre difference account no longer gets cancelling or split rows.
+// 20261125 CL/MMR MB-80 (Codex round 1): the 3-decimal control totals decide again whether an invoice balances, as before, so ten DKK revenue groups at 100.005 still post with 0.05 on the øre account.
+//                 What is left between the posted 2-decimal rows is booked as one row on the currency or øre difference account.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2445,14 +2447,17 @@ function bogfor_indbetaling($id, $webservice) {
 /**
  * Pre-flight for bogfor_nu(): predicts the difference between the debtor posting and the revenue and VAT
  * postings, using the same grouping, rounding and VAT allocation as bogfor_nu() (includes/salesPostingVat.php).
- * A positive difference is what bogfor_nu() would post as a credit on the currency or øre difference account.
+ * 'difference' is bogfor_nu()'s control difference (3-decimal amounts, as before MB-80), which decides whether
+ * the invoice balances. 'rounding' is what is left between the posted 2-decimal rows; a positive amount is what
+ * bogfor_nu() posts as a credit on the currency or øre difference account.
  *
  * @param int|string $id A single ordrer.id, or a comma-separated list of ids.
  * @param float|string $headerTotal The orders' sum + moms in the invoice currency.
  * @param float|string $valutakurs ordrer.valutakurs (100 for the base currency).
  * @param float|string $headerVat The orders' moms in the invoice currency (used for the foreign-currency VAT allocation).
  * @return array{
- *   difference: float,  Debit minus credit in the base currency, 2 decimals.
+ *   difference: float,  Control debit minus credit in the base currency, 2 decimals.
+ *   rounding: float,    Posted debit minus credit in the base currency, 2 decimals.
  *   lines: int,         Number of order lines posted (bogfor_nu() allows 2 øre per line in a foreign currency).
  * }
  */
@@ -2488,7 +2493,10 @@ function forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerV
 	if (is_numeric($id) && $valutakurs != 100) {
 		$vatAllocations = salesPostingVatAllocations($postingLines['groups'][1], $headerVat, $valutakurs);
 	}
-	$kontrol = salesPostingAmount(afrund($headerTotal, 3), $valutakurs);
+	# The control sides are rounded separately before the difference is taken, as bogfor_nu() does
+	$control = array('d' => 0, 'k' => 0);
+	salesPostingControlSide($control, salesPostingControlAmount(afrund($headerTotal, 3), $valutakurs), 'd');
+	$posted = salesPostingAmount(afrund($headerTotal, 3), $valutakurs);
 	for ($t = 1; $t <= 2; $t++) {
 		$rate = ($t == 1) ? $valutakurs : 0;
 		for ($p = 1; $p <= $projektantal; $p++) {
@@ -2496,16 +2504,20 @@ function forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerV
 				if (!$group['bogf_konto'] || (!$group['pris'] && !$group['linjemoms'])) {
 					continue;
 				}
-				$kontrol -= salesPostingAmount($group['pris'], $rate);
+				salesPostingControlSide($control, salesPostingControlAmount($group['pris'], $rate), 'k');
+				$posted -= salesPostingAmount($group['pris'], $rate);
 				if ($t == 1 && $vatAllocations !== null) {
-					$kontrol -= $vatAllocations[$p][$y];
+					salesPostingControlSide($control, $vatAllocations[$p][$y], 'k');
+					$posted -= $vatAllocations[$p][$y];
 				} else {
-					$kontrol -= salesPostingAmount($group['linjemoms'], $rate);
+					salesPostingControlSide($control, salesPostingControlAmount($group['linjemoms'], $rate), 'k');
+					$posted -= salesPostingAmount($group['linjemoms'], $rate);
 				}
 			}
 		}
 	}
-	return array('difference' => afrund($kontrol, 2), 'lines' => $postingLines['lines']);
+	$difference = afrund(afrund($control['d'], 2) - afrund($control['k'], 2), 2);
+	return array('difference' => $difference, 'rounding' => afrund($posted, 2), 'lines' => $postingLines['lines']);
 }
 
 function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs, $headerVat = 0)
@@ -2515,7 +2527,7 @@ function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs, $h
 	# bogfoeringen vil skabe, saa en ordre i ubalance kan afvises FOER der skrives til
 	# transaktioner/openpost. Tolerancerne spejler dem kursdifference-/oeredifference-
 	# posteringerne allerede opfanger, saa ordrer der bogfoeres rent i dag paavirkes ikke.
-	# 20261125 MB-80: the amounts come from forkontrolPosteringsdifference(), which uses bogfor_nu()'s own grouping and rounding.
+	# 20261125 MB-80: the amounts come from forkontrolPosteringsdifference(), which uses bogfor_nu()'s own grouping, control amounts and thresholds.
 	global $baseCurrency;
 	if (!$valutakurs) {
 		$valutakurs = 100;
@@ -2604,6 +2616,7 @@ function bogfor_nu($id, $kilde) {
 	# <-- 20130820
 	$d_kontrol = 0;
 	$k_kontrol = 0;
+	$d_posted = $k_posted = 0; # MB-80: the posted 2-decimal amounts of the debtor, revenue and VAT rows (not POS card rows)
 	$logdate = date("Y-m-d");
 	$logtime = date("H:i");
 	$uxtid = date("U");
@@ -3056,10 +3069,12 @@ function bogfor_nu($id, $kilde) {
 			$debet = '0';
 			$kredit = $sum * -1;
 		}
+		$d_kontrol = $d_kontrol + salesPostingControlAmount($debet, $valutakurs);
+		$k_kontrol = $k_kontrol + salesPostingControlAmount($kredit, $valutakurs);
 		$kredit = salesPostingAmount($kredit, $valutakurs); # Omregning til DKR (MB-80: a foreign currency is rounded once)
 		$debet = salesPostingAmount($debet, $valutakurs);
-		$d_kontrol = $d_kontrol + $debet; # MB-80: the control totals add what is posted
-		$k_kontrol = $k_kontrol + $kredit;
+		$d_posted += $debet;
+		$k_posted += $kredit;
 		if (is_numeric($id)) {
 			$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kontonr','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
 		} else {
@@ -3137,13 +3152,15 @@ function bogfor_nu($id, $kilde) {
 						$vat = $linjemoms[$y] * -1;
 					}
 					$rate = ($t == 1) ? $valutakurs : 0;
+					$d_kontrol = $d_kontrol + salesPostingControlAmount($debet, $rate);
+					$k_kontrol = $k_kontrol + salesPostingControlAmount($kredit, $rate);
 					$kredit = salesPostingAmount($kredit, $rate); # Omregning til DKR.
 					$debet = salesPostingAmount($debet, $rate);
+					$d_posted += $debet;
+					$k_posted += $kredit;
 					if ($rate) {
 						$vat = $vat * $rate / 100;
 					}
-					$d_kontrol = $d_kontrol + $debet; # MB-80: the control totals add what is posted
-					$k_kontrol = $k_kontrol + $kredit;
 					$vat = ($postedVat[$y] !== null) ? $postedVat[$y] * -1 : afrund($vat, 2);
 					if ($pris[$y]) {
 						if (is_numeric($id)) {
@@ -3181,6 +3198,8 @@ function bogfor_nu($id, $kilde) {
 						if ($postedVat[$y] !== null) { # already in the base currency, rounded
 							$kredit = max(0, $postedVat[$y]);
 							$debet = max(0, $postedVat[$y] * -1);
+							$d_kontrol = $d_kontrol + $debet;
+							$k_kontrol = $k_kontrol + $kredit;
 						} else {
 							if ($linjemoms[$y] > 0) {
 								$kredit = $linjemoms[$y];
@@ -3189,11 +3208,13 @@ function bogfor_nu($id, $kilde) {
 								$kredit = 0;
 								$debet = $linjemoms[$y] * -1;
 							}
+							$d_kontrol = $d_kontrol + salesPostingControlAmount($debet, $rate);
+							$k_kontrol = $k_kontrol + salesPostingControlAmount($kredit, $rate);
 							$kredit = salesPostingAmount($kredit, $rate); # Omregning til DKR.
 							$debet = salesPostingAmount($debet, $rate);
 						}
-						$d_kontrol = $d_kontrol + $debet;
-						$k_kontrol = $k_kontrol + $kredit;
+						$d_posted += $debet;
+						$k_posted += $kredit;
 						if (is_numeric($id)) {
 							$qtxt = "insert into transaktioner ";
 							$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
@@ -3394,13 +3415,19 @@ function bogfor_nu($id, $kilde) {
 	if ($brugernavn == 'saldi')
 		echo __LINE__ . " $d_kontrol != $k_kontrol<br>";
 
-	if ($diff = afrund($d_kontrol - $k_kontrol, 2)) {
+	# MB-80: the control difference (3-decimal amounts) decides whether the invoice balances, as in
+	# forkontrolPosteringsbalance(). Outside POS, the amount booked is what is left between the posted rows.
+	$diff = afrund($d_kontrol - $k_kontrol, 2);
+	$postedDiff = ($art == 'PO') ? 0 : afrund($d_posted - $k_posted, 2);
+	if ($diff || $postedDiff) {
+		$bookDiff = ($art == 'PO') ? $diff : $postedDiff;
 		$debet = 0;
 		$kredit = 0;
-		if ($diff < 0)
-			$debet = $diff * -1;
-		else
-			$kredit = $diff;
+		if ($bookDiff < 0) {
+			$debet = $bookDiff * -1;
+		} elseif ($bookDiff > 0) {
+			$kredit = $bookDiff;
+		}
 		$debet = afrund($debet, 2);
 		$kredit = afrund($kredit, 2);
 		/*if ($brugernavn == 'saldi') {
@@ -3537,6 +3564,8 @@ function bogfor_nu($id, $kilde) {
 				$tmp = $debet - $kredit;
 				db_modify("update kontoplan set saldo=saldo+'$tmp' where kontonr='$difkto' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 			}
+		} elseif (!$debet && !$kredit && (($valuta != $baseCurrency && abs($diff) <= $maxdif) || abs($diff) < 0.05)) {
+			# MB-80: the posted rows balance; the control totals only differ by rounding, so nothing is booked
 		} elseif ($valuta != $baseCurrency && abs($diff) <= $maxdif) { #Der maa max vaere en afvigelse paa 1 oere pr ordrelinje m fremmed valuta;
 			$r = db_fetch_array(db_select("select box3 as kursdifkto from grupper where grupper.art='VK' and grupper.box1='$valuta'", __FILE__ . " linje " . __LINE__));
 			$kursdifkto = $r['kursdifkto'] * 1;

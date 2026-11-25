@@ -25,6 +25,8 @@
 // -----------------------------------------------------------
 // 20261125 CL/MMR MB-80 Created: the order-line grouping, the amount rounding and the VAT allocation that bogfor_nu() posts and forkontrolPosteringsbalance() predicts, so the two always agree.
 //                 Allocation ported from Lui's #657 (62bdc0d1).
+// 20261125 CL/MMR MB-80 (Codex round 1): salesPostingControlAmount() keeps the 3-decimal control amounts that decide whether an invoice balances.
+//                 ifset() for the two array lookups with a default.
 
 require_once __DIR__ . '/std_func.php';
 
@@ -47,6 +49,47 @@ if (!function_exists('salesPostingAmount')) {
 			$amount = $amount * $currencyRate / 100;
 		}
 		return afrund(afrund($amount, 3), 2);
+	}
+}
+
+if (!function_exists('salesPostingControlAmount')) {
+	/**
+	 * The amount bogfor_nu() adds to its control totals: converted and rounded to 3 decimals, as before MB-80.
+	 * The control totals decide whether an invoice balances (a real header/line discrepancy is refused);
+	 * the rounding left between the posted 2-decimal amounts is then booked on the currency or øre
+	 * difference account.
+	 *
+	 * @param float|string $amount Amount in the invoice currency (signed).
+	 * @param float|int|string|null $currencyRate ordrer.valutakurs (DKK per 100); null or 0 leaves the amount unconverted.
+	 * @return float Signed control amount, 3 decimals.
+	 */
+	function salesPostingControlAmount($amount, $currencyRate)
+	{
+		if ($currencyRate) {
+			$amount = $amount * $currencyRate / 100;
+		}
+		return afrund($amount, 3);
+	}
+}
+
+if (!function_exists('salesPostingControlSide')) {
+	/**
+	 * Adds a control amount to the debit or credit control total the way bogfor_nu() does: a positive amount
+	 * on its natural side, a negative one on the other side.
+	 *
+	 * @param array{d: float, k: float} $control Running debit ('d') and credit ('k') control totals, updated in place.
+	 * @param float $amount Signed control amount.
+	 * @param string $side 'd' for the debtor posting, 'k' for revenue and VAT.
+	 * @return void
+	 */
+	function salesPostingControlSide(array &$control, $amount, $side)
+	{
+		$other = ($side == 'd') ? 'k' : 'd';
+		if ($amount > 0) {
+			$control[$side] += $amount;
+		} else {
+			$control[$other] -= $amount;
+		}
 	}
 }
 
@@ -120,7 +163,7 @@ if (!function_exists('salesPostingLoadGroups')) {
 		$result = array('groups' => array(1 => array(), 2 => array()), 'lines' => 0);
 		for ($t = 1; $t <= 2; $t++) {
 			for ($p = 1; $p <= $projectCount; $p++) {
-				$project = db_escape_string(isset($projects[$p]) ? $projects[$p] : '');
+				$project = db_escape_string(ifset($projects, $p, ''));
 				$qtxt = "select * from ordrelinjer where $lineCondition and coalesce(projekt,'')='$project' and ";
 				$qtxt .= ($t == 1) ? "posnr>='0' and bogf_konto > 0" : "posnr<'0'";
 				$qtxt .= " order by bogf_konto,vat_account";
@@ -206,7 +249,7 @@ if (!function_exists('salesPostingVatAllocations')) {
 				$key = $p . ':' . $y;
 				$taxKey = (string)$group['vat_account'];
 				$raw[$key] = $group['linjemoms'];
-				$taxRaw[$taxKey] = (isset($taxRaw[$taxKey]) ? $taxRaw[$taxKey] : 0) + $group['linjemoms'];
+				$taxRaw[$taxKey] = ifset($taxRaw, $taxKey, 0) + $group['linjemoms'];
 				$taxMembers[$taxKey][$key] = array($p, $y);
 				$vatLines += $group['vatLines'];
 			}
