@@ -23,12 +23,19 @@
 //   one that matches the last variant barcode read.
 // - When the variant file can't be fetched, the barcode messages from the product step are still shown.
 //
+// Pinned (MB-109):
+// - A ';' inside a quoted description stays in the description, so the product is created.
+// - A qty column is found by its header name in an LF file with a BOM, so new items get the stock from the file.
+// - A qty column in an LF variant file sets the stock of a new variant.
+// - A new item whose item number has an apostrophe gets its stock.
+//
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
 // History:
 // 20261125 CL/SZ MB-145 Created.
 // 20261125 CL/SZ MB-145 Review: apostrophe and relink tests, skip without wget or php -S, temp folders removed.
 // 20261125 CL/SZ MB-192 Variant barcode clash and missing variant file tests; sync() can leave the variant file out.
+// 20261125 CL/SZ MB-109 Quoted ';', qty by header name in LF files, apostrophe item number stock tests.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -321,5 +328,89 @@ final class VaresyncTest extends CharacterizationTestCase
 			$printed,
 			'the duplicate barcode message is shown although the run stops at the variant file'
 		);
+	}
+
+	/** @return array{beholdning: float, kob: float} stock and bought quantity for an item (variant 0 = the item itself) */
+	private function stockOf(int $itemId, int $variantId = 0): array
+	{
+		$ls = self::rows(
+			'SELECT beholdning FROM lagerstatus WHERE vare_id = $1 AND variant_id = $2',
+			[$itemId, $variantId]
+		);
+		$bk = self::rows(
+			'SELECT antal FROM batch_kob WHERE vare_id = $1 AND variant_id = $2',
+			[$itemId, $variantId]
+		);
+		return ['beholdning' => self::sumOf($ls, 'beholdning'), 'kob' => self::sumOf($bk, 'antal')];
+	}
+
+	public function test_a_semicolon_inside_a_quoted_description_stays_in_the_description(): void
+	{
+		$g = self::$group;
+		$this->sync(self::PRODUCT_HEADER, ["801;MB109SEMI;;100;\"Bord; rund\";$g;;"], []);
+
+		$r = self::one('SELECT beskrivelse, salgspris, gruppe FROM varer WHERE varenr = $1', ['MB109SEMI']);
+		$this->assertNotNull($r, 'the product with a quoted ; is created');
+		$this->assertSame('Bord; rund', $r['beskrivelse']);
+		$this->assertSame(100.0, (float)$r['salgspris']);
+		$this->assertSame((string)$g, (string)$r['gruppe']);
+	}
+
+	public function test_a_qty_column_in_an_lf_file_with_a_bom_sets_the_stock(): void
+	{
+		$g = self::$group;
+		$this->sync("\u{FEFF}" . self::PRODUCT_HEADER . ';qty', ["811;MB109LF;;100;LF qty item;$g;;;4", ''], []);
+
+		$this->assertSame(
+			['beholdning' => 4.0, 'kob' => 4.0],
+			$this->stockOf($this->itemId('MB109LF')),
+			'the new item gets the 4 from the qty column'
+		);
+	}
+
+	public function test_a_qty_column_in_an_lf_variant_file_sets_the_variant_stock(): void
+	{
+		$g = self::$group;
+		$this->syncWithVariantHeader(
+			self::VARIANT_HEADER . ';qty',
+			["821;MB109VQ;;100;Variant qty item;$g;;"],
+			['MB109VQ;821;9821;MB109VQSMALL;Small;Size;Small size;3']
+		);
+
+		$itemId = $this->itemId('MB109VQ');
+		$v = self::one('SELECT id FROM variant_varer WHERE vare_id = $1', [$itemId]);
+		$this->assertNotNull($v, 'the variant is saved');
+		$this->assertSame(
+			['beholdning' => 3.0, 'kob' => 3.0],
+			$this->stockOf($itemId, (int)$v['id']),
+			'the new variant gets the 3 from the qty column'
+		);
+	}
+
+	public function test_an_item_number_with_an_apostrophe_gets_its_stock(): void
+	{
+		$g = self::$group;
+		$this->sync(self::PRODUCT_HEADER . ';qty', ["831;MB109O'NEIL;;100;Apostrophe stock;$g;;;6"], [], "\r\n");
+
+		$this->assertSame(
+			['beholdning' => 6.0, 'kob' => 6.0],
+			$this->stockOf($this->itemId("MB109O'NEIL")),
+			'the new item gets the 6 from the qty column'
+		);
+	}
+
+	/** @param list<string> $productRows @param list<string> $variantRows */
+	private function syncWithVariantHeader(string $variantHeader, array $productRows, array $variantRows): string
+	{
+		file_put_contents(
+			self::$stubDir . '/shop_products.csv',
+			implode("\n", array_merge([self::PRODUCT_HEADER], $productRows)) . "\n"
+		);
+		file_put_contents(
+			self::$stubDir . '/shop_variants.csv',
+			implode("\n", array_merge([$variantHeader], $variantRows)) . "\n"
+		);
+		$out = $this->runChildJson('run_varesync.php', ['1', CharacterizationEnv::testDb()]);
+		return (string)$out['printed'];
 	}
 }
