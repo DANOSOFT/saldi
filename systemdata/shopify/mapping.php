@@ -65,36 +65,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$shopFound) {
 		try {
 			shopify_locations_request($shop);
 			shopify_admin_redirect($self, 'shopify.admin.mapping.fetch_queued|Lokationerne hentes fra Shopify. Genindlæs siden om et øjeblik.');
-		} catch (ShopifyConfigError | ShopifyDbError | ShopifySchemaError $e) {
-			$errors['form'] = 'shopify.admin.error.save|Ændringen kunne ikke gemmes. Prøv igen.';
+		} catch (ShopifyConfigError | ShopifyDbError | ShopifySchemaError | ShopifyQueueError $e) {
+			// the fetch the user asked for did not happen: say so, and save nothing from the same form
+			$errors['form'] = 'shopify.admin.mapping.error.fetch|Lokationerne kunne ikke hentes. Prøv igen.';
 		}
-	}
-	$posted = is_array($_POST['location'] ?? null) ? $_POST['location'] : array();
-	foreach ($lagre as $row) {
-		$value = $posted[$row['lager']] ?? '';
-		$chosen[$row['lager']] = is_string($value) ? trim($value) : '';
-	}
-	$errors = shopify_admin_validate_locations($chosen, $mapped, array_keys($names));
-	if (!$errors) {
-		try {
-			shopify_db_transaction(function () use ($chosen, $mapped, $shopId, $shop) {
-				$saved = 0;
-				foreach ($chosen as $lager => $gid) {
-					if ($gid !== '' && !isset($mapped[$lager])) {
-						shopify_save_map($shopId, $lager, $gid);
-						$saved++;
+	} else {
+		$posted = is_array($_POST['location'] ?? null) ? $_POST['location'] : array();
+		foreach ($lagre as $row) {
+			$value = $posted[$row['lager']] ?? '';
+			$chosen[$row['lager']] = is_string($value) ? trim($value) : '';
+		}
+		$errors = shopify_admin_validate_locations($chosen, $mapped, array_keys($names));
+		if (!$errors) {
+			try {
+				shopify_db_transaction(function () use ($chosen, $mapped, $shopId, $shop) {
+					$saved = 0;
+					foreach ($chosen as $lager => $gid) {
+						if ($gid !== '' && !isset($mapped[$lager])) {
+							shopify_save_map($shopId, $lager, $gid);
+							$saved++;
+						}
 					}
-				}
-				// as shopify_stock_remap_finish(): on a shop that already sends stock, the listed items are marked,
-				// so the new location gets its stock on the next push instead of at the next stock change
-				if ($saved && $shop['stock_capture_enabled'] === 't') {
-					$rows = shopify_db_rows('SELECT vare_id FROM shopify_product_links WHERE shop_id = $1 AND variant_id = 0 AND listed AND inventory_item_gid IS NOT NULL', array($shopId));
-					shopify_stock_mark($shop, array_map('intval', array_column($rows, 'vare_id')), (int)shopify_db_rows('SELECT txid_current() AS x')[0]['x']);
-				}
-			});
-			shopify_admin_redirect($self, 'shopify.admin.saved|Gemt.');
-		} catch (ShopifyConfigError | ShopifyDbError | ShopifySchemaError $e) {
-			$errors['form'] = 'shopify.admin.error.save|Ændringen kunne ikke gemmes. Prøv igen.';
+					// as shopify_stock_remap_finish(): on a shop that already sends stock, the listed items are marked,
+					// so the new location gets its stock on the next push instead of at the next stock change
+					if ($saved && $shop['stock_capture_enabled'] === 't') {
+						$rows = shopify_db_rows('SELECT vare_id FROM shopify_product_links WHERE shop_id = $1 AND variant_id = 0 AND listed AND inventory_item_gid IS NOT NULL', array($shopId));
+						shopify_stock_mark($shop, array_map('intval', array_column($rows, 'vare_id')), (int)shopify_db_rows('SELECT txid_current() AS x')[0]['x']);
+					}
+				});
+				shopify_admin_redirect($self, 'shopify.admin.saved|Gemt.');
+			} catch (ShopifyConfigError | ShopifyDbError | ShopifySchemaError | ShopifyQueueError $e) {
+				$errors['form'] = 'shopify.admin.error.save|Ændringen kunne ikke gemmes. Prøv igen.';
+			}
 		}
 	}
 }
