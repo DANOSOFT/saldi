@@ -120,6 +120,8 @@ if ($countQuery) {
 
 // Include gruppe (product group) in query for VAT-free check
 $levVarenrSelect = $leverandorJoin ? ", COALESCE(vl.lev_varenr, '') as lev_varenr" : ", '' as lev_varenr";
+// SST-1041 The supplier row's id, so a creditor order can take exactly the row that was picked.
+$levVarenrSelect .= $leverandorJoin ? ", COALESCE(vl.id, 0) as vare_lev_id" : ", 0 as vare_lev_id";
 $qtxt = "SELECT varer.id, varer.varenr, varer.beskrivelse, COALESCE(vv.variant_salgspris, varer.salgspris) AS salgspris, $levKostprisSelect AS kostpris, varer.enhed, varer.beholdning, varer.gruppe, vv.variant_stregkode AS vv_stregkode, vv.variant_text AS vv_variant_text $levVarenrSelect $levDetailsSelect
          FROM varer $variantJoin $leverandorJoin
          WHERE $baseWhere
@@ -143,6 +145,7 @@ if ($query) {
             'id' => $row['id'],
             'varenr' => trim($row['varenr']),
             'lev_varenr' => trim($row['lev_varenr']),
+            'vare_lev_id' => intval($row['vare_lev_id']),
             'beskrivelse' => trim(stripslashes($row['beskrivelse'])),
             'salgspris' => $salgspris,
             'kostpris' => floatval($row['kostpris']),
