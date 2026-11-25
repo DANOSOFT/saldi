@@ -24,6 +24,11 @@
 //                 The year card's save keeps that message whether its own primo reset or the carry-forward fails, and a nested caller never disarms its guard (Codex round 22).
 //                 A COMMIT the database refuses leaves it too, for the card and for the page check (Codex round 23).
 // 20261124 CL/MMR SST-1005 A page that declares its own genberegn() first (debitor/ordreliste.php) gets the year recalculated, and its order is left alone (Saul on PR #1109).
+// 20261125 CL/MMR SST-1005 CodeRabbit and Lui's pre-check on PR #1109: a rebuild reads the years' dates under its lock, and MySQL's GET_LOCK result is respected.
+//                 A year in an old state reaches its row before the state is saved, and the guard is armed before the waiting year is taken.
+//                 A transfer left for the next check keeps the block it did not reach, and a block committed meanwhile is never overwritten.
+//                 Two requests creating the block row both finish, and the alert reads the same on a LATIN9 regnskab.
+//                 A finally block ends the blocking transaction before it drains the connection that waits for it (CodeRabbit).
 
 declare(strict_types=1);
 
@@ -51,6 +56,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         $this->connection = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
         $GLOBALS['connection'] = $this->connection;
         $GLOBALS['db_type'] = 'postgres';
+        $GLOBALS['db_encode'] = 'UTF8';
         $GLOBALS['db_transaktion_depth'] = 0;
         // Only temporary tables are visible, so nothing outside this session can be changed.
         $this->sql('SET search_path TO pg_temp');
@@ -79,6 +85,11 @@ final class FollowingOpeningBalancesTest extends TestCase
 
         if (!function_exists('db_select')) {
             function db_select($sql, $location = '') {
+                // Lets a test answer a statement PostgreSQL does not know (MySQL's GET_LOCK) with one it does.
+                $rewrite = $GLOBALS['sst1005Rewrite'] ?? null;
+                if ($rewrite !== null) {
+                    $sql = $rewrite($sql);
+                }
                 // Lets a test send one statement without waiting for it, like another request that runs it.
                 $async = $GLOBALS['sst1005Async'] ?? null;
                 if ($async !== null && preg_match($async, $sql) === 1) {
@@ -113,10 +124,14 @@ final class FollowingOpeningBalancesTest extends TestCase
             function transaktion($sql) {
                 db_select($sql);
             }
-            /** The texts are not seeded here, so findtekst() gives the fallback after the '|'. */
+            /**
+             * The texts are not seeded here, so findtekst() gives the fallback after the '|', in the database encoding
+             * like includes/stdFunc/findTxt.php: ISO-8859-1 on a LATIN9 regnskab.
+             */
             function findtekst($textId, $languageId) {
                 $parts = explode('|', (string) $textId, 2);
-                return $parts[1] ?? $parts[0];
+                $text = $parts[1] ?? $parts[0];
+                return (($GLOBALS['db_encode'] ?? 'UTF8') !== 'UTF8') ? mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8') : $text;
             }
         }
         if ($this->name() === 'testAnUnexpectedErrorRollsTheCarryForwardBackAndIsReported' && !function_exists('recalculateLedgerYear')) {
@@ -537,7 +552,30 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertStringEndsWith(');</script>', $html);
         $literal = substr($html, strlen("<script type='text/javascript'>alert("), -strlen(');</script>'));
         self::assertSame(followingOpeningBalanceStopText($stop, 1), json_decode($literal));
-        self::assertStringContainsString('«æøå»', $html, 'Danish letters stay readable.');
+        self::assertStringContainsString('«æøå»', json_decode($literal), 'Danish letters stay readable.');
+        self::assertSame(1, preg_match('/^[\x20-\x7e]*$/', $html), 'Written as ASCII, so the page charset does not matter.');
+    }
+
+    /**
+     * Lui's pre-check: on a LATIN9 regnskab findtekst() and grupper.beskrivelse give ISO-8859 bytes, which json_encode()
+     * replaced with U+FFFD, so every æ, ø and å in the year card's alert came out as a replacement character.
+     */
+    public function testTheAlertScriptReadsTheSameOnALatin9Regnskab(): void
+    {
+        $this->sql("UPDATE grupper SET beskrivelse = 'År «æøå»' WHERE art = 'RA' AND kodenr = 10");
+        $this->sql("SET client_encoding TO 'LATIN9'");
+        $GLOBALS['db_encode'] = 'LATIN9';
+        $stop = $this->stop(['accounts' => range(2001, 2011)]);
+        $text = followingOpeningBalanceStopText($stop, 1);
+        self::assertStringContainsString("\xc5r \xab\xe6\xf8\xe5\xbb", $text, 'The text is in the database encoding, as the year list shows it.');
+        self::assertStringContainsString('2010 ...', $text, 'The account list ends in plain dots: LATIN9 has no ellipsis.');
+        self::assertStringNotContainsString("\xe2\x80\xa6", $text);
+        $html = followingOpeningBalanceAlertScript($stop, 1);
+        self::assertSame(1, preg_match('/^[\x20-\x7e]*$/', $html), 'Written as ASCII, so it reads the same on the ISO-8859-1 page.');
+        $alert = json_decode(substr($html, strlen("<script type='text/javascript'>alert("), -strlen(');</script>')));
+        self::assertSame(mb_convert_encoding($text, 'UTF-8', 'ISO-8859-15'), $alert);
+        self::assertStringContainsString('Primo i regnskabsåret År «æøå» er ikke opdateret automatisk.', $alert);
+        self::assertStringNotContainsString("\u{FFFD}", $alert);
     }
 
     public function testReversedOrBrokenFiscalYearRangesAreInvalid(): void
@@ -624,6 +662,32 @@ final class FollowingOpeningBalancesTest extends TestCase
         $other = TestDatabase::connect(TestDatabase::sqlFixture(static::class)->name());
         pg_query($other, "SET search_path TO $schema");
         return $other;
+    }
+
+    /**
+     * In a finally block: end every transaction that may block $waiter first, then drain $waiter's pending result, so
+     * a failed assertion cannot leave the drain waiting for a lock the test itself still holds (CodeRabbit on PR #1109).
+     * A busy connection is not touched until it is drained. On the normal path everything has committed and been
+     * drained already, and this does nothing.
+     */
+    private function releaseThenDrain(array $connections, $waiter): void
+    {
+        foreach ($connections as $connection) {
+            if ($connection !== $waiter) {
+                $this->rollbackOpenTransaction($connection);
+            }
+        }
+        while (pg_get_result($waiter)) {
+        }
+        $this->rollbackOpenTransaction($waiter);
+    }
+
+    private function rollbackOpenTransaction($connection): void
+    {
+        $status = pg_transaction_status($connection);
+        if ($status === PGSQL_TRANSACTION_INTRANS || $status === PGSQL_TRANSACTION_INERROR) {
+            pg_query($connection, 'ROLLBACK');
+        }
     }
 
     private function dropPrivateSchema(string $schema): void
@@ -893,8 +957,7 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertSame([1121.0, -1121.0], [$this->primo(10, 2000), $this->primo(10, 3000)], 'Both finished: the next check carried the journal\'s posting to year 10.');
         } finally {
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
-            while (pg_get_result($other)) {
-            }
+            $this->releaseThenDrain([$this->connection, $other], $other);
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
@@ -940,8 +1003,7 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertSame([1171.0, -1171.0], [$this->primo(11, 2000), $this->primo(11, 3000)], 'And year 10 with the journal\'s posting.');
         } finally {
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
-            while (pg_get_result($other)) {
-            }
+            $this->releaseThenDrain([$this->connection, $other], $other);
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
@@ -975,8 +1037,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         } finally {
             unset($GLOBALS['sst1005Hook']);
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
-            while (pg_get_result($other)) {
-            }
+            $this->releaseThenDrain([$this->connection, $other], $other);
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
@@ -1026,8 +1087,7 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertSame([1100.0, -1100.0], [$this->primo(10, 2000), $this->primo(10, 3000)], 'The card carried year 9 again with the new choice: 21 on 2100 now lands on 3000.');
         } finally {
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
-            while (pg_get_result($other)) {
-            }
+            $this->releaseThenDrain([$this->connection, $other], $other);
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
@@ -1071,8 +1131,7 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertFalse(pg_connection_busy($other));
             self::assertSame(1.0, $this->primo(10, 2000), 'It goes on once the card has committed.');
         } finally {
-            while (pg_get_result($other)) {
-            }
+            $this->releaseThenDrain([$this->connection, $other], $other);
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
@@ -1104,8 +1163,7 @@ final class FollowingOpeningBalancesTest extends TestCase
             pg_get_result($other);
         } finally {
             unset($GLOBALS['sst1005Hook']);
-            while (pg_get_result($other)) {
-            }
+            $this->releaseThenDrain([$this->connection, $other], $other);
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
@@ -1389,8 +1447,7 @@ final class FollowingOpeningBalancesTest extends TestCase
         } finally {
             unset($GLOBALS['sst1005Hook']);
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
-            while (pg_get_result($mine)) {
-            }
+            $this->releaseThenDrain([$this->connection, $other], $this->connection);
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
@@ -1420,8 +1477,7 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalancePending'"))['n']);
         } finally {
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
-            while (pg_get_result($mine)) {
-            }
+            $this->releaseThenDrain([$this->connection, $other], $this->connection);
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
@@ -1466,6 +1522,7 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertStringEndsWith('|0', $this->syncState());
         } finally {
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            $this->releaseThenDrain([$this->connection, $other], $this->connection);
             pg_close($other);
             $this->dropPrivateSchema($schema);
         }
@@ -1818,6 +1875,263 @@ final class FollowingOpeningBalancesTest extends TestCase
             if (is_dir($scratch)) {
                 exec('rm -rf ' . escapeshellarg($scratch));
             }
+        }
+    }
+
+    /**
+     * CodeRabbit on PR #1109: a rebuild read year 9's dates before it locked year 10. A card that shortened year 9 to
+     * May and carried it on in between was then overwritten with the June balance, because both reads of the inputs
+     * used the dates read at the start.
+     */
+    public function testARebuildCalculatesFromTheSourceYearsDatesAsTheyAreWhenItHasTheTargetYear(): void
+    {
+        // Year 9 ends in May 2024 once the rebuild has read the years: 20 on 2100 of 30 June is no longer year 9's.
+        $GLOBALS['sst1005Hook'] = ['after' => 'select kodenr, box1, box2, box3, box4, box10 from grupper', 'times' => 1, 'run' => function (): void {
+            $this->sql("UPDATE grupper SET box3 = '5' WHERE art = 'RA' AND kodenr = 9");
+        }];
+        $stop = 'unset';
+        self::assertSame([10, 11], updateFollowingOpeningBalances(9, $stop));
+        self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The dates changed after the first read.');
+        self::assertNull($stop);
+        self::assertSame([1100.0, -1100.0], [$this->primo(10, 2000), $this->primo(10, 3000)], 'Calculated with year 9 ending in May.');
+
+        // Changed back between the read the transfer is calculated from and the read that checks it: calculated again.
+        $GLOBALS['sst1005Hook'] = ['after' => "kodenr in ('9', '10')", 'times' => 1, 'run' => function (): void {
+            $this->sql("UPDATE grupper SET box3 = '6' WHERE art = 'RA' AND kodenr = 9");
+        }];
+        self::assertSame([10, 11], updateFollowingOpeningBalances(9, $stop));
+        self::assertArrayNotHasKey('sst1005Hook', $GLOBALS);
+        self::assertSame([1120.0, -1120.0], [$this->primo(10, 2000), $this->primo(10, 3000)], 'The June balance once June is year 9\'s again.');
+
+        // Dates that became invalid meanwhile stop the transfer before anything is written.
+        $GLOBALS['sst1005Hook'] = ['after' => 'select kodenr, box1, box2, box3, box4, box10 from grupper', 'times' => 1, 'run' => function (): void {
+            $this->sql("UPDATE grupper SET box3 = '13' WHERE art = 'RA' AND kodenr = 9");
+        }];
+        self::assertSame([], updateFollowingOpeningBalances(9, $stop));
+        self::assertSame($this->stop(['invalidDates' => [9]]), $stop);
+        self::assertSame(1120.0, $this->primo(10, 2000));
+    }
+
+    /**
+     * CodeRabbit and Lui's pre-check on PR #1109: on MySQL the result of GET_LOCK() was ignored, so a request that did
+     * not get the lock (0 = time-out, NULL = error) still created the row, and the lock was released before the caller's
+     * COMMIT. PostgreSQL does not know GET_LOCK, so the test answers it the way MySQL would.
+     */
+    public function testOnMysqlTheWaitingYearRowIsOnlyCreatedUnderTheLock(): void
+    {
+        $seen = [];
+        $answer = '0';
+        $GLOBALS['sst1005Rewrite'] = function (string $sql) use (&$seen, &$answer): string {
+            if (preg_match("/^SELECT (GET_LOCK|RELEASE_LOCK)\\(CONCAT\\('saldi:(\\w+):'/", $sql, $m) === 1) {
+                $seen[] = $m[1] . ' ' . $m[2];
+                return ($m[1] === 'GET_LOCK' && $m[2] === 'openingBalancePending') ? "SELECT $answer AS locked" : 'SELECT 1 AS locked';
+            }
+            return $sql === 'select version() as version' ? "select '10.11.14-MariaDB-0ubuntu0.24.04.1' as version" : $sql;
+        };
+        $GLOBALS['db_type'] = 'mysqli';
+        foreach (['0', 'NULL'] as $answer) {
+            $seen = [];
+            self::assertFalse(followingOpeningBalanceCreatePending(9), "GET_LOCK gave $answer.");
+            self::assertFalse(followingOpeningBalanceMarkPending(9));
+            self::assertNull($this->setting('openingBalancePending'), 'Nothing is written without the lock.');
+            self::assertNotContains('RELEASE_LOCK openingBalancePending', $seen, 'A lock that was not given is not released.');
+            // The first check saves no state either, so the next page starts again.
+            self::assertNull(checkFollowingOpeningBalances(11));
+            self::assertNull($this->setting('openingBalanceSync'));
+        }
+
+        $answer = '1';
+        $seen = [];
+        self::assertTrue(followingOpeningBalanceCreatePending(9));
+        self::assertSame('9', $this->setting('openingBalancePending'));
+        self::assertSame(['GET_LOCK openingBalancePending', 'RELEASE_LOCK openingBalancePending'], $seen, 'Outside a transaction it is released at once.');
+        // Inside a transaction the lock is kept until the request ends, so it outlives the caller's COMMIT.
+        $this->sql("DELETE FROM settings WHERE var_name = 'openingBalancePending'");
+        $seen = [];
+        $this->sql('BEGIN');
+        $GLOBALS['db_transaktion_depth'] = 1;
+        self::assertTrue(followingOpeningBalanceCreatePending(8));
+        $this->sql('COMMIT');
+        $GLOBALS['db_transaktion_depth'] = 0;
+        self::assertSame(['GET_LOCK openingBalancePending'], $seen);
+        self::assertSame('8', $this->setting('openingBalancePending'));
+
+        // A rebuild that has to leave a year waiting and cannot create the row throws, so its caller rolls it back.
+        $this->sql("DELETE FROM settings WHERE var_name = 'openingBalancePending'");
+        $answer = '0';
+        $schema = 'sst1005_mysql_lock_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            // A journal posting holds 2000 of year 10, so the rebuild (MariaDB 10.11 knows SKIP LOCKED) leaves year 9 waiting.
+            pg_query($other, 'BEGIN');
+            pg_query($other, 'UPDATE kontoplan SET saldo = saldo + 1 WHERE regnskabsaar = 10 AND kontonr = 2000');
+            $this->sql('BEGIN');
+            $GLOBALS['db_transaktion_depth'] = 1;
+            try {
+                updateFollowingOpeningBalances(9, $stop, $deferred);
+                self::fail('The year that could not be left waiting was dropped without a word.');
+            } catch (RuntimeException $e) {
+                self::assertStringContainsString('fiscal year 9 could not be left waiting', $e->getMessage());
+            }
+        } finally {
+            $GLOBALS['db_transaktion_depth'] = 0;
+            $this->releaseThenDrain([$this->connection, $other], $other);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    public function testSkipLockedIsUsedOnServersThatHaveIt(): void
+    {
+        self::assertTrue(followingOpeningBalanceSkipLocked(), 'PostgreSQL always.');
+        self::assertTrue(followingOpeningBalanceVersionSkipsLocked('8.0.36'));
+        self::assertTrue(followingOpeningBalanceVersionSkipsLocked('10.11.14-MariaDB-0ubuntu0.24.04.1'));
+        self::assertTrue(followingOpeningBalanceVersionSkipsLocked('10.6.0-MariaDB'));
+        self::assertFalse(followingOpeningBalanceVersionSkipsLocked('10.5.27-MariaDB'));
+        self::assertFalse(followingOpeningBalanceVersionSkipsLocked('8.0.0'));
+        self::assertFalse(followingOpeningBalanceVersionSkipsLocked('5.7.44-log'));
+        self::assertFalse(followingOpeningBalanceVersionSkipsLocked(''));
+    }
+
+    /**
+     * CodeRabbit on PR #1109: with an old state "lastId|8" and a row that already held 9, the first check saved the
+     * state without year 8 before it lowered the row, so a request that ended in between lost year 8.
+     */
+    public function testAYearWaitingInAnOldStateIsInItsRowBeforeTheStateIsSavedWithoutIt(): void
+    {
+        $maxId = (int) pg_fetch_assoc($this->sql('SELECT max(id) AS id FROM transaktioner'))['id'];
+        $this->sql("INSERT INTO settings (var_name, var_grp, var_value, user_id) VALUES ('openingBalanceSync', 'system', '$maxId|8', 0), ('openingBalancePending', 'system', '9', 0)");
+        $GLOBALS['sst1005Hook'] = ['after' => "/^update settings set var_value = '\\{.*' where var_name = 'openingBalanceSync'$/s", 'times' => 1, 'run' => function (): void {
+            throw new RuntimeException('test: the request ends right after the state is saved');
+        }];
+        try {
+            checkFollowingOpeningBalances(11);
+            self::fail('The request was meant to end.');
+        } catch (RuntimeException $e) {
+            self::assertSame('test: the request ends right after the state is saved', $e->getMessage());
+        }
+        self::assertSame(0, followingOpeningBalanceStateParts((string) $this->setting('openingBalanceSync'))['pendingYear'], 'The state without year 8 was saved.');
+        self::assertSame('8', $this->setting('openingBalancePending'), 'Year 8 was in its row before that.');
+    }
+
+    /**
+     * CodeRabbit on PR #1109: «Sæt aktivt» and the page check took the waiting year before the failure guard was armed,
+     * so a request that ended right after (a time-out in the lookups) lost the work without a message.
+     */
+    public function testARequestThatEndsRightAfterTakingTheWaitingYearLeavesTheFailedMessage(): void
+    {
+        $log = tempnam(sys_get_temp_dir(), 'sst1005');
+        ini_set('error_log', $log);
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(9);
+        $GLOBALS['sst1005Hook'] = ['after' => "update settings set var_value = '0' where var_name = 'openingBalancePending'", 'times' => 1, 'run' => function (): void {
+            // The request ends here: PHP runs the shutdown functions.
+            followingOpeningBalanceFailureOnShutdown();
+            throw new RuntimeException('test: the request ended');
+        }];
+        try {
+            syncFollowingOpeningBalances(9);
+            self::fail('The request was meant to end.');
+        } catch (RuntimeException $e) {
+            self::assertSame('test: the request ended', $e->getMessage());
+        }
+        self::assertSame('0', $this->setting('openingBalancePending'), 'The year was taken.');
+        self::assertSame($this->stop(['failed' => true]), followingOpeningBalanceStop(), 'The message asks for Gem/opdatér, so the work is not lost unseen.');
+        self::assertStringContainsString('the request ended during the rebuild', (string) file_get_contents($log));
+        unlink($log);
+    }
+
+    /**
+     * CodeRabbit on PR #1109: a rebuild that left a transfer for the next check (another transaction held the target
+     * year) cleared a stored block it never reached, on «Sæt aktivt», the page check and the year card alike.
+     */
+    public function testARebuildThatLeavesATransferForTheNextCheckKeepsTheBlockItDidNotReach(): void
+    {
+        $this->postInYear9(2500, 7.5);
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 10 AND kontonr = 2500');
+        $expected = $this->stop(['accounts' => [2500]]);
+        self::assertSame($expected, syncFollowingOpeningBalances(9));
+        $schema = 'sst1005_deferred_stop_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            // A journal posting in year 10 holds 2000 of year 10.
+            pg_query($other, 'BEGIN');
+            pg_query($other, 'UPDATE kontoplan SET saldo = saldo + 1 WHERE regnskabsaar = 10 AND kontonr = 2000');
+            self::assertNull(syncFollowingOpeningBalances(9), 'Year 9 is left for the next check.');
+            self::assertSame($expected, followingOpeningBalanceStop(), 'The block it did not reach stays.');
+            self::assertSame('9', $this->setting('openingBalancePending'));
+            // The card on year 9 carries year 8 into it and then reaches year 10 the same way.
+            $this->sql('BEGIN');
+            $before = followingOpeningBalancePrimo(9, true);
+            self::assertNull(updateOpeningBalancesAfterYearSave(9, $before));
+            $this->sql('COMMIT');
+            self::assertSame($expected, followingOpeningBalanceStop(), 'The card keeps it too.');
+            pg_query($other, 'ROLLBACK');
+            self::assertSame($expected, syncFollowingOpeningBalances(9), 'Once year 10 is free, the rebuild reaches the block again.');
+        } finally {
+            $this->releaseThenDrain([$this->connection, $other], $other);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /**
+     * CodeRabbit on PR #1109: a rebuild from year 10 read the stored block 10→11 without a lock and then cleared it by
+     * name, so a block 9→10 that another rebuild committed in between was overwritten without a message.
+     */
+    public function testABlockAnotherRebuildCommitsWhileTheStopIsCheckedIsKept(): void
+    {
+        $schema = 'sst1005_stop_lock_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            saveFollowingOpeningBalanceStop($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'accounts' => [2500]]), 10);
+            $blocked = $this->stop(['accounts' => [2500]]);
+            // Rebuild B from year 9 (other connection) commits its block right after rebuild A has read the stored one.
+            $GLOBALS['sst1005Hook'] = ['after' => "select var_value from settings where var_name = 'openingBalanceStop'", 'times' => 1, 'run' => function () use ($other, $blocked): void {
+                pg_send_query($other, "UPDATE settings SET var_value = '" . pg_escape_string($other, json_encode($blocked)) . "' WHERE var_name = 'openingBalanceStop'");
+                for ($i = 0; $i < 20 && pg_connection_busy($other); $i++) {
+                    usleep(50000);
+                }
+            }];
+            // Rebuild A from year 10 got through, so it clears the block 10→11.
+            $this->sql('BEGIN');
+            saveFollowingOpeningBalanceStop(null, 10);
+            $this->sql('COMMIT');
+            pg_get_result($other);
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'B committed between A\'s check and its clear.');
+            self::assertSame($blocked, followingOpeningBalanceStop(), 'B\'s block is kept: it waited for A instead of being overwritten.');
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $this->releaseThenDrain([$this->connection, $other], $other);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /**
+     * Lui's pre-check on PR #1109: with settings_key_unique (includes/settings/uniqueIndex.php), two requests that both
+     * found the block row missing made the second INSERT fail, which ends that request and rolls back a card save.
+     */
+    public function testTwoRequestsCreatingTheBlockRowAtOnceBothFinish(): void
+    {
+        $schema = 'sst1005_unique_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $this->sql("CREATE UNIQUE INDEX settings_key_unique ON settings (coalesce(var_grp, ''), var_name, coalesce(user_id, 0))");
+            // Another rebuild creates the row and commits right after this one found it missing.
+            $GLOBALS['sst1005Hook'] = ['after' => "select id from settings where var_name = 'openingBalanceStop'", 'times' => 1, 'run' => function () use ($other): void {
+                pg_query($other, "INSERT INTO settings (var_name, var_grp, var_value, var_description, user_id) VALUES ('openingBalanceStop', 'system', '', 'other request', 0)");
+            }];
+            $stop = $this->stop(['accounts' => [2500]]);
+            saveFollowingOpeningBalanceStop($stop, 9);
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The other row appeared in between.');
+            self::assertSame($stop, followingOpeningBalanceStop(), 'This INSERT gave way and the block was written into the other row.');
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalanceStop'"))['n']);
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $this->releaseThenDrain([$this->connection, $other], $other);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
         }
     }
 

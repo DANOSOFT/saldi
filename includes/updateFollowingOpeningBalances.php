@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/updateFollowingOpeningBalances.php --- ver 5.1.1 --- 2026.11.24 ---
+// --- includes/updateFollowingOpeningBalances.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -59,6 +59,14 @@
 // 20261120 CL/MMR  SST-1005: A COMMIT the database refuses is reported like any failed statement, and the guard is only disarmed after a confirmed commit (Codex round 23).
 // 20261124 CL/MMR  SST-1005: The rebuild recalculates a year with recalculateLedgerYear() (includes/ledgerYearRecalculation.php), not genberegn(): debitor/ordreliste.php declares its own genberegn($id), so the page check there recalculated an order instead of the year (Saul on PR #1109).
 //                  Only that side-effect-free file is included, not includes/genberegn.php, whose ?regnskabsaar= block would run a full recalculation and include online.php again on a page with that parameter.
+// 20261125 CL/MMR  SST-1005: A transfer reads both years' dates again after the target year is locked and compares them with its other inputs, so a card that changed them meanwhile is calculated from (CodeRabbit).
+//                  On MySQL the row for a waiting year is only created when GET_LOCK gives the lock, held until the request ends inside a transaction; otherwise nothing is saved and the work is done again (CodeRabbit, Lui's pre-check).
+//                  A year waiting in an old state is lowered into its row before the state is saved without it, also when the row exists (CodeRabbit).
+//                  «Sæt aktivt» and the page check arm the failure guard before they take the waiting year (CodeRabbit).
+//                  A rebuild that leaves a transfer for the next check keeps a stored block at or after it, and the block is read with its row locked and replaced in the same transaction (CodeRabbit).
+//                  A setting of this feature is created with ON CONFLICT DO NOTHING on PostgreSQL, so two requests creating it at once no longer end one of them (Lui's pre-check).
+//                  The alert text is converted to UTF-8 on a LATIN9 regnskab and written as ASCII, and the account list ends in plain dots (Lui's pre-check).
+//                  MySQL 8 and MariaDB 10.6 lock a target year without waiting, like PostgreSQL (Lui's pre-check).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -120,14 +128,10 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null, &$deferredYe
 		$blocked = followingOpeningBalanceStopShape($sourceYear, $targetYear);
 		// The source year's dates select its postings and recalculateLedgerYear() reads the target year's dates,
 		// so both are checked before anything is written; a target year is never left half rebuilt.
-		$sourceRange = followingOpeningBalanceYearRange($source);
-		if (!$sourceRange) $blocked['invalidDates'][] = $sourceYear;
-		if (!followingOpeningBalanceYearRange($target)) $blocked['invalidDates'][] = $targetYear;
-		if ($blocked['invalidDates']) {
+		if (followingOpeningBalanceInvalidDates($blocked, followingOpeningBalanceYearRange($source), followingOpeningBalanceYearRange($target))) {
 			$stop = $blocked;
 			break;
 		}
-		list($start, $end) = $sourceRange;
 		// Every attempt of this transfer is undone together when a later attempt turns out to be blocked.
 		$savepoint = followingOpeningBalancesInTransaction();
 		if ($savepoint) {
@@ -146,12 +150,16 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null, &$deferredYe
 			if (!$pendingYear) $pendingYear = $sourceYear;
 			break;
 		}
-		$inputs = followingOpeningBalanceInputs($sourceYear, $targetYear, $start, $end);
+		// The years' dates are read again here, after the target year is locked, and are part of the inputs: a card
+		// that changed the source year's dates and carried it on before this lock is calculated from (CodeRabbit).
+		$inputs = followingOpeningBalanceInputs($sourceYear, $targetYear);
 		for ($attempt = 1; ; $attempt++) {
 			$blocked = followingOpeningBalanceStopShape($sourceYear, $targetYear);
-			$opening = followingOpeningBalanceTransfer($inputs, $blocked);
+			$invalid = followingOpeningBalanceInvalidDates($blocked, $inputs['sourceRange'], $inputs['targetRange']);
+			$opening = $invalid ? null : followingOpeningBalanceTransfer($inputs, $blocked);
 			if ($opening === null) {
-				// A balance has no account to land on in the target year, so leave it and later years untouched.
+				// A balance has no account to land on in the target year, or a year's dates became invalid meanwhile,
+				// so leave it and later years untouched.
 				if ($savepoint) {
 					db_modify('rollback to savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
 					db_modify('release savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
@@ -163,11 +171,12 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null, &$deferredYe
 				$amount = (float)afrund($amount, 2);
 				db_modify("update kontoplan set primo = '$amount' where regnskabsaar = '$targetYear' and kontonr = '$account' and kontotype = 'S'", __FILE__ . ' line ' . __LINE__);
 			}
-			// A posting or another rebuild may have changed the source year since its inputs were read, even back to
-			// how it was. If the inputs read now are the very ones this result was calculated from, it is current:
-			// the target rows are locked, so whoever changes the source year from now on carries it forward after
-			// this commits (or the next check does). Otherwise calculate again from what was just read.
-			$current = followingOpeningBalanceInputs($sourceYear, $targetYear, $start, $end);
+			// A posting, another rebuild or a year card may have changed the source year or its dates since the inputs
+			// were read, even back to how they were. If the inputs read now are the very ones this result was
+			// calculated from, it is current: the target rows are locked, so whoever changes the source year from now
+			// on carries it forward after this commits (or the next check does). Otherwise calculate again from what
+			// was just read, with the dates read now.
+			$current = followingOpeningBalanceInputs($sourceYear, $targetYear);
 			if ($current === $inputs) {
 				break;
 			}
@@ -187,11 +196,27 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null, &$deferredYe
 		recalculateLedgerYear($targetYear, false);
 		$updated[] = $targetYear;
 	}
-	if ($pendingYear) {
-		// The settings row comes after every kontoplan row, the order the callers take it in too.
-		followingOpeningBalanceMarkPending($pendingYear);
+	if ($pendingYear && !followingOpeningBalanceMarkPending($pendingYear)) {
+		// The settings row comes after every kontoplan row, the order the callers take it in too. A year that cannot be
+		// left waiting (MySQL: the lock for creating the row was not given) must not be lost: the caller rolls back and
+		// the same work is done again (CodeRabbit). Only possible before the tenant's very first check created the row.
+		throw new RuntimeException('SST-1005: fiscal year ' . $pendingYear . ' could not be left waiting for its later years');
 	}
 	return $updated;
+}
+
+/**
+ * Note in $blocked which of the two years of a transfer has no valid start and end month.
+ *
+ * @param array $blocked The stop shape for this transition; invalidDates is filled in.
+ * @param array|null $sourceRange followingOpeningBalanceYearRange() of the source year.
+ * @param array|null $targetRange followingOpeningBalanceYearRange() of the target year.
+ * @return bool True when either year's dates are invalid, so nothing of the transfer may be written.
+ */
+function followingOpeningBalanceInvalidDates(&$blocked, $sourceRange, $targetRange) {
+	if (!$sourceRange) $blocked['invalidDates'][] = $blocked['sourceYear'];
+	if (!$targetRange) $blocked['invalidDates'][] = $blocked['targetYear'];
+	return (bool)$blocked['invalidDates'];
 }
 
 /**
@@ -265,20 +290,21 @@ function followingOpeningBalanceTransfer($inputs, &$blocked) {
  * Called after the rebuild's last kontoplan write; the settings rows always come last.
  *
  * @param int $year Fiscal year (kodenr).
- * @return void
+ * @return bool True when the year is left waiting (or nothing was asked); false only when the row had to be created
+ *   and the lock for that was not given (see followingOpeningBalanceCreatePending()), so the caller must not go on as
+ *   if the year were registered.
  */
 function followingOpeningBalanceMarkPending($year) {
 	global $db_type;
 	$year = (int)$year;
 	if ($year < 1) {
-		return;
+		return true;
 	}
 	if (followingOpeningBalancePending() === null) {
 		// No row visible: it does not exist, or another request created it and has not committed. Under the lock in
 		// followingOpeningBalanceCreatePending() the row is read again and this year inserted or lowered into it, so a
 		// row that appears between a read and a write here can never skip this year (Codex round 14).
-		followingOpeningBalanceCreatePending($year);
-		return;
+		return followingOpeningBalanceCreatePending($year);
 	}
 	// The row is committed and visible, so this statement finds it (no row is ever deleted).
 	$type = ($db_type === 'mysql' || $db_type === 'mysqli') ? 'signed' : 'integer';
@@ -286,6 +312,7 @@ function followingOpeningBalanceMarkPending($year) {
 	$qtxt = "update settings set var_value = case when $current = 0 or $current > $year then '$year' else var_value end ";
 	$qtxt.= "where var_name = 'openingBalancePending'";
 	db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
+	return true;
 }
 
 /**
@@ -296,10 +323,14 @@ function followingOpeningBalanceMarkPending($year) {
  * - outside one (the first check, followingOpeningBalanceInitialize()) it is a session lock released right after.
  * Whoever waits for the lock holds nothing else of this feature: a rebuild only gets here after its last kontoplan
  * write, and the first check runs in autocommit. MySQL has no transaction-level advisory lock; there GET_LOCK is taken
- * and released around the insert (best effort, documented).
+ * and only used when MySQL gives it (1; 0 is a time-out, NULL an error). Inside a transaction it is kept until the
+ * request ends and the connection closes, after the caller's COMMIT, so a first check waits for the row as on
+ * PostgreSQL (Lui's pre-check); outside one it is released right after. A MySQL transaction in repeatable read may
+ * still not see a row committed after its snapshot (best effort, documented).
  *
  * @param int $year Fiscal year to leave waiting, or 0 to only create the row.
- * @return void
+ * @return bool True when the row was created or lowered; false when MySQL did not give the lock within 10 seconds,
+ *   and then nothing was read or written (CodeRabbit).
  */
 function followingOpeningBalanceCreatePending($year) {
 	global $db_type;
@@ -307,7 +338,11 @@ function followingOpeningBalanceCreatePending($year) {
 	$mysql = ($db_type === 'mysql' || $db_type === 'mysqli');
 	$transaction = followingOpeningBalancesInTransaction();
 	if ($mysql) {
-		db_select("SELECT GET_LOCK(CONCAT('saldi:openingBalancePending:', MD5(DATABASE())), 10) AS locked", __FILE__ . ' line ' . __LINE__);
+		// GET_LOCK names are server-wide, so the database is part of the name; MD5 only shortens it, it secures nothing.
+		$r = db_fetch_array(db_select("SELECT GET_LOCK(CONCAT('saldi:openingBalancePending:', MD5(DATABASE())), 10) AS locked", __FILE__ . ' line ' . __LINE__));
+		if (!$r || (string)$r['locked'] !== '1') {
+			return false;
+		}
 	} elseif ($transaction) {
 		db_select("SELECT pg_advisory_xact_lock(hashtext('openingBalancePending'), 1005)", __FILE__ . ' line ' . __LINE__);
 	} else {
@@ -325,12 +360,13 @@ function followingOpeningBalanceCreatePending($year) {
 			followingOpeningBalanceMarkPending($year);
 		}
 	} finally {
-		if ($mysql) {
+		if ($mysql && !$transaction) {
 			db_select("SELECT RELEASE_LOCK(CONCAT('saldi:openingBalancePending:', MD5(DATABASE()))) AS locked", __FILE__ . ' line ' . __LINE__);
-		} elseif (!$transaction) {
+		} elseif (!$mysql && !$transaction) {
 			db_select("SELECT pg_advisory_unlock(hashtext('openingBalancePending'), 1005)", __FILE__ . ' line ' . __LINE__);
 		}
 	}
+	return true;
 }
 
 /**
@@ -364,39 +400,49 @@ function followingOpeningBalanceTakePending() {
 }
 
 /**
- * Everything a transfer from $sourceYear to $targetYear is calculated from: the status accounts of the target year,
- * the source year's movement per account (each posting rounded to øre, as in fiscalYearInc/yearX.php) and every
- * status, result and Sideskift account of the source year with its type, opening balance and «Overfør til».
+ * Everything a transfer from $sourceYear to $targetYear is calculated from: the first and last date of both years,
+ * the status accounts of the target year, the source year's movement per account (each posting rounded to øre, as in
+ * fiscalYearInc/yearX.php) and every status, result and Sideskift account of the source year with its type, opening
+ * balance and «Overfør til».
  * updateFollowingOpeningBalances() calculates a transfer from one read and compares it with a read made after the
  * transfer is written. Because it compares the very inputs the result came from, a change that is undone while the
  * transfer is calculated is noticed too, and so is an amount moved from one account to another without changing
- * any total. Two reads of the same data are identical (===).
+ * any total, and a year card that changed the source year's dates (CodeRabbit). Two reads of the same data are
+ * identical (===).
  * On PostgreSQL (read committed) the second read sees what other transactions committed meanwhile; a MySQL
  * transaction in its default repeatable read keeps seeing its own snapshot, so there the check finds nothing new.
  *
  * @param int $sourceYear Fiscal year (kontoplan.regnskabsaar) carried from.
  * @param int $targetYear Fiscal year carried into.
- * @param string $start First date of the source year ('Y-m-d').
- * @param string $end Last date of the source year ('Y-m-d').
  * @return array{
+ *   sourceRange: array{0: string, 1: string}|null, First and last date of the source year, null when invalid
+ *                                          (see followingOpeningBalanceYearRange()); then no movement is read.
+ *   targetRange: array{0: string, 1: string}|null, The same for the target year, whose dates recalculateLedgerYear() reads.
  *   targetAccounts: int[],                 Status accounts of the target year, in account order.
  *   movement: array<int, float>,           Source year movement per account in account order, in øre.
  *   sourceAccounts: array<int, array{kontonr: int, kontotype: string, primo: string, overfor_til: string|null}>,
  * }
  */
-function followingOpeningBalanceInputs($sourceYear, $targetYear, $start, $end) {
+function followingOpeningBalanceInputs($sourceYear, $targetYear) {
 	$sourceYear = (int)$sourceYear;
 	$targetYear = (int)$targetYear;
-	$inputs = array('targetAccounts' => array(), 'movement' => array(), 'sourceAccounts' => array());
+	$inputs = array('sourceRange' => null, 'targetRange' => null, 'targetAccounts' => array(), 'movement' => array(), 'sourceAccounts' => array());
+	$q = db_select("select kodenr, box1, box2, box3, box4 from grupper where art = 'RA' and kodenr in ('$sourceYear', '$targetYear')", __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$inputs[(int)$row['kodenr'] === $sourceYear ? 'sourceRange' : 'targetRange'] = followingOpeningBalanceYearRange($row);
+	}
 	$q = db_select("select kontonr from kontoplan where regnskabsaar = '$targetYear' and kontotype = 'S' order by kontonr", __FILE__ . ' line ' . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$inputs['targetAccounts'][] = (int)$row['kontonr'];
 	}
-	$q = db_select("select kontonr, debet, kredit from transaktioner where transdate >= '$start' and transdate <= '$end'", __FILE__ . ' line ' . __LINE__);
-	while ($row = db_fetch_array($q)) {
-		$account = (int)$row['kontonr'];
-		if (!isset($inputs['movement'][$account])) $inputs['movement'][$account] = 0;
-		$inputs['movement'][$account] += afrund($row['debet'] - $row['kredit'], 2);
+	if ($inputs['sourceRange']) {
+		list($start, $end) = $inputs['sourceRange'];
+		$q = db_select("select kontonr, debet, kredit from transaktioner where transdate >= '$start' and transdate <= '$end'", __FILE__ . ' line ' . __LINE__);
+		while ($row = db_fetch_array($q)) {
+			$account = (int)$row['kontonr'];
+			if (!isset($inputs['movement'][$account])) $inputs['movement'][$account] = 0;
+			$inputs['movement'][$account] += afrund($row['debet'] - $row['kredit'], 2);
+		}
 	}
 	// Every posting is rounded to øre, so the sum is a whole number of øre; rounding it once more only drops the
 	// floating point noise of the order the rows came in, so two reads of the same postings compare equal.
@@ -427,7 +473,8 @@ function followingOpeningBalanceInputs($sourceYear, $targetYear, $start, $end) {
  * is undone at once and tried again shortly. While the rebuild holds the whole year, recalculateLedgerYear() and the writes need
  * no further row of it, so the rebuild itself never waits for a kontoplan row.
  * Outside a transaction a lock would end with the statement, so nothing is locked and true is returned, as before.
- * MySQL keeps the plain lock, because SKIP LOCKED needs MySQL 8 / MariaDB 10.6.
+ * MySQL 8 and MariaDB 10.6 have SKIP LOCKED too and lock the same way (Lui's pre-check); an older MySQL server keeps
+ * the plain lock that waits, and its deadlock detection then rolls one transaction back.
  *
  * @param int $year Fiscal year (kontoplan.regnskabsaar).
  * @param int $attempts How many times to try; between tries the rebuild sleeps 0.1 second.
@@ -440,7 +487,7 @@ function followingOpeningBalanceTryLockYear($year, $attempts = 30) {
 	if (!followingOpeningBalancesInTransaction()) {
 		return true;
 	}
-	if ($db_type === 'mysql' || $db_type === 'mysqli') {
+	if (($db_type === 'mysql' || $db_type === 'mysqli') && !followingOpeningBalanceSkipLocked()) {
 		db_select("select id from kontoplan where regnskabsaar = '$year' for update", __FILE__ . ' line ' . __LINE__);
 		return true;
 	}
@@ -465,6 +512,38 @@ function followingOpeningBalanceTryLockYear($year, $attempts = 30) {
 		}
 	}
 	return false;
+}
+
+/**
+ * Whether the database server knows SELECT ... FOR UPDATE SKIP LOCKED: PostgreSQL always (9.5 and later), MySQL from
+ * 8.0.1 and MariaDB from 10.6. Asked once per request.
+ *
+ * @return bool True when followingOpeningBalanceTryLockYear() can lock without waiting.
+ */
+function followingOpeningBalanceSkipLocked() {
+	global $db_type;
+	static $supported = null;
+	if ($db_type !== 'mysql' && $db_type !== 'mysqli') {
+		return true;
+	}
+	if ($supported === null) {
+		$r = db_fetch_array(db_select("select version() as version", __FILE__ . ' line ' . __LINE__));
+		$supported = followingOpeningBalanceVersionSkipsLocked($r ? (string)$r['version'] : '');
+	}
+	return $supported;
+}
+
+/**
+ * Whether a MySQL or MariaDB server of this version() knows SKIP LOCKED.
+ *
+ * @param string $version version(), e.g. '8.0.36' or '10.11.14-MariaDB-0ubuntu0.24.04.1'.
+ * @return bool True for MySQL 8.0.1 or later and MariaDB 10.6 or later.
+ */
+function followingOpeningBalanceVersionSkipsLocked($version) {
+	if (!preg_match('/^(\d+\.\d+\.\d+)/', (string)$version, $m)) {
+		return false;
+	}
+	return stripos((string)$version, 'mariadb') !== false ? version_compare($m[1], '10.6.0', '>=') : version_compare($m[1], '8.0.1', '>=');
 }
 
 /**
@@ -577,8 +656,11 @@ function checkFollowingOpeningBalances($activeYear) {
 		$changed = true;
 	}
 	if ($found) {
-		// Registered before the watermark and fingerprint that cover it are saved, and only ever lowering the row.
-		followingOpeningBalanceMarkPending($found);
+		// Registered before the watermark and fingerprint that cover it are saved, and only ever lowering the row. When
+		// it cannot be registered (MySQL lock not given), neither is saved, so the next page finds it again.
+		if (!followingOpeningBalanceMarkPending($found)) {
+			return null;
+		}
 		$pending = (int)followingOpeningBalancePending();
 	}
 	if ($changed) {
@@ -628,7 +710,8 @@ function followingOpeningBalanceFirstLiveYear($year) {
  * @return array|null array{0: array, 1: int, 2: bool}: the state to continue from (see
  *   followingOpeningBalanceStateParts()), max(id) read now and whether the state still has to be saved (also after
  *   storing the very first state, so a year already left waiting is rebuilt); or null when another check is starting
- *   right now (the next page continues). The 'openingBalancePending' row is created here when it is missing.
+ *   right now or MySQL did not give the lock for creating the 'openingBalancePending' row (the next page continues).
+ *   That row is created here when it is missing.
  */
 function followingOpeningBalanceInitialize() {
 	if (!followingOpeningBalanceInitLock(true)) {
@@ -642,10 +725,19 @@ function followingOpeningBalanceInitialize() {
 		}
 		$row = db_fetch_array(db_select("select max(id) as max_id from transaktioner", __FILE__ . ' line ' . __LINE__));
 		$maxId = (int)$row['max_id'];
-		if (followingOpeningBalancePending() === null) {
-			// A state from an earlier test build kept the waiting year in its JSON; it moves to the row of its own. A
-			// request that left a year waiting meanwhile may create the row first; its year is kept (lowered at most).
-			followingOpeningBalanceCreatePending($state === null ? 0 : (int)$state['pendingYear']);
+		// A state from an earlier test build kept the waiting year in its JSON; it moves to the row of its own before
+		// any state without it is saved, also when the row exists already, so a request that ends in between cannot
+		// lose it (CodeRabbit). Lowering is safe to repeat. A request that left a year waiting meanwhile may create the
+		// row first; its year is kept (lowered at most).
+		$legacyYear = $state === null ? 0 : (int)$state['pendingYear'];
+		if ($legacyYear > 0) {
+			$registered = followingOpeningBalanceMarkPending($legacyYear);
+		} else {
+			$registered = followingOpeningBalancePending() !== null || followingOpeningBalanceCreatePending(0);
+		}
+		if (!$registered) {
+			// MySQL did not give the lock for creating the row: nothing is saved, and the next page tries again.
+			return null;
 		}
 		if ($state === null) {
 			$state = array('lastId' => $maxId, 'pendingYear' => 0, 'fingerprintAt' => time(), 'fingerprint' => $fingerprint);
@@ -701,6 +793,11 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		return null;
 	}
 	include_once(__DIR__ . '/std_func.php');
+	// The rebuild runs in a page request: a failed statement there ends the request (db_modify() shows the error box and
+	// exits), so the catch below never runs. The guard then rolls back and stores the same message on shutdown. It is
+	// armed before the waiting year is taken, so a request that ends between taking it and the rebuild (a time-out in
+	// the lookups below) still leaves the message instead of losing the work without a word (CodeRabbit).
+	$guarded = followingOpeningBalanceFailureGuard($fromYear > 0 ? $fromYear : $year, $fromYear > 0 ? $fromYear : $year);
 	// Taken before the rebuild, so a failing rebuild is not retried on every page. A year registered after this is
 	// left for the next check.
 	$pending = followingOpeningBalanceTakePending();
@@ -710,16 +807,19 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	$checkedFrom = $fromYear;
 	// A deleted year cannot be carried from; the first year after it carries its own opening balances on.
 	$fromYear = followingOpeningBalanceFirstLiveYear($fromYear);
+	if ($guarded) {
+		// Now the years are known, the message the guard would store names them.
+		followingOpeningBalanceFailureGuard(null);
+		followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
+	}
 	$stop = null;
-	// The rebuild runs in a page request: a failed statement there ends the request (db_modify() shows the error box and
-	// exits), so the catch below never runs. The guard then rolls back and stores the same message on shutdown.
-	$guarded = followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
+	$deferredYear = 0;
 	transaktion('begin');
 	try {
 		if ($year > 0) {
-			carryFollowingOpeningBalances($year, $fromYear, $stop);
+			carryFollowingOpeningBalances($year, $fromYear, $stop, $deferredYear);
 		} else {
-			updateFollowingOpeningBalances($fromYear, $stop);
+			updateFollowingOpeningBalances($fromYear, $stop, $deferredYear);
 		}
 	} catch (Throwable $e) {
 		// Nothing of the rebuild is kept, and the stored message tells the user to retry with Gem/opdatér.
@@ -731,7 +831,8 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		if ($guarded) followingOpeningBalanceFailureGuard(null);
 		return $stop;
 	}
-	saveFollowingOpeningBalanceStop($stop, $checkedFrom);
+	// A transfer left for the next check did not reach a blocked transition stored at or after it, so that stays.
+	saveFollowingOpeningBalanceStop($stop, $checkedFrom, $deferredYear);
 	if (followingOpeningBalanceCommit() && $guarded) followingOpeningBalanceFailureGuard(null);
 	return $stop;
 }
@@ -828,15 +929,17 @@ function followingOpeningBalanceFailureOnShutdown() {
  * @param int $year The year being saved or activated.
  * @param int $fromYear In: where to start. Out: $year when the rebuild had to start there.
  * @param array|null $stop Receives the block, see updateFollowingOpeningBalances().
+ * @param int $deferredYear Receives 0, or the source year whose transfer was left for a later check (see
+ *   updateFollowingOpeningBalances()); a stored block at or after it was not reached and must stay.
  * @return int[] Fiscal year numbers whose opening balances were updated.
  */
-function carryFollowingOpeningBalances($year, &$fromYear, &$stop) {
+function carryFollowingOpeningBalances($year, &$fromYear, &$stop, &$deferredYear = null) {
 	$year = (int)$year;
 	$updated = updateFollowingOpeningBalances($fromYear, $stop, $deferredYear);
 	// A transfer left for the next check is not a missing year before $year, so $year is not carried from itself then.
 	if (!$stop && !$deferredYear && !in_array($year + 1, $updated, true)) {
 		$fromYear = $year;
-		$updated = array_merge($updated, updateFollowingOpeningBalances($year, $stop));
+		$updated = array_merge($updated, updateFollowingOpeningBalances($year, $stop, $deferredYear));
 	}
 	return $updated;
 }
@@ -861,18 +964,20 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	}
 	db_modify('savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
 	$stop = null;
+	$deferredYear = 0;
 	$fromYear = $year - 1;
 	$checkedFrom = $fromYear;
 	// A failed statement ends the request before the catch below (see followingOpeningBalanceFailureGuard()). The year
 	// card has armed it already for its whole save; then it stays the card's.
 	$guarded = followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
 	try {
-		carryFollowingOpeningBalances($year, $fromYear, $stop);
+		carryFollowingOpeningBalances($year, $fromYear, $stop, $deferredYear);
 	} catch (Throwable $e) {
 		db_modify('rollback to savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
 		error_log('SST-1005: opening balances after saving fiscal year ' . $year . ' not updated: ' . $e->getMessage());
 		$stop = followingOpeningBalanceStopShape($fromYear, $fromYear + 1);
 		$stop['failed'] = true;
+		$deferredYear = 0;
 	}
 	if ($stop && (int)$stop['sourceYear'] === $year - 1 && is_array($primoBeforeSave)) {
 		// The card has just reset and rewritten this year's opening balances; without a complete transfer they go back.
@@ -882,7 +987,8 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 		}
 	}
 	db_modify('release savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
-	saveFollowingOpeningBalanceStop($stop, $checkedFrom);
+	// A transfer left for the next check did not reach a blocked transition stored at or after it, so that stays (CodeRabbit).
+	saveFollowingOpeningBalanceStop($stop, $checkedFrom, $deferredYear);
 	$committed = $ownTransaction ? followingOpeningBalanceCommit() : true;
 	if ($guarded && $committed) followingOpeningBalanceFailureGuard(null);
 	return $stop;
@@ -919,15 +1025,24 @@ function followingOpeningBalancePrimo($year, $lock = false) {
 /**
  * A script tag that shows the message for a blocked rebuild in an alert. The text holds saved fiscal year
  * descriptions, so it is JSON-encoded with HTML-safe flags and cannot end the script element.
+ * The text is in the database encoding (findtekst(), grupper.beskrivelse); on a LATIN9 regnskab it is converted to
+ * UTF-8 first, as jsString() (includes/stdFunc/jsString.php) does, or json_encode() would replace every æ, ø and å
+ * (Lui's pre-check). Every letter outside ASCII is written as \uXXXX, so the script reads the same on a page in
+ * either charset.
  *
  * @param array $stop See updateFollowingOpeningBalances().
  * @param int $languageId sprog_id for findtekst().
- * @return string HTML.
+ * @return string HTML, ASCII only.
  */
 function followingOpeningBalanceAlertScript($stop, $languageId) {
+	global $db_encode;
+	$text = followingOpeningBalanceStopText($stop, $languageId);
+	if (!empty($db_encode) && $db_encode !== 'UTF8') {
+		$text = mb_convert_encoding($text, 'UTF-8', 'ISO-8859-15');
+	}
 	// JSON_HEX_TAG turns < and > into \u003C/\u003E, so the text can never contain </script>; slashes may stay plain.
-	$flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE;
-	return "<script type='text/javascript'>alert(" . json_encode(followingOpeningBalanceStopText($stop, $languageId), $flags) . ");</script>";
+	$flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE;
+	return "<script type='text/javascript'>alert(" . json_encode($text, $flags) . ");</script>";
 }
 
 /**
@@ -1045,31 +1160,50 @@ function saveFollowingOpeningBalanceState($state) {
 
 /**
  * Store or clear the transition that blocked a rebuild. A blocked transition before $fromYear was not
- * part of this rebuild and stays; one at or after it is replaced by this rebuild's outcome.
+ * part of this rebuild and stays; one at or after it is replaced by this rebuild's outcome, except that a rebuild
+ * that left a transfer for the next check did not reach a stored transition at or after that one, so it stays too.
+ * The stored transition is read with its row locked and replaced in the same transaction, so a block another rebuild
+ * commits for an earlier year between the read and the write is waited for and kept, never overwritten (CodeRabbit).
+ * Outside a transaction (after a rollback, on shutdown) the two run in a transaction of their own.
  *
  * @param array|null $stop The rebuild's outcome (see updateFollowingOpeningBalances()).
  * @param int $fromYear The fiscal year the rebuild started from.
+ * @param int $deferredYear The source year whose transfer was left for a later check, or 0.
  * @return void
  */
-function saveFollowingOpeningBalanceStop($stop, $fromYear) {
-	$stored = followingOpeningBalanceStop();
-	if ($stored && (int)$stored['sourceYear'] < (int)$fromYear) {
-		return;
-	}
-	if (!$stop && !$stored) {
-		return;
-	}
+function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0) {
 	$description = 'SST-1005: fiscal year transition whose opening balances could not be updated automatically';
-	saveFollowingOpeningBalanceSetting('openingBalanceStop', $stop ? json_encode($stop) : '', $description);
+	$ownTransaction = !followingOpeningBalancesInTransaction();
+	if ($ownTransaction) {
+		transaktion('begin');
+	}
+	// The row exists before it is locked: there is no row to lock while it does not. An empty value is no block.
+	followingOpeningBalanceInsertSetting('openingBalanceStop', '', $description);
+	$stored = followingOpeningBalanceStop(true);
+	$keep = !$stop && !$stored;
+	if ($stored && (int)$stored['sourceYear'] < (int)$fromYear) {
+		$keep = true;
+	}
+	if (!$stop && $stored && (int)$deferredYear > 0 && (int)$stored['sourceYear'] >= (int)$deferredYear) {
+		$keep = true;
+	}
+	if (!$keep) {
+		saveFollowingOpeningBalanceSetting('openingBalanceStop', $stop ? json_encode($stop) : '', $description);
+	}
+	if ($ownTransaction) {
+		transaktion('commit');
+	}
 }
 
 /**
  * The stored transition that blocked the last rebuild.
  *
+ * @param bool $lock Lock the row until the transaction ends (select ... for update); only inside a transaction.
  * @return array|null See updateFollowingOpeningBalances() for the shape, or null when nothing is blocked.
  */
-function followingOpeningBalanceStop() {
-	$r = db_fetch_array(db_select("select var_value from settings where var_name = 'openingBalanceStop' order by id limit 1", __FILE__ . ' line ' . __LINE__));
+function followingOpeningBalanceStop($lock = false) {
+	$qtxt = "select var_value from settings where var_name = 'openingBalanceStop' order by id limit 1" . ($lock ? ' for update' : '');
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . ' line ' . __LINE__));
 	if (!$r || !$r['var_value']) {
 		return null;
 	}
@@ -1078,7 +1212,7 @@ function followingOpeningBalanceStop() {
 }
 
 /**
- * Write a tenant setting of this feature (var_grp 'system').
+ * Write a tenant setting of this feature (var_grp 'system'), creating it with the value when it does not exist yet.
  *
  * @param string $name var_name.
  * @param string $value var_value.
@@ -1086,15 +1220,43 @@ function followingOpeningBalanceStop() {
  * @return void
  */
 function saveFollowingOpeningBalanceSetting($name, $value, $description) {
+	if (followingOpeningBalanceInsertSetting($name, $value, $description)) {
+		return;
+	}
 	$name = db_escape_string($name);
 	$value = db_escape_string($value);
-	if (db_fetch_array(db_select("select id from settings where var_name = '$name'", __FILE__ . ' line ' . __LINE__))) {
-		db_modify("update settings set var_value = '$value' where var_name = '$name'", __FILE__ . ' line ' . __LINE__);
-	} else {
-		$qtxt = "insert into settings (var_name, var_grp, var_value, var_description, user_id) values ";
-		$qtxt.= "('$name', 'system', '$value', '" . db_escape_string($description) . "', '0')";
-		db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
+	db_modify("update settings set var_value = '$value' where var_name = '$name'", __FILE__ . ' line ' . __LINE__);
+}
+
+/**
+ * Create a tenant setting of this feature with $value when it does not exist. On PostgreSQL the settings table has a
+ * unique index (settings_key_unique, includes/settings/uniqueIndex.php), so two requests that both found the row
+ * missing made the second INSERT fail, and that ended its request and rolled back a card save with it (Lui's
+ * pre-check). With ON CONFLICT DO NOTHING the second INSERT waits for the first and then leaves its row as it is, as
+ * update_settings_value() (includes/std_func.php) does. Nothing is lost that way: 'openingBalancePending' and
+ * 'openingBalanceSync' are only created under a lock (followingOpeningBalanceCreatePending(),
+ * followingOpeningBalanceInitialize()), and 'openingBalanceStop' is created empty and then written under its row lock
+ * (saveFollowingOpeningBalanceStop()). MySQL has no such index, so there it is the plain INSERT.
+ *
+ * @param string $name var_name.
+ * @param string $value var_value of a new row.
+ * @param string $description var_description of a new row.
+ * @return bool True when the row did not exist and was inserted now (or, on PostgreSQL, by another request at the
+ *   same moment); false when it existed already.
+ */
+function followingOpeningBalanceInsertSetting($name, $value, $description) {
+	global $db_type;
+	$name = db_escape_string($name);
+	if (db_fetch_array(db_select("select id from settings where var_name = '$name' order by id limit 1", __FILE__ . ' line ' . __LINE__))) {
+		return false;
 	}
+	$qtxt = "insert into settings (var_name, var_grp, var_value, var_description, user_id) values ";
+	$qtxt.= "('$name', 'system', '" . db_escape_string($value) . "', '" . db_escape_string($description) . "', '0')";
+	if ($db_type !== 'mysql' && $db_type !== 'mysqli') {
+		$qtxt.= " on conflict do nothing";
+	}
+	db_modify($qtxt, __FILE__ . ' line ' . __LINE__);
+	return true;
 }
 
 /**
@@ -1195,7 +1357,7 @@ function followingOpeningBalanceFingerprintChange($old, $new) {
  *
  * @param array $stop See updateFollowingOpeningBalances().
  * @param int $languageId sprog_id for findtekst().
- * @return string Plain text, not HTML-escaped.
+ * @return string Plain text in the database encoding, not HTML-escaped.
  */
 function followingOpeningBalanceStopText($stop, $languageId) {
 	$names = array();
@@ -1224,7 +1386,8 @@ function followingOpeningBalanceStopText($stop, $languageId) {
 	}
 	if (!empty($stop['accounts'])) {
 		$accounts = array_map('intval', $stop['accounts']);
-		$accountList = implode(', ', array_slice($accounts, 0, 10)) . (count($accounts) > 10 ? ' …' : '');
+		// Plain dots: the text is in the database encoding, and LATIN9 has no ellipsis character (Lui's pre-check).
+		$accountList = implode(', ', array_slice($accounts, 0, 10)) . (count($accounts) > 10 ? ' ...' : '');
 		$txt.= ' ' . sprintf(findtekst('8493|Saldoen på konto %s i %s har ingen konto at blive overført til i %s. Vælg en konto i «Overfør til», eller opret kontoen i %s.', $languageId), $accountList, $source, $target, $target);
 	}
 	if (!empty($stop['resultAccount'])) {
