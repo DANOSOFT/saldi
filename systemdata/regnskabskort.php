@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-20 --
+// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-25 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,7 @@
 //                 A year after a deleted year shows its opening balance read-only again (fiscalYearInc/yearX1.php), so its Debet/Kredit save is gone; the later years are still carried from it.
 // 20261120 CL/MMR SST-1005 A failed statement during the save, also in the card's own primo reset, leaves the message that asks for Gem/opdatér again (Codex round 22).
 // 20261120 CL/MMR SST-1005 A COMMIT the database refuses also leaves that message, and the card commits through followingOpeningBalanceCommit() (Codex round 23).
+// 20261125 CL/MMR SST-1005 The settings rows the carry-forward writes are created before the card's transaction begins, so MySQL never waits for their creation lock inside it (Codex round 31).
 @session_start();
 $s_id=session_id();
 
@@ -157,11 +158,13 @@ if ($_POST) {
 	$qtxt = "select id from grupper where kodenr = '$kodenr' and art = 'RA'";
 	if ((($id!=0)||(!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))) &&
 	(($startmd)&&($slutmd)&&($startdato)&&($slutdato)&&($startaar)&&($slutaar)&&($beskrivelse))) {
+		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+		// SST-1005: the settings rows the carry-forward writes exist before the transaction begins (Codex round 31).
+		followingOpeningBalancePrepareRows();
 		transaktion ("begin");
 		// SST-1005: the «Overfør til» choices that change on the year before are written first, so this card never
 		// holds its own year while it waits for a journal posting in the year before. Then this year's opening
 		// balances before the save, kept if the transfer into the year cannot be made.
-		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
 		// A failed statement anywhere in this save ends the request (db_modify() exits) and rolls all of it back; the
 		// guard then stores the message that tells the user to press Gem/opdatér again (Codex round 22).
 		$openingGuard = followingOpeningBalanceFailureGuard($kodenr - 1, $kodenr - 1);

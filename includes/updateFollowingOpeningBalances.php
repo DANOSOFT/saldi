@@ -69,6 +69,8 @@
 //                  MySQL 8 and MariaDB 10.6 lock a target year without waiting, like PostgreSQL (Lui's pre-check).
 // 20261125 CL/MMR  SST-1005: A setting of this feature is created under a lock named after it and with a current read, and clearing the block never creates its row, so MySQL never gets a second row of one (Codex round 28). The block row is locked and written by its id, as a locking statement by var_name locks every settings row it scans on MySQL.
 // 20261125 CL/MMR  SST-1005: On MySQL the lock for creating a setting is kept until the transaction that creates it ends, as under READ COMMITTED a second creator did not wait for the row (Codex round 29).
+// 20261125 CL/MMR  SST-1005: The waiting-year and block rows are created in autocommit before a rebuild, the year card or a stored block begins its transaction, and by the first check (Codex round 31).
+//                  Inside a transaction the MySQL creation lock is only tried, never awaited, so a request holding settings rows cannot wait in a circle with a creator.
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -343,7 +345,7 @@ function followingOpeningBalanceLowerPending($year) {
  * next creator only reads once this row is committed (Codex rounds 28-29).
  *
  * @param int $year Fiscal year to leave waiting, or 0 to only create the row.
- * @return bool True when the row was created or lowered; false when MySQL did not give the lock within 10 seconds,
+ * @return bool True when the row was created or lowered; false when MySQL did not give the lock (followingOpeningBalanceGetLock()),
  *   and then nothing was read or written (CodeRabbit).
  */
 function followingOpeningBalanceCreatePending($year) {
@@ -751,6 +753,8 @@ function followingOpeningBalanceInitialize() {
 			// MySQL did not give the lock for creating the row: nothing is saved, and the next page tries again.
 			return null;
 		}
+		// The block row too, here in autocommit, so a later transaction never has to create it (Codex round 31).
+		followingOpeningBalanceEnsureSetting('openingBalanceStop', '', 'SST-1005: fiscal year transition whose opening balances could not be updated automatically');
 		if ($state === null) {
 			$state = array('lastId' => $maxId, 'pendingYear' => 0, 'fingerprintAt' => time(), 'fingerprint' => $fingerprint);
 			saveFollowingOpeningBalanceState($state);
@@ -805,6 +809,8 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		return null;
 	}
 	include_once(__DIR__ . '/std_func.php');
+	// The rows it writes exist before its transaction begins (Codex round 31).
+	followingOpeningBalancePrepareRows();
 	// The rebuild runs in a page request: a failed statement there ends the request (db_modify() shows the error box and
 	// exits), so the catch below never runs. The guard then rolls back and stores the same message on shutdown. It is
 	// armed before the waiting year is taken, so a request that ends between taking it and the rebuild (a time-out in
@@ -975,6 +981,8 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	$year = (int)$year;
 	$ownTransaction = !followingOpeningBalancesInTransaction();
 	if ($ownTransaction) {
+		// The year card calls followingOpeningBalancePrepareRows() itself before its transaction (Codex round 31).
+		followingOpeningBalancePrepareRows();
 		transaktion('begin');
 	}
 	db_modify('savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
@@ -1192,6 +1200,10 @@ function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0) {
 	$description = 'SST-1005: fiscal year transition whose opening balances could not be updated automatically';
 	$ownTransaction = !followingOpeningBalancesInTransaction();
 	if ($ownTransaction) {
+		if ($stop) {
+			// Created in autocommit before the transaction, see followingOpeningBalancePrepareRows() (Codex round 31).
+			followingOpeningBalanceEnsureSetting('openingBalanceStop', '', $description);
+		}
 		transaktion('begin');
 	}
 	if ($stop) {
@@ -1290,8 +1302,8 @@ function saveFollowingOpeningBalanceSetting($name, $value, $description) {
  * @param string $description var_description of a new row.
  * @param bool $lockHeld True when the caller holds the setting's lock already (followingOpeningBalanceCreatePending()).
  * @return void
- * @throws RuntimeException When MySQL does not give the lock within 10 seconds (only while another request creates the
- *   same row); nothing is written then.
+ * @throws RuntimeException When MySQL does not give the lock (see followingOpeningBalanceGetLock(); only while another
+ *   request creates the same row); nothing is written then.
  */
 function followingOpeningBalanceEnsureSetting($name, $value, $description, $lockHeld = false) {
 	global $db_type;
@@ -1330,6 +1342,25 @@ function followingOpeningBalanceEnsureSetting($name, $value, $description, $lock
 }
 
 /**
+ * Create the rows 'openingBalancePending' ('0') and 'openingBalanceStop' (empty) when they are missing, before a
+ * rebuild or a year card begins its transaction. Created in autocommit, the creation holds no row lock while it waits
+ * for the creation lock or for another creator, so it cannot wait in a circle with a transaction that holds settings
+ * rows and waits for that lock (Codex round 31: a first block saved inside a transaction under SERIALIZABLE, or after
+ * the waiting year was written, timed out). Inside a transaction this does nothing; a row still missing there is
+ * created by followingOpeningBalanceEnsureSetting() as before, which only happens when no page check has run for the
+ * tenant yet.
+ *
+ * @return void
+ */
+function followingOpeningBalancePrepareRows() {
+	if (followingOpeningBalancesInTransaction()) {
+		return;
+	}
+	followingOpeningBalanceEnsureSetting('openingBalancePending', '0', 'SST-1005: earliest fiscal year waiting for its later years to get new opening balances (0 = none)');
+	followingOpeningBalanceEnsureSetting('openingBalanceStop', '', 'SST-1005: fiscal year transition whose opening balances could not be updated automatically');
+}
+
+/**
  * Take the MySQL lock under which the setting $name of this feature is created (GET_LOCK names are server-wide, so the
  * database is part of the name; MD5 only shortens it, it secures nothing). Inside a transaction the lock is kept until
  * that transaction ends: followingOpeningBalanceReleaseLocks() releases it after the COMMIT or ROLLBACK of the callers in
@@ -1337,9 +1368,14 @@ function followingOpeningBalanceEnsureSetting($name, $value, $description, $lock
  * request ends. A lock released earlier let the next creator read before this row was committed: under READ COMMITTED
  * its INSERT ... SELECT does not wait for a row that is not committed, and it added a second one (Codex round 29).
  * A lock this transaction holds already is not taken again.
+ * Only a request outside a transaction waits for the lock (up to 10 seconds); it holds no row lock while it waits. A
+ * transaction may hold settings rows another creator's INSERT waits for, so it only tries (timeout 0) and gives up at
+ * once when the lock is taken; waiting there was a circle InnoDB cannot see and ended in the 10-second time-out (Codex
+ * round 31). followingOpeningBalancePrepareRows() makes that case rare: the rows exist before the transactions of this
+ * feature begin.
  *
  * @param string $name var_name, already escaped.
- * @return bool True when the lock is held; false when MySQL did not give it within 10 seconds (0) or failed (NULL).
+ * @return bool True when the lock is held; false when MySQL did not give it (0, or NULL on an error).
  */
 function followingOpeningBalanceGetLock($name) {
 	if (!isset($GLOBALS['followingOpeningBalanceLocks']) || !is_array($GLOBALS['followingOpeningBalanceLocks'])) {
@@ -1348,11 +1384,13 @@ function followingOpeningBalanceGetLock($name) {
 	if (!empty($GLOBALS['followingOpeningBalanceLocks'][$name])) {
 		return true;
 	}
-	$r = db_fetch_array(db_select("SELECT GET_LOCK(CONCAT('saldi:$name:', MD5(DATABASE())), 10) AS locked", __FILE__ . ' line ' . __LINE__));
+	$transaction = followingOpeningBalancesInTransaction();
+	$timeout = $transaction ? 0 : 10;
+	$r = db_fetch_array(db_select("SELECT GET_LOCK(CONCAT('saldi:$name:', MD5(DATABASE())), $timeout) AS locked", __FILE__ . ' line ' . __LINE__));
 	if (!$r || (string)$r['locked'] !== '1') {
 		return false;
 	}
-	if (followingOpeningBalancesInTransaction()) {
+	if ($transaction) {
 		$GLOBALS['followingOpeningBalanceLocks'][$name] = true;
 	}
 	return true;

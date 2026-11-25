@@ -31,6 +31,7 @@
 //                 A finally block ends the blocking transaction before it drains the connection that waits for it (CodeRabbit).
 // 20261125 CL/MMR SST-1005 Clearing the block never creates its row, and two rebuilds storing the first block make one row, also without a unique index (Codex round 28).
 // 20261125 CL/MMR SST-1005 On MySQL the lock for creating a setting is kept until the transaction ends and released once (Codex round 29).
+// 20261125 CL/MMR SST-1005 The settings rows exist before «Sæt aktivt», the page check or the year card begins its transaction, and a transaction only tries the MySQL creation lock (Codex round 31).
 
 declare(strict_types=1);
 
@@ -2203,6 +2204,36 @@ final class FollowingOpeningBalancesTest extends TestCase
         } finally {
             unset($GLOBALS['sst1005Hook']);
             $GLOBALS['connection'] = $mine ?? $GLOBALS['connection'];
+            $this->releaseThenDrain([$this->connection, $other], $other);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /**
+     * Codex round 31: the waiting-year and block rows are created and committed before «Sæt aktivt», the page check or
+     * the year card begins its transaction, so no transaction of this feature has to create them (on MySQL that could
+     * wait in a circle with another creator).
+     */
+    public function testTheSettingsRowsExistBeforeARebuildOrTheCardBeginsItsTransaction(): void
+    {
+        $schema = 'sst1005_prepare_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $seen = [];
+            foreach (['sync' => fn () => syncFollowingOpeningBalances(9), 'card' => fn () => updateOpeningBalancesAfterYearSave(10)] as $caller => $run) {
+                $this->sql("DELETE FROM settings WHERE var_name IN ('openingBalancePending', 'openingBalanceStop')");
+                $GLOBALS['sst1005Hook'] = ['after' => '/^begin$/i', 'times' => 1, 'run' => function () use ($other, $caller, &$seen): void {
+                    $seen[$caller] = (int) pg_fetch_assoc(pg_query($other, "SELECT count(*) AS n FROM settings WHERE var_name IN ('openingBalancePending', 'openingBalanceStop')"))['n'];
+                }];
+                $run();
+                self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, "$caller began a transaction.");
+            }
+            self::assertSame(['sync' => 2, 'card' => 2], $seen, 'Both rows were committed before the transaction began.');
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalanceStop'"))['n']);
+            self::assertSame(1, (int) pg_fetch_assoc($this->sql("SELECT count(*) AS n FROM settings WHERE var_name = 'openingBalancePending'"))['n']);
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
             $this->releaseThenDrain([$this->connection, $other], $other);
             pg_close($other);
             $this->dropPrivateSchema($schema);
