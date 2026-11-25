@@ -9939,6 +9939,25 @@ personal.tfa.sent_to	Sendes til %s	Sent to %s	Sendes til %s
 personal.tfa.sms	Kode på SMS	Code by SMS	Kode på SMS
 personal.tfa.title	Tofaktor-login	Two-factor login	Tofaktor-innlogging
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
+reinvoice.receipt.back	Tilbage til fakturalisten	Back to the invoice list	Tilbake til fakturalisten
+reinvoice.receipt.blocked	Fakturaerne er bogført, men IKKE sendt: browseren blokerede pop-up-vinduet. Klik på knappen herunder for at sende dem.	The invoices are posted but NOT sent: the browser blocked the pop-up window. Click the button below to send them.	Fakturaene er bokført, men IKKE sendt: nettleseren blokkerte popup-vinduet. Klikk på knappen nedenfor for å sende dem.
+reinvoice.receipt.closed	Pop-up-vinduet blev lukket, før afsendelsen var bekræftet. Kontrollér i fakturalisten, hvilke fakturaer der er sendt.	The pop-up window was closed before sending was confirmed. Check in the invoice list which invoices were sent.	Popup-vinduet ble lukket før sendingen var bekreftet. Kontroller i fakturalisten hvilke fakturaer som er sendt.
+reinvoice.receipt.done	Afsendelsen er færdig.	Sending is finished.	Sendingen er ferdig.
+reinvoice.receipt.failed	Afsendelsen stoppede med en fejl, se pop-up-vinduet. Fakturaerne herover er bogført, men de ikke sendte skal sendes igen.	Sending stopped with an error, see the pop-up window. The invoices above are posted, but the ones not sent must be sent again.	Sendingen stoppet med en feil, se popup-vinduet. Fakturaene over er bokført, men de som ikke er sendt må sendes på nytt.
+reinvoice.receipt.mails_sent	Sendt pr. e-mail	Sent by email	Sendt per e-post
+reinvoice.receipt.none	Udskriv til = Ingen, sendes ikke	Print to = None, not sent	Skriv ut til = Ingen, sendes ikke
+reinvoice.receipt.not_sent	Ikke sendt eller udskrevet	Not sent or printed	Ikke sendt eller skrevet ut
+reinvoice.receipt.not_sent_help	Send eller udskriv dem fra fakturalisten.	Send or print them from the invoice list.	Send eller skriv dem ut fra fakturalisten.
+reinvoice.receipt.pbs	Overført til PBS	Transferred to PBS	Overført til PBS
+reinvoice.receipt.pbs_failed	Ikke overført til PBS, se beskeden øverst	Not transferred to PBS, see the message at the top	Ikke overført til PBS, se meldingen øverst
+reinvoice.receipt.posted	Bogførte fakturaer	Posted invoices	Bokførte fakturaer
+reinvoice.receipt.printed	Vist som PDF til udskrift	Shown as PDF for printing	Vist som PDF for utskrift
+reinvoice.receipt.running	Fakturaerne sendes i pop-up-vinduet. Luk det ikke, før det er færdigt.	The invoices are being sent in the pop-up window. Do not close it before it is finished.	Fakturaene sendes i popup-vinduet. Ikke lukk det før det er ferdig.
+reinvoice.receipt.send_button	Send og udskriv fakturaerne	Send and print the invoices	Send og skriv ut fakturaene
+reinvoice.receipt.skipped	Ikke genfaktureret, fordi fakturadatoen ligger uden for regnskabsåret:	Not re-invoiced because the invoice date is outside the fiscal year:	Ikke refakturert fordi fakturadatoen ligger utenfor regnskapsåret:
+reinvoice.receipt.skipped_help	Ret Genfakt.-datoen eller opret regnskabsåret, og genfakturér dem igen.	Correct the next invoice date or create the fiscal year, then re-invoice them again.	Rett neste fakturadato eller opprett regnskapsåret, og refakturer dem igjen.
+reinvoice.receipt.stopped	Genfaktureringen stoppede, før alle fakturaer var bogført:	Re-invoicing stopped before all invoices were posted:	Refaktureringen stoppet før alle fakturaer var bokført:
+reinvoice.receipt.title	Genfakturering udført	Re-invoicing completed	Refakturering utført
 reminder.next_level_not_due	Der er ikke oprettet en ny rykker for løbenr. %s, fordi betalingsfristen for den forrige rykker ikke er overskredet.	No new reminder was created for serial no. %s, because the payment deadline of the previous reminder has not passed.	Det er ikke opprettet en ny purring for løpenr. %s, fordi betalingsfristen for forrige purring ikke er overskredet.
 report.balance_no_result_account	Kontoplanen har ingen konto af typen Resultat, så årets resultat er ikke med i balancen.	The chart of accounts has no account of the type Result, so the result for the year is not in the balance.	Kontoplanen har ingen konto av typen Resultat, så årets resultat er ikke med i balansen.
 restore.locked_support	Skal regnskabet alligevel gendannes, fx efter en fejl, så kontakt Saldi support. Du kan stadig tage en sikkerhedskopi af regnskabet.	If the ledger must be restored anyway, for example after an error, contact Saldi support. You can still make a backup of the ledger.	Skal regnskapet likevel gjenopprettes, f.eks. etter en feil, kontakt Saldi support. Du kan fortsatt ta en sikkerhetskopi av regnskapet.
