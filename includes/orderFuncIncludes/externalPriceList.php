@@ -28,6 +28,7 @@
 // 20261125 CL/MMR SST-1051 New file. Brings the external price list back to the customer order item lookup.
 // 20261125 CL/MMR SST-1051 Search skips rows that are already items before the limit.
 //                 The item group comes from the stored group name when it names one group, else the group number.
+// 20261125 CL/MMR SST-1051 The file is read as whole CSV records, so a quoted field may span several lines.
 
 /**
  * The active price list, or null when none is in use.
@@ -102,7 +103,10 @@ function externalPriceListRows(array $priceList): ?array
 	if ($priceList['encoding'] !== 'utf-8' || !mb_check_encoding($data, 'UTF-8')) {
 		$data = mb_convert_encoding($data, 'UTF-8', 'ISO-8859-1');
 	}
-	$lines = preg_split('/\r\n|\n|\r/', trim($data));
+	// Read whole CSV records, so a quoted field may span several lines.
+	$stream = fopen('php://temp', 'r+');
+	fwrite($stream, $data);
+	rewind($stream);
 	$names = array(
 		'varenr' => 'varenr', 'vare nr' => 'varenr', 'varenummer' => 'varenr',
 		'stregkode' => 'stregkode', 'ean' => 'stregkode',
@@ -111,32 +115,38 @@ function externalPriceListRows(array $priceList): ?array
 		'kostpris' => 'kostpris', 'salgspris' => 'salgspris', 'enhed' => 'enhed',
 	);
 	$columns = array();
-	foreach (str_getcsv(array_shift($lines), $priceList['delimiter']) as $index => $header) {
-		$header = mb_strtolower(trim($header));
-		if (isset($names[$header]) && !in_array($names[$header], $columns, true)) {
-			$columns[$index] = $names[$header];
+	$header = fgetcsv($stream, 0, $priceList['delimiter'], '"', '');
+	foreach ((array) $header as $index => $name) {
+		$name = mb_strtolower(trim((string) $name));
+		if (isset($names[$name]) && !in_array($names[$name], $columns, true)) {
+			$columns[$index] = $names[$name];
 		}
 	}
 	if (!in_array('varenr', $columns, true)) {
+		fclose($stream);
 		return null;
 	}
 	$rows = array();
-	foreach ($lines as $line) {
-		if (trim($line) === '') {
+	while (($record = fgetcsv($stream, 0, $priceList['delimiter'], '"', '')) !== false) {
+		if ($record === array(null)) {
 			continue;
 		}
 		$row = array('varenr' => '', 'stregkode' => '', 'trademark' => '', 'beskrivelse' => '', 'kostpris' => 0.0, 'salgspris' => 0.0, 'enhed' => '');
-		foreach (str_getcsv($line, $priceList['delimiter']) as $index => $value) {
+		foreach ($record as $index => $value) {
 			if (!isset($columns[$index])) {
 				continue;
 			}
 			$key = $columns[$index];
 			$row[$key] = ($key === 'kostpris' || $key === 'salgspris') ? externalPriceListNumber((string) $value) : trim((string) $value);
 		}
+		// A line break inside a quoted field becomes a space: item numbers and descriptions are one line in Saldi.
+		$row['varenr'] = preg_replace('/\s*\R\s*/u', ' ', $row['varenr']);
+		$row['beskrivelse'] = preg_replace('/\s*\R\s*/u', ' ', $row['beskrivelse']);
 		if ($row['varenr'] !== '') {
 			$rows[] = $row;
 		}
 	}
+	fclose($stream);
 	$cache[$priceList['id']] = $rows;
 	return $rows;
 }
