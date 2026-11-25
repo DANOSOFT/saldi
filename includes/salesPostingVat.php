@@ -28,6 +28,7 @@
 // 20261125 CL/MMR MB-80 (Codex round 1): salesPostingControlAmount() keeps the 3-decimal control amounts that decide whether an invoice balances.
 //                 ifset() for the two array lookups with a default.
 // 20261125 CL/MMR MB-80 (Codex round 3): salesPostingControlSide() keeps the debit and credit control totals apart for the pre-flight.
+// 20261125 CL/MMR MB-80 (Codex round 7): salesPostingLoadGroups() orders the lines by bogf_konto, vat_account and id.
 
 require_once __DIR__ . '/std_func.php';
 
@@ -167,7 +168,8 @@ if (!function_exists('salesPostingLoadGroups')) {
 				$project = db_escape_string(ifset($projects, $p, ''));
 				$qtxt = "select * from ordrelinjer where $lineCondition and coalesce(projekt,'')='$project' and ";
 				$qtxt .= ($t == 1) ? "posnr>='0' and bogf_konto > 0" : "posnr<'0'";
-				$qtxt .= " order by bogf_konto,vat_account";
+				# the line id breaks ties, so the lines are summed in the same order whatever plan the database picks
+				$qtxt .= " order by bogf_konto,vat_account,id";
 				$lines = array();
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {

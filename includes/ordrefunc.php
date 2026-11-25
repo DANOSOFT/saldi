@@ -194,6 +194,7 @@
 // 20261125 CL/MMR MB-80 (Codex round 4): forkontrolDifferenceAccount() finds and checks the currency or øre difference account before anything is written; a blank or 0 currency account (VK box3) counts as missing, and a ledger-only rounding then goes to the øre account as before.
 // 20261125 CL/MMR MB-80 (Codex round 5): the øre account is checked in kontoplan (kontotype D) also for a ledger-only rounding, so no account the fix chooses can fail after writing.
 // 20261125 CL/MMR MB-80 (Codex round 6): a difference account is only required when a difference row is written; a control difference within the limits with balanced posted rows needs none.
+// 20261125 CL/MMR MB-80 (Codex round 7): bogfor_nu() posts the groups, projects and VAT the pre-flight computed instead of reading the lines again, and the lines are read in a fixed order (id breaks ties).
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2467,6 +2468,9 @@ function bogfor_indbetaling($id, $webservice) {
  *   difference: float,  Control debit minus credit in the base currency, rounded once to 2 decimals.
  *   sideDifference: float,  Control debit and credit each rounded to 2 decimals, then subtracted.
  *   rounding: float,    Posted debit minus credit in the base currency, 2 decimals.
+ *   projects: array<int, string>,  The projects posted, 1-based.
+ *   postingLines: array,  salesPostingLoadGroups() for those projects; bogfor_nu() posts exactly these groups.
+ *   vatAllocations: array<int, array<int, float>>|null,  salesPostingVatAllocations() for them, or null.
  *   lines: int,         Number of order lines posted (bogfor_nu() allows 2 øre per line in a foreign currency).
  * }
  */
@@ -2488,7 +2492,7 @@ function forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerV
 	}
 	$p = 0;
 	$projekt = array();
-	$q = db_select("select distinct(coalesce(projekt,'')) as projekt from ordrelinjer where $tmp and vare_id >'0'", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select distinct(coalesce(projekt,'')) as projekt from ordrelinjer where $tmp and vare_id >'0' order by projekt", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$p++;
 		$projekt[$p] = trim($r['projekt']);
@@ -2530,6 +2534,9 @@ function forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerV
 		'sideDifference' => afrund(afrund($control['d'], 2) - afrund($control['k'], 2), 2),
 		'rounding' => afrund($posted, 2),
 		'lines' => $postingLines['lines'],
+		'projects' => $projekt,
+		'postingLines' => $postingLines,
+		'vatAllocations' => $vatAllocations,
 	);
 }
 
@@ -3190,14 +3197,21 @@ function bogfor_nu($id, $kilde) {
 	}
 	# 20261125 MB-80: lines are grouped per revenue account AND VAT account (includes/salesPostingVat.php, shared with
 	# forkontrolPosteringsbalance()). Before, a line on an account already seen with another VAT account was dropped.
-	$postingLines = salesPostingLoadGroups($tmp, $projekt, $projektantal);
+	# Outside POS the groups, projects and foreign-currency VAT (rounded to øre in the invoice currency before it is
+	# converted) are exactly those the pre-flight checked; they are not read again.
+	if ($postingControl !== NULL) {
+		$postingLines = $postingControl['postingLines'];
+		$vatAllocations = $postingControl['vatAllocations'];
+		$projektantal = count($postingControl['projects']);
+		foreach ($postingControl['projects'] as $p => $project) {
+			$projekt[$p] = $project;
+		}
+	} else {
+		$postingLines = salesPostingLoadGroups($tmp, $projekt, $projektantal);
+		$vatAllocations = null;
+	}
 	if ($valutakurs && $valutakurs != 100) {
 		$maxdif = $maxdif + 2 * $postingLines['lines']; #Og yderligere 2 pr ordrelinje.
-	}
-	# Foreign currency: the invoice VAT is rounded to øre in the invoice currency before it is converted (MB-80)
-	$vatAllocations = null;
-	if ($art != 'PO' && is_numeric($id) && $valutakurs && $valutakurs != 100) {
-		$vatAllocations = salesPostingVatAllocations($postingLines['groups'][1], $moms, $valutakurs);
 	}
 	for ($t = 1; $t <= 2; $t++) {
 		for ($p = 1; $p <= $projektantal; $p++) {

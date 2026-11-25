@@ -17,6 +17,7 @@
 // History:
 // 20261125 CL/MMR MB-80: created.
 // 20261125 CL/MMR MB-80 (Codex round 4): direct posting without a caller transaction (the REST send) with a blank, 0 or configured currency difference account, and with no usable difference account.
+// 20261125 CL/MMR MB-80 (Codex round 7): a mixed-discount order with a NULL project posts the pre-flight's sums on a sequential and an index plan.
 // 20261125 CL/MMR MB-80 (Codex round 6): control difference within the limits with balanced posted rows posts without a difference account (DKK and EUR, box3 blank, 0, configured).
 // 20261125 CL/MMR MB-80 (Codex round 5): a nonexistent øre account is refused before writing; the late-failure test of the removed transaction wrapper is dropped.
 // 20261125 CL/MMR MB-80 (Codex round 3): orders that fail only the rounded-sides check (99.961/-0.005), and a table of edge prices decided as on origin/master.
@@ -135,9 +136,10 @@ final class SalesPostingPrecisionTest extends TestCase
             CharacterizationEnv::rows(
                 self::$tenant,
                 "INSERT INTO ordrelinjer (ordre_id, posnr, beskrivelse, antal, pris, rabat, rabatart, momssats, momsfri, procent, bogf_konto, vat_account, projekt)
-                 VALUES ($1, $2, 'MB-80 linje', $3, $4, $5, $6, $7, $8, $9, $10, $11, '')",
+                 VALUES ($1, $2, 'MB-80 linje', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
                 [$orderId, $posnr, $line['antal'], $line['pris'], $line['rabat'], $line['rabatart'], $line['momssats'],
-                    $line['momsfri'], $line['procent'], $line['bogf_konto'], $line['vat_account']]
+                    $line['momsfri'], $line['procent'], $line['bogf_konto'], $line['vat_account'],
+                    array_key_exists('projekt', $line) ? $line['projekt'] : '']
             );
         }
         return $orderId;
@@ -747,6 +749,47 @@ final class SalesPostingPrecisionTest extends TestCase
         $preflight = $this->runInvoiceChild('preflight', $id)['preflight'];
         $this->assertEqualsWithDelta(0.0, (float)$preflight['rounding'], 0.001, 'the posted rows balance by themselves');
         $this->assertGreaterThan(0.0, abs((float)$preflight['difference']) + abs((float)$preflight['sideDifference']), 'the control totals differ');
+    }
+
+    /** @return array<string, array{string}> PGOPTIONS for the child process */
+    public static function queryPlans(): array
+    {
+        return [
+            'sequential scan' => ['-c enable_indexscan=off -c enable_bitmapscan=off -c enable_indexonlyscan=off'],
+            'index scan' => ['-c enable_seqscan=off'],
+        ];
+    }
+
+    /**
+     * Codex round 7: a VAT-free EUR order of two lines on 1010, -0.001 with an amount discount type and project NULL,
+     * then 500.053 with project ''. Summed in id order the group is 100.010 (745.07, as the debtor); in the other
+     * order 100.011 (745.08). bogfor_nu() normalises the NULL project, which moves the first line to the end of the
+     * table, so a second read in table order summed them the other way and needed a difference account after
+     * writing. The posting now uses the pre-flight's groups (lines in id order): the same result on any plan.
+     */
+    #[DataProvider('queryPlans')]
+    public function test_posting_sums_the_lines_as_the_preflight_did_on_any_query_plan(string $planOptions): void
+    {
+        $id = $this->createOrder('EUR', 'DO', [
+            self::line(self::REVENUE, 0, 0, -0.001, 0.2, ['rabatart' => 'amount', 'projekt' => null]),
+            self::line(self::REVENUE, 0, 0, 500.053, 0.2),
+        ], 100.01, 0);
+        CharacterizationEnv::rows(
+            self::$tenant,
+            "UPDATE ordrer SET status = 2, valutakurs = 745, fakturadate = ordredate, fakturanr = (90000 + id)::text WHERE id = $1",
+            [$id]
+        );
+        $saved = getenv('PGOPTIONS');
+        putenv('PGOPTIONS=' . trim((string)$saved . ' ' . $planOptions));
+        try {
+            $result = $this->postDirectly($id, '0', '');
+        } finally {
+            putenv($saved === false ? 'PGOPTIONS' : 'PGOPTIONS=' . $saved);
+        }
+        $this->assertSame('OK', $result['out']['bogfor']);
+        $this->assertSame('4', $result['status']);
+        $this->assertSame(1, $result['openItems']);
+        $this->assertSame(self::rows([self::DEBTOR, '745.07', '0.00'], [self::REVENUE, '0.00', '745.07']), $result['rows']);
     }
 
     /** A real header/line discrepancy (VAT 26.00 on the order, 25.00 on its lines) is still refused before anything is written. */
