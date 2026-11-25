@@ -130,6 +130,9 @@ MySQL/MariaDB cases also run when `SALDI_SCHEMA_MYSQL_DSN`,
 `SALDI_SCHEMA_MYSQL_USER` and `SALDI_SCHEMA_MYSQL_PASSWORD` are set. Use a disposable
 test server with permission to create databases; each case creates and removes
 its own random database. No credentials are stored in the repository.
+Without MySQL configuration, the provider declares only the PostgreSQL cases;
+all of those cases must run in CI. Configuring MySQL adds the second adapter
+without changing the tested scenarios.
 
 SQL behavior references: [PostgreSQL ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html),
 [MySQL ALTER TABLE](https://dev.mysql.com/doc/refman/8.4/en/alter-table.html),

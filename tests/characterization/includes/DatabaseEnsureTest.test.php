@@ -15,7 +15,12 @@ final class DatabaseEnsureTest extends TestCase {
 
 	/** @return array<string, array{string}> Real database adapters; MySQL uses explicit test credentials. */
 	public static function drivers(): array {
-		return array('PostgreSQL' => array('postgresql'), 'MySQL' => array('mysqli'));
+		$drivers = array('PostgreSQL' => array('postgresql'));
+		// CI provisions PostgreSQL. Explicit MySQL test configuration adds the second adapter.
+		if (getenv('SALDI_SCHEMA_MYSQL_DSN')) {
+			$drivers['MySQL'] = array('mysqli');
+		}
+		return $drivers;
 	}
 
 	private function boot(string $driver): void {
