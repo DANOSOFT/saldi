@@ -74,6 +74,7 @@
 // 20261125 CL/MMR  SST-1005: Inside a transaction the waiting-year and block rows are locked by the id read before it (or by the page check's first query) before anything of them is read, so two rebuilds under SERIALIZABLE no longer deadlock on a shared lock they both upgrade (Codex round 32).
 // 20261125 CL/MMR  SST-1005: The waiting year is taken and a setting of this feature is written by its id, so no statement of the feature scans settings and waits in a circle with a year card that holds the block row (Codex round 33).
 // 20261125 CL/MMR  SST-1005: The page check lowers the waiting year by its id too, read together with its value (followingOpeningBalancePendingRow()) (Codex round 34).
+// 20261125 CL/MMR  SST-1005: A rebuild or year card that leaves a year waiting locks the waiting-year and block rows together in id order, the order any scan of settings takes, so other Saldi code that writes settings by name waits instead of deadlocking (Codex round 35).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -867,6 +868,7 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	}
 	$stop = null;
 	$deferredYear = 0;
+	$savesStop = followingOpeningBalanceSavesStop(true);
 	transaktion('begin');
 	try {
 		if ($year > 0) {
@@ -875,6 +877,7 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 			updateFollowingOpeningBalances($fromYear, $stop, $deferredYear);
 		}
 	} catch (Throwable $e) {
+		followingOpeningBalanceSavesStop($savesStop);
 		// Nothing of the rebuild is kept, and the stored message tells the user to retry with Gem/opdatér.
 		transaktion('rollback');
 		followingOpeningBalanceReleaseLocks();
@@ -887,6 +890,7 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	}
 	// A transfer left for the next check did not reach a blocked transition stored at or after it, so that stays.
 	saveFollowingOpeningBalanceStop($stop, $checkedFrom, $deferredYear);
+	followingOpeningBalanceSavesStop($savesStop);
 	if (followingOpeningBalanceCommit() && $guarded) followingOpeningBalanceFailureGuard(null);
 	return $stop;
 }
@@ -1028,6 +1032,7 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	// A failed statement ends the request before the catch below (see followingOpeningBalanceFailureGuard()). The year
 	// card has armed it already for its whole save; then it stays the card's.
 	$guarded = followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
+	$savesStop = followingOpeningBalanceSavesStop(true);
 	try {
 		carryFollowingOpeningBalances($year, $fromYear, $stop, $deferredYear);
 	} catch (Throwable $e) {
@@ -1047,6 +1052,7 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	db_modify('release savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
 	// A transfer left for the next check did not reach a blocked transition stored at or after it, so that stays (CodeRabbit).
 	saveFollowingOpeningBalanceStop($stop, $checkedFrom, $deferredYear);
+	followingOpeningBalanceSavesStop($savesStop);
 	$committed = $ownTransaction ? followingOpeningBalanceCommit() : true;
 	if ($guarded && $committed) followingOpeningBalanceFailureGuard(null);
 	return $stop;
@@ -1363,12 +1369,41 @@ function followingOpeningBalanceLockRow($name) {
 		return null;
 	}
 	$escaped = db_escape_string($name);
-	$r = db_fetch_array(db_select("select id, var_value from settings where id = '$id' and var_name = '$escaped' for update", __FILE__ . ' line ' . __LINE__));
-	if (!$r) {
-		unset($GLOBALS['followingOpeningBalanceRowIds'][$name]);
-		return null;
+	$stopId = isset($GLOBALS['followingOpeningBalanceRowIds']['openingBalanceStop']) ? (int)$GLOBALS['followingOpeningBalanceRowIds']['openingBalanceStop'] : 0;
+	if ($name === 'openingBalancePending' && !empty($GLOBALS['followingOpeningBalanceSavesStop']) && $stopId) {
+		// A rebuild or year card that leaves a year waiting stores its outcome in the block row afterwards: both rows are
+		// locked now, in one statement in id order, the order in which any statement that scans settings (such as
+		// update_settings_value() elsewhere in Saldi) locks them, so it waits for this transaction instead of holding one
+		// of the two while this one waits for it (Codex round 35). A kassekladde posting never stores a block and keeps
+		// to the waiting-year row.
+		$found = null;
+		$q = db_select("select id, var_name, var_value from settings where id in ('$id', '$stopId') order by id for update", __FILE__ . ' line ' . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			if ((int)$r['id'] === $id && $r['var_name'] === $name) {
+				$found = array('id' => (int)$r['id'], 'var_value' => $r['var_value']);
+			}
+		}
+	} else {
+		$r = db_fetch_array(db_select("select id, var_value from settings where id = '$id' and var_name = '$escaped' for update", __FILE__ . ' line ' . __LINE__));
+		$found = $r ? array('id' => (int)$r['id'], 'var_value' => $r['var_value']) : null;
 	}
-	return array('id' => (int)$r['id'], 'var_value' => $r['var_value']);
+	if (!$found) {
+		unset($GLOBALS['followingOpeningBalanceRowIds'][$name]);
+	}
+	return $found;
+}
+
+/**
+ * Mark or unmark the transaction of «Sæt aktivt», the page check or the year card, which stores its outcome in the
+ * block row after it may have left a year waiting (see followingOpeningBalanceLockRow()).
+ *
+ * @param bool $on True while such a transaction runs.
+ * @return bool The previous mark, to put back.
+ */
+function followingOpeningBalanceSavesStop($on) {
+	$previous = !empty($GLOBALS['followingOpeningBalanceSavesStop']);
+	$GLOBALS['followingOpeningBalanceSavesStop'] = (bool)$on;
+	return $previous;
 }
 
 /**

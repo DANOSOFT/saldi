@@ -35,6 +35,7 @@
 // 20261125 CL/MMR SST-1005 Inside a transaction the waiting-year and block rows are locked by their id before they are read (Codex round 32).
 // 20261125 CL/MMR SST-1005 «Sæt aktivt» takes the waiting year by its id, and no setting of the feature is written by name (Codex round 33).
 // 20261125 CL/MMR SST-1005 The page check registers a waiting year by the row's id as well (Codex round 34).
+// 20261125 CL/MMR SST-1005 A rebuild that leaves a year waiting locks the waiting-year and block rows together in id order (Codex round 35).
 
 declare(strict_types=1);
 
@@ -2074,7 +2075,16 @@ final class FollowingOpeningBalancesTest extends TestCase
             // A journal posting in year 10 holds 2000 of year 10.
             pg_query($other, 'BEGIN');
             pg_query($other, 'UPDATE kontoplan SET saldo = saldo + 1 WHERE regnskabsaar = 10 AND kontonr = 2000');
+            $seen = [];
+            $GLOBALS['sst1005Rewrite'] = function (string $sql) use (&$seen): string {
+                $seen[] = $sql;
+                return $sql;
+            };
             self::assertNull(syncFollowingOpeningBalances(9), 'Year 9 is left for the next check.');
+            unset($GLOBALS['sst1005Rewrite']);
+            // Leaving year 9 waiting, it locks the waiting-year and block rows together in id order, as a scan of settings
+            // would, before it stores its outcome in the block row (Codex round 35).
+            self::assertCount(1, preg_grep("/^select id, var_name, var_value from settings where id in \\('\\d+', '\\d+'\\) order by id for update$/", $seen));
             self::assertSame($expected, followingOpeningBalanceStop(), 'The block it did not reach stays.');
             self::assertSame('9', $this->setting('openingBalancePending'));
             // The card on year 9 carries year 8 into it and then reaches year 10 the same way.
