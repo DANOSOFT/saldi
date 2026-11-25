@@ -34,6 +34,7 @@
 // 20261125 CL/MMR SST-1051 An item is only created by POST for an open customer order or credit note.
 // 20261125 CL/MMR SST-1051 The price-list message also names a file larger than 20 MB.
 // 20261125 CL/MMR SST-1051 The price file is searched record by record (externalPriceListSearch/Find).
+// 20261125 CL/MMR SST-1051 The preview converts the exact price text from the helper to a number for display.
 @session_start();
 $s_id = session_id();
 
