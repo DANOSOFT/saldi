@@ -1,16 +1,17 @@
 <?php
 // tests/characterization/includes/settings/TillCountPerYearTest.test.php
 //
-// The settings page's till count, and its "Tilføj kasse" action, in a fiscal year with and without
-// its own POS/1 row (grupper art POS, kodenr 1, box1 = number of tills). The till reads this year's
-// row only. The page used to take another year's count, so in a year without a POS/1 row it offered
-// tills whose saves made a POS/1 row with only that field in it.
+// The settings page's till count, and its "Tilføj/Fjern kasse" actions, in a fiscal year with and
+// without its own POS/1 row (grupper art POS, kodenr 1, box1 = number of tills). The till reads this
+// year's row only, and so do the page and its actions now. The page used to take another year's count,
+// and the actions wrote every year's row, so one year's tills overwrote another's.
 //
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
 // History:
 // 20261125 CL/MJ SD-880 Created.
 // 20261125 CL/MJ SD-880 CodeRabbit: the new year's row starts from the other year's payment cards.
+// 20261125 CL/MJ SD-880 Hugin/CodeRabbit: Tilføj/Fjern kasse changes this year's row only; the new year's row is copied from the row the page showed.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -51,9 +52,35 @@ final class TillCountPerYearTest extends CharacterizationTestCase
         ], $result['rows'], 'the other year keeps its 2 tills, and the new year starts from its payment cards');
     }
 
-    public function testAddingATillInAYearWithItsOwnRowStillCountsForEveryYear(): void
+    public function testTheNewYearsRowIsCopiedFromTheRowThePageShowed(): void
     {
-        // Unchanged (risk review R2): the till count is shared by the years that have a POS/1 row.
+        // settings_pos_row(1) shows the oldest row (lowest id) when this year has none, not the newest year's.
+        self::rows("INSERT INTO grupper (beskrivelse, kodenr, art, kode, fiscal_year, box1, box5) VALUES ('POS_valg', '1', 'POS', '', 3, '5', 'Visa')");
+
+        $result = $this->tills(self::NEW_YEAR, 'add');
+
+        self::assertSame([
+            ['fiscal_year' => self::OLD_YEAR, 'box1' => '2', 'box5' => self::CARDS],
+            ['fiscal_year' => self::NEW_YEAR, 'box1' => '1', 'box5' => self::CARDS],
+            ['fiscal_year' => 3, 'box1' => '5', 'box5' => 'Visa'],
+        ], $result['rows']);
+    }
+
+    public function testRemovingTheNewYearsTillLeavesTheOtherYearAlone(): void
+    {
+        // Hugin on #1215: once the new year has its own row, the next action used to write every year's.
+        $this->tills(self::NEW_YEAR, 'add');
+        $result = $this->tills(self::NEW_YEAR, 'remove');
+
+        self::assertSame(0, $result['count']);
+        self::assertSame([
+            ['fiscal_year' => self::OLD_YEAR, 'box1' => '2', 'box5' => self::CARDS],
+            ['fiscal_year' => self::NEW_YEAR, 'box1' => '0', 'box5' => self::CARDS],
+        ], $result['rows']);
+    }
+
+    public function testAddingATillInAYearWithItsOwnRowChangesThatYearOnly(): void
+    {
         self::rows("INSERT INTO grupper (beskrivelse, kodenr, art, kode, fiscal_year, box1) VALUES ('POS_valg', '1', 'POS', '', $1, '2')", [self::NEW_YEAR]);
         self::rows("UPDATE grupper SET box5 = $1 WHERE art = 'POS' AND kodenr = '1'", [self::CARDS]);
 
@@ -61,12 +88,12 @@ final class TillCountPerYearTest extends CharacterizationTestCase
 
         self::assertSame(3, $result['count']);
         self::assertSame([
-            ['fiscal_year' => self::OLD_YEAR, 'box1' => '3', 'box5' => self::CARDS],
+            ['fiscal_year' => self::OLD_YEAR, 'box1' => '2', 'box5' => self::CARDS],
             ['fiscal_year' => self::NEW_YEAR, 'box1' => '3', 'box5' => self::CARDS],
         ], $result['rows']);
     }
 
-    public function testRemovingTheLastTillInAYearWithItsOwnRowStillCountsForEveryYear(): void
+    public function testRemovingTheLastTillInAYearWithItsOwnRowChangesThatYearOnly(): void
     {
         self::rows("INSERT INTO grupper (beskrivelse, kodenr, art, kode, fiscal_year, box1) VALUES ('POS_valg', '1', 'POS', '', $1, '2')", [self::NEW_YEAR]);
         self::rows("UPDATE grupper SET box5 = $1 WHERE art = 'POS' AND kodenr = '1'", [self::CARDS]);
@@ -75,7 +102,7 @@ final class TillCountPerYearTest extends CharacterizationTestCase
 
         self::assertSame(1, $result['count']);
         self::assertSame([
-            ['fiscal_year' => self::OLD_YEAR, 'box1' => '1', 'box5' => self::CARDS],
+            ['fiscal_year' => self::OLD_YEAR, 'box1' => '2', 'box5' => self::CARDS],
             ['fiscal_year' => self::NEW_YEAR, 'box1' => '1', 'box5' => self::CARDS],
         ], $result['rows']);
     }
