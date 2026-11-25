@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/productLookup.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/productLookup.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,8 @@
 // 20260618 CL/PHR replaced lower(vv.variant_type) by lower(vv.variant_type::text) to avoid Fatal error
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 CL/MMR SST-1051 Customer orders: show items from the active external price list (Prislister) and
+//                 create the chosen one as an item before it goes on the order.
 @session_start();
 $s_id = session_id();
 
@@ -83,6 +85,29 @@ if (isset($_GET['insertItems']) && isset($_GET['vare_id']) && isset($_GET['antal
         }
     }
     header("Location: $url");
+    exit;
+}
+
+// SST-1051: an item chosen from the active external price list is created in the item file, then added like any other
+$priceListItemNo = (string) ifset($_GET, 'plVarenr', '');
+if ($priceListItemNo !== '' && $art != 'PO') {
+    include_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
+    $priceList = externalPriceListActive();
+    $priceListRows = $priceList ? externalPriceListRows($priceList) : null;
+    $newItemId = 0;
+    foreach ((array) $priceListRows as $priceListRow) {
+        if ($priceListRow['varenr'] === $priceListItemNo) {
+            $newItemId = externalPriceListCreateItem($priceListRow, $priceList);
+            break;
+        }
+    }
+    if ($newItemId) {
+        header("Location: ordre.php?id=" . (int) $id . "&vare_id=$newItemId&fokus=" . urlencode((string) $fokus));
+        exit;
+    }
+    $backUrl = "productLookup.php?id=" . (int) $id . "&art=" . urlencode((string) $art) . "&fokus=" . urlencode((string) $fokus) . "&find=" . urlencode($priceListItemNo);
+    $message = "Varen $priceListItemNo kunne ikke oprettes fra prislisten. Tjek at prislisten har en varegruppe, og at varen findes i prisfilen.";
+    print "<script>alert(" . json_encode($message) . "); window.location.href = " . json_encode($backUrl) . ";</script>";
     exit;
 }
 
@@ -528,6 +553,52 @@ $data = array(
     "columns" => $columns,
     "filters" => array(), // Can add filters later if needed
 );
+
+// SST-1051: matching rows from the active external price list, above the item grid
+if ($art == 'DO' || $art == 'DK') {
+    include_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
+    $priceList = externalPriceListActive();
+    $gridSearch = if_array(if_array($_GET, 'search'), "productLookup$id");
+    $searchItemNo = trim((string) ifset($gridSearch, 'varenr', (string) $find));
+    $searchText = trim((string) ifset($gridSearch, 'beskrivelse', ''));
+    if ($priceList && ($searchItemNo !== '' || $searchText !== '')) {
+        $priceListRows = externalPriceListRows($priceList);
+        print "<div id='priceListMatches' style='margin: 4px 8px 8px 8px; max-height: 35vh; overflow: auto;'>";
+        print "<b>Fra prislisten " . htmlspecialchars($priceList['name']) . "</b>";
+        if ($priceListRows === null) {
+            print "<div style='color: #a00;'>Prisfilen kunne ikke hentes eller har ingen kolonne varenr.</div>";
+        } else {
+            $priceListFound = array();
+            foreach (externalPriceListSearch($priceListRows, $searchItemNo, $searchText) as $priceListRow) {
+                if (!externalPriceListItemId($priceListRow['varenr'])) {
+                    $priceListFound[] = $priceListRow;
+                }
+            }
+            if (!$priceListFound) {
+                print "<div>Ingen nye varer i prislisten matcher søgningen.</div>";
+            } else {
+                print "<table style='width: 100%; border-collapse: collapse; table-layout: auto;'>";
+                print "<tr style='display: table-row;'><th style='text-align: left; padding: 2px 6px;'>Varenr</th><th style='text-align: left; padding: 2px 6px;'>Enhed</th><th style='text-align: left; padding: 2px 6px;'>Beskrivelse</th><th style='text-align: right; padding: 2px 6px;'>Salgspris</th><th></th></tr>";
+                foreach ($priceListFound as $priceListRow) {
+                    $chooseUrl = "productLookup.php?id=" . (int) $id . "&art=" . urlencode((string) $art) . "&fokus=" . urlencode((string) $fokus) . "&plVarenr=" . urlencode($priceListRow['varenr']);
+                    print "<tr style='display: table-row;'>";
+                    print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['varenr']) . "</td>";
+                    print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['enhed']) . "</td>";
+                    print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['beskrivelse']) . "</td>";
+                    $priceListPrice = $priceListRow['salgspris'];
+                    if ($incl_moms && !in_array($priceList['group'], $momsfri)) {
+                        $priceListPrice = $priceListPrice * (1 + (float) $momssats / 100);
+                    }
+                    print "<td style='text-align: right; padding: 2px 6px;'>" . dkdecimal($priceListPrice, 2) . "</td>";
+                    print "<td style='text-align: right; padding: 2px 6px;'><a href='" . htmlspecialchars($chooseUrl) . "' style='color: #114691; text-decoration: underline;'>Opret og vælg</a></td>";
+                    print "</tr>";
+                }
+                print "</table>";
+            }
+        }
+        print "</div>";
+    }
+}
 
 // Render grid
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
