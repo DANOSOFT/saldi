@@ -38,6 +38,7 @@
 // 20261125 CDX/NTR Escape imported catalogue text before the grid adds search highlighting.
 // 20261125 CDX/NTR Preserve the selected warehouse through external item creation, selection and failure redirects.
 // 20261125 CDX/NTR Route description lookups and their automatic grid search to the description field.
+// 20261125 CDX/NTR Keep warehouse context when the grid submits and retry failed creation by item number.
 @session_start();
 $s_id = session_id();
 
@@ -115,7 +116,8 @@ if ($priceListItemNo !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         header("Location: ordre.php?id=$orderId&vare_id=$newItemId&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam);
         exit;
     }
-    $backUrl = "productLookup.php?id=$orderId&art=" . urlencode((string) $r['art']) . "&fokus=" . urlencode((string) $fokus) . "&find=" . urlencode($priceListItemNo) . $priceListWarehouseParam;
+    $backUrl = "productLookup.php?id=$orderId&art=" . urlencode((string) $r['art']) . "&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam;
+    $backUrl .= '&' . http_build_query(array('search' => array("productLookup$orderId" => array('varenr' => $priceListItemNo, 'beskrivelse' => ''))));
     $message = "Varen $priceListItemNo kunne ikke oprettes fra prislisten. Tjek at prislisten har en varegruppe, og at varen findes i prisfilen.";
     print "<script>alert(" . json_encode($message) . "); window.location.href = " . json_encode($backUrl) . ";</script>";
     exit;
@@ -732,6 +734,9 @@ print "<script type=\"text/javascript\">
             }
             if (orderContext.bordnr && !form.find('input[name=\"bordnr\"]').length) {
                 form.append('<input type=\"hidden\" name=\"bordnr\" value=\"' + orderContext.bordnr + '\">');
+            }
+            if (orderContext.lager && !form.find('input[name=\"lager\"]').length) {
+                form.append('<input type=\"hidden\" name=\"lager\" value=\"' + orderContext.lager + '\">');
             }
         }
         // Match the order's item-number or description lookup, including its automatic grid search.
