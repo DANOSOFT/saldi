@@ -6,6 +6,7 @@
 //
 // History:
 // 20261103 CL/SS SD-743: created.
+// 20261124 CL/LH HML: the payment id of an order imported on its authorization, and of one captured before the import.
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -20,9 +21,15 @@ final class OrderImportTest extends TestCase
 
     public function testThePaymentIdIsTheFirstSuccessfulSaleOrCapture(): void
     {
-        $t = static fn(string $id, string $kind, string $status): array => ['gid' => "gid://shopify/OrderTransaction/$id", 'kind' => $kind, 'status' => $status];
-        $this->assertSame('3', shopify_import_payment_id([$t('1', 'AUTHORIZATION', 'SUCCESS'), $t('2', 'SALE', 'FAILURE'), $t('3', 'CAPTURE', 'SUCCESS'), $t('4', 'SALE', 'SUCCESS')]));
-        $this->assertSame('', shopify_import_payment_id([$t('1', 'REFUND', 'SUCCESS')]));
+        $t = static fn(string $id, string $kind, string $status, ?string $parent = null): array
+            => ['gid' => "gid://shopify/OrderTransaction/$id", 'kind' => $kind, 'status' => $status, 'amount' => '100.00', 'parent_gid' => $parent];
+        $order = static fn(array ...$transactions): array => ['financial_status' => 'PAID', 'transactions' => $transactions];
+        $this->assertSame('3', shopify_import_payment_id($order($t('1', 'AUTHORIZATION', 'FAILURE'), $t('2', 'SALE', 'FAILURE'), $t('3', 'CAPTURE', 'SUCCESS'), $t('4', 'SALE', 'SUCCESS'))));
+        $this->assertSame('', shopify_import_payment_id($order($t('1', 'REFUND', 'SUCCESS'))));
+        $this->assertSame('5', shopify_import_payment_id(['financial_status' => 'AUTHORIZED', 'transactions' => [$t('5', 'AUTHORIZATION', 'SUCCESS')]]),
+            'imported on its authorization: the authorization\'s id');
+        $this->assertSame('6', shopify_import_payment_id($order($t('5', 'AUTHORIZATION', 'SUCCESS'), $t('6', 'CAPTURE', 'SUCCESS', 'gid://shopify/OrderTransaction/5'))),
+            'captured before the import: the capture\'s id, as a payout names it');
     }
 
     public function testABarrierIsOpenedForEveryLineItemSetComponentAndTheSetOnce(): void

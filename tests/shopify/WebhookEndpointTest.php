@@ -18,6 +18,7 @@
 // 20261029 CL/SZ SD-749 review: register-webhooks goes on after a misconfigured shop; setUp clears the stored base URL.
 // 20261029 CL/SZ SD-749 review: register-webhooks needs no fiscal year and stores the host lower-cased.
 // 20261103 CL/MJ SD-790: a misconfigured shop fails every topic in SHOPIFY_WEBHOOK_TOPICS, APP_UNINSTALLED included.
+// 20261124 CL/LH HML: a replayed day's orders/create shares its order's order.import with orders/paid.
 
 use PHPUnit\Framework\TestCase;
 
@@ -157,7 +158,7 @@ final class WebhookEndpointTest extends TestCase
         $one = json_decode($first['stdout'], true);
         $this->assertSame([5, 0, 0, 0], [$one['stored'], $one['duplicate'], $one['anomaly'], $one['rejected']]);
         $this->assertSame(4, $one['promoted']['queued'], 'customers/create waits: the customers flow is off');
-        $this->assertCount(4, $jobs);
+        $this->assertCount(3, $jobs, 'orders/create and orders/paid of one order share its order.import');
         $this->assertSame(0, $second['exit'], $second['stderr']);
         $two = json_decode($second['stdout'], true);
         $this->assertSame([0, 5, 0, 0], [$two['stored'], $two['duplicate'], $two['anomaly'], $two['rejected']]);

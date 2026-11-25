@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/events.php --- ver 5.1.0 --- 2026.11.03
+// --- includes/shopify/events.php --- ver 5.1.1 --- 2026.11.24
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,10 +41,14 @@
 // 20261029 CL/SZ SD-749 review: a health job that can't restore raises it on the error list; the base URL's host is lower-cased.
 // 20261029 CL/SZ SD-749 review: a health job that restores everything resolves the shop's open webhook.health error.
 // 20261103 CL/MJ SD-790: APP_UNINSTALLED is subscribed and becomes a shop.uninstalled job.
+// 20261124 CL/LH HML: ORDERS_CREATE becomes order.import, and so does ORDERS_UPDATED of an authorized or paid order not linked yet.
+//                HML captures at fulfilment, so ORDERS_PAID comes only after the order has shipped.
+//                An event for an order whose import is running queues a second import behind it; ORDERS_PAID upgrades a queued one.
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/client.php';
+require_once __DIR__ . '/links.php';
 
 /** Name of the per-shop secret (settings group shopify:<shop_key>) that signs the shop's webhooks. */
 const SHOPIFY_WEBHOOK_SECRET = 'webhook_secret';
@@ -52,10 +56,12 @@ const SHOPIFY_WEBHOOK_SECRET = 'webhook_secret';
 /**
  * Job type per topic (plan P:363-371). Topics ending in '_*' match every topic with that
  * prefix. Every type dedupes on the event, except order.import, which dedupes on the order.
+ * ORDERS_CREATE imports too: an order whose card is only authorized (captured at fulfilment) is
+ * imported then, and one with no payment yet is skipped by the import until ORDERS_PAID.
  */
 const SHOPIFY_EVENT_ROUTES = array(
 	'ORDERS_PAID' => 'order.import',
-	'ORDERS_CREATE' => 'order.observed',
+	'ORDERS_CREATE' => 'order.import',
 	'ORDERS_UPDATED' => 'order.status',
 	'ORDERS_CANCELLED' => 'order.cancelled',
 	'ORDERS_FULFILLED' => 'fulfillment.upsert',
@@ -65,12 +71,19 @@ const SHOPIFY_EVENT_ROUTES = array(
 	'APP_UNINSTALLED' => 'shop.uninstalled',
 );
 
+/**
+ * ORDERS_UPDATED financial statuses (REST, lower case) at which an order not imported yet is
+ * imported: money is reserved for it, or captured. A partial one is refused by the import's
+ * payment check and listed, as an ORDERS_PAID of a partly paid order is.
+ */
+const SHOPIFY_EVENT_IMPORT_STATUSES = array('authorized', 'partially_paid', 'paid');
+
 /** Shopify's mandatory compliance topics share the CUSTOMERS_ prefix but are not customer upserts. */
 const SHOPIFY_EVENT_NOT_ROUTED = array('CUSTOMERS_DATA_REQUEST', 'CUSTOMERS_REDACT');
 
 /**
- * Priority of a job type that SHOPIFY_QUEUE_PRIORITY does not list yet (order.observed): the
- * level of the other order status jobs (plan P:72, 25).
+ * Priority of a job type that SHOPIFY_QUEUE_PRIORITY does not list: the level of the order
+ * status jobs (plan P:72, 25).
  */
 const SHOPIFY_EVENT_DEFAULT_PRIORITY = 25;
 
@@ -267,12 +280,39 @@ function shopify_route_event(array $event, array $payload): ?array {
 	$orderGid = shopify_event_order_gid($topic, $payload);
 	if ($type === 'order.import') {
 		if ($orderGid === null) {
-			throw new InvalidArgumentException('ORDERS_PAID without an order id');
+			throw new InvalidArgumentException("$topic without an order id");
 		}
 		$dedupe = "$shopKey:$orderGid";
 	} else {
 		$dedupe = "$shopKey:$topic:{$event['event_id']}";
 	}
+	return shopify_event_job($event, $type, $dedupe, $orderGid);
+}
+
+/**
+ * The order.import an ORDERS_UPDATED event asks for besides its order.status: when the body's
+ * financial_status is one of SHOPIFY_EVENT_IMPORT_STATUSES (an order authorized or paid after it
+ * was created). Deduped on the order like every import; null for any other event or status, and
+ * for a body without an order id (its order.status job reports that). shopify_promote_event()
+ * queues it only while the order has no link, so the updates of an imported order queue nothing.
+ *
+ * @param array<string, mixed> $event shopify_events row with shop_key
+ * @param array<string, mixed> $payload
+ * @return array{type: string, dedupe_key: string, payload: array<string, mixed>, priority: int, correlation: array<string, mixed>}|null
+ */
+function shopify_event_import_route(array $event, array $payload): ?array {
+	$topic = (string)$event['topic'];
+	$status = is_string($payload['financial_status'] ?? null) ? strtolower(trim($payload['financial_status'])) : '';
+	$orderGid = shopify_event_order_gid($topic, $payload);
+	if ($topic !== 'ORDERS_UPDATED' || $orderGid === null || !in_array($status, SHOPIFY_EVENT_IMPORT_STATUSES, true)) {
+		return null;
+	}
+	return shopify_event_job($event, 'order.import', "{$event['shop_key']}:$orderGid", $orderGid);
+}
+
+/** The job an event becomes: its type, dedupe key, payload, priority and correlation. */
+function shopify_event_job(array $event, string $type, string $dedupe, ?string $orderGid): array {
+	$topic = (string)$event['topic'];
 	$correlation = array('event_row_id' => (int)$event['id']);
 	$jobPayload = array('event_row_id' => (int)$event['id'], 'topic' => $topic, 'event_id' => (string)$event['event_id']);
 	if ($orderGid !== null) {
@@ -410,9 +450,36 @@ function shopify_promote_event(array $event, int $id, string $ref): array {
 		shopify_db_rows("UPDATE shopify_events SET state = 'ignored', processed_at = now() WHERE id = $1", array($id));
 		return array('state' => 'ignored', 'job_id' => null, 'count' => 'ignored');
 	}
-	$job = shopify_queue_enqueue($route['type'], (int)$event['shop_id'], $route['dedupe_key'], $route['payload'], $route['priority'], null, $route['correlation']);
+	$job = shopify_event_enqueue((int)$event['shop_id'], $route);
+	$import = shopify_event_import_route($event, $payload);
+	if ($import !== null && shopify_order_link((int)$event['shop_id'], (string)$import['payload']['order_gid']) === null) {
+		// the import of an order authorized or paid after it was created; the event's job stays its order.status
+		shopify_event_enqueue((int)$event['shop_id'], $import);
+	}
 	shopify_db_rows("UPDATE shopify_events SET state = 'queued', job_id = $2, processed_at = now() WHERE id = $1", array($id, (int)$job['id']));
 	return array('state' => 'queued', 'job_id' => (int)$job['id'], 'count' => 'queued');
+}
+
+/**
+ * Queues a routed job. An order.import whose job is running already may have read the order
+ * before this event's payment (a CREATE import that found no payment yet): a second job
+ * (<key>:again) is queued behind it, so the order is read again. A queued import that an
+ * ORDERS_PAID event joins becomes an ORDERS_PAID job (shopify_import_not_paid_yet()) and is due now.
+ *
+ * @param array{type: string, dedupe_key: string, payload: array<string, mixed>, priority: int, correlation: array<string, mixed>} $route
+ * @return array{id: int, created: bool, state: string}
+ */
+function shopify_event_enqueue(int $shopId, array $route): array {
+	$job = shopify_queue_enqueue($route['type'], $shopId, $route['dedupe_key'], $route['payload'], $route['priority'], null, $route['correlation']);
+	if ($route['type'] === 'order.import' && !$job['created'] && $job['state'] === 'running') {
+		$job = shopify_queue_enqueue($route['type'], $shopId, "{$route['dedupe_key']}:again", $route['payload'], $route['priority'], null, $route['correlation']);
+	}
+	if ($route['type'] === 'order.import' && !$job['created'] && $job['state'] === 'queued' && ($route['payload']['topic'] ?? '') === 'ORDERS_PAID') {
+		// the queued import of a CREATE or UPDATED event takes over the payment's provenance, and runs now
+		shopify_db_rows("UPDATE shopify_jobs SET payload = jsonb_set(payload, '{topic}', '\"ORDERS_PAID\"'), next_run_at = least(next_run_at, now())
+			WHERE id = $1 AND state = 'queued'", array((int)$job['id']));
+	}
+	return $job;
 }
 
 /** The job type of a topic, null when it has none. */

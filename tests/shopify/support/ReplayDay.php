@@ -21,6 +21,7 @@
 // 20261103 CL/LH SD-766: second review: tables() keeps ids and references, leaving out only VOLATILE; its portable read
 //                for expected.json reads REFS as business keys.
 // 20261103 CL/MJ SD-790: the day subscribes every topic but APP_UNINSTALLED, so its IDs stay as recorded.
+// 20261124 CL/LH HML: ORDERS_CREATE queues the order's order.import (option A), no order.observed.
 
 require_once __DIR__ . '/FakeShopifyStore.php';
 require_once __DIR__ . '/WebhookReplayer.php';
@@ -116,9 +117,9 @@ final class ReplayDay
 
 	/**
 	 * The job handlers a replay runs, as tools/shopify_worker.php wires them. A handler that calls
-	 * Shopify gets the fake store's shopify_graphql() opts as a fourth argument. Not built yet, so
-	 * their jobs stay queued (pending_jobs): order.import, order.observed, order.status,
-	 * order.cancelled (SD-742/SD-743), fulfillment.upsert and refund.upsert (SD-740).
+	 * Shopify gets the fake store's shopify_graphql() opts as a fourth argument. Not registered here,
+	 * so their jobs stay queued (pending_jobs): order.import (ORDERS_PAID and ORDERS_CREATE, one per
+	 * order), order.status, order.cancelled (SD-742/SD-743), fulfillment.upsert and refund.upsert (SD-740).
 	 *
 	 * @param array<string, mixed> $graphql
 	 * @return array<string, callable>

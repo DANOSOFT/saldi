@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderImport.php --- ver 5.1.0 --- 2026.11.12
+// --- includes/shopify/services/orderImport.php --- ver 5.1.1 --- 2026.11.24
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,10 @@
 // 20261104 CL/SS SD-743 review 2: the account check includes OreDif, which bogfor_nu() posts an øre difference of the posting on.
 // 20261104 CL/SS SD-743 review 2: the debtor group must have the VAT group that bogfor() reads for an order with VAT.
 // 20261112 CL/SS SD-804: an echo of our own store order queues the sale still waiting for its answer.
+// 20261124 CL/LH HML: an authorized order is imported too (ORDERS_CREATE/UPDATED); one with no payment yet waits quietly for ORDERS_PAID.
+//                The payment id is the authorization's until it is captured, and an import that validates resolves the order's payment error.
+//                A capture is mapped by its own gateway; a job that took over an ORDERS_PAID event is an ORDERS_PAID job.
+//                A created or updated order of a legacy shop older than its go-live is not imported: the legacy intake may have it.
 
 require_once __DIR__ . '/orderIntake.php';
 require_once __DIR__ . '/customers.php';
@@ -132,12 +136,23 @@ function shopify_import_paid_order(array $job, array $services = array()): array
 		if (!shopify_intake_admitted($shop)) {
 			return array('outcome' => 'done', 'result' => array('skipped' => 'legacy intake open'));
 		}
+		if (shopify_import_legacy_era($job, $shop, $order)) {
+			shopify_import_log('legacy_era', $correlation + array('order_name' => $order['name'], 'topic' => (string)($job['payload']['topic'] ?? '')));
+			return array('outcome' => 'done', 'result' => array('skipped' => 'created before the go-live of a legacy shop'));
+		}
+		if (shopify_import_not_paid_yet($job, $order)) {
+			shopify_import_log('not_paid_yet', $correlation + array('order_name' => $order['name'], 'topic' => (string)($job['payload']['topic'] ?? '')));
+			return array('outcome' => 'done', 'result' => array('skipped' => 'no payment yet'));
+		}
 		$validated = shopify_validate_paid_order($shop, $order, shopify_intake_context($shop, $order));
-		$validated['header']['betalings_id'] = shopify_import_payment_id($order['transactions']);
+		$validated['header']['betalings_id'] = shopify_import_payment_id($order);
 		if (!$validated['ok']) {
 			shopify_db_transaction(fn() => shopify_intake_report($shopId, $validated, $correlation));
 			return array('outcome' => 'done', 'result' => array('refused' => array_column($validated['errors'], 'kind')));
 		}
+		// "paid X of total" listed while the order was only partly authorized; an alarm of this run (an unknown card) is a warning and stays
+		shopify_db_rows("UPDATE shopify_errors SET resolved_at = now() WHERE error_key = $1 AND resolved_at IS NULL AND severity = 'error'",
+			array(shopify_error_key($shopId, 'order.payment', $gid)));
 		$reserved = shopify_db_transaction(fn() => shopify_reserve_order_link($shopId, $gid, 'web', array('order_name' => $order['name'], 'state' => 'validated')));
 		if ($reserved['state'] !== 'validated') {
 			return shopify_import_not_importable($reserved['state'], $correlation);
@@ -524,14 +539,50 @@ function shopify_import_header(int $kontoId, array $h): int {
 		array_values($values))[0]['id'];
 }
 
-/** The numeric id of the order's first successful sale or capture, the order's payment id. */
-function shopify_import_payment_id(array $transactions): string {
-	foreach ($transactions as $t) {
-		if (in_array($t['kind'], SHOPIFY_PAID_KINDS, true) && $t['status'] === 'SUCCESS') {
-			return preg_replace('#^gid://shopify/OrderTransaction/#', '', (string)$t['gid']);
+/**
+ * The order's payment id: the numeric id of the first payment shopify_order_payments() counts, a
+ * sale, or for an authorization its first capture once there is one (the id a payout names), else
+ * the authorization's own.
+ */
+function shopify_import_payment_id(array $order): string {
+	$payments = shopify_order_payments($order['transactions'], time(), (string)($order['financial_status'] ?? ''));
+	$gid = isset($payments[0]) ? (string)$payments[0]['transaction']['gid'] : '';
+	return (string)preg_replace('#^gid://shopify/OrderTransaction/#', '', $gid);
+}
+
+/**
+ * Whether a job that came before the order's payment ends quietly: not an ORDERS_PAID job (one
+ * that took over an ORDERS_PAID event carries its topic), and the order has no successful sale,
+ * capture or capturable authorization, no refund, and a financial status other than PAID,
+ * PARTIALLY_PAID or (PARTIALLY_)REFUNDED (a bank transfer or a payment still pending; an
+ * authorization voided or expired). Nothing is listed; ORDERS_PAID, or ORDERS_UPDATED once
+ * authorized, brings it back. ORDERS_PAID without such a payment is refused as before, and a
+ * partial payment is refused either way.
+ */
+function shopify_import_not_paid_yet(array $job, array $order): bool {
+	if ((string)($job['payload']['topic'] ?? 'ORDERS_PAID') === 'ORDERS_PAID' || in_array((string)($order['financial_status'] ?? ''), array('PAID', 'PARTIALLY_PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'), true)) {
+		return false;
+	}
+	foreach ($order['transactions'] as $t) {
+		if ($t['status'] === 'SUCCESS' && $t['kind'] === 'REFUND') {
+			return false;
 		}
 	}
-	return '';
+	return shopify_order_payments($order['transactions'], time(), (string)($order['financial_status'] ?? '')) === array();
+}
+
+/**
+ * Whether a job that is not ORDERS_PAID may be about an order the shop's legacy integration
+ * imported: the shop has a legacy slot and the order is older than its go_live_at (or no go-live
+ * is set). After the cut-over every update of such an order would otherwise import it again.
+ */
+function shopify_import_legacy_era(array $job, array $shop, array $order): bool {
+	if ((string)($job['payload']['topic'] ?? 'ORDERS_PAID') === 'ORDERS_PAID' || !isset($shop['legacy_slot']) || $shop['legacy_slot'] === null) {
+		return false;
+	}
+	$goLive = isset($shop['go_live_at']) && $shop['go_live_at'] !== null ? strtotime((string)$shop['go_live_at']) : false;
+	$created = strtotime((string)($order['created_at'] ?? ''));
+	return $goLive === false || $created === false || $created < $goLive;
 }
 
 /**

@@ -8,6 +8,7 @@
 //
 // History:
 // 20261027 CL/SZ SD-748: created.
+// 20261124 CL/LH HML: ORDERS_CREATE imports the order, and ORDERS_UPDATED once the order is authorized or paid (capture at fulfilment).
 
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
@@ -107,7 +108,7 @@ final class EventsTest extends TestCase
     {
         $cases = [
             'ORDERS_PAID' => ['order.import', 10, 'orders_paid'],
-            'ORDERS_CREATE' => ['order.observed', 25, 'orders_create'],
+            'ORDERS_CREATE' => ['order.import', 10, 'orders_create'],
             'ORDERS_UPDATED' => ['order.status', 25, 'orders_create'],
             'ORDERS_CANCELLED' => ['order.cancelled', 25, 'orders_create'],
             'ORDERS_FULFILLED' => ['fulfillment.upsert', 25, 'orders_create'],
@@ -123,7 +124,7 @@ final class EventsTest extends TestCase
             $this->assertSame($priority, $job['priority'], $topic);
             $this->assertSame(7, $job['payload']['event_row_id'], $topic);
             $this->assertSame(7, $job['correlation']['event_row_id'], $topic);
-            if ($topic === 'ORDERS_PAID') {
+            if ($type === 'order.import') {
                 $this->assertSame('hml:gid://shopify/Order/820982911946154508', $job['dedupe_key'], 'order.import dedupes on the order GID');
             } else {
                 $this->assertSame("hml:$topic:ev-42", $job['dedupe_key'], "$topic dedupes on the event");
@@ -143,7 +144,29 @@ final class EventsTest extends TestCase
 
         $created = shopify_route_event(self::event('ORDERS_CREATE', 'ev-1', 3), $paid);
         $updated = shopify_route_event(self::event('ORDERS_UPDATED', 'ev-1', 4), $paid);
-        $this->assertNotSame($created['dedupe_key'], $updated['dedupe_key'], 'one event id shared by two topics');
+        $cancelled = shopify_route_event(self::event('ORDERS_CANCELLED', 'ev-1', 5), $paid);
+        $this->assertSame($first['dedupe_key'], $created['dedupe_key'], 'a created order shares the import of its payment');
+        $this->assertSame('ORDERS_CREATE', $created['payload']['topic'], 'the import knows it may come before any payment');
+        $this->assertNotSame($updated['dedupe_key'], $cancelled['dedupe_key'], 'one event id shared by two topics');
+    }
+
+    public function testAnUpdatedOrderThatIsAuthorizedOrPaidAlsoAsksForItsImport(): void
+    {
+        $body = self::fixture('orders_paid');
+        $import = fn(string $topic, ?string $status): ?array => shopify_event_import_route(self::event($topic, 'ev-9', 8), ['financial_status' => $status] + $body);
+
+        foreach (['authorized', 'partially_paid', 'paid', 'AUTHORIZED'] as $status) {
+            $job = $import('ORDERS_UPDATED', $status);
+            $this->assertSame(['order.import', 'hml:gid://shopify/Order/820982911946154508', 10, 'ORDERS_UPDATED'],
+                [$job['type'] ?? null, $job['dedupe_key'] ?? null, $job['priority'] ?? null, $job['payload']['topic'] ?? null], $status);
+        }
+        foreach (['pending', 'voided', 'expired', 'refunded', 'partially_refunded', null] as $status) {
+            $this->assertNull($import('ORDERS_UPDATED', $status), 'no money reserved, or already handled: ' . var_export($status, true));
+        }
+        foreach (['ORDERS_PAID', 'ORDERS_CREATE', 'ORDERS_CANCELLED', 'ORDERS_FULFILLED', 'REFUNDS_CREATE'] as $topic) {
+            $this->assertNull($import($topic, 'authorized'), "$topic routes as before");
+        }
+        $this->assertNull(shopify_event_import_route(self::event('ORDERS_UPDATED', 'ev-9', 8), ['financial_status' => 'paid']), 'no order id: the status job reports it');
     }
 
     public function testThePaidOrderIdIsTakenFromTheGidOrTheNumericId(): void
@@ -158,6 +181,12 @@ final class EventsTest extends TestCase
             } catch (InvalidArgumentException $e) {
                 $this->assertSame('ORDERS_PAID without an order id', $e->getMessage());
             }
+        }
+        try {
+            shopify_route_event(self::event('ORDERS_CREATE'), []);
+            $this->fail('no order id in an ORDERS_CREATE body');
+        } catch (InvalidArgumentException $e) {
+            $this->assertSame('ORDERS_CREATE without an order id', $e->getMessage());
         }
     }
 

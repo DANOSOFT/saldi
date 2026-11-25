@@ -35,6 +35,8 @@
 // 20261112 CL/SZ SD-822: stagedUploadsCreate, the upload seam, bulkOperationRunMutation of inventoryBulkToggleActivation (B39, B40).
 //                Test knobs refuseActivation(), failBulkAfter(), hideQuantity(), refuseQuantity() and limitBulkOnce().
 // 20261113 CL/SZ SD-822 Review: a failure can be a sequence of modes, one per call.
+// 20261124 CL/LH HML: an order created on an authorization is AUTHORIZED (B41); captureOrder() and voidOrder() capture or void it (B42, B43).
+//                Transactions show their parent and the authorization's expiry.
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -69,6 +71,8 @@ final class FakeShopifyStore
 	public float $restoreRate = 100.0;
 	/** Unix time of fake clock second 0; the clock starts at 1000, Mon 2 Nov 2026 08:00 UTC. */
 	public int $epoch;
+	/** How long an authorization lasts before it expires (B41); Shopify Payments documents 7 days for most cards. */
+	public const AUTHORIZATION_DAYS = 7;
 	/** @var list<array{shop: string, operation: ?string, kind: string, roots: list<string>, variables: array, status: int}> */
 	public array $calls = [];
 	/** @var array<string, string> root field => user_error | timeout_after_apply | http_500 | http_401 | throttled | refused, once; "<mode>x<n>" n times; "<mode>,<mode>" in turn */
@@ -192,6 +196,86 @@ final class FakeShopifyStore
 	public function holdForOrder(string $domain, string $item, string $location, int $qty): void
 	{
 		$this->commit($domain, $item, $location, $qty);
+	}
+
+	/**
+	 * The shop captures the order's open authorization (B42), as a shop that captures at fulfilment
+	 * does when the order ships: a CAPTURE whose parent is the authorization, the order PAID once
+	 * captures cover its total, then orders/updated and, when paid, orders/paid. $amount defaults to
+	 * what is left of the authorization.
+	 *
+	 * @return string the capture's GID
+	 */
+	public function captureOrder(string $domain, string $order, ?float $amount = null): string
+	{
+		$this->uses('B42');
+		$auth = $this->openAuthorization($domain, $order);
+		$s = &$this->shop($domain);
+		$o = &$s['orders'][$order];
+		$left = $this->unsettled($o, $auth);
+		$amount ??= $left;
+		if ($amount <= 0 || $amount > $left + 0.005) {
+			throw new LogicException("FakeShopifyStore: $amount can't be captured of $order; $left is left of its authorization (expired, or captured already)");
+		}
+		$captured = $auth['amount'] - $left;
+		$id = $this->gid('OrderTransaction');
+		$o['transactions'][] = ['id' => $id, 'kind' => 'CAPTURE', 'status' => 'SUCCESS', 'gateway' => $auth['gateway'], 'amount' => $amount,
+			'parent' => $auth['id'], 'expires' => null, 'at' => $this->clock->now];
+		$paid = $captured + $amount + 0.005 >= $this->orderTotal($domain, $order);
+		$o['financial'] = $paid ? 'PAID' : 'PARTIALLY_PAID';
+		$o['updated'] = $this->clock->now;
+		unset($o);
+		$this->fire($domain, 'orders/updated', $this->restOrder($domain, $order));
+		if ($paid) {
+			$this->fire($domain, 'orders/paid', $this->restOrder($domain, $order));
+		}
+		return $id;
+	}
+
+	/** The shop voids the order's open authorization (B43): a VOID whose parent is it, the order VOIDED, then orders/updated. */
+	public function voidOrder(string $domain, string $order): string
+	{
+		$this->uses('B43');
+		$auth = $this->openAuthorization($domain, $order);
+		$s = &$this->shop($domain);
+		$id = $this->gid('OrderTransaction');
+		$s['orders'][$order]['transactions'][] = ['id' => $id, 'kind' => 'VOID', 'status' => 'SUCCESS', 'gateway' => $auth['gateway'], 'amount' => $auth['amount'],
+			'parent' => $auth['id'], 'expires' => null, 'at' => $this->clock->now];
+		$s['orders'][$order]['financial'] = 'VOIDED';
+		$s['orders'][$order]['updated'] = $this->clock->now;
+		$this->fire($domain, 'orders/updated', $this->restOrder($domain, $order));
+		return $id;
+	}
+
+	/** B41, B42: what is left to capture of an authorization (its amount less its captures) until it is voided or expires; 0 for any other transaction. */
+	private function unsettled(array $o, array $t): float
+	{
+		if ($t['kind'] !== 'AUTHORIZATION' || $t['status'] !== 'SUCCESS' || (($t['expires'] ?? null) !== null && $t['expires'] <= $this->clock->now)) {
+			return 0.0;
+		}
+		$left = $t['amount'];
+		foreach ($o['transactions'] as $x) {
+			if (($x['parent'] ?? null) === $t['id'] && $x['status'] === 'SUCCESS') {
+				$left = $x['kind'] === 'VOID' ? 0.0 : ($x['kind'] === 'CAPTURE' ? $left - $x['amount'] : $left);
+			}
+		}
+		return max(0.0, $left);
+	}
+
+	/** The order's successful authorization that is not voided; the fake models one per order. */
+	private function openAuthorization(string $domain, string $order): array
+	{
+		$transactions = $this->shop($domain)['orders'][$order]['transactions'] ?? null;
+		if ($transactions === null) {
+			throw new LogicException("FakeShopifyStore: no order $order");
+		}
+		$voided = array_column(array_filter($transactions, fn(array $t): bool => $t['kind'] === 'VOID'), 'parent');
+		foreach ($transactions as $t) {
+			if ($t['kind'] === 'AUTHORIZATION' && $t['status'] === 'SUCCESS' && !in_array($t['id'], $voided, true)) {
+				return $t;
+			}
+		}
+		throw new LogicException("FakeShopifyStore: order $order has no open authorization");
 	}
 
 	/** A quantity changed in the shop's admin, not through Saldi: what the nightly read looks for. */
@@ -1013,8 +1097,12 @@ final class FakeShopifyStore
 				$this->shop($domain)['orders'][$gid]['refunds']), 0, $a['first'] ?? null),
 			'transactions' => fn(array $a): array => array_map(fn(array $t): array => ['__typename' => 'OrderTransaction', 'id' => $t['id'],
 				'kind' => $t['kind'], 'status' => $t['status'], 'gateway' => $t['gateway'], 'test' => $o['test'],
-				'amountSet' => self::money($t['amount'], $o['currency']), 'paymentDetails' => null, 'createdAt' => $this->iso(false, $o['created']),
-				'processedAt' => $this->iso(false, $o['created'])], array_slice($o['transactions'], 0, $a['first'] ?? null)),
+				'amountSet' => self::money($t['amount'], $o['currency']), 'paymentDetails' => null, 'createdAt' => $this->iso(false, $t['at'] ?? $o['created']),
+				'processedAt' => $this->iso(false, $t['at'] ?? $o['created']),
+				'parentTransaction' => ($t['parent'] ?? null) === null ? null : ['__typename' => 'OrderTransaction', 'id' => $t['parent']],
+				'authorizationExpiresAt' => ($t['expires'] ?? null) === null ? null : $this->iso(false, $t['expires']),
+				'totalUnsettledSet' => self::money($this->unsettled($o, $t), $o['currency'])],
+				array_slice($o['transactions'], 0, $a['first'] ?? null)),
 		] + $this->times($o) + $this->metafieldFields($domain, $gid);
 	}
 
@@ -1917,11 +2005,19 @@ final class FakeShopifyStore
 		$gid = $this->gid('Order');
 		$paid = 0.0;
 		$transactions = [];
+		$authorized = 0.0;
 		foreach ($in['transactions'] ?? [] as $t) {
 			$amount = (float)$t['amountSet']['shopMoney']['amount'];
-			$transactions[] = ['id' => $this->gid('OrderTransaction'), 'kind' => $t['kind'] ?? 'SALE', 'status' => $t['status'] ?? 'SUCCESS',
-				'gateway' => $t['gateway'] ?? 'manual', 'amount' => $amount];
-			$paid += in_array($t['kind'] ?? 'SALE', ['SALE', 'CAPTURE'], true) && ($t['status'] ?? 'SUCCESS') === 'SUCCESS' ? $amount : 0;
+			$kind = $t['kind'] ?? 'SALE';
+			$success = ($t['status'] ?? 'SUCCESS') === 'SUCCESS';
+			if ($kind === 'AUTHORIZATION') {
+				$this->uses('B41');
+			}
+			$transactions[] = ['id' => $this->gid('OrderTransaction'), 'kind' => $kind, 'status' => $t['status'] ?? 'SUCCESS',
+				'gateway' => $t['gateway'] ?? 'manual', 'amount' => $amount, 'parent' => null,
+				'expires' => $kind === 'AUTHORIZATION' && $success ? $this->clock->now + self::AUTHORIZATION_DAYS * 86400 : null];
+			$paid += in_array($kind, ['SALE', 'CAPTURE'], true) && $success ? $amount : 0;
+			$authorized += $kind === 'AUTHORIZATION' && $success ? $amount : 0;
 		}
 		$taxesIncluded = (bool)($in['taxesIncluded'] ?? false);
 		$tax = array_sum(array_column(array_merge($taxLines, ...array_column($lines, 'tax_lines')), 'amount'));
@@ -1933,7 +2029,8 @@ final class FakeShopifyStore
 			'custom_attributes' => array_map(fn(array $c): array => ['key' => $c['key'], 'value' => $c['value']], $in['customAttributes'] ?? []),
 			'source_name' => $in['sourceName'] ?? null, 'source_identifier' => $in['sourceIdentifier'] ?? null, 'po_number' => $in['poNumber'] ?? null,
 			'currency' => $in['currency'] ?? 'DKK', 'test' => (bool)($in['test'] ?? false), 'taxes_included' => $taxesIncluded, 'tax_lines' => $taxLines,
-			'financial' => $in['financialStatus'] ?? ($transactions === [] ? 'PENDING' : ($paid + 0.005 >= $total ? 'PAID' : 'PARTIALLY_PAID')),
+			'financial' => $in['financialStatus'] ?? ($transactions === [] ? 'PENDING' : ($paid + 0.005 >= $total ? 'PAID'
+				: ($paid < 0.005 && $authorized + 0.005 >= $total ? 'AUTHORIZED' : 'PARTIALLY_PAID'))),
 			'shipping_address' => isset($in['shippingAddress']) ? array_intersect_key($in['shippingAddress'], array_flip(['address1', 'city', 'zip', 'firstName', 'lastName', 'phone'])) + ['countryCodeV2' => $in['shippingAddress']['countryCode'] ?? 'DK'] : null,
 			'customer' => $customer, 'lines' => $lines, 'transactions' => $transactions, 'inventory_behaviour' => $behaviour,
 			'fulfillment_orders' => [], 'fulfillments' => [], 'refunds' => [], 'created' => $this->clock->now, 'updated' => $this->clock->now,

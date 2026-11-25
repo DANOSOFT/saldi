@@ -19,6 +19,7 @@
 // 20261104 CL/SS SD-744: the EasyRoutes delivery date follows the newest ORDERS_UPDATED; the order screen's panel shows the order's Shopify side.
 // 20261105 CL/SS SD-744 review: a tie keeps the date, also from a status stored before the date was read; a cancelled shipment is not shown as sent; statuses in the user's language.
 // 20261118 CL/SS SD-804: the EasyRoutes date is read from the Delivery Date note attribute.
+// 20261124 CL/LH HML: an order imported on its authorization: the capture posts nothing, a void or an expiry asks for the credit note once.
 
 use PHPUnit\Framework\TestCase;
 
@@ -300,6 +301,75 @@ final class StatusInSyncTest extends TestCase
         $this->pass();
         $this->assertSame('1', $this->errors()[0]['occurrences'], 'a replay does not count it again');
         $this->assertSame($ordreId, (int)$this->sql('SELECT ordre_id FROM shopify_order_links')[0]['ordre_id']);
+    }
+
+    public function testACaptureOfAnOrderImportedOnItsAuthorizationPostsNothingAndQueuesNoImport(): void
+    {
+        $this->importOrder();
+        $before = $this->counts();
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => 'authorized', 'updated_at' => '2026-11-02T09:13:00+01:00']));
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => 'paid']));
+        $this->pass();
+
+        $this->assertSame([], $this->errors());
+        $this->assertSame($before, $this->counts(), 'the capture is the money the invoice was posted on: nothing more is posted');
+        $this->assertSame('paid', json_decode($this->sql("SELECT flags->'status' AS s FROM shopify_order_links")[0]['s'], true)['financial_status']);
+        $this->assertSame([], $this->sql("SELECT dedupe_key FROM shopify_jobs WHERE type = 'order.import'"), 'an imported order is not imported again');
+    }
+
+    public function testAVoidOlderThanTheStoredStatusOrOfACancelledOrderAsksForNoAuthorizationCreditNote(): void
+    {
+        $this->importOrder();
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => 'paid']));
+        $this->pass();
+        // a void of the first authorization, delivered late, after the order was authorized again and captured
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => 'voided', 'updated_at' => '2026-11-02T09:13:00+01:00']));
+        $this->pass();
+        $this->assertSame([], $this->errors(), 'the newest status is paid');
+
+        // cancelling an authorized order voids it: the cancellation asks for the credit note, once
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => 'voided', 'cancelled_at' => '2026-11-03T09:00:00+01:00',
+            'updated_at' => '2026-11-03T09:00:01+01:00']));
+        $this->deliver('ORDERS_CANCELLED', self::body('orders_cancelled.json'));
+        $this->pass();
+        $this->assertSame(['status.credit_note'], array_column($this->errors(), 'kind'));
+        // a delayed update from before the cancellation: the stored status is voided, but the link is cancelled
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => 'voided', 'updated_at' => '2026-11-02T09:14:00+01:00']));
+        $this->pass();
+        $this->assertSame(['status.credit_note'], array_column($this->errors(), 'kind'), 'one credit note for the order');
+    }
+
+    /** @return array<string, array{string}> */
+    public static function lostAuthorizations(): array
+    {
+        return ['voided' => ['voided'], 'expired' => ['expired'], 'upper case' => ['VOIDED']];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('lostAuthorizations')]
+    public function testAnAuthorizationVoidedOrExpiredAfterTheImportAsksForTheCreditNoteOnce(string $status): void
+    {
+        $ordreId = $this->importOrder();
+        $before = $this->counts();
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => $status]));
+        $this->pass();
+
+        $errors = $this->errors();
+        $this->assertSame([['order.authorization', self::ORDER_GID, 'error', '1']],
+            array_map(fn(array $e): array => [$e['kind'], $e['ref'], $e['severity'], $e['occurrences']], $errors));
+        $this->assertStringContainsString('Saldi order 80101 was invoiced as paid on the card', $errors[0]['message']);
+        $this->assertStringContainsString('lav kreditnota', $errors[0]['message']);
+        $this->assertSame(array_diff_key($before, ['mail_jobs' => 0]), array_diff_key($this->counts(), ['mail_jobs' => 0]), 'nothing is posted or re-posted; the credit note is made by a person');
+
+        $this->sql("UPDATE shopify_events SET state = 'received', processed_at = NULL");
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => $status, 'updated_at' => '2026-11-03T09:13:00+01:00']));
+        $this->pass();
+        $this->assertSame('1', $this->errors()[0]['occurrences'], 'a replay or a later update does not list it again');
+        $this->assertSame($ordreId, (int)$this->sql('SELECT ordre_id FROM shopify_order_links')[0]['ordre_id']);
+
+        $this->sql("UPDATE shopify_errors SET resolved_at = now()");
+        $this->deliver('ORDERS_UPDATED', self::body('orders_updated.json', ['financial_status' => $status, 'updated_at' => '2026-11-04T09:13:00+01:00']));
+        $this->pass();
+        $this->assertSame([], $this->errors(), 'once the person has handled it, it stays handled');
     }
 
     public function testACancellationNotInvoicedYetIsListedAtOnceAndAsksForTheCreditNoteOnceInvoiced(): void

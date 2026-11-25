@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/statusIn.php --- ver 5.1.0 --- 2026.11.18
+// --- includes/shopify/services/statusIn.php --- ver 5.1.1 --- 2026.11.24
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,8 @@
 // 20261104 CL/SS SD-744: ORDERS_UPDATED stores the delivery date EasyRoutes writes on the order (easyroutes_levdato).
 // 20261105 CL/SS SD-744 review: on a tie on updated_at, a status with the EasyRoutes date wins over one without it.
 // 20261118 CL/SS SD-804: the delivery date's note attribute is Delivery Date, as DTAILS confirmed.
+// 20261124 CL/LH HML: an imported order whose card authorization is voided or expired asks for the credit note once (order.authorization).
+//                Only while that is the newest status, and not for a cancelled order, whose cancellation asks for it.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -59,6 +61,13 @@ const SHOPIFY_STATUS_DEFER_HOURS = 48;
 const SHOPIFY_STATUS_DEFER_SECONDS = 300;
 /** The order's note attribute the delivery date is written in (YYYY-MM-DD), as DTAILS confirmed 2026-11-18 (SD-744, Aa4). */
 const SHOPIFY_EASYROUTES_DATE_ATTRIBUTE = 'Delivery Date';
+
+/**
+ * ORDERS_UPDATED financial statuses (REST, lower case) of an order whose authorization will never
+ * be captured. Saldi invoiced it as paid on the card when Shopify authorized it (HML captures at
+ * fulfilment), so a person makes the credit note; nothing is posted here.
+ */
+const SHOPIFY_STATUS_LOST_AUTHORIZATION = array('voided', 'expired');
 
 /** The event's order has no Saldi order yet: the job yields and tries again (not a failed attempt). */
 final class ShopifyOrderLinkPending extends RuntimeException
@@ -376,7 +385,10 @@ function shopify_handle_fulfillment(array $event): void {
  * Applies an ORDERS_UPDATED event: the order's financial and fulfillment status and the delivery
  * date EasyRoutes wrote on it, with its updated_at, in the link's flags (namespace status) and the
  * date also in easyroutes_levdato, unless the stored status is newer. The fulfillments themselves
- * come with their own events.
+ * come with their own events. When the newest stored financial status is one of
+ * SHOPIFY_STATUS_LOST_AUTHORIZATION, it opens 'lav kreditnota' (order.authorization) once per
+ * order: a later update, a replay or a row the person has resolved does not open it again. An
+ * update of a cancelled order (cancelled_at in its body) leaves that to the cancellation.
  *
  * @param array{shop_id: int, event_row_id: int, topic: string} $event
  * @throws ShopifyOrderLinkPending while the order has no Saldi order
@@ -405,6 +417,11 @@ function shopify_handle_order_updated(array $event): void {
 			array((int)$link['id'], shopify_link_json(array('status' => $status)), $status['easyroutes_levdato']));
 		return $status;
 	});
+	$financial = strtolower((string)($stored['financial_status'] ?? ''));
+	// the newest status, so a void that arrives after the order was paid again lists nothing; a cancellation asks for its credit note itself
+	if (in_array($financial, SHOPIFY_STATUS_LOST_AUTHORIZATION, true) && shopify_status_text($loaded['body']['cancelled_at'] ?? null) === null) {
+		shopify_status_lost_authorization($event, $link, $financial, $loaded['body']);
+	}
 	// a listed status no newer than the stored one is replaced by it
 	shopify_status_unlist($event, 'order.status:' . $loaded['order_gid'], function (int $listed) use ($stored): bool {
 		$rows = shopify_db_rows('SELECT payload_b64 FROM shopify_events WHERE id = $1', array($listed));
@@ -413,6 +430,35 @@ function shopify_handle_order_updated(array $event): void {
 			return false;
 		}
 		return !shopify_status_order_newer(shopify_status_of($body), $stored);
+	});
+}
+
+/**
+ * Lists an imported order whose card authorization was voided or expired, once per order (open or
+ * resolved): Saldi invoiced it as paid on the card, and that money will not come.
+ */
+function shopify_status_lost_authorization(array $event, array $link, string $financial, array $body): void {
+	$shopId = (int)$event['shop_id'];
+	$gid = (string)$link['order_gid'];
+	shopify_db_transaction(function () use ($event, $link, $financial, $body, $shopId, $gid) {
+		$key = shopify_error_key($shopId, 'order.authorization', $gid);
+		shopify_db_rows('SELECT pg_advisory_xact_lock(hashtext($1))', array("shopify_error:$key"));
+		if (shopify_db_rows('SELECT 1 FROM shopify_errors WHERE error_key = $1', array($key)) !== array()) {
+			return;
+		}
+		// cancelled meanwhile (the cancellation asks for the credit note itself), whatever this older body says
+		$now = shopify_db_rows('SELECT cancelled_at FROM shopify_order_links WHERE id = $1 FOR UPDATE', array((int)$link['id']))[0] ?? null;
+		if ($now === null || $now['cancelled_at'] !== null
+			|| shopify_db_rows('SELECT 1 FROM shopify_errors WHERE error_key = $1', array(shopify_error_key($shopId, 'status.credit_note', $gid))) !== array()) {
+			return;
+		}
+		$name = shopify_status_text($body['name'] ?? null) ?? (string)($link['order_name'] ?? $gid);
+		$ordrenr = shopify_db_rows('SELECT ordrenr FROM ordrer WHERE id = $1', array((int)$link['ordre_id']))[0]['ordrenr'] ?? $link['ordre_id'];
+		$invoiced = shopify_status_invoiced($link) ? 'was invoiced' : 'is being invoiced (its import resumes)';
+		shopify_error_open($shopId, 'order.authorization', $gid, "Shopify order $name: the card payment is $financial and will not be captured."
+			. " Saldi order $ordrenr $invoiced as paid on the card when it was authorized: lav kreditnota (make a credit note for it in Saldi)"
+			. ' and collect the payment another way, or cancel the order', 'error',
+			array('event_row_id' => (int)$event['event_row_id'], 'order_gid' => $gid, 'ordre_id' => (int)$link['ordre_id']));
 	});
 }
 
