@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -227,6 +227,17 @@
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 CL/MMR MB-86 A typed Beløb is saved rounded to whole øre (half away from zero), so 0,005 is stored as the 0,01 the field shows.
+//                 opdater() writes an existing line only when one of its values changed, so saving one line no longer rewrites the amount of another.
+//                 An amount stored with three decimals before this change is kept until the user types another amount, see journalAmount.php.
+// 20261125 CL/MMR MB-86 (Codex round 1) The kept amount is chosen from the text left in the field, so 0,006 typed over a stored 0.005 shown as 0,01 is saved as 0.010.
+//                 The multi-line if/else bodies in opdater() and indsaet_linjer() have braces.
+// 20261125 CL/MMR MB-86 (Codex round 2) A Beløb that rounds past what kassekladde.amount holds is refused like "1234.56" (journalAmountIsValid()), also on the "+=" line.
+//                 opdater() swaps the accounts of a negative amount on its typed sign, so -0,004 is saved as 0.00 on swapped accounts.
+// 20261125 CL/MMR MB-86 (Codex round 3) kontroller() does not range check a stored amount the field still shows as drawn, so an untouched 999999999999.995 no longer blocks the save.
+//                 Its two multi-line if bodies have braces.
+// 20261125 CL/MMR MB-86 (Codex round 4) opdater() takes the amount and the swap from journalAmountToSave(): an amount left as drawn keeps its exact value, whatever its sign.
+//                 A stored negative amount is still saved as its magnitude on swapped accounts, as before, so -999999999999.995 no longer blocks the save either.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -235,6 +246,7 @@ require_once __DIR__ . '/kassekladde_includes/accountCard.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
 require_once __DIR__ . '/kassekladde_includes/journalSaveLock.php';
 require_once __DIR__ . '/kassekladde_includes/sorting.php';
+require_once __DIR__ . '/kassekladde_includes/journalAmount.php';
 
 # A line created during this request is rendered last, whatever the list is sorted by, so the line the
 # user just typed stays where they are working instead of jumping to its sorted position (with
@@ -1574,7 +1586,8 @@ if ($_POST) {
 			$bilag[$x] = bilagFromInput($bilag[$x]);
 			// 20260907 CL/LH  "+=" inserts straight into kassekladde through usdecimal() without passing
 			// kontroller(), so the amount has to be validated here as well; the line stays in tmpkassekl as typed.
-			if ($newLines == '=' && !dk_amount_is_valid($belob[$x])) {
+			# MB-86 also an amount that rounds past what the column holds
+			if ($newLines == '=' && !journalAmountIsValid($belob[$x])) {
 				alert_ugyldigt_belob($belob[$x], bilagFieldValue($bilag[$x], true));
 				$fejl = 1;
 			} elseif ($newLines == '=') {
@@ -3495,7 +3508,8 @@ if ($kladde_id) {
 			}
 			// 20260907 CL/LH  A rejected amount is shown as the operator typed it; usdecimal() would turn
 			// "1234.56" into 123456 and the field would come back as 123.456,00, which then passes validation.
-			if (dk_amount_is_valid($row['amount'])) {
+			# MB-86 also an amount refused because it rounds past what the column holds
+			if (journalAmountIsValid($row['amount'])) {
 				$amount[$x] = usdecimal($row['amount']);
 			} else {
 				$amount[$x] = 0;
@@ -4413,10 +4427,12 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$md2 = trim($row['box3']);
 				$year2 = trim($row['box4']);
 				if (strlen($md1) < 2 || strlen($md2) < 2) {
-					if (strlen($md1) < 2)
+					if (strlen($md1) < 2) {
 						$md1 = '0' . $md1;
-					if (strlen($md2) < 2)
+					}
+					if (strlen($md2) < 2) {
 						$md2 = '0' . $md2;
+					}
 					db_modify("update grupper set box1='$md1',box3='$md2' where art='RA' and kodenr='$regnaar'", __FILE__ . " linje " . __LINE__);
 				}
 				$aarstart = $year1 . $md1;
@@ -4439,7 +4455,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		// 20260907 CL/LH  The rejected line skips the processing and tmpkassekl update below (elseif), so
 		// nothing downstream converts it: the row inserted from POST keeps the operator's raw text, opdater()
 		// never runs while $fejl is set, and the error re-render shows the text as typed.
-		if ($bilag != "-" && !dk_amount_is_valid($belob)) {
+		// 20261125 CL/MMR MB-86 An amount that rounds past what kassekladde.amount holds (999.999.999.999,995) is refused the same way,
+		// but not a stored amount the field still shows as it was drawn: opdater() keeps that one (journalAmountDrawn()).
+		$kk_belob_ok = journalAmountIsValid($belob);
+		if (!$kk_belob_ok && (int)$id > 0) {
+			$kk_gemt_belob = db_fetch_array(db_select("select amount from kassekladde where id = '" . (int)$id . "' and kladde_id = '" . (int)$kladde_id . "'", __FILE__ . " linje " . __LINE__));
+			$kk_belob_ok = $kk_gemt_belob && journalAmountIsValid($belob, $kk_gemt_belob['amount']);
+		}
+		if ($bilag != "-" && !$kk_belob_ok) {
 			# SST-934 the messages show a typed 0 ('00') as 0
 			alert_ugyldigt_belob($belob, bilagFieldValue($bilag, true));
 			$fejl = 1;
@@ -4784,6 +4807,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	 * take turns. A new line that kept the number the page proposed, and whose number another save has
 	 * taken since, is saved under the next free number instead and the user is told (MB-81).
 	 *
+	 * The amount is saved rounded to whole øre, and an existing line is only written when one of its values
+	 * differs from the stored line, so saving one line never rewrites another (MB-86, journalAmount.php).
+	 *
 	 * @param int             $kladde_id
 	 * @param array<int, int> $bilagForslag Line number => the voucher number the page proposed on that line.
 	 */
@@ -4805,6 +4831,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		# MB-126 the "<bilag>+N" lines this save inserted never take a proposal back, so they are passed along
 		$kk_egne_linjer = isset($GLOBALS['kk_plus_line_ids']) ? array_merge(array(), ...array_values($GLOBALS['kk_plus_line_ids'])) : array();
 		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, $kk_bilag_fra, $kk_egne_linjer);
+		# MB-86 the journal's lines as stored, so a line whose values did not change is not written again
+		$kk_gemte = array();
+		$qtxt = "select id, bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, faktura, amount, debetvat, kreditvat, ";
+		$qtxt .= "momsfri, afd, projekt, ansat, valuta, forfaldsdate, betal_id from kassekladde where kladde_id = $kladde_id";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$kk_gemte[(int)$r['id']] = $r;
+		}
 
 		$forfaldsdate = NULL;
 		$valutakode = '0';
@@ -4812,15 +4846,20 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (($r['bilag'] != "-") && ($r['transdate'] || $r['debet'] || $r['kredit'])) {
-				if ($r['transdate'])
+				if ($r['transdate']) {
 					$transdate = usdate($r['transdate']);
+				}
 				#else $transdate=NULL; # <- 2009.05.12
 				#else $transdate=date("Y-m-d"); # <- 2009.05.14
-				if ($r['forfaldsdate'])
+				if ($r['forfaldsdate']) {
 					$forfaldsdate = usdate($r['forfaldsdate']);
-				else
+				} else {
 					$forfaldsdate = NULL; # <- 2009.05.12
-				$amount = usdecimal($r['amount'], 2)*1;
+				}
+				# MB-86 a new amount is rounded to whole øre, so the amount stored is the one the field shows; an amount the field
+				# still shows as drawn keeps its exact stored value. journalAmountToSave() also decides the swap below.
+				$kk_gemt = $r['id'] ? ($kk_gemte[(int)$r['id']] ?? null) : null;
+				list($amount, $kk_vend) = journalAmountToSave($r['amount'], $kk_gemt ? $kk_gemt['amount'] : null);
 				$momsfri = trim($r['momsfri']);
 				$debet = (int) $r['debet'];
 				$kredit = (int) $r['kredit'];
@@ -4834,8 +4873,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if ($egen_kto_id && $ansat) {
 					$r2 = db_fetch_array(db_select("select id from ansatte where lower(initialer) = '$ansat' and konto_id = '$egen_kto_id'", __FILE__ . " linje " . __LINE__));
 					$ansat_id = $r2['id'] * 1;
-				} else
+				} else {
 					$ansat_id = 0;
+				}
 				$projekt = $r['projekt'];
 				$valuta = $r['valuta'];
 				if ($valuta != $baseCurrency) {
@@ -4843,13 +4883,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					# 20120806 Indsat "art = 'VK' and " herunder.
 					$qtxt = "select kodenr from grupper where art = 'VK' and box1 = '$valuta'";
 					($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $valutakode = $r2['kodenr'] : $valutakode = 0;
-				} else
+				} else {
 					$valutakode = 0; #Valutakode 0 er altid $baseCurrency
+				}
 				$betal_id = $r['betal_id'];
 				$beskrivelse = db_escape_string(if_isset($r['beskrivelse'], ''));
 				$debetvat = db_escape_string(if_isset($r['debetvat'], ''));
 				$kreditvat = db_escape_string(if_isset($r['kreditvat'], ''));
-				if ($amount < 0) { # Hvis beloebet er negativt, byttes om paa debet og kredit.
+				# MB-86 the typed sign decides for a new amount (-0,004 is saved as 0.00 but swaps); a stored negative amount swaps too
+				if ($kk_vend) { # Hvis beloebet er negativt, byttes om paa debet og kredit.
 					$tmp = $kredit;
 					$kredit = $debet;
 					$debet = $tmp;
@@ -4859,14 +4901,15 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$tmp = $kreditvat;
 					$kreditvat = $debetvat;
 					$debetvat = $tmp;
-					$amount = $amount * -1;
 				}
 
 				if ($r['id'] && ($r['bilag'] || $r['bilag'] == '0')) {
-					if (!$transdate && isset($_GET['dato']))
+					if (!$transdate && isset($_GET['dato'])) {
 						$transdate = usdate($_GET['dato']);
-					if (!$transdate)
+					}
+					if (!$transdate) {
 						$transdate = date("Y-m-d");
+					}
 					$bilag = ($r['bilag'] === '' || $r['bilag'] === null) ? 0 : (int)$r['bilag'];
 					# SST-934 a 0 the user typed, or the 0 the line was saved under, is a voucher number
 					$kk_nul_tastet = ($bilag === 0 && !bilagIsUnnumbered($r['bilag']));
@@ -4897,6 +4940,24 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							continue;
 						}
 					}
+					# MB-86 a line whose values are the stored ones is left alone: every Gem posts every line, and
+					# writing them all again rewrote amounts the user never touched. Text values are compared escaped,
+					# the way the update below would write them.
+					if ($kk_gemt) {
+						foreach (array('beskrivelse', 'faktura', 'debetvat', 'kreditvat') as $kk_felt) {
+							$kk_gemt[$kk_felt] = db_escape_string((string)$kk_gemt[$kk_felt]);
+						}
+					}
+					$kk_nye = array(
+						'bilag' => $bilag, 'transdate' => $transdate, 'beskrivelse' => $beskrivelse, 'd_type' => $d_type,
+						'debet' => $debet, 'k_type' => $k_type, 'kredit' => $kredit, 'faktura' => $faktura, 'amount' => $amount,
+						'debetvat' => $debetvat, 'kreditvat' => $kreditvat, 'momsfri' => $momsfri, 'afd' => $afd,
+						'projekt' => $projekt, 'ansat' => $ansat_id, 'valuta' => $valutakode,
+						'forfaldsdate' => $forfaldsdate ? $forfaldsdate : null, 'betal_id' => $forfaldsdate ? $betal_id : ''
+					);
+					if (journalLineUnchanged($kk_gemt, $kk_nye)) {
+						continue;
+					}
 					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
 					$qtxt .= "amount = '$amount', debetvat = '$debetvat', kreditvat = '$kreditvat', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', ansat= '$ansat_id', ";
@@ -4906,8 +4967,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$GLOBALS['kk_committed']++;
 					if ($forfaldsdate) {
 						$qtxt = "update kassekladde set forfaldsdate='$forfaldsdate', betal_id='$betal_id' where id = '$r[id]'";
-					} else
+					} else {
 						$qtxt = "update kassekladde set forfaldsdate=NULL, betal_id='' where id = '$r[id]'";
+					}
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				} elseif (
 					($r['transdate'] || $transdate)
@@ -5113,11 +5175,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		global $baseCurrency,$fejl,$fokus;
 
 		$date = usdate($dato);
-		$amount = usdecimal($belob, 2);
-		if ($forfaldsdato)
+		# MB-86 the "+=" copy is rounded to whole øre like a line saved through opdater()
+		$amount = journalAmountFromInput($belob);
+		if ($forfaldsdato) {
 			$forfaldsdate = usdate($forfaldsdato);
-		else
+		} else {
 			$forfaldsdate = NULL;
+		}
 		#	$bilag = str_replace('+',':',$bilag); #jeg ved ikke hvorfor, men den vil ikke splitte med "+"
 		#list ($bilag,$antal) = explode (':',$bilag);
 		if ($ansat) {
@@ -5129,17 +5193,19 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$ansat_id = $ansat_id * 1;
 		if ($valuta && $valuta != $baseCurrency) {
 			$r = db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art = 'VK'", __FILE__ . " linje " . __LINE__));
-			if ($r['kodenr'])
+			if ($r['kodenr']) {
 				$valutakode = $r['kodenr'] * 1;
-			else {
+			} else {
 				$fejl = 1;
 				print "<BODY onLoad=\"javascript:alert('Valuta $valuta eksisterer ikke (Bilag $bilag)')\">";
 			}
-		} else
+		} else {
 			$valutakode = 0;
+		}
 		if (!$fejl) {
-			if (!$forfaldsdate)
+			if (!$forfaldsdate) {
 				$forfaldsdate = $date;
+			}
 			$qtxt = "insert into kassekladde ";
 			$qtxt .= "(bilag,kladde_id,transdate,beskrivelse,d_type,debet,k_type,kredit,";
 			$qtxt .= "faktura,amount,afd,ansat,projekt,valuta,forfaldsdate,betal_id,momsfri) values ";
@@ -5147,8 +5213,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$qtxt .= "'$faktura','$amount','$afd','$ansat_id','$projekt','$valutakode','$forfaldsdate','$betal_id','$momsfri')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		if (!$fokus)
+		if (!$fokus) {
 			$fokus = "ny_kladdenote";
+		}
 		return $fejl ? 0 : kk_last_insert_id();
 	}
 	######################################################################################################################################
