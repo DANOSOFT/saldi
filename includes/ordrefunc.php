@@ -188,6 +188,7 @@
 //                 DKK amounts are unchanged; the øre difference account no longer gets cancelling or split rows.
 // 20261125 CL/MMR MB-80 (Codex round 1): the 3-decimal control totals decide again whether an invoice balances, as before, so ten DKK revenue groups at 100.005 still post with 0.05 on the øre account.
 //                 What is left between the posted 2-decimal rows is booked as one row on the currency or øre difference account.
+// 20261125 CL/MMR MB-80 (Codex round 2): the pre-flight and bogfor_nu() (outside POS) decide on the unrounded 3-decimal control difference rounded once, as the pre-flight did before, so an order at the 0.05 DKK cutoff is refused as before.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -2493,9 +2494,7 @@ function forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerV
 	if (is_numeric($id) && $valutakurs != 100) {
 		$vatAllocations = salesPostingVatAllocations($postingLines['groups'][1], $headerVat, $valutakurs);
 	}
-	# The control sides are rounded separately before the difference is taken, as bogfor_nu() does
-	$control = array('d' => 0, 'k' => 0);
-	salesPostingControlSide($control, salesPostingControlAmount(afrund($headerTotal, 3), $valutakurs), 'd');
+	$kontrol = salesPostingControlAmount(afrund($headerTotal, 3), $valutakurs);
 	$posted = salesPostingAmount(afrund($headerTotal, 3), $valutakurs);
 	for ($t = 1; $t <= 2; $t++) {
 		$rate = ($t == 1) ? $valutakurs : 0;
@@ -2504,20 +2503,19 @@ function forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerV
 				if (!$group['bogf_konto'] || (!$group['pris'] && !$group['linjemoms'])) {
 					continue;
 				}
-				salesPostingControlSide($control, salesPostingControlAmount($group['pris'], $rate), 'k');
+				$kontrol -= salesPostingControlAmount($group['pris'], $rate);
 				$posted -= salesPostingAmount($group['pris'], $rate);
 				if ($t == 1 && $vatAllocations !== null) {
-					salesPostingControlSide($control, $vatAllocations[$p][$y], 'k');
+					$kontrol -= $vatAllocations[$p][$y];
 					$posted -= $vatAllocations[$p][$y];
 				} else {
-					salesPostingControlSide($control, salesPostingControlAmount($group['linjemoms'], $rate), 'k');
+					$kontrol -= salesPostingControlAmount($group['linjemoms'], $rate);
 					$posted -= salesPostingAmount($group['linjemoms'], $rate);
 				}
 			}
 		}
 	}
-	$difference = afrund(afrund($control['d'], 2) - afrund($control['k'], 2), 2);
-	return array('difference' => $difference, 'rounding' => afrund($posted, 2), 'lines' => $postingLines['lines']);
+	return array('difference' => afrund($kontrol, 2), 'rounding' => afrund($posted, 2), 'lines' => $postingLines['lines']);
 }
 
 function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs, $headerVat = 0)
@@ -3410,14 +3408,16 @@ function bogfor_nu($id, $kilde) {
 	$qtxt = "delete from ordrelinjer where $tmp and posnr < 0 "; #20260630
 	$qtxt.= "and exists (select 1 from ordrelinjer ol_keep where ol_keep.ordre_id = ordrelinjer.ordre_id and ol_keep.posnr >= 0)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	$controlDiff = afrund($d_kontrol - $k_kontrol, 2); # MB-80: the unrounded control sums, as forkontrolPosteringsbalance() decides
 	$d_kontrol = afrund($d_kontrol, 2);
 	$k_kontrol = afrund($k_kontrol, 2);
 	if ($brugernavn == 'saldi')
 		echo __LINE__ . " $d_kontrol != $k_kontrol<br>";
 
-	# MB-80: the control difference (3-decimal amounts) decides whether the invoice balances, as in
-	# forkontrolPosteringsbalance(). Outside POS, the amount booked is what is left between the posted rows.
-	$diff = afrund($d_kontrol - $k_kontrol, 2);
+	# MB-80: outside POS the control difference of the unrounded 3-decimal sums decides whether the invoice
+	# balances, exactly as in forkontrolPosteringsbalance(), and the amount booked is what is left between the
+	# posted rows. POS keeps the difference of the rounded sides.
+	$diff = ($art == 'PO') ? afrund($d_kontrol - $k_kontrol, 2) : $controlDiff;
 	$postedDiff = ($art == 'PO') ? 0 : afrund($d_posted - $k_posted, 2);
 	if ($diff || $postedDiff) {
 		$bookDiff = ($art == 'PO') ? $diff : $postedDiff;

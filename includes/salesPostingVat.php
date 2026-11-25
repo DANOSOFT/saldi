@@ -72,27 +72,6 @@ if (!function_exists('salesPostingControlAmount')) {
 	}
 }
 
-if (!function_exists('salesPostingControlSide')) {
-	/**
-	 * Adds a control amount to the debit or credit control total the way bogfor_nu() does: a positive amount
-	 * on its natural side, a negative one on the other side.
-	 *
-	 * @param array{d: float, k: float} $control Running debit ('d') and credit ('k') control totals, updated in place.
-	 * @param float $amount Signed control amount.
-	 * @param string $side 'd' for the debtor posting, 'k' for revenue and VAT.
-	 * @return void
-	 */
-	function salesPostingControlSide(array &$control, $amount, $side)
-	{
-		$other = ($side == 'd') ? 'k' : 'd';
-		if ($amount > 0) {
-			$control[$side] += $amount;
-		} else {
-			$control[$other] -= $amount;
-		}
-	}
-}
-
 if (!function_exists('salesPostingGroupLines')) {
 	/**
 	 * Groups order lines into the revenue postings bogfor_nu() makes: one group per revenue account

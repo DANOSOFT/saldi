@@ -16,6 +16,7 @@
 //
 // History:
 // 20261125 CL/MMR MB-80: created.
+// 20261125 CL/MMR MB-80 (Codex round 2): the cutoff of the pre-flight check, DKK and EUR, invoice and credit note, refused and accepted as on origin/master.
 // 20261125 CL/MMR MB-80 (Codex round 1): ten half-øre revenue groups in DKK (invoice and credit note) and EUR; the pre-flight must accept each invoice and the order must reach status 4.
 
 use PHPUnit\Framework\TestCase;
@@ -425,6 +426,89 @@ final class SalesPostingPrecisionTest extends TestCase
         }
         $expected[] = [self::CURRENCY_DIFF, '0.03', '0.00'];
         $this->assertSame($expected, $rows);
+        $this->assertPreflightMatchesPosting($id, $rows);
+    }
+
+    /**
+     * The order must be refused before anything is written: status, invoice number, ledger and open items untouched.
+     */
+    private function assertRefusedBeforePosting(int $orderId, string $difference): void
+    {
+        $out = $this->runInvoiceChild('invoice', $orderId);
+        $this->assertStringContainsString("balancerer ikke (difference $difference)", (string)$out['bogfor']);
+        $this->assertSame('1', (string)$out['status'], 'status unchanged');
+        $this->assertNull($out['fakturanr'], 'no invoice number');
+        $this->assertSame([], CharacterizationEnv::rows(self::$tenant, 'SELECT id FROM transaktioner WHERE ordre_id = $1', [$orderId]), 'no ledger rows');
+        $this->assertSame([], CharacterizationEnv::rows(self::$tenant, "SELECT id FROM openpost WHERE refnr = $1", [$orderId]), 'no open items');
+    }
+
+    /**
+     * Two VAT-free lines whose 3-decimal amounts differ from the 2-decimal header: the pre-flight decides on the
+     * net 3-decimal difference rounded once, as origin/master does (Codex round 2).
+     */
+    private function createCutoffOrder(string $currency, string $art, float $mainPrice, float $qty): int
+    {
+        $lines = [self::line(self::REVENUE, 0, 0, $mainPrice, $qty, ['momsfri' => 'on'])];
+        if ($currency === 'DKK') {
+            $lines[] = self::line(self::REVENUE_EXEMPT, 0, 0, -0.004, $qty, ['momsfri' => 'on']);
+        }
+        return $this->createOrder($currency, $art, $lines, 100 * $qty, 0);
+    }
+
+    /** 100.004 - 99.959 = 0.045 rounds to 0.05: refused, as on origin/master. */
+    public function test_dkk_invoice_at_the_cutoff_is_refused_as_before(): void
+    {
+        $this->assertRefusedBeforePosting($this->createCutoffOrder('DKK', 'DO', 99.959, 1), '0,05 DKK');
+    }
+
+    public function test_dkk_credit_note_at_the_cutoff_is_refused_as_before(): void
+    {
+        $this->assertRefusedBeforePosting($this->createCutoffOrder('DKK', 'DK', 99.959, -1), '-0,05 DKK');
+    }
+
+    /** 100.004 - 99.960 = 0.044 rounds to 0.04: posted, with the 0.04 on the øre account, as on origin/master. */
+    public function test_dkk_invoice_just_below_the_cutoff_posts_as_before(): void
+    {
+        $id = $this->createCutoffOrder('DKK', 'DO', 99.960, 1);
+        $rows = $this->invoiceRows($id);
+        $this->assertSame(self::rows(
+            [self::DEBTOR, '100.00', '0.00'],
+            [self::REVENUE, '0.00', '99.96'],
+            [self::REVENUE_EXEMPT, '0.00', '0.00'],
+            [self::ORE_DIFF, '0.00', '0.04']
+        ), $rows);
+        $this->assertPreflightMatchesPosting($id, $rows);
+    }
+
+    public function test_dkk_credit_note_just_below_the_cutoff_posts_as_before(): void
+    {
+        $id = $this->createCutoffOrder('DKK', 'DK', 99.960, -1);
+        $rows = $this->invoiceRows($id);
+        $this->assertSame(self::rows(
+            [self::DEBTOR, '0.00', '100.00'],
+            [self::REVENUE, '99.96', '0.00'],
+            [self::REVENUE_EXEMPT, '0.00', '0.00'],
+            [self::ORE_DIFF, '0.04', '0.00']
+        ), $rows);
+        $this->assertPreflightMatchesPosting($id, $rows);
+    }
+
+    /** EUR, one line, so the limit is 2 + 2 = 4.00 DKK: (100 - 99.462) x 7.45 = 4.008 rounds to 4.01 and is refused. */
+    public function test_eur_invoice_over_its_cutoff_is_refused_as_before(): void
+    {
+        $this->assertRefusedBeforePosting($this->createCutoffOrder('EUR', 'DO', 99.462, 1), '4,01 DKK');
+    }
+
+    /** (100 - 99.463) x 7.45 = 4.001 rounds to 4.00: posted, with 4.00 on the currency account. */
+    public function test_eur_invoice_at_its_cutoff_posts_as_before(): void
+    {
+        $id = $this->createCutoffOrder('EUR', 'DO', 99.463, 1);
+        $rows = $this->invoiceRows($id);
+        $this->assertSame(self::rows(
+            [self::DEBTOR, '745.00', '0.00'],
+            [self::REVENUE, '0.00', '741.00'],
+            [self::CURRENCY_DIFF, '0.00', '4.00']
+        ), $rows);
         $this->assertPreflightMatchesPosting($id, $rows);
     }
 
