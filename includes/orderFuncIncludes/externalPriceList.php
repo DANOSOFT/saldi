@@ -38,6 +38,9 @@
 //                 dropped, and gzip/deflate responses are decoded.
 // 20261125 CL/MMR SST-1051 Prices must be in one of the four documented formats, and a last record with a missing
 //                 closing quote is refused.
+// 20261125 CL/MMR SST-1051 The open-quote check allows spaces before the quote, and prices are rounded to 3 decimals
+//                 before the range check.
+// 20261125 CL/MMR SST-1051 Prices are written to the item with number_format (3 decimals).
 
 /**
  * The active price list, or null when none is in use.
@@ -86,8 +89,8 @@ function externalPriceListNumber(string $value): ?float
 	} else {
 		return null;
 	}
-	$number = (float) $value;
-	// The item card stores prices as numeric(15,3).
+	// The item card stores prices as numeric(15,3): round to 3 decimals first, then check the range.
+	$number = round((float) $value, 3);
 	return (is_finite($number) && abs($number) < 1e12) ? $number : null;
 }
 
@@ -113,6 +116,9 @@ function externalPriceListQuoteOpen(string $raw, string $delimiter): bool
 		} elseif ($fieldStart && $char === '"') {
 			$inQuote = true;
 			$fieldStart = false;
+		} elseif ($fieldStart && ($char === ' ' || $char === "\t") && $char !== $delimiter) {
+			// fgetcsv() lets spaces and TABs come before the opening quote of a field.
+			continue;
 		} else {
 			$fieldStart = ($char === $delimiter || $char === "\n");
 		}
@@ -368,7 +374,9 @@ function externalPriceListCreateItem(array $row, array $priceList): int
 	$qtxt = "insert into varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, enhed, gruppe, lukket) values (";
 	$qtxt .= "'" . db_escape_string($row['varenr']) . "', '" . db_escape_string($row['stregkode']) . "', ";
 	$qtxt .= "'" . db_escape_string($row['trademark']) . "', '" . db_escape_string($row['beskrivelse']) . "', ";
-	$qtxt .= (float) $row['kostpris'] . ", " . (float) $row['salgspris'] . ", '" . db_escape_string($row['enhed']) . "', $group, '0')";
+	// number_format, not string conversion: PHP prints floats with 14 digits, which turns 999999999999.999 into 1.0E+12.
+	$qtxt .= number_format((float) $row['kostpris'], 3, '.', '') . ", " . number_format((float) $row['salgspris'], 3, '.', '') . ", ";
+	$qtxt .= "'" . db_escape_string($row['enhed']) . "', $group, '0')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	return externalPriceListItemId($row['varenr']);
 }
