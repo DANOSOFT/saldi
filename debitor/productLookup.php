@@ -44,6 +44,8 @@
 // 20261126 CDX/NTR Validate creation CSRF before output and bind each price-list submission to its original tenant.
 //                  The controller captures its request before online.php can clear a stale tenant submission.
 // 20261126 CDX/NTR Render UTF-8 catalogue strings as entities on legacy pages and submit item numbers explicitly as UTF-8.
+// 20261126 CDX/NTR Keep creation responses free of classic-menu and stale-tenant output before status headers.
+// 20261126 CDX/NTR Decode browser search fields in their submitted charset and retain database-encoded order fallbacks.
 @session_start();
 $s_id = session_id();
 $priceListPost = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['plVarenr']);
@@ -57,8 +59,12 @@ if ($priceListPost) {
         print '<p>400</p>';
         exit;
     }
-    // Authenticate creation POSTs without page output; online.php may clear stale-tenant request arrays.
+    // Authenticate creation POSTs without page output.
     $header = 'nix';
+    $bg = 'nix';
+    // This controller checks the captured tenant after authentication, before any write or output.
+    unset($_POST['thisDb']);
+    ob_start();
 }
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -71,6 +77,10 @@ include("../includes/std_func.php");
 include("../includes/connect.php");
 $permission_key = 'debitor.ordre';
 include("../includes/online.php");
+if ($priceListPost) {
+    ob_end_clean();
+    header('Content-Type: text/html; charset=UTF-8');
+}
 if ($priceListPost && $priceListAccount !== $db) {
     if (!headers_sent()) {
         http_response_code(409);
@@ -89,6 +99,10 @@ $fokus = if_isset($_GET, NULL, 'fokus');
 $vis_kost = if_isset($_GET, NULL, 'vis_kost');
 $ref = if_isset($_GET, NULL, 'ref');
 $find = if_isset($_GET, NULL, 'find');
+if (($_GET['find_encoding'] ?? '') === 'browser') {
+    require_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
+    $find = externalPriceListDatabaseText(externalPriceListSearchTerm(['find' => (string) $find], 'find')) ?? '';
+}
 $bordnr = if_isset($_GET, NULL, 'bordnr');
 $afd_lager = if_isset($_GET, NULL, 'lager');
 $priceListWarehouseParam = '&lager=' . urlencode((string) $afd_lager);
@@ -143,7 +157,9 @@ if ($priceListPost) {
         exit;
     }
     $backUrl = "productLookup.php?id=$orderId&art=" . urlencode($selection['art']) . "&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam;
-    $backUrl .= '&' . http_build_query(array('search' => array("productLookup$orderId" => array('varenr' => externalPriceListDatabaseText($priceListItemNo) ?? '', 'beskrivelse' => ''))));
+    $searchEncoding = ($GLOBALS['db_encode'] ?? 'UTF8') === 'UTF8' ? 'UTF-8' : 'Windows-1252';
+    $retryItemNo = mb_convert_encoding($priceListItemNo, $searchEncoding, 'UTF-8');
+    $backUrl .= '&' . http_build_query(array('search' => array("productLookup$orderId" => array('varenr' => $retryItemNo, 'beskrivelse' => ''))));
     $message = "Varen $priceListItemNo kunne ikke oprettes fra prislisten. Tjek at prislisten har en varegruppe, og at varen findes i prisfilen.";
     print "<script>alert(" . json_encode($message) . "); window.location.href = " . json_encode($backUrl) . ";</script>";
     exit;
@@ -597,10 +613,10 @@ if ($art == 'DO' || $art == 'DK') {
     include_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
     $priceList = externalPriceListActive();
     $gridSearch = if_array(if_array($_GET, 'search'), "productLookup$id");
-    $searchItemNo = trim((string) ifset($gridSearch, 'varenr', $fokus === 'beskrivelse' ? '' : (string) $find));
-    $searchText = trim((string) ifset($gridSearch, 'beskrivelse', $fokus === 'beskrivelse' ? (string) $find : ''));
+    $searchItemNo = externalPriceListSearchTerm($gridSearch, 'varenr', $fokus === 'beskrivelse' ? '' : (string) $find);
+    $searchText = externalPriceListSearchTerm($gridSearch, 'beskrivelse', $fokus === 'beskrivelse' ? (string) $find : '');
     if ($priceList && ($searchItemNo !== '' || $searchText !== '')) {
-        $priceListFound = externalPriceListSearch($priceList, externalPriceListUtf8($searchItemNo), externalPriceListUtf8($searchText));
+        $priceListFound = externalPriceListSearch($priceList, $searchItemNo, $searchText);
         print "<div id='priceListMatches' style='margin: 4px 8px 8px 8px; max-height: 35vh; overflow: auto;'>";
         print "<b>Fra prislisten " . externalPriceListHtml($priceList['name']) . "</b>";
         if ($priceListFound === null) {

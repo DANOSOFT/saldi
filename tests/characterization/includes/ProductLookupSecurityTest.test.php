@@ -1,5 +1,6 @@
 <?php
 // 20261126 CDX/NTR Prove catalogue creation rejects invalid CSRF and stale/missing tenant context before writes.
+// 20261126 CDX/NTR Reject classic-menu or stale-tenant output before creation redirect and error headers.
 
 use PHPUnit\Framework\TestCase;
 
@@ -52,7 +53,8 @@ final class ProductLookupSecurityTest extends TestCase
     public function testMatchingTokenAndTenantPermitCreation(): void
     {
         $_POST = ['plVarenr' => 'A100', 'thisDb' => 'fixture_1', 'csrf_token' => 'synthetic-csrf-token'];
-        self::page();
+        $html = self::page();
+        self::assertSame('', $html, 'Creation must not emit body markup before the redirect.');
         self::assertSame(1, \ProductLookupSecurityFixture\State::$writes);
         self::assertSame(302, \ProductLookupSecurityFixture\State::$status);
     }
@@ -67,8 +69,10 @@ final class ProductLookupSecurityTest extends TestCase
     public function testSwitchingTenantCannotCreateItemsInTheNewTenant(): void
     {
         $_POST = ['plVarenr' => 'A100', 'thisDb' => 'fixture_2', 'csrf_token' => 'synthetic-csrf-token'];
-        self::page();
+        $html = self::page();
         self::assertSame(0, \ProductLookupSecurityFixture\State::$writes);
+        self::assertSame(409, \ProductLookupSecurityFixture\State::$status);
+        self::assertStringStartsWith('<p>', $html, 'No legacy guard script or body may precede the error.');
     }
 
     public function testFormGeneratesAndCarriesCsrfAndTenantContext(): void
@@ -93,6 +97,21 @@ final class ProductLookupSecurityTest extends TestCase
         self::assertStringContainsString('P&#230;re &#8364;', $html);
     }
 
+    public function testFailedLegacyCreationRetriesInTheBrowserSearchEncoding(): void
+    {
+        $GLOBALS['db_encode'] = 'LATIN9';
+        \ProductLookupSecurityFixture\State::$itemId = 0;
+        $_POST = ['plVarenr' => 'P€ŠŒŽŸ', 'thisDb' => 'fixture_1', 'csrf_token' => 'synthetic-csrf-token'];
+        $html = self::page();
+        preg_match('/window.location.href = (".*?");/', $html, $match);
+        self::assertNotEmpty($match);
+        $url = json_decode($match[1], true, 512, JSON_THROW_ON_ERROR);
+        parse_str(parse_url($url, PHP_URL_QUERY), $query);
+        $search = $query['search']['productLookup11'];
+        self::assertSame(mb_convert_encoding('P€ŠŒŽŸ', 'Windows-1252', 'UTF-8'), $search['varenr']);
+        self::assertSame('P€ŠŒŽŸ', externalPriceListSearchTerm($search, 'varenr'));
+    }
+
     /** @return string Controller output, optionally followed by the real price-list form view. */
     private static function page(bool $form = false): string
     {
@@ -100,7 +119,7 @@ final class ProductLookupSecurityTest extends TestCase
         $_SERVER['REQUEST_METHOD'] = $form ? 'GET' : 'POST';
         $source = file_get_contents(dirname(__DIR__, 3) . '/debitor/productLookup.php');
         $controller = substr($source, 5, strpos($source, '// Clear old grid state') - 5);
-        $controller = str_replace('include("../includes/online.php");', '\\ProductLookupSecurityFixture\\onlineGuard();', $controller);
+        $controller = str_replace('include("../includes/online.php");', '\\ProductLookupSecurityFixture\\onlineGuard($bg ?? null);', $controller);
         $controller = preg_replace('/^\s*(?:include|require)(?:_once)?\b[^\n]*;/m', '', $controller);
         $controller = preg_replace('/\bexit\s*(?:\(\s*\))?\s*;/', 'throw new \\ProductLookupSecurityFixture\\Finished();', $controller);
         ob_start();

@@ -45,6 +45,7 @@
 // 20261125 CDX/NTR Serialize external item creation with the shared database lock and always release it.
 // 20261126 CDX/NTR Keep the validated open-order selection in a named controller handler.
 // 20261126 CDX/NTR Bind catalogue text in the connection encoding instead of passing LATIN9 through UTF-8-normalizing escaping.
+// 20261126 CDX/NTR Distinguish Windows-1252 browser search fields from database-encoded order lookup fallbacks.
 
 /**
  * Normalize database or page text for the CSV module.
@@ -55,6 +56,24 @@ function externalPriceListUtf8(string $text): string
 {
     $encoding = $GLOBALS['db_encode'] ?? 'UTF8';
     return $encoding === 'UTF8' ? $text : mb_convert_encoding($text, 'UTF-8', 'ISO-8859-15');
+}
+
+/**
+ * Read a browser search field or fall back to an order's database-encoded text.
+ * Legacy pages declare ISO-8859-1, which browsers submit as Windows-1252.
+ * @param array $search Submitted grid search fields.
+ * @param string $field Item number or description field name.
+ * @param string $fallback Connection-encoded text supplied by the order page.
+ * @return string Trimmed UTF-8 search term.
+ */
+function externalPriceListSearchTerm(array $search, string $field, string $fallback = ''): string
+{
+    if (!array_key_exists($field, $search)) {
+        return trim(externalPriceListUtf8($fallback));
+    }
+    $text = is_scalar($search[$field]) ? (string) $search[$field] : '';
+    $encoding = ($GLOBALS['db_encode'] ?? 'UTF8') === 'UTF8' ? 'UTF-8' : 'Windows-1252';
+    return trim(mb_convert_encoding($text, 'UTF-8', $encoding));
 }
 
 /**

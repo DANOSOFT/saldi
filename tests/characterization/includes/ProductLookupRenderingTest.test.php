@@ -2,11 +2,13 @@
 // 20261125 CDX/NTR Exercise imported catalogue text through the real column callbacks and grid highlighting (PR #1220).
 // 20261125 CDX/NTR Load the common grid text preparation used by the extracted row renderer.
 // 20261126 CDX/NTR Cover LATIN9 search text in the actual automatic-search script.
+// 20261126 CDX/NTR Decode both browser search fields as Windows-1252 on legacy pages while preserving database-encoded fallbacks.
 
 use PHPUnit\Framework\TestCase;
 
 require_once dirname(__DIR__, 3) . '/includes/std_func.php';
 require_once dirname(__DIR__, 3) . '/includes/grid/text.php';
+require_once dirname(__DIR__, 3) . '/includes/orderFuncIncludes/externalPriceList.php';
 require_once __DIR__ . '/support/external_price_list.php';
 
 final class ProductLookupRenderingTest extends TestCase
@@ -82,6 +84,63 @@ final class ProductLookupRenderingTest extends TestCase
         }
     }
 
+    public function testLegacyBrowserSearchAndDatabaseFallbackUseTheirOwnEncodings(): void
+    {
+        $csv = "varenr;beskrivelse;kostpris;salgspris\nP€ŠŒŽŸ;Pære €ŠŒŽŸ;1;2\n";
+        $savedEncoding = $GLOBALS['db_encode'] ?? null;
+        try {
+            foreach (['varenr' => 'P€ŠŒŽŸ', 'beskrivelse' => 'Pære €ŠŒŽŸ'] as $field => $text) {
+                $fields = ["search[productLookup11][$field]" => mb_convert_encoding($text, 'Windows-1252', 'UTF-8')];
+                $rows = self::externalMatches($fields, $field, '', $csv, 'LATIN9');
+                self::assertSame(['P€ŠŒŽŸ'], array_column($rows, 'varenr'), $field);
+                $rows = self::externalMatches([], $field, mb_convert_encoding($text, 'ISO-8859-15', 'UTF-8'), $csv, 'LATIN9');
+                self::assertSame(['P€ŠŒŽŸ'], array_column($rows, 'varenr'), $field . ' fallback');
+            }
+        } finally {
+            $GLOBALS['db_encode'] = $savedEncoding;
+        }
+    }
+
+    public function testOrderRedirectsPreserveOriginalLegacySearchText(): void
+    {
+        $order = file_get_contents(dirname(__DIR__, 3) . '/debitor/ordre.php');
+        preg_match_all('/\$find_param = [^\n]+;\n\s*\$find_encoding = [^\n]+;.*?(?=\s*header\("Location: \$url"\);)/s', $order, $blocks);
+        self::assertCount(3, $blocks[0]);
+        $lookup = file_get_contents(dirname(__DIR__, 3) . '/debitor/productLookup.php');
+        $start = strpos($lookup, '$find = if_isset');
+        $decode = substr($lookup, $start, strpos($lookup, '$bordnr =', $start) - $start);
+        $decode = str_replace('__DIR__', var_export(dirname(__DIR__, 3) . '/debitor', true), $decode);
+        $savedGet = $_GET;
+        $savedPost = $_POST;
+        $savedEncoding = $GLOBALS['db_encode'] ?? null;
+        $text = "Pære € O'Hara";
+        $browserText = mb_convert_encoding($text, 'Windows-1252', 'UTF-8');
+        $id = 11;
+        $art = 'DO';
+        $sort = $ref = $vis_kost = $bordnr = '';
+        $afd_lager = 2;
+        $varenr0_original = $varenr[0] = $beskrivelse[0] = str_replace("'", "''", $text);
+        try {
+            foreach ($blocks[0] as $block) {
+                $_POST = ['varenr0' => $browserText, 'beskrivelse0' => $browserText];
+                $GLOBALS['db_encode'] = 'LATIN9';
+                eval($block);
+                parse_str(parse_url($url, PHP_URL_QUERY), $_GET);
+                self::assertSame('browser', $_GET['find_encoding']);
+                self::assertSame($browserText, $_GET['find']);
+                eval($decode);
+                self::assertSame($text, self::submitGrid($_GET['fokus'], $find)['search[productLookup11][' . $_GET['fokus'] . ']']);
+                $csv = "varenr;beskrivelse;kostpris;salgspris\n$text;$text;1;2\n";
+                $rows = self::externalMatches([], $_GET['fokus'], $find, $csv, 'LATIN9');
+                self::assertSame([$text], array_column($rows, 'varenr'));
+            }
+        } finally {
+            $_GET = $savedGet;
+            $_POST = $savedPost;
+            $GLOBALS['db_encode'] = $savedEncoding;
+        }
+    }
+
     /** @return array<string, string> Fields submitted by the actual page JavaScript. */
     private static function submitGrid(string $fokus, string $find): array
     {
@@ -112,10 +171,11 @@ final class ProductLookupRenderingTest extends TestCase
     }
 
     /** @return array<int, array{varenr: string}> External matches from the page's real request-to-search mapping. */
-    private static function externalMatches(array $fields, string $fokus, string $find): array
+    private static function externalMatches(array $fields, string $fokus, string $find, ?string $csv = null, string $encoding = 'UTF8'): array
     {
         \ExternalPriceListFixture\boot();
-        \ExternalPriceListFixture\State::$csv = "varenr;beskrivelse;kostpris;salgspris\nA100;Hydraulic pump;1;2\n";
+        \ExternalPriceListFixture\State::$csv = $csv ?? "varenr;beskrivelse;kostpris;salgspris\nA100;Hydraulic pump;1;2\n";
+        $GLOBALS['db_encode'] = $encoding;
         $source = file_get_contents(dirname(__DIR__, 3) . '/debitor/productLookup.php');
         $start = strpos($source, '    $gridSearch =');
         $code = substr($source, $start, strpos($source, '    if ($priceList &&', $start) - $start);
