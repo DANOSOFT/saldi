@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-25 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -183,6 +183,7 @@
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
+// 20261126 CL/SZ MB-137 The offer number built from the case number (tilbudnr) is escaped too, in both functions.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -5279,10 +5280,10 @@ function opret_ordre($sag_id, $konto_id)
 		$tilbudsnummer = $r['tilbudnr'];
 		$ny_tilbudnr = explode("-", $tilbudsnummer); // Her fjerner jeg '-', og laver '$ny_tilbudnr' til et array
 		$ny_tilbudnr[1] = sprintf("%02s", ($ny_tilbudnr[1] + 1)); // Her lægges 1 til det sidste nummer. Bruger 'sprintf()' for at sikre et to cifret tal
-		$tilbudnr = implode("-", $ny_tilbudnr); // Her sætter jeg begge numre sammen igen med bindestreg
+		$tilbudnr = db_escape_string(implode("-", $ny_tilbudnr)); // Her sætter jeg begge numre sammen igen med bindestreg
 	} else {
 		$r = db_fetch_array(db_select("select sagsnr from sager where id = $sag_id", __FILE__ . " linje " . __LINE__));
-		$tilbudnr = $r['sagsnr'] .= '-01'; // bindestreg foran tilbudsnr. database skal ændres fra integer til text
+		$tilbudnr = db_escape_string($r['sagsnr'] . '-01'); // bindestreg foran tilbudsnr. database skal ændres fra integer til text
 	}
 	// Her laves nr. Nr bliver brugt til visning af tilbuds-liste i sager.php
 	if ($r = db_fetch_array(db_select("select * from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__))) {
@@ -5472,10 +5473,10 @@ function opret_ordre_kopi($sag_id, $konto_id)
 		$tilbudsnummer = $r['tilbudnr'];
 		$ny_tilbudnr = explode("-", $tilbudsnummer); // Her fjerner jeg '-', og laver '$ny_tilbudnr' til et array
 		$ny_tilbudnr[1] = sprintf("%02s", ($ny_tilbudnr[1] + 1)); // Her lægges 1 til det sidste nummer. Bruger 'sprintf()' for at sikre et to cifret tal
-		$tilbudnr = implode("-", $ny_tilbudnr); // Her sætter jeg begge numre sammen igen med bindestreg
+		$tilbudnr = db_escape_string(implode("-", $ny_tilbudnr)); // Her sætter jeg begge numre sammen igen med bindestreg
 	} else {
 		$r = db_fetch_array(db_select("select sagsnr from sager where id = $sag_id", __FILE__ . " linje " . __LINE__));
-		$tilbudnr = $r['sagsnr'] .= '-01'; // bindestreg foran tilbudsnr. database skal ændres fra integer til text
+		$tilbudnr = db_escape_string($r['sagsnr'] . '-01'); // bindestreg foran tilbudsnr. database skal ændres fra integer til text
 	}
 	// Her laves nr. Nr bliver brugt til visning af tilbuds-liste i sager.php
 	if ($r = db_fetch_array(db_select("select * from ordrer where sag_id='$sag_id'", __FILE__ . " linje " . __LINE__))) {
