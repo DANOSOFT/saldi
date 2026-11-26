@@ -41,6 +41,7 @@
 // 20261126 CL/MMR SST-1005 An open waiting year before a missing year: an interrupted take or rebuild names a year with a card (Codex round 38).
 // 20261126 CL/MMR SST-1005 No transfer anywhere: the activated year is named, a page check stores nothing; «Sæt aktivt» carries its own year after an earlier chain ends at a gap (Codex round 39).
 // 20261126 CL/MMR SST-1005 «Sæt aktivt» that ends at the first lookup names the activated year and keeps a waiting year (Codex round 40).
+// 20261126 CL/MMR SST-1005 ...also when it ends during the settings preparation, its first database statement (Codex round 41).
 
 declare(strict_types=1);
 
@@ -2635,14 +2636,14 @@ final class FollowingOpeningBalancesTest extends TestCase
     }
 
     /**
-     * End «Sæt aktivt» on year 11 (sync(10, 11)) right after the first lookup of the year the rebuild starts from, before
-     * anything is taken, as PHP does: the shutdown function runs, then nothing more.
+     * End «Sæt aktivt» on year 11 (sync(10, 11)) right after the statement $after, before anything is taken, as PHP does:
+     * the shutdown function runs, then nothing more. By default the first lookup of the year the rebuild starts from.
      */
-    private function endActivationOfYear11AtTheFirstLookup(): void
+    private function endActivationOfYear11AtTheFirstLookup(string $after = "/^select kodenr, box10 from grupper where art = 'RA' and kodenr >= '10' order by kodenr$/"): void
     {
         $log = tempnam(sys_get_temp_dir(), 'sst1005');
         ini_set('error_log', $log);
-        $GLOBALS['sst1005Hook'] = ['after' => "/^select kodenr, box10 from grupper where art = 'RA' and kodenr >= '10' order by kodenr$/", 'times' => 1, 'run' => function (): void {
+        $GLOBALS['sst1005Hook'] = ['after' => $after, 'times' => 1, 'run' => function (): void {
             followingOpeningBalanceFailureOnShutdown();
             throw new RuntimeException('test: the request ended');
         }];
@@ -2687,6 +2688,38 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertSame('8', $this->setting('openingBalancePending'), 'Nothing was taken.');
         self::assertSame($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'failed' => true]), followingOpeningBalanceStop());
         $this->assertTheMessageNamesAYearWithACard();
+    }
+
+    /**
+     * Codex round 41: «Sæt aktivt» that ended during the settings preparation (followingOpeningBalancePrepareRows(), its
+     * first database statement) was not guarded yet. The message names year 11, its save recovers year 11, and a waiting
+     * year 8 stays waiting.
+     */
+    public function testAnActivationThatEndsWhileItPreparesTheSettingsNamesTheActivatedYear(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        $this->postInYear9(2000, 5);
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(10));
+        $this->sql('COMMIT');
+        $this->sql('UPDATE kontoplan SET primo = 777 WHERE regnskabsaar = 11');
+        followingOpeningBalanceMarkPending(8);
+        $seen = [];
+        $GLOBALS['sst1005Rewrite'] = function (string $sql) use (&$seen): string {
+            $seen[] = $sql;
+            return $sql;
+        };
+        $this->endActivationOfYear11AtTheFirstLookup("/^select id from settings where var_name = 'openingBalancePending' order by id limit 1$/");
+        unset($GLOBALS['sst1005Rewrite']);
+        self::assertSame("select id from settings where var_name = 'openingBalancePending' order by id limit 1", $seen[0], 'The request ended at its first database statement.');
+        self::assertSame('8', $this->setting('openingBalancePending'), 'Nothing was taken.');
+        self::assertSame($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'failed' => true]), followingOpeningBalanceStop());
+        $this->assertTheMessageNamesAYearWithACard();
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(11));
+        $this->sql('COMMIT');
+        self::assertSame(1175.0, $this->primo(11, 2000), 'Gem/opdatér on year 11 carries year 10.');
+        self::assertNull(followingOpeningBalanceStop());
     }
 
     public function testMovingTheGuardKeepsItArmedAndNeverArmsIt(): void
