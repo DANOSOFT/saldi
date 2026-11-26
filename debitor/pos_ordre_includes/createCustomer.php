@@ -34,7 +34,7 @@
 // 20261126 CL/MJ SD-844 K31: the phone is checked both as stored and as the sale holds it, cut to ordrer.phone's 50 characters (Sol).
 // 20261126 CL/MJ SD-844 K31: only the form's payment terms are stored (opdater_konto() puts them into SQL unescaped), the group must be an active debtor group of the year, and text is cut in the tenant's encoding (Hugin, Saul).
 // 20261126 CL/MJ SD-844 K31: a debtor group stored as zero-padded text ('01') is found (Sol).
-// 20261126 CL/MJ SD-844 K31: text fields lose a trailing backslash (injecttjek() in opdater_konto() could log the cashier out), and betalingsdage is kept within 0-999 (Hugin).
+// 20261126 CL/MJ SD-844 K31: text fields are stored without backslashes (injecttjek() in opdater_konto() could log the cashier out), and betalingsdage is kept within 0-999 (Hugin).
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
@@ -136,9 +136,10 @@ function pos_create_customer(array $c, $token) {
 	$fields = array();
 	foreach (POS_CUSTOMER_CREATE_WIDTHS as $column => $width) {
 		$source = $column === 'tlf' ? 'phone' : $column;
-		// No trailing backslash: opdater_konto() copies these fields through db_modify(), whose injection check
-		// (injecttjek()) reads a quote after a backslash as escaped and can then log the cashier out.
-		$fields[$column] = rtrim(mb_substr(rtrim(trim((string) ($c[$source] ?? '')), '\\'), 0, $width, $encoding), '\\');
+		// No backslash at all: opdater_konto() copies these fields through db_modify(), whose injection check
+		// (injecttjek()) reads a quote after a backslash as escaped ("a\'b", or a value ending in one) and can then
+		// log the cashier out. A backslash has no use in a name, an address, an e-mail or a phone.
+		$fields[$column] = mb_substr(trim(str_replace('\\', '', (string) ($c[$source] ?? ''))), 0, $width, $encoding);
 	}
 	if ($fields['firmanavn'] === '') {
 		throw new InvalidArgumentException('a customer needs a name');

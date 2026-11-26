@@ -220,19 +220,22 @@ final class PosCreateCustomerSyncTest extends TestCase
         self::assertSame([], $this->sql("SELECT id FROM adresser WHERE firmanavn LIKE 'SD844%'"));
     }
 
-    public function testTextLosesATrailingBackslashAndCreditDaysStayInRange(): void
+    public function testTextIsStoredWithoutBackslashesAndCreditDaysStayInRange(): void
     {
         // opdater_konto() copies the fields through db_modify(); its injection check reads a quote after a
-        // backslash as escaped, so a value ending in one could log the cashier out when the sale gets it.
+        // backslash as escaped, so "a\'b" or a value ending in a backslash, with a ';' in a later field, could
+        // log the cashier out when the sale gets the customer (Sol).
         [$slash, $high, $low] = $this->steps(
-            ['create', $this->form(['firmanavn' => 'SD844 Skråstreg\\', 'addr1' => 'Vej 1\\\\', 'betalingsdage' => '99999999999']), $this->token()],
+            ['create', $this->form(['firmanavn' => "SD844 Skrå\\'streg\\", 'addr1' => 'Vej 1\\\\', 'addr2' => 'Gade; 2', 'betalingsdage' => '99999999999']), $this->token()],
             ['create', $this->form(['firmanavn' => 'SD844 Høj', 'betalingsdage' => '2147483648']), $this->token()],
             ['create', $this->form(['firmanavn' => 'SD844 Lav', 'betalingsdage' => '-5']), $this->token()]
         );
 
-        $rows = array_map(fn(array $r): array => $this->sql('SELECT firmanavn, addr1, betalingsdage FROM adresser WHERE id = $1', [$r['konto_id']])[0],
+        $rows = array_map(fn(array $r): array => $this->sql('SELECT firmanavn, addr1, addr2, betalingsdage FROM adresser WHERE id = $1', [$r['konto_id']])[0],
             [$slash, $high, $low]);
-        self::assertSame(['SD844 Skråstreg', 'Vej 1'], [$rows[0]['firmanavn'], $rows[0]['addr1']]);
+        self::assertSame(["SD844 Skrå'streg", 'Vej 1', 'Gade; 2'], [$rows[0]['firmanavn'], $rows[0]['addr1'], $rows[0]['addr2']]);
+        // no backslash is left for injecttjek() to misread (calling it here would exit the test run on a hit)
+        self::assertStringNotContainsString('\\', implode('', array_map('strval', $rows[0])));
         self::assertSame(['999', '999', '0'], array_map(fn(array $r): string => (string)$r['betalingsdage'], $rows));
     }
 
