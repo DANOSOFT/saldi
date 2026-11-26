@@ -15,6 +15,7 @@
 //
 // History:
 // 20261027 CL/LH MB-73 (review): created.
+// 20261105 CL/MJ SST-882: the segment also gets $db, which the einvoice_events block at the end of betweenUpdates.php reads.
 // 20261110 CDX/NTR Exercise the released 5.1.1 schema migration and its login-time continuation.
 // 20261113 CDX/NTR Isolate the released continuation from pending roles and settings migrations.
 
@@ -71,6 +72,7 @@ try {
             throw new RuntimeException('MB-73 block not found in includes/opdat_5.1.php');
         }
         $db_type = 'postgresql';
+        $db = $tenantDb;
         // eval()'d code has no __DIR__ of its own; point it at includes/
         $segment = str_replace('__DIR__', var_export("$repo/includes", true), substr($source, $start, $end - $start));
         eval($segment);

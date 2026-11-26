@@ -52,6 +52,7 @@
 // 20261113 CDX/NTR Keep pending roles and settings migrations after the released 5.1.1 backfill continuation.
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
+// 20261030 CL/MJ SST-882 New table einvoice_events: every e-invoice status and message per invoice.
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 
 /**
@@ -452,5 +453,10 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
 	include_once(__DIR__ . '/structure/operatorPanelSchema.php');
 	operator_panel_schema();
 }
+// 20261030 CL/MJ SST-882 einvoice_events keeps every status EasyUBL reports for an e-invoice and every failed
+// send, with the message. Before this the message went only to temp/, so a rejected invoice could not say why.
+include_once(__DIR__ . '/stdFunc/ensureTableAndColumns.php');
+include_once(__DIR__ . '/stdFunc/einvoiceEvents.php');
+ensureTableAndColumns($db, 'einvoice_events', einvoice_events_columns());
 
 ?>
