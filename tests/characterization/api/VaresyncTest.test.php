@@ -18,11 +18,19 @@
 //   label within its own category, so the existing shop_varer link moves to the new id instead of
 //   a second link being added.
 //
+// Pinned (MB-192):
+// - A product barcode that matches any existing variant barcode is cleared with a message, not only
+//   one that matches the last variant barcode read.
+// - When the variant file can't be fetched, the barcode messages from the product step are still shown.
+// - A product barcode is only cleared by the same variant barcode as text: 01927771 is not 1927771.
+//
 // Requires the docker-compose stack - skips cleanly otherwise.
 //
 // History:
 // 20261125 CL/SZ MB-145 Created.
 // 20261125 CL/SZ MB-145 Review: apostrophe and relink tests, skip without wget or php -S, temp folders removed.
+// 20261125 CL/SZ MB-192 Variant barcode clash and missing variant file tests; sync() can leave the variant file out.
+// 20261126 CL/SZ MB-192 A barcode that only equals a variant barcode as a number is kept.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -138,17 +146,24 @@ final class VaresyncTest extends CharacterizationTestCase
 		return false;
 	}
 
-	/** @param list<string> $productRows @param list<string> $variantRows */
-	private function sync(string $productHeader, array $productRows, array $variantRows, string $eol = "\n"): string
+	/**
+	 * @param list<string> $productRows
+	 * @param list<string>|null $variantRows null = the shop serves no variant file
+	 */
+	private function sync(string $productHeader, array $productRows, ?array $variantRows, string $eol = "\n"): string
 	{
 		file_put_contents(
 			self::$stubDir . '/shop_products.csv',
 			implode($eol, array_merge([$productHeader], $productRows)) . $eol
 		);
-		file_put_contents(
-			self::$stubDir . '/shop_variants.csv',
-			implode("\n", array_merge([self::VARIANT_HEADER], $variantRows)) . "\n"
-		);
+		$variantFile = self::$stubDir . '/shop_variants.csv';
+		if ($variantRows === null) {
+			if (is_file($variantFile)) {
+				unlink($variantFile);
+			}
+		} else {
+			file_put_contents($variantFile, implode("\n", array_merge([self::VARIANT_HEADER], $variantRows)) . "\n");
+		}
 		$out = $this->runChildJson('run_varesync.php', ['1', CharacterizationEnv::testDb()]);
 		return (string)$out['printed'];
 	}
@@ -262,6 +277,70 @@ final class VaresyncTest extends CharacterizationTestCase
 			[['shop_id' => '503', 'shop_variant' => '9602']],
 			$links,
 			'the one variant link now points at the new shop variant id'
+		);
+	}
+
+	public function test_a_product_barcode_used_by_any_variant_is_cleared(): void
+	{
+		$g = self::$group;
+		$owner = (int)self::one(
+			"INSERT INTO varer (varenr, beskrivelse, gruppe, salgspris, kostpris, lukket) VALUES ('MB192OWNER', 'Variant owner', $1, 0, 0, '0') RETURNING id",
+			[$g]
+		)['id'];
+		foreach (['MB192VB1', 'MB192VB2'] as $barcode) {
+			self::rows('INSERT INTO variant_varer (vare_id, variant_stregkode) VALUES ($1, $2)', [$owner, $barcode]);
+		}
+
+		$printed = $this->sync(self::PRODUCT_HEADER, [
+			"701;MB192P1;MB192VB1;100;Clash one;$g;;",
+			"702;MB192P2;MB192VB2;100;Clash two;$g;;",
+		], []);
+
+		foreach (['MB192P1' => 'MB192VB1', 'MB192P2' => 'MB192VB2'] as $varenr => $barcode) {
+			$r = self::one('SELECT stregkode FROM varer WHERE varenr = $1', [$varenr]);
+			$this->assertNotNull($r, "item $varenr was created");
+			$this->assertSame('', (string)$r['stregkode'], "$varenr does not keep the variant barcode $barcode");
+			$this->assertStringContainsString(
+				"Stregkode $barcode bruges også i varianter,  -- stregkode slettet for $varenr:",
+				$printed,
+				"the clash on $barcode is reported"
+			);
+		}
+		$this->assertStringContainsString('MB192P1:Clash one<br>Stregkode MB192VB2', $printed, 'each clash message ends its line');
+	}
+
+	public function test_a_product_barcode_is_only_cleared_by_the_same_variant_barcode(): void
+	{
+		$g = self::$group;
+		$owner = (int)self::one(
+			"INSERT INTO varer (varenr, beskrivelse, gruppe, salgspris, kostpris, lukket) VALUES ('MB192NUMOWNER', 'Numeric owner', $1, 0, 0, '0') RETURNING id",
+			[$g]
+		)['id'];
+		self::rows('INSERT INTO variant_varer (vare_id, variant_stregkode) VALUES ($1, $2)', [$owner, '1927771']);
+
+		$printed = $this->sync(self::PRODUCT_HEADER, [
+			"721;MB192N1;01927771;100;Leading zero;$g;;",
+		], []);
+
+		$r = self::one('SELECT stregkode FROM varer WHERE varenr = $1', ['MB192N1']);
+		$this->assertNotNull($r, 'item MB192N1 was created');
+		$this->assertSame('01927771', (string)$r['stregkode'], 'a barcode that only equals a variant barcode as a number is kept');
+		$this->assertStringNotContainsString('Stregkode 01927771 bruges også i varianter', $printed);
+	}
+
+	public function test_barcode_messages_are_shown_when_the_variant_file_is_missing(): void
+	{
+		$g = self::$group;
+		$printed = $this->sync(self::PRODUCT_HEADER, [
+			"711;MB192D1;MB192DUP;100;Duplicate one;$g;;",
+			"712;MB192D2;MB192DUP;100;Duplicate two;$g;;",
+		], null);
+
+		$this->itemId('MB192D2');
+		$this->assertStringContainsString(
+			'Stregkode MB192DUP bruges også i MB192D1:Duplicate one -- stregkode slettet for MB192D2:Duplicate two',
+			$printed,
+			'the duplicate barcode message is shown although the run stops at the variant file'
 		);
 	}
 }
