@@ -40,6 +40,7 @@
 // 20261125 CL/SZ MB-192 Variant barcode clash and missing variant file tests; sync() can leave the variant file out.
 // 20261125 CL/SZ MB-109 Quoted ';', qty by header name in LF files, apostrophe item number stock tests.
 // 20261125 CL/SZ MB-109 Review: column position tests and the stock door values.
+// 20261126 CL/SZ MB-109 A kostpris header with a suffix still imports the cost.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -436,6 +437,21 @@ final class VaresyncTest extends CharacterizationTestCase
 		$this->assertSame('Kost qty item', $r['beskrivelse']);
 		$this->assertSame(40.0, (float)$r['kostpris']);
 		$this->assertSame((string)$g, (string)$r['gruppe']);
+	}
+
+	public function test_a_kostpris_header_with_a_suffix_still_imports_the_cost(): void
+	{
+		$g = self::$group;
+		$this->sync(
+			'id;varenr;stregkode;salgspris;kostpris_dkk;beskrivelse;gruppe;tilbud;notes',
+			["871;MB109KS;;100;35;Suffix cost item;$g;;"],
+			[]
+		);
+
+		$r = self::one('SELECT beskrivelse, kostpris FROM varer WHERE varenr = $1', ['MB109KS']);
+		$this->assertNotNull($r, 'the product is created');
+		$this->assertSame('Suffix cost item', $r['beskrivelse']);
+		$this->assertSame(35.0, (float)$r['kostpris'], 'kostpris_dkk counts as the kostpris column, as before MB-109');
 	}
 
 	public function test_a_qty_column_that_is_not_last_is_ignored(): void

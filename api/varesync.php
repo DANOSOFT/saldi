@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- ver 5.1.1 --- 2026.11.25 ---
+// --- api/varesync.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,7 @@
 // 20261125 CL/SZ MB-145 A variant label that exists under another category is created under its own category, so the variant no longer gets variant_type 0. The last stock message names the item instead of a variant-file value. Variant labels are escaped in these queries.
 // 20261125 CL/SZ MB-192 Every variant barcode is read for the product barcode check, not only the last one, and each clash message ends its line. The barcode messages are shown when the run stops at a missing variant file.
 // 20261125 CL/SZ MB-109 The shop files are read as CSV, so a ';' inside quotes stays in its field. The qty and kostpris columns are found by header name in their usual positions, also in LF files and after a BOM. A new item whose item number has an apostrophe gets its stock.
+// 20261126 CL/SZ MB-109 A qty or kostpris header only has to contain the name in its column, as before, so kostpris_dkk still imports cost prices.
 
 
 /**
@@ -70,6 +71,7 @@ function varesyncCsvRows($content) {
 
 /**
  * Whether the header row (the first row) of a shop CSV file has this column name at this position.
+ * The header there only has to contain the name, as the whole-line check before MB-109 allowed.
  * The rows are read by position, so an optional column only counts where its layout expects it.
  *
  * @param array<int, array<int, string>> $rows from varesyncCsvRows()
@@ -81,7 +83,8 @@ function varesyncHeaderAt($rows, $position, $name) {
 	if (!isset($rows[0][$position])) {
 		return 0;
 	}
-	return (strtolower(trim($rows[0][$position], "\" \t")) == $name) ? 1 : 0;
+	# the name only has to be part of the header there, as before: kostpris_dkk and shop_qty still count
+	return (strpos(strtolower(trim($rows[0][$position], "\" \t")), $name) !== false) ? 1 : 0;
 }
 
 function varesync($valg) {
