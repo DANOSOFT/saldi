@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_abonnement.php --- ver 5.1.1 --- 2026.11.24 ---
+// --- admin/inc_abonnement.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. The subscription tab (area 1 "Pakker og abonnementer") as two functions shared by the operator's customer card (operator_panel.php) and, for now, regnskab.php.
@@ -9,6 +9,10 @@
 //                 The add-on price is multiplied by the quantity only for counted add-ons, so an on/off add-on saved earlier with a quantity above 1 shows its single monthly price (review #785).
 // 20261116 CL/ASR MySQL/MariaDB masters are supported too (review #785, SirRolin). An override ends yesterday as a date from PHP instead of current_date - 1, and the column key is quoted through db_key_column().
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
+// 20261126 CL/ASR The plan comes from the recurring invoicing order in the billing ledger (bill_plan_refresh(), admin/inc_betalinger.php): a button fetches it now, the nightly job every night.
+//                 The card shows the order, its next invoice date, when it was fetched and the order's other lines (add-ons, older products), and says what was found when no single plan was.
+//                 A plan that comes from the billing ledger is changed on the order there, so "Skift pakke" explains that instead of offering a change the next fetch would undo.
+//                 Only while the last fetch confirmed the stored plan: when the orders no longer name it (removed, or several plans), the form is back (Hugin's pre-check on #1227).
 
 if (!function_exists('ent_tab_actions')) {
 	function ent_live_usage_quick($reg) { # users/items/postings from the customer db for the downgrade guard; ent_usage_collect() reconnects to the master itself
@@ -17,6 +21,14 @@ if (!function_exists('ent_tab_actions')) {
 	function ent_tab_actions($rid, $reg, &$notes) {
 		if (!isset($_POST['ent_action'])) return;
 		$ea = $_POST['ent_action']; $err = '';
+		if ($ea == 'billing_sync') { # 20261126 CL/ASR fetch the plan from the recurring orders now
+			if (!function_exists('bill_plan_refresh')) return;
+			$r = bill_plan_refresh($reg);
+			if (isset($r['error'])) $notes[] = $r['error'];
+			elseif ($r['plan']) $notes[] = ($r['changed'] ? vr_t('Pakken er hentet fra faktureringsregnskabet:','Plan fetched from the billing ledger:') : vr_t('Pakken passer med faktureringsregnskabet:','Plan matches the billing ledger:')).' '.ent_plan_name($r['plan']);
+			else $notes[] = bill_products_label(bill_products($rid));
+			return;
+		}
 		if ($ea == 'set_plan') {
 			$target = if_isset($_POST, '', 'plan_key'); $ef = trim(if_isset($_POST, '', 'effective_from')); $reason = trim(if_isset($_POST, '', 'reason'));
 			$conf = ent_conflicts($target, ent_live_usage_quick($reg));
@@ -44,6 +56,10 @@ if (!function_exists('ent_tab_actions')) {
 		// 20261012 CL/ASR Layout: plan + change side by side, then what the plan includes, then add-ons and individual
 		//                  terms; empty states explain what to do instead of showing "–".
 		$P = $ent['plan']; $today = date('Y-m-d');
+		$bp = function_exists('bill_products') ? bill_products($rid) : null; # what the last fetch from the billing ledger found
+		$fromBilling = $P && isset($ent['row']['source']) && $ent['row']['source'] == 'billing';
+		$billingConfirms = $fromBilling && $bp && isset($bp['plan']) && $bp['plan'] === (string)$ent['row']['plan_key']; # the last fetch still names the stored plan
+		$dmyhm = fn($v) => ($t = strtotime((string)$v)) ? date('d-m-Y H:i', $t) : '–';
 		$lim = fn($v) => $v === null ? vr_t('ubegrænset','unlimited') : vr_num($v);
 		print "<div class=\"vr-grid2\">\n";
 		// ---- current plan
@@ -61,20 +77,34 @@ if (!function_exists('ent_tab_actions')) {
 				array(vr_t('Fakturering','Billing'), (($bk = function_exists('bill_get') ? (string)bill_get($rid)['billing_kontonr'] : '') !== '' ? vr_t('kundenr.','customer no.').' '.vr_h($bk).' <span class="vr-mut2">· '.vr_t('i faktureringsregnskabet','in the billing ledger').'</span>' : '<span class="vr-mut2">'.vr_t('ikke koblet – gem kundenr. under Betalinger','not linked – save the customer no. under Betalinger').'</span>').($ent['row']['subscription_status'] == 'canceled' ? ' <span class="vr-pill">'.vr_t('opsagt','cancelled').'</span>' : '')),
 				array(vr_t('Håndhævelse','Enforcement'), $ent['row']['enforcement'] == 'enforce' ? vr_t('Håndhæves','Enforced') : '<span class="vr-mut2">'.vr_t('Observerer – begrænser ikke endnu','Observe – no gating yet').'</span>'),
 			) as $row) print "<div><span>$row[0]</span><b>$row[1]</b></div>";
+			if ($fromBilling && $bp && !empty($bp['order'])) print "<div><span>".vr_t('Genfaktureringsordre','Recurring order')."</span><b>#".vr_h($bp['order']['orderNo'])." <span class=\"vr-mut2\">· ".vr_t('næste faktura','next invoice')." ".date('d-m-Y', strtotime($bp['order']['nextInvoiceDate']))."</span></b></div>";
+			if ($fromBilling && $bp && ($bpl = bill_products_label($bp)) !== '') print "<div><span>".vr_t('Faktureringsregnskabet nu','Billing ledger now')."</span><b><span class=\"vr-pill\">".vr_h($bpl)."</span></b></div>";
+			if ($bp) print "<div><span>".vr_t('Hentet','Fetched')."</span><b>".$dmyhm($bp['checked_at'])."</b></div>";
 			print "</div>";
 		} else {
-			print "<div class=\"vr-empty\" style=\"padding:30px 24px\"><b>".vr_t('Ingen pakke endnu','No plan yet')."</b><span>".vr_t('Regnskabet har ikke fået tildelt en pakke. Vælg en til højre – tillæg og grænser afhænger af pakken.','The account has no plan yet. Choose one on the right – add-ons and limits depend on it.')."</span></div>";
+			print "<div class=\"vr-empty\" style=\"padding:30px 24px\"><b>".vr_t('Ingen pakke endnu','No plan yet')."</b><span>".vr_t('Regnskabet har ikke fået tildelt en pakke. Vælg en til højre – tillæg og grænser afhænger af pakken.','The account has no plan yet. Choose one on the right – add-ons and limits depend on it.')."</span>".(($bp && ($bpl = bill_products_label($bp)) !== '') ? "<span>".vr_t('Faktureringsregnskabet:','Billing ledger:')." ".vr_h($bpl)." <span class=\"vr-mut2\">(".vr_t('hentet','fetched')." ".$dmyhm($bp['checked_at']).")</span></span>" : "")."</div>";
 		}
+		if ($bp && !empty($bp['other'])) { # 20261126 CL/ASR the order's other lines: add-ons, fees, discounts and older products, as the billing ledger names them
+			print "<div class=\"vr-foot\" style=\"display:block\"><b style=\"font-weight:600\">".vr_t('Øvrige linjer på genfaktureringsordren','Other lines on the recurring order')."</b>";
+			foreach ($bp['other'] as $o) print "<div class=\"vr-frow\" style=\"padding:6px 0\"><div><b style=\"font-weight:400\">".vr_h($o['description'] !== '' ? $o['description'] : $o['sku'])."</b><small>".vr_h($o['sku']).((float)$o['quantity'] != 1 ? ' · × '.vr_h(rtrim(rtrim(number_format((float)$o['quantity'], 2, ',', ''), '0'), ',')) : '')."</small></div><span></span><span></span></div>";
+			print "</div>";
+		}
+		if (function_exists('bill_plan_refresh')) print "<div class=\"vr-foot\"><form method=\"post\" class=\"vr-inline\"><input type=\"hidden\" name=\"ent_action\" value=\"billing_sync\"><button type=\"submit\" class=\"vr-btn\">".vr_t('Hent pakken fra faktureringsregnskabet','Fetch the plan from the billing ledger')."</button><span class=\"vr-mut2\" style=\"font-size:12px\">".vr_t('Sker også automatisk hver nat.','Also runs automatically every night.')."</span></form></div>";
 		print "</div></section>\n";
 		// ---- change / choose plan
-		print "<section class=\"vr-sect\"><h2>".($P ? vr_t('Skift pakke','Change plan') : vr_t('Vælg pakke','Choose plan'))."</h2><div class=\"vr-card\"><form method=\"post\" class=\"vr-form\" style=\"max-width:none\"><input type=\"hidden\" name=\"ent_action\" value=\"set_plan\">";
-		print "<div class=\"vr-fgrid\"><label>".vr_t('Pakke','Plan')."<select name=\"plan_key\" class=\"vr-sel\">";
-		foreach ($cat['plans'] as $k => $pl) print "<option value=\"$k\"".($P && $P['plan_key'] == $k ? " selected" : "").">".vr_h($pl['name'])." · ".($pl['price_ore'] === null ? vr_t('efter aftale','by agreement') : ent_kr((int)$pl['price_ore']).'/md.')."</option>";
-		print "</select></label><label>".vr_t('Gælder fra','Effective from')."<input class=\"vr-inp\" type=\"date\" name=\"effective_from\" value=\"$today\" min=\"$today\"></label></div>";
-		print "<label>".vr_t('Begrundelse','Reason')."<input class=\"vr-inp\" name=\"reason\" placeholder=\"".vr_t('Fx aftalt pr. mail','e.g. agreed by mail')."\"></label>";
-		if ($P) print "<label class=\"vr-chk\"><input type=\"checkbox\" name=\"force\"> ".vr_t('Gennemfør, selv om forbruget overstiger den nye pakkes grænser','Apply even if usage exceeds the new plan limits')."</label>";
-		print "<div><button type=\"submit\" class=\"vr-btn vr-primary\">".($P ? vr_t('Skift pakke','Change plan') : vr_t('Tildel pakke','Assign plan'))."</button></div>";
-		print "<p class=\"vr-hint-line\">".vr_t('En dato i fremtiden planlægger skiftet. En nedgradering tjekkes mod regnskabets aktuelle forbrug.','A future date schedules the change. A downgrade is checked against current usage.')."</p></form>";
+		print "<section class=\"vr-sect\"><h2>".($P ? vr_t('Skift pakke','Change plan') : vr_t('Vælg pakke','Choose plan'))."</h2><div class=\"vr-card\">";
+		if ($billingConfirms) { # 20261126 CL/ASR payment model B1: the order in the billing ledger decides, so a change here would be undone by the next fetch
+			print "<div class=\"vr-empty\" style=\"padding:26px 24px;text-align:left\"><b>".vr_t('Pakken følger genfaktureringsordren','The plan follows the recurring order')."</b><span>".vr_t('Skift pakken på kundens genfaktureringsordre i faktureringsregnskabet. Panelet henter den igen i nat, eller når du trykker "Hent pakken fra faktureringsregnskabet". En undtagelse for kunden laves som en individuel aftale nedenfor.','Change the plan on the customer\'s recurring order in the billing ledger. The panel fetches it again tonight, or when you press "Fetch the plan from the billing ledger". An exception for this customer is made as an individual term below.')."</span>".($ent['pending'] ? "<span>".vr_t('Et planlagt skift nedenfor bliver lagt tilbage til ordrens pakke ved næste hentning. Annullér det, eller ret ordren.','A scheduled change below is set back to the order\'s plan at the next fetch. Cancel it, or change the order.')."</span>" : "")."</div>";
+		} else {
+			print "<form method=\"post\" class=\"vr-form\" style=\"max-width:none\"><input type=\"hidden\" name=\"ent_action\" value=\"set_plan\">";
+			print "<div class=\"vr-fgrid\"><label>".vr_t('Pakke','Plan')."<select name=\"plan_key\" class=\"vr-sel\">";
+			foreach ($cat['plans'] as $k => $pl) print "<option value=\"$k\"".($P && $P['plan_key'] == $k ? " selected" : "").">".vr_h($pl['name'])." · ".($pl['price_ore'] === null ? vr_t('efter aftale','by agreement') : ent_kr((int)$pl['price_ore']).'/md.')."</option>";
+			print "</select></label><label>".vr_t('Gælder fra','Effective from')."<input class=\"vr-inp\" type=\"date\" name=\"effective_from\" value=\"$today\" min=\"$today\"></label></div>";
+			print "<label>".vr_t('Begrundelse','Reason')."<input class=\"vr-inp\" name=\"reason\" placeholder=\"".vr_t('Fx aftalt pr. mail','e.g. agreed by mail')."\"></label>";
+			if ($P) print "<label class=\"vr-chk\"><input type=\"checkbox\" name=\"force\"> ".vr_t('Gennemfør, selv om forbruget overstiger den nye pakkes grænser','Apply even if usage exceeds the new plan limits')."</label>";
+			print "<div><button type=\"submit\" class=\"vr-btn vr-primary\">".($P ? vr_t('Skift pakke','Change plan') : vr_t('Tildel pakke','Assign plan'))."</button></div>";
+			print "<p class=\"vr-hint-line\">".vr_t('En dato i fremtiden planlægger skiftet. En nedgradering tjekkes mod regnskabets aktuelle forbrug.','A future date schedules the change. A downgrade is checked against current usage.')."</p></form>";
+		}
 		if ($ent['pending']) { print "<div class=\"vr-foot\" style=\"display:block\"><b style=\"font-weight:600\">".vr_t('Planlagte ændringer','Scheduled changes')."</b>"; foreach ($ent['pending'] as $pc) print "<div class=\"vr-frow\" style=\"padding:8px 0\"><div><b>".vr_h(ent_plan_name($pc['plan_key']))." ".vr_t('fra','from')." ".date('d-m-Y', strtotime($pc['effective_from']))."</b><small>".vr_h($pc['reason'])." · ".vr_h($pc['created_by'])."</small></div><span></span><form method=\"post\"><input type=\"hidden\" name=\"ent_action\" value=\"cancel_change\"><input type=\"hidden\" name=\"change_id\" value=\"".(int)$pc['id']."\"><button class=\"vr-link\" type=\"submit\">".vr_t('Annullér','Cancel')."</button></form></div>"; print "</div>"; }
 		print "</div></section>\n</div>\n";
 		// ---- included in the plan

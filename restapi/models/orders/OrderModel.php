@@ -1,4 +1,6 @@
 <?php
+// 20261126 CL/ASR An order carries its next invoice date (nextfakt, set on a recurring invoicing order), and the list can be limited to recurring orders and to one customer number.
+//                 The operator panel reads the customer's plan from those orders (includes/stdFunc/billingPlan.php).
 
 class OrderModel
 {
@@ -34,6 +36,7 @@ class OrderModel
     private $kontonr;
     private $ref;
     private $status;
+    private $nextfakt;
     private $ordrenr;
     private $valutakurs;
     private $art;
@@ -99,6 +102,7 @@ class OrderModel
             $this->valutakurs = (float)$r['valutakurs'];
             $this->fakturadate = $r['fakturadate'];
             $this->fakturanr = $r['fakturanr'];
+            $this->nextfakt = $r['nextfakt'] ?? null;
 
             return true;
         }
@@ -186,9 +190,10 @@ class OrderModel
      * @param string $orderDirection Sort direction (default: DESC)
      * @param string|null $fromDate Start date filter (YYYY-MM-DD)
      * @param string|null $toDate End date filter (YYYY-MM-DD)
+     * @param array $filters 'recurring' => true for recurring invoicing orders only (nextfakt set), 'customer' => one customer number (kontonr)
      * @return OrderModel[] Array of OrderModel objects
      */
-    public static function getAllItems($art, $limit = 20, $orderBy = 'ordrenr', $orderDirection = 'DESC', $fromDate = null, $toDate = null)
+    public static function getAllItems($art, $limit = 20, $orderBy = 'ordrenr', $orderDirection = 'DESC', $fromDate = null, $toDate = null, $filters = [])
     {
         // Whitelist allowed order by columns to prevent SQL injection
         $allowedOrderBy = ['ordrenr', 'id', 'postnr', 'firmanavn', 'ordredate'];
@@ -223,6 +228,13 @@ class OrderModel
             }
         }
         
+        if (!empty($filters['recurring'])) {
+            $whereClause .= " AND nextfakt IS NOT NULL";
+        }
+        if (isset($filters['customer']) && trim((string)$filters['customer']) !== '') {
+            $whereClause .= " AND kontonr = '" . db_escape_string(trim((string)$filters['customer'])) . "'";
+        }
+
         // Build the complete query
         $qtxt = "SELECT id FROM ordrer $whereClause ORDER BY $orderBy $orderDirection LIMIT $limit";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -339,7 +351,8 @@ class OrderModel
             'reference' => $this->ref,
             'status' => $this->status,
             'orderNo' => $this->ordrenr,
-            'invoiceNo' => $this->fakturanr
+            'invoiceNo' => $this->fakturanr,
+            'nextInvoiceDate' => $this->nextfakt
         );
     }
 

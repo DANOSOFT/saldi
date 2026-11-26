@@ -1,5 +1,5 @@
 <?php
-// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.24 ---
+// --- admin/inc_betalinger.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE: GNU GPL v2 or later; see vis_regnskaber.php for the full notice. Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261010 CL/ASR New. Area 3 "Betalinger og fakturering" on the customer card.
@@ -17,6 +17,15 @@
 //                 bill_key() says what the key is (saved customer number, else CVR, else the account name), and bill_match_customers() keeps the customers whose number, CVR or name equals it; none or several is an error, never a guess.
 //                 All of the customer's invoices are fetched page by page, not only the first 100, and only invoices with that customer number are kept (the endpoint also matches a numeric number against the internal customer id).
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
+// 20261126 CL/ASR The panel fetches the customer's plan from the recurring invoicing orders in the billing ledger (payment model B1: the recurring order is the truth for the plan).
+//                 bill_plan_refresh() finds the billing customer as the Betalinger tab does, reads its recurring orders and their lines through the REST API (debitor/orders?recurring=1&customer=…, debitor/orderlines), and billingPlanFromOrders() names the plan.
+//                 One plan is written to regnskab_entitlements with source 'billing'. Several plans, or none, leave the stored plan alone.
+//                 What was found, including the lines that are not a plan, is kept in regnskab_billing.products for the card and the account list.
+//                 The nightly job runs it for every open account, and the subscription tab has a button for one account.
+//                 The orders come newest first, only running orders (billingOrderIsRunning()) get their lines fetched, and an unreadable invoice date in the payment status does not stop the plan fetch (Hugin's pre-check on #1227).
+//                 A list that reaches the API's cap of 100 orders may be cut off, so it is refused instead of read (review #1227).
+
+require_once __DIR__ . '/../includes/stdFunc/billingPlan.php';
 
 if (!function_exists('bill_tables_ensure')) {
 	function bill_tables_ensure() {
@@ -130,6 +139,105 @@ if (!function_exists('bill_tables_ensure')) {
 		}
 		usort($inv, fn($a, $b) => strcmp($b['invoiceDate'] ?? '', $a['invoiceDate'] ?? ''));
 		return array('customer' => $c, 'invoices' => $inv);
+	}
+	// 20261126 CL/ASR The sign-up's product numbers when its settings change them (billing_sku_<pakke>), upper case => plan key.
+	function bill_plan_skus() {
+		$out = array();
+		$q = db_select("select var_name, var_value from settings where var_grp = 'signup'", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$k = strpos((string)$r['var_name'], 'billing_sku_') === 0 ? substr((string)$r['var_name'], 12) : '';
+			if (in_array($k, array('finans', 'professionel', 'business'), true) && trim((string)$r['var_value']) !== '') $out[strtoupper(trim((string)$r['var_value']))] = $k;
+		}
+		return $out;
+	}
+	// The customer's recurring orders with their lines, or array('error' => text).
+	function bill_recurring_orders($kontonr) {
+		$kontonr = trim((string)$kontonr);
+		$token = get_saldi_api_token(); if (!$token) return array('error' => vr_t('Kunne ikke logge ind på faktureringsregnskabets API','Could not log in to the billing ledger API'));
+		$list = fetch_saldi_api('/debitor/orders/index.php', $token, array('recurring' => '1', 'customer' => $kontonr, 'limit' => 100, 'orderBy' => 'ordrenr', 'orderDirection' => 'DESC'));
+		if (!is_array($list)) return array('error' => vr_t('Kunne ikke hente genfaktureringsordrer fra faktureringsregnskabet','Could not fetch recurring orders from the billing ledger'));
+		# the endpoint has no paging and returns at most 100: a full list may be cut off, and a plan read from part of it could be wrong
+		if (count($list) >= 100) return array('error' => vr_t('Kunden har 100 eller flere genfaktureringsordrer, og API\'et kan ikke vise dem alle. Pakken er ikke hentet.','The customer has 100 or more recurring orders, and the API cannot list them all. The plan was not fetched.'));
+		$orders = array();
+		foreach ($list as $o) {
+			if (!is_array($o)) continue;
+			# an API without the recurring filter returns every order and no next invoice date, so its list says nothing about the plan
+			if (!array_key_exists('nextInvoiceDate', $o)) return array('error' => vr_t('Faktureringsregnskabets API kender ikke genfaktureringsordrer endnu. Det skal opdateres.','The billing ledger API does not know recurring orders yet. It needs to be updated.'));
+			if (trim((string)($o['accountNumber'] ?? '')) !== $kontonr || !billingOrderIsRunning($o['nextInvoiceDate'], date('Y-m-d'))) continue; # lines only for running orders
+			$lines = fetch_saldi_api('/debitor/orderlines/index.php', $token, array('order_id' => (int)$o['id']));
+			if (!is_array($lines)) return array('error' => vr_t('Kunne ikke hente linjerne på genfaktureringsordre','Could not fetch the lines of recurring order').' #'.(string)($o['orderNo'] ?? $o['id']));
+			$o['lines'] = $lines; $orders[] = $o;
+		}
+		return array('orders' => $orders);
+	}
+	// Reads the plan off the customer's recurring orders, stores one plan with source 'billing' and keeps what was found. $customer comes from bill_fetch().
+	function bill_plan_sync($rid, $customer) {
+		$rid = (int)$rid; $k = trim((string)($customer['kontonr'] ?? ''));
+		if ($k === '') return array('error' => vr_t('Faktureringskunden har intet kundenummer','The billing customer has no customer number'));
+		$got = bill_recurring_orders($k); if (isset($got['error'])) return $got;
+		$res = billingPlanFromOrders($got['orders'], date('Y-m-d'), bill_plan_skus());
+		$row = db_fetch_array(db_select("select plan_key, source from regnskab_entitlements where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__));
+		$res['changed'] = false;
+		if ($res['plan'] && (!$row || (string)$row['plan_key'] !== $res['plan'] || (string)$row['source'] !== 'billing')) {
+			ent_write_plan($rid, $res['plan'], date('Y-m-d'), 'billing');
+			ent_log('entitlement.billing_sync', $rid, ($row && $row['plan_key'] ? $row['plan_key'].' -> ' : '').$res['plan'].' fra genfaktureringsordre #'.$res['order']['orderNo'].' (kundenr. '.$k.')');
+			$res['changed'] = true;
+		}
+		if ($res['plan']) db_modify("update regnskab_entitlements set synced_at = now() where regnskab_id = '$rid' and source = 'billing'", __FILE__ . " linje " . __LINE__);
+		$keep = array('kontonr' => $k, 'plan' => $res['plan'], 'plans' => $res['plans'], 'order' => $res['order'], 'other' => array_slice($res['other'], 0, 30), 'active_orders' => $res['active_orders'], 'main_other' => $res['main_other']);
+		if (!db_fetch_array(db_select("select 1 from regnskab_billing where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__))) db_modify("insert into regnskab_billing (regnskab_id) values ('$rid')", __FILE__ . " linje " . __LINE__);
+		# json_encode() without JSON_UNESCAPED_UNICODE writes ASCII only, so a LATIN9 master stores the API's UTF-8 text unchanged
+		db_modify("update regnskab_billing set products = '".db_escape_string((string)json_encode($keep))."', products_checked_at = now() where regnskab_id = '$rid'", __FILE__ . " linje " . __LINE__);
+		return $res;
+	}
+	// The stored fetch as an array, its texts in the page charset: the API's text is UTF-8, and the panel prints ISO-8859-1 on a LATIN9 master (vr_cs()).
+	function bill_products_decode($json) {
+		global $db_encode;
+		$p = $json ? json_decode((string)$json, true) : null;
+		if (!is_array($p)) return null;
+		if ($db_encode != 'UTF8') array_walk_recursive($p, function (&$v) { if (is_string($v)) $v = mb_convert_encoding($v, 'ISO-8859-1', 'UTF-8'); });
+		return $p;
+	}
+	// What the last fetch found for the account (bill_plan_sync()), or null.
+	function bill_products($rid) {
+		$r = db_fetch_array(db_select("select products, products_checked_at from regnskab_billing where regnskab_id = '".(int)$rid."'", __FILE__ . " linje " . __LINE__));
+		$p = $r ? bill_products_decode($r['products']) : null;
+		if (!$p) return null;
+		$p['checked_at'] = $r['products_checked_at'];
+		return $p;
+	}
+	// One line about an account whose orders name no single plan ('' when they name one); $short for the account list.
+	function bill_products_label($p, $short = false) {
+		if (!is_array($p) || !empty($p['plan'])) return '';
+		if (count((array)($p['plans'] ?? array())) > 1) return ($short ? vr_t('Flere:','Several:') : vr_t('Flere pakker på kunden:','Several plans on the customer:')).' '.implode(', ', array_map('ent_plan_name', $p['plans']));
+		if (!empty($p['main_other'])) return ($short ? '' : vr_t('Ikke en pakke:','Not a plan:').' ').$p['main_other'];
+		if (empty($p['active_orders'])) return $short ? vr_t('Ingen ordre','No order') : vr_t('Ingen genfaktureringsordre','No recurring order');
+		return $short ? vr_t('Ingen pakke','No plan') : vr_t('Ingen pakke på genfaktureringsordren','No plan on the recurring order');
+	}
+	// Account id => array(short label, full label), for the accounts whose orders name no single plan.
+	function bill_products_by_ledger() {
+		$out = array();
+		$q = db_select("select regnskab_id, products from regnskab_billing where products is not null", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) { $p = bill_products_decode($r['products']); $l = bill_products_label($p); if ($l !== '') $out[(int)$r['regnskab_id']] = array(bill_products_label($p, true), $l); }
+		return $out;
+	}
+	// The CVR in the account's own company card (adresser art S), read from its database; '' when there is none.
+	function bill_ledger_cvr($reg) {
+		global $sqdb; $cvr = '';
+		if ($reg['db'] && $reg['db'] != $sqdb && db_exists($reg['db']) && db_connect_database($reg['db'], __FILE__ . " linje " . __LINE__)) {
+			$r = @db_fetch_array(@db_select("select cvrnr from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
+			if ($r) $cvr = str_replace(' ', '', preg_replace('/^DK\s*/i', '', trim((string)$r['cvrnr'])));
+			include(__DIR__ . "/../includes/connect.php");
+		}
+		return $cvr;
+	}
+	// The whole fetch for one account: find the billing customer (as the Betalinger tab does, which also refreshes the payment status), then its plan.
+	function bill_plan_refresh($reg) {
+		$rid = (int)$reg['id']; $cfg = bill_get($rid);
+		list($search, $by) = bill_key($cfg['billing_kontonr'], bill_ledger_cvr($reg), $reg['regnskab']);
+		$data = bill_fetch($search, $by); bill_cache_store($rid, $data, $cfg, $search);
+		if (empty($data['customer'])) return array('error' => $data['error'] ?? vr_t('Ingen kunde fundet i faktureringsregnskabet','No billing customer found'));
+		return bill_plan_sync($rid, $data['customer']); # an unreadable invoice date only stops the payment status (bill_cache_store()), not the plan
 	}
 	// 20261113 CL/ASR A date from the billing API as d-m-Y, or a dash when it is empty or cannot be read (review #785).
 	function bill_dmy($s) { $t = empty($s) ? false : strtotime((string)$s); return $t === false ? '–' : date('d-m-Y', $t); }
