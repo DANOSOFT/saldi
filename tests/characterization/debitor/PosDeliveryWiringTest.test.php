@@ -3,6 +3,7 @@
 //                The behaviour itself runs against a real tenant in tests/shopify/PosDeliveryChoicesTest.php, which skips where no Shopify test database is configured; this keeps the call sites from silently going missing.
 // 20261124 CL/LH K33 The PoS-valg page is retired (#1191): the choices are kept on systemdata/posDeliveryChoices.php, linked from the till settings.
 // 20261124 CL/LH K33 Codex review: the endpoint checks pos.kasse and the token, a refusal clears the tender, a table move takes the delivery along, the settings page always redirects.
+// 20261126 CDX/NTR Keep endpoint guards before the shared response handler.
 
 namespace Saldi\Tests\PosDeliveryWiring;
 
@@ -94,12 +95,12 @@ final class PosDeliveryWiringTest extends TestCase
     {
         // The POS product buttons leave the page by a link, which would lose a change not yet posted.
         $endpoint = self::source('debitor/pos_ordre_includes/saveDelivery.php');
-        self::assertStringContainsString('$answer(pos_save_sale_delivery($orderId, $valg, $dato));', $endpoint);
+        self::assertStringContainsString('$answer = pos_sale_delivery_response($_POST);', $endpoint);
         self::assertStringContainsString('$header = "nix";', $endpoint);
         // $webservice skips online.php's permission gate, so the endpoint checks the till right and the token itself.
         self::assertStringContainsString('$modulnr = 5;', $endpoint);
-        self::assertLessThan(strpos($endpoint, '$answer(pos_save_sale_delivery('), strpos($endpoint, "require_permission('pos.kasse', 'write');"));
-        self::assertLessThan(strpos($endpoint, '$answer(pos_save_sale_delivery('), strpos($endpoint, 'perm_require_post_csrf(true);'));
+        self::assertLessThan(strpos($endpoint, '$answer = pos_sale_delivery_response('), strpos($endpoint, "require_permission('pos.kasse', 'write');"));
+        self::assertLessThan(strpos($endpoint, '$answer = pos_sale_delivery_response('), strpos($endpoint, 'perm_require_post_csrf(true);'));
         self::assertStringContainsString("'X-CSRF-Token'", self::source('debitor/pos_ordre_includes/saleDeliveryFields.php'));
         self::assertStringContainsString("fetch('pos_ordre_includes/saveDelivery.php'",
             self::source('debitor/pos_ordre_includes/saleDeliveryFields.php'));
