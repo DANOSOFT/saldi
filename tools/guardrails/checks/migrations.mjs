@@ -19,13 +19,14 @@
 // 20261102 CDX/NTR Allow initial-schema DDL in includes/opretfunc.php for new regnskaber.
 // 20261102 CDX/NTR Document admin/opret.php alongside includes/opretfunc.php in the creation exception.
 // 20261124 CDX/NTR Allow structure builders in includes/structure alongside the existing update helpers.
+// 20261125 CDX/NTR Permit the shared ensureTable implementation and check its callers as schema writes.
 
 import { splitLines } from "../lib/changeset.mjs";
 
 const UPDATES = "includes/betweenUpdates.php";
 const PROTECTED = /^includes\/(opdat_[^/]+|betweenUpdates2)\.php$/;
-const SCHEMA_FILES = /^(includes\/(betweenUpdates|opdater|opretfunc|opdat_[^/]+)\.php|includes\/(opdat_func|structure)\/|index\/install\.php|admin\/opret\.php|tests\/|tools\/)/;
-const DDL = /\b(ALTER\s+TABLE|CREATE\s+(UNIQUE\s+)?INDEX|CREATE\s+TABLE|DROP\s+(TABLE|INDEX|COLUMN)|ADD\s+COLUMN|RENAME\s+COLUMN)\b|\bensureTableAndColumns\s*\(/i;
+const SCHEMA_FILES = /^(includes\/(betweenUpdates|opdater|opretfunc|opdat_[^/]+)\.php|includes\/database\/ensureTable\.php$|includes\/(opdat_func|structure)\/|index\/install\.php|admin\/opret\.php|tests\/|tools\/)/;
+const DDL = /\b(ALTER\s+TABLE|CREATE\s+(UNIQUE\s+)?INDEX|CREATE\s+TABLE|DROP\s+(TABLE|INDEX|COLUMN)|ADD\s+COLUMN|RENAME\s+COLUMN)\b|\b(ensureTableAndColumns|db_ensure_table)\s*\(|\bDB_ENSURE\s*::\s*ensure\s*\(/i;
 const TEMPORARY = /CREATE\s+(TEMP|TEMPORARY)\s+TABLE/i;
 const COMMENT = /^\s*(\/\/|#|\*|\/\*)/;
 
