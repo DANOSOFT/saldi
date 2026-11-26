@@ -15,6 +15,7 @@
 // 20260723 CL/LH SD-602: created.
 // 20260904 CL/NTR Drop the throwaway tenant again in tearDownAfterClass().
 // 20261111 CDX/NTR Give each REST class its own fresh database.
+// 20261126 CL/ASR recurring=1 and customer=<customer number> limit the list to that customer's recurring invoicing orders, which carry nextInvoiceDate (the operator panel reads the plan from them).
 
 use PHPUnit\Framework\TestCase;
 
@@ -99,6 +100,50 @@ final class OrdersEndpointTest extends TestCase
         );
         pg_close($tenant);
         $this->assertNotEmpty($debtor, 'order creation provisions the debtor');
+    }
+
+    private function createOrder(string $company, string $phone, string $email): array
+    {
+        $create = RestApiEnv::http('POST', self::ORDERS, [
+            'companyName' => $company,
+            'phone' => $phone,
+            'email' => $email,
+            'vatRate' => 25,
+        ], $this->authHeaders());
+        $this->assertSame(201, $create['status'], $create['body']);
+        $id = (int)($create['json']['data']['id'] ?? 0);
+        $read = RestApiEnv::http('GET', self::ORDERS . '?id=' . $id, null, $this->authHeaders());
+        $this->assertSame(200, $read['status'], $read['body']);
+        $kontonr = (string)($read['json']['data']['accountNumber'] ?? '');
+        $this->assertNotSame('', $kontonr, 'the order has the debtor\'s customer number');
+        return [$id, $kontonr];
+    }
+
+    public function test_recurring_filter_lists_only_that_customers_recurring_orders(): void
+    {
+        [$recurring, $kontonr] = $this->createOrder('Apitest Abonnement ApS', '99881122', 'apitest-recurring@example.invalid');
+        [$oneOff, $sameKontonr] = $this->createOrder('Apitest Abonnement ApS', '99881122', 'apitest-recurring@example.invalid');
+        [$otherRecurring, $otherKontonr] = $this->createOrder('Apitest Anden Kunde ApS', '99883344', 'apitest-other@example.invalid');
+        $this->assertSame($kontonr, $sameKontonr, 'the same phone number is the same debtor');
+        $this->assertNotSame($kontonr, $otherKontonr);
+
+        $next = date('Y-m-d', strtotime('+10 days'));
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        pg_query($tenant, "UPDATE ordrer SET nextfakt = '$next' WHERE id IN ($recurring, $otherRecurring)");
+        pg_close($tenant);
+
+        $res = RestApiEnv::http('GET', self::ORDERS . '?recurring=1&limit=100&customer=' . urlencode($kontonr), null, $this->authHeaders());
+        $this->assertSame(200, $res['status'], $res['body']);
+        $orders = $res['json']['data'];
+        $this->assertSame([$recurring], array_map('intval', array_column($orders, 'id')));
+        $this->assertSame($next, substr((string)$orders[0]['nextInvoiceDate'], 0, 10));
+
+        $all = RestApiEnv::http('GET', self::ORDERS . '?limit=100&customer=' . urlencode($kontonr), null, $this->authHeaders());
+        $this->assertSame(200, $all['status'], $all['body']);
+        $ids = array_map('intval', array_column($all['json']['data'], 'id'));
+        sort($ids);
+        $this->assertSame([$recurring, $oneOff], $ids, 'without recurring=1 the customer filter keeps every order of the customer');
+        $this->assertArrayHasKey('nextInvoiceDate', $all['json']['data'][0]);
     }
 
     public function test_reading_a_nonexistent_order_returns_404(): void

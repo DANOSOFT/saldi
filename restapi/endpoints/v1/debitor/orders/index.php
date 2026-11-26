@@ -1,4 +1,5 @@
 <?php
+// 20261126 CL/ASR The list takes recurring=1 (recurring invoicing orders only) and customer=<customer number>, and each order has nextInvoiceDate.
 require_once '../../../../models/orders/OrderModel.php';
 require_once '../../../../services/OrderService.php';
 require_once '../../../../core/BaseEndpoint.php';
@@ -44,7 +45,11 @@ class OrderEndpoint extends BaseEndpoint
                 $toDate = null;
             }
             // Get all orders with art = 'DO' for debitor
-            $orders = OrderModel::getAllItems('DO', $limit, $orderBy, $orderDirection, $fromDate, $toDate);
+            $filters = [
+                'recurring' => isset($_GET['recurring']) && $_GET['recurring'] === '1',
+                'customer' => isset($_GET['customer']) ? (string)$_GET['customer'] : '',
+            ];
+            $orders = OrderModel::getAllItems('DO', $limit, $orderBy, $orderDirection, $fromDate, $toDate, $filters);
             $items = [];
             foreach ($orders as $order) {
                 $items[] = $order->toArray();

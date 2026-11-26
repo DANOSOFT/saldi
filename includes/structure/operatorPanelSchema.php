@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/structure/operatorPanelSchema.php --- ver 5.1.1 --- 2026-11-24 ---
+// --- includes/structure/operatorPanelSchema.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,9 +39,11 @@
 //                 MySQL/MariaDB has no partial index: two stored generated columns, 1 for an active link (and for an active owner link) and NULL otherwise, carry the same two unique rules.
 //                 The schema lock is db_lock() (pg_try_advisory_lock() or GET_LOCK() with no wait), released on every way out.
 // 20261124 CDX/NTR Move the operator-panel schema to includes/structure and use shared db_ helpers.
+// 20261126 CL/ASR regnskab_billing gets products and products_checked_at: what the last fetch of the recurring orders found (admin/inc_betalinger.php, bill_plan_sync()).
+//                 Schema version 3, so a master flagged at 2 runs the step once more.
 
 if (!function_exists('operator_panel_schema')) {
-	define('OPERATOR_PANEL_SCHEMA', '2');
+	define('OPERATOR_PANEL_SCHEMA', '3');
 	define('OPERATOR_PANEL_SCHEMA_LOCK', 'operator_panel_schema'); # db_lock() name (SD-731)
 	include_once(__DIR__ . '/../database/compatibility.php');
 
@@ -147,6 +149,7 @@ if (!function_exists('operator_panel_schema')) {
 			array('regnskab_billing', 'pay_status', "ALTER TABLE regnskab_billing ADD COLUMN pay_status varchar(12), ADD COLUMN outstanding_ore bigint, ADD COLUMN overdue_n int, ADD COLUMN oldest_due date, ADD COLUMN last_invoice date, ADD COLUMN checked_at $ts"),
 			array('regnskab_billing', 'payer_regnskab_id', "ALTER TABLE regnskab_billing ADD COLUMN payer_regnskab_id int"),
 			array('regnskab', 'lukkes_kommentar', "ALTER TABLE regnskab ADD COLUMN lukkes_kommentar text"),
+			array('regnskab_billing', 'products', "ALTER TABLE regnskab_billing ADD COLUMN products text, ADD COLUMN products_checked_at $ts"), # 20261126 CL/ASR the plan fetched from the recurring orders
 		);
 		foreach ($columns as $c) {
 			$has = db_fetch_array(db_select("SELECT 1 FROM information_schema.columns WHERE table_name = '$c[0]' AND column_name = '$c[1]'$sf", __FILE__ . " linje " . __LINE__, true));
