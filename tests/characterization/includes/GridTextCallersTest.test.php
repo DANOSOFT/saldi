@@ -1,5 +1,6 @@
 <?php
 // 20261125 CDX/NTR Cover order-list and journal callbacks with prepared display text and untouched row data.
+// 20261126 CDX/NTR Cover numeric columns converted to dropdowns before highlighted values reach their renderer.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -40,6 +41,14 @@ final class GridTextCallersTest extends TestCase
                 self::assertStringContainsString($expected, $html, $path);
             }
         }
+    }
+
+    public function testSupplierNumericDropdownRemainsVisibleWhenHighlighted(): void
+    {
+        $renderer = self::productionCallback('kreditor/ordreliste.php', '// Numeric fields');
+        $prepared = grid_text_html('1', '1');
+        $html = $renderer($prepared, ['status' => '1'], ['type' => 'dropdown', 'field' => 'status', 'align' => 'right', 'decimalPrecision' => 0]);
+        self::assertStringContainsString($prepared, $html);
     }
 
     public function testJournalUsesRawAccountsForLookupAndPreparedTextForDisplay(): void

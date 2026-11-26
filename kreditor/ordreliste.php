@@ -1,5 +1,5 @@
 <?php
-// --- kreditor/ordreliste.php -----ver 5.1.1 ----2026-11-25---------
+// --- kreditor/ordreliste.php -----ver 5.1.1 ----2026-11-26---------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,6 +41,7 @@
 // 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261125 CDX/NTR Let the shared grid prepare text once, preserving search highlighting and literal entities.
+// 20261126 CDX/NTR Render prepared numeric dropdown values without revalidating their highlight markup as a number.
 
 ob_start();
 @session_start();
@@ -540,6 +541,9 @@ foreach ($all_db_columns as $field_name => $data_type) {
         };
 
         $column_def['render'] = function ($value, $row, $column) {
+            if ($column['type'] === 'dropdown') {
+                return "<td align='{$column['align']}'>$value</td>";
+            }
             if (is_numeric($value)) {
                 $precision = isset($column['decimalPrecision']) ? $column['decimalPrecision'] : 2;
                 $formatted = dkdecimal($value, $precision);
