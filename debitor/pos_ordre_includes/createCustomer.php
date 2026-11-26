@@ -34,6 +34,7 @@
 // 20261126 CL/MJ SD-844 K31: the phone is checked both as stored and as the sale holds it, cut to ordrer.phone's 50 characters (Sol).
 // 20261126 CL/MJ SD-844 K31: only the form's payment terms are stored (opdater_konto() puts them into SQL unescaped), the group must be an active debtor group of the year, and text is cut in the tenant's encoding (Hugin, Saul).
 // 20261126 CL/MJ SD-844 K31: a debtor group stored as zero-padded text ('01') is found (Sol).
+// 20261126 CL/MJ SD-844 K31: text fields lose a trailing backslash (injecttjek() in opdater_konto() could log the cashier out), and betalingsdage is kept within 0-999 (Hugin).
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
@@ -135,7 +136,9 @@ function pos_create_customer(array $c, $token) {
 	$fields = array();
 	foreach (POS_CUSTOMER_CREATE_WIDTHS as $column => $width) {
 		$source = $column === 'tlf' ? 'phone' : $column;
-		$fields[$column] = mb_substr(trim((string) ($c[$source] ?? '')), 0, $width, $encoding);
+		// No trailing backslash: opdater_konto() copies these fields through db_modify(), whose injection check
+		// (injecttjek()) reads a quote after a backslash as escaped and can then log the cashier out.
+		$fields[$column] = rtrim(mb_substr(rtrim(trim((string) ($c[$source] ?? '')), '\\'), 0, $width, $encoding), '\\');
 	}
 	if ($fields['firmanavn'] === '') {
 		throw new InvalidArgumentException('a customer needs a name');
@@ -176,7 +179,7 @@ function pos_create_customer(array $c, $token) {
 	if (!in_array($terms, POS_CUSTOMER_CREATE_TERMS, true)) {
 		throw new UnexpectedValueException('the create form sent payment terms it does not offer');
 	}
-	$days = (int) ($c['betalingsdage'] ?? 0);
+	$days = max(0, min(999, (int) ($c['betalingsdage'] ?? 0)));   // days of credit; nothing outside a real range reaches the column
 
 	return shopify_db_transaction(function () use ($fields, $group, $terms, $days, $token) {
 		// the lock first: a second copy of the form waits here until the first has committed its token
