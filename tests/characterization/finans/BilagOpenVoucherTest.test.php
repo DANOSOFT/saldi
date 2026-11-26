@@ -8,6 +8,8 @@
 //
 // History:
 // 20261119 CL/SS SST-895: created.
+// 20261126 CL/SS SST-895 review: a currency voucher that balances in its own currency is balanced, as bogfor.php counts it.
+//                The date is the voucher's latest whatever the sort, and a voucher number that does not fit is ignored.
 
 use PHPUnit\Framework\TestCase;
 
@@ -15,9 +17,9 @@ require_once dirname(__DIR__, 3) . '/finans/kassekladde_includes/bilagNumber.php
 
 final class BilagOpenVoucherTest extends TestCase
 {
-    private static function line($bilag, string $debet, string $kredit, float $amount, string $dato = '19-11-2026'): array
+    private static function line($bilag, string $debet, string $kredit, float $amount, string $dato = '19-11-2026', ?float $foreign = null): array
     {
-        return array('bilag' => $bilag, 'dato' => $dato, 'debet' => $debet, 'kredit' => $kredit, 'belob' => $amount);
+        return array('bilag' => $bilag, 'dato' => $dato, 'debet' => $debet, 'kredit' => $kredit, 'belob' => $amount, 'amount' => $foreign ?? $amount);
     }
 
     public function testADebitWithoutItsCreditKeepsTheVoucherOpen(): void
@@ -50,6 +52,26 @@ final class BilagOpenVoucherTest extends TestCase
     {
         $lines = array(self::line(4, '58000', '', 500, '01-11-2026'), self::line(4, '', '1010', 100, '02-11-2026'));
         $this->assertSame(array('bilag' => 4, 'dato' => '02-11-2026'), bilagOpenVoucher($lines));
+    }
+
+    public function testACurrencyVoucherThatBalancesInItsOwnCurrencyIsBalanced(): void
+    {
+        $lines = array(self::line(8, '58000', '', 745.00, '01-11-2026', 100.00), self::line(8, '', '1010', 746.20, '03-11-2026', 100.00));
+        $this->assertNull(bilagOpenVoucher($lines), 'EUR 100 against EUR 100 on two dates: bogfor.php posts the rate difference, so the voucher is closed');
+        $lines[] = self::line(8, '', '1020', 74.50, '03-11-2026', 10.00);
+        $this->assertSame(8, bilagOpenVoucher($lines)['bilag'], 'off in both currencies: still open');
+    }
+
+    public function testTheDateIsTheVouchersLatestWhateverTheSort(): void
+    {
+        $lines = array(self::line(4, '', '1010', 100, '02-11-2026'), self::line(4, '58000', '', 500, '01-11-2026'));
+        $this->assertSame(array('bilag' => 4, 'dato' => '02-11-2026'), bilagOpenVoucher($lines), 'a descending view lists the latest line first');
+    }
+
+    public function testAVoucherNumberThatDoesNotFitIsIgnored(): void
+    {
+        $lines = array(self::line(6, '58000', '', 100), self::line('99999999999', '58000', '', 100), self::line('12abc', '58000', '', 100));
+        $this->assertSame(6, bilagOpenVoucher($lines)['bilag'], 'an out-of-range or non-numeric staged number is never proposed');
     }
 
     public function testOnlyADifferenceBelowAnOereIsBalanced(): void

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -229,6 +229,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261119 CL/SS SST-895 While the highest voucher does not balance, the blank line continues it with the same number and date.
 //                It posts no proposal, so the save keeps that number instead of treating it as taken.
+// 20261126 CL/SS SST-895 review: the open-voucher check also gets each line's amount in its own currency.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -3937,7 +3938,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$kladde_debetsum += isset($dkkamount[$y]) ? (float)$dkkamount[$y] : 0;
 		if ($kredit[$y])
 			$kladde_kreditsum += isset($dkkamount[$y]) ? (float)$dkkamount[$y] : 0;
-		$kk_lines[] = array('bilag' => $bilag[$y], 'dato' => $dato[$y], 'debet' => $debet[$y], 'kredit' => $kredit[$y], 'belob' => $dkkamount[$y] ?? 0);
+		$kk_lines[] = array('bilag' => $bilag[$y], 'dato' => $dato[$y], 'debet' => $debet[$y], 'kredit' => $kredit[$y], 'belob' => $dkkamount[$y] ?? 0, 'amount' => $amount[$y] ?? ($dkkamount[$y] ?? 0));
 	}
 	# Auto-balance forududfyldning af naeste linje fjernet 20260903 - balance-status oeverst erstatter den
 	$amount[$x + 1] = 0;
