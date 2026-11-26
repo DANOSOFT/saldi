@@ -178,9 +178,12 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
+// 20261112 LOE SST-967 opret_ordre() and opret_ordre_kopi() let the caller's case and customer win; the request is only a fallback.
+// 20261112 LOE SST-967 The text-selection view escapes what it prints and keeps only b and i.
+// 20261117 LOE SST-967 The text-selection view is refused for a page the case exception admitted, because the library is one list for the whole book.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
+// 20261124 LOE SST-967 The library rows keep master's orderTextLookupHtml(); this branch's refusal for an admitted page stays in front of it.
 // 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
-
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
 require_once __DIR__ . '/orderFuncIncludes/glsLabel.php';
@@ -4874,10 +4877,37 @@ if (!function_exists('vareopslag')) {
 	include(__DIR__ . '/orderFuncIncludes/productLookup.php');
 }
 ######################################################################################################################################
+/**
+ * Escapes a stored order text for the text-selection view, keeping only the two tags the page tells the
+ * user to use (b and i). Everything else is printed as text, so stored markup cannot run in another
+ * user's browser while bold and italic still render.
+ *
+ * @param string $tekst
+ *
+ * @return string
+ */
+function ordretekst_print_safe($tekst)
+{
+	# The install's own charset, because a Latin-1 tenant stores those bytes: with the wrong charset
+	# htmlspecialchars() returns an empty string for them, and ENT_SUBSTITUTE keeps a stray byte visible
+	# instead of blanking the text.
+	$charset = !empty($GLOBALS['charset']) ? $GLOBALS['charset'] : 'UTF-8';
+	$safe = htmlspecialchars((string) $tekst, ENT_QUOTES | ENT_SUBSTITUTE, $charset);
+
+	return str_ireplace(array('&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;'), array('<b>', '</b>', '<i>', '</i>'), $safe);
+}
+
 function tekstopslag($sort, $id)
 {
 	require_once __DIR__ . '/orderFuncIncludes/standardOrderText.php';
 	global $db_encode;
+	# SST-967 the text library is one list for the whole book, so a page admitted for one case must not open it:
+	# the view lists every stored text and the case's omfang. Case work uses the order's own lines instead.
+	if (!empty($GLOBALS['sag_workflow_case_id'])) {
+		include_once(__DIR__ . '/std_func.php');
+		include_once(__DIR__ . '/permissions.php');
+		perm_refuse('tekstopslag for case ' . (int) $GLOBALS['sag_workflow_case_id'], isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
+	}
 	global $bgcolor;
 	global $bgcolor5;
 	global $db, $db_skriv_id;
@@ -4906,7 +4936,7 @@ function tekstopslag($sort, $id)
 		$omfang = $r['omfang'];
 		if ($omfang) {
 			print "<tbody class=\"dataTableLink dataTableBottomBorderGray\">\n";
-			print "<tr><td colspan=\"2\"><p style=\"text-align:center;\"><b>Omfang</b></p></td><td align=\"left\" title=\"" . findtekst(491, $sprog_id) . "\" style=\"width:800px;\"><!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_sag_id=$sag_id\">$omfang</a></td>\n";
+			print "<tr><td colspan=\"2\"><p style=\"text-align:center;\"><b>Omfang</b></p></td><td align=\"left\" title=\"" . findtekst(491, $sprog_id) . "\" style=\"width:800px;\"><!--tekst 491--><a href=\"ordre.php?id=$id&amp;tekst_sag_id=$sag_id\">" . ordretekst_print_safe($omfang) . "</a></td>\n";
 			print "<td colspan=\"2\">&nbsp;</td>\n";
 			print "</tr>\n";
 			print "</tbody>\n";
@@ -5187,8 +5217,10 @@ function opret_ordre($sag_id, $konto_id)
 	global $sprog_id;
 	global $regnaar;
 
-	$sag_id = if_isset($_GET['sag_id']);
-	$konto_id = if_isset($_GET['konto_id']);
+	# SST-967 the caller's case and customer win; the address is only a fallback, so a validated case cannot be
+	# replaced by the raw request value.
+	if (!$sag_id) $sag_id = if_isset($_GET['sag_id']);
+	if (!$konto_id) $konto_id = if_isset($_GET['konto_id']);
 	$tilbud_id = if_isset($_GET['tilbud_id']);
 	$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
 	//if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 20080511
@@ -5383,9 +5415,10 @@ function opret_ordre_kopi($sag_id, $konto_id)
 	global $sprog_id;
 	global $regnaar;
 
-	$konto_id = $_GET['konto_id'];
-	$sag_id = $_GET['sag_id'];
-	$ordre_id = $_GET['ordre_id'];
+	# SST-967 the caller's case and customer win here too: the address is only a fallback.
+	if (!$konto_id) $konto_id = (int) ifset($_GET, 'konto_id', 0);
+	if (!$sag_id) $sag_id = (int) ifset($_GET, 'sag_id', 0);
+	$ordre_id = (int) ifset($_GET, 'ordre_id', 0);
 	$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
 
 	$query = db_select("select * from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__);
