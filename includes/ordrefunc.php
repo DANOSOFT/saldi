@@ -176,6 +176,8 @@
 // 20261118 CL/SS MB-49 bogfor_nu(): a card payment on a 0-kr sale with no card account is refused per sale, before the day-end batch adds them up.
 //                Another sale's rows in the same batch no longer hide it.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261110 CL/MJ SST-959 opret_ordrelinje(): a variant added without a price gets its own sales price, when it has one above 0, instead of the item's.
+// 20261112 CL/MJ SST-959 Not on an item with a quantity discount: m_rabat() only discounts lines at the item's price (CodeRabbit).
 // 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
@@ -4158,7 +4160,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$x++;
 	}
 
-	$qtxt = "SELECT id, vare_id, variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr_up'";
+	$qtxt = "SELECT id, vare_id, variant_type, variant_salgspris FROM variant_varer WHERE upper(variant_stregkode) = '$varenr_up'";
 	if (strlen($varenr) == 12 && is_numeric($varenr)) {
 		$qtxt .= " or variant_stregkode='0$varenr'";
 	}
@@ -4167,6 +4169,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$vare_id = $r['vare_id'];
 		$variant_id = $r['id'];
 		$variant_type = $r['variant_type'];
+		$variantPrice = (float) $r['variant_salgspris'];
 		$variant_type_array = explode(chr(9), $variant_type);
 		$variant_descriptions = array();
 
@@ -4190,6 +4193,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 	} else {
 		$variant_id = 0;
 		$variant_type = $variantText = NULL;
+		$variantPrice = 0.0;
 	}
 
 	$qtxt = NULL;
@@ -4249,6 +4253,12 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$m_antal = trim($m_antal);
 		if (!is_numeric($m_antal))
 			$m_antal = 0;
+		// SST-959 A variant's own price, as the quick search shows it, takes the item's place. 0 is no price:
+		// the webshop sync creates variants with variant_salgspris 0 when the shop sends none. Not on an item
+		// with a quantity discount: m_rabat() only discounts lines at the item's price, so the line would lose it.
+		if ($variant_id && $variantPrice > 0 && !$m_antal) {
+			$productPrice = $variantPrice;
+		}
 		if (!$varegruppe) {
 			return ("Varenr $varenr er ikke tilknyttet en varegruppe!");
 		}
