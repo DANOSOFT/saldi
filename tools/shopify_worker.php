@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.1 --- 2026.11.13
+// --- tools/shopify_worker.php --- ver 5.1.1 --- 2026.11.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,7 @@
 // 20261112 CL/SZ SD-822: the stock.activate handler and the command activate; --dry-run alone reads as --dry-run=1.
 // 20261112 CL/SS SD-804: the store.export and store.recover handlers (a posted POS sale becomes a Shopify order).
 // 20261113 CL/MJ SD-760: the order.move and barrier.sweep handlers.
+// 20261123 CL/MJ SD-865: the locations.fetch handler (the shop's locations for the lager mapping).
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -100,9 +101,12 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/services/stock.php';
 	require_once __DIR__ . '/../includes/shopify/services/orderWriteback.php';
 	require_once __DIR__ . '/../includes/shopify/oauth.php';
+	require_once __DIR__ . '/../includes/shopify/services/locations.php';
 	$registry = array();
 	// SD-749: the hourly reconcile that restores webhook subscriptions Shopify deleted.
 	shopify_worker_register($registry, 'webhook.health', 'shopify_webhook_health_job');
+	// SD-865: the shop's locations, fetched for the lager mapping (systemdata/shopify/mapping.php).
+	shopify_worker_register($registry, 'locations.fetch', 'shopify_locations_fetch_job');
 	$producers = array(
 		// SD-748: received webhook events become queued jobs, ORDERS_PAID first.
 		'events' => function (array $ctx, float $deadline): array {
