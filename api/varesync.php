@@ -44,6 +44,7 @@
 // 20261125 CL/SZ MB-192 Every variant barcode is read for the product barcode check, not only the last one, and each clash message ends its line. The barcode messages are shown when the run stops at a missing variant file.
 // 20261125 CL/SZ MB-109 The shop files are read as CSV, so a ';' inside quotes stays in its field. The qty and kostpris columns are found by header name in their usual positions, also in LF files and after a BOM. A new item whose item number has an apostrophe gets its stock.
 // 20261126 CL/SZ MB-109 A qty or kostpris header only has to contain the name in its column, as before, so kostpris_dkk still imports cost prices.
+// 20261126 CL/SZ MB-192 The variant barcode check compares the barcodes as text, so 01234 no longer matches a variant's 1234.
 
 
 /**
@@ -255,7 +256,7 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 #			alert("Stregkode $stregkode[$y] bruges også i $dbvnr:$dbbesk\\n stregkode slettes for $varenr[$y]:$beskrivelse[$y]");
 			$showtxt.="Stregkode $stregkode[$y] bruges også i $dbvnr:$dbbesk -- stregkode slettet for $varenr[$y]:$beskrivelse[$y]<br>";
 			$stregkode[$y]=NULL;
-		} elseif ($stregkode[$y] && in_array($stregkode[$y],$varBarCode)) {
+		} elseif ($stregkode[$y] && in_array((string)$stregkode[$y],$varBarCode,true)) {
 			$showtxt.="Stregkode $stregkode[$y] bruges også i varianter,  -- stregkode slettet for $varenr[$y]:$beskrivelse[$y]<br>";
 			$stregkode[$y]=NULL;
 		}

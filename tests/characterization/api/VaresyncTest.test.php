@@ -22,6 +22,7 @@
 // - A product barcode that matches any existing variant barcode is cleared with a message, not only
 //   one that matches the last variant barcode read.
 // - When the variant file can't be fetched, the barcode messages from the product step are still shown.
+// - A product barcode is only cleared by the same variant barcode as text: 01927771 is not 1927771.
 //
 // Pinned (MB-109):
 // - A ';' inside a quoted description stays in the description, so the product is created.
@@ -41,6 +42,7 @@
 // 20261125 CL/SZ MB-109 Quoted ';', qty by header name in LF files, apostrophe item number stock tests.
 // 20261125 CL/SZ MB-109 Review: column position tests and the stock door values.
 // 20261126 CL/SZ MB-109 A kostpris header with a suffix still imports the cost.
+// 20261126 CL/SZ MB-192 A barcode that only equals a variant barcode as a number is kept.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -317,6 +319,25 @@ final class VaresyncTest extends CharacterizationTestCase
 			);
 		}
 		$this->assertStringContainsString('MB192P1:Clash one<br>Stregkode MB192VB2', $printed, 'each clash message ends its line');
+	}
+
+	public function test_a_product_barcode_is_only_cleared_by_the_same_variant_barcode(): void
+	{
+		$g = self::$group;
+		$owner = (int)self::one(
+			"INSERT INTO varer (varenr, beskrivelse, gruppe, salgspris, kostpris, lukket) VALUES ('MB192NUMOWNER', 'Numeric owner', $1, 0, 0, '0') RETURNING id",
+			[$g]
+		)['id'];
+		self::rows('INSERT INTO variant_varer (vare_id, variant_stregkode) VALUES ($1, $2)', [$owner, '1927771']);
+
+		$printed = $this->sync(self::PRODUCT_HEADER, [
+			"721;MB192N1;01927771;100;Leading zero;$g;;",
+		], []);
+
+		$r = self::one('SELECT stregkode FROM varer WHERE varenr = $1', ['MB192N1']);
+		$this->assertNotNull($r, 'item MB192N1 was created');
+		$this->assertSame('01927771', (string)$r['stregkode'], 'a barcode that only equals a variant barcode as a number is kept');
+		$this->assertStringNotContainsString('Stregkode 01927771 bruges også i varianter', $printed);
 	}
 
 	public function test_barcode_messages_are_shown_when_the_variant_file_is_missing(): void
