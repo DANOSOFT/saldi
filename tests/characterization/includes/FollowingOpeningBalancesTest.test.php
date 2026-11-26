@@ -38,6 +38,7 @@
 // 20261125 CL/MMR SST-1005 A rebuild that leaves a year waiting locks the waiting-year and block rows together in id order (Codex round 35).
 // 20261125 CL/MMR SST-1005 A request that ends right after an earlier waiting year is taken names that year in its message (CodeRabbit on PR #1109).
 // 20261126 CL/MMR SST-1005 An interrupted take of a deleted waiting year (also before a missing year, also on the second pass) names a year with a card whose save rebuilds the stale year (Codex round 37).
+// 20261126 CL/MMR SST-1005 An open waiting year before a missing year: an interrupted take or rebuild names a year with a card (Codex round 38).
 
 declare(strict_types=1);
 
@@ -2438,6 +2439,116 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertSame(1120.0, $this->primo(10, 2000), 'Year 9: 1000 + 100 on 2000 plus 20 from 2100.');
         self::assertSame(1170.0, $this->primo(11, 2000));
         self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /**
+     * Codex round 38: year 8 is open and waiting, year 9 is missing. The rebuild from year 8 has nothing to carry into,
+     * and year 10 keeps opening balances of its own, so a request that ends right after the clear of year 8 must ask for
+     * Gem/opdatér on year 11 (from year 10), not on the missing year 9.
+     */
+    public function testAnInterruptedTakeOfAnOpenWaitingYearBeforeAMissingYearNamesTheFirstYearWithACard(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->sql("DELETE FROM grupper WHERE art = 'RA' AND kodenr = 9");
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 9');
+        $this->endTheRequestRightAfterTheClearOf(8, 10, 11);
+        self::assertSame($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'failed' => true]), followingOpeningBalanceStop());
+        $this->assertTheMessageNamesAYearWithACard();
+
+        self::assertSame(777.0, $this->primo(11, 2000));
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(11));
+        $this->sql('COMMIT');
+        self::assertSame(1604.0, $this->primo(11, 2000), 'Gem/opdatér on year 11 carries year 10.');
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /**
+     * Codex round 38: the same years, but the request ends later, while the rebuild writes year 11. The guard is the one
+     * armed once the years are known, and it names year 11 too, not the missing year 9. As a webservice the failure
+     * reaches the catch instead, which names the same years.
+     */
+    public function testARebuildFromAnOpenWaitingYearBeforeAMissingYearThatFailsNamesTheFirstYearWithACard(): void
+    {
+        $log = tempnam(sys_get_temp_dir(), 'sst1005');
+        ini_set('error_log', $log);
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->sql("DELETE FROM grupper WHERE art = 'RA' AND kodenr = 9");
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 9');
+        $expected = $this->stop(['sourceYear' => 10, 'targetYear' => 11, 'failed' => true]);
+        $storedOnShutdown = null;
+        $GLOBALS['sst1005Hook'] = ['after' => "update kontoplan set primo = '", 'times' => 1, 'run' => function () use (&$storedOnShutdown): void {
+            // In a page request the request ends here and the shutdown function stores the message.
+            followingOpeningBalanceFailureOnShutdown();
+            $storedOnShutdown = followingOpeningBalanceStop();
+            throw new RuntimeException('test: the rebuild failed');
+        }];
+        self::assertSame($expected, syncFollowingOpeningBalances(10, 11), 'The catch names year 11.');
+        self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The rebuild was writing when it failed.');
+        self::assertSame($expected, $storedOnShutdown, 'The guard names year 11.');
+        unlink($log);
+        self::assertSame($expected, followingOpeningBalanceStop());
+        $this->assertTheMessageNamesAYearWithACard();
+        self::assertSame(777.0, $this->primo(11, 2000), 'Nothing of the rebuild is kept.');
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(11));
+        $this->sql('COMMIT');
+        self::assertSame(1604.0, $this->primo(11, 2000));
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    public function testARebuildStartsAtTheFirstOpenYearWhoseNextYearHasACard(): void
+    {
+        self::assertSame(8, followingOpeningBalanceRebuildStart(8), 'Years 8-11 all open.');
+        self::assertSame(10, followingOpeningBalanceRebuildStart(10));
+        self::assertSame(11, followingOpeningBalanceRebuildStart(11), 'The last year has no next year: as before, the first live year.');
+        $this->sql("UPDATE grupper SET box10 = '1763600000' WHERE art = 'RA' AND kodenr = 8");
+        self::assertSame(9, followingOpeningBalanceRebuildStart(8), 'Year 8 deleted: year 9 keeps its own and carries into 10.');
+        $this->sql("UPDATE grupper SET box10 = '' WHERE art = 'RA' AND kodenr = 8");
+        $this->sql("DELETE FROM grupper WHERE art = 'RA' AND kodenr = 9");
+        self::assertSame(10, followingOpeningBalanceRebuildStart(8), 'Year 9 missing after an open year 8.');
+        $this->sql("UPDATE grupper SET box10 = 'on' WHERE art = 'RA' AND kodenr = 11");
+        self::assertSame(8, followingOpeningBalanceRebuildStart(8), 'Year 11 deleted too: no year has a next year, so the first live year.');
+    }
+
+    /**
+     * Codex round 38: with year 8 open and waiting and year 9 missing, «Sæt aktivt» on year 11 took year 8 and carried
+     * nothing, because the rebuild from year 8 stops at the missing year. Year 10 keeps opening balances of its own,
+     * so the rebuild starts there and year 11 follows year 10, as it does without a waiting year. Year 8 is not carried
+     * across the gap.
+     */
+    public function testActivatingAYearAfterAMissingYearStillCarriesItWhenAnEarlierYearWaits(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->sql("DELETE FROM grupper WHERE art = 'RA' AND kodenr = 9");
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 9');
+        $year10 = $this->yearState(10);
+        self::assertNull(syncFollowingOpeningBalances(10, 11));
+        self::assertSame($year10['accounts'], $this->yearState(10)['accounts'], 'Year 10 keeps its own opening balances.');
+        self::assertSame(1604.0, $this->primo(11, 2000), 'Year 11 follows year 10: 777 + 50 on 2000 plus 777 from 2100.');
+        self::assertSame('0', $this->setting('openingBalancePending'));
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /**
+     * Codex round 38: the page check waits for a session after the year the rebuild really starts from. With year 8
+     * waiting and year 9 missing that is year 10, so a session in year 10 leaves it waiting and one in year 11 rebuilds.
+     */
+    public function testThePageCheckWaitsForASessionAfterTheYearAfterAMissingYear(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->sql("DELETE FROM grupper WHERE art = 'RA' AND kodenr = 9");
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 9');
+        self::assertNull(checkFollowingOpeningBalances(10));
+        self::assertSame('8', $this->setting('openingBalancePending'), 'A session in year 10 does not rebuild year 10 into 11.');
+        self::assertSame(777.0, $this->primo(11, 2000));
+        self::assertNull(checkFollowingOpeningBalances(11));
+        self::assertSame('0', $this->setting('openingBalancePending'));
+        self::assertSame(1604.0, $this->primo(11, 2000));
     }
 
     public function testMovingTheGuardKeepsItArmedAndNeverArmsIt(): void

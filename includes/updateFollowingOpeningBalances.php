@@ -78,6 +78,7 @@
 // 20261125 CL/MMR  SST-1005: followingOpeningBalanceLockRow() reads the remembered ids with ifset(), followingOpeningBalanceReleaseLocks() its locks with if_array(), and the PHPDoc describes the paired lock (Codex round 35).
 // 20261125 CL/MMR  SST-1005: Before «Sæt aktivt» or the page check clears an earlier waiting year, the failure guard is moved to that year, so a request that ends right after the clear names the year to start again from (CodeRabbit on PR #1109).
 // 20261126 CL/MMR  SST-1005: That guard names the first year after a deleted or missing waiting year, looked up before the clear, and is moved in one assignment, never disarmed in between (Codex round 37).
+// 20261126 CL/MMR  SST-1005: A rebuild asked to start at a year whose next year is deleted or missing starts at the first year after the gap, as after a deleted year, so «Sæt aktivt» still carries the activated year and a failed or interrupted rebuild names a year with a card (followingOpeningBalanceRebuildStart(), Codex round 38).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -727,9 +728,9 @@ function checkFollowingOpeningBalances($activeYear) {
 	if (!$pending || $activeYear <= $pending) {
 		return null;
 	}
-	// A waiting year that was deleted meanwhile has nothing left to carry; the rebuild starts at the first year after it,
-	// and only once a session is in a year later than that one.
-	if ($activeYear <= followingOpeningBalanceFirstLiveYear($pending)) {
+	// A waiting year that was deleted meanwhile, or whose next year is deleted or missing, has nothing left to carry; the
+	// rebuild starts at the first year after it, and only once a session is in a year later than that one (Codex round 38).
+	if ($activeYear <= followingOpeningBalanceRebuildStart($pending)) {
 		return null;
 	}
 	return syncFollowingOpeningBalances($pending);
@@ -754,6 +755,34 @@ function followingOpeningBalanceFirstLiveYear($year) {
 		}
 	}
 	return $year;
+}
+
+/**
+ * The year a rebuild asked to start at $year really starts from: the first year from $year on that is not deleted and
+ * whose next year exists and is not deleted. A year before a deleted or missing year has nothing to carry into (the
+ * gap is a boundary, see updateFollowingOpeningBalances()), and the first year after the gap keeps opening balances of
+ * its own, so the work from $year on goes on from there, as after a deleted year (followingOpeningBalanceFirstLiveYear()).
+ * Without it, with year 8 waiting and year 9 missing, «Sæt aktivt» on year 11 carried nothing at all, and a request
+ * that failed asked for Gem/opdatér on year 9, which has no card (Codex round 38). A failed rebuild names this year,
+ * so its message asks for Gem/opdatér on the year after it, which has a card (systemdata/regnskabsaar.php), and that
+ * save rebuilds from here.
+ *
+ * @param int $year Fiscal year (grupper art 'RA' kodenr).
+ * @return int That year, or followingOpeningBalanceFirstLiveYear($year) when no year from $year on has a next year.
+ */
+function followingOpeningBalanceRebuildStart($year) {
+	$year = (int)$year;
+	$previous = 0;
+	$q = db_select("select kodenr, box10 from grupper where art = 'RA' and kodenr >= '$year' order by kodenr", __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$kodenr = (int)$row['kodenr'];
+		$live = !followingOpeningBalanceYearDeleted($row['box10']);
+		if ($live && $previous && $kodenr === $previous + 1) {
+			return $previous;
+		}
+		$previous = $live ? $kodenr : 0;
+	}
+	return followingOpeningBalanceFirstLiveYear($year);
 }
 
 /**
@@ -864,13 +893,14 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	// left for the next check. Before each clear the guard is moved to the year being taken when that is earlier, so a
 	// request that ends right after the clear names the year the user must start again from: with year 8 waiting and
 	// «Sæt aktivt» on year 11, the message asks for Gem/opdatér on year 9, not 11 (CodeRabbit on PR #1109). The guard
-	// names the year the rebuild really starts from, looked up before the clear as below: with years 8 and 9 deleted (or
-	// 8 deleted and 9 missing) that is year 10, so the message asks for Gem/opdatér on year 11, which has a card, not on
-	// year 9, which has none. A request that ends during the lookup has cleared nothing, so the year still waits. The
-	// year as taken stays the year checked from, as below (Codex round 37).
+	// names the year the rebuild really starts from, looked up before the clear as below
+	// (followingOpeningBalanceRebuildStart()): with year 9 deleted or missing (year 8 deleted or not), the message asks
+	// for Gem/opdatér on year 11, which has a card and rebuilds from year 10, not on year 9, which has none. A request
+	// that ends during the lookup has cleared nothing, so the year still waits. The year as taken stays the year checked
+	// from, as below (Codex rounds 37-38).
 	$beforeClear = function ($taken) use ($guarded, $fromYear) {
 		if ($guarded && ($fromYear < 1 || $taken < $fromYear)) {
-			followingOpeningBalanceFailureGuardMove(followingOpeningBalanceFirstLiveYear($taken), $taken);
+			followingOpeningBalanceFailureGuardMove(followingOpeningBalanceRebuildStart($taken), $taken);
 		}
 	};
 	$pending = followingOpeningBalanceTakePending($beforeClear);
@@ -878,8 +908,9 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		$fromYear = $fromYear > 0 ? min($fromYear, $pending) : $pending;
 	}
 	$checkedFrom = $fromYear;
-	// A deleted year cannot be carried from; the first year after it carries its own opening balances on.
-	$fromYear = followingOpeningBalanceFirstLiveYear($fromYear);
+	// A deleted year cannot be carried from, nor a year whose next year is deleted or missing; the first year after
+	// them carries its own opening balances on (Codex round 38).
+	$fromYear = followingOpeningBalanceRebuildStart($fromYear);
 	if ($guarded) {
 		// Now the years are known, the message the guard would store names them.
 		followingOpeningBalanceFailureGuardMove($fromYear, $checkedFrom);
