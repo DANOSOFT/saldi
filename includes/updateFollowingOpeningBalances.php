@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/updateFollowingOpeningBalances.php --- ver 5.1.1 --- 2026.11.25 ---
+// --- includes/updateFollowingOpeningBalances.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -77,6 +77,7 @@
 // 20261125 CL/MMR  SST-1005: A rebuild or year card that leaves a year waiting locks the waiting-year and block rows together in id order, the order any scan of settings takes, so other Saldi code that writes settings by name waits instead of deadlocking (Codex round 35).
 // 20261125 CL/MMR  SST-1005: followingOpeningBalanceLockRow() reads the remembered ids with ifset(), followingOpeningBalanceReleaseLocks() its locks with if_array(), and the PHPDoc describes the paired lock (Codex round 35).
 // 20261125 CL/MMR  SST-1005: Before «Sæt aktivt» or the page check clears an earlier waiting year, the failure guard is moved to that year, so a request that ends right after the clear names the year to start again from (CodeRabbit on PR #1109).
+// 20261126 CL/MMR  SST-1005: That guard names the first year after a deleted or missing waiting year, looked up before the clear, and is moved in one assignment, never disarmed in between (Codex round 37).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -862,11 +863,14 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	// Taken before the rebuild, so a failing rebuild is not retried on every page. A year registered after this is
 	// left for the next check. Before each clear the guard is moved to the year being taken when that is earlier, so a
 	// request that ends right after the clear names the year the user must start again from: with year 8 waiting and
-	// «Sæt aktivt» on year 11, the message asks for Gem/opdatér on year 9, not 11 (CodeRabbit on PR #1109).
+	// «Sæt aktivt» on year 11, the message asks for Gem/opdatér on year 9, not 11 (CodeRabbit on PR #1109). The guard
+	// names the year the rebuild really starts from, looked up before the clear as below: with years 8 and 9 deleted (or
+	// 8 deleted and 9 missing) that is year 10, so the message asks for Gem/opdatér on year 11, which has a card, not on
+	// year 9, which has none. A request that ends during the lookup has cleared nothing, so the year still waits. The
+	// year as taken stays the year checked from, as below (Codex round 37).
 	$beforeClear = function ($taken) use ($guarded, $fromYear) {
 		if ($guarded && ($fromYear < 1 || $taken < $fromYear)) {
-			followingOpeningBalanceFailureGuard(null);
-			followingOpeningBalanceFailureGuard($taken, $taken);
+			followingOpeningBalanceFailureGuardMove(followingOpeningBalanceFirstLiveYear($taken), $taken);
 		}
 	};
 	$pending = followingOpeningBalanceTakePending($beforeClear);
@@ -878,8 +882,7 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	$fromYear = followingOpeningBalanceFirstLiveYear($fromYear);
 	if ($guarded) {
 		// Now the years are known, the message the guard would store names them.
-		followingOpeningBalanceFailureGuard(null);
-		followingOpeningBalanceFailureGuard($fromYear, $checkedFrom);
+		followingOpeningBalanceFailureGuardMove($fromYear, $checkedFrom);
 	}
 	$stop = null;
 	$deferredYear = 0;
@@ -961,6 +964,22 @@ function followingOpeningBalanceFailureGuard($sourceYear, $checkedFrom = 0) {
 		$registered = true;
 		register_shutdown_function('followingOpeningBalanceFailureOnShutdown');
 	}
+	return true;
+}
+
+/**
+ * Point a guard that is armed at other years. It is one assignment, so there is no moment in which the guard is
+ * disarmed and a request that ends then loses the message (Codex round 37). A guard that is not armed stays disarmed.
+ *
+ * @param int $sourceYear The year the rebuild carries from.
+ * @param int $checkedFrom The year the caller checks from (see saveFollowingOpeningBalanceStop()).
+ * @return bool True when the guard was armed and now names these years.
+ */
+function followingOpeningBalanceFailureGuardMove($sourceYear, $checkedFrom) {
+	if (empty($GLOBALS['followingOpeningBalanceFailure'])) {
+		return false;
+	}
+	$GLOBALS['followingOpeningBalanceFailure'] = array('sourceYear' => (int)$sourceYear, 'checkedFrom' => (int)$checkedFrom);
 	return true;
 }
 

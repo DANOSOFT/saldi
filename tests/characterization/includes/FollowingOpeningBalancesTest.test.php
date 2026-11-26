@@ -37,6 +37,7 @@
 // 20261125 CL/MMR SST-1005 The page check registers a waiting year by the row's id as well (Codex round 34).
 // 20261125 CL/MMR SST-1005 A rebuild that leaves a year waiting locks the waiting-year and block rows together in id order (Codex round 35).
 // 20261125 CL/MMR SST-1005 A request that ends right after an earlier waiting year is taken names that year in its message (CodeRabbit on PR #1109).
+// 20261126 CL/MMR SST-1005 An interrupted take of a deleted waiting year (also before a missing year, also on the second pass) names a year with a card whose save rebuilds the stale year (Codex round 37).
 
 declare(strict_types=1);
 
@@ -2328,6 +2329,125 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertSame('0', $this->setting('openingBalancePending'), 'Year 8 was taken.');
         self::assertSame($this->stop(['sourceYear' => 8, 'targetYear' => 9, 'failed' => true]), followingOpeningBalanceStop(), 'The message asks for Gem/opdatér on year 9, which rebuilds from year 8.');
         unlink($log);
+    }
+
+    /**
+     * Run syncFollowingOpeningBalances($fromYear, $year) and end the request right after the clear of waiting year
+     * $endAfter, as PHP does: the shutdown function runs, then nothing more. $hookFirst, when given, wraps the hook that
+     * ends it.
+     */
+    private function endTheRequestRightAfterTheClearOf(int $endAfter, int $fromYear, int $year, ?callable $hookFirst = null): void
+    {
+        $log = tempnam(sys_get_temp_dir(), 'sst1005');
+        ini_set('error_log', $log);
+        $end = ['after' => "/^update settings set var_value = '0' where id = '\\d+' and var_value = '$endAfter'$/", 'times' => 1, 'run' => function (): void {
+            followingOpeningBalanceFailureOnShutdown();
+            throw new RuntimeException('test: the request ended');
+        }];
+        $GLOBALS['sst1005Hook'] = $hookFirst ? $hookFirst($end) : $end;
+        try {
+            syncFollowingOpeningBalances($fromYear, $year);
+            self::fail('The request was meant to end.');
+        } catch (RuntimeException $e) {
+            self::assertSame('test: the request ended', $e->getMessage());
+        }
+        self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The request ended where the test meant it to.');
+        self::assertSame('0', $this->setting('openingBalancePending'), 'The waiting year was taken.');
+        unlink($log);
+    }
+
+    /** The year named by the stored message has a card: it exists and is not deleted (systemdata/regnskabsaar.php). */
+    private function assertTheMessageNamesAYearWithACard(): void
+    {
+        $stop = followingOpeningBalanceStop();
+        $row = pg_fetch_assoc($this->sql("SELECT box10 FROM grupper WHERE art = 'RA' AND kodenr = " . (int) $stop['targetYear']));
+        self::assertNotFalse($row, 'The year the message names exists.');
+        self::assertFalse(followingOpeningBalanceYearDeleted($row['box10']), 'The year the message names is not deleted.');
+    }
+
+    /**
+     * Codex round 37: with years 8 and 9 deleted and year 8 waiting, a request that ended right after the clear of year 8
+     * by «Sæt aktivt» on year 11 asked for Gem/opdatér on year 9, which has no card. The rebuild starts at year 10, so
+     * the message names year 11, and Gem/opdatér there brings year 11 up to date.
+     */
+    public function testAnInterruptedTakeOfADeletedWaitingYearNamesTheFirstYearWithACard(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->sql("UPDATE grupper SET box10 = '1763600000' WHERE art = 'RA' AND kodenr IN (8, 9)");
+        $this->endTheRequestRightAfterTheClearOf(8, 10, 11);
+        self::assertSame($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'failed' => true]), followingOpeningBalanceStop());
+        $this->assertTheMessageNamesAYearWithACard();
+
+        self::assertSame(777.0, $this->primo(11, 2000), 'Year 11 waits for the rebuild from year 10.');
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(11));
+        $this->sql('COMMIT');
+        self::assertSame(1604.0, $this->primo(11, 2000), 'Gem/opdatér on year 11 carries year 10: 777 + 50 on 2000 plus 777 from 2100.');
+        self::assertNull(followingOpeningBalanceStop(), 'And clears the message.');
+    }
+
+    /**
+     * Codex round 37: the same with year 8 deleted and year 9 missing altogether (no grupper row, no accounts).
+     */
+    public function testAnInterruptedTakeOfADeletedWaitingYearBeforeAMissingYearNamesTheFirstYearWithACard(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->sql("UPDATE grupper SET box10 = '1763600000' WHERE art = 'RA' AND kodenr = 8");
+        $this->sql("DELETE FROM grupper WHERE art = 'RA' AND kodenr = 9");
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar = 9');
+        $this->endTheRequestRightAfterTheClearOf(8, 10, 11);
+        self::assertSame($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'failed' => true]), followingOpeningBalanceStop());
+        $this->assertTheMessageNamesAYearWithACard();
+
+        self::assertSame(777.0, $this->primo(11, 2000));
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(11));
+        $this->sql('COMMIT');
+        self::assertSame(1604.0, $this->primo(11, 2000));
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /**
+     * Codex round 37, second pass: a page check from year 11 reads waiting year 10, which is then lowered to the deleted
+     * year 8 before it is cleared, so the clear of 10 finds nothing and the second pass takes year 8. The request ends
+     * right after that clear. The rebuild starts at year 9, the first year after the deleted one, so the message names
+     * year 10 (not 11 from the first pass, nor 9 from the year as taken), and Gem/opdatér there rebuilds years 10 and 11
+     * from year 9.
+     */
+    public function testAnInterruptedSecondPassThatTakesADeletedYearNamesTheFirstYearWithACard(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(10);
+        $this->sql("UPDATE grupper SET box10 = '1763600000' WHERE art = 'RA' AND kodenr = 8");
+        $this->endTheRequestRightAfterTheClearOf(8, 11, 0, function (array $end): array {
+            // Right after the first pass read year 10, before its clear: a journal lowers it to 8.
+            return ['after' => "/^select id, var_value from settings where var_name = 'openingBalancePending' order by id limit 1$/", 'times' => 1, 'run' => function () use ($end): void {
+                $this->sql("UPDATE settings SET var_value = '8' WHERE var_name = 'openingBalancePending'");
+                $GLOBALS['sst1005Hook'] = $end;
+            }];
+        });
+        self::assertSame($this->stop(['sourceYear' => 9, 'targetYear' => 10, 'failed' => true]), followingOpeningBalanceStop());
+        $this->assertTheMessageNamesAYearWithACard();
+
+        self::assertSame(777.0, $this->primo(10, 2000));
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(10));
+        $this->sql('COMMIT');
+        self::assertSame(1120.0, $this->primo(10, 2000), 'Year 9: 1000 + 100 on 2000 plus 20 from 2100.');
+        self::assertSame(1170.0, $this->primo(11, 2000));
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    public function testMovingTheGuardKeepsItArmedAndNeverArmsIt(): void
+    {
+        self::assertFalse(followingOpeningBalanceFailureGuardMove(9, 9), 'Not armed: nothing to move.');
+        self::assertEmpty($GLOBALS['followingOpeningBalanceFailure'] ?? null);
+        self::assertTrue(followingOpeningBalanceFailureGuard(10, 10));
+        self::assertTrue(followingOpeningBalanceFailureGuardMove(9, 8));
+        self::assertSame(['sourceYear' => 9, 'checkedFrom' => 8], $GLOBALS['followingOpeningBalanceFailure']);
+        followingOpeningBalanceFailureGuard(null);
     }
 
     public function testTheMessageNamesTheYearsAndAccounts(): void
