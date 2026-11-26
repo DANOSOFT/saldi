@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -158,6 +158,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
 // 20260923 SZ SST-755 (CodeRabbit): one random per-render token, reused by both sidehoved()'s
+// 20261126 CL/SZ MB-136 ansatopslag(): the sort is one of the four column links, and a contact without a name prints without a deprecation.
 // exit link and the unload beacon further down (see refresh_lock_token() in unlockRecord.php).
 $sessionLockToken = bin2hex(random_bytes(16));
 
@@ -1579,8 +1580,9 @@ function ansatopslag($sort, $fokus, $id){
 	print" </tr>\n";
 
 
-	$sort = $_GET['sort'];
-	if (!$sort) $sort = "navn";
+	# one of the four columns the headings link to
+	$sort = $_GET['sort'] ?? '';
+	if (!in_array($sort, array('navn', 'tlf', 'mobil', 'email'), true)) $sort = "navn";
 	if (!$id) $id = '0'; # <- 2009.05.10
 
 	$query = db_select("select konto_id from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
@@ -1592,7 +1594,7 @@ function ansatopslag($sort, $fokus, $id){
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 		else {$linjebg=$bgcolor5; $color='#000000';}
 		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode($row['navn']) . "'>".htmlentities($row['navn'],ENT_COMPAT,$charset)."</a></td>";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode((string)$row['navn']) . "'>".htmlentities((string)$row['navn'],ENT_COMPAT,$charset)."</a></td>";
 		print "<td> $row[tlf]</td>";
 		print "<td> $row[mobil]</td>";
 		print "<td> $row[email]</td>";

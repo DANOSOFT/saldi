@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-25 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -183,6 +183,7 @@
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
+// 20261126 CL/SZ MB-136 ansatopslag(): the sort is one of the four column links, the account id is cast, and a contact without a name prints without a deprecation.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -3981,7 +3982,7 @@ function ansatopslag($sort, $fokus, $id)
 		$id = '0';
 	$query = db_select("select konto_id from ordrer where id = $id", __FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
-	$konto_id = $row['konto_id'];
+	$konto_id = (int)$row['konto_id'];
 
 	$fokus = $fokus . "&konto_id=" . $konto_id;
 
@@ -3995,8 +3996,9 @@ function ansatopslag($sort, $fokus, $id)
 	print " </tr>\n";
 
 
-	$sort = $_GET['sort'];
-	if (!$sort) {
+	# one of the four columns the headings link to
+	$sort = $_GET['sort'] ?? '';
+	if (!in_array($sort, array('navn', 'tlf', 'mobil', 'email'), true)) {
 		$sort = 'navn';
 	}
 
@@ -4013,7 +4015,7 @@ function ansatopslag($sort, $fokus, $id)
 			$color = '#000000';
 		}
 		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode($row['navn']) . "'>" . htmlspecialchars($row['navn'], ENT_QUOTES, $charset) . "</a></td>";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode((string)$row['navn']) . "'>" . htmlspecialchars((string)$row['navn'], ENT_QUOTES, $charset) . "</a></td>";
 		print "<td> $row[tlf]</td>";
 		print "<td> $row[mobil]</td>";
 		print "<td> $row[email]</td>";
