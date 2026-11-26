@@ -103,6 +103,14 @@
 //                 ordreside() reads ordrer.sprog, so the language select and the mail texts on the order show it.
 //                 In the edited POST block the three-argument if_isset() lookups are now ifset() with the same keys and defaults, and ordreside() includes its order parts with __DIR__.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/MMR SST-1024 An item added to an approved purchase order (status 1 or more, or approved in the same save) is inserted with leveres = antal, as approval does for the lines already on the order.
+//                 The line used to get leveres NULL, so «Modtag» showed empty, and the next «Gem» (also Enter in any field) stored 0, so «Modtag» received 0 of it.
+//                 The choice is the new function newLineReceiveQuantity(), so the save branch only calls it.
+//                 The same applies to an item picked through «Opslag» (GET vare_id), which inserts its line separately.
+//                 newLineQuantity() gives an empty quantity on a credit note (KK) -1 instead of +1, so its «Returner» starts at 1 too (Codex round 1).
+// 20261117 CL/MMR SST-1024 After «Opslag» an empty «Antal» keeps the quantity the page showed (antaDefault<n>, new function opslagLineQuantities()), and «Modtag» follows «Antal» until the user changes it (Saul's review).
+//                 Gem or Enter used to post Antal 0 with Modtag 1, which cleared the line to 0 / 0, and Antal 5 kept Modtag 1.
+//                 The posted Antal is read with ifset(), so a credit note without the empty line 0 raises no undefined-key warning (Codex round 3).
 // 20261119 CL/MMR SST-1041 On a new order without a supplier, an item picked in the search list gets the item's supplier no. 1, as item number + Enter does.
 //                 A pick from the Lev. varenr. search takes that supplier row, with its number and price. An item with no supplier shows a message on both paths.
 //                 Review (CodeRabbit): the pick sends the supplier row id (vare_lev.id), and a vare_id without an order id needs write permission.
@@ -306,7 +314,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 	$vare_id[0]=db_escape_string($_GET['vare_id']);
 	$linjenr=0; # 20201021 changed from substr($fokus,4)*1;
 	if ($id) {
-		$query = db_select("select konto_id, kontonr, status,omvbet from ordrer where id = $id for update",__FILE__ . " linje " . __LINE__);
+		$query = db_select("select konto_id, kontonr, status, art, omvbet from ordrer where id = $id for update",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
 		if (!$row || $row['status']>2) {
 			transaktion("rollback");
@@ -316,6 +324,8 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		}
 		$omlev=$row['omvbet'];
 		$konto_id=$row['konto_id'];
+		$opslagStatus = (int)$row['status']; # SST-1024
+		$opslagArt = $row['art'];
 		$query = db_select("select posnr from ordrelinjer where ordre_id = '$id' order by posnr desc",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) $posnr[0]=$row['posnr']+1;
 		else $posnr[0]=1;
@@ -375,7 +385,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		$id = insertAccount($id, $konto_id, false);
 	}
 	$pris[0]=$pris[0]*1;
-	if(!$antal[0]) $antal[0]=1;
+	$antal[0] = newLineQuantity($antal[0], $opslagArt ?? ''); # SST-1024: -1 on a credit note
 	if (!$rabat) $rabat=0;
 
 	$r=db_fetch_array(db_select("select momssats,valuta,ordredate from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));
@@ -420,9 +430,10 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 			} else {
 				($omlev && $omvare[0])?$omvbet[0]='on':$omvbet[0]='';
 				$lager = (int)$lager;
-				$qtxt = "insert into ordrelinjer (ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,pris,lev_varenr,serienr,antal,momsfri,samlevare,omvbet,momssats,lager) values ";
+				$nyLeveres = newLineReceiveQuantity($opslagStatus ?? 0, $antal[0]); # SST-1024
+				$qtxt = "insert into ordrelinjer (ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,pris,lev_varenr,serienr,antal,leveres,momsfri,samlevare,omvbet,momssats,lager) values ";
 				$qtxt.= "('$id','$posnr[0]','".db_escape_string($varenr[0])."','$vare_id[0]','".db_escape_string($beskrivelse[0])."',";
-				$qtxt.= "'$enhed[0]','$pris[0]','".db_escape_string($lev_varenr[0])."','".db_escape_string($serienr[0])."','$antal[0]',";
+				$qtxt.= "'$enhed[0]','$pris[0]','".db_escape_string($lev_varenr[0])."','".db_escape_string($serienr[0])."','$antal[0]',$nyLeveres,";
 				$qtxt.= "'$momsfri[0]','".db_escape_string($samlevare[0])."','$omvbet[0]','$varemomssats[0]','$lager')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
@@ -636,13 +647,15 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$y="vare".$x;
 			$varenr[$x]=db_escape_string(trim($_POST[$y]));
 			$y="anta".$x;
-			$antal[$x]=$_POST[$y];
+			$antal[$x]=ifset($_POST, $y); # a credit note made with «Kreditér» has no empty line 0
+			$y="leve".$x;
+			$leveres[$x]=ifset($_POST, $y);
+			// SST-1024: the line «Opslag» just added keeps its shown quantity, and «Modtag» follows it.
+			list($antal[$x], $leveres[$x]) = opslagLineQuantities($antal[$x], $leveres[$x], ifset($_POST, "antaDefault$x"));
 			if ($antal[$x]){
 				$antal[$x]=usdecimal($antal[$x],2);
 				if ($art=='KK') $antal[$x]=$antal[$x]*-1;
 			}
-			$y="leve".$x;
-			$leveres[$x]=ifset($_POST, $y);
 			if ($leveres[$x]){
 				$leveres[$x]=usdecimal($leveres[$x],2);
 				if ($art=='KK') $leveres[$x]=$leveres[$x]*-1;
@@ -1039,7 +1052,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if (!$beskrivelse[0]) $beskrivelse[0]=db_escape_string($r0['beskrivelse']);
 						if (!$enhed[0])$enhed[0]=db_escape_string($r0['enhed']);
 						if (!$rabat[0]) $rabat[0]=$r0['rabat'];
-						if (!$antal[0]) $antal[0]=1;
+						$antal[0] = newLineQuantity($antal[0], $art); # SST-1024: -1 on a credit note
 						if (!$rabat[0]) $rabat[0]=0;
 						if ($antal[0] > 99999999) {
 							alert ("Ulovlig værdi i \"Antal\" ($antal[0])");
@@ -1110,10 +1123,12 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 							samlevare($id,$art,$vare_id[0],$antal[0]);
 						} else {
 							($omlev && $omvare[0])?$omvbet[0]='on':$omvbet[0]=''; #20150415
+							// SST-1024: $status is already promoted here when «Godkend» is ticked in the same save.
+							$nyLeveres = newLineReceiveQuantity($status, $antal[0]);
 							$qtxt = "insert into ordrelinjer "; 
-							$qtxt.= "(ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,antal,pris,";
+							$qtxt.= "(ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,antal,leveres,pris,";
 							$qtxt.= "rabat,serienr,lev_varenr,momsfri,variant_id,samlevare,omvbet,momssats,lager) values ";
-							$qtxt.= "('$id','$posnr_ny[0]','$varenr[0]','$vare_id[0]','$beskrivelse[0]','$enhed[0]','$antal[0]',";
+							$qtxt.= "('$id','$posnr_ny[0]','$varenr[0]','$vare_id[0]','$beskrivelse[0]','$enhed[0]','$antal[0]',$nyLeveres,";
 							$qtxt.= "'$pris[0]','$rabat[0]','$serienr[0]','$lev_varenr[0]','$momsfri[0]','$variant_id[0]',";
 							$qtxt.= "'$samlevare[0]','$omvbet[0]',$varemomssats[0],'$lager')";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -1936,6 +1951,60 @@ function find_vare_id ($varenr) {
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		return ($r['id']);
 	}	else return (0);
+}
+######################################################################################################################################
+/**
+ * SST-1024: the «Modtag» quantity (ordrelinjer.leveres) a line added on a purchase order or credit note starts with,
+ * as an SQL literal for the insert.
+ *
+ * On an approved order (status 1 or more) the new line is ready to receive in full, like the lines approval set
+ * (leveres = antal), so «Modtag» shows the quantity and the next «Gem» keeps it. A draft (status 0) keeps NULL,
+ * because approval fills it in later.
+ *
+ * @param int|string $status the order status after any «Godkend» promotion in this save
+ * @param int|float|string $antal the line quantity from newLineQuantity(), so negative on a credit note
+ * @return string "'<antal>'" or "NULL"
+ */
+function newLineReceiveQuantity($status, $antal) {
+	return ((int)$status >= 1) ? "'" . (float)$antal . "'" : "NULL";
+}
+
+/**
+ * SST-1024: the quantity of a line added on a purchase order or credit note.
+ *
+ * A typed quantity is already parsed and, on a credit note (KK), negated by the line loop. An empty one defaults to
+ * one piece: 1 on a purchase order, -1 on a credit note, the sign every KK line is stored with (it used to be +1,
+ * which the page showed as -1 and the next save turned into -1 / Returner 0).
+ *
+ * @param int|float|string|null $antal the parsed quantity, empty when none was typed
+ * @param string|null $art the order art (KO or KK)
+ * @return int|float|string the quantity to store
+ */
+function newLineQuantity($antal, $art) {
+	if ($antal) return $antal;
+	return ($art == 'KK') ? -1 : 1;
+}
+
+/**
+ * SST-1024: the posted «Antal» and «Modtag» of the line «Opslag» just added, before they are parsed.
+ *
+ * After «Opslag» the page shows that line's «Antal» empty with the quantity as placeholder, and posts the quantity as
+ * antaDefault<n>. An empty «Antal» keeps that quantity, so «Gem» (also Enter) no longer turns it into 0. «Modtag»
+ * («Returner» on a credit note) was shown with the same quantity; while it still shows that, it follows «Antal», so
+ * typing 5 in «Antal» receives 5. A «Modtag» the user changed is kept. Every other line posts no antaDefault<n> and
+ * is returned unchanged. Both values stay as posted (Danish format, positive on a credit note); the caller parses them.
+ *
+ * @param string|null $anta the posted «Antal»
+ * @param string|null $leve the posted «Modtag», null or empty when the column is not shown (draft)
+ * @param string|null $antaDefault the posted antaDefault<n>, null or empty on every other line
+ * @return array{0: string|null, 1: string|null} [«Antal», «Modtag»] as posted strings
+ */
+function opslagLineQuantities($anta, $leve, $antaDefault) {
+	if ($antaDefault === null || trim($antaDefault) === '') return array($anta, $leve);
+	$modtagFollows = ($leve !== null && trim($leve) !== '' && usdecimal($leve, 2) == usdecimal($antaDefault, 2));
+	if ($anta === null || trim($anta) === '') $anta = $antaDefault;
+	if ($modtagFollows) $leve = $anta;
+	return array($anta, $leve);
 }
 ######################################################################################################################################
 /**
