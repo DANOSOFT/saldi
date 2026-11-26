@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/orderFuncIncludes/externalPriceList.php --- ver 5.1.1 --- 2026-11-25 ---
+// --- includes/orderFuncIncludes/externalPriceList.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,75 @@
 // 20261125 CDX/NTR Reject CSV headers without both cost and sale prices instead of supplying zero.
 // 20261125 CDX/NTR Check existing catalogue items in bounded batches while counting only new rows toward the search limit.
 // 20261125 CDX/NTR Serialize external item creation with the shared database lock and always release it.
+// 20261126 CDX/NTR Keep the validated open-order selection in a named controller handler.
+// 20261126 CDX/NTR Bind catalogue text in the connection encoding instead of passing LATIN9 through UTF-8-normalizing escaping.
+
+/**
+ * Normalize database or page text for the CSV module.
+ * @param string $text Text in the active connection's UTF8 or LATIN9 encoding.
+ * @return string UTF-8 text.
+ */
+function externalPriceListUtf8(string $text): string
+{
+    $encoding = $GLOBALS['db_encode'] ?? 'UTF8';
+    return $encoding === 'UTF8' ? $text : mb_convert_encoding($text, 'UTF-8', 'ISO-8859-15');
+}
+
+/**
+ * Convert catalogue text without losing characters.
+ * @param string $text UTF-8 text from the CSV parser or UTF-8 creation form.
+ * @return string|null Connection-encoded bytes, or null when not representable.
+ */
+function externalPriceListDatabaseText(string $text): ?string
+{
+    if (!mb_check_encoding($text, 'UTF-8')) {
+        return null;
+    }
+    $text = str_replace("\0", '', $text);
+    if (($GLOBALS['db_encode'] ?? 'UTF8') === 'UTF8') {
+        return $text;
+    }
+    $encoded = mb_convert_encoding($text, 'ISO-8859-15', 'UTF-8');
+    return mb_convert_encoding($encoded, 'UTF-8', 'ISO-8859-15') === $text ? $encoded : null;
+}
+
+/**
+ * Select a parameter placeholder for the active driver.
+ * @param int $position One-based parameter index.
+ * @return string PostgreSQL's numbered placeholder or MySQL's question mark.
+ */
+function externalPriceListParameter(int $position): string
+{
+    return in_array($GLOBALS['db_type'] ?? '', ['mysql', 'mysqli'], true) ? '?' : '$' . $position;
+}
+
+/**
+ * Escape catalogue text independently of the page charset.
+ * @param string $text UTF-8 CSV or price-list text.
+ * @return string ASCII HTML safe in text and quoted attributes.
+ */
+function externalPriceListHtml(string $text): string
+{
+    return mb_encode_numericentity(htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), [0x80, 0x10FFFF, 0, 0x1FFFFF], 'UTF-8');
+}
+
+/**
+ * Create a selected external item only for an existing open customer order or credit note.
+ * The page validates CSRF and the posted tenant before calling this handler.
+ * @param int $orderId Customer order ID.
+ * @param string $itemNo UTF-8 catalogue item number from the creation form.
+ * @return array{status: int, itemId: int, art: string} HTTP eligibility, selected item ID and order type.
+ */
+function externalPriceListSelectItem(int $orderId, string $itemNo): array
+{
+    $order = $orderId ? db_fetch_array(db_select("select art, status from ordrer where id = $orderId", __FILE__ . " linje " . __LINE__)) : false;
+    if (!$order || !in_array($order['art'], array('DO', 'DK'), true) || (int) $order['status'] >= 3) {
+        return ['status' => 400, 'itemId' => 0, 'art' => ''];
+    }
+    $priceList = externalPriceListActive();
+    $row = $priceList ? externalPriceListFind($priceList, $itemNo) : null;
+    return ['status' => 200, 'itemId' => $row ? externalPriceListCreateItem($row, $priceList) : 0, 'art' => $order['art']];
+}
 
 /**
  * The active price list, or null when none is in use.
@@ -64,12 +133,12 @@ function externalPriceListActive(): ?array
 	}
 	return array(
 		'id' => (int) $r['id'],
-		'name' => trim((string) $r['beskrivelse']),
+		'name' => externalPriceListUtf8(trim((string) $r['beskrivelse'])),
 		'url' => trim((string) $r['box2']),
 		'delimiter' => $delimiter,
 		'encoding' => (string) $r['box11'],
 		'group' => (int) $r['kodenr'],
-		'groupName' => trim((string) $r['box8']),
+		'groupName' => externalPriceListUtf8(trim((string) $r['box8'])),
 	);
 }
 
@@ -308,15 +377,24 @@ function externalPriceListSearch(array $priceList, string $itemNo, string $descr
 			return;
 		}
 		$candidates = array();
+		$params = array();
+		$existing = array();
 		foreach ($pending as $index => $row) {
-			$candidates[] = 'select ' . (int) $index . " as row_index, '" . db_escape_string($row['varenr']) . "' as varenr";
+			$number = externalPriceListDatabaseText($row['varenr']);
+			if ($number === null) {
+				$existing[$index] = true;
+				continue;
+			}
+			$params[] = $number;
+			$candidates[] = 'select ' . (int) $index . ' as row_index, ' . externalPriceListParameter(count($params)) . ' as varenr';
 		}
 		// Joining candidate indices lets the database apply its own item-number collation on every engine.
-		$qtxt = 'select distinct candidates.row_index from (' . implode(' union all ', $candidates) . ') candidates inner join varer on varer.varenr = candidates.varenr';
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		$existing = array();
-		while ($r = db_fetch_array($q)) {
-			$existing[(int) $r['row_index']] = true;
+		if ($candidates) {
+			$qtxt = 'select distinct candidates.row_index from (' . implode(' union all ', $candidates) . ') candidates inner join varer on varer.varenr = candidates.varenr';
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__, false, $params);
+			while ($r = db_fetch_array($q)) {
+				$existing[(int) $r['row_index']] = true;
+			}
 		}
 		foreach ($pending as $index => $row) {
 			if (!isset($existing[$index])) {
@@ -375,10 +453,11 @@ function externalPriceListGroup(array $priceList): int
 	global $regnaar;
 	$year = (int) $regnaar;
 	if ($priceList['groupName'] !== '') {
-		$qtxt = "select distinct kodenr from grupper where art = 'VG' and fiscal_year = $year and beskrivelse = '" . db_escape_string($priceList['groupName']) . "'";
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		$name = externalPriceListDatabaseText($priceList['groupName']);
+		$qtxt = "select distinct kodenr from grupper where art = 'VG' and fiscal_year = $year and beskrivelse = " . externalPriceListParameter(1);
+		$q = $name === null ? false : db_select($qtxt, __FILE__ . " linje " . __LINE__, false, [$name]);
 		$byName = array();
-		while ($r = db_fetch_array($q)) {
+		while ($q && ($r = db_fetch_array($q))) {
 			$byName[] = (int) $r['kodenr'];
 		}
 		if (count($byName) === 1) {
@@ -399,8 +478,12 @@ function externalPriceListGroup(array $priceList): int
  */
 function externalPriceListItemId(string $itemNo): int
 {
-	$qtxt = "select id from varer where varenr = '" . db_escape_string($itemNo) . "' order by id limit 1";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$number = externalPriceListDatabaseText($itemNo);
+	if ($number === null) {
+		return 0;
+	}
+	$qtxt = 'select id from varer where varenr = ' . externalPriceListParameter(1) . ' order by id limit 1';
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__, false, [$number]));
 	return $r ? (int) $r['id'] : 0;
 }
 
@@ -411,6 +494,13 @@ function externalPriceListItemId(string $itemNo): int
  */
 function externalPriceListCreateItem(array $row, array $priceList): int
 {
+	$text = array();
+	foreach (['varenr', 'stregkode', 'trademark', 'beskrivelse', 'enhed'] as $field) {
+		$text[$field] = externalPriceListDatabaseText($row[$field]);
+		if ($text[$field] === null) {
+			return 0;
+		}
+	}
 	include_once(__DIR__ . '/../database/compatibility.php');
 	// Use the active database in the name: MySQL advisory locks are server-wide.
 	$r = db_fetch_array(db_select(db_is_mysql() ? 'select database() as tenant' : 'select current_database() as tenant', __FILE__ . " linje " . __LINE__));
@@ -427,13 +517,14 @@ function externalPriceListCreateItem(array $row, array $priceList): int
 		if (!$group) {
 			return 0;
 		}
-		$qtxt = "insert into varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, enhed, gruppe, lukket) values (";
-		$qtxt .= "'" . db_escape_string($row['varenr']) . "', '" . db_escape_string($row['stregkode']) . "', ";
-		$qtxt .= "'" . db_escape_string($row['trademark']) . "', '" . db_escape_string($row['beskrivelse']) . "', ";
-		// The prices are exact decimal texts from externalPriceListNumber() (digits, an optional minus and a point).
-		$qtxt .= "'" . db_escape_string($row['kostpris']) . "', '" . db_escape_string($row['salgspris']) . "', ";
-		$qtxt .= "'" . db_escape_string($row['enhed']) . "', $group, '0')";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		$params = [$text['varenr'], $text['stregkode'], $text['trademark'], $text['beskrivelse'], $row['kostpris'], $row['salgspris'], $text['enhed'], $group, '0'];
+		$placeholders = array();
+		foreach ($params as $value) {
+			$placeholders[] = externalPriceListParameter(count($placeholders) + 1);
+		}
+		$qtxt = 'insert into varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, enhed, gruppe, lukket) values (' . implode(', ', $placeholders) . ')';
+		// Bind connection-encoded bytes directly: db_escape_string() would normalize LATIN9 back to UTF-8.
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__, false, $params);
 		return externalPriceListItemId($row['varenr']);
 	} finally {
 		db_unlock($lock);

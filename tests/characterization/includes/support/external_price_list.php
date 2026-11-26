@@ -1,5 +1,6 @@
 <?php
 // 20261125 CDX/NTR Isolate the real external-price-list logic with transport and database-boundary doubles.
+// 20261126 CDX/NTR Execute bound production parameters through the fixture engine without changing their encoding.
 
 namespace ExternalPriceListFixture;
 
@@ -31,6 +32,7 @@ function boot(): void
     State::$onLock = null;
     $GLOBALS['regnaar'] = 2026;
     $GLOBALS['db_type'] = 'postgres';
+    $GLOBALS['db_encode'] = 'UTF8';
     $GLOBALS['db'] = 'synthetic_external_price_list';
     if (!function_exists(__NAMESPACE__ . '\externalPriceListEach')) {
         $path = dirname(__DIR__, 4) . '/includes/orderFuncIncludes/externalPriceList.php';
@@ -54,10 +56,16 @@ function db_escape_string($value): string
 }
 
 /** @return \PDOStatement Executed production SQL. */
-function db_select($sql, $source): \PDOStatement
+function db_select($sql, $source, $global = false, ?array $params = null): \PDOStatement
 {
     State::$queries[] = $sql;
-    return State::$db->query($sql);
+    if (State::$db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+        // Production uses pg_query_params(); PDO's PostgreSQL adapter needs its own positional syntax.
+        $sql = preg_replace('/\$[0-9]+\b/', '?', $sql);
+    }
+    $query = State::$db->prepare($sql);
+    $query->execute($params ?? []);
+    return $query;
 }
 
 /** @return array|false Next database row. */
@@ -67,13 +75,16 @@ function db_fetch_array($result)
 }
 
 /** @return void Execute the production insert with an observable lock state. */
-function db_modify($sql, $source): void
+function db_modify($sql, $source, $global = false, ?array $params = null): void
 {
     State::$insertWasLocked = State::$locked;
     if (State::$failInsert) {
         throw new \RuntimeException('Synthetic insert failure');
     }
-    State::$db->exec($sql);
+    if (State::$db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+        $sql = preg_replace('/\$[0-9]+\b/', '?', $sql);
+    }
+    State::$db->prepare($sql)->execute($params ?? []);
 }
 
 /** @return bool Simulate lock acquisition, including a competing completed insertion. */

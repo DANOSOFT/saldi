@@ -1,5 +1,6 @@
 <?php
 // 20261125 CDX/NTR Prove concurrent external item creation reuses one PostgreSQL item and preserves exact prices.
+// 20261126 CDX/NTR Exercise creation, group resolution, duplicate checks and search on a real LATIN9 connection.
 
 use PHPUnit\Framework\TestCase;
 
@@ -7,6 +8,46 @@ require_once __DIR__ . '/../support/database/TestDatabase.php';
 
 final class ExternalPriceListDatabaseTest extends TestCase
 {
+    public function testLatin9CatalogueRoundTripAndDuplicateChecks(): void
+    {
+        $reason = TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
+        }
+        require_once __DIR__ . '/support/external_price_list.php';
+        $database = TestDatabase::sqlFixture(static::class);
+        $owner = $database->pdo();
+        $schema = 'price_list_encoding_' . bin2hex(random_bytes(8));
+        $previousEncoding = $GLOBALS['db_encode'] ?? null;
+        try {
+            $owner->exec("CREATE SCHEMA $schema");
+            $owner->exec("CREATE TABLE $schema.varer (id serial PRIMARY KEY, varenr text, stregkode text, trademark text, beskrivelse text, kostpris numeric(15,3), salgspris numeric(15,3), enhed text, gruppe integer, lukket text)");
+            $owner->exec("CREATE TABLE $schema.grupper (art text, fiscal_year integer, kodenr text, beskrivelse text)");
+            $owner->prepare("INSERT INTO $schema.grupper VALUES ('VG', 2026, '10', ?)")->execute(['Værktøj €']);
+            \ExternalPriceListFixture\boot();
+            $GLOBALS['db_encode'] = 'LATIN9';
+            \ExternalPriceListFixture\State::$db = $database->pdo();
+            \ExternalPriceListFixture\State::$db->exec("SET search_path TO $schema; SET client_encoding TO 'LATIN9'");
+            $list = ['url' => 'https://example.invalid/prices.csv', 'delimiter' => ';', 'encoding' => 'utf-8', 'group' => 10, 'groupName' => 'Værktøj €'];
+            $row = ['varenr' => "PÆRE-€'", 'stregkode' => 'Æ123', 'trademark' => 'Møller', 'beskrivelse' => "Pære € 'quoted' \\ path <b>", 'kostpris' => '1250.500', 'salgspris' => '0.005', 'enhed' => 'sæt'];
+            $id = \ExternalPriceListFixture\externalPriceListCreateItem($row, $list);
+            self::assertGreaterThan(0, $id);
+            $stored = $owner->query("SELECT varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, enhed FROM $schema.varer")->fetch(PDO::FETCH_ASSOC);
+            self::assertSame($row, $stored);
+            self::assertSame(10, \ExternalPriceListFixture\externalPriceListGroup(array_replace($list, ['group' => 0])));
+            self::assertSame($id, \ExternalPriceListFixture\externalPriceListCreateItem($row, $list));
+            \ExternalPriceListFixture\State::$csv = "varenr;beskrivelse;kostpris;salgspris\nPÆRE-€';Pære;1;2\nNYÆ;Pære;1;2\n";
+            self::assertSame(['NYÆ'], array_column(\ExternalPriceListFixture\externalPriceListSearch($list, '', 'Pære'), 'varenr'));
+            $row['varenr'] = 'unsupported-😀';
+            self::assertSame(0, \ExternalPriceListFixture\externalPriceListCreateItem($row, $list));
+            self::assertSame(1, (int) $owner->query("SELECT count(*) FROM $schema.varer")->fetchColumn());
+        } finally {
+            \ExternalPriceListFixture\State::$db = new PDO('sqlite::memory:');
+            $GLOBALS['db_encode'] = $previousEncoding;
+            $owner->exec("DROP SCHEMA IF EXISTS $schema CASCADE");
+        }
+    }
+
     public function testConcurrentSelectionsCreateOneItem(): void
     {
         $reason = TestDatabase::unavailableReason();

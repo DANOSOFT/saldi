@@ -1,5 +1,6 @@
 <?php
 // 20261125 CDX/NTR Run the real external-item creation and database locks on an isolated concurrent connection.
+// 20261126 CDX/NTR Pass bound catalogue parameters to the PostgreSQL driver.
 
 require_once __DIR__ . '/../../support/database/TestDatabase.php';
 require_once dirname(__DIR__, 4) . '/includes/orderFuncIncludes/externalPriceList.php';
@@ -31,10 +32,10 @@ function db_escape_string($value): string
 }
 
 /** @return PgSql\Result Production SQL, with a barrier widening the empty-item race. */
-function db_select($sql, $source): PgSql\Result
+function db_select($sql, $source, $global = false, ?array $params = null): PgSql\Result
 {
     global $connection, $stage;
-    $result = pg_query($connection, $sql);
+    $result = $params === null ? pg_query($connection, $sql) : pg_query_params($connection, $sql, $params);
     if (str_starts_with($sql, 'select id from varer where varenr') && pg_num_rows($result) === 0) {
         touch($stage . '.read-' . getmypid());
         $deadline = microtime(true) + 0.5;
@@ -54,10 +55,10 @@ function db_fetch_array($result)
 }
 
 /** @return void Execute the real item insert. */
-function db_modify($sql, $source): void
+function db_modify($sql, $source, $global = false, ?array $params = null): void
 {
     global $connection;
-    if (pg_query($connection, $sql) === false) {
+    if (($params === null ? pg_query($connection, $sql) : pg_query_params($connection, $sql, $params)) === false) {
         throw new RuntimeException('Synthetic item insert failed');
     }
 }
