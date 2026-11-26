@@ -37,9 +37,23 @@ function billingPlanForSku(string $sku, array $extra = []): ?string
 }
 
 /**
+ * Whether a recurring order is still running: its next invoice date is at most 60 days ago.
+ * An order that has not been invoiced for longer is left behind, not running.
+ * @param string|null $nextInvoiceDate The order's next invoice date (nextfakt).
+ * @param string $today Y-m-d.
+ * @return bool
+ */
+function billingOrderIsRunning(?string $nextInvoiceDate, string $today): bool
+{
+    $next = trim((string)$nextInvoiceDate);
+    $time = $next === '' ? false : strtotime($next);
+    return $time !== false && date('Y-m-d', $time) >= date('Y-m-d', strtotime($today . ' -60 days'));
+}
+
+/**
  * The plan a billing customer pays for, from its recurring orders.
- * An order counts while its next invoice date is at most 60 days ago: an order that has not been invoiced for longer is left behind, not running.
- * The plan is set only when the counting orders name exactly one plan. Several plans (e.g. one customer paying for several accounts) give no plan, only the list.
+ * Only running orders count (billingOrderIsRunning()).
+ * The plan is set only when the counting orders name exactly one plan. Several plans (e.g. one customer paying for several accounts) give no plan, only the list, in the catalogue's order.
  * @param array<int, array<string, mixed>> $orders Orders as the REST API returns them (orderNo, nextInvoiceDate), each with 'lines' (sku, description, quantity, price).
  * @param string $today Y-m-d.
  * @param array<string, string> $extra More product numbers => plan key, see billingPlanForSku().
@@ -47,7 +61,6 @@ function billingPlanForSku(string $sku, array $extra = []): ?string
  */
 function billingPlanFromOrders(array $orders, string $today, array $extra = []): array
 {
-    $cutoff = date('Y-m-d', strtotime($today . ' -60 days'));
     $plans = [];
     $order = null;
     $other = [];
@@ -55,11 +68,10 @@ function billingPlanFromOrders(array $orders, string $today, array $extra = []):
     $mainOther = null;
     $mainValue = 0.0;
     foreach ($orders as $o) {
-        $next = trim((string)($o['nextInvoiceDate'] ?? ''));
-        $time = $next === '' ? false : strtotime($next);
-        if ($time === false || date('Y-m-d', $time) < $cutoff) {
+        if (!billingOrderIsRunning($o['nextInvoiceDate'] ?? null, $today)) {
             continue;
         }
+        $time = strtotime((string)$o['nextInvoiceDate']);
         $active++;
         foreach ((array)($o['lines'] ?? []) as $l) {
             $sku = trim((string)($l['sku'] ?? ''));
@@ -87,6 +99,9 @@ function billingPlanFromOrders(array $orders, string $today, array $extra = []):
             }
         }
     }
+    // in the catalogue's order, so the same orders always give the same list whatever order the API returns them in
+    $rank = array_flip(['finans', 'professionel', 'business', 'erp']);
+    usort($plans, fn($x, $y) => ($rank[$x] ?? 9) <=> ($rank[$y] ?? 9));
     return [
         'plan' => count($plans) == 1 ? $plans[0] : null,
         'plans' => $plans,

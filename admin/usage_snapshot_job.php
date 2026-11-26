@@ -9,6 +9,7 @@
 //                 The ledger's database is selected after db_connect() (db_connect_database()), and REQUEST_URI/REMOTE_ADDR get CLI defaults, since db_query.php's logging reads them.
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
 // 20261126 CL/ASR Each account's plan is fetched from its recurring invoicing orders in the billing ledger with the payment status (bill_plan_refresh(), admin/inc_betalinger.php).
+//                 The job waits for the panel's schema at the current version (operator_panel_ready()), so a run between a deploy and the first login does not write to columns that are not there yet (Hugin's pre-check on #1227).
 if (php_sapi_name() !== 'cli') { http_response_code(403); exit("cli only\n"); }
 $_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] ?? '/admin/usage_snapshot_job.php'; $_SERVER['REMOTE_ADDR'] = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'; # db_query.php's logging reads both, and the CLI has neither
 chdir(__DIR__);
@@ -23,7 +24,8 @@ include("../includes/saldiBillingApi.php");
 include("inc_betalinger.php");
 include("inc_installationer.php");
 $brugernavn = 'cron'; $sprog_id = 1;
-if (!db_fetch_array(db_select("SELECT 1 FROM settings WHERE var_grp = 'system' AND var_name = 'operator_panel_schema'", __FILE__ . " linje " . __LINE__))) exit("operator panel tables not created yet (next login to any account does it); nothing to do\n");
+include_once("../includes/structure/operatorPanelSchema.php");
+if (!operator_panel_ready()) exit("operator panel tables not created or not at the current version yet (next login to any account does it); nothing to do\n");
 ent_tables_ensure(); partner_tables_ensure();
 $limit = isset($argv[1]) ? (int)$argv[1] : 0;
 $due = lc_apply_due(); # lifecycle first, so the list of open ledgers below reflects today's changes

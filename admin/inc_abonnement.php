@@ -12,6 +12,7 @@
 // 20261126 CL/ASR The plan comes from the recurring invoicing order in the billing ledger (bill_plan_refresh(), admin/inc_betalinger.php): a button fetches it now, the nightly job every night.
 //                 The card shows the order, its next invoice date, when it was fetched and the order's other lines (add-ons, older products), and says what was found when no single plan was.
 //                 A plan that comes from the billing ledger is changed on the order there, so "Skift pakke" explains that instead of offering a change the next fetch would undo.
+//                 Only while the last fetch confirmed the stored plan: when the orders no longer name it (removed, or several plans), the form is back (Hugin's pre-check on #1227).
 
 if (!function_exists('ent_tab_actions')) {
 	function ent_live_usage_quick($reg) { # users/items/postings from the customer db for the downgrade guard; ent_usage_collect() reconnects to the master itself
@@ -57,6 +58,7 @@ if (!function_exists('ent_tab_actions')) {
 		$P = $ent['plan']; $today = date('Y-m-d');
 		$bp = function_exists('bill_products') ? bill_products($rid) : null; # what the last fetch from the billing ledger found
 		$fromBilling = $P && isset($ent['row']['source']) && $ent['row']['source'] == 'billing';
+		$billingConfirms = $fromBilling && $bp && isset($bp['plan']) && $bp['plan'] === (string)$ent['row']['plan_key']; # the last fetch still names the stored plan
 		$dmyhm = fn($v) => ($t = strtotime((string)$v)) ? date('d-m-Y H:i', $t) : '–';
 		$lim = fn($v) => $v === null ? vr_t('ubegrænset','unlimited') : vr_num($v);
 		print "<div class=\"vr-grid2\">\n";
@@ -91,8 +93,8 @@ if (!function_exists('ent_tab_actions')) {
 		print "</div></section>\n";
 		// ---- change / choose plan
 		print "<section class=\"vr-sect\"><h2>".($P ? vr_t('Skift pakke','Change plan') : vr_t('Vælg pakke','Choose plan'))."</h2><div class=\"vr-card\">";
-		if ($fromBilling) { # 20261126 CL/ASR payment model B1: the order in the billing ledger decides, so a change here would be undone by the next fetch
-			print "<div class=\"vr-empty\" style=\"padding:26px 24px;text-align:left\"><b>".vr_t('Pakken følger genfaktureringsordren','The plan follows the recurring order')."</b><span>".vr_t('Skift pakken på kundens genfaktureringsordre i faktureringsregnskabet. Panelet henter den igen i nat, eller når du trykker "Hent pakken fra faktureringsregnskabet". En undtagelse for kunden laves som en individuel aftale nedenfor.','Change the plan on the customer\'s recurring order in the billing ledger. The panel fetches it again tonight, or when you press "Fetch the plan from the billing ledger". An exception for this customer is made as an individual term below.')."</span></div>";
+		if ($billingConfirms) { # 20261126 CL/ASR payment model B1: the order in the billing ledger decides, so a change here would be undone by the next fetch
+			print "<div class=\"vr-empty\" style=\"padding:26px 24px;text-align:left\"><b>".vr_t('Pakken følger genfaktureringsordren','The plan follows the recurring order')."</b><span>".vr_t('Skift pakken på kundens genfaktureringsordre i faktureringsregnskabet. Panelet henter den igen i nat, eller når du trykker "Hent pakken fra faktureringsregnskabet". En undtagelse for kunden laves som en individuel aftale nedenfor.','Change the plan on the customer\'s recurring order in the billing ledger. The panel fetches it again tonight, or when you press "Fetch the plan from the billing ledger". An exception for this customer is made as an individual term below.')."</span>".($ent['pending'] ? "<span>".vr_t('Et planlagt skift nedenfor bliver lagt tilbage til ordrens pakke ved næste hentning. Annullér det, eller ret ordren.','A scheduled change below is set back to the order\'s plan at the next fetch. Cancel it, or change the order.')."</span>" : "")."</div>";
 		} else {
 			print "<form method=\"post\" class=\"vr-form\" style=\"max-width:none\"><input type=\"hidden\" name=\"ent_action\" value=\"set_plan\">";
 			print "<div class=\"vr-fgrid\"><label>".vr_t('Pakke','Plan')."<select name=\"plan_key\" class=\"vr-sel\">";

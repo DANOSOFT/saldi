@@ -89,6 +89,12 @@ final class billingPlan extends TestCase
 
         $this->assertNull($r['plan']);
         $this->assertSame(['finans', 'business'], $r['plans']);
+
+        $newestFirst = billingPlanFromOrders([
+            self::order('2', '2026-12-01', [self::line('BUS12', 'Business')]),
+            self::order('1', '2026-12-01', [self::line('F12', 'Finans')]),
+        ], '2026-11-26');
+        $this->assertSame(['finans', 'business'], $newestFirst['plans'], 'the list follows the catalogue, not the order of the orders');
     }
 
     public function testAnOrderLeftBehindForMoreThanSixtyDaysDoesNotCount(): void
@@ -130,6 +136,27 @@ final class billingPlan extends TestCase
         $this->assertNull($r['plan']);
         $this->assertSame([], $r['plans']);
         $this->assertSame('Mini regnskab 12 mdr.', $r['main_other']);
+    }
+
+    /** @return array<string, array{0: string|null, 1: bool}> */
+    public static function nextInvoiceDates(): array
+    {
+        return [
+            'next month' => ['2026-12-26', true],
+            'today' => ['2026-11-26', true],
+            'exactly 60 days ago' => ['2026-09-27', true],
+            '61 days ago' => ['2026-09-26', false],
+            'with a time' => ['2026-12-01 00:00:00', true],
+            'empty' => ['', false],
+            'missing' => [null, false],
+            'not a date' => ['snart', false],
+        ];
+    }
+
+    #[DataProvider('nextInvoiceDates')]
+    public function testARecurringOrderRunsUntilSixtyDaysAfterItsNextInvoiceDate(?string $next, bool $running): void
+    {
+        $this->assertSame($running, billingOrderIsRunning($next, '2026-11-26'));
     }
 
     public function testNoOrders(): void

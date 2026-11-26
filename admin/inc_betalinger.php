@@ -22,6 +22,7 @@
 //                 One plan is written to regnskab_entitlements with source 'billing'. Several plans, or none, leave the stored plan alone.
 //                 What was found, including the lines that are not a plan, is kept in regnskab_billing.products for the card and the account list.
 //                 The nightly job runs it for every open account, and the subscription tab has a button for one account.
+//                 The orders come newest first, only running orders (billingOrderIsRunning()) get their lines fetched, and an unreadable invoice date in the payment status does not stop the plan fetch (Hugin's pre-check on #1227).
 
 require_once __DIR__ . '/../includes/stdFunc/billingPlan.php';
 
@@ -152,14 +153,14 @@ if (!function_exists('bill_tables_ensure')) {
 	function bill_recurring_orders($kontonr) {
 		$kontonr = trim((string)$kontonr);
 		$token = get_saldi_api_token(); if (!$token) return array('error' => vr_t('Kunne ikke logge ind på faktureringsregnskabets API','Could not log in to the billing ledger API'));
-		$list = fetch_saldi_api('/debitor/orders/index.php', $token, array('recurring' => '1', 'customer' => $kontonr, 'limit' => 100));
+		$list = fetch_saldi_api('/debitor/orders/index.php', $token, array('recurring' => '1', 'customer' => $kontonr, 'limit' => 100, 'orderBy' => 'ordrenr', 'orderDirection' => 'DESC'));
 		if (!is_array($list)) return array('error' => vr_t('Kunne ikke hente genfaktureringsordrer fra faktureringsregnskabet','Could not fetch recurring orders from the billing ledger'));
 		$orders = array();
 		foreach ($list as $o) {
 			if (!is_array($o)) continue;
 			# an API without the recurring filter returns every order and no next invoice date, so its list says nothing about the plan
 			if (!array_key_exists('nextInvoiceDate', $o)) return array('error' => vr_t('Faktureringsregnskabets API kender ikke genfaktureringsordrer endnu. Det skal opdateres.','The billing ledger API does not know recurring orders yet. It needs to be updated.'));
-			if (trim((string)($o['accountNumber'] ?? '')) !== $kontonr || empty($o['nextInvoiceDate'])) continue;
+			if (trim((string)($o['accountNumber'] ?? '')) !== $kontonr || !billingOrderIsRunning($o['nextInvoiceDate'], date('Y-m-d'))) continue; # lines only for running orders
 			$lines = fetch_saldi_api('/debitor/orderlines/index.php', $token, array('order_id' => (int)$o['id']));
 			if (!is_array($lines)) return array('error' => vr_t('Kunne ikke hente linjerne på genfaktureringsordre','Could not fetch the lines of recurring order').' #'.(string)($o['orderNo'] ?? $o['id']));
 			$o['lines'] = $lines; $orders[] = $o;
@@ -232,8 +233,8 @@ if (!function_exists('bill_tables_ensure')) {
 		$rid = (int)$reg['id']; $cfg = bill_get($rid);
 		list($search, $by) = bill_key($cfg['billing_kontonr'], bill_ledger_cvr($reg), $reg['regnskab']);
 		$data = bill_fetch($search, $by); bill_cache_store($rid, $data, $cfg, $search);
-		if (isset($data['error'])) return array('error' => $data['error']);
-		return bill_plan_sync($rid, $data['customer']);
+		if (empty($data['customer'])) return array('error' => $data['error'] ?? vr_t('Ingen kunde fundet i faktureringsregnskabet','No billing customer found'));
+		return bill_plan_sync($rid, $data['customer']); # an unreadable invoice date only stops the payment status (bill_cache_store()), not the plan
 	}
 	// 20261113 CL/ASR A date from the billing API as d-m-Y, or a dash when it is empty or cannot be read (review #785).
 	function bill_dmy($s) { $t = empty($s) ? false : strtotime((string)$s); return $t === false ? '–' : date('d-m-Y', $t); }
