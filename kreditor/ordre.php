@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -109,6 +109,10 @@
 //                 Codex review round: the write check reads the order id as an integer like the vare_id branch.
 //                 An item pick with an id that is not a whole number (or not a string) is refused before the contact update and the item branch.
 //                 Review (Saul): a picked supplier row with price 0 gives 0 on the line, like the supplier lookup on the other paths.
+// 20261120 CL/SZ MB-139 ordreside() takes $charset as a global, so openOrderData.php can escape the header fields in the install's charset.
+//                Saving the header escapes postnr, bynavn, lev_postnr, lev_bynavn, cvrnr and kundeordnr, so an apostrophe in them no longer breaks update ordrer or insert into ordrer.
+//                postnr and bynavn are escaped where the SQL is built, so the account lookup still gets them unescaped; filling them from the supplier card no longer escapes bynavn early.
+//                Filling the header from the supplier card escapes cvrnr.
 @session_start();
 $s_id=session_id();
 
@@ -493,11 +497,13 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$lev_postnr = ifset($_POST, 'lev_postnr');
 		$lev_bynavn = trim(ifset($_POST, 'lev_bynavn'));
 		if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
+		$lev_postnr = db_escape_string($lev_postnr ?? '');
+		$lev_bynavn = db_escape_string($lev_bynavn ?? '');
 		$lev_kontakt = db_escape_string(trim(ifset($_POST, 'lev_kontakt')));
-		$kundeordnr = ifset($_POST, 'kundeordnr');
+		$kundeordnr = db_escape_string(ifset($_POST, 'kundeordnr', ''));
 		$ordredate = usdate(ifset($_POST, 'ordredato'));
 		$levdate = usdate(trim(ifset($_POST, 'levdato')));
-		$cvrnr = trim(ifset($_POST, 'cvrnr'));
+		$cvrnr = db_escape_string(trim(ifset($_POST, 'cvrnr')));
 		$betalingsbet = ifset($_POST, 'betalingsbet');
 		// $betalingsdage = if_isset($_POST, NULL, 'betalingsdage');
 		$betalingsdage = ifset($_POST, 'betalingsdage');
@@ -716,12 +722,12 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				$addr1=db_escape_string($row['addr1']);
 				$addr2=db_escape_string($row['addr2']);
 				$postnr=$row['postnr'];
-				$bynavn=db_escape_string($row['bynavn']);
+				$bynavn=$row['bynavn'];
 				$land=db_escape_string($row['land']);
 			 	$kontakt=db_escape_string($row['kontakt']);
 				$betalingsdage=$row['betalingsdage'];
 				$betalingsbet=$row['betalingsbet'];
-				$cvrnr=$row['cvrnr'];
+				$cvrnr=db_escape_string($row['cvrnr'] ?? '');
 				$amail=db_escape_string($row['email']);
 				$notes=db_escape_string($row['notes']);
 				$gruppe=$row['gruppe'];
@@ -1132,8 +1138,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if($submit != 'lookup' && $submit != 'split'){
 				$query = db_select("select tidspkt from ordrer where id=$id and (hvem='$brugernavn' or hvem='' or hvem is null)",__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {
-					$qtxt="update ordrer set firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',postnr='$postnr',";
-					$qtxt.="bynavn='$bynavn',land='$land',kontakt='$kontakt',lev_navn='$lev_navn',";
+					$qtxt="update ordrer set firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',postnr='" . db_escape_string($postnr ?? '') . "',";
+					$qtxt.="bynavn='" . db_escape_string($bynavn ?? '') . "',land='$land',kontakt='$kontakt',lev_navn='$lev_navn',";
 					$qtxt.="lev_addr1='$lev_addr1',	lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',";
 					$qtxt.="lev_kontakt='$lev_kontakt',betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',";
 					$qtxt.="cvrnr='$cvrnr',momssats='$momssats',notes='$notes',art='$art',ordredate='$ordredate',";
@@ -1173,7 +1179,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				$qtxt.= "(ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, ";
 				$qtxt.= "lev_navn,	lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt, betalingsdage, ";
 				$qtxt.= "betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, sum, lev_adr, valuta, afd, sprog) values ";
-				$qtxt.= "($ordrenr, $konto_id, '$kontonr', '$firmanavn', '$addr1', '$addr2', '$postnr', '$bynavn', '$land', '$kontakt', ";
+				$qtxt.= "($ordrenr, $konto_id, '$kontonr', '$firmanavn', '$addr1', '$addr2', '" . db_escape_string($postnr ?? '') . "', '" . db_escape_string($bynavn ?? '') . "', '$land', '$kontakt', ";
 				$qtxt.= "'$lev_navn',	'$lev_addr1',	'$lev_addr2',	'$lev_postnr',	'$lev_bynavn', '$lev_kontakt', '$betalingsdage', ";
 				$qtxt.= "'$betalingsbet', '$cvrnr', '$notes', '$art', '$ordredate', '$momssats', 1, '$ref', '$sum', '$lev_adr', '$valuta', '$afd', '$restSprog')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -1343,7 +1349,7 @@ print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$for
 function ordreside($id) {
 
 	global $art;
-	global $bogfor,$brugernavn;
+	global $bogfor,$brugernavn,$charset;
 	global $db,$fokus;
 	global $krediteret;
 	global $labelprint;
