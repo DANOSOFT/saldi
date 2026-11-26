@@ -176,13 +176,14 @@
 // 20261118 CL/SS MB-49 bogfor_nu(): a card payment on a 0-kr sale with no card account is refused per sale, before the day-end batch adds them up.
 //                Another sale's rows in the same batch no longer hide it.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
+// 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/orderFuncIncludes/commissionSettlement.php';
 require_once __DIR__ . '/orderFuncIncludes/glsLabel.php';
 require_once __DIR__ . '/orderFuncIncludes/posPaymentType.php';
 
@@ -6280,39 +6281,6 @@ if (!function_exists('registrer_betaling')) {
 									print "<tr><td align='center'>D<a href='http://$terminal_ip/pointd/point.php?url=$url&id=$ordre_id'><button style=\"width:250px;\">".findtekst(1103,$sprog_id)."</button></td></tr>";
 						*/
 			print "</tbody></table>";
-		}
-	}
-}
-if (!function_exists('settleCommision')) {
-	function settleCommision($idOrder)
-	{
-		return;
-		exit;
-		global $db;
-		$customer = array();
-		$x = 0;
-		$qtxt = "select * from ordrelinjer where ordre_id='$idOrder' and fast_db > 0 and (varenr like 'kb%' or varenr like 'kn%')";
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			(is_numeric(substr($r['varenr'], 5))) ? $tmp = substr($r['varenr'], 5) : $tmp = NULL;
-			if ($tmp) {
-				if (in_array($tmp, $kundenr)) {
-					for ($k = 0; $k < count($kundenr); $k++) {
-						if ($kundenr[$k] == $tmp) {
-							$amnt = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat']);
-							$amount[$k] += $amnt;
-							$commission[$k] += $amnt - ($amnt * $r['fast_db']);
-						}
-					}
-				} else {
-					$kundenr[$x] = $tmp;
-					$amount[$x] = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
-					$commission[$x] = $amount[$x] * $r['fast_db'];
-					$x++;
-				}
-			}
-		}
-		for ($k = 0; $k < count($kundenr); $k++) {
 		}
 	}
 }
