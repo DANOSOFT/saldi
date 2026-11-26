@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/stock.php --- ver 5.1.1 --- 2026.11.23
+// --- includes/shopify/services/stock.php --- ver 5.1.1 --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -73,6 +73,7 @@
 //                It goes first again, and the baseline refuses while it is there.
 // 20261120 CDX/NTR Materialize the drain batch once so a nested-loop plan cannot delete beyond its limit.
 // 20261123 CL/SZ SD-826: an activation that ends FAILED, CANCELED or EXPIRED reads Shopify's partial result, so each item it reached is reported.
+// 20261126 CL/SZ SD-826 Review: an empty partialDataUrl is read as no partial result, like a missing one.
 
 require_once __DIR__ . '/allocation.php';
 require_once __DIR__ . '/availability.php';
@@ -1085,7 +1086,7 @@ function shopify_stock_reconcile_download(array $rt, array $shop, string $op, st
 	}
 	if (($poll['bulk']['status'] ?? '') !== 'COMPLETED') {
 		$ended = (string)($poll['bulk']['status'] ?? $poll['error']) . ' ' . (string)($poll['bulk']['errorCode'] ?? '');
-		if (!$partial || ($poll['bulk']['partialDataUrl'] ?? null) === null) {
+		if (!$partial || (string)($poll['bulk']['partialDataUrl'] ?? '') === '') {
 			return $ended;
 		}
 		$got = shopify_bulk_download($poll['bulk']['partialDataUrl'], $file, ($rt['download'] ?? array()) + array('deadline' => $deadline));

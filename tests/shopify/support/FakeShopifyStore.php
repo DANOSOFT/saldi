@@ -36,6 +36,7 @@
 //                Test knobs refuseActivation(), failBulkAfter(), hideQuantity(), refuseQuantity() and limitBulkOnce().
 // 20261113 CL/SZ SD-822 Review: a failure can be a sequence of modes, one per call.
 // 20261123 CL/SZ SD-826: a bulk mutation that ends FAILED serves the lines it ran as its partialDataUrl.
+// 20261126 CL/SZ SD-826 Review: failBulkAfter() can answer an empty partialDataUrl.
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -252,7 +253,7 @@ final class FakeShopifyStore
 
 	/**
 	 * The next bulk mutation applies its first $lines lines and then ends FAILED (B39). Its partialDataUrl: 'whole' serves
-	 * their result lines, 'cut' stops inside the last one, 'gone' answers 404, 'none' gives no partialDataUrl.
+	 * their result lines, 'cut' stops inside the last one, 'gone' answers 404, 'none' gives no partialDataUrl, 'empty' gives an empty one.
 	 */
 	public function failBulkAfter(string $domain, int $lines, string $partial = 'whole'): void
 	{
@@ -1485,7 +1486,8 @@ final class FakeShopifyStore
 			'errorCode' => $op['status'] === 'FAILED' ? 'INTERNAL_SERVER_ERROR' : null,
 			'objectCount' => (string)$op['lines'], 'rootObjectCount' => (string)$op['items'], 'fileSize' => $done ? (string)strlen($op['file']) : null,
 			'url' => $done && $op['file'] !== '' ? $op['url'] : null,
-			'partialDataUrl' => $op['status'] === 'FAILED' && ($op['partial'] ?? '') !== '' ? $op['partial_url'] : null, 'completedAt' => null, 'createdAt' => $this->iso()];
+			'partialDataUrl' => $op['status'] === 'FAILED' && ($op['partial_mode'] ?? '') === 'empty' ? ''
+				: ($op['status'] === 'FAILED' && ($op['partial'] ?? '') !== '' ? $op['partial_url'] : null), 'completedAt' => null, 'createdAt' => $this->iso()];
 	}
 
 	// ---- mutations: catalogue and stock ------------------------------------------------------

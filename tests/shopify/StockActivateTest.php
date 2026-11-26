@@ -11,6 +11,7 @@
 // 20261113 CL/SZ SD-822 Review: the unanswered zero call outlives a failed pass and a dead job, and holds the baseline back.
 //                Another batch's stored call goes first; a dry run leaves it alone.
 // 20261123 CL/SZ SD-826: a failed activation reads its partial result; without one it keeps the one warning.
+// 20261126 CL/SZ SD-826 Review: an empty partialDataUrl ends the run like a missing one.
 
 declare(strict_types=1);
 
@@ -579,6 +580,19 @@ final class StockActivateTest extends TestCase
         $this->assertSame(['severity' => 'warning', 'message' => 'The stock activation ended FAILED INTERNAL_SERVER_ERROR. Run activate again; the pairs stocked so far are left alone.'], $this->report());
         $this->assertSame([], $this->itemErrors());
         $this->assertSame([], glob(ShopifyEnv::repoRoot() . '/temp/' . self::$db . '/.ht_shopify_activate*'), 'the job leaves no file');
+    }
+
+    public function test_an_empty_partial_result_url_keeps_the_one_warning(): void
+    {
+        $a = $this->item('A', [1 => 3]);
+        $b = $this->item('B', [1 => 2]);
+        $this->shop([$a, $b]);
+        $this->steps(['unstock', 'hml', $a, 2], ['unstock', 'hml', $b, 2], ['fail_bulk', 'hml', 1, 'empty']);
+
+        $this->activate();
+
+        $this->assertSame(['severity' => 'warning', 'message' => 'The stock activation ended FAILED INTERNAL_SERVER_ERROR. Run activate again; the pairs stocked so far are left alone.'], $this->report());
+        $this->assertSame([], $this->itemErrors());
     }
 
     public function test_the_run_forgets_the_acknowledgements_of_the_pairs_it_stocks_from_before_its_read_only(): void
