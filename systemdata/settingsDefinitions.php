@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-25 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-26 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -80,7 +80,9 @@
 // as includes/db_query.php's db_cast(), so the definitions load either way.
 // 20261113 CDX/NTR Normalize the file header for guardrail checks.
 // 20261118 CL/MJ SD-830 pos.tills.brand: the brand per till (SD-758) had no screen after the PoS-valg page was retired. Same storage (POS kodenr 4 box1, tab list per fiscal year), choices from the form variants, and an unknown brand is refused.
+// 20261124 CL/LH K33 pos.screen.delivery_choices: the delivery choices the cashier picks on a sale had their table on the retired PoS-valg page; a link to posDeliveryChoices.php, shown only where the Shopify schema is installed (module 'pos_delivery').
 // 20261125 CL/MJ SD-880 settings_till_count() reads this fiscal year's POS/1 row only, as the till does.
+// 20261126 CDX/NTR Use descriptive keys for the delivery choices settings link.
 if (!function_exists('db_cast')) {
 	function db_cast($expr, $type) {
 		global $db_type;
@@ -1323,6 +1325,10 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('grupper', 'POS', 3, 'box1', 'onEmpty', 'row_name' => 'Pos valg', 'fiscal' => true), 'legacy' => $pos),
 			'pos.screen.jump_to_price' => array('sub' => 'sale', 'type' => 'bool', 'label' => 1962, 'help' => 1961, 'default' => false,
 				'storage' => array('settings', 'globals', 'jump2price', 'onEmpty'), 'legacy' => $pos),
+			// K33: the delivery choices (pos_leveringsvalg) are versioned rows with their own page, which keeps a used choice's meaning.
+			'pos.screen.delivery_choices' => array('sub' => 'sale', 'type' => 'link', 'label' => 'pos.delivery.page.title', 'help' => 'pos.delivery.page.description', 'href' => 'posDeliveryChoices.php', 'button' => 'pos.delivery.page.edit', 'audit' => false,
+				'visible_if' => array('module', 'pos_delivery'), 'legacy' => $pos,
+				'keywords' => array('levering', 'leveringsmåde', 'afhentning', 'delivery', 'pickup', 'shopify')),
 			'pos.screen.customer_display' => array('sub' => 'display', 'type' => 'bool', 'label' => 847, 'help' => 848, 'default' => false,
 				'storage' => array('grupper', 'POS', 3, 'box3', 'onEmpty', 'row_name' => 'Pos valg', 'fiscal' => true), 'legacy' => $pos),
 			'pos.screen.show_stock' => array('sub' => 'display', 'type' => 'bool', 'label' => 2367, 'help' => 2368, 'default' => false,
