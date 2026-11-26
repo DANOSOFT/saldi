@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/components.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/components.php --- ver 5.1.1 --- 2026.11.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,7 @@
 // 20261103 CL/ASR QA: a reader (no write) keeps navigation links (another settings page, an export, external documentation such as the data processing agreement); only links to pages that change data are disabled.
 // 20261104 CL/ASR Final QA: a setting marked 'empty_is_default' also shows its default when its stored value is empty (Landekonfiguration: an empty adresser.land is Danmark), so the field is not blank and saving the page does not change it.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261118 CL/MJ SD-830 options_from 'pos_form_variants' (the form variants, from pos_sale_brand_variants()); a select with validate 'in_options' refuses a value its list does not offer instead of resetting it to the default; a variant holding a tab or line break is left out, since it would break the tab separated list.
 include_once(__DIR__ . '/SettingsService.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
 include_once(__DIR__ . '/virtualStorage.php');
@@ -303,7 +304,12 @@ function st_posted_to_raw(array $def, string $value, array $posted): array
 			break;
 		case 'select':
 			if (!isset(st_options($def)[$value])) {
-				$raw = (string) $def['default'];
+				if (is_array($def['validate']) && $def['validate'][0] === 'in_options') {
+					// A value the list does not offer is refused, so the stored one stays, rather than reset to the default.
+					$error = (int) $def['validate'][1];
+				} else {
+					$raw = (string) $def['default'];
+				}
 			}
 			break;
 		case 'matrix':
@@ -487,6 +493,15 @@ function st_options(array $def): array
 			while ($r = db_fetch_array($q)) {
 				$code = trim((string) $r['kode']) . trim((string) $r['kodenr']);
 				$cache[$from][$code] = $code . ' ' . trim((string) $r['beskrivelse']);
+			}
+		} elseif ($from === 'pos_form_variants') {
+			// SD-830: the brands a till can sell under are the form variants, as SD-758's field on the retired PoS-valg page offered them.
+			include_once(__DIR__ . '/../../systemdata/diverseIncludes/posSaleSettings.php');
+			foreach (pos_sale_brand_variants() as $variant) {
+				// The brands are stored as a tab separated list, so a variant holding a tab or line break would shift every later till.
+				if (strpbrk($variant, "\t\r\n") === false) {
+					$cache[$from][$variant] = $variant;
+				}
 			}
 		} elseif ($from === 'form_backgrounds') {
 			// G7.1: the form backgrounds a user can print with, as the old employee card listed them (formularer.sprog).

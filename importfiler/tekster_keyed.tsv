@@ -15,7 +15,33 @@ item.import.ambiguous_skipped	Disse varenumre passer på flere varer og er ikke 
 item.import.campaign_only	Kun tilbudspris og tilbudsperiode opdateres. Ukendte varenumre oprettes ikke, og salgspris, kostpris og varegruppe ændres ikke.	Only the offer price and offer period are updated. Unknown item numbers are not created, and sales price, cost price and item group are not changed.	Bare tilbudspris og tilbudsperiode oppdateres. Ukjente varenumre opprettes ikke, og salgspris, kostpris og varegruppe endres ikke.
 item.import.lines_skipped	Disse linjer indeholder fejl og er ikke importeret:	These lines contain errors and were not imported:	Disse linjene inneholder feil og er ikke importert:
 item.import.unknown_skipped	Disse varenumre findes ikke og er ikke oprettet:	These item numbers do not exist and were not created:	Disse varenumrene finnes ikke og er ikke opprettet:
+order_text.account_changed	Regnskabet er skiftet. Åbn teksten igen fra det ønskede regnskab.	The active account has changed. Reopen the text from the intended account.	Regnskapet er byttet. Åpne teksten på nytt fra det ønskede regnskapet.
+order_text.not_found	Teksten findes ikke længere. Dine ændringer er ikke gemt. Kopiér teksten, før du forlader siden.	The text no longer exists. Your changes were not saved. Copy the text before leaving this page.	Teksten finnes ikke lenger. Endringene dine er ikke lagret. Kopier teksten før du forlater siden.
+order_text.save_failed	Teksten kunne ikke gemmes. Dine ændringer vises stadig nedenfor.	The text could not be saved. Your changes are still shown below.	Teksten kunne ikke lagres. Endringene dine vises fortsatt nedenfor.
+order_text.unsupported_characters	Teksten indeholder tegn, som regnskabet ikke kan gemme. Ret teksten, og prøv igen.	The text contains characters this account cannot store. Edit the text and try again.	Teksten inneholder tegn som regnskapet ikke kan lagre. Rett teksten og prøv igjen.
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
+pos.payment.card_amount_missing	Indtast beløbet, før du betaler med %s. En betaling på 0 kr. kan ikke bogføres.	Enter the amount before you pay with %s. A payment of 0 cannot be posted.	Skriv inn beløpet før du betaler med %s. En betaling på 0 kr. kan ikke bokføres.
+pos.posting.card_account_missing	Betalingen med %s kan ikke bogføres, da %s ikke har en konto under kortbetalinger. Salget er ikke afsluttet.	The payment with %s cannot be posted, as %s has no account under card payments. The sale was not completed.	Betalingen med %s kan ikke bokføres, da %s ikke har en konto under kortbetalinger. Salget er ikke avsluttet.
+pos.posting.nothing_posted	Salget kunne ikke bogføres, da der ikke blev dannet nogen posteringer. Salget er ikke afsluttet.	The sale could not be posted, as no postings were created. The sale was not completed.	Salget kunne ikke bokføres, da det ikke ble dannet noen posteringer. Salget er ikke avsluttet.
+reinvoice.receipt.back	Tilbage til fakturalisten	Back to the invoice list	Tilbake til fakturalisten
+reinvoice.receipt.blocked	Fakturaerne er bogført, men IKKE sendt: browseren blokerede pop-up-vinduet. Klik på knappen herunder for at sende dem.	The invoices are posted but NOT sent: the browser blocked the pop-up window. Click the button below to send them.	Fakturaene er bokført, men IKKE sendt: nettleseren blokkerte popup-vinduet. Klikk på knappen nedenfor for å sende dem.
+reinvoice.receipt.closed	Pop-up-vinduet blev lukket, før afsendelsen var bekræftet. Kontrollér i fakturalisten, hvilke fakturaer der er sendt.	The pop-up window was closed before sending was confirmed. Check in the invoice list which invoices were sent.	Popup-vinduet ble lukket før sendingen var bekreftet. Kontroller i fakturalisten hvilke fakturaer som er sendt.
+reinvoice.receipt.done	Afsendelsen er færdig.	Sending is finished.	Sendingen er ferdig.
+reinvoice.receipt.failed	Afsendelsen stoppede med en fejl, se pop-up-vinduet. Fakturaerne herover er bogført, men de ikke sendte skal sendes igen.	Sending stopped with an error, see the pop-up window. The invoices above are posted, but the ones not sent must be sent again.	Sendingen stoppet med en feil, se popup-vinduet. Fakturaene over er bokført, men de som ikke er sendt må sendes på nytt.
+reinvoice.receipt.mails_sent	Sendt pr. e-mail	Sent by email	Sendt per e-post
+reinvoice.receipt.none	Udskriv til = Ingen, sendes ikke	Print to = None, not sent	Skriv ut til = Ingen, sendes ikke
+reinvoice.receipt.not_sent	Ikke sendt eller udskrevet	Not sent or printed	Ikke sendt eller skrevet ut
+reinvoice.receipt.not_sent_help	Send eller udskriv dem fra fakturalisten.	Send or print them from the invoice list.	Send eller skriv dem ut fra fakturalisten.
+reinvoice.receipt.pbs	Overført til PBS	Transferred to PBS	Overført til PBS
+reinvoice.receipt.pbs_failed	Ikke overført til PBS, se beskeden øverst	Not transferred to PBS, see the message at the top	Ikke overført til PBS, se meldingen øverst
+reinvoice.receipt.posted	Bogførte fakturaer	Posted invoices	Bokførte fakturaer
+reinvoice.receipt.printed	Vist som PDF til udskrift	Shown as PDF for printing	Vist som PDF for utskrift
+reinvoice.receipt.running	Fakturaerne sendes i pop-up-vinduet. Luk det ikke, før det er færdigt.	The invoices are being sent in the pop-up window. Do not close it before it is finished.	Fakturaene sendes i popup-vinduet. Ikke lukk det før det er ferdig.
+reinvoice.receipt.send_button	Send og udskriv fakturaerne	Send and print the invoices	Send og skriv ut fakturaene
+reinvoice.receipt.skipped	Ikke genfaktureret, fordi fakturadatoen ligger uden for regnskabsåret:	Not re-invoiced because the invoice date is outside the fiscal year:	Ikke refakturert fordi fakturadatoen ligger utenfor regnskapsåret:
+reinvoice.receipt.skipped_help	Ret Genfakt.-datoen eller opret regnskabsåret, og genfakturér dem igen.	Correct the next invoice date or create the fiscal year, then re-invoice them again.	Rett neste fakturadato eller opprett regnskapsåret, og refakturer dem igjen.
+reinvoice.receipt.stopped	Genfaktureringen stoppede, før alle fakturaer var bogført:	Re-invoicing stopped before all invoices were posted:	Refaktureringen stoppet før alle fakturaer var bokført:
+reinvoice.receipt.title	Genfakturering udført	Re-invoicing completed	Refakturering utført
 shopify.admin.error.afd	Vælg en afdeling.	Choose a department.	Velg en avdeling.
 shopify.admin.error.afd_taken	En anden shop bruger allerede denne afdeling.	Another shop already uses this department.	En annen nettbutikk bruker allerede denne avdelingen.
 shopify.admin.error.domain	Domænet skal være en *.myshopify.com-adresse.	The domain must be a *.myshopify.com address.	Domenet må være en *.myshopify.com-adresse.
@@ -49,6 +75,21 @@ shopify.admin.lager.udstilling_af	Hører til lager	Belongs to warehouse	Hører t
 shopify.admin.lagre.help	Har en webordre intet lager fra Shopify, trækkes den fra de salgbare lagre i prioriteret rækkefølge (1 først). Der sælges aldrig fra et udstillingslager.	When a web order has no warehouse from Shopify, it is taken from the sellable warehouses in order of priority (1 first). A display warehouse is never sold from.	Har en nettordre ikke noe lager fra Shopify, trekkes den fra de salgbare lagrene i prioritert rekkefølge (1 først). Det selges aldri fra et utstillingslager.
 shopify.admin.lagre.none	Der er ingen lagre. Opret dem under Indstillinger → Lager.	There are no warehouses. Create them under Settings → Inventory.	Det finnes ingen lagre. Opprett dem under Innstillinger → Lager.
 shopify.admin.lagre.title	Shopify-lagre	Shopify warehouses	Shopify-lagre
+shopify.admin.mapping.error.fetch	Lokationerne kunne ikke hentes. Prøv igen.	The locations could not be fetched. Try again.	Lokasjonene kunne ikke hentes. Prøv igjen.
+shopify.admin.mapping.error.remap	En lokation skiftes med worker-kommandoen remap, så lageret i den gamle lokation nulstilles først.	A location is changed with the worker command remap, so the stock at the old location is zeroed first.	En lokasjon endres med worker-kommandoen remap, slik at lageret i den gamle lokasjonen nullstilles først.
+shopify.admin.mapping.error.shop	Shoppen findes ikke længere. Vælg shoppen igen.	The shop no longer exists. Choose the shop again.	Nettbutikken finnes ikke lenger. Velg nettbutikken på nytt.
+shopify.admin.mapping.error.taken	Lokationen bruges allerede af et andet lager.	The location is already used by another warehouse.	Lokasjonen brukes allerede av et annet lager.
+shopify.admin.mapping.error.unknown	Lokationen findes ikke i shoppen. Hent lokationer igen.	The location does not exist in the shop. Fetch the locations again.	Lokasjonen finnes ikke i nettbutikken. Hent lokasjonene på nytt.
+shopify.admin.mapping.fetch	Hent lokationer	Fetch locations	Hent lokasjoner
+shopify.admin.mapping.fetch_queued	Lokationerne hentes fra Shopify. Genindlæs siden om et øjeblik.	The locations are being fetched from Shopify. Reload the page in a moment.	Lokasjonene hentes fra Shopify. Last inn siden på nytt om et øyeblikk.
+shopify.admin.mapping.fetched_at	Lokationer hentet	Locations fetched	Lokasjoner hentet
+shopify.admin.mapping.help	Vælg den Shopify-lokation, hvert lager svarer til. En lokation kan kun bruges af ét lager.	Choose the Shopify location each warehouse corresponds to. A location can only be used by one warehouse.	Velg Shopify-lokasjonen hvert lager tilsvarer. En lokasjon kan bare brukes av ett lager.
+shopify.admin.mapping.location	Lokation i Shopify	Location in Shopify	Lokasjon i Shopify
+shopify.admin.mapping.missing	Salgbart lager uden lokation: lagertallet sendes ikke til shoppen.	Sellable warehouse without a location: its stock is not sent to the shop.	Salgbart lager uten lokasjon: lagertallet sendes ikke til nettbutikken.
+shopify.admin.mapping.never_fetched	Lokationerne er ikke hentet endnu.	The locations have not been fetched yet.	Lokasjonene er ikke hentet ennå.
+shopify.admin.mapping.no_shops	Der er ingen shops endnu.	There are no shops yet.	Det finnes ingen nettbutikker ennå.
+shopify.admin.mapping.remap_note	En lokation, der er valgt, skiftes eller fjernes af Danosoft med worker-kommandoen remap, så lageret i den gamle lokation nulstilles først.	A location that has been chosen is changed or removed by Danosoft with the worker command remap, so the stock at the old location is zeroed first.	En lokasjon som er valgt, endres eller fjernes av Danosoft med worker-kommandoen remap, slik at lageret i den gamle lokasjonen nullstilles først.
+shopify.admin.mapping.title	Shopify-mapping	Shopify mapping	Shopify-mapping
 shopify.admin.menu	Shopify	Shopify	Shopify
 shopify.admin.no_access	Du har ikke adgang til Shopify-opsætningen.	You do not have access to the Shopify setup.	Du har ikke tilgang til Shopify-oppsettet.
 shopify.admin.not_installed	Shopify-modulet er ikke installeret på dette regnskab.	The Shopify module is not installed on this account.	Shopify-modulen er ikke installert på dette regnskapet.
@@ -74,6 +115,7 @@ shopify.admin.shop.web_kasse	Webkasse	Web register	Webkasse
 shopify.admin.shop.webhook_secret	Webhook-hemmelighed	Webhook secret	Webhook-hemmelighet
 shopify.admin.shops.title	Shopify-shops	Shopify shops	Shopify-nettbutikker
 shopify.admin.tab.lagre	Lagre	Warehouses	Lagre
+shopify.admin.tab.mapping	Mapping	Mapping	Mapping
 shopify.admin.tab.shops	Shops	Shops	Nettbutikker
 wage.overtime.hours_100	Overtid 100%	Overtime 100%	Overtid 100%
 wage.overtime.hours_50	Overtid 50%	Overtime 50%	Overtid 50%
