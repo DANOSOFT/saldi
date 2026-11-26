@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kladdeliste.php --- patch 5.0.0 --- 2026-10-12 ---
+// --- finans/kladdeliste.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 // 20150722 PHR Vis alle/egne gemmes nu som cookie. 
 // 20181220 MSC - Rettet ny kladde knap til Ny
@@ -45,6 +45,7 @@
 // 20261002 NTR - Dropped the returside parameter from both the normal and the locked-kladde links so kassekladde falls back to its own default return target.
 // 20261012 CL/SZ SD-730 Deleting an empty journal also deletes the journal's own documents (journalDocumentsDelete()); if a
 //                 document's file can't be removed, the journal and that document's row stay (CodeRabbit).
+// 20261126 CDX/NTR Consume shared prepared journal-owner text without stripping highlights or escaping twice.
 
 @session_start();
 $s_id=session_id();
@@ -358,11 +359,8 @@ $columns[] = array(
     "width" => "1",
     "sqlOverride" => "k.oprettet_af",
     "render" => function ($value, $row, $column) {
-        global $charset;
         $url = "kassekladde.php?tjek={$row['id']}&kladde_id={$row['id']}&returside=kladdeliste.php";
-        $clean_value = strip_tags(stripslashes($value));
-        $safe_value = htmlentities($clean_value, ENT_QUOTES, $charset);
-        return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$safe_value</td>";
+        return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
     },
 );
 

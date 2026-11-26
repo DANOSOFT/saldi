@@ -9,6 +9,10 @@
 // 20260923 LOE SD-685 review: a setup saved before the visibility flags is normalised when the grid loads.
 // 20261006 CL/NTR Made the grid action-menu and its Redigér submenu triggers native type="button" buttons that
 //                 open on focus as well as hover (same change as includes/grid.php).
+// 20261125 CDX/NTR Escape text and dropdown cells with the shared grid text helper before rendering.
+// 20261126 CDX/NTR Pass LATIN9 text through the shared encoding-aware grid text preparation.
+
+include_once(__DIR__ . '/../grid/text.php');
 
 function is_ajax_request() {
     return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
@@ -1649,21 +1653,15 @@ function render_table_row($columns, $row, $searchTerms) {
             ? $column['valueGetter']($rawValue, $row, $column)
             : $rawValue;
 
-        // Optimize text search and highlighting
-        if ($column["type"] == "text" && $term !== '' && mb_stripos($value, $term, 0, 'UTF-8') !== false) {
-            $value = preg_replace_callback(
-                '/' . preg_quote($term, '/') . '/iu',
-                function ($match) {
-                    return '<span style="background-color:#FF0">' . $match[0] . '</span>';
-                },
-                $value
-            );
+        $textColumn = in_array($column['type'] ?? 'text', array('text', 'dropdown'), true);
+        if ($textColumn) {
+            $value = is_string($value) ? grid_text_html($value, $term, $GLOBALS['db_encode'] ?? 'UTF8') : $value;
         }
 
         // Render the final data
         $data = isset($column['render']) && is_callable($column['render'])
             ? $column['render']($value, $row, $column)
-            : htmlspecialchars($value);
+            : ($textColumn ? $value : htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
 
         echo $data;
     }

@@ -7218,3 +7218,5 @@
 8498	Regnskabsåret %s har ikke en gyldig start- og slutmåned.	The financial year %s does not have a valid start and end month.	Regnskapsåret %s har ikke en gyldig start- og sluttmåned.
 8499	Ret datoerne på regnskabsåret %s under Indstillinger → Regnskabsår, og tryk Gem/opdatér.	Correct the dates of the financial year %s under Settings → Financial year, and click Save/update.	Rett datoene for regnskapsåret %s under Innstillinger → Regnskapsår, og trykk Lagre/oppdater.
 8500	Der opstod en uventet fejl under opdateringen. Tryk Gem/opdatér på regnskabsåret %s for at prøve igen, og kontakt Saldi, hvis fejlen bliver ved.	An unexpected error occurred during the update. Click Save/update on the financial year %s to try again, and contact Saldi if the error persists.	Det oppstod en uventet feil under oppdateringen. Trykk Lagre/oppdater på regnskapsåret %s for å prøve igjen, og kontakt Saldi hvis feilen vedvarer.
+8530	Vælg leveringsadresse	Choose delivery address	Velg leveringsadresse
+8531	Ingen leveringsadresse	No delivery address	Ingen leveringsadresse

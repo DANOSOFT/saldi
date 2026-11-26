@@ -9,6 +9,13 @@ metadata:
 
 New database structure and content changes for existing regnskaber (schema changes, data migrations, one-off update queries) go at the end of `includes/betweenUpdates.php`, not in ordinary pages/includes or directly in an `includes/opdat_*.php` file.
 
+Shared database compatibility helpers live under `includes/database/`, with
+`db_` function names. Feature-specific structure builders live under
+`includes/structure/`, retaining their feature-specific names. The operator-panel
+builder is `includes/structure/operatorPanelSchema.php`; the update chain and
+new-install path call it as before. This placement does not authorize adding
+schema changes to ordinary request handlers.
+
 **Exception — creating a new regnskab:** `admin/opret.php` and `includes/opretfunc.php` are the new-regnskab creation paths; the shared schema builder is `opret_build_tenant()` in `includes/opretfunc.php`. Initial-schema DDL is permitted in both files when defining the initial structure for a newly created regnskab. When a schema change also applies to existing regnskaber, add the corresponding migration at the end of `includes/betweenUpdates.php` as well, so new and existing regnskaber end up with the same structure. This exception is temporary: it will change once structure helper functions replace the current setup. It does not permit schema repair or migrations during ordinary page requests.
 
 **Exception — cutting a new version:** when a new version is released, the accumulated changes in `includes/betweenUpdates.php` are transferred (moved, not left duplicated) into `includes/opdat_<major>.<minor>.php` matching the new version (e.g. version `4.3.0` → `includes/opdat_4.3.php`), and `$version` in `includes/version.php` is bumped to the new version string. `includes/betweenUpdates.php` is then cleared of the released migration body (header/footer intact) to accumulate changes for the next release. Preserve explicitly protected shared helper includes. A time-bounded migration that resumes across logins must keep its continuation outside the one-shot version gate until its own completion flag is set; moving that continuation behind the version gate would stop it after the first login. Check that fresh-install and new-regnskab creation paths already include the released schema, since they start at the new version and skip its upgrade gate.
