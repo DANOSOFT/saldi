@@ -86,6 +86,8 @@
 // 20261126 CL/MMR  SST-1005: ...and one that succeeds leaves the stored message alone, as it carried nothing (Codex round 43).
 // 20261126 CL/MMR  SST-1005: A rebuild or year card that stores no block clears a stored message only up to the last year it wrote, so one beyond a missing year stays (followingOpeningBalanceUnreachedFrom(), Codex round 44).
 // 20261126 CL/MMR  SST-1005: ...replaced by the years it wrote: a stored message is cleared only when the rebuild wrote its target year, or the card or «Sæt aktivt» retried it, so one between two carried ranges stays too (Codex round 45).
+// 20261126 CL/MMR  SST-1005: «Sæt aktivt», the page check and the year card carry every range of consecutive years after a missing or deleted year, each from its own opening balances (updateFollowingOpeningBalanceRanges(), CodeRabbit on PR #1109).
+//                  A block ends only its own range, a new block in a later range never replaces a message it did not reach, a year archived during a transfer is a boundary, and MySQL tries a busy year once.
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -104,7 +106,8 @@ function followingOpeningBalanceYearDeleted($marker) {
 /**
  * Rebuild subsequent opening balances using the transfer rules from fiscalYearInc/yearX.php.
  * The caller owns the tenant transaction. Closed years retain their status.
- * Deleted years and missing predecessors form a boundary because their source data is unavailable.
+ * Deleted years and missing predecessors form a boundary because their source data is unavailable, and so does a year
+ * archived while the rebuild runs (followingOpeningBalanceInputs()).
  * A target year that lacks the destination account for a non-zero status or result balance is also a
  * boundary, so a partially transferable year is never written; $stop then says what blocked it.
  * A zero balance has nothing to carry, so it needs no destination account.
@@ -173,6 +176,16 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null, &$deferredYe
 		// that changed the source year's dates and carried it on before this lock is calculated from (CodeRabbit).
 		$inputs = followingOpeningBalanceInputs($sourceYear, $targetYear);
 		for ($attempt = 1; ; $attempt++) {
+			if ($inputs['archived']) {
+				// Another request archived a year of this transfer after the years were looked up above: a boundary, as a
+				// deleted year is there, so nothing of this transfer is kept and the target year keeps its opening balances
+				// (CodeRabbit on PR #1109: both reads agreed on an archived, empty source year and wrote zeros).
+				if ($savepoint) {
+					db_modify('rollback to savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
+					db_modify('release savepoint following_opening_balance_transfer', __FILE__ . ' line ' . __LINE__);
+				}
+				break 2;
+			}
 			$blocked = followingOpeningBalanceStopShape($sourceYear, $targetYear);
 			$invalid = followingOpeningBalanceInvalidDates($blocked, $inputs['sourceRange'], $inputs['targetRange']);
 			$opening = $invalid ? null : followingOpeningBalanceTransfer($inputs, $blocked);
@@ -469,13 +482,16 @@ function followingOpeningBalanceTakePending($beforeClear = null) {
  * transfer is written. Because it compares the very inputs the result came from, a change that is undone while the
  * transfer is calculated is noticed too, and so is an amount moved from one account to another without changing
  * any total, and a year card that changed the source year's dates (CodeRabbit). Two reads of the same data are
- * identical (===).
+ * identical (===). The years' deletion marker is read with their dates: deleteFiscalYear.php deletes a year's accounts
+ * and postings but keeps its dates, so without it an archive between the two reads looked like an empty source year
+ * (CodeRabbit on PR #1109).
  * On PostgreSQL (read committed) the second read sees what other transactions committed meanwhile; a MySQL
  * transaction in its default repeatable read keeps seeing its own snapshot, so there the check finds nothing new.
  *
  * @param int $sourceYear Fiscal year (kontoplan.regnskabsaar) carried from.
  * @param int $targetYear Fiscal year carried into.
  * @return array{
+ *   archived: bool,                        Either year is deleted (box10, see followingOpeningBalanceYearDeleted()).
  *   sourceRange: array{0: string, 1: string}|null, First and last date of the source year, null when invalid
  *                                          (see followingOpeningBalanceYearRange()); then no movement is read.
  *   targetRange: array{0: string, 1: string}|null, The same for the target year, whose dates recalculateLedgerYear() reads.
@@ -487,10 +503,13 @@ function followingOpeningBalanceTakePending($beforeClear = null) {
 function followingOpeningBalanceInputs($sourceYear, $targetYear) {
 	$sourceYear = (int)$sourceYear;
 	$targetYear = (int)$targetYear;
-	$inputs = array('sourceRange' => null, 'targetRange' => null, 'targetAccounts' => array(), 'movement' => array(), 'sourceAccounts' => array());
-	$q = db_select("select kodenr, box1, box2, box3, box4 from grupper where art = 'RA' and kodenr in ('$sourceYear', '$targetYear')", __FILE__ . ' line ' . __LINE__);
+	$inputs = array('archived' => false, 'sourceRange' => null, 'targetRange' => null, 'targetAccounts' => array(), 'movement' => array(), 'sourceAccounts' => array());
+	$q = db_select("select kodenr, box1, box2, box3, box4, box10 from grupper where art = 'RA' and kodenr in ('$sourceYear', '$targetYear')", __FILE__ . ' line ' . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$inputs[(int)$row['kodenr'] === $sourceYear ? 'sourceRange' : 'targetRange'] = followingOpeningBalanceYearRange($row);
+		if (followingOpeningBalanceYearDeleted($row['box10'])) {
+			$inputs['archived'] = true;
+		}
 	}
 	$q = db_select("select kontonr from kontoplan where regnskabsaar = '$targetYear' and kontotype = 'S' order by kontonr", __FILE__ . ' line ' . __LINE__);
 	while ($row = db_fetch_array($q)) {
@@ -534,11 +553,15 @@ function followingOpeningBalanceInputs($sourceYear, $targetYear) {
  * is undone at once and tried again shortly. While the rebuild holds the whole year, recalculateLedgerYear() and the writes need
  * no further row of it, so the rebuild itself never waits for a kontoplan row.
  * Outside a transaction a lock would end with the statement, so nothing is locked and true is returned, as before.
- * MySQL 8 and MariaDB 10.6 have SKIP LOCKED too and lock the same way (Lui's pre-check); an older MySQL server keeps
- * the plain lock that waits, and its deadlock detection then rolls one transaction back.
+ * MySQL 8 and MariaDB 10.6 have SKIP LOCKED too and lock the same way (Lui's pre-check), but they try only once:
+ * InnoDB keeps the row locks of a statement rolled back to a savepoint until the transaction ends, so a retry would hold
+ * the rows it got while it waits for the rest, and the journal that holds the rest could wait for them (CodeRabbit on
+ * PR #1109). The year is then left for the next check at once, and the rows stay locked only until the caller's
+ * transaction ends. An older MySQL server keeps the plain lock that waits, and its deadlock detection then rolls one
+ * transaction back.
  *
  * @param int $year Fiscal year (kontoplan.regnskabsaar).
- * @param int $attempts How many times to try; between tries the rebuild sleeps 0.1 second.
+ * @param int $attempts How many times to try on PostgreSQL (MySQL: once); between tries the rebuild sleeps 0.1 second.
  * @return bool True when every row of the year is locked by this transaction; false when another transaction kept
  *   at least one of them for all the attempts (then nothing of the year is locked).
  */
@@ -548,9 +571,13 @@ function followingOpeningBalanceTryLockYear($year, $attempts = 30) {
 	if (!followingOpeningBalancesInTransaction()) {
 		return true;
 	}
-	if (($db_type === 'mysql' || $db_type === 'mysqli') && !followingOpeningBalanceSkipLocked()) {
-		db_select("select id from kontoplan where regnskabsaar = '$year' for update", __FILE__ . ' line ' . __LINE__);
-		return true;
+	if ($db_type === 'mysql' || $db_type === 'mysqli') {
+		if (!followingOpeningBalanceSkipLocked()) {
+			db_select("select id from kontoplan where regnskabsaar = '$year' for update", __FILE__ . ' line ' . __LINE__);
+			return true;
+		}
+		// A rollback to the savepoint below does not release InnoDB's row locks, so a retry never gets rid of them.
+		$attempts = 1;
 	}
 	for ($attempt = 1; $attempt <= $attempts; $attempt++) {
 		db_modify('savepoint following_opening_balance_lock', __FILE__ . ' line ' . __LINE__);
@@ -795,6 +822,70 @@ function followingOpeningBalanceRebuildStart($year) {
 }
 
 /**
+ * updateFollowingOpeningBalances() over every range of consecutive live years from $fromYear on, for «Sæt aktivt», the
+ * page check and the year card. A missing or deleted year ends a range and nothing is carried across it: the first year
+ * after it keeps its own opening balances and carries them on (followingOpeningBalanceRebuildStart()). A block ends only
+ * its own range, whose later years depend on it; the ranges after it are carried all the same. So the work of every
+ * range is done before the waiting year that stood for it is gone, and Gem/opdatér on any year the message names
+ * redoes every range after it (CodeRabbit on PR #1109: with years 8, 9, 11 and 12, a page check that took year 8
+ * carried year 9 only, so a posting in year 11 found by the same check never reached year 12, and a failed «Sæt
+ * aktivt» on year 12 asked for Gem/opdatér on year 9, which did not reach year 12 either). A transfer left for the next
+ * check ends the rebuild: the year it leaves waiting covers the later ranges too.
+ *
+ * @param int $fromYear Fiscal year to start from; a deleted or missing year, or one with no next year, starts at the
+ *   first year after it with a next year.
+ * @param array|null $stop Receives null, or the first transition that could not be written (see
+ *   updateFollowingOpeningBalances()); the stored message shows one transition at a time, the earliest.
+ * @param int $deferredYear Receives 0, or the source year whose transfer was left for a later check.
+ * @return int[] Fiscal year numbers whose opening balances were updated.
+ */
+function updateFollowingOpeningBalanceRanges($fromYear, &$stop = null, &$deferredYear = null) {
+	$stop = null;
+	$deferredYear = 0;
+	$updated = array();
+	$start = followingOpeningBalanceRebuildStart(max(1, (int)$fromYear));
+	while ($start > 0) {
+		$rangeStop = null;
+		$written = updateFollowingOpeningBalances($start, $rangeStop, $deferredYear);
+		$updated = array_merge($updated, $written);
+		if ($deferredYear) {
+			break;
+		}
+		if ($rangeStop) {
+			if (!$stop) $stop = $rangeStop;
+			// The years after the blocked one in this range are carried from it, so the next range starts after a gap.
+			$start = followingOpeningBalanceNextRangeStart((int)$rangeStop['targetYear']);
+		} else {
+			// The range ended at a missing or deleted year after the last year it wrote (or after its start, when that was
+			// archived meanwhile); the next range starts after it.
+			$start = followingOpeningBalanceRebuildStart(($written ? max($written) : $start) + 1);
+		}
+	}
+	return $updated;
+}
+
+/**
+ * Where the range after the one $year is in starts: after the first missing or deleted year that follows $year, the
+ * first year with a next year to carry into (followingOpeningBalanceRebuildStart()).
+ *
+ * @param int $year Fiscal year (grupper art 'RA' kodenr).
+ * @return int That year, or 0 when there is none.
+ */
+function followingOpeningBalanceNextRangeStart($year) {
+	$year = (int)$year;
+	$previous = $year;
+	$gap = 0;
+	$q = db_select("select kodenr, box10 from grupper where art = 'RA' and kodenr > '$year' order by kodenr", __FILE__ . ' line ' . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		if (!$gap && ((int)$row['kodenr'] !== $previous + 1 || followingOpeningBalanceYearDeleted($row['box10']))) {
+			$gap = $previous + 1;
+		}
+		$previous = (int)$row['kodenr'];
+	}
+	return $gap ? followingOpeningBalanceRebuildStart($gap) : 0;
+}
+
+/**
  * Start following postings, one check at a time. Under a lock the state is read again: a state that another check
  * stored meanwhile is used as it is and never replaced, so postings that committed after that check started
  * following are compared against its baseline. Otherwise the fingerprint is taken first and the watermark (max id)
@@ -962,11 +1053,9 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	$savesStop = followingOpeningBalanceSavesStop(true);
 	transaktion('begin');
 	try {
-		if ($year > 0) {
-			$updated = carryFollowingOpeningBalances($year, $fromYear, $stop, $deferredYear);
-		} else {
-			$updated = updateFollowingOpeningBalances($fromYear, $stop, $deferredYear);
-		}
+		// Every range from there on, so the activated year is carried too, from the year before it or, after a missing or
+		// deleted year, from itself (Codex rounds 38-39).
+		$updated = updateFollowingOpeningBalanceRanges($fromYear, $stop, $deferredYear);
 	} catch (Throwable $e) {
 		followingOpeningBalanceSavesStop($savesStop);
 		// Nothing of the rebuild is kept, and the stored message tells the user to retry with Gem/opdatér.
@@ -1098,39 +1187,6 @@ function followingOpeningBalanceFailureOnShutdown() {
 }
 
 /**
- * Carry $fromYear (normally the year before $year) into the later years. When that does not get past $year
- * without a block, because there is no usable year before it (year 1, a missing or deleted year), $year's own
- * opening balances are carried forward from $year. When a rebuild from an earlier year ends at a deleted or missing
- * year before the year before $year, the year before $year is carried into it as well. A real block is never bypassed.
- * The caller owns the transaction.
- *
- * @param int $year The year being saved or activated.
- * @param int $fromYear In: where to start. Out: $year when the rebuild had to start there.
- * @param array|null $stop Receives the block, see updateFollowingOpeningBalances().
- * @param int $deferredYear Receives 0, or the source year whose transfer was left for a later check (see
- *   updateFollowingOpeningBalances()); a stored block at or after it was not reached and must stay.
- * @return int[] Fiscal year numbers whose opening balances were updated.
- */
-function carryFollowingOpeningBalances($year, &$fromYear, &$stop, &$deferredYear = null) {
-	$year = (int)$year;
-	$updated = updateFollowingOpeningBalances($fromYear, $stop, $deferredYear);
-	// An earlier waiting year whose rebuild ended at a deleted or missing year before $year - 1 did not reach $year:
-	// the year before $year is then carried into it too, as «Sæt aktivt» does with nothing waiting. Nothing is carried
-	// across the gap, and a block or a transfer left for the next check is not passed (Codex round 39).
-	$previous = $year - 1;
-	if (!$stop && !$deferredYear && $fromYear < $previous && !in_array($year, $updated, true) && followingOpeningBalanceRebuildStart($previous) === $previous) {
-		$fromYear = $previous;
-		$updated = array_merge($updated, updateFollowingOpeningBalances($previous, $stop, $deferredYear));
-	}
-	// A transfer left for the next check is not a missing year before $year, so $year is not carried from itself then.
-	if (!$stop && !$deferredYear && !in_array($year + 1, $updated, true)) {
-		$fromYear = $year;
-		$updated = array_merge($updated, updateFollowingOpeningBalances($year, $stop, $deferredYear));
-	}
-	return $updated;
-}
-
-/**
  * Gem/opdatér on the year card (systemdata/regnskabskort.php): carry the year before into $year again, so the
  * «Overfør til» choices just saved are checked, and on into every later year. Year 1 and a year after a deleted
  * year have their own opening balances, so those are carried forward from $year itself. When the transfer into
@@ -1161,7 +1217,11 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	$savesStop = followingOpeningBalanceSavesStop(true);
 	$updated = array();
 	try {
-		$updated = carryFollowingOpeningBalances($year, $fromYear, $stop, $deferredYear);
+		// Year 1 and a year after a missing or deleted year carry their own opening balances on; a failure there names
+		// the year after the saved year, whose Gem/opdatér carries it again.
+		$start = followingOpeningBalanceRebuildStart(max(1, $fromYear));
+		if ($start) $fromYear = $start;
+		$updated = updateFollowingOpeningBalanceRanges($fromYear, $stop, $deferredYear);
 	} catch (Throwable $e) {
 		db_modify('rollback to savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
 		error_log('SST-1005: opening balances after saving fiscal year ' . $year . ' not updated: ' . $e->getMessage());
@@ -1355,9 +1415,11 @@ function saveFollowingOpeningBalanceState($state) {
  * Store or clear the transition that blocked a rebuild. A blocked transition before $fromYear was not
  * part of this rebuild and stays; one at or after it is replaced by this rebuild's outcome, except that a rebuild
  * that left a transfer for the next check did not reach a stored transition at or after that one, so it stays too,
- * and a rebuild that stored no block clears a stored transition only when it reached the transition's target year
- * ($reached): with years 8, 9, 11, 12, 14 and 15, «Sæt aktivt» on year 15 with year 8 waiting writes years 9 and 15,
- * and a message for 11->12 stays (Codex rounds 44-45).
+ * and a rebuild clears or replaces a stored transition only when it reached the transition's target year ($reached),
+ * except that a block of its own at or before the stored transition replaces it (the message shows the earliest
+ * block; once that is fixed, its Gem/opdatér carries every later range and finds the other again, see
+ * updateFollowingOpeningBalanceRanges()). So a new block in a later range never replaces a message for an earlier
+ * transition it did not reach (Codex rounds 44-45, CodeRabbit on PR #1109).
  * The stored transition is read with its row locked and replaced in the same transaction, so a block another rebuild
  * commits for an earlier year between the read and the write is waited for and kept, never overwritten (CodeRabbit).
  * Outside a transaction (after a rollback, on shutdown) the two run in a transaction of their own. The row is locked
@@ -1408,7 +1470,8 @@ function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0, $r
 	if (!$stop && $stored && (int)$deferredYear > 0 && (int)$stored['sourceYear'] >= (int)$deferredYear) {
 		$keep = true;
 	}
-	if (!$stop && $stored && is_array($reached) && !in_array((int)$stored['targetYear'], array_map('intval', $reached), true)) {
+	$laterBlock = $stop && $stored && (int)$stop['sourceYear'] > (int)$stored['sourceYear'];
+	if ($stored && (!$stop || $laterBlock) && is_array($reached) && !in_array((int)$stored['targetYear'], array_map('intval', $reached), true)) {
 		$keep = true;
 	}
 	if (!$keep && $id) {

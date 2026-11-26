@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-25 --
+// --- systemdata/regnskabskort.php --- ver 5.1.1 -- 2026-11-26 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,7 @@
 // 20261120 CL/MMR SST-1005 A failed statement during the save, also in the card's own primo reset, leaves the message that asks for Gem/opdatér again (Codex round 22).
 // 20261120 CL/MMR SST-1005 A COMMIT the database refuses also leaves that message, and the card commits through followingOpeningBalanceCommit() (Codex round 23).
 // 20261125 CL/MMR SST-1005 The settings rows the carry-forward writes are created before the card's transaction begins, so MySQL never waits for their creation lock inside it (Codex round 31).
+// 20261126 CL/MMR SST-1005 The failure guard is armed before those rows are prepared, and a missing year before this one is a boundary like a deleted one: the card shows and keeps this year's own opening balances (CodeRabbit on PR #1109).
 @session_start();
 $s_id=session_id();
 
@@ -159,15 +160,16 @@ if ($_POST) {
 	if ((($id!=0)||(!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))) &&
 	(($startmd)&&($slutmd)&&($startdato)&&($slutdato)&&($startaar)&&($slutaar)&&($beskrivelse))) {
 		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
-		// SST-1005: the settings rows the carry-forward writes exist before the transaction begins (Codex round 31).
+		// SST-1005: a failed statement anywhere in this save ends the request (db_modify() exits) and rolls all of it back;
+		// the guard then stores the message that tells the user to press Gem/opdatér again (Codex round 22). It is armed
+		// before the settings rows are prepared, which can fail too (CodeRabbit on PR #1109).
+		$openingGuard = followingOpeningBalanceFailureGuard($kodenr - 1, $kodenr - 1);
+		// The settings rows the carry-forward writes exist before the transaction begins (Codex round 31).
 		followingOpeningBalancePrepareRows();
 		transaktion ("begin");
 		// SST-1005: the «Overfør til» choices that change on the year before are written first, so this card never
 		// holds its own year while it waits for a journal posting in the year before. Then this year's opening
 		// balances before the save, kept if the transfer into the year cannot be made.
-		// A failed statement anywhere in this save ends the request (db_modify() exits) and rolls all of it back; the
-		// guard then stores the message that tells the user to press Gem/opdatér again (Codex round 22).
-		$openingGuard = followingOpeningBalanceFailureGuard($kodenr - 1, $kodenr - 1);
 		followingOpeningBalanceSaveLastYearChoices($kodenr, $kontonr, $overfor_til, $kontoantal);
 		$primoBeforeSave = followingOpeningBalancePrimo($kodenr, true);
 		($id == 0)?$nn=2:$nn=1;
@@ -234,8 +236,9 @@ if ($_POST) {
 			if ($preNo) {
 				$qtxt = "select box10 from grupper where art = 'RA' and kodenr = '$preNo'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				// SST-1005: deleteFiscalYear.php marks a deleted year with a timestamp, older deletions with 'on'.
-				$preDeleted = ($r && followingOpeningBalanceYearDeleted($r['box10'])) ? 1 : 0;
+				// SST-1005: deleteFiscalYear.php marks a deleted year with a timestamp, older deletions with 'on'. A missing
+				// year before this one has no accounts to carry either, so this year keeps its own opening balances.
+				$preDeleted = (!$r || followingOpeningBalanceYearDeleted($r['box10'])) ? 1 : 0;
 			}
 			$qtxt = "update grupper set beskrivelse = '".db_escape_string($beskrivelse)."', kodenr = '$kodenr', kode = '$kode', ";
 			$qtxt.= "box1 = '$startmd', box2 = '$startaar', box3 = '$slutmd', box4 = '$slutaar', box5 = '$aaben' where id = '$id'";
@@ -323,7 +326,8 @@ if ($id > 0) {
 		$qtxt = "select box10 from grupper where art = 'RA' and kodenr = '$preNo'";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
-		$preDeleted = ($r && followingOpeningBalanceYearDeleted($r['box10'])) ? 1 : 0;
+		// A missing year before this one is shown like a deleted one: this year's own opening balances, read-only.
+		$preDeleted = (!$r || followingOpeningBalanceYearDeleted($r['box10'])) ? 1 : 0;
 	}
 
 	$query = db_select("select * from grupper where id = '$id' and art = 'RA'",__FILE__ . " linje " . __LINE__);

@@ -46,6 +46,8 @@
 // 20261126 CL/MMR SST-1005 ...and so does one that succeeds (Codex round 43).
 // 20261126 CL/MMR SST-1005 A page check or year card whose carry ends at a missing year keeps a message beyond it (Codex round 44).
 // 20261126 CL/MMR SST-1005 An activation that carries two segments keeps the message for the segment between them (Codex round 45).
+// 20261126 CL/MMR SST-1005 CodeRabbit on PR #1109: every range after a missing year is carried by the page check, the card and «Sæt aktivt», and the retry a failed activation names redoes them all.
+//                 A new block in a later range keeps an earlier message, a year archived during a transfer is a boundary, and MySQL tries a busy year once.
 
 declare(strict_types=1);
 
@@ -2750,7 +2752,13 @@ final class FollowingOpeningBalancesTest extends TestCase
         $stored = $this->stop(['sourceYear' => 9, 'targetYear' => 10, 'failed' => true]);
         $this->sql("UPDATE settings SET var_value = '" . pg_escape_string($this->connection, json_encode($stored)) . "' WHERE var_name = 'openingBalanceStop'");
         $afterShutdown = 'not run';
-        $GLOBALS['sst1005Hook'] = ['after' => "/^select kodenr, box1, box2, box3, box4, box10 from grupper where art = 'RA'/", 'times' => 1, 'run' => function () use (&$afterShutdown): void {
+        // The first lookup inside the rebuild's transaction (updateFollowingOpeningBalanceRanges()); the same lookups before
+        // it are let through.
+        $GLOBALS['sst1005Hook'] = ['after' => "/^select kodenr, box10 from grupper where art = 'RA' and kodenr >= /", 'times' => 99, 'run' => function () use (&$afterShutdown): void {
+            if (!followingOpeningBalancesInTransaction()) {
+                return;
+            }
+            unset($GLOBALS['sst1005Hook']);
             // In a page request the request would end here; the shutdown function has no guard to act on.
             followingOpeningBalanceFailureOnShutdown();
             $afterShutdown = followingOpeningBalanceStop();
@@ -2825,57 +2833,234 @@ final class FollowingOpeningBalancesTest extends TestCase
     }
 
     /**
-     * Codex round 44: a page check from year 12 then rebuilt year 9 from year 8, stopped at the missing year 10 and
-     * cleared the message for 11->12, which it never reached. The message stays until year 12 is saved.
+     * Codex round 44 kept the message for 11->12 when a page check from year 12 rebuilt year 9 from year 8 and stopped at
+     * the missing year 10. CodeRabbit on PR #1109: the work beyond the gap was then left to the message. The page check
+     * now carries every range, so year 12 follows year 11 (from year 11's own opening balances, nothing crosses the gap)
+     * and the message is cleared because 11->12 was done.
      */
-    public function testAPageCheckThatEndsAtAMissingYearKeepsTheMessageBeyondIt(): void
+    public function testAPageCheckCarriesTheRangeBeyondAMissingYearAndClearsItsMessage(): void
     {
-        $expected = $this->twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12();
+        $this->twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12();
+        $year11 = $this->yearState(11);
         self::assertNull(checkFollowingOpeningBalances(12));
         self::assertSame('0', $this->setting('openingBalancePending'));
         self::assertSame(1554.0, $this->primo(9, 2000), 'Year 9 follows year 8.');
-        self::assertSame(777.0, $this->primo(12, 2000), 'Year 12 is beyond the missing year.');
-        self::assertSame($expected, followingOpeningBalanceStop(), 'So its message stays.');
-
-        $this->sql('BEGIN');
-        self::assertNull(updateOpeningBalancesAfterYearSave(12));
-        $this->sql('COMMIT');
-        self::assertSame(1554.0, $this->primo(12, 2000), 'Gem/opdatér on year 12 carries year 11.');
-        self::assertNull(followingOpeningBalanceStop(), 'And clears the message.');
+        self::assertSame($year11['accounts'], $this->yearState(11)['accounts'], 'Year 11 keeps its own opening balances.');
+        self::assertSame(1554.0, $this->primo(12, 2000), 'Year 12 follows year 11.');
+        self::assertNull(followingOpeningBalanceStop(), 'The message for 11->12 is cleared, as 11->12 was carried.');
     }
 
-    /** Codex round 44: the same for Gem/opdatér on year 9, whose carry also ends at the missing year 10. */
-    public function testAYearCardWhoseCarryEndsAtAMissingYearKeepsTheMessageBeyondIt(): void
+    /** The same for Gem/opdatér on year 9: it carries 8->9 and the range beyond the missing year 10. */
+    public function testAYearCardCarriesTheRangeBeyondAMissingYearAndClearsItsMessage(): void
     {
-        $expected = $this->twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12();
+        $this->twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12();
         $this->sql('BEGIN');
         self::assertNull(updateOpeningBalancesAfterYearSave(9));
         $this->sql('COMMIT');
         self::assertSame(1554.0, $this->primo(9, 2000));
-        self::assertSame($expected, followingOpeningBalanceStop());
+        self::assertSame(1554.0, $this->primo(12, 2000));
+        self::assertNull(followingOpeningBalanceStop());
     }
 
     /**
-     * Codex round 45: three segments, years 8-9, 11-12 and 14-15 (10 and 13 missing), year 8 waiting and the message for
-     * 11->12 stored. «Sæt aktivt» on year 15 (sync(14, 15)) writes year 9 and year 15. Judged by the last year written it
-     * cleared the message for 11->12, which lies between them; it stays until year 12 is saved.
+     * Codex round 45 kept the message for 11->12 when «Sæt aktivt» on year 15 (sync(14, 15)), with years 8-9, 11-12 and
+     * 14-15 and year 8 waiting, wrote years 9 and 15. It now carries the range between them as well.
      */
-    public function testAnActivationThatCarriesTwoSegmentsKeepsTheMessageBetweenThem(): void
+    public function testAnActivationCarriesEveryRangeAndClearsTheMessageBetweenThem(): void
     {
-        $expected = $this->twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12([14, 15]);
+        $this->twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12([14, 15]);
         self::assertSame(777.0, $this->primo(15, 2000));
         self::assertNull(syncFollowingOpeningBalances(14, 15));
         self::assertSame('0', $this->setting('openingBalancePending'));
         self::assertSame(1554.0, $this->primo(9, 2000), 'Year 9 follows year 8.');
+        self::assertSame(1554.0, $this->primo(12, 2000), 'Year 12 follows year 11.');
         self::assertSame(1554.0, $this->primo(15, 2000), 'Year 15 follows year 14.');
-        self::assertSame(777.0, $this->primo(12, 2000), 'Year 12 lies between them.');
-        self::assertSame($expected, followingOpeningBalanceStop(), 'So its message stays.');
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /**
+     * CodeRabbit on PR #1109 (4707821124): years 8, 9, 11 and 12 (10 missing); a posting in year 8 and one in year 11 are
+     * found by the same page check, which leaves only the earliest year, 8, waiting. Its rebuild carried 8->9 and stopped at
+     * the missing year, so year 12 never got the posting in year 11. Every range is carried now, each from its own
+     * opening balances.
+     */
+    public function testAPageCheckCarriesAPostingBeyondAMissingYear(): void
+    {
+        $this->addYear12();
+        self::assertNull(checkFollowingOpeningBalances(12));
+        $this->removeYear(10);
+        $year11 = $this->yearState(11);
+        $this->sql("INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES
+            (2000, '2022-09-01', 3, 0), (1000, '2022-09-01', 0, 3),
+            (2000, '2025-09-01', 5, 0), (1000, '2025-09-01', 0, 5)");
+        self::assertNull(checkFollowingOpeningBalances(12));
+        self::assertSame('0', $this->setting('openingBalancePending'));
+        self::assertSame(1557.0, $this->primo(9, 2000), 'Year 9: 777 + 3 on 2000 plus 777 from 2100 in year 8.');
+        self::assertSame($year11['accounts'], $this->yearState(11)['accounts'], 'Nothing crosses the missing year 10.');
+        self::assertSame(1559.0, $this->primo(12, 2000), 'Year 12: 777 + 5 on 2000 plus 777 from 2100 in year 11.');
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /**
+     * CodeRabbit on PR #1109 (4707821116): years 8, 9, 11 and 12 (10 missing), year 8 waiting. «Sæt aktivt» on year 12
+     * fails in its second range (11->12) and is rolled back. Its message names the first range (Gem/opdatér on year 9),
+     * whose save carried 8->9 only and cleared the message, so year 12 was never carried. That save now carries every
+     * range after it, so the retry the message asks for repairs both.
+     */
+    public function testTheRetryAFailedActivationAcrossAMissingYearNamesRepairsEveryRange(): void
+    {
+        $this->addYear12();
+        self::assertNull(checkFollowingOpeningBalances(12));
+        followingOpeningBalanceMarkPending(8);
+        $this->removeYear(10);
+        $before = [$this->yearState(9), $this->yearState(12)];
+        $log = tempnam(sys_get_temp_dir(), 'sst1005');
+        ini_set('error_log', $log);
+        $GLOBALS['sst1005Hook'] = ['after' => "/^update kontoplan set primo = '[^']*' where regnskabsaar = '12'/", 'times' => 1, 'run' => function (): void {
+            throw new RuntimeException('test: the database refused year 12');
+        }];
+        $expected = $this->stop(['sourceYear' => 8, 'targetYear' => 9, 'failed' => true]);
+        self::assertSame($expected, syncFollowingOpeningBalances(11, 12));
+        self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The second range failed.');
+        unlink($log);
+        self::assertSame($expected, followingOpeningBalanceStop(), 'The message asks for Gem/opdatér on year 9.');
+        self::assertSame($before, [$this->yearState(9), $this->yearState(12)], 'Both ranges were rolled back.');
+        self::assertSame('0', $this->setting('openingBalancePending'));
 
         $this->sql('BEGIN');
-        self::assertNull(updateOpeningBalancesAfterYearSave(12));
+        self::assertNull(updateOpeningBalancesAfterYearSave(9));
         $this->sql('COMMIT');
-        self::assertSame(1554.0, $this->primo(12, 2000), 'Gem/opdatér on year 12 carries year 11.');
-        self::assertNull(followingOpeningBalanceStop(), 'And clears the message.');
+        self::assertSame(1554.0, $this->primo(9, 2000), 'Gem/opdatér on year 9 carries 8->9.');
+        self::assertSame(1554.0, $this->primo(12, 2000), 'And 11->12 beyond the missing year.');
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /**
+     * CodeRabbit on PR #1109 (4707821134): years 8-9, 11-12 and 14-15 (10 and 13 missing), account 2500 has no account in
+     * year 12 nor in year 15, and the message for 11->12 is shown. «Sæt aktivt» on year 15 with year 8 waiting carried
+     * year 9, blocked at 14->15 and replaced the message for 11->12 with it. It now carries 11->12 again, which still
+     * blocks, so the earliest block stays the message; and a block in a later range never replaces a message for an
+     * earlier transition the rebuild did not reach.
+     */
+    public function testANewBlockInALaterRangeKeepsTheMessageOfAnEarlierOne(): void
+    {
+        $this->addYear12();
+        $this->addYearLike11(14);
+        $this->addYearLike11(15);
+        self::assertNull(checkFollowingOpeningBalances(15));
+        $this->removeYear(10);
+        $this->sql('DELETE FROM kontoplan WHERE regnskabsaar IN (12, 15) AND kontonr = 2500');
+        $first = $this->stop(['sourceYear' => 11, 'targetYear' => 12, 'accounts' => [2500]]);
+        self::assertSame($first, syncFollowingOpeningBalances(11), 'The page check blocks at 11->12 and at 14->15.');
+        self::assertSame($first, followingOpeningBalanceStop(), 'The earliest block is the message.');
+
+        followingOpeningBalanceMarkPending(8);
+        self::assertSame($first, syncFollowingOpeningBalances(14, 15), '«Sæt aktivt» on year 15 reaches 11->12 again.');
+        self::assertSame(1554.0, $this->primo(9, 2000), 'Year 9 follows year 8.');
+        self::assertSame(777.0, $this->primo(15, 2000), 'Year 15 is blocked.');
+        self::assertSame($first, followingOpeningBalanceStop(), 'The message for 11->12 stays.');
+
+        // The stored message itself: a later block from a rebuild that did not reach 11->12 keeps it, an earlier one wins.
+        $later = $this->stop(['sourceYear' => 14, 'targetYear' => 15, 'accounts' => [2500]]);
+        saveFollowingOpeningBalanceStop($later, 8, 0, [9]);
+        self::assertSame($first, followingOpeningBalanceStop(), 'A later block does not replace a message it did not reach.');
+        $earlier = $this->stop(['sourceYear' => 8, 'targetYear' => 9, 'accounts' => [2500]]);
+        saveFollowingOpeningBalanceStop($earlier, 8, 0, []);
+        self::assertSame($earlier, followingOpeningBalanceStop(), 'An earlier block is shown first.');
+    }
+
+    /**
+     * CodeRabbit on PR #1109 (4707821081): another request archives year 8 (systemdata/fiscalYearInc/deleteFiscalYear.php
+     * deletes its accounts and postings and marks box10, its dates stay) right after the rebuild looked the years up. The
+     * transfer then read an empty year 8 twice and gave year 9 opening balances of 0. Year 8 is now a boundary.
+     */
+    public function testAYearArchivedAfterTheRebuildLookedTheYearsUpIsABoundary(): void
+    {
+        $year9 = $this->yearState(9);
+        $GLOBALS['sst1005Hook'] = ['after' => "/^select kodenr, box1, box2, box3, box4, box10 from grupper where art = 'RA'$/", 'times' => 1, 'run' => function (): void {
+            $this->archiveYear8($GLOBALS['connection']);
+        }];
+        self::assertSame([], updateFollowingOpeningBalances(8, $stop));
+        self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'Year 8 was archived after the lookup.');
+        self::assertNull($stop, 'A boundary, not a block.');
+        self::assertSame($year9, $this->yearState(9), 'Year 9 keeps its opening balances.');
+    }
+
+    /**
+     * The same archive between the two reads of the transfer, inside the rebuild's transaction: another connection
+     * commits it after year 9 is written. The second read sees year 8 archived, so the transfer is rolled back, and the
+     * rebuild goes on from year 9, the first year after the archived year, with its own opening balances.
+     */
+    public function testAYearArchivedBetweenTheTwoReadsOfATransferIsABoundary(): void
+    {
+        $schema = 'sst1005_archive_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $year9 = $this->yearState(9);
+            $GLOBALS['sst1005Hook'] = ['after' => "/^update kontoplan set primo = '[^']*' where regnskabsaar = '9'/", 'times' => 1, 'run' => function () use ($other): void {
+                $this->archiveYear8($other);
+            }];
+            self::assertNull(syncFollowingOpeningBalances(8));
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'Year 8 was archived after year 9 was written.');
+            self::assertSame($year9, $this->yearState(9), 'Year 9 keeps its opening balances.');
+            self::assertSame(1120.0, $this->primo(10, 2000), 'Year 10 follows year 9: 1000 + 100 + 20 on 2000.');
+            self::assertNull(followingOpeningBalanceStop());
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $this->rollbackOpenTransaction($this->connection);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /** Archive year 8 (2022/23) on $connection as deleteFiscalYear.php does, in one transaction. */
+    private function archiveYear8($connection): void
+    {
+        foreach (['BEGIN', "DELETE FROM transaktioner WHERE transdate <= '2023-06-30'", 'DELETE FROM kontoplan WHERE regnskabsaar = 8',
+            "UPDATE grupper SET box10 = '1764150000' WHERE art = 'RA' AND kodenr = 8", 'COMMIT'] as $sql) {
+            if (pg_query($connection, $sql) === false) {
+                self::fail(pg_last_error($connection) . " in $sql");
+            }
+        }
+    }
+
+    /**
+     * CodeRabbit on PR #1109 (4707821100): InnoDB keeps the row locks of a statement rolled back to a savepoint, so on
+     * MySQL a retry held the rows it got while it waited for the one a journal held. MySQL now tries once and leaves the
+     * year for the next check; PostgreSQL, whose rollback to a savepoint releases them, still tries again.
+     */
+    public function testOnMysqlABusyYearIsTriedOnce(): void
+    {
+        $schema = 'sst1005_mysql_once_' . getmypid();
+        $other = $this->privateSchema($schema);
+        $tries = 0;
+        try {
+            pg_query($other, 'BEGIN');
+            pg_query($other, 'SELECT id FROM kontoplan WHERE regnskabsaar = 10 AND kontonr = 2000 FOR UPDATE');
+            $GLOBALS['sst1005Rewrite'] = function (string $sql) use (&$tries): string {
+                if (strpos($sql, 'for update skip locked') !== false) {
+                    $tries++;
+                }
+                return $sql === 'select version() as version' ? "select '8.0.36' as version" : $sql;
+            };
+            $this->sql('BEGIN');
+            $GLOBALS['db_transaktion_depth'] = 1;
+            $GLOBALS['db_type'] = 'mysqli';
+            self::assertFalse(followingOpeningBalanceTryLockYear(10));
+            self::assertSame(1, $tries, 'MySQL tries once.');
+            $GLOBALS['db_type'] = 'postgres';
+            $tries = 0;
+            self::assertFalse(followingOpeningBalanceTryLockYear(10, 3));
+            self::assertSame(3, $tries, 'PostgreSQL tries again.');
+        } finally {
+            $GLOBALS['db_type'] = 'postgres';
+            $GLOBALS['db_transaktion_depth'] = 0;
+            unset($GLOBALS['sst1005Rewrite']);
+            $this->rollbackOpenTransaction($this->connection);
+            $this->rollbackOpenTransaction($other);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
     }
 
     public function testMovingTheGuardKeepsItArmedAndNeverArmsIt(): void

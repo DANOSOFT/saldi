@@ -3,6 +3,7 @@
 // 20261120 CL/MMR SST-1005 Run the automatic rebuild with the production includes/db_query.php, whose db_modify() ends the request with exit on a failed statement instead of throwing (CodeRabbit on PR #1109).
 //                 Mode 'card' runs the year card's save order for year 10: begin, the guard, its own writes, then the carry-forward (Codex round 22).
 //                 The card commits through followingOpeningBalanceCommit(), as systemdata/regnskabskort.php does (Codex round 23).
+// 20261126 CL/MMR SST-1005 Mode 'card' arms the guard and prepares the settings rows before begin, as the card now does (CodeRabbit on PR #1109).
 //
 // Started by FollowingOpeningBalancesTest::testARebuildThatTheProductionErrorPathEndsLeavesTheFailedMessage() as a
 // process of its own, because exit would end the test. Arguments: the test database, the schema holding its tables and
@@ -45,10 +46,11 @@ register_shutdown_function(static function (): void {
 	});
 });
 if ($mode === 'card') {
-	// systemdata/regnskabskort.php in the same order: the guard right after begin, the card's own writes (the
+	// systemdata/regnskabskort.php in the same order: the guard, the settings rows, begin, the card's own writes (the
 	// description and the primo reset of its year), then updateOpeningBalancesAfterYearSave() and the commit.
-	transaktion('begin');
 	$guard = followingOpeningBalanceFailureGuard(9, 9);
+	followingOpeningBalancePrepareRows();
+	transaktion('begin');
 	$primoBeforeSave = followingOpeningBalancePrimo(10, true);
 	db_modify("update grupper set beskrivelse = 'saved by the card' where art = 'RA' and kodenr = '10'", __FILE__ . ' line ' . __LINE__);
 	db_modify("update kontoplan set primo = '0' where regnskabsaar = '10'", __FILE__ . ' line ' . __LINE__);
