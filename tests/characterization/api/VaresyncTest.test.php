@@ -22,6 +22,7 @@
 // - A product barcode that matches any existing variant barcode is cleared with a message, not only
 //   one that matches the last variant barcode read.
 // - When the variant file can't be fetched, the barcode messages from the product step are still shown.
+// - A product barcode is only cleared by the same variant barcode as text: 01927771 is not 1927771.
 //
 // Pinned (MB-109):
 // - A ';' inside a quoted description stays in the description, so the product is created.
@@ -56,6 +57,8 @@
 // 20261125 CL/SZ MB-110 Bad and duplicate row tests; sync() can run Opdater fra shop.
 // 20261125 CL/SZ MB-110 Review: Opdater with a bad shop id, guessed shop ids.
 // 20261126 CL/SZ MB-110 Opdater fra shop drops a guessed shop id another product owns, without a message.
+// 20261126 CL/SZ MB-109 A kostpris header with a suffix still imports the cost.
+// 20261126 CL/SZ MB-192 A barcode that only equals a variant barcode as a number is kept.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -334,6 +337,25 @@ final class VaresyncTest extends CharacterizationTestCase
 		$this->assertStringContainsString('MB192P1:Clash one<br>Stregkode MB192VB2', $printed, 'each clash message ends its line');
 	}
 
+	public function test_a_product_barcode_is_only_cleared_by_the_same_variant_barcode(): void
+	{
+		$g = self::$group;
+		$owner = (int)self::one(
+			"INSERT INTO varer (varenr, beskrivelse, gruppe, salgspris, kostpris, lukket) VALUES ('MB192NUMOWNER', 'Numeric owner', $1, 0, 0, '0') RETURNING id",
+			[$g]
+		)['id'];
+		self::rows('INSERT INTO variant_varer (vare_id, variant_stregkode) VALUES ($1, $2)', [$owner, '1927771']);
+
+		$printed = $this->sync(self::PRODUCT_HEADER, [
+			"721;MB192N1;01927771;100;Leading zero;$g;;",
+		], []);
+
+		$r = self::one('SELECT stregkode FROM varer WHERE varenr = $1', ['MB192N1']);
+		$this->assertNotNull($r, 'item MB192N1 was created');
+		$this->assertSame('01927771', (string)$r['stregkode'], 'a barcode that only equals a variant barcode as a number is kept');
+		$this->assertStringNotContainsString('Stregkode 01927771 bruges også i varianter', $printed);
+	}
+
 	public function test_barcode_messages_are_shown_when_the_variant_file_is_missing(): void
 	{
 		$g = self::$group;
@@ -452,6 +474,21 @@ final class VaresyncTest extends CharacterizationTestCase
 		$this->assertSame('Kost qty item', $r['beskrivelse']);
 		$this->assertSame(40.0, (float)$r['kostpris']);
 		$this->assertSame((string)$g, (string)$r['gruppe']);
+	}
+
+	public function test_a_kostpris_header_with_a_suffix_still_imports_the_cost(): void
+	{
+		$g = self::$group;
+		$this->sync(
+			'id;varenr;stregkode;salgspris;kostpris_dkk;beskrivelse;gruppe;tilbud;notes',
+			["8971;MB109KS;;100;35;Suffix cost item;$g;;"],
+			[]
+		);
+
+		$r = self::one('SELECT beskrivelse, kostpris FROM varer WHERE varenr = $1', ['MB109KS']);
+		$this->assertNotNull($r, 'the product is created');
+		$this->assertSame('Suffix cost item', $r['beskrivelse']);
+		$this->assertSame(35.0, (float)$r['kostpris'], 'kostpris_dkk counts as the kostpris column, as before MB-109');
 	}
 
 	public function test_a_qty_column_that_is_not_last_is_ignored(): void

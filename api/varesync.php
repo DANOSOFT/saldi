@@ -46,6 +46,8 @@
 // 20261125 CL/SZ MB-110 A bad row in the shop product file (price, group or cost not a number, an invalid shop id, an item number twice, a shop id that belongs to another product) is skipped with a message naming the CSV row and item number, instead of stopping the run halfway or creating a second product. A shop id is no longer linked to a second product.
 // 20261125 CL/SZ MB-110 Review: Opdater fra shop checks the shop id only where it links it, so a bad shop id no longer stops a price update. A shop id guessed from the item number or EAN barcode is dropped when it can't be used, and the item is still created.
 // 20261126 CL/SZ MB-110 The sync messages escape item numbers in the page's charset (varesyncHtml()), so æøå show on a LATIN9 install. 'Opdater fra shop' also drops a guessed shop id another product owns, so it no longer reports a link for an id the shop never sent.
+// 20261126 CL/SZ MB-109 A qty or kostpris header only has to contain the name in its column, as before, so kostpris_dkk still imports cost prices.
+// 20261126 CL/SZ MB-192 The variant barcode check compares the barcodes as text, so 01234 no longer matches a variant's 1234.
 
 
 /**
@@ -73,6 +75,7 @@ function varesyncCsvRows($content) {
 
 /**
  * Whether the header row (the first row) of a shop CSV file has this column name at this position.
+ * The header there only has to contain the name, as the whole-line check before MB-109 allowed.
  * The rows are read by position, so an optional column only counts where its layout expects it.
  *
  * @param array<int, array<int, string>> $rows from varesyncCsvRows()
@@ -84,7 +87,8 @@ function varesyncHeaderAt($rows, $position, $name) {
 	if (!isset($rows[0][$position])) {
 		return 0;
 	}
-	return (strtolower(trim($rows[0][$position], "\" \t")) == $name) ? 1 : 0;
+	# the name only has to be part of the header there, as before: kostpris_dkk and shop_qty still count
+	return (strpos(strtolower(trim($rows[0][$position], "\" \t")), $name) !== false) ? 1 : 0;
 }
 
 /**
@@ -348,7 +352,7 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 #			alert("Stregkode $stregkode[$y] bruges også i $dbvnr:$dbbesk\\n stregkode slettes for $varenr[$y]:$beskrivelse[$y]");
 			$showtxt.="Stregkode $stregkode[$y] bruges også i $dbvnr:$dbbesk -- stregkode slettet for $varenr[$y]:$beskrivelse[$y]<br>";
 			$stregkode[$y]=NULL;
-		} elseif ($stregkode[$y] && in_array($stregkode[$y],$varBarCode)) {
+		} elseif ($stregkode[$y] && in_array((string)$stregkode[$y],$varBarCode,true)) {
 			$showtxt.="Stregkode $stregkode[$y] bruges også i varianter,  -- stregkode slettet for $varenr[$y]:$beskrivelse[$y]<br>";
 			$stregkode[$y]=NULL;
 		}
