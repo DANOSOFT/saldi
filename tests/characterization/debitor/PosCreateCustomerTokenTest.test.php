@@ -7,12 +7,14 @@
 // History:
 // 20261123 CL/MJ SD-844 K31: created.
 // 20261126 CL/MJ SD-844 K31: a database error in the Shopify mode check falls back to the old form.
+// 20261126 CL/MJ SD-844 K31: the cashier's alert keeps æøå on a LATIN9 tenant.
 
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 
 require_once dirname(__DIR__, 3) . '/debitor/pos_ordre_includes/createCustomer.php';
+require_once dirname(__DIR__, 3) . '/includes/stdFunc/jsString.php';
 
 final class PosCreateCustomerTokenTest extends TestCase
 {
@@ -66,5 +68,20 @@ final class PosCreateCustomerTokenTest extends TestCase
 
         self::assertSame(0, $exit, implode("\n", $out));
         self::assertSame('false', trim(implode("\n", $out)));
+    }
+
+    public function testTheAlertKeepsTheDanishLettersOnALatin9Tenant(): void
+    {
+        // findtekst() gives a LATIN9 tenant its text in ISO-8859-15; json_encode() of that is false.
+        $saved = $GLOBALS['db_encode'] ?? null;
+        $GLOBALS['db_encode'] = 'LATIN9';
+        try {
+            $script = pos_customer_create_alert_script(mb_convert_encoding('Åbn kundeopslaget igen', 'ISO-8859-15', 'UTF-8'), 'pos_ordre.php?id=7');
+        } finally {
+            $GLOBALS['db_encode'] = $saved;
+        }
+
+        self::assertStringContainsString('alert("\\u00c5bn kundeopslaget igen")', $script);
+        self::assertStringContainsString('window.location.href = "pos_ordre.php?id=7"', $script);
     }
 }

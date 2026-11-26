@@ -29,6 +29,7 @@
 // 20261124 CL/MJ SD-844 K31: a form resent after its customer was deleted creates a new one instead of failing on the old token row.
 //                The payment terms are cut to the column's 15 characters.
 // 20261126 CL/MJ SD-844 K31: pos_customer_create_shopify_mode() answers false when the Shopify tables can't be read, so the customer lookup still opens.
+// 20261126 CL/MJ SD-844 K31: pos_customer_create_alert_script(), the cashier's alert through jsString().
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
@@ -61,6 +62,15 @@ function pos_customer_create_shopify_mode() {
 		error_log('pos_customer_create_shopify_mode: ' . $e->getMessage());
 		return false;
 	}
+}
+
+/**
+ * The script that tells the cashier $message and returns to the sale. The text comes from findtekst() in
+ * the database's encoding; jsString() makes it a valid string literal on a LATIN9 tenant too, where
+ * json_encode() of the raw text fails and the alert would be empty.
+ */
+function pos_customer_create_alert_script(string $message, string $back): string {
+	return "<script>alert(" . jsString(array($message)) . "); window.location.href = " . json_encode($back, JSON_HEX_TAG) . ";</script>\n";
 }
 
 /** How many create-form tokens a session keeps; the newest ones, as a till has few lookups open at once. */
