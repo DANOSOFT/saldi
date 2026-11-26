@@ -5,7 +5,6 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.25 ---
-// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -133,7 +132,7 @@
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
 // 20261112 CL/SS MB-49: The card terminal's return shows afslut()'s error, as the other afslut() callers do.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261124 CL/MJ MB-188 A payment on account, or an amount ending in k, without a customer opens the customer lookup (kontoopslag()) instead of stopping on the undefined pos_kontoopslag().
+// 20261124 CL/MJ MB-188: A payment on account, or an amount ending in k, without a customer opens the customer lookup (kontoopslag()) instead of stopping on the undefined pos_kontoopslag().
 // 20261125 CL/SS MB-49: The terminal and day-end refusal alerts go through jsString(), so a LATIN9 text with æøå is not blank.
 @session_start();
 $s_id = session_id();
