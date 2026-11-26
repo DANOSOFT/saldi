@@ -39,6 +39,8 @@
 // 20261126 CL/MJ SD-760 (review): the sweep abandons the order.move of an order whose move job died, so saldi-behandlet is not held back for good.
 //                Any exception or error in the move is a failed attempt, and a move the client stops at the deadline yields.
 //                An expired barrier with nothing left to move is done without an alarm, and a line that can't be planned is never unresolved.
+// 20261126 CL/MJ SD-760 (Sol): the sweep abandons a pending order.move only once no order.move job is left to run it.
+//                A queued move still reads after the sweep and resolves the alarm when nothing needed moving.
 
 require_once __DIR__ . '/../noteAppend.php';
 require_once __DIR__ . '/../errors.php';
@@ -388,7 +390,8 @@ function shopify_move_alarm(int $shopId, int $ordreId, string $message): void {
  * their items dirty so the stock push sends them, and raises an alarm per invoiced web order. A
  * barrier is normally released or expired by its order's move; this catches the orders whose move
  * never ran. An order cancelled or not invoiced has no move to wait for, so it gets no alarm. An
- * order.move still pending (its job died) is recorded abandoned, so saldi-behandlet is written.
+ * order.move still pending with no order.move job queued or running (its job died) is recorded
+ * abandoned, so saldi-behandlet is written; a job still queued reads the order and decides itself.
  *
  * @param array<string, mixed> $job
  * @return array{outcome: string}
@@ -396,12 +399,14 @@ function shopify_move_alarm(int $shopId, int $ordreId, string $message): void {
 function shopify_barrier_sweep_job(array $job, float $deadline, callable $heartbeat): array {
 	$shopId = (int)$job['shop_id'];
 	shopify_db_transaction(function () use ($shopId): void {
+		$stuck = shopify_db_rows("SELECT l.id FROM shopify_order_links l WHERE l.shop_id = $1 AND l.direction = 'web'
+			AND l.flags -> $2::text ->> 'order.move' = 'pending' AND NOT EXISTS (SELECT 1 FROM shopify_jobs j
+				WHERE j.type = 'order.move' AND j.state IN ('queued', 'running') AND j.payload ->> 'link_id' = l.id::text)",
+			array($shopId, SHOPIFY_WRITEBACK_NAMESPACE));
+		foreach ($stuck as $link) {
+			shopify_writeback_mark((int)$link['id'], 'order.move', 'abandoned');
+		}
 		foreach (shopify_barrier_expire($shopId) as $order) {
-			$stuck = shopify_db_rows("SELECT id FROM shopify_order_links WHERE shop_id = $1 AND ordre_id = $2 AND direction = 'web'
-				AND flags -> $3::text ->> 'order.move' = 'pending'", array($shopId, $order['ordre_id'], SHOPIFY_WRITEBACK_NAMESPACE));
-			foreach ($stuck as $link) {
-				shopify_writeback_mark((int)$link['id'], 'order.move', 'abandoned');
-			}
 			$waiting = shopify_db_rows("SELECT 1 FROM shopify_order_links WHERE shop_id = $1 AND ordre_id = $2 AND direction = 'web'
 				AND state = 'invoiced' AND cancelled_at IS NULL", array($shopId, $order['ordre_id']));
 			if (!$waiting) {

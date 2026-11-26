@@ -9,6 +9,7 @@
 // 20261113 CL/MJ SD-760: created.
 // 20261126 CL/MJ SD-760: a move job that died no longer holds saldi-behandlet back, and a bug in the move is a failed attempt.
 //                An expired barrier with nothing to move is done without an alarm.
+// 20261126 CL/MJ SD-760 (Sol): a move still queued when the sweep ran reads the order and resolves the alarm.
 
 use PHPUnit\Framework\TestCase;
 
@@ -320,6 +321,31 @@ final class OrderMoveSyncTest extends TestCase
         $this->assertSame(['abandoned'], $this->barriers($ordreId));
         $this->assertSame('abandoned', $this->writeback($order['order'])['order.move']);
         $this->assertSame(['saldi-behandlet'], $run['orders'][$order['order']]['tags']);
+    }
+
+    /** The sweep ran first while the move job was still queued: the job still reads, finds nothing to move, and resolves the alarm. */
+    public function testAMoveQueuedWhenTheSweepRanStillFindsNothingToMoveAndResolvesTheAlarm(): void
+    {
+        $order = $this->steps(['web_order', [['STOL-X', 1, [0 => 5]]]])['results'][0];
+        $ordreId = $this->invoiced($order['order'], [['gid' => $order['lines']['STOL-X'], 'rows' => [['STOL-X', 91, 1]]]]);
+        $linkId = (int)$this->sql('SELECT id FROM shopify_order_links WHERE order_gid = $1', [$order['order']])[0]['id'];
+        $this->sql("DELETE FROM shopify_jobs");
+        $this->sql("UPDATE shopify_order_links SET flags = flags || '{\"writeback_v1\": {\"order.tags\": \"done\", \"order.move\": \"pending\"}}'::jsonb");
+        $this->sql("INSERT INTO shopify_jobs (type, shop_id, dedupe_key, payload, priority, next_run_at) VALUES ('order.move', $1, $2, $3::jsonb, 15, now() + interval '2 days')",
+            [$this->shopId(), "hml:{$order['order']}", json_encode(['link_id' => $linkId, 'ordre_id' => $ordreId, 'order_gid' => $order['order']])]);
+        $this->sql("UPDATE shopify_move_barriers SET expires_at = now() - interval '1 day'");
+        $this->sql("INSERT INTO shopify_jobs (type, shop_id, dedupe_key, payload, priority) VALUES ('barrier.sweep', $1, 'hml:sweep', '{}'::jsonb, 15)", [$this->shopId()]);
+
+        $swept = $this->steps(['pass']);
+        $alarmed = $this->sql("SELECT ref FROM shopify_errors WHERE kind = 'order.move' AND resolved_at IS NULL");
+        $this->retryNow();
+        $run = $this->steps(['pass']);
+
+        $this->assertSame([['barrier.sweep', 'done']], $swept['results'][0]);
+        $this->assertSame([(string)$ordreId], array_column($alarmed, 'ref'), 'the sweep alarms');
+        $this->assertSame([['order.move', 'done']], $run['results'][0]);
+        $this->assertSame('done', $this->writeback($order['order'])['order.move']);
+        $this->assertSame([], $this->sql("SELECT ref FROM shopify_errors WHERE kind = 'order.move' AND resolved_at IS NULL"), 'resolved by the move');
     }
 
     /** A bug in the move (here an order id that is no Order gid) is a failed attempt, retried and abandoned like any other. */
