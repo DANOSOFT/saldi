@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/posDeliveryChoices.php --- ver 5.1.1 --- 2026.11.24 ---
+// ---- systemdata/posDeliveryChoices.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,16 @@
 //                Indstillinger -> Kasse -> Skærm & kassemenuer -> Ekspedition links here (pos.screen.delivery_choices), only where the Shopify schema is installed.
 //                The table and its save are the ones K33 put on PoS-valg (diverseIncludes/posSaleSettings.php), so a choice an order already uses still keeps its meaning.
 //                CSRF and settings.pos write are checked before the save; every save redirects (PRG), and a refused row is shown on the next page.
-@session_start();
+// 20261126 CDX/NTR Use descriptive page text keys and document the settings page include variables.
+
+/**
+ * @var int $sprog_id From includes/online.php.
+ * @var string $buttonColor From includes/online.php.
+ * @var string $buttonTxtColor From includes/online.php.
+ */
+if (session_status() !== PHP_SESSION_ACTIVE) {
+	session_start();
+}
 $s_id = session_id();
 ob_start();
 
@@ -91,14 +100,14 @@ $charset = st_charset();
 .pd-table { padding: 12px 20px; overflow-x: auto; }
 .pd-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--st-grid); }
 </style>
-<script>document.title = <?= json_encode(mb_convert_encoding(st_txt(7203), 'UTF-8', $charset)) ?>;</script>
-<?= settings_breadcrumb_script(settings_breadcrumb('pos', st_txt(7203), (int) $sprog_id), $charset) ?>
+<script>document.title = <?= json_encode(mb_convert_encoding(st_txt('pos.delivery.page.title'), 'UTF-8', $charset)) ?>;</script>
+<?= settings_breadcrumb_script(settings_breadcrumb('pos', st_txt('pos.delivery.page.title'), (int) $sprog_id), $charset) ?>
 <div class="st-page" style="<?= st_h(st_accent_style((string) $buttonColor, (string) $buttonTxtColor)) ?>">
   <section class="st-phead">
     <div>
       <?= settings_back_button() ?>
-      <h1><?= st_t(7203) ?></h1>
-      <p class="st-lead"><?= st_t(7204) ?></p>
+      <h1><?= st_t('pos.delivery.page.title') ?></h1>
+      <p class="st-lead"><?= st_t('pos.delivery.page.description') ?></p>
     </div>
   </section>
 <?php if ($flash) { ?>
@@ -109,7 +118,7 @@ $charset = st_charset();
   </div>
 <?php } ?>
   <div class="st-layout st-layout-list">
-    <?= settings_menu_html(settings_hub_menu((int) $sprog_id, 'pos.screen'), (int) $sprog_id, array('label' => st_txt(7203))) ?>
+    <?= settings_menu_html(settings_hub_menu((int) $sprog_id, 'pos.screen'), (int) $sprog_id, array('label' => st_txt('pos.delivery.page.title'))) ?>
     <div>
 <?php if ($supported) { ?>
       <form class="st-card" method="post" action="posDeliveryChoices.php">

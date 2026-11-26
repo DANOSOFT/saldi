@@ -6957,10 +6957,6 @@
 7200	Brand	Brand	Brand
 7201	Brand salget oprettes med på denne kasse. Gemmes som ordrens sprog/formularvariant	Brand a sale is created with on this terminal. Stored as the order's language/form variant	Brand salget opprettes med på denne kassen. Lagres som ordrens språk/formularvariant
 7202	Ikke gemt, mangler formularvariant	Not saved, no matching form variant	Ikke lagret, mangler formularvariant
-7203	Leveringsmåder i kassen	Delivery choices at the till	Leveringsmåter i kassen
-7204	De leveringsmåder, ekspedienten kan vælge på et salg (afhentning eller levering), og den leveringsmetode og de tags, butiksordren sendes til Shopify med. Uden en aktiv leveringsmåde er alle salg taget med.	The delivery choices the cashier can pick on a sale (pickup or delivery), and the delivery method and tags the store order is sent to Shopify with. Without an active choice every sale is taken along.	Leveringsmåtene ekspeditøren kan velge på et salg (henting eller levering), og leveringsmetoden og taggene butikkordren sendes til Shopify med. Uten en aktiv leveringsmåte er alle salg tatt med.
-7205	Ret leveringsmåder	Edit delivery choices	Rediger leveringsmåter
-
 7600	Ikke forfalden	Not yet due	Ikke forfalt
 7601	%s valgte konti blev sprunget over, fordi de ikke har et positivt forfaldent beløb.	%s selected accounts were skipped because they have no positive overdue balance.	%s valgte kontoer ble hoppet over fordi de ikke har et positivt forfalt beløp.
 7602	Din browser blokerede vinduet. Klik her for at åbne resultatet.	Your browser blocked the window. Click here to open the result.	Nettleseren din blokkerte vinduet. Klikk her for å åpne resultatet.
