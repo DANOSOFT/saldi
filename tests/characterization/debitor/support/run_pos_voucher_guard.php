@@ -3,13 +3,20 @@
 // K61 contact check and its two settings queries stubbed, and reports whether the gift card
 // number form was shown and which alerts the cashier got.
 //
-// usage: php run_pos_voucher_guard.php <betaling> <indbetaling> <ok|refuse|refused-earlier> [giftcardNumber]
+// usage: php run_pos_voucher_guard.php <betaling> <indbetaling> <ok|refuse|refused-earlier> [giftcardNumber] [godkendt] [voucherItems]
+// giftcardNumber '' = none posted; godkendt = the terminal's answer in the request ('OK' = approved);
+// voucherItems = the tab-joined voucher flags per pay card (default: only Gavekort is a voucher).
 // refused-earlier: afslut() or delbetal() already refused the sale and showed it in this request.
 // prints JSON: {result, guardCalls, formShown, alerts}
 
 require_once __DIR__ . '/pos_lift.php';
 
-[$self, $betaling, $indbetaling, $verdict, $giftcardNumber] = $argv + [null, '', '', 'ok', null];
+[$self, $betaling, $indbetaling, $verdict, $giftcardNumber, $godkendt, $voucherItems] = $argv + [null, '', '', 'ok', null, '', "\ton"];
+if ($giftcardNumber === '') {
+    $giftcardNumber = null;
+}
+$GLOBALS['godkendt'] = $godkendt;
+$GLOBALS['voucherItems'] = $voucherItems;
 $GLOBALS['alerts'] = [];
 
 /** includes/std_func.php's alert(), stubbed: records the text instead of printing a script. */
@@ -48,7 +55,7 @@ function db_fetch_array($qtxt)
         return ['box5' => "Kontant\tGavekort"];
     }
     if (str_contains($qtxt, "voucherItems")) {
-        return ['var_value' => "\ton"];
+        return ['var_value' => $GLOBALS['voucherItems']];
     }
     return false;
 }

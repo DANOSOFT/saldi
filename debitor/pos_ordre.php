@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.25 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -138,6 +138,7 @@
 // 20261124 CL/LH K33 A refused delivery also clears the tendered amount, so a c, g or k suffix cannot pay the sale; a sale moved onto a table's sale takes its delivery along (pos_move_sale_delivery()).
 // 20261124 CL/MJ SD-844 K61: a "på beløb" payment is skipped once the contact refusal was shown in the request, so a refused gift card on amount shows one alert, not two.
 // 20261125 CL/SS MB-49: The terminal and day-end refusal alerts go through jsString(), so a LATIN9 text with æøå is not blank.
+// 20261126 CL/MJ SD-844 K61: a table's sale emptied by a move and reused clears the email and phone too, so the previous customer's contact can't satisfy the contact rule.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -512,7 +513,8 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 			# 20261120 CL/LH K33/K34 The emptied sale is reused for the table's next customer, so it starts as
 			# "taget med" - unless the table was moved onto itself and kept its lines.
 			pos_move_sale_delivery((int) $id, (int) $r['id']); # 20261124 CL/LH K33 the delivery goes along with the lines
-			$tom_reset = ((int) $r['id'] !== (int) $id) ? pos_reset_sale_delivery_sql() : '';
+			// 20261126 CL/MJ SD-844 K61: the reused sale also loses the previous customer's email and phone, as Forfra does
+			$tom_reset = ((int) $r['id'] !== (int) $id) ? pos_reset_sale_delivery_sql() . ",email='',phone=''" : '';
 			db_modify("update ordrer set hvem=''" . $tom_reset . " where id='$id'", __FILE__ . " linje " . __LINE__);
 			$id = $r['id'];
 		} else {

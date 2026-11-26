@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- debitor/pos_ordre_includes/voucherFunc/voucherPay.php --- ver 5.1.1 --- 2026.11.24 ---
+// ---- debitor/pos_ordre_includes/voucherFunc/voucherPay.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 //                The card number form is not shown and no payment is recorded, so the gift card path in pos_ordre.php cannot settle such a sale either.
 // 20261123 CL/MJ SD-844 K61: the check also runs when a gift card number is posted with another payment type, and the refusal is shown to the cashier.
 // 20261124 CL/MJ SD-844 K61: the refusal is not shown a second time when afslut() or delbetal() already showed it in this request.
+// 20261126 CL/MJ SD-844 K61: the check runs only for a gift card the payment really names, and not after a card terminal approved the payment.
 
 include_once(__DIR__ . "/../deliveryContact.php");
 
@@ -44,13 +45,18 @@ function voucherPay($orderId, $betaling, $modtaget) {
 	$qtxt = "select box5 from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$payCards = explode(chr(9),$r['box5']);
+	$payCardMatched = false;
 	for ($p=0;$p<count($payCards);$p++) {
-		if (trim(str_replace('på beløb','',$betaling)) == $payCards[$p]) $payCardNo = $p;
+		if (trim(str_replace('på beløb','',$betaling)) == $payCards[$p]) {
+			$payCardNo = $p;
+			$payCardMatched = true;
+		}
 	}
 	$qtxt = "select var_value from settings where var_name = 'voucherItems' and var_grp = 'Paycards'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $vouchers = explode(chr(9),$r['var_value']);
 	// 20261120 CL/MJ SD-844 K61: the same check as afslut() and delbetal(), for the gift card path that reaches here without them
-	if (($vouchers[$payCardNo] || isset($_POST['giftcardNumber'])) && !$indbetaling) {
+	// A card the terminal already approved (godkendt=OK) is not stopped: the money has moved, as in afslut()
+	if ((($payCardMatched && $vouchers[$payCardNo]) || isset($_POST['giftcardNumber'])) && !$indbetaling && ($GLOBALS['godkendt'] ?? '') !== 'OK') {
 		$alreadyShown = !empty($GLOBALS['pos_delivery_contact_refused']);
 		$check = pos_validate_checkout_sale($orderId);
 		if (!$check['ok']) {
