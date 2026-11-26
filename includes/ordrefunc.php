@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-25 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -166,6 +166,9 @@
 //                With a reference it raises rest on the batches the original line sold from.
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261109 CL/SZ MB-136 ansatopslag(): the contact link URL-encodes the name and escapes its text, so choosing Bo O'Neill no longer saves Bo O.
+//                Without a sort it sorts by 'navn' instead of the bare constant navn, which stopped the lookup with a fatal error on PHP 8.
+//                $charset is now a global there for the escaping.
 // 20261112 CL/SS MB-49 bogfor_nu(): a POS sale with a card payment that posts nothing is refused instead of set to status 4.
 //                A card name without a card account on a 0-kr sale (cash withdrawal) wrote no rows, so the cash count couldn't see the sale.
 // 20261116 CL/SS MB-49 bogfor_nu(): the nothing-posted check counts the rows this posting wrote on the till.
@@ -180,6 +183,7 @@
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
+// 20261126 CL/SZ MB-136 ansatopslag(): the sort is one of the four column links, the account id is cast, and a contact without a name prints without a deprecation.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -3960,6 +3964,7 @@ function ansatopslag($sort, $fokus, $id)
 {
 	global $bgcolor;
 	global $bgcolor5;
+	global $charset;
 
 	global $menu;
 
@@ -3977,7 +3982,7 @@ function ansatopslag($sort, $fokus, $id)
 		$id = '0';
 	$query = db_select("select konto_id from ordrer where id = $id", __FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
-	$konto_id = $row['konto_id'];
+	$konto_id = (int)$row['konto_id'];
 
 	$fokus = $fokus . "&konto_id=" . $konto_id;
 
@@ -3991,9 +3996,10 @@ function ansatopslag($sort, $fokus, $id)
 	print " </tr>\n";
 
 
-	$sort = $_GET['sort'];
-	if (!$sort) {
-		$sort = navn;
+	# one of the four columns the headings link to
+	$sort = $_GET['sort'] ?? '';
+	if (!in_array($sort, array('navn', 'tlf', 'mobil', 'email'), true)) {
+		$sort = 'navn';
 	}
 
 	if (!$id) {
@@ -4009,7 +4015,7 @@ function ansatopslag($sort, $fokus, $id)
 			$color = '#000000';
 		}
 		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=$row[navn]'>$row[navn]</a></td>";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode((string)$row['navn']) . "'>" . htmlspecialchars((string)$row['navn'], ENT_QUOTES, $charset) . "</a></td>";
 		print "<td> $row[tlf]</td>";
 		print "<td> $row[mobil]</td>";
 		print "<td> $row[email]</td>";
