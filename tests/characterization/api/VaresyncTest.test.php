@@ -465,7 +465,7 @@ final class VaresyncTest extends CharacterizationTestCase
 		$g = self::$group;
 		$this->sync(
 			'id;varenr;stregkode;salgspris;kostpris_dkk;beskrivelse;gruppe;tilbud;notes',
-			["871;MB109KS;;100;35;Suffix cost item;$g;;"],
+			["8971;MB109KS;;100;35;Suffix cost item;$g;;"],
 			[]
 		);
 
