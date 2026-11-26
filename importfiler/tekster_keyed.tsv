@@ -20,6 +20,31 @@ order_text.not_found	Teksten findes ikke længere. Dine ændringer er ikke gemt.
 order_text.save_failed	Teksten kunne ikke gemmes. Dine ændringer vises stadig nedenfor.	The text could not be saved. Your changes are still shown below.	Teksten kunne ikke lagres. Endringene dine vises fortsatt nedenfor.
 order_text.unsupported_characters	Teksten indeholder tegn, som regnskabet ikke kan gemme. Ret teksten, og prøv igen.	The text contains characters this account cannot store. Edit the text and try again.	Teksten inneholder tegn som regnskapet ikke kan lagre. Rett teksten og prøv igjen.
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
+pos.delivery.date	Ønsket leveringsdato	Requested delivery date	Ønsket leveringsdato
+pos.delivery.error.choice	Leveringsmåden findes ikke eller er ikke længere aktiv.	The delivery option does not exist or is no longer active.	Leveringsmåten finnes ikke eller er ikke lenger aktiv.
+pos.delivery.error.date	Ønsket leveringsdato skal være en gyldig dato (dd-mm-åååå).	The requested delivery date must be a valid date (dd-mm-yyyy).	Ønsket leveringsdato må være en gyldig dato (dd-mm-åååå).
+pos.delivery.error.past	Ønsket leveringsdato kan ikke ligge før i dag.	The requested delivery date cannot be before today.	Ønsket leveringsdato kan ikke være før i dag.
+pos.delivery.error.save	Leveringsmåden kunne ikke gemmes. Prøv igen.	The delivery option could not be saved. Try again.	Leveringsmåten kunne ikke lagres. Prøv igjen.
+pos.delivery.label	Levering	Delivery	Levering
+pos.delivery.page.description	De leveringsmåder, ekspedienten kan vælge på et salg (afhentning eller levering), og den leveringsmetode og de tags, butiksordren sendes til Shopify med. Uden en aktiv leveringsmåde er alle salg taget med.	The delivery choices the cashier can pick on a sale (pickup or delivery), and the delivery method and tags the store order is sent to Shopify with. Without an active choice every sale is taken along.	Leveringsmåtene ekspeditøren kan velge på et salg (henting eller levering), og leveringsmetoden og taggene butikkordren sendes til Shopify med. Uten en aktiv leveringsmåte er alle salg tatt med.
+pos.delivery.page.edit	Ret leveringsmåder	Edit delivery choices	Rediger leveringsmåter
+pos.delivery.page.title	Leveringsmåder i kassen	Delivery choices at the till	Leveringsmåter i kassen
+pos.delivery.settings.active	Aktiv	Active	Aktiv
+pos.delivery.settings.delete	Slet	Delete	Slett
+pos.delivery.settings.help	Valgene i kassen. Uden valg er et salg "Taget med". En leveringsmåde, der er brugt på en ordre, gemmes som en ny version, når den rettes.	The options in the POS. Without an option a sale is "Taken along". A delivery option used on an order is saved as a new version when it is edited.	Valgene i kassen. Uten valg er et salg "Tatt med". En leveringsmåte som er brukt på en ordre, lagres som en ny versjon når den endres.
+pos.delivery.settings.name	Navn	Name	Navn
+pos.delivery.settings.new	Ny leveringsmåde	New delivery option	Ny leveringsmåte
+pos.delivery.settings.not_saved	Leveringsmåde ikke gemt, fordi den er ændret af en anden. Genindlæs siden og prøv igen	Delivery option not saved because someone else changed it. Reload the page and try again	Leveringsmåte ikke lagret fordi den er endret av en annen. Last inn siden på nytt og prøv igjen
+pos.delivery.settings.refused	Leveringsmåde ikke gemt (navn og type skal udfyldes)	Delivery option not saved (name and type are required)	Leveringsmåte ikke lagret (navn og type må fylles ut)
+pos.delivery.settings.save_failed	Leveringsmåden kunne ikke gemmes. Prøv igen.	The delivery option could not be saved. Try again.	Leveringsmåten kunne ikke lagres. Prøv igjen.
+pos.delivery.settings.shopify_value	Leveringsmetode i Shopify	Delivery method in Shopify	Leveringsmetode i Shopify
+pos.delivery.settings.sort	Sortering	Sort order	Sortering
+pos.delivery.settings.tags	Tags (kommasepareret)	Tags (comma separated)	Tagger (kommaseparert)
+pos.delivery.settings.title	Leveringsmåder i kassen	Delivery options in the POS	Leveringsmåter i kassen
+pos.delivery.settings.type	Type	Type	Type
+pos.delivery.type.afhentning	Afhentning	Pickup	Henting
+pos.delivery.type.levering	Levering	Delivery	Levering
+pos.delivery.type.taget_med	Taget med	Taken along	Tatt med
 pos.payment.card_amount_missing	Indtast beløbet, før du betaler med %s. En betaling på 0 kr. kan ikke bogføres.	Enter the amount before you pay with %s. A payment of 0 cannot be posted.	Skriv inn beløpet før du betaler med %s. En betaling på 0 kr. kan ikke bokføres.
 pos.posting.card_account_missing	Betalingen med %s kan ikke bogføres, da %s ikke har en konto under kortbetalinger. Salget er ikke afsluttet.	The payment with %s cannot be posted, as %s has no account under card payments. The sale was not completed.	Betalingen med %s kan ikke bokføres, da %s ikke har en konto under kortbetalinger. Salget er ikke avsluttet.
 pos.posting.nothing_posted	Salget kunne ikke bogføres, da der ikke blev dannet nogen posteringer. Salget er ikke afsluttet.	The sale could not be posted, as no postings were created. The sale was not completed.	Salget kunne ikke bokføres, da det ikke ble dannet noen posteringer. Salget er ikke avsluttet.
