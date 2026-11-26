@@ -9,6 +9,7 @@
 - [Include paths](convention_include_paths.md) — Use `__DIR__ . '/path'` for new includes; prospective-only, upgrade legacy bare relative includes only when already editing that enclosing block
 - [Pre-PR test report](feedback_pre_pr_test_report.md) — Before a draft PR goes ready, proactively list affected functions/files with concrete manual test scenarios for each
 - [SQL escaping](convention_sql_escaping.md) — Cast (`intval`/`floatval`) or escape (`db_escape_string`) any externally-sourced value before interpolating into a SQL string; `injecttjek()` is not a substitute
+- [Grid text](convention_grid_text.md) — Apply text protection in the shared renderers; keep prepared display values separate from raw row data.
 - [Curly braces](convention_curly_braces.md) — Require `{}` for if/elseif/else/for/foreach/while/do-while whenever the body isn't on the same line as the control statement
 - [SQL alias resolution](convention_sql_alias_resolution.md) — ORDER BY/GROUP BY alias-vs-column ambiguity resolves differently on mysqli vs Postgres; repeat the expression in GROUP BY instead of relying on the bare alias
 - [Controller/view separation](convention_controller_view_separation.md) — Separate request handling + DB writes from rendering (Post/Redirect/Get); migrate legacy page scripts opportunistically (Boy Scout rule), don't rewrite wholesale
