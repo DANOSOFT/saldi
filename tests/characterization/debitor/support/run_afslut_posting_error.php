@@ -13,6 +13,7 @@
 // 20261112 CL/SS MB-49: created.
 // 20261117 CL/SS MB-49: the order lines' total ('lines' in the case) stands in for pos_lines_amount().
 // 20261125 CL/SS MB-49: the real pos_payment_is_card() is loaded, not stood in for.
+// 20261126 CL/MJ SD-844 K61: no Shopify schema here, so afslut()'s delivery contact check lets the sale through.
 
 $case = json_decode($argv[1], true, 512, JSON_THROW_ON_ERROR);
 chdir($argv[2] . '/debitor');
@@ -67,6 +68,9 @@ function db_select($sql, ...$args) {
 	}
 	if (str_contains($sql, "art='POSBUT'")) {
 		return new ArrayIterator([['box9' => '']]);
+	}
+	if (str_contains($sql, "var_name = 'schema_version'")) {
+		return new ArrayIterator([]);
 	}
 	if (str_contains($sql, 'box10')) {
 		return new ArrayIterator([]);
