@@ -176,6 +176,8 @@
 // 20261118 CL/SS MB-49 bogfor_nu(): a card payment on a 0-kr sale with no card account is refused per sale, before the day-end batch adds them up.
 //                Another sale's rows in the same batch no longer hide it.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261110 CL/MJ SST-960 A delivery or return of an item with batch control is counted once in lagerstatus, by linjeopdat().
+//                lagerstatus() and its calls in batch_salg_lev() and krediter() are removed.
 // 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
@@ -911,7 +913,6 @@ function batch_salg_lev($id, $levdate, $fakturadate, $beholdning, $vare_id, $ant
 			$r2 = db_fetch_array($q2);
 			$batch_salg_lev_id = $r2['id']; #Reservationen opdateres med ID fra batch salg   
 			db_modify("update reservation set batch_salg_id='$batch_salg_lev_id' where batch_salg_id=$linje_id*-1", __FILE__ . " linje " . __LINE__);
-			lagerstatus($vare_id, $variant_id, $lager, $rest);
 		} else {
 			print "<BODY onLoad=\"javascript:alert('Reserveret antal stemmer ikke overens med antal til levering (pos nr: $posnr)')\">";
 			$r2 = db_fetch_array(db_select("select art from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__)); #20131105
@@ -948,7 +949,7 @@ function batch_salg_lev($id, $levdate, $fakturadate, $beholdning, $vare_id, $ant
 				db_modify("update reservation set antal='$diff[$x]' where linje_id='$linje_id' and vare_id='$vare_id' and batch_kob_id='$batch_kob_id[$x]'", __FILE__ . " linje " . __LINE__);
 			else
 				db_modify("delete from reservation where linje_id='$linje_id' and vare_id='$vare_id' and batch_kob_id='$batch_kob_id[$x]'", __FILE__ . " linje " . __LINE__);
-			lagerstatus($vare_id, $variant_id, $lager, $rest);
+			// 20261110 CL/MJ SST-960 linjeopdat() has already taken the delivery off lagerstatus.
 			$rest = 0;
 		} else {
 			print "<BODY onLoad=\"javascript:alert('Hmm - Indkbsordre kan ikke findes - levering kan ikke foretages - Kontakt systemadministrator')\">";
@@ -957,33 +958,6 @@ function batch_salg_lev($id, $levdate, $fakturadate, $beholdning, $vare_id, $ant
 		}
 	}
 } # endfunc batch_salg_lev
-###############################################################
-function lagerstatus($vare_id, $variant_id, $lager, $antal)
-{
-	global $ref;
-
-	# Denne funktion bruges til regulering af lagerbeholdning i tilfælde hvor der er flere lagre 
-	# Kaldes fra funktionen batch_salg_lev... 
-
-	(int) $variant_id;
-	if (!$lager) {
-		if ($row = db_fetch_array(db_select("select afd from ansatte where navn = '$ref'", __FILE__ . " linje " . __LINE__))) {
-			if ($row = db_fetch_array(db_select("select kodenr from grupper where box1='$row[afd]' and art='LG'", __FILE__ . " linje " . __LINE__))) {
-				$lager = $row['kodenr'];
-			}
-		}
-	}
-	$lager = $lager * 1;
-
-	$query = db_select("select * from lagerstatus where vare_id='$vare_id' and variant_id='$variant_id' and lager='$lager'", __FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query)) {
-		$tmp = $row['beholdning'] - $antal;
-		db_modify("update lagerstatus set beholdning=$tmp where id=$row[id]", __FILE__ . " linje " . __LINE__);
-	} else { #20140821
-		$tmp = $antal * -1;
-		db_modify("insert into lagerstatus (vare_id, variant_id, lager, beholdning) values ('$vare_id','$variant_id','$lager','$tmp')", __FILE__ . " linje " . __LINE__);
-	}
-}
 ###############################################################
 function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id, $serienr, $kred_linje_id, $lager, $variant_id)
 {
@@ -1033,7 +1007,7 @@ function krediter($id, $levdate, $beholdning, $vare_id, $antal, $pris, $linje_id
 	#	$r=db_fetch_array(db_select("select max(id) as id from batch_kob where linje_id=$linje_id",__FILE__ . " linje " . __LINE__));
 	#	$q = db_select("select id from batch_kob where linje_id=$kred_linje_id",__FILE__ . " linje " . __LINE__);
 	#	$batch_kob_id=$r['id'];
-	lagerstatus($vare_id, $variant_id, $lager, -$antal);
+	// 20261110 CL/MJ SST-960 linjeopdat() has already put the return back on lagerstatus.
 	if ($serienr || $serienr == '0') {
 		$q = db_select("select * from serienr where salgslinje_id=-$kred_linje_id", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
