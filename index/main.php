@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.1.1 --- 2026-11-13 ---
+// ---- index/main.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -87,6 +87,8 @@
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261110 CL/MMR SST-991 The System menu shows only "Sikkerhedskopi" (text 521, as the other menus use), so it is no longer cut off as "Sikkerhedskopi/Genda".
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261124 CL/PS SST-1040 Show the "Saldi er blevet opdateret" changelog popup once per major release (includes/releaseNoticeFunc.php).
+//                A bell item flagged external (the release's changelog) opens in a new tab instead of the frame.
 @session_start();
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -118,6 +120,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/stdFunc/dkDecimal.php");
 include_once("../includes/settings/SettingsService.php");
+include_once(__DIR__ . "/../includes/releaseNoticeFunc.php");
 $topbar = topbar_context($topbarOnlineRows, (string) $brugernavn, (int) $bruger_id, (string) $rettigheder, $revisor, $regnaar, (int) $sprog_id, (string) $regnskab);
 include_once(__DIR__ . "/../systemdata/settingsRegistry.php");
 $settingsGroups = settings_accessible_groups();
@@ -963,7 +966,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     data.items.forEach((n) => {
       const item = document.createElement('div');
       item.className = 'topbar-notif' + (n.unread ? ' unread' : '');
-      item.addEventListener('click', () => topbarNotifRead(n.id, n.link));
+      item.addEventListener('click', () => topbarNotifRead(n.id, n.link, n.external));
       const ic = document.createElement('div');
       ic.className = 'topbar-notif-ic topbar-notif-' + n.type;
       ic.innerHTML = "<i class='bx " + (topbarNotifIcons[n.type] || 'bx-bell') + "'></i>";
@@ -976,14 +979,19 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
       list.appendChild(item);
     });
   }
-  function topbarNotifRead(id, link) {
+  function topbarNotifRead(id, link, external) {
     const body = new URLSearchParams({ action: 'read', id: String(id), csrf_token: window.SALDI_CSRF || '' });
     fetch('notifications.php', { method: 'POST', body: body, credentials: 'same-origin' })
       .then(() => topbarNotifLoad())
       .catch(() => {});
     if (link) {
       topbarCloseAll();
-      update_iframe(link);
+      // A release item links to the changelog on saldi.dk, which opens in a new tab; everything else stays in the frame.
+      if (external) {
+        window.open(link, '_blank', 'noopener');
+      } else {
+        update_iframe(link);
+      }
     }
   }
   topbarNotifLoad();
@@ -1309,6 +1317,8 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
 </style>
 
 <?php
+release_notice_print(if_isset($bruger_id, 0));
+
 /* SALDI Assist (support-chatbot). Loaderen hentes fra chatbottens server; token-
    endpointet ligger i includes/saldi_assist_token.php. SALDI_ASSIST_WIDGET_URL
    kan saettes i webserverens miljoe til en test-instans; standard er produktion. */

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/notifications.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/notifications.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,8 @@
 //                 A user without them has a stored item removed, and the bell list and the daily summary hide the item from them as well.
 // 20261104 CL/ASR Final QA: when no fiscal year covers today (the last one has ended), the warning asks for the next year to be created (fiscal:none, texts 7852 and 7851) instead of asking for a year to be activated, which stays for a year that covers today but is not open.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261124 CL/PS SST-1040 New source notif_source_release(): an announced Saldi release (includes/releaseNotice.php, major or minor) is a news item linking to the changelog on saldi.dk.
+//                notif_list() flags it as external, so the bell opens it in a new tab; every other item still opens in the frame.
 /**
  * @return array<string, string> type -> label text id
  */
@@ -145,6 +147,9 @@ function notif_texts(string $sourceKey, string $title, string $body, int $sprogI
 	if (strpos($sourceKey, 'news:') === 0) {
 		return array(findtekst('5626|Nyt i Saldi', $sprogId), $body);
 	}
+	if (strpos($sourceKey, 'release:') === 0) {
+		return array(findtekst('8601|Saldi er blevet opdateret', $sprogId), findtekst('8602|Se de seneste opdateringer og rettelser i vores changelog', $sprogId) . '.');
+	}
 	return array($title, $body);
 }
 
@@ -189,6 +194,7 @@ function notif_refresh(int $brugerId, string $rettigheder, int $sprogId): void
 		return;
 	}
 	notif_source_news($sprogId);
+	notif_source_release($sprogId);
 	notif_source_fiscal_year($sprogId);
 	// bruger_id is -1 for auditor/master-admin sessions: they get per-user items too.
 	if ($brugerId !== 0) {
@@ -215,6 +221,45 @@ function notif_source_news(int $sprogId): void
 		return;
 	}
 	notif_upsert($key, null, 'news', findtekst('5626|Nyt i Saldi', $sprogId), strip_tags($text), '', null);
+}
+
+/**
+ * The latest announced Saldi release (includes/releaseNotice.php, marker 'main'): one news item for everyone,
+ * linking to the changelog on saldi.dk. A new marker replaces the previous item; '' (nothing announced) removes it.
+ * Major and minor releases both get the item; a major release also gets the popup (includes/releaseNoticeFunc.php).
+ *
+ * @return int notifications.id of the release item, or 0 when nothing is announced or the table is not ready.
+ */
+function notif_source_release(int $sprogId): int
+{
+	if (!notif_ready()) {
+		return 0;
+	}
+	include_once(__DIR__ . '/releaseNoticeFunc.php');
+	$config = release_notice_config('main');
+	$key = $config['notify'] ? substr('release:' . $config['id'], 0, 80) : '';
+	$keySql = db_escape_string($key);
+	db_modify("delete from notification_read where notification_id in (select id from notifications where source_key like 'release:%' and source_key != '$keySql')", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from notifications where source_key like 'release:%' and source_key != '$keySql'", __FILE__ . " linje " . __LINE__);
+	if ($key === '') {
+		return 0;
+	}
+	list($title, $body) = notif_texts($key, '', '', $sprogId);
+	notif_upsert($key, null, 'news', $title, $body, $config['url'], null);
+	// notifications has no unique key, so two users logging in at the same moment right after a deploy can both
+	// insert the item. Keep the oldest and remove any duplicate (with its read marks), so everyone sees one item.
+	$keepId = 0;
+	$q = db_select("select id from notifications where source_key = '$keySql' and user_id is null order by id", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$id = (int) $r['id'];
+		if ($keepId === 0) {
+			$keepId = $id;
+			continue;
+		}
+		db_modify("delete from notification_read where notification_id = $id", __FILE__ . " linje " . __LINE__);
+		db_modify("delete from notifications where id = $id", __FILE__ . " linje " . __LINE__);
+	}
+	return $keepId;
 }
 
 /**
@@ -335,7 +380,8 @@ function notif_source_bank(int $brugerId, int $sprogId): void
 /**
  * The latest notifications for the user with their read state.
  *
- * @return array<int, array{id: int, type: string, title: string, body: string, link: string, created: string, unread: bool}>
+ * @return array<int, array{id: int, type: string, title: string, body: string, link: string, external: bool, created: string, unread: bool}>
+ *   external: the link leaves Saldi (a release item's changelog) and opens in a new tab instead of the frame.
  */
 function notif_list(int $brugerId, int $limit = 30): array
 {
@@ -359,6 +405,7 @@ function notif_list(int $brugerId, int $limit = 30): array
 			'title'   => $title,
 			'body'    => $body,
 			'link'    => (string) $r['link'],
+			'external' => strpos((string) $r['source_key'], 'release:') === 0,
 			'created' => (string) $r['created'],
 			'unread'  => empty($r['read_at']),
 		);
