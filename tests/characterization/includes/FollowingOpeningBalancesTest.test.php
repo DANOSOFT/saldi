@@ -39,6 +39,7 @@
 // 20261125 CL/MMR SST-1005 A request that ends right after an earlier waiting year is taken names that year in its message (CodeRabbit on PR #1109).
 // 20261126 CL/MMR SST-1005 An interrupted take of a deleted waiting year (also before a missing year, also on the second pass) names a year with a card whose save rebuilds the stale year (Codex round 37).
 // 20261126 CL/MMR SST-1005 An open waiting year before a missing year: an interrupted take or rebuild names a year with a card (Codex round 38).
+// 20261126 CL/MMR SST-1005 No transfer anywhere: the activated year is named, a page check stores nothing; «Sæt aktivt» carries its own year after an earlier chain ends at a gap (Codex round 39).
 
 declare(strict_types=1);
 
@@ -2503,14 +2504,14 @@ final class FollowingOpeningBalancesTest extends TestCase
     {
         self::assertSame(8, followingOpeningBalanceRebuildStart(8), 'Years 8-11 all open.');
         self::assertSame(10, followingOpeningBalanceRebuildStart(10));
-        self::assertSame(11, followingOpeningBalanceRebuildStart(11), 'The last year has no next year: as before, the first live year.');
+        self::assertSame(0, followingOpeningBalanceRebuildStart(11), 'The last year has no next year.');
         $this->sql("UPDATE grupper SET box10 = '1763600000' WHERE art = 'RA' AND kodenr = 8");
         self::assertSame(9, followingOpeningBalanceRebuildStart(8), 'Year 8 deleted: year 9 keeps its own and carries into 10.');
         $this->sql("UPDATE grupper SET box10 = '' WHERE art = 'RA' AND kodenr = 8");
         $this->sql("DELETE FROM grupper WHERE art = 'RA' AND kodenr = 9");
         self::assertSame(10, followingOpeningBalanceRebuildStart(8), 'Year 9 missing after an open year 8.');
         $this->sql("UPDATE grupper SET box10 = 'on' WHERE art = 'RA' AND kodenr = 11");
-        self::assertSame(8, followingOpeningBalanceRebuildStart(8), 'Year 11 deleted too: no year has a next year, so the first live year.');
+        self::assertSame(0, followingOpeningBalanceRebuildStart(8), 'Year 11 deleted too: no year has a next year.');
     }
 
     /**
@@ -2549,6 +2550,87 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertNull(checkFollowingOpeningBalances(11));
         self::assertSame('0', $this->setting('openingBalancePending'));
         self::assertSame(1604.0, $this->primo(11, 2000));
+    }
+
+    /** Remove a year as if it had never been made: no grupper row and no accounts. */
+    private function removeYear(int $year): void
+    {
+        $this->sql("DELETE FROM grupper WHERE art = 'RA' AND kodenr = $year");
+        $this->sql("DELETE FROM kontoplan WHERE regnskabsaar = $year");
+    }
+
+    /** Add year 12 (2026/27) with the accounts of year 11 and their balances. */
+    private function addYear12(): void
+    {
+        $this->sql("INSERT INTO grupper (kodenr, art, beskrivelse, box1, box2, box3, box4, box5, box10) VALUES (12, 'RA', '2026/27', '7', '2026', '6', '2027', 'on', '')");
+        $this->sql('INSERT INTO kontoplan (regnskabsaar, kontonr, kontotype, primo, saldo, overfor_til, fra_kto) SELECT 12, kontonr, kontotype, primo, saldo, overfor_til, fra_kto FROM kontoplan WHERE regnskabsaar = 11');
+    }
+
+    /**
+     * Codex round 39: only years 8 and 10 exist, so no transfer is possible. With year 8 waiting, «Sæt aktivt» on year 10
+     * (sync(9, 10)) that ended right after the clear of year 8 asked for Gem/opdatér on the missing year 9. It names the
+     * activated year 10, whose card exists, and its save clears the message.
+     */
+    public function testAnInterruptedTakeWithNoTransferAnywhereNamesTheActivatedYear(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->removeYear(9);
+        $this->removeYear(11);
+        $this->endTheRequestRightAfterTheClearOf(8, 9, 10);
+        self::assertSame($this->stop(['sourceYear' => 9, 'targetYear' => 10, 'failed' => true]), followingOpeningBalanceStop());
+        $this->assertTheMessageNamesAYearWithACard();
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(10));
+        $this->sql('COMMIT');
+        self::assertNull(followingOpeningBalanceStop(), 'Gem/opdatér on year 10 clears the message.');
+    }
+
+    /**
+     * Codex round 39: the same years, from a page check in year 10. Nothing can be carried, so no guard is armed and a
+     * request that ends right after the clear stores no message naming a missing year.
+     */
+    public function testAnInterruptedPageCheckWithNoTransferAnywhereStoresNoMessage(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->removeYear(9);
+        $this->removeYear(11);
+        $this->endTheRequestRightAfterTheClearOf(8, 8, 0);
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /**
+     * Codex round 39: years 8, 9, 11 and 12 exist, year 10 is missing, and year 8 waits. «Sæt aktivt» on year 12
+     * (sync(11, 12)) carried 8 into 9, then carried year 12 from itself and skipped 11 into 12. Both are carried now, and
+     * nothing crosses the missing year: year 11 keeps its own opening balances.
+     */
+    public function testActivationCarriesItsOwnYearWhenAnEarlierWaitingYearEndsAtAGap(): void
+    {
+        $this->addYear12();
+        self::assertNull(checkFollowingOpeningBalances(12));
+        followingOpeningBalanceMarkPending(8);
+        $this->removeYear(10);
+        $year11 = $this->yearState(11);
+        self::assertNull(syncFollowingOpeningBalances(11, 12));
+        self::assertSame(1554.0, $this->primo(9, 2000), 'Year 9 follows year 8: 777 on 2000 plus 777 from 2100.');
+        self::assertSame($year11['accounts'], $this->yearState(11)['accounts'], 'Year 11 keeps its own opening balances.');
+        self::assertSame(1554.0, $this->primo(12, 2000), 'Year 12 follows year 11: 777 on 2000 plus 777 from 2100.');
+        self::assertSame('0', $this->setting('openingBalancePending'));
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /**
+     * Codex round 39: the same activation without a waiting year gives year 12 the same opening balances (the control).
+     */
+    public function testActivationAfterAMissingYearWithNothingWaitingCarriesItsOwnYear(): void
+    {
+        $this->addYear12();
+        self::assertNull(checkFollowingOpeningBalances(12));
+        $this->removeYear(10);
+        self::assertNull(syncFollowingOpeningBalances(11, 12));
+        self::assertSame(1554.0, $this->primo(12, 2000));
+        self::assertSame(1000.0, $this->primo(9, 2000), 'Nothing waited, so year 9 keeps its opening balances.');
     }
 
     public function testMovingTheGuardKeepsItArmedAndNeverArmsIt(): void
