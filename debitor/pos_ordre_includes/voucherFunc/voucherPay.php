@@ -31,6 +31,7 @@
 // 20261123 CL/MJ SD-844 K61: the check also runs when a gift card number is posted with another payment type, and the refusal is shown to the cashier.
 // 20261124 CL/MJ SD-844 K61: the refusal is not shown a second time when afslut() or delbetal() already showed it in this request.
 // 20261126 CL/MJ SD-844 K61: the check runs only for a gift card the payment really names, and not after a card terminal approved the payment.
+// 20261126 CL/MJ SD-844 K61: a voucher list shorter than the pay cards (settings.voucherItems) no longer raises an undefined-index warning (Hugin).
 
 include_once(__DIR__ . "/../deliveryContact.php");
 
@@ -56,7 +57,7 @@ function voucherPay($orderId, $betaling, $modtaget) {
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $vouchers = explode(chr(9),$r['var_value']);
 	// 20261120 CL/MJ SD-844 K61: the same check as afslut() and delbetal(), for the gift card path that reaches here without them
 	// A card the terminal already approved (godkendt=OK) is not stopped: the money has moved, as in afslut()
-	if ((($payCardMatched && $vouchers[$payCardNo]) || isset($_POST['giftcardNumber'])) && !$indbetaling && ($GLOBALS['godkendt'] ?? '') !== 'OK') {
+	if ((($payCardMatched && !empty($vouchers[$payCardNo])) || isset($_POST['giftcardNumber'])) && !$indbetaling && ($GLOBALS['godkendt'] ?? '') !== 'OK') {
 		$alreadyShown = !empty($GLOBALS['pos_delivery_contact_refused']);
 		$check = pos_validate_checkout_sale($orderId);
 		if (!$check['ok']) {
@@ -66,7 +67,7 @@ function voucherPay($orderId, $betaling, $modtaget) {
 			return false;
 		}
 	}
-	if ($vouchers[$payCardNo] && !isset($_POST['giftcardNumber'])) {
+	if (!empty($vouchers[$payCardNo]) && !isset($_POST['giftcardNumber'])) {
 		if (!$modtaget && strpos($betaling,'på beløb')) {
 			$qtxt = "select sum (amount*valutakurs/100) as paid from pos_betalinger where ordre_id='$orderId'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));

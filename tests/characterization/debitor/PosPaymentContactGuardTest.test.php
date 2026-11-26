@@ -150,6 +150,15 @@ final class PosPaymentContactGuardTest extends TestCase
         self::assertSame([], $report['alerts']);
     }
 
+    public function testAVoucherListShorterThanThePayCardsRaisesNoWarning(): void
+    {
+        // Two pay cards (Kontant, Gavekort) but a voucher list with one entry: Gavekort has no flag.
+        // runVoucher() fails on anything the runner writes to stderr, so a PHP warning fails the test.
+        $report = $this->runVoucher('Gavekort', '', 'refuse', null, '', 'on');
+
+        self::assertSame([], $report['guardCalls'], 'Gavekort is no voucher here');
+    }
+
     public function testATableEmptiedByAMoveLosesTheContactToo(): void
     {
         // The emptied sale is reused for the table's next customer, as Forfra reuses its row.
