@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderMove.php --- ver 5.1.1 --- 2026.11.13
+// --- includes/shopify/services/orderMove.php --- ver 5.1.1 --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,9 @@
 // move list (moveList.php) still shows the lines.
 //
 // 20261113 CL/MJ SD-760: created (WP10-2).
+// 20261126 CL/MJ SD-760 (review): the sweep abandons the order.move of an order whose move job died, so saldi-behandlet is not held back for good.
+//                Any exception or error in the move is a failed attempt, and a move the client stops at the deadline yields.
+//                An expired barrier with nothing left to move is done without an alarm, and a line that can't be planned is never unresolved.
 
 require_once __DIR__ . '/../noteAppend.php';
 require_once __DIR__ . '/../errors.php';
@@ -140,7 +143,8 @@ function shopify_plan_moves(array $alloc, array $fulfillmentOrders, array $locat
 /**
  * Whole items per location gid for one allocation_v1 line, null when it can't be planned: a
  * lager that is not sellable (display, ingen), or part of an item on a lager. An empty array when
- * it was drawn from a sellable lager the shop has no location for.
+ * it was drawn from a sellable lager the shop has no location for. Null wins over that, whatever
+ * the rows' order: a line that can't be planned would not be planned once the location is added.
  *
  * @param array<string, mixed> $line
  * @param array<int, string> $locations
@@ -161,16 +165,15 @@ function shopify_move_wanted(array $line, array $locations): ?array {
 		}
 	}
 	$want = array();
+	$unmapped = false;
 	foreach ($milli as $lager => $quantity) {
-		if (($locations[$lager] ?? null) === '') {
-			return array();
-		}
 		if (!isset($locations[$lager]) || $quantity <= 0 || $quantity % 1000 !== 0) {
 			return null;
 		}
+		$unmapped = $unmapped || $locations[$lager] === '';
 		$want[$locations[$lager]] = intdiv($quantity, 1000);
 	}
-	return $want ?: null;
+	return $unmapped ? array() : ($want ?: null);
 }
 
 /**
@@ -224,6 +227,10 @@ function shopify_run_moves(array $shop, string $orderGid, array $alloc, array $l
 			return array('status' => 'uncertain', 'moved' => $moved + 1, 'errors' => array('the answer to a move was lost'));
 		}
 		$pending(0.0);
+		if (!$res['ok'] && $res['error'] === 'deadline') {
+			// the client stopped before it sent the move (a lost answer is uncertain, above): out of time, not a failed attempt
+			return array('status' => 'yield', 'moved' => $moved, 'errors' => array());
+		}
 		if (!$res['ok']) {
 			return array('status' => 'failed', 'moved' => $moved, 'errors' => shopify_graphql_messages($res) ?: array("fulfillmentOrderMove failed ({$res['error']})"));
 		}
@@ -303,9 +310,17 @@ function shopify_move_job(array $job, array $link, array $shop, array $rt): arra
 		return array('outcome' => 'yield', 'run_after' => (int)ceil($pendingUntil - microtime(true)));
 	}
 	try {
-		// once the barrier has expired its stock is published again, so nothing is moved after that
+		// once the barrier has expired its stock is published again, so nothing is moved after that; it is
+		// abandoned only when the read shows a move is still needed
 		if (shopify_move_expired($shopId, $ordreId)) {
-			$result = array('status' => 'expired', 'moved' => 0, 'errors' => array('the hold expired before the move was done'));
+			$needed = is_array($alloc);
+			if ($needed) {
+				$read = shopify_move_read($shop, shopify_gid((string)$link['order_gid'], 'Order'), $rt);
+				$plan = $read['errors'] ? null : shopify_plan_moves($alloc, $read['fulfillment_orders'], shopify_move_locations($shopId));
+				$needed = $plan === null || $plan['moves'] || $plan['unresolved'];
+			}
+			$result = $needed ? array('status' => 'expired', 'moved' => 0, 'errors' => array('the hold expired before the move was done'))
+				: array('status' => 'done', 'moved' => 0, 'errors' => array());
 		} elseif (is_array($alloc)) {
 			// a move is sent only while the hold outlasts the pass, whose deadline ends every request, by
 			// SHOPIFY_MOVE_LATE_SECONDS more: Shopify may still apply a move the client stopped waiting for
@@ -319,8 +334,8 @@ function shopify_move_job(array $job, array $link, array $shop, array $rt): arra
 		} else {
 			$result = array('status' => 'done', 'moved' => 0, 'errors' => array());
 		}
-	} catch (RuntimeException $e) {
-		// a missing token or a database error is a failed attempt too, so the move is still abandoned in the end
+	} catch (Throwable $e) {
+		// a missing token, a database error or a bug is a failed attempt too, so the move is still abandoned in the end
 		$result = array('status' => 'failed', 'moved' => 0, 'errors' => array(get_class($e) . ': ' . $e->getMessage()));
 	}
 	if ($result['status'] === 'uncertain') {
@@ -372,7 +387,8 @@ function shopify_move_alarm(int $shopId, int $ordreId, string $message): void {
  * The barrier.sweep job: abandons the shop's barriers past SHOPIFY_BARRIER_MINUTES, which marks
  * their items dirty so the stock push sends them, and raises an alarm per invoiced web order. A
  * barrier is normally released or expired by its order's move; this catches the orders whose move
- * never ran. An order cancelled or not invoiced has no move to wait for, so it gets no alarm.
+ * never ran. An order cancelled or not invoiced has no move to wait for, so it gets no alarm. An
+ * order.move still pending (its job died) is recorded abandoned, so saldi-behandlet is written.
  *
  * @param array<string, mixed> $job
  * @return array{outcome: string}
@@ -381,6 +397,11 @@ function shopify_barrier_sweep_job(array $job, float $deadline, callable $heartb
 	$shopId = (int)$job['shop_id'];
 	shopify_db_transaction(function () use ($shopId): void {
 		foreach (shopify_barrier_expire($shopId) as $order) {
+			$stuck = shopify_db_rows("SELECT id FROM shopify_order_links WHERE shop_id = $1 AND ordre_id = $2 AND direction = 'web'
+				AND flags -> $3::text ->> 'order.move' = 'pending'", array($shopId, $order['ordre_id'], SHOPIFY_WRITEBACK_NAMESPACE));
+			foreach ($stuck as $link) {
+				shopify_writeback_mark((int)$link['id'], 'order.move', 'abandoned');
+			}
 			$waiting = shopify_db_rows("SELECT 1 FROM shopify_order_links WHERE shop_id = $1 AND ordre_id = $2 AND direction = 'web'
 				AND state = 'invoiced' AND cancelled_at IS NULL", array($shopId, $order['ordre_id']));
 			if (!$waiting) {

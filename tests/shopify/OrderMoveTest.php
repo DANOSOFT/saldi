@@ -8,6 +8,7 @@
 // 20261113 CL/MJ SD-760: created.
 // 20261114 CL/MJ SD-760 (CI): orderMove.php loads logging.php, so it is required when the class starts.
 //                Collecting the files no longer loads it, and ClientRetryTest keeps a client without a redactor.
+// 20261126 CL/MJ SD-760: a move the client stops at the deadline yields, and a line that can't be planned is never unresolved.
 
 use PHPUnit\Framework\TestCase;
 
@@ -88,6 +89,15 @@ final class OrderMoveTest extends TestCase
         }
     }
 
+    /** A line that can't be planned stays unplanned once the missing location is added too: skipped, whatever the rows' order. */
+    public function testALineThatCantBePlannedIsNotUnresolvedByAnUnmappedLagerInAnyRowOrder(): void
+    {
+        foreach ([[3 => 1000, 5 => 1000], [5 => 1000, 3 => 1000], [5 => 1500, 1 => 500]] as $rows) {
+            $plan = shopify_plan_moves(['lines' => [self::line('L11', $rows)]], [self::fo('F1', self::L1, ['L11' => 2])], self::LOCATIONS + [5 => '']);
+            $this->assertSame(['moves' => [], 'unresolved' => []], $plan, json_encode($rows));
+        }
+    }
+
     /** A sellable lager the shop has no location for can't be moved to: unresolved, so it is retried and alarmed, not done. */
     public function testASellableLagerWithoutALocationIsUnresolved(): void
     {
@@ -144,6 +154,22 @@ final class OrderMoveTest extends TestCase
     {
         $result = shopify_run_moves(['shop_key' => 'hml'], 'gid://shopify/Order/1', ['lines' => []], [], ['deadline' => microtime(true) + 1]);
         $this->assertSame(['status' => 'yield', 'moved' => 0, 'errors' => []], $result);
+    }
+
+    /** The client stopped at the pass deadline before it sent the move: nothing reached Shopify, so the job yields. */
+    public function testRunMovesYieldsWhenTheClientStopsAMoveAtTheDeadline(): void
+    {
+        $read = function (FakeShopify $fake): array {
+            $fake->now += 290;
+            return FakeShopify::ok(['order' => ['fulfillmentOrders' => ['pageInfo' => ['hasNextPage' => false],
+                'nodes' => [self::fo('F1', self::L1, ['L11' => 1])]]]]);
+        };
+        $fake = new FakeShopify([$read]);
+        $fake->requestSeconds = 9.5;
+        $result = shopify_run_moves(FakeShopify::shop(), 'gid://shopify/Order/1', ['lines' => [self::line('L11', [2 => 1000])]], self::LOCATIONS,
+            ['graphql' => $fake->opts(), 'deadline' => microtime(true) + 300, 'held' => fn(): bool => true]);
+        $this->assertSame(['status' => 'yield', 'moved' => 0, 'errors' => []], $result);
+        $this->assertCount(1, $fake->calls, 'the read only; the move was never sent');
     }
 
     /** A hold that ends before a move sent now could be answered: nothing is sent, and the job abandons at once. */

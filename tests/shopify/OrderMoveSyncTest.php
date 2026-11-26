@@ -7,6 +7,8 @@
 //
 // History:
 // 20261113 CL/MJ SD-760: created.
+// 20261126 CL/MJ SD-760: a move job that died no longer holds saldi-behandlet back, and a bug in the move is a failed attempt.
+//                An expired barrier with nothing to move is done without an alarm.
 
 use PHPUnit\Framework\TestCase;
 
@@ -297,6 +299,58 @@ final class OrderMoveSyncTest extends TestCase
         $this->assertSame([['barrier.sweep', 'done']], $run['results'][0]);
         $this->assertSame(['abandoned'], $this->barriers($ordreId));
         $this->assertSame([(string)$ordreId], array_column($this->sql("SELECT ref FROM shopify_errors WHERE kind = 'order.move'"), 'ref'));
+    }
+
+    /** The move job died: the sweep abandons its barriers and its order.move, so saldi-behandlet is written after all. */
+    public function testTheSweepAbandonsTheMoveOfAnOrderWhoseMoveJobDied(): void
+    {
+        $order = $this->steps(['web_order', [['STOL-X', 1, [0 => 5, 1 => 5]]]])['results'][0];
+        $ordreId = $this->invoiced($order['order'], [['gid' => $order['lines']['STOL-X'], 'rows' => [['STOL-X', 92, 1]]]]);
+        $this->steps(['unstock', 'STOL-X', 1]);
+        $first = $this->steps(['pass']);
+        $this->sql("UPDATE shopify_jobs SET state = 'dead' WHERE type = 'order.move'");
+        $this->sql("UPDATE shopify_move_barriers SET expires_at = now() - interval '1 day'");
+        $this->sql("INSERT INTO shopify_jobs (type, shop_id, dedupe_key, payload, priority) VALUES ('barrier.sweep', $1, 'hml:sweep', '{}'::jsonb, 15)", [$this->shopId()]);
+        $this->retryNow();
+
+        $run = $this->steps(['pass']);
+
+        $this->assertContains(['order.processed', 'yielded'], $first['results'][0]);
+        $this->assertSame([['barrier.sweep', 'done'], ['order.processed', 'done']], $run['results'][0]);
+        $this->assertSame(['abandoned'], $this->barriers($ordreId));
+        $this->assertSame('abandoned', $this->writeback($order['order'])['order.move']);
+        $this->assertSame(['saldi-behandlet'], $run['orders'][$order['order']]['tags']);
+    }
+
+    /** A bug in the move (here an order id that is no Order gid) is a failed attempt, retried and abandoned like any other. */
+    public function testAMoveThatThrowsALogicExceptionIsAFailedAttemptNotADeadJob(): void
+    {
+        $order = $this->steps(['web_order', [['STOL-X', 1, [0 => 5, 1 => 5]]]])['results'][0];
+        $this->invoiced($order['order'], [['gid' => $order['lines']['STOL-X'], 'rows' => [['STOL-X', 92, 1]]]]);
+        $this->steps(['unstock', 'STOL-X', 1]);
+        $this->steps(['pass']);
+        $this->sql("UPDATE shopify_order_links SET order_gid = 'gid://shopify/Product/1'");
+        $this->retryNow();
+
+        $second = $this->steps(['pass']);
+
+        $this->assertContains(['order.move', 'failed'], $second['results'][0]);
+        $this->assertSame('queued', $this->sql("SELECT state FROM shopify_jobs WHERE type = 'order.move'")[0]['state']);
+    }
+
+    /** The barrier expired, but Shopify already has every line where Saldi drew it from: done, with no alarm. */
+    public function testAnExpiredBarrierWithNothingToMoveIsDoneWithoutAnAlarm(): void
+    {
+        $order = $this->steps(['web_order', [['STOL-X', 1, [0 => 5]]]])['results'][0];
+        $this->invoiced($order['order'], [['gid' => $order['lines']['STOL-X'], 'rows' => [['STOL-X', 91, 1]]]]);
+        $this->sql("UPDATE shopify_move_barriers SET expires_at = now() - interval '1 day'");
+
+        $run = $this->steps(['pass']);
+
+        $this->assertContains(['order.move', 'done'], $run['results'][0]);
+        $this->assertSame(['metafieldsSet', 'tagsAdd'], self::mutations($run));
+        $this->assertSame('done', $this->writeback($order['order'])['order.move']);
+        $this->assertSame([], $this->sql("SELECT ref FROM shopify_errors WHERE kind = 'order.move'"));
     }
 
     /** A cancelled order has no move to wait for: its barriers go, but nobody is alarmed. */
