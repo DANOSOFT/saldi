@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-24 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -191,6 +191,7 @@
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
 // 20261124 CL/MMR SST-1049 The delivery-address dropdown's "Choose delivery address" and "No delivery address" options are translated (texts 8530 and 8531).
+// 20261126 CDX/NTR Pass original browser search text to item lookup without SQL escaping, with an explicit encoding marker.
 @session_start();
 $s_id = session_id();
 
@@ -2381,9 +2382,10 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				}
 				if (!$exact_match_check) {
 					// Not an exact match - redirect to product lookup with the entered value as search term
-					$find_param = urlencode($varenr0_original);
+					$find_param = urlencode((string) ($_POST['varenr0'] ?? $varenr0_original));
+					$find_encoding = isset($_POST['varenr0']) ? 'browser' : 'database';
 					$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
-					$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=$find_param$bordnr_param";
+					$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find_encoding=$find_encoding&find=$find_param$bordnr_param";
 					if (isset($afd_lager)) $url .= "&lager=$afd_lager";
 					header("Location: $url");
 					exit;
@@ -3176,17 +3178,20 @@ if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && 
 
 	if ((strstr($fokus, 'vare')) && ($art != 'DK')) {
 		// Redirect to new grid-based product lookup page
-		$find_param = isset($varenr[0]) ? urlencode($varenr[0]) : '';
+		$find_param = urlencode((string) ($_POST['varenr0'] ?? $varenr[0] ?? ''));
+		$find_encoding = isset($_POST['varenr0']) ? 'browser' : 'database';
 		$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
-		$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=$find_param$bordnr_param";
+		$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find_encoding=$find_encoding&find=$find_param$bordnr_param";
 		if (isset($afd_lager)) $url .= "&lager=$afd_lager";
 		header("Location: $url");
 		exit;
 	}
 	if (strstr($fokus, 'besk') && $beskrivelse[0] && $art != 'DK') {
 		// Redirect to new grid-based product lookup page
+		$find_param = urlencode((string) ($_POST['beskrivelse0'] ?? $beskrivelse[0]));
+		$find_encoding = isset($_POST['beskrivelse0']) ? 'browser' : 'database';
 		$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
-		$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=beskrivelse&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=" . urlencode($beskrivelse[0]) . "$bordnr_param";
+		$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=beskrivelse&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find_encoding=$find_encoding&find=$find_param$bordnr_param";
 		if (isset($afd_lager)) $url .= "&lager=$afd_lager";
 		header("Location: $url");
 		exit;
