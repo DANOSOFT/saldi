@@ -5,80 +5,53 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 
 /**
- * Rental startup view dispatch (MB-111): query parameters that select no view,
- * such as ?inframe=1 from the main menu, must still render the daily overview.
+ * MB-111: rental/index.js picks its startup view from the query string. A query string that
+ * matches none of the known views (such as ?inframe=1 alone, from the main menu) must still
+ * fall back to createCalendar(), or Daglig oversigt opens blank.
+ *
+ * Saldi's CI PHP container has no node, so this checks the dispatch block's structure in plain
+ * PHP; it does not execute the JavaScript.
  */
 final class rentalInitView extends TestCase
 {
-    private function nodeBinary(): ?string
+    /** @return array{0: string, 1: string} the outer if's body and the code after its closing brace */
+    private function initBlock(): array
     {
-        foreach (['/usr/local/bin/node', '/usr/bin/node'] as $candidate) {
-            if (is_executable($candidate)) {
-                return $candidate;
+        $src = file_get_contents(__DIR__ . '/../../rental/index.js');
+        $this->assertIsString($src);
+        $at = strpos($src, '// Init the view');
+        $this->assertNotFalse($at, 'init view marker missing in rental/index.js');
+        $tail = preg_replace(['#/\*.*?\*/#s', '/"[^"\r\n]*"/'], ['', '""'], substr($src, $at));
+        $this->assertIsString($tail);
+        $head = 'if (queryString !== "") {';
+        $open = strpos($tail, $head);
+        $this->assertNotFalse($open, 'outer queryString check missing');
+        $start = $open + strlen($head);
+        $depth = 1;
+        for ($i = $start, $n = strlen($tail); $i < $n && $depth > 0; $i++) {
+            if ($tail[$i] === '{') {
+                $depth++;
+            } elseif ($tail[$i] === '}') {
+                $depth--;
             }
         }
-        $found = trim((string) shell_exec('command -v node 2>/dev/null'));
-        return $found !== '' ? $found : null;
+        $this->assertSame(0, $depth, 'unbalanced braces in the init view block');
+        return [substr($tail, $start, $i - 1 - $start), substr($tail, $i)];
     }
 
-    /** Runs the real init block of rental/index.js with stubbed view functions. */
-    private function dispatch(string $queryString): array
+    public function testUnmatchedQueryStringFallsBackToCalendar(): void
     {
-        $node = $this->nodeBinary();
-        if ($node === null) {
-            $this->markTestSkipped('node is not available');
-        }
-        $source = str_replace("\r\n", "\n", (string) file_get_contents(__DIR__ . '/../../rental/index.js'));
-        $start = strpos($source, '// Init the view');
-        $end = strrpos($source, '})()');
-        $this->assertNotFalse($start, 'init block marker missing');
-        $this->assertNotFalse($end, 'closing IIFE missing');
-        $block = substr($source, $start, $end - $start);
-
-        $script = <<<'JS'
-const calls = []
-const record = (name) => () => { calls.push(name) }
-const createCalendar = record('createCalendar')
-const productOverviewMonth = record('productOverviewMonth')
-const createReservationList = record('createReservationList')
-const monthlyOverview = record('monthlyOverview')
-const showBooking = record('showBooking')
-const showCustomer = record('showCustomer')
-const singleProductOverview = record('singleProductOverview')
-const queryString = process.argv[2] ?? ''
-JS;
-        $script .= "\n" . $block . "\nprocess.stdout.write(JSON.stringify(calls))\n";
-
-        $command = escapeshellarg($node) . ' - ' . escapeshellarg($queryString);
-        $pipes = [];
-        $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
-        $this->assertIsResource($process, 'could not start node');
-        fwrite($pipes[0], $script);
-        fclose($pipes[0]);
-        $stdout = (string) stream_get_contents($pipes[1]);
-        $stderr = (string) stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $exitCode = proc_close($process);
-        $this->assertSame(0, $exitCode, 'node failed: ' . $stderr);
-
-        $calls = json_decode($stdout, true);
-        $this->assertIsArray($calls, 'unexpected node output: ' . $stdout);
-        return $calls;
+        [$body] = $this->initBlock();
+        $this->assertMatchesRegularExpression(
+            '/singleProductOverview\(value\)\s*\}\s*else\s*\{\s*createCalendar\(\)\s*\}\s*$/',
+            $body,
+            'the query-string dispatch needs a final else that opens the calendar'
+        );
     }
 
-    public function testInframeFromMainMenuShowsDailyOverview(): void
+    public function testEmptyQueryStringStillOpensCalendar(): void
     {
-        $this->assertSame(['createCalendar'], $this->dispatch('?inframe=1'));
-    }
-
-    public function testVareShowsProductOverview(): void
-    {
-        $this->assertSame(['productOverviewMonth'], $this->dispatch('?vare'));
-    }
-
-    public function testEmptyQueryShowsDailyOverview(): void
-    {
-        $this->assertSame(['createCalendar'], $this->dispatch(''));
+        [, $rest] = $this->initBlock();
+        $this->assertMatchesRegularExpression('/^\s*else\s*\{\s*createCalendar\(\)\s*\}/', $rest);
     }
 }
