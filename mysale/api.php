@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- mysale/api.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,20 +23,31 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
 // 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
 //                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
-//
-// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
+// 20261111 CL/MMR SST-1000 createBooking stores the booking only when the unit has no other booking or reservation in the period.
+//                 Otherwise it answers 409 and the page tells the customer. A start or end date that is not a 'Y-m-d' calendar date is refused (400).
+//                 The action is now the handler handleCreateBooking().
+//                 It reads rentalclosed itself as remoteBooking does, since the entry block's query is not in scope there.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261120 CL/MMR SST-1000 (review) updateBooking "approved" goes through rental_approve_booking(), so a payment that came back after the booking expired is approved only when the unit is still free.
+//                 Otherwise it answers 409 "refused" and nothing is invoiced.
+//                 A booking approved before is not invoiced again, and a deleted booking (order 0) is refused instead of invoiced.
+//                 The action is now the handler handleUpdateBooking().
+//                 createBooking answers HTTP 500 "storage" (no order) when the booking row was not stored.
+//                 It answers "approved" only when the order is invoiced; a failed invoice gives HTTP 500 "failed", and a repeated approval never invoices again.
+//
 
 $header = "nix";
 $bg = "nix";
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalOverlap.php");
 $db = public_tenant_db(ifset($_GET, "db", ""));
 
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
@@ -146,7 +157,13 @@ if(isset($_GET["getAllDates"])){
     echo json_encode($results);
 }
 
-if(isset($_GET["createBooking"])){
+/**
+ * api.php?createBooking: store a booking from the mysale booking page and create its order.
+ * Answers {"id": <rentalperiod id>}; 400 for a booking it can't read, 409 when the unit is not free in the period.
+ *
+ * @return void
+ */
+function handleCreateBooking() {
     $data = json_decode(file_get_contents('php://input'), true);
     if (!is_array($data)) $data = array();
     $data["item_id"] = (int)ifset($data, "item_id", 0);
@@ -157,11 +174,17 @@ if(isset($_GET["createBooking"])){
         echo json_encode(["error" => "Invalid booking"]);
         exit;
     }
-    // make timestamp to unix timestamp
-    $from = strtotime($data["start_date"]);
-    $to = strtotime($data["end_date"]);
+    // whole calendar days only ('Y-m-d', as the page sends them): the overlap check works on whole days
+    $from = rental_booking_day(ifset($data, "start_date", ""));
+    $to = rental_booking_day(ifset($data, "end_date", ""));
+    if ($from === false || $to === false || $to < $from) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
     $expiryTime = time() + 240;
     $expiryTime = date('Y-m-d H:i:s', $expiryTime);
+    $query = db_select("SELECT * FROM rentalclosed", __FILE__ . " linje " . __LINE__);
     // if there is closed dates between the selected dates extend the end date by the number of days closed
     while($row = db_fetch_array($query)){
         $closedDate = strtotime($row["day"]);
@@ -169,9 +192,19 @@ if(isset($_GET["createBooking"])){
             $to = strtotime("+1 day", $to);
         }
     }
-    db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ($data[item_id], $data[cust_id], $from, $to, 0, TO_TIMESTAMP('$expiryTime', 'YYYY-MM-DD HH24:MI:SS'))", __FILE__ . " linje " . __LINE__);
-    $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $data[item_id] AND cust_id = $data[cust_id] AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
-    $data["booking_id"] = db_fetch_array($query)["id"];
+    // the booking is only stored when the unit is free: the page checked bookings it loaded earlier
+    $data["booking_id"] = rental_store_booking($data["item_id"], $data["cust_id"], $from, $to, $expiryTime);
+    if ($data["booking_id"] < 0) {
+        // SST-1000 (review): the booking was not stored (nothing written or the commit was rejected): no order
+        http_response_code(500);
+        echo json_encode(["error" => "storage", "msg" => "Bookingen kunne ikke gemmes"]);
+        exit;
+    }
+    if (!$data["booking_id"]) {
+        http_response_code(409);
+        echo json_encode(["error" => "unavailable", "msg" => "Enheden er ikke ledig i den valgte periode"]);
+        exit;
+    }
     if($data["unit"] == "Dag"){
         $data["days"] = $data["weeks"];
     }else{
@@ -183,7 +216,19 @@ if(isset($_GET["createBooking"])){
     echo json_encode(["id" => $data["booking_id"]]);
 }
 
-if(isset($_GET["updateBooking"])){
+if(isset($_GET["createBooking"])){
+    handleCreateBooking();
+}
+
+/**
+ * updateBooking: the booking page reports the payment. "approved" approves the booking through rental_approve_booking()
+ * and invoices its order; any other status deletes the booking and its order (payment failed or no payment link).
+ *
+ * @return void Echoes {"status":"approved"} (invoiced), {"status":"deleted"}, with HTTP 409 {"status":"refused","reason":...},
+ *              or with HTTP 500 {"status":"failed","reason":"invoice"|"not_invoiced"|"approval"} when the order is not invoiced
+ *              or the approval could not be written.
+ */
+function handleUpdateBooking() {
     $data = json_decode(file_get_contents("php://input"), true);
     if (!is_array($data)) $data = array();
     $status = ifset($data, "status", "");
@@ -197,14 +242,45 @@ if(isset($_GET["updateBooking"])){
         echo json_encode(["status" => "deleted"]);
         exit;
     }else{
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
-        db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        fakturer_ordre($orderId, "email", 0);
-        echo json_encode(["status" => "approved"]);
+        // SST-1000 (review): a payment that came back after the booking expired is approved only when the unit is still free.
+        // The answer is "approved" only when the order is invoiced; only the call that approves the booking invoices it.
+        $orderId = 0;
+        $approval = rental_approve_booking($bookingId, $orderId);
+        if ($approval === 'approved') {
+            try {
+                fakturer_ordre($orderId, "email", 0);
+            } catch (\Throwable $e) {
+                global $db_transaktion_depth;
+                if ($db_transaktion_depth) {
+                    transaktion('rollback');
+                    $db_transaktion_depth = 0;
+                }
+                error_log("SST-1000 updateBooking: invoice of order $orderId failed: " . $e->getMessage());
+            }
+        }
+        if ($approval === 'approved' || $approval === 'already') {
+            // the booking is approved (now or before); it is only invoiced by the call that approved it
+            if (rental_order_invoiced($orderId)) {
+                echo json_encode(["status" => "approved"]);
+            } else {
+                // approved, but the order is not invoiced: no confirmation. "invoice" = this call's invoice failed (the order
+                // is invoiced by hand); "not_invoiced" = approved by another call whose invoice failed or is still running
+                http_response_code(500);
+                echo json_encode(["status" => "failed", "reason" => $approval === 'approved' ? "invoice" : "not_invoiced"]);
+            }
+        } elseif ($approval === 'error') {
+            // the approval could not be written: nothing invoiced, no confirmation
+            http_response_code(500);
+            echo json_encode(["status" => "failed", "reason" => "approval"]);
+        } else {
+            http_response_code(409);
+            echo json_encode(["status" => "refused", "reason" => $approval]);
+        }
     }
+}
 
+if(isset($_GET["updateBooking"])){
+    handleUpdateBooking();
 }
 
 if(isset($_GET["getOrder"])){
