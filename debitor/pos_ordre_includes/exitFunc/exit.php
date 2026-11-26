@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.1 --- 2026.11.20---
+// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.1 --- 2026.11.25---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,7 +36,12 @@
 // 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after POS settlement commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261112 CL/SS MB-49 afslut(): a card payment of 0 on a 0-kr sale is refused before anything is written.
+//                A posting error from settlePOS.php is rolled back and returned, instead of printing the receipt as if the sale was settled.
+// 20261117 CL/SS MB-49 afslut(): an exchange whose lines cancel out (+100 and -100) is not refused; its lines still post.
 // 20261120 CL/MJ SD-844 K61: a pickup or delivery sale without the customer's email or phone is refused before any payment is taken.
+// 20261124 CL/SS MB-49 afslut(): a card of 0 in the second payment slot is refused too.
+// 20261125 CL/SS MB-49 afslut(): which payment is a card comes from pos_payment_is_card(), shared with bogfor_nu().
 
 include_once(__DIR__ . "/../deliveryContact.php");
 
@@ -107,6 +112,7 @@ print "\n<!-- Function afslut (start)-->\n";
 	global $momssats;
 	global $pobelob;
 	global $regnaar,$retur;
+	global $sprog_id;
 	global $tracelog;
 
 	// 20261120 CL/MJ SD-844 K61: checked before voucherPay, betaling or a card terminal moves any money; a card returning approved (OK) is not stopped
@@ -119,6 +125,21 @@ print "\n<!-- Function afslut (start)-->\n";
 
 	$modtaget  = (float)$modtaget;
 	$modtaget2 = (float)$modtaget2;
+
+	$zeroCard = '';
+	foreach (array($betaling, $betaling2) as $paymentType) {
+		if (pos_payment_is_card($paymentType)) {
+			$zeroCard = $paymentType;
+			break;
+		}
+	}
+	if ($id && $betaling && $zeroCard && !$indbetaling && !afrund($modtaget, 2) && !afrund($modtaget2, 2)) {
+		$r = db_fetch_array(db_select("select sum, moms from ordrer where id = '" . (int)$id . "'", __FILE__ . " linje " . __LINE__));
+		$paid = db_fetch_array(db_select("select sum(amount) as paid from pos_betalinger where ordre_id = '" . (int)$id . "' and betalingstype != '!'", __FILE__ . " linje " . __LINE__));
+		if ($r && !afrund((float)$r['sum'] + (float)$r['moms'], 2) && !afrund((float)$paid['paid'], 2) && !afrund(pos_lines_amount((int)$id), 2)) {
+			return sprintf(findtekst('pos.payment.card_amount_missing|Indtast beløbet, før du betaler med %s. En betaling på 0 kr. kan ikke bogføres.', $sprog_id), $zeroCard);
+		}
+	}
 
 	if ($id && $betaling) {
 		include('../debitor/pos_ordre_includes/voucherFunc/voucherPay.php');
@@ -332,6 +353,10 @@ print "\n<!-- Function afslut (start)-->\n";
 
 
 	include("settlePOS.php"); #20190510
+	if (isset($svar) && $svar !== 'OK') {
+		transaktion('rollback');
+		return $svar;
+	}
 	if ($svar=='OK') { #20150213
 		transaktion("commit");
 		shopSyncDrainQueue();
