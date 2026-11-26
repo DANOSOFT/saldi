@@ -1,5 +1,6 @@
 <?php
 // 20261120 CL/SZ MB-139 Pins that a creditor order keeps a header value with an apostrophe, on screen and through Gem.
+// 20261126 CL/SZ MB-139 A value with a byte the charset can't read shows with a replacement character, not as an empty field.
 //
 // kreditor/orderIncludes/openOrderData.php printed each header value raw inside value='...', so O'Brien Trading showed as O and Gem saved O over the full name.
 // Once the full value reached the server, postnr, bynavn, lev_postnr, lev_bynavn, cvrnr and kundeordnr went into update ordrer unescaped and the whole save failed.
@@ -148,6 +149,19 @@ namespace Saldi\Tests\CreditorOrderHeaderApostrophe {
 
             self::assertSame("O'Hara & Søn", $shown['lev_navn']);
             self::assertSame("Côte d'Ivoire", $shown['land']);
+        }
+
+        /**
+         * A value with a byte the charset can't read (legacy data on a MySQL UTF-8 install) still shows its text,
+         * with a replacement character, instead of an empty input that Gem would save over the value.
+         */
+        public function testAnUnreadableByteDoesNotEmptyTheField(): void
+        {
+            $values = self::VALUES;
+            $values['lev_navn'] = "Hj\xe6lp ApS";
+            $shown = self::inputValues($this->renderHeader($values, 'UTF-8'), 'UTF-8');
+
+            self::assertSame("Hj\u{FFFD}lp ApS", $shown['lev_navn']);
         }
 
         /** A NULL column (or a value never set on a new order) prints an empty input without a deprecation. */
