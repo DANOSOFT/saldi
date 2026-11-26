@@ -20,6 +20,10 @@
 // Scenarios (argv 1):
 //   invoice <ordre_id>  - run the sequence above on an existing order
 //   reinvoice <ordre_id>- call bogfor() again on an already-invoiced order
+//   preflight <ordre_id>- the posting difference forkontrolPosteringsdifference() predicts
+//                         for the order as it is now (MB-80; run it after 'invoice')
+//   direct <ordre_id>   - bogfor_nu($id,'webservice') with no caller transaction, as the REST send
+//                         method does (MB-80); $valutakurs is taken from the order
 //
 // Prints a single JSON object on the LAST line of stdout.
 //
@@ -30,9 +34,11 @@
 // 20261028 CL/LH Removed the inline bootstrap that the #815 merge brought back next to the
 //                bootstrap_ordrefunc.php require; it included ordrefunc.php a second time.
 // 20261111 CDX/NTR Require the caller-owned database instead of a fixed fallback.
+// 20261125 CL/MMR MB-80: 'preflight' scenario, so a test can compare the pre-flight check with the posting.
+// 20261125 CL/MMR MB-80 (Codex round 4): 'direct' scenario, bogfor_nu() without a caller transaction.
 
 if ($argc < 4) {
-    fwrite(STDERR, "usage: php run_order_invoice.php <invoice|reinvoice> <ordre_id> <tenant_db>\n");
+    fwrite(STDERR, "usage: php run_order_invoice.php <invoice|reinvoice|preflight|direct> <ordre_id> <tenant_db>\n");
     exit(2);
 }
 $scenario = $argv[1];
@@ -55,6 +61,18 @@ if ($scenario === 'invoice') {
     }
 } elseif ($scenario === 'reinvoice') {
     $out['bogfor'] = bogfor($ordreId, 'on');
+} elseif ($scenario === 'direct') {
+    $r = db_fetch_array(db_select("select valutakurs from ordrer where id = '$ordreId'", __FILE__ . " linje " . __LINE__));
+    $valutakurs = $r['valutakurs'];
+    try {
+        $out['bogfor'] = bogfor_nu($ordreId, 'webservice');
+    } catch (Throwable $error) {
+        $out['bogfor'] = get_class($error) . ': ' . $error->getMessage();
+    }
+} elseif ($scenario === 'preflight') {
+    $r = db_fetch_array(db_select("select sum, moms, valuta, valutakurs from ordrer where id = '$ordreId'", __FILE__ . " linje " . __LINE__));
+    $out['preflight'] = forkontrolPosteringsdifference($ordreId, $r['sum'] + $r['moms'], $r['valutakurs'], $r['moms']);
+    $out['balance'] = forkontrolPosteringsbalance($ordreId, $r['sum'] + $r['moms'], $r['valuta'], $r['valutakurs'], $r['moms']);
 } else {
     ob_end_clean();
     fwrite(STDERR, "unknown scenario $scenario\n");

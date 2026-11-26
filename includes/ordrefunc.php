@@ -180,9 +180,25 @@
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
+// 20261125 CL/MMR MB-80 bogfor_nu: a foreign-currency invoice posts its VAT rounded to øre in the invoice currency before conversion, so 250.00 EUR at 745 is 1862.50 and not 1862.49 plus 0.02 currency and -0.01 øre difference rows.
+//                 A converted amount is rounded once.
+//                 Lines are grouped per revenue account and VAT account, so a line on an account already used with another VAT account is no longer dropped.
+//                 A group with net 0 still posts its VAT.
+//                 forkontrolPosteringsbalance() predicts with the same code (includes/salesPostingVat.php).
+//                 DKK amounts are unchanged; the øre difference account no longer gets cancelling or split rows.
+// 20261125 CL/MMR MB-80 (Codex round 1): the 3-decimal control totals decide again whether an invoice balances, as before, so ten DKK revenue groups at 100.005 still post with 0.05 on the øre account.
+//                 What is left between the posted 2-decimal rows is booked as one row on the currency or øre difference account.
+// 20261125 CL/MMR MB-80 (Codex round 2): the pre-flight decides on the unrounded 3-decimal control difference rounded once, as it did before, so an order at the 0.05 DKK cutoff is refused as before.
+// 20261125 CL/MMR MB-80 (Codex round 3): the pre-flight also makes the posting's check (the rounded control sides), so an invoice that check refuses is refused before anything is written; bogfor_nu() decides on the rounded sides as before.
+//                 bogfor_nu() includes genberegn.php and forfaldsdag.php via __DIR__.
+// 20261125 CL/MMR MB-80 (Codex round 4): forkontrolDifferenceAccount() finds and checks the currency or øre difference account before anything is written; a blank or 0 currency account (VK box3) counts as missing, and a ledger-only rounding then goes to the øre account as before.
+// 20261125 CL/MMR MB-80 (Codex round 5): the øre account is checked in kontoplan (kontotype D) also for a ledger-only rounding, so no account the fix chooses can fail after writing.
+// 20261125 CL/MMR MB-80 (Codex round 6): a difference account is only required when a difference row is written; a control difference within the limits with balanced posted rows needs none.
+// 20261125 CL/MMR MB-80 (Codex round 7): bogfor_nu() posts the groups, projects and VAT the pre-flight computed instead of reading the lines again, and the lines are read in a fixed order (id breaks ties).
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/salesPostingVat.php';
 require_once __DIR__ . '/orderFuncIncludes/glsLabel.php';
 require_once __DIR__ . '/orderFuncIncludes/posPaymentType.php';
 
@@ -2435,96 +2451,129 @@ function bogfor_indbetaling($id, $webservice) {
 	return ('OK');
 }
 ######################################################################################################################################
-function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
+/**
+ * Pre-flight for bogfor_nu(): predicts the difference between the debtor posting and the revenue and VAT
+ * postings, using the same grouping, rounding and VAT allocation as bogfor_nu() (includes/salesPostingVat.php).
+ * Two differences decide whether the invoice balances, as before MB-80: 'difference' is the net of the 3-decimal
+ * control amounts rounded once (the pre-flight's own number), 'sideDifference' the difference of the debit and
+ * credit control totals each rounded to 2 decimals (the number bogfor_nu() checks after posting).
+ * 'rounding' is what is left between the posted 2-decimal rows; a positive amount is what bogfor_nu() posts as a
+ * credit on the currency or øre difference account.
+ *
+ * @param int|string $id A single ordrer.id, or a comma-separated list of ids.
+ * @param float|string $headerTotal The orders' sum + moms in the invoice currency.
+ * @param float|string $valutakurs ordrer.valutakurs (100 for the base currency).
+ * @param float|string $headerVat The orders' moms in the invoice currency (used for the foreign-currency VAT allocation).
+ * @return array{
+ *   difference: float,  Control debit minus credit in the base currency, rounded once to 2 decimals.
+ *   sideDifference: float,  Control debit and credit each rounded to 2 decimals, then subtracted.
+ *   rounding: float,    Posted debit minus credit in the base currency, 2 decimals.
+ *   projects: array<int, string>,  The projects posted, 1-based.
+ *   postingLines: array,  salesPostingLoadGroups() for those projects; bogfor_nu() posts exactly these groups.
+ *   vatAllocations: array<int, array<int, float>>|null,  salesPostingVatAllocations() for them, or null.
+ *   lines: int,         Number of order lines posted (bogfor_nu() allows 2 øre per line in a foreign currency).
+ * }
+ */
+function forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerVat = 0)
+{
+	if (!$valutakurs) {
+		$valutakurs = 100;
+	}
+	if (is_numeric($id)) {
+		$tmp = "ordre_id = '" . (int)$id . "'";
+	} else {
+		$idliste = explode(",", $id);
+		$antal = count($idliste);
+		$tmp = "(ordre_id = '" . (int)$idliste[0] . "'";
+		for ($x = 1; $x < $antal; $x++) {
+			$tmp .= " or ordre_id = '" . (int)$idliste[$x] . "'";
+		}
+		$tmp .= ")";
+	}
+	$p = 0;
+	$projekt = array();
+	$q = db_select("select distinct(coalesce(projekt,'')) as projekt from ordrelinjer where $tmp and vare_id >'0' order by projekt", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$p++;
+		$projekt[$p] = trim($r['projekt']);
+	}
+	$projektantal = ($p) ? $p : 1;
+	if (!$p) {
+		$projekt[1] = '';
+	}
+	$postingLines = salesPostingLoadGroups($tmp, $projekt, $projektantal);
+	$vatAllocations = null;
+	if (is_numeric($id) && $valutakurs != 100) {
+		$vatAllocations = salesPostingVatAllocations($postingLines['groups'][1], $headerVat, $valutakurs);
+	}
+	# Debit and credit control totals as bogfor_nu() keeps them
+	$control = array('d' => 0, 'k' => 0);
+	salesPostingControlSide($control, salesPostingControlAmount(afrund($headerTotal, 3), $valutakurs), 'd');
+	$posted = salesPostingAmount(afrund($headerTotal, 3), $valutakurs);
+	for ($t = 1; $t <= 2; $t++) {
+		$rate = ($t == 1) ? $valutakurs : 0;
+		for ($p = 1; $p <= $projektantal; $p++) {
+			foreach ($postingLines['groups'][$t][$p] as $y => $group) {
+				if (!$group['bogf_konto'] || (!$group['pris'] && !$group['linjemoms'])) {
+					continue;
+				}
+				salesPostingControlSide($control, salesPostingControlAmount($group['pris'], $rate), 'k');
+				$posted -= salesPostingAmount($group['pris'], $rate);
+				if ($t == 1 && $vatAllocations !== null) {
+					salesPostingControlSide($control, $vatAllocations[$p][$y], 'k');
+					$posted -= $vatAllocations[$p][$y];
+				} else {
+					salesPostingControlSide($control, salesPostingControlAmount($group['linjemoms'], $rate), 'k');
+					$posted -= salesPostingAmount($group['linjemoms'], $rate);
+				}
+			}
+		}
+	}
+	return array(
+		'difference' => afrund($control['d'] - $control['k'], 2),
+		'sideDifference' => afrund(afrund($control['d'], 2) - afrund($control['k'], 2), 2),
+		'rounding' => afrund($posted, 2),
+		'lines' => $postingLines['lines'],
+		'projects' => $projekt,
+		'postingLines' => $postingLines,
+		'vatAllocations' => $vatAllocations,
+	);
+}
+
+function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs, $headerVat = 0, $control = NULL)
 {
 	# 20260824 Sawaneh JOB-056
 	# Toerkoersel af posteringsberegningen i bogfor_nu: forudsiger den debet/kredit-difference
 	# bogfoeringen vil skabe, saa en ordre i ubalance kan afvises FOER der skrives til
 	# transaktioner/openpost. Tolerancerne spejler dem kursdifference-/oeredifference-
 	# posteringerne allerede opfanger, saa ordrer der bogfoeres rent i dag paavirkes ikke.
+	# 20261125 MB-80: the amounts come from forkontrolPosteringsdifference(), which uses bogfor_nu()'s own grouping, control amounts and thresholds.
 	global $baseCurrency;
-	if (!$valutakurs)
+	if (!$valutakurs) {
 		$valutakurs = 100;
+	}
+	if ($control === NULL) {
+		$control = forkontrolPosteringsdifference($id, $headerTotal, $valutakurs, $headerVat);
+	}
 	$maxdif = 2;
-	if (is_numeric($id))
-		$tmp = "ordre_id = '" . $id . "'";
-	else {
-		$idliste = explode(",", $id);
-		$antal = count($idliste);
-		$tmp = "(ordre_id = '" . $idliste[0] . "'";
-		for ($x = 1; $x < $antal; $x++)
-			$tmp .= " or ordre_id = '" . $idliste[$x] . "'";
-		$tmp .= ")";
+	if ($valutakurs != 100) {
+		$maxdif += 2 * $control['lines'];
 	}
-	$p = 0;
-	$projekt = array();
-	$q = db_select("select distinct(coalesce(projekt,'')) as projekt from ordrelinjer where $tmp and vare_id >'0'", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$p++;
-		$projekt[$p] = trim($r['projekt']);
-	}
-	$projektantal = ($p) ? $p : 1;
-	if (!$p)
-		$projekt[1] = '';
-	$kontrol = afrund(afrund($headerTotal, 3) * $valutakurs / 100, 3);
-	for ($t = 1; $t <= 2; $t++) {
-		for ($p = 1; $p <= $projektantal; $p++) {
-			$y = 0;
-			$konto = $vatkonto = $net = $vat = array();
-			if ($t == 1)
-				$qtxt = "select * from ordrelinjer where $tmp and coalesce(projekt,'')='$projekt[$p]' and posnr>='0' and bogf_konto > 0 order by bogf_konto,vat_account";
-			else
-				$qtxt = "select * from ordrelinjer where $tmp and coalesce(projekt,'')='$projekt[$p]' and posnr<'0' order by bogf_konto,vat_account";
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				if ($valutakurs != 100)
-					$maxdif += 2;
-				if (!in_array($r['bogf_konto'], $konto)) {
-					$y++;
-					$konto[$y] = $r['bogf_konto'];
-					$vatkonto[$y] = $r['vat_account'] * 1;
-					if ($r['rabatart'] == 'amount') {
-						$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']);
-						($r['procent'] || $r['procent'] != '') ? $net[$y] = $linjesum * $r['procent'] / 100 : $net[$y] = $linjesum;
-					} else {
-						$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
-						($r['procent'] || $r['procent'] != '') ? $net[$y] = $linjesum * $r['procent'] / 100 : $net[$y] = $linjesum;
-						$net[$y] = afrund($net[$y], 3);
-					}
-					($r['momssats'] && !$r['momsfri']) ? $vat[$y] = afrund($linjesum / 100 * $r['momssats'], 3) : $vat[$y] = 0;
-				} else {
-					for ($a = 1; $a <= $y; $a++) {
-						if ($konto[$a] == $r['bogf_konto'] && $vatkonto[$a] == $r['vat_account']) {
-							if ($r['rabatart'] == 'amount')
-								$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']);
-							else
-								$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
-							($r['procent'] || $r['procent'] != '') ? $net[$a] += $linjesum * $r['procent'] / 100 : $net[$a] += $linjesum;
-							$net[$a] = afrund($net[$a], 3);
-							if ($r['momssats'] && !$r['momsfri'])
-								$vat[$a] += afrund($linjesum / 100 * $r['momssats'], 3);
-						}
-					}
-				}
-			}
-			for ($x = 1; $x <= $y; $x++) {
-				if (!$konto[$x] || !$net[$x])
-					continue;
-				if ($t == 1)
-					$kontrol -= afrund($net[$x] * $valutakurs / 100, 3) + afrund($vat[$x] * $valutakurs / 100, 3);
-				else
-					$kontrol -= afrund($net[$x], 3) + afrund($vat[$x], 3);
-			}
+	# MB-80: both of the checks bogfor_nu() made before, the pre-flight's net difference and the posting's
+	# difference of the rounded sides, so an invoice is refused here, before any write, if either would refuse it
+	foreach (array($control['difference'], $control['sideDifference']) as $diff) {
+		if (!$diff) {
+			continue;
 		}
+		if ($valuta != $baseCurrency && abs($diff) <= $maxdif) {
+			continue;
+		}
+		if (abs($diff) < 0.05) {
+			continue;
+		}
+		return $diff;
 	}
-	$diff = afrund($kontrol, 2);
-	if (!$diff)
-		return NULL;
-	if ($valuta != $baseCurrency && abs($diff) <= $maxdif)
-		return NULL;
-	if (abs($diff) < 0.05)
-		return NULL;
-	return $diff;
+	return NULL;
 }
 /**
  * The order's lines added up as absolute amounts after discount, worked out as bogfor_nu() does.
@@ -2535,6 +2584,52 @@ function pos_lines_amount(int $ordreId): float {
 	$qtxt .= "else antal * pris * (100 - coalesce(rabat, 0)) / 100 end)), 0) as lines from ordrelinjer where ordre_id = '$ordreId'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	return (float)($r['lines'] ?? 0);
+}
+/**
+ * The account bogfor_nu() books the difference between the posted rows on, found before anything is written.
+ * A foreign-currency invoice uses the currency's difference account (VK box3; blank or 0 counts as missing).
+ * When the rounded control sides balance, the difference is only the rounding of the ledger rows, and without a
+ * currency account it goes to the øre difference account (the caller's $difkto, else OreDif), as the stored-row
+ * check did before MB-80. Otherwise the currency account is required for a foreign currency, as the old currency
+ * difference posting required it. Every account is checked in kontoplan before it is returned: the currency
+ * account as the old currency difference posting checked it, the øre account as the old øre difference posting
+ * did (kontotype D).
+ *
+ * @param string $valuta The invoice currency.
+ * @param float $sideDifference forkontrolPosteringsdifference()'s 'sideDifference'.
+ * @return array{
+ *   account: string|null,  Account number to book on.
+ *   error: string|null,    Why the invoice cannot be posted, or null.
+ * }
+ */
+function forkontrolDifferenceAccount($valuta, $sideDifference)
+{
+	global $baseCurrency, $difkto, $regnaar;
+
+	if ($valuta != $baseCurrency) {
+		$qtxt = "select box3 from grupper where art='VK' and box1='" . db_escape_string($valuta) . "'";
+		$account = (int)ifset(db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)), 'box3', 0);
+		$qtxt = "select id from kontoplan where kontonr='$account' and regnskabsaar='" . (int)$regnaar . "'";
+		if ($account && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			return array('account' => (string)$account, 'error' => NULL);
+		}
+		if ($sideDifference) {
+			return array('account' => NULL, 'error' => "Kontonr $account (kursdiff) eksisterer ikke");
+		}
+	}
+	$missing = 'Manglende kontonummer til &oslash;redifferencer - Se indstillinger -> diverse -> &oslash;rediff';
+	$r = db_fetch_array(db_select("select box2 from grupper where art = 'OreDif'", __FILE__ . " linje " . __LINE__));
+	$account = trim((string)ifset($r, 'box2', ''));
+	if (!$sideDifference && $difkto) {
+		# the old stored-row check took the øre account set by the caller first
+		$account = trim((string)$difkto);
+	}
+	# checked as the old øre difference posting checked it: an existing kontotype D account in this year
+	$qtxt = "select id from kontoplan where kontotype = 'D' and kontonr = '" . db_escape_string($account) . "' and regnskabsaar='" . (int)$regnaar . "'";
+	if ($account && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		return array('account' => $account, 'error' => NULL);
+	}
+	return array('account' => NULL, 'error' => $missing);
 }
 ######################################################################################################################################
 /**
@@ -2547,8 +2642,8 @@ function pos_lines_amount(int $ordreId): float {
  */
 function bogfor_nu($id, $kilde) {
 
-	include("../includes/genberegn.php");
-	include("../includes/forfaldsdag.php");
+	include(__DIR__ . '/genberegn.php');
+	include(__DIR__ . '/forfaldsdag.php');
 	global $baseCurrency;
 	$brugernavn;
 	global $db, $db_skriv_id;
@@ -2593,6 +2688,7 @@ function bogfor_nu($id, $kilde) {
 	# <-- 20130820
 	$d_kontrol = 0;
 	$k_kontrol = 0;
+	$d_posted = $k_posted = 0; # MB-80: the posted 2-decimal amounts of the debtor, revenue and VAT rows (not POS card rows)
 	$logdate = date("Y-m-d");
 	$logtime = date("H:i");
 	$uxtid = date("U");
@@ -2762,7 +2858,8 @@ function bogfor_nu($id, $kilde) {
 		$kontonr = NULL;
 	}
 	# 20260824 Sawaneh JOB-056 ->
-	if ($art != 'PO' && ($balancediff = forkontrolPosteringsbalance($id, $sum, $valuta, $valutakurs))) {
+	$postingControl = ($art != 'PO') ? forkontrolPosteringsdifference($id, $sum, $valutakurs, $moms) : NULL;
+	if ($art != 'PO' && ($balancediff = forkontrolPosteringsbalance($id, $sum, $valuta, $valutakurs, $moms, $postingControl))) {
 		$svar = "Bogf&oslash;ring afbrudt: ordren balancerer ikke (difference " . dkdecimal($balancediff, 2) . " $baseCurrency). ";
 		$svar .= "Ordrens moms stemmer ikke med ordrelinjernes momssatser - &aring;bn ordren, kontroller konto og momssats p&aring; linjerne og gem den igen f&oslash;r bogf&oslash;ring.";
 		$message = $db . " | Bogfoering blokeret foer postering: ordre_id=$id, diff=$balancediff | " . __FILE__ . " linje " . __LINE__ . " | " . $brugernavn . " " . date("Y-m-d H:i:s");
@@ -2771,6 +2868,15 @@ function bogfor_nu($id, $kilde) {
 		return ($svar);
 	}
 	# <- 20260824 Sawaneh JOB-056
+	# MB-80: the currency or øre difference account is found and checked before anything is written, when a
+	# difference row will be written (the posted rows do not balance by themselves)
+	$differenceAccount = NULL;
+	if ($postingControl !== NULL && $postingControl['rounding']) {
+		$differenceAccount = forkontrolDifferenceAccount($valuta, $postingControl['sideDifference']);
+		if ($differenceAccount['error']) {
+			return ($differenceAccount['error']);
+		}
+	}
 	if ($konto_id && $kontonr) {
 		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'", __FILE__ . " linje " . __LINE__));
 		$debitorgruppe = $r['gruppe'];
@@ -3045,14 +3151,12 @@ function bogfor_nu($id, $kilde) {
 			$debet = '0';
 			$kredit = $sum * -1;
 		}
-		if ($valutakurs) {
-			$kredit = afrund($kredit * $valutakurs / 100, 3);
-			$debet = afrund($debet * $valutakurs / 100, 3);
-		} # Omregning til DKR.
-		$d_kontrol = $d_kontrol + $debet;
-		$k_kontrol = $k_kontrol + $kredit;
-		$debet = afrund($debet, 2);
-		$kredit = afrund($kredit, 2);
+		$d_kontrol = $d_kontrol + salesPostingControlAmount($debet, $valutakurs);
+		$k_kontrol = $k_kontrol + salesPostingControlAmount($kredit, $valutakurs);
+		$kredit = salesPostingAmount($kredit, $valutakurs); # Omregning til DKR (MB-80: a foreign currency is rounded once)
+		$debet = salesPostingAmount($debet, $valutakurs);
+		$d_posted += $debet;
+		$k_posted += $kredit;
 		if (is_numeric($id)) {
 			$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kontonr','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
 		} else {
@@ -3091,76 +3195,42 @@ function bogfor_nu($id, $kilde) {
 	if ($projektliste && $openpost) {
 		db_modify("update openpost set projekt='$projektliste' where id='$openpost_id'", __FILE__ . " linje " . __LINE__);
 	}
+	# 20261125 MB-80: lines are grouped per revenue account AND VAT account (includes/salesPostingVat.php, shared with
+	# forkontrolPosteringsbalance()). Before, a line on an account already seen with another VAT account was dropped.
+	# Outside POS the groups, projects and foreign-currency VAT (rounded to øre in the invoice currency before it is
+	# converted) are exactly those the pre-flight checked; they are not read again.
+	if ($postingControl !== NULL) {
+		$postingLines = $postingControl['postingLines'];
+		$vatAllocations = $postingControl['vatAllocations'];
+		$projektantal = count($postingControl['projects']);
+		foreach ($postingControl['projects'] as $p => $project) {
+			$projekt[$p] = $project;
+		}
+	} else {
+		$postingLines = salesPostingLoadGroups($tmp, $projekt, $projektantal);
+		$vatAllocations = null;
+	}
+	if ($valutakurs && $valutakurs != 100) {
+		$maxdif = $maxdif + 2 * $postingLines['lines']; #Og yderligere 2 pr ordrelinje.
+	}
 	for ($t = 1; $t <= 2; $t++) {
 		for ($p = 1; $p <= $projektantal; $p++) {
+			$bogf_konto = $vat_account = $pris = $linjemoms = $postedVat = array();
 			$y = 0;
-			$tjek = array();
-			$bogf_konto = array();
-			if (is_numeric($id))
-				$tmp = "ordre_id = '" . $id . "'";
-			else {
-				$idliste = explode(",", $id);
-				$antal = count($idliste);
-				$tmp = "(ordre_id = '" . $idliste[0] . "'";
-				for ($x = 1; $x < $antal; $x++)
-					$tmp .= " or ordre_id = '" . $idliste[$x] . "'";
-				$tmp .= ")";
-			}
-			if ($t == 1) {
-				$qtxt = "select * from ordrelinjer where $tmp and projekt='$projekt[$p]' and posnr>='0' and bogf_konto > 0 order by bogf_konto,vat_account"; #20191127
-			} else {
-				$qtxt = "select * from ordrelinjer where $tmp and projekt='$projekt[$p]' and posnr<'0' order by bogf_konto,vat_account";
-			}
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				if ($valutakurs && $valutakurs != 100)
-					$maxdif = $maxdif + 2; #Og yderligere 2 pr ordrelinje.
-				$tmp = $r['bogf_konto'] . "|" . $r['vat_account'];
-				#				if (!in_array($tmp,$bogf_vat) && $r['bogf_konto']) {
-
-				if (!in_array($r['bogf_konto'], $bogf_konto)) {
-					$y++;
-					$bogf_konto[$y] = $r['bogf_konto'];
-					$vat_account[$y] = $r['vat_account'] * 1;
-					$bogf_vat[$y] = $bogf_konto[$y] . "|" . $vat_account[$y];
-
-					if ($r['rabatart'] == 'amount') {
-						$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']); #20140424b
-						($r['procent'] || $r['procent'] != '') ? $pris[$y] = $linjesum * $r['procent'] / 100 : $pris[$y] = $linjesum; #20140424b
-					} else {
-						$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100); #20140424b
-						($r['procent'] || $r['procent'] != '') ? $pris[$y] = $linjesum * $r['procent'] / 100 : $pris[$y] = $linjesum; #20140424b
-						if ($art == 'PO')
-							$pris[$y] = afrund($pris[$y], 3);
-						else
-							$pris[$y] = afrund($pris[$y], 3); #Afrunding tilfoejet 20090126 grundet diff i ordre 98 i saldi_104 -- 20110207 ændret til 2 decimaler ordre_id 1325 saldi_329
-					}
-					($r['momssats'] && !$r['momsfri']) ? $linjemoms[$y] = afrund($linjesum / 100 * $r['momssats'], 3) : $linjemoms[$y] = 0; #20191127
-
-				} else {
-					for ($a = 1; $a <= $y; $a++) {
-						if ($bogf_konto[$a] == $r['bogf_konto'] && $vat_account[$a] == $r['vat_account']) {
-							if ($r['rabatart'] == 'amount') {
-								$linjesum = $r['pris'] * $r['antal'] - ($r['rabat'] * $r['antal']); #20140424b
-							} else {
-								$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100); #20140424b
-							}
-							($r['procent'] || $r['procent'] != '') ? $pris[$a] += $linjesum * $r['procent'] / 100 : $pris[$a] += $linjesum; #20140424b
-							if ($art == 'PO')
-								$pris[$a] = afrund($pris[$a], 3);
-							else
-								$pris[$a] = afrund($pris[$a], 3); #Afrunding tilfoejet 20090126 grundet diff i ordre 98 i saldi_104 -- 20110207 ændret til 2 decimaler ordre_id 1325 saldi_329
-							if ($r['momssats'] && !$r['momsfri'])
-								$linjemoms[$a] += afrund($linjesum / 100 * $r['momssats'], 3);
-						}
-					}
-				}
+			foreach ($postingLines['groups'][$t][$p] as $group) {
+				$y++;
+				$bogf_konto[$y] = $group['bogf_konto'];
+				$vat_account[$y] = $group['vat_account'];
+				$pris[$y] = $group['pris'];
+				$linjemoms[$y] = $group['linjemoms'];
+				$postedVat[$y] = ($t == 1 && $vatAllocations !== null) ? $vatAllocations[$p][$y] : null;
 			}
 			$ordrelinjer = $y;
-			if ($indbetaling)
+			if ($indbetaling) {
 				$ordrelinjer = 0;
+			}
 			for ($y = 1; $y <= $ordrelinjer; $y++) {
-				if ($bogf_konto[$y] && $pris[$y]) {
+				if ($bogf_konto[$y] && ($pris[$y] || $linjemoms[$y])) { # MB-80: a group with net 0 still posts its VAT
 					if ($pris[$y] > 0) {
 						$kredit = $pris[$y];
 						$debet = 0;
@@ -3170,42 +3240,42 @@ function bogfor_nu($id, $kilde) {
 						$debet = $pris[$y] * -1;
 						$vat = $linjemoms[$y] * -1;
 					}
-					if ($t == 1 && $valutakurs) {
-						$kredit = $kredit * $valutakurs / 100;
-						$debet = $debet * $valutakurs / 100;
-						$vat = $vat * $valutakurs / 100;
-					} # Omregning til DKR.
-					$kredit = afrund($kredit, 3);
-					$debet = afrund($debet, 3);
-					$d_kontrol = $d_kontrol + $debet;
-					$k_kontrol = $k_kontrol + $kredit;
-					$debet = afrund($debet, 2);
-					$kredit = afrund($kredit, 2);
-					$vat = afrund($vat, 2);
-					#						$linjemoms[$y]=afrund($linjemoms[$y]*1,2);
-					if (is_numeric($id)) {
-						$qtxt = "insert into transaktioner ";
-						$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
-						$qtxt .= "projekt,ansat,ordre_id,kasse_nr,moms)";
-						$qtxt .= " values ";
-						$qtxt .= "('0','$transdate','$beskrivelse','$bogf_konto[$y]','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime',";
-						$qtxt .= "'$projekt[$p]','$ansat','$id','$kasse',$vat)";
-					} else {
-						$qtxt = "insert into transaktioner ";
-						$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
-						$qtxt .= "projekt,ansat,ordre_id,kasse_nr,moms)";
-						$qtxt .= " values ";
-						$qtxt .= "('0','$transdate','$beskrivelse','$bogf_konto[$y]','0','$debet','$kredit','0','$afd','$logdate',";
-						$qtxt .= "'$logtime','$projekt[$p]','$ansat','0','$kasse',$vat)";
+					$rate = ($t == 1) ? $valutakurs : 0;
+					$d_kontrol = $d_kontrol + salesPostingControlAmount($debet, $rate);
+					$k_kontrol = $k_kontrol + salesPostingControlAmount($kredit, $rate);
+					$kredit = salesPostingAmount($kredit, $rate); # Omregning til DKR.
+					$debet = salesPostingAmount($debet, $rate);
+					$d_posted += $debet;
+					$k_posted += $kredit;
+					if ($rate) {
+						$vat = $vat * $rate / 100;
 					}
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					$postedRows++;
-					$tmp = $debet - $kredit;
-					$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$bogf_konto[$y]' and regnskabsaar='$regnaar'";
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					if ($linjemoms[$y]) {
+					$vat = ($postedVat[$y] !== null) ? $postedVat[$y] * -1 : afrund($vat, 2);
+					if ($pris[$y]) {
+						if (is_numeric($id)) {
+							$qtxt = "insert into transaktioner ";
+							$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
+							$qtxt .= "projekt,ansat,ordre_id,kasse_nr,moms)";
+							$qtxt .= " values ";
+							$qtxt .= "('0','$transdate','$beskrivelse','$bogf_konto[$y]','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime',";
+							$qtxt .= "'$projekt[$p]','$ansat','$id','$kasse',$vat)";
+						} else {
+							$qtxt = "insert into transaktioner ";
+							$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
+							$qtxt .= "projekt,ansat,ordre_id,kasse_nr,moms)";
+							$qtxt .= " values ";
+							$qtxt .= "('0','$transdate','$beskrivelse','$bogf_konto[$y]','0','$debet','$kredit','0','$afd','$logdate',";
+							$qtxt .= "'$logtime','$projekt[$p]','$ansat','0','$kasse',$vat)";
+						}
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$postedRows++;
+						$tmp = $debet - $kredit;
+						$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$bogf_konto[$y]' and regnskabsaar='$regnaar'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					}
+					if (($postedVat[$y] !== null) ? $postedVat[$y] != 0 : $linjemoms[$y]) {
 						if (!$vat_account[$y]) {
-							include_once('../includes/stdFunc/findAccountVat.php');
+							include_once(__DIR__ . '/stdFunc/findAccountVat.php');
 							$vat_account[$y] = findAccountVat($bogf_konto[$y]);
 						}
 						if (!$vat_account[$y]) {
@@ -3214,23 +3284,26 @@ function bogfor_nu($id, $kilde) {
 							# amount that was never actually posted anywhere.
 							return ("Kontroller moms & momsopsætning: kontonr $bogf_konto[$y] har ingen momskode, men ordre $id har en linje med moms");
 						}
-						if ($linjemoms[$y] > 0) {
-							$kredit = $linjemoms[$y];
-							$debet = 0;
+						if ($postedVat[$y] !== null) { # already in the base currency, rounded
+							$kredit = max(0, $postedVat[$y]);
+							$debet = max(0, $postedVat[$y] * -1);
+							$d_kontrol = $d_kontrol + $debet;
+							$k_kontrol = $k_kontrol + $kredit;
 						} else {
-							$kredit = 0;
-							$debet = $linjemoms[$y] * -1;
+							if ($linjemoms[$y] > 0) {
+								$kredit = $linjemoms[$y];
+								$debet = 0;
+							} else {
+								$kredit = 0;
+								$debet = $linjemoms[$y] * -1;
+							}
+							$d_kontrol = $d_kontrol + salesPostingControlAmount($debet, $rate);
+							$k_kontrol = $k_kontrol + salesPostingControlAmount($kredit, $rate);
+							$kredit = salesPostingAmount($kredit, $rate); # Omregning til DKR.
+							$debet = salesPostingAmount($debet, $rate);
 						}
-						if ($t == 1 && $valutakurs) {
-							$kredit = $kredit * $valutakurs / 100;
-							$debet = $debet * $valutakurs / 100;
-						} # Omregning til DKR.
-						$kredit = afrund($kredit, 3);
-						$debet = afrund($debet, 3);
-						$d_kontrol = $d_kontrol + $debet;
-						$k_kontrol = $k_kontrol + $kredit;
-						$debet = afrund($debet, 2);
-						$kredit = afrund($kredit, 2);
+						$d_posted += $debet;
+						$k_posted += $kredit;
 						if (is_numeric($id)) {
 							$qtxt = "insert into transaktioner ";
 							$qtxt .= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
@@ -3431,13 +3504,19 @@ function bogfor_nu($id, $kilde) {
 	if ($brugernavn == 'saldi')
 		echo __LINE__ . " $d_kontrol != $k_kontrol<br>";
 
-	if ($diff = afrund($d_kontrol - $k_kontrol, 2)) {
+	# MB-80: the difference of the rounded control sides decides, as before (forkontrolPosteringsbalance() has
+	# already refused an invoice it would refuse). Outside POS the amount booked is what is left between the posted rows.
+	$diff = afrund($d_kontrol - $k_kontrol, 2);
+	$postedDiff = ($art == 'PO') ? 0 : afrund($d_posted - $k_posted, 2);
+	if ($diff || $postedDiff) {
+		$bookDiff = ($art == 'PO') ? $diff : $postedDiff;
 		$debet = 0;
 		$kredit = 0;
-		if ($diff < 0)
-			$debet = $diff * -1;
-		else
-			$kredit = $diff;
+		if ($bookDiff < 0) {
+			$debet = $bookDiff * -1;
+		} elseif ($bookDiff > 0) {
+			$kredit = $bookDiff;
+		}
 		$debet = afrund($debet, 2);
 		$kredit = afrund($kredit, 2);
 		/*if ($brugernavn == 'saldi') {
@@ -3574,47 +3653,29 @@ function bogfor_nu($id, $kilde) {
 				$tmp = $debet - $kredit;
 				db_modify("update kontoplan set saldo=saldo+'$tmp' where kontonr='$difkto' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 			}
-		} elseif ($valuta != $baseCurrency && abs($diff) <= $maxdif) { #Der maa max vaere en afvigelse paa 1 oere pr ordrelinje m fremmed valuta;
-			$r = db_fetch_array(db_select("select box3 as kursdifkto from grupper where grupper.art='VK' and grupper.box1='$valuta'", __FILE__ . " linje " . __LINE__));
-			$kursdifkto = $r['kursdifkto'] * 1;
-			if (!db_fetch_array(db_select("select id from kontoplan where kontonr='$kursdifkto' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__))) {
-				return ("Kontonr $kursdifkto (kursdiff) eksisterer ikke");
-			}
-			$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-			$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
-			if (is_numeric($id)) {
-				$qtxt .= "('0','$transdate','$beskrivelse','$kursdifkto','$fakturanr','$debet','$kredit',";
-				$qtxt .= "'0','$afd','$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse','$reportNumber')";
-			} else {
-				$qtxt .= "('0','$transdate','$beskrivelse','$kursdifkto','0','$debet','$kredit',";
-				$qtxt .= "'0','$afd','$logdate','$logtime','$projekt[0]','$ansat','0','$kasse','$reportNumber')";
-			}
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$tmp = $debet - $kredit;
-			db_modify("update kontoplan set saldo=saldo+'$tmp' where kontonr='$kursdifkto' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
-		} elseif (abs($diff) < 0.05) {
-			$r = db_fetch_array(db_select("select * from grupper where art = 'OreDif'", __FILE__ . " linje " . __LINE__));
-			$difkto = $r['box2'];
-			if (!$difkto) {
-				return (__LINE__ . ' Manglende kontonummer til &oslash;redifferencer - Se indstillinger -> diverse -> &oslash;rediff');
-			}
-			$qtxt = "select id from kontoplan where kontotype = 'D' and kontonr = '$difkto' and regnskabsaar='$regnaar'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($r['id']) {
+		} elseif (($valuta != $baseCurrency && abs($diff) <= $maxdif) || abs($diff) < 0.05) { #Der maa max vaere en afvigelse paa 1 oere pr ordrelinje m fremmed valuta;
+			# MB-80: what is left between the posted rows goes on the currency or øre difference account that
+			# forkontrolDifferenceAccount() found before anything was written; nothing is booked when they balance
+			if ($debet || $kredit) {
+				if ($differenceAccount === NULL) {
+					$differenceAccount = forkontrolDifferenceAccount($valuta, $diff);
+				}
+				if ($differenceAccount['error']) {
+					return ($differenceAccount['error']);
+				}
+				$account = $differenceAccount['account'];
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
 				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
 				if (is_numeric($id)) {
-					$qtxt .= "('0','$transdate','$beskrivelse','$difkto','$fakturanr','$debet','$kredit'";
-					$qtxt .= ",'0','$afd','$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse','$reportNumber')";
+					$qtxt .= "('0','$transdate','$beskrivelse','$account','$fakturanr','$debet','$kredit',";
+					$qtxt .= "'0','$afd','$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse','$reportNumber')";
 				} else {
-					$qtxt .= "('0','$transdate','$beskrivelse','$difkto','0','$debet','$kredit'";
-					$qtxt .= ",'0','$afd','$logdate','$logtime','$projekt[0]','$ansat','0','$kasse','$reportNumber')";
+					$qtxt .= "('0','$transdate','$beskrivelse','$account','0','$debet','$kredit',";
+					$qtxt .= "'0','$afd','$logdate','$logtime','$projekt[0]','$ansat','0','$kasse','$reportNumber')";
 				}
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				$tmp = $debet - $kredit;
-				db_modify("update kontoplan set saldo=saldo+'$tmp' where kontonr='$difkto' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
-			} else {
-				return (__LINE__ . ' Manglende kontonummer til &oslash;redifferencer - Se indstillinger -> diverse -> &oslash;rediff');
+				db_modify("update kontoplan set saldo=saldo+'$tmp' where kontonr='$account' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 			}
 		} else {
 			$svar = "Der er konstateret en uoverensstemmelse i posteringssummen, ID $ordre_id ordre $ordrenr, d=$d_kontrol, k=$k_kontrol kontakt Saldi p&aring; telefon 4690 2208";
