@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_genfakt.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/ret_genfakt.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -44,7 +44,13 @@
 // 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
 // 20261110 CL/SZ SST-879 Quoted the firmanavn key in the stamdata sync update; the bare constant was a fatal error on PHP 8 (white screen).
 //                The sync checkboxes are now read by form row ($x), not by found-order count ($y), so an order dropped from the list no longer shifts them onto the wrong order.
+// 20261110 CL/SZ SST-927 An empty Genfakt. field no longer saves today's date; it keeps the stored date, and '-' clears it as on the order card.
+//                The message now names every order whose Genfakt. is not after the invoice date, and those fields are marked in red.
+//                The alert text is JSON-encoded, so a name with an apostrophe or a multi-line message no longer breaks it.
+// 20261112 CL/SZ SST-927 The fallback text of the message is written with HTML entities, so it shows correctly whatever the company charset.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261118 CL/SZ SST-927 The order names are added to the message after the entity decode, so a name is shown exactly as typed.
+// 20261126 CL/SZ SST-927 A name with a byte that isn't UTF-8 no longer blanks the message: json_encode() substitutes it.
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 	that.style.color = fgcolor;
@@ -131,6 +137,7 @@ print "</tbody></table name=\"tabel_1.1\"></td></tr>\n"; # <- tabel 1.1
 
 $ordreliste=array();
 $fejltekst=NULL;
+$ugyldigGenfakt=array();
 if ($_GET['ordreliste']) {
 	$ordreliste=explode(",",$_GET['ordreliste']);
 	$ordreantal=sizeof($ordreliste);
@@ -224,23 +231,40 @@ if ($_GET['ordreliste']) {
 			}
 			if (!$betalingsbet[$x]) $betalingsbet[$x]='Netto';
 			if (!$betalingsdage[$x]) $betalingsdage[$x]='0'; #20170530
+			$ordreId=(int)$ordreliste[$x];
+			$ordreNavn=$firmanavn[$x];
 			$firmanavn[$x]=db_escape_string($firmanavn[$x]);
 			$email[$x]=db_escape_string($email[$x]);
 			$fakturadate=usdate($fakturadato[$x]);
-			$nextfakt=usdate($genfakt[$x]);
+			$genfaktFelt=trim($genfakt[$x]);
+			if ($genfaktFelt == '-') {
+				$nextfakt=NULL;
+				$nextfaktSql="nextfakt=NULL,";
+			} elseif ($genfaktFelt) {
+				$nextfakt=usdate($genfaktFelt);
+				$nextfaktSql="nextfakt='$nextfakt',";
+			} else {
+				$r=db_fetch_array(db_select("select nextfakt from ordrer where id = '$ordreId'",__FILE__ . " linje " . __LINE__));
+				$nextfakt=$r ? $r['nextfakt'] : NULL;
+				$nextfaktSql='';
+			}
 			($udskriv_til[$x]=='email')?$mail_fakt[$x]='on':$mail_fakt[$x]='';
 			($udskriv_til[$x]=='PBS_BS' || $udskriv_til[$x]=='PBS_FI')?$pbs[$x]='on':$pbs[$x]='';
 			if ($udskriv_til[$x]=='oioubl') {
 				if($art=="DO") $oioubl='faktura';
 				else $oioubl='kreditnota';
 			} else $oioubl=NULL;
-			$qtxt = "update ordrer set firmanavn='$firmanavn[$x]',fakturadate='$fakturadate',nextfakt='$nextfakt',";
+			$qtxt = "update ordrer set firmanavn='$firmanavn[$x]',fakturadate='$fakturadate',$nextfaktSql";
 			$qtxt.= "email='$email[$x]',udskriv_til='$udskriv_til[$x]',mail_fakt='$mail_fakt[$x]',projekt='$projekt[$x]',";
 			$qtxt.= "betalingsbet='$betalingsbet[$x]',betalingsdage='$betalingsdage[$x]',procenttillag='$procenttillag[$x]'";
 			$qtxt.= "where id='$ordreliste[$x]'";
 #if ($x < 3) echo __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($nextfakt<=$fakturadate) $fejltekst="Genfaktureringsdato skal v&aelig;re efter fakturadato ($firmanavn[$x])";
+			if ($nextfakt && $nextfakt<=$fakturadate) {
+				$r=db_fetch_array(db_select("select ordrenr from ordrer where id = '$ordreId'",__FILE__ . " linje " . __LINE__));
+				$ugyldigGenfakt[$ordreId]=trim(($r ? $r['ordrenr'] : '')." $ordreNavn");
+				$fejltekst=findtekst('debtor.recurring.next_invoice_not_after_invoice_date|Genfaktureringsdato skal v&aelig;re efter fakturadato. Ret Genfakt. p&aring; de markerede ordrer:',$sprog_id);
+			}
 			if (!$fejltekst && strstr($udskriv_til[$x],'PBS')) {
 				$betalingsdate=forfaldsdag($fakturadate, $betalingsbet[$x], $betalingsdage[$x]);
 				list($b_y,$b_m,$b_d)=explode("-",$betalingsdate);
@@ -257,7 +281,13 @@ if ($_GET['ordreliste']) {
 			}
 		}
 	}
-	if ($fejltekst) print "<BODY onLoad=\"javascript:alert('$fejltekst')\">\n";
+	if ($fejltekst) {
+		$alertTekst=html_entity_decode($fejltekst,ENT_QUOTES,$charset);
+		# The order names are added after the decode, so a name is shown as it was typed
+		if ($ugyldigGenfakt) $alertTekst.="\n".implode("\n",$ugyldigGenfakt);
+		if ($charset != 'UTF-8') $alertTekst=mb_convert_encoding($alertTekst,'UTF-8',$charset);
+		print "<BODY onLoad=\"javascript:alert(".htmlspecialchars(json_encode($alertTekst,JSON_INVALID_UTF8_SUBSTITUTE),ENT_QUOTES).")\">\n";
+	}
 	for ($x=1 ; $x<=$linjeantal ; $x++) {
 		if ($posnr[$x]=='-') {
 			if ($linje_id[$x]) db_modify("delete from ordrelinjer where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
@@ -507,7 +537,9 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	$spantekst="Du kan rette alle med samme genfaktureringsdato ved at sætte en * til sidst<br>";
 #	$spantekst.="F.eks. ".date("dmy")."	*";
 	print "<td><span onmouseover=\"return overlib('$spantekst', WIDTH=800);\" onmouseout=\"return nd();\">";
-	print "<input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:center;width:90px\" name=\"genfakt_$x\" value=\"$genfakt[$x]\">";
+	$genfaktStil="text-align:center;width:90px";
+	if (isset($ugyldigGenfakt[$id[$x]])) $genfaktStil.=";border:2px solid #FF0000";
+	print "<input class=\"inputbox\" $onfocus type=\"text\" style=\"$genfaktStil\" name=\"genfakt_$x\" value=\"$genfakt[$x]\">";
 	print "</span></td>";
 	$spantekst="Du kan rette alle med samme betalingsbetingelser ved at sætte en * efter dage<br>";
 	$spantekst.="f.eks.: ";

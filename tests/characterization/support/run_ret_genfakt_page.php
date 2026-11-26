@@ -15,9 +15,14 @@
 //
 // Prints one JSON line on stdout when the page finishes. A fatal error (the
 // white screen) exits 255, which CharacterizationTestCase::runChild() fails on.
+//   alert       - the text of the page's onLoad alert() as the browser would show it, or null.
+//                 A message that is not a valid JavaScript string (the old quoting broke on an
+//                 apostrophe) comes back as {"broken": <the raw argument>}.
+//   red_genfakt - the names of the Genfakt. fields drawn with a red border
 //
 // History:
 // 20261122 CL/SZ SST-879 Created for RetGenfaktSyncTest.
+// 20261122 CL/SZ SST-927 Also reports the alert text and the Genfakt. fields marked in red, for RetGenfaktNextInvoiceTest.
 
 if ($argc < 3) {
     fwrite(STDERR, "usage: php run_ret_genfakt_page.php <form fields> <session_id>\n");
@@ -49,4 +54,17 @@ $chartestOutput = ob_get_clean();
 if (getenv('SALDI_CHAR_DEBUG')) {
     fwrite(STDERR, $chartestOutput . "\n");
 }
-fwrite(STDOUT, json_encode(['done' => true]) . "\n");
+$chartestAlert = null;
+if (preg_match('/onLoad="javascript:alert\((.*?)\)">/s', $chartestOutput, $chartestMatch)) {
+    $chartestArgument = html_entity_decode($chartestMatch[1], ENT_QUOTES, 'UTF-8');
+    $chartestDecoded = json_decode($chartestArgument);
+    if (is_string($chartestDecoded)) {
+        $chartestAlert = $chartestDecoded;
+    } elseif (preg_match("/^'((?:[^'\\\\\n]|\\\\.)*)'$/s", $chartestArgument, $chartestQuoted)) {
+        $chartestAlert = stripcslashes($chartestQuoted[1]); // a valid single-quoted JavaScript string
+    } else {
+        $chartestAlert = ['broken' => $chartestArgument];
+    }
+}
+preg_match_all('/style="[^"]*border:2px solid #FF0000[^"]*" name="(genfakt_\d+)"/', $chartestOutput, $chartestRed);
+fwrite(STDOUT, json_encode(['done' => true, 'alert' => $chartestAlert, 'red_genfakt' => $chartestRed[1]]) . "\n");
