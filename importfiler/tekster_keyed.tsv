@@ -26,6 +26,9 @@ pos.delivery.error.date	Ønsket leveringsdato skal være en gyldig dato (dd-mm-�
 pos.delivery.error.past	Ønsket leveringsdato kan ikke ligge før i dag.	The requested delivery date cannot be before today.	Ønsket leveringsdato kan ikke være før i dag.
 pos.delivery.error.save	Leveringsmåden kunne ikke gemmes. Prøv igen.	The delivery option could not be saved. Try again.	Leveringsmåten kunne ikke lagres. Prøv igjen.
 pos.delivery.label	Levering	Delivery	Levering
+pos.delivery.page.description	De leveringsmåder, ekspedienten kan vælge på et salg (afhentning eller levering), og den leveringsmetode og de tags, butiksordren sendes til Shopify med. Uden en aktiv leveringsmåde er alle salg taget med.	The delivery choices the cashier can pick on a sale (pickup or delivery), and the delivery method and tags the store order is sent to Shopify with. Without an active choice every sale is taken along.	Leveringsmåtene ekspeditøren kan velge på et salg (henting eller levering), og leveringsmetoden og taggene butikkordren sendes til Shopify med. Uten en aktiv leveringsmåte er alle salg tatt med.
+pos.delivery.page.edit	Ret leveringsmåder	Edit delivery choices	Rediger leveringsmåter
+pos.delivery.page.title	Leveringsmåder i kassen	Delivery choices at the till	Leveringsmåter i kassen
 pos.delivery.settings.active	Aktiv	Active	Aktiv
 pos.delivery.settings.delete	Slet	Delete	Slett
 pos.delivery.settings.help	Valgene i kassen. Uden valg er et salg "Taget med". En leveringsmåde, der er brugt på en ordre, gemmes som en ny version, når den rettes.	The options in the POS. Without an option a sale is "Taken along". A delivery option used on an order is saved as a new version when it is edited.	Valgene i kassen. Uten valg er et salg "Tatt med". En leveringsmåte som er brukt på en ordre, lagres som en ny versjon når den endres.
@@ -33,6 +36,7 @@ pos.delivery.settings.name	Navn	Name	Navn
 pos.delivery.settings.new	Ny leveringsmåde	New delivery option	Ny leveringsmåte
 pos.delivery.settings.not_saved	Leveringsmåde ikke gemt, fordi den er ændret af en anden. Genindlæs siden og prøv igen	Delivery option not saved because someone else changed it. Reload the page and try again	Leveringsmåte ikke lagret fordi den er endret av en annen. Last inn siden på nytt og prøv igjen
 pos.delivery.settings.refused	Leveringsmåde ikke gemt (navn og type skal udfyldes)	Delivery option not saved (name and type are required)	Leveringsmåte ikke lagret (navn og type må fylles ut)
+pos.delivery.settings.save_failed	Leveringsmåden kunne ikke gemmes. Prøv igen.	The delivery option could not be saved. Try again.	Leveringsmåten kunne ikke lagres. Prøv igjen.
 pos.delivery.settings.shopify_value	Leveringsmetode i Shopify	Delivery method in Shopify	Leveringsmetode i Shopify
 pos.delivery.settings.sort	Sortering	Sort order	Sortering
 pos.delivery.settings.tags	Tags (kommasepareret)	Tags (comma separated)	Tagger (kommaseparert)

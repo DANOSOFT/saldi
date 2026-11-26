@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/posSaleSettings.php --- ver 5.1.1 ---- 2026-11-24 ----
+// --- systemdata/diverseIncludes/posSaleSettings.php --- ver 5.1.1 ---- 2026-11-26 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -50,6 +50,7 @@
 //
 // 20261124 CL/LH K33 PoS-valg is retired (#1191, #1192), so the delivery choices are kept on systemdata/posDeliveryChoices.php, linked from Indstillinger -> Kasse -> Skærm & kassemenuer -> Ekspedition.
 //                pos_render_delivery_choices_settings() takes the page's charset.
+// 20261126 CDX/NTR Distinguish stale forms from database failures and skip order scans and writes for unchanged choices.
 //
 // The brand is kept as a tab separated list indexed by terminal number less one, in
 // grupper art='POS' kodenr='4' box1 - the same shape as every other per-terminal POS setting
@@ -58,6 +59,10 @@
 
 /** The grupper row holding the POS sale settings, created on first use. */
 define('POS_SALE_SETTINGS_KODENR', '4');
+
+/** A delivery choice changed after the administrator opened its form. */
+final class PosDeliveryStaleRevision extends \RuntimeException {
+}
 
 /**
  * The default brand of each terminal, as a list indexed by terminal number less one.
@@ -445,13 +450,16 @@ function pos_delivery_posted_choice($row) {
  * is logged; the page carries on and reports what was not saved instead of ending in a fatal error.
  *
  * @param callable $op
+ * @param Throwable|null $failure Receives the caught failure, so stale forms can be reported separately.
  * @return bool Whether the work was committed.
  */
-function pos_delivery_try($op) {
+function pos_delivery_try($op, &$failure = null) {
+	$failure = null;
 	try {
 		shopify_db_transaction($op);
 		return true;
 	} catch (Throwable $e) {
+		$failure = $e;
 		error_log('K33 delivery choice not saved: ' . $e->getMessage());
 		return false;
 	}
@@ -491,6 +499,7 @@ function pos_save_delivery_choices($post) {
 	$types = array_keys(pos_delivery_types($sprog_id));
 	$refused = array();
 	$failed = array();
+	$stale = array();
 	$valid = function ($choice) use ($types, &$refused) {
 		if ($choice['navn'] === '' || !in_array($choice['type'], $types, true)) {
 			$refused[] = ($choice['navn'] === '') ? '-' : $choice['navn'];
@@ -517,19 +526,25 @@ function pos_save_delivery_choices($post) {
 			$qtxt.= " FROM pos_leveringsvalg WHERE id = $1 FOR UPDATE";
 			$before = shopify_db_rows($qtxt, array($id));
 			if (!$before) {
-				return;
+				throw new PosDeliveryStaleRevision("delivery choice $id no longer exists");
 			}
 			$before = $before[0];
 			if ($choice['revision'] !== '' && $choice['revision'] !== pos_delivery_revision($before)) {
-				throw new RuntimeException("delivery choice $id was changed by someone else since the page was opened");
+				throw new PosDeliveryStaleRevision("delivery choice $id was changed by someone else since the page was opened");
+			}
+			$meaningChanged = $choice['navn'] !== $before['navn'] || $choice['type'] !== $before['type']
+				|| (string) $choice['shopify_vaerdi'] !== $before['shopify_vaerdi'] || $choice['tags_typed'] !== $before['tags'];
+			if (!$choice['slet'] && !$meaningChanged) {
+				if ($choice['aktiv'] !== ($before['aktiv'] === 't') || $choice['sort'] !== (int) $before['sort']) {
+					shopify_db_rows('UPDATE pos_leveringsvalg SET aktiv = $2, sort = $3 WHERE id = $1', array($id, $choice['aktiv'], $choice['sort']));
+				}
+				return;
 			}
 			$used = (bool) shopify_db_rows('SELECT 1 FROM ordrer WHERE leveringsvalg_id = $1 LIMIT 1', array($id));
 			if ($choice['slet']) {
 				shopify_db_rows($used ? 'UPDATE pos_leveringsvalg SET aktiv = false WHERE id = $1' : 'DELETE FROM pos_leveringsvalg WHERE id = $1', array($id));
 				return;
 			}
-			$meaningChanged = $choice['navn'] !== $before['navn'] || $choice['type'] !== $before['type']
-				|| (string) $choice['shopify_vaerdi'] !== $before['shopify_vaerdi'] || $choice['tags_typed'] !== $before['tags'];
 			if ($meaningChanged && $used) {
 				shopify_db_rows('UPDATE pos_leveringsvalg SET aktiv = false WHERE id = $1', array($id));
 				$insert($choice, $choice['aktiv']);
@@ -537,9 +552,13 @@ function pos_save_delivery_choices($post) {
 			}
 			shopify_db_rows('UPDATE pos_leveringsvalg SET navn = $2, type = $3, shopify_vaerdi = $4, tags = $5::jsonb, aktiv = $6, sort = $7 WHERE id = $1',
 				array($id, $choice['navn'], $choice['type'], $choice['shopify_vaerdi'], $choice['tags'], $choice['aktiv'], $choice['sort']));
-		});
+		}, $failure);
 		if (!$saved) {
-			$failed[] = $choice['navn'];
+			if ($failure instanceof PosDeliveryStaleRevision) {
+				$stale[] = $choice['navn'];
+			} else {
+				$failed[] = $choice['navn'];
+			}
 		}
 	}
 	if ($new !== null) {
@@ -557,8 +576,12 @@ function pos_save_delivery_choices($post) {
 		// prefix is a translation an installation can change, so the whole message is escaped.
 		alert(pos_sale_brand_for_alert($txt . ': ' . implode(', ', $refused)));
 	}
-	if ($failed) {
+	if ($stale) {
 		$txt = findtekst('pos.delivery.settings.not_saved|Leveringsmåde ikke gemt, fordi den er ændret af en anden. Genindlæs siden og prøv igen', $sprog_id);
+		alert(pos_sale_brand_for_alert($txt . ': ' . implode(', ', $stale)));
+	}
+	if ($failed) {
+		$txt = findtekst('pos.delivery.settings.save_failed|Leveringsmåden kunne ikke gemmes. Prøv igen.', $sprog_id);
 		alert(pos_sale_brand_for_alert($txt . ': ' . implode(', ', $failed)));
 	}
 }
