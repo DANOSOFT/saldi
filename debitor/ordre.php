@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-17 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -196,6 +196,7 @@
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
 // 20261118 CL/SS SD-833 An invoice can get several credit notes, one draft at a time, never more than it invoiced in all (orderIncludes/creditControls.php). A draft offers dekort and restock per line.
+// 20261121 CL/SS SD-833 review: the alert that a draft was held to what is left is a JavaScript string literal (jsString()).
 
 @session_start();
 $s_id = session_id();
@@ -2656,7 +2657,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 	}
 	if ($id && $art == 'DK' && $status < 3) { # SD-833: dekort and restock, within what is left on the invoice
 		$creditAlert = credit_controls_save((int)$id, $_POST, $sprog_id);
-		if ($creditAlert) alert($creditAlert);
+		if ($creditAlert) {
+			print "<script type='text/javascript'>alert(" . jsString(array($creditAlert)) . ");</script>";
+		}
 	}
 	transaktion("commit");
 	if ($orderLineSaved) orderLineRememberSave($_SESSION, (int)$id, $orderLineReplayKey);

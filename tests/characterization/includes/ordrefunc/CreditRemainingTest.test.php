@@ -11,7 +11,12 @@
 // History:
 // 20261118 CL/SS SD-833 Created.
 // 20261120 CL/SS SD-833 review: a credit line whose quantity points the wrong way is held to nothing.
+// 20261121 CL/SS SD-833 review: an amount discount counts in kroner, and what is left counts only the lines a credit note carries.
+//                A capped line delivers no more than it credits.
+// 20261123 CL/SS SD-833 review: a line the Kredit button leaves out is still capped, and an item found by its number counts.
+// 20261125 CL/SS SD-833 review: an item line whose varenr is NULL still counts for the Kredit button when there is a procenttillæg.
 // 20261123 CDX/NTR Use the test class-owned database and session.
+// 20261126 CL/SS SD-833 review: an item line without an item number does not count for the Kredit button, with or without a procenttillæg; the cap still counts it.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -24,9 +29,9 @@ final class CreditRemainingTest extends CharacterizationTestCase
         self::rows('ALTER TABLE ordrelinjer ADD COLUMN IF NOT EXISTS kredit_art varchar(6)');
     }
 
-    private function remaining(int $origId, int $except = 0): array
+    private function remaining(int $origId, int $except = 0, bool $copiedOnly = false): array
     {
-        return $this->runChildJson('run_credit_service.php', ['remaining', $origId, $except, CharacterizationEnv::testDb()])['remaining'];
+        return $this->runChildJson('run_credit_service.php', ['remaining', $origId, $except, (int)$copiedOnly, CharacterizationEnv::testDb()])['remaining'];
     }
 
     private static function firstLine(int $orderId): int
@@ -276,5 +281,118 @@ final class CreditRemainingTest extends CharacterizationTestCase
         $this->assertCount(1, $changed, 'the change is reported');
         $this->assertEqualsWithDelta(0.0, (float)self::lineOf($note['id'])['antal'], 0.001, '+1 x -200 would credit 200 of an invoice of 100');
         $this->assertEqualsWithDelta(100.0, $this->remaining($invoice['id'])[$origLine]['remaining_amount'], 0.001);
+    }
+
+    public function test_an_amount_discount_counts_in_kroner_off_each_unit(): void
+    {
+        $item = self::$fx->item();
+        $invoice = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 2, 'pris' => 200.00, 'rabat' => 30]], ['status' => 3]);
+        $origLine = self::firstLine($invoice['id']);
+        self::rows("UPDATE ordrelinjer SET rabatart = 'amount' WHERE id = $1", [$origLine]);
+
+        $this->assertEqualsWithDelta(340.0, $this->remaining($invoice['id'])[$origLine]['remaining_amount'], 0.001, '2 x (200 - 30), not 2 x 200 less 30 %');
+
+        $note = $this->credit($origLine, $item, -2, 200.00);
+        $noteLine = self::firstLine($note['id']);
+        self::rows("UPDATE ordrelinjer SET rabat = 30, rabatart = 'amount' WHERE id = $1", [$noteLine]);
+        $this->service('choice', [$noteLine, 10, 0]);
+        $this->assertEqualsWithDelta(34.0, (float)self::lineOf($note['id'])['pris'], 0.001, 'a 10 % dekort of 340');
+
+        $this->service('choice', [$noteLine, 0, 1]);
+        $line = self::lineOf($note['id']);
+        $this->assertEqualsWithDelta(30.0, (float)$line['rabat'], 0.001);
+        $this->assertSame('amount', trim($line['rabatart']), 'turning the dekort back restores the discount as kroner');
+    }
+
+    public function test_lines_a_credit_note_never_carries_are_not_left_to_credit(): void
+    {
+        $item = self::$fx->item();
+        $extra = self::$fx->item();
+        $percentItem = self::$fx->item();
+        $invoice = self::$fx->order(self::$fx->debtor(), [
+            ['item' => $item, 'antal' => 2, 'pris' => 100.00],
+            ['item' => $extra, 'antal' => 2, 'pris' => 10.00],
+            ['item' => $extra, 'antal' => 1, 'pris' => 5.00],
+            ['item' => $percentItem, 'antal' => 1, 'pris' => 20.00],
+        ], ['status' => 3]);
+        $ids = array_column(self::rows('SELECT id FROM ordrelinjer WHERE ordre_id = $1 ORDER BY id', [$invoice['id']]), 'id');
+        self::rows('UPDATE ordrelinjer SET folgevare = $1 WHERE id = $2', [-(int)$ids[0], $ids[1]]);
+        self::rows('UPDATE ordrelinjer SET posnr = -1 WHERE id = $1', [$ids[2]]);
+        self::rows('UPDATE ordrer SET procenttillag = 10 WHERE id = $1', [$invoice['id']]);
+        $box13 = self::one("SELECT box13 FROM grupper WHERE art = 'DIV' AND kodenr = '3'");
+        self::rows("UPDATE grupper SET box13 = $1 WHERE art = 'DIV' AND kodenr = '3'", ['10' . chr(9) . $percentItem['varenr']]);
+        try {
+            $copied = $this->remaining($invoice['id'], 0, true);
+            $this->assertSame([(int)$ids[0]], array_keys($copied), 'the følgevare, posnr -1 and procenttillæg lines are left out');
+            $this->assertCount(4, $this->remaining($invoice['id']), 'the cap still counts every line');
+
+            $this->credit((int)$ids[0], $item, -2, 100.00, 'antal');
+            $this->assertFalse($this->service('left', [$invoice['id']])['left'], 'nothing is left, so the Kredit button goes');
+        } finally {
+            self::rows("UPDATE grupper SET box13 = $1 WHERE art = 'DIV' AND kodenr = '3'", [$box13['box13'] ?? null]);
+        }
+    }
+
+    /**
+     * The invoice page shows a line's quantity only when it has an item number and an item (debitor/ordre.php:4518),
+     * so the Kredit copy credits a line without an item number at 0. The button must not wait for that line, with or
+     * without a procenttillæg; the cap still counts it.
+     */
+    public function test_an_item_line_without_an_item_number_does_not_count_for_the_kredit_button(): void
+    {
+        $item = self::$fx->item();
+        $other = self::$fx->item();
+        $percentItem = self::$fx->item();
+        $invoice = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 1, 'pris' => 100.00], ['item' => $other, 'antal' => 1, 'pris' => 50.00]], ['status' => 3]);
+        $lines = array_map('intval', array_column(self::rows('SELECT id FROM ordrelinjer WHERE ordre_id = $1 ORDER BY id', [$invoice['id']]), 'id'));
+        self::rows('UPDATE ordrelinjer SET varenr = NULL WHERE id = $1', [$lines[1]]);
+        $box13 = self::one("SELECT box13 FROM grupper WHERE art = 'DIV' AND kodenr = '3'");
+        try {
+            foreach ([0, 10] as $percent) {
+                self::rows('UPDATE ordrer SET procenttillag = $2 WHERE id = $1', [$invoice['id'], $percent]);
+                self::rows("UPDATE grupper SET box13 = $1 WHERE art = 'DIV' AND kodenr = '3'", [$percent ? '10' . chr(9) . $percentItem['varenr'] : ($box13['box13'] ?? null)]);
+                $this->assertSame([$lines[0]], array_keys($this->remaining($invoice['id'], 0, true)), "procenttillæg $percent: the button counts the line with an item number only");
+                $this->assertSame($lines, array_keys($this->remaining($invoice['id'])), "procenttillæg $percent: the cap counts both lines");
+            }
+        } finally {
+            self::rows("UPDATE grupper SET box13 = $1 WHERE art = 'DIV' AND kodenr = '3'", [$box13['box13'] ?? null]);
+        }
+    }
+
+    public function test_a_capped_line_is_set_to_deliver_no_more_than_it_credits(): void
+    {
+        $item = self::$fx->item();
+        $invoice = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 4, 'pris' => 100.00]], ['status' => 3]);
+        $origLine = self::firstLine($invoice['id']);
+        $this->credit($origLine, $item, -2, 100.00, 'antal');
+        $second = $this->credit($origLine, $item, -4, 100.00, 'antal');
+        $other = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 1, 'pris' => 100.00]], ['status' => 3]);
+        $wrongWay = $this->credit(self::firstLine($other['id']), $item, 1, 100.00, 'antal');
+        self::rows('UPDATE ordrelinjer SET leveres = antal WHERE ordre_id IN ($1, $2)', [$second['id'], $wrongWay['id']]);
+
+        $this->service('hold', [$second['id']]);
+        $line = self::lineOf($second['id']);
+        $this->assertEqualsWithDelta(-2.0, (float)$line['antal'], 0.001);
+        $this->assertEqualsWithDelta(-2.0, (float)$line['leveres'], 0.001, 'two to take back, not four');
+
+        $this->service('hold', [$wrongWay['id']]);
+        $this->assertEqualsWithDelta(0.0, (float)self::lineOf($wrongWay['id'])['leveres'], 0.001);
+    }
+
+    public function test_a_line_stored_without_an_item_id_still_counts_and_is_capped(): void
+    {
+        $item = self::$fx->item();
+        $invoice = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 2, 'pris' => 100.00]], ['status' => 3]);
+        $origLine = self::firstLine($invoice['id']);
+        self::rows('UPDATE ordrelinjer SET vare_id = 0, varenr = $1 WHERE id = $2', [$item['varenr'], $origLine]);
+        $this->assertTrue($this->service('left', [$invoice['id']])['left'], 'the invoice page finds the item, so Kredit copies the line');
+
+        $first = $this->credit($origLine, $item, -2, 100.00, 'antal');
+        self::rows('UPDATE ordrer SET status = 3 WHERE id = $1', [$first['id']]);
+        $this->assertFalse($this->service('left', [$invoice['id']])['left']);
+
+        $second = $this->credit($origLine, $item, -2, 100.00, 'antal');
+        $this->service('hold', [$second['id']]);
+        $this->assertEqualsWithDelta(0.0, (float)self::lineOf($second['id'])['antal'], 0.001, 'nothing is left, so it cannot be credited twice');
     }
 }
