@@ -53,7 +53,9 @@ final class PosCreateCustomerSyncTest extends TestCase
         }
         $this->sql("DELETE FROM adresser WHERE btrim(kontonr) ~ '^291[0-9]{5}$' OR firmanavn LIKE 'SD844%'");
         $this->sql("DELETE FROM settings WHERE var_grp = 'pos_customer_create'");
-        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art) SELECT 'SD844 POS', 94, 'DG' WHERE NOT EXISTS (SELECT 1 FROM grupper WHERE art = 'DG' AND kodenr = 94)");
+        // A debtor group of the runner's fiscal year (1), as the create form offers only this year's active groups.
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, fiscal_year) SELECT 'SD844 POS', 94, 'DG', 1 WHERE NOT EXISTS (SELECT 1 FROM grupper WHERE art = 'DG' AND kodenr = 94)");
+        $this->sql("UPDATE grupper SET fiscal_year = 1 WHERE art = 'DG' AND kodenr = 94");
         $this->sql("DELETE FROM settings WHERE var_grp = 'shopify' AND var_name = 'customer_number_start'");
         $this->sql("INSERT INTO settings (var_grp, var_name, var_value) VALUES ('shopify', 'customer_number_start', $1)", [(string)self::START]);
         $this->sql("INSERT INTO shopify_shops (shop_key, domain, is_primary, customers_enabled) VALUES ('hml', 'hml-test.myshopify.com', true, true)");
@@ -185,6 +187,35 @@ final class PosCreateCustomerSyncTest extends TestCase
 
         self::assertSame(['12 34 56 78', '+46 70 123 45 67', ''], array_map(
             fn(array $r): string => (string)$this->sql('SELECT tlf FROM adresser WHERE id = $1', [$r['konto_id']])[0]['tlf'], $results));
+    }
+
+    public function testPaymentTermsTheFormDoesNotOfferCreateNothing(): void
+    {
+        // opdater_konto() puts the customer's betalingsbet into the sale's SQL unescaped, so only the
+        // form's own four terms are stored (Hugin on 0b8e7a7d).
+        [$crafted, $netto] = $this->steps(
+            ['create', $this->form(['betalingsbet' => "',sum=0--"]), $this->token()],
+            ['create', $this->form(['firmanavn' => 'SD844 Netto', 'betalingsbet' => 'Netto']), $this->token()]
+        );
+
+        self::assertSame('UnexpectedValueException', $crafted['error']);
+        self::assertSame([['betalingsbet' => 'Netto']],
+            $this->sql("SELECT betalingsbet FROM adresser WHERE firmanavn LIKE 'SD844%'"));
+        self::assertTrue($netto['created']);
+    }
+
+    public function testAGroupThatIsNotAnActiveDebtorGroupCreatesNothing(): void
+    {
+        $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, inaktiv, fiscal_year) SELECT 'SD844 inaktiv', 95, 'DG', true, 1 WHERE NOT EXISTS (SELECT 1 FROM grupper WHERE art = 'DG' AND kodenr = 95)");
+
+        [$unknown, $inactive] = $this->steps(
+            ['create', $this->form(['grp' => '9999']), $this->token()],
+            ['create', $this->form(['grp' => '95']), $this->token()]
+        );
+
+        self::assertSame('InvalidArgumentException', $unknown['error']);
+        self::assertSame('InvalidArgumentException', $inactive['error']);
+        self::assertSame([], $this->sql("SELECT id FROM adresser WHERE firmanavn LIKE 'SD844%'"));
     }
 
     public function testLongValuesAreCutToTheColumns(): void

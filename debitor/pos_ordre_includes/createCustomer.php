@@ -32,6 +32,7 @@
 // 20261126 CL/MJ SD-844 K31: pos_customer_create_alert_script(), the cashier's alert through jsString().
 // 20261126 CL/MJ SD-844 K31: a phone the Shopify export would drop (not 8 digits and without a country code) is refused, so it can't pass the pickup and delivery contact check and reach Shopify with no contact.
 // 20261126 CL/MJ SD-844 K31: the phone is checked both as stored and as the sale holds it, cut to ordrer.phone's 50 characters (Sol).
+// 20261126 CL/MJ SD-844 K31: only the form's payment terms are stored (opdater_konto() puts them into SQL unescaped), the group must be an active debtor group of the year, and text is cut in the tenant's encoding (Hugin, Saul).
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
@@ -40,6 +41,9 @@ const POS_CUSTOMER_CREATE_GROUP = 'pos_customer_create';
 
 /** Days a form token is kept; a form older than that is long gone from any till. */
 const POS_CUSTOMER_CREATE_TOKEN_DAYS = 30;
+
+/** The payment terms the till's create form offers (accountLookup.php); nothing else is stored. */
+const POS_CUSTOMER_CREATE_TERMS = array('Kontant', 'Netto', 'Lb. md.', 'Forud');
 
 /** InvalidArgumentException code for a phone the Shopify export would drop (pos_create_customer()). */
 const POS_CUSTOMER_CREATE_BAD_PHONE = 2;
@@ -115,7 +119,7 @@ function pos_customer_create_token_issued($token) {
  * @return array{konto_id: int, kontonr: string, created: bool}
  * @throws InvalidArgumentException for a missing name or group, or (code POS_CUSTOMER_CREATE_BAD_PHONE) a
  *                                  phone the Shopify export would drop
- * @throws UnexpectedValueException for a malformed token
+ * @throws UnexpectedValueException for a malformed token, or payment terms the form doesn't offer
  */
 function pos_create_customer(array $c, $token) {
 	require_once __DIR__ . '/../../includes/shopify/config.php';
@@ -123,23 +127,28 @@ function pos_create_customer(array $c, $token) {
 	if (!preg_match('/^[0-9a-f]{32}$/', $token)) {
 		throw new UnexpectedValueException('the create form has no valid token');
 	}
+	// The form's text comes in the tenant's encoding (ISO-8859-15 on a LATIN9 tenant), so it is cut in that
+	// encoding to fit the columns.
+	global $db_encode, $regnaar;
+	$encoding = ($db_encode ?? 'UTF8') === 'UTF8' ? 'UTF-8' : 'ISO-8859-15';
 	$fields = array();
 	foreach (POS_CUSTOMER_CREATE_WIDTHS as $column => $width) {
 		$source = $column === 'tlf' ? 'phone' : $column;
-		$fields[$column] = mb_substr(trim((string) ($c[$source] ?? '')), 0, $width, 'UTF-8');
+		$fields[$column] = mb_substr(trim((string) ($c[$source] ?? '')), 0, $width, $encoding);
 	}
 	if ($fields['firmanavn'] === '') {
 		throw new InvalidArgumentException('a customer needs a name');
 	}
 	if ($fields['bynavn'] === '' && $fields['postnr'] !== '') {
-		$fields['bynavn'] = mb_substr((string) bynavn($fields['postnr']), 0, POS_CUSTOMER_CREATE_WIDTHS['bynavn'], 'UTF-8');
+		$fields['bynavn'] = mb_substr((string) bynavn($fields['postnr']), 0, POS_CUSTOMER_CREATE_WIDTHS['bynavn'], $encoding);
 	}
 	if ($fields['tlf'] !== '') {
 		// The sale goes to Shopify with this phone only when the export can make it E.164 (8 digits, taken as
 		// Danish, or a number with its country code). A phone it would drop would pass the till's pickup and
 		// delivery contact check (K61) and still reach Shopify with no contact, so it is refused here.
 		// Both copies must be usable: the customer export reads the phone as stored, and a sale holds at most
-		// its first 50 characters (ordrer.phone, opdater_konto() in saleHeaderFunctions.php).
+		// its first 50 characters (ordrer.phone, opdater_konto() in saleHeaderFunctions.php, which cuts in UTF-8,
+		// so the same cut is checked here; a phone is digits and signs, the same in both encodings).
 		require_once __DIR__ . '/../../includes/shopify/services/customersOut.php';
 		if (shopify_customer_export_phone($fields['tlf'], '') === ''
 			|| shopify_customer_export_phone(mb_substr($fields['tlf'], 0, 50, 'UTF-8'), '') === '') {
@@ -151,8 +160,20 @@ function pos_create_customer(array $c, $token) {
 	if ($group <= 0) {
 		throw new InvalidArgumentException('a customer needs a debtor group');
 	}
-	// adresser.betalingsbet is varchar(15); the form offers a list, but a posted value is not trusted to fit
-	$terms = mb_substr(trim((string) ($c['betalingsbet'] ?? '')), 0, 15, 'UTF-8') ?: 'Kontant';
+	// The group must be one the form offers: an active debtor group of this fiscal year (accountLookup.php).
+	// kodenr is an integer on newer tenants and text on older ones, and inaktiv may not exist yet.
+	$known = shopify_db_rows("SELECT 1 FROM grupper g WHERE g.art = 'DG' AND btrim(g.kodenr::text) = $1"
+		. ((int) $regnaar > 0 ? ' AND g.fiscal_year = ' . (int) $regnaar : '')
+		. " AND coalesce((to_jsonb(g) ->> 'inaktiv')::boolean, false) = false LIMIT 1", array((string) $group));
+	if (!$known) {
+		throw new InvalidArgumentException('a customer needs an active debtor group');
+	}
+	// Only the form's own terms: opdater_konto() copies adresser.betalingsbet into the sale's SQL unescaped
+	// (saleHeaderFunctions.php), so a posted value of any other text is refused, not stored.
+	$terms = trim((string) ($c['betalingsbet'] ?? '')) ?: 'Kontant';
+	if (!in_array($terms, POS_CUSTOMER_CREATE_TERMS, true)) {
+		throw new UnexpectedValueException('the create form sent payment terms it does not offer');
+	}
 	$days = (int) ($c['betalingsdage'] ?? 0);
 
 	return shopify_db_transaction(function () use ($fields, $group, $terms, $days, $token) {
