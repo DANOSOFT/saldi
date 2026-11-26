@@ -231,6 +231,7 @@
 //              The save hands the replacements it has already made to the year's allocator, so two lines cannot end up on one number.
 //              A replaced number reaches only the line that still carries its proposal, and a line whose own year has no number left is refused instead of stored under another year's number.
 //              A taken-proposal replacement the year pass overrides is not announced, and its number is not held back from the year's own series.
+// 20261125 CDX/NTR Display the grid's prepared account text and use raw row values for escaped SQL and card links.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -2323,26 +2324,32 @@ $columns = array(
 		// Add custom render function to include title
 		'render' => function($value, $row, $column) use ($regnaar, $kladde_id) {
 			global $regnaar;
-			$value = strip_tags($value);
+			$account = (string) $row['debet'];
+			$accountSql = db_escape_string($account);
+			$accountTypeSql = db_escape_string((string) $row['d_type']);
+			$year = (int) $regnaar;
 			$debettext = '';
-			if ($row['d_type'] == 'F' && $value) {
-				$query2 = db_select("select beskrivelse from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+			if ($row['d_type'] == 'F' && $account) {
+				$query2 = db_select("select beskrivelse from kontoplan where kontonr='$accountSql' and regnskabsaar='$year'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$debettext = $row2['beskrivelse'];
 					$saved_vat = get_saved_vat_code($row, 'debetvat');
-					if ($saved_vat !== null && $saved_vat !== '')
+					if ($saved_vat !== null && $saved_vat !== '') {
 						$debettext = $debettext . " - " . $saved_vat;
+					}
 				}
-			} elseif (($row['d_type'] == 'D' || $row['d_type'] == 'K') && $value) {
-				$query2 = db_select("select firmanavn from adresser where kontonr='$value' and art = '{$row['d_type']}'", __FILE__ . " linje " . __LINE__);
+			} elseif (($row['d_type'] == 'D' || $row['d_type'] == 'K') && $account) {
+				$query2 = db_select("select firmanavn from adresser where kontonr='$accountSql' and art = '$accountTypeSql'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$debettext = trim($row2['firmanavn']);
 				}
 			}
 
-			$cardUrl = kk_account_card_link($row['d_type'], $value, $kladde_id);
-			$shown = htmlspecialchars($value);
-			if ($cardUrl) $shown = "<a class='kk-card-link' href='" . htmlspecialchars($cardUrl) . "'>$shown</a>";
+			$cardUrl = kk_account_card_link($row['d_type'], $account, $kladde_id);
+			$shown = $value;
+			if ($cardUrl) {
+				$shown = "<a class='kk-card-link' href='" . htmlspecialchars($cardUrl) . "'>$shown</a>";
+			}
 			return "<td align='right' title='" . htmlspecialchars($debettext) . "'>$shown</td>";
 		},
 		"generateSearch" => function ($column, $term) {
@@ -2414,26 +2421,32 @@ $columns = array(
 		// Add custom render function to include title
 		'render' => function($value, $row, $column) use ($regnaar, $kladde_id) {
 			global $regnaar;
-			$value =strip_tags($value);
+			$account = (string) $row['kredit'];
+			$accountSql = db_escape_string($account);
+			$accountTypeSql = db_escape_string((string) $row['k_type']);
+			$year = (int) $regnaar;
 			$kredittext = '';
-			if ($row['k_type'] == 'F' && $value) {
-				$query2 = db_select("select beskrivelse from kontoplan where kontonr='$value' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+			if ($row['k_type'] == 'F' && $account) {
+				$query2 = db_select("select beskrivelse from kontoplan where kontonr='$accountSql' and regnskabsaar='$year'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$kredittext = trim($row2['beskrivelse']);
 					$saved_vat = get_saved_vat_code($row, 'kreditvat');
-					if ($saved_vat !== null && $saved_vat !== '')
+					if ($saved_vat !== null && $saved_vat !== '') {
 						$kredittext = $kredittext . " - " . $saved_vat;
+					}
 				}
-			} elseif (($row['k_type'] == 'D' || $row['k_type'] == 'K') && $value) {
-				$query2 = db_select("select firmanavn from adresser where kontonr='$value' and art = '{$row['k_type']}'", __FILE__ . " linje " . __LINE__);
+			} elseif (($row['k_type'] == 'D' || $row['k_type'] == 'K') && $account) {
+				$query2 = db_select("select firmanavn from adresser where kontonr='$accountSql' and art = '$accountTypeSql'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$kredittext = trim($row2['firmanavn']);
 				}
 			}
 
-			$cardUrl = kk_account_card_link($row['k_type'], $value, $kladde_id);
-			$shown = htmlspecialchars($value);
-			if ($cardUrl) $shown = "<a class='kk-card-link' href='" . htmlspecialchars($cardUrl) . "'>$shown</a>";
+			$cardUrl = kk_account_card_link($row['k_type'], $account, $kladde_id);
+			$shown = $value;
+			if ($cardUrl) {
+				$shown = "<a class='kk-card-link' href='" . htmlspecialchars($cardUrl) . "'>$shown</a>";
+			}
 			return "<td align='right' title='" . htmlspecialchars($kredittext) . "'>$shown</td>";
 		},
 		"generateSearch" => function ($column, $term) {
