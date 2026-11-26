@@ -22,6 +22,9 @@
 //
 // History:
 // 20261118 CL/LH Created.
+// 20261126 CDX/NTR Accept explicit reviewer waivers using the shared dated exception format.
+
+import { findException } from "../lib/exceptions.mjs";
 
 const UI_EXTENSIONS = /\.(css|scss|less|js|mjs|jsx|ts|tsx|vue|html?|tpl|twig|svg)$/i;
 const NOT_UI = /^(tests?|e2e|tools|doc|docs|\.github|vendor|includes\/vendor|node_modules|tiny_mce)\//i;
@@ -44,9 +47,11 @@ export function uiChanges(files) {
 }
 
 /** Whether the description holds a screen recording, or says why none is needed. */
-export function recordingState(body) {
-  const text = (body ?? "").replace(/<!--[\s\S]*?-->/g, "");
+export function recordingState(body, today = new Date().toISOString().slice(0, 10)) {
+  const text = (body ?? "").replace(/<!--[\s\S]*?(?:-->|$)/g, "");
   if (/^\s*Ingen UI-ændring\s*:\s*\S.{9,}$/im.test(text)) return "opted-out";
+  const lines = text.split(/\r?\n/);
+  if (lines.some((_, index) => findException(lines, index + 1, "pr-recording", today)?.allowed)) return "waived";
   // A video dropped into the description is a bare attachment URL on its own line;
   // an image is the same URL inside ![...](...) or <img src=...>.
   if (/^\s*<?https:\/\/github\.com\/user-attachments\/assets\/[0-9a-f-]{20,}>?\s*$/im.test(text)) return "recorded";
@@ -59,9 +64,9 @@ export default {
   id: "pr-recording",
   summary: "a PR with a UI change has a screen recording of it working in its description",
   description: true,
-  run(body, files) {
+  run(body, files, { today } = {}) {
     const ui = uiChanges(files ?? []);
-    if (ui.length === 0 || recordingState(body) !== "missing") return [];
+    if (ui.length === 0 || recordingState(body, today) !== "missing") return [];
     const shown = ui.slice(0, 5).map((change) => `${change.path}${change.line ? `:${change.line}` : ""} (${change.why})`);
     const more = ui.length > shown.length ? ` and ${ui.length - shown.length} more` : "";
     return [{

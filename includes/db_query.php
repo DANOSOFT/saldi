@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.1 ----2026-11-18--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-26--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -75,6 +75,7 @@
 // 20261118 CDX/NTR Preserve escape-string continuations and normalize LIKE after qualified AS columns.
 // 20261118 CDX/NTR Optionally report affected write rows while preserving legacy status returns.
 // 20261118 CDX/NTR Track expression operands so LIKE function calls retain their original names.
+// 20261126 CDX/NTR Allow bound SELECT parameters on the existing read path, preserving connection-encoded bytes.
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -509,12 +510,13 @@ if (!function_exists('db_select')) {
 	/**
 	 * Execute a SELECT against the tenant or master connection and log query errors.
 	 *
-	 * @param string $qtext SQL whose external values have already been escaped.
+	 * @param string $qtext SQL with escaped external values or placeholders for bound parameters.
 	 * @param string $spor Caller context recorded in error logs.
 	 * @param bool $global Whether to use the master connection.
+	 * @param array|null $params Optional driver-bound parameters, in the connection's encoding.
 	 * @return mysqli_result|\PgSql\Result|bool Database result or failure.
 	 */
-	function db_select($qtext, $spor, $global = false) {
+	function db_select($qtext, $spor, $global = false, ?array $params = null) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_type;
@@ -537,11 +539,15 @@ if (!function_exists('db_select')) {
 		}
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 			// Use mysqli for MySQL as mysql_query() is deprecated
-			$query = mysqli_query($use_connection, $qtext);
+			$query = $params === null
+				? mysqli_query($use_connection, $qtext)
+				: mysqli_execute_query($use_connection, $qtext, $params);
 			$errtxt = mysqli_error($use_connection);  // Use mysqli_error for both MySQL and MySQLi
 		} else {
 			$qtext = db_normalize_like_operators($qtext, pg_parameter_status($use_connection, 'standard_conforming_strings') !== 'off');
-			$query = pg_query($use_connection, $qtext);
+			$query = $params === null
+				? pg_query($use_connection, $qtext)
+				: pg_query_params($use_connection, $qtext, $params);
 			$errtxt = pg_last_error($use_connection);
 			if ($errtxt) {
 				error_log("db_select failed: $qtext");
