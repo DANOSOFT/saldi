@@ -16,6 +16,7 @@
 // 20261123 CL/SS SD-833 review: a line the Kredit button leaves out is still capped, and an item found by its number counts.
 // 20261125 CL/SS SD-833 review: an item line whose varenr is NULL still counts for the Kredit button when there is a procenttillæg.
 // 20261123 CDX/NTR Use the test class-owned database and session.
+// 20261126 CL/SS SD-833 review: an item line without an item number does not count for the Kredit button, with or without a procenttillæg; the cap still counts it.
 
 require_once __DIR__ . '/../../support/CharacterizationTestCase.php';
 
@@ -333,22 +334,26 @@ final class CreditRemainingTest extends CharacterizationTestCase
     }
 
     /**
-     * The Kredit copy compares the item number with the procenttillæg item in PHP, so it copies an item line whose
-     * varenr is NULL. What is left must count that line too, or the Kredit button goes while it is still uncredited.
+     * The invoice page shows a line's quantity only when it has an item number and an item (debitor/ordre.php:4518),
+     * so the Kredit copy credits a line without an item number at 0. The button must not wait for that line, with or
+     * without a procenttillæg; the cap still counts it.
      */
-    public function test_an_item_line_without_an_item_number_still_counts_when_there_is_a_procenttillaeg(): void
+    public function test_an_item_line_without_an_item_number_does_not_count_for_the_kredit_button(): void
     {
         $item = self::$fx->item();
+        $other = self::$fx->item();
         $percentItem = self::$fx->item();
-        $invoice = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 1, 'pris' => 100.00]], ['status' => 3]);
-        $line = self::firstLine($invoice['id']);
-        self::rows('UPDATE ordrelinjer SET varenr = NULL WHERE id = $1', [$line]);
-        self::rows('UPDATE ordrer SET procenttillag = 10 WHERE id = $1', [$invoice['id']]);
+        $invoice = self::$fx->order(self::$fx->debtor(), [['item' => $item, 'antal' => 1, 'pris' => 100.00], ['item' => $other, 'antal' => 1, 'pris' => 50.00]], ['status' => 3]);
+        $lines = array_map('intval', array_column(self::rows('SELECT id FROM ordrelinjer WHERE ordre_id = $1 ORDER BY id', [$invoice['id']]), 'id'));
+        self::rows('UPDATE ordrelinjer SET varenr = NULL WHERE id = $1', [$lines[1]]);
         $box13 = self::one("SELECT box13 FROM grupper WHERE art = 'DIV' AND kodenr = '3'");
-        self::rows("UPDATE grupper SET box13 = $1 WHERE art = 'DIV' AND kodenr = '3'", ['10' . chr(9) . $percentItem['varenr']]);
         try {
-            $this->assertSame([$line], array_keys($this->remaining($invoice['id'], 0, true)));
-            $this->assertTrue($this->service('left', [$invoice['id']])['left'], 'the line is still uncredited, so the Kredit button stays');
+            foreach ([0, 10] as $percent) {
+                self::rows('UPDATE ordrer SET procenttillag = $2 WHERE id = $1', [$invoice['id'], $percent]);
+                self::rows("UPDATE grupper SET box13 = $1 WHERE art = 'DIV' AND kodenr = '3'", [$percent ? '10' . chr(9) . $percentItem['varenr'] : ($box13['box13'] ?? null)]);
+                $this->assertSame([$lines[0]], array_keys($this->remaining($invoice['id'], 0, true)), "procenttillæg $percent: the button counts the line with an item number only");
+                $this->assertSame($lines, array_keys($this->remaining($invoice['id'])), "procenttillæg $percent: the cap counts both lines");
+            }
         } finally {
             self::rows("UPDATE grupper SET box13 = $1 WHERE art = 'DIV' AND kodenr = '3'", [$box13['box13'] ?? null]);
         }

@@ -31,6 +31,7 @@
 //                What is left counts only the lines a credit note copies, and a held line delivers no more than it credits.
 // 20261123 CL/SS SD-833 review: the cap counts every invoice line again, so no line can be credited twice. Only the Kredit button counts just the lines a credit note copies, an item found by its number included.
 // 20261125 CL/SS SD-833 review: an item line whose varenr is NULL still counts for the Kredit button when there is a procenttillæg, as the copy in debitor/ordre.php copies it.
+// 20261126 CL/SS SD-833 review: the Kredit button counts only lines with an item number; the invoice page shows no quantity without one, so the copy credits such a line at 0.
 
 include_once(__DIR__ . '/stockNeutralLine.php'); # order_line_has_credit_columns()
 
@@ -65,8 +66,8 @@ function credit_percent_item(int $origId): string
  * negative line (a return or a discount on the invoice) is credited the other way round, and only once.
  * With $lock it locks the invoice row, so call it inside the transaction that writes the credit lines.
  * $exceptCreditId leaves out one credit note's own lines, for checking that note while it is edited.
- * With $copiedOnly only the lines the Kredit copy in debitor/ordre.php takes count: an item (by id, or by an item
- * number the invoice page finds), posnr > 0, not a følgevare, not the procenttillæg. The cap counts every line.
+ * With $copiedOnly only the lines the Kredit copy in debitor/ordre.php can credit count: an item number, and an item
+ * (by id, or by that number), posnr > 0, not a følgevare, not the procenttillæg. The cap counts every line.
  */
 function credit_remaining(int $origId, int $exceptCreditId = 0, bool $lock = true, bool $copiedOnly = false): array
 {
@@ -76,11 +77,11 @@ function credit_remaining(int $origId, int $exceptCreditId = 0, bool $lock = tru
 	$remaining = array();
 	$qtxt = "select id, antal, pris, rabat, rabatart, procent from ordrelinjer where ordre_id = '$origId' and antal != 0";
 	if ($copiedOnly) {
-		$qtxt .= " and posnr > 0 and coalesce(folgevare, 0) >= 0 and (vare_id > 0 or (coalesce(varenr, '') != ''";
-		$qtxt .= " and exists (select 1 from varer v where v.varenr = ordrelinjer.varenr or v.varenr_alias = ordrelinjer.varenr";
-		$qtxt .= " or v.stregkode = ordrelinjer.varenr)))";
+		$qtxt .= " and posnr > 0 and coalesce(folgevare, 0) >= 0 and coalesce(varenr, '') != '' and (vare_id > 0";
+		$qtxt .= " or exists (select 1 from varer v where v.varenr = ordrelinjer.varenr or v.varenr_alias = ordrelinjer.varenr";
+		$qtxt .= " or v.stregkode = ordrelinjer.varenr))";
 		if ($percentItem = credit_percent_item($origId)) {
-			$qtxt .= " and coalesce(varenr, '') != '" . db_escape_string($percentItem) . "'";
+			$qtxt .= " and varenr != '" . db_escape_string($percentItem) . "'";
 		}
 	}
 	$q = db_select("$qtxt order by posnr, id", __FILE__ . " linje " . __LINE__);
