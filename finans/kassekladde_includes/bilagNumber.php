@@ -44,7 +44,7 @@
 //                 Only an empty field is numbered (bilagIsUnnumbered()), and the page shows a saved 0 as 0 (bilagFieldValue()).
 // 20261119 CL/SS SST-895 bilagOpenVoucher(): while the journal's highest voucher does not balance, the blank line continues it with the same number and date.
 //                The page did this until 20260903; since then the blank line always got the next number.
-// 20261126 CL/SS SST-895 review: bilagOpenVoucher() counts a currency voucher balanced when it balances in its own currency, as bogfor.php does.
+// 20261126 CL/SS SST-895 review: bilagOpenVoucher() counts a currency voucher balanced as posting does: own currency balanced, base difference under 0.10, a difference account.
 //                It takes the voucher's latest date whatever the sort, and ignores a voucher number that does not fit.
 
 /**
@@ -71,13 +71,15 @@ function bilagNextNumberAfter($journal_max, $fiscal_year_max = 0) {
  * its number and date. Once it balances, the blank line gets the next number (bilagNextNumberForJournal()).
  * A line with a debit account adds its amount, a line with a credit account subtracts it, so a line with both
  * balances itself. A difference that rounds to less than an øre counts as balanced; an øre or more is open,
- * as it is to the posting (bogfor.php), which also counts a voucher balanced when its amounts in the voucher's
- * own currency balance (the rate difference goes to the difference account). The date is the voucher's latest.
+ * as it is to the posting (bogfor.php). A currency voucher whose own-currency amounts balance is also balanced
+ * when the base difference is under 0.10 and the voucher has a difference account: posting books that rate
+ * difference there (bogfor.php:1063) and refuses anything else. The date is the voucher's latest.
  * The text is not carried: a number with a text is a line the save stores (bilagStagedRowWillBeSaved()),
  * so an untouched blank line would be saved as a line without accounts.
  *
- * @param array<int, array{bilag: int|string, dato: string, debet: mixed, kredit: mixed, belob: float|int|string, amount?: float|int|string}> $lines
- *        The journal's lines in page order: belob in the base currency, amount in the line's own currency (belob when left out).
+ * @param array<int, array{bilag: int|string, dato: string, debet: mixed, kredit: mixed, belob: float|int|string, amount?: float|int|string, diffkonto?: mixed}> $lines
+ *        The journal's lines in page order: belob in the base currency, amount in the line's own currency (belob when left out),
+ *        diffkonto the currency's difference account (valutaopslag()), empty for a base-currency line.
  * @return array{bilag: int, dato: string}|null The open voucher, or null when the highest voucher balances or there is none.
  */
 function bilagOpenVoucher(array $lines) {
@@ -92,6 +94,7 @@ function bilagOpenVoucher(array $lines) {
 	}
 	$difference = 0;
 	$foreign = 0;
+	$diffAccount = false;
 	$open = null;
 	$latest = '';
 	foreach ($lines as $line) {
@@ -101,13 +104,16 @@ function bilagOpenVoucher(array $lines) {
 		$sign = ($line['debet'] ? 1 : 0) - ($line['kredit'] ? 1 : 0);
 		$difference += $sign * (float)$line['belob'];
 		$foreign += $sign * (float)($line['amount'] ?? $line['belob']);
+		$diffAccount = $diffAccount || !empty($line['diffkonto']);
 		$key = preg_match('/^(\d{1,2})-(\d{1,2})-(\d{4})$/', trim((string)$line['dato']), $m) ? sprintf('%04d%02d%02d', $m[3], $m[2], $m[1]) : '';
 		if ($open === null || strcmp($key, $latest) >= 0) {
 			$open = array('bilag' => $highest, 'dato' => (string)$line['dato']);
 			$latest = $key;
 		}
 	}
-	return abs(round($difference, 2)) >= 0.01 && abs(round($foreign, 2)) >= 0.01 ? $open : null;
+	$base = abs(round($difference, 2));
+	$balanced = $base < 0.01 || ($base < 0.1 && abs(round($foreign, 2)) < 0.01 && $diffAccount);
+	return $balanced ? null : $open;
 }
 
 /**

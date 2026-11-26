@@ -8,7 +8,7 @@
 //
 // History:
 // 20261119 CL/SS SST-895: created.
-// 20261126 CL/SS SST-895 review: a currency voucher that balances in its own currency is balanced, as bogfor.php counts it.
+// 20261126 CL/SS SST-895 review: a currency voucher that balances in its own currency is balanced only as posting allows it (base difference under 0.10).
 //                The date is the voucher's latest whatever the sort, and a voucher number that does not fit is ignored.
 
 use PHPUnit\Framework\TestCase;
@@ -17,9 +17,9 @@ require_once dirname(__DIR__, 3) . '/finans/kassekladde_includes/bilagNumber.php
 
 final class BilagOpenVoucherTest extends TestCase
 {
-    private static function line($bilag, string $debet, string $kredit, float $amount, string $dato = '19-11-2026', ?float $foreign = null): array
+    private static function line($bilag, string $debet, string $kredit, float $amount, string $dato = '19-11-2026', ?float $foreign = null, string $diffkonto = ''): array
     {
-        return array('bilag' => $bilag, 'dato' => $dato, 'debet' => $debet, 'kredit' => $kredit, 'belob' => $amount, 'amount' => $foreign ?? $amount);
+        return array('bilag' => $bilag, 'dato' => $dato, 'debet' => $debet, 'kredit' => $kredit, 'belob' => $amount, 'amount' => $foreign ?? $amount, 'diffkonto' => $diffkonto);
     }
 
     public function testADebitWithoutItsCreditKeepsTheVoucherOpen(): void
@@ -54,12 +54,16 @@ final class BilagOpenVoucherTest extends TestCase
         $this->assertSame(array('bilag' => 4, 'dato' => '02-11-2026'), bilagOpenVoucher($lines));
     }
 
-    public function testACurrencyVoucherThatBalancesInItsOwnCurrencyIsBalanced(): void
+    public function testACurrencyVoucherIsBalancedOnlyWhenPostingWouldBookItsRateDifference(): void
     {
-        $lines = array(self::line(8, '58000', '', 745.00, '01-11-2026', 100.00), self::line(8, '', '1010', 746.20, '03-11-2026', 100.00));
-        $this->assertNull(bilagOpenVoucher($lines), 'EUR 100 against EUR 100 on two dates: bogfor.php posts the rate difference, so the voucher is closed');
-        $lines[] = self::line(8, '', '1020', 74.50, '03-11-2026', 10.00);
-        $this->assertSame(8, bilagOpenVoucher($lines)['bilag'], 'off in both currencies: still open');
+        $small = array(self::line(8, '58000', '', 745.00, '01-11-2026', 100.00, '3690'), self::line(8, '', '1010', 745.05, '03-11-2026', 100.00, '3690'));
+        $this->assertNull(bilagOpenVoucher($small), 'EUR 100 against EUR 100, DKK 0.05 apart: posting books it on the difference account, so the voucher is closed');
+        $noAccount = array(self::line(8, '58000', '', 745.00, '01-11-2026', 100.00), self::line(8, '', '1010', 745.05, '03-11-2026', 100.00));
+        $this->assertSame(8, bilagOpenVoucher($noAccount)['bilag'], 'no difference account: posting cannot book the 0.05, so it stays open');
+        $large = array(self::line(8, '58000', '', 745.00, '01-11-2026', 100.00, '3690'), self::line(8, '', '1010', 746.20, '03-11-2026', 100.00, '3690'));
+        $this->assertSame(8, bilagOpenVoucher($large)['bilag'], 'DKK 1.20 apart: posting refuses it (bogfor.php:1063 books under 0.10 only), so it stays open');
+        $small[] = self::line(8, '', '1020', 0.05, '03-11-2026', 0.01, '3690');
+        $this->assertSame(8, bilagOpenVoucher($small)['bilag'], 'off in its own currency: open, whatever the base difference');
     }
 
     public function testTheDateIsTheVouchersLatestWhateverTheSort(): void
