@@ -1,6 +1,7 @@
 <?php
 // 20261125 CDX/NTR Cover order-list and journal callbacks with prepared display text and untouched row data.
 // 20261126 CDX/NTR Cover numeric columns converted to dropdowns before highlighted values reach their renderer.
+// 20261126 CDX/NTR Cover journal owners, statement links and description truncation with prepared legacy text.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -18,6 +19,7 @@ final class GridTextCallersTest extends TestCase
             'customer extra text' => ['debitor/ordreliste.php', '// Default text fields'],
             'supplier extra text' => ['kreditor/ordreliste.php', '// Default text fields'],
             'supplier account id' => ['kreditor/ordreliste.php', "elseif (\$field_name == 'konto_id')"],
+            'journal owner' => ['finans/kladdeliste.php', '"field" => "oprettet_af"'],
         ];
     }
 
@@ -25,10 +27,66 @@ final class GridTextCallersTest extends TestCase
     public function testTextIsEscapedExactlyOnce(string $path, string $anchor): void
     {
         $raw = 'A &amp; B <img src=x onerror=alert(1)>';
-        $html = self::productionCallback($path, $anchor)(grid_text_html($raw, 'B'), [], ['align' => 'left']);
+        $html = self::productionCallback($path, $anchor)(grid_text_html($raw, 'B'), ['id' => 1], ['align' => 'left']);
         self::assertStringNotContainsString('<img', $html);
         self::assertStringContainsString('<span style="background-color:#FF0">B</span>', $html);
         self::assertSame($raw, html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    public function testLegacyJournalOwnerIsEscapedOnce(): void
+    {
+        $raw = mb_convert_encoding('Søren & "Co" \\ <b>', 'ISO-8859-15', 'UTF-8');
+        $html = self::productionCallback('finans/kladdeliste.php', '"field" => "oprettet_af"')(
+            grid_text_html($raw, '', 'LATIN9'),
+            ['id' => 1],
+            ['align' => 'left']
+        );
+        self::assertSame('Søren & "Co" \\ <b>', html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    public function testStatementLinksUseRawValuesEvenWhenHighlighted(): void
+    {
+        foreach (['bilag' => 'kontospec.php?bilag=', 'kladde_id' => 'kassekladde.php?kladde_id=', 'kontonr' => 'kontospec.php?kontonr='] as $field => $prefix) {
+            $raw = "A&B'1";
+            $html = self::productionCallback('finans/kontospec.php', "'field' => '$field'")(
+                grid_text_html($raw, '1'),
+                [$field => $raw],
+                []
+            );
+            self::assertStringContainsString($prefix . urlencode($raw), $html);
+            self::assertStringContainsString('<span style="background-color:#FF0">1</span>', $html);
+        }
+    }
+
+    public function testStatementTruncatesPlainTextBeforeEscapingAndKeepsSafeTooltip(): void
+    {
+        $oldEncoding = $GLOBALS['db_encode'] ?? null;
+        $GLOBALS['db_encode'] = 'LATIN9';
+        $rawUtf8 = str_repeat('ø', 99) . "&'suffix <img src=x>";
+        $raw = mb_convert_encoding($rawUtf8, 'ISO-8859-15', 'UTF-8');
+        $row = ['beskrivelse' => $raw];
+        try {
+            $getter = self::productionCallback('finans/kontospec.php', "'field' => 'beskrivelse'", 'valueGetter');
+            $prepared = grid_text_html($getter($raw, $row, []), '', 'LATIN9');
+            $html = self::productionCallback('finans/kontospec.php', "'field' => 'beskrivelse'")($prepared, $row, []);
+        } finally {
+            $GLOBALS['db_encode'] = $oldEncoding;
+        }
+        $dom = new DOMDocument();
+        $dom->loadHTML('<html><head><meta charset="UTF-8"></head><body><table><tr>' . $html . '</tr></table></body></html>');
+        $cell = $dom->getElementsByTagName('td')->item(0);
+        self::assertSame(str_repeat('ø', 99) . '&...', $cell->textContent);
+        self::assertSame($rawUtf8, $cell->getAttribute('title'));
+        self::assertCount(0, $dom->getElementsByTagName('img'));
+    }
+
+    public function testStatementAllowsNullDescriptionsAndEscapesRawOrderTooltips(): void
+    {
+        $getter = self::productionCallback('finans/kontospec.php', "'field' => 'beskrivelse'", 'valueGetter');
+        $renderer = self::productionCallback('finans/kontospec.php', "'field' => 'beskrivelse'");
+        self::assertSame("<td title=''></td>", $renderer($getter(null, [], []), ['beskrivelse' => null], []));
+        $html = self::productionCallback('finans/kontospec.php', "'field' => 'faktura'")('123', ['ordrenr' => "O' & <b>", 'ordre_id' => 0], []);
+        self::assertStringContainsString("title='Ordrenr: O&#039; &amp; &lt;b&gt;'", $html);
     }
 
     public function testStatusComparisonsUseRawDatabaseStrings(): void
@@ -75,12 +133,12 @@ final class GridTextCallersTest extends TestCase
     }
 
     /** @return Closure Actual render callback isolated from the page's request handling. */
-    private static function productionCallback(string $path, string $anchor): Closure
+    private static function productionCallback(string $path, string $anchor, string $kind = 'render'): Closure
     {
         $source = file_get_contents(dirname(__DIR__, 3) . '/' . $path);
         $start = strpos($source, $anchor);
         self::assertNotFalse($start, $anchor);
-        preg_match('/["\x27]render["\x27]\s*(?:=>|\]\s*=)\s*(function\b)/', $source, $match, PREG_OFFSET_CAPTURE, $start);
+        preg_match('/["\x27]' . preg_quote($kind, '/') . '["\x27]\s*(?:=>|\]\s*=)\s*(function\b)/', $source, $match, PREG_OFFSET_CAPTURE, $start);
         self::assertNotEmpty($match);
         $tokens = token_get_all('<?php ' . substr($source, $match[1][1]));
         $body = '';
@@ -98,6 +156,7 @@ final class GridTextCallersTest extends TestCase
         }
         $regnaar = 2026;
         $kladde_id = 12;
+        $bilag = '1';
         return eval('namespace GridTextCallersFixture; return ' . $body . ';');
     }
 }
