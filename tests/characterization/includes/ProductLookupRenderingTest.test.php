@@ -1,6 +1,7 @@
 <?php
 // 20261125 CDX/NTR Exercise imported catalogue text through the real column callbacks and grid highlighting (PR #1220).
 // 20261125 CDX/NTR Load the common grid text preparation used by the extracted row renderer.
+// 20261126 CDX/NTR Cover LATIN9 search text in the actual automatic-search script.
 
 use PHPUnit\Framework\TestCase;
 
@@ -67,6 +68,18 @@ final class ProductLookupRenderingTest extends TestCase
     {
         $find = "pump '</script>\n& fittings";
         self::assertSame($find, self::submitGrid('beskrivelse', $find)['search[productLookup11][beskrivelse]']);
+    }
+
+    public function testAutomaticSearchNormalizesLatin9BeforeJsonEncoding(): void
+    {
+        $previous = $GLOBALS['db_encode'] ?? null;
+        $GLOBALS['db_encode'] = 'LATIN9';
+        try {
+            $find = mb_convert_encoding('Pære €', 'ISO-8859-15', 'UTF-8');
+            self::assertSame('Pære €', self::submitGrid('beskrivelse', $find)['search[productLookup11][beskrivelse]']);
+        } finally {
+            $GLOBALS['db_encode'] = $previous;
+        }
     }
 
     /** @return array<string, string> Fields submitted by the actual page JavaScript. */

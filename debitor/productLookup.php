@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/productLookup.php --- ver 5.1.1 --- 2026-11-25 ---
+// --- debitor/productLookup.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20261125 CDX/NTR Route description lookups and their automatic grid search to the description field.
 // 20261125 CDX/NTR Keep warehouse context when the grid submits and retry failed creation by item number.
 // 20261125 CDX/NTR Use the shared grid text escaping instead of page-specific value getters.
+// 20261126 CDX/NTR Normalize legacy search text before JSON encoding and retain a valid JavaScript literal on failure.
 @session_start();
 $s_id = session_id();
 
@@ -732,7 +733,7 @@ print "<script type=\"text/javascript\">
             }
         }
         // Match the order's item-number or description lookup, including its automatic grid search.
-        var findParam = " . json_encode((string) $find, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) . ";
+        var findParam = " . (jsString(array((string) $find)) ?: '""') . ";
         if (findParam) {
             var searchInput = $('input[name=\"search[productLookup" . $id . "][" . ($fokus === 'beskrivelse' ? 'beskrivelse' : 'varenr') . "]\"]');
             if (searchInput.length && !searchInput.val()) {
