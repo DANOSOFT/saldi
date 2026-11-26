@@ -42,8 +42,51 @@
 // 20261105 CL/SZ MB-119 'Opdater fra shop' only adds a shop_varer link when the row has a shop id, so a row without one no longer blocks the real link on a later sync.
 // 20261125 CL/SZ MB-145 A variant label that exists under another category is created under its own category, so the variant no longer gets variant_type 0. The last stock message names the item instead of a variant-file value. Variant labels are escaped in these queries.
 // 20261125 CL/SZ MB-192 Every variant barcode is read for the product barcode check, not only the last one, and each clash message ends its line. The barcode messages are shown when the run stops at a missing variant file.
+// 20261125 CL/SZ MB-109 The shop files are read as CSV, so a ';' inside quotes stays in its field. The qty and kostpris columns are found by header name in their usual positions, also in LF files and after a BOM. A new item whose item number has an apostrophe gets its stock.
+// 20261126 CL/SZ MB-109 A qty or kostpris header only has to contain the name in its column, as before, so kostpris_dkk still imports cost prices.
 // 20261126 CL/SZ MB-192 The variant barcode check compares the barcodes as text, so 01234 no longer matches a variant's 1234.
 
+
+/**
+ * Splits a shop CSV file into rows of fields: ';' separated, '"' quoted, so a ';' inside quotes
+ * stays in its field. A UTF-8 BOM, the CR of CRLF line ends and blank lines are dropped.
+ *
+ * @param string|false $content the file as read by file_get_contents()
+ * @return array<int, array<int, string>>
+ */
+function varesyncCsvRows($content) {
+	$content = (string)$content;
+	if (substr($content, 0, 3) == "\xEF\xBB\xBF") {
+		$content = substr($content, 3);
+	}
+	$rows = array();
+	foreach (explode("\n", $content) as $line) {
+		$line = rtrim($line, "\r");
+		if (trim($line) === '') {
+			continue;
+		}
+		$rows[] = str_getcsv($line, ';', '"', '');
+	}
+	return $rows;
+}
+
+/**
+ * Whether the header row (the first row) of a shop CSV file has this column name at this position.
+ * The header there only has to contain the name, as the whole-line check before MB-109 allowed.
+ * The rows are read by position, so an optional column only counts where its layout expects it.
+ *
+ * @param array<int, array<int, string>> $rows from varesyncCsvRows()
+ * @param int $position 0-based column index, e.g. 8 for qty in the product file
+ * @param string $name e.g. 'qty' or 'kostpris'
+ * @return int 1 or 0, as the callers' $useQty / $useCost flags
+ */
+function varesyncHeaderAt($rows, $position, $name) {
+	if (!isset($rows[0][$position])) {
+		return 0;
+	}
+	# the name only has to be part of the header there, as before: kostpris_dkk and shop_qty still count
+	return (strpos(strtolower(trim($rows[0][$position], "\" \t")), $name) !== false) ? 1 : 0;
+}
 
 function varesync($valg) {
 	global $brugernavn,$db;
@@ -142,24 +185,20 @@ function varesync($valg) {
 	shell_exec("nohup curl '$api_fil?products_id=*&filename=$pfn.csv'\n");
 	system ("cd ../temp/$db/\nwget $lf\n");
 	$indhold=file_get_contents("../temp/$db/$pfn.csv");
-	$linje=explode("\n",$indhold);
-	(substr($linje[0],-4,3) == 'qty')?$useQty=1:$useQty=0;
-	(strpos($linje[0],'kostpris'))?$useCost=1:$useCost=0;
+	$linje=varesyncCsvRows($indhold);
+	$useQty=varesyncHeaderAt($linje,8,'qty');
+	$useCost=varesyncHeaderAt($linje,4,'kostpris');
 	$shop_encode='';
 	for ($y=0;$y<count($linje);$y++){
-		if ($y==0) {
-			$vars=explode(";",$linje[$y]);
-			$var_antal=count($vars);
-		}
 		$shop_id[$y]=0;
 		if ($useQty) {
-			list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y],$stock[$y])=explode(";",$linje[$y]);
+			list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y],$stock[$y])=array_pad($linje[$y],9,'');
 			$stock[$y]=(float)trim($stock[$y],'"');
 		} elseif ($useCost) {
-			list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$kostpris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y])=explode(";",$linje[$y]);
+			list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$kostpris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y])=array_pad($linje[$y],9,'');
 			$variant_qty[$y]=0;
 		} else {
-		list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y])=explode(";",$linje[$y]);
+			list($shop_id[$y],$varenr[$y],$stregkode[$y],$salgspris[$y],$beskrivelse[$y],$gruppe[$y],$tilbud[$y],$notes[$y])=array_pad($linje[$y],8,'');
 			$variant_qty[$y]=0;
 		}
 
@@ -257,10 +296,10 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 				}
 				for($s=0;$s<count($stockItemNo);$s++) {
 					$stockItemNo[$s] = trim($stockItemNo[$s],'"');
-					if ($stockItemNo[$s]==$varenr[$y]) {
+					if ($stockItemNo[$s]==$itemNo[$y]) {
 						$newstock[$y]=$stock[$s];
 						lagerreguler($vare_id[$y],$stock[$s],0,0,date("Y-m-d"),'0');
-						if ($stock[$s]) echo "Sætter $varenr[$y] til ".dkdecimal($stock[$s])." stk<br>";
+						if ($stock[$s]) echo "Sætter $itemNo[$y] til ".dkdecimal($stock[$s])." stk<br>";
 					}
 				}
 			} elseif ($valg=='2' && $salgspris[$y] && in_array($varenr[$y],$sProductNo)) {
@@ -365,20 +404,16 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 	}
 	$indhold=file_get_contents("../temp/$db/$vfn.csv");
 #	unlink("../temp/$db/$vfn.csv");
-	$linje=explode("\n",$indhold);
- 	(substr($linje[0],-4,3) == 'qty')?$useQty=1:$useQty=0;
+	$linje=varesyncCsvRows($indhold);
+	$useQty=varesyncHeaderAt($linje,7,'qty');
 	for ($y=0;$y<count($linje);$y++){
-		if ($y==0) {
-			$vars=explode(";",$linje[$y]);
-			$varCount=count($vars);
-		}
 		$shop_id[$y]=0;
 		if ($useQty) {
-			list($varenr[$y],$parent_id[$y],$variant_id[$y],$stregkode[$y],$variant[$y],$variant_type[$y],$variant_text[$y],$stock[$y])=explode(";",$linje[$y]);
+			list($varenr[$y],$parent_id[$y],$variant_id[$y],$stregkode[$y],$variant[$y],$variant_type[$y],$variant_text[$y],$stock[$y])=array_pad($linje[$y],8,'');
 			$stockVariant[$y]=trim($stregkode[$y],'"');
 #if ($brugernavn=='phr') echo __line__." $varenr[$y],$parent_id[$y],$variant_id[$y],$stregkode[$y]<br>";
 		} else {
-		list($varenr[$y],$parent_id[$y],$variant_id[$y],$stregkode[$y],$variant[$y],$variant_type[$y],$variant_text[$y])=explode(";",$linje[$y]);
+			list($varenr[$y],$parent_id[$y],$variant_id[$y],$stregkode[$y],$variant[$y],$variant_type[$y],$variant_text[$y])=array_pad($linje[$y],7,'');
 			if (!isset($stock[$y])) $stock[$y]=0;
 #if ($brugernavn=='phr') echo __line__." $varenr[$y],$parent_id[$y],$variant_id[$y],$stregkode[$y]<br>";
 
@@ -506,7 +541,7 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$qtxt = "select id from variant_varer where vare_id = '$variantVareId[$y]' and variant_type ='$r[id]'";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				if ($r['id']	&& $s_variant_id[$y] != $r['id']) {
+				if (!empty($r['id'])	&& $s_variant_id[$y] != $r['id']) {
 					$s_variant_id[$y] = $r['id'];
 					$z=0;
 					$qtxt="select id from shop_varer where saldi_id = '$variantVareId[$y]' and saldi_variant ='$s_variant_id[$y]' order by id";
@@ -544,7 +579,7 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 			$qtxt="select id from variant_varer where variant_stregkode='$stregkode[$y]'";
 #if ($brugernavn=='phr') echo $qtxt."<br>";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				if ($r['id']) { #Har haft ændret denne til (!$r['']) og udkommenteret de næste 3 linjer. Det betød at autoindsatte varianter ikke blev korrekte.
+				if (!empty($r['id'])) { #Har haft ændret denne til (!$r['']) og udkommenteret de næste 3 linjer. Det betød at autoindsatte varianter ikke blev korrekte.
 					$s_variant_id[$y]=$r['id'];
 					$qtxt="update variant_varer set vare_id='$variantVareId[$y]',variant_type=$s_variant[$y] where id='$s_variant_id[$y]'";
 				} else {
@@ -580,7 +615,7 @@ if ($db == 'pos_85') echo "lagerreguler($variantVareId[$y],$stock[$s],0,0,".date
 
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$qtxt=NULL;
-				if ($r['id']) {
+				if (!empty($r['id'])) {
 					$qtxt="update shop_varer set saldi_variant='$s_variant_id[$y]',shop_variant=$variant_id[$y] where id='$r[id]'";
 				} elseif ($variantVareId[$y] && $parent_id[$y] && $s_variant_id[$y] && $variant_id[$y]) {
 					$qtxt="insert into shop_varer";
