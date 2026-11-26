@@ -1,7 +1,7 @@
 <?php
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
-// ------ SAGER/ANSATTE.php-------ver 5.1.1 ------2026-11-13-------------
+// ------ SAGER/ANSATTE.php-------ver 5.1.1 ------2026-11-24-------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,8 @@ $s_id=session_id();
 // 20261110 CDX/NTR Use CSS wrapping for information card labels instead of JavaScript hyphenation.
 // 20261110 CDX/NTR Preserve existing login passwords on blank saves and validate before creating a login.
 // 20261113 CDX/NTR Keep employee-login permission checks with blank-password preservation.
+// 20261124 CDX/NTR Link the group editor to the bilingual Sager permission definitions.
+// 20261124 CDX/NTR Use documented integer permission constants directly.
 
 	//ini_set("display_errors", "1");
 	$bg="nix";
@@ -458,6 +460,16 @@ function ret_ansat($id) {
 	print "</div><!-- end of content -->\n";
 }
 
+/**
+ * Edit the Sager employee groups and serialize their eight checkboxes into grupper.box2.
+ *
+ * Permission names, positions and Danish/English labels are documented in
+ * includes/constants/SagerPermission.php, separately from the systemdata/usersRoles.php roles.
+ *
+ * @param mixed $id Legacy page argument.
+ * @return void
+ * @see SagerPermission
+ */
 function brugergrupper($id) {
 
 	global $charset;
