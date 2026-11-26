@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-25 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -230,6 +230,7 @@
 // 20261120 CL/MMR SST-1039 The header row with Bemærkning had the clip, Regnskabsår, kontrolkonto, print and help squeezed together on the right.
 //                 They now stand 20px apart, kontrolkonto has the label «Kontrolkonto:» (journal.control_account) instead of a fixed placeholder, and the help link is the «?» icon only, with its name as aria-label.
 // 20261125 CDX/NTR Display the grid's prepared account text and use raw row values for escaped SQL and card links.
+// 20261126 CL/MMR SST-1039 The help link's title and aria-label are escaped with the page charset, so a Danish help text on an ISO-8859-1 tenant no longer comes out empty (CodeRabbit on PR #1171).
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -3057,7 +3058,7 @@ $help_icon  = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 
 $help_txt   = findtekst('3354|Genveje til Kassekladden', $sprog_id);
 $help_title = findtekst('3355|Hjælp til Kassekladden',   $sprog_id);
 // SST-1039: the guide opens from the «?» icon alone; its name stays readable for screen readers
-$help_link  = "'https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' title='" . htmlspecialchars($help_title, ENT_QUOTES) . "' aria-label='" . htmlspecialchars($help_txt, ENT_QUOTES) . "'";
+$help_link  = "'https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' title='" . htmlspecialchars($help_title, ENT_QUOTES, $charset) . "' aria-label='" . htmlspecialchars($help_txt, ENT_QUOTES, $charset) . "'";
 
 print "<td align='center' style='padding-left: 20px; vertical-align: middle;'>
     <a href='javascript:void(0)' onclick='window.print(); return false;'>
