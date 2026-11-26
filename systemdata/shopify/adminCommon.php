@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/shopify/adminCommon.php --- ver 5.1.0 --- 2026-11-02 ---
+// --- systemdata/shopify/adminCommon.php --- ver 5.1.1 --- 2026-11-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // Post/Redirect/Get and the page header with the Shopify tabs.
 //
 // 20261102 CL/MJ SD-761: created.
+// 20261123 CL/MJ SD-865: the Mapping tab.
 
 /** 'write', 'read' or 'none', from the Systemdata right at offset 1. */
 function shopify_admin_access(string $rettigheder): string {
@@ -81,6 +82,7 @@ function shopify_admin_header(string $titleToken, string $active): void {
 	$tabs = array(
 		'shops.php' => 'shopify.admin.tab.shops|Shops',
 		'lagre.php' => 'shopify.admin.tab.lagre|Lagre',
+		'mapping.php' => 'shopify.admin.tab.mapping|Mapping',
 	);
 	print "<table width='100%' cellpadding='4' cellspacing='0'><tr>";
 	print "<td width='170px'><a href='../diverse.php'><button type='button' style='width:100%'>" . shopify_admin_t('30|Tilbage') . "</button></a></td>";

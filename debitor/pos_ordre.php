@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.13 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -131,7 +131,11 @@
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
 // 20261112 CL/SS SD-804: braces on the voucher branch that includes settlePOS.php (which queues the store order).
+// 20261112 CL/SS MB-49: The card terminal's return shows afslut()'s error, as the other afslut() callers do.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261120 CL/LH K33/K34: the sale's delivery choice and wished delivery date are saved from the sale form (pos_save_sale_delivery() in pos_ordre_includes/saleDeliveryFields.php), and Forfra, a reused abandoned sale or a table emptied by a move starts again as "taget med".
+// 20261124 CL/LH K33 A refused delivery also clears the tendered amount, so a c, g or k suffix cannot pay the sale; a sale moved onto a table's sale takes its delivery along (pos_move_sale_delivery()).
+// 20261125 CL/SS MB-49: The terminal and day-end refusal alerts go through jsString(), so a LATIN9 text with æøå is not blank.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -193,6 +197,7 @@ include("pos_ordre_includes/helperMethods/helperFuncII.php"); #20190219
 # 20261022 CL/MJ SD-758 Reusing an abandoned sale clears the phone number and re-reads the
 #                  terminal's department and brand; see the 48 hour branch further down.
 include_once(__DIR__ . "/pos_ordre_includes/saleHeaderFunctions.php");
+include_once(__DIR__ . "/pos_ordre_includes/saleDeliveryFields.php"); # 20261120 CL/LH K33/K34
 
 include("pos_ordre_includes/posTxtPrint/posTxtPrintFunc.php"); #20190503
 
@@ -502,7 +507,11 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 		$qtxt = "select id from ordrer where art='PO' and status < '3' and nr = '$bordnr'";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			db_modify("update ordrelinjer set ordre_id='$r[id]' where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
-			db_modify("update ordrer set hvem='' where id='$id'", __FILE__ . " linje " . __LINE__);
+			# 20261120 CL/LH K33/K34 The emptied sale is reused for the table's next customer, so it starts as
+			# "taget med" - unless the table was moved onto itself and kept its lines.
+			pos_move_sale_delivery((int) $id, (int) $r['id']); # 20261124 CL/LH K33 the delivery goes along with the lines
+			$tom_reset = ((int) $r['id'] !== (int) $id) ? pos_reset_sale_delivery_sql() : '';
+			db_modify("update ordrer set hvem=''" . $tom_reset . " where id='$id'", __FILE__ . " linje " . __LINE__);
 			$id = $r['id'];
 		} else {
 			db_modify("update ordrer set nr='$bordnr',hvem='$brugernavn' where id='$id'", __FILE__ . " linje " . __LINE__);
@@ -560,7 +569,7 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 			$qtxt = "update ordrer set konto_id='0',  kontonr='0',firmanavn='',addr1='',addr2='',postnr='',";
 			$qtxt .= "bynavn='',land='',betalingsdage='0',betalingsbet='Kontant',cvrnr='',ean='',institution='',";
 			$qtxt .= "email='',kontakt='',art='PO',valuta='$baseCurrency',valutakurs='100',kundeordnr='',";
-			$qtxt .= "phone='',afd='$genbrug_afd',sprog='$genbrug_brand',";
+			$qtxt .= "phone='',afd='$genbrug_afd',sprog='$genbrug_brand'" . pos_reset_sale_delivery_sql() . ",";
 			$qtxt .= "ordredate='" . date("Y-m-d") . "',hvem='',ref='',nr=NULL where id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			db_modify("delete from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
@@ -795,7 +804,10 @@ if ($godkendt == 'OK') { # 20131205
 	} else {
 		fwrite($gf, "afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id, __line__)\n");
 		fclose($gf);
-		afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, __LINE__); #20140129 Tilføjet $kortnavn
+		$svar = afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, __LINE__); #20140129 Tilføjet $kortnavn
+		if ($svar) {
+			print "<script>alert(" . jsString(array($svar)) . ");</script>\n";
+		}
 	}
 
 	#} elseif ($godkendt) {
@@ -1111,6 +1123,25 @@ if ($vare_id) {
 	$rabat_ny = if_isset($_POST['rabat_ny']);
 	if (!$rabat_ny && $rabat_ny != '0' && if_isset($_POST['rabat_old']))
 		$rabat_ny = $_POST['rabat_old'];
+	// 20261120 CL/LH K33/K34 The delivery choice and wished date are posted with every submit of the sale
+	// form while the sale header shows them (pos_render_sale_delivery_fields(); a change is also saved at
+	// once by pos_ordre_includes/saveDelivery.php). They are saved before any payment is handled, and a
+	// refused delivery stops the payment, so the sale is never paid with delivery details the cashier
+	// did not mean. A delivery picked before the first item is scanned creates the sale; taget med
+	// creates nothing.
+	if (isset($_POST['leveringsvalg_id']) && is_scalar($_POST['leveringsvalg_id']) && pos_delivery_supported()) {
+		$posted_valg = (string) $_POST['leveringsvalg_id'];
+		$posted_dato = (isset($_POST['oensket_levdato']) && is_scalar($_POST['oensket_levdato'])) ? (string) $_POST['oensket_levdato'] : '';
+		if (!$id && pos_delivery_choice_attaches($posted_valg)) {
+			$id = opret_posordre(NULL, $kasse);
+		}
+		if ($id && $leveringsfejl = pos_save_sale_delivery($id, $posted_valg, $posted_dato)) {
+			alert(pos_sale_brand_for_alert($leveringsfejl));
+			$betaling = NULL;
+			$afslut = NULL;
+			$modtaget = $modtaget2 = ''; # the tender suffixes c, g and k would rebuild the payment from it
+		}
+	}
 	if (strpos($betaling, 'på beløb') && strlen($varenr_ny) > 1) { #20201029
 		$priceNew = (float) usdecimal($pris_ny);
 		if ($varenr_ny && !$priceNew) {
@@ -1310,7 +1341,8 @@ if ($vare_id) {
 			$qtxt = "update ordrer set konto_id='0', kontonr='0',firmanavn='',addr1='',addr2='',postnr='',bynavn='',land='',betalingsdage='0',";
 			$qtxt .= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',art='PO',";
 			$qtxt .= "valuta='$baseCurrency',valutakurs='100',kundeordnr='',ordredate='$dd',hvem='',";
-			$qtxt .= "momssats='$momssats',ref='' where id = '$id'";
+			# 20261120 CL/LH K33/K34 Forfra starts the sale again as "taget med", without a wished date.
+			$qtxt .= "momssats='$momssats',ref=''" . pos_reset_sale_delivery_sql() . " where id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			db_modify("delete from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
 			$varenr_ny = '';
@@ -2747,7 +2779,7 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 						# str_replace to embed $svar in the inline script - matches the existing pattern in
 						# index/login.php and safely handles quotes/backslashes/markup in one call.
 						echo "<br>Svar $svar<br>\n";
-						print "<script>alert(" . json_encode($svar, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
+						print "<script>alert(" . jsString(array($svar)) . ");</script>\n";
 						exit;
 					}
 				}
