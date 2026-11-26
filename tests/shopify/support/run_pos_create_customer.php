@@ -63,7 +63,7 @@ foreach ($steps as $step) {
                 throw new RuntimeException("unknown step $step[0]");
         }
     } catch (Throwable $e) {
-        $results[] = ['error' => get_class($e), 'message' => $e->getMessage()];
+        $results[] = ['error' => get_class($e), 'message' => $e->getMessage(), 'code' => $e->getCode()];
     }
 }
 echo json_encode(['results' => $results]);

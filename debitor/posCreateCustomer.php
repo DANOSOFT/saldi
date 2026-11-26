@@ -28,6 +28,7 @@
 // 20261124 CL/MJ SD-844 K31: the page asks for the till's right (pos.kasse), as pos_ordre.php does, so a cashier with only that right can create.
 // 20261126 CL/MJ SD-844 K31: a submitted form that creates nothing (expired, sale settled, Shopify no longer has the customers) tells the cashier, instead of returning to the sale without a word.
 // 20261126 CL/MJ SD-844 K31: the alert goes through jsString() (pos_customer_create_alert_script()), so a LATIN9 text with æøå is not blank.
+// 20261126 CL/MJ SD-844 K31: a phone the Shopify export would drop gets its own message.
 
 /**
  * Session/account context supplied by includes/online.php.
@@ -84,7 +85,9 @@ $message = '';
 try {
 	$customer = pos_create_customer($_POST, $_POST['pos_create_token'] ?? '');
 } catch (InvalidArgumentException $e) {
-	$message = findtekst('pos.customer.create.incomplete|Kunden blev ikke oprettet: navn og gruppe skal udfyldes.', $sprog_id);
+	$message = $e->getCode() === POS_CUSTOMER_CREATE_BAD_PHONE
+		? findtekst('pos.customer.create.phone|Kunden blev ikke oprettet: telefonnummeret kan ikke bruges i Shopify. Skriv 8 cifre eller nummeret med landekode, fx +46 701234567.', $sprog_id)
+		: findtekst('pos.customer.create.incomplete|Kunden blev ikke oprettet: navn og gruppe skal udfyldes.', $sprog_id);
 } catch (Throwable $e) {
 	error_log("posCreateCustomer: " . $e->getMessage());
 	$message = findtekst('pos.customer.create.failed|Kunden kunne ikke oprettes. Prøv igen.', $sprog_id);

@@ -30,6 +30,7 @@
 //                The payment terms are cut to the column's 15 characters.
 // 20261126 CL/MJ SD-844 K31: pos_customer_create_shopify_mode() answers false when the Shopify tables can't be read, so the customer lookup still opens.
 // 20261126 CL/MJ SD-844 K31: pos_customer_create_alert_script(), the cashier's alert through jsString().
+// 20261126 CL/MJ SD-844 K31: a phone the Shopify export would drop (not 8 digits and without a country code) is refused, so it can't pass the pickup and delivery contact check and reach Shopify with no contact.
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
@@ -38,6 +39,9 @@ const POS_CUSTOMER_CREATE_GROUP = 'pos_customer_create';
 
 /** Days a form token is kept; a form older than that is long gone from any till. */
 const POS_CUSTOMER_CREATE_TOKEN_DAYS = 30;
+
+/** InvalidArgumentException code for a phone the Shopify export would drop (pos_create_customer()). */
+const POS_CUSTOMER_CREATE_BAD_PHONE = 2;
 
 /** adresser column widths on a fresh install; a longer value is cut to fit rather than refused. */
 const POS_CUSTOMER_CREATE_WIDTHS = array('firmanavn' => 90, 'addr1' => 60, 'addr2' => 60, 'postnr' => 10, 'bynavn' => 60,
@@ -108,7 +112,8 @@ function pos_customer_create_token_issued($token) {
  *                                 email, phone, kontakt, cvrnr, ean, grp, betalingsbet, betalingsdage.
  * @param string $token The form's token from pos_customer_create_token().
  * @return array{konto_id: int, kontonr: string, created: bool}
- * @throws InvalidArgumentException for a missing name or group
+ * @throws InvalidArgumentException for a missing name or group, or (code POS_CUSTOMER_CREATE_BAD_PHONE) a
+ *                                  phone the Shopify export would drop
  * @throws UnexpectedValueException for a malformed token
  */
 function pos_create_customer(array $c, $token) {
@@ -127,6 +132,15 @@ function pos_create_customer(array $c, $token) {
 	}
 	if ($fields['bynavn'] === '' && $fields['postnr'] !== '') {
 		$fields['bynavn'] = mb_substr((string) bynavn($fields['postnr']), 0, POS_CUSTOMER_CREATE_WIDTHS['bynavn'], 'UTF-8');
+	}
+	if ($fields['tlf'] !== '') {
+		// The sale goes to Shopify with this phone only when the export can make it E.164 (8 digits, taken as
+		// Danish, or a number with its country code). A phone it would drop would pass the till's pickup and
+		// delivery contact check (K61) and still reach Shopify with no contact, so it is refused here.
+		require_once __DIR__ . '/../../includes/shopify/services/customersOut.php';
+		if (shopify_customer_export_phone($fields['tlf'], '') === '') {
+			throw new InvalidArgumentException('the phone cannot be sent to Shopify', POS_CUSTOMER_CREATE_BAD_PHONE);
+		}
 	}
 	$fields['oprettet'] = date('Y-m-d');
 	$group = (int) ($c['grp'] ?? 0);

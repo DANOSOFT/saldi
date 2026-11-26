@@ -154,6 +154,35 @@ final class PosCreateCustomerSyncTest extends TestCase
         self::assertSame([], $this->sql("SELECT id FROM settings WHERE var_grp = 'pos_customer_create'"));
     }
 
+    public function testAPhoneTheShopifyExportWouldDropCreatesNothing(): void
+    {
+        // The export sends a phone only as E.164 (shopify_customer_export_phone()): 8 digits are taken as
+        // Danish, anything else needs its country code. A sale with a phone it drops reaches Shopify with
+        // no contact although it passed the pickup and delivery contact check (K61).
+        [$short, $local] = $this->steps(
+            ['create', $this->form(['phone' => '12 34 56']), $this->token()],
+            ['create', $this->form(['phone' => '0701234567']), $this->token()]
+        );
+
+        foreach ([$short, $local] as $refused) {
+            self::assertSame('InvalidArgumentException', $refused['error']);
+            self::assertSame(2, $refused['code'], 'POS_CUSTOMER_CREATE_BAD_PHONE');
+        }
+        self::assertSame([], $this->sql("SELECT id FROM adresser WHERE firmanavn LIKE 'SD844%'"));
+    }
+
+    public function testAPhoneTheExportCanSendIsKeptAsTyped(): void
+    {
+        $results = $this->steps(
+            ['create', $this->form(['firmanavn' => 'SD844 Dansk', 'phone' => '12 34 56 78']), $this->token()],
+            ['create', $this->form(['firmanavn' => 'SD844 Svensk', 'phone' => '+46 70 123 45 67']), $this->token()],
+            ['create', $this->form(['firmanavn' => 'SD844 Uden']), $this->token()]
+        );
+
+        self::assertSame(['12 34 56 78', '+46 70 123 45 67', ''], array_map(
+            fn(array $r): string => (string)$this->sql('SELECT tlf FROM adresser WHERE id = $1', [$r['konto_id']])[0]['tlf'], $results));
+    }
+
     public function testLongValuesAreCutToTheColumns(): void
     {
         $result = $this->steps(['create', $this->form(['firmanavn' => 'SD844 ' . str_repeat('ø', 100), 'cvrnr' => str_repeat('1', 30)]), $this->token()])[0];
