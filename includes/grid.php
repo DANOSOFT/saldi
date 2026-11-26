@@ -42,6 +42,7 @@ Regards:) 20260220 LOE
 // 20261113 CL/LH SST-990 review: the kolonner editor's own header and description inputs use grid_html_exact(), so a saved text round-trips unchanged.
 //                Only displayed texts are decoded, including the placeholders of a column added since the setup.
 // 20261125 CDX/NTR Escape all text and dropdown cell values with the shared grid text helper before rendering.
+// 20261126 CDX/NTR Pass the database encoding when preparing text and search highlighting.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
 include_once(__DIR__ . '/grid/text.php');
 
@@ -1737,7 +1738,7 @@ function render_table_row($columns, $row, $searchTerms) {
 
         $textColumn = in_array($column['type'] ?? 'text', array('text', 'dropdown'), true);
         if ($textColumn) {
-            $value = is_string($value) ? grid_text_html($value, $term) : $value;
+            $value = is_string($value) ? grid_text_html($value, $term, $GLOBALS['db_encode'] ?? 'UTF8') : $value;
         } elseif ($column["type"] == "number" && $term !== '' && mb_stripos((string)$value, $term, 0, 'UTF-8') !== false) {
             $value = preg_replace_callback(
                 '/' . preg_quote($term, '/') . '/iu',

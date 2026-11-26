@@ -10,6 +10,7 @@
 // 20261006 CL/NTR Made the grid action-menu and its Redigér submenu triggers native type="button" buttons that
 //                 open on focus as well as hover (same change as includes/grid.php).
 // 20261125 CDX/NTR Escape text and dropdown cells with the shared grid text helper before rendering.
+// 20261126 CDX/NTR Pass LATIN9 text through the shared encoding-aware grid text preparation.
 
 include_once(__DIR__ . '/../grid/text.php');
 
@@ -1654,7 +1655,7 @@ function render_table_row($columns, $row, $searchTerms) {
 
         $textColumn = in_array($column['type'] ?? 'text', array('text', 'dropdown'), true);
         if ($textColumn) {
-            $value = is_string($value) ? grid_text_html($value, $term) : $value;
+            $value = is_string($value) ? grid_text_html($value, $term, $GLOBALS['db_encode'] ?? 'UTF8') : $value;
         }
 
         // Render the final data

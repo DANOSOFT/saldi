@@ -1,5 +1,6 @@
 <?php
 // 20261125 CDX/NTR Pin safe text rendering and highlighting across the general, customer-order and supplier-order grids.
+// 20261126 CDX/NTR Exercise LATIN9 names and search terms through every renderer without changing raw rows.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -74,6 +75,34 @@ final class GridCellTextTest extends TestCase
         self::assertSame('<td>A &amp; B</td>', self::render($path, $column, 'A & B', ''));
         $column['render'] = static fn($value): string => $value === false ? '<td>✗</td>' : '<td>✓</td>';
         self::assertSame('<td>✗</td>', self::render($path, $column, false, ''));
+    }
+
+    #[DataProvider('grids')]
+    public function testLegacyTextAndHighlightingSurviveInThePageCharset(string $path): void
+    {
+        $previous = $GLOBALS['db_encode'] ?? null;
+        $GLOBALS['db_encode'] = 'LATIN9';
+        $text = 'Møller Pære € <img src=x>';
+        $raw = mb_convert_encoding($text, 'ISO-8859-15', 'UTF-8');
+        $rowSeen = null;
+        $column = ['field' => 'name', 'type' => 'text', 'render' => static function ($value, $row) use (&$rowSeen): string {
+            $rowSeen = $row['name'];
+            return "<td>$value</td>";
+        }];
+        try {
+            foreach (['', mb_convert_encoding('Pære', 'ISO-8859-15', 'UTF-8')] as $term) {
+                $html = self::render($path, $column, $raw, $term);
+                self::assertStringNotContainsString('<img', $html);
+                self::assertTrue(mb_check_encoding($html, 'ASCII'), 'Legacy pages need charset-independent escaped output');
+                self::assertSame($text, html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                self::assertSame($raw, $rowSeen);
+                if ($term !== '') {
+                    self::assertStringContainsString('background-color:#FF0', $html);
+                }
+            }
+        } finally {
+            $GLOBALS['db_encode'] = $previous;
+        }
     }
 
     /** @return string HTML emitted by the real row renderer, without the grid's request/bootstrap code. */
