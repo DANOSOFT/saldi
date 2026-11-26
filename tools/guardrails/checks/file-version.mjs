@@ -2,6 +2,7 @@
 // Tokenize without executing PHP so comments and whitespace do not require a version bump.
 // 20261029 CDX/MJ Enforce the repeated CodeRabbit header-version finding (PR #882, 39a812a75).
 // 20261101 CL/MJ Tokenize with php-syntax's PHP 8.2 or Docker, so a machine without php on PATH still gets findings.
+// 20261126 CDX/NTR Require the current version when UTF-8 decoding may have lost source bytes.
 import { execFileSync } from "node:child_process";
 import { phpCommand } from "./php-syntax.mjs";
 
@@ -39,7 +40,8 @@ export default {
       const declared = /\b(ver|lap|patch)\s+([^\s-]+)/i.exec(lines[line]);
       if (declared?.[1].toLowerCase() === "ver" && declared[2] === version) continue;
       const previous = ctx.readBase(file.path);
-      if (previous !== null) {
+      // Lossy UTF-8 decoding can hide changed bytes in legacy strings; token equality is insufficient then.
+      if (previous !== null && !previous.includes("\uFFFD") && !source.includes("\uFFFD")) {
         php ??= phpCommand();
         const [before, after] = JSON.parse(execFileSync(php[0], [...php.slice(1), "-d", "display_errors=stderr", "-r", TOKEN_HASH], {
           input: JSON.stringify([previous, source]), encoding: "utf8", maxBuffer: 1024 * 1024,

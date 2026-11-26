@@ -52,6 +52,8 @@ rejects history entries inserted after a leading PHPDoc instead of in the header
 
 The exemption retains existing dated entries (date/tag and duplicate counts), the header date line, and the copyright line. Descriptions may be corrected; header dates and copyright ending years cannot move backward, and the starting year is retained. A changed copyright line must name `Danosoft ApS`; untouched legacy metadata needs no update.
 
+Both token comparisons require maintenance when either decoded revision contains `U+FFFD`: distinct LATIN9 source bytes can become the same Unicode replacement character before comparison. Such edits require history/header maintenance and the current application version.
+
 An edited PHP header must have no uncommented blank lines anywhere from the
 opening tag through its last comment. Use comment-only separators such as `//`.
 Empty lines inside a block comment are already commented; blank separation

@@ -4,6 +4,7 @@
 // 20261111 CDX/NTR Require comment-only separators throughout edited file headers.
 // 20261116 CDX/NTR Exempt formatting while retaining history requirements for content changes.
 // 20261124 CDX/NTR Exempt comment edits from maintenance while retaining history continuation validation.
+// 20261126 CDX/NTR Pin lossy LATIN9 token comparisons.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -26,6 +27,18 @@ function context(before, after, additions = []) {
   };
 }
 const head = '<?php\n// example.php ver 5.1.0 2026-10-29\n// Copyright (c) 2026 Danosoft ApS\n// 20261028 CDX/MJ Existing behavior.\n';
+
+for (const check of [history, version]) {
+  test(`${check.id} rejects a changed LATIN9 string after lossy UTF-8 decoding`, () => {
+    const before = Buffer.from(head.replace('ver 5.1.0', 'ver 4.0.0') + 'echo "æ";', 'latin1');
+    const after = Buffer.from(before);
+    after[after.indexOf(0xe6)] = 0xf8;
+    assert.notDeepEqual(before, after);
+    assert.equal(before.toString('utf8'), after.toString('utf8'));
+    const findings = check.run(context(before.toString('utf8'), after.toString('utf8'), [5]));
+    assert(findings.some(f => f.message.includes(check === history ? 'no history line' : 'PHP behavior changed')), JSON.stringify(findings));
+  });
+}
 
 for (const check of ['file-history', 'file-version']) {
   test(`${check} keeps PHP tokenizer warnings visible without corrupting JSON`, () => {
