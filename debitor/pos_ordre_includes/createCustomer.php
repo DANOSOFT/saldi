@@ -33,6 +33,7 @@
 // 20261126 CL/MJ SD-844 K31: a phone the Shopify export would drop (not 8 digits and without a country code) is refused, so it can't pass the pickup and delivery contact check and reach Shopify with no contact.
 // 20261126 CL/MJ SD-844 K31: the phone is checked both as stored and as the sale holds it, cut to ordrer.phone's 50 characters (Sol).
 // 20261126 CL/MJ SD-844 K31: only the form's payment terms are stored (opdater_konto() puts them into SQL unescaped), the group must be an active debtor group of the year, and text is cut in the tenant's encoding (Hugin, Saul).
+// 20261126 CL/MJ SD-844 K31: a debtor group stored as zero-padded text ('01') is found (Sol).
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
