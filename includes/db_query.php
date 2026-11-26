@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.0 ----2026-11-03--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-26--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,6 +63,7 @@
 // 20261029 CDX/NTR Document query and path helpers affected by shared runtime logging.
 // 20261103 CDX/NTR Attempt every database log line even when an earlier write is incomplete.
 // 20261103 CDX/NTR Report incomplete database log writes through non-throwing server diagnostics.
+// 20261126 CDX/NTR db_modify(): optional bound parameters and affected-row count; legacy calls unchanged.
 
 require_once __DIR__ . '/sharedFile.php';
 
@@ -262,7 +263,16 @@ if (!function_exists('db_close')) {
 }
 
 if (!function_exists('db_modify')) {
-	function db_modify($qtext, $spor, $global = false) {
+	/**
+	 * Execute a write with the existing logging and error handling.
+	 * @param string $qtext SQL with escaped values, or driver-native placeholders when binding parameters.
+	 * @param string $spor Caller context recorded in error logs.
+	 * @param bool $global Whether to use the master connection.
+	 * @param array|null $params Bound values: use $1, $2, ... on PostgreSQL and ? on MySQL/MariaDB.
+	 * @param bool $returnAffectedRows Return the driver's affected-row count on success instead of the legacy status.
+	 * @return int|string Affected rows when requested; otherwise the tab-separated status code and message.
+	 */
+	function db_modify($qtext, $spor, $global = false, ?array $params = null, bool $returnAffectedRows = false) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_skriv_id,$db_type;
@@ -279,7 +289,9 @@ if (!function_exists('db_modify')) {
 		#20190704 START
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 
-            $db_query = mysqli_query($use_connection, $qtext);  //mysql_query deprecated in php 7 and above
+			$db_query = $params === null
+				? mysqli_query($use_connection, $qtext)
+				: mysqli_execute_query($use_connection, $qtext, $params);
 			if (!$db_query) {
 				$error_message = "Error executing query: " . mysqli_error($use_connection) . " | Query: $qtext";
 				error_log($error_message);
@@ -288,9 +300,17 @@ if (!function_exists('db_modify')) {
 
 		}else {
 			$qtext=str_replace(' like ',' ilike ',$qtext);
-			$db_query=pg_query($use_connection, $qtext);
+			$db_query = $params === null
+				? pg_query($use_connection, $qtext)
+				: pg_query_params($use_connection, $qtext, $params);
 		}
 		#20190704 END
+		$affectedRows = null;
+		if ($returnAffectedRows && $db_query) {
+			$affectedRows = ($db_type === 'mysql' || $db_type === 'mysqli')
+				? mysqli_affected_rows($use_connection)
+				: pg_affected_rows($db_query);
+		}
 		
 		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1 && $db != $sqdb) {
@@ -354,6 +374,9 @@ if (!function_exists('db_modify')) {
 				alert("$alerttekst");
 				exit;
 			}
+		}
+		if ($returnAffectedRows && $db_query) {
+			return $affectedRows;
 		}
 		return ('0'.chr(9).'query accepted');
 	}
