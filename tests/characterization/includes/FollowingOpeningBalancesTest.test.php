@@ -42,6 +42,7 @@
 // 20261126 CL/MMR SST-1005 No transfer anywhere: the activated year is named, a page check stores nothing; «Sæt aktivt» carries its own year after an earlier chain ends at a gap (Codex round 39).
 // 20261126 CL/MMR SST-1005 «Sæt aktivt» that ends at the first lookup names the activated year and keeps a waiting year (Codex round 40).
 // 20261126 CL/MMR SST-1005 ...also when it ends during the settings preparation, its first database statement (Codex round 41).
+// 20261126 CL/MMR SST-1005 A failing page check with no transfer anywhere keeps the stored message, in the catch as on shutdown (Codex round 42).
 
 declare(strict_types=1);
 
@@ -2720,6 +2721,37 @@ final class FollowingOpeningBalancesTest extends TestCase
         $this->sql('COMMIT');
         self::assertSame(1175.0, $this->primo(11, 2000), 'Gem/opdatér on year 11 carries year 10.');
         self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /**
+     * Codex round 42: only years 8 and 10 exist and year 8 waits, so a page check has nothing to carry. A database
+     * error during its rebuild reached the catch, which stored a failed 8->9 message naming the missing year 9 and
+     * replaced the message already stored. Like the shutdown path, the catch now only logs it: the stored message stays.
+     */
+    public function testAFailingPageCheckWithNoTransferAnywhereKeepsTheStoredMessage(): void
+    {
+        $log = tempnam(sys_get_temp_dir(), 'sst1005');
+        ini_set('error_log', $log);
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->removeYear(9);
+        $this->removeYear(11);
+        $stored = $this->stop(['sourceYear' => 9, 'targetYear' => 10, 'failed' => true]);
+        $this->sql("UPDATE settings SET var_value = '" . pg_escape_string($this->connection, json_encode($stored)) . "' WHERE var_name = 'openingBalanceStop'");
+        $afterShutdown = 'not run';
+        $GLOBALS['sst1005Hook'] = ['after' => "/^select kodenr, box1, box2, box3, box4, box10 from grupper where art = 'RA'/", 'times' => 1, 'run' => function () use (&$afterShutdown): void {
+            // In a page request the request would end here; the shutdown function has no guard to act on.
+            followingOpeningBalanceFailureOnShutdown();
+            $afterShutdown = followingOpeningBalanceStop();
+            throw new RuntimeException('test: the database refused the read');
+        }];
+        self::assertNull(syncFollowingOpeningBalances(8), 'As a webservice the catch returns no message.');
+        self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'The rebuild failed inside its transaction.');
+        self::assertSame($stored, $afterShutdown, 'The shutdown path keeps the stored message.');
+        self::assertSame($stored, followingOpeningBalanceStop(), 'The catch keeps it too.');
+        self::assertSame('0', $this->setting('openingBalancePending'), 'Year 8 was taken: there is nothing to carry from it.');
+        self::assertStringContainsString('test: the database refused the read', (string) file_get_contents($log), 'The failure is logged.');
+        unlink($log);
     }
 
     public function testMovingTheGuardKeepsItArmedAndNeverArmsIt(): void

@@ -82,6 +82,7 @@
 // 20261126 CL/MMR  SST-1005: With no transfer possible the guard names the activated year or is not armed, and «Sæt aktivt» also carries the year before the activated year when an earlier waiting year's rebuild ended at a gap before it (Codex round 39).
 // 20261126 CL/MMR  SST-1005: «Sæt aktivt» arms its guard for the activated year before the first lookup, then refines it (Codex round 40).
 // 20261126 CL/MMR  SST-1005: ...and before followingOpeningBalancePrepareRows(), its first database statement (Codex round 41).
+// 20261126 CL/MMR  SST-1005: A page check with no transfer possible that fails only logs it, like its shutdown path, and stores no message naming a missing year (Codex round 42).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -949,9 +950,9 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	// them carries its own opening balances on (Codex round 38). With no transfer at all, as before.
 	$start = followingOpeningBalanceRebuildStart($fromYear);
 	$fromYear = $start ? $start : followingOpeningBalanceFirstLiveYear($fromYear);
-	if ($failedSource === null) {
-		$failedSource = $fromYear;
-	}
+	// A page check with no transfer possible has no card to name: a failure is then logged, and no message is stored
+	// or replaced (Codex round 42).
+	$noTransfer = $failedSource === null;
 	$stop = null;
 	$deferredYear = 0;
 	$savesStop = followingOpeningBalanceSavesStop(true);
@@ -968,6 +969,10 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		transaktion('rollback');
 		followingOpeningBalanceReleaseLocks();
 		error_log('SST-1005: opening balances after fiscal year ' . $fromYear . ' not updated: ' . $e->getMessage());
+		if ($noTransfer) {
+			if ($guarded) followingOpeningBalanceFailureGuard(null);
+			return null;
+		}
 		$stop = followingOpeningBalanceStopShape($failedSource, $failedSource + 1);
 		$stop['failed'] = true;
 		saveFollowingOpeningBalanceStop($stop, $checkedFrom);
