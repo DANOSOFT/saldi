@@ -40,6 +40,7 @@
 // 20261126 CL/MMR SST-1005 An interrupted take of a deleted waiting year (also before a missing year, also on the second pass) names a year with a card whose save rebuilds the stale year (Codex round 37).
 // 20261126 CL/MMR SST-1005 An open waiting year before a missing year: an interrupted take or rebuild names a year with a card (Codex round 38).
 // 20261126 CL/MMR SST-1005 No transfer anywhere: the activated year is named, a page check stores nothing; «Sæt aktivt» carries its own year after an earlier chain ends at a gap (Codex round 39).
+// 20261126 CL/MMR SST-1005 «Sæt aktivt» that ends at the first lookup names the activated year and keeps a waiting year (Codex round 40).
 
 declare(strict_types=1);
 
@@ -2631,6 +2632,61 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertNull(syncFollowingOpeningBalances(11, 12));
         self::assertSame(1554.0, $this->primo(12, 2000));
         self::assertSame(1000.0, $this->primo(9, 2000), 'Nothing waited, so year 9 keeps its opening balances.');
+    }
+
+    /**
+     * End «Sæt aktivt» on year 11 (sync(10, 11)) right after the first lookup of the year the rebuild starts from, before
+     * anything is taken, as PHP does: the shutdown function runs, then nothing more.
+     */
+    private function endActivationOfYear11AtTheFirstLookup(): void
+    {
+        $log = tempnam(sys_get_temp_dir(), 'sst1005');
+        ini_set('error_log', $log);
+        $GLOBALS['sst1005Hook'] = ['after' => "/^select kodenr, box10 from grupper where art = 'RA' and kodenr >= '10' order by kodenr$/", 'times' => 1, 'run' => function (): void {
+            followingOpeningBalanceFailureOnShutdown();
+            throw new RuntimeException('test: the request ended');
+        }];
+        try {
+            syncFollowingOpeningBalances(10, 11);
+            self::fail('The request was meant to end.');
+        } catch (RuntimeException $e) {
+            self::assertSame('test: the request ended', $e->getMessage());
+        }
+        self::assertArrayNotHasKey('sst1005Hook', $GLOBALS);
+        unlink($log);
+    }
+
+    /**
+     * Codex round 40: «Sæt aktivt» on year 11 that ended during the first lookup of the rebuild start, before its guard
+     * was armed, left year 11 stale without a message. The guard names year 11 from the start.
+     */
+    public function testAnActivationThatEndsAtTheFirstLookupNamesTheActivatedYear(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        $this->postInYear9(2000, 5);
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(10));
+        $this->sql('COMMIT');
+        $this->sql('UPDATE kontoplan SET primo = 777 WHERE regnskabsaar = 11');
+        $this->endActivationOfYear11AtTheFirstLookup();
+        self::assertSame($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'failed' => true]), followingOpeningBalanceStop());
+        $this->assertTheMessageNamesAYearWithACard();
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(11));
+        $this->sql('COMMIT');
+        self::assertSame(1175.0, $this->primo(11, 2000), 'Gem/opdatér on year 11 carries year 10.');
+        self::assertNull(followingOpeningBalanceStop());
+    }
+
+    /** Codex round 40: the same with year 8 waiting: it stays waiting, and the message names year 11. */
+    public function testAnActivationThatEndsAtTheFirstLookupKeepsTheWaitingYear(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->endActivationOfYear11AtTheFirstLookup();
+        self::assertSame('8', $this->setting('openingBalancePending'), 'Nothing was taken.');
+        self::assertSame($this->stop(['sourceYear' => 10, 'targetYear' => 11, 'failed' => true]), followingOpeningBalanceStop());
+        $this->assertTheMessageNamesAYearWithACard();
     }
 
     public function testMovingTheGuardKeepsItArmedAndNeverArmsIt(): void

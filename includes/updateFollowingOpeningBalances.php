@@ -80,6 +80,7 @@
 // 20261126 CL/MMR  SST-1005: That guard names the first year after a deleted or missing waiting year, looked up before the clear, and is moved in one assignment, never disarmed in between (Codex round 37).
 // 20261126 CL/MMR  SST-1005: A rebuild asked to start at a year whose next year is deleted or missing starts at the first year after the gap, as after a deleted year, so «Sæt aktivt» still carries the activated year and a failed or interrupted rebuild names a year with a card (followingOpeningBalanceRebuildStart(), Codex round 38).
 // 20261126 CL/MMR  SST-1005: With no transfer possible the guard names the activated year or is not armed, and «Sæt aktivt» also carries the year before the activated year when an earlier waiting year's rebuild ended at a gap before it (Codex round 39).
+// 20261126 CL/MMR  SST-1005: «Sæt aktivt» arms its guard for the activated year before the first lookup, then refines it (Codex round 40).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -913,6 +914,12 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 			$guarded = followingOpeningBalanceFailureGuard($source, $checked);
 		}
 	};
+	// «Sæt aktivt» has the year switched already (includes/settings/rowHooks.php), so its guard names the activated year
+	// before anything is looked up, and is refined from there; a request that ends during the first lookup still leaves
+	// the message (Codex round 40). A page check has nothing taken yet, so it waits for the lookup.
+	if ($year > 0) {
+		$armGuard($year - 1, $fromYear > 0 ? $fromYear : $year);
+	}
 	$armGuard($guardSource($fromYear), $fromYear > 0 ? $fromYear : $year);
 	// Taken before the rebuild, so a failing rebuild is not retried on every page. A year registered after this is
 	// left for the next check. Before each clear the guard is moved to the year being taken when that is earlier, so a
