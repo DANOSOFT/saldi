@@ -7,6 +7,7 @@
     $permission_level = 'write';
     include("../includes/online.php");
     perm_require_post_csrf(true);
+    include_once(__DIR__ . "/../includes/stdFunc/easyUblWebhookKey.php");
     $apiKey = json_decode(file_get_contents('php://input'), true);
 
     // get domain name
@@ -22,7 +23,7 @@
        "orgNo" => "", //TODO find out what string to put here
        "currency" => "",
        "country" => "DK",
-       "webhookUrl" => "$domain/$firstFolder/debitor/easyUBL.php",
+       "webhookUrl" => easyubl_webhook_url($domain, $firstFolder),
        "defaultEndpoint" => [
            "endpointType" => "DK:CVR",
            "endpointIdentifier" => "DK".$res["cvrnr"],
