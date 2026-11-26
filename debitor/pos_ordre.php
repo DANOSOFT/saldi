@@ -132,6 +132,7 @@
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
 // 20261112 CL/SS MB-49: The card terminal's return shows afslut()'s error, as the other afslut() callers do.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261124 CL/MJ MB-188: A payment on account, or an amount ending in k, without a customer opens the customer lookup (kontoopslag()) instead of stopping on the undefined pos_kontoopslag().
 // 20261125 CL/SS MB-49: The terminal and day-end refusal alerts go through jsString(), so a LATIN9 text with æøå is not blank.
 @session_start();
 $s_id = session_id();
@@ -1326,7 +1327,7 @@ if ($vare_id) {
 		elseif (!is_numeric(substr($modtaget, -1)))
 			$modtaget = substr($modtaget, 0, strlen($modtaget) - 1);
 		if (!$modtaget || !$kontonr)
-			pos_kontoopslag('PO', "", $fokus, $id, "", "", "");
+			kontoopslag('PO', "", "kontonr", $id, "", "", "", "", "", "", "", "", "", "", "", "", "");
 	} elseif (isset($_POST['debitoropslag']) || isset($_POST['kreditoropslag'])) {
 		(isset($_POST['debitoropslag']) && $db != 'test_31') ? $tmp = 'PO' : $tmp = 'KO';
 		kontoopslag($tmp, "", "kontonr", $id, "", "", "", "", "", "", "", "", "", "", "", "", "");
