@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/SettingsService.php --- ver 5.1.1 --- 2026.11.25 ---
+// ---- includes/settings/SettingsService.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,7 +42,7 @@
 // 20261103 CL/ASR QA: historyMasked() is the one rule for settings whose history keeps no values (secrets and the employees' CPR, bank and salary): the audit row, the history views and Gendan all use it, so a masked row can never be restored as ''.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261124 CL/LH K33 hasModule('pos_delivery'): the POS delivery choices exist only where the Shopify schema is installed (pos_delivery_supported()).
-// 20261125 CL/MJ SD-877 A setting kept per fiscal year (POS) reads and writes this year's row only; with none, the save creates it for this year instead of changing another year's row.
+// 20261126 CL/MJ SD-877 A setting kept per fiscal year (POS) saved in a year without its own row first copies the row the page showed into this year (copyFiscalRow()), then changes this year's copy only; the other year is left alone (it used to be changed). The till reads this year's row.
 include_once(__DIR__ . '/../../systemdata/settingsRegistry.php');
 
 class SettingsService
@@ -146,7 +146,6 @@ class SettingsService
 	public static function preload(array $keys): void
 	{
 		$gr = array();
-		$fiscal = array();
 		$names = array();
 		foreach ($keys as $key) {
 			$def = self::definition($key);
@@ -156,9 +155,6 @@ class SettingsService
 			$st = self::storage($def);
 			if ($st['table'] === 'grupper') {
 				$gr[self::grKey($st)] = "(art = '" . db_escape_string($st['art']) . "' and kodenr = '" . db_escape_string($st['kodenr']) . "'" . self::kodeWhere($st) . ")";
-				if ($st['fiscal']) {
-					$fiscal[self::grKey($st)] = true;
-				}
 			} elseif ($st['table'] === 'adresser') {
 				if (self::$company === null) {
 					$r = db_fetch_array(db_select("select * from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
@@ -202,15 +198,12 @@ class SettingsService
 			global $regnaar;
 			$q = db_select("select * from grupper where " . implode(' or ', $gr) . " order by (coalesce(fiscal_year, 0) = " . (int) $regnaar . ") desc, id", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
-				// A setting kept per year (POS) uses this year's row only: its readers ask for fiscal_year = $regnaar,
-				// so another year's row is not one they would see, and saving into it would change that year (SD-877).
-				$otherYear = (int) $r['fiscal_year'] !== (int) $regnaar;
 				$k = $r['art'] . '|' . $r['kodenr'];
-				if (isset(self::$grupper[$k]) && self::$grupper[$k] === false && !($otherYear && isset($fiscal[$k]))) {
+				if (isset(self::$grupper[$k]) && self::$grupper[$k] === false) {
 					self::$grupper[$k] = $r;
 				}
 				$kk = $k . '|k' . ((string) $r['kode'] === '' ? '0' : $r['kode']);
-				if (isset(self::$grupper[$kk]) && self::$grupper[$kk] === false && !($otherYear && isset($fiscal[$kk]))) {
+				if (isset(self::$grupper[$kk]) && self::$grupper[$kk] === false) {
 					self::$grupper[$kk] = $r;
 				}
 			}
@@ -433,6 +426,27 @@ class SettingsService
 	/**
 	 * Write a stored string as is (also used by "Gendan" in the change history).
 	 */
+	/**
+	 * Copies a grupper row kept per fiscal year into $year, unless that year already has a row for the same
+	 * art, kodenr and kode. The copy is made in the database (insert ... select), so text keeps the
+	 * database's encoding, and every column comes along (settings_fy_columns(), as a new fiscal year does).
+	 *
+	 * @param array<string, mixed> $row  The row to copy (needs id, art, kodenr, kode).
+	 * @param int                  $year The fiscal year to copy it into; nothing happens for 0 or less.
+	 */
+	public static function copyFiscalRow(array $row, int $year): void
+	{
+		if ($year <= 0 || empty($row['id'])) {
+			return;
+		}
+		include_once(__DIR__ . '/rowHooks.php');
+		$cols = settings_fy_columns('grupper', array('id', 'fiscal_year'));
+		$same = "g.art = '" . db_escape_string((string) $row['art']) . "' and g.kodenr = '" . db_escape_string((string) $row['kodenr']) . "'"
+			. " and coalesce(g.kode, '') = '" . db_escape_string((string) $row['kode']) . "' and g.fiscal_year = $year";
+		db_modify("insert into grupper (" . implode(', ', $cols) . ", fiscal_year) select " . implode(', ', $cols) . ", $year from grupper where id = " . (int) $row['id']
+			. " and not exists (select 1 from grupper g where $same)", __FILE__ . " linje " . __LINE__);
+	}
+
 	public static function saveRaw(string $key, string $raw, $scopeId = null, string $handling = 'setting.changed'): bool
 	{
 		$def = self::definition($key);
@@ -477,6 +491,14 @@ class SettingsService
 				$stored = db_escape_string(implode($st['join'], $parts));
 			}
 			$where = "art = '" . db_escape_string($st['art']) . "' and kodenr = '" . db_escape_string($st['kodenr']) . "'" . self::kodeWhere($st);
+			global $regnaar;
+			if ($st['fiscal'] && $row && (int) $regnaar > 0 && (int) $row['fiscal_year'] !== (int) $regnaar) {
+				// The page showed another year's row (or a legacy row without a year), which the till doesn't
+				// read for this year. Copy it into this year first, so the other boxes come along, and change
+				// that copy only (SD-877).
+				self::copyFiscalRow($row, (int) $regnaar);
+				$row['fiscal_year'] = (int) $regnaar;
+			}
 			if ($st['fiscal'] && $row && (int) $row['fiscal_year'] > 0) {
 				// An art with a row per year (POS, OreDif) writes this year's row only (review, PR #803).
 				$where .= " and fiscal_year = " . (int) $row['fiscal_year'];

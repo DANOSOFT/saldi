@@ -15,12 +15,14 @@
 //
 // History:
 // 20261125 CL/MJ SD-877 Created.
+// 20261126 CL/MJ SD-877 Reports the boxes it is given (box1 when none).
 
 if ($argc < 7) {
     fwrite(STDERR, "usage: php run_settings_fiscal_save.php <session_id> <regnaar> <key> <value> <art> <kodenr>\n");
     exit(2);
 }
 [, $sessionId, $year, $key, $value, $art, $kodenr] = $argv;
+$boxes = isset($argv[7]) ? explode(',', $argv[7]) : array('box1');
 
 error_reporting(E_ERROR | E_PARSE);
 $_SERVER['REQUEST_URI'] = '/saldi/systemdata/settingsSection.php';
@@ -45,8 +47,12 @@ SettingsService::reset();
 $saved = SettingsService::save($key, $value);
 
 $rows = array();
-$q = db_select("select fiscal_year, box1 from grupper where art = '" . db_escape_string($art) . "' and kodenr = '" . db_escape_string($kodenr) . "' order by fiscal_year, id", __FILE__ . " linje " . __LINE__);
+$q = db_select("select fiscal_year, " . implode(', ', array_map(function ($b) { return preg_replace('/[^a-z0-9]/', '', $b); }, $boxes)) . " from grupper where art = '" . db_escape_string($art) . "' and kodenr = '" . db_escape_string($kodenr) . "' order by fiscal_year, id", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
-    $rows[] = array('fiscal_year' => (int) $r['fiscal_year'], 'box1' => (string) $r['box1']);
+    $row = array('fiscal_year' => (int) $r['fiscal_year']);
+    foreach ($boxes as $b) {
+        $row[$b] = (string) $r[$b];
+    }
+    $rows[] = $row;
 }
 echo "\n" . json_encode(array('saved' => $saved, 'rows' => $rows)) . "\n";
