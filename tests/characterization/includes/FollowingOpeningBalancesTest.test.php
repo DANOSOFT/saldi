@@ -43,6 +43,7 @@
 // 20261126 CL/MMR SST-1005 «Sæt aktivt» that ends at the first lookup names the activated year and keeps a waiting year (Codex round 40).
 // 20261126 CL/MMR SST-1005 ...also when it ends during the settings preparation, its first database statement (Codex round 41).
 // 20261126 CL/MMR SST-1005 A failing page check with no transfer anywhere keeps the stored message, in the catch as on shutdown (Codex round 42).
+// 20261126 CL/MMR SST-1005 ...and so does one that succeeds (Codex round 43).
 
 declare(strict_types=1);
 
@@ -2752,6 +2753,32 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertSame('0', $this->setting('openingBalancePending'), 'Year 8 was taken: there is nothing to carry from it.');
         self::assertStringContainsString('test: the database refused the read', (string) file_get_contents($log), 'The failure is logged.');
         unlink($log);
+    }
+
+    /**
+     * Codex round 43: only years 8 and 10 exist. «Sæt aktivt» on year 10 ended after taking waiting year 8 and left the
+     * message for year 10. A later page check in year 10 with year 8 waiting again had nothing to carry, yet it cleared
+     * that message. It carried nothing, so the message stays until year 10 is saved.
+     */
+    public function testAPageCheckWithNoTransferAnywhereKeepsTheMessageOfAnInterruptedActivation(): void
+    {
+        self::assertNull(checkFollowingOpeningBalances(11));
+        followingOpeningBalanceMarkPending(8);
+        $this->removeYear(9);
+        $this->removeYear(11);
+        $this->endTheRequestRightAfterTheClearOf(8, 9, 10);
+        $expected = $this->stop(['sourceYear' => 9, 'targetYear' => 10, 'failed' => true]);
+        self::assertSame($expected, followingOpeningBalanceStop());
+
+        followingOpeningBalanceMarkPending(8);
+        self::assertNull(checkFollowingOpeningBalances(10));
+        self::assertSame('0', $this->setting('openingBalancePending'), 'The page check ran and took year 8.');
+        self::assertSame($expected, followingOpeningBalanceStop(), 'It carried nothing, so the message stays.');
+
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(10));
+        $this->sql('COMMIT');
+        self::assertNull(followingOpeningBalanceStop(), 'Gem/opdatér on year 10 clears it.');
     }
 
     public function testMovingTheGuardKeepsItArmedAndNeverArmsIt(): void

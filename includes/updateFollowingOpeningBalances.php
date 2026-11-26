@@ -83,6 +83,7 @@
 // 20261126 CL/MMR  SST-1005: «Sæt aktivt» arms its guard for the activated year before the first lookup, then refines it (Codex round 40).
 // 20261126 CL/MMR  SST-1005: ...and before followingOpeningBalancePrepareRows(), its first database statement (Codex round 41).
 // 20261126 CL/MMR  SST-1005: A page check with no transfer possible that fails only logs it, like its shutdown path, and stores no message naming a missing year (Codex round 42).
+// 20261126 CL/MMR  SST-1005: ...and one that succeeds leaves the stored message alone, as it carried nothing (Codex round 43).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -950,8 +951,8 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	// them carries its own opening balances on (Codex round 38). With no transfer at all, as before.
 	$start = followingOpeningBalanceRebuildStart($fromYear);
 	$fromYear = $start ? $start : followingOpeningBalanceFirstLiveYear($fromYear);
-	// A page check with no transfer possible has no card to name: a failure is then logged, and no message is stored
-	// or replaced (Codex round 42).
+	// A page check with no transfer possible has no card to name and carries nothing: a failure is then logged, and no
+	// message is stored, replaced or cleared (Codex rounds 42-43).
 	$noTransfer = $failedSource === null;
 	$stop = null;
 	$deferredYear = 0;
@@ -979,8 +980,11 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 		if ($guarded) followingOpeningBalanceFailureGuard(null);
 		return $stop;
 	}
-	// A transfer left for the next check did not reach a blocked transition stored at or after it, so that stays.
-	saveFollowingOpeningBalanceStop($stop, $checkedFrom, $deferredYear);
+	// A transfer left for the next check did not reach a blocked transition stored at or after it, so that stays. A page
+	// check that had nothing to carry reached nothing either, so the stored message stays too (Codex round 43).
+	if (!$noTransfer) {
+		saveFollowingOpeningBalanceStop($stop, $checkedFrom, $deferredYear);
+	}
 	followingOpeningBalanceSavesStop($savesStop);
 	if (followingOpeningBalanceCommit() && $guarded) followingOpeningBalanceFailureGuard(null);
 	return $stop;
