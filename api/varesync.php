@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- ver 5.1.1 --- 2026.11.25 ---
+// --- api/varesync.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20261105 CL/SZ MB-119 'Opdater fra shop' only adds a shop_varer link when the row has a shop id, so a row without one no longer blocks the real link on a later sync.
 // 20261125 CL/SZ MB-145 A variant label that exists under another category is created under its own category, so the variant no longer gets variant_type 0. The last stock message names the item instead of a variant-file value. Variant labels are escaped in these queries.
 // 20261125 CL/SZ MB-192 Every variant barcode is read for the product barcode check, not only the last one, and each clash message ends its line. The barcode messages are shown when the run stops at a missing variant file.
+// 20261126 CL/SZ MB-192 The variant barcode check compares the barcodes as text, so 01234 no longer matches a variant's 1234.
 
 
 function varesync($valg) {
@@ -216,7 +217,7 @@ if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 #			alert("Stregkode $stregkode[$y] bruges også i $dbvnr:$dbbesk\\n stregkode slettes for $varenr[$y]:$beskrivelse[$y]");
 			$showtxt.="Stregkode $stregkode[$y] bruges også i $dbvnr:$dbbesk -- stregkode slettet for $varenr[$y]:$beskrivelse[$y]<br>";
 			$stregkode[$y]=NULL;
-		} elseif ($stregkode[$y] && in_array($stregkode[$y],$varBarCode)) {
+		} elseif ($stregkode[$y] && in_array((string)$stregkode[$y],$varBarCode,true)) {
 			$showtxt.="Stregkode $stregkode[$y] bruges også i varianter,  -- stregkode slettet for $varenr[$y]:$beskrivelse[$y]<br>";
 			$stregkode[$y]=NULL;
 		}
