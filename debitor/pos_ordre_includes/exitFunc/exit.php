@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.1 --- 2026.11.25---
+// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.1 --- 2026.11.26---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -42,6 +42,7 @@
 // 20261120 CL/MJ SD-844 K61: a pickup or delivery sale without the customer's email or phone is refused before any payment is taken.
 // 20261124 CL/SS MB-49 afslut(): a card of 0 in the second payment slot is refused too.
 // 20261125 CL/SS MB-49 afslut(): which payment is a card comes from pos_payment_is_card(), shared with bogfor_nu().
+// 20261126 CDX/NTR Print an automatic receipt once and end checkout if its renderer returns, avoiding the completed-order alert (#1183).
 
 include_once(__DIR__ . "/../deliveryContact.php");
 
@@ -368,14 +369,6 @@ print "\n<!-- Function afslut (start)-->\n";
 		$qtxt.= "values ";
 		$qtxt.= "('13004','". date('U') ."','$kasse','$bruger_id','$id','".__file__."','".__line__."')";
 		db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
-
-		$qtxt = "select id from grupper where art = 'POS' and kodenr = '1' and box10 = 'on' and fiscal_year = '$regnaar'";
-		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			if ($tracelog) {
-				fwrite ($tracelog, __file__." ".__line__." Calls: pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling)\n");
-			}
-			pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling);
-		}
 	}
 	$qtxt = "select id from grupper where art = 'POS' and kodenr = '1' and box10='on' and fiscal_year = '$regnaar'"; # Box10 = Print Receipt
 	$retur = ($modtaget+$modtaget2) - ($sum+$moms);
@@ -384,6 +377,8 @@ print "\n<!-- Function afslut (start)-->\n";
 			fwrite ($tracelog, __file__." ".__line__." Calls: pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling)\n");
 		}
 		pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling);
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
+		exit;
 	} elseif ( !$konto_id && ($betaling == 'Kontant' || $betaling2 == 'Kontant' || abs($retur) > 0.01 )) {
 		file_put_contents("../temp/skuffe.log",__file__." $konto_id && ($betaling == 'Kontant' || $betaling2 == 'Kontant' || $modtaget+$modtaget2 != $sum+$moms", FILE_APPEND);
 		#20160211+20211203
