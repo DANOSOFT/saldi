@@ -35,6 +35,8 @@
 // 20261112 CL/SZ SD-822: stagedUploadsCreate, the upload seam, bulkOperationRunMutation of inventoryBulkToggleActivation (B39, B40).
 //                Test knobs refuseActivation(), failBulkAfter(), hideQuantity(), refuseQuantity() and limitBulkOnce().
 // 20261113 CL/SZ SD-822 Review: a failure can be a sequence of modes, one per call.
+// 20261123 CL/SZ SD-826: a bulk mutation that ends FAILED serves the lines it ran as its partialDataUrl.
+// 20261126 CL/SZ SD-826 Review: failBulkAfter() can answer an empty partialDataUrl.
 
 require_once __DIR__ . '/FakeShopify.php';
 require_once __DIR__ . '/GraphqlDocument.php';
@@ -214,6 +216,10 @@ final class FakeShopifyStore
 						fwrite($fh, $op['file']);
 						return ['status' => 200, 'errno' => 0];
 					}
+					if (($op['partial_url'] ?? null) === $url && ($op['partial_mode'] ?? '') !== 'gone') {
+						fwrite($fh, $op['partial_mode'] === 'cut' ? substr($op['partial'], 0, -10) : $op['partial']);
+						return ['status' => 200, 'errno' => 0];
+					}
 				}
 			}
 			return ['status' => 404, 'errno' => 0];
@@ -245,10 +251,14 @@ final class FakeShopifyStore
 		$this->shop($domain)['refuse_toggle'][$item] = $message;
 	}
 
-	/** The next bulk mutation applies its first $lines lines and then ends FAILED (B39). */
-	public function failBulkAfter(string $domain, int $lines): void
+	/**
+	 * The next bulk mutation applies its first $lines lines and then ends FAILED (B39). Its partialDataUrl: 'whole' serves
+	 * their result lines, 'cut' stops inside the last one, 'gone' answers 404, 'none' gives no partialDataUrl, 'empty' gives an empty one.
+	 */
+	public function failBulkAfter(string $domain, int $lines, string $partial = 'whole'): void
 	{
 		$this->shop($domain)['bulk_fail_after'] = $lines;
+		$this->shop($domain)['bulk_fail_partial'] = $partial;
 	}
 
 	/** inventorySetQuantities refuses every call with this item, as for an unknown one, and sets nothing (B20). */
@@ -1475,7 +1485,9 @@ final class FakeShopifyStore
 		return ['__typename' => 'BulkOperation', 'id' => $gid, 'status' => $op['status'], 'type' => $op['type'] ?? 'QUERY', 'query' => $op['query'],
 			'errorCode' => $op['status'] === 'FAILED' ? 'INTERNAL_SERVER_ERROR' : null,
 			'objectCount' => (string)$op['lines'], 'rootObjectCount' => (string)$op['items'], 'fileSize' => $done ? (string)strlen($op['file']) : null,
-			'url' => $done && $op['file'] !== '' ? $op['url'] : null, 'partialDataUrl' => null, 'completedAt' => null, 'createdAt' => $this->iso()];
+			'url' => $done && $op['file'] !== '' ? $op['url'] : null,
+			'partialDataUrl' => $op['status'] === 'FAILED' && ($op['partial_mode'] ?? '') === 'empty' ? ''
+				: ($op['status'] === 'FAILED' && ($op['partial'] ?? '') !== '' ? $op['partial_url'] : null), 'completedAt' => null, 'createdAt' => $this->iso()];
 	}
 
 	// ---- mutations: catalogue and stock ------------------------------------------------------
@@ -1527,7 +1539,7 @@ final class FakeShopifyStore
 	/**
 	 * B39: runs a bulk mutation over the uploaded file, one result line per input line with its
 	 * __lineNumber from 0, written when it starts like B38's file. Only inventoryBulkToggleActivation
-	 * is modelled. failBulkAfter() makes it apply that many lines and end FAILED.
+	 * is modelled. failBulkAfter() makes it apply that many lines and end FAILED, their result lines behind partialDataUrl.
 	 */
 	private function mBulkOperationRunMutation(string $domain, array $a): array
 	{
@@ -1551,7 +1563,8 @@ final class FakeShopifyStore
 		$this->uses('B39');
 		$lines = [];
 		$failAfter = $s['bulk_fail_after'] ?? null;
-		unset($s['bulk_fail_after']);
+		$failPartial = $s['bulk_fail_partial'] ?? 'whole';
+		unset($s['bulk_fail_after'], $s['bulk_fail_partial']);
 		foreach (explode("\n", trim((string)$s['staged'][$a['stagedUploadPath']])) as $n => $text) {
 			if ($failAfter !== null && $n >= $failAfter) {
 				break;
@@ -1565,7 +1578,9 @@ final class FakeShopifyStore
 		$gid = $this->gid('BulkOperation');
 		$s['bulk'][$gid] = ['status' => 'RUNNING', 'type' => 'MUTATION', 'query' => $a['mutation'], 'final' => $failAfter === null ? 'COMPLETED' : 'FAILED',
 			'url' => 'https://storage.googleapis.com/fake-bulk/' . $this->legacy($gid) . '.jsonl',
-			'file' => $failAfter === null && $lines !== [] ? implode("\n", $lines) . "\n" : '', 'lines' => count($lines), 'items' => count($lines)];
+			'file' => $failAfter === null && $lines !== [] ? implode("\n", $lines) . "\n" : '', 'lines' => count($lines), 'items' => count($lines),
+			'partial_url' => 'https://storage.googleapis.com/fake-bulk/' . $this->legacy($gid) . '-partial.jsonl',
+			'partial' => $failAfter !== null && $failPartial !== 'none' && $lines !== [] ? implode("\n", $lines) . "\n" : '', 'partial_mode' => $failPartial];
 		return self::payload(['bulkOperation' => $this->vBulk($domain, $gid)]);
 	}
 

@@ -1,41 +1,40 @@
 <?php
 // tests/shopify/PosDeliveryChoicesTest.php
 //
-// K33/K34 in the POS: the delivery choices HML maintains under Systemdata > POS-valg
+// K33/K34 in the POS: the delivery choices maintained from the till settings
 // (pos_leveringsvalg), and the delivery choice and wished delivery date the cashier sets on a sale
 // (ordrer.leveringsvalg_id, ordrer.leveringsmaade, ordrer.oensket_levdato), which the store-order
 // export (SD-804) reads. Runs the shipped functions in a child (support/run_pos_delivery.php) on a
-// real tenant with the Shopify schema, once with a UTF-8 and once with a LATIN9 client, and checks
-// that a MySQL installation never reaches the new columns. Skips without ShopifyEnv.
+// fresh UUID-owned tenant with the Shopify schema, once with a UTF-8 and once with a LATIN9 client,
+// and checks that a MySQL installation never reaches the new columns. Skips without TestDatabase.
 //
 // History:
 // 20261120 CL/LH K33/K34: created.
+// 20261126 CDX/NTR Use a UUID-owned installed tenant and cover review regressions in delivery saves.
 
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/support/ShopifyEnv.php';
+require_once __DIR__ . '/../characterization/support/database/TestDatabase.php';
 
 final class PosDeliveryChoicesTest extends TestCase
 {
     private static ?string $skip = null;
     private static string $db = '';
+    private static ?TestDatabase $fixture = null;
 
     /** @var resource|\PgSql\Connection|null */
     private $conn = null;
 
     public static function setUpBeforeClass(): void
     {
-        self::$skip = ShopifyEnv::unavailableReason();
+        self::$skip = TestDatabase::unavailableReason();
         if (self::$skip !== null) {
             return;
         }
         try {
-            self::$db = ShopifyEnv::testDb('_pd');
-            ShopifyEnv::cloneTenant(self::$db);
-            $run = ShopifyEnv::runSchema(self::$db, 'ensure');
-            if ($run['exit'] !== 0) {
-                throw new RuntimeException('schema ensure failed: ' . $run['stderr']);
-            }
+            self::$fixture = TestDatabase::create(self::class);
+            self::$db = self::$fixture->name();
+            self::steps([['ensure_schema']]);
         } catch (Throwable $e) {
             self::tearDownAfterClass();
             throw $e;
@@ -44,7 +43,8 @@ final class PosDeliveryChoicesTest extends TestCase
 
     public static function tearDownAfterClass(): void
     {
-        ShopifyEnv::dropOwnedTenants();
+        self::$fixture?->release();
+        self::$fixture = null;
     }
 
     protected function setUp(): void
@@ -52,7 +52,7 @@ final class PosDeliveryChoicesTest extends TestCase
         if (self::$skip !== null) {
             $this->markTestSkipped(self::$skip);
         }
-        $this->conn = ShopifyEnv::connect(self::$db);
+        $this->conn = TestDatabase::connect(self::$db);
         $this->sql("DELETE FROM ordrer WHERE art = 'PO' AND ref = 'k33test'");
         $this->sql('DELETE FROM pos_leveringsvalg');
     }
@@ -66,17 +66,31 @@ final class PosDeliveryChoicesTest extends TestCase
 
     private function sql(string $q, array $p = []): array
     {
-        return ShopifyEnv::rows($this->conn, $q, $p);
+        return pg_fetch_all(TestDatabase::query($this->conn, $q, $p));
     }
 
     /** @return array<int, array{step: string, result: mixed, alerts: array}> */
-    private function steps(array $steps, string $encode = 'UTF8', string $dbType = 'postgresql'): array
+    private static function steps(array $steps, string $encode = 'UTF8', string $dbType = 'postgresql'): array
     {
-        $child = ShopifyEnv::startChild('run_pos_delivery.php', [self::$db, $encode, $dbType, json_encode($steps)]);
-        $r = ShopifyEnv::waitChild($child);
-        self::assertSame(0, $r['exit'], "runner failed: {$r['stderr']}\n{$r['stdout']}");
-        self::assertIsArray($r['result'], "runner printed no JSON: {$r['stdout']}");
-        return $r['result'];
+        $output = tmpfile();
+        $errors = tmpfile();
+        $process = proc_open(
+            [PHP_BINARY, __DIR__ . '/support/run_pos_delivery.php', self::$db, self::$fixture->uuid(), $encode, $dbType, json_encode($steps)],
+            [0 => ['file', '/dev/null', 'r'], 1 => $output, 2 => $errors],
+            $pipes
+        );
+        self::assertIsResource($process);
+        $exit = proc_close($process);
+        rewind($output);
+        rewind($errors);
+        $stdout = stream_get_contents($output);
+        $stderr = stream_get_contents($errors);
+        fclose($output);
+        fclose($errors);
+        self::assertSame(0, $exit, "runner failed: $stderr\n$stdout");
+        $result = json_decode($stdout, true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($result);
+        return $result;
     }
 
     private function choice(string $navn, string $type, ?string $vaerdi = null, int $sort = 0, bool $aktiv = true): int
@@ -127,7 +141,7 @@ final class PosDeliveryChoicesTest extends TestCase
             ['render_settings'], ['save_choices', ['leveringsvalg_ny' => ['navn' => 'Levering', 'type' => 'levering']]]], 'UTF8', 'mysqli');
         self::assertFalse($r[0]['result']);
         self::assertSame('', $r[1]['result']);
-        self::assertNull($r[2]['result']);
+        self::assertFalse($r[2]['result']);
         self::assertSame('', $r[3]['result']);
         self::assertSame('', $r[4]['result']);
     }
@@ -206,8 +220,54 @@ final class PosDeliveryChoicesTest extends TestCase
         // The same stale form again (a second admin, or a resubmit): the row is now the deactivated old version.
         $r = $this->steps([['save_choices', $form]]);
         self::assertCount(1, $r[0]['alerts']);
+        self::assertStringContainsString('ændret af en anden', $r[0]['alerts'][0]);
         self::assertSame([['shopify_vaerdi' => 'EasyRoutes', 'aktiv' => 'f'], ['shopify_vaerdi' => 'Danske Fragtmænd', 'aktiv' => 't']],
             $this->sql('SELECT shopify_vaerdi, aktiv FROM pos_leveringsvalg ORDER BY id'), 'no second replacement, and the old version stays inactive');
+    }
+
+    public function testADatabaseFailureDoesNotClaimThatAnotherAdministratorChangedTheChoice(): void
+    {
+        $id = $this->choice('Afhentning', 'afhentning');
+        $this->sql("ALTER TABLE pos_leveringsvalg ADD CONSTRAINT review_refuse_name CHECK (navn <> 'Fejl')");
+        try {
+            $r = $this->steps([['save_choices', ['leveringsvalg' => [$id => [
+                'navn' => 'Fejl', 'type' => 'afhentning', 'aktiv' => 'on',
+            ]]]]]);
+            self::assertCount(1, $r[0]['alerts']);
+            self::assertStringContainsString('kunne ikke gemmes', $r[0]['alerts'][0]);
+            self::assertStringNotContainsString('ændret af en anden', $r[0]['alerts'][0]);
+            self::assertSame('Afhentning', $this->sql('SELECT navn FROM pos_leveringsvalg WHERE id = $1', [$id])[0]['navn']);
+        } finally {
+            $this->sql('ALTER TABLE pos_leveringsvalg DROP CONSTRAINT review_refuse_name');
+        }
+    }
+
+    public function testAnUnchangedChoiceIsNotRewritten(): void
+    {
+        $id = $this->choice('Afhentning', 'afhentning');
+        $before = $this->sql('SELECT xmin::text FROM pos_leveringsvalg WHERE id = $1', [$id])[0]['xmin'];
+        $r = $this->steps([['save_choices', ['leveringsvalg' => [$id => [
+            'navn' => 'Afhentning', 'type' => 'afhentning', 'aktiv' => 'on',
+        ]]]]]);
+        self::assertSame([], $r[0]['alerts']);
+        self::assertSame($before, $this->sql('SELECT xmin::text FROM pos_leveringsvalg WHERE id = $1', [$id])[0]['xmin']);
+    }
+
+    public function testUnchangedAndSortOnlyChoicesDoNotReadTheOrdersTable(): void
+    {
+        $id = $this->choice('Afhentning', 'afhentning');
+        // A missing orders relation makes an accidental usage scan fail, without mocking SQL.
+        $this->sql('ALTER TABLE ordrer RENAME TO review_orders');
+        try {
+            $r = $this->steps([
+                ['save_choices', ['leveringsvalg' => [$id => ['navn' => 'Afhentning', 'type' => 'afhentning', 'aktiv' => 'on']]]],
+                ['save_choices', ['leveringsvalg' => [$id => ['navn' => 'Afhentning', 'type' => 'afhentning', 'sort' => '9']]]],
+            ]);
+            self::assertSame([[], []], array_column($r, 'alerts'));
+            self::assertSame(['sort' => '9', 'aktiv' => 'f'], $this->sql('SELECT sort, aktiv FROM pos_leveringsvalg WHERE id = $1', [$id])[0]);
+        } finally {
+            $this->sql('ALTER TABLE review_orders RENAME TO ordrer');
+        }
     }
 
     public function testDeletingAnUnusedChoiceRemovesIt(): void
@@ -271,6 +331,55 @@ final class PosDeliveryChoicesTest extends TestCase
         $order = $this->sale();
         self::assertNull($this->steps([['sale_save', $order, (string)$valg, '']])[0]['result']);
         self::assertSame(['leveringsvalg_id' => (string)$valg, 'leveringsmaade' => 'Levering', 'oensket_levdato' => null], $this->order($order));
+    }
+
+    public function testTheEndpointResponseReportsOnlyApplicableSuccessfulSavesAsSuccessful(): void
+    {
+        $valg = $this->choice('Levering', 'levering');
+        $order = $this->sale(0, $valg, $this->future());
+        $posted = $this->sale(3, $valg, $this->future());
+        $invoice = $this->sale(0, $valg, $this->future());
+        $this->sql("UPDATE ordrer SET art = 'DO' WHERE id = $1", [$invoice]);
+        try {
+            $requests = [
+                [],
+                ['id' => $order],
+                ['leveringsvalg_id' => (string)$valg],
+                ['id' => [$order], 'leveringsvalg_id' => (string)$valg],
+                ['id' => $order, 'leveringsvalg_id' => [$valg]],
+                ['id' => $order, 'leveringsvalg_id' => (string)$valg, 'oensket_levdato' => ['2027-01-01']],
+                ['id' => $order . 'junk', 'leveringsvalg_id' => (string)$valg],
+                ['id' => 2147483647, 'leveringsvalg_id' => (string)$valg],
+                ['id' => $posted, 'leveringsvalg_id' => ''],
+                ['id' => $invoice, 'leveringsvalg_id' => ''],
+            ];
+            $r = $this->steps(array_map(static fn(array $post): array => ['sale_response', $post], $requests));
+            self::assertSame(array_fill(0, count($requests), ['ok' => false]), array_column($r, 'result'));
+            $r = $this->steps([['sale_response', ['id' => $order, 'leveringsvalg_id' => (string)$valg, 'oensket_levdato' => '']]]);
+            self::assertSame(['ok' => true], $r[0]['result']);
+            self::assertNull($this->order($order)['oensket_levdato']);
+            $r = $this->steps([['sale_response', ['id' => $order, 'leveringsvalg_id' => (string)$valg, 'oensket_levdato' => '2000-01-01']]]);
+            self::assertFalse($r[0]['result']['ok']);
+            self::assertStringContainsString('før i dag', $r[0]['result']['error']);
+        } finally {
+            $this->sql('DELETE FROM ordrer WHERE id = $1', [$invoice]);
+        }
+    }
+
+    public function testTheEndpointDoesNotClaimSuccessWhenTheOrderUpdateWritesNoRow(): void
+    {
+        $valg = $this->choice('Levering', 'levering');
+        $order = $this->sale(0, $valg, $this->future());
+        $this->sql('CREATE FUNCTION review_skip_delivery_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$');
+        $this->sql('CREATE TRIGGER review_skip_delivery_update BEFORE UPDATE ON ordrer FOR EACH ROW EXECUTE FUNCTION review_skip_delivery_update()');
+        try {
+            $r = $this->steps([['sale_response', ['id' => $order, 'leveringsvalg_id' => (string)$valg, 'oensket_levdato' => '']]]);
+            self::assertSame(['ok' => false], $r[0]['result']);
+            self::assertNotNull($this->order($order)['oensket_levdato']);
+        } finally {
+            $this->sql('DROP TRIGGER review_skip_delivery_update ON ordrer');
+            $this->sql('DROP FUNCTION review_skip_delivery_update()');
+        }
     }
 
     public function testTakenAlongNeverKeepsADate(): void

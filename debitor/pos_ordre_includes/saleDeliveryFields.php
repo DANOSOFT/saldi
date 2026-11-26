@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/saleDeliveryFields.php --- ver 5.1.1 ---- 2026-11-24 ----
+// --- debitor/pos_ordre_includes/saleDeliveryFields.php --- ver 5.1.1 ---- 2026-11-26 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 //                The wished date never goes in levdate, which exitFunc/settlePOS.php overwrites when the sale is posted.
 //                Without an active choice, or without the Shopify schema (MySQL), the POS is exactly as before.
 // 20261124 CL/LH K33 The wished date is read as YYYY-MM-DD whatever the connection's DateStyle, the background save sends the session's CSRF token, and pos_move_sale_delivery() takes a moved sale's delivery to the table's sale.
+// 20261126 CDX/NTR Save cleared dates, validate complete past dates and report whether a background request actually updated an open POS sale.
 
 include_once(__DIR__ . "/../../systemdata/diverseIncludes/posSaleSettings.php");
 
@@ -101,13 +102,13 @@ function pos_delivery_parse_date($typed) {
  * @param int    $orderId
  * @param string $valg    The posted pos_leveringsvalg id, '' for taget med.
  * @param string $dato    The posted wished date, '' for none.
- * @return string|null The reason the input was refused, to show the cashier, or NULL.
+ * @return string|false|null The refusal to show the cashier, false when no open POS sale was updated, or NULL on success.
  */
 function pos_save_sale_delivery($orderId, $valg, $dato) {
 	global $sprog_id;
 	$sale = pos_sale_delivery($orderId);
 	if (!$sale || $sale['art'] !== 'PO' || $sale['status'] >= 3) {
-		return null;
+		return false;
 	}
 	$orderId = (int) $orderId;
 	$valg = trim((string) $valg);
@@ -126,7 +127,8 @@ function pos_save_sale_delivery($orderId, $valg, $dato) {
 		}
 	}
 	$refusal = null;
-	$ok = pos_delivery_try(function () use ($orderId, $valgId, $sale, $date, &$error, &$refusal, $sprog_id) {
+	$applied = true;
+	$ok = pos_delivery_try(function () use ($orderId, $valgId, $sale, $date, &$error, &$refusal, &$applied, $sprog_id) {
 		$choice = null;
 		if ($valgId) {
 			$rows = shopify_db_rows('SELECT id, navn, type, aktiv FROM pos_leveringsvalg WHERE id = $1 FOR SHARE', array($valgId));
@@ -138,23 +140,48 @@ function pos_save_sale_delivery($orderId, $valg, $dato) {
 		}
 		if (!$choice || $choice['type'] === 'taget_med') {
 			// Taken along never keeps a date, so a date typed before switching back is not an error.
-			shopify_db_rows("UPDATE ordrer SET leveringsvalg_id = NULL, leveringsmaade = NULL, oensket_levdato = NULL WHERE id = $1 AND art = 'PO' AND status < 3", array($orderId));
+			$applied = (bool) shopify_db_rows("UPDATE ordrer SET leveringsvalg_id = NULL, leveringsmaade = NULL, oensket_levdato = NULL WHERE id = $1 AND art = 'PO' AND status < 3 RETURNING id", array($orderId));
 			return;
 		}
 		if (isset($error)) {
 			// The pick stands; only the date is refused, and the sale keeps the date it had.
-			shopify_db_rows("UPDATE ordrer SET leveringsvalg_id = $2, leveringsmaade = $3 WHERE id = $1 AND art = 'PO' AND status < 3",
-				array($orderId, $valgId, $choice['navn']));
+			$applied = (bool) shopify_db_rows(
+				"UPDATE ordrer SET leveringsvalg_id = $2, leveringsmaade = $3 WHERE id = $1 AND art = 'PO' AND status < 3 RETURNING id",
+				array($orderId, $valgId, $choice['navn'])
+			);
 			$refusal = $error;
 			return;
 		}
-		shopify_db_rows("UPDATE ordrer SET leveringsvalg_id = $2, leveringsmaade = $3, oensket_levdato = $4 WHERE id = $1 AND art = 'PO' AND status < 3",
-			array($orderId, $valgId, $choice['navn'], $date));
+		$applied = (bool) shopify_db_rows(
+			"UPDATE ordrer SET leveringsvalg_id = $2, leveringsmaade = $3, oensket_levdato = $4 WHERE id = $1 AND art = 'PO' AND status < 3 RETURNING id",
+			array($orderId, $valgId, $choice['navn'], $date)
+		);
 	});
 	if (!$ok) {
 		return findtekst('pos.delivery.error.save|Leveringsmåden kunne ikke gemmes. Prøv igen.', $sprog_id);
 	}
-	return $refusal;
+	return $applied ? $refusal : false;
+}
+
+/**
+ * Validates a delivery endpoint payload and reports whether it saved an open POS sale.
+ *
+ * @param array $post Posted delivery fields; permission and CSRF checks belong to the endpoint.
+ * @return array{ok: bool, error?: string} A refusal has a cashier-facing error; an inapplicable request does not.
+ */
+function pos_sale_delivery_response($post) {
+	$id = ifset($post, 'id', '');
+	$choice = ifset($post, 'leveringsvalg_id');
+	$date = ifset($post, 'oensket_levdato', '');
+	if (!is_scalar($id) || !is_scalar($choice) || !is_scalar($date) || !ctype_digit((string) $id)
+		|| strlen((string) $id) > 10 || (int) $id < 1 || (int) $id > 2147483647) {
+		return array('ok' => false);
+	}
+	$error = pos_save_sale_delivery((int) $id, (string) $choice, (string) $date);
+	if (is_string($error)) {
+		return array('ok' => false, 'error' => $error);
+	}
+	return array('ok' => $error === null);
 }
 
 /**
@@ -314,7 +341,7 @@ function pos_render_sale_delivery_fields($orderId, $status, $sprog_id) {
 /**
  * The script behind the delivery fields: shows or hides the date for the picked type, and saves
  * the change in the background through saveDelivery.php, one request after the other so the last
- * edit wins. A date still being typed (empty, or a year before this one) is not sent. A refusal is
+ * edit wins. An incomplete native date is not sent; an intentionally empty date clears the wish. A refusal is
  * shown to the cashier. A sale that has no row yet is saved with the sale form's next submit.
  *
  * @param int $orderId
@@ -335,7 +362,7 @@ function pos_sale_delivery_script($orderId) {
 		. "  if (w) { w.style.display = taget ? 'none' : ''; }\n"
 		. "  if (d) { d.disabled = taget; }\n"
 		. "  if (!$orderId) { return; }\n"
-		. "  if (el === d && (!d.value || d.value.slice(0, 4) < String(new Date().getFullYear()))) { return; }\n"
+		. "  if (el === d && d.validity.badInput) { return; }\n"
 		. "  var b = new FormData();\n"
 		. "  b.append('id', '$orderId');\n"
 		. "  b.append('leveringsvalg_id', o.value);\n"
