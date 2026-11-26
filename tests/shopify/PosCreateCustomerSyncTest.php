@@ -159,14 +159,16 @@ final class PosCreateCustomerSyncTest extends TestCase
         // The export sends a phone only as E.164 (shopify_customer_export_phone()): 8 digits are taken as
         // Danish, anything else needs its country code. A sale with a phone it drops reaches Shopify with
         // no contact although it passed the pickup and delivery contact check (K61).
-        [$short, $local, $padded] = $this->steps(
+        [$short, $local, $padded, $tooLong] = $this->steps(
             ['create', $this->form(['phone' => '12 34 56']), $this->token()],
             ['create', $this->form(['phone' => '0701234567']), $this->token()],
             // valid as typed, but the sale keeps only its first 50 characters, which lose the last digit
-            ['create', $this->form(['phone' => implode(str_repeat(' ', 7), str_split('12345678'))]), $this->token()]
+            ['create', $this->form(['phone' => implode(str_repeat(' ', 7), str_split('12345678'))]), $this->token()],
+            // the other way round: the sale's 50 characters look Danish, the stored ten digits don't
+            ['create', $this->form(['phone' => implode(str_repeat(' ', 6), str_split('12345678')) . ' 90']), $this->token()]
         );
 
-        foreach ([$short, $local, $padded] as $refused) {
+        foreach ([$short, $local, $padded, $tooLong] as $refused) {
             self::assertSame('InvalidArgumentException', $refused['error']);
             self::assertSame(2, $refused['code'], 'POS_CUSTOMER_CREATE_BAD_PHONE');
         }

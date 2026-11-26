@@ -31,7 +31,7 @@
 // 20261126 CL/MJ SD-844 K31: pos_customer_create_shopify_mode() answers false when the Shopify tables can't be read, so the customer lookup still opens.
 // 20261126 CL/MJ SD-844 K31: pos_customer_create_alert_script(), the cashier's alert through jsString().
 // 20261126 CL/MJ SD-844 K31: a phone the Shopify export would drop (not 8 digits and without a country code) is refused, so it can't pass the pickup and delivery contact check and reach Shopify with no contact.
-// 20261126 CL/MJ SD-844 K31: the phone is checked as the sale holds it, cut to ordrer.phone's 50 characters (Sol).
+// 20261126 CL/MJ SD-844 K31: the phone is checked both as stored and as the sale holds it, cut to ordrer.phone's 50 characters (Sol).
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
@@ -138,10 +138,11 @@ function pos_create_customer(array $c, $token) {
 		// The sale goes to Shopify with this phone only when the export can make it E.164 (8 digits, taken as
 		// Danish, or a number with its country code). A phone it would drop would pass the till's pickup and
 		// delivery contact check (K61) and still reach Shopify with no contact, so it is refused here.
-		// The sale copies at most 50 characters (ordrer.phone, opdater_konto() in saleHeaderFunctions.php), so the
-		// number is checked as the sale will hold it.
+		// Both copies must be usable: the customer export reads the phone as stored, and a sale holds at most
+		// its first 50 characters (ordrer.phone, opdater_konto() in saleHeaderFunctions.php).
 		require_once __DIR__ . '/../../includes/shopify/services/customersOut.php';
-		if (shopify_customer_export_phone(mb_substr($fields['tlf'], 0, 50, 'UTF-8'), '') === '') {
+		if (shopify_customer_export_phone($fields['tlf'], '') === ''
+			|| shopify_customer_export_phone(mb_substr($fields['tlf'], 0, 50, 'UTF-8'), '') === '') {
 			throw new InvalidArgumentException('the phone cannot be sent to Shopify', POS_CUSTOMER_CREATE_BAD_PHONE);
 		}
 	}
