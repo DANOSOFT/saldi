@@ -2,6 +2,7 @@
 // 20260914 CDX/LH Exercise document corrections against PostgreSQL temporary tables.
 // Run with SALDI_TEST_PG_DSN (or libpq PG* environment variables plus SALDI_TEST_PG=1).
 // 20261027 CL/LH Account 0 is not set; a stored suggestion the journal can't use is left out on attach instead of 422.
+// 20261110 CL/SZ SST-949 An unusable stored account no longer refuses a manual save; a typed one still does.
 if (!getenv('SALDI_TEST_PG_DSN') && !getenv('SALDI_TEST_PG')) {
 	fwrite(STDOUT, "SKIP: configure a PostgreSQL test connection\n");
 	exit(0);
@@ -77,4 +78,23 @@ foreach (['0','9999','3000','4000','5000','unknown'] as $account) {
 }
 poolMetadataSave('invoice.pdf', ['account'=>'0'], true, poolMetadataVersion(metadataRow()), 9);
 check(metadataRow()['account']==='', 'Account 0 is saved as not set');
+// An app's account suggestion that isn't in kontoplan doesn't stop a correction of the other fields
+db_modify("UPDATE pool_files SET account='9999', manually_edited=false WHERE filename='invoice.pdf'");
+poolMetadataSave('invoice.pdf', ['file_date'=>'22.10.2026'], true, poolMetadataVersion(metadataRow()), 9);
+$row = metadataRow();
+check($row['file_date']==='2026-10-22' && $row['account']==='9999' && poolMetadataIsManual($row), 'Unusable stored account kept when the account is left out');
+poolMetadataSave('invoice.pdf', ['account'=>' 9999 ','amount'=>'60,80','subject'=>'Netto','invoice_number'=>'A-17'], true, poolMetadataVersion(metadataRow()), 9);
+$row = metadataRow();
+check($row['account']==='9999' && $row['norm_amount']==='60.8' && $row['subject']==='Netto' && $row['invoice_number']==='A-17', 'Unusable stored account sent back unchanged is kept');
+foreach (['8888','3000','unknown'] as $account) {
+	rejected(fn()=>poolMetadataSave('invoice.pdf', ['account'=>$account,'file_date'=>'23.10.2026'], true, poolMetadataVersion(metadataRow()), 9), 422, "Typed account $account over an unusable stored one");
+}
+try {
+	poolMetadataSave('invoice.pdf', ['account'=>'8888'], true, poolMetadataVersion(metadataRow()), 9);
+	check(false, 'A typed account is refused as the account');
+} catch (InvalidArgumentException $error) {
+	check($error->getMessage()==='Invalid account', 'A typed account is refused as the account');
+}
+poolMetadataSave('invoice.pdf', ['account'=>'1000'], true, poolMetadataVersion(metadataRow()), 9);
+check(metadataRow()['account']==='1000', 'A usable typed account replaces the unusable one');
 printf("PASS: %d PostgreSQL metadata and account checks\n", $checks);
