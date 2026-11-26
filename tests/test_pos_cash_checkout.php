@@ -2,6 +2,7 @@
 // 20260914 CDX/LH Regress MB-48: completed cash sales must leave the change screen.
 // 20260914 CDX/LH Cover secure remote printers, loopback exceptions and rejected drawer endpoints.
 // 20261006 CL/LH SST-839: LAN print servers (private IPs, localhost, .local, single-label names) are reached over HTTP again; other hosts keep the HTTPS rule.
+// 20261125 CL/SS MB-49: the real pos_payment_is_card() is loaded, as afslut() now uses it.
 
 /**
  * Run with: php tests/test_pos_cash_checkout.php
@@ -42,6 +43,7 @@ if (($argv[1] ?? '') === '--case') {
     function betaling(...$args) { return 20; }
     function pos_afrund($amount, ...$args) { return round($amount, 2); }
     function afrund($amount, $decimals) { return round($amount, $decimals); }
+    require_once __DIR__ . '/../includes/orderFuncIncludes/posPaymentType.php';
     function db_select($sql, ...$args) {
         global $case;
         if (str_contains($sql, 'from ordrer')) {
