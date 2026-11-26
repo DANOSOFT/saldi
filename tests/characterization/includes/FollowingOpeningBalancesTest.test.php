@@ -44,6 +44,7 @@
 // 20261126 CL/MMR SST-1005 ...also when it ends during the settings preparation, its first database statement (Codex round 41).
 // 20261126 CL/MMR SST-1005 A failing page check with no transfer anywhere keeps the stored message, in the catch as on shutdown (Codex round 42).
 // 20261126 CL/MMR SST-1005 ...and so does one that succeeds (Codex round 43).
+// 20261126 CL/MMR SST-1005 A page check or year card whose carry ends at a missing year keeps a message beyond it (Codex round 44).
 
 declare(strict_types=1);
 
@@ -2779,6 +2780,67 @@ final class FollowingOpeningBalancesTest extends TestCase
         self::assertNull(updateOpeningBalancesAfterYearSave(10));
         $this->sql('COMMIT');
         self::assertNull(followingOpeningBalanceStop(), 'Gem/opdatér on year 10 clears it.');
+    }
+
+    /**
+     * Years 8, 9, 11 and 12 with year 10 missing and year 8 waiting: «Sæt aktivt» on year 12 (sync(11, 12)) ends at its
+     * first database statement, which stores the message for 11->12 and leaves year 8 waiting.
+     */
+    private function twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12(): array
+    {
+        $this->addYear12();
+        self::assertNull(checkFollowingOpeningBalances(12));
+        followingOpeningBalanceMarkPending(8);
+        $this->removeYear(10);
+        $log = tempnam(sys_get_temp_dir(), 'sst1005');
+        ini_set('error_log', $log);
+        $GLOBALS['sst1005Hook'] = ['after' => "/^select id from settings where var_name = 'openingBalancePending' order by id limit 1$/", 'times' => 1, 'run' => function (): void {
+            followingOpeningBalanceFailureOnShutdown();
+            throw new RuntimeException('test: the request ended');
+        }];
+        try {
+            syncFollowingOpeningBalances(11, 12);
+            self::fail('The request was meant to end.');
+        } catch (RuntimeException $e) {
+            self::assertSame('test: the request ended', $e->getMessage());
+        }
+        unlink($log);
+        $expected = $this->stop(['sourceYear' => 11, 'targetYear' => 12, 'failed' => true]);
+        self::assertSame($expected, followingOpeningBalanceStop());
+        self::assertSame('8', $this->setting('openingBalancePending'));
+        $this->sql('UPDATE kontoplan SET primo = 777 WHERE regnskabsaar = 12');
+        return $expected;
+    }
+
+    /**
+     * Codex round 44: a page check from year 12 then rebuilt year 9 from year 8, stopped at the missing year 10 and
+     * cleared the message for 11->12, which it never reached. The message stays until year 12 is saved.
+     */
+    public function testAPageCheckThatEndsAtAMissingYearKeepsTheMessageBeyondIt(): void
+    {
+        $expected = $this->twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12();
+        self::assertNull(checkFollowingOpeningBalances(12));
+        self::assertSame('0', $this->setting('openingBalancePending'));
+        self::assertSame(1554.0, $this->primo(9, 2000), 'Year 9 follows year 8.');
+        self::assertSame(777.0, $this->primo(12, 2000), 'Year 12 is beyond the missing year.');
+        self::assertSame($expected, followingOpeningBalanceStop(), 'So its message stays.');
+
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(12));
+        $this->sql('COMMIT');
+        self::assertSame(1554.0, $this->primo(12, 2000), 'Gem/opdatér on year 12 carries year 11.');
+        self::assertNull(followingOpeningBalanceStop(), 'And clears the message.');
+    }
+
+    /** Codex round 44: the same for Gem/opdatér on year 9, whose carry also ends at the missing year 10. */
+    public function testAYearCardWhoseCarryEndsAtAMissingYearKeepsTheMessageBeyondIt(): void
+    {
+        $expected = $this->twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12();
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(9));
+        $this->sql('COMMIT');
+        self::assertSame(1554.0, $this->primo(9, 2000));
+        self::assertSame($expected, followingOpeningBalanceStop());
     }
 
     public function testMovingTheGuardKeepsItArmedAndNeverArmsIt(): void
