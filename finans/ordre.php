@@ -1,5 +1,5 @@
 <?php
-// ----------debitor/ordre.php---------lap 3.0.1------2010-05-20-------
+// ----------debitor/ordre.php---------ver 5.1.1------2026-11-24-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,7 +14,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
 // 20260908 SZ SST-755: popup close/beacon now releases the lock properly (was missing
@@ -37,6 +37,8 @@
 // real popup order creation through the actual page instead of re-checking the extracted
 // block in isolation; the isolated check couldn't have caught this since it doesn't reproduce
 // ordreside()'s own scope.
+// 20261124 CL/LH MB-177 The contact picked in the contact list (GET kontakt) is escaped and written only on the order whose id is a whole number.
+//                A link whose order id (id, tjek) is not a whole number is refused before any query, and the posted order id is read as an integer.
 
 @session_start();
 $s_id=session_id();
@@ -65,6 +67,12 @@ $reserveret=NULL;$sletslut=0;$sletstart=0;
 <script LANGUAGE="JavaScript" SRC="../javascript/overlib.js"></script>
 <?php
 $modulnr=5;
+// MB-177 The order id in the link goes into SQL on this page, so a link whose id is not a whole number is refused.
+require_once __DIR__ . '/../includes/stdFunc/orderIdFromLink.php';
+if (!order_ids_from_link_are_whole_numbers($_GET, array('id', 'tjek'))) {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordreliste.php\">";
+	exit;
+}
 $title="Kundeordre";
 $css="../css/standard.css";
 	
@@ -137,7 +145,11 @@ if (isset($_GET['vis_lev_addr']) && $id) {
 		
 }
 
-if (($kontakt=if_isset($_GET['kontakt']))&&($id)) db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
+// MB-177 kontakt and id come from the link: the name is escaped and only an id that is a whole number is used.
+$kontakt = if_isset($_GET, NULL, 'kontakt');
+if ($kontakt && is_scalar($kontakt) && is_scalar($id) && ctype_digit(trim((string) $id)) && (int) $id) {
+	db_modify("update ordrer set kontakt='" . db_escape_string($kontakt) . "' where id='" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
+}
 
 if (isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 2008.05.11
 	$konto_id=$_GET['konto_id'];
@@ -245,7 +257,7 @@ if (isset($_POST['submit'])) {
 	if (strstr($submit,"Faktur")) $submit="Fakturer";
 	if (strstr($submit,"Del ordre")) $submit="del_ordre";
 #	if ($submit=='Kredit&eacute;r') $sumbit='Fakturer';
-	$id = $_POST['id'];
+	$id = (int) if_isset($_POST, 0, 'id'); // MB-177 the posted order id reaches the contact lookup's query
 	$ordrenr = $_POST['ordrenr'];
 	$kred_ord_id = $_POST['kred_ord_id'];
 	$art = $_POST['art'];

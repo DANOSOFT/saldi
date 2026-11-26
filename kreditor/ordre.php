@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- kreditor/ordre.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20200827 PHR Added protection against delete if items recieved. 20200827
 // 20201002	PHR Orderline will no be created if no id.
 // 20201021 changed from '=substr($fokus,4)' to '=0' as $focus is 'varenr'?;
@@ -101,6 +101,9 @@
 // 20261105 CL/MMR SST-951 Saving the order header stores the chosen language (sprog) when that language has forms, and a restordre keeps the order's language.
 //                 ordreside() reads ordrer.sprog, so the language select and the mail texts on the order show it.
 //                 In the edited POST block the three-argument if_isset() lookups are now ifset() with the same keys and defaults, and ordreside() includes its order parts with __DIR__.
+// 20261124 CL/LH MB-177 The contact picked in the contact list (GET kontakt) is escaped and written only on the order whose id is a whole number.
+//                The link sends the name URL-encoded.
+//                A link whose order id (id, tjek) is not a whole number is refused before any query, and the contact list sorts only by its four headings.
 
 @session_start();
 $s_id=session_id();
@@ -130,6 +133,12 @@ function fejltekst(tekst) {
 $title="Kreditorordre";
 $css="../css/standard.css";
 $modulnr=7;
+// MB-177 The order id in the link goes into SQL on this page, so a link whose id is not a whole number is refused.
+require_once __DIR__ . '/../includes/stdFunc/orderIdFromLink.php';
+if (!order_ids_from_link_are_whole_numbers($_GET, array('id', 'tjek'))) {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+	exit;
+}
 
 $id=$konto_id=$debitor_id=$projekt=0;
 $hurtigfakt=$krediteret=$labelprint=$lev_adr=$momssum=$negativt_lager=$sort=$submit=NULL;
@@ -274,8 +283,10 @@ if (isset($_POST['create_creditor'])) {
 	}
 	exit;
 }
-if ( !empty($kontakt) && $id ) {
-	db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
+// MB-177 kontakt and id come from the link: the name is escaped and only an id that is a whole number is used.
+if (!empty($kontakt) && is_scalar($kontakt) && is_scalar($id) && ctype_digit(trim((string) $id)) && (int) $id) {
+	$qtxt = "update ordrer set kontakt='" . db_escape_string($kontakt) . "' where id='" . (int) $id . "'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716 
 	transaktion("begin");
@@ -1522,20 +1533,19 @@ function ansatopslag($sort, $fokus, $id){
 	print" </tr>\n";
 
 
-	$sort = $_GET['sort'];
-	if (!$sort) $sort = "navn";
+	$sort = contact_lookup_sort_column(if_isset($_GET, NULL, 'sort')); // MB-177 one of the four headings
 	if (!$id) $id = '0'; # <- 2009.05.10
 
-	$query = db_select("select konto_id from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select konto_id from ordrer where id = " . (int) $id,__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
-	$konto_id = $row['konto_id']*1; # <- 2009.05.10
+	$konto_id = (int) $row['konto_id']; # <- 2009.05.10
 
 	$query = db_select("select * from ansatte where konto_id = $konto_id order by $sort",__FILE__ . " linje " . __LINE__); # <- 2009.05.10
 	while ($row = db_fetch_array($query))	{
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 		else {$linjebg=$bgcolor5; $color='#000000';}
 		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=$row[navn]'>".htmlentities($row['navn'],ENT_COMPAT,$charset)."</a></td>";
+		print "<td><a href='ordre.php?fokus=$fokus&id=$id&kontakt=" . urlencode($row['navn']) . "'>".htmlentities($row['navn'],ENT_COMPAT,$charset)."</a></td>";
 		print "<td> $row[tlf]</td>";
 		print "<td> $row[mobil]</td>";
 		print "<td> $row[email]</td>";
