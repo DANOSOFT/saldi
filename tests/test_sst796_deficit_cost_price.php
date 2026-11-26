@@ -19,6 +19,9 @@
  * SD-786: the message is off by default; these cases run with the setting ticked
  * ($GLOBALS['sst796_setting']), so the message paths stay covered. The SD-786 rules themselves are
  * in tests/characterization/includes/CostEstimateNoticeTest.test.php.
+ *
+ * SST-883: levering() passes the order's warehouse to linjeopdat() after the flag, so the last check
+ * accepts arguments after $webservice.
  */
 
 error_reporting(E_ALL);
@@ -394,7 +397,7 @@ check(
 check(
     'levering() passes its own flag down to linjeopdat()',
     true,
-    (bool)preg_match('/linjeopdat\([^;]*\$webservice\s*\)\s*;/', file_get_contents(__DIR__ . '/../includes/ordrefunc.php'))
+    (bool)preg_match('/linjeopdat\([^;]*\$webservice\s*[,)]/', file_get_contents(__DIR__ . '/../includes/ordrefunc.php'))
 );
 
 printf("\n%s\n", $failures ? "$failures FAILURE(S)" : 'All SST-796 cost-price cases passed.');
