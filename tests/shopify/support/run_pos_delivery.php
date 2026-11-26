@@ -5,7 +5,7 @@
 // bootstraps the legacy database globals against one test tenant, includes the shipped
 // systemdata/diverseIncludes/posSaleSettings.php and debitor/pos_ordre_includes/saleDeliveryFields.php,
 // runs the given steps in order and prints one JSON result per step.
-//   php run_pos_delivery.php <test_db> <UTF8|LATIN9> <postgresql|mysqli> '<steps json>'
+//   php run_pos_delivery.php <test_db> <uuid> <UTF8|LATIN9> <postgresql|mysqli> '<steps json>'
 //
 // LATIN9 connects the way a LATIN9 installation does (client encoding LATIN9, pages in
 // ISO-8859-15): posted strings are converted to ISO-8859-15 before a step sees them, and the
@@ -26,20 +26,32 @@
 //   ["menu", "T"]                             sets $menu, as the user's top-menu layout does
 //   ["datestyle", "SQL, DMY"]                 sets the connection's DateStyle
 //   ["move_delivery", fromId, toId]           pos_move_sale_delivery()
+//   ["ensure_schema"]                         ensure_shopify_schema() on the owned fixture
+//   ["sale_response", {post}]                  pos_sale_delivery_response()
 //
 // History:
 // 20261120 CL/LH K33/K34: created.
 // 20261124 CL/LH K33: steps datestyle and move_delivery.
+// 20261126 CDX/NTR Verify the parent fixture's active UUID before running delivery operations.
 
-if ($argc < 5) {
-    fwrite(STDERR, "usage: php run_pos_delivery.php <test_db> <UTF8|LATIN9> <postgresql|mysqli> '<steps json>'\n");
+if ($argc < 6) {
+    fwrite(STDERR, "usage: php run_pos_delivery.php <test_db> <uuid> <UTF8|LATIN9> <postgresql|mysqli> '<steps json>'\n");
     exit(2);
 }
-[, $testDb, $encode, $dbType, $stepsJson] = $argv;
+[, $testDb, $uuid, $encode, $dbType, $stepsJson] = $argv;
 $steps = json_decode($stepsJson, true, 512, JSON_THROW_ON_ERROR);
 
-require_once __DIR__ . '/ShopifyEnv.php';
-ShopifyEnv::assertSafeTestDb($testDb);
+require_once __DIR__ . '/../../characterization/support/database/TestDatabase.php';
+if (!preg_match('/^t[a-f0-9]{22}_1$/', $testDb)) {
+    throw new RuntimeException('The delivery runner requires a UUID-owned test tenant');
+}
+$verified = TestDatabase::connect($testDb);
+$identity = pg_fetch_assoc(TestDatabase::query($verified, 'SELECT uuid, state FROM public.saldi_phpunit_identity'));
+pg_close($verified);
+if (!$identity || $identity['uuid'] !== $uuid || $identity['state'] !== 'active') {
+    throw new RuntimeException('The delivery runner requires its parent fixture active ownership');
+}
+$repoRoot = dirname(__DIR__, 3);
 
 // The legacy layer reads the request; without it every query warns, and a child that fills its
 // stderr pipe blocks before the parent reads it.
@@ -56,20 +68,21 @@ function alert($msg)
 $db_type = $dbType;
 $db_encode = $encode;
 $brugernavn = 'k33test';
-$sqdb = ShopifyEnv::masterDb();
+$sqdb = TestDatabase::masterDb();
 $db = $testDb;
 $db_skriv_id = null;
 $webservice = true;
 $sprog_id = 1;
 $regnaar = 1;
 
-require_once ShopifyEnv::repoRoot() . '/includes/db_query.php';
+require_once $repoRoot . '/includes/db_query.php';
 if ($dbType === 'postgresql') {
-    $connection = db_connect(ShopifyEnv::pgHost(), ShopifyEnv::pgUser(), ShopifyEnv::pgPass(), $testDb);
+    $connection = TestDatabase::connect($testDb);
+    pg_set_client_encoding($connection, $encode);
 }
-require_once ShopifyEnv::repoRoot() . '/includes/std_func.php';
-require_once ShopifyEnv::repoRoot() . '/systemdata/diverseIncludes/posSaleSettings.php';
-require_once ShopifyEnv::repoRoot() . '/debitor/pos_ordre_includes/saleDeliveryFields.php';
+require_once $repoRoot . '/includes/std_func.php';
+require_once $repoRoot . '/systemdata/diverseIncludes/posSaleSettings.php';
+require_once $repoRoot . '/debitor/pos_ordre_includes/saleDeliveryFields.php';
 
 $in = function ($v) use ($encode, &$in) {
     if ($encode !== 'LATIN9') {
@@ -106,6 +119,16 @@ foreach ($steps as $step) {
     $GLOBALS['runAlerts'] = [];
     $name = array_shift($step);
     switch ($name) {
+        case 'ensure_schema':
+            require_once $repoRoot . '/includes/shopify/schema.php';
+            $r = ensure_shopify_schema();
+            if (!$r) {
+                throw new RuntimeException('Shopify schema installation failed');
+            }
+            break;
+        case 'sale_response':
+            $r = pos_sale_delivery_response($in($step[0]));
+            break;
         case 'enabled':
             $r = pos_delivery_enabled();
             break;
