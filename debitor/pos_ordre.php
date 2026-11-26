@@ -139,6 +139,7 @@
 // 20261124 CL/MJ SD-844 K61: a "på beløb" payment is skipped once the contact refusal was shown in the request, so a refused gift card on amount shows one alert, not two.
 // 20261125 CL/SS MB-49: The terminal and day-end refusal alerts go through jsString(), so a LATIN9 text with æøå is not blank.
 // 20261126 CL/MJ SD-844 K61: a table's sale emptied by a move and reused clears the email and phone too, so the previous customer's contact can't satisfy the contact rule.
+// 20261126 CDX/NTR Return a contact-refused payment to the editable sale, preserving its customer, items and delivery choice (#1183).
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1787,9 +1788,24 @@ print "<table width=\"100%\" border=\"0\"><tbody>\n"; # Tabel 1.2 ->
 if ($id && isset($_GET['betaling']) && $_GET['betaling'] == 'ukendt') $betaling = 'ukendt';
 # if ($id && $betaling) $sum=betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kasse);
 #/*
-if ($id && $betaling) {
-	include('../debitor/pos_ordre_includes/voucherFunc/voucherPay.php');
+if ($id && $betaling && empty($GLOBALS['pos_delivery_contact_refused'])) {
+	include_once(__DIR__ . '/pos_ordre_includes/voucherFunc/voucherPay.php');
 	voucherPay($id, $betaling, $modtaget);
+}
+// Payments on amount are completed below; refuse them before drawing the payment screen.
+if ($id && $betaling && strpos($betaling, onAmount()) && !$indbetaling && $godkendt != 'OK' && empty($GLOBALS['pos_delivery_contact_refused'])) {
+	$contactCheck = pos_validate_checkout_sale($id);
+	if (!$contactCheck['ok']) {
+		alert($contactCheck['message']);
+	}
+}
+if (!empty($GLOBALS['pos_delivery_contact_refused'])) {
+	$betaling = $betaling2 = NULL;
+	$modtaget = $modtaget2 = '';
+	$afslut = $delbetaling = NULL;
+	$fokus = 'varenr_ny';
+}
+if ($id && $betaling) {
 	if (isset($_COOKIE['giftcard']) && $_COOKIE['giftcard'] == true) {
 		if ($tracelog)
 			fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kasse)\n");
