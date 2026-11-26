@@ -1,17 +1,21 @@
 FROM php:8.3-apache
 
 # 20261028 CDX/MJ SST-876 Provide cURL and Python for the discovered HTTP recovery regressions.
+# 20261120 CDX/NTR Include PDF inspection tools for background preparation and its integration checks.
+# 20261126 CDX/NTR Provide Node inside the PHP container for the grid JavaScript fixtures executed by PHPUnit.
 # Install PostgreSQL/cURL client libraries and PHP extensions
 RUN apt-get update && apt-get install -y \
         libpq-dev \
         libcurl4-openssl-dev \
         curl \
         python3 \
+        nodejs \
         postgresql-client \
         unzip \
         git \
         pdftk-java \
         ghostscript \
+        poppler-utils \
         imagemagick \
         barcode \
         msmtp \

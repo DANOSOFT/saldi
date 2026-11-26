@@ -11,6 +11,7 @@ node tools/guardrails/check.mjs --base origin/hml/shopify
 node tools/guardrails/check.mjs --only php-syntax,js-syntax
 node tools/guardrails/check.mjs --list
 gh pr view 123 --json body -q .body | node tools/guardrails/check.mjs --pr-body -
+gh pr view 123 --json body -q .body | node tools/guardrails/check.mjs --pr-body - --base origin/master   # with the UI recording check
 ```
 
 CI runs the same command (`.github/workflows/guardrails.yml`). Only what the
@@ -31,6 +32,17 @@ Put an exception on the offending line, or the line above it:
 It names the check, an expiry date, the initials of the person who approved it
 and the reason. It stops working after the expiry date. Exceptions are for the
 odd case; a check that needs them often is wrong and should be fixed instead.
+
+When a reviewer explicitly waives a PR's screen recording, record that decision
+as a visible line under `## Screen recording`, using the same exception format:
+
+```text
+guardrails-allow pr-recording until 2026-12-31 by NTR: reviewer explicitly waived the recording for this PR
+```
+
+The reviewer validates the named approver and reason. An expired or incomplete
+waiver fails the recording check; a waiver inside an HTML comment does not count.
+Use `Ingen UI-ændring` only when the change has no UI effect.
 
 ## Proving a check
 
@@ -75,13 +87,14 @@ between sections of code.
 | New wording for an existing text id or key: use a new id/key, or purge the cached rows with `deleteStaleTekst()` at the end of `includes/betweenUpdates.php` | guardrails `tekster` | `includes/opdat_func/deleteStaleTekst.php` |
 | `findtekst('NNNN\|fallback')`: the fallback is id NNNN's text in one of the languages | guardrails `tekster` | |
 | `findtekst('descriptive.key\|fallback')`: the key exists in a keyed TSV and the fallback matches the effective custom-or-standard row | guardrails `tekster` | [convention_findtekst_keys](../../doc/ai/convention_findtekst_keys.md) |
-| Schema changes (DDL, `ensureTableAndColumns()`) go at the end of `includes/betweenUpdates.php`; `admin/opret.php` and `includes/opretfunc.php` may define the initial schema when creating a new regnskab, until structure helper functions replace this setup | guardrails `migrations` | [convention_database_changes](../../doc/ai/convention_database_changes.md) |
+| Schema changes (DDL, `ensureTableAndColumns()`) go at the end of `includes/betweenUpdates.php`; reusable structure builders live in `includes/structure/`; `admin/opret.php` and `includes/opretfunc.php` may define the initial schema when creating a new regnskab | guardrails `migrations` | [convention_database_changes](../../doc/ai/convention_database_changes.md) |
 | `includes/opdat_*.php` and `includes/betweenUpdates2.php` are not edited, except in a version cut | guardrails `migrations` | [feedback_protected_update_files](../../doc/ai/feedback_protected_update_files.md) |
 | A new test lives where CI runs it: a `phpunit.xml` suite or `e2e/` | guardrails `test-discovery` | [tests/README.md](../../tests/README.md) |
 | An edited PHP header has no uncommented blank lines; history is below older entries and the header date and copyright move along | guardrails `file-history` | [convention_file_history](../../doc/ai/convention_file_history.md) |
 | New blank separators may contain indentation; no incidental whitespace-only rewrites, trailing whitespace after content, or file mode changes | guardrails `whitespace` | [feedback_whitespace_and_indentation](../../doc/ai/feedback_whitespace_and_indentation.md) |
 | Keep simple function calls on one line; when a call needs wrapping, put every argument on its own line | review | |
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](../../doc/ai/feedback_pre_pr_test_report.md) |
+| A PR that changes what users see (styles, scripts, markup, texts, PHP that writes markup) has a screen recording of it working in its description, or the line `Ingen UI-ændring: <why>` | guardrails `pr-recording` | |
 | Header-history continuations start a new sentence and align with the description after the date/tag | guardrails `file-history` | [convention_file_history](../../doc/ai/convention_file_history.md) |
 | Bump `ver` on the header line for a behaviour change, not for formatting | guardrails `file-version` | [convention_file_history](../../doc/ai/convention_file_history.md) |
 | Cast or escape every outside value in SQL; HTML/JS output escaped (`jsString()`); `returside` through `nav_sanitize_returside()` | review, CodeRabbit | [convention_sql_escaping](../../doc/ai/convention_sql_escaping.md) |
