@@ -33,6 +33,17 @@ It names the check, an expiry date, the initials of the person who approved it
 and the reason. It stops working after the expiry date. Exceptions are for the
 odd case; a check that needs them often is wrong and should be fixed instead.
 
+When a reviewer explicitly waives a PR's screen recording, record that decision
+as a visible line under `## Screen recording`, using the same exception format:
+
+```text
+guardrails-allow pr-recording until 2026-12-31 by NTR: reviewer explicitly waived the recording for this PR
+```
+
+The reviewer validates the named approver and reason. An expired or incomplete
+waiver fails the recording check; a waiver inside an HTML comment does not count.
+Use `Ingen UI-ændring` only when the change has no UI effect.
+
 ## Proving a check
 
 A check must fail on a real past mistake. Judge any commit against its parent:
@@ -48,6 +59,12 @@ The commits each check was proven on are named at the top of its file in
 comments and formatting, while changes to string contents count as behavior. It
 requires PHP on `PATH`, as provided by the guardrails CI job. `file-history` also
 rejects history entries inserted after a leading PHPDoc instead of in the header.
+`file-history` also ignores comment-only and formatting-only changes when requiring a history entry or header date/copyright update. It ignores PHP comments and whitespace when comparing tokens, while preserving string contents (including SQL and heredocs) and inline HTML. History-entry validation and continuation alignment still run, including when only comments or indentation changed.
+
+The exemption retains existing dated entries (date/tag and duplicate counts), the header date line, and the copyright line. Descriptions may be corrected; header dates and copyright ending years cannot move backward, and the starting year is retained. Comment and formatting edits retain the dated header's path and version value, allowing legacy version labels to normalize to `ver`. A changed copyright line must name `Danosoft ApS`; untouched legacy metadata needs no update.
+
+Both token comparisons require maintenance when either decoded revision contains `U+FFFD`: distinct LATIN9 source bytes can become the same Unicode replacement character before comparison. Such edits require history/header maintenance and the current application version.
+
 An edited PHP header must have no uncommented blank lines anywhere from the
 opening tag through its last comment. Use comment-only separators such as `//`.
 Empty lines inside a block comment are already commented; blank separation
@@ -79,7 +96,7 @@ between sections of code.
 | Schema changes (DDL, `ensureTableAndColumns()`) go at the end of `includes/betweenUpdates.php`; reusable structure builders live in `includes/structure/`; `admin/opret.php` and `includes/opretfunc.php` may define the initial schema when creating a new regnskab | guardrails `migrations` | [convention_database_changes](../../doc/ai/convention_database_changes.md) |
 | `includes/opdat_*.php` and `includes/betweenUpdates2.php` are not edited, except in a version cut | guardrails `migrations` | [feedback_protected_update_files](../../doc/ai/feedback_protected_update_files.md) |
 | A new test lives where CI runs it: a `phpunit.xml` suite or `e2e/` | guardrails `test-discovery` | [tests/README.md](../../tests/README.md) |
-| An edited PHP header has no uncommented blank lines; history is below older entries and the header date and copyright move along | guardrails `file-history` | [convention_file_history](../../doc/ai/convention_file_history.md) |
+| An edited PHP header has no uncommented blank lines; changes beyond comments and formatting require history below older entries and updated header date/copyright | guardrails `file-history` | [convention_file_history](../../doc/ai/convention_file_history.md) |
 | New blank separators may contain indentation; no incidental whitespace-only rewrites, trailing whitespace after content, or file mode changes | guardrails `whitespace` | [feedback_whitespace_and_indentation](../../doc/ai/feedback_whitespace_and_indentation.md) |
 | Keep simple function calls on one line; when a call needs wrapping, put every argument on its own line | review | |
 | The PR description says what changed and how it was verified | guardrails `pr-body` | [feedback_pre_pr_test_report](../../doc/ai/feedback_pre_pr_test_report.md) |

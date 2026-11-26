@@ -18,6 +18,7 @@
 // History:
 // 20261027 CL/LH Created.
 // 20261118 CL/LH The description checks: pr-body, and pr-recording when --base names the change.
+// 20261126 CDX/NTR Pass the check date to description checks for expiring reviewer waivers.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { buildChangeset, git, revExists, splitLines } from "./lib/changeset.mjs";
@@ -85,7 +86,7 @@ async function main() {
       }
       const { files } = buildChangeset({ base: args.base, head: args.head });
       for (const check of DESCRIPTION_CHECKS) {
-        for (const finding of check.run(body, files)) findings.push({ check: check.id, path: ".github/pull_request_template.md", ...finding });
+        for (const finding of check.run(body, files, { today })) findings.push({ check: check.id, path: ".github/pull_request_template.md", ...finding });
       }
     }
     report(findings);

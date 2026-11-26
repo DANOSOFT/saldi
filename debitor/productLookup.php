@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/productLookup.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- debitor/productLookup.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,8 +29,46 @@
 // 20260618 CL/PHR replaced lower(vv.variant_type) by lower(vv.variant_type::text) to avoid Fatal error
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 CL/MMR SST-1051 Customer orders show items from the active external price list (Prislister).
+//                 The chosen one is created as an item before it goes on the order.
+// 20261125 CL/MMR SST-1051 An item is only created by POST for an open customer order or credit note.
+// 20261125 CL/MMR SST-1051 The price-list message also names a file larger than 20 MB.
+// 20261125 CL/MMR SST-1051 The price file is searched record by record (externalPriceListSearch/Find).
+// 20261125 CL/MMR SST-1051 The preview converts the exact price text from the helper to a number for display.
+// 20261125 CDX/NTR Escape imported catalogue text before the grid adds search highlighting.
+// 20261125 CDX/NTR Preserve the selected warehouse through external item creation, selection and failure redirects.
+// 20261125 CDX/NTR Route description lookups and their automatic grid search to the description field.
+// 20261125 CDX/NTR Keep warehouse context when the grid submits and retry failed creation by item number.
+// 20261125 CDX/NTR Use the shared grid text escaping instead of page-specific value getters.
+// 20261126 CDX/NTR Normalize legacy search text before JSON encoding and retain a valid JavaScript literal on failure.
+// 20261126 CDX/NTR Validate creation CSRF before output and bind each price-list submission to its original tenant.
+//                  The controller captures its request before online.php can clear a stale tenant submission.
+// 20261126 CDX/NTR Render UTF-8 catalogue strings as entities on legacy pages and submit item numbers explicitly as UTF-8.
+// 20261126 CDX/NTR Keep creation responses free of classic-menu and stale-tenant output before status headers.
+// 20261126 CDX/NTR Decode browser search fields in their submitted charset and retain database-encoded order fallbacks.
 @session_start();
 $s_id = session_id();
+$priceListPost = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['plVarenr']);
+$priceListItemNo = $_POST['plVarenr'] ?? '';
+$priceListAccount = $_POST['thisDb'] ?? null;
+if ($priceListPost) {
+    require_once(__DIR__ . '/../includes/permissions.php');
+    perm_require_post_csrf(false);
+    if (!is_string($priceListItemNo) || $priceListItemNo === '' || !is_string($priceListAccount) || $priceListAccount === '') {
+        http_response_code(400);
+        print '<p>400</p>';
+        exit;
+    }
+    // Authenticate creation POSTs without page output.
+    $header = 'nix';
+    $bg = 'nix';
+    // This controller checks the captured tenant after authentication, before any write or output.
+    unset($_POST['thisDb']);
+    ob_start();
+}
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 $css = "../css/standard.css?v=20";
 
@@ -39,6 +77,17 @@ include("../includes/std_func.php");
 include("../includes/connect.php");
 $permission_key = 'debitor.ordre';
 include("../includes/online.php");
+if ($priceListPost) {
+    ob_end_clean();
+    header('Content-Type: text/html; charset=UTF-8');
+}
+if ($priceListPost && $priceListAccount !== $db) {
+    if (!headers_sent()) {
+        http_response_code(409);
+    }
+    print '<p>Regnskabet er skiftet. Åbn vareopslaget igen.</p>';
+    exit;
+}
 include("../includes/stdFunc/dkDecimal.php");
 include("../includes/ordrefunc.php");
 
@@ -50,8 +99,13 @@ $fokus = if_isset($_GET, NULL, 'fokus');
 $vis_kost = if_isset($_GET, NULL, 'vis_kost');
 $ref = if_isset($_GET, NULL, 'ref');
 $find = if_isset($_GET, NULL, 'find');
+if (($_GET['find_encoding'] ?? '') === 'browser') {
+    require_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
+    $find = externalPriceListDatabaseText(externalPriceListSearchTerm(['find' => (string) $find], 'find')) ?? '';
+}
 $bordnr = if_isset($_GET, NULL, 'bordnr');
 $afd_lager = if_isset($_GET, NULL, 'lager');
+$priceListWarehouseParam = '&lager=' . urlencode((string) $afd_lager);
 
 // Get VAT settings from settings table
 $vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
@@ -83,6 +137,31 @@ if (isset($_GET['insertItems']) && isset($_GET['vare_id']) && isset($_GET['antal
         }
     }
     header("Location: $url");
+    exit;
+}
+
+// SST-1051: an item chosen from the active external price list (POST) is created in the item file, then added like
+// any other chosen item. Only for an open customer order (or credit note) that exists.
+if ($priceListPost) {
+    $orderId = (int) $id;
+    include_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
+    $selection = externalPriceListSelectItem($orderId, $priceListItemNo);
+    if ($selection['status'] !== 200) {
+        http_response_code(400);
+        print "<script>alert(" . json_encode("Varer fra prislisten kan kun sættes på en åben kundeordre.") . "); history.back();</script>";
+        exit;
+    }
+    $newItemId = $selection['itemId'];
+    if ($newItemId) {
+        header("Location: ordre.php?id=$orderId&vare_id=$newItemId&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam);
+        exit;
+    }
+    $backUrl = "productLookup.php?id=$orderId&art=" . urlencode($selection['art']) . "&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam;
+    $searchEncoding = ($GLOBALS['db_encode'] ?? 'UTF8') === 'UTF8' ? 'UTF-8' : 'Windows-1252';
+    $retryItemNo = mb_convert_encoding($priceListItemNo, $searchEncoding, 'UTF-8');
+    $backUrl .= '&' . http_build_query(array('search' => array("productLookup$orderId" => array('varenr' => $retryItemNo, 'beskrivelse' => ''))));
+    $message = "Varen $priceListItemNo kunne ikke oprettes fra prislisten. Tjek at prislisten har en varegruppe, og at varen findes i prisfilen.";
+    print "<script>alert(" . json_encode($message) . "); window.location.href = " . json_encode($backUrl) . ";</script>";
     exit;
 }
 
@@ -529,6 +608,47 @@ $data = array(
     "filters" => array(), // Can add filters later if needed
 );
 
+// SST-1051: matching rows from the active external price list, above the item grid
+if ($art == 'DO' || $art == 'DK') {
+    include_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
+    $priceList = externalPriceListActive();
+    $gridSearch = if_array(if_array($_GET, 'search'), "productLookup$id");
+    $searchItemNo = externalPriceListSearchTerm($gridSearch, 'varenr', $fokus === 'beskrivelse' ? '' : (string) $find);
+    $searchText = externalPriceListSearchTerm($gridSearch, 'beskrivelse', $fokus === 'beskrivelse' ? (string) $find : '');
+    if ($priceList && ($searchItemNo !== '' || $searchText !== '')) {
+        $priceListFound = externalPriceListSearch($priceList, $searchItemNo, $searchText);
+        print "<div id='priceListMatches' style='margin: 4px 8px 8px 8px; max-height: 35vh; overflow: auto;'>";
+        print "<b>Fra prislisten " . externalPriceListHtml($priceList['name']) . "</b>";
+        if ($priceListFound === null) {
+            print "<div style='color: #a00;'>Prisfilen kunne ikke bruges. Den kunne ikke hentes, er større end 20 MB eller mangler en af kolonnerne varenr, kostpris og salgspris.</div>";
+        } else {
+            $priceListGroup = externalPriceListGroup($priceList);
+            if (!$priceListFound) {
+                print "<div>Ingen nye varer i prislisten matcher søgningen.</div>";
+            } else {
+                print "<table style='width: 100%; border-collapse: collapse; table-layout: auto;'>";
+                print "<tr style='display: table-row;'><th style='text-align: left; padding: 2px 6px;'>Varenr</th><th style='text-align: left; padding: 2px 6px;'>Enhed</th><th style='text-align: left; padding: 2px 6px;'>Beskrivelse</th><th style='text-align: right; padding: 2px 6px;'>Salgspris</th><th></th></tr>";
+                foreach ($priceListFound as $priceListRow) {
+                    $chooseUrl = "productLookup.php?id=" . (int) $id . "&art=" . urlencode((string) $art) . "&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam;
+                    print "<tr style='display: table-row;'>";
+                    print "<td style='padding: 2px 6px;'>" . externalPriceListHtml($priceListRow['varenr']) . "</td>";
+                    print "<td style='padding: 2px 6px;'>" . externalPriceListHtml($priceListRow['enhed']) . "</td>";
+                    print "<td style='padding: 2px 6px;'>" . externalPriceListHtml($priceListRow['beskrivelse']) . "</td>";
+                    $priceListPrice = (float) $priceListRow['salgspris'];
+                    if ($incl_moms && !in_array($priceListGroup, $momsfri)) {
+                        $priceListPrice = $priceListPrice * (1 + (float) $momssats / 100);
+                    }
+                    print "<td style='text-align: right; padding: 2px 6px;'>" . dkdecimal($priceListPrice, 2) . "</td>";
+                    print "<td style='text-align: right; padding: 2px 6px;'><form method='post' accept-charset='UTF-8' action='" . htmlspecialchars($chooseUrl) . "' style='margin: 0;'><input type='hidden' name='plVarenr' value='" . externalPriceListHtml($priceListRow['varenr']) . "'><input type='hidden' name='csrf_token' value='" . htmlspecialchars($_SESSION['csrf_token']) . "'><input type='hidden' name='thisDb' value='" . htmlspecialchars($db) . "'><input type='submit' value='Opret og v&#230;lg'></form></td>";
+                    print "</tr>";
+                }
+                print "</table>";
+            }
+        }
+        print "</div>";
+    }
+}
+
 // Render grid
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid("productLookup$id", $data);
@@ -648,11 +768,14 @@ print "<script type=\"text/javascript\">
             if (orderContext.bordnr && !form.find('input[name=\"bordnr\"]').length) {
                 form.append('<input type=\"hidden\" name=\"bordnr\" value=\"' + orderContext.bordnr + '\">');
             }
+            if (orderContext.lager && !form.find('input[name=\"lager\"]').length) {
+                form.append('<input type=\"hidden\" name=\"lager\" value=\"' + orderContext.lager + '\">');
+            }
         }
-        // Auto-search if 'find' parameter is present (e.g. from varenr non-exact-match redirect)
-        var findParam = '" . addslashes($find) . "';
+        // Match the order's item-number or description lookup, including its automatic grid search.
+        var findParam = " . (jsString(array((string) $find)) ?: '""') . ";
         if (findParam) {
-            var searchInput = $('input[name=\"search[productLookup" . $id . "][varenr]\"]');
+            var searchInput = $('input[name=\"search[productLookup" . $id . "][" . ($fokus === 'beskrivelse' ? 'beskrivelse' : 'varenr') . "]\"]');
             if (searchInput.length && !searchInput.val()) {
                 searchInput.val(findParam);
                 // Auto-submit the form to trigger the search
