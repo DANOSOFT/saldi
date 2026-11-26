@@ -43,6 +43,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261124 CL/LH K33 hasModule('pos_delivery'): the POS delivery choices exist only where the Shopify schema is installed (pos_delivery_supported()).
 // 20261126 CL/MJ SD-877 A setting kept per fiscal year (POS) saved in a year without its own row first copies the row the page showed into this year (copyFiscalRow()), then changes this year's copy only; the other year is left alone (it used to be changed). The till reads this year's row.
+// 20261126 CL/MJ SD-877 Sol: two first saves at once don't stop on the settings index (on conflict do nothing on PostgreSQL).
 include_once(__DIR__ . '/../../systemdata/settingsRegistry.php');
 
 class SettingsService
@@ -443,8 +444,12 @@ class SettingsService
 		$cols = settings_fy_columns('grupper', array('id', 'fiscal_year'));
 		$same = "g.art = '" . db_escape_string((string) $row['art']) . "' and g.kodenr = '" . db_escape_string((string) $row['kodenr']) . "'"
 			. " and coalesce(g.kode, '') = '" . db_escape_string((string) $row['kode']) . "' and g.fiscal_year = $year";
+		// Two first saves at once can both find no row: on PostgreSQL the second copy then meets the settings
+		// index (grupper_settings_key) and is skipped instead of stopping the save. MySQL has no such index.
+		global $db_type;
+		$onConflict = ($db_type === 'mysql' || $db_type === 'mysqli') ? '' : ' on conflict do nothing';
 		db_modify("insert into grupper (" . implode(', ', $cols) . ", fiscal_year) select " . implode(', ', $cols) . ", $year from grupper where id = " . (int) $row['id']
-			. " and not exists (select 1 from grupper g where $same)", __FILE__ . " linje " . __LINE__);
+			. " and not exists (select 1 from grupper g where $same)$onConflict", __FILE__ . " linje " . __LINE__);
 	}
 
 	public static function saveRaw(string $key, string $raw, $scopeId = null, string $handling = 'setting.changed'): bool
