@@ -206,6 +206,8 @@ final class PosCreateCustomerSyncTest extends TestCase
 
     public function testAGroupThatIsNotAnActiveDebtorGroupCreatesNothing(): void
     {
+        // grupper.inaktiv comes from betweenUpdates.php; a tenant that hasn't run it yet lacks it (CI's does)
+        $this->sql('ALTER TABLE grupper ADD COLUMN IF NOT EXISTS inaktiv boolean DEFAULT false');
         $this->sql("INSERT INTO grupper (beskrivelse, kodenr, art, inaktiv, fiscal_year) SELECT 'SD844 inaktiv', 95, 'DG', true, 1 WHERE NOT EXISTS (SELECT 1 FROM grupper WHERE art = 'DG' AND kodenr = 95)");
 
         [$unknown, $inactive] = $this->steps(
