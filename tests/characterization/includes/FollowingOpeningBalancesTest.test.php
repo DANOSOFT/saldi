@@ -48,6 +48,7 @@
 // 20261126 CL/MMR SST-1005 An activation that carries two segments keeps the message for the segment between them (Codex round 45).
 // 20261126 CL/MMR SST-1005 CodeRabbit on PR #1109: every range after a missing year is carried by the page check, the card and «Sæt aktivt», and the retry a failed activation names redoes them all.
 //                 A new block in a later range keeps an earlier message, a year archived during a transfer is a boundary, and MySQL tries a busy year once.
+// 20261126 CL/MMR SST-1005 A year archived on the fifth and last attempt of a transfer is a boundary too (Codex round 47).
 
 declare(strict_types=1);
 
@@ -3005,6 +3006,40 @@ final class FollowingOpeningBalancesTest extends TestCase
             self::assertSame($year9, $this->yearState(9), 'Year 9 keeps its opening balances.');
             self::assertSame(1120.0, $this->primo(10, 2000), 'Year 10 follows year 9: 1000 + 100 + 20 on 2000.');
             self::assertNull(followingOpeningBalanceStop());
+        } finally {
+            unset($GLOBALS['sst1005Hook']);
+            $this->rollbackOpenTransaction($this->connection);
+            pg_close($other);
+            $this->dropPrivateSchema($schema);
+        }
+    }
+
+    /**
+     * Codex round 47: a posting in year 8 commits after year 9 is written on each of the first four attempts, and the
+     * archive of year 8 after the fifth. The fifth attempt kept its result because it had run out of attempts before it
+     * looked at the archive marker, and year 9 got 1558. It is a boundary like on any other attempt.
+     */
+    public function testAYearArchivedOnTheLastAttemptOfATransferIsABoundary(): void
+    {
+        $schema = 'sst1005_archive_last_' . getmypid();
+        $other = $this->privateSchema($schema);
+        try {
+            $year9 = $this->yearState(9);
+            $attempt = 0;
+            $GLOBALS['sst1005Hook'] = ['after' => "/^update kontoplan set primo = '[^']*' where regnskabsaar = '9' and kontonr = '2000'/", 'times' => 5, 'run' => function () use ($other, &$attempt): void {
+                if (++$attempt === 5) {
+                    $this->archiveYear8($other);
+                } elseif (pg_query($other, "INSERT INTO transaktioner (kontonr, transdate, debet, kredit) VALUES (2000, '2023-03-01', 1, 0), (1000, '2023-03-01', 0, 1)") === false) {
+                    self::fail(pg_last_error($other));
+                }
+            }];
+            self::assertNull(syncFollowingOpeningBalances(8));
+            self::assertArrayNotHasKey('sst1005Hook', $GLOBALS, 'Year 8 was archived on the fifth attempt.');
+            self::assertSame(5, $attempt);
+            self::assertSame($year9, $this->yearState(9), 'Year 9 keeps its opening balances.');
+            self::assertSame(1120.0, $this->primo(10, 2000), 'Year 10 follows year 9 from its own: 1000 + 100 + 20 on 2000.');
+            self::assertSame('0', $this->setting('openingBalancePending'), 'Nothing waits for the archived year.');
+            self::assertNull(followingOpeningBalanceStop(), 'No message for the archived transition.');
         } finally {
             unset($GLOBALS['sst1005Hook']);
             $this->rollbackOpenTransaction($this->connection);

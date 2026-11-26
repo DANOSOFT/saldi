@@ -88,6 +88,7 @@
 // 20261126 CL/MMR  SST-1005: ...replaced by the years it wrote: a stored message is cleared only when the rebuild wrote its target year, or the card or «Sæt aktivt» retried it, so one between two carried ranges stays too (Codex round 45).
 // 20261126 CL/MMR  SST-1005: «Sæt aktivt», the page check and the year card carry every range of consecutive years after a missing or deleted year, each from its own opening balances (updateFollowingOpeningBalanceRanges(), CodeRabbit on PR #1109).
 //                  A block ends only its own range, a new block in a later range never replaces a message it did not reach, a year archived during a transfer is a boundary, and MySQL tries a busy year once.
+// 20261126 CL/MMR  SST-1005: A year archived during the last allowed attempt of a transfer is a boundary too, not a result to keep (Codex round 47).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -212,7 +213,9 @@ function updateFollowingOpeningBalances($postedYear, &$stop = null, &$deferredYe
 			if ($current === $inputs) {
 				break;
 			}
-			if ($attempt >= 5) {
+			// A year archived meanwhile is a boundary on any attempt: the next pass rolls the transfer back at its top (Codex
+			// round 47: on the fifth attempt the archive was kept as a result).
+			if ($attempt >= 5 && !$current['archived']) {
 				// Still changing: keep this result and leave the source year waiting, so a later check rebuilds it.
 				// No exception here: the journal posting in finans/bogfor.php runs this inside its own transaction.
 				if (!$pendingYear) $pendingYear = $sourceYear;
@@ -563,7 +566,8 @@ function followingOpeningBalanceInputs($sourceYear, $targetYear) {
  * @param int $year Fiscal year (kontoplan.regnskabsaar).
  * @param int $attempts How many times to try on PostgreSQL (MySQL: once); between tries the rebuild sleeps 0.1 second.
  * @return bool True when every row of the year is locked by this transaction; false when another transaction kept
- *   at least one of them for all the attempts (then nothing of the year is locked).
+ *   at least one of them for all the attempts. On PostgreSQL nothing of the year is locked then; on MySQL the rows the
+ *   one try got stay locked until the caller's transaction ends.
  */
 function followingOpeningBalanceTryLockYear($year, $attempts = 30) {
 	global $db_type;
@@ -1112,8 +1116,9 @@ function followingOpeningBalanceCommit() {
  * year taken before it was lost without a message (CodeRabbit on PR #1109). A fatal error or a time-out ends the
  * request the same way. While armed, followingOpeningBalanceFailureOnShutdown() rolls back what is still open and
  * stores the 'failed' message the catch would have stored, so the user is told to retry with Gem/opdatér.
- * The year card arms it right after its transaction begins, because its own writes (the primo reset) can fail
- * before updateOpeningBalancesAfterYearSave() is reached, and disarms it after its commit (Codex round 22). A guard
+ * The year card arms it before it prepares the settings rows and begins its transaction, because the preparation and
+ * its own writes (the primo reset) can fail before updateOpeningBalancesAfterYearSave() is reached, and disarms it
+ * after its commit (Codex round 22, CodeRabbit on PR #1109). A guard
  * that is already armed is kept as it is: a nested caller gets false and must not disarm it.
  *
  * @param int|null $sourceYear The year the rebuild carries from, or null to disarm.
