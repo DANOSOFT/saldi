@@ -33,8 +33,8 @@
 // 20261103 CL/ASR QA: the FTP test fails when the configured folder cannot be opened (it went on in the login's root and could report success).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261125 CL/MJ SD-880 Tilføj/Fjern kasse in a fiscal year without its own POS/1 row creates that year's row and leaves the other years' till counts as they are.
-// 20261125 CL/MJ SD-880 Tilføj/Fjern kasse changes this fiscal year's POS/1 row only (was every year's, risk review R2); a new year's row is copied in the database from the row the page showed (settings_pos_row(1)).
 //                The new row starts from the newest other year's POS/1 row (payment cards, accounts), with this year's till count.
+// 20261125 CL/MJ SD-880 Tilføj/Fjern kasse changes this fiscal year's POS/1 row only (was every year's, risk review R2); a new year's row is copied in the database from the row the page showed (settings_pos_row(1)).
 include_once(__DIR__ . '/integrations.php');
 
 /**
