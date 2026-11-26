@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/shopify_worker.php --- ver 5.1.1 --- 2026.11.23
+// --- tools/shopify_worker.php --- ver 5.1.1 --- 2026.11.25
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -58,6 +58,7 @@
 // 20261112 CL/SZ SD-822: the stock.activate handler and the command activate; --dry-run alone reads as --dry-run=1.
 // 20261112 CL/SS SD-804: the store.export and store.recover handlers (a posted POS sale becomes a Shopify order).
 // 20261123 CL/MJ SD-865: the locations.fetch handler (the shop's locations for the lager mapping).
+// 20261125 CL/SS SD-834: the credit.publish and credit.scan handlers (credit notes on the Shopify order, refunds matched).
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -94,6 +95,7 @@ function shopify_worker_wiring(): array {
 	require_once __DIR__ . '/../includes/shopify/services/customers.php';
 	require_once __DIR__ . '/../includes/shopify/services/customersOut.php';
 	require_once __DIR__ . '/../includes/shopify/services/storeOrders.php';
+	require_once __DIR__ . '/../includes/shopify/services/credits.php';
 	require_once __DIR__ . '/../includes/shopify/services/prices.php';
 	require_once __DIR__ . '/../includes/shopify/services/statusIn.php';
 	require_once __DIR__ . '/../includes/shopify/services/orderImport.php';
@@ -129,6 +131,9 @@ function shopify_worker_wiring(): array {
 	// SD-804: a posted POS sale becomes a paid order in its brand's shop; the hourly scan catches what was never queued.
 	shopify_worker_register($registry, 'store.export', 'shopify_store_orders_run');
 	shopify_worker_register($registry, 'store.recover', 'shopify_store_orders_recover');
+	// SD-834: a posted credit note of a web order shows on its Shopify order; refunds are matched against the credit notes.
+	shopify_worker_register($registry, 'credit.publish', 'shopify_publish_credit');
+	shopify_worker_register($registry, 'credit.scan', 'shopify_credit_scan');
 	// SD-802: the quarter-hour price window of each shop with prices_enabled.
 	shopify_worker_register($registry, 'price.window', 'shopify_prices_window_job');
 	// SD-801: fulfillments, order status, cancellations and refunds projected onto the order's link.
