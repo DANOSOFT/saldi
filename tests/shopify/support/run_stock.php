@@ -25,6 +25,7 @@
 // 20261112 CL/SZ SD-822: steps start_activate, activate, hide, refuse_toggle, refuse_set, limit_bulk and fail_bulk.
 // 20261112 CL/SZ SD-822 CodeRabbit: activate can run out of time just before the upload.
 // 20261113 CL/SZ SD-822 Review: or right after it, before the bulk mutation starts.
+// 20261123 CL/SZ SD-826: fail_bulk can leave out the partial result.
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_stock.php <test_db> <state file> '<steps json>'\n");
@@ -192,7 +193,7 @@ try {
                     $results[] = 'armed';
                     break;
                 case 'fail_bulk':
-                    $store->failBulkAfter($domain($step[1]), (int)$step[2]);
+                    $store->failBulkAfter($domain($step[1]), (int)$step[2], (string)($step[3] ?? 'whole'));
                     $results[] = 'armed';
                     break;
                 case 'kill_file':
