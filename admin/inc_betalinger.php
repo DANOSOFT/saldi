@@ -23,6 +23,7 @@
 //                 What was found, including the lines that are not a plan, is kept in regnskab_billing.products for the card and the account list.
 //                 The nightly job runs it for every open account, and the subscription tab has a button for one account.
 //                 The orders come newest first, only running orders (billingOrderIsRunning()) get their lines fetched, and an unreadable invoice date in the payment status does not stop the plan fetch (Hugin's pre-check on #1227).
+//                 A list that reaches the API's cap of 100 orders may be cut off, so it is refused instead of read (review #1227).
 
 require_once __DIR__ . '/../includes/stdFunc/billingPlan.php';
 
@@ -155,6 +156,8 @@ if (!function_exists('bill_tables_ensure')) {
 		$token = get_saldi_api_token(); if (!$token) return array('error' => vr_t('Kunne ikke logge ind på faktureringsregnskabets API','Could not log in to the billing ledger API'));
 		$list = fetch_saldi_api('/debitor/orders/index.php', $token, array('recurring' => '1', 'customer' => $kontonr, 'limit' => 100, 'orderBy' => 'ordrenr', 'orderDirection' => 'DESC'));
 		if (!is_array($list)) return array('error' => vr_t('Kunne ikke hente genfaktureringsordrer fra faktureringsregnskabet','Could not fetch recurring orders from the billing ledger'));
+		# the endpoint has no paging and returns at most 100: a full list may be cut off, and a plan read from part of it could be wrong
+		if (count($list) >= 100) return array('error' => vr_t('Kunden har 100 eller flere genfaktureringsordrer, og API\'et kan ikke vise dem alle. Pakken er ikke hentet.','The customer has 100 or more recurring orders, and the API cannot list them all. The plan was not fetched.'));
 		$orders = array();
 		foreach ($list as $o) {
 			if (!is_array($o)) continue;
