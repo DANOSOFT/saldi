@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- ver 5.1.1 --- 2026-11-23 ---
+// --- includes/formfunk.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -115,6 +115,7 @@
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception; 
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261126 CL/SZ SD-794 review: a lookup with nothing to find prints a blank field instead of failing the print or printing the field's name: $levering_* without a delivery number, if($ordre_creditedinvoice) (kred_ord_id), $adresser_valuta without an address, $ansat_* without a ref. The rebate item id is trimmed.
 
 require_once __DIR__ . '/formFuncIncludes/htmlStyle.php';
 require_once __DIR__ . '/formFuncIncludes/htmlLayoutVersion.php';
@@ -636,7 +637,7 @@ if (!function_exists('find_form_tekst')) {
 							list($if_tabel, $if_variabel) = explode("_", $streng[$y], 2); #07.10.2007 -->
 							if (substr($if_tabel, 1) == "ordre") {
 								// the same column names as the value below reads
-								$if_kolonne = array('rykkerdate' => 'fakturadate', 'tlf' => 'phone', 'kundenr' => 'kontonr')[$if_variabel] ?? $if_variabel;
+								$if_kolonne = array('rykkerdate' => 'fakturadate', 'tlf' => 'phone', 'kundenr' => 'kontonr', 'creditedinvoice' => 'kred_ord_id')[$if_variabel] ?? $if_variabel;
 								$qtxt = "select $if_kolonne from ordrer where id=$id";
 								$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 								$tmp = $r[$if_kolonne];
@@ -749,9 +750,13 @@ if (!function_exists('find_form_tekst')) {
 						} elseif ($variabel == 'valuta') {
 							$qtxt = "select gruppe from adresser where id='$id'";
 							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-							$qtxt = "select box3 as valuta from grupper where art='DG' and kodenr='$r2[gruppe]' ";
-							$qtxt .= "and fiscal_year = " . (int)$regnaar; #20261102 CL/SZ SD-794 REST can run without a fiscal year
-							$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+							$q2 = NULL;   # no address or no group: the field prints blank, not its name (kodenr is an integer)
+							$streng[$x] = '';
+							if ($r2 && is_numeric($r2['gruppe'])) {
+								$qtxt = "select box3 as valuta from grupper where art='DG' and kodenr='" . (int)$r2['gruppe'] . "' ";
+								$qtxt .= "and fiscal_year = " . (int)$regnaar; #20261102 CL/SZ SD-794 REST can run without a fiscal year
+								$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+							}
 						} else {
 							$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 							$q2 = db_select("select $db_variabel as $variabel from adresser where id='$id'", __FILE__ . " linje " . __LINE__);
@@ -760,12 +765,22 @@ if (!function_exists('find_form_tekst')) {
 						$db_variabel = ($variabel == 'cvr') ? 'cvrnr' : (($variabel == 'fax') ? 'mobile' : $variabel);
 						$q2 = db_select("select $db_variabel as $variabel from adresser where art='D' and id=$id", __FILE__ . " linje " . __LINE__);
 					} elseif ($tabel == "levering") {
-						$q2 = db_select("select $variabel from batch_salg where ordre_id=$id and lev_nr=$lev_nr", __FILE__ . " linje " . __LINE__);
+						# only a delivery note has a delivery number: elsewhere the field prints blank, not its name
+						$q2 = NULL;
+						$streng[$x] = '';
+						if (is_numeric($lev_nr)) {
+							$q2 = db_select("select $variabel from batch_salg where ordre_id=$id and lev_nr=" . (int)$lev_nr, __FILE__ . " linje " . __LINE__);
+						}
 					} elseif ($tabel == "ansat") {
 						if ($variabel == "by")
 							$variabel = "bynavn";
 						$r2 = db_fetch_array(db_select("select id from adresser where art='S'", __FILE__ . " linje " . __LINE__));
-						$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn='" . db_escape_string($ref) . "'", __FILE__ . " linje " . __LINE__);
+						# an order without a ref has no employee to print: the field prints blank, not its name
+						$q2 = NULL;
+						$streng[$x] = '';
+						if ($ref !== null && $ref !== '') {
+							$q2 = db_select("select $variabel from ansatte where konto_id=$r2[id] and navn='" . db_escape_string($ref) . "'", __FILE__ . " linje " . __LINE__);
+						}
 					} elseif ($formular == 11 && ($tabel == "forfalden" || $tabel == "skyldig")) { #20191107 finder forfalden_sum / skyldig_sum på kontokort
 						$opensum = 0;
 						$dd = date("Y-m-d");
@@ -1832,8 +1847,8 @@ if (!function_exists('formularprint')) {
 						$beskrivelse[$x] = utf8_iso8859('Eksempel på en linjetekst');
 					}
 				} else {
-					if ($brugsamletpris && ctype_digit((string)$rabatvare_id) && (int)$rabatvare_id <= 2147483647) { #20261102 CL/SZ SD-794 no rebate item: an empty, non-numeric or too large vare_id would fail the query
-						$qtxt = "select varenr from ordrelinjer where ordre_id = $ordre_id[$o] and vare_id='$rabatvare_id'";
+					if ($brugsamletpris && ctype_digit(trim((string)$rabatvare_id)) && (int)$rabatvare_id <= 2147483647) { #20261102 CL/SZ SD-794 no rebate item: an empty, non-numeric or too large vare_id would fail the query
+						$qtxt = "select varenr from ordrelinjer where ordre_id = $ordre_id[$o] and vare_id='" . trim((string)$rabatvare_id) . "'";
 						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						if ($r['varenr']) {
 							$rabatvarenr = $r['varenr'];

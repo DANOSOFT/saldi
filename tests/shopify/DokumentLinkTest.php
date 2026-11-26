@@ -16,6 +16,7 @@
 // 20261102 CL/SZ SD-794: a query failing during the print publishes no PDF; the retry gets the document; set prices without a valid rebate item and a line without an item still render.
 // 20261103 CL/SZ SD-794: the layout fields $ansat_by and $ordre_kundenr print their value.
 // 20261105 CL/SZ SD-794 review: also with an apostrophe in the order's ref, and if($ordre_kundenr).
+// 20261126 CL/SZ SD-794 review: a levering field on an invoice, if($ordre_creditedinvoice) and adresser valuta without an address print blank instead of refusing the PDF.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -122,7 +123,7 @@ final class DokumentLinkTest extends TestCase
 
     /** @return array{id: int, fakturanr: string} a posted invoice (DO) or credit note (DK), 2 x 125.00 at 25% VAT */
     #[DataProvider('layoutFields')]
-    public function testLayoutFieldsTheEditorsOfferPrintTheirValue(string $side, string $field, string $expected, string $ref = 'Lay Out'): void
+    public function testLayoutFieldsTheEditorsOfferPrintTheirValue(string $side, string $field, string $expected, string $ref = 'Lay Out', string $absent = ''): void
     {
         $doc = $this->posted();
         $token = self::token($this->link($doc['id']));
@@ -152,10 +153,13 @@ final class DokumentLinkTest extends TestCase
             $text = (string)shell_exec('pdftotext ' . escapeshellarg($pdf) . ' -');
             unlink($pdf);
             $this->assertStringContainsString($expected, $text);
+            if ($absent !== '') {
+                $this->assertStringNotContainsString($absent, $text, 'a field with nothing to print prints blank, not its name');
+            }
         }
     }
 
-    /** @return array<string, array{0: string, 1: string, 2: string, 3?: string}> */
+    /** @return array<string, array{0: string, 1: string, 2: string, 3?: string, 4?: string}> */
     public static function layoutFields(): array
     {
         return [
@@ -166,6 +170,11 @@ final class DokumentLinkTest extends TestCase
             'kundenr' => ['A', '$ordre_kundenr', '91950'],
             'ansat by, in the page header' => ['!S', '$ansat_by', 'Ansatby'],
             'kundenr, in the page header' => ['!S', '$ordre_kundenr', '91950'],
+            // a field whose lookup has nothing to find on an invoice prints blank, it doesn't refuse the PDF
+            'levering on an invoice, which has no delivery number' => ['A', 'Lev. $levering_antal', 'Lev.', 'Lay Out', 'levering'],
+            'if(creditedinvoice) on an invoice that credits nothing' => ['A', 'if($ordre_creditedinvoice)Krediterer $ordre_creditedinvoice', '', 'Lay Out', 'Krediterer'],
+            'adresser valuta without an address of that id' => ['A', 'Valuta $adresser_valuta', 'Valuta', 'Lay Out', 'adresser'],
+            'ansat by on an order without a ref' => ['A', 'Ansat $ansat_by', 'Ansat', '', 'ansat_by'],
         ];
     }
 
