@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/createCustomer.php --- ver 5.1.1 --- 2026.11.24 ---
+// --- debitor/pos_ordre_includes/createCustomer.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20261123 CL/MJ SD-844 K31: a form token is kept in the session that was given the form, so a form from another site creates nothing.
 // 20261124 CL/MJ SD-844 K31: a form resent after its customer was deleted creates a new one instead of failing on the old token row.
 //                The payment terms are cut to the column's 15 characters.
+// 20261126 CL/MJ SD-844 K31: pos_customer_create_shopify_mode() answers false when the Shopify tables can't be read, so the customer lookup still opens.
 
 include_once(__DIR__ . "/../../includes/shopify/schema.php");
 
@@ -49,11 +50,17 @@ const POS_CUSTOMER_CREATE_WIDTHS = array('firmanavn' => 90, 'addr1' => 60, 'addr
  * @return bool
  */
 function pos_customer_create_shopify_mode() {
-	if (!shopify_schema_ready()) {
+	// a database error here falls back to the old form, so the customer lookup itself keeps working
+	try {
+		if (!shopify_schema_ready()) {
+			return false;
+		}
+		require_once __DIR__ . '/../../includes/shopify/config.php';
+		return shopify_shops('customers') !== array();
+	} catch (Throwable $e) {
+		error_log('pos_customer_create_shopify_mode: ' . $e->getMessage());
 		return false;
 	}
-	require_once __DIR__ . '/../../includes/shopify/config.php';
-	return shopify_shops('customers') !== array();
 }
 
 /** How many create-form tokens a session keeps; the newest ones, as a till has few lookups open at once. */

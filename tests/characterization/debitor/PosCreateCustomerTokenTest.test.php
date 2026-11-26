@@ -6,6 +6,7 @@
 //
 // History:
 // 20261123 CL/MJ SD-844 K31: created.
+// 20261126 CL/MJ SD-844 K31: a database error in the Shopify mode check falls back to the old form.
 
 declare(strict_types=1);
 
@@ -48,5 +49,22 @@ final class PosCreateCustomerTokenTest extends TestCase
         self::assertCount(POS_CUSTOMER_CREATE_SESSION_TOKENS, $_SESSION['pos_create_tokens']);
         self::assertFalse(pos_customer_create_token_issued($first));
         self::assertTrue(pos_customer_create_token_issued($last));
+    }
+
+    public function testADatabaseErrorInTheShopifyModeCheckFallsBackToTheOldForm(): void
+    {
+        // Run apart, so this process keeps its own db functions: the settings query throws, as a
+        // failed connection does, and the customer lookup must still open (with the old form).
+        $script = '$GLOBALS["db_type"] = "postgres";'
+            . 'function db_select($q, $w) { throw new RuntimeException("db down"); }'
+            . 'function db_fetch_array($r) { return false; }'
+            . 'if (!function_exists("pg_transaction_status")) { function pg_transaction_status($c) { return 0; } }'
+            . 'require ' . var_export(dirname(__DIR__, 3) . '/debitor/pos_ordre_includes/createCustomer.php', true) . ';'
+            . 'var_export(pos_customer_create_shopify_mode());';
+        $out = [];
+        exec(escapeshellarg(PHP_BINARY) . ' -d error_log=/dev/null -r ' . escapeshellarg($script) . ' 2>&1', $out, $exit);
+
+        self::assertSame(0, $exit, implode("\n", $out));
+        self::assertSame('false', trim(implode("\n", $out)));
     }
 }

@@ -22,6 +22,7 @@ order_text.unsupported_characters	Teksten indeholder tegn, som regnskabet ikke k
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
 pos.customer.create.failed	Kunden kunne ikke oprettes. Prøv igen.	The customer could not be created. Please try again.	Kunden kunne ikke opprettes. Prøv igjen.
 pos.customer.create.incomplete	Kunden blev ikke oprettet: navn og gruppe skal udfyldes.	The customer was not created: name and group are required.	Kunden ble ikke opprettet: navn og gruppe må fylles ut.
+pos.customer.create.not_created	Kunden blev ikke oprettet. Åbn kundeopslaget igen og prøv på ny.	The customer was not created. Open the customer lookup again and try again.	Kunden ble ikke opprettet. Åpne kundeoppslaget igjen og prøv på nytt.
 pos.customer.create.number_auto	Kundenummer tildeles automatisk	Customer number is assigned automatically	Kundenummer tildeles automatisk
 pos.delivery.date	Ønsket leveringsdato	Requested delivery date	Ønsket leveringsdato
 pos.delivery.error.choice	Leveringsmåden findes ikke eller er ikke længere aktiv.	The delivery option does not exist or is no longer active.	Leveringsmåten finnes ikke eller er ikke lenger aktiv.

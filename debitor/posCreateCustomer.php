@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/posCreateCustomer.php --- ver 5.1.1 --- 2026.11.24 ---
+// --- debitor/posCreateCustomer.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 //                The customer is created, and the seller is sent back to the same sale with the customer attached, as when picking one from the list.
 // 20261123 CL/MJ SD-844 K31: a form whose token this session was not given (another site's) creates nothing.
 // 20261124 CL/MJ SD-844 K31: the page asks for the till's right (pos.kasse), as pos_ordre.php does, so a cashier with only that right can create.
+// 20261126 CL/MJ SD-844 K31: a submitted form that creates nothing (expired, sale settled, Shopify no longer has the customers) tells the cashier, instead of returning to the sale without a word.
 
 /**
  * Session/account context supplied by includes/online.php.
@@ -46,23 +47,37 @@ require_once __DIR__ . "/pos_ordre_includes/createCustomer.php";
 $id = (int) ($_POST['id'] ?? 0);
 $back = "pos_ordre.php" . ($id ? "?id=$id" : "");
 
-if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !pos_customer_create_shopify_mode()) {
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=$back\">\n";
+/**
+ * Back to the sale. A submitted form that creates nothing says so, instead of returning without a word.
+ */
+function pos_create_customer_back(string $back, string $message = ''): void {
+	if ($message !== '') {
+		print "<script>alert(" . json_encode($message, JSON_HEX_TAG) . "); window.location.href = " . json_encode($back, JSON_HEX_TAG) . ";</script>\n";
+	} else {
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$back\">\n";
+	}
 	exit;
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+	pos_create_customer_back($back);
+}
+// a form shown while Shopify had the customers, a sale since settled, or a form this session no longer knows
+$notCreated = findtekst('pos.customer.create.not_created|Kunden blev ikke oprettet. Åbn kundeopslaget igen og prøv på ny.', $sprog_id);
+if (!pos_customer_create_shopify_mode()) {
+	pos_create_customer_back($back, $notCreated);
 }
 if ($id) {
 	$r = db_fetch_array(db_select("select art, status from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 	if (!$r || $r['art'] != 'PO' || $r['status'] >= 3) {
 		// a settled or unknown sale gets no customer; the till shows the sale as it is
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=$back\">\n";
-		exit;
+		pos_create_customer_back($back, $notCreated);
 	}
 }
 
 if (!pos_customer_create_token_issued($_POST['pos_create_token'] ?? null)) {
 	// a form from another site, or from a session that has ended: nothing is created
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=$back\">\n";
-	exit;
+	pos_create_customer_back($back, $notCreated);
 }
 $message = '';
 try {
@@ -74,8 +89,7 @@ try {
 	$message = findtekst('pos.customer.create.failed|Kunden kunne ikke oprettes. Prøv igen.', $sprog_id);
 }
 if ($message !== '') {
-	print "<script>alert(" . json_encode($message, JSON_HEX_TAG) . "); window.location.href = " . json_encode($back, JSON_HEX_TAG) . ";</script>\n";
-	exit;
+	pos_create_customer_back($back, $message);
 }
 $to = "pos_ordre.php?" . ($id ? "id=$id&" : "") . "konto_id=" . (int) $customer['konto_id'];
 print "<meta http-equiv=\"refresh\" content=\"0;URL=$to\">\n";
