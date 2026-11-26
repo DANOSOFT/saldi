@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stdFunc/easyUblWebhookKey.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- includes/stdFunc/easyUblWebhookKey.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20261109 CL/SZ SST-987 Created.
 //                Each account gets a secret key that is part of the webhook URL sent to EasyUBL, so debitor/easyUBL.php can tell a call from EasyUBL from one made by anyone who knows a companyId.
 //                Until webhookKeyRequired is set for the account, a call without the right key is only logged, so incoming invoices are not lost while accounts are registered again with the new URL.
+// 20261126 CL/SZ SST-987 A new key is read back after it is saved, so the key registered at EasyUBL is the stored one even when two registrations run at once.
 //
 // All functions work on the connection to the account's own database, as they read and write its settings table.
 
@@ -44,6 +45,12 @@ if (!function_exists('easyubl_webhook_key')) {
 		if ($key === '') {
 			$key = bin2hex(random_bytes(32));
 			update_settings_value('webhookKey', 'easyUBL', $key, 'Secret in the EasyUBL webhook URL (SST-987)');
+			# the key that is registered is the one that was stored: a registration running at the same moment
+			# may have saved its key first, and the insert above then saves nothing on PostgreSQL
+			$stored = (string)get_settings_value('webhookKey', 'easyUBL', '');
+			if ($stored !== '') {
+				$key = $stored;
+			}
 		}
 		return $key;
 	}

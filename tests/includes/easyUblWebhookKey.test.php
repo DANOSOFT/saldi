@@ -1,6 +1,7 @@
 <?php
 // 20261113 CL/SZ SST-987 Created: the EasyUBL webhook key.
 //                A call is valid only with the account's saved key, webhookKeyRequired decides whether an invalid call is refused, a saved key is never replaced, and the key is blanked in debug text.
+// 20261126 CL/SZ SST-987 The key returned is the stored one when another registration saved its key first.
 
 declare(strict_types=1);
 
@@ -31,7 +32,8 @@ final class easyUblWebhookKey extends TestCase
 		function update_settings_value($var_name, $var_grp, $var_value, $var_description, $user = null, $posid = null, $global = false)
 		{
 			$GLOBALS['ubl_test_writes'][] = "$var_grp:$var_name";
-			$GLOBALS['ubl_test_settings']["$var_grp:$var_name"] = $var_value;
+			# another registration saved its key first: the insert saves nothing (ON CONFLICT DO NOTHING)
+			$GLOBALS['ubl_test_settings']["$var_grp:$var_name"] = $GLOBALS['ubl_test_saved_first'] ?? $var_value;
 		}
 
 		require_once __DIR__ . '/../../includes/stdFunc/easyUblWebhookKey.php';
@@ -115,6 +117,13 @@ final class easyUblWebhookKey extends TestCase
 		$this->assertSame($first, easyubl_webhook_key());
 		$this->assertCount(1, $GLOBALS['ubl_test_writes'], 'a saved key was written again');
 		$this->assertTrue(easyubl_webhook_key_check($first)['valid']);
+	}
+
+	public function testTheKeyReturnedIsTheOneThatWasStored(): void
+	{
+		$GLOBALS['ubl_test_saved_first'] = self::KEY;
+
+		$this->assertSame(self::KEY, easyubl_webhook_key(), 'the key another registration stored first is the one registered');
 	}
 
 	public function testExistingKeyIsNeverReplaced(): void
