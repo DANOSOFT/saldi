@@ -13,7 +13,33 @@ item.import.ambiguous_skipped	Disse varenumre passer på flere varer og er ikke 
 item.import.campaign_only	Kun tilbudspris og tilbudsperiode opdateres. Ukendte varenumre oprettes ikke, og salgspris, kostpris og varegruppe ændres ikke.	Only the offer price and offer period are updated. Unknown item numbers are not created, and sales price, cost price and item group are not changed.	Bare tilbudspris og tilbudsperiode oppdateres. Ukjente varenumre opprettes ikke, og salgspris, kostpris og varegruppe endres ikke.
 item.import.lines_skipped	Disse linjer indeholder fejl og er ikke importeret:	These lines contain errors and were not imported:	Disse linjene inneholder feil og er ikke importert:
 item.import.unknown_skipped	Disse varenumre findes ikke og er ikke oprettet:	These item numbers do not exist and were not created:	Disse varenumrene finnes ikke og er ikke opprettet:
+order_text.account_changed	Regnskabet er skiftet. Åbn teksten igen fra det ønskede regnskab.	The active account has changed. Reopen the text from the intended account.	Regnskapet er byttet. Åpne teksten på nytt fra det ønskede regnskapet.
+order_text.not_found	Teksten findes ikke længere. Dine ændringer er ikke gemt. Kopiér teksten, før du forlader siden.	The text no longer exists. Your changes were not saved. Copy the text before leaving this page.	Teksten finnes ikke lenger. Endringene dine er ikke lagret. Kopier teksten før du forlater siden.
+order_text.save_failed	Teksten kunne ikke gemmes. Dine ændringer vises stadig nedenfor.	The text could not be saved. Your changes are still shown below.	Teksten kunne ikke lagres. Endringene dine vises fortsatt nedenfor.
+order_text.unsupported_characters	Teksten indeholder tegn, som regnskabet ikke kan gemme. Ret teksten, og prøv igen.	The text contains characters this account cannot store. Edit the text and try again.	Teksten inneholder tegn som regnskapet ikke kan lagre. Rett teksten og prøv igjen.
 planning.save_failed	Datoerne kunne ikke gemmes. Planlægningen genindlæses.	The dates could not be saved. The schedule will reload.	Datoene kunne ikke lagres. Planleggingen lastes inn på nytt.
+pos.payment.card_amount_missing	Indtast beløbet, før du betaler med %s. En betaling på 0 kr. kan ikke bogføres.	Enter the amount before you pay with %s. A payment of 0 cannot be posted.	Skriv inn beløpet før du betaler med %s. En betaling på 0 kr. kan ikke bokføres.
+pos.posting.card_account_missing	Betalingen med %s kan ikke bogføres, da %s ikke har en konto under kortbetalinger. Salget er ikke afsluttet.	The payment with %s cannot be posted, as %s has no account under card payments. The sale was not completed.	Betalingen med %s kan ikke bokføres, da %s ikke har en konto under kortbetalinger. Salget er ikke avsluttet.
+pos.posting.nothing_posted	Salget kunne ikke bogføres, da der ikke blev dannet nogen posteringer. Salget er ikke afsluttet.	The sale could not be posted, as no postings were created. The sale was not completed.	Salget kunne ikke bokføres, da det ikke ble dannet noen posteringer. Salget er ikke avsluttet.
+reinvoice.receipt.back	Tilbage til fakturalisten	Back to the invoice list	Tilbake til fakturalisten
+reinvoice.receipt.blocked	Fakturaerne er bogført, men IKKE sendt: browseren blokerede pop-up-vinduet. Klik på knappen herunder for at sende dem.	The invoices are posted but NOT sent: the browser blocked the pop-up window. Click the button below to send them.	Fakturaene er bokført, men IKKE sendt: nettleseren blokkerte popup-vinduet. Klikk på knappen nedenfor for å sende dem.
+reinvoice.receipt.closed	Pop-up-vinduet blev lukket, før afsendelsen var bekræftet. Kontrollér i fakturalisten, hvilke fakturaer der er sendt.	The pop-up window was closed before sending was confirmed. Check in the invoice list which invoices were sent.	Popup-vinduet ble lukket før sendingen var bekreftet. Kontroller i fakturalisten hvilke fakturaer som er sendt.
+reinvoice.receipt.done	Afsendelsen er færdig.	Sending is finished.	Sendingen er ferdig.
+reinvoice.receipt.failed	Afsendelsen stoppede med en fejl, se pop-up-vinduet. Fakturaerne herover er bogført, men de ikke sendte skal sendes igen.	Sending stopped with an error, see the pop-up window. The invoices above are posted, but the ones not sent must be sent again.	Sendingen stoppet med en feil, se popup-vinduet. Fakturaene over er bokført, men de som ikke er sendt må sendes på nytt.
+reinvoice.receipt.mails_sent	Sendt pr. e-mail	Sent by email	Sendt per e-post
+reinvoice.receipt.none	Udskriv til = Ingen, sendes ikke	Print to = None, not sent	Skriv ut til = Ingen, sendes ikke
+reinvoice.receipt.not_sent	Ikke sendt eller udskrevet	Not sent or printed	Ikke sendt eller skrevet ut
+reinvoice.receipt.not_sent_help	Send eller udskriv dem fra fakturalisten.	Send or print them from the invoice list.	Send eller skriv dem ut fra fakturalisten.
+reinvoice.receipt.pbs	Overført til PBS	Transferred to PBS	Overført til PBS
+reinvoice.receipt.pbs_failed	Ikke overført til PBS, se beskeden øverst	Not transferred to PBS, see the message at the top	Ikke overført til PBS, se meldingen øverst
+reinvoice.receipt.posted	Bogførte fakturaer	Posted invoices	Bokførte fakturaer
+reinvoice.receipt.printed	Vist som PDF til udskrift	Shown as PDF for printing	Vist som PDF for utskrift
+reinvoice.receipt.running	Fakturaerne sendes i pop-up-vinduet. Luk det ikke, før det er færdigt.	The invoices are being sent in the pop-up window. Do not close it before it is finished.	Fakturaene sendes i popup-vinduet. Ikke lukk det før det er ferdig.
+reinvoice.receipt.send_button	Send og udskriv fakturaerne	Send and print the invoices	Send og skriv ut fakturaene
+reinvoice.receipt.skipped	Ikke genfaktureret, fordi fakturadatoen ligger uden for regnskabsåret:	Not re-invoiced because the invoice date is outside the fiscal year:	Ikke refakturert fordi fakturadatoen ligger utenfor regnskapsåret:
+reinvoice.receipt.skipped_help	Ret Genfakt.-datoen eller opret regnskabsåret, og genfakturér dem igen.	Correct the next invoice date or create the fiscal year, then re-invoice them again.	Rett neste fakturadato eller opprett regnskapsåret, og refakturer dem igjen.
+reinvoice.receipt.stopped	Genfaktureringen stoppede, før alle fakturaer var bogført:	Re-invoicing stopped before all invoices were posted:	Refaktureringen stoppet før alle fakturaer var bokført:
+reinvoice.receipt.title	Genfakturering udført	Re-invoicing completed	Refakturering utført
 wage.overtime.hours_100	Overtid 100%	Overtime 100%	Overtid 100%
 wage.overtime.hours_50	Overtid 50%	Overtime 50%	Overtid 50%
 wage.overtime.no_access	Du har ikke adgang til denne side.	You do not have access to this page.	Du har ikke tilgang til denne siden.
