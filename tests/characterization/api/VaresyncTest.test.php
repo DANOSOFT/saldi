@@ -55,6 +55,7 @@
 // 20261125 CL/SZ MB-109 Review: column position tests and the stock door values.
 // 20261125 CL/SZ MB-110 Bad and duplicate row tests; sync() can run Opdater fra shop.
 // 20261125 CL/SZ MB-110 Review: Opdater with a bad shop id, guessed shop ids.
+// 20261126 CL/SZ MB-110 Opdater fra shop drops a guessed shop id another product owns, without a message.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -614,5 +615,20 @@ final class VaresyncTest extends CharacterizationTestCase
 		$this->itemId('MB110BLANK');
 		$this->assertSame([['varenr' => 'MB110OWN2', 'shop_variant' => '0']], $this->linksOf(1901));
 		$this->assertStringNotContainsString('Rækken er sprunget over', $printed);
+	}
+
+	public function test_opdater_drops_a_guessed_shop_id_another_product_owns(): void
+	{
+		$g = self::$group;
+		$this->sync(self::PRODUCT_HEADER, ["2901;MB110OWN3;;100;Owner;$g;;"], []);
+		self::one(
+			"INSERT INTO varer (varenr, beskrivelse, salgspris, kostpris, gruppe, beholdning, lukket) VALUES ('2901', 'Numeric item no.', 100, 0, $1, 0, '0') RETURNING id",
+			[$g]
+		);
+		$printed = $this->sync(self::PRODUCT_HEADER, [";2901;;160;Numeric item no.;$g;;"], [], "\n", '2');
+
+		$this->assertSame(160.0, (float)self::one('SELECT salgspris FROM varer WHERE varenr = $1', ['2901'])['salgspris'], 'the price is still updated');
+		$this->assertSame([['varenr' => 'MB110OWN3', 'shop_variant' => '0']], $this->linksOf(2901));
+		$this->assertStringNotContainsString('2901: shop-id', $printed, 'no message about a shop id the shop did not send');
 	}
 }
