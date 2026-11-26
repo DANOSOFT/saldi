@@ -45,6 +45,7 @@
 // 20261126 CL/MMR SST-1005 A failing page check with no transfer anywhere keeps the stored message, in the catch as on shutdown (Codex round 42).
 // 20261126 CL/MMR SST-1005 ...and so does one that succeeds (Codex round 43).
 // 20261126 CL/MMR SST-1005 A page check or year card whose carry ends at a missing year keeps a message beyond it (Codex round 44).
+// 20261126 CL/MMR SST-1005 An activation that carries two segments keeps the message for the segment between them (Codex round 45).
 
 declare(strict_types=1);
 
@@ -2567,8 +2568,16 @@ final class FollowingOpeningBalancesTest extends TestCase
     /** Add year 12 (2026/27) with the accounts of year 11 and their balances. */
     private function addYear12(): void
     {
-        $this->sql("INSERT INTO grupper (kodenr, art, beskrivelse, box1, box2, box3, box4, box5, box10) VALUES (12, 'RA', '2026/27', '7', '2026', '6', '2027', 'on', '')");
-        $this->sql('INSERT INTO kontoplan (regnskabsaar, kontonr, kontotype, primo, saldo, overfor_til, fra_kto) SELECT 12, kontonr, kontotype, primo, saldo, overfor_til, fra_kto FROM kontoplan WHERE regnskabsaar = 11');
+        $this->addYearLike11(12);
+    }
+
+    /** Add a year after year 11 (July to June, like the others) with the accounts of year 11 and their balances. */
+    private function addYearLike11(int $year): void
+    {
+        $start = 2014 + $year;
+        $end = $start + 1;
+        $this->sql("INSERT INTO grupper (kodenr, art, beskrivelse, box1, box2, box3, box4, box5, box10) VALUES ($year, 'RA', '$start/" . substr((string) $end, 2) . "', '7', '$start', '6', '$end', 'on', '')");
+        $this->sql("INSERT INTO kontoplan (regnskabsaar, kontonr, kontotype, primo, saldo, overfor_til, fra_kto) SELECT $year, kontonr, kontotype, primo, saldo, overfor_til, fra_kto FROM kontoplan WHERE regnskabsaar = 11");
     }
 
     /**
@@ -2786,9 +2795,12 @@ final class FollowingOpeningBalancesTest extends TestCase
      * Years 8, 9, 11 and 12 with year 10 missing and year 8 waiting: «Sæt aktivt» on year 12 (sync(11, 12)) ends at its
      * first database statement, which stores the message for 11->12 and leaves year 8 waiting.
      */
-    private function twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12(): array
+    private function twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12(array $later = []): array
     {
         $this->addYear12();
+        foreach ($later as $year) {
+            $this->addYearLike11($year);
+        }
         self::assertNull(checkFollowingOpeningBalances(12));
         followingOpeningBalanceMarkPending(8);
         $this->removeYear(10);
@@ -2841,6 +2853,29 @@ final class FollowingOpeningBalancesTest extends TestCase
         $this->sql('COMMIT');
         self::assertSame(1554.0, $this->primo(9, 2000));
         self::assertSame($expected, followingOpeningBalanceStop());
+    }
+
+    /**
+     * Codex round 45: three segments, years 8-9, 11-12 and 14-15 (10 and 13 missing), year 8 waiting and the message for
+     * 11->12 stored. «Sæt aktivt» on year 15 (sync(14, 15)) writes year 9 and year 15. Judged by the last year written it
+     * cleared the message for 11->12, which lies between them; it stays until year 12 is saved.
+     */
+    public function testAnActivationThatCarriesTwoSegmentsKeepsTheMessageBetweenThem(): void
+    {
+        $expected = $this->twoSegmentsWithTheMessageOfAnInterruptedActivationOfYear12([14, 15]);
+        self::assertSame(777.0, $this->primo(15, 2000));
+        self::assertNull(syncFollowingOpeningBalances(14, 15));
+        self::assertSame('0', $this->setting('openingBalancePending'));
+        self::assertSame(1554.0, $this->primo(9, 2000), 'Year 9 follows year 8.');
+        self::assertSame(1554.0, $this->primo(15, 2000), 'Year 15 follows year 14.');
+        self::assertSame(777.0, $this->primo(12, 2000), 'Year 12 lies between them.');
+        self::assertSame($expected, followingOpeningBalanceStop(), 'So its message stays.');
+
+        $this->sql('BEGIN');
+        self::assertNull(updateOpeningBalancesAfterYearSave(12));
+        $this->sql('COMMIT');
+        self::assertSame(1554.0, $this->primo(12, 2000), 'Gem/opdatér on year 12 carries year 11.');
+        self::assertNull(followingOpeningBalanceStop(), 'And clears the message.');
     }
 
     public function testMovingTheGuardKeepsItArmedAndNeverArmsIt(): void

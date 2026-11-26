@@ -85,6 +85,7 @@
 // 20261126 CL/MMR  SST-1005: A page check with no transfer possible that fails only logs it, like its shutdown path, and stores no message naming a missing year (Codex round 42).
 // 20261126 CL/MMR  SST-1005: ...and one that succeeds leaves the stored message alone, as it carried nothing (Codex round 43).
 // 20261126 CL/MMR  SST-1005: A rebuild or year card that stores no block clears a stored message only up to the last year it wrote, so one beyond a missing year stays (followingOpeningBalanceUnreachedFrom(), Codex round 44).
+// 20261126 CL/MMR  SST-1005: ...replaced by the years it wrote: a stored message is cleared only when the rebuild wrote its target year, or the card or «Sæt aktivt» retried it, so one between two carried ranges stays too (Codex round 45).
 
 include_once(__DIR__ . '/ledgerYearRecalculation.php'); // recalculateLedgerYear(): a name no page declares, unlike genberegn()
 
@@ -984,9 +985,10 @@ function syncFollowingOpeningBalances($fromYear, $year = 0) {
 	}
 	// A transfer left for the next check did not reach a blocked transition stored at or after it, so that stays. A page
 	// check that had nothing to carry reached nothing either, so the stored message stays too (Codex round 43), and so
-	// does one after the last year a rebuild reached, such as beyond a missing year (Codex round 44).
+	// does one into a year the rebuild did not write, such as beyond a missing year (Codex rounds 44-45). «Sæt aktivt»
+	// is the retry its own message asks for, so the activated year counts as reached.
 	if (!$noTransfer) {
-		saveFollowingOpeningBalanceStop($stop, $checkedFrom, followingOpeningBalanceUnreachedFrom($updated, $fromYear, $deferredYear));
+		saveFollowingOpeningBalanceStop($stop, $checkedFrom, $deferredYear, $year > 0 ? array_merge($updated, array($year)) : $updated);
 	}
 	followingOpeningBalanceSavesStop($savesStop);
 	if (followingOpeningBalanceCommit() && $guarded) followingOpeningBalanceFailureGuard(null);
@@ -1176,8 +1178,9 @@ function updateOpeningBalancesAfterYearSave($year, $primoBeforeSave = null) {
 	}
 	db_modify('release savepoint following_opening_balances', __FILE__ . ' line ' . __LINE__);
 	// A transfer left for the next check did not reach a blocked transition stored at or after it, so that stays (CodeRabbit),
-	// and neither did a rebuild that ended at a missing or deleted year (Codex round 44).
-	saveFollowingOpeningBalanceStop($stop, $checkedFrom, followingOpeningBalanceUnreachedFrom($updated, $fromYear, $deferredYear));
+	// and neither did the carry reach a transition into a year it did not write (Codex rounds 44-45). The saved year counts
+	// as reached: Gem/opdatér on it is the retry its message asks for, also when it has no year before it.
+	saveFollowingOpeningBalanceStop($stop, $checkedFrom, $deferredYear, array_merge($updated, array($year)));
 	followingOpeningBalanceSavesStop($savesStop);
 	$committed = $ownTransaction ? followingOpeningBalanceCommit() : true;
 	if ($guarded && $committed) followingOpeningBalanceFailureGuard(null);
@@ -1349,28 +1352,12 @@ function saveFollowingOpeningBalanceState($state) {
 }
 
 /**
- * The year from which a rebuild reached nothing, for saveFollowingOpeningBalanceStop(): the source year whose transfer
- * it left for the next check, else the last year it wrote (the transfer on from there was not made: the next year is
- * missing or deleted, or there is none), else the year it started from. With years 8, 9, 11 and 12 and year 10
- * missing, a rebuild from year 8 writes year 9 only, so a stored message for 11->12 is not cleared (Codex round 44).
- *
- * @param int[] $updated The years the rebuild wrote (updateFollowingOpeningBalances(), carryFollowingOpeningBalances()).
- * @param int $fromYear The year it started from.
- * @param int $deferredYear The source year whose transfer was left for the next check, or 0.
- * @return int That year.
- */
-function followingOpeningBalanceUnreachedFrom($updated, $fromYear, $deferredYear) {
-	if ((int)$deferredYear > 0) {
-		return (int)$deferredYear;
-	}
-	return $updated ? max(array_map('intval', $updated)) : (int)$fromYear;
-}
-
-/**
  * Store or clear the transition that blocked a rebuild. A blocked transition before $fromYear was not
  * part of this rebuild and stays; one at or after it is replaced by this rebuild's outcome, except that a rebuild
- * that stored no block did not reach a stored transition from $deferredYear on, so it stays too: a transfer left for
- * the next check, or the end of what it carried (followingOpeningBalanceUnreachedFrom()).
+ * that left a transfer for the next check did not reach a stored transition at or after that one, so it stays too,
+ * and a rebuild that stored no block clears a stored transition only when it reached the transition's target year
+ * ($reached): with years 8, 9, 11, 12, 14 and 15, «Sæt aktivt» on year 15 with year 8 waiting writes years 9 and 15,
+ * and a message for 11->12 stays (Codex rounds 44-45).
  * The stored transition is read with its row locked and replaced in the same transaction, so a block another rebuild
  * commits for an earlier year between the read and the write is waited for and kept, never overwritten (CodeRabbit).
  * Outside a transaction (after a rollback, on shutdown) the two run in a transaction of their own. The row is locked
@@ -1379,10 +1366,12 @@ function followingOpeningBalanceUnreachedFrom($updated, $fromYear, $deferredYear
  *
  * @param array|null $stop The rebuild's outcome (see updateFollowingOpeningBalances()).
  * @param int $fromYear The fiscal year the rebuild started from.
- * @param int $deferredYear The year from which a rebuild that stored no block reached nothing, or 0.
+ * @param int $deferredYear The source year whose transfer was left for a later check, or 0.
+ * @param int[]|null $reached The years whose opening balances this rebuild wrote or retried, or null for every year
+ *   from $fromYear on.
  * @return void
  */
-function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0) {
+function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0, $reached = null) {
 	$description = 'SST-1005: fiscal year transition whose opening balances could not be updated automatically';
 	$ownTransaction = !followingOpeningBalancesInTransaction();
 	if ($ownTransaction) {
@@ -1417,6 +1406,9 @@ function saveFollowingOpeningBalanceStop($stop, $fromYear, $deferredYear = 0) {
 		$keep = true;
 	}
 	if (!$stop && $stored && (int)$deferredYear > 0 && (int)$stored['sourceYear'] >= (int)$deferredYear) {
+		$keep = true;
+	}
+	if (!$stop && $stored && is_array($reached) && !in_array((int)$stored['targetYear'], array_map('intval', $reached), true)) {
 		$keep = true;
 	}
 	if (!$keep && $id) {
