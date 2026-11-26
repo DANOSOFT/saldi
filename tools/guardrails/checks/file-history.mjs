@@ -24,6 +24,7 @@
 // 20261111 CDX/NTR Require comment-only separators throughout edited headers, including license and history sections.
 // 20261116 CDX/NTR Exempt formatting-only edits from history and header maintenance.
 // 20261124 CDX/NTR Exempt comment edits from maintenance while always validating changed history continuations.
+// 20261126 CDX/NTR Preserve the dated header's path and version during comment and formatting edits.
 
 import { splitLines } from "../lib/changeset.mjs";
 import { phpBehaviorUnchanged } from "../lib/php-behavior.mjs";
@@ -32,7 +33,7 @@ const HISTORY = /^\s*(\/\/|#)\s*(\d{8})\b/;
 // Leading whitespace is allowed: about 20 files (includes/stdFunc/findTxt.php, includes/grid.php,
 // debitor/api.php, ...) indent their whole history block, and a new line matches its block.
 const WELL_FORMED = /^\s*\/\/ (\d{8})[ \t]+(?:(?:CL|CDX)\/)?[A-Z]{2,4}[ \t]+\S/;
-const PATH_LINE = /^\/\/.*\S+\.php\b.*?(\d{4})[-./](\d{2})[-./](\d{2})\D*$/;
+const PATH_LINE = /^\s*\/\/.*\S+\.php\b.*?(\d{4})[-./](\d{2})[-./](\d{2})\D*$/;
 const COPYRIGHT = /copyright\s*\(c\)/i;
 
 /** Number of leading lines that are the file's comment header. */
@@ -66,7 +67,7 @@ function validDate(yyyymmdd, today) {
 }
 
 /** Preserve recorded metadata independently of whether executable PHP changed. */
-function retainedMetadata(path, base, lines, today) {
+function retainedMetadata(path, base, lines, today, behaviorUnchanged) {
   const findings = [];
   const current = lines.slice(0, headerLength(lines));
   const identity = (text) => {
@@ -95,6 +96,16 @@ function retainedMetadata(path, base, lines, today) {
       const newValue = newDate && newDate.slice(1).join("");
       if (!newDate || newValue < oldValue || (newValue !== oldValue && validDate(newValue, today))) {
         findings.push({ path, line, message: "retain the existing header date line with a valid date no earlier than the base revision." });
+      }
+      if (behaviorUnchanged) {
+        if (text.match(/\S+\.php\b/)?.[0] !== replacement?.match(/\S+\.php\b/)?.[0]) {
+          findings.push({ path, line, message: "retain the existing header path for comment and formatting edits." });
+        }
+        const version = /\b(?:ver|lap|patch)\s+([^\s-]+)/i;
+        const oldVersion = version.exec(text)?.[1];
+        if (oldVersion && oldVersion !== version.exec(replacement ?? "")?.[1]) {
+          findings.push({ path, line, message: "retain the existing header version for comment and formatting edits; update it only for behavior changes." });
+        }
       }
     }
     if (COPYRIGHT.test(text)) {
@@ -143,8 +154,8 @@ export default {
       // Comments and formatting need no history or date/copyright update; layout validation still runs.
       const previous = ctx.readBase(file.path);
       const base = splitLines(previous ?? "");
-      findings.push(...retainedMetadata(file.path, base, lines, ctx.today));
       const behaviorUnchanged = file.status === "M" && previous !== null && phpBehaviorUnchanged(previous, ctx.readHead(file.path));
+      findings.push(...retainedMetadata(file.path, base, lines, ctx.today, behaviorUnchanged));
       const historyLines = [];
       for (let line = 1; line <= header; line++) if (HISTORY.test(lines[line - 1])) historyLines.push(line);
       // A leading PHPDoc ends headerLength(), but is not executable code. Catch entries

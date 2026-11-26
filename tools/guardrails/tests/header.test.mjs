@@ -5,6 +5,7 @@
 // 20261116 CDX/NTR Exempt formatting while retaining history requirements for content changes.
 // 20261124 CDX/NTR Exempt comment edits from maintenance while retaining history continuation validation.
 // 20261126 CDX/NTR Pin lossy LATIN9 token comparisons.
+// 20261126 CDX/NTR Pin comment-only path/version retention.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -168,6 +169,33 @@ test('header explanations can change and metadata can advance without fresh hist
   const after = before.replace('Original explanation.', 'Clarified explanation.')
     .replace('2026-10-29', '2026-10-30').replace('2026 Danosoft', '2026-2027 Danosoft');
   assert.deepEqual(history.run(context(before, after, [2, 3, 5])), []);
+});
+
+for (const [label, change] of [
+  ['changed header path', source => source.replace('example.php', 'renamed.php')],
+  ['removed header path', source => source.replace('example.php', '')],
+  ['downgraded header version', source => source.replace('ver 5.1.0', 'ver 4.0.0')],
+  ['upgraded header version', source => source.replace('ver 5.1.0', 'ver 6.0.0')],
+  ['removed header version', source => source.replace('ver 5.1.0', '')],
+]) {
+  test(`comment exemption rejects ${label}`, () => {
+    const before = head + 'function example() {}';
+    const findings = history.run(context(before, change(before), [2]));
+    assert(findings.some(f => /retain the existing header (path|version)/.test(f.message)), JSON.stringify(findings));
+  });
+}
+
+test('legacy version labels can normalize without changing the recorded version', () => {
+  const before = head.replace('ver 5.1.0', 'lap 5.1.0k') + 'function example() {}';
+  const after = before.replace('lap 5.1.0k', 'ver 5.1.0k').replace('2026-10-29', '2026-10-30');
+  assert.deepEqual(history.run(context(before, after, [2])), []);
+});
+
+test('a behavior change can update the header version to the application version', () => {
+  const before = head.replace('ver 5.1.0', 'lap 4.0.0k') + 'echo 1;';
+  const after = head + '// 20261029 CDX/MJ Changed behavior.\necho 2;';
+  assert.deepEqual(history.run(context(before, after, [2, 5, 6])), []);
+  assert.deepEqual(version.run(context(before, after, [2, 5, 6])), []);
 });
 
 test('comment-only edits cannot introduce blank separators inside a header', () => {

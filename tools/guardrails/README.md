@@ -50,7 +50,7 @@ requires PHP on `PATH`, as provided by the guardrails CI job. `file-history` als
 rejects history entries inserted after a leading PHPDoc instead of in the header.
 `file-history` also ignores comment-only and formatting-only changes when requiring a history entry or header date/copyright update. It ignores PHP comments and whitespace when comparing tokens, while preserving string contents (including SQL and heredocs) and inline HTML. History-entry validation and continuation alignment still run, including when only comments or indentation changed.
 
-The exemption retains existing dated entries (date/tag and duplicate counts), the header date line, and the copyright line. Descriptions may be corrected; header dates and copyright ending years cannot move backward, and the starting year is retained. A changed copyright line must name `Danosoft ApS`; untouched legacy metadata needs no update.
+The exemption retains existing dated entries (date/tag and duplicate counts), the header date line, and the copyright line. Descriptions may be corrected; header dates and copyright ending years cannot move backward, and the starting year is retained. Comment and formatting edits retain the dated header's path and version value, allowing legacy version labels to normalize to `ver`. A changed copyright line must name `Danosoft ApS`; untouched legacy metadata needs no update.
 
 Both token comparisons require maintenance when either decoded revision contains `U+FFFD`: distinct LATIN9 source bytes can become the same Unicode replacement character before comparison. Such edits require history/header maintenance and the current application version.
 
