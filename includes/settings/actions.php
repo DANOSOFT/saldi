@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/actions.php --- ver 5.1.1 --- 2026.11.25 ---
+// ---- includes/settings/actions.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,9 +32,7 @@
 //                 Same insert, audit entry and redirect.
 // 20261103 CL/ASR QA: the FTP test fails when the configured folder cannot be opened (it went on in the login's root and could report success).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
-// 20261125 CL/MJ SD-880 Tilføj/Fjern kasse in a fiscal year without its own POS/1 row creates that year's row and leaves the other years' till counts as they are.
-//                The new row starts from the newest other year's POS/1 row (payment cards, accounts), with this year's till count.
-// 20261125 CL/MJ SD-880 Tilføj/Fjern kasse changes this fiscal year's POS/1 row only (was every year's, risk review R2); a new year's row is copied in the database from the row the page showed (settings_pos_row(1)).
+// 20261126 CL/MJ SD-880 Tilføj/Fjern kasse in a fiscal year without its own POS/1 row first copies the row the page showed into this year (SettingsService::copyFiscalRow()), so the till sees the tills; the count is still written to every year (R2).
 include_once(__DIR__ . '/integrations.php');
 
 /**
@@ -175,24 +173,22 @@ function settings_run_action(array $def, string $selfUrl): string
 			return $selfUrl . '&ftp=' . (settings_ftp_test() ? 'ok' : 'fail');
 		case 'till_add':
 		case 'till_remove':
-			// This fiscal year's POS/1 row only, as the till reads it (SD-880; before, every year's row, risk
-			// review R2, so a year with its own count was overwritten from another year). The per-till lists keep
-			// their entries; removing the last till only stops it, adding it again brings its setup back.
-			// A year without its own POS/1 row gets one, copied in the database from the row the page showed
-			// (settings_pos_row(1): payment cards, accounts) so the text keeps the database's encoding, with this
-			// year's till count; with no POS/1 row anywhere it holds the count only.
+			// Every fiscal year's POS/1 row (risk review R2). The per-till lists keep their entries; removing the
+			// last till only stops it, adding it again brings its setup back.
+			// A year without its own POS/1 row first gets a copy of the row the page showed (SD-880): the till reads
+			// this year's row only, and would not see the tills otherwise.
 			global $regnaar;
 			$before = settings_till_count();
 			$tills = $before + ($def['run'] === 'till_add' ? 1 : -1);
 			if ($tills >= 0) {
-				$year = (int) $regnaar;
-				if (db_fetch_array(db_select("select id from grupper where art = 'POS' and kodenr = '1' and fiscal_year = $year", __FILE__ . " linje " . __LINE__))) {
-					db_modify("update grupper set box1 = '$tills' where art = 'POS' and kodenr = '1' and fiscal_year = $year", __FILE__ . " linje " . __LINE__);
-				} elseif ($source = settings_pos_row(1)) {
-					$boxes = 'box2, box3, box4, box5, box6, box7, box8, box9, box10, box11, box12, box13, box14';
-					db_modify("insert into grupper (beskrivelse, kode, kodenr, art, box1, $boxes, fiscal_year) select beskrivelse, kode, kodenr, art, '$tills', $boxes, $year from grupper where id = " . (int) $source['id'], __FILE__ . " linje " . __LINE__);
+				$source = settings_pos_row(1);
+				if (!$source) {
+					db_modify("insert into grupper (beskrivelse, kode, kodenr, art, box1, fiscal_year) values ('POS_valg', '', '1', 'POS', '$tills', " . (int) $regnaar . ")", __FILE__ . " linje " . __LINE__);
 				} else {
-					db_modify("insert into grupper (beskrivelse, kode, kodenr, art, box1, fiscal_year) values ('POS_valg', '', '1', 'POS', '$tills', $year)", __FILE__ . " linje " . __LINE__);
+					if ((int) $source['fiscal_year'] !== (int) $regnaar) {
+						SettingsService::copyFiscalRow($source, (int) $regnaar);
+					}
+					db_modify("update grupper set box1 = '$tills' where art = 'POS' and kodenr = '1'", __FILE__ . " linje " . __LINE__);
 				}
 				if (function_exists('audit_log')) {
 					audit_log('setting.action', json_encode(array('before' => $before, 'after' => $tills)), 'indstilling', $def['key']);
