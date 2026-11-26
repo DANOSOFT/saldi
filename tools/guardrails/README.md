@@ -33,6 +33,17 @@ It names the check, an expiry date, the initials of the person who approved it
 and the reason. It stops working after the expiry date. Exceptions are for the
 odd case; a check that needs them often is wrong and should be fixed instead.
 
+When a reviewer explicitly waives a PR's screen recording, record that decision
+as a visible line under `## Screen recording`, using the same exception format:
+
+```text
+guardrails-allow pr-recording until 2026-12-31 by NTR: reviewer explicitly waived the recording for this PR
+```
+
+The reviewer validates the named approver and reason. An expired or incomplete
+waiver fails the recording check; a waiver inside an HTML comment does not count.
+Use `Ingen UI-ændring` only when the change has no UI effect.
+
 ## Proving a check
 
 A check must fail on a real past mistake. Judge any commit against its parent:
