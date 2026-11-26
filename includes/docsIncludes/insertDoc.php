@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/insertDoc.php --- ver 5.0.0 --- 2026-10-14 ---
+// --- includes/docsIncludes/insertDoc.php --- ver 5.1.1 --- 2026-11-22 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -55,6 +55,8 @@
 //                  failure now answers non-2xx with a reason the pool can show.
 // 20261023 CL/LH SST-868 Merged master: the SD-722 capture records read the pool row by $poolFileName and are kept under
 //                the landed name. Text 5441 renumbered to 5452 (5441 is taken by MB-71).
+// 20261122 CL/SZ MB-141 fiscalYear.php is included by __DIR__.
+//                The pool's Save calls this file directly, so the old "../includes/..." path missed and a new line with no bilag number died on fiscalYear() (HTTP 500, nothing saved).
 
 $sth = dirname(dirname(dirname(__FILE__)));
 
@@ -359,7 +361,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'updateOnly') {
             alert("Ingen aktiv kassekladde");
             exit;
         }
-        include_once("../includes/stdFunc/fiscalYear.php");
+        include_once(__DIR__ . '/../stdFunc/fiscalYear.php');
         if (!$bilag) {
             $bilag = 1;
             if (isset($_POST['bilag']) && $_POST['bilag']) $bilag = (int)$_POST['bilag'];
@@ -456,7 +458,7 @@ if ($docFolder && $source == 'creditorOrder') {
 		$existingBilagDate = null;
 		
 		if (!$bilag) {
-			include_once("../includes/stdFunc/fiscalYear.php");
+			include_once(__DIR__ . '/../stdFunc/fiscalYear.php');
 			$bilag=1;
 			if (ifset($_POST, 'bilag')) $bilag = (int)$_POST['bilag'];
 			else {
