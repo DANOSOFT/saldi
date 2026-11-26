@@ -161,8 +161,9 @@ function pos_create_customer(array $c, $token) {
 		throw new InvalidArgumentException('a customer needs a debtor group');
 	}
 	// The group must be one the form offers: an active debtor group of this fiscal year (accountLookup.php).
-	// kodenr is an integer on newer tenants and text on older ones, and inaktiv may not exist yet.
-	$known = shopify_db_rows("SELECT 1 FROM grupper g WHERE g.art = 'DG' AND btrim(g.kodenr::text) = $1"
+	// kodenr is an integer on newer tenants and text on older ones (possibly zero-padded, '01'), so it is
+	// compared without leading zeros; inaktiv may not exist yet.
+	$known = shopify_db_rows("SELECT 1 FROM grupper g WHERE g.art = 'DG' AND ltrim(btrim(g.kodenr::text), '0') = $1"
 		. ((int) $regnaar > 0 ? ' AND g.fiscal_year = ' . (int) $regnaar : '')
 		. " AND coalesce((to_jsonb(g) ->> 'inaktiv')::boolean, false) = false LIMIT 1", array((string) $group));
 	if (!$known) {
