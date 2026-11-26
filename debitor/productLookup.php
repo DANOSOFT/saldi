@@ -39,6 +39,7 @@
 // 20261125 CDX/NTR Preserve the selected warehouse through external item creation, selection and failure redirects.
 // 20261125 CDX/NTR Route description lookups and their automatic grid search to the description field.
 // 20261125 CDX/NTR Keep warehouse context when the grid submits and retry failed creation by item number.
+// 20261125 CDX/NTR Use the shared grid text escaping instead of page-specific value getters.
 @session_start();
 $s_id = session_id();
 
@@ -278,9 +279,6 @@ $columns = array();
 $columns[] = array(
     "field" => "varenr",
     "headerName" => "Varenr",
-    "valueGetter" => function ($value, $row, $column) {
-        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    },
     "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
@@ -313,9 +311,6 @@ $columns[] = array(
     "headerName" => "Enhed",
     "width" => "0.5",
     "sqlOverride" => "v.enhed",
-    "valueGetter" => function ($value, $row, $column) {
-        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    },
     "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
@@ -332,9 +327,6 @@ $columns[] = array(
     "headerName" => "Beskrivelse",
     "width" => "3",
     "sqlOverride" => "v.beskrivelse",
-    "valueGetter" => function ($value, $row, $column) {
-        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    },
     "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
         $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
         $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";

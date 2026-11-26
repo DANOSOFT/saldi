@@ -1,9 +1,11 @@
 <?php
 // 20261125 CDX/NTR Exercise imported catalogue text through the real column callbacks and grid highlighting (PR #1220).
+// 20261125 CDX/NTR Load the common grid text preparation used by the extracted row renderer.
 
 use PHPUnit\Framework\TestCase;
 
 require_once dirname(__DIR__, 3) . '/includes/std_func.php';
+require_once dirname(__DIR__, 3) . '/includes/grid/text.php';
 require_once __DIR__ . '/support/external_price_list.php';
 
 final class ProductLookupRenderingTest extends TestCase

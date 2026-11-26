@@ -1,8 +1,8 @@
 <?php
-
+//
 #..includes/grid.php
 ######################### >>>>>>>Notice before editing this file<<<<<<###############
-
+//
 // This file contains the core logic for creating and managing data grids on Saldi.
 // If you have a specific logic or feature you want to implement just for a single file, please consider the following before making changes:
 // 1. If the logic is specific to a single page, consider implementing it directly in that page's PHP file instead of here.
@@ -41,7 +41,10 @@ Regards:) 20260220 LOE
 //                 A stored legacy header is matched against the code's texts in decoded form.
 // 20261113 CL/LH SST-990 review: the kolonner editor's own header and description inputs use grid_html_exact(), so a saved text round-trips unchanged.
 //                Only displayed texts are decoded, including the placeholders of a column added since the setup.
+// 20261125 CDX/NTR Escape all text and dropdown cell values with the shared grid text helper before rendering.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
+include_once(__DIR__ . '/grid/text.php');
+
 /**
  * Extracts values from a specific column in a multi-dimensional array.
  *
@@ -1732,8 +1735,10 @@ function render_table_row($columns, $row, $searchTerms) {
             ? $column['valueGetter']($rawValue, $row, $column)
             : $rawValue;
 
-        // Optimize text search and highlighting - also highlight number fields with partial matching
-        if (($column["type"] == "text" || $column["type"] == "number") && $term !== '' && mb_stripos((string)$value, $term, 0, 'UTF-8') !== false) {
+        $textColumn = in_array($column['type'] ?? 'text', array('text', 'dropdown'), true);
+        if ($textColumn) {
+            $value = is_string($value) ? grid_text_html($value, $term) : $value;
+        } elseif ($column["type"] == "number" && $term !== '' && mb_stripos((string)$value, $term, 0, 'UTF-8') !== false) {
             $value = preg_replace_callback(
                 '/' . preg_quote($term, '/') . '/iu',
                 function ($match) {
@@ -1746,7 +1751,7 @@ function render_table_row($columns, $row, $searchTerms) {
         // Render the final data
         $data = isset($column['render']) && is_callable($column['render'])
             ? $column['render']($value, $row, $column)
-            : htmlspecialchars($value);
+            : ($textColumn ? $value : htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
 
         echo $data;
     }

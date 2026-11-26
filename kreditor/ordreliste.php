@@ -1,5 +1,5 @@
 <?php
-// --- kreditor/ordreliste.php -----ver 5.1.1 ----2026-11-13---------
+// --- kreditor/ordreliste.php -----ver 5.1.1 ----2026-11-25---------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20260924 CL/LH MB-60: Only store the last used tab for a real user id (review, PR #638).
 // 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 CDX/NTR Let the shared grid prepare text once, preserving search highlighting and literal entities.
 
 ob_start();
 @session_start();
@@ -520,7 +521,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         };
 
         $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         };
     }
     // Numeric fields
@@ -559,10 +560,11 @@ foreach ($all_db_columns as $field_name => $data_type) {
         };
 
         $column_def['render'] = function ($value, $row, $column) {
-            if ($value == '1' || $value === true) {
+            $status = $row[$column['field']];
+            if ($status == '1' || $status === true) {
                 $display = '✓';
                 $color = '#008000';
-            } elseif ($value == '0' || $value === false) {
+            } elseif ($status == '0' || $status === false) {
                 $display = '✗';
                 $color = '#FF0000';
             } else {
@@ -579,7 +581,7 @@ foreach ($all_db_columns as $field_name => $data_type) {
         };
 
         $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         };
     }
 
