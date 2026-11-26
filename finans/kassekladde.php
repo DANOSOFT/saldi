@@ -227,6 +227,10 @@
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261120 CL/MMR MB-158 With «sort», the «funktion» URL parameter opens only debitorLookup or creditorLookup, checked against a fixed list.
+//                 The include file comes from a fixed name-to-file map, never from the request.
+//                 «sort» must be one of the lookups' eight column names, which they use in ORDER BY.
+//                 Any other pair of non-empty values reopens the journal as stored, so the line values in that address are not saved.
 // 20261125 CDX/NTR Display the grid's prepared account text and use raw row values for escaped SQL and card links.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -1047,8 +1051,23 @@ if ($_GET) {
 	if (!isset($betal_id[$x]))
 		$betal_id[$x] = '';
 
-	if (($sort) && ($funktion)) {
-		if (!function_exists($funktion)) include_once("kassekladde_includes/$funktion.php");
+	$lookupFiles = array(
+		'debitorLookup'  => 'debitorLookup.php',
+		'creditorLookup' => 'creditorLookup.php',
+	);
+	// The column headers of both lookups; the lookups put «sort» straight into ORDER BY.
+	$lookupSorts = array('kontonr', 'firmanavn', 'addr1', 'addr2', 'postnr', 'bynavn', 'kontakt', 'tlf');
+	if ($sort !== null && $sort !== '' && $funktion !== null && $funktion !== '') {
+		if (!is_string($funktion) || !isset($lookupFiles[$funktion]) || !in_array($sort, $lookupSorts, true)) {
+			// Not one of the two lookups with one of their column names: show the journal as it is stored, before the
+			// line values in the address can reach the staged line. (The Åbne poster column links, funktion=openpost,
+			// used to die here with a fatal error.)
+			print "<meta http-equiv='refresh' content='0;URL=../finans/kassekladde.php?kladde_id=$kladde_id'>";
+			exit;
+		}
+		if (!function_exists($funktion)) {
+			include_once(__DIR__ . '/kassekladde_includes/' . $lookupFiles[$funktion]);
+		}
 		$funktion($find, $sort, $fokus, $x, $id[$x], $kladde_id, $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $lobenr[$x]);
 	}
 	$y = 0;

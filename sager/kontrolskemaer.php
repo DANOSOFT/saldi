@@ -2,7 +2,7 @@
 	@session_start();	# Skal angives oeverst i filen??!!
 	$s_id=session_id();
 
-// ------ sager/kontrolskemaer.php-------ver 5.1.0 ------2026-11-04------07:30---------
+// ------ sager/kontrolskemaer.php-------ver 5.1.1 ------2026-11-20------07:30---------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,6 +27,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20261103 CL/MMR SD-799 The page title, the "by" labels, the task names and the search suggestion labels follow the user's language.
 // 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
+// 20261120 CL/MMR MB-158 «funktion» only selects one of the page's own views; any other value shows the list.
 
 	$bg     = "nix";
 	$header = 'nix';
@@ -46,13 +47,15 @@
 	include("../includes/std_func.php");
 	include_once(__DIR__ . '/sagerIncludes/sagerTxt.php');
 
-	$funktion = if_isset($_GET['funktion']);
+	$funktion = ifset($_GET, 'funktion', null);
 	$skema_id = if_isset($_GET['tjekskema_id']);
 	$sort     = if_isset($_GET['sort']);
 	$nysort   = if_isset($_GET['nysort']);
 	$vis      = if_isset($_GET['vis']);
 	
-	if (!$funktion)$funktion='kontrolskemaliste';
+	if (!in_array($funktion, ['kontrolskemaliste', 'vis_skema', 'vis_arbejdsseddel', 'vis_kontrolskema'], true)) {
+		$funktion = 'kontrolskemaliste';
+	}
 	/*
 	if (!$funktion) {
 		($sag_id)?$funktion='':$funktion='kontrolskemaliste';  
