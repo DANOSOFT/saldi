@@ -41,8 +41,28 @@
 // 20261125 CDX/NTR Keep warehouse context when the grid submits and retry failed creation by item number.
 // 20261125 CDX/NTR Use the shared grid text escaping instead of page-specific value getters.
 // 20261126 CDX/NTR Normalize legacy search text before JSON encoding and retain a valid JavaScript literal on failure.
+// 20261126 CDX/NTR Validate creation CSRF before output and bind each price-list submission to its original tenant.
+//                  The controller captures its request before online.php can clear a stale tenant submission.
+// 20261126 CDX/NTR Render UTF-8 catalogue strings as entities on legacy pages and submit item numbers explicitly as UTF-8.
 @session_start();
 $s_id = session_id();
+$priceListPost = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['plVarenr']);
+$priceListItemNo = $_POST['plVarenr'] ?? '';
+$priceListAccount = $_POST['thisDb'] ?? null;
+if ($priceListPost) {
+    require_once(__DIR__ . '/../includes/permissions.php');
+    perm_require_post_csrf(false);
+    if (!is_string($priceListItemNo) || $priceListItemNo === '' || !is_string($priceListAccount) || $priceListAccount === '') {
+        http_response_code(400);
+        print '<p>400</p>';
+        exit;
+    }
+    // Authenticate creation POSTs without page output; online.php may clear stale-tenant request arrays.
+    $header = 'nix';
+}
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 $css = "../css/standard.css?v=20";
 
@@ -51,6 +71,13 @@ include("../includes/std_func.php");
 include("../includes/connect.php");
 $permission_key = 'debitor.ordre';
 include("../includes/online.php");
+if ($priceListPost && $priceListAccount !== $db) {
+    if (!headers_sent()) {
+        http_response_code(409);
+    }
+    print '<p>Regnskabet er skiftet. Åbn vareopslaget igen.</p>';
+    exit;
+}
 include("../includes/stdFunc/dkDecimal.php");
 include("../includes/ordrefunc.php");
 
@@ -101,25 +128,22 @@ if (isset($_GET['insertItems']) && isset($_GET['vare_id']) && isset($_GET['antal
 
 // SST-1051: an item chosen from the active external price list (POST) is created in the item file, then added like
 // any other chosen item. Only for an open customer order (or credit note) that exists.
-$priceListItemNo = (string) ifset($_POST, 'plVarenr', '');
-if ($priceListItemNo !== '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($priceListPost) {
     $orderId = (int) $id;
-    $r = $orderId ? db_fetch_array(db_select("select art, status from ordrer where id = $orderId", __FILE__ . " linje " . __LINE__)) : false;
-    if (!$r || !in_array($r['art'], array('DO', 'DK'), true) || (int) $r['status'] >= 3) {
+    include_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
+    $selection = externalPriceListSelectItem($orderId, $priceListItemNo);
+    if ($selection['status'] !== 200) {
         http_response_code(400);
         print "<script>alert(" . json_encode("Varer fra prislisten kan kun sættes på en åben kundeordre.") . "); history.back();</script>";
         exit;
     }
-    include_once(__DIR__ . '/../includes/orderFuncIncludes/externalPriceList.php');
-    $priceList = externalPriceListActive();
-    $priceListRow = $priceList ? externalPriceListFind($priceList, $priceListItemNo) : null;
-    $newItemId = $priceListRow ? externalPriceListCreateItem($priceListRow, $priceList) : 0;
+    $newItemId = $selection['itemId'];
     if ($newItemId) {
         header("Location: ordre.php?id=$orderId&vare_id=$newItemId&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam);
         exit;
     }
-    $backUrl = "productLookup.php?id=$orderId&art=" . urlencode((string) $r['art']) . "&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam;
-    $backUrl .= '&' . http_build_query(array('search' => array("productLookup$orderId" => array('varenr' => $priceListItemNo, 'beskrivelse' => ''))));
+    $backUrl = "productLookup.php?id=$orderId&art=" . urlencode($selection['art']) . "&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam;
+    $backUrl .= '&' . http_build_query(array('search' => array("productLookup$orderId" => array('varenr' => externalPriceListDatabaseText($priceListItemNo) ?? '', 'beskrivelse' => ''))));
     $message = "Varen $priceListItemNo kunne ikke oprettes fra prislisten. Tjek at prislisten har en varegruppe, og at varen findes i prisfilen.";
     print "<script>alert(" . json_encode($message) . "); window.location.href = " . json_encode($backUrl) . ";</script>";
     exit;
@@ -576,9 +600,9 @@ if ($art == 'DO' || $art == 'DK') {
     $searchItemNo = trim((string) ifset($gridSearch, 'varenr', $fokus === 'beskrivelse' ? '' : (string) $find));
     $searchText = trim((string) ifset($gridSearch, 'beskrivelse', $fokus === 'beskrivelse' ? (string) $find : ''));
     if ($priceList && ($searchItemNo !== '' || $searchText !== '')) {
-        $priceListFound = externalPriceListSearch($priceList, $searchItemNo, $searchText);
+        $priceListFound = externalPriceListSearch($priceList, externalPriceListUtf8($searchItemNo), externalPriceListUtf8($searchText));
         print "<div id='priceListMatches' style='margin: 4px 8px 8px 8px; max-height: 35vh; overflow: auto;'>";
-        print "<b>Fra prislisten " . htmlspecialchars($priceList['name']) . "</b>";
+        print "<b>Fra prislisten " . externalPriceListHtml($priceList['name']) . "</b>";
         if ($priceListFound === null) {
             print "<div style='color: #a00;'>Prisfilen kunne ikke bruges. Den kunne ikke hentes, er større end 20 MB eller mangler en af kolonnerne varenr, kostpris og salgspris.</div>";
         } else {
@@ -591,15 +615,15 @@ if ($art == 'DO' || $art == 'DK') {
                 foreach ($priceListFound as $priceListRow) {
                     $chooseUrl = "productLookup.php?id=" . (int) $id . "&art=" . urlencode((string) $art) . "&fokus=" . urlencode((string) $fokus) . $priceListWarehouseParam;
                     print "<tr style='display: table-row;'>";
-                    print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['varenr']) . "</td>";
-                    print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['enhed']) . "</td>";
-                    print "<td style='padding: 2px 6px;'>" . htmlspecialchars($priceListRow['beskrivelse']) . "</td>";
+                    print "<td style='padding: 2px 6px;'>" . externalPriceListHtml($priceListRow['varenr']) . "</td>";
+                    print "<td style='padding: 2px 6px;'>" . externalPriceListHtml($priceListRow['enhed']) . "</td>";
+                    print "<td style='padding: 2px 6px;'>" . externalPriceListHtml($priceListRow['beskrivelse']) . "</td>";
                     $priceListPrice = (float) $priceListRow['salgspris'];
                     if ($incl_moms && !in_array($priceListGroup, $momsfri)) {
                         $priceListPrice = $priceListPrice * (1 + (float) $momssats / 100);
                     }
                     print "<td style='text-align: right; padding: 2px 6px;'>" . dkdecimal($priceListPrice, 2) . "</td>";
-                    print "<td style='text-align: right; padding: 2px 6px;'><form method='post' action='" . htmlspecialchars($chooseUrl) . "' style='margin: 0;'><input type='hidden' name='plVarenr' value='" . htmlspecialchars($priceListRow['varenr']) . "'><input type='submit' value='Opret og vælg'></form></td>";
+                    print "<td style='text-align: right; padding: 2px 6px;'><form method='post' accept-charset='UTF-8' action='" . htmlspecialchars($chooseUrl) . "' style='margin: 0;'><input type='hidden' name='plVarenr' value='" . externalPriceListHtml($priceListRow['varenr']) . "'><input type='hidden' name='csrf_token' value='" . htmlspecialchars($_SESSION['csrf_token']) . "'><input type='hidden' name='thisDb' value='" . htmlspecialchars($db) . "'><input type='submit' value='Opret og v&#230;lg'></form></td>";
                     print "</tr>";
                 }
                 print "</table>";
