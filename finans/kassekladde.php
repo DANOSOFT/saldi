@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-25 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -227,7 +227,10 @@
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261120 CL/MMR SST-1039 The header row with Bemærkning had the clip, Regnskabsår, kontrolkonto, print and help squeezed together on the right.
+//                 They now stand 20px apart, kontrolkonto has the label «Kontrolkonto:» (journal.control_account) instead of a fixed placeholder, and the help link is the «?» icon only, with its name as aria-label.
 // 20261125 CDX/NTR Display the grid's prepared account text and use raw row values for escaped SQL and card links.
+// 20261126 CL/MMR SST-1039 The help link's title and aria-label are escaped with the page charset, so a Danish help text on an ISO-8859-1 tenant no longer comes out empty (CodeRabbit on PR #1171).
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -3045,20 +3048,22 @@ if ($bogfort == "-") {
 	$page_display = false;
     if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
     if ($kontrolkonto == "-") $kontrolkonto = "";
-    print "<td style='padding-left: 10px;'></td><td style='vertical-align: middle;'><span title='" . findtekst('1560|Angiv kontonummer til kontrol af kontobevægelser', $sprog_id) . "'><input class='inputbox' type='text' style='text-align:right;width:80px; vertical-align: middle;' name='kontrolkonto' value='$kontrolkonto' placeholder='kontrolkonto' onchange='javascript:docChange = true;'></span></td>";
+    // SST-1039: a visible label like Regnskabsår, 20px from the cell before it
+    print "<td style='padding-left: 20px; white-space: nowrap; vertical-align: middle;'><span title='" . findtekst('1560|Angiv kontonummer til kontrol af kontobevægelser', $sprog_id) . "'><b><label for='kkKontrolkonto'>" . findtekst('journal.control_account|Kontrolkonto', $sprog_id) . ":</label></b> <input id='kkKontrolkonto' class='inputbox' type='text' style='text-align:right;width:80px; vertical-align: middle;' name='kontrolkonto' value='$kontrolkonto' onchange='javascript:docChange = true;'></span></td>";
 } else {
-    print "<td style='padding-left: 10px;'></td><td width='120px' align='left' style='vertical-align: middle;'><span title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px; vertical-align: middle;' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
+    print "<td width='120px' align='left' style='padding-left: 20px; vertical-align: middle;'><span title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px; vertical-align: middle;' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
 }
 
 $help_icon  = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" style="vertical-align: middle;"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
 $help_txt   = findtekst('3354|Genveje til Kassekladden', $sprog_id);
 $help_title = findtekst('3355|Hjælp til Kassekladden',   $sprog_id);
-$help_link  = "'https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' title='$help_title'";
+// SST-1039: the guide opens from the «?» icon alone; its name stays readable for screen readers
+$help_link  = "'https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' title='" . htmlspecialchars($help_title, ENT_QUOTES, $charset) . "' aria-label='" . htmlspecialchars($help_txt, ENT_QUOTES, $charset) . "'";
 
-print "<td width='2%' align='center' style='vertical-align: middle;'>
+print "<td align='center' style='padding-left: 20px; vertical-align: middle;'>
     <a href='javascript:void(0)' onclick='window.print(); return false;'>
     <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;' title='Print'></a></td>
-    <td width='12%' align='center' style='vertical-align: middle; white-space: nowrap;'><a href=$help_link>$help_txt</a> <a href=$help_link>$help_icon</a></td></tr>\n";
+    <td align='center' style='padding-left: 20px; padding-right: 10px; vertical-align: middle; white-space: nowrap;'><a href=$help_link>$help_icon</a></td></tr>\n";
 print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
 
