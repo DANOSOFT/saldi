@@ -135,10 +135,9 @@ function momsberegning($konto,$amount,$momsart,$kontrol,$lineVat=NULL,$allowBlan
 				$b = substr($kontrolTrim, 1);
 				$r = false;
 			}
-			if (!$r && ctype_digit($b)) {
+			if (!$r) {
 				$c = $a . 'M';
-				$kodenr = (int)$b;
-				$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$kodenr' and art='$c' and fiscal_year = '$regnaar'";
+				$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				$r = db_fetch_array($q);
 			}
