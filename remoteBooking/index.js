@@ -4,6 +4,9 @@
 //                 A start date whose rental would end on a closed day is refused with a message (no onChange loop).
 // 20261111 CL/MMR SST-992: also read the account from ?id=, the form older «Ekstern booking» links use.
 // 20261111 CL/MMR SST-992 (review): the account comes from index.php (validated), not from the link, and is URL-encoded where it is used.
+// 20261111 CL/MMR SST-998: dates shown and used to pick the free unit are the local day (toISOString() gave the UTC day before).
+// SST-998: a Date as the local calendar day YYYY-MM-DD; toISOString() gives the UTC day, which is the day before at local midnight.
+const localDay = d => d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2)
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${encodeURIComponent(db)}`,{
         method: "GET",
@@ -232,7 +235,7 @@ const calendarView = async (main, product, weeks, price, db) => {
                 })
                 // Add this available date to our tracking array
                 if (!isItemReserved) {
-                    availableDatesById.push([itemId, date.toISOString().split('T')[0]])
+                    availableDatesById.push([itemId, localDay(date)])
                 }
                 // If item is not reserved, it's available
                 return !isItemReserved
@@ -275,8 +278,8 @@ const calendarView = async (main, product, weeks, price, db) => {
             }
 
             // Format startDate and endDate to YYYY-MM-DD
-            startDate = startDate.toISOString().slice(0, 10)
-            if (endDate) endDate = endDate.toISOString().slice(0, 10)
+            startDate = localDay(startDate)
+            if (endDate) endDate = localDay(endDate)
             document.querySelector('.from').innerHTML = `${startDate}`
             document.querySelector('.to').innerHTML = `${endDate}`
         }
