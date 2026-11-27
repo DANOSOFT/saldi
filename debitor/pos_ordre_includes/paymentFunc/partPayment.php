@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.0.0 --- 2024.3.13---
+// --- debitor/pos_ordre_includes/paymentFunc/partPayment.php --- ver 5.1.1 --- 2026.11.20---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190510 Move function find_bon here
@@ -30,6 +30,9 @@
 // 20240209 PHR Added indbetaling to vibrant & flatpay
 // 20240313 MMK/PHR Vipps / Mobilepay
 // 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
+// 20261120 CL/MJ SD-844 K61: a part payment of a pickup or delivery sale without the customer's email or phone is refused before any payment is taken.
+
+include_once(__DIR__ . "/../deliveryContact.php");
 
 function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $betvaluta, $betvalkurs, $receipt_id = 0)
 {
@@ -40,6 +43,12 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 	global $kasse;
 	global $regnaar, $retur;
 	global $tracelog;
+
+	// 20261120 CL/MJ SD-844 K61: the same check as afslut(), which part payments reach without passing through
+	if ($godkendt != 'OK' && !$indbetaling) {
+		$check = pos_validate_checkout_sale($id);
+		if (!$check['ok']) return $check['message'];
+	}
 
 	include('../debitor/pos_ordre_includes/voucherFunc/voucherPay.php');
 	voucherPay($id, $betaling, $modtaget);

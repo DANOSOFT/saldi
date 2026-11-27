@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- debitor/pos_ordre_includes/voucherFunc/voucherPay.php --- lap 4.0.5 --- 2022.07.18 ---
+// ---- debitor/pos_ordre_includes/voucherFunc/voucherPay.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,20 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2021-2022 saldi.dk aps
+// Copyright (c) 2021-2026 Danosoft ApS
 // --------------------------------------------------------------------------
 //
 // 20210111 PHR changed elseif ($betaling == "Gavekort" || $betaling == "Gavekort på beløb") 
 //              to elseif (isset($_POST['giftcardNumber']) && !$_POST['giftcardNumber'])
 // 20220718 PHR Added $indbetaling as payment was not registered when paid to account using voucher
+// 20261120 CL/MJ SD-844 K61: a gift card is not taken for a pickup or delivery sale without the customer's email or phone.
+//                The card number form is not shown and no payment is recorded, so the gift card path in pos_ordre.php cannot settle such a sale either.
+// 20261123 CL/MJ SD-844 K61: the check also runs when a gift card number is posted with another payment type, and the refusal is shown to the cashier.
+// 20261124 CL/MJ SD-844 K61: the refusal is not shown a second time when afslut() or delbetal() already showed it in this request.
+// 20261126 CL/MJ SD-844 K61: the check runs only for a gift card the payment really names, and not after a card terminal approved the payment.
+// 20261126 CL/MJ SD-844 K61: a voucher list shorter than the pay cards (settings.voucherItems) no longer raises an undefined-index warning (Hugin).
+
+include_once(__DIR__ . "/../deliveryContact.php");
 
 if (!function_exists('voucherPay')) {
 function voucherPay($orderId, $betaling, $modtaget) {
@@ -38,12 +46,28 @@ function voucherPay($orderId, $betaling, $modtaget) {
 	$qtxt = "select box5 from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$payCards = explode(chr(9),$r['box5']);
+	$payCardMatched = false;
 	for ($p=0;$p<count($payCards);$p++) {
-		if (trim(str_replace('på beløb','',$betaling)) == $payCards[$p]) $payCardNo = $p;
+		if (trim(str_replace('på beløb','',$betaling)) == $payCards[$p]) {
+			$payCardNo = $p;
+			$payCardMatched = true;
+		}
 	}
 	$qtxt = "select var_value from settings where var_name = 'voucherItems' and var_grp = 'Paycards'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $vouchers = explode(chr(9),$r['var_value']);
-	if ($vouchers[$payCardNo] && !isset($_POST['giftcardNumber'])) {
+	// 20261120 CL/MJ SD-844 K61: the same check as afslut() and delbetal(), for the gift card path that reaches here without them
+	// A card the terminal already approved (godkendt=OK) is not stopped: the money has moved, as in afslut()
+	if ((($payCardMatched && !empty($vouchers[$payCardNo])) || isset($_POST['giftcardNumber'])) && !$indbetaling && ($GLOBALS['godkendt'] ?? '') !== 'OK') {
+		$alreadyShown = !empty($GLOBALS['pos_delivery_contact_refused']);
+		$check = pos_validate_checkout_sale($orderId);
+		if (!$check['ok']) {
+			if (!$alreadyShown) {
+				alert($check['message']);
+			}
+			return false;
+		}
+	}
+	if (!empty($vouchers[$payCardNo]) && !isset($_POST['giftcardNumber'])) {
 		if (!$modtaget && strpos($betaling,'på beløb')) {
 			$qtxt = "select sum (amount*valutakurs/100) as paid from pos_betalinger where ordre_id='$orderId'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));

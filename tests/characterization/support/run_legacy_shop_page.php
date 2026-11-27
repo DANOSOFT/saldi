@@ -16,6 +16,7 @@
 // History:
 // 20261026 CL/SZ Created (SD-777, sub-task of SD-750).
 // 20261026 CL/SZ Reports the page's HTTP status (CHARTEST_HTTP), for the REST intake switch (SD-750).
+// 20261126 CDX/NTR Accept browser cookies when replaying POS checkout requests.
 
 if ($argc < 5) {
 	fwrite(STDERR, "usage: php run_legacy_shop_page.php <page> <session_id> <request.json> <output file>\n");
@@ -34,6 +35,7 @@ $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 $_SERVER['HTTP_USER_AGENT'] = 'chartest';
 $_GET = $request['get'] ?? [];
 $_POST = $request['post'] ?? [];
+$_COOKIE = $request['cookie'] ?? [];
 if ($_POST) {
 	$_SERVER['REQUEST_METHOD'] = 'POST';
 }
