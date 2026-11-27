@@ -235,6 +235,7 @@
 //                The empty contra field of lines from the bank (active bank_import_links rows) is pale yellow until filled, and after an import the first one has the focus.
 // 20261127 CDX/NTR Use the displayed journal's column gates for the header and every row type.
 // 20261127 CDX/NTR Read row VAT codes through ifset() so unsaved rows with missing keys render without warnings.
+// 20261127 CDX/NTR Default an unlocked journal's missing timestamp seconds through ifset().
 
 require_once __DIR__ . '/kassekladde_includes/columnLayout.php';
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -883,7 +884,9 @@ if ($tjek = if_isset($_GET, null, 'tjek')) {
 	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	if (isset($row['tidspkt'])) {
-		list($a, $c) = explode(" ", $row['tidspkt']);
+			$lockTimeParts = explode(" ", $row['tidspkt'], 2);
+			$a = ifset($lockTimeParts, 0, 0);
+			$c = ifset($lockTimeParts, 1, 0);
 		if (($b - $c < 3600) && ($row['hvem'] != $brugernavn)) {
 			$alert1 = findtekst('1577|Kladden er i brug af', $sprog_id); //Kladden er i brug af
 			print "<body onLoad=\"javascript:alert('$alert1 $row[hvem]')\">"; #20210720
