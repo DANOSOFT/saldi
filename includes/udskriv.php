@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.1.1 --- 2026-11-20---
+// --- includes/udskriv.php --- ver 5.1.1 --- 2026-11-27---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -61,6 +61,7 @@
 // 20261113 CDX/NTR Keep error reporting and translate the PDF fallback in the page charset.
 // 20261120 CDX/NTR Prepare non-A4 backgrounds as real PDFs and rebuild invalid cached copies.
 // 20261120 CDX/NTR Extract background preparation into a directly testable helper.
+// 20261127 CDX/NTR Return single POS delivery-note PDFs to the same checkout sale in both menu layouts.
 
 @session_start();
 $s_id=session_id();
@@ -152,6 +153,10 @@ if ($id && !$art) {
 	$art=$r['art'];
 } 
 if (!$art) $art='DO';
+
+if ($art == 'PO' && $id && $udskriv_til == 'PDF' && !$requestedReturside && !$bulk && !$locat) {
+	$returside = '../debitor/pos_ordre.php?id=' . (int)$id;
+}
 
 if ($valg=="tilbage" && !$bgr) {
 	if ((!$id && $art!='R') || $popup ) { # 20131210
@@ -371,7 +376,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 					$href = "../debitor/rykker.php?rykker_id=" . (int)$id;
 				 } elseif (substr($art,0,1)=='K'){
 					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside) . "\" accesskey=\"L\"";
-				 } elseif (strpos($returside, '../debitor/ordre.php?') === 0) {
+				 } elseif (strpos($returside, '../debitor/ordre.php?') === 0 || strpos($returside, '../debitor/pos_ordre.php?') === 0) {
 					$href = "\"" . htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\" accesskey=\"L\"";
 				 } elseif (strpos($returside, "ordreliste.php") !== false && ($bulk || $locat || $requestedReturside)) {
 					// Bulk print, or a print started from the order list: back to the list. Any art (DO, DK, PO)
