@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/storeOrders.php --- ver 5.1.1 --- 2026.11.23
+// --- includes/shopify/services/storeOrders.php --- ver 5.1.1 --- 2026.11.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,9 @@
 //
 // 20261112 CL/SS SD-804: created (WP13-2).
 // 20261118 CL/SS SD-804: the date key is Delivery Date, and pickup and delivery orders carry Leveringstype (DTAILS).
+// 20261123 LH SD-804: store orders write the web orders' metafield names (saldi.ordre_nr, faktura_nr, faktura_link); fakturanr, kassebon and faktura_url are gone.
 // 20261123 CL/LH SD-804: the delivery date is formatted YYYY-MM-DD by the database, whatever the session's DateStyle.
+// 20261127 CDX/NTR SD-804: reuse the web-order metafield builder without ownerId for orderCreate.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -49,7 +51,6 @@ const SHOPIFY_STORE_ORDER_ATTR_TYPE = 'Leveringstype';
 const SHOPIFY_STORE_ORDER_ATTR_DATE = 'Delivery Date';
 const SHOPIFY_STORE_ORDER_UNDATED_NOTE = 'Leveringsdato aftales med kunden';
 const SHOPIFY_STORE_ORDER_LINE_LAGER = 'Lager';
-const SHOPIFY_STORE_ORDER_METAFIELD_NS = 'saldi';
 const SHOPIFY_STORE_ORDER_TAX_TITLE = 'Moms';
 
 const SHOPIFY_STORE_ORDER_CREATE = 'mutation orderCreate($order: OrderCreateOrderInput!, $options: OrderCreateOptionsInput) {
@@ -95,7 +96,7 @@ function shopify_store_orders_require(): void {
 	require_once __DIR__ . '/../errors.php';
 	require_once __DIR__ . '/customersOut.php';
 	require_once __DIR__ . '/orderIntake.php';
-	require_once __DIR__ . '/../../documents/dokumentLinks.php';
+	require_once __DIR__ . '/orderWriteback.php';
 }
 
 /** The tag a store order carries in Shopify: saldi-po-<db>-<ordre_id>. */
@@ -385,13 +386,13 @@ function shopify_store_orders_build_payload(array $snap, array $customer, array 
 		'tags' => array(SHOPIFY_ECHO_TAG, shopify_store_orders_tag($o['db'], $id)),
 		'lineItems' => $lines,
 		'transactions' => $payments,
-		'metafields' => array(
-			array('namespace' => SHOPIFY_STORE_ORDER_METAFIELD_NS, 'key' => 'fakturanr', 'type' => 'single_line_text_field', 'value' => trim((string)$o['fakturanr'])),
-			array('namespace' => SHOPIFY_STORE_ORDER_METAFIELD_NS, 'key' => 'kassebon', 'type' => 'single_line_text_field', 'value' => trim((string)$o['fakturanr'])),
-		),
+		'metafields' => array(),
 	);
-	if ($invoiceUrl !== null) {
-		$order['metafields'][] = array('namespace' => SHOPIFY_STORE_ORDER_METAFIELD_NS, 'key' => 'faktura_url', 'type' => 'url', 'value' => $invoiceUrl);
+	// orderCreate assigns the Shopify owner; discard the builder's placeholder ownerId.
+	$metafields = shopify_build_order_metafields(array('order_gid' => (string)$id, 'ordre_nr' => $o['ordrenr'] ?? null, 'faktura_nr' => $o['fakturanr'] ?? null), $invoiceUrl);
+	foreach ($metafields as $metafield) {
+		unset($metafield['ownerId']);
+		$order['metafields'][] = $metafield;
 	}
 	if ($customer['gid'] !== null) {
 		$order['customer'] = array('toAssociate' => array('id' => $customer['gid']));
