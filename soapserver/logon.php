@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/logon.php -----ver 3.2.3---- 2011.10.11 ----------
+// #----------------- soapserver/logon.php -----ver 5.1.1---- 2026.11.27 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261127 CDX/NTR Write SOAP login audit entries to private application log storage.
+// 20261127 CDX/NTR Scope SOAP login logging to this installation's database folder.
 ini_set("soap.wsdl_cache_enabled", "1");
 
 function logon($string) {
@@ -28,22 +30,26 @@ function logon($string) {
 	list($regnskab,$brugernavn,$password)=explode(chr(9),$string);
 	$password=md5($password);
 	$unixtime=date("U");
-	include("../includes/db_query.php");
-	include ("../includes/connect.php");
+	require_once __DIR__ . '/../includes/db_query.php';
+	require_once __DIR__ . '/../includes/applicationLog.php';
+	include __DIR__ . '/../includes/connect.php';
 	db_modify("delete from online where  session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array(db_select("select * from regnskab where regnskab = '$regnskab'",__FILE__ . " linje " . __LINE__))) {
 		if ($db = trim($r['db'])) {
 			$connection = db_connect ($sqhost,$squser,$sqpass,$sqdb);
 			if ($connection) {
 				db_modify("insert into online (session_id, brugernavn, db, dbuser) values ('$s_id', '$brugernavn', '$db', '$squser')",__FILE__ . " linje " . __LINE__);
-				include ("../includes/online.php");
+				include __DIR__ . '/../includes/online.php';
 				if ($r = db_fetch_array(db_select("select * from brugere where brugernavn = '$brugernavn' and kode='$password'",__FILE__ . " linje " . __LINE__))) {
 					$rettigheder=trim($r['rettigheder']);
 					$regnskabsaar=$r['regnskabsaar']*1;
-					include ("../includes/connect.php");
-			$fp=fopen("../temp/.ht_$db.log","a");
-			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": OK jeg er inde ".$s_id."\n");
-			fclose($fp);
+					include __DIR__ . '/../includes/connect.php';
+					applicationLogPutContents(
+						'.ht_' . rawurlencode((string)$db) . '.log',
+						"-- ".$brugernavn." ".date("Y-m-d H:i:s").": OK jeg er inde ".$s_id."\n",
+						true,
+						(string)$db
+					);
 					db_modify("update online set regnskabsaar='$regnskabsaar', rettigheder='$rettigheder' where session_id='$s_id'",__FILE__ . " linje " . __LINE__);
 					$return='0'.chr(9).$s_id;
 				} else {

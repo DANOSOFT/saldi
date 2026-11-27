@@ -1,6 +1,8 @@
 # Shared runtime files
 
-Online/login and database logs use `includes/sharedFile.php`. Files use `0660`;
+Login and database logs use `includes/applicationLog.php` to constrain their
+location to this installation's `temp/<db>` folder. Other shared runtime files
+use `includes/sharedFile.php` and its ancestor-permission checks. New files use `0660`;
 directories use `02770` (setgid), so new entries inherit the shared group. The
 group is `balances` when that group exists and `www-data` is a member of it (the
 setup in `INSTALLATION.md`), and `www-data` otherwise. Set
@@ -15,7 +17,7 @@ a different account, which must also belong to the configured shared group.
 PHP source files need read access, and every directory traversed needs execute
 access for that account.
 
-The helpers validate every parent component before changing permissions or
+For non-log runtime files, the shared-file helpers validate every parent component before changing permissions or
 opening a file, including before a `w` open can truncate it. Special files,
 parents writable by others, and parents writable by unrelated groups are refused.
 Symlinked installations work: a symlink in the path is followed when the
@@ -30,6 +32,33 @@ to its parent directories as well.
 Relative paths such as `../temp/log` also traverse the page's directory before
 stepping up. A group-writable `finans`, `index`, `admin` or `debitor` directory
 must therefore use the shared group; migrating `temp` alone does not repair it.
+
+## Application logs
+
+Application logs belong in the database's folder inside the installation that
+loaded the logger: `<installation>/temp/<db>/`. For example, an `ntr`
+installation uses `/var/www/html/ntr/temp/<db>/`, whether its request is
+`/ntr/index/main.php`, a more deeply nested URL, or a CLI command. The root is
+anchored to the PHP source location, not guessed from URL depth or the current
+working directory. The database defaults to the active database, then the
+master database before a tenant is selected. Without a known database, no
+unscoped log is written.
+
+The logging check validates **location only**. It rejects logs directly in the
+installation/temp roots, paths outside this installation, traversal, special
+files and symlinks redirecting outside the database folder or installation.
+A temp alias may resolve within the same installation, but cannot point at
+another installation's runtime tree. It does not inspect
+ancestor write permissions. Existing file and directory permissions stay
+unchanged; only newly created database directories and logs receive the shared
+runtime modes. Generic non-log runtime helpers retain their permission checks.
+There is no separate `/var/log/saldi` root or `SALDI_LOG_DIR` override.
+
+Database query logs, error markers, and all main/legacy/SOAP login log writers
+use the same database-scoped location. Attachments and other temporary files
+keep their existing locations. Existing historical logs are not moved or
+deleted automatically during a request. Do not loosen filesystem permissions
+to correct a log path.
 
 ## One-time setup and migration
 

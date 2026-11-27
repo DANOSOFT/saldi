@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// --------------includes/login.php----------ver 5.1.0------2026-10-29------
+// --------------includes/login.php----------ver 5.1.1------2026-11-27------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -28,8 +28,11 @@ ob_start(); //Starter output buffering
 // 2015.01.14 PK - Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
 // 2015.01.27 PHR	- Tilføjet rettigheder da man ellers bliver smidt af ved forsøg på login med tmp kode.  
 // 20261029 CDX/NTR Share login logs and temporary directories with the web server.
+// 20261127 CDX/NTR Write login logs to private application storage, preserving temporary-file locations.
+// 20261127 CDX/NTR Keep login logs in this installation's temp/database folder with a location-only check.
 
 require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/applicationLog.php';
 
 @session_start();
 $s_id=session_id();
@@ -137,9 +140,15 @@ if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($r
 	}
 }
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
-if ($db && !file_exists("../temp/.ht_$db.log")) {
-	sharedFilePutContents("../temp/.ht_$db.log",
-		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n", true);
+$loginLogName = '.ht_' . rawurlencode((string)$db) . '.log';
+$loginLogPath = applicationLogDirectory((string)$db) . '/' . $loginLogName;
+if ($db && applicationLogPathAllowed($loginLogPath) && !file_exists($loginLogPath)) {
+	applicationLogPutContents(
+		$loginLogName,
+		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n",
+		true,
+		(string)$db
+	);
 }
 if ((isset($regnskabsaar))&&($db)){
 	db_modify("insert into online (session_id, brugernavn, db, dbuser, regnskabsaar, logtime) values ('$s_id', '".db_escape_string($brugernavn)."', '$db', '$dbuser', '$regnskabsaar', '$unixtime')",__FILE__ . " linje " . __LINE__);
@@ -232,8 +241,12 @@ ob_end_flush();	//Sender det "bufferede" output afsted...
 
 if(!isset($afbryd)){
 	$db_skriv_id=NULL;
-	sharedFilePutContents(__DIR__ . "/../temp/online.log",
-		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$brugernavn."\n", true);
+	applicationLogPutContents(
+		'online.log',
+		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$brugernavn."\n",
+		true,
+		(string)$db
+	);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-26 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -165,9 +165,10 @@
 //                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
 // 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
 // 20261117 CDX/NTR Filter stored order-text lookup HTML, preserving only attribute-free bold and italic formatting.
+// 20261127 CDX/NTR Keep the VAT diagnostic log in this installation's database folder with a location-only check.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
-require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/applicationLog.php';
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -4414,7 +4415,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		# exit;
 		($webservice) ? $leveres = $antal : $leveres = 0;
 		if ($id && is_numeric($posnr)) {
-			sharedFilePutContents("../temp/$db/momslog.log", "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n", true);
+			applicationLogPutContents('momslog.log', "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n", true, (string)$db);
 			if ($varemomssats && !$vatAccount) {
 				$alerttxt = __LINE__ . " Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
 				alert($alerttxt);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.1 ----2026-11-26--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-27--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,8 +64,12 @@
 // 20261103 CDX/NTR Attempt every database log line even when an earlier write is incomplete.
 // 20261103 CDX/NTR Report incomplete database log writes through non-throwing server diagnostics.
 // 20261126 CDX/NTR db_modify(): optional bound parameters and affected-row count; legacy calls unchanged.
+// 20261127 CDX/NTR Move database logs and error markers to private application log storage.
+// 20261127 CDX/NTR Anchor log paths to this installation and use the database-scoped location-only opener.
+// 20261127 CDX/NTR Preserve the initial online event when a database runtime directory is first created.
 
 require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/applicationLog.php';
 
 if (!function_exists('get_relative')) {
     /**
@@ -95,10 +99,11 @@ if (!function_exists('db_log_append')) {
      * @param string $path Local log path.
      * @param string|string[] $lines Log text or lines to write.
      * @param string $mode Writable fopen mode.
+     * @param callable|null $open Optional opener for the application log location policy.
      * @return bool Whether all lines were written successfully.
      */
-    function db_log_append($path, $lines, $mode = 'a') {
-        $fp = sharedFileOpen($path, $mode);
+    function db_log_append($path, $lines, $mode = 'a', $open = null) {
+        $fp = $open !== null ? $open($path, $mode) : sharedFileOpen($path, $mode);
         if ($fp === false) {
             return false;
         }
@@ -279,7 +284,7 @@ if (!function_exists('db_modify')) {
 		global $sqdb,$sqhost,$squser,$sqpass;
 		global $webservice;
 
-		$temp = get_relative() . 'temp/' . $db;
+		$temp = applicationLogDirectory((string)$db);
 
 		$qtext=injecttjek($qtext);
 
@@ -314,7 +319,7 @@ if (!function_exists('db_modify')) {
 		
 		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1 && $db != $sqdb) {
-			db_log_append("$temp/.ht_modify.log", [
+			applicationLogAppend("$temp/.ht_modify.log", [
 				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n",
 				$qtext.";\n",
 			]);
@@ -323,7 +328,7 @@ if (!function_exists('db_modify')) {
 			#if ($db_type=="mysql")       $errtxt = mysql_error($connection);
 			if ($db_type=="mysqli") $errtxt = mysqli_error($use_connection); #20190704
 			else $errtxt=pg_last_error($use_connection);
-			db_log_append("$temp/.ht_modify.log", [
+			applicationLogAppend("$temp/.ht_modify.log", [
 				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
 				"-- Fejl!! ".$qtext." | $errtxt;\n",
 			]);
@@ -340,7 +345,7 @@ if (!function_exists('db_modify')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Opdat fejl', $message, $headers);
 					}
-					db_log_append("$temp/opdatfejl.txt", date("U")."\n", 'w');
+					applicationLogAppend("$temp/opdatfejl.txt", date("U")."\n", 'w');
 				} 
 			} else {
 				if (file_exists("$temp/modifyfejl.txt")) {
@@ -354,7 +359,7 @@ if (!function_exists('db_modify')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Fejl - modify', $message, $headers);
 					}
-					db_log_append("$temp/modifyfejl.txt", date("U")."\n", 'w');
+					applicationLogAppend("$temp/modifyfejl.txt", date("U")."\n", 'w');
 				} 
 				// if ($db_type=="mysql") {
 				// 	mysql_query("ROLLBACK");
@@ -404,13 +409,13 @@ if (!function_exists('db_select')) {
 		// When $global=true, run the query against the global database instead of the user's database.
 		$use_connection = db_query_connection($global);
 
-		$temp = get_relative() . 'temp/' . $db;
+		$runtimeTemp = dirname(__DIR__) . '/temp/' . $db;
+		$runtimeExists = is_dir($runtimeTemp);
+		$temp = applicationLogDirectory((string)$db);
 
-		if (!file_exists($temp)) {
-			sharedDirectory($temp);
-			$onlineLog = get_relative() . 'temp/.ht_online.log';
+		if (!$runtimeExists && applicationLogCreateDirectory($temp)) {
 			$onlineTxt = date("Y-m-d")." ".date("H:i:s")." ".$_SERVER['REMOTE_ADDR']." ".$s_id." ".$db." ".$brugernavn."\n";
-			sharedFilePutContents($onlineLog, $onlineTxt, true);
+			applicationLogPutContents('.ht_online.log', $onlineTxt, true, (string)$db);
 		}
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 			// Use mysqli for MySQL as mysql_query() is deprecated
@@ -446,8 +451,8 @@ if (!function_exists('db_select')) {
 
 			$tmp.="_".date("h:i");
 			if ($linje != $tmp) {
-				db_log_append("$temp/lasterror.txt", "$tmp");
-				db_log_append("$temp/lasterror.txt", [
+				applicationLogAppend("$temp/lasterror.txt", "$tmp");
+				applicationLogAppend("$temp/lasterror.txt", [
 					"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
 					"-- Fejl!! ".$qtext." | $errtxt;\n",
 				]);
@@ -464,7 +469,7 @@ if (!function_exists('db_select')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Fejl - select', $message, $headers);
 					}
-					db_log_append("$temp/selectfejl.txt", date("U")."\n", 'w');
+					applicationLogAppend("$temp/selectfejl.txt", date("U")."\n", 'w');
 				} 
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
@@ -477,7 +482,7 @@ if (!function_exists('db_select')) {
 				exit;
 			}
 		} else {
-			db_log_append("$temp/.ht_select.log", [
+			applicationLogAppend("$temp/.ht_select.log", [
 				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n",
 				$qtext.";\n",
 			]);
@@ -569,8 +574,8 @@ if (!function_exists('transaktion')) {
 		global $db_modify_fejl; #20260729 SZ (SD-595)
 		global $db_transaktion_depth; #20260804 SZ track nesting so an inner begin() (e.g. bogfor() calling transaktion('begin') again inside an already-open outer transaction) doesn't wipe out an earlier failure recorded by the outer transaction (SD-595)
 
-		$temp = get_relative() . 'temp/' . $db;
-		db_log_append("$temp/.ht_modify.log", [
+		$temp = applicationLogDirectory((string)$db);
+		applicationLogAppend("$temp/.ht_modify.log", [
 			"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n",
 			$qtext.";\n",
 		]);
@@ -703,7 +708,7 @@ if (!function_exists('db_create')) {
 if (!function_exists('injecttjek')) {
 	function injecttjek($qtext) {
 		global $brugernavn,$db;
-		$temp = get_relative() . 'temp/' . $db;
+		$temp = applicationLogDirectory((string)$db);
 		if (strpos($qtext,';')) {
 			$tjek=1;
 			for ($x=0;$x<strlen($qtext);$x++) {
@@ -713,7 +718,7 @@ if (!function_exists('injecttjek')) {
 					$s_id=session_id();
 					$txt="SQL injection registreret!!! - Handling logget & afbrudt";
 					alert("$txt");
-					db_log_append("$temp/.ht_modify.log", [
+					applicationLogAppend("$temp/.ht_modify.log", [
 						"-- ".$brugernavn." ".date("Y-m-d H:i:s")."\n",
 						"-- SQL injection fra ".$_SERVER["REMOTE_ADDR"]." | " .$qtext.";\n",
 					]);
