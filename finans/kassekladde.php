@@ -236,6 +236,7 @@
 // 20261127 CDX/NTR Use the displayed journal's column gates for the header and every row type.
 // 20261127 CDX/NTR Read row VAT codes through ifset() so unsaved rows with missing keys render without warnings.
 // 20261127 CDX/NTR Default an unlocked journal's missing timestamp seconds through ifset().
+// 20261127 CDX/NTR Convert the parsed timestamp fraction to a number before decrementing an empty value.
 
 require_once __DIR__ . '/kassekladde_includes/columnLayout.php';
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -885,7 +886,7 @@ if ($tjek = if_isset($_GET, null, 'tjek')) {
 	$row = db_fetch_array($query);
 	if (isset($row['tidspkt'])) {
 			$lockTimeParts = explode(" ", $row['tidspkt'], 2);
-			$a = ifset($lockTimeParts, 0, 0);
+			$a = (float)ifset($lockTimeParts, 0, 0);
 			$c = ifset($lockTimeParts, 1, 0);
 		if (($b - $c < 3600) && ($row['hvem'] != $brugernavn)) {
 			$alert1 = findtekst('1577|Kladden er i brug af', $sprog_id); //Kladden er i brug af
