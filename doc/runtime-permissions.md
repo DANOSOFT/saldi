@@ -46,7 +46,9 @@ unscoped log is written.
 
 The logging check validates **location only**. It rejects logs directly in the
 installation/temp roots, paths outside this installation, traversal, special
-files and symlinks redirecting outside the database folder. It does not inspect
+files and symlinks redirecting outside the database folder or installation.
+A temp alias may resolve within the same installation, but cannot point at
+another installation's runtime tree. It does not inspect
 ancestor write permissions. Existing file and directory permissions stay
 unchanged; only newly created database directories and logs receive the shared
 runtime modes. Generic non-log runtime helpers retain their permission checks.

@@ -2,6 +2,7 @@
 // 20261127 CDX/NTR Keep database/login logs outside writable application ancestors.
 // 20261127 CDX/NTR Cover login entry points, canonical web-tree boundaries and creation under trusted parents.
 // 20261127 CDX/NTR Cover installation/database routing independently of URL depth and working directory.
+// 20261127 CDX/NTR Cover first-use online events, temp aliases and checkout roots without web-server variables.
 
 declare(strict_types=1);
 
@@ -72,12 +73,22 @@ final class ApplicationLogTest extends TestCase
         foreach (['includes', 'temp', 'finans', 'index'] as $folder) {
             mkdir($root . '/' . $folder, 0700);
         }
-        $source = file_get_contents(__DIR__ . '/../../../includes/applicationLog.php');
+        $namespace = 'InstalledLog' . bin2hex(random_bytes(8));
+        $helper = __DIR__ . '/../../../includes/applicationLog.php';
+        if (!is_file($helper)) {
+            return $namespace;
+        }
+        $source = file_get_contents($helper);
         $source = str_replace("require_once __DIR__ . '/sharedFile.php';", '', substr($source, 5));
         $source = str_replace('__DIR__', var_export($root . '/includes', true), $source);
-        $namespace = 'InstalledLog' . bin2hex(random_bytes(8));
         eval('namespace ' . $namespace . ';' . $source);
         return $namespace;
+    }
+
+    public function testLoadedCheckoutIsTheRootWithoutWebServerVariables(): void
+    {
+        unset($_SERVER['REQUEST_URI'], $_SERVER['DOCUMENT_ROOT'], $_SERVER['SCRIPT_FILENAME']);
+        self::assertSame(dirname(__DIR__, 3) . '/temp/fixture', applicationLogDirectory('fixture'));
     }
 
     public function testDatabaseWritersResolveTheLoadedInstallationWithoutUriOrCwdGuessing(): void
@@ -106,6 +117,20 @@ final class ApplicationLogTest extends TestCase
         $second = ($this->otherLogger . '\\applicationLogDirectory')('fixture');
         self::assertSame($this->directory . '/ntr/temp/fixture', $first);
         self::assertSame($this->directory . '/other/temp/fixture', $second);
+    }
+
+    public function testFirstDatabaseDirectoryCreationStillWritesItsOnlineEvent(): void
+    {
+        $db = $brugernavn = 'fixture';
+        $s_id = 'fixture-session';
+        $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+        ($this->logger . '\\applicationLogDirectory')($db);
+        self::assertFalse(is_dir($this->directory . '/ntr/temp/fixture'), 'Resolving injecttjek log paths must not create the directory');
+        $source = file_get_contents(__DIR__ . '/../../../includes/db_query.php');
+        $start = strpos($source, '$runtimeTemp = ', strpos($source, 'function db_select('));
+        $end = strpos($source, 'if ($db_type', $start);
+        eval('namespace ' . $this->logger . ';' . substr($source, $start, $end - $start));
+        self::assertStringContainsString('fixture-session', file_get_contents($this->directory . '/ntr/temp/fixture/.ht_online.log'));
     }
 
     public function testLoggingChecksLocationWithoutChangingExistingPermissions(): void
@@ -180,6 +205,14 @@ final class ApplicationLogTest extends TestCase
         unset($GLOBALS['db'], $GLOBALS['sqdb']);
         self::assertFalse(($this->logger . '\\applicationLogPutContents')('online.log', 'no'));
         self::assertFalse(file_exists($this->directory . '/ntr/temp/online.log'));
+    }
+
+    public function testTempAliasCannotSendLogsIntoAnotherInstallation(): void
+    {
+        rmdir($this->directory . '/ntr/temp');
+        symlink($this->directory . '/other/temp', $this->directory . '/ntr/temp');
+        self::assertFalse(($this->logger . '\\applicationLogPutContents')('online.log', 'no', true, 'fixture'));
+        self::assertFalse(is_dir($this->directory . '/other/temp/fixture'));
     }
 
     public function testMasterDatabaseIsUsedBeforeATenantIsSelected(): void

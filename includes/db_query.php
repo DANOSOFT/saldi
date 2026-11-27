@@ -66,6 +66,7 @@
 // 20261126 CDX/NTR db_modify(): optional bound parameters and affected-row count; legacy calls unchanged.
 // 20261127 CDX/NTR Move database logs and error markers to private application log storage.
 // 20261127 CDX/NTR Anchor log paths to this installation and use the database-scoped location-only opener.
+// 20261127 CDX/NTR Preserve the initial online event when a database runtime directory is first created.
 
 require_once __DIR__ . '/sharedFile.php';
 require_once __DIR__ . '/applicationLog.php';
@@ -412,7 +413,7 @@ if (!function_exists('db_select')) {
 		$runtimeExists = is_dir($runtimeTemp);
 		$temp = applicationLogDirectory((string)$db);
 
-		if (!$runtimeExists && is_dir($temp)) {
+		if (!$runtimeExists && applicationLogCreateDirectory($temp)) {
 			$onlineTxt = date("Y-m-d")." ".date("H:i:s")." ".$_SERVER['REMOTE_ADDR']." ".$s_id." ".$db." ".$brugernavn."\n";
 			applicationLogPutContents('.ht_online.log', $onlineTxt, true, (string)$db);
 		}

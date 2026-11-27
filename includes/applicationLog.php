@@ -5,6 +5,7 @@
 // 20261127 CDX/NTR Route application logs to private storage without changing source-tree permissions.
 // 20261127 CDX/NTR Reject web-tree aliases and create missing log directories without changing existing modes.
 // 20261127 CDX/NTR Resolve logs inside this installation's temp/database folder and check location only.
+// 20261127 CDX/NTR Keep path resolution free of filesystem changes and reject temp aliases outside this installation.
 
 require_once __DIR__ . '/sharedFile.php';
 
@@ -26,9 +27,7 @@ function applicationLogDirectory(string $tenant = ''): string
     if ($tenant === '' || $tenant === '.' || $tenant === '..' || basename($tenant) !== $tenant || str_contains($tenant, '\\') || str_contains($tenant, "\0")) {
         return $root;
     }
-    $directory = $root . '/' . $tenant;
-    applicationLogCreateDirectory($directory);
-    return $directory;
+    return $root . '/' . $tenant;
 }
 
 /**
@@ -48,7 +47,13 @@ function applicationLogPathAllowed(string $path): bool
         return false;
     }
     $canonicalRoot = realpath($root);
-    if ($canonicalRoot === false || realpath(dirname($path)) !== $canonicalRoot . '/' . $parts[0] || is_link($path)) {
+    $installation = realpath(dirname(__DIR__));
+    if ($canonicalRoot === false || $installation === false || !str_starts_with($canonicalRoot, $installation . '/') || is_link($path)) {
+        return false;
+    }
+    $parent = realpath(dirname($path));
+    if ($parent !== $canonicalRoot . '/' . $parts[0]
+        && ($parent !== false || is_link(dirname($path)) || file_exists(dirname($path)))) {
         return false;
     }
     return !file_exists($path) || is_file($path);
@@ -63,7 +68,7 @@ function applicationLogPathAllowed(string $path): bool
 function applicationLogCreateDirectory(string $directory): bool
 {
     $root = dirname(__DIR__) . '/temp';
-    if (dirname($directory) !== $root || !is_dir($root)) {
+    if (dirname($directory) !== $root || !applicationLogPathAllowed($directory . '/.log-location-check')) {
         return false;
     }
     if (is_dir($directory)) {
@@ -96,7 +101,7 @@ function applicationLogCreateDirectory(string $directory): bool
  */
 function applicationLogOpen(string $path, string $mode = 'a')
 {
-    if (!applicationLogPathAllowed($path)) {
+    if (!applicationLogPathAllowed($path) || !applicationLogCreateDirectory(dirname($path))) {
         return false;
     }
     if (!file_exists($path)) {
