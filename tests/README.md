@@ -18,6 +18,9 @@ PHPUnit needs an installed **test master**, PostgreSQL `CREATEDB` access, and
 `SALDI_CHAR_MASTER_DB`. It does not need an existing tenant or fixture database.
 PHP must provide `pgsql`, `pdo_pgsql`, and `pdo_sqlite`; SQLite fixtures also run
 in PHPUnit child processes, so load extensions through the PHP configuration.
+The grid JavaScript fixtures invoked by PHPUnit also require `node` on the PHP
+process's `PATH` (Node 18 or newer). The Dockerfile installs it in the web image;
+GitHub's host-side Node setup alone does not provide it inside that container.
 
 [`TestDatabase`](characterization/support/database/TestDatabase.php) creates a
 UUID-owned database. Tenant groups run the production `opret_build_tenant()`

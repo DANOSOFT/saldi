@@ -2,8 +2,16 @@
 // 20261030 CL/MJ Pin that history after a plain /* note inside the header (includes/grid.php) is not flagged.
 // 20261101 CL/MJ Pin that a /*****\ licence banner (includes/barcode.php) is not read as PHPDoc.
 // 20261111 CDX/NTR Require comment-only separators throughout edited file headers.
+// 20261116 CDX/NTR Exempt formatting while retaining history requirements for content changes.
+// 20261124 CDX/NTR Exempt comment edits from maintenance while retaining history continuation validation.
+// 20261126 CDX/NTR Pin lossy LATIN9 token comparisons.
+// 20261126 CDX/NTR Pin comment-only path/version retention.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import history from "../checks/file-history.mjs";
 import version from "../checks/file-version.mjs";
 
@@ -20,6 +28,182 @@ function context(before, after, additions = []) {
   };
 }
 const head = '<?php\n// example.php ver 5.1.0 2026-10-29\n// Copyright (c) 2026 Danosoft ApS\n// 20261028 CDX/MJ Existing behavior.\n';
+
+for (const check of [history, version]) {
+  test(`${check.id} rejects a changed LATIN9 string after lossy UTF-8 decoding`, () => {
+    const before = Buffer.from(head.replace('ver 5.1.0', 'ver 4.0.0') + 'echo "æ";', 'latin1');
+    const after = Buffer.from(before);
+    after[after.indexOf(0xe6)] = 0xf8;
+    assert.notDeepEqual(before, after);
+    assert.equal(before.toString('utf8'), after.toString('utf8'));
+    const findings = check.run(context(before.toString('utf8'), after.toString('utf8'), [5]));
+    assert(findings.some(f => f.message.includes(check === history ? 'no history line' : 'PHP behavior changed')), JSON.stringify(findings));
+  });
+}
+
+for (const check of ['file-history', 'file-version']) {
+  test(`${check} keeps PHP tokenizer warnings visible without corrupting JSON`, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'guardrails-php-errors-'));
+    try {
+      writeFileSync(join(dir, 'errors.ini'), 'display_errors=On\nlog_errors=Off\n');
+      const before = head.replace('ver 5.1.0', 'lap 2.0.9') + 'echo "\\400";';
+      const after = before + '\n// An ordinary comment.';
+      const module = new URL(`../checks/${check}.mjs`, import.meta.url).href;
+      const script = `import check from ${JSON.stringify(module)};\n`
+        + `const ctx = (${context.toString()})(${JSON.stringify(before)}, ${JSON.stringify(after)}, [6]);\n`
+        + 'console.log(JSON.stringify(check.run(ctx)));';
+      const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+        encoding: 'utf8', env: { ...process.env, PHP_INI_SCAN_DIR: `${process.env.PHP_INI_SCAN_DIR ?? ''}:${dir}` },
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout.trim(), '[]');
+      assert.match(result.stderr, /Octal escape sequence overflow/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
+
+test("indentation and blank separators do not require history or header maintenance", () => {
+  const before = head.replaceAll('2026-10-29', '2025-01-01').replace('2026 Danosoft', '2025 Danosoft')
+    + 'function example() {\n// Keep this explanation.\nreturn ["SQL stays unchanged"];\n}';
+  const after = before.replace('// Keep', '\n    // Keep').replace('return [', '    return [').replace('\n}', '\n\n}');
+  assert.deepEqual(history.run(context(before, after, [6, 7, 8, 9])), []);
+});
+for (const [label, beforeBody, afterBody] of [
+  ['code', 'return 1;', 'return 2;'],
+  ['string whitespace', 'return "a b";', 'return "a  b";'],
+  ['comment-like string text', 'return "// Original explanation.";', 'return "// Changed explanation.";'],
+  ['inline HTML whitespace', '?>a b<?php ', '?>a  b<?php '],
+  ['heredoc contents', 'return <<<SQL\na b\nSQL;', 'return <<<SQL\na  b\nSQL;'],
+]) {
+  test(`${label} changes still require history`, () => {
+    const findings = history.run(context(head + beforeBody, head + afterBody, [5]));
+    assert(findings.some(f => f.message.includes('no history line')), JSON.stringify(findings));
+  });
+}
+
+for (const [label, beforeComment, afterComment] of [
+  ['line comment', '// Original explanation.', '// Changed explanation.'],
+  ['hash comment', '# Original explanation.', '# Changed explanation.'],
+  ['block comment', '/* Original explanation. */', '/* Changed explanation. */'],
+  ['PHPDoc', '/** Original explanation. */', '/** Changed explanation. */'],
+  ['added comment', '', '// Added explanation.'],
+  ['removed comment', '// Removed explanation.', ''],
+]) {
+  test(`${label} edits do not require history or header maintenance`, () => {
+    const before = head.replaceAll('2026-10-29', '2025-01-01').replace('2026 Danosoft', '2025 Danosoft')
+      + `function example() {\n${beforeComment}\nreturn 1;\n}`;
+    const after = before.replace(`\n${beforeComment}\nreturn`, `\n${afterComment}\nreturn`);
+    assert.deepEqual(history.run(context(before, after, [6])), []);
+  });
+}
+
+for (const [label, entryIndent, continuationIndent, additions] of [
+  ['both lines', '    ', '        ', [4, 5]],
+  ['entry only', '    ', '', [4]],
+  ['continuation only', '', '    ', [5]],
+]) {
+  test(`formatting-only edits to ${label} still require aligned history continuations`, () => {
+    const before = head + '//                 Another sentence.\nfunction example() {}';
+    const lines = before.split('\n');
+    lines[3] = entryIndent + lines[3];
+    lines[4] = continuationIndent + lines[4];
+    const findings = history.run(context(before, lines.join('\n'), additions));
+    assert(findings.some(f => f.line === 5 && f.message.includes('align the history continuation')), JSON.stringify(findings));
+    assert(!findings.some(f => /no history line|header date|copyright line/.test(f.message)), JSON.stringify(findings));
+  });
+}
+
+test('comment-only changes to continuation spacing still require alignment', () => {
+  const before = head + '//                 Another sentence.\nfunction example() {}';
+  const after = before.replace('//                 Another sentence.', '//        Another sentence.');
+  const findings = history.run(context(before, after, [5]));
+  assert(findings.some(f => f.line === 5 && f.message.includes('align the history continuation')), JSON.stringify(findings));
+  assert(!findings.some(f => f.message.includes('no history line')), JSON.stringify(findings));
+});
+
+test('equally indented history lines need no header maintenance', () => {
+  const before = head.replaceAll('2026-10-29', '2025-01-01').replace('2026 Danosoft', '2025 Danosoft')
+    + '//                 Another sentence.\nfunction example() {}';
+  const after = before.split('\n').map((line, i) => i === 3 || i === 4 ? '    ' + line : line).join('\n');
+  assert.deepEqual(history.run(context(before, after, [4, 5])), []);
+});
+
+test('correcting a history description needs no new entry or header maintenance', () => {
+  const before = head.replaceAll('2026-10-29', '2025-01-01').replace('2026 Danosoft', '2025 Danosoft')
+    + '//                 Another sentence.\n//                 Third sentence.\nfunction example() {}';
+  const after = before.replace('Existing behavior.', 'Clarified description.');
+  assert.deepEqual(history.run(context(before, after, [4])), []);
+});
+
+for (const [label, change] of [
+  ['removed history entry', source => source.replace('// 20261028 CDX/MJ Existing behavior.\n', '')],
+  ['changed history date', source => source.replace('20261028', '20261027')],
+  ['changed history tag', source => source.replace('CDX/MJ', 'CL/MJ')],
+  ['regressed header date', source => source.replace('2026-10-29', '2019-01-01')],
+  ['invalid header date', source => source.replace('2026-10-29', '2026-99-99')],
+  ['removed header date line', source => source.replace('// example.php ver 5.1.0 2026-10-29\n', '')],
+  ['changed copyright holder', source => source.replace('Danosoft ApS', 'Another company')],
+  ['regressed copyright year', source => source.replace('2026 Danosoft', '2019 Danosoft')],
+  ['changed copyright starting year', source => source.replace('2026 Danosoft', '2027-2028 Danosoft')],
+  ['removed copyright line', source => source.replace('// Copyright (c) 2026 Danosoft ApS\n', '')],
+]) {
+  test(`comment exemption rejects ${label}`, () => {
+    const before = head + 'function example() {}';
+    const findings = history.run(context(before, change(before), [2, 3, 4]));
+    assert(findings.some(f => /retain the existing|header date|copyright line/.test(f.message)), JSON.stringify(findings));
+    assert(!findings.some(f => f.message.includes('no history line')), JSON.stringify(findings));
+  });
+}
+
+test('removing one of two history entries with the same date and tag is rejected', () => {
+  const before = head + '// 20261028 CDX/MJ Another change.\nfunction example() {}';
+  const after = before.replace('// 20261028 CDX/MJ Existing behavior.\n', '');
+  const findings = history.run(context(before, after));
+  assert(findings.some(f => f.message.includes('retain the existing history entry')), JSON.stringify(findings));
+});
+
+test('header explanations can change and metadata can advance without fresh history', () => {
+  const before = head + '// Original explanation.\nfunction example() {}';
+  const after = before.replace('Original explanation.', 'Clarified explanation.')
+    .replace('2026-10-29', '2026-10-30').replace('2026 Danosoft', '2026-2027 Danosoft');
+  assert.deepEqual(history.run(context(before, after, [2, 3, 5])), []);
+});
+
+for (const [label, change] of [
+  ['changed header path', source => source.replace('example.php', 'renamed.php')],
+  ['removed header path', source => source.replace('example.php', '')],
+  ['downgraded header version', source => source.replace('ver 5.1.0', 'ver 4.0.0')],
+  ['upgraded header version', source => source.replace('ver 5.1.0', 'ver 6.0.0')],
+  ['removed header version', source => source.replace('ver 5.1.0', '')],
+]) {
+  test(`comment exemption rejects ${label}`, () => {
+    const before = head + 'function example() {}';
+    const findings = history.run(context(before, change(before), [2]));
+    assert(findings.some(f => /retain the existing header (path|version)/.test(f.message)), JSON.stringify(findings));
+  });
+}
+
+test('legacy version labels can normalize without changing the recorded version', () => {
+  const before = head.replace('ver 5.1.0', 'lap 5.1.0k') + 'function example() {}';
+  const after = before.replace('lap 5.1.0k', 'ver 5.1.0k').replace('2026-10-29', '2026-10-30');
+  assert.deepEqual(history.run(context(before, after, [2])), []);
+});
+
+test('a behavior change can update the header version to the application version', () => {
+  const before = head.replace('ver 5.1.0', 'lap 4.0.0k') + 'echo 1;';
+  const after = head + '// 20261029 CDX/MJ Changed behavior.\necho 2;';
+  assert.deepEqual(history.run(context(before, after, [2, 5, 6])), []);
+  assert.deepEqual(version.run(context(before, after, [2, 5, 6])), []);
+});
+
+test('comment-only edits cannot introduce blank separators inside a header', () => {
+  const before = head + 'function example() {}';
+  const after = before.replace('// Copyright', '\n// Copyright');
+  const findings = history.run(context(before, after, [3]));
+  assert(findings.some(f => f.line === 3 && f.message.includes('blank line')), JSON.stringify(findings));
+});
 
 test("history belongs before PHPDoc even when another new header entry is present", () => {
   const after = head + '// 20261029 CDX/MJ First new entry.\n/** Function documentation. */\n// 20261029 CDX/MJ Misplaced entry.\nfunction example() {}';
