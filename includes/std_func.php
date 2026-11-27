@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- includes/std_func.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -126,6 +126,7 @@
 // 20261105 CL/MMR SD-807 tekstboks(), bokshjoerne() and infoboks() show the close button and tooltips in the user's language.
 //                 The texts are escaped in the page charset (findtekst() + $charset), so æøå also show correctly on a non-UTF8 database.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261127 CL/HUG moms_periode_luk_ensure_schema(): enforce closed VAT periods on DELETE and UPDATE of OLD.transdate, and detect/upgrade legacy PostgreSQL installs.
 include(__DIR__ . '/stdFunc/dkDecimal.php');
 include(__DIR__ . '/stdFunc/nrCast.php');
 include(__DIR__ . '/stdFunc/strStartsWith.php');
@@ -3893,16 +3894,34 @@ if (!function_exists('moms_periode_luk_schema_status')) {
      * @return array{table:bool, function:bool, trigger:bool}
      */
     function moms_periode_luk_schema_status() {
+        global $db_type;
+        if (in_array(strtolower((string)$db_type), array('mysql', 'mysqli'), true)) {
+            return ['table' => false, 'function' => false, 'trigger' => false];
+        }
         $table = (bool)db_fetch_array(db_select(
-            "SELECT 1 FROM information_schema.tables WHERE table_name = 'moms_periode_luk'",
+            "SELECT 1 FROM pg_class c WHERE c.oid = to_regclass('moms_periode_luk')",
             __FILE__ . " linje " . __LINE__
         ));
         $function = (bool)db_fetch_array(db_select(
-            "SELECT 1 FROM pg_proc WHERE proname = 'check_moms_periode_luk'",
+            "SELECT 1 FROM pg_proc p "
+            . "WHERE p.proname = 'check_moms_periode_luk' "
+            . "AND pg_function_is_visible(p.oid) "
+            . "AND pg_get_functiondef(p.oid) LIKE '%TG_OP%' "
+            . "AND pg_get_functiondef(p.oid) LIKE '%OLD.transdate%' "
+            . "AND pg_get_functiondef(p.oid) LIKE '%NEW.transdate%' "
+            . "AND pg_get_functiondef(p.oid) LIKE '%RETURN OLD%'",
             __FILE__ . " linje " . __LINE__
         ));
         $trigger = (bool)db_fetch_array(db_select(
-            "SELECT 1 FROM pg_trigger WHERE tgname = 'tr_check_moms_periode_luk'",
+            "SELECT 1 FROM pg_trigger t "
+            . "JOIN pg_proc p ON p.oid = t.tgfoid "
+            . "WHERE t.tgrelid = to_regclass('transaktioner') "
+            . "AND t.tgname = 'tr_check_moms_periode_luk' "
+            . "AND NOT t.tgisinternal "
+            . "AND t.tgenabled IN ('O', 'A') "
+            . "AND (t.tgtype & 31) = 31 "
+            . "AND p.proname = 'check_moms_periode_luk' "
+            . "AND pg_function_is_visible(p.oid)",
             __FILE__ . " linje " . __LINE__
         ));
         return ['table' => $table, 'function' => $function, 'trigger' => $trigger];
@@ -3919,9 +3938,10 @@ if (!function_exists('moms_periode_luk_schema_ready')) {
 
 if (!function_exists('moms_periode_luk_ensure_schema')) {
     /**
-     * Create whichever of the three moms_periode_luk objects are missing, in
-     * dependency order, and return the resulting status (SD-646). Safe to
-     * call on every login: idempotent, and a no-op once everything exists.
+     * Create or upgrade whichever of the three moms_periode_luk objects are missing
+     * or outdated, in dependency order, and return the resulting status (SD-646 / P1).
+     * PostgreSQL only (MySQL/MariaDB has no such trigger). Safe to call on every login:
+     * idempotent, and a no-op once the current table, function and trigger exist.
      *
      * Every write here uses raw pg_query(), not db_modify(): on failure
      * db_modify() calls alert()+exit() outside webservice mode, which would
@@ -3932,7 +3952,10 @@ if (!function_exists('moms_periode_luk_ensure_schema')) {
      * @return array{table:bool, function:bool, trigger:bool}
      */
     function moms_periode_luk_ensure_schema() {
-        global $connection, $db;
+        global $connection, $db, $db_type;
+        if (in_array(strtolower((string)$db_type), array('mysql', 'mysqli'), true) || !$connection) {
+            return ['table' => false, 'function' => false, 'trigger' => false];
+        }
         $status = moms_periode_luk_schema_status();
 
         if (!$status['table']) {
@@ -3945,6 +3968,7 @@ if (!function_exists('moms_periode_luk_ensure_schema')) {
                 lukket_dato      TIMESTAMP,
                 aabnet_af        VARCHAR(100),
                 aabnet_dato      TIMESTAMP,
+                note             TEXT,
                 UNIQUE (kalender_aar, kalender_maaned)
             )");
             if ($ok) {
@@ -3961,14 +3985,30 @@ if (!function_exists('moms_periode_luk_ensure_schema')) {
             $fn  = "CREATE OR REPLACE FUNCTION check_moms_periode_luk() ";
             $fn .= "RETURNS TRIGGER AS \$\$ ";
             $fn .= "BEGIN ";
-            $fn .= "    IF EXISTS ( ";
-            $fn .= "        SELECT 1 FROM moms_periode_luk ";
-            $fn .= "        WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate) ";
-            $fn .= "          AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate) ";
-            $fn .= "          AND status = 'closed' ";
-            $fn .= "    ) THEN ";
-            $fn .= "        RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
-            $fn .= "            TO_CHAR(NEW.transdate, 'MM-YYYY'); ";
+            $fn .= "    IF TG_OP IN ('UPDATE', 'DELETE') AND OLD.transdate IS NOT NULL THEN ";
+            $fn .= "        IF EXISTS ( ";
+            $fn .= "            SELECT 1 FROM moms_periode_luk ";
+            $fn .= "            WHERE kalender_aar    = EXTRACT(YEAR  FROM OLD.transdate) ";
+            $fn .= "              AND kalender_maaned = EXTRACT(MONTH FROM OLD.transdate) ";
+            $fn .= "              AND status = 'closed' ";
+            $fn .= "        ) THEN ";
+            $fn .= "            RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
+            $fn .= "                TO_CHAR(OLD.transdate, 'MM-YYYY'); ";
+            $fn .= "        END IF; ";
+            $fn .= "    END IF; ";
+            $fn .= "    IF TG_OP IN ('INSERT', 'UPDATE') AND NEW.transdate IS NOT NULL THEN ";
+            $fn .= "        IF EXISTS ( ";
+            $fn .= "            SELECT 1 FROM moms_periode_luk ";
+            $fn .= "            WHERE kalender_aar    = EXTRACT(YEAR  FROM NEW.transdate) ";
+            $fn .= "              AND kalender_maaned = EXTRACT(MONTH FROM NEW.transdate) ";
+            $fn .= "              AND status = 'closed' ";
+            $fn .= "        ) THEN ";
+            $fn .= "            RAISE EXCEPTION 'Perioden % er lukket for bogfoering - kontakt bogholder for at genaabne.', ";
+            $fn .= "                TO_CHAR(NEW.transdate, 'MM-YYYY'); ";
+            $fn .= "        END IF; ";
+            $fn .= "    END IF; ";
+            $fn .= "    IF TG_OP = 'DELETE' THEN ";
+            $fn .= "        RETURN OLD; ";
             $fn .= "    END IF; ";
             $fn .= "    RETURN NEW; ";
             $fn .= "END; ";
@@ -3982,10 +4022,13 @@ if (!function_exists('moms_periode_luk_ensure_schema')) {
         }
 
         if ($status['function'] && !$status['trigger']) {
+            // Drop and recreate in one multi-statement pg_query() call so PostgreSQL
+            // executes both atomically without leaving a window with no trigger.
             $ok = @pg_query(
                 $connection,
-                "CREATE TRIGGER tr_check_moms_periode_luk "
-                . "BEFORE INSERT OR UPDATE ON transaktioner "
+                "DROP TRIGGER IF EXISTS tr_check_moms_periode_luk ON transaktioner; "
+                . "CREATE TRIGGER tr_check_moms_periode_luk "
+                . "BEFORE INSERT OR UPDATE OR DELETE ON transaktioner "
                 . "FOR EACH ROW EXECUTE FUNCTION check_moms_periode_luk()"
             );
             if ($ok) {

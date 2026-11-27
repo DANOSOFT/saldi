@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.24
+// --- includes/betweenUpdates.php --- ver 5.1.1 --- 2026.11.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -53,6 +53,7 @@
 // 20261113 CDX/NTR Use shared update dialect helpers for schema filters, column definitions, index lookups and integer conversions.
 // 20261113 CDX/NTR Name the built-in role flag is_built_in and rename existing system columns before role seeding.
 // 20261124 CDX/NTR Use shared database compatibility helpers and the operator-panel structure include.
+// 20261127 CL/HUG Upgrade PostgreSQL moms_periode_luk function and trigger at login to also block DELETE and UPDATE out of closed VAT periods.
 
 /**
  * Injected by includes/connect.php via the entry page that includes this file:
@@ -451,6 +452,18 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
 	// guardrails-allow migrations until 2026-12-31 by NTR: relocate the existing schema include without changing migration order
 	include_once(__DIR__ . '/structure/operatorPanelSchema.php');
 	operator_panel_schema();
+}
+
+// 20261127 CL/HUG P1: upgrade existing PostgreSQL tenants' check_moms_periode_luk() and
+// tr_check_moms_periode_luk so DELETE and UPDATE out of closed VAT periods are blocked,
+// and ensure the note column exists on tenants that skipped opdat_5.0.php (race-safe).
+if (!opdat_is_mysql($db_type) && !empty($GLOBALS['connection']) && function_exists('moms_periode_luk_ensure_schema')) {
+	$momsLukStatus = moms_periode_luk_ensure_schema();
+	if (!empty($momsLukStatus['table'])) {
+		if (!@pg_query($GLOBALS['connection'], "ALTER TABLE moms_periode_luk ADD COLUMN IF NOT EXISTS note TEXT")) {
+			error_log("P1: moms_periode_luk note column ensure failed for db=" . ($GLOBALS['db'] ?? '') . ": " . pg_last_error($GLOBALS['connection']));
+		}
+	}
 }
 
 ?>

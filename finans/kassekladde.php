@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-25 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -228,6 +228,7 @@
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261125 CDX/NTR Display the grid's prepared account text and use raw row values for escaped SQL and card links.
+// 20261127 CL/HUG tilbagefor(): wrap journal recovery deletes in a transaction and delete transaktioner before openpost so a closed-period trigger refusal cannot leave openpost partially deleted.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -5065,12 +5066,20 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	function tilbagefor($kladde_id) {
 		global $regnaar;
 		global $connection;
+		global $db_modify_fejl;
 
+		$kladde_id = (int)$kladde_id;
 		$query = db_select("select kladdenote from kladdeliste where id = '$kladde_id' and bogfort='!'", __FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
-			db_modify("delete from openpost where kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+			transaktion('begin');
 			db_modify("delete from transaktioner where kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+			db_modify("delete from openpost where kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 			db_modify("update kladdeliste set bogfort = '-' where id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+			if (!empty($db_modify_fejl)) {
+				transaktion('rollback');
+			} else {
+				transaktion('commit');
+			}
 		}
 	}
 	######################################################################################################################################
