@@ -17,6 +17,8 @@
 // 20260928 LOE SST-817: created.
 // 20261125 LOE SST-906: the year choice and the staged-date conversion are pinned as behaviour, and no proposal site may fall back to the session year or to a hardcoded today.
 // 20261127 LOE SST-906 (review): the separators the save reads and the ones it does not are pinned, so the helper and opdater() cannot disagree about a staged date.
+//              The clamped days are pinned too: a day the month does not have lands on its last one, and an impossible month does not.
+
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -154,11 +156,18 @@ final class BilagNumberCharacterizationTest extends TestCase
         $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', bilagStagedDate('13', array('2025-10-01', '2026-09-30')),
             'a bare day is that day of the month the journal is in, as usdate() reads it');
         $this->assertSame('2026-11-25', bilagStagedDate('2026-11-25'), 'an already converted date passes through');
-        $this->assertSame('', bilagStagedDate('2026-02-31'), 'nor is a Y-m-d field the calendar does not have a day');
+        $this->assertSame('', bilagStagedDate('2026-02-31'),
+            'a Y-m-d value is written by the application, so an impossible one is not clamped but rejected');
         $this->assertSame('', bilagStagedDate(''), 'an empty staged date names no day');
         $this->assertSame('', bilagStagedDate(null), 'and neither does a missing one');
         $this->assertSame('', bilagStagedDate('not a date'), 'a value this cannot read names no day');
-        $this->assertSame('', bilagStagedDate('31-02-2026'), 'and neither does a day the month does not have');
+        $this->assertSame('2026-02-28', bilagStagedDate('31-02-2026'),
+            'a day its month does not have is clamped to the last one it has, as usdate() clamps it');
+        $this->assertSame('2025-02-28', bilagStagedDate('30-02-2025'), 'so a thirtieth of February does not become today');
+        $this->assertSame('2025-02-28', bilagStagedDate('29-02-2025'), 'and nor does a leap day in a common year');
+        $this->assertSame('2024-02-29', bilagStagedDate('29-02-2024'), 'while a real leap day stays where it is');
+        $this->assertSame('2025-04-30', bilagStagedDate('31-04-2025'), 'a thirty-first of April becomes the thirtieth');
+        $this->assertSame('', bilagStagedDate('13-13-2026'), 'an impossible month is not clamped into another month');
     }
 
     /**

@@ -43,11 +43,11 @@
 //                 A typed 0, and a line already saved under 0, now travel through the save as '00' (bilagFromInput()).
 //                 Only an empty field is numbered (bilagIsUnnumbered()), and the page shows a saved 0 as 0 (bilagFieldValue()).
 // 20261125 LOE SST-906 A line dated in another fiscal year continues that year's series: bilagFiscalYearForDate(), a year on bilagFiscalYearBounds(), the line date on bilagNextNumberForJournal(), and bilagReplaceForeignYearProposals() for the save.
-// 20261127 LOE SST-906 (review) A staged date is read only in the syntax the journal itself reads, a yearless value takes the journal's own year, a target equal to the number the line carries is no move, and the pass reports the taken replacements it frees.
 //              That last one skips the rows the save will not store, gives lines of one voucher one number, and is told the numbers the taken-proposal pass already moved lines onto.
 //              It answers per line, so a number the operator typed on another line stays his, and it reports a line the year has no number left for so the save can refuse it.
 //              A staged date without a year (ddmm) is read the way usdate() reads it, and a year's window is built from its own box row, so a legacy one-digit month or a retired year (box10) cannot hide a year from the lookup.
-
+// 20261127 LOE SST-906 (review) A staged date is read only in the syntax the journal itself reads, a yearless value takes the journal's own year, a target equal to the number the line carries is no move, and the pass reports the taken replacements it frees.
+//              A staged row keeps the taken-proposal replacement reserved whether its number was proposed or typed, and a day its month does not have is clamped the way usdate() clamps it.
 /**
  * @param int|string $journal_max     Highest voucher number already used in the journal (0 when none).
  * @param int|string $fiscal_year_max Highest voucher number used in the fiscal year (0 when none).
@@ -241,11 +241,15 @@ function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates,
 	foreach ($rows as $r) {
 		$bilag = (int)$r['bilag'];
 		$lobenr = (int)$r['lobenr'];
-		if (!bilagStagedRowWillBeSaved($r) || (int)$r['id'] > 0 || $bilag <= 0
-			|| !isset($proposed[$lobenr]) || (int)$proposed[$lobenr] !== $bilag || !isset($alreadyUsed[$bilag])) {
+		# only a row the save stores can consume a number, and only a number another save took has a
+		# replacement to consume
+		if (!bilagStagedRowWillBeSaved($r) || (int)$r['id'] > 0 || $bilag <= 0 || !isset($alreadyUsed[$bilag])) {
 			continue;
 		}
-		if (bilagForeignYearMove($r, $proposedDates, $activeBounds)) {
+		# this pass moves only a line that still carries its proposal. Every other line keeps the number it
+		# has - proposed or typed - and is stored under $alreadyUsed[$bilag], so it keeps that replacement taken
+		$isUntouchedProposal = isset($proposed[$lobenr]) && (int)$proposed[$lobenr] === $bilag;
+		if ($isUntouchedProposal && bilagForeignYearMove($r, $proposedDates, $activeBounds)) {
 			$moved[$bilag] = true;
 		} else {
 			$stayed[$bilag] = true;
@@ -330,7 +334,9 @@ function bilagStagedDate($date, $activeBounds = null) {
 	if ($date === '') {
 		return '';
 	}
-	# the form the page itself writes back for a saved line
+	# the form the page itself writes back for a saved line, and the form a saved row holds: both are written
+	# by the application rather than typed, so a calendar-invalid one here is a bug, not input, and stays
+	# rejected - a typed 2026-02-31 reaches the parts below as 31-02-2026, where it is clamped as usdate() clamps it
 	if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $ymd)) {
 		return checkdate((int)$ymd[2], (int)$ymd[3], (int)$ymd[1]) ? $date : '';
 	}
@@ -387,6 +393,17 @@ function bilagStagedDateFromParts($day, $month, $year, $activeBounds = null) {
 			return '';
 		}
 		$year = ($month >= (int)substr($start, 5, 2)) ? (int)substr($start, 0, 4) : (int)substr($end, 0, 4);
+	}
+	# usdate() clamps a day its month does not have down to the last valid one (31-02 -> 28-02), and the save
+	# reads the staged date through usdate(). Agreeing on that day is the point: otherwise the line is numbered
+	# in one fiscal year and stored in another
+	if ($day > 28) {
+		while (!checkdate($month, $day, $year)) {
+			$day--;
+			if ($day < 28) {
+				break;
+			}
+		}
 	}
 	return checkdate($month, $day, $year) ? sprintf('%04d-%02d-%02d', $year, $month, $day) : '';
 }
